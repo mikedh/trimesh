@@ -7,33 +7,57 @@ Styled after transformations.py
 
 import numpy as np
 import time, struct
+from collections import deque
+
+def load(filename):
+    #Load a mesh file into a Trimesh object
+    mesh_loaders = {'stl': load_stl, 
+                    'obj': load_wavefront}
+    extension = (str(filename).split('.')[-1]).lower()
+    if extension in mesh_loaders:
+        return mesh_loaders[extension](filename)
+    else: raise NameError('No mesh loader for files of type .' + extension)
 
 class Trimesh():
-    def __init__(self, filename=None):
-        self.vertices  = []
-        self.faces     = []
-        self.edges     = []
-        self.colors    = []
-        self.normals   = []
-        if filename <> None: self.load(filename)
+    def __init__(self, 
+                 vertices = None, 
+                 faces    = None, 
+                 normals  = None, 
+                 edges    = None, 
+                 colors   = None):
+        if vertices == None: vertices = []
+        if faces    == None: faces    = []
+        if normals  == None: normals  = []
+        if edges    == None: edges    = []
+        if colors   == None: colors   = []
+        self.vertices = vertices
+        self.faces    = faces
+        self.normals  = normals
+        self.edges    = edges
+        self.colors   = colors
 
-    def cross_section(self, plane_origin=[0,0,0], plane_normal=[0,0,1], TOL=1e-7, return_planar=True):
+    def cross_section(self, 
+                      plane_origin=[0,0,0], 
+                      plane_normal=[0,0,1], 
+                      return_planar=True,
+                      TOL=1e-9):
         '''
-        VERY ALPHA, not working particularly well
         Return a cross section of the trimesh based on plane origin and normal. 
         Basically a bunch of plane-line intersection queries with validation checks.
         Depends on properly ordered edge information, as done by generate_edges
 
         origin:        (3) array of plane origin
         normal:        (3) array for plane normal
-        TOL:           float, cutoff tolerance for 'in plane'
         return_planar: bool, if True returns (m, 2) planar crossection, False returns (m, 3)
-
-        returns: point pairs of cross section
+        TOL:           float, cutoff tolerance for 'in plane'
+        
+        returns: lines (in point pair format) of cross section, for example: 
+                     [A,B,C,D,E,A], where lines are AB CD EA
         '''
         if len(self.faces) == 0: raise NameError("Cannot compute cross section of empty mesh.")
         if len(self.edges) == 0: self.generate_edges()
         
+        #dot products of edge vertices and plane normal
         d0 = (np.dot(self.vertices[[self.edges[:,0]]] - plane_origin, plane_normal))
         d1 = (np.dot(self.vertices[[self.edges[:,1]]] - plane_origin, plane_normal))
 
@@ -44,42 +68,32 @@ class Trimesh():
         #edge endpoint(s) lie on the cross section plane:
         d0_on_plane = np.abs(d0) < TOL
         d1_on_plane = np.abs(d1) < TOL
-        on_plane    = np.logical_or(d0_on_plane,
-                                    d1_on_plane)
 
+        vert_on_plane = np.logical_or(d0_on_plane,
+                                      d1_on_plane)
         edge_on_plane = np.logical_and(d0_on_plane,
                                        d1_on_plane)
 
-        #an endpoint on (within TOL) the section plane is the same as a hit
-        hits = np.logical_and(np.logical_or(hits, on_plane),
+        #an endpoint on (within TOL) the section plane is the same as a full passthrough hit
+        #however, we want to discard edges where *both* vertices are on the plane
+        hits = np.logical_and(np.logical_or(hits, vert_on_plane),
                               np.logical_not(edge_on_plane))
 
-        #degenerate case is all three edges are on plane, due to 
-        # triangle having zero area on plane, or is 'on edge' AKA:
-        # check: 2 or more edges on plane
-        sum_hits      = np.sum(hits.reshape((-1,3)), axis=1)
-        sum_on        = np.sum(edge_on_plane.reshape((-1,3)), axis=1)
-
-        not_on_edge   = np.tile(np.less(sum_on, 2), 3)
-        proper_hits   = np.tile(np.equal(sum_hits, 2), 3)
+        #line endpoints for plane-line intersection
+        p0 = self.vertices[[self.edges[hits][:,0]]]
+        p1 = self.vertices[[self.edges[hits][:,1]]]
         
-        intersectors = np.logical_and(hits, not_on_edge)
-        
-        p0 = self.vertices[[self.edges[intersectors][:,0]]]
-        p1 = self.vertices[[self.edges[intersectors][:,1]]]
-        
-        #this is a set of unmerged point pairs: 
+        #this results in a set of unmerged point pairs like: 
         #[A,B,C,D,E,A], where lines are AB CD EA
         intersections = plane_line_intersection(plane_origin, plane_normal, p0, p1)
-        if not return_planar: return intersections
 
-        planar = points_to_plane(intersections, plane_origin, plane_normal)
-        return planar
+        if not return_planar: return intersections
+        return points_to_plane(intersections, plane_origin, plane_normal)
 
     def convex_hull(self, merge_radius=1e-3):
         '''
         Get a new Trimesh object representing the convex hull of the 
-        current mesh. Requires scipy >.12, and doesn't produce nice normals
+        current mesh. Requires scipy >.12, and doesn't produce properly directed normals
 
         merge_radius: when computing a complex hull, at what distance do we merge close vertices 
         '''
@@ -101,7 +115,7 @@ class Trimesh():
 
         tolerance: to what precision do vertices need to be identical
         '''
-        from scipy.spatial import cKDTree as KDTree
+        from scipy.spatial import KDTree as KDTree
 
         tree    = KDTree(self.vertices)
         used    = np.zeros(len(self.vertices), dtype=np.bool)
@@ -171,87 +185,9 @@ class Trimesh():
         return box
 
     def export(self, filename):
-        '''
-        Export current mesh object to binary STL file. 
-        '''
         export_stl(self, filename)
 
-class STLMesh(Trimesh):
-    def load(self, filename):
-        if detect_binary_file(filename): self.load_binary(filename)
-        else: raise NameError('We haven\'t implemented ASCII STL...')
-    def read_face_binary(self, f):
-        '''
-        Read individual triangle from binary STL file
-        '''
-        self.normals[self.current_face] = np.array(struct.unpack("<3f", f.read(12)))
-        for i in xrange(3):
-             vertex = np.array(struct.unpack("<3f", f.read(12)))               
-             self.faces[self.current_face][i]   = self.current_vertex
-             self.vertices[self.current_vertex] = vertex
-             self.current_vertex += 1
-        b = struct.unpack("<h", f.read(2))
-        self.current_face += 1
-    def load_binary(self, filename):
-        with open (filename, "rb") as f:
-            #get the file header
-            header = f.read(80)
-            #use the header information about number of triangles
-            tri_count = int(struct.unpack("@i", f.read(4))[0])
-            self.faces    = np.zeros((tri_count, 3), dtype=np.int)  
-            self.normals  = np.zeros((tri_count, 3), dtype=np.float) 
-            self.colors   = np.zeros(tri_count, dtype=np.int)
-            
-            #length of vertices eventually depends on the topology, but 
-            #in STL faces are all separate triangles with nothing merged or referenced
-            self.vertices = np.zeros((tri_count*3, 3), dtype=np.float) 
-            self.current_face   = 0
-            self.current_vertex = 0
-            while True:
-                try: self.read_face_binary(f)
-                except: break
-                    
-            self.vertices = self.vertices[:self.current_vertex]
-            if self.current_face <> tri_count: 
-                raise NameError('Number of faces loaded is different than specified by header!') 
 
-def load(filename):
-    '''
-    Load a mesh. At the moment only binary STL is implemented.
-    '''
-    mesh_loaders = {'stl': STLMesh}
-
-    extension = (str(filename).split('.')[-1]).lower()
-    if extension in mesh_loaders:
-        return mesh_loaders[extension](filename)
-    else: raise NameError('Unable to load mesh from file of type .' + extension)
-
-def export_stl(mesh, filename):
-    '''
-    Saves a mesh object as a binary STL file. 
-    '''
-    def write_face(file_object, vertices, normal):
-        '''
-        write individual triangle to binary STL file
-        vertices = (3,3) array of floats
-        normal (3) array of floats
-        '''
-        file_object.write(struct.pack('<3f', *normal))
-        for vertex in vertices: 
-            file_object.write(struct.pack('<3f', *vertex))
-        file_object.write(struct.pack('<h', 0))
-    
-    if len(mesh.normals) == 0: mesh.generate_normals(fix_directions=True)
-    with open(filename, 'wb') as file_object:
-        #write a blank header
-        file_object.write(struct.pack("<80x"))
-        #write the number of faces
-        file_object.write(struct.pack("@i", len(mesh.faces)))
-        #write the faces
-        for index in xrange(len(mesh.faces)):
-            write_face(file_object, 
-                       mesh.vertices[[mesh.faces[index]]], 
-                       mesh.normals[index])
 
 def replace_references(data, reference_dict, return_array=False):
     '''
@@ -260,6 +196,7 @@ def replace_references(data, reference_dict, return_array=False):
     data:           numpy array
     reference_dict: dictionary of replacements. example:
                        {2:1, 3:1, 4:5}
+
     return_array: if false, replaces references in place and returns nothing
     '''
     dv = data.view().reshape((-1))
@@ -400,26 +337,140 @@ def unique_rows(data, return_index=True):
         unique_index.append(index)
     if return_index: return unique_index
     else: return np.array(data)[[unique_index]]
-    
+
 def row_to_string(row, format_str="0.7f"):
     result = ""
     for i in row:
         result += format(i, format_str)
     return result
+    
+def load_stl(filename):
+    if detect_binary_file(filename): return load_stl_binary(filename)
+    else:                            return load_stl_ascii(filename)
+        
+def load_stl_binary(filename):
+    def read_face():
+        normals[current[1]] = np.array(struct.unpack("<3f", file.read(12)))
+        for i in xrange(3):
+            vertex = np.array(struct.unpack("<3f", file.read(12)))               
+            faces[current[1]][i] = current[0]
+            vertices[current[0]] = vertex
+            current[0] += 1
+        #this field is occasionally used for color, but is usually just ignored.
+        colors[current[1]] = int(struct.unpack("<h", file.read(2))[0]) 
+        current[1] += 1
+    with open (filename, "rb") as file:
+        #get the file header
+        header = file.read(80)
+        #use the header information about number of triangles
+        tri_count = int(struct.unpack("@i", file.read(4))[0])
+        faces     = np.zeros((tri_count, 3),   dtype=np.int)  
+        normals   = np.zeros((tri_count, 3),   dtype=np.float) 
+        colors    = np.zeros( tri_count,       dtype=np.int)
+        vertices  = np.zeros((tri_count*3, 3), dtype=np.float) 
+        #current vertex, face
+        current   = [0,0]
+        while True:
+            try: read_face()
+            except: break
+        vertices = vertices[:current[0]]
+        if current[1] <> tri_count: 
+            raise NameError('Number of faces loaded is different than specified by header!')
+        return Trimesh(vertices = vertices, 
+                       faces    = faces, 
+                       normals  = normals, 
+                       colors   = colors)
+
+def load_stl_ascii(filename):
+    def parse_line(line):
+        return map(float, line.strip().split(' ')[-3:])
+    def read_face(f):
+        normals.append(parse_line(f.readline()))
+        faces.append(np.arange(0,3) + len(vertices))
+        f.readline()
+        for i in xrange(3):      
+            vertices.append(parse_line(f.readline()))
+        f.readline(); f.readline()
+    faces    = deque() 
+    normals  = deque()
+    vertices = deque()
+    with open (filename, "rb") as f:
+        #get the file header
+        header = f.readline()
+        while True:
+            try: read_face(f)
+            except: break
+    return Trimesh(faces    = np.array(faces,   dtype=np.int),
+                   normals  = np.array(normals, dtype=np.float),
+                   vertices = np.array(vertices,dtype=np.float))
+
+def load_wavefront(filename):
+    '''
+    Loads a Wavefront .obj file into a Trimesh object
+    Discards texture normals and vertex color information
+    https://en.wikipedia.org/wiki/Wavefront_.obj_file
+    '''
+    def parse_face(line):
+        #faces are vertex/texture/normal and 1-indexed
+        face = [None]*3
+        for i in xrange(3):
+            face[i] = int(line[i].split('/')[0]) - 1
+        return face
+    vertices = deque()
+    faces    = deque()
+    normals  = deque()
+    line_key = {'vn': normals, 'v': vertices, 'f':faces}
+    with open(filename, 'rb') as file:
+        for raw_line in file:
+            line = raw_line.strip().split()
+            if len(line) == 0: continue
+            if line[0] ==  'v': vertices.append(map(float, line[-3:])); continue
+            if line[0] == 'vn': normals.append(map(float, line[-3:])); continue
+            if line[0] ==  'f': faces.append(parse_face(line[-3:]));
+    mesh = Trimesh()
+    mesh.vertices = np.array(vertices, dtype=float)
+    mesh.faces    = np.array(faces,    dtype=int)
+    mesh.normals  = np.array(normals,  dtype=float)
+    return mesh
+    
+def export_stl(mesh, filename):
+    #Saves a Trimesh object as a binary STL file. 
+    def write_face(file_object, vertices, normal):
+        #vertices: (3,3) array of floats
+        #normal:   (3) array of floats
+        file_object.write(struct.pack('<3f', *normal))
+        for vertex in vertices: 
+            file_object.write(struct.pack('<3f', *vertex))
+        file_object.write(struct.pack('<h', 0))
+    if len(mesh.normals) == 0: mesh.generate_normals(fix_directions=True)
+    with open(filename, 'wb') as file_object:
+        #write a blank header
+        file_object.write(struct.pack("<80x"))
+        #write the number of faces
+        file_object.write(struct.pack("@i", len(mesh.faces)))
+        #write the faces
+        for index in xrange(len(mesh.faces)):
+            write_face(file_object, 
+                       mesh.vertices[[mesh.faces[index]]], 
+                       mesh.normals[index])    
 
 if __name__ == '__main__':
-    import os
-    import transformations
-    m = load(os.path.join('./models', 'round.stl'))
-    p = m.cross_section(plane_origin=[0,0,.1])
+    import os, time
+    test_dir = './models'
+    meshes = []
+    for filename in os.listdir(test_dir):
+        try:
+            tic = time.time()
+            meshes.append(load(os.path.join(test_dir, filename)))
+            toc = time.time()
+            print 'successfully loaded', filename, 'with', len(meshes[-1].vertices), 'vertices in', toc-tic, 'seconds.'
+        except: print 'failed to load', filename
 
-    tr = transformations.rotation_matrix(np.radians(34), [1,0,0])
-    m.transform(tr)
-
-    import matplotlib.pyplot as plt
-    for i in xrange(0,len(p)/2,2):
-        plt.plot([p[i][0], p[i+1][0]],
-                 [p[i][1], p[i+1][1]])
-    plt.show()
-    
-
+    import xml.etree.ElementTree as ET
+    tree = ET.parse('collada_template.dae')
+    verts = tree.find(".//*[@id='shape0-lib-positions']")
+    #verts.attrib['count'] = '7000'
+    #verts.text = 'some shit'
+    #tree.write('test.xml')
+        
+        
