@@ -115,7 +115,7 @@ class Trimesh():
 
         tolerance: to what precision do vertices need to be identical
         '''
-        from scipy.spatial import KDTree as KDTree
+        from scipy.spatial import cKDTree as KDTree
 
         tree    = KDTree(self.vertices)
         used    = np.zeros(len(self.vertices), dtype=np.bool)
@@ -359,6 +359,7 @@ def load_stl_binary(filename):
         #this field is occasionally used for color, but is usually just ignored.
         colors[current[1]] = int(struct.unpack("<h", file.read(2))[0]) 
         current[1] += 1
+        
     with open (filename, "rb") as file:
         #get the file header
         header = file.read(80)
