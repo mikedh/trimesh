@@ -16,7 +16,7 @@ def load_mesh(file_obj, type=None):
     if type == None and file_obj.__class__.__name__ == 'str':
         type = (str(file_obj).split('.')[-1]).lower()
         file_obj = open(file_obj, 'rb')
-        
+    
     if type in mesh_loaders:
         mesh = mesh_loaders[type](file_obj)
         file_obj.close()
@@ -59,30 +59,14 @@ class Trimesh():
                      [A,B,C,D,E,A], where lines are AB CD EA
         '''
         if len(self.faces) == 0: raise NameError("Cannot compute cross section of empty mesh.")
-        if len(self.edges) == 0: self.generate_edges()
+        self.generate_edges()
         
         #dot products of edge vertices and plane normal
-        d0 = (np.dot(self.vertices[[self.edges[:,0]]] - plane_origin, plane_normal))
-        d1 = (np.dot(self.vertices[[self.edges[:,1]]] - plane_origin, plane_normal))
+        d0 = np.dot(self.vertices[[self.edges[:,0]]] - plane_origin, plane_normal)
+        d1 = np.dot(self.vertices[[self.edges[:,1]]] - plane_origin, plane_normal)
 
-        #edge passes through plane
-        hits = np.not_equal(np.sign(d0),
-                            np.sign(d1))
-        '''
-        #edge endpoint(s) lie on the cross section plane:
-        d0_on_plane = np.abs(d0) < TOL
-        d1_on_plane = np.abs(d1) < TOL
+        hits = np.logical_not(np.logical_xor((d0 > 0), (d1 <= 0)))
 
-        vert_on_plane = np.logical_or(d0_on_plane,
-                                      d1_on_plane)
-        edge_on_plane = np.logical_and(d0_on_plane,
-                                       d1_on_plane)
-
-        #an endpoint on (within TOL) the section plane is the same as a full passthrough hit
-        #however, we want to discard edges where *both* vertices are on the plane
-        hits = np.logical_and(np.logical_or(hits, vert_on_plane),
-                              np.logical_not(edge_on_plane))
-        '''
         #line endpoints for plane-line intersection
         p0 = self.vertices[[self.edges[hits][:,0]]]
         p1 = self.vertices[[self.edges[hits][:,1]]]
@@ -91,8 +75,10 @@ class Trimesh():
         #[A,B,C,D,E,A], where lines are AB CD EA
         intersections = plane_line_intersection(plane_origin, plane_normal, p0, p1)
 
-        if not return_planar: return intersections
-        return points_to_plane(intersections, plane_origin, plane_normal)
+        if return_planar: 
+            return points_to_plane(intersections, plane_origin, plane_normal).reshape((-1,2,2))
+        else: 
+            return intersections
 
     def convex_hull(self, merge_radius=1e-3):
         '''
@@ -162,12 +148,12 @@ class Trimesh():
         If no normal information is loaded, we can get it from cross products
         Normal direction will be incorrect if mesh faces aren't ordered (right-hand rule)
         '''
-        self.normals = np.zeros((len(self.faces),3))
+        self.normal_face = np.zeros((len(self.faces),3))
         self.vertices = np.array(self.vertices)
         for index, face in enumerate(self.faces):
             v0 = (self.vertices[face[0]] - self.vertices[face[1]])
             v1 = (self.vertices[face[2]] - self.vertices[face[1]])
-            self.normals[index] = np.cross(v0, v1)
+            self.normal_face[index] = np.cross(v0, v1)
         if fix_direction: self.fix_normals_direction()
             
     def fix_normals_direction(self):
@@ -226,7 +212,6 @@ def detect_binary_file(file_obj):
     '''
     Returns True if file has non-ascii charecters
     http://stackoverflow.com/questions/898669/how-can-i-detect-if-a-file-is-binary-non-text-in-python
-    
     '''
     textchars = ''.join(map(chr, [7,8,9,10,12,13,27] + range(0x20, 0x100)))
     start     = file_obj.tell()
@@ -451,9 +436,11 @@ def load_wavefront(file_obj):
         if line[0] ==  'v': vertices.append(map(float, line[-3:])); continue
         if line[0] == 'vn': normals.append(map(float, line[-3:])); continue
         if line[0] ==  'f': faces.append(parse_face(line[-3:]));
-    return Trimesh(vertices      = np.array(vertices, dtype=float),
+    mesh = Trimesh(vertices      = np.array(vertices, dtype=float),
                    faces         = np.array(faces,    dtype=int),
                    normal_vertex = np.array(normals,  dtype=float))
+    mesh.generate_normals()
+    return mesh
     
 def export_stl(mesh, filename):
     #Saves a Trimesh object as a binary STL file. 
@@ -477,6 +464,7 @@ def export_stl(mesh, filename):
                        mesh.normals[index])    
 
 if __name__ == '__main__':
+    '''
     import os, time
     test_dir = './models'
     meshes = []
@@ -487,5 +475,24 @@ if __name__ == '__main__':
             toc = time.clock()
             print 'successfully loaded', filename, 'with', len(meshes[-1].vertices), 'vertices in', toc-tic, 'seconds.'
         except: print 'failed to load', filename
-        
-        
+    '''
+
+
+    m = load_mesh('./models/octagonal_pocket.stl')
+    
+    plane_ori = np.mean(m.bounding_box(), axis=0)
+    plane_dir = [0,0,1]   
+    
+    m.merge_vertices()
+    m.remove_unreferenced()
+    p = points_to_plane(m.vertices, plane_ori, plane_dir)
+    edge_dict = dict()
+    tic = time.clock()
+    for face_index, face in enumerate(m.faces):
+        for i in xrange(3):
+            key = np.sort(face[[np.mod(np.arange(2)+i,3)]]).tostring()
+            if key in edge_dict: edge_dict[key].append(face_index)
+            else:                edge_dict[key] = [face_index]
+    toc = time.clock()
+    print 'adjacency referenced in ', toc-tic
+    
