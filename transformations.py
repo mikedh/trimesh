@@ -223,7 +223,6 @@ def translation_from_matrix(matrix):
     """
     return numpy.array(matrix, copy=False)[:3, 3].copy()
 
-
 def reflection_matrix(point, normal):
     """Return matrix to mirror at plane defined by point and normal vector.
 

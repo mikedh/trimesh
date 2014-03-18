@@ -8,20 +8,31 @@ Styled after transformations.py
 import numpy as np
 import time, struct
 from collections import deque
+import logging
+
+log = logging.getLogger(__name__)
+log.addHandler(logging.NullHandler())
+
+TOL_ZERO = 1e-12
 
 def load_mesh(file_obj, type=None):
-    #Load a mesh file into a Trimesh object
+    '''
+    Load a mesh file into a Trimesh object
+
+    file_obj: a filename string, or a file object
+    '''
+
     mesh_loaders = {'stl': load_stl, 
                     'obj': load_wavefront}
     if type == None and file_obj.__class__.__name__ == 'str':
-        type = (str(file_obj).split('.')[-1]).lower()
+        type     = (str(file_obj).split('.')[-1]).lower()
         file_obj = open(file_obj, 'rb')
     
     if type in mesh_loaders:
         mesh = mesh_loaders[type](file_obj)
         file_obj.close()
         return mesh
-    else: raise NameError('No mesh loader for files of type .' + type)
+    raise NameError('No mesh loader for files of type .' + type)
 
 class Trimesh():
     def __init__(self, 
@@ -40,45 +51,7 @@ class Trimesh():
         self.color_face    = color_face
         self.color_vertex  = color_vertex
 
-    def cross_section(self, 
-                      plane_origin=[0,0,0], 
-                      plane_normal=[0,0,1], 
-                      return_planar=True,
-                      TOL=1e-9):
-        '''
-        Return a cross section of the trimesh based on plane origin and normal. 
-        Basically a bunch of plane-line intersection queries with validation checks.
-        Depends on properly ordered edge information, as done by generate_edges
-
-        origin:        (3) array of plane origin
-        normal:        (3) array for plane normal
-        return_planar: bool, if True returns (m, 2) planar crossection, False returns (m, 3)
-        TOL:           float, cutoff tolerance for 'in plane'
-        
-        returns: lines (in point pair format) of cross section, for example: 
-                     [A,B,C,D,E,A], where lines are AB CD EA
-        '''
-        if len(self.faces) == 0: raise NameError("Cannot compute cross section of empty mesh.")
-        self.generate_edges()
-        
-        #dot products of edge vertices and plane normal
-        d0 = np.dot(self.vertices[[self.edges[:,0]]] - plane_origin, plane_normal)
-        d1 = np.dot(self.vertices[[self.edges[:,1]]] - plane_origin, plane_normal)
-
-        hits = np.logical_not(np.logical_xor((d0 > 0), (d1 <= 0)))
-
-        #line endpoints for plane-line intersection
-        p0 = self.vertices[[self.edges[hits][:,0]]]
-        p1 = self.vertices[[self.edges[hits][:,1]]]
-        
-        #this results in a set of unmerged point pairs like: 
-        #[A,B,C,D,E,A], where lines are AB CD EA
-        intersections = plane_line_intersection(plane_origin, plane_normal, p0, p1)
-
-        if return_planar: 
-            return points_to_plane(intersections, plane_origin, plane_normal).reshape((-1,2,2))
-        else: 
-            return intersections
+        self.generate_bounds()
 
     def convex_hull(self, merge_radius=1e-3):
         '''
@@ -96,7 +69,7 @@ class Trimesh():
         mesh.remove_unreferenced()
         return mesh
 
-    def merge_vertices(self, tolerance=1e-7):
+    def merge_vertices(self, TOL_MERGE=1e-7):
         '''
         Merges vertices which are identical and replaces references
         Does this by creating a KDTree.
@@ -114,11 +87,14 @@ class Trimesh():
 
         for index, vertex in enumerate(self.vertices):
             if used[index]: continue
-            neighbors = tree.query_ball_point(self.vertices[index], tolerance)
+            neighbors = tree.query_ball_point(self.vertices[index], TOL_MERGE)
             used[[neighbors]] = True
             replacement_dict.update(np.column_stack((neighbors,
                                                      [len(unique)]*len(neighbors))))
             unique.append(index)
+        log.debug('merge_vertices reduced vertex count from %i to %i.',
+                  len(self.vertices),
+                  len(unique))
         self.vertices = self.vertices[[unique]]
         replace_references(self.faces, replacement_dict)
 
@@ -139,9 +115,9 @@ class Trimesh():
         '''
         Populate self.edges from face information
         '''
-        self.edges = np.sort(np.vstack((self.faces[:,(0,1)],
-                                        self.faces[:,(1,2)],
-                                        self.faces[:,(2,0)])), axis=1)
+        self.edges = np.column_stack((self.faces[:,(0,1)],
+                                      self.faces[:,(1,2)],
+                                      self.faces[:,(2,0)])).reshape(-1,2)
         
     def generate_normals(self, fix_direction=False):
         '''
@@ -165,32 +141,16 @@ class Trimesh():
         centroid = np.mean(self.vertices, axis=1)
         return None
 
-    def transform(self, transformation_matrix):
+    def transform(self, matrix):
         stacked = np.column_stack((self.vertices, np.ones(len(self.vertices))))
-        self.vertices = np.dot(transformation_matrix, stacked.T)[:,0:3]
+        self.vertices = np.dot(matrix, stacked.T)[:,0:3]
 
-    def bounding_box(self):
-        box = np.vstack((np.min(self.vertices, axis=0),
-                         np.max(self.vertices, axis=0)))
-        return box
-
-    def generate_face_graph(self):
-        '''
-        Graph of face connections
-        nodes are faces
-        edges are connected faces
-        edge weights are angles between faces
-        '''
-        import networkx as nx
-        edge_graph = nx.graph
-        for i, face in enumerate(self.faces):
-            pass
-        
-        
+    def generate_bounds(self):
+        self.bounds = np.vstack((np.min(self.vertices, axis=0),
+                                 np.max(self.vertices, axis=0)))
+  
     def export(self, filename):
         export_stl(self, filename)
-
-
 
 def replace_references(data, reference_dict, return_array=False):
     '''
@@ -200,7 +160,7 @@ def replace_references(data, reference_dict, return_array=False):
     reference_dict: dictionary of replacements. example:
                        {2:1, 3:1, 4:5}
 
-    return_array: if false, replaces references in place and returns nothing
+    return_array: if False, replaces references in place and returns nothing
     '''
     dv = data.view().reshape((-1))
     for i in xrange(len(dv)):
@@ -219,22 +179,49 @@ def detect_binary_file(file_obj):
     file_obj.seek(start)
     return bool(fbytes.translate(None, textchars))
 
-def plane_line_intersection(plane_ori, plane_dir, pt0, pt1):
+def plane_line_intersection(plane_ori, 
+                            plane_dir, 
+                            endpoints,                            
+                            line_segments = True):
     '''
     Calculates plane-line intersections
 
+    Arguments
+    ---------
     plane_ori: plane origin, (3) list
     plane_dir: plane direction (3) list
-    pt0: first list of line segment endpoints (n,3)
-    pt1: second list of line segment endpoints (n,3)
-    '''
-    line_dir  = unitize(pt1 - pt0)
-    plane_dir = unitize(plane_dir)
-    t = np.dot(plane_dir, np.transpose(plane_ori - pt0))
-    b = np.dot(plane_dir, np.transpose(line_dir))
-    d = t / b
-    return pt0 + np.reshape(d,(np.shape(line_dir)[0],1))*line_dir
+    endpoints: points defining lines to be intersected, (2,n,3)
+    line_segments: if True, only returns intersections as valid if
+                   vertices from endpoints are on different sides
+                   of the plane.
 
+    Returns
+    ---------
+    intersections: (m, 3) list of cartesian intersection points
+    valid        : (n, 3) list of booleans indicating whether a valid
+                   intersection occurred
+    '''
+    endpoints = np.array(endpoints)
+    line_dir  = unitize(endpoints[1] - endpoints[0])
+    plane_dir = unitize(plane_dir)
+
+    t = np.dot(plane_dir, np.transpose(plane_ori - endpoints[0]))
+    b = np.dot(plane_dir, np.transpose(line_dir))
+    
+    # If the plane normal and line direction are perpendicular, it means
+    # the vector is 'on plane', and there isn't a valid intersection.
+    # We discard on-plane vectors by checking that the dot product is nonzero
+    valid = np.abs(b) > TOL_ZERO
+    if line_segments:
+        test = np.dot(plane_dir, np.transpose(plane_ori - endpoints[1]))
+        different_sides = np.sign(t) <> np.sign(test)
+        valid           = np.logical_and(valid, different_sides)
+        
+    d  = np.divide(t[valid], b[valid])
+    intersection  = endpoints[0][valid]
+    intersection += np.reshape(d, (-1,1)) * line_dir[valid]
+    return intersection, valid
+    
 def point_plane_distance(plane_ori, plane_dir, points):
     w = points - plane_ori
     return np.abs(np.dot(plane_dir, w.T) / np.linalg.norm(plane_dir))
@@ -248,8 +235,8 @@ def unitize(points):
     points: numpy array/list of points to be unit vector'd
     '''
     points = np.array(points)
-    return (points.T/np.sum(points ** 2, 
-                            axis=(len(points.shape)-1)) ** .5 ).T
+    norms  = np.sum(points ** 2, axis=(len(points.shape)-1)) ** .5
+    return (points.T/norms).T
     
 def major_axis(points):
     '''
@@ -269,9 +256,13 @@ def surface_normal(points):
     '''
     return np.linalg.svd(points)[2][-1]
 
-def radial_sort(points, origin=None, normal=None):
+def radial_sort(points, 
+                origin = None, 
+                normal = None):
     '''
-    Sorts a set of points radially (by angle) around an origin/normal
+    Sorts a set of points radially (by angle) around an origin/normal.
+    If origin/normal aren't specified, it sorts around centroid
+    and the approximate plane the points lie in. 
 
     points: (n,3) set of points
     '''
@@ -296,42 +287,120 @@ def points_to_plane(points, origin=[0,0,0], normal=[0,0,1]):
     '''
     projects a set of (n,3) points onto a plane, returning (n,2) points
     '''
-    axis0 = [normal[2], normal[0], normal[1]]
-    axis1 = np.cross(normal, axis0)
+    # we first establish a set of perpendicular axis. 
+    
+    if np.all(np.abs(normal) < TOL_ZERO):
+        raise NameError('Normal must be nonzero!')
+    for i in xrange(3):
+        axis0 = unitize(np.cross(normal, np.roll([0,-1,0], i)))
+        if np.any(np.abs(axis0) > TOL_ZERO): 
+            break
+    if np.all(np.abs(axis0) < TOL_ZERO): 
+        raise NameError('Unable to find projection axis!')
+    axis1 = unitize(np.cross(normal, axis0))
+  
+    log.debug('Projecting points to axis %s, %s', 
+              str(axis0), 
+              str(axis1))
+    
     pt_vec = np.array(points) - origin
     pr0 = np.dot(pt_vec, axis0)
     pr1 = np.dot(pt_vec, axis1)
     return np.column_stack((pr0, pr1))
-    
-def mesh_to_plane(mesh, plane_normal= [0,0,1], TOL=1e-8):
+ 
+def mesh_cross_section(mesh, 
+                      plane_origin  = [0,0,0], 
+                      plane_normal  = [0,0,1], 
+                      return_planar = True):
     '''
-    INCOMPLETE
-    Orthographic projection of a mesh to a plane
-    
-    input
-    mesh: trimesh object
-    plane_normal: plane normal (3) list
-    TOL: comparison tolerance
+    Return a cross section of the trimesh based on plane origin and normal. 
+    Basically a bunch of plane-line intersection queries
+    Depends on properly ordered edge information, as done by generate_edges
+
+    origin:        (3) array of plane origin
+    normal:        (3) array for plane normal
+    return_planar: bool, True returns:
+                         (m,2,2) list of 2D line segments
+                         False returns:
+                         (m,2,3) list of 3D line segments
+    '''
+    if len(mesh.faces) == 0: 
+        raise NameError("Cannot compute cross section of empty mesh.")
+    mesh.generate_edges()
+    intersections, valid  = plane_line_intersection(plane_origin, 
+                                                    plane_normal, 
+                                                    mesh.vertices[[mesh.edges.T]],
+                                                    line_segments = True)
+    log.debug('mesh_cross_section found %i intersections.', np.sum(valid))
+    if return_planar: 
+        planar = points_to_plane(intersections, 
+                                 plane_origin, 
+                                 plane_normal).reshape((-1,2,2))
+        return planar
+    else: 
+        return intersections.reshape(-1,2,3)
+ 
+def mesh_outline(mesh, 
+                 plane_origin = [0,0,0],
+                 plane_normal = [0,0,1]):
+    '''
+    Arguments
+    ---------
+    mesh: Trimesh object
+    plane_origin: plane origin, (3) list
+    plane_normal: plane normal, (3) list
 
     output:
-    list of non-overlapping but possibly adjacent polygons
+    (n,2) vertices of a closed polygon representing the outline of the mesh
+          projected onto the specified plane. 
     '''
-    planar       = points_to_plane(mesh.vertices, plane_normal)
-    face_visible = np.zeros(len(mesh.faces), dtype=np.bool)
+    import networkx as nx
     
-    for index, face in enumerate(mesh.faces):
-        dot = np.dot(mesh.normals[index], plane_normal)
-        '''
-        dot product between face normal and plane normal:
-        greater than zero: back faces
-        zero: polygon viewed on edge (zero thickness)
-        less than zero: front facing
-        '''
-        if (dot < -TOL):
-            face_visible[index] = True
-    return planar[[face_visible]]
+    #this function relies on edge connected-ness,
+    #so we need to make sure overlapping vertices are referenced
+    #with the same index. 
+    mesh.merge_vertices()
+    mesh.generate_edges()
+    planar = points_to_plane(mesh.vertices,
+                             origin = plane_origin,
+                             normal = plane_normal)
+    
+    graph = nx.Graph()
+    graph.add_edges_from(mesh.edges)
+    
+    vertex          = deque([np.argmin(planar[:,0])])
+    previous_vector = [0,-1]
 
+    for i in xrange(len(planar)+1):
+        candidates = np.array(graph[vertex[-1]].keys())
+        vectors    = planar[candidates] - planar[vertex[-1]] 
+        norms      = np.sum(vectors**2, axis=1)**.5
+        valid      = norms > TOL_ZERO
+        candidates = candidates[valid]
+        norms      = norms[valid]
+        vectors    = (vectors[valid].T / norms).T
 
+        #we are finding the clockwise angle between the previous vector and 
+        #the candidate vectors
+        dots   = np.dot(previous_vector, vectors.T)
+        dets   = np.cross(previous_vector, vectors)
+        angles = np.arctan2(dots, dets)
+
+        #if we have multiple edges that are the same angle, 
+        #taking the first is wrong. We need to take the longest. 
+        max_locs = np.abs(angles - np.max(angles)) < TOL_ZERO 
+        norm_len = norms * np.int_(max_locs)
+        angle_index     = np.argmax(norm_len)
+        previous_vector = vectors[angle_index]
+        vertex.append(candidates[angle_index])
+        if vertex[0] == vertex[-1]: 
+            break
+        
+    if vertex[0] <> vertex[-1]: 
+        raise NameError('Failed to find closed outline of mesh!')
+    log.debug('mesh_outline successfully found outer loop with %i vertices.', len(vertex))
+    return planar[[vertex]]
+    
 def unique_rows(data):
     '''
     Returns unique rows of an array, using string hashes. 
@@ -461,38 +530,28 @@ def export_stl(mesh, filename):
         for index in xrange(len(mesh.faces)):
             write_face(file_object, 
                        mesh.vertices[[mesh.faces[index]]], 
-                       mesh.normals[index])    
-
+                       mesh.normals[index])
+                       
 if __name__ == '__main__':
-    '''
-    import os, time
-    test_dir = './models'
-    meshes = []
-    for filename in os.listdir(test_dir):
-        try:
-            tic = time.clock()
-            meshes.append(load_mesh(os.path.join(test_dir, filename)))
-            toc = time.clock()
-            print 'successfully loaded', filename, 'with', len(meshes[-1].vertices), 'vertices in', toc-tic, 'seconds.'
-        except: print 'failed to load', filename
-    '''
+    formatter = logging.Formatter("[%(asctime)s] %(levelname)-7s (%(filename)s:%(lineno)3s) %(message)s", "%Y-%m-%d %H:%M:%S")
+    handler_stream = logging.StreamHandler()
+    handler_stream.setFormatter(formatter)
+    handler_stream.setLevel(logging.DEBUG)
+    log = logging.getLogger(__name__)
+    log.setLevel(logging.DEBUG)
+    log.addHandler(handler_stream)
 
+    mesh = load_mesh('./models/ADIS16480.STL')
+    mesh = load_mesh('./models/octagonal_pocket.stl')
+    centroid = np.mean(mesh.bounds, axis=0)
+    cross_section = mesh_cross_section(mesh, plane_origin = centroid)
+    outline       = mesh_outline(mesh, plane_normal = [0,0,1])
+    
+    import matplotlib.pyplot as plt
 
-    m = load_mesh('./models/octagonal_pocket.stl')
-    
-    plane_ori = np.mean(m.bounding_box(), axis=0)
-    plane_dir = [0,0,1]   
-    
-    m.merge_vertices()
-    m.remove_unreferenced()
-    p = points_to_plane(m.vertices, plane_ori, plane_dir)
-    edge_dict = dict()
-    tic = time.clock()
-    for face_index, face in enumerate(m.faces):
-        for i in xrange(3):
-            key = np.sort(face[[np.mod(np.arange(2)+i,3)]]).tostring()
-            if key in edge_dict: edge_dict[key].append(face_index)
-            else:                edge_dict[key] = [face_index]
-    toc = time.clock()
-    print 'adjacency referenced in ', toc-tic
-    
+    for segment in cross_section:
+        plt.plot(*segment.T)
+    plt.show()
+
+    plt.plot(*outline.T)
+    plt.show()
