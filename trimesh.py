@@ -6,14 +6,16 @@ Styled after transformations.py
 '''
 
 import numpy as np
-import time, struct
+import struct
 from collections import deque
 import logging
+from scipy.spatial import cKDTree as KDTree
 
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
 
-TOL_ZERO = 1e-12
+TOL_ZERO  = 1e-12
+TOL_MERGE = 1e-7
 
 def load_mesh(file_obj, type=None):
     '''
@@ -51,6 +53,8 @@ class Trimesh():
         self.color_face    = color_face
         self.color_vertex  = color_vertex
 
+        self.merged = False
+        
         self.generate_bounds()
 
     def convex_hull(self, merge_radius=1e-3):
@@ -69,7 +73,7 @@ class Trimesh():
         mesh.remove_unreferenced()
         return mesh
 
-    def merge_vertices(self, TOL_MERGE=1e-7):
+    def merge_vertices(self):
         '''
         Merges vertices which are identical and replaces references
         Does this by creating a KDTree.
@@ -78,8 +82,10 @@ class Trimesh():
 
         tolerance: to what precision do vertices need to be identical
         '''
-        from scipy.spatial import cKDTree as KDTree
 
+        if self.merged: return 
+        self.merged = True
+        
         tree    = KDTree(self.vertices)
         used    = np.zeros(len(self.vertices), dtype=np.bool)
         unique  = []
@@ -118,7 +124,7 @@ class Trimesh():
         self.edges = np.column_stack((self.faces[:,(0,1)],
                                       self.faces[:,(1,2)],
                                       self.faces[:,(2,0)])).reshape(-1,2)
-        
+        self.edges.sort(axis=1)
     def generate_normals(self, fix_direction=False):
         '''
         If no normal information is loaded, we can get it from cross products
@@ -146,8 +152,11 @@ class Trimesh():
         self.vertices = np.dot(matrix, stacked.T)[:,0:3]
 
     def generate_bounds(self):
-        self.bounds = np.vstack((np.min(self.vertices, axis=0),
-                                 np.max(self.vertices, axis=0)))
+        self.bounds   = np.vstack((np.min(self.vertices, axis=0),
+                                   np.max(self.vertices, axis=0)))
+        self.centroid = np.mean(self.vertices, axis=0)
+        self.box_size = np.diff(self.bounds, axis=0)[0]
+        self.scale    = np.min(self.box_size)
   
     def export(self, filename):
         export_stl(self, filename)
@@ -226,16 +235,19 @@ def point_plane_distance(plane_ori, plane_dir, points):
     w = points - plane_ori
     return np.abs(np.dot(plane_dir, w.T) / np.linalg.norm(plane_dir))
     
-def unitize(points):
+def unitize(points, error_on_zero=False):
     '''
-    One liner which will unitize vectors by row
-    axis arg to sum is so one vector (3,) gets vectorized correctly 
-    as well as 10 vectors (10,3)
+    Unitize vectors by row
+    one vector (3,) gets vectorized correctly, 
+    as well as 10 row vectors (10,3)
 
     points: numpy array/list of points to be unit vector'd
     '''
     points = np.array(points)
     norms  = np.sum(points ** 2, axis=(len(points.shape)-1)) ** .5
+    if (error_on_zero and
+        np.any(norms < TOL_ZERO)):
+        raise NameError('Unable to unitize zero length vector!')
     return (points.T/norms).T
     
 def major_axis(points):
@@ -283,7 +295,7 @@ def radial_sort(points,
     #return the points sorted by angle
     return points[[np.argsort(angles)]]
                
-def points_to_plane(points, origin=[0,0,0], normal=[0,0,1]):
+def project_to_plane(points, origin=[0,0,0], normal=[0,0,1]):
     '''
     projects a set of (n,3) points onto a plane, returning (n,2) points
     '''
@@ -292,11 +304,13 @@ def points_to_plane(points, origin=[0,0,0], normal=[0,0,1]):
     if np.all(np.abs(normal) < TOL_ZERO):
         raise NameError('Normal must be nonzero!')
     for i in xrange(3):
-        axis0 = unitize(np.cross(normal, np.roll([0,-1,0], i)))
-        if np.any(np.abs(axis0) > TOL_ZERO): 
-            break
-    if np.all(np.abs(axis0) < TOL_ZERO): 
+        test_axis = np.cross(normal, np.roll([0,-1,0], i))
+        if np.linalg.norm(test_axis) < TOL_ZERO: continue
+        test_axis = unitize(test_axis)
+        if np.any(np.abs(test_axis) > TOL_ZERO): break
+    if np.all(np.abs(test_axis) < TOL_ZERO): 
         raise NameError('Unable to find projection axis!')
+    axis0 = test_axis
     axis1 = unitize(np.cross(normal, axis0))
   
     log.debug('Projecting points to axis %s, %s', 
@@ -304,14 +318,14 @@ def points_to_plane(points, origin=[0,0,0], normal=[0,0,1]):
               str(axis1))
     
     pt_vec = np.array(points) - origin
-    pr0 = np.dot(pt_vec, axis0)
-    pr1 = np.dot(pt_vec, axis1)
+    pr0 = np.dot(axis0, pt_vec.T)
+    pr1 = np.dot(axis1, pt_vec.T)
     return np.column_stack((pr0, pr1))
  
-def mesh_cross_section(mesh, 
-                      plane_origin  = [0,0,0], 
-                      plane_normal  = [0,0,1], 
-                      return_planar = True):
+def cross_section(mesh, 
+                  plane_origin  = [0,0,0], 
+                  plane_normal  = [0,0,1], 
+                  return_planar = True):
     '''
     Return a cross section of the trimesh based on plane origin and normal. 
     Basically a bunch of plane-line intersection queries
@@ -333,90 +347,98 @@ def mesh_cross_section(mesh,
                                                     line_segments = True)
     log.debug('mesh_cross_section found %i intersections.', np.sum(valid))
     if return_planar: 
-        planar = points_to_plane(intersections, 
-                                 plane_origin, 
-                                 plane_normal).reshape((-1,2,2))
+        planar = project_to_plane(intersections, 
+                                  plane_origin, 
+                                  plane_normal).reshape((-1,2,2))
         return planar
     else: 
         return intersections.reshape(-1,2,3)
- 
-def mesh_outline(mesh, 
-                 plane_origin = [0,0,0],
-                 plane_normal = [0,0,1]):
+
+def planar_outline(mesh, 
+                   plane_origin = [0,0,0],
+                   plane_normal = [0,0,1]):
     '''
     Arguments
     ---------
     mesh: Trimesh object
     plane_origin: plane origin, (3) list
     plane_normal: plane normal, (3) list
-
+                  Note that if plane_normal is NOT aligned with an axis,
+                  The R-tree based triangle picking we're using isn't going to do much
+                  and tracing a ray becomes very, very n^2
     output:
     (n,2) vertices of a closed polygon representing the outline of the mesh
           projected onto the specified plane. 
     '''
-    import networkx as nx
-    
-    #this function relies on edge connected-ness,
-    #so we need to make sure overlapping vertices are referenced
-    #with the same index. 
+    from raytracing import RayTracer
     mesh.merge_vertices()
-    mesh.generate_edges()
-    planar = points_to_plane(mesh.vertices,
-                             origin = plane_origin,
-                             normal = plane_normal)
+    # only work with faces pointed towards us (AKA discard back-faces)
+    visible_faces = mesh.faces[np.dot(plane_normal, 
+                                      mesh.normal_face.T) > -TOL_ZERO]
+                                      
+    # create a raytracer for only visible faces
+    r = RayTracer(Trimesh(vertices = mesh.vertices, faces = visible_faces))
+    visible_edges = np.column_stack((visible_faces[:,(0,1)],
+                                     visible_faces[:,(1,2)],
+                                     visible_faces[:,(2,0)])).reshape(-1,2)
+    visible_edges.sort(axis=1)
+    # the edges that make up the outline of the mesh will only appear once
+    # however this doesn't remove internal geometry or local edges. 
+    # in order to only get the contour outline, we need a visibility check
+    contour_edges = visible_edges[unique_rows(visible_edges)]
     
-    graph = nx.Graph()
-    graph.add_edges_from(mesh.edges)
+    # the rays are coming towards the projection plane
+    ray_dir    = unitize(plane_normal) * - 1
+    # we start the rays just past the mesh bounding box
+    ray_offset = unitize(plane_normal) * np.max(np.ptp(mesh.bounds, axis=0))*1.25
+    offset_max = 1e-3
+    edge_thru  = deque()
+    for edge in contour_edges:
+        edge_center = np.mean(mesh.vertices[[edge]], axis=0)
+        edge_vector = np.diff(mesh.vertices[[edge]], axis=0)
+        edge_length = np.linalg.norm(edge_vector)
+        try: 
+            edge_normal = unitize(np.cross(ray_dir, edge_vector)[0], error_on_zero=True)
+        except:  continue
+        ray_perp = edge_normal * np.clip(edge_length * .5, 0, offset_max)
+        ray_0 = edge_center + ray_offset + ray_perp 
+        ray_1 = edge_center + ray_offset - ray_perp
+        inersections_0 = len(r.intersect_ray(ray_0, ray_dir))
+        inersections_1 = len(r.intersect_ray(ray_1, ray_dir))
+        if (inersections_0 == 0) <> (inersections_1 == 0):
+            edge_thru.append(edge)
+
+    edge_thru = np.array(edge_thru).reshape(-1)
+    contour_lines = project_to_plane(mesh.vertices[[edge_thru]],
+                                     origin = plane_origin,
+                                     normal = plane_normal).reshape((-1,2,2))
+    return contour_lines
     
-    vertex          = deque([np.argmin(planar[:,0])])
-    previous_vector = [0,-1]
+def counterclockwise_angles(vector, vectors):
+    dots    = np.dot(vector, np.array(vectors).T)
+    dets    = np.cross(vector, vectors)
+    angles  = np.arctan2(dets, dots)
+    angles += (angles < 0.0)*np.pi*2
+    return angles
 
-    for i in xrange(len(planar)+1):
-        candidates = np.array(graph[vertex[-1]].keys())
-        vectors    = planar[candidates] - planar[vertex[-1]] 
-        norms      = np.sum(vectors**2, axis=1)**.5
-        valid      = norms > TOL_ZERO
-        candidates = candidates[valid]
-        norms      = norms[valid]
-        vectors    = (vectors[valid].T / norms).T
-
-        #we are finding the clockwise angle between the previous vector and 
-        #the candidate vectors
-        dots   = np.dot(previous_vector, vectors.T)
-        dets   = np.cross(previous_vector, vectors)
-        angles = np.arctan2(dots, dets)
-
-        #if we have multiple edges that are the same angle, 
-        #taking the first is wrong. We need to take the longest. 
-        max_locs = np.abs(angles - np.max(angles)) < TOL_ZERO 
-        norm_len = norms * np.int_(max_locs)
-        angle_index     = np.argmax(norm_len)
-        previous_vector = vectors[angle_index]
-        vertex.append(candidates[angle_index])
-        if vertex[0] == vertex[-1]: 
-            break
-        
-    if vertex[0] <> vertex[-1]: 
-        raise NameError('Failed to find closed outline of mesh!')
-    log.debug('mesh_outline successfully found outer loop with %i vertices.', len(vertex))
-    return planar[[vertex]]
-    
-def unique_rows(data):
+def unique_rows(data, return_first=False, decimals=6):
     '''
     Returns unique rows of an array, using string hashes. 
     '''
     first_occur = dict()
+    format_str  = '0.' + str(decimals) + 'f'
     unique      = np.ones(len(data), dtype=np.bool)
     for index, row in enumerate(data):
-        hashable = row_to_string(row)
+        hashable = row_to_string(row, format_str=format_str)
         if hashable in first_occur:
-            unique[index]                 = False
-            unique[first_occur[hashable]] = False
+            unique[index]                     = False
+            if not return_first:
+                unique[first_occur[hashable]] = False
         else:
             first_occur[hashable] = index
     return unique
 
-def row_to_string(row, format_str="0.6f"):
+def row_to_string(row, format_str='0.6f'):
     result = ""
     for i in row:
         result += format(i, format_str)
@@ -540,18 +562,25 @@ if __name__ == '__main__':
     log = logging.getLogger(__name__)
     log.setLevel(logging.DEBUG)
     log.addHandler(handler_stream)
-
-    mesh = load_mesh('./models/ADIS16480.STL')
-    mesh = load_mesh('./models/octagonal_pocket.stl')
-    centroid = np.mean(mesh.bounds, axis=0)
-    cross_section = mesh_cross_section(mesh, plane_origin = centroid)
-    outline       = mesh_outline(mesh, plane_normal = [0,0,1])
-    
     import matplotlib.pyplot as plt
+    import time
+    
+    mesh = load_mesh('./models/octagonal_pocket.stl')
+    mesh.merge_vertices()
 
-    for segment in cross_section:
-        plt.plot(*segment.T)
-    plt.show()
+    tic = [time.time()]
+    contour = planar_outline(mesh)
+    cross   = cross_section(mesh, plane_origin=mesh.centroid)
 
-    plt.plot(*outline.T)
+    for line in cross:
+        plt.plot(*line.T)
     plt.show()
+    for line in contour:
+        plt.plot(*line.T)
+    plt.show()
+    
+    
+    
+    
+    
+ 
