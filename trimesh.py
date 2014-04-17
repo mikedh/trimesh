@@ -673,7 +673,7 @@ def export_stl(mesh, filename):
 def export_collada(mesh, filename):
     template = Template(open(os.path.join(MODULE_PATH, 
                                           'templates', 
-                                          'collada_template_dev.dae'), 'rb').read())
+                                          'collada_template.dae'), 'rb').read())
     
     #np.array2string uses the numpy printoptions
     np.set_printoptions(threshold=np.inf, precision=5, linewidth=np.inf)
@@ -702,3 +702,126 @@ if __name__ == '__main__':
     
     mesh = load_mesh('models/octagonal_pocket.stl')
     
+    import matplotlib.pyplot as plt
+    import time
+    import networkx as nx
+    
+    def stl_to_collada(filename):
+        mesh = load_mesh(filename)
+        mesh.merge_vertices(angle_max = np.radians(20))
+        out_filename = os.path.splitext(os.path.basename(filename))[0] + '.dae'
+        export_collada(mesh, out_filename)
+        return mesh
+        
+    mesh = stl_to_collada('./meshes/wam4.STL')
+
+    '''
+    os.chdir('./meshes')
+    for filename in os.listdir('.'):
+        if filename.split('.')[-1].lower() <> 'stl': continue
+        if 'collision' in filename: continue
+        print 'trying', filename
+        stl_to_collada(filename)
+    '''
+    #hmm
+    '''
+    mesh = load_mesh('../models/octagonal_pocket.STL')
+    mesh.merge_vertices()
+    plane_normal  = [0,0,1]
+
+    
+    import vector_io as vl
+
+             
+    #tic = [time.time()]
+    #contour = vl.lines_to_vectorpath(planar_outline(mesh))
+    #cross   = vl.lines_to_vectorpath(cross_section(mesh, plane_origin=mesh.centroid))
+    #hull    = vl.lines_to_vectorpath(planar_hull(mesh))
+
+    
+    from scipy.spatial import cKDTree as KDTree
+ 
+    mesh.generate_edges()
+
+    # this will return the indices for duplicate edges
+    # every edge appears twice in a well constructed mesh
+    # so for every row in edge_idx, mesh.edges[edge_idx[*][0]] == mesh.edges[edge_idx[*][1]]
+    edge_idx = group_rows(mesh.edges)
+    
+    # returns the pairs of all adjacent faces
+    # so for every row in face_idx, mesh.faces[face_idx[*][0]] and mesh.faces[face_idx[*][1]]
+    # will share an edge
+    face_idx = np.tile(np.arange(len(mesh.faces)), (3,1)).T.reshape(-1)[[edge_idx]]
+    normal_pairs = mesh.face_normals[[face_idx]]
+
+    pair_axis   = np.cross(normal_pairs[:,0,:], normal_pairs[:,1,:])
+    pair_norms  = np.sum(pair_axis ** 2, axis=(1)) ** .5
+    parallel    = pair_norms < TOL_ZERO
+    nonparallel = np.logical_not(parallel)
+    pair_axis[nonparallel] *= 1.0 / pair_norms[nonparallel].reshape((-1,1))
+
+    #remove duplicate pair axis vectors, so we have easier comparisons
+    #while traversing
+    pair_axis_vectors, aligned = group_vectors(pair_axis)
+
+    graph_parallel = nx.Graph()
+    graph_parallel.add_edges_from(face_idx[parallel])
+
+    
+    def connected_edges(G, nodes):
+        
+        #Given graph G and list of nodes, return the list of edges that 
+        #are connected to nodes
+        
+        nodes_in_G = deque()
+        for node in nodes:
+            if not G.has_node(node): 
+                continue
+            nodes_in_G.extend(nx.node_connected_component(G, node))
+        edges = G.subgraph(nodes_in_G).edges()
+        return edges
+    tic = time.time()
+    
+    for axis_vector, group in zip(pair_axis_vectors, aligned):
+        if np.linalg.norm(axis_vector) < TOL_ZERO: continue
+        graph_group = nx.Graph()
+        graph_group.add_edges_from(face_idx[[group]])
+        
+        parallel_connected_faces = connected_edges(graph_parallel, graph_group.nodes())
+        face_dot = np.dot(mesh.face_normals[[parallel_connected_faces]].reshape((-1,3)), 
+                          axis_vector).reshape((-1,2))
+        along_axis = np.all(face_dot < TOL_ZERO, axis=1)
+        parallel_along_axis = np.array(parallel_connected_faces)[along_axis]
+        
+        
+        graph_group.add_edges_from(parallel_along_axis)
+        
+        
+        cycles = nx.cycle_basis(graph_group)
+        if len(cycles) == 0: continue
+        cycle_faces = np.unique(np.hstack(cycles))
+        graph_parallel.remove_nodes_from(cycle_faces)
+        
+        print len(cycle_faces)
+        
+        display = Trimesh(vertices     = mesh.vertices, 
+                          faces        = mesh.faces[[cycle_faces]], 
+                          face_normals = mesh.face_normals[[cycle_faces]])
+        display.show()
+        
+
+    toc = time.time()
+    print toc-tic
+
+    
+    current_group = deque()
+    consumed_face = np.zeros(len(mesh.faces), dtype=np.bool)
+    
+    
+    p = nx.Graph()
+    p.add_edges_from([[0,1], [1,2], [2,3], [45,123]])
+    
+    g = nx.Graph()
+    g.add_edges_from([[50,56], [0,10]])
+    
+    '''
