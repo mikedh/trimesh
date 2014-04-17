@@ -1,10 +1,15 @@
 trimesh.py
 ==========
 
-Simple, single-file python library for loading triangular meshes (STL in particular):
+Simple python library for loading triangular meshes (loads binary/ascii STL and Wavefront (OBJ), exports as binary STL). Can preview meshes (requires pyglet). 
 
-    import os
-    import transformations
-    m = load(os.path.join('./models', 'round.stl'))
-    tr = transformations.rotation_matrix(np.radians(34), [1,0,0])
-    m.transform(tr)
+    import trimesh
+    
+    #load_mesh can accept a filename or file object, 
+    #however file objects require 'type' specified (eg. type='stl')
+    mesh = trimesh.load_mesh('./models/octagonal_pocket.stl')
+
+    #opens opengl preview window of mesh
+    mesh.show()
+    
+In the mesh view window, dragging rotates the view, ctl + drag pans, mouse wheel scrolls, 'z' returns to the base view, 'w' toggles wireframe mode, 'c' toggles backface culling (useful if viewing non-watertight meshes).  

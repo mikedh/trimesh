@@ -10,9 +10,16 @@ import struct
 from collections import deque
 import logging
 from scipy.spatial import cKDTree as KDTree
+from scipy.spatial import ConvexHull
+from time import time as time_func
+from string import Template
+import os
+import inspect
 
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
+
+MODULE_PATH = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 
 TOL_ZERO  = 1e-12
 TOL_MERGE = 1e-7
@@ -29,33 +36,53 @@ def load_mesh(file_obj, type=None):
     if type == None and file_obj.__class__.__name__ == 'str':
         type     = (str(file_obj).split('.')[-1]).lower()
         file_obj = open(file_obj, 'rb')
-    
-    if type in mesh_loaders:
-        mesh = mesh_loaders[type](file_obj)
-        file_obj.close()
-        return mesh
-    raise NameError('No mesh loader for files of type .' + type)
+
+    mesh = mesh_loaders[type](file_obj)
+    file_obj.close()
+    return mesh
+
 
 class Trimesh():
     def __init__(self, 
-                 vertices      = None, 
-                 faces         = None, 
-                 normal_face   = None, 
-                 normal_vertex = None,
-                 edges         = None, 
-                 color_face    = None,
-                 color_vertex  = None):
-        self.vertices      = vertices
-        self.faces         = faces
-        self.normal_face   = normal_face
-        self.normal_vertex = normal_vertex
-        self.edges         = edges
-        self.color_face    = color_face
-        self.color_vertex  = color_vertex
+                 vertices        = None, 
+                 faces           = None, 
+                 face_normals    = None, 
+                 vertex_normals  = None,
+                 edges           = None, 
+                 color_faces     = None,
+                 color_vertices  = None):
+        self.vertices        = vertices
+        self.faces           = faces
+        self.face_normals    = face_normals
+        self.vertex_normals  = vertex_normals
+        self.edges           = edges
+        self.color_faces     = color_faces
+        self.color_vertices  = color_vertices
 
-        self.merged = False
-        
         self.generate_bounds()
+        self.verify_normals()
+        
+    def __add__(self, other):
+        other_faces    = np.array(other.faces).astype(int) + len(self.vertices)
+        other_vertices = np.array(other.vertices).astype(float)        
+        other_normals  = np.array(other.face_normals).astype(float)
+        
+        new_vertices = np.vstack((self.vertices, other_vertices))
+        new_faces    = np.vstack((self.faces, other_faces))
+        new_normals  = np.vstack((self.face_normals, other_normals))
+        
+        return Trimesh(vertices = new_vertices, 
+                       faces    = new_faces, 
+                       face_normals = new_normals)
+
+    def verify_normals(self):
+        if ((self.face_normals == None) or
+            (np.shape(self.face_normals) <> np.shape(self.faces))):
+            self.generate_face_normals()
+
+        if ((self.vertex_normals == None) or 
+            (np.shape(self.vertex_normals) == np.shape(self.vertices))): 
+            self.generate_vertex_normals()
 
     def convex_hull(self, merge_radius=1e-3):
         '''
@@ -73,79 +100,112 @@ class Trimesh():
         mesh.remove_unreferenced()
         return mesh
 
-    def merge_vertices(self):
+    def merge_vertices(self, angle_max=None):
         '''
-        Merges vertices which are identical and replaces references
-        Does this by creating a KDTree.
-        cKDTree requires scipy >= .12 for this query type and you 
-        probably don't want to use plain python KDTree as it is crazy slow (~1000x in my tests)
-
-        tolerance: to what precision do vertices need to be identical
-        '''
-
-        if self.merged: return 
-        self.merged = True
+        Merges vertices which are identical, AKA within 
+        cartesian distance TOL_MERGE of each other.  
+        Then replaces references in self.faces
         
-        tree    = KDTree(self.vertices)
-        used    = np.zeros(len(self.vertices), dtype=np.bool)
-        unique  = []
-        replacement_dict = dict()
+        If angle_max == None, vertex normals won't be looked at. 
+        if angle_max has a value, vertices will only be considered identical
+        if they are within TOL_MERGE of each other, and the angle between
+        their normals is less than angle_max
+
+        Performance note:
+        cKDTree requires scipy >= .12 for this query type and you 
+        probably don't want to use plain python KDTree as it is crazy slow (~1000x in tests)
+        '''
+
+        tree        = KDTree(self.vertices)
+        used        = np.zeros(len(self.vertices), dtype=np.bool)
+        unique      = deque()
+        replacement = dict()
+        
+        if ((angle_max <> None) and 
+            (self.vertex_normals == None)): 
+            self.generate_vertex_normals()
 
         for index, vertex in enumerate(self.vertices):
             if used[index]: continue
-            neighbors = tree.query_ball_point(self.vertices[index], TOL_MERGE)
+
+            neighbors = np.array(tree.query_ball_point(self.vertices[index], TOL_MERGE))
             used[[neighbors]] = True
-            replacement_dict.update(np.column_stack((neighbors,
-                                                     [len(unique)]*len(neighbors))))
-            unique.append(index)
+            if angle_max <> None:
+                normals, aligned = group_vectors(self.vertex_normals[[neighbors]],
+                                                 TOL_ANGLE = angle_max)
+                for group in aligned:
+                    vertex_indices = neighbors[[group]]
+                    replacement.update(np.column_stack((vertex_indices,
+                                                        [len(unique)] * len(group))))
+                    unique.append(vertex_indices[0])
+            else:
+                replacement.update(np.column_stack((neighbors,
+                                                    [len(unique)]*len(neighbors))))
+                unique.append(neighbors[0])
+                
         log.debug('merge_vertices reduced vertex count from %i to %i.',
                   len(self.vertices),
                   len(unique))
+                  
         self.vertices = self.vertices[[unique]]
-        replace_references(self.faces, replacement_dict)
-
+        replace_references(self.faces, replacement)
+        if angle_max <> None: self.generate_vertex_normals()
+        
+    def unmerge_vertices(self):
+        '''
+        Removes all face references, so that every face contains
+        three unique vertex indices.
+        '''
+        self.vertices = self.vertices[[self.faces]].reshape((-1,3))
+        self.faces    = np.arange(len(self.vertices)).reshape((-1,3))
+        
     def remove_unreferenced(self):
         '''
         Removes all vertices which aren't in a face
         Reindexes vertices from zero and replaces face references
         '''
         referenced = self.faces.view().reshape(-1)
-        unique_ref = np.int_(np.unique(referenced))
-        replacement_dict = dict()
-        replacement_dict.update(np.column_stack((unique_ref,
-                                                 range(len(unique_ref)))))                                         
-        replace_references(self.faces, replacement_dict)
+        unique_ref = np.unique(referenced).astype(int)
+        replacement = dict()
+        replacement.update(np.column_stack((unique_ref,
+                                            range(len(unique_ref)))))                            
+        replace_references(self.faces, replacement)
         self.vertices = self.vertices[[unique_ref]]
 
     def generate_edges(self):
         '''
-        Populate self.edges from face information
+        Populate self.edges from face information.
         '''
         self.edges = np.column_stack((self.faces[:,(0,1)],
                                       self.faces[:,(1,2)],
                                       self.faces[:,(2,0)])).reshape(-1,2)
         self.edges.sort(axis=1)
-    def generate_normals(self, fix_direction=False):
+        
+    def generate_face_normals(self):
         '''
         If no normal information is loaded, we can get it from cross products
         Normal direction will be incorrect if mesh faces aren't ordered (right-hand rule)
         '''
-        self.normal_face = np.zeros((len(self.faces),3))
+        self.face_normals = np.zeros((len(self.faces),3))
         self.vertices = np.array(self.vertices)
         for index, face in enumerate(self.faces):
-            v0 = (self.vertices[face[0]] - self.vertices[face[1]])
-            v1 = (self.vertices[face[2]] - self.vertices[face[1]])
-            self.normal_face[index] = np.cross(v0, v1)
-        if fix_direction: self.fix_normals_direction()
-            
-    def fix_normals_direction(self):
+            v0 = (self.vertices[face[2]] - self.vertices[face[1]])
+            v1 = (self.vertices[face[0]] - self.vertices[face[1]])
+            self.face_normals[index] = unitize(np.cross(v0, v1))
+        
+    def generate_vertex_normals(self):
         '''
-        NONFUNCTIONAL
-        Will eventually fix normals for a mesh. 
+        If face normals are defined, produce approximate vertex normals based on the
+        average of the adjacent faces.
+        
+        If vertices are merged with no regard to normal angle, this is
+        going to render super weird. 
         '''
-        visited_faces = np.zeros(len(self.faces))
-        centroid = np.mean(self.vertices, axis=1)
-        return None
+        vertex_normals = np.zeros((len(self.vertices), 3,3))
+        vertex_normals[[self.faces[:,0],0]] = self.face_normals
+        vertex_normals[[self.faces[:,1],1]] = self.face_normals
+        vertex_normals[[self.faces[:,2],2]] = self.face_normals
+        self.vertex_normals = unitize(np.mean(vertex_normals, axis=1))
 
     def transform(self, matrix):
         stacked = np.column_stack((self.vertices, np.ones(len(self.vertices))))
@@ -158,6 +218,11 @@ class Trimesh():
         self.box_size = np.diff(self.bounds, axis=0)[0]
         self.scale    = np.min(self.box_size)
   
+    def show(self):
+        from mesh_render import MeshRender
+        #unmerge vertices in render model if vertex normals aren't defined.
+        MeshRender(self, unmerge=(self.vertex_normals == None))
+
     def export(self, filename):
         export_stl(self, filename)
 
@@ -244,11 +309,15 @@ def unitize(points, error_on_zero=False):
     points: numpy array/list of points to be unit vector'd
     '''
     points = np.array(points)
-    norms  = np.sum(points ** 2, axis=(len(points.shape)-1)) ** .5
+    axis   = len(points.shape)-1
+    norms  = np.sum(points ** 2, axis=axis) ** .5
+    nonzero = norms > TOL_ZERO
     if (error_on_zero and
-        np.any(norms < TOL_ZERO)):
+        not np.all(nonzero)):
         raise NameError('Unable to unitize zero length vector!')
-    return (points.T/norms).T
+    if axis==1:
+        return (points[nonzero].T / norms[nonzero]).T
+    return (points.T / norms).T
     
 def major_axis(points):
     '''
@@ -260,8 +329,7 @@ def major_axis(points):
         
 def surface_normal(points):
     '''
-    Returns a normal estimate:
-    http://www.lsr.ei.tum.de/fileadmin/publications/KlasingAlthoff-ComparisonOfSurfaceNormalEstimationMethodsForRangeSensingApplications_ICRA09.pdf
+    Returns a normal estimate using SVD http://www.lsr.ei.tum.de/fileadmin/publications/KlasingAlthoff-ComparisonOfSurfaceNormalEstimationMethodsForRangeSensingApplications_ICRA09.pdf
 
     points: (n,m) set of points
 
@@ -304,7 +372,7 @@ def project_to_plane(points, origin=[0,0,0], normal=[0,0,1]):
     if np.all(np.abs(normal) < TOL_ZERO):
         raise NameError('Normal must be nonzero!')
     for i in xrange(3):
-        test_axis = np.cross(normal, np.roll([0,-1,0], i))
+        test_axis = np.abs(np.cross(normal, np.roll([0,1,0], i)))
         if np.linalg.norm(test_axis) < TOL_ZERO: continue
         test_axis = unitize(test_axis)
         if np.any(np.abs(test_axis) > TOL_ZERO): break
@@ -340,12 +408,15 @@ def cross_section(mesh,
     '''
     if len(mesh.faces) == 0: 
         raise NameError("Cannot compute cross section of empty mesh.")
+    tic = time_func()
     mesh.generate_edges()
     intersections, valid  = plane_line_intersection(plane_origin, 
                                                     plane_normal, 
                                                     mesh.vertices[[mesh.edges.T]],
                                                     line_segments = True)
-    log.debug('mesh_cross_section found %i intersections.', np.sum(valid))
+    toc = time_func()
+    log.debug('mesh_cross_section found %i intersections in %fs.', np.sum(valid), toc-tic)
+    
     if return_planar: 
         planar = project_to_plane(intersections, 
                                   plane_origin, 
@@ -356,7 +427,7 @@ def cross_section(mesh,
 
 def planar_outline(mesh, 
                    plane_origin = [0,0,0],
-                   plane_normal = [0,0,1]):
+                   plane_normal = [0,0,-1]):
     '''
     Arguments
     ---------
@@ -367,14 +438,14 @@ def planar_outline(mesh,
                   The R-tree based triangle picking we're using isn't going to do much
                   and tracing a ray becomes very, very n^2
     output:
-    (n,2) vertices of a closed polygon representing the outline of the mesh
+    (n,2,2) vertices of a closed polygon representing the outline of the mesh
           projected onto the specified plane. 
     '''
     from raytracing import RayTracer
     mesh.merge_vertices()
     # only work with faces pointed towards us (AKA discard back-faces)
     visible_faces = mesh.faces[np.dot(plane_normal, 
-                                      mesh.normal_face.T) > -TOL_ZERO]
+                                      mesh.face_normals.T) > -TOL_ZERO]
                                       
     # create a raytracer for only visible faces
     r = RayTracer(Trimesh(vertices = mesh.vertices, faces = visible_faces))
@@ -391,7 +462,7 @@ def planar_outline(mesh,
     ray_dir    = unitize(plane_normal) * - 1
     # we start the rays just past the mesh bounding box
     ray_offset = unitize(plane_normal) * np.max(np.ptp(mesh.bounds, axis=0))*1.25
-    offset_max = 1e-3
+    offset_max = 1e-3 * np.clip(mesh.scale, 0.0, 1.0)
     edge_thru  = deque()
     for edge in contour_edges:
         edge_center = np.mean(mesh.vertices[[edge]], axis=0)
@@ -414,6 +485,12 @@ def planar_outline(mesh,
                                      normal = plane_normal).reshape((-1,2,2))
     return contour_lines
     
+def planar_hull(mesh, plane_normal=[0,0,1]):
+    planar = project_to_plane(mesh.vertices,
+                              normal = plane_normal)
+    hull_edges = ConvexHull(planar).simplices
+    return planar[[hull_edges]]
+    
 def counterclockwise_angles(vector, vectors):
     dots    = np.dot(vector, np.array(vectors).T)
     dets    = np.cross(vector, vectors)
@@ -425,11 +502,17 @@ def unique_rows(data, return_first=False, decimals=6):
     '''
     Returns unique rows of an array, using string hashes. 
     '''
+    def row_to_string(row):
+        result = ''
+        for i in row: 
+            result += format(i, format_str)
+        return result
+        
     first_occur = dict()
-    format_str  = '0.' + str(decimals) + 'f'
+    format_str  = '.' + str(decimals) + 'f'
     unique      = np.ones(len(data), dtype=np.bool)
     for index, row in enumerate(data):
-        hashable = row_to_string(row, format_str=format_str)
+        hashable = row_to_string(row)
         if hashable in first_occur:
             unique[index]                     = False
             if not return_first:
@@ -437,12 +520,46 @@ def unique_rows(data, return_first=False, decimals=6):
         else:
             first_occur[hashable] = index
     return unique
+    
+def group_rows(data, decimals=6):
+    '''
+    Returns unique rows of an array, using string hashes. 
+    '''
+    def row_to_string(row):
+        result = ''
+        for i in row: 
+            result += format(i, format_str)
+        return result
+        
+    observed = dict()
+    format_str  = '.' + str(decimals) + 'f'
+    for index, row in enumerate(data):
+        hashable = row_to_string(row)
+        if hashable in observed:
+            observed[hashable] = np.append(observed[hashable], index)
+        else:
+            observed[hashable] = np.array([index])
+    return np.array(observed.values())
 
-def row_to_string(row, format_str='0.6f'):
-    result = ""
-    for i in row:
-        result += format(i, format_str)
-    return result
+def group_vectors(vectors, TOL_ANGLE=np.radians(10), include_negative=False):
+    TOL_END  = np.tan(TOL_ANGLE)
+    vectors  = unitize(vectors)
+    tree     = KDTree(vectors)
+    unique_vectors = deque()
+    aligned_vec    = deque()
+    vector_index   = -1 * np.ones(len(vectors), dtype=np.int)
+    for index, vector in enumerate(vectors):
+        if vector_index[index] <> -1: continue
+        aligned = np.array(tree.query_ball_point(   vector, TOL_END))
+        if include_negative:
+            aligned = np.append(aligned, 
+                                tree.query_ball_point(-1*vector, TOL_END))
+        aligned = aligned.astype(int)
+        vector_index[[aligned]] = len(unique_vectors)
+        unique = np.percentile(vectors[[aligned]], q=75, axis=0)
+        unique_vectors.append(unique)
+        aligned_vec.append(aligned)
+    return np.array(unique_vectors), np.array(aligned_vec)
     
 def load_stl(file_obj):
     if detect_binary_file(file_obj): return load_stl_binary(file_obj)
@@ -450,7 +567,7 @@ def load_stl(file_obj):
         
 def load_stl_binary(file_obj):
     def read_face():
-        normal_face[current[1]] = np.array(struct.unpack("<3f", file_obj.read(12)))
+        face_normals[current[1]] = np.array(struct.unpack("<3f", file_obj.read(12)))
         for i in xrange(3):
             vertex = np.array(struct.unpack("<3f", file_obj.read(12)))               
             faces[current[1]][i] = current[0]
@@ -459,13 +576,12 @@ def load_stl_binary(file_obj):
         #this field is occasionally used for color, but is usually just ignored.
         colors[current[1]] = int(struct.unpack("<h", file_obj.read(2))[0]) 
         current[1] += 1
-
     #get the file_obj header
     header = file_obj.read(80)
     #use the header information about number of triangles
     tri_count   = int(struct.unpack("@i", file_obj.read(4))[0])
     faces       = np.zeros((tri_count, 3),   dtype=np.int)  
-    normal_face = np.zeros((tri_count, 3),   dtype=np.float) 
+    face_normals = np.zeros((tri_count, 3),   dtype=np.float) 
     colors      = np.zeros( tri_count,       dtype=np.int)
     vertices    = np.zeros((tri_count*3, 3), dtype=np.float) 
     #current vertex, face
@@ -478,8 +594,8 @@ def load_stl_binary(file_obj):
         raise NameError('Number of faces loaded is different than specified by header!')
     return Trimesh(vertices    = vertices, 
                    faces       = faces, 
-                   normal_face = normal_face, 
-                   color_face  = colors)
+                   face_normals = face_normals, 
+                   color_faces  = colors)
 
 def load_stl_ascii(file_obj):
     def parse_line(line):
@@ -501,7 +617,7 @@ def load_stl_ascii(file_obj):
         try: read_face(file_obj)
         except: break
     return Trimesh(faces       = np.array(faces,    dtype=np.int),
-                   normal_face = np.array(normals,  dtype=np.float),
+                   face_normals = np.array(normals, dtype=np.float),
                    vertices    = np.array(vertices, dtype=np.float))
 
 def load_wavefront(file_obj):
@@ -529,7 +645,7 @@ def load_wavefront(file_obj):
         if line[0] ==  'f': faces.append(parse_face(line[-3:]));
     mesh = Trimesh(vertices      = np.array(vertices, dtype=float),
                    faces         = np.array(faces,    dtype=int),
-                   normal_vertex = np.array(normals,  dtype=float))
+                   vertex_normals = np.array(normals,  dtype=float))
     mesh.generate_normals()
     return mesh
     
@@ -542,7 +658,7 @@ def export_stl(mesh, filename):
         for vertex in vertices: 
             file_object.write(struct.pack('<3f', *vertex))
         file_object.write(struct.pack('<h', 0))
-    if len(mesh.normals) == 0: mesh.generate_normals(fix_directions=True)
+    if len(mesh.face_normals) == 0: mesh.generate_normals()
     with open(filename, 'wb') as file_object:
         #write a blank header
         file_object.write(struct.pack("<80x"))
@@ -552,35 +668,37 @@ def export_stl(mesh, filename):
         for index in xrange(len(mesh.faces)):
             write_face(file_object, 
                        mesh.vertices[[mesh.faces[index]]], 
-                       mesh.normals[index])
-                       
+                       mesh.face_normals[index])
+
+def export_collada(mesh, filename):
+    template = Template(open(os.path.join(MODULE_PATH, 
+                                          'templates', 
+                                          'collada_template_dev.dae'), 'rb').read())
+    
+    #np.array2string uses the numpy printoptions
+    np.set_printoptions(threshold=np.inf, precision=5, linewidth=np.inf)
+
+    replacement = dict()
+    replacement['VERTEX']   = np.array2string(mesh.vertices.reshape(-1))[1:-1]
+    replacement['FACES']    = np.array2string(mesh.faces.reshape(-1))[1:-1]
+    replacement['NORMALS']  = np.array2string(mesh.vertex_normals.reshape(-1))[1:-1]
+    replacement['VCOUNT']   = str(len(mesh.vertices))
+    replacement['VCOUNTX3'] = str(len(mesh.vertices) * 3)
+    replacement['FCOUNT']   = str(len(mesh.faces))
+
+    with open(filename, 'wb') as outfile:
+        outfile.write(template.substitute(replacement))                       
+
 if __name__ == '__main__':
     formatter = logging.Formatter("[%(asctime)s] %(levelname)-7s (%(filename)s:%(lineno)3s) %(message)s", "%Y-%m-%d %H:%M:%S")
     handler_stream = logging.StreamHandler()
     handler_stream.setFormatter(formatter)
-    handler_stream.setLevel(logging.DEBUG)
+    handler_stream.setLevel(logging.INFO)
     log = logging.getLogger(__name__)
-    log.setLevel(logging.DEBUG)
+    log.setLevel(logging.INFO)
     log.addHandler(handler_stream)
-    import matplotlib.pyplot as plt
-    import time
-    
-    mesh = load_mesh('./models/octagonal_pocket.stl')
-    mesh.merge_vertices()
 
-    tic = [time.time()]
-    contour = planar_outline(mesh)
-    cross   = cross_section(mesh, plane_origin=mesh.centroid)
-
-    for line in cross:
-        plt.plot(*line.T)
-    plt.show()
-    for line in contour:
-        plt.plot(*line.T)
-    plt.show()
+    np.set_printoptions(precision=4, suppress=True)
     
+    mesh = load_mesh('models/octagonal_pocket.stl')
     
-    
-    
-    
- 
