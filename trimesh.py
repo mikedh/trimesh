@@ -796,3 +796,8 @@ if __name__ == '__main__':
     from scipy.spatial import cKDTree as KDTree
 
     mesh = load_mesh('./models/octagonal_pocket.STL')
+
+    meshes = deque()
+    os.chdir('interference/')
+    for filename in os.listdir('.'):
+        meshes.append(load_mesh(filename))

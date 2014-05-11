@@ -1,6 +1,8 @@
 import trimesh
 import unittest
 import logging
+from collections import deque
+import os
 import numpy as np
 
 
@@ -27,7 +29,7 @@ class VectorTests(unittest.TestCase):
 
     def test_group(self):
         tol_angle = np.radians(10)
-        tol_dist  = np.tan(tol_angle)
+        tol_dist  = np.tan(tol_angle) * 2
 
         self.vectors[0:10]  = [0.0, 0.0, 0.0]
         self.vectors[10:20] = [0.0, 0.0, 1.0]
@@ -43,5 +45,16 @@ class VectorTests(unittest.TestCase):
             dist_ok = np.logical_or((dists_pos < tol_dist), (dists_neg < tol_dist))
             self.assertTrue(np.all(dist_ok))
 
+class MeshTests(unittest.TestCase):
+    def setUp(self):
+        meshes = deque()
+        for filename in os.listdir(TEST_DIR):
+            meshes.append(trimesh.load_mesh(os.path.join(TEST_DIR, filename)))
+        self.meshes = list(meshes)
+
+    def test_meshes(self):
+        for mesh in self.meshes:
+            self.assertTrue(len(mesh.faces) > 0)
+            self.assertTrue(len(mesh.vertices) > 0)
 if __name__ == '__main__':
     unittest.main()
