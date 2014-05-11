@@ -39,6 +39,7 @@ def load_mesh(file_obj, type=None):
 
     mesh = mesh_loaders[type](file_obj)
     file_obj.close()
+    log.info('loaded mesh from %s container, with %i faces', type, len(mesh.faces))
     return mesh
 
 
@@ -81,7 +82,7 @@ class Trimesh():
             self.generate_face_normals()
 
         if ((self.vertex_normals == None) or 
-            (np.shape(self.vertex_normals) == np.shape(self.vertices))): 
+            (np.shape(self.vertex_normals) <> np.shape(self.vertices))): 
             self.generate_vertex_normals()
 
     def convex_hull(self, merge_radius=1e-3):
@@ -121,13 +122,10 @@ class Trimesh():
         unique      = deque()
         replacement = dict()
         
-        if ((angle_max <> None) and 
-            (self.vertex_normals == None)): 
-            self.generate_vertex_normals()
+        if angle_max <> None: self.verify_normals()
 
         for index, vertex in enumerate(self.vertices):
             if used[index]: continue
-
             neighbors = np.array(tree.query_ball_point(self.vertices[index], TOL_MERGE))
             used[[neighbors]] = True
             if angle_max <> None:
@@ -218,10 +216,10 @@ class Trimesh():
         self.box_size = np.diff(self.bounds, axis=0)[0]
         self.scale    = np.min(self.box_size)
   
-    def show(self):
+    def show(self, smooth=True):
         from mesh_render import MeshRender
         #unmerge vertices in render model if vertex normals aren't defined.
-        MeshRender(self, unmerge=(self.vertex_normals == None))
+        MeshRender(self, smooth=smooth)
 
     def export(self, filename):
         export_stl(self, filename)
@@ -307,6 +305,7 @@ def unitize(points, error_on_zero=False):
     as well as 10 row vectors (10,3)
 
     points: numpy array/list of points to be unit vector'd
+    error_on_zero: if zero magnitude vectors exist, throw an error
     '''
     points = np.array(points)
     axis   = len(points.shape)-1
@@ -316,7 +315,8 @@ def unitize(points, error_on_zero=False):
         not np.all(nonzero)):
         raise NameError('Unable to unitize zero length vector!')
     if axis==1:
-        return (points[nonzero].T / norms[nonzero]).T
+        points[nonzero] =  (points[nonzero].T / norms[nonzero]).T
+        return points
     return (points.T / norms).T
     
 def major_axis(points):
@@ -542,24 +542,28 @@ def group_rows(data, decimals=6):
     return np.array(observed.values())
 
 def group_vectors(vectors, TOL_ANGLE=np.radians(10), include_negative=False):
-    TOL_END  = np.tan(TOL_ANGLE)
-    vectors  = unitize(vectors)
-    tree     = KDTree(vectors)
+    TOL_END        = np.tan(TOL_ANGLE)
+    unit_vectors   = unitize(vectors)
+    tree           = KDTree(unit_vectors)
+
     unique_vectors = deque()
-    aligned_vec    = deque()
-    vector_index   = -1 * np.ones(len(vectors), dtype=np.int)
-    for index, vector in enumerate(vectors):
-        if vector_index[index] <> -1: continue
-        aligned = np.array(tree.query_ball_point(   vector, TOL_END))
+    aligned_index  = deque()
+    consumed       = np.zeros(len(unit_vectors), dtype=np.bool)
+
+    for index, vector in enumerate(unit_vectors):
+        if consumed[index]: continue
+        aligned = np.array(tree.query_ball_point(vector, TOL_END))        
         if include_negative:
             aligned = np.append(aligned, 
                                 tree.query_ball_point(-1*vector, TOL_END))
+
         aligned = aligned.astype(int)
-        vector_index[[aligned]] = len(unique_vectors)
-        unique = np.percentile(vectors[[aligned]], q=75, axis=0)
-        unique_vectors.append(unique)
-        aligned_vec.append(aligned)
-    return np.array(unique_vectors), np.array(aligned_vec)
+        consumed[[aligned]] = True
+        test = np.sum((unit_vectors[[aligned]] - vector)**2, axis=1)**.5
+        #unique_vectors.append(vector)
+        unique_vectors.append(np.percentile(vectors[[aligned]], q=75, axis=0))
+        aligned_index.append(aligned)
+    return np.array(unique_vectors), np.array(aligned_index)
     
 def load_stl(file_obj):
     if detect_binary_file(file_obj): return load_stl_binary(file_obj)
@@ -646,7 +650,7 @@ def load_wavefront(file_obj):
     mesh = Trimesh(vertices      = np.array(vertices, dtype=float),
                    faces         = np.array(faces,    dtype=int),
                    vertex_normals = np.array(normals,  dtype=float))
-    mesh.generate_normals()
+    mesh.generate_face_normals()
     return mesh
     
 def export_stl(mesh, filename):
@@ -689,65 +693,41 @@ def export_collada(mesh, filename):
     with open(filename, 'wb') as outfile:
         outfile.write(template.substitute(replacement))                       
 
-if __name__ == '__main__':
-    formatter = logging.Formatter("[%(asctime)s] %(levelname)-7s (%(filename)s:%(lineno)3s) %(message)s", "%Y-%m-%d %H:%M:%S")
-    handler_stream = logging.StreamHandler()
-    handler_stream.setFormatter(formatter)
-    handler_stream.setLevel(logging.INFO)
-    log = logging.getLogger(__name__)
-    log.setLevel(logging.INFO)
-    log.addHandler(handler_stream)
+def connected_edges(G, nodes):
 
-    np.set_printoptions(precision=4, suppress=True)
-    
-    mesh = load_mesh('models/octagonal_pocket.stl')
-    
-    import matplotlib.pyplot as plt
-    import time
-    import networkx as nx
-    
-    def stl_to_collada(filename):
-        mesh = load_mesh(filename)
-        mesh.merge_vertices(angle_max = np.radians(20))
-        out_filename = os.path.splitext(os.path.basename(filename))[0] + '.dae'
-        export_collada(mesh, out_filename)
-        return mesh
-        
-    mesh = stl_to_collada('./meshes/wam4.STL')
+    #Given graph G and list of nodes, return the list of edges that 
+    #are connected to nodes
 
-    '''
-    os.chdir('./meshes')
-    for filename in os.listdir('.'):
-        if filename.split('.')[-1].lower() <> 'stl': continue
-        if 'collision' in filename: continue
-        print 'trying', filename
-        stl_to_collada(filename)
-    '''
-    #hmm
-    '''
-    mesh = load_mesh('../models/octagonal_pocket.STL')
-    mesh.merge_vertices()
-    plane_normal  = [0,0,1]
-
-    
-    import vector_io as vl
-
-             
-    #tic = [time.time()]
-    #contour = vl.lines_to_vectorpath(planar_outline(mesh))
-    #cross   = vl.lines_to_vectorpath(cross_section(mesh, plane_origin=mesh.centroid))
-    #hull    = vl.lines_to_vectorpath(planar_hull(mesh))
-
-    
-    from scipy.spatial import cKDTree as KDTree
+    nodes_in_G = deque()
+    for node in nodes:
+        if not G.has_node(node): continue
+        nodes_in_G.extend(nx.node_connected_component(G, node))
+    edges = G.subgraph(nodes_in_G).edges()
+    return edges
  
+def mesh_facets(mesh, angle_max=np.radians(50)):
+    import networkx as nx
+    mesh.merge_vertices(angle_max = angle_max)
+    mesh.generate_edges()
+    g = nx.Graph()
+    g.add_edges_from(mesh.edges)
+
+    connected_vertices = nx.connected_components(g)
+    facet_faces        = deque()
+    for vertices in connected_vertices:
+        facet = np.all(np.in1d(mesh.faces.reshape(-1), vertices).reshape((-1,3)), axis=1)
+        facet_faces.append(mesh.faces[facet])
+    return list(facet_faces)
+
+def cut_axis(mesh):
+    mesh.merge_vertices()
     mesh.generate_edges()
 
     # this will return the indices for duplicate edges
     # every edge appears twice in a well constructed mesh
     # so for every row in edge_idx, mesh.edges[edge_idx[*][0]] == mesh.edges[edge_idx[*][1]]
     edge_idx = group_rows(mesh.edges)
-    
+
     # returns the pairs of all adjacent faces
     # so for every row in face_idx, mesh.faces[face_idx[*][0]] and mesh.faces[face_idx[*][1]]
     # will share an edge
@@ -762,66 +742,57 @@ if __name__ == '__main__':
 
     #remove duplicate pair axis vectors, so we have easier comparisons
     #while traversing
-    pair_axis_vectors, aligned = group_vectors(pair_axis)
+    pair_vectors, aligned = group_vectors(pair_axis, 
+                                          TOL_ANGLE = np.radians(10), 
+                                          include_negative=True)
 
     graph_parallel = nx.Graph()
     graph_parallel.add_edges_from(face_idx[parallel])
 
-    
-    def connected_edges(G, nodes):
-        
-        #Given graph G and list of nodes, return the list of edges that 
-        #are connected to nodes
-        
-        nodes_in_G = deque()
-        for node in nodes:
-            if not G.has_node(node): 
-                continue
-            nodes_in_G.extend(nx.node_connected_component(G, node))
-        edges = G.subgraph(nodes_in_G).edges()
-        return edges
-    tic = time.time()
-    
-    for axis_vector, group in zip(pair_axis_vectors, aligned):
+    for axis_vector, group in zip(pair_vectors, aligned):
         if np.linalg.norm(axis_vector) < TOL_ZERO: continue
         graph_group = nx.Graph()
         graph_group.add_edges_from(face_idx[[group]])
-        
+
         parallel_connected_faces = connected_edges(graph_parallel, graph_group.nodes())
         face_dot = np.dot(mesh.face_normals[[parallel_connected_faces]].reshape((-1,3)), 
                           axis_vector).reshape((-1,2))
         along_axis = np.all(face_dot < TOL_ZERO, axis=1)
         parallel_along_axis = np.array(parallel_connected_faces)[along_axis]
-        
-        
+
+
         graph_group.add_edges_from(parallel_along_axis)
-        
-        
+
+
         cycles = nx.cycle_basis(graph_group)
         if len(cycles) == 0: continue
         cycle_faces = np.unique(np.hstack(cycles))
         graph_parallel.remove_nodes_from(cycle_faces)
-        
-        print len(cycle_faces)
-        
+
+        #print '\n\n', cycle_faces
+
         display = Trimesh(vertices     = mesh.vertices, 
                           faces        = mesh.faces[[cycle_faces]], 
                           face_normals = mesh.face_normals[[cycle_faces]])
         display.show()
+
+
+
+if __name__ == '__main__':
+    formatter = logging.Formatter("[%(asctime)s] %(levelname)-7s (%(filename)s:%(lineno)3s) %(message)s", "%Y-%m-%d %H:%M:%S")
+    handler_stream = logging.StreamHandler()
+    handler_stream.setFormatter(formatter)
+    handler_stream.setLevel(logging.DEBUG)
+    log = logging.getLogger(__name__)
+    log.setLevel(logging.DEBUG)
+    log.addHandler(handler_stream)
+
+    np.set_printoptions(precision=4, suppress=True)
         
+    import matplotlib.pyplot as plt
+    import time
+    import networkx as nx
+    import vector_io as vl    
+    from scipy.spatial import cKDTree as KDTree
 
-    toc = time.time()
-    print toc-tic
-
-    
-    current_group = deque()
-    consumed_face = np.zeros(len(mesh.faces), dtype=np.bool)
-    
-    
-    p = nx.Graph()
-    p.add_edges_from([[0,1], [1,2], [2,3], [45,123]])
-    
-    g = nx.Graph()
-    g.add_edges_from([[50,56], [0,10]])
-    
-    '''
+    mesh = load_mesh('./models/octagonal_pocket.STL')

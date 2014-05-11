@@ -4,7 +4,7 @@ import numpy as np
 from copy import deepcopy
 
 class MeshRender(pyglet.window.Window):
-    def __init__(self, mesh, unmerge=True):
+    def __init__(self, mesh=None, smooth=True):
         conf = Config(sample_buffers=1,
                       samples=4,
                       depth_size=16,
@@ -14,32 +14,36 @@ class MeshRender(pyglet.window.Window):
         except pyglet.window.NoSuchConfigException:
             super(MeshRender, self).__init__(resizable=True)
             
+        self.batch       = pyglet.graphics.Batch()        
+        self.rotation    = np.zeros(3)
+        self.translation = np.zeros(3)
+        self.wireframe = False
+        self.cull      = True
+        self.init_gl()
+        if mesh <> None: 
+            self.add_mesh(mesh)
+            self.run()
+
+    def add_mesh(self, mesh):
         # reason for copying mesh and unmerging vertices is so that 
         # shading isn't super wacky
+        self.translation = np.array([0,0,-np.max(mesh.box_size)])
         self.mesh = deepcopy(mesh)
         
-        if unmerge: self.mesh.unmerge_vertices()
+        self.mesh.unmerge_vertices()
+        self.mesh.merge_vertices(angle_max=np.radians(15))
         self.mesh.generate_vertex_normals()
         
-        vertices = (self.mesh.vertices - self.mesh.centroid).reshape(-1).tolist()
+        vertices = (self.mesh.vertices-self.mesh.centroid).reshape(-1).tolist()
         normals  = self.mesh.vertex_normals.reshape(-1).tolist()
         indices  = self.mesh.faces.reshape(-1).tolist()
-        
-        self.batch = pyglet.graphics.Batch()
         self.vertex_list = self.batch.add_indexed(len(vertices)//3, 
                                                   GL_TRIANGLES,
                                                   None,
                                                   indices,
                                                   ('v3f/static', vertices),
                                                   ('n3f/static', normals))
-        
-        self.rotation    = np.zeros(3)
-        self.translation = np.array([0,0,-np.max(self.mesh.box_size)])
-        self.init_gl()
-        self.wireframe = False
-        self.cull      = True
-        self.run()
-        
+
     def init_gl(self):
         # One-time GL setup
         glClearColor(1, 1, 1, 1)
