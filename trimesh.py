@@ -13,8 +13,12 @@ from scipy.spatial import cKDTree as KDTree
 from scipy.spatial import ConvexHull
 from time import time as time_func
 from string import Template
+from copy import deepcopy
+import networkx as nx
 import os
 import inspect
+
+from StringIO import StringIO
 
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
@@ -22,7 +26,7 @@ log.addHandler(logging.NullHandler())
 MODULE_PATH = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 
 TOL_ZERO  = 1e-12
-TOL_MERGE = 1e-7
+TOL_MERGE = 1e-9
 
 def load_mesh(file_obj, type=None):
     '''
@@ -37,9 +41,11 @@ def load_mesh(file_obj, type=None):
         type     = (str(file_obj).split('.')[-1]).lower()
         file_obj = open(file_obj, 'rb')
 
+    tic = time_func()
     mesh = mesh_loaders[type](file_obj)
     file_obj.close()
-    log.info('loaded mesh from %s container, with %i faces', type, len(mesh.faces))
+    toc = time_func()
+    log.info('loaded mesh from %s container, with %i faces in %fs.', type, len(mesh.faces), toc-tic)
     return mesh
 
 
@@ -60,6 +66,8 @@ class Trimesh():
         self.color_faces     = color_faces
         self.color_vertices  = color_vertices
 
+        self.__merged__      = False
+
         self.generate_bounds()
         self.verify_normals()
         
@@ -76,9 +84,24 @@ class Trimesh():
                        faces    = new_faces, 
                        face_normals = new_normals)
 
+    def area(self):
+        area_sum = 0.0
+
+        for face in self.faces:
+            vertices = self.vertices[[face]]
+            cross = np.cross(vertices[0] - vertices[1],
+                             vertices[0] - vertices[2])
+            area_sum += .5*np.linalg.norm(cross)
+        return area_sum
+            
+
+
     def verify_normals(self):
         if ((self.face_normals == None) or
             (np.shape(self.face_normals) <> np.shape(self.faces))):
+            log.debug('generating face normals for faces %s and passed face normals %s',
+                      str(np.shape(self.faces)),
+                      str(np.shape(self.face_normals)))
             self.generate_face_normals()
 
         if ((self.vertex_normals == None) or 
@@ -116,7 +139,7 @@ class Trimesh():
         cKDTree requires scipy >= .12 for this query type and you 
         probably don't want to use plain python KDTree as it is crazy slow (~1000x in tests)
         '''
-
+        tic         = time_func()
         tree        = KDTree(self.vertices)
         used        = np.zeros(len(self.vertices), dtype=np.bool)
         unique      = deque()
@@ -140,15 +163,52 @@ class Trimesh():
                 replacement.update(np.column_stack((neighbors,
                                                     [len(unique)]*len(neighbors))))
                 unique.append(neighbors[0])
-                
-        log.debug('merge_vertices reduced vertex count from %i to %i.',
-                  len(self.vertices),
-                  len(unique))
-                  
+     
         self.vertices = self.vertices[[unique]]
         replace_references(self.faces, replacement)
         if angle_max <> None: self.generate_vertex_normals()
+        self.__merged__ == True
+        toc = time_func()
+
+        log.debug('merge_vertices reduced vertex count from %i to %i in %fs.',
+                  len(self.vertices),
+                  len(unique),
+                  toc-tic)
+                  
+
+    def merge_vertices_hash(self, decimals=6):
+        '''
+        Returns unique rows of an array, using string hashes. 
+        '''
+        def row_to_string(row):
+            result = ''
+            for i in row: 
+                result += format(i, format_str)
+            return result
+
+        tic         = time_func()
+        format_str  = '.' + str(decimals) + 'f'
+        observed    = dict()
+        replacement = dict()
         
+        for index, row in enumerate(self.vertices):
+            hashable = row_to_string(row)
+            if hashable in observed:
+                replacement[index] = observed[hashable]
+            else:
+                observed[hashable] = index
+
+        replace_references(self.faces, replacement)
+        toc = time_func()
+        
+        log.debug('merge_vertices reduced vertex count from %i to %i in %fs.',
+                  len(self.vertices),
+                  len(observed),
+                  toc-tic)
+
+
+
+
     def unmerge_vertices(self):
         '''
         Removes all face references, so that every face contains
@@ -216,9 +276,8 @@ class Trimesh():
         self.box_size = np.diff(self.bounds, axis=0)[0]
         self.scale    = np.min(self.box_size)
   
-    def show(self, smooth=True):
+    def show(self, smooth = False):
         from mesh_render import MeshRender
-        #unmerge vertices in render model if vertex normals aren't defined.
         MeshRender(self, smooth=smooth)
 
     def export(self, filename):
@@ -706,7 +765,7 @@ def connected_edges(G, nodes):
     return edges
  
 def mesh_facets(mesh, angle_max=np.radians(50)):
-    import networkx as nx
+
     mesh.merge_vertices(angle_max = angle_max)
     mesh.generate_edges()
     g = nx.Graph()
@@ -718,6 +777,33 @@ def mesh_facets(mesh, angle_max=np.radians(50)):
         facet = np.all(np.in1d(mesh.faces.reshape(-1), vertices).reshape((-1,3)), axis=1)
         facet_faces.append(mesh.faces[facet])
     return list(facet_faces)
+
+
+def split_by_connectivity(mesh):
+    tic = time_func()
+    mesh.generate_edges()
+    g = nx.Graph()
+    g.add_edges_from(mesh.edges)
+
+    components = nx.connected_components(g)
+    new_meshes = [None] * len(components)
+
+    for i, connected in enumerate(components): 
+        mask = np.zeros(len(mesh.vertices))
+        mask[[connected]] = 1
+        face_subset = np.sum(mask[[mesh.faces]], axis=1) <> 0
+        vertices = mesh.vertices[[mesh.faces[face_subset].reshape(-1)]]
+        normals  = mesh.face_normals[face_subset]
+        faces    = np.arange(len(vertices)).reshape((-1,3))
+
+        new_meshes[i] = Trimesh(vertices     = vertices,
+                                faces        = faces,
+                                face_normals = normals)
+    toc = time_func()
+    log.info('split mesh into %i components in %fs',
+             len(new_meshes),
+             toc-tic)
+    return new_meshes
 
 def cut_axis(mesh):
     mesh.merge_vertices()
@@ -776,7 +862,19 @@ def cut_axis(mesh):
                           face_normals = mesh.face_normals[[cycle_faces]])
         display.show()
 
-
+def is_multibody(mesh):
+    '''
+    If a mesh consists of a single, watertight, connected section, then
+    
+    (number of faces) = 2 * (number of vertices)
+    
+    This assumes we have merged vertices and removed unreferenced vertices
+    '''
+    #mesh.merge_vertices()
+    #mesh.remove_unreferenced()
+    multibody = len(mesh.faces) <> 2 * len(mesh.vertices)
+    return multibody
+    
 
 if __name__ == '__main__':
     formatter = logging.Formatter("[%(asctime)s] %(levelname)-7s (%(filename)s:%(lineno)3s) %(message)s", "%Y-%m-%d %H:%M:%S")
@@ -791,13 +889,39 @@ if __name__ == '__main__':
         
     import matplotlib.pyplot as plt
     import time
-    import networkx as nx
+
     import vector_io as vl    
     from scipy.spatial import cKDTree as KDTree
 
+    '''
     mesh = load_mesh('./models/octagonal_pocket.STL')
 
     meshes = deque()
     os.chdir('interference/')
     for filename in os.listdir('.'):
         meshes.append(load_mesh(filename))
+
+
+    mesh = load_mesh('kinematic_tray.STL')
+    import cProfile, pstats, StringIO
+    pr = cProfile.Profile()
+    pr.enable()
+    
+    cc = split_by_connectivity(mesh)
+    
+    # ... do something ...
+    pr.disable()
+    s = StringIO.StringIO()
+    sortby = 'cumulative'
+    ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+    ps.print_stats()
+    print s.getvalue() 
+    '''
+    #m = load_mesh('./models/octagonal_pocket.STL')
+    m = load_mesh('./models/kinematic_tray.STL')
+    m.merge_vertices()
+    #m = load_mesh('./models/kinematic_tray.STL')
+    #m.merge_vertices_hash()
+
+
+    nm = split_by_connectivity(m)

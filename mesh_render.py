@@ -4,7 +4,7 @@ import numpy as np
 from copy import deepcopy
 
 class MeshRender(pyglet.window.Window):
-    def __init__(self, mesh=None, smooth=True):
+    def __init__(self, mesh=None, smooth=False):
         conf = Config(sample_buffers=1,
                       samples=4,
                       depth_size=16,
@@ -21,19 +21,23 @@ class MeshRender(pyglet.window.Window):
         self.cull      = True
         self.init_gl()
         if mesh <> None: 
-            self.add_mesh(mesh)
+            self.add_mesh(mesh, smooth)
             self.run()
 
-    def add_mesh(self, mesh):
+    def add_mesh(self, mesh, smooth=False):
         # reason for copying mesh and unmerging vertices is so that 
         # shading isn't super wacky
         self.translation = np.array([0,0,-np.max(mesh.box_size)])
-        self.mesh = deepcopy(mesh)
         
-        self.mesh.unmerge_vertices()
-        self.mesh.merge_vertices(angle_max=np.radians(15))
-        self.mesh.generate_vertex_normals()
-        
+        if smooth:
+            self.mesh = deepcopy(mesh)
+            self.mesh.unmerge_vertices()
+            self.mesh.merge_vertices(angle_max=np.radians(15))
+            self.mesh.generate_vertex_normals()
+        else:
+            self.mesh = mesh
+            self.mesh.verify_normals()
+            
         vertices = (self.mesh.vertices-self.mesh.centroid).reshape(-1).tolist()
         normals  = self.mesh.vertex_normals.reshape(-1).tolist()
         indices  = self.mesh.faces.reshape(-1).tolist()
