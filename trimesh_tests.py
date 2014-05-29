@@ -58,3 +58,4 @@ class MeshTests(unittest.TestCase):
             self.assertTrue(len(mesh.vertices) > 0)
 if __name__ == '__main__':
     unittest.main()
+

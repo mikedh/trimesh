@@ -45,7 +45,13 @@ def load_mesh(file_obj, type=None):
     mesh = mesh_loaders[type](file_obj)
     file_obj.close()
     toc = time_func()
-    log.info('loaded mesh from %s container, with %i faces in %fs.', type, len(mesh.faces), toc-tic)
+
+    log.info('loaded mesh from %s container, with %i faces and %i vertices in %fs.', 
+             type, 
+             len(mesh.faces),
+             len(mesh.vertices),
+             toc-tic)
+
     return mesh
 
 
@@ -66,10 +72,8 @@ class Trimesh():
         self.color_faces     = color_faces
         self.color_vertices  = color_vertices
 
-        self.__merged__      = False
-
         self.generate_bounds()
-        self.verify_normals()
+        #self.verify_normals()
         
     def __add__(self, other):
         other_faces    = np.array(other.faces).astype(int) + len(self.vertices)
@@ -119,12 +123,18 @@ class Trimesh():
         mesh = Trimesh()
         mesh.vertices = self.vertices
         mesh.faces = np.array([])
-        mesh.merge_vertices(merge_radius)
+        mesh.merge_vertices()
         mesh.faces = ConvexHull(mesh.vertices).simplices
         mesh.remove_unreferenced()
         return mesh
 
     def merge_vertices(self, angle_max=None):
+        if angle_max <> None:
+            self.merge_vertices_kdtree(angle_max)
+        else:
+            self.merge_vertices_hash()
+
+    def merge_vertices_kdtree(self, angle_max=None):
         '''
         Merges vertices which are identical, AKA within 
         cartesian distance TOL_MERGE of each other.  
@@ -163,51 +173,46 @@ class Trimesh():
                 replacement.update(np.column_stack((neighbors,
                                                     [len(unique)]*len(neighbors))))
                 unique.append(neighbors[0])
+
      
         self.vertices = self.vertices[[unique]]
         replace_references(self.faces, replacement)
         if angle_max <> None: self.generate_vertex_normals()
-        self.__merged__ == True
-        toc = time_func()
-
-        log.debug('merge_vertices reduced vertex count from %i to %i in %fs.',
-                  len(self.vertices),
+       
+        log.debug('merge_vertices_kdtree reduced vertex count from %i to %i in %.4fs.',
+                  len(used),
                   len(unique),
-                  toc-tic)
+                  time_func()-tic)
                   
 
-    def merge_vertices_hash(self, decimals=6):
+    def merge_vertices_hash(self):
         '''
-        Returns unique rows of an array, using string hashes. 
+        Removes duplicate vertices, based on integer hashes.
+        This is roughly 20x faster than querying a KD tree in a loop
         '''
-        def row_to_string(row):
-            result = ''
-            for i in row: 
-                result += format(i, format_str)
-            return result
-
         tic         = time_func()
-        format_str  = '.' + str(decimals) + 'f'
-        observed    = dict()
-        replacement = dict()
+        digits = abs(int(np.log10(TOL_MERGE)))
+     
+        # we turn our array into integers, based on the precision given by 
+        # TOL_MERGE (which we turn into a digit count)
+   
+
+        as_int = ((self.vertices+10**-(digits+1))*10**digits).astype(np.int64)
+    
+        hashes = as_int.view(np.dtype((np.void, 
+                                       as_int.dtype.itemsize * as_int.shape[1])))
+      
+        garbage, unique, inverse = np.unique(hashes, 
+                                             return_index   = True, 
+                                             return_inverse = True)
         
-        for index, row in enumerate(self.vertices):
-            hashable = row_to_string(row)
-            if hashable in observed:
-                replacement[index] = observed[hashable]
-            else:
-                observed[hashable] = index
+        self.faces    = inverse[[self.faces.reshape(-1)]].reshape((-1,3))
+        self.vertices = self.vertices[[unique]]
 
-        replace_references(self.faces, replacement)
-        toc = time_func()
-        
-        log.debug('merge_vertices reduced vertex count from %i to %i in %fs.',
-                  len(self.vertices),
-                  len(observed),
-                  toc-tic)
-
-
-
+        log.debug('merge_vertices_hash reduced vertex count from %i to %i in %.4fs.',
+                  len(hashes),
+                  len(unique),
+                  time_func()-tic)
 
     def unmerge_vertices(self):
         '''
@@ -629,36 +634,24 @@ def load_stl(file_obj):
     else:                            return load_stl_ascii(file_obj)
         
 def load_stl_binary(file_obj):
-    def read_face():
-        face_normals[current[1]] = np.array(struct.unpack("<3f", file_obj.read(12)))
-        for i in xrange(3):
-            vertex = np.array(struct.unpack("<3f", file_obj.read(12)))               
-            faces[current[1]][i] = current[0]
-            vertices[current[0]] = vertex
-            current[0] += 1
-        #this field is occasionally used for color, but is usually just ignored.
-        colors[current[1]] = int(struct.unpack("<h", file_obj.read(2))[0]) 
-        current[1] += 1
     #get the file_obj header
     header = file_obj.read(80)
+    
     #use the header information about number of triangles
-    tri_count   = int(struct.unpack("@i", file_obj.read(4))[0])
-    faces       = np.zeros((tri_count, 3),   dtype=np.int)  
-    face_normals = np.zeros((tri_count, 3),   dtype=np.float) 
-    colors      = np.zeros( tri_count,       dtype=np.int)
-    vertices    = np.zeros((tri_count*3, 3), dtype=np.float) 
-    #current vertex, face
-    current   = [0,0]
-    while True:
-        try: read_face()
-        except: break
-    vertices = vertices[:current[0]]
-    if current[1] <> tri_count: 
-        raise NameError('Number of faces loaded is different than specified by header!')
-    return Trimesh(vertices    = vertices, 
-                   faces       = faces, 
-                   face_normals = face_normals, 
-                   color_faces  = colors)
+    tri_count    = int(struct.unpack("@i", file_obj.read(4))[0])
+    faces        = np.arange(tri_count*3).reshape((-1,3))
+    
+    # this blob extracts 12 float values, with 2 pad bytes per face
+    # the first three floats are the face normal
+    # the next 9 are the three vertices 
+    blob = np.array(struct.unpack("<" + "12fxx"*tri_count, file_obj.read(50*tri_count))).reshape((-1,4,3))
+
+    face_normals = blob[:,0]
+    vertices     = blob[:,1:].reshape((-1,3))
+    
+    return Trimesh(vertices     = vertices,
+                   faces        = faces, 
+                   face_normals = face_normals)
 
 def load_stl_ascii(file_obj):
     def parse_line(line):
@@ -862,20 +855,6 @@ def cut_axis(mesh):
                           face_normals = mesh.face_normals[[cycle_faces]])
         display.show()
 
-def is_multibody(mesh):
-    '''
-    If a mesh consists of a single, watertight, connected section, then
-    
-    (number of faces) = 2 * (number of vertices)
-    
-    This assumes we have merged vertices and removed unreferenced vertices
-    '''
-    #mesh.merge_vertices()
-    #mesh.remove_unreferenced()
-    multibody = len(mesh.faces) <> 2 * len(mesh.vertices)
-    return multibody
-    
-
 if __name__ == '__main__':
     formatter = logging.Formatter("[%(asctime)s] %(levelname)-7s (%(filename)s:%(lineno)3s) %(message)s", "%Y-%m-%d %H:%M:%S")
     handler_stream = logging.StreamHandler()
@@ -890,38 +869,24 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     import time
 
-    import vector_io as vl    
-    from scipy.spatial import cKDTree as KDTree
-
     '''
-    mesh = load_mesh('./models/octagonal_pocket.STL')
 
-    meshes = deque()
-    os.chdir('interference/')
-    for filename in os.listdir('.'):
-        meshes.append(load_mesh(filename))
+    m = load_mesh('./src_bot.STL')
 
-
-    mesh = load_mesh('kinematic_tray.STL')
     import cProfile, pstats, StringIO
     pr = cProfile.Profile()
     pr.enable()
-    
-    cc = split_by_connectivity(mesh)
-    
-    # ... do something ...
+
+    m.merge_vertices()
+
     pr.disable()
     s = StringIO.StringIO()
     sortby = 'cumulative'
     ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
     ps.print_stats()
-    print s.getvalue() 
+    print s.getvalue()
     '''
-    #m = load_mesh('./models/octagonal_pocket.STL')
-    m = load_mesh('./models/kinematic_tray.STL')
-    m.merge_vertices()
-    #m = load_mesh('./models/kinematic_tray.STL')
-    #m.merge_vertices_hash()
 
 
-    nm = split_by_connectivity(m)
+    #m = Trimesh(vertices = np.random.random((100,2)),
+    #            faces    = np.arange(12).reshape((-1,3)))
