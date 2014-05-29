@@ -11,7 +11,7 @@ from collections import deque
 import logging
 from scipy.spatial import cKDTree as KDTree
 from scipy.spatial import ConvexHull
-from time import time as time_func
+from time import time as time_function
 from string import Template
 from copy import deepcopy
 import networkx as nx
@@ -41,10 +41,10 @@ def load_mesh(file_obj, type=None):
         type     = (str(file_obj).split('.')[-1]).lower()
         file_obj = open(file_obj, 'rb')
 
-    tic = time_func()
+    tic = time_function()
     mesh = mesh_loaders[type](file_obj)
     file_obj.close()
-    toc = time_func()
+    toc = time_function()
 
     log.info('loaded mesh from %s container, with %i faces and %i vertices in %fs.', 
              type, 
@@ -129,10 +129,8 @@ class Trimesh():
         return mesh
 
     def merge_vertices(self, angle_max=None):
-        if angle_max <> None:
-            self.merge_vertices_kdtree(angle_max)
-        else:
-            self.merge_vertices_hash()
+        if angle_max <> None: self.merge_vertices_kdtree(angle_max)
+        else:                 self.merge_vertices_hash()
 
     def merge_vertices_kdtree(self, angle_max=None):
         '''
@@ -149,7 +147,7 @@ class Trimesh():
         cKDTree requires scipy >= .12 for this query type and you 
         probably don't want to use plain python KDTree as it is crazy slow (~1000x in tests)
         '''
-        tic         = time_func()
+        tic         = time_function()
         tree        = KDTree(self.vertices)
         used        = np.zeros(len(self.vertices), dtype=np.bool)
         unique      = deque()
@@ -182,7 +180,7 @@ class Trimesh():
         log.debug('merge_vertices_kdtree reduced vertex count from %i to %i in %.4fs.',
                   len(used),
                   len(unique),
-                  time_func()-tic)
+                  time_function()-tic)
                   
 
     def merge_vertices_hash(self):
@@ -190,17 +188,15 @@ class Trimesh():
         Removes duplicate vertices, based on integer hashes.
         This is roughly 20x faster than querying a KD tree in a loop
         '''
-        tic         = time_func()
+        tic    = time_function()
         digits = abs(int(np.log10(TOL_MERGE)))
      
         # we turn our array into integers, based on the precision given by 
-        # TOL_MERGE (which we turn into a digit count)
-   
-
+        # TOL_MERGE (which we turned into a digit count)
         as_int = ((self.vertices+10**-(digits+1))*10**digits).astype(np.int64)
     
-        hashes = as_int.view(np.dtype((np.void, 
-                                       as_int.dtype.itemsize * as_int.shape[1])))
+        hashes = np.ascontiguousarray(as_int).view(np.dtype((np.void, 
+                                                             as_int.dtype.itemsize * as_int.shape[1])))
       
         garbage, unique, inverse = np.unique(hashes, 
                                              return_index   = True, 
@@ -212,7 +208,7 @@ class Trimesh():
         log.debug('merge_vertices_hash reduced vertex count from %i to %i in %.4fs.',
                   len(hashes),
                   len(unique),
-                  time_func()-tic)
+                  time_function()-tic)
 
     def unmerge_vertices(self):
         '''
@@ -472,13 +468,13 @@ def cross_section(mesh,
     '''
     if len(mesh.faces) == 0: 
         raise NameError("Cannot compute cross section of empty mesh.")
-    tic = time_func()
+    tic = time_function()
     mesh.generate_edges()
     intersections, valid  = plane_line_intersection(plane_origin, 
                                                     plane_normal, 
                                                     mesh.vertices[[mesh.edges.T]],
                                                     line_segments = True)
-    toc = time_func()
+    toc = time_function()
     log.debug('mesh_cross_section found %i intersections in %fs.', np.sum(valid), toc-tic)
     
     if return_planar: 
@@ -773,7 +769,7 @@ def mesh_facets(mesh, angle_max=np.radians(50)):
 
 
 def split_by_connectivity(mesh):
-    tic = time_func()
+    tic = time_function()
     mesh.generate_edges()
     g = nx.Graph()
     g.add_edges_from(mesh.edges)
@@ -792,7 +788,7 @@ def split_by_connectivity(mesh):
         new_meshes[i] = Trimesh(vertices     = vertices,
                                 faces        = faces,
                                 face_normals = normals)
-    toc = time_func()
+    toc = time_function()
     log.info('split mesh into %i components in %fs',
              len(new_meshes),
              toc-tic)
@@ -885,8 +881,6 @@ if __name__ == '__main__':
     ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
     ps.print_stats()
     print s.getvalue()
+    
+
     '''
-
-
-    #m = Trimesh(vertices = np.random.random((100,2)),
-    #            faces    = np.arange(12).reshape((-1,3)))
