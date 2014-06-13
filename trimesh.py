@@ -9,8 +9,9 @@ import numpy as np
 import struct
 from collections import deque
 import logging
+
 from scipy.spatial import cKDTree as KDTree
-from scipy.spatial import ConvexHull
+        
 from time import time as time_function
 from string import Template
 from copy import deepcopy
@@ -54,7 +55,6 @@ def load_mesh(file_obj, type=None):
 
     return mesh
 
-
 class Trimesh():
     def __init__(self, 
                  vertices        = None, 
@@ -64,6 +64,7 @@ class Trimesh():
                  edges           = None, 
                  color_faces     = None,
                  color_vertices  = None):
+
         self.vertices        = vertices
         self.faces           = faces
         self.face_normals    = face_normals
@@ -73,7 +74,6 @@ class Trimesh():
         self.color_vertices  = color_vertices
 
         self.generate_bounds()
-        #self.verify_normals()
         
     def __add__(self, other):
         other_faces    = np.array(other.faces).astype(int) + len(self.vertices)
@@ -88,22 +88,17 @@ class Trimesh():
                        faces    = new_faces, 
                        face_normals = new_normals)
 
+
+    def split(self):
+        return split_by_connectivity(self)
+
     def area(self):
-        area_sum = 0.0
-
-        for face in self.faces:
-            vertices = self.vertices[[face]]
-            cross = np.cross(vertices[0] - vertices[1],
-                             vertices[0] - vertices[2])
-            area_sum += .5*np.linalg.norm(cross)
-        return area_sum
-            
-
+        return triangles_area(self.vertices[[self.faces]])
 
     def verify_normals(self):
         if ((self.face_normals == None) or
             (np.shape(self.face_normals) <> np.shape(self.faces))):
-            log.debug('generating face normals for faces %s and passed face normals %s',
+            log.debug('Generating face normals for faces %s and passed face normals %s',
                       str(np.shape(self.faces)),
                       str(np.shape(self.face_normals)))
             self.generate_face_normals()
@@ -112,7 +107,7 @@ class Trimesh():
             (np.shape(self.vertex_normals) <> np.shape(self.vertices))): 
             self.generate_vertex_normals()
 
-    def convex_hull(self, merge_radius=1e-3):
+    def convex_hull(self):
         '''
         Get a new Trimesh object representing the convex hull of the 
         current mesh. Requires scipy >.12, and doesn't produce properly directed normals
@@ -120,12 +115,10 @@ class Trimesh():
         merge_radius: when computing a complex hull, at what distance do we merge close vertices 
         '''
         from scipy.spatial import ConvexHull
-        mesh = Trimesh()
-        mesh.vertices = self.vertices
-        mesh.faces = np.array([])
-        mesh.merge_vertices()
+        mesh = Trimesh(vertices = self.vertices, faces = np.array([]))
         mesh.faces = ConvexHull(mesh.vertices).simplices
         mesh.remove_unreferenced()
+        mesh.generate_vertex_normals()
         return mesh
 
     def merge_vertices(self, angle_max=None):
@@ -135,7 +128,7 @@ class Trimesh():
     def merge_vertices_kdtree(self, angle_max=None):
         '''
         Merges vertices which are identical, AKA within 
-        cartesian distance TOL_MERGE of each other.  
+        Cartesian distance TOL_MERGE of each other.  
         Then replaces references in self.faces
         
         If angle_max == None, vertex normals won't be looked at. 
@@ -147,6 +140,7 @@ class Trimesh():
         cKDTree requires scipy >= .12 for this query type and you 
         probably don't want to use plain python KDTree as it is crazy slow (~1000x in tests)
         '''
+
         tic         = time_function()
         tree        = KDTree(self.vertices)
         used        = np.zeros(len(self.vertices), dtype=np.bool)
@@ -182,32 +176,25 @@ class Trimesh():
                   len(unique),
                   time_function()-tic)
                   
-
     def merge_vertices_hash(self):
         '''
         Removes duplicate vertices, based on integer hashes.
         This is roughly 20x faster than querying a KD tree in a loop
         '''
-        tic    = time_function()
+        tic       = time_function()
+        pre_merge = len(self.vertices)
+        #we extract the number of digits from TOL_MERGE
+        #note that this is less precise than doing a distance calculation
+        #like the KDtree queries, but is a lot faster
         digits = abs(int(np.log10(TOL_MERGE)))
-     
-        # we turn our array into integers, based on the precision given by 
-        # TOL_MERGE (which we turned into a digit count)
-        as_int = ((self.vertices+10**-(digits+1))*10**digits).astype(np.int64)
-    
-        hashes = np.ascontiguousarray(as_int).view(np.dtype((np.void, 
-                                                             as_int.dtype.itemsize * as_int.shape[1])))
-      
-        garbage, unique, inverse = np.unique(hashes, 
-                                             return_index   = True, 
-                                             return_inverse = True)
+        unique, inverse = unique_rows_hash(self.vertices, digits)
         
         self.faces    = inverse[[self.faces.reshape(-1)]].reshape((-1,3))
         self.vertices = self.vertices[[unique]]
 
         log.debug('merge_vertices_hash reduced vertex count from %i to %i in %.4fs.',
-                  len(hashes),
-                  len(unique),
+                  pre_merge,
+                  len(self.vertices),
                   time_function()-tic)
 
     def unmerge_vertices(self):
@@ -245,12 +232,7 @@ class Trimesh():
         If no normal information is loaded, we can get it from cross products
         Normal direction will be incorrect if mesh faces aren't ordered (right-hand rule)
         '''
-        self.face_normals = np.zeros((len(self.faces),3))
-        self.vertices = np.array(self.vertices)
-        for index, face in enumerate(self.faces):
-            v0 = (self.vertices[face[2]] - self.vertices[face[1]])
-            v1 = (self.vertices[face[0]] - self.vertices[face[1]])
-            self.face_normals[index] = unitize(np.cross(v0, v1))
+        self.face_normals = triangles_normal(self.vertices[[self.faces]])
         
     def generate_vertex_normals(self):
         '''
@@ -271,6 +253,11 @@ class Trimesh():
         self.vertices = np.dot(matrix, stacked.T)[:,0:3]
 
     def generate_bounds(self):
+        shape = np.shape(self.vertices)
+        if ((len(shape) <> 2) or
+            (not (shape[1] in [2,3]))):
+            return
+
         self.bounds   = np.vstack((np.min(self.vertices, axis=0),
                                    np.max(self.vertices, axis=0)))
         self.centroid = np.mean(self.vertices, axis=0)
@@ -557,7 +544,7 @@ def counterclockwise_angles(vector, vectors):
     angles  = np.arctan2(dets, dots)
     angles += (angles < 0.0)*np.pi*2
     return angles
-
+    
 def unique_rows(data, return_first=False, decimals=6):
     '''
     Returns unique rows of an array, using string hashes. 
@@ -580,10 +567,25 @@ def unique_rows(data, return_first=False, decimals=6):
         else:
             first_occur[hashable] = index
     return unique
+
+def hash_rows(data, digits):
+    # we turn our array into integers, based on the precision 
+    # given by digits, and then put them in a hashable format. 
+    as_int = ((data+10**-(digits+1))*10**digits).astype(np.int64)    
+    hashes = np.ascontiguousarray(as_int).view(np.dtype((np.void, 
+                                               as_int.dtype.itemsize * as_int.shape[1])))
+    return hashes
     
+def unique_rows_hash(data, digits):
+    hashes                   = hash_rows(data, digits)
+    garbage, unique, inverse = np.unique(hashes, 
+                                         return_index   = True, 
+                                         return_inverse = True)
+    return unique, inverse
+
 def group_rows(data, decimals=6):
     '''
-    Returns unique rows of an array, using string hashes. 
+    Returns groups of duplicate values
     '''
     def row_to_string(row):
         result = ''
@@ -640,7 +642,8 @@ def load_stl_binary(file_obj):
     # this blob extracts 12 float values, with 2 pad bytes per face
     # the first three floats are the face normal
     # the next 9 are the three vertices 
-    blob = np.array(struct.unpack("<" + "12fxx"*tri_count, file_obj.read(50*tri_count))).reshape((-1,4,3))
+    blob = np.array(struct.unpack("<" + "12fxx"*tri_count, 
+                                  file_obj.read(50*tri_count))).reshape((-1,4,3))
 
     face_normals = blob[:,0]
     vertices     = blob[:,1:].reshape((-1,3))
@@ -742,10 +745,8 @@ def export_collada(mesh, filename):
         outfile.write(template.substitute(replacement))                       
 
 def connected_edges(G, nodes):
-
     #Given graph G and list of nodes, return the list of edges that 
     #are connected to nodes
-
     nodes_in_G = deque()
     for node in nodes:
         if not G.has_node(node): continue
@@ -754,7 +755,6 @@ def connected_edges(G, nodes):
     return edges
  
 def mesh_facets(mesh, angle_max=np.radians(50)):
-
     mesh.merge_vertices(angle_max = angle_max)
     mesh.generate_edges()
     g = nx.Graph()
@@ -771,8 +771,8 @@ def mesh_facets(mesh, angle_max=np.radians(50)):
 def split_by_connectivity(mesh):
     tic = time_function()
     mesh.generate_edges()
-    g = nx.Graph()
-    g.add_edges_from(mesh.edges)
+    g = nx.from_edgelist(mesh.edges)
+   
 
     components = nx.connected_components(g)
     new_meshes = [None] * len(components)
@@ -780,10 +780,10 @@ def split_by_connectivity(mesh):
     for i, connected in enumerate(components): 
         mask = np.zeros(len(mesh.vertices))
         mask[[connected]] = 1
-        face_subset = np.sum(mask[[mesh.faces]], axis=1) <> 0
-        vertices = mesh.vertices[[mesh.faces[face_subset].reshape(-1)]]
-        normals  = mesh.face_normals[face_subset]
-        faces    = np.arange(len(vertices)).reshape((-1,3))
+        face_subset = np.sum(mask[[mesh.faces]], axis=1) <> 0 
+        vertices    = mesh.vertices[[mesh.faces[face_subset].reshape(-1)]]
+        normals     = mesh.face_normals[face_subset]
+        faces       = np.arange(len(vertices)).reshape((-1,3))
 
         new_meshes[i] = Trimesh(vertices     = vertices,
                                 faces        = faces,
@@ -793,6 +793,35 @@ def split_by_connectivity(mesh):
              len(new_meshes),
              toc-tic)
     return new_meshes
+
+def split_by_connectivity_gt(mesh):
+    from graph_tool import Graph
+    from graph_tool.topology import label_components
+
+    tic = time_function()
+    mesh.generate_edges()
+    g = Graph(directed=False)
+    g.add_edge_list(mesh.edges)    
+    p = label_components(g)[0].a
+    components = np.max(p)
+    new_meshes = deque()
+
+    for i in xrange(components):
+        mask        = (p == i)
+        face_subset = np.sum(mask[[mesh.faces]], axis=1) <> 0 
+        vertices    = mesh.vertices[[mesh.faces[face_subset].reshape(-1)]]
+        normals     = mesh.face_normals[face_subset]
+        faces       = np.arange(len(vertices)).reshape((-1,3))
+
+        new_meshes.append(Trimesh(vertices     = vertices,
+                                  faces        = faces,
+                                  face_normals = normals))
+    toc = time_function()
+    log.info('split mesh using graph_tool into %i components in %fs',
+             len(new_meshes),
+             toc-tic)
+    return new_meshes
+    
 
 def cut_axis(mesh):
     mesh.merge_vertices()
@@ -844,13 +873,26 @@ def cut_axis(mesh):
         cycle_faces = np.unique(np.hstack(cycles))
         graph_parallel.remove_nodes_from(cycle_faces)
 
-        #print '\n\n', cycle_faces
-
         display = Trimesh(vertices     = mesh.vertices, 
                           faces        = mesh.faces[[cycle_faces]], 
                           face_normals = mesh.face_normals[[cycle_faces]])
         display.show()
 
+
+def triangles_cross(triangles):
+    vectors = np.diff(triangles, axis=1)
+    crosses = np.cross(vectors[:,0], vectors[:,1])
+    return crosses
+    
+def triangles_area(triangles):
+    crosses = triangles_cross(triangles)
+    area    = np.sum(np.sum(crosses**2, axis=1)**.5)*.5
+    return area
+    
+def triangles_normal(triangles):
+    crosses = triangles_cross(triangles)
+    return unitize(crosses)
+    
 if __name__ == '__main__':
     formatter = logging.Formatter("[%(asctime)s] %(levelname)-7s (%(filename)s:%(lineno)3s) %(message)s", "%Y-%m-%d %H:%M:%S")
     handler_stream = logging.StreamHandler()
@@ -865,15 +907,15 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     import time
 
-    '''
-
     m = load_mesh('./src_bot.STL')
-
+    #m = load_mesh('./models/octagonal_pocket.stl')
+    m.merge_vertices()
+    
     import cProfile, pstats, StringIO
     pr = cProfile.Profile()
     pr.enable()
 
-    m.merge_vertices()
+    ms = split_by_connectivity(m)
 
     pr.disable()
     s = StringIO.StringIO()
@@ -882,5 +924,5 @@ if __name__ == '__main__':
     ps.print_stats()
     print s.getvalue()
     
+    
 
-    '''

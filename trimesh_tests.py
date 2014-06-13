@@ -56,6 +56,15 @@ class MeshTests(unittest.TestCase):
         for mesh in self.meshes:
             self.assertTrue(len(mesh.faces) > 0)
             self.assertTrue(len(mesh.vertices) > 0)
+
 if __name__ == '__main__':
+    formatter = logging.Formatter("[%(asctime)s] %(levelname)-7s (%(filename)s:%(lineno)3s) %(message)s", "%Y-%m-%d %H:%M:%S")
+    handler_stream = logging.StreamHandler()
+    handler_stream.setFormatter(formatter)
+    handler_stream.setLevel(logging.DEBUG)
+    log = logging.getLogger(__name__)
+    log.setLevel(logging.DEBUG)
+    log.addHandler(handler_stream)
+    np.set_printoptions(precision=4, suppress=True)
     unittest.main()
 
