@@ -18,8 +18,9 @@ class MeshRender(pyglet.window.Window):
         self.rotation    = np.zeros(3)
         self.translation = np.zeros(3)
         self.wireframe = False
-        self.cull      = True
+        self.cull      = False
         self.init_gl()
+        
         if mesh <> None: 
             self.add_mesh(mesh, smooth)
             self.run()
@@ -76,7 +77,8 @@ class MeshRender(pyglet.window.Window):
         glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, vec(0.6, .2, 0.5, 1.0))
         glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, vec(1, 1, 1, 1))
         glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, 50)
-
+        glDisable(GL_CULL_FACE)
+        
     def set_base_view(self):
         self.rotation    = np.zeros(3)
         self.translation = np.array([0,0,-np.max(self.mesh.box_size)])
@@ -133,11 +135,3 @@ class MeshRender(pyglet.window.Window):
         
     def run(self):
         pyglet.app.run()
-
-if __name__ == '__main__':
-    import trimesh
-    mesh = trimesh.load_mesh('./models/octagonal_pocket_in.stl')
-    MeshRender(mesh)
-
-
-    

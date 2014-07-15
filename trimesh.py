@@ -19,8 +19,6 @@ import networkx as nx
 import os
 import inspect
 
-from StringIO import StringIO
-
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
 
@@ -38,6 +36,7 @@ def load_mesh(file_obj, type=None):
 
     mesh_loaders = {'stl': load_stl, 
                     'obj': load_wavefront}
+                    
     if type == None and file_obj.__class__.__name__ == 'str':
         type     = (str(file_obj).split('.')[-1]).lower()
         file_obj = open(file_obj, 'rb')
@@ -74,28 +73,50 @@ class Trimesh():
         self.color_vertices  = color_vertices
 
         self.generate_bounds()
-        
-    def __add__(self, other):
-        other_faces    = np.array(other.faces).astype(int) + len(self.vertices)
-        other_vertices = np.array(other.vertices).astype(float)        
-        other_normals  = np.array(other.face_normals).astype(float)
-        
-        new_vertices = np.vstack((self.vertices, other_vertices))
-        new_faces    = np.vstack((self.faces, other_faces))
-        new_normals  = np.vstack((self.face_normals, other_normals))
-        
-        return Trimesh(vertices = new_vertices, 
-                       faces    = new_faces, 
-                       face_normals = new_normals)
-
 
     def split(self):
+        '''
+        Returns a list of Trimesh objects, based on connectivity.
+        Split into individual components, sometimes referred to as 'bodies'
+        '''
         return split_by_connectivity(self)
 
     def area(self):
+        '''
+        Returns the sum area of all triangles in the current mesh.
+        '''
         return triangles_area(self.vertices[[self.faces]])
 
+    def face_adjacency(self):
+        '''
+        Returns an (n,2) list of face indices.
+        Each pair of faces in the list shares an edge, making them adjacent.
+        
+        This is particularly useful for finding connected subgraphs, eg:
+        
+        graph = nx.Graph()
+        graph.add_edges_from(mesh.face_adjacency())
+        groups = nx.connected_components(graph_connected.subgraph(interesting_faces))
+        '''
+        
+        # first generate the list of edges for the current faces
+        self.generate_edges()
+        
+        # this will return the indices for duplicate edges
+        # every edge appears twice in a well constructed mesh
+        # so for every row in edge_idx, self.edges[edge_idx[*][0]] == self.edges[edge_idx[*][1]]
+        edge_idx = group_rows(self.edges)
+
+        # returns the pairs of all adjacent faces
+        # so for every row in face_idx, self.faces[face_idx[*][0]] and self.faces[face_idx[*][1]]
+        # will share an edge
+        face_idx = np.tile(np.arange(len(self.faces)), (3,1)).T.reshape(-1)[[edge_idx]]
+        return face_idx
+
     def verify_normals(self):
+        '''
+        Check to make sure both face and vertex normals are defined. 
+        '''
         if ((self.face_normals == None) or
             (np.shape(self.face_normals) <> np.shape(self.faces))):
             log.debug('Generating face normals for faces %s and passed face normals %s',
@@ -107,16 +128,29 @@ class Trimesh():
             (np.shape(self.vertex_normals) <> np.shape(self.vertices))): 
             self.generate_vertex_normals()
 
+    def cross_section(self,
+                      plane_normal,
+                      plane_origin  = None,
+                      return_planar = True):
+        '''
+        Returns a cross section of the current mesh and plane defined by
+        plane_origin and plane_normal.
+        
+        If return_planar is True,  result is (n, 2, 2) 
+        If return_planar is False, result is (n, 2, 3)
+        '''
+        if plane_origin == None: plane_origin = self.centroid
+        return cross_section(self, plane_normal, plane_origin, return_planar)
+            
     def convex_hull(self):
         '''
         Get a new Trimesh object representing the convex hull of the 
         current mesh. Requires scipy >.12, and doesn't produce properly directed normals
 
-        merge_radius: when computing a complex hull, at what distance do we merge close vertices 
         '''
         from scipy.spatial import ConvexHull
-        mesh = Trimesh(vertices = self.vertices, faces = np.array([]))
-        mesh.faces = ConvexHull(mesh.vertices).simplices
+        faces = ConvexHull(self.vertices, qhull_options='i').simplices
+        mesh  = Trimesh(vertices = self.vertices, faces = faces)
         mesh.remove_unreferenced()
         mesh.generate_vertex_normals()
         return mesh
@@ -154,19 +188,15 @@ class Trimesh():
             neighbors = np.array(tree.query_ball_point(self.vertices[index], TOL_MERGE))
             used[[neighbors]] = True
             if angle_max <> None:
-                normals, aligned = group_vectors(self.vertex_normals[[neighbors]],
-                                                 TOL_ANGLE = angle_max)
+                normals, aligned = group_vectors(self.vertex_normals[[neighbors]], TOL_ANGLE = angle_max)
                 for group in aligned:
                     vertex_indices = neighbors[[group]]
-                    replacement.update(np.column_stack((vertex_indices,
-                                                        [len(unique)] * len(group))))
+                    replacement.update(np.column_stack((vertex_indices, [len(unique)] * len(group))))
                     unique.append(vertex_indices[0])
             else:
-                replacement.update(np.column_stack((neighbors,
-                                                    [len(unique)]*len(neighbors))))
+                replacement.update(np.column_stack((neighbors, [len(unique)]*len(neighbors))))
                 unique.append(neighbors[0])
 
-     
         self.vertices = self.vertices[[unique]]
         replace_references(self.faces, replacement)
         if angle_max <> None: self.generate_vertex_normals()
@@ -183,14 +213,10 @@ class Trimesh():
         '''
         tic       = time_function()
         pre_merge = len(self.vertices)
-        #we extract the number of digits from TOL_MERGE
-        #note that this is less precise than doing a distance calculation
-        #like the KDtree queries, but is a lot faster
-        digits = abs(int(np.log10(TOL_MERGE)))
-        unique, inverse = unique_rows_hash(self.vertices, digits)
         
-        self.faces    = inverse[[self.faces.reshape(-1)]].reshape((-1,3))
-        self.vertices = self.vertices[[unique]]
+        unique, inverse = unique_rows(self.vertices, return_inverse=True)        
+        self.faces      = inverse[[self.faces.reshape(-1)]].reshape((-1,3))
+        self.vertices   = self.vertices[[unique]]
 
         log.debug('merge_vertices_hash reduced vertex count from %i to %i in %.4fs.',
                   pre_merge,
@@ -222,10 +248,7 @@ class Trimesh():
         '''
         Populate self.edges from face information.
         '''
-        self.edges = np.column_stack((self.faces[:,(0,1)],
-                                      self.faces[:,(1,2)],
-                                      self.faces[:,(2,0)])).reshape(-1,2)
-        self.edges.sort(axis=1)
+        self.edges = faces_to_edges(self.faces)
         
     def generate_face_normals(self):
         '''
@@ -240,7 +263,7 @@ class Trimesh():
         average of the adjacent faces.
         
         If vertices are merged with no regard to normal angle, this is
-        going to render super weird. 
+        going to render with weird shading.
         '''
         vertex_normals = np.zeros((len(self.vertices), 3,3))
         vertex_normals[[self.faces[:,0],0]] = self.face_normals
@@ -249,10 +272,16 @@ class Trimesh():
         self.vertex_normals = unitize(np.mean(vertex_normals, axis=1))
 
     def transform(self, matrix):
-        stacked = np.column_stack((self.vertices, np.ones(len(self.vertices))))
-        self.vertices = np.dot(matrix, stacked.T)[:,0:3]
+        '''
+        Transform mesh vertices by matrix
+        '''
+        self.vertices = transform_points(self.vertices, matrix)
 
     def generate_bounds(self):
+        '''
+        Calculate bounding box and rough centroid of mesh. 
+        '''
+        
         shape = np.shape(self.vertices)
         if ((len(shape) <> 2) or
             (not (shape[1] in [2,3]))):
@@ -265,13 +294,28 @@ class Trimesh():
         self.scale    = np.min(self.box_size)
   
     def show(self, smooth = False):
+        '''
+        Render the mesh in an opengl window. Requires pyglet.
+        Smooth will re-merge vertices to fix the shading, but can be slow
+        on larger meshes. 
+        '''
         from mesh_render import MeshRender
         MeshRender(self, smooth=smooth)
 
     def export(self, filename):
         export_stl(self, filename)
 
-def replace_references(data, reference_dict, return_array=False):
+def faces_to_edges(faces):
+    '''
+    Given a list of faces (n,3), return a list of edges (n*3,3)
+    '''
+    edges = np.column_stack((faces[:,(0,1)],
+                             faces[:,(1,2)],
+                            faces[:,(2,0)])).reshape(-1,2)
+    edges.sort(axis=1)
+    return edges
+        
+def replace_references(data, reference_dict):
     '''
     Replace elements in an array as per a dictionary of replacement values
 
@@ -285,7 +329,7 @@ def replace_references(data, reference_dict, return_array=False):
     for i in xrange(len(dv)):
         if dv[i] in reference_dict:
             dv[i] = reference_dict[dv[i]]
-    if return_array: return dv
+    return dv
 
 def detect_binary_file(file_obj):
     '''
@@ -342,9 +386,10 @@ def plane_line_intersection(plane_ori,
     return intersection, valid
     
 def point_plane_distance(plane_ori, plane_dir, points):
-    w = points - plane_ori
-    return np.abs(np.dot(plane_dir, w.T) / np.linalg.norm(plane_dir))
-    
+    w         = points - plane_ori
+    distances = np.abs(np.dot(plane_dir, w.T) / np.linalg.norm(plane_dir))
+    return distances
+
 def unitize(points, error_on_zero=False):
     '''
     Unitize vectors by row
@@ -354,9 +399,9 @@ def unitize(points, error_on_zero=False):
     points: numpy array/list of points to be unit vector'd
     error_on_zero: if zero magnitude vectors exist, throw an error
     '''
-    points = np.array(points)
-    axis   = len(points.shape)-1
-    norms  = np.sum(points ** 2, axis=axis) ** .5
+    points  = np.array(points)
+    axis    = len(points.shape)-1
+    norms   = np.sum(points ** 2, axis=axis) ** .5
     nonzero = norms > TOL_ZERO
     if (error_on_zero and
         not np.all(nonzero)):
@@ -410,33 +455,25 @@ def radial_sort(points,
     #return the points sorted by angle
     return points[[np.argsort(angles)]]
                
-def project_to_plane(points, origin=[0,0,0], normal=[0,0,1]):
+def project_to_plane(points, normal=[0,0,1], origin=[0,0,0], return_transform=False):
     '''
     projects a set of (n,3) points onto a plane, returning (n,2) points
     '''
-    # we first establish a set of perpendicular axis. 
-    
+
     if np.all(np.abs(normal) < TOL_ZERO):
         raise NameError('Normal must be nonzero!')
-    for i in xrange(3):
-        test_axis = np.abs(np.cross(normal, np.roll([0,1,0], i)))
-        if np.linalg.norm(test_axis) < TOL_ZERO: continue
-        test_axis = unitize(test_axis)
-        if np.any(np.abs(test_axis) > TOL_ZERO): break
-    if np.all(np.abs(test_axis) < TOL_ZERO): 
-        raise NameError('Unable to find projection axis!')
-    axis0 = test_axis
-    axis1 = unitize(np.cross(normal, axis0))
+
+    log.debug('Projecting points to plane normal %s', str(normal))
   
-    log.debug('Projecting points to axis %s, %s', 
-              str(axis0), 
-              str(axis1))
+    T        = align_vectors(normal, [0,0,1])
+    T[0:3,3] = np.array(origin) 
+    xy       = transform_points(points, T)[:,0:2]
     
-    pt_vec = np.array(points) - origin
-    pr0 = np.dot(axis0, pt_vec.T)
-    pr1 = np.dot(axis1, pt_vec.T)
-    return np.column_stack((pr0, pr1))
- 
+    if return_transform: 
+        return xy, T
+    return xy
+    
+   
 def cross_section(mesh, 
                   plane_origin  = [0,0,0], 
                   plane_normal  = [0,0,1], 
@@ -544,65 +581,62 @@ def counterclockwise_angles(vector, vectors):
     angles  = np.arctan2(dets, dots)
     angles += (angles < 0.0)*np.pi*2
     return angles
-    
-def unique_rows(data, return_first=False, decimals=6):
-    '''
-    Returns unique rows of an array, using string hashes. 
-    '''
-    def row_to_string(row):
-        result = ''
-        for i in row: 
-            result += format(i, format_str)
-        return result
-        
-    first_occur = dict()
-    format_str  = '.' + str(decimals) + 'f'
-    unique      = np.ones(len(data), dtype=np.bool)
-    for index, row in enumerate(data):
-        hashable = row_to_string(row)
-        if hashable in first_occur:
-            unique[index]                     = False
-            if not return_first:
-                unique[first_occur[hashable]] = False
-        else:
-            first_occur[hashable] = index
-    return unique
 
-def hash_rows(data, digits):
-    # we turn our array into integers, based on the precision 
-    # given by digits, and then put them in a hashable format. 
+def hash_rows(data, digits=None):
+    '''
+    We turn our array into integers, based on the precision 
+    given by digits, and then put them in a hashable format. 
+    '''
+    
+    if digits == None:
+        digits = abs(int(np.log10(TOL_MERGE)))
+        
     as_int = ((data+10**-(digits+1))*10**digits).astype(np.int64)    
     hashes = np.ascontiguousarray(as_int).view(np.dtype((np.void, 
                                                as_int.dtype.itemsize * as_int.shape[1])))
     return hashes
     
-def unique_rows_hash(data, digits):
-    hashes                   = hash_rows(data, digits)
+def unique_rows(data, return_inverse=False, digits=None):
+    '''
+    Returns indices of unique rows. It will return the 
+    first occurrence of a row that is duplicated:
+    [[1,2], [3,4], [1,2]] will return [0,1]
+    '''
+    hashes                   = hash_rows(data, digits=digits)
     garbage, unique, inverse = np.unique(hashes, 
                                          return_index   = True, 
                                          return_inverse = True)
-    return unique, inverse
+    if return_inverse: 
+        return unique, inverse
+    return unique
 
-def group_rows(data, decimals=6):
+def group_rows(data, digits=None):
     '''
-    Returns groups of duplicate values
+    Returns index groups of duplicate rows, for example:
+    [[1,2], [3,4], [1,2]] will return [[0,2], [1]]
     '''
-    def row_to_string(row):
-        result = ''
-        for i in row: 
-            result += format(i, format_str)
-        return result
-        
+    hashes   = hash_rows(data, digits=digits)
     observed = dict()
-    format_str  = '.' + str(decimals) + 'f'
-    for index, row in enumerate(data):
-        hashable = row_to_string(row)
-        if hashable in observed:
-            observed[hashable] = np.append(observed[hashable], index)
+    for index, hashable in enumerate(hashes):
+        hashed = hashable.tostring()
+        if hashed in observed:
+            observed[hashed] = np.append(observed[hashed], index)
         else:
-            observed[hashable] = np.array([index])
+            observed[hashed] = np.array([index])
     return np.array(observed.values())
 
+def nonduplicate_rows(data, digits=None):
+    '''
+    Return indices of rows that appear ONLY once, for example:
+    [[1,2], [3,4], [1,2]] will return [1]
+    '''
+    groups = group_rows(data, digits=digits)
+    result = deque()
+    for group in groups:
+        if len(group) <> 1: continue
+        result.extend(group)
+    return list(result)
+    
 def group_vectors(vectors, TOL_ANGLE=np.radians(10), include_negative=False):
     TOL_END        = np.tan(TOL_ANGLE)
     unit_vectors   = unitize(vectors)
@@ -616,14 +650,12 @@ def group_vectors(vectors, TOL_ANGLE=np.radians(10), include_negative=False):
         if consumed[index]: continue
         aligned = np.array(tree.query_ball_point(vector, TOL_END))        
         if include_negative:
-            aligned = np.append(aligned, 
-                                tree.query_ball_point(-1*vector, TOL_END))
-
+            aligned_neg = tree.query_ball_point(-1*vector, TOL_END)
+            aligned     = np.append(aligned, aligned_neg)                              
         aligned = aligned.astype(int)
         consumed[[aligned]] = True
-        test = np.sum((unit_vectors[[aligned]] - vector)**2, axis=1)**.5
-        #unique_vectors.append(vector)
-        unique_vectors.append(np.percentile(vectors[[aligned]], q=75, axis=0))
+        consensus_vector    = np.percentile(vectors[[aligned]], q=75, axis=0)
+        unique_vectors.append(consensus_vector)
         aligned_index.append(aligned)
     return np.array(unique_vectors), np.array(aligned_index)
     
@@ -632,6 +664,12 @@ def load_stl(file_obj):
     else:                            return load_stl_ascii(file_obj)
         
 def load_stl_binary(file_obj):
+    '''
+    Load a binary STL file into a trimesh object. 
+    Uses a single main struct.unpack call, and is significantly faster
+    than looping methods or ASCII STL. 
+    '''
+
     #get the file_obj header
     header = file_obj.read(80)
     
@@ -674,6 +712,17 @@ def load_stl_ascii(file_obj):
     return Trimesh(faces       = np.array(faces,    dtype=np.int),
                    face_normals = np.array(normals, dtype=np.float),
                    vertices    = np.array(vertices, dtype=np.float))
+
+def load_assimp(filename):
+    def LPMesh_to_Trimesh(lp):
+        return Trimesh(vertices       = lp.vertices,
+                       vertex_normals = lp.normals,
+                       faces          = lp.faces)
+    import pyassimp
+    scene  = pyassimp.load(filename)
+    meshes = map(LPMesh_to_Trimesh, scene.meshes)
+    if len(meshes) == 1: return meshes[0]
+    return meshes
 
 def load_wavefront(file_obj):
     '''
@@ -742,8 +791,8 @@ def export_collada(mesh, filename):
     replacement['FCOUNT']   = str(len(mesh.faces))
 
     with open(filename, 'wb') as outfile:
-        outfile.write(template.substitute(replacement))                       
-
+        outfile.write(template.substitute(replacement))       
+        
 def connected_edges(G, nodes):
     #Given graph G and list of nodes, return the list of edges that 
     #are connected to nodes
@@ -755,6 +804,7 @@ def connected_edges(G, nodes):
     return edges
  
 def mesh_facets(mesh, angle_max=np.radians(50)):
+    mesh.unmerge_vertices()
     mesh.merge_vertices(angle_max = angle_max)
     mesh.generate_edges()
     g = nx.Graph()
@@ -767,17 +817,8 @@ def mesh_facets(mesh, angle_max=np.radians(50)):
         facet_faces.append(mesh.faces[facet])
     return list(facet_faces)
 
-
 def split_by_connectivity(mesh):
-    tic = time_function()
-    mesh.generate_edges()
-    g = nx.from_edgelist(mesh.edges)
-   
-
-    components = nx.connected_components(g)
-    new_meshes = [None] * len(components)
-
-    for i, connected in enumerate(components): 
+    def mesh_from_components(connected):
         mask = np.zeros(len(mesh.vertices))
         mask[[connected]] = 1
         face_subset = np.sum(mask[[mesh.faces]], axis=1) <> 0 
@@ -785,144 +826,70 @@ def split_by_connectivity(mesh):
         normals     = mesh.face_normals[face_subset]
         faces       = np.arange(len(vertices)).reshape((-1,3))
 
-        new_meshes[i] = Trimesh(vertices     = vertices,
-                                faces        = faces,
-                                face_normals = normals)
+        new_mesh = Trimesh(vertices     = vertices,
+                           faces        = faces,
+                           face_normals = normals)
+        return new_mesh
+    
+    tic = time_function()
+    mesh.generate_edges()
+    g = nx.from_edgelist(mesh.edges)
+    components = nx.connected_components(g)
+    new_meshes = map(mesh_from_components, components)
     toc = time_function()
     log.info('split mesh into %i components in %fs',
              len(new_meshes),
              toc-tic)
     return new_meshes
 
-def split_by_connectivity_gt(mesh):
-    from graph_tool import Graph
-    from graph_tool.topology import label_components
+def transform_points(points, matrix):
+    stacked     = np.column_stack((points, np.ones(len(points))))
+    transformed = np.dot(matrix, stacked.T).T[:,0:3]
+    return transformed
 
-    tic = time_function()
-    mesh.generate_edges()
-    g = Graph(directed=False)
-    g.add_edge_list(mesh.edges)    
-    p = label_components(g)[0].a
-    components = np.max(p)
-    new_meshes = deque()
+def align_vectors(vector_start, vector_end):
+    '''
+    Returns the 4x4 transformation matrix which will rotate from 
+    vector_start (3,) to vector end (3,) 
+    '''
 
-    for i in xrange(components):
-        mask        = (p == i)
-        face_subset = np.sum(mask[[mesh.faces]], axis=1) <> 0 
-        vertices    = mesh.vertices[[mesh.faces[face_subset].reshape(-1)]]
-        normals     = mesh.face_normals[face_subset]
-        faces       = np.arange(len(vertices)).reshape((-1,3))
-
-        new_meshes.append(Trimesh(vertices     = vertices,
-                                  faces        = faces,
-                                  face_normals = normals))
-    toc = time_function()
-    log.info('split mesh using graph_tool into %i components in %fs',
-             len(new_meshes),
-             toc-tic)
-    return new_meshes
-    
-
-def cut_axis(mesh):
-    mesh.merge_vertices()
-    mesh.generate_edges()
-
-    # this will return the indices for duplicate edges
-    # every edge appears twice in a well constructed mesh
-    # so for every row in edge_idx, mesh.edges[edge_idx[*][0]] == mesh.edges[edge_idx[*][1]]
-    edge_idx = group_rows(mesh.edges)
-
-    # returns the pairs of all adjacent faces
-    # so for every row in face_idx, mesh.faces[face_idx[*][0]] and mesh.faces[face_idx[*][1]]
-    # will share an edge
-    face_idx = np.tile(np.arange(len(mesh.faces)), (3,1)).T.reshape(-1)[[edge_idx]]
-    normal_pairs = mesh.face_normals[[face_idx]]
-
-    pair_axis   = np.cross(normal_pairs[:,0,:], normal_pairs[:,1,:])
-    pair_norms  = np.sum(pair_axis ** 2, axis=(1)) ** .5
-    parallel    = pair_norms < TOL_ZERO
-    nonparallel = np.logical_not(parallel)
-    pair_axis[nonparallel] *= 1.0 / pair_norms[nonparallel].reshape((-1,1))
-
-    #remove duplicate pair axis vectors, so we have easier comparisons
-    #while traversing
-    pair_vectors, aligned = group_vectors(pair_axis, 
-                                          TOL_ANGLE = np.radians(10), 
-                                          include_negative=True)
-
-    graph_parallel = nx.Graph()
-    graph_parallel.add_edges_from(face_idx[parallel])
-
-    for axis_vector, group in zip(pair_vectors, aligned):
-        if np.linalg.norm(axis_vector) < TOL_ZERO: continue
-        graph_group = nx.Graph()
-        graph_group.add_edges_from(face_idx[[group]])
-
-        parallel_connected_faces = connected_edges(graph_parallel, graph_group.nodes())
-        face_dot = np.dot(mesh.face_normals[[parallel_connected_faces]].reshape((-1,3)), 
-                          axis_vector).reshape((-1,2))
-        along_axis = np.all(face_dot < TOL_ZERO, axis=1)
-        parallel_along_axis = np.array(parallel_connected_faces)[along_axis]
-
-
-        graph_group.add_edges_from(parallel_along_axis)
-
-
-        cycles = nx.cycle_basis(graph_group)
-        if len(cycles) == 0: continue
-        cycle_faces = np.unique(np.hstack(cycles))
-        graph_parallel.remove_nodes_from(cycle_faces)
-
-        display = Trimesh(vertices     = mesh.vertices, 
-                          faces        = mesh.faces[[cycle_faces]], 
-                          face_normals = mesh.face_normals[[cycle_faces]])
-        display.show()
-
+    import transformations as tr
+    vector_start = unitize(vector_start)
+    vector_end   = unitize(vector_end)
+    cross        = np.cross(vector_start, vector_end)
+    norm         = np.clip(np.linalg.norm(cross), -1, 1)
+    if norm < TOL_ZERO: return np.eye(4)
+    angle        = np.arcsin(norm) 
+    T            = tr.rotation_matrix(angle, cross)
+    return T
 
 def triangles_cross(triangles):
+    '''
+    Returns the cross product of two edges from input triangles 
+
+    triangles: (n,3,3)
+    returns: 
+    '''
+
     vectors = np.diff(triangles, axis=1)
     crosses = np.cross(vectors[:,0], vectors[:,1])
     return crosses
     
 def triangles_area(triangles):
+    '''
+    Calculates the sum area of input triangles 
+
+    triangles: vertices of triangles (n,3,3)
+    returns:   area (float)
+    '''
     crosses = triangles_cross(triangles)
     area    = np.sum(np.sum(crosses**2, axis=1)**.5)*.5
     return area
     
 def triangles_normal(triangles):
+    '''
+    Calculates the normals of input triangles 
+    '''
     crosses = triangles_cross(triangles)
     return unitize(crosses)
     
-if __name__ == '__main__':
-    formatter = logging.Formatter("[%(asctime)s] %(levelname)-7s (%(filename)s:%(lineno)3s) %(message)s", "%Y-%m-%d %H:%M:%S")
-    handler_stream = logging.StreamHandler()
-    handler_stream.setFormatter(formatter)
-    handler_stream.setLevel(logging.DEBUG)
-    log = logging.getLogger(__name__)
-    log.setLevel(logging.DEBUG)
-    log.addHandler(handler_stream)
-
-    np.set_printoptions(precision=4, suppress=True)
-        
-    import matplotlib.pyplot as plt
-    import time
-
-    m = load_mesh('./src_bot.STL')
-    #m = load_mesh('./models/octagonal_pocket.stl')
-    m.merge_vertices()
-    
-    import cProfile, pstats, StringIO
-    pr = cProfile.Profile()
-    pr.enable()
-
-    ms = split_by_connectivity(m)
-
-    pr.disable()
-    s = StringIO.StringIO()
-    sortby = 'cumulative'
-    ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
-    ps.print_stats()
-    print s.getvalue()
-    
-    
-
