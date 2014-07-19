@@ -77,13 +77,13 @@ class Trimesh():
     def split(self):
         '''
         Returns a list of Trimesh objects, based on connectivity.
-        Split into individual components, sometimes referred to as 'bodies'
+        Splits into individual components, sometimes referred to as 'bodies'
         '''
         return split_by_connectivity(self)
 
     def area(self):
         '''
-        Returns the sum area of all triangles in the current mesh.
+        Returns the summed area of all triangles in the current mesh.
         '''
         return triangles_area(self.vertices[[self.faces]])
 
@@ -105,14 +105,58 @@ class Trimesh():
         # this will return the indices for duplicate edges
         # every edge appears twice in a well constructed mesh
         # so for every row in edge_idx, self.edges[edge_idx[*][0]] == self.edges[edge_idx[*][1]]
-        edge_idx = group_rows(self.edges)
-
+        # in this call to group rows, we discard edges which don't occur twice
+        edge_idx = group_rows(self.edges, require_count=2)
+        
         # returns the pairs of all adjacent faces
         # so for every row in face_idx, self.faces[face_idx[*][0]] and self.faces[face_idx[*][1]]
         # will share an edge
         face_idx = np.tile(np.arange(len(self.faces)), (3,1)).T.reshape(-1)[[edge_idx]]
         return face_idx
-
+        
+    def fix_normals(self):
+        '''
+        Find and fix problems with self.face_normals and self.faces winding direction.
+        
+        For face normals ensure that vectors are consistently pointed outwards,
+        and that self.faces is wound in the correct direction for all connected components.
+        '''
+        self.verify_normals()
+        # we create the face adjacency graph: 
+        # every node in g is an index of mesh.faces
+        # every edge in g represents two faces which are connected
+        g            = nx.Graph()
+        g.add_edges_from(self.face_adjacency())
+        
+        # we traverse every pair of faces in the graph
+        # to assure consistent normals for connected components
+        # we modify self.faces and self.face_normals in place 
+        for face_pair in nx.bfs_edges(g, 0):
+            # for each pair of faces, we convert them into edges,
+            # find the edge that both faces share, and then see if the edges 
+            # are reversed in order as you would expect in a well constructed mesh
+            pair      = self.faces[[face_pair]]
+            edges     = faces_to_edges(pair, sort=False)
+            overlap   = group_rows(np.sort(edges,axis=1), require_count=2)
+            edge_pair = edges[[overlap[0]]]
+            reversed  = edge_pair[0][0] <> edge_pair[1][0]
+            if reversed: continue
+            # if the edges aren't reversed, invert the order of one of the faces
+            # and negate its normal vector
+            self.faces[face_pair[1]] = self.faces[face_pair[1]][::-1]
+            self.face_normals[face_pair[1]] *= (reversed*2) - 1
+            
+        # the normals of every connected face now all pointed in the same direction, 
+        # but there is no guarantee that they aren't all pointed in the wrong direction
+        # we have to evaluate this for every connected component
+        for connected in nx.connected_components(g):
+            faces     = self.faces[[connected]]
+            leftmost  = np.argmin(np.min(self.vertices[:,0][[faces]], axis=1))
+            backwards = np.dot([-1.0,0,0], self.face_normals[leftmost]) < 0.0
+            if backwards:
+                self.faces[[connected]] = faces[:,::-1]
+                self.face_normals[[connected]] *= -1.0
+        
     def verify_normals(self):
         '''
         Check to make sure both face and vertex normals are defined. 
@@ -152,7 +196,7 @@ class Trimesh():
         faces = ConvexHull(self.vertices, qhull_options='i').simplices
         mesh  = Trimesh(vertices = self.vertices, faces = faces)
         mesh.remove_unreferenced()
-        mesh.generate_vertex_normals()
+        mesh.fix_normals()
         return mesh
 
     def merge_vertices(self, angle_max=None):
@@ -248,7 +292,7 @@ class Trimesh():
         '''
         Populate self.edges from face information.
         '''
-        self.edges = faces_to_edges(self.faces)
+        self.edges = faces_to_edges(self.faces, sort=True)
         
     def generate_face_normals(self):
         '''
@@ -305,14 +349,14 @@ class Trimesh():
     def export(self, filename):
         export_stl(self, filename)
 
-def faces_to_edges(faces):
+def faces_to_edges(faces, sort=True):
     '''
     Given a list of faces (n,3), return a list of edges (n*3,3)
     '''
     edges = np.column_stack((faces[:,(0,1)],
                              faces[:,(1,2)],
                             faces[:,(2,0)])).reshape(-1,2)
-    edges.sort(axis=1)
+    if sort: edges.sort(axis=1)
     return edges
         
 def replace_references(data, reference_dict):
@@ -469,8 +513,7 @@ def project_to_plane(points, normal=[0,0,1], origin=[0,0,0], return_transform=Fa
     T[0:3,3] = np.array(origin) 
     xy       = transform_points(points, T)[:,0:2]
     
-    if return_transform: 
-        return xy, T
+    if return_transform: return xy, T
     return xy
     
    
@@ -610,33 +653,33 @@ def unique_rows(data, return_inverse=False, digits=None):
         return unique, inverse
     return unique
 
-def group_rows(data, digits=None):
+def group_rows(data, require_count=None, digits=None):
     '''
     Returns index groups of duplicate rows, for example:
     [[1,2], [3,4], [1,2]] will return [[0,2], [1]]
+    
+    require_count only returns groups of a specified length, eg:
+    require_count =  2
+    [[1,2], [3,4], [1,2]] will return [[0,2]]
     '''
     hashes   = hash_rows(data, digits=digits)
     observed = dict()
+    count_ok = dict()
     for index, hashable in enumerate(hashes):
         hashed = hashable.tostring()
-        if hashed in observed:
-            observed[hashed] = np.append(observed[hashed], index)
-        else:
-            observed[hashed] = np.array([index])
+        if hashed in observed: observed[hashed].append(index)
+        else:                  observed[hashed] = [index]
+        
+        if not require_count: continue
+        if len(observed[hashed]) == require_count: count_ok[hashed] = observed[hashed]
+        elif not hashed in count_ok:               continue
+        else:                                      del count_ok[hashed]
+    if require_count: 
+        if require_count == 1: 
+            return np.reshape(count_ok.values(), -1)
+        return np.array(count_ok.values())
     return np.array(observed.values())
 
-def nonduplicate_rows(data, digits=None):
-    '''
-    Return indices of rows that appear ONLY once, for example:
-    [[1,2], [3,4], [1,2]] will return [1]
-    '''
-    groups = group_rows(data, digits=digits)
-    result = deque()
-    for group in groups:
-        if len(group) <> 1: continue
-        result.extend(group)
-    return list(result)
-    
 def group_vectors(vectors, TOL_ANGLE=np.radians(10), include_negative=False):
     TOL_END        = np.tan(TOL_ANGLE)
     unit_vectors   = unitize(vectors)
@@ -669,7 +712,6 @@ def load_stl_binary(file_obj):
     Uses a single main struct.unpack call, and is significantly faster
     than looping methods or ASCII STL. 
     '''
-
     #get the file_obj header
     header = file_obj.read(80)
     
@@ -893,3 +935,15 @@ def triangles_normal(triangles):
     crosses = triangles_cross(triangles)
     return unitize(crosses)
     
+    
+if __name__ == '__main__':
+    formatter = logging.Formatter("[%(asctime)s] %(levelname)-7s (%(filename)s:%(lineno)3s) %(message)s", "%Y-%m-%d %H:%M:%S")
+    handler_stream = logging.StreamHandler()
+    handler_stream.setFormatter(formatter)
+    handler_stream.setLevel(logging.DEBUG)
+    log = logging.getLogger(__name__)
+    log.setLevel(logging.DEBUG)
+    log.addHandler(handler_stream)
+    np.set_printoptions(precision=4, suppress=True)
+
+        
