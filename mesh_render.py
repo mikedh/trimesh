@@ -26,14 +26,13 @@ class MeshRender(pyglet.window.Window):
             self.run()
 
     def add_mesh(self, mesh, smooth=False):
-        # reason for copying mesh and unmerging vertices is so that 
-        # shading isn't super wacky
+        mesh.generate_bounds()
         self.translation = np.array([0,0,-np.max(mesh.box_size)])
         
         if smooth:
             self.mesh = deepcopy(mesh)
             self.mesh.unmerge_vertices()
-            self.mesh.merge_vertices(angle_max=np.radians(15))
+            self.mesh.merge_vertices(angle_max=np.radians(30))
             self.mesh.generate_vertex_normals()
         else:
             self.mesh = mesh

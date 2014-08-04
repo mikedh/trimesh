@@ -27,6 +27,18 @@ MODULE_PATH = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfra
 TOL_ZERO  = 1e-12
 TOL_MERGE = 1e-9
 
+def log_time(method):
+    def timed(*args, **kwargs):
+        tic    = time_function()
+        result = method(*args, **kwargs)
+        toc    = time_function()
+        log.debug('%s executed in %.4f seconds.',
+                  method.__name__,
+                  toc-tic)
+        return result
+    return timed
+    
+@log_time
 def load_mesh(file_obj, type=None):
     '''
     Load a mesh file into a Trimesh object
@@ -41,16 +53,11 @@ def load_mesh(file_obj, type=None):
         type     = (str(file_obj).split('.')[-1]).lower()
         file_obj = open(file_obj, 'rb')
 
-    tic = time_function()
     mesh = mesh_loaders[type](file_obj)
     file_obj.close()
-    toc = time_function()
 
-    log.info('loaded mesh from %s container, with %i faces and %i vertices in %fs.', 
-             type, 
-             len(mesh.faces),
-             len(mesh.vertices),
-             toc-tic)
+    log.info('loaded mesh from %s container, with %i faces and %i vertices.', 
+             type, len(mesh.faces), len(mesh.vertices))
 
     return mesh
 
@@ -60,33 +67,41 @@ class Trimesh():
                  faces           = None, 
                  face_normals    = None, 
                  vertex_normals  = None,
-                 edges           = None, 
                  color_faces     = None,
                  color_vertices  = None):
 
-        self.vertices        = vertices
-        self.faces           = faces
-        self.face_normals    = face_normals
-        self.vertex_normals  = vertex_normals
-        self.edges           = edges
-        self.color_faces     = color_faces
-        self.color_vertices  = color_vertices
+        self.vertices        = np.array(vertices)
+        self.faces           = np.array(faces)
+        self.face_normals    = np.array(face_normals)
+        self.vertex_normals  = np.array(vertex_normals)
+        self.color_faces     = np.array(color_faces)
+        self.color_vertices  = np.array(color_vertices)
 
         self.generate_bounds()
+    
+    def process(self):
+        self.merge_vertices_hash()
+        self.remove_duplicate_faces()
+        self.remove_degenerate_faces()
+        self.remove_unreferenced_vertices()
+        return self
 
+    @log_time
     def split(self):
         '''
         Returns a list of Trimesh objects, based on connectivity.
         Splits into individual components, sometimes referred to as 'bodies'
         '''
-        return split_by_connectivity(self)
-
+        return split_by_face_connectivity(self)
+        
+    @log_time
     def area(self):
         '''
         Returns the summed area of all triangles in the current mesh.
         '''
         return triangles_area(self.vertices[[self.faces]])
-
+        
+    @log_time
     def face_adjacency(self):
         '''
         Returns an (n,2) list of face indices.
@@ -100,20 +115,48 @@ class Trimesh():
         '''
         
         # first generate the list of edges for the current faces
-        self.generate_edges()
-        
+        edges = faces_to_edges(self.faces, sort=True)
         # this will return the indices for duplicate edges
         # every edge appears twice in a well constructed mesh
         # so for every row in edge_idx, self.edges[edge_idx[*][0]] == self.edges[edge_idx[*][1]]
         # in this call to group rows, we discard edges which don't occur twice
-        edge_idx = group_rows(self.edges, require_count=2)
-        
+        edge_idx = group_rows(edges, require_count=2, digits=0)
+
+        if len(edge_idx) == 0:
+            log.warn('No adjacent faces detected! Did you merge vertices?')
         # returns the pairs of all adjacent faces
         # so for every row in face_idx, self.faces[face_idx[*][0]] and self.faces[face_idx[*][1]]
         # will share an edge
         face_idx = np.tile(np.arange(len(self.faces)), (3,1)).T.reshape(-1)[[edge_idx]]
         return face_idx
         
+    @log_time
+    def is_watertight(self):
+        '''
+        Check if a mesh is watertight. 
+        This currently only checks to see if every face has a degree of 3.
+        '''
+        g = nx.from_edgelist(self.face_adjacency())
+        watertight = np.equal(g.degree().values(), 3).all()
+        return watertight
+
+    @log_time
+    def remove_degenerate_faces(self):
+        '''
+        Removes degenerate faces, or faces that have zero area.
+        This function will only work if vertices are merged. 
+        '''
+        nondegenerate = nondegenerate_faces(self.faces)
+        self.faces    = self.faces[nondegenerate]
+        log.debug('%i/%i faces were degenerate and have been removed',
+                  np.sum(np.logical_not(nondegenerate)),
+                  len(nondegenerate))
+
+    @log_time
+    def facets(self):
+        return mesh_facets(self)
+
+    @log_time    
     def fix_normals(self):
         '''
         Find and fix problems with self.face_normals and self.faces winding direction.
@@ -121,42 +164,46 @@ class Trimesh():
         For face normals ensure that vectors are consistently pointed outwards,
         and that self.faces is wound in the correct direction for all connected components.
         '''
-        self.verify_normals()
+        self.generate_face_normals()
         # we create the face adjacency graph: 
         # every node in g is an index of mesh.faces
         # every edge in g represents two faces which are connected
-        g            = nx.Graph()
-        g.add_edges_from(self.face_adjacency())
+        g = nx.from_edgelist(self.face_adjacency())
         
-        # we traverse every pair of faces in the graph
-        # to assure consistent normals for connected components
-        # we modify self.faces and self.face_normals in place 
-        for face_pair in nx.bfs_edges(g, 0):
-            # for each pair of faces, we convert them into edges,
-            # find the edge that both faces share, and then see if the edges 
-            # are reversed in order as you would expect in a well constructed mesh
-            pair      = self.faces[[face_pair]]
-            edges     = faces_to_edges(pair, sort=False)
-            overlap   = group_rows(np.sort(edges,axis=1), require_count=2)
-            edge_pair = edges[[overlap[0]]]
-            reversed  = edge_pair[0][0] <> edge_pair[1][0]
-            if reversed: continue
-            # if the edges aren't reversed, invert the order of one of the faces
-            # and negate its normal vector
-            self.faces[face_pair[1]] = self.faces[face_pair[1]][::-1]
-            self.face_normals[face_pair[1]] *= (reversed*2) - 1
-            
-        # the normals of every connected face now all pointed in the same direction, 
-        # but there is no guarantee that they aren't all pointed in the wrong direction
-        # we have to evaluate this for every connected component
+        # we are going to traverse the graph using BFS, so we have to start
+        # a traversal for every connected component
         for connected in nx.connected_components(g):
+            # we traverse every pair of faces in the graph
+            # we modify self.faces and self.face_normals in place 
+            for face_pair in nx.bfs_edges(g, connected[0]):
+                # for each pair of faces, we convert them into edges,
+                # find the edge that both faces share, and then see if the edges
+                # are reversed in order as you would expect in a well constructed mesh
+                pair      = self.faces[[face_pair]]
+                edges     = faces_to_edges(pair, sort=False)
+                overlap   = group_rows(np.sort(edges,axis=1), require_count=2)
+                edge_pair = edges[[overlap[0]]]
+                reversed  = edge_pair[0][0] <> edge_pair[1][0]
+                if reversed: continue
+                # if the edges aren't reversed, invert the order of one of the faces
+                # and negate its normal vector
+                self.faces[face_pair[1]] = self.faces[face_pair[1]][::-1]
+                self.face_normals[face_pair[1]] *= (reversed*2) - 1
+
+                self.vertices[[self.faces[face_pair[1]]]]
+            # the normals of every connected face now all pointed in 
+            # the same direction, but there is no guarantee that they aren't all
+            # pointed in the wrong direction
             faces     = self.faces[[connected]]
             leftmost  = np.argmin(np.min(self.vertices[:,0][[faces]], axis=1))
             backwards = np.dot([-1.0,0,0], self.face_normals[leftmost]) < 0.0
-            if backwards:
-                self.faces[[connected]] = faces[:,::-1]
-                self.face_normals[[connected]] *= -1.0
-        
+            if backwards: self.face_normals[[connected]] *= -1.0
+            
+            winding_tri  = connected[0]
+            winding_test = np.diff(self.vertices[[self.faces[winding_tri]]], axis=0)
+            winding_dir  = np.dot(unitize(np.cross(*winding_test)), self.face_normals[winding_tri])
+            if winding_dir < 0: self.faces[[connected]] = np.fliplr(self.faces[[connected]])
+            
     def verify_normals(self):
         '''
         Check to make sure both face and vertex normals are defined. 
@@ -185,24 +232,35 @@ class Trimesh():
         '''
         if plane_origin == None: plane_origin = self.centroid
         return cross_section(self, plane_normal, plane_origin, return_planar)
-            
-    def convex_hull(self):
+       
+    @log_time   
+    def convex_hull(self, inflate=None):
         '''
         Get a new Trimesh object representing the convex hull of the 
-        current mesh. Requires scipy >.12, and doesn't produce properly directed normals
+        current mesh. Requires scipy >.12.
+        
+        Inflate is a convenience parameter which will take the convex hull of the mesh,
+        and then inflate, or 'pad' the hull. 
 
         '''
         from scipy.spatial import ConvexHull
-        faces = ConvexHull(self.vertices, qhull_options='i').simplices
+        faces = ConvexHull(self.vertices).simplices
         mesh  = Trimesh(vertices = self.vertices, faces = faces)
-        mesh.remove_unreferenced()
+        mesh.remove_unreferenced_vertices()
         mesh.fix_normals()
+        
+        if inflate <> None:
+            mesh.generate_vertex_normals()
+            mesh.vertices += inflate*mesh.vertex_normals
+            return mesh.convex_hull(inflate=None)
+            
         return mesh
 
     def merge_vertices(self, angle_max=None):
         if angle_max <> None: self.merge_vertices_kdtree(angle_max)
         else:                 self.merge_vertices_hash()
 
+    @log_time
     def merge_vertices_kdtree(self, angle_max=None):
         '''
         Merges vertices which are identical, AKA within 
@@ -242,7 +300,7 @@ class Trimesh():
                 unique.append(neighbors[0])
 
         self.vertices = self.vertices[[unique]]
-        replace_references(self.faces, replacement)
+        self.faces    = replace_references(self.faces, replacement)
         if angle_max <> None: self.generate_vertex_normals()
        
         log.debug('merge_vertices_kdtree reduced vertex count from %i to %i in %.4fs.',
@@ -250,6 +308,7 @@ class Trimesh():
                   len(unique),
                   time_function()-tic)
                   
+    @log_time
     def merge_vertices_hash(self):
         '''
         Removes duplicate vertices, based on integer hashes.
@@ -262,11 +321,20 @@ class Trimesh():
         self.faces      = inverse[[self.faces.reshape(-1)]].reshape((-1,3))
         self.vertices   = self.vertices[[unique]]
 
-        log.debug('merge_vertices_hash reduced vertex count from %i to %i in %.4fs.',
+        log.debug('merge_vertices_hash reduced vertex count from %i to %i.',
                   pre_merge,
-                  len(self.vertices),
-                  time_function()-tic)
+                  len(self.vertices))
 
+    @log_time
+    def remove_duplicate_faces(self):
+        unique = unique_rows(np.sort(self.faces, axis=1), digits=0)
+        log.debug('%i/%i faces were duplicate and have been removed',
+                  len(self.faces) - len(unique),
+                  len(self.faces))
+        self.faces        = self.faces[[unique]]
+        self.face_normals = self.face_normals[[unique]]
+        
+    @log_time
     def unmerge_vertices(self):
         '''
         Removes all face references, so that every face contains
@@ -275,7 +343,8 @@ class Trimesh():
         self.vertices = self.vertices[[self.faces]].reshape((-1,3))
         self.faces    = np.arange(len(self.vertices)).reshape((-1,3))
         
-    def remove_unreferenced(self):
+    @log_time    
+    def remove_unreferenced_vertices(self):
         '''
         Removes all vertices which aren't in a face
         Reindexes vertices from zero and replaces face references
@@ -285,15 +354,17 @@ class Trimesh():
         replacement = dict()
         replacement.update(np.column_stack((unique_ref,
                                             range(len(unique_ref)))))                            
-        replace_references(self.faces, replacement)
+        self.faces    = replace_references(self.faces, replacement)
         self.vertices = self.vertices[[unique_ref]]
 
+    @log_time
     def generate_edges(self):
         '''
         Populate self.edges from face information.
         '''
         self.edges = faces_to_edges(self.faces, sort=True)
         
+    @log_time    
     def generate_face_normals(self):
         '''
         If no normal information is loaded, we can get it from cross products
@@ -301,6 +372,7 @@ class Trimesh():
         '''
         self.face_normals = triangles_normal(self.vertices[[self.faces]])
         
+    @log_time    
     def generate_vertex_normals(self):
         '''
         If face normals are defined, produce approximate vertex normals based on the
@@ -337,6 +409,10 @@ class Trimesh():
         self.box_size = np.diff(self.bounds, axis=0)[0]
         self.scale    = np.min(self.box_size)
   
+    def mass_properties(self):
+        #http://www.geometrictools.com/Documentation/PolyhedralMassProperties.pdf
+        pass
+
     def show(self, smooth = False):
         '''
         Render the mesh in an opengl window. Requires pyglet.
@@ -351,13 +427,22 @@ class Trimesh():
 
 def faces_to_edges(faces, sort=True):
     '''
-    Given a list of faces (n,3), return a list of edges (n*3,3)
+    Given a list of faces (n,3), return a list of edges (n*3,2)
     '''
     edges = np.column_stack((faces[:,(0,1)],
                              faces[:,(1,2)],
-                            faces[:,(2,0)])).reshape(-1,2)
+                             faces[:,(2,0)])).reshape(-1,2)
     if sort: edges.sort(axis=1)
     return edges
+        
+def nondegenerate_faces(faces):
+    '''
+    Returns a 1D boolean array where non-degenerate faces are 'True'
+    
+    Faces should be (n, m) where for Trimeshes m=3. Returns (n) array
+    '''
+    nondegenerate = np.all(np.diff(np.sort(faces, axis=1), axis=1) <> 0, axis=1)
+    return nondegenerate 
         
 def replace_references(data, reference_dict):
     '''
@@ -366,14 +451,13 @@ def replace_references(data, reference_dict):
     data:           numpy array
     reference_dict: dictionary of replacements. example:
                        {2:1, 3:1, 4:5}
-
-    return_array: if False, replaces references in place and returns nothing
     '''
-    dv = data.view().reshape((-1))
-    for i in xrange(len(dv)):
-        if dv[i] in reference_dict:
-            dv[i] = reference_dict[dv[i]]
-    return dv
+    shape = np.shape(data)
+    view  = np.array(data).view().reshape((-1))
+    for i, value in enumerate(view):
+        if value in reference_dict:
+            view[i] = reference_dict[value]
+    return view.reshape(shape)
 
 def detect_binary_file(file_obj):
     '''
@@ -596,7 +680,7 @@ def planar_outline(mesh,
         edge_vector = np.diff(mesh.vertices[[edge]], axis=0)
         edge_length = np.linalg.norm(edge_vector)
         try: 
-            edge_normal = unitize(np.cross(ray_dir, edge_vector)[0], error_on_zero=True)
+            edge_normal = unitize(np.cross(ray_dir, edge_vector)[0])
         except:  continue
         ray_perp = edge_normal * np.clip(edge_length * .5, 0, offset_max)
         ray_0 = edge_center + ray_offset + ray_perp 
@@ -662,7 +746,8 @@ def group_rows(data, require_count=None, digits=None):
     require_count =  2
     [[1,2], [3,4], [1,2]] will return [[0,2]]
     '''
-    hashes   = hash_rows(data, digits=digits)
+    hashes = hash_rows(data, digits=digits)
+    
     observed = dict()
     count_ok = dict()
     for index, hashable in enumerate(hashes):
@@ -675,10 +760,17 @@ def group_rows(data, require_count=None, digits=None):
         elif not hashed in count_ok:               continue
         else:                                      del count_ok[hashed]
     if require_count: 
-        if require_count == 1: 
-            return np.reshape(count_ok.values(), -1)
+        if require_count == 1: return np.reshape(count_ok.values(), -1)
         return np.array(count_ok.values())
     return np.array(observed.values())
+
+def stack_negative(rows):
+    rows     = np.array(rows)
+    width    = rows.shape[1]
+    stacked  = np.column_stack((rows, rows*-1))
+    negative = rows[:,0] < 0
+    stacked[negative] = np.roll(stacked[negative], 3, axis=1)
+    return stacked
 
 def group_vectors(vectors, TOL_ANGLE=np.radians(10), include_negative=False):
     TOL_END        = np.tan(TOL_ANGLE)
@@ -697,7 +789,7 @@ def group_vectors(vectors, TOL_ANGLE=np.radians(10), include_negative=False):
             aligned     = np.append(aligned, aligned_neg)                              
         aligned = aligned.astype(int)
         consumed[[aligned]] = True
-        consensus_vector    = np.percentile(vectors[[aligned]], q=75, axis=0)
+        consensus_vector = vectors[aligned[-1]]
         unique_vectors.append(consensus_vector)
         aligned_index.append(aligned)
     return np.array(unique_vectors), np.array(aligned_index)
@@ -763,6 +855,7 @@ def load_assimp(filename):
     import pyassimp
     scene  = pyassimp.load(filename)
     meshes = map(LPMesh_to_Trimesh, scene.meshes)
+    pyassimp.release(scene)
     if len(meshes) == 1: return meshes[0]
     return meshes
 
@@ -833,8 +926,7 @@ def export_collada(mesh, filename):
     replacement['FCOUNT']   = str(len(mesh.faces))
 
     with open(filename, 'wb') as outfile:
-        outfile.write(template.substitute(replacement))       
-        
+        outfile.write(template.substitute(replacement))           
 def connected_edges(G, nodes):
     #Given graph G and list of nodes, return the list of edges that 
     #are connected to nodes
@@ -844,46 +936,40 @@ def connected_edges(G, nodes):
         nodes_in_G.extend(nx.node_connected_component(G, node))
     edges = G.subgraph(nodes_in_G).edges()
     return edges
- 
-def mesh_facets(mesh, angle_max=np.radians(50)):
-    mesh.unmerge_vertices()
-    mesh.merge_vertices(angle_max = angle_max)
-    mesh.generate_edges()
-    g = nx.Graph()
-    g.add_edges_from(mesh.edges)
 
-    connected_vertices = nx.connected_components(g)
-    facet_faces        = deque()
-    for vertices in connected_vertices:
-        facet = np.all(np.in1d(mesh.faces.reshape(-1), vertices).reshape((-1,3)), axis=1)
-        facet_faces.append(mesh.faces[facet])
-    return list(facet_faces)
+def mesh_facets(mesh):
+    face_idx       = mesh.face_adjacency()
+    normal_pairs   = mesh.face_normals[[face_idx]]
+    pair_axis      = np.cross(normal_pairs[:,0,:], normal_pairs[:,1,:]) 
+    pair_norms     = np.sum(pair_axis ** 2, axis=(1)) ** .5
+    parallel       = pair_norms < TOL_ZERO
+    graph_parallel = nx.from_edgelist(face_idx[parallel])
+    facets         = nx.connected_components(graph_parallel)
+    facets_area    = [triangles_area(mesh.vertices[[mesh.faces[facet]]]) for facet in facets]
+    return facets, facets_area
 
-def split_by_connectivity(mesh):
-    def mesh_from_components(connected):
-        mask = np.zeros(len(mesh.vertices))
-        mask[[connected]] = 1
-        face_subset = np.sum(mask[[mesh.faces]], axis=1) <> 0 
-        vertices    = mesh.vertices[[mesh.faces[face_subset].reshape(-1)]]
-        normals     = mesh.face_normals[face_subset]
-        faces       = np.arange(len(vertices)).reshape((-1,3))
+def split_by_face_connectivity(mesh, check_watertight=True):
+    def mesh_from_components(connected_faces):
+        if check_watertight:
+            subgraph   = nx.subgraph(face_adjacency, connected_faces)
+            watertight = np.equal(subgraph.degree().values(), 3).all()
+            if not watertight: return
+        faces  = mesh.faces[[connected_faces]]
+        unique = np.unique(faces.reshape(-1))
+        replacement = dict()
+        replacement.update(np.column_stack((unique, np.arange(len(unique)))))
+        faces = replace_references(faces, replacement).reshape((-1,3))
+        new_meshes.append(Trimesh(vertices     = mesh.vertices[[unique]],
+                                  faces        = faces,
+                                  face_normals = mesh.face_normals[[connected_faces]]))
 
-        new_mesh = Trimesh(vertices     = vertices,
-                           faces        = faces,
-                           face_normals = normals)
-        return new_mesh
+    face_adjacency = nx.from_edgelist(mesh.face_adjacency())
+    new_meshes     = deque()
+    map(mesh_from_components, nx.connected_components(face_adjacency))
+    log.info('split mesh into %i components.',
+             len(new_meshes))
+    return list(new_meshes)
     
-    tic = time_function()
-    mesh.generate_edges()
-    g = nx.from_edgelist(mesh.edges)
-    components = nx.connected_components(g)
-    new_meshes = map(mesh_from_components, components)
-    toc = time_function()
-    log.info('split mesh into %i components in %fs',
-             len(new_meshes),
-             toc-tic)
-    return new_meshes
-
 def transform_points(points, matrix):
     stacked     = np.column_stack((points, np.ones(len(points))))
     transformed = np.dot(matrix, stacked.T).T[:,0:3]
@@ -934,8 +1020,7 @@ def triangles_normal(triangles):
     '''
     crosses = triangles_cross(triangles)
     return unitize(crosses)
-    
-    
+
 if __name__ == '__main__':
     formatter = logging.Formatter("[%(asctime)s] %(levelname)-7s (%(filename)s:%(lineno)3s) %(message)s", "%Y-%m-%d %H:%M:%S")
     handler_stream = logging.StreamHandler()
@@ -945,5 +1030,7 @@ if __name__ == '__main__':
     log.setLevel(logging.DEBUG)
     log.addHandler(handler_stream)
     np.set_printoptions(precision=4, suppress=True)
-
-        
+    
+    m = load_mesh('models/octagonal_pocket.stl')
+    m.process()
+ 
