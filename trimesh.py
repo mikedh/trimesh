@@ -31,15 +31,14 @@ def log_time(method):
     def timed(*args, **kwargs):
         tic    = time_function()
         result = method(*args, **kwargs)
-        toc    = time_function()
         log.debug('%s executed in %.4f seconds.',
                   method.__name__,
-                  toc-tic)
+                  time_function()-tic)
         return result
     return timed
     
 @log_time
-def load_mesh(file_obj, type=None):
+def load_mesh(file_obj, file_type=None):
     '''
     Load a mesh file into a Trimesh object
 
@@ -49,15 +48,15 @@ def load_mesh(file_obj, type=None):
     mesh_loaders = {'stl': load_stl, 
                     'obj': load_wavefront}
                     
-    if type == None and file_obj.__class__.__name__ == 'str':
-        type     = (str(file_obj).split('.')[-1]).lower()
-        file_obj = open(file_obj, 'rb')
+    if file_type == None and file_obj.__class__.__name__ == 'str':
+        file_type = (str(file_obj).split('.')[-1]).lower()
+        file_obj  = open(file_obj, 'rb')
 
-    mesh = mesh_loaders[type](file_obj)
+    mesh = mesh_loaders[file_type](file_obj)
     file_obj.close()
 
     log.info('loaded mesh from %s container, with %i faces and %i vertices.', 
-             type, len(mesh.faces), len(mesh.vertices))
+             file_type, len(mesh.faces), len(mesh.vertices))
 
     return mesh
 
@@ -83,13 +82,12 @@ class Trimesh():
         self.merge_vertices_hash()
         self.remove_duplicate_faces()
         self.remove_degenerate_faces()
-        self.remove_unreferenced_vertices()
         return self
 
     @log_time
     def split(self):
         '''
-        Returns a list of Trimesh objects, based on connectivity.
+        Returns a list of Trimesh objects, based on face connectivity.
         Splits into individual components, sometimes referred to as 'bodies'
         '''
         return split_by_face_connectivity(self)
@@ -120,7 +118,7 @@ class Trimesh():
         # every edge appears twice in a well constructed mesh
         # so for every row in edge_idx, self.edges[edge_idx[*][0]] == self.edges[edge_idx[*][1]]
         # in this call to group rows, we discard edges which don't occur twice
-        edge_idx = group_rows(edges, require_count=2, digits=0)
+        edge_idx = group_rows(edges, require_count=2)
 
         if len(edge_idx) == 0:
             log.warn('No adjacent faces detected! Did you merge vertices?')
@@ -342,20 +340,6 @@ class Trimesh():
         '''
         self.vertices = self.vertices[[self.faces]].reshape((-1,3))
         self.faces    = np.arange(len(self.vertices)).reshape((-1,3))
-        
-    @log_time    
-    def remove_unreferenced_vertices(self):
-        '''
-        Removes all vertices which aren't in a face
-        Reindexes vertices from zero and replaces face references
-        '''
-        referenced = self.faces.view().reshape(-1)
-        unique_ref = np.unique(referenced).astype(int)
-        replacement = dict()
-        replacement.update(np.column_stack((unique_ref,
-                                            range(len(unique_ref)))))                            
-        self.faces    = replace_references(self.faces, replacement)
-        self.vertices = self.vertices[[unique_ref]]
 
     @log_time
     def generate_edges(self):
@@ -709,19 +693,32 @@ def counterclockwise_angles(vector, vectors):
     angles += (angles < 0.0)*np.pi*2
     return angles
 
-def hash_rows(data, digits=None):
+def hashable_rows(data, digits=None):
     '''
     We turn our array into integers, based on the precision 
     given by digits, and then put them in a hashable format. 
-    '''
     
-    if digits == None:
-        digits = abs(int(np.log10(TOL_MERGE)))
-        
-    as_int = ((data+10**-(digits+1))*10**digits).astype(np.int64)    
-    hashes = np.ascontiguousarray(as_int).view(np.dtype((np.void, 
-                                               as_int.dtype.itemsize * as_int.shape[1])))
-    return hashes
+    Arguments
+    ---------
+    data:    (n,m) input array
+    digits:  how many digits to add to hash, if data is floats
+    
+    Returns
+    ---------
+    hashable:  (n) length array of custom data which can be sorted 
+                or used as hash keys
+    '''
+    data = np.array(data)   
+    if digits == None: digits = abs(int(np.log10(TOL_MERGE)))
+     
+    if data.dtype.kind in 'ib':
+        #if data is an integer or boolean, don't bother multiplying by precision
+        as_int = data
+    else:
+        as_int = ((data+10**-(digits+1))*10**digits).astype(np.int64)    
+    hashable = np.ascontiguousarray(as_int).view(np.dtype((np.void, 
+                                                         as_int.dtype.itemsize * as_int.shape[1]))).reshape(-1)
+    return hashable
     
 def unique_rows(data, return_inverse=False, digits=None):
     '''
@@ -729,41 +726,58 @@ def unique_rows(data, return_inverse=False, digits=None):
     first occurrence of a row that is duplicated:
     [[1,2], [3,4], [1,2]] will return [0,1]
     '''
-    hashes                   = hash_rows(data, digits=digits)
+    hashes                   = hashable_rows(data, digits=digits)
     garbage, unique, inverse = np.unique(hashes, 
                                          return_index   = True, 
                                          return_inverse = True)
     if return_inverse: 
         return unique, inverse
     return unique
-
+    
 def group_rows(data, require_count=None, digits=None):
     '''
     Returns index groups of duplicate rows, for example:
     [[1,2], [3,4], [1,2]] will return [[0,2], [1]]
     
-    require_count only returns groups of a specified length, eg:
-    require_count =  2
-    [[1,2], [3,4], [1,2]] will return [[0,2]]
-    '''
-    hashes = hash_rows(data, digits=digits)
+    require_count: only returns groups of a specified length, eg:
+                   require_count =  2
+                   [[1,2], [3,4], [1,2]] will return [[0,2]]
     
-    observed = dict()
-    count_ok = dict()
-    for index, hashable in enumerate(hashes):
-        hashed = hashable.tostring()
-        if hashed in observed: observed[hashed].append(index)
-        else:                  observed[hashed] = [index]
+                   Note that using require_count allows numpy advanced indexing
+                   to be used in place of looping and checking hashes, and as a
+                   consequence is ~10x faster. 
+                   
+    digits:        if data is floating point, how many decimals to look at
+    '''
+    def group_dict():
+        observed = dict()
+        hashable = hashable_rows(data, digits=digits)
+        for index, key in enumerate(hashable):
+            key_string = key.tostring()
+            if key_string in observed: observed[key_string].append(index)
+            else:                      observed[key_string] = [index]
+        return np.array(observed.values())
         
-        if not require_count: continue
-        if len(observed[hashed]) == require_count: count_ok[hashed] = observed[hashed]
-        elif not hashed in count_ok:               continue
-        else:                                      del count_ok[hashed]
-    if require_count: 
-        if require_count == 1: return np.reshape(count_ok.values(), -1)
-        return np.array(count_ok.values())
-    return np.array(observed.values())
+    def group_slice():
+        hashable = hashable_rows(data, digits=digits)
+        order    = np.argsort(hashable)
+        hashable = hashable[order]
 
+        dupe     = hashable[1:] <> hashable[:-1]
+        dupe_idx = np.append(0, np.nonzero(dupe)[0] + 1)
+        
+        start_ok   = np.diff(np.hstack((dupe_idx, len(hashable)))) == require_count
+        groups     = np.tile(dupe_idx[start_ok].reshape((-1,1)), 
+                             require_count) + np.arange(require_count)
+        groups_idx = order[groups]
+        if require_count == 1: 
+            return groups_idx.reshape(-1)
+        return groups_idx
+
+    if require_count == None: 
+        return group_dict()
+    return group_slice()
+    
 def stack_negative(rows):
     rows     = np.array(rows)
     width    = rows.shape[1]
@@ -924,9 +938,9 @@ def export_collada(mesh, filename):
     replacement['VCOUNT']   = str(len(mesh.vertices))
     replacement['VCOUNTX3'] = str(len(mesh.vertices) * 3)
     replacement['FCOUNT']   = str(len(mesh.faces))
-
     with open(filename, 'wb') as outfile:
-        outfile.write(template.substitute(replacement))           
+        outfile.write(template.substitute(replacement))
+           
 def connected_edges(G, nodes):
     #Given graph G and list of nodes, return the list of edges that 
     #are connected to nodes
@@ -940,9 +954,8 @@ def connected_edges(G, nodes):
 def mesh_facets(mesh):
     face_idx       = mesh.face_adjacency()
     normal_pairs   = mesh.face_normals[[face_idx]]
-    pair_axis      = np.cross(normal_pairs[:,0,:], normal_pairs[:,1,:]) 
-    pair_norms     = np.sum(pair_axis ** 2, axis=(1)) ** .5
-    parallel       = pair_norms < TOL_ZERO
+    parallel       = np.abs(np.sum(normal_pairs[:,0,:] * normal_pairs[:,1,:], 
+                                   axis=1) - 1) < TOL_ZERO
     graph_parallel = nx.from_edgelist(face_idx[parallel])
     facets         = nx.connected_components(graph_parallel)
     facets_area    = [triangles_area(mesh.vertices[[mesh.faces[facet]]]) for facet in facets]
@@ -1026,11 +1039,32 @@ if __name__ == '__main__':
     handler_stream = logging.StreamHandler()
     handler_stream.setFormatter(formatter)
     handler_stream.setLevel(logging.DEBUG)
-    log = logging.getLogger(__name__)
     log.setLevel(logging.DEBUG)
     log.addHandler(handler_stream)
     np.set_printoptions(precision=4, suppress=True)
+
+    mesh = load_mesh('models/1002_tray_bottom.STL')
+    mesh.process()
     
-    m = load_mesh('models/octagonal_pocket.stl')
-    m.process()
- 
+    facets, area = mesh.facets()
+    #facet is a list of indices of mesh.faces
+    area_sort = np.argsort(area)
+    facet     = facets[area_sort[-1]]
+    edges     = faces_to_edges(mesh.faces[[facet]])
+    normal    = mesh.face_normals[facet[0]]
+    thickness = np.ptp(np.dot(mesh.vertices, normal))
+    unique_edges   = group_rows(edges, require_count=1)
+    contours_3D    = mesh.vertices[edges[unique_edges]].reshape((-1,3))
+    contours_2D    = project_to_plane(contours_3D, normal).reshape((-1,2,2))
+    log.debug('done projecting to plane')
+    test_vertices  = [mesh.faces[facets[i][0]][0] for i in area_sort[-2:]]
+    test_thickness = np.ptp(np.dot(mesh.vertices[[test_vertices]], normal))
+
+    face_angles = np.abs(np.arcsin(np.dot(mesh.face_normals, normal)))
+    TOL_ANGLE = np.radians(10)
+    all_face_test = np.logical_or((face_angles < TOL_ANGLE),
+                                  (np.abs(face_angles-(np.pi/2)) < TOL_ANGLE))
+
+    is_planar = (all_face_test.all() and 
+                 (abs(test_thickness - thickness) < TOL_ZERO))
+
