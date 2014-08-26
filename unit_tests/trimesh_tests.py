@@ -56,6 +56,23 @@ class MeshTests(unittest.TestCase):
         for mesh in self.meshes:
             self.assertTrue(len(mesh.faces) > 0)
             self.assertTrue(len(mesh.vertices) > 0)
+            
+class MassTests(unittest.TestCase):
+    def setUp(self):
+        self.mesh = trimesh.load_mesh('models/angle_block.STL')
+        
+    def test_mass(self):
+        # the reference numbers for this part were taken from Solidworks
+        # also tested with unit cube
+        density        = 0.036127
+        inertia_actual = [[0.008312,0.000000,0.000000], [0.000000,0.012823,0.000807], [0.000000,0.000807, 0.009005]]
+        prop    = self.mesh.mass_properties(density = density)
+        
+        inertia        = prop['inertia']
+
+                          
+        test = np.int_((actual - inertia)*10000)
+        self.assertTrue(np.all(test == 0))
 
 if __name__ == '__main__':
     formatter = logging.Formatter("[%(asctime)s] %(levelname)-7s (%(filename)s:%(lineno)3s) %(message)s", "%Y-%m-%d %H:%M:%S")

@@ -10,8 +10,6 @@ import struct
 from collections import deque
 import logging
 
-from scipy.spatial import cKDTree as KDTree
-        
 from time import time as time_function
 from string import Template
 from copy import deepcopy
@@ -48,7 +46,7 @@ def load_mesh(file_obj, file_type=None):
     mesh_loaders = {'stl': load_stl, 
                     'obj': load_wavefront}
                     
-    if file_type == None and file_obj.__class__.__name__ == 'str':
+    if file_obj.__class__.__name__ == 'str':
         file_type = (str(file_obj).split('.')[-1]).lower()
         file_obj  = open(file_obj, 'rb')
 
@@ -76,9 +74,10 @@ class Trimesh():
         self.color_faces     = np.array(color_faces)
         self.color_vertices  = np.array(color_vertices)
 
-        self.generate_bounds()
-    
     def process(self):
+        '''
+        Convenience function to do basic processing on mesh
+        '''
         self.merge_vertices_hash()
         self.remove_duplicate_faces()
         self.remove_degenerate_faces()
@@ -91,21 +90,14 @@ class Trimesh():
         Splits into individual components, sometimes referred to as 'bodies'
         '''
         return split_by_face_connectivity(self)
-        
-    @log_time
-    def area(self):
-        '''
-        Returns the summed area of all triangles in the current mesh.
-        '''
-        return triangles_area(self.vertices[[self.faces]])
-        
+
     @log_time
     def face_adjacency(self):
         '''
         Returns an (n,2) list of face indices.
         Each pair of faces in the list shares an edge, making them adjacent.
         
-        This is particularly useful for finding connected subgraphs, eg:
+        This is useful for lots of things, for example finding connected subgraphs:
         
         graph = nx.Graph()
         graph.add_edges_from(mesh.face_adjacency())
@@ -121,7 +113,7 @@ class Trimesh():
         edge_idx = group_rows(edges, require_count=2)
 
         if len(edge_idx) == 0:
-            log.warn('No adjacent faces detected! Did you merge vertices?')
+            log.error('No adjacent faces detected! Did you merge vertices?')
         # returns the pairs of all adjacent faces
         # so for every row in face_idx, self.faces[face_idx[*][0]] and self.faces[face_idx[*][1]]
         # will share an edge
@@ -152,7 +144,7 @@ class Trimesh():
 
     @log_time
     def facets(self):
-        return mesh_facets(self)
+        return facets(self)
 
     @log_time    
     def fix_normals(self):
@@ -187,7 +179,6 @@ class Trimesh():
                 # and negate its normal vector
                 self.faces[face_pair[1]] = self.faces[face_pair[1]][::-1]
                 self.face_normals[face_pair[1]] *= (reversed*2) - 1
-
                 self.vertices[[self.faces[face_pair[1]]]]
             # the normals of every connected face now all pointed in 
             # the same direction, but there is no guarantee that they aren't all
@@ -218,19 +209,26 @@ class Trimesh():
             self.generate_vertex_normals()
 
     def cross_section(self,
-                      plane_normal,
-                      plane_origin  = None,
+                      normal,
+                      origin        = None,
                       return_planar = True):
         '''
         Returns a cross section of the current mesh and plane defined by
-        plane_origin and plane_normal.
+        origin and normal.
         
         If return_planar is True,  result is (n, 2, 2) 
         If return_planar is False, result is (n, 2, 3)
         '''
-        if plane_origin == None: plane_origin = self.centroid
-        return cross_section(self, plane_normal, plane_origin, return_planar)
-       
+        if origin == None: 
+            origin = self.centroid
+        intersections = cross_section(mesh         = self, 
+                                      plane_normal = normal, 
+                                      plane_origin = origin)
+        if not return_planar: return intersections                     
+        return  project_to_plane(intersections.reshape((-1,3)), 
+                                 normal = normal, 
+                                 origin = origin).reshape((-1,2,2))
+
     @log_time   
     def convex_hull(self, inflate=None):
         '''
@@ -244,7 +242,6 @@ class Trimesh():
         from scipy.spatial import ConvexHull
         faces = ConvexHull(self.vertices).simplices
         mesh  = Trimesh(vertices = self.vertices, faces = faces)
-        mesh.remove_unreferenced_vertices()
         mesh.fix_normals()
         
         if inflate <> None:
@@ -274,7 +271,8 @@ class Trimesh():
         cKDTree requires scipy >= .12 for this query type and you 
         probably don't want to use plain python KDTree as it is crazy slow (~1000x in tests)
         '''
-
+        from scipy.spatial import cKDTree as KDTree
+        
         tic         = time_function()
         tree        = KDTree(self.vertices)
         used        = np.zeros(len(self.vertices), dtype=np.bool)
@@ -377,34 +375,56 @@ class Trimesh():
         '''
         self.vertices = transform_points(self.vertices, matrix)
 
-    def generate_bounds(self):
+    @property
+    def area(self):
         '''
-        Calculate bounding box and rough centroid of mesh. 
+        Summed area of all triangles in the current mesh.
         '''
+        return triangles_area(self.vertices[[self.faces]])
         
-        shape = np.shape(self.vertices)
-        if ((len(shape) <> 2) or
-            (not (shape[1] in [2,3]))):
-            return
+    @property
+    def bounds(self):
+        return np.vstack((np.min(self.vertices, axis=0),
+                          np.max(self.vertices, axis=0)))
+                          
+    @property                 
+    def centroid(self):
+        return np.mean(self.vertices, axis=0)
+        
+    @property
+    def box_size(self):
+        return np.diff(self.bounds, axis=0)[0]
+        
+    @property
+    def scale(self):
+        return np.min(self.box_size)
+        
+    @log_time  
+    def mass_properties(self, density = 1.0):
+        '''
+        Returns the mass properties of the current mesh.
+        
+        Assumes uniform density, and result is probably garbage if mesh
+        isn't watertight. 
 
-        self.bounds   = np.vstack((np.min(self.vertices, axis=0),
-                                   np.max(self.vertices, axis=0)))
-        self.centroid = np.mean(self.vertices, axis=0)
-        self.box_size = np.diff(self.bounds, axis=0)[0]
-        self.scale    = np.min(self.box_size)
-  
-    def mass_properties(self):
-        #http://www.geometrictools.com/Documentation/PolyhedralMassProperties.pdf
-        pass
+        Returns dictionary with keys: 
+            'volume'      : in global units^3
+            'mass'        : From specified density
+            'density'     : Included again for convenience (same as kwarg density)
+            'inertia'     : Taken at the center of mass and aligned with the output coordinate system
+            'center_mass' : Center of mass with respect to global frame
+        '''
+        return triangles_mass_properties(triangles = self.vertices[[self.faces]], 
+                                         density    = density)
 
-    def show(self, smooth = False):
+    def show(self, smooth = False, smooth_angle = np.radians(20)):
         '''
         Render the mesh in an opengl window. Requires pyglet.
         Smooth will re-merge vertices to fix the shading, but can be slow
         on larger meshes. 
         '''
         from mesh_render import MeshRender
-        MeshRender(self, smooth=smooth)
+        MeshRender(self, smooth=smooth, smooth_angle=smooth_angle)
 
     def export(self, filename):
         export_stl(self, filename)
@@ -422,7 +442,6 @@ def faces_to_edges(faces, sort=True):
 def nondegenerate_faces(faces):
     '''
     Returns a 1D boolean array where non-degenerate faces are 'True'
-    
     Faces should be (n, m) where for Trimeshes m=3. Returns (n) array
     '''
     nondegenerate = np.all(np.diff(np.sort(faces, axis=1), axis=1) <> 0, axis=1)
@@ -453,7 +472,34 @@ def detect_binary_file(file_obj):
     fbytes    = file_obj.read(1024)
     file_obj.seek(start)
     return bool(fbytes.translate(None, textchars))
+    
+def cross_section(mesh, 
+                  plane_origin  = [0,0,0], 
+                  plane_normal  = [0,0,1]):
+    '''
+    Return a cross section of the trimesh based on plane origin and normal. 
+    Basically a bunch of plane-line intersection queries
+    Depends on properly ordered edge information, as done by generate_edges
 
+    origin:        (3) array of plane origin
+    normal:        (3) array for plane normal
+    return_planar: bool, True returns:
+                         (m,2,2) list of 2D line segments
+                         False returns:
+                         (m,2,3) list of 3D line segments
+    '''
+    if len(mesh.faces) == 0: 
+        raise NameError("Cannot compute cross section of empty mesh.")
+    tic = time_function()
+    mesh.generate_edges()
+    intersections, valid  = plane_line_intersection(plane_origin, 
+                                                    plane_normal, 
+                                                    mesh.vertices[[mesh.edges.T]],
+                                                    line_segments = True)
+    toc = time_function()
+    log.debug('mesh_cross_section found %i intersections in %fs.', np.sum(valid), toc-tic)
+    return intersections.reshape(-1,2,3)
+    
 def plane_line_intersection(plane_ori, 
                             plane_dir, 
                             endpoints,                            
@@ -567,119 +613,23 @@ def radial_sort(points,
     #return the points sorted by angle
     return points[[np.argsort(angles)]]
                
-def project_to_plane(points, normal=[0,0,1], origin=[0,0,0], return_transform=False):
+def project_to_plane(points, 
+                     normal = [0,0,1], 
+                     origin = [0,0,0], 
+                     return_transform=False):
     '''
-    projects a set of (n,3) points onto a plane, returning (n,2) points
+    Projects a set of (n,3) points onto a plane, returning (n,2) points
     '''
 
     if np.all(np.abs(normal) < TOL_ZERO):
         raise NameError('Normal must be nonzero!')
-
-    log.debug('Projecting points to plane normal %s', str(normal))
-  
     T        = align_vectors(normal, [0,0,1])
     T[0:3,3] = np.array(origin) 
     xy       = transform_points(points, T)[:,0:2]
     
     if return_transform: return xy, T
     return xy
-    
-   
-def cross_section(mesh, 
-                  plane_origin  = [0,0,0], 
-                  plane_normal  = [0,0,1], 
-                  return_planar = True):
-    '''
-    Return a cross section of the trimesh based on plane origin and normal. 
-    Basically a bunch of plane-line intersection queries
-    Depends on properly ordered edge information, as done by generate_edges
 
-    origin:        (3) array of plane origin
-    normal:        (3) array for plane normal
-    return_planar: bool, True returns:
-                         (m,2,2) list of 2D line segments
-                         False returns:
-                         (m,2,3) list of 3D line segments
-    '''
-    if len(mesh.faces) == 0: 
-        raise NameError("Cannot compute cross section of empty mesh.")
-    tic = time_function()
-    mesh.generate_edges()
-    intersections, valid  = plane_line_intersection(plane_origin, 
-                                                    plane_normal, 
-                                                    mesh.vertices[[mesh.edges.T]],
-                                                    line_segments = True)
-    toc = time_function()
-    log.debug('mesh_cross_section found %i intersections in %fs.', np.sum(valid), toc-tic)
-    
-    if return_planar: 
-        planar = project_to_plane(intersections, 
-                                  plane_origin, 
-                                  plane_normal).reshape((-1,2,2))
-        return planar
-    else: 
-        return intersections.reshape(-1,2,3)
-
-def planar_outline(mesh, 
-                   plane_origin = [0,0,0],
-                   plane_normal = [0,0,-1]):
-    '''
-    Arguments
-    ---------
-    mesh: Trimesh object
-    plane_origin: plane origin, (3) list
-    plane_normal: plane normal, (3) list
-                  Note that if plane_normal is NOT aligned with an axis,
-                  The R-tree based triangle picking we're using isn't going to do much
-                  and tracing a ray becomes very, very n^2
-    output:
-    (n,2,2) vertices of a closed polygon representing the outline of the mesh
-          projected onto the specified plane. 
-    '''
-    from raytracing import RayTracer
-    mesh.merge_vertices()
-    # only work with faces pointed towards us (AKA discard back-faces)
-    visible_faces = mesh.faces[np.dot(plane_normal, 
-                                      mesh.face_normals.T) > -TOL_ZERO]
-                                      
-    # create a raytracer for only visible faces
-    r = RayTracer(Trimesh(vertices = mesh.vertices, faces = visible_faces))
-    visible_edges = np.column_stack((visible_faces[:,(0,1)],
-                                     visible_faces[:,(1,2)],
-                                     visible_faces[:,(2,0)])).reshape(-1,2)
-    visible_edges.sort(axis=1)
-    # the edges that make up the outline of the mesh will only appear once
-    # however this doesn't remove internal geometry or local edges. 
-    # in order to only get the contour outline, we need a visibility check
-    contour_edges = visible_edges[unique_rows(visible_edges)]
-    
-    # the rays are coming towards the projection plane
-    ray_dir    = unitize(plane_normal) * - 1
-    # we start the rays just past the mesh bounding box
-    ray_offset = unitize(plane_normal) * np.max(np.ptp(mesh.bounds, axis=0))*1.25
-    offset_max = 1e-3 * np.clip(mesh.scale, 0.0, 1.0)
-    edge_thru  = deque()
-    for edge in contour_edges:
-        edge_center = np.mean(mesh.vertices[[edge]], axis=0)
-        edge_vector = np.diff(mesh.vertices[[edge]], axis=0)
-        edge_length = np.linalg.norm(edge_vector)
-        try: 
-            edge_normal = unitize(np.cross(ray_dir, edge_vector)[0])
-        except:  continue
-        ray_perp = edge_normal * np.clip(edge_length * .5, 0, offset_max)
-        ray_0 = edge_center + ray_offset + ray_perp 
-        ray_1 = edge_center + ray_offset - ray_perp
-        inersections_0 = len(r.intersect_ray(ray_0, ray_dir))
-        inersections_1 = len(r.intersect_ray(ray_1, ray_dir))
-        if (inersections_0 == 0) <> (inersections_1 == 0):
-            edge_thru.append(edge)
-
-    edge_thru = np.array(edge_thru).reshape(-1)
-    contour_lines = project_to_plane(mesh.vertices[[edge_thru]],
-                                     origin = plane_origin,
-                                     normal = plane_normal).reshape((-1,2,2))
-    return contour_lines
-    
 def planar_hull(mesh, plane_normal=[0,0,1]):
     planar = project_to_plane(mesh.vertices,
                               normal = plane_normal)
@@ -749,6 +699,7 @@ def group_rows(data, require_count=None, digits=None):
                    
     digits:        if data is floating point, how many decimals to look at
     '''
+    
     def group_dict():
         observed = dict()
         hashable = hashable_rows(data, digits=digits)
@@ -762,10 +713,12 @@ def group_rows(data, require_count=None, digits=None):
         hashable = hashable_rows(data, digits=digits)
         order    = np.argsort(hashable)
         hashable = hashable[order]
-
         dupe     = hashable[1:] <> hashable[:-1]
         dupe_idx = np.append(0, np.nonzero(dupe)[0] + 1)
         
+        # if you wanted to use this one function to deal with non- regular groups
+        # you could use: np.array_split(dupe_idx)
+        # this is roughly 3x slower than using the group_dict method above. 
         start_ok   = np.diff(np.hstack((dupe_idx, len(hashable)))) == require_count
         groups     = np.tile(dupe_idx[start_ok].reshape((-1,1)), 
                              require_count) + np.arange(require_count)
@@ -774,27 +727,27 @@ def group_rows(data, require_count=None, digits=None):
             return groups_idx.reshape(-1)
         return groups_idx
 
-    if require_count == None: 
-        return group_dict()
-    return group_slice()
-    
-def stack_negative(rows):
-    rows     = np.array(rows)
-    width    = rows.shape[1]
-    stacked  = np.column_stack((rows, rows*-1))
-    negative = rows[:,0] < 0
-    stacked[negative] = np.roll(stacked[negative], 3, axis=1)
-    return stacked
+    if require_count == None: return group_dict()
+    else:                     return group_slice()
 
-def group_vectors(vectors, TOL_ANGLE=np.radians(10), include_negative=False):
+def group_vectors(vectors, 
+                  TOL_ANGLE        = np.radians(10), 
+                  include_negative = False):
+    '''
+    Group vectors based on an angle tolerance, with the option to 
+    include negative vectors. 
+    
+    This is very similar to a group_rows(stack_negative(rows))
+    The main difference is that TOL_ANGLE can be much looser, as we
+    are doing actual distance queries. 
+    '''
+    from scipy.spatial import cKDTree as KDTree
     TOL_END        = np.tan(TOL_ANGLE)
     unit_vectors   = unitize(vectors)
     tree           = KDTree(unit_vectors)
-
     unique_vectors = deque()
     aligned_index  = deque()
     consumed       = np.zeros(len(unit_vectors), dtype=np.bool)
-
     for index, vector in enumerate(unit_vectors):
         if consumed[index]: continue
         aligned = np.array(tree.query_ball_point(vector, TOL_END))        
@@ -807,6 +760,200 @@ def group_vectors(vectors, TOL_ANGLE=np.radians(10), include_negative=False):
         unique_vectors.append(consensus_vector)
         aligned_index.append(aligned)
     return np.array(unique_vectors), np.array(aligned_index)
+    
+def stack_negative(rows):
+    '''
+    Given an input of rows (n,d), return an array which is (n,2*d)
+    Which is sign- independent
+    '''
+    rows     = np.array(rows)
+    width    = rows.shape[1]
+    stacked  = np.column_stack((rows, rows*-1))
+    negative = rows[:,0] < 0
+    stacked[negative] = np.roll(stacked[negative], 3, axis=1)
+    return stacked
+    
+def connected_edges(G, nodes):
+    '''
+    Given graph G and list of nodes, return the list of edges that 
+    are connected to nodes
+    '''
+    nodes_in_G = deque()
+    for node in nodes:
+        if not G.has_node(node): continue
+        nodes_in_G.extend(nx.node_connected_component(G, node))
+    edges = G.subgraph(nodes_in_G).edges()
+    return edges
+
+def facets(mesh, return_area = True):
+    '''
+    Returns lists of facets of a mesh. 
+    Facets are defined as groups of faces which are both adjacent 
+    and have identical normal vectors.
+    
+    facets are a list of indices in mesh.faces
+    If return_area is True, both the list of facets and their area are returned. 
+    '''
+    face_idx       = mesh.face_adjacency()
+    normal_pairs   = mesh.face_normals[[face_idx]]
+    parallel       = np.abs(np.sum(normal_pairs[:,0,:] * normal_pairs[:,1,:], axis=1) - 1) < TOL_ZERO
+    graph_parallel = nx.from_edgelist(face_idx[parallel])
+    facets         = nx.connected_components(graph_parallel)
+    facets_area    = [triangles_area(mesh.vertices[[mesh.faces[facet]]]) for facet in facets]
+    if not return_area: return facets
+    return facets, facets_area
+
+def split_by_face_connectivity(mesh, check_watertight=True):
+    '''
+    Given a mesh, will split it up into a list of meshes based on face connectivity
+    If check_watertight is true, it will only return meshes where each face has
+    exactly 3 adjacent faces, which is a simple metric for being watertight.
+    '''
+    def mesh_from_components(connected_faces):
+        if check_watertight:
+            subgraph   = nx.subgraph(face_adjacency, connected_faces)
+            watertight = np.equal(subgraph.degree().values(), 3).all()
+            if not watertight: return
+        faces  = mesh.faces[[connected_faces]]
+        unique = np.unique(faces.reshape(-1))
+        replacement = dict()
+        replacement.update(np.column_stack((unique, np.arange(len(unique)))))
+        faces = replace_references(faces, replacement).reshape((-1,3))
+        new_meshes.append(Trimesh(vertices     = mesh.vertices[[unique]],
+                                  faces        = faces,
+                                  face_normals = mesh.face_normals[[connected_faces]]))
+    face_adjacency = nx.from_edgelist(mesh.face_adjacency())
+    new_meshes     = deque()
+    map(mesh_from_components, nx.connected_components(face_adjacency))
+    log.info('split mesh into %i components.',
+             len(new_meshes))
+    return list(new_meshes)
+    
+def transform_points(points, matrix):
+    '''
+    Returns points, rotated by transformation matrix 
+    If points is (n,2), matrix must be (3,3)
+    if points is (n,3), matrix must be (4,4)
+    '''
+    dimension   = np.shape(points)[1]
+    stacked     = np.column_stack((points, np.ones(len(points))))
+    transformed = np.dot(matrix, stacked.T).T[:,0:dimension]
+    return transformed
+
+def align_vectors(vector_start, vector_end):
+    '''
+    Returns the 4x4 transformation matrix which will rotate from 
+    vector_start (3,) to vector end (3,) 
+    '''
+    import transformations as tr
+    vector_start = unitize(vector_start)
+    vector_end   = unitize(vector_end)
+    cross        = np.cross(vector_start, vector_end)
+    # we clip the norm to 1, as otherwise floating point precision
+    # can cause the arcsin to error
+    norm         = np.clip(np.linalg.norm(cross), -TOL_ZERO, 1)
+    if norm < TOL_ZERO:
+        # if the norm is zero, the vectors are the same
+        # and no rotation is needed
+        return np.eye(4)
+    angle        = np.arcsin(norm) 
+    T            = tr.rotation_matrix(angle, cross)
+    return T
+
+def triangles_cross(triangles):
+    '''
+    Returns the cross product of two edges from input triangles 
+
+    triangles: vertices of triangles (n,3,3)
+    returns:   cross product of two edge vectors (n,3)
+    '''
+    vectors = np.diff(triangles, axis=1)
+    crosses = np.cross(vectors[:,0], vectors[:,1])
+    return crosses
+    
+def triangles_area(triangles):
+    '''
+    Calculates the sum area of input triangles 
+
+    triangles: vertices of triangles (n,3,3)
+    returns:   area, (n)
+    '''
+    crosses = triangles_cross(triangles)
+    area    = np.sum(np.sum(crosses**2, axis=1)**.5)*.5
+    return area
+    
+def triangles_normal(triangles):
+    '''
+    Calculates the normals of input triangles 
+    
+    triangles: vertices of triangles (n,3,3)
+    returns:   normal vectors, (n,3)
+    '''
+    normals = unitize(triangles_cross(triangles))
+    return normals
+
+def triangles_mass_properties(triangles, density = 1.0):
+    '''
+    Calculate the mass properties of a group of triangles
+    
+    http://www.geometrictools.com/Documentation/PolyhedralMassProperties.pdf
+    '''
+    crosses = triangles_cross(triangles)
+    # thought vectorizing would make this slightly nicer, though it's still pretty ugly
+    f1 = triangles.sum(axis=1)
+    
+    # triangles[:,0,:] will give rows x,  y,  z (the first vertex of every triangle)
+    # triangles[:,:,0] will give rows x0, x1, x2 (the x coordinate of every triangle)
+    f2 = (triangles[:,0,:]**2 +
+          triangles[:,1,:]**2 +    
+          triangles[:,0,:]*triangles[:,1,:] + 
+          triangles[:,2,:]*f1)
+          
+    f3 = ((triangles[:,0,:]**3) + 
+          (triangles[:,0,:]**2) * (triangles[:,1,:]) + 
+          (triangles[:,0,:])    * (triangles[:,1,:]**2) +
+          (triangles[:,1,:]**3) + 
+          (triangles[:,2,:]*f2))
+          
+    g0 = (f2 + (triangles[:,0,:] + f1)*triangles[:,0,:])
+    g1 = (f2 + (triangles[:,1,:] + f1)*triangles[:,1,:])
+    g2 = (f2 + (triangles[:,2,:] + f1)*triangles[:,2,:])
+    
+    integral      = np.zeros((10, len(f1)))
+    integral[0]   = crosses[:,0] * f1[:,0]
+    integral[1:4] = (crosses * f2).T
+    integral[4:7] = (crosses * f3).T
+    
+    for i in xrange(3):
+        triangle_i    = np.mod(i+1, 3)
+        integral[i+7] = crosses[:,i] * ((triangles[:,0, triangle_i] * g0[:,i]) + 
+                                        (triangles[:,1, triangle_i] * g1[:,i]) + 
+                                        (triangles[:,2, triangle_i] * g2[:,i]))
+                                        
+    coefficents = 1.0 / np.array([6,24,24,24,60,60,60,120,120,120])
+    integrated  = integral.sum(axis=1) * coefficents
+    
+    volume      = integrated[0]
+    center_mass = integrated[1:4] / volume
+
+    inertia = np.zeros((3,3))
+    inertia[0,0] = integrated[5] + integrated[6] - (volume * (center_mass[[1,2]]**2).sum())
+    inertia[1,1] = integrated[4] + integrated[6] - (volume * (center_mass[[0,2]]**2).sum())
+    inertia[2,2] = integrated[4] + integrated[5] - (volume * (center_mass[[0,1]]**2).sum())
+    inertia[0,1] = -(integrated[7] - (volume * np.product(center_mass[[0,1]])))
+    inertia[1,2] =  (integrated[8] - (volume * np.product(center_mass[[1,2]])))
+    inertia[0,2] = -(integrated[9] - (volume * np.product(center_mass[[0,2]])))
+    inertia[2,0] = inertia[0,2]
+    inertia[2,1] = inertia[1,2]
+    inertia *= density
+    
+    # lists instead of numpy arrays, in case we want to serialize
+    result = {'density'     : density,
+              'volume'      : volume,
+              'mass'        : density * volume,
+              'center_mass' : center_mass.tolist(),
+              'inertia'     : inertia.tolist()}
+    return result
     
 def load_stl(file_obj):
     if detect_binary_file(file_obj): return load_stl_binary(file_obj)
@@ -839,14 +986,20 @@ def load_stl_binary(file_obj):
                    face_normals = face_normals)
 
 def load_stl_ascii(file_obj):
+    '''
+    Load an ASCII STL file. 
+    This is way slower than binary STL. 
+    '''
     def parse_line(line):
         return map(float, line.strip().split(' ')[-3:])
     def read_face(file_obj):
         normals.append(parse_line(file_obj.readline()))
         faces.append(np.arange(0,3) + len(vertices))
         file_obj.readline()
-        for i in xrange(3):      
-            vertices.append(parse_line(file_obj.readline()))
+        vertices.append(parse_line(file_obj.readline()))
+        vertices.append(parse_line(file_obj.readline()))
+        vertices.append(parse_line(file_obj.readline()))
+        
         file_obj.readline(); file_obj.readline()
     faces    = deque() 
     normals  = deque()
@@ -862,6 +1015,12 @@ def load_stl_ascii(file_obj):
                    vertices    = np.array(vertices, dtype=np.float))
 
 def load_assimp(filename):
+    '''
+    Use the assimp library to load a mesh, from filename 
+    Assimp supports a huge number of mesh formats.
+    Unfortunately this version of the pyassimp only loads files by name, 
+    as opposed to from file objects. 
+    '''
     def LPMesh_to_Trimesh(lp):
         return Trimesh(vertices       = lp.vertices,
                        vertex_normals = lp.normals,
@@ -896,14 +1055,16 @@ def load_wavefront(file_obj):
         if line[0] ==  'v': vertices.append(map(float, line[-3:])); continue
         if line[0] == 'vn': normals.append(map(float, line[-3:])); continue
         if line[0] ==  'f': faces.append(parse_face(line[-3:]));
-    mesh = Trimesh(vertices      = np.array(vertices, dtype=float),
-                   faces         = np.array(faces,    dtype=int),
+    mesh = Trimesh(vertices       = np.array(vertices, dtype=float),
+                   faces          = np.array(faces,    dtype=int),
                    vertex_normals = np.array(normals,  dtype=float))
     mesh.generate_face_normals()
     return mesh
     
 def export_stl(mesh, filename):
-    #Saves a Trimesh object as a binary STL file. 
+    '''
+    Saves a Trimesh object as a binary STL file.
+    '''
     def write_face(file_object, vertices, normal):
         #vertices: (3,3) array of floats
         #normal:   (3) array of floats
@@ -917,13 +1078,18 @@ def export_stl(mesh, filename):
         file_object.write(struct.pack("<80x"))
         #write the number of faces
         file_object.write(struct.pack("@i", len(mesh.faces)))
-        #write the faces
+        # write the faces
+        # TODO: remove the for loop and do this as a single struct.pack operation
+        # like we do in the loader, as it is way, way faster.
         for index in xrange(len(mesh.faces)):
             write_face(file_object, 
                        mesh.vertices[[mesh.faces[index]]], 
                        mesh.face_normals[index])
 
 def export_collada(mesh, filename):
+    '''
+    Export a mesh as collada, to filename
+    '''
     template = Template(open(os.path.join(MODULE_PATH, 
                                           'templates', 
                                           'collada_template.dae'), 'rb').read())
@@ -940,100 +1106,7 @@ def export_collada(mesh, filename):
     replacement['FCOUNT']   = str(len(mesh.faces))
     with open(filename, 'wb') as outfile:
         outfile.write(template.substitute(replacement))
-           
-def connected_edges(G, nodes):
-    #Given graph G and list of nodes, return the list of edges that 
-    #are connected to nodes
-    nodes_in_G = deque()
-    for node in nodes:
-        if not G.has_node(node): continue
-        nodes_in_G.extend(nx.node_connected_component(G, node))
-    edges = G.subgraph(nodes_in_G).edges()
-    return edges
-
-def mesh_facets(mesh):
-    face_idx       = mesh.face_adjacency()
-    normal_pairs   = mesh.face_normals[[face_idx]]
-    parallel       = np.abs(np.sum(normal_pairs[:,0,:] * normal_pairs[:,1,:], 
-                                   axis=1) - 1) < TOL_ZERO
-    graph_parallel = nx.from_edgelist(face_idx[parallel])
-    facets         = nx.connected_components(graph_parallel)
-    facets_area    = [triangles_area(mesh.vertices[[mesh.faces[facet]]]) for facet in facets]
-    return facets, facets_area
-
-def split_by_face_connectivity(mesh, check_watertight=True):
-    def mesh_from_components(connected_faces):
-        if check_watertight:
-            subgraph   = nx.subgraph(face_adjacency, connected_faces)
-            watertight = np.equal(subgraph.degree().values(), 3).all()
-            if not watertight: return
-        faces  = mesh.faces[[connected_faces]]
-        unique = np.unique(faces.reshape(-1))
-        replacement = dict()
-        replacement.update(np.column_stack((unique, np.arange(len(unique)))))
-        faces = replace_references(faces, replacement).reshape((-1,3))
-        new_meshes.append(Trimesh(vertices     = mesh.vertices[[unique]],
-                                  faces        = faces,
-                                  face_normals = mesh.face_normals[[connected_faces]]))
-
-    face_adjacency = nx.from_edgelist(mesh.face_adjacency())
-    new_meshes     = deque()
-    map(mesh_from_components, nx.connected_components(face_adjacency))
-    log.info('split mesh into %i components.',
-             len(new_meshes))
-    return list(new_meshes)
-    
-def transform_points(points, matrix):
-    stacked     = np.column_stack((points, np.ones(len(points))))
-    transformed = np.dot(matrix, stacked.T).T[:,0:3]
-    return transformed
-
-def align_vectors(vector_start, vector_end):
-    '''
-    Returns the 4x4 transformation matrix which will rotate from 
-    vector_start (3,) to vector end (3,) 
-    '''
-
-    import transformations as tr
-    vector_start = unitize(vector_start)
-    vector_end   = unitize(vector_end)
-    cross        = np.cross(vector_start, vector_end)
-    norm         = np.clip(np.linalg.norm(cross), -1, 1)
-    if norm < TOL_ZERO: return np.eye(4)
-    angle        = np.arcsin(norm) 
-    T            = tr.rotation_matrix(angle, cross)
-    return T
-
-def triangles_cross(triangles):
-    '''
-    Returns the cross product of two edges from input triangles 
-
-    triangles: (n,3,3)
-    returns: 
-    '''
-
-    vectors = np.diff(triangles, axis=1)
-    crosses = np.cross(vectors[:,0], vectors[:,1])
-    return crosses
-    
-def triangles_area(triangles):
-    '''
-    Calculates the sum area of input triangles 
-
-    triangles: vertices of triangles (n,3,3)
-    returns:   area (float)
-    '''
-    crosses = triangles_cross(triangles)
-    area    = np.sum(np.sum(crosses**2, axis=1)**.5)*.5
-    return area
-    
-def triangles_normal(triangles):
-    '''
-    Calculates the normals of input triangles 
-    '''
-    crosses = triangles_cross(triangles)
-    return unitize(crosses)
-
+        
 if __name__ == '__main__':
     formatter = logging.Formatter("[%(asctime)s] %(levelname)-7s (%(filename)s:%(lineno)3s) %(message)s", "%Y-%m-%d %H:%M:%S")
     handler_stream = logging.StreamHandler()
@@ -1041,30 +1114,11 @@ if __name__ == '__main__':
     handler_stream.setLevel(logging.DEBUG)
     log.setLevel(logging.DEBUG)
     log.addHandler(handler_stream)
-    np.set_printoptions(precision=4, suppress=True)
+    np.set_printoptions(precision=6, suppress=True)
 
     mesh = load_mesh('models/1002_tray_bottom.STL')
+    mesh = load_mesh('models/unit_cube.STL')
+    mesh = load_mesh('models/angle_block.STL')
+    mesh = load_mesh('models/idler_riser.STL')
     mesh.process()
-    
-    facets, area = mesh.facets()
-    #facet is a list of indices of mesh.faces
-    area_sort = np.argsort(area)
-    facet     = facets[area_sort[-1]]
-    edges     = faces_to_edges(mesh.faces[[facet]])
-    normal    = mesh.face_normals[facet[0]]
-    thickness = np.ptp(np.dot(mesh.vertices, normal))
-    unique_edges   = group_rows(edges, require_count=1)
-    contours_3D    = mesh.vertices[edges[unique_edges]].reshape((-1,3))
-    contours_2D    = project_to_plane(contours_3D, normal).reshape((-1,2,2))
-    log.debug('done projecting to plane')
-    test_vertices  = [mesh.faces[facets[i][0]][0] for i in area_sort[-2:]]
-    test_thickness = np.ptp(np.dot(mesh.vertices[[test_vertices]], normal))
-
-    face_angles = np.abs(np.arcsin(np.dot(mesh.face_normals, normal)))
-    TOL_ANGLE = np.radians(10)
-    all_face_test = np.logical_or((face_angles < TOL_ANGLE),
-                                  (np.abs(face_angles-(np.pi/2)) < TOL_ANGLE))
-
-    is_planar = (all_face_test.all() and 
-                 (abs(test_thickness - thickness) < TOL_ZERO))
-
+    mass = mesh.mass_properties()

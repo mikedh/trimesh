@@ -4,7 +4,10 @@ import numpy as np
 from copy import deepcopy
 
 class MeshRender(pyglet.window.Window):
-    def __init__(self, mesh=None, smooth=False):
+    def __init__(self, 
+                 mesh         = None, 
+                 smooth       = False,
+                 smooth_angle = np.radians(20)):
         conf = Config(sample_buffers=1,
                       samples=4,
                       depth_size=16,
@@ -14,30 +17,29 @@ class MeshRender(pyglet.window.Window):
         except pyglet.window.NoSuchConfigException:
             super(MeshRender, self).__init__(resizable=True)
             
-        self.batch       = pyglet.graphics.Batch()        
-        self.rotation    = np.zeros(3)
-        self.translation = np.zeros(3)
-        self.wireframe = False
-        self.cull      = False
+        self.smooth       = smooth
+        self.smooth_angle = smooth_angle
+        self.batch        = pyglet.graphics.Batch()        
+        self.rotation     = np.zeros(3)
+        self.translation  = np.zeros(3)
+        self.wireframe    = False
+        self.cull         = False
         self.init_gl()
         
         if mesh <> None: 
-            self.add_mesh(mesh, smooth)
+            self.add_mesh(mesh)
             self.run()
 
-    def add_mesh(self, mesh, smooth=False):
-        mesh.generate_bounds()
+    def add_mesh(self, mesh):
         self.translation = np.array([0,0,-np.max(mesh.box_size)])
         
-        if smooth:
+        if self.smooth:
             self.mesh = deepcopy(mesh)
             self.mesh.unmerge_vertices()
-            self.mesh.merge_vertices(angle_max=np.radians(30))
-            self.mesh.generate_vertex_normals()
-        else:
-            self.mesh = mesh
-            self.mesh.verify_normals()
+            self.mesh.merge_vertices_kdtree(angle_max=self.smooth_angle)
+        else: self.mesh = mesh
             
+        self.mesh.verify_normals()
         vertices = (self.mesh.vertices-self.mesh.centroid).reshape(-1).tolist()
         normals  = self.mesh.vertex_normals.reshape(-1).tolist()
         indices  = self.mesh.faces.reshape(-1).tolist()
