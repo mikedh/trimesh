@@ -8,45 +8,26 @@ import json
 
 TEST_DIR  = '../models'
 TOL_ZERO  = 1e-9
-TOL_CHECK = 1e-4
+TOL_CHECK = 1e-2
 log = logging.getLogger('trimesh')
 log.addHandler(logging.NullHandler)
 
-'''
+
 class VectorTests(unittest.TestCase):
     def setUp(self):
-        self.vector_dim = (100,3)
-        self.vectors = np.random.random(self.vector_dim)
-        self.vectors = trimesh.unitize(self.vectors)
+        self.test_dim = (100,3)
 
-    def test_unitize(self):
-        self.vectors[0:10] = [0,0,0]
-        self.vectors = trimesh.unitize(self.vectors)
-        self.assertTrue(np.shape(self.vectors) == self.vector_dim)
+    def test_unitize_multi(self):
+        vectors = np.ones(self.test_dim)
+        vectors[0] = [0,0,0]
+        vectors, valid = trimesh.unitize(vectors, check_valid=True)
         
-        norms = np.sum(self.vectors ** 2, axis=1) ** 2
-        nonzero = norms > TOL_ZERO
-        unit_vector = np.abs(norms[nonzero] - 1.0) < TOL_ZERO
-        self.assertTrue(np.all(unit_vector))
-
-    def test_group(self):
-        tol_angle = np.radians(10)
-        tol_dist  = np.tan(tol_angle) * 2
-
-        self.vectors[0:10]  = [0.0, 0.0, 0.0]
-        self.vectors[10:20] = [0.0, 0.0, 1.0]
-       
-        vectors, aligned = trimesh.group_vectors(self.vectors, 
-                                                 TOL_ANGLE = tol_angle,
-                                                 include_negative = True)
-        self.assertTrue(len(vectors) == len(aligned))
-
-        for vector, group in zip(vectors, aligned):
-            dists_pos = np.sum((self.vectors[[group]] - vector)**2, axis=1)**.5
-            dists_neg = np.sum((self.vectors[[group]] + vector)**2, axis=1)**.5
-            dist_ok = np.logical_or((dists_pos < tol_dist), (dists_neg < tol_dist))
-            self.assertTrue(np.all(dist_ok))
-'''
+        self.assertFalse(valid[0])
+        self.assertTrue(np.all(valid[1:]))
+        
+        length       = np.sum(vectors[1:] ** 2, axis=1) ** 2
+        length_check = np.abs(length - 1.0) < TOL_ZERO
+        self.assertTrue(np.all(length_check))
 
 class MeshTests(unittest.TestCase):
     def setUp(self):
@@ -73,17 +54,19 @@ class MassTests(unittest.TestCase):
 
     def test_mass(self):
         def check_parameter(a,b):
-            check = np.less(np.abs(np.array(a)-np.array(b)), TOL_CHECK)
-            if not np.all(check):
-                print a, b, check
-            self.assertTrue(np.all(check))
+            check = np.all(np.less(np.abs(np.array(a)-np.array(b)), TOL_CHECK))
+            return check
 
         for truth in self.truth:
-            calculated = self.meshes[truth['filename']].mass_properties()
+            calculated = self.meshes[truth['filename']].mass_properties(density=truth['density'])
             for parameter in calculated.keys():
                 if not (parameter in truth): continue
-                check_parameter(calculated[parameter], truth[parameter])
-
+                parameter_ok = check_parameter(calculated[parameter], truth[parameter])
+                if not parameter_ok:
+                    log.error('Parameter %s failed on file %s!', parameter, truth['filename'])
+                self.assertTrue(parameter_ok)
+                
+                
 if __name__ == '__main__':
     formatter = logging.Formatter("[%(asctime)s] %(levelname)-7s (%(filename)s:%(lineno)3s) %(message)s", "%Y-%m-%d %H:%M:%S")
     handler_stream = logging.StreamHandler()
@@ -95,6 +78,3 @@ if __name__ == '__main__':
     np.set_printoptions(precision=4, suppress=True)
     unittest.main()
 
-    density        = 0.036127
-    inertia_actual = [[0.008312,0.000000,0.000000], [0.000000,0.012823,0.000807], [0.000000,0.000807, 0.009005]]
-    
