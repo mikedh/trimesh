@@ -46,7 +46,8 @@ def load_mesh(file_obj, file_type=None):
     mesh_loaders = {'stl': load_stl, 
                     'obj': load_wavefront}
                     
-    if file_obj.__class__.__name__ == 'str':
+    str_types = ['str', 'unicode']
+    if file_obj.__class__.__name__ in str_types:
         file_type = (str(file_obj).split('.')[-1]).lower()
         file_obj  = open(file_obj, 'rb')
 
@@ -76,7 +77,7 @@ class Trimesh():
 
     def process(self):
         '''
-        Convenience function to do basic processing on mesh
+        Convenience function to do basic processing on a raw mesh
         '''
         self.merge_vertices_hash()
         self.remove_duplicate_faces()
@@ -124,7 +125,7 @@ class Trimesh():
     def is_watertight(self):
         '''
         Check if a mesh is watertight. 
-        This currently only checks to see if every face has a degree of 3.
+        This currently only checks to see if every face has three adjacent faces
         '''
         g = nx.from_edgelist(self.face_adjacency())
         watertight = np.equal(g.degree().values(), 3).all()
@@ -144,6 +145,9 @@ class Trimesh():
 
     @log_time
     def facets(self):
+        '''
+        Return a list of face indices for coplanar adjacent faces
+        '''
         return facets(self)
 
     @log_time    
@@ -158,14 +162,14 @@ class Trimesh():
         # we create the face adjacency graph: 
         # every node in g is an index of mesh.faces
         # every edge in g represents two faces which are connected
-        g = nx.from_edgelist(self.face_adjacency())
+        graph = nx.from_edgelist(self.face_adjacency())
         
         # we are going to traverse the graph using BFS, so we have to start
         # a traversal for every connected component
-        for connected in nx.connected_components(g):
+        for connected in nx.connected_components(graph):
             # we traverse every pair of faces in the graph
             # we modify self.faces and self.face_normals in place 
-            for face_pair in nx.bfs_edges(g, connected[0]):
+            for face_pair in nx.bfs_edges(graph, connected[0]):
                 # for each pair of faces, we convert them into edges,
                 # find the edge that both faces share, and then see if the edges
                 # are reversed in order as you would expect in a well constructed mesh
@@ -183,9 +187,11 @@ class Trimesh():
             # the normals of every connected face now all pointed in 
             # the same direction, but there is no guarantee that they aren't all
             # pointed in the wrong direction
+            # NOTE this check appears to have an issue and normals will sometimes
+            # be incorrectly directed. 
             faces     = self.faces[[connected]]
             leftmost  = np.argmin(np.min(self.vertices[:,0][[faces]], axis=1))
-            backwards = np.dot([-1.0,0,0], self.face_normals[leftmost]) < 0.0
+            backwards = np.dot([-1.0,0,0], self.face_normals[leftmost]) > 0.0
             if backwards: self.face_normals[[connected]] *= -1.0
             
             winding_tri  = connected[0]
@@ -216,8 +222,19 @@ class Trimesh():
         Returns a cross section of the current mesh and plane defined by
         origin and normal.
         
-        If return_planar is True,  result is (n, 2, 2) 
-        If return_planar is False, result is (n, 2, 3)
+        Arguments
+        ---------
+
+        normal:        (3) vector for plane normal
+        origin:        (3) vector for plane origin. If None, will use [0,0,0]
+        return_planar: boolean, whether to project cross section to plane or not
+                        If return_planar is True,  returned shape is (n, 2, 2) 
+                        If return_planar is False, returned shape is (n, 2, 3)
+                        
+        Returns
+        ---------
+        intersections: (n, 2, [2|3]) line segments where plane intersects triangles in mesh
+                       
         '''
         if origin == None: 
             origin = self.centroid
@@ -230,25 +247,18 @@ class Trimesh():
                                  origin = origin).reshape((-1,2,2))
 
     @log_time   
-    def convex_hull(self, inflate=None):
+    def convex_hull(self):
         '''
         Get a new Trimesh object representing the convex hull of the 
         current mesh. Requires scipy >.12.
-        
-        Inflate is a convenience parameter which will take the convex hull of the mesh,
-        and then inflate, or 'pad' the hull. 
-
+  
         '''
         from scipy.spatial import ConvexHull
         faces = ConvexHull(self.vertices).simplices
         mesh  = Trimesh(vertices = self.vertices, faces = faces)
+        # the normals and triangle winding returned by scipy/qhull's
+        # ConvexHull are apparently random, so we need to completely fix them
         mesh.fix_normals()
-        
-        if inflate <> None:
-            mesh.generate_vertex_normals()
-            mesh.vertices += inflate*mesh.vertex_normals
-            return mesh.convex_hull(inflate=None)
-            
         return mesh
 
     def merge_vertices(self, angle_max=None):
@@ -310,9 +320,10 @@ class Trimesh():
         Removes duplicate vertices, based on integer hashes.
         This is roughly 20x faster than querying a KD tree in a loop
         '''
+        
         tic       = time_function()
         pre_merge = len(self.vertices)
-        
+
         unique, inverse = unique_rows(self.vertices, return_inverse=True)        
         self.faces      = inverse[[self.faces.reshape(-1)]].reshape((-1,3))
         self.vertices   = self.vertices[[unique]]
@@ -411,8 +422,8 @@ class Trimesh():
             'volume'      : in global units^3
             'mass'        : From specified density
             'density'     : Included again for convenience (same as kwarg density)
-            'inertia'     : Taken at the center of mass and aligned with the output coordinate system
-            'center_mass' : Center of mass with respect to global frame
+            'inertia'     : Taken at the center of mass and aligned with global coordinate system
+            'center_mass' : Center of mass location, in global coordinate system
         '''
         return triangles_mass_properties(triangles = self.vertices[[self.faces]], 
                                          density    = density)
@@ -548,26 +559,36 @@ def point_plane_distance(plane_ori, plane_dir, points):
     distances = np.abs(np.dot(plane_dir, w.T) / np.linalg.norm(plane_dir))
     return distances
 
-def unitize(points, error_on_zero=False):
+def unitize(points, check_valid=False):
     '''
-    Unitize vectors by row
-    one vector (3,) gets vectorized correctly, 
-    as well as 10 row vectors (10,3)
+    Flexibly turn a list of vectors into a list of unit vectors.
+    
+    Arguments
+    ---------
+    points:       (n,m) or (j) input array of vectors. 
+                  For 1D arrays, points is treated as a single vector
+                  For 2D arrays, each row is treated as a vector
+    check_valid:  boolean, if True enables valid output and checking
 
-    points: numpy array/list of points to be unit vector'd
-    error_on_zero: if zero magnitude vectors exist, throw an error
+    Returns
+    ---------
+    unit_vectors: (n,m) or (j) length array of unit vectors
+
+    valid:        (n) boolean array, output only if check_valid.
+                   True for all valid (nonzero length) vectors, thus m=sum(valid)
     '''
-    points  = np.array(points)
-    axis    = len(points.shape)-1
-    norms   = np.sum(points ** 2, axis=axis) ** .5
-    nonzero = norms > TOL_ZERO
-    if (error_on_zero and
-        not np.all(nonzero)):
-        raise NameError('Unable to unitize zero length vector!')
-    if axis==1:
-        points[nonzero] =  (points[nonzero].T / norms[nonzero]).T
-        return points
-    return (points.T / norms).T
+    points       = np.array(points)
+    axis         = len(points.shape) - 1
+    length       = np.sum(points ** 2, axis=axis) ** .5
+    if check_valid:
+        valid = np.greater(length, TOL_ZERO)
+        if axis == 1: unit_vectors = (points[valid].T / length[valid]).T
+        elif valid:   unit_vectors = points / length
+        else:         unit_vectors = []
+        return unit_vectors, valid
+        
+    unit_vectors = (points.T / length).T
+    return unit_vectors
     
 def major_axis(points):
     '''
@@ -651,7 +672,8 @@ def hashable_rows(data, digits=None):
     Arguments
     ---------
     data:    (n,m) input array
-    digits:  how many digits to add to hash, if data is floats
+    digits:  how many digits to add to hash, if data is floating point
+             If none, TOL_MERGE will be turned into a digit count and used. 
     
     Returns
     ---------
@@ -689,6 +711,9 @@ def group_rows(data, require_count=None, digits=None):
     Returns index groups of duplicate rows, for example:
     [[1,2], [3,4], [1,2]] will return [[0,2], [1]]
     
+    Arguments
+    ----------
+    data:          (n,m) array
     require_count: only returns groups of a specified length, eg:
                    require_count =  2
                    [[1,2], [3,4], [1,2]] will return [[0,2]]
@@ -696,8 +721,15 @@ def group_rows(data, require_count=None, digits=None):
                    Note that using require_count allows numpy advanced indexing
                    to be used in place of looping and checking hashes, and as a
                    consequence is ~10x faster. 
-                   
-    digits:        if data is floating point, how many decimals to look at
+    digits:        If data is floating point, how many decimals to look at.
+                   If this is None, the value in TOL_MERGE will be turned into a 
+                   digit count and used. 
+
+    Returns
+    ----------
+    groups:        List or sequence of indices from data indicating identical rows.
+                   If require_count <> None, shape will be (j, require_count)
+                   If require_count == None, shape will be irregular (AKA a sequence)
     '''
     
     def group_dict():
@@ -742,23 +774,23 @@ def group_vectors(vectors,
     are doing actual distance queries. 
     '''
     from scipy.spatial import cKDTree as KDTree
-    TOL_END        = np.tan(TOL_ANGLE)
-    unit_vectors   = unitize(vectors)
-    tree           = KDTree(unit_vectors)
-    unique_vectors = deque()
-    aligned_index  = deque()
-    consumed       = np.zeros(len(unit_vectors), dtype=np.bool)
+    TOL_END             = np.tan(TOL_ANGLE)
+    unit_vectors, valid = unitize(vectors, check_valid = True)
+    valid_index         = np.nonzero(valid)[0]
+    consumed            = np.zeros(len(unit_vectors), dtype=np.bool)
+    tree                = KDTree(unit_vectors)
+    unique_vectors      = deque()
+    aligned_index       = deque()
+    
     for index, vector in enumerate(unit_vectors):
         if consumed[index]: continue
         aligned = np.array(tree.query_ball_point(vector, TOL_END))        
         if include_negative:
-            aligned_neg = tree.query_ball_point(-1*vector, TOL_END)
-            aligned     = np.append(aligned, aligned_neg)                              
+            aligned = np.append(aligned, tree.query_ball_point(-1*vector, TOL_END))
         aligned = aligned.astype(int)
         consumed[[aligned]] = True
-        consensus_vector = vectors[aligned[-1]]
-        unique_vectors.append(consensus_vector)
-        aligned_index.append(aligned)
+        unique_vectors.append(unit_vectors[aligned[-1]])
+        aligned_index.append(valid_index[[aligned]])
     return np.array(unique_vectors), np.array(aligned_index)
     
 def stack_negative(rows):
@@ -900,6 +932,7 @@ def triangles_mass_properties(triangles, density = 1.0):
     '''
     crosses = triangles_cross(triangles)
     # thought vectorizing would make this slightly nicer, though it's still pretty ugly
+    # these are the subexpressions of the integral 
     f1 = triangles.sum(axis=1)
     
     # triangles[:,0,:] will give rows x,  y,  z (the first vertex of every triangle)
@@ -940,9 +973,9 @@ def triangles_mass_properties(triangles, density = 1.0):
     inertia[0,0] = integrated[5] + integrated[6] - (volume * (center_mass[[1,2]]**2).sum())
     inertia[1,1] = integrated[4] + integrated[6] - (volume * (center_mass[[0,2]]**2).sum())
     inertia[2,2] = integrated[4] + integrated[5] - (volume * (center_mass[[0,1]]**2).sum())
-    inertia[0,1] = -(integrated[7] - (volume * np.product(center_mass[[0,1]])))
-    inertia[1,2] =  (integrated[8] - (volume * np.product(center_mass[[1,2]])))
-    inertia[0,2] = -(integrated[9] - (volume * np.product(center_mass[[0,2]])))
+    inertia[0,1] = (integrated[7] - (volume * np.product(center_mass[[0,1]])))
+    inertia[1,2] = (integrated[8] - (volume * np.product(center_mass[[1,2]])))
+    inertia[0,2] = (integrated[9] - (volume * np.product(center_mass[[0,2]])))
     inertia[2,0] = inertia[0,2]
     inertia[2,1] = inertia[1,2]
     inertia *= density
@@ -999,7 +1032,6 @@ def load_stl_ascii(file_obj):
         vertices.append(parse_line(file_obj.readline()))
         vertices.append(parse_line(file_obj.readline()))
         vertices.append(parse_line(file_obj.readline()))
-        
         file_obj.readline(); file_obj.readline()
     faces    = deque() 
     normals  = deque()
@@ -1108,17 +1140,30 @@ def export_collada(mesh, filename):
         outfile.write(template.substitute(replacement))
         
 if __name__ == '__main__':
-    formatter = logging.Formatter("[%(asctime)s] %(levelname)-7s (%(filename)s:%(lineno)3s) %(message)s", "%Y-%m-%d %H:%M:%S")
+    formatter = logging.Formatter("[%(asctime)s] %(levelname)-7s (%(filename)s:%(lineno)3s) %(message)s", 
+                                  "%Y-%m-%d %H:%M:%S")
     handler_stream = logging.StreamHandler()
     handler_stream.setFormatter(formatter)
     handler_stream.setLevel(logging.DEBUG)
     log.setLevel(logging.DEBUG)
     log.addHandler(handler_stream)
     np.set_printoptions(precision=6, suppress=True)
-
-    mesh = load_mesh('models/1002_tray_bottom.STL')
-    mesh = load_mesh('models/unit_cube.STL')
+    
+    '''
+    test_dir = './models'
+    test_files = [os.path.join(test_dir, i) for i in os.listdir(test_dir) if 'stl' in i.lower()]
+    for test_file in test_files:
+        mesh = load_mesh(test_file)
+        mesh.process()
+        mesh.fix_normals()
+        mesh.show(1)
+    '''        
+    #mesh = load_mesh('models/1002_tray_bottom.STL')
+    #mesh = load_mesh('models/unit_cube.STL')
     mesh = load_mesh('models/angle_block.STL')
-    mesh = load_mesh('models/idler_riser.STL')
-    mesh.process()
-    mass = mesh.mass_properties()
+    #mesh = load_mesh('models/idler_riser.STL')
+    #mesh = load_mesh('models/src_bot.STL')
+    #mass = mesh.mass_properties()
+    mesh.fix_normals()
+    mesh.show(1)
+    

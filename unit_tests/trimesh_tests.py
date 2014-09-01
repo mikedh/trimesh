@@ -4,13 +4,15 @@ import logging
 from collections import deque
 import os
 import numpy as np
+import json
 
-
-TEST_DIR = './models'
-TOL_ZERO = 1e-9
+TEST_DIR  = '../models'
+TOL_ZERO  = 1e-9
+TOL_CHECK = 1e-4
 log = logging.getLogger('trimesh')
 log.addHandler(logging.NullHandler)
 
+'''
 class VectorTests(unittest.TestCase):
     def setUp(self):
         self.vector_dim = (100,3)
@@ -44,12 +46,14 @@ class VectorTests(unittest.TestCase):
             dists_neg = np.sum((self.vectors[[group]] + vector)**2, axis=1)**.5
             dist_ok = np.logical_or((dists_pos < tol_dist), (dists_neg < tol_dist))
             self.assertTrue(np.all(dist_ok))
+'''
 
 class MeshTests(unittest.TestCase):
     def setUp(self):
         meshes = deque()
         for filename in os.listdir(TEST_DIR):
-            meshes.append(trimesh.load_mesh(os.path.join(TEST_DIR, filename)))
+            location = os.path.abspath(os.path.join(TEST_DIR, filename))
+            meshes.append(trimesh.load_mesh(location))
         self.meshes = list(meshes)
 
     def test_meshes(self):
@@ -59,20 +63,26 @@ class MeshTests(unittest.TestCase):
             
 class MassTests(unittest.TestCase):
     def setUp(self):
-        self.mesh = trimesh.load_mesh('models/angle_block.STL')
-        
-    def test_mass(self):
-        # the reference numbers for this part were taken from Solidworks
-        # also tested with unit cube
-        density        = 0.036127
-        inertia_actual = [[0.008312,0.000000,0.000000], [0.000000,0.012823,0.000807], [0.000000,0.000807, 0.009005]]
-        prop    = self.mesh.mass_properties(density = density)
-        
-        inertia        = prop['inertia']
+        # inertia numbers pulled from solidworks
+        self.truth  = json.load(open('mass_properties.json', 'rb'))
+        self.meshes = dict()
+        for data in self.truth:
+            filename = data['filename']
+            location = os.path.abspath(os.path.join(TEST_DIR, filename))
+            self.meshes[filename] = trimesh.load_mesh(location)
 
-                          
-        test = np.int_((actual - inertia)*10000)
-        self.assertTrue(np.all(test == 0))
+    def test_mass(self):
+        def check_parameter(a,b):
+            check = np.less(np.abs(np.array(a)-np.array(b)), TOL_CHECK)
+            if not np.all(check):
+                print a, b, check
+            self.assertTrue(np.all(check))
+
+        for truth in self.truth:
+            calculated = self.meshes[truth['filename']].mass_properties()
+            for parameter in calculated.keys():
+                if not (parameter in truth): continue
+                check_parameter(calculated[parameter], truth[parameter])
 
 if __name__ == '__main__':
     formatter = logging.Formatter("[%(asctime)s] %(levelname)-7s (%(filename)s:%(lineno)3s) %(message)s", "%Y-%m-%d %H:%M:%S")
@@ -85,3 +95,6 @@ if __name__ == '__main__':
     np.set_printoptions(precision=4, suppress=True)
     unittest.main()
 
+    density        = 0.036127
+    inertia_actual = [[0.008312,0.000000,0.000000], [0.000000,0.012823,0.000807], [0.000000,0.000807, 0.009005]]
+    
