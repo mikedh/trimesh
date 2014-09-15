@@ -45,7 +45,7 @@ class MeshTests(unittest.TestCase):
 class MassTests(unittest.TestCase):
     def setUp(self):
         # inertia numbers pulled from solidworks
-        self.truth  = json.load(open('mass_properties.json', 'rb'))
+        self.truth  = json.load(open('mass_properties.json', 'r'))
         self.meshes = dict()
         for data in self.truth:
             filename = data['filename']

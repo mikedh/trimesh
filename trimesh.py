@@ -1,26 +1,25 @@
 '''
 trimesh.py
 
-Library for importing and doing simple operations on triangular meshes
-Styled after transformations.py
+Library for importing and doing simple operations on triangular meshes.
 '''
 
 import numpy as np
 import struct
+import os
 from collections import deque
-import logging
+
 
 from time import time as time_function
 from string import Template
-from copy import deepcopy
 import networkx as nx
-import os
-import inspect
 
+import logging
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
 
-MODULE_PATH = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+try: import pyassimp
+except: log.debug('No pyassimp!')
 
 TOL_ZERO  = 1e-12
 TOL_MERGE = 1e-9
@@ -34,7 +33,7 @@ def log_time(method):
                   time_function()-tic)
         return result
     return timed
-    
+
 @log_time
 def load_mesh(file_obj, file_type=None):
     '''
@@ -45,19 +44,51 @@ def load_mesh(file_obj, file_type=None):
 
     mesh_loaders = {'stl': load_stl, 
                     'obj': load_wavefront}
-                    
-    str_types = ['str', 'unicode']
-    if file_obj.__class__.__name__ in str_types:
+        
+    if not hasattr(file_obj, 'read'):
         file_type = (str(file_obj).split('.')[-1]).lower()
         file_obj  = open(file_obj, 'rb')
 
     mesh = mesh_loaders[file_type](file_obj)
     file_obj.close()
-
-    log.info('loaded mesh from %s container, with %i faces and %i vertices.', 
-             file_type, len(mesh.faces), len(mesh.vertices))
-
+    log.info('loaded mesh from %s container with %i faces',file_type, len(mesh.faces))
     return mesh
+
+def load_assimp(file_obj, file_type=None):
+    '''
+    Use the assimp library to load a mesh, from a file object and type,
+    or filename (if file_obj is a string)
+
+    Assimp supports a huge number of mesh formats.
+
+    Performance notes: in tests on binary STL pyassimp was ~10x 
+    slower than the native loader included in this package. 
+    This is probably due to their recursive prettifying of the data structure.
+    
+    Also, you need a very recent version of PyAssimp for this function to work 
+    (the commit was merged into the assimp github master on roughly 9/5/2014)
+    '''
+
+    def LPMesh_to_Trimesh(lp):
+        return Trimesh(vertices       = lp.vertices,
+                       vertex_normals = lp.normals,
+                       faces          = lp.faces)
+
+    if not hasattr(file_obj, 'read'):
+        # if there is no read attribute, we assume we've been passed a file name
+        file_type = (str(file_obj).split('.')[-1]).lower()
+        file_obj  = open(file_obj, 'rb')
+
+    scene  = pyassimp.load(file_obj, file_type=file_type)
+    meshes = list(map(LPMesh_to_Trimesh, scene.meshes))
+    pyassimp.release(scene)
+
+    if len(meshes) != 1:
+        # assimp can load formats which contain multiple meshes. 
+        # The reason for raising an exception here is that I have downstream code
+        # that will break if load functions don't return a single mesh.
+        raise NameError('Incorrect number of meshes loaded!')
+    return meshes[0]
 
 class Trimesh():
     def __init__(self, 
@@ -75,11 +106,14 @@ class Trimesh():
         self.color_faces     = np.array(color_faces)
         self.color_vertices  = np.array(color_vertices)
 
+        self.metadata        = dict()
+
     def process(self):
         '''
         Convenience function to do basic processing on a raw mesh
         '''
         self.merge_vertices_hash()
+        self.verify_face_normals()
         self.remove_duplicate_faces()
         self.remove_degenerate_faces()
         return self
@@ -92,7 +126,6 @@ class Trimesh():
         '''
         return split_by_face_connectivity(self)
 
-    @log_time
     def face_adjacency(self):
         '''
         Returns an (n,2) list of face indices.
@@ -128,7 +161,7 @@ class Trimesh():
         This currently only checks to see if every face has three adjacent faces
         '''
         g = nx.from_edgelist(self.face_adjacency())
-        watertight = np.equal(g.degree().values(), 3).all()
+        watertight = np.equal(list(g.degree().values()), 3).all()
         return watertight
 
     @log_time
@@ -143,7 +176,6 @@ class Trimesh():
                   np.sum(np.logical_not(nondegenerate)),
                   len(nondegenerate))
 
-    @log_time
     def facets(self):
         '''
         Return a list of face indices for coplanar adjacent faces
@@ -177,7 +209,7 @@ class Trimesh():
                 edges     = faces_to_edges(pair, sort=False)
                 overlap   = group_rows(np.sort(edges,axis=1), require_count=2)
                 edge_pair = edges[[overlap[0]]]
-                reversed  = edge_pair[0][0] <> edge_pair[1][0]
+                reversed  = edge_pair[0][0] != edge_pair[1][0]
                 if reversed: continue
                 # if the edges aren't reversed, invert the order of one of the faces
                 # and negate its normal vector
@@ -203,16 +235,24 @@ class Trimesh():
         '''
         Check to make sure both face and vertex normals are defined. 
         '''
+        self.verify_face_normals()
+        self.verify_vertex_normals()
+
+    def verify_vertex_normals(self):
+        if ((self.vertex_normals == None) or 
+            (np.shape(self.vertex_normals) != np.shape(self.vertices))): 
+            self.generate_vertex_normals()
+            
+    def verify_face_normals(self):
+        '''
+        Check to make sure face normals are defined. 
+        '''
         if ((self.face_normals == None) or
-            (np.shape(self.face_normals) <> np.shape(self.faces))):
+            (np.shape(self.face_normals) != np.shape(self.faces))):
             log.debug('Generating face normals for faces %s and passed face normals %s',
                       str(np.shape(self.faces)),
                       str(np.shape(self.face_normals)))
             self.generate_face_normals()
-
-        if ((self.vertex_normals == None) or 
-            (np.shape(self.vertex_normals) <> np.shape(self.vertices))): 
-            self.generate_vertex_normals()
 
     def cross_section(self,
                       normal,
@@ -262,7 +302,7 @@ class Trimesh():
         return mesh
 
     def merge_vertices(self, angle_max=None):
-        if angle_max <> None: self.merge_vertices_kdtree(angle_max)
+        if angle_max != None: self.merge_vertices_kdtree(angle_max)
         else:                 self.merge_vertices_hash()
 
     @log_time
@@ -289,13 +329,13 @@ class Trimesh():
         unique      = deque()
         replacement = dict()
         
-        if angle_max <> None: self.verify_normals()
+        if angle_max != None: self.verify_normals()
 
         for index, vertex in enumerate(self.vertices):
             if used[index]: continue
             neighbors = np.array(tree.query_ball_point(self.vertices[index], TOL_MERGE))
             used[[neighbors]] = True
-            if angle_max <> None:
+            if angle_max != None:
                 normals, aligned = group_vectors(self.vertex_normals[[neighbors]], TOL_ANGLE = angle_max)
                 for group in aligned:
                     vertex_indices = neighbors[[group]]
@@ -307,7 +347,7 @@ class Trimesh():
 
         self.vertices = self.vertices[[unique]]
         self.faces    = replace_references(self.faces, replacement)
-        if angle_max <> None: self.generate_vertex_normals()
+        if angle_max != None: self.generate_vertex_normals()
        
         log.debug('merge_vertices_kdtree reduced vertex count from %i to %i in %.4fs.',
                   len(used),
@@ -455,7 +495,7 @@ def nondegenerate_faces(faces):
     Returns a 1D boolean array where non-degenerate faces are 'True'
     Faces should be (n, m) where for Trimeshes m=3. Returns (n) array
     '''
-    nondegenerate = np.all(np.diff(np.sort(faces, axis=1), axis=1) <> 0, axis=1)
+    nondegenerate = np.all(np.diff(np.sort(faces, axis=1), axis=1) != 0, axis=1)
     return nondegenerate 
         
 def replace_references(data, reference_dict):
@@ -475,14 +515,14 @@ def replace_references(data, reference_dict):
 
 def detect_binary_file(file_obj):
     '''
-    Returns True if file has non-ascii charecters
-    http://stackoverflow.com/questions/898669/how-can-i-detect-if-a-file-is-binary-non-text-in-python
+    Returns True if file has non-ASCII characters (> 0x7F, or 127)
     '''
-    textchars = ''.join(map(chr, [7,8,9,10,12,13,27] + range(0x20, 0x100)))
-    start     = file_obj.tell()
-    fbytes    = file_obj.read(1024)
+    start  = file_obj.tell()
+    fbytes = file_obj.read(1024)
     file_obj.seek(start)
-    return bool(fbytes.translate(None, textchars))
+    for fbyte in fbytes:
+        if fbyte > 127: return True
+    return False
     
 def cross_section(mesh, 
                   plane_origin  = [0,0,0], 
@@ -546,7 +586,7 @@ def plane_line_intersection(plane_ori,
     valid = np.abs(b) > TOL_ZERO
     if line_segments:
         test = np.dot(plane_dir, np.transpose(plane_ori - endpoints[1]))
-        different_sides = np.sign(t) <> np.sign(test)
+        different_sides = np.sign(t) != np.sign(test)
         valid           = np.logical_and(valid, different_sides)
         
     d  = np.divide(t[valid], b[valid])
@@ -635,9 +675,9 @@ def radial_sort(points,
     return points[[np.argsort(angles)]]
                
 def project_to_plane(points, 
-                     normal = [0,0,1], 
-                     origin = [0,0,0], 
-                     return_transform=False):
+                     normal           = [0,0,1], 
+                     origin           = [0,0,0], 
+                     return_transform = False):
     '''
     Projects a set of (n,3) points onto a plane, returning (n,2) points
     '''
@@ -645,16 +685,23 @@ def project_to_plane(points,
     if np.all(np.abs(normal) < TOL_ZERO):
         raise NameError('Normal must be nonzero!')
     T        = align_vectors(normal, [0,0,1])
-    T[0:3,3] = np.array(origin) 
+    T[0:3,3] = -np.array(origin) 
     xy       = transform_points(points, T)[:,0:2]
-    
     if return_transform: return xy, T
     return xy
 
-def planar_hull(mesh, plane_normal=[0,0,1]):
-    planar = project_to_plane(mesh.vertices,
-                              normal = plane_normal)
+def planar_hull(mesh, 
+                normal           = [0,0,1], 
+                origin           = [0,0,0], 
+                return_transform = False):
+    from scipy.spatial import ConvexHull
+    planar , T = project_to_plane(mesh.vertices,
+                                  normal = normal,
+                                  origin = origin,
+                                  return_transform = True)
     hull_edges = ConvexHull(planar).simplices
+    if return_transform:
+        return planar[[hull_edges]], T
     return planar[[hull_edges]]
     
 def counterclockwise_angles(vector, vectors):
@@ -739,13 +786,13 @@ def group_rows(data, require_count=None, digits=None):
             key_string = key.tostring()
             if key_string in observed: observed[key_string].append(index)
             else:                      observed[key_string] = [index]
-        return np.array(observed.values())
+        return np.array(list(observed.values()))
         
     def group_slice():
         hashable = hashable_rows(data, digits=digits)
         order    = np.argsort(hashable)
         hashable = hashable[order]
-        dupe     = hashable[1:] <> hashable[:-1]
+        dupe     = hashable[1:] != hashable[:-1]
         dupe_idx = np.append(0, np.nonzero(dupe)[0] + 1)
         
         # if you wanted to use this one function to deal with non- regular groups
@@ -844,7 +891,7 @@ def split_by_face_connectivity(mesh, check_watertight=True):
     def mesh_from_components(connected_faces):
         if check_watertight:
             subgraph   = nx.subgraph(face_adjacency, connected_faces)
-            watertight = np.equal(subgraph.degree().values(), 3).all()
+            watertight = np.equal(list(subgraph.degree().values()), 3).all()
             if not watertight: return
         faces  = mesh.faces[[connected_faces]]
         unique = np.unique(faces.reshape(-1))
@@ -856,7 +903,7 @@ def split_by_face_connectivity(mesh, check_watertight=True):
                                   face_normals = mesh.face_normals[[connected_faces]]))
     face_adjacency = nx.from_edgelist(mesh.face_adjacency())
     new_meshes     = deque()
-    map(mesh_from_components, nx.connected_components(face_adjacency))
+    list(map(mesh_from_components, nx.connected_components(face_adjacency)))
     log.info('split mesh into %i components.',
              len(new_meshes))
     return list(new_meshes)
@@ -957,7 +1004,7 @@ def triangles_mass_properties(triangles, density = 1.0):
     integral[1:4] = (crosses * f2).T
     integral[4:7] = (crosses * f3).T
     
-    for i in xrange(3):
+    for i in range(3):
         triangle_i    = np.mod(i+1, 3)
         integral[i+7] = crosses[:,i] * ((triangles[:,0, triangle_i] * g0[:,i]) + 
                                         (triangles[:,1, triangle_i] * g1[:,i]) + 
@@ -1020,50 +1067,29 @@ def load_stl_binary(file_obj):
 
 def load_stl_ascii(file_obj):
     '''
-    Load an ASCII STL file. 
-    This is way slower than binary STL. 
+    Load an ASCII STL file.  
+    Note that this loader uses absolute positions, so if the exporter
+    adds extra lines, this import will fail. The upside is that it is much
+    faster than parsing line by line.
     '''
-    def parse_line(line):
-        return map(float, line.strip().split(' ')[-3:])
-    def read_face(file_obj):
-        normals.append(parse_line(file_obj.readline()))
-        faces.append(np.arange(0,3) + len(vertices))
-        file_obj.readline()
-        vertices.append(parse_line(file_obj.readline()))
-        vertices.append(parse_line(file_obj.readline()))
-        vertices.append(parse_line(file_obj.readline()))
-        file_obj.readline(); file_obj.readline()
-    faces    = deque() 
-    normals  = deque()
-    vertices = deque()
-
-    #get the file header
     header = file_obj.readline()
-    while True:
-        try: read_face(file_obj)
-        except: break
-    return Trimesh(faces       = np.array(faces,    dtype=np.int),
-                   face_normals = np.array(normals, dtype=np.float),
-                   vertices    = np.array(vertices, dtype=np.float))
-
-def load_assimp(filename):
-    '''
-    Use the assimp library to load a mesh, from filename 
-    Assimp supports a huge number of mesh formats.
-    Unfortunately this version of the pyassimp only loads files by name, 
-    as opposed to from file objects. 
-    '''
-    def LPMesh_to_Trimesh(lp):
-        return Trimesh(vertices       = lp.vertices,
-                       vertex_normals = lp.normals,
-                       faces          = lp.faces)
-    import pyassimp
-    scene  = pyassimp.load(filename)
-    meshes = map(LPMesh_to_Trimesh, scene.meshes)
-    pyassimp.release(scene)
-    if len(meshes) == 1: return meshes[0]
-    return meshes
-
+    blob   = np.array(file_obj.read().split())
+    
+    # there are 21 'words' in each face
+    face_len     = 21
+    face_count   = int((len(blob)-1) / face_len)
+    offset       = face_len * np.arange(face_count).reshape((-1,1))
+    normal_index = np.tile([2,3,4], (face_count, 1)) + offset
+    vertex_index = np.tile([8,9,10,12,13,14,16,17,18], (face_count, 1)) + offset
+    
+    faces        = np.arange(face_count*3).reshape((-1,3))
+    face_normals = blob[normal_index].astype(float)
+    vertices     = blob[vertex_index.reshape((-1,3))].astype(float)
+    
+    return Trimesh(vertices     = vertices,
+                   faces        = faces, 
+                   face_normals = face_normals)
+                   
 def load_wavefront(file_obj):
     '''
     Loads a Wavefront .obj file_obj into a Trimesh object
@@ -1073,7 +1099,7 @@ def load_wavefront(file_obj):
     def parse_face(line):
         #faces are vertex/texture/normal and 1-indexed
         face = [None]*3
-        for i in xrange(3):
+        for i in range(3):
             face[i] = int(line[i].split('/')[0]) - 1
         return face
     vertices = deque()
@@ -1084,8 +1110,8 @@ def load_wavefront(file_obj):
     for raw_line in file_obj:
         line = raw_line.strip().split()
         if len(line) == 0: continue
-        if line[0] ==  'v': vertices.append(map(float, line[-3:])); continue
-        if line[0] == 'vn': normals.append(map(float, line[-3:])); continue
+        if line[0] ==  'v': vertices.append(list(map(float, line[-3:]))); continue
+        if line[0] == 'vn': normals.append(list(map(float, line[-3:]))); continue
         if line[0] ==  'f': faces.append(parse_face(line[-3:]));
     mesh = Trimesh(vertices       = np.array(vertices, dtype=float),
                    faces          = np.array(faces,    dtype=int),
@@ -1113,7 +1139,7 @@ def export_stl(mesh, filename):
         # write the faces
         # TODO: remove the for loop and do this as a single struct.pack operation
         # like we do in the loader, as it is way, way faster.
-        for index in xrange(len(mesh.faces)):
+        for index in range(len(mesh.faces)):
             write_face(file_object, 
                        mesh.vertices[[mesh.faces[index]]], 
                        mesh.face_normals[index])
@@ -1122,11 +1148,14 @@ def export_collada(mesh, filename):
     '''
     Export a mesh as collada, to filename
     '''
+
+    import inspect
+    MODULE_PATH = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
     template = Template(open(os.path.join(MODULE_PATH, 
                                           'templates', 
                                           'collada_template.dae'), 'rb').read())
-    
-    #np.array2string uses the numpy printoptions
+
+    # we bother setting this because np.array2string uses these printoptions 
     np.set_printoptions(threshold=np.inf, precision=5, linewidth=np.inf)
 
     replacement = dict()
@@ -1149,21 +1178,11 @@ if __name__ == '__main__':
     log.addHandler(handler_stream)
     np.set_printoptions(precision=6, suppress=True)
     
-    '''
-    test_dir = './models'
-    test_files = [os.path.join(test_dir, i) for i in os.listdir(test_dir) if 'stl' in i.lower()]
-    for test_file in test_files:
-        mesh = load_mesh(test_file)
-        mesh.process()
-        mesh.fix_normals()
-        mesh.show(1)
-    '''        
-    #mesh = load_mesh('models/1002_tray_bottom.STL')
+    mesh = load_mesh('models/1002_tray_bottom.STL')
     #mesh = load_mesh('models/unit_cube.STL')
-    mesh = load_mesh('models/angle_block.STL')
+    #mesh = load_mesh('models/angle_block.STL')
     #mesh = load_mesh('models/idler_riser.STL')
-    #mesh = load_mesh('models/src_bot.STL')
     #mass = mesh.mass_properties()
-    mesh.fix_normals()
-    mesh.show(1)
+    #mesh.fix_normals()
+    #mesh.show(1)
     
