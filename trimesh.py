@@ -8,6 +8,7 @@ import numpy as np
 import struct
 import os
 from collections import deque
+import sys
 
 
 from time import time as time_function
@@ -20,6 +21,10 @@ log.addHandler(logging.NullHandler())
 
 try: import pyassimp
 except: log.debug('No pyassimp!')
+
+PY3 = sys.version_info.major >= 3
+if not PY3: 
+    range = xrange
 
 TOL_ZERO  = 1e-12
 TOL_MERGE = 1e-9
@@ -516,12 +521,15 @@ def replace_references(data, reference_dict):
 def detect_binary_file(file_obj):
     '''
     Returns True if file has non-ASCII characters (> 0x7F, or 127)
+    Should work in both Python 2 and 3
     '''
     start  = file_obj.tell()
     fbytes = file_obj.read(1024)
     file_obj.seek(start)
     for fbyte in fbytes:
-        if fbyte > 127: return True
+        if isinstance(fbyte, str): code = ord(fbyte)
+        else:                      code = fbyte
+        if code > 127: return True
     return False
     
 def cross_section(mesh, 
@@ -1056,7 +1064,7 @@ def load_stl_binary(file_obj):
     # the first three floats are the face normal
     # the next 9 are the three vertices 
     blob = np.array(struct.unpack("<" + "12fxx"*tri_count, 
-                                  file_obj.read(50*tri_count))).reshape((-1,4,3))
+                                  file_obj.read())).reshape((-1,4,3))
 
     face_normals = blob[:,0]
     vertices     = blob[:,1:].reshape((-1,3))
@@ -1178,7 +1186,7 @@ if __name__ == '__main__':
     log.addHandler(handler_stream)
     np.set_printoptions(precision=6, suppress=True)
     
-    mesh = load_mesh('models/1002_tray_bottom.STL')
+    #mesh = load_mesh('models/1002_tray_bottom.STL')
     #mesh = load_mesh('models/unit_cube.STL')
     #mesh = load_mesh('models/angle_block.STL')
     #mesh = load_mesh('models/idler_riser.STL')
