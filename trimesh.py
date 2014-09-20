@@ -23,11 +23,17 @@ try: import pyassimp
 except: log.debug('No pyassimp!')
 
 PY3 = sys.version_info.major >= 3
-if not PY3: 
-    range = xrange
+if not PY3: range = xrange
 
 TOL_ZERO  = 1e-12
 TOL_MERGE = 1e-9
+
+PASTELS = {'red'    : [194,59,34],
+           'purple' : [150,111,214],
+           'blue'   : [119,158,203],
+           'brown'  : [160,85,45]}
+
+DEFAULT_COLOR = PASTELS['blue']
 
 def log_time(method):
     def timed(*args, **kwargs):
@@ -101,18 +107,21 @@ class Trimesh():
                  faces           = None, 
                  face_normals    = None, 
                  vertex_normals  = None,
-                 color_faces     = None,
-                 color_vertices  = None):
+                 face_colors     = None,
+                 vertex_colors   = None,
+                 metadata        = None):
 
         self.vertices        = np.array(vertices)
         self.faces           = np.array(faces)
         self.face_normals    = np.array(face_normals)
         self.vertex_normals  = np.array(vertex_normals)
-        self.color_faces     = np.array(color_faces)
-        self.color_vertices  = np.array(color_vertices)
-
+        self.face_colors     = np.array(face_colors)
+        self.vertex_colors   = np.array(vertex_colors)
         self.metadata        = dict()
-
+        
+        if isinstance(metadata, dict):
+            self.metadate.update(metadata)
+            
     def process(self):
         '''
         Convenience function to do basic processing on a raw mesh
@@ -165,8 +174,8 @@ class Trimesh():
         Check if a mesh is watertight. 
         This currently only checks to see if every face has three adjacent faces
         '''
-        g = nx.from_edgelist(self.face_adjacency())
-        watertight = np.equal(list(g.degree().values()), 3).all()
+        adjacency  = nx.from_edgelist(self.face_adjacency())
+        watertight = np.equal(list(adjacency.degree().values()), 3).all()
         return watertight
 
     @log_time
@@ -354,10 +363,9 @@ class Trimesh():
         self.faces    = replace_references(self.faces, replacement)
         if angle_max != None: self.generate_vertex_normals()
        
-        log.debug('merge_vertices_kdtree reduced vertex count from %i to %i in %.4fs.',
+        log.debug('merge_vertices_kdtree reduced vertex count from %i to %i', 
                   len(used),
-                  len(unique),
-                  time_function()-tic)
+                  len(unique))
                   
     @log_time
     def merge_vertices_hash(self):
@@ -424,7 +432,34 @@ class Trimesh():
         vertex_normals[[self.faces[:,1],1]] = self.face_normals
         vertex_normals[[self.faces[:,2],2]] = self.face_normals
         self.vertex_normals = unitize(np.mean(vertex_normals, axis=1))
-
+        
+    @log_time   
+    def generate_face_colors(self):
+        if np.shape(self.face_colors) == (len(self.faces), 3): return
+        self.face_colors = np.tile(DEFAULT_COLOR, (len(self.faces), 1))
+        
+    @log_time       
+    def generate_vertex_colors(self):
+        '''
+        Populate self.vertex_colors
+        If self.face_colors are defined, we use those values to generate
+        vertex colors. If not, we just set them to the DEFAULT_COLOR
+        '''
+        if np.shape(self.vertex_colors) == (len(self.vertices), 3): 
+            return
+        if np.shape(self.face_colors) == (len(self.faces), 3):
+            # case where face_colors is populated, but vertex_colors isn't
+            # we then generate vertex colors from the face colors
+            vertex_colors = np.zeros((len(self.vertices), 3,3))
+            vertex_colors[[self.faces[:,0],0]] = self.face_colors
+            vertex_colors[[self.faces[:,1],1]] = self.face_colors
+            vertex_colors[[self.faces[:,2],2]] = self.face_colors
+            vertex_colors  = unitize(np.mean(vertex_colors, axis=1))
+            vertex_colors *= (255.0 / np.max(vertex_colors, axis=1).reshape((-1,1)))
+            self.vertex_colors = vertex_colors.astype(int)
+            return
+        self.vertex_colors = np.tile(DEFAULT_COLOR, (len(self.vertices), 1))
+        
     def transform(self, matrix):
         '''
         Transform mesh vertices by matrix
@@ -471,9 +506,9 @@ class Trimesh():
             'center_mass' : Center of mass location, in global coordinate system
         '''
         return triangles_mass_properties(triangles = self.vertices[[self.faces]], 
-                                         density    = density)
+                                         density   = density)
 
-    def show(self, smooth = False, smooth_angle = np.radians(20)):
+    def show(self, smooth = None, smooth_angle = np.radians(20)):
         '''
         Render the mesh in an opengl window. Requires pyglet.
         Smooth will re-merge vertices to fix the shading, but can be slow
@@ -526,9 +561,10 @@ def detect_binary_file(file_obj):
     start  = file_obj.tell()
     fbytes = file_obj.read(1024)
     file_obj.seek(start)
+    is_str = isinstance(fbytes, str)
     for fbyte in fbytes:
-        if isinstance(fbyte, str): code = ord(fbyte)
-        else:                      code = fbyte
+        if is_str: code = ord(fbyte)
+        else:      code = fbyte
         if code > 127: return True
     return False
     
@@ -602,9 +638,9 @@ def plane_line_intersection(plane_ori,
     intersection += np.reshape(d, (-1,1)) * line_dir[valid]
     return intersection, valid
     
-def point_plane_distance(plane_ori, plane_dir, points):
-    w         = points - plane_ori
-    distances = np.abs(np.dot(plane_dir, w.T) / np.linalg.norm(plane_dir))
+def point_plane_distance(points, plane_normal, plane_origin=[0,0,0]):
+    w         = np.array(points) - plane_origin
+    distances = np.abs(np.dot(plane_normal, w.T) / np.linalg.norm(plane_normal))
     return distances
 
 def unitize(points, check_valid=False):
@@ -776,6 +812,7 @@ def group_rows(data, require_count=None, digits=None):
                    Note that using require_count allows numpy advanced indexing
                    to be used in place of looping and checking hashes, and as a
                    consequence is ~10x faster. 
+                   
     digits:        If data is floating point, how many decimals to look at.
                    If this is None, the value in TOL_MERGE will be turned into a 
                    digit count and used. 
@@ -783,7 +820,7 @@ def group_rows(data, require_count=None, digits=None):
     Returns
     ----------
     groups:        List or sequence of indices from data indicating identical rows.
-                   If require_count <> None, shape will be (j, require_count)
+                   If require_count != None, shape will be (j, require_count)
                    If require_count == None, shape will be irregular (AKA a sequence)
     '''
     
@@ -797,12 +834,18 @@ def group_rows(data, require_count=None, digits=None):
         return np.array(list(observed.values()))
         
     def group_slice():
+        # create a representation of the rows that can be sorted
         hashable = hashable_rows(data, digits=digits)
+        # record the order of the rows so we can get the original indices back later
         order    = np.argsort(hashable)
+        # but for now, we want our hashes sorted
         hashable = hashable[order]
+        # this is checking each neighbour for equality, example: 
+        # example: hashable = [1, 1, 1]; dupe = [0, 0]
         dupe     = hashable[1:] != hashable[:-1]
+        # we want the first index of a group, so we can slice from that location
+        # example: hashable = [0 1 1]; dupe = [1,0]; dupe_idx = [0,1]
         dupe_idx = np.append(0, np.nonzero(dupe)[0] + 1)
-        
         # if you wanted to use this one function to deal with non- regular groups
         # you could use: np.array_split(dupe_idx)
         # this is roughly 3x slower than using the group_dict method above. 
@@ -886,8 +929,9 @@ def facets(mesh, return_area = True):
     parallel       = np.abs(np.sum(normal_pairs[:,0,:] * normal_pairs[:,1,:], axis=1) - 1) < TOL_ZERO
     graph_parallel = nx.from_edgelist(face_idx[parallel])
     facets         = nx.connected_components(graph_parallel)
-    facets_area    = [triangles_area(mesh.vertices[[mesh.faces[facet]]]) for facet in facets]
+    
     if not return_area: return facets
+    facets_area    = [triangles_area(mesh.vertices[[mesh.faces[facet]]]) for facet in facets]
     return facets, facets_area
 
 def split_by_face_connectivity(mesh, check_watertight=True):
@@ -973,12 +1017,41 @@ def triangles_normal(triangles):
     '''
     Calculates the normals of input triangles 
     
-    triangles: vertices of triangles (n,3,3)
+    triangles: vertices of triangles, (n,3,3)
     returns:   normal vectors, (n,3)
     '''
     normals = unitize(triangles_cross(triangles))
     return normals
-
+    
+def triangles_all_coplanar(triangles):
+    '''
+    Given a list of triangles, return True if they are all coplanar, and False if not.
+  
+    triangles: vertices of triangles, (n,3,3)
+    returns:   all_coplanar, bool
+    '''
+    test_normal  = triangles_normal(triangles)[0]
+    test_vertex  = triangles[0][0]
+    distances    = point_plane_distance(points       = triangles[1:].reshape((-1,3)),
+                                        plane_normal = test_normal,
+                                        plane_origin = test_vertex)
+    all_coplanar = np.all(np.abs(distances) < TOL_ZERO)
+    return all_coplanar
+    
+def triangles_any_coplanar(triangles):
+    '''
+    Given a list of triangles, if the first triangle is coplanar with ANY
+    of the following triangles, return True.
+    Otherwise, return False. 
+    '''
+    test_normal  = triangles_normal(triangles)[0]
+    test_vertex  = triangles[0][0]
+    distances    = point_plane_distance(points       = triangles[1:].reshape((-1,3)),
+                                        plane_normal = test_normal,
+                                        plane_origin = test_vertex)
+    any_coplanar = np.any(distances < TOL_ZERO)
+    return any_coplanar
+    
 def triangles_mass_properties(triangles, density = 1.0):
     '''
     Calculate the mass properties of a group of triangles
@@ -987,11 +1060,11 @@ def triangles_mass_properties(triangles, density = 1.0):
     '''
     crosses = triangles_cross(triangles)
     # thought vectorizing would make this slightly nicer, though it's still pretty ugly
-    # these are the subexpressions of the integral 
+    # these are the sub expressions of the integral 
     f1 = triangles.sum(axis=1)
     
-    # triangles[:,0,:] will give rows x,  y,  z (the first vertex of every triangle)
-    # triangles[:,:,0] will give rows x0, x1, x2 (the x coordinate of every triangle)
+    # triangles[:,0,:] will give rows like [[x0, y0, z0], ...] (the first vertex of every triangle)
+    # triangles[:,:,0] will give rows like [[x0, x1, x2], ...] (the x coordinates of every triangle)
     f2 = (triangles[:,0,:]**2 +
           triangles[:,1,:]**2 +    
           triangles[:,0,:]*triangles[:,1,:] + 
@@ -1053,13 +1126,36 @@ def load_stl_binary(file_obj):
     Uses a single main struct.unpack call, and is significantly faster
     than looping methods or ASCII STL. 
     '''
-    #get the file_obj header
+    # get the file_obj header
     header = file_obj.read(80)
     
-    #use the header information about number of triangles
+    # get the file information about the number of triangles
     tri_count    = int(struct.unpack("@i", file_obj.read(4))[0])
-    faces        = np.arange(tri_count*3).reshape((-1,3))
     
+    # now we check the length from the header versus the length of the file
+    # data_start should always be position 84, but hard coding that felt ugly
+    data_start = file_obj.tell()
+    # this seeks to the end of the file (position 0, relative to the end of the file 'whence=2')
+    file_obj.seek(0, 2)
+    # we save the location of the end of the file and seek back to where we started from
+    data_end = file_obj.tell()
+    file_obj.seek(data_start)
+    # the binary format has a rigidly defined structure, and if the length
+    # of the file doesn't match the header, the loaded version is almost
+    # certainly going to be garbage. 
+    data_ok = (data_end - data_start) == (tri_count * 50)
+   
+    # this check is to see if this really is a binary STL file. 
+    # if we don't do this and try to load a file that isn't structured properly 
+    # the struct.unpack call uses 100% memory until the whole thing crashes, 
+    # so it's much better to raise an exception here. 
+    if not data_ok:
+        raise NameError('Attempted to load binary STL with incorrect length in header!')
+    
+    # all of our vertices will be loaded in order due to the STL format, 
+    # so faces are just sequential indices reshaped. 
+    faces        = np.arange(tri_count*3).reshape((-1,3))
+
     # this blob extracts 12 float values, with 2 pad bytes per face
     # the first three floats are the face normal
     # the next 9 are the three vertices 
@@ -1075,21 +1171,28 @@ def load_stl_binary(file_obj):
 
 def load_stl_ascii(file_obj):
     '''
-    Load an ASCII STL file.  
-    Note that this loader uses absolute positions, so if the exporter
-    adds extra lines, this import will fail. The upside is that it is much
-    faster than parsing line by line.
+    Load an ASCII STL file.
+    
+    Should be pretty robust to whitespace changes due to the use of split()
     '''
+    
     header = file_obj.readline()
     blob   = np.array(file_obj.read().split())
     
     # there are 21 'words' in each face
     face_len     = 21
-    face_count   = int((len(blob)-1) / face_len)
+    face_count   = float(len(blob) - 1) / face_len
+    if (face_count % 1) > TOL_ZERO:
+        raise NameError('Incorrect number of values in STL file!')
+    face_count   = int(face_count)
+    # this offset is to be added to a fixed set of indices that is tiled
     offset       = face_len * np.arange(face_count).reshape((-1,1))
+    # these hard coded indices will break if the exporter adds unexpected junk
+    # but then it wouldn't really be an STL file... 
     normal_index = np.tile([2,3,4], (face_count, 1)) + offset
     vertex_index = np.tile([8,9,10,12,13,14,16,17,18], (face_count, 1)) + offset
     
+    # faces are groups of three sequential vertices, as vertices are not references
     faces        = np.arange(face_count*3).reshape((-1,3))
     face_normals = blob[normal_index].astype(float)
     vertices     = blob[vertex_index.reshape((-1,3))].astype(float)
@@ -1186,11 +1289,13 @@ if __name__ == '__main__':
     log.addHandler(handler_stream)
     np.set_printoptions(precision=6, suppress=True)
     
-    #mesh = load_mesh('models/1002_tray_bottom.STL')
+    mesh = load_mesh('models/1002_tray_bottom.STL')
     #mesh = load_mesh('models/unit_cube.STL')
     #mesh = load_mesh('models/angle_block.STL')
-    #mesh = load_mesh('models/idler_riser.STL')
+    #mesh = load_mesh('models/src_bot.STL')
     #mass = mesh.mass_properties()
     #mesh.fix_normals()
-    #mesh.show(1)
+    #mesh.show()
+
+    
     
