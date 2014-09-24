@@ -19,11 +19,9 @@ import logging
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
 
-try: import pyassimp
-except: log.debug('No pyassimp!')
-
 PY3 = sys.version_info.major >= 3
-if not PY3: range = xrange
+if not PY3: 
+    range = xrange
 
 TOL_ZERO  = 1e-12
 TOL_MERGE = 1e-9
@@ -33,7 +31,8 @@ PASTELS = {'red'    : [194,59,34],
            'blue'   : [119,158,203],
            'brown'  : [160,85,45]}
 
-DEFAULT_COLOR = PASTELS['blue']
+DEFAULT_COLOR  = PASTELS['blue']
+
 
 def log_time(method):
     def timed(*args, **kwargs):
@@ -53,16 +52,16 @@ def load_mesh(file_obj, file_type=None):
     file_obj: a filename string, or a file object
     '''
 
-    mesh_loaders = {'stl': load_stl, 
-                    'obj': load_wavefront}
         
     if not hasattr(file_obj, 'read'):
         file_type = (str(file_obj).split('.')[-1]).lower()
         file_obj  = open(file_obj, 'rb')
 
-    mesh = mesh_loaders[file_type](file_obj)
+    mesh = MESH_LOADERS[file_type](file_obj, file_type)
     file_obj.close()
-    log.info('loaded mesh from %s container with %i faces',file_type, len(mesh.faces))
+    log.info('loaded mesh using %s containing %i faces', 
+             MESH_LOADERS[file_type].__name__, 
+             len(mesh.faces))
     return mesh
 
 def load_assimp(file_obj, file_type=None):
@@ -94,12 +93,9 @@ def load_assimp(file_obj, file_type=None):
     meshes = list(map(LPMesh_to_Trimesh, scene.meshes))
     pyassimp.release(scene)
 
-    if len(meshes) != 1:
-        # assimp can load formats which contain multiple meshes. 
-        # The reason for raising an exception here is that I have downstream code
-        # that will break if load functions don't return a single mesh.
-        raise NameError('Incorrect number of meshes loaded!')
-    return meshes[0]
+    if len(meshes) == 1: 
+        return meshes[0]
+    return meshes
 
 class Trimesh():
     def __init__(self, 
@@ -253,16 +249,14 @@ class Trimesh():
         self.verify_vertex_normals()
 
     def verify_vertex_normals(self):
-        if ((self.vertex_normals == None) or 
-            (np.shape(self.vertex_normals) != np.shape(self.vertices))): 
+        if np.shape(self.vertex_normals) != np.shape(self.vertices): 
             self.generate_vertex_normals()
             
     def verify_face_normals(self):
         '''
         Check to make sure face normals are defined. 
         '''
-        if ((self.face_normals == None) or
-            (np.shape(self.face_normals) != np.shape(self.faces))):
+        if (np.shape(self.face_normals) != np.shape(self.faces)):
             log.debug('Generating face normals for faces %s and passed face normals %s',
                       str(np.shape(self.faces)),
                       str(np.shape(self.face_normals)))
@@ -290,7 +284,7 @@ class Trimesh():
         intersections: (n, 2, [2|3]) line segments where plane intersects triangles in mesh
                        
         '''
-        if origin == None: 
+        if np.shape(origin) != (3):
             origin = self.centroid
         intersections = cross_section(mesh         = self, 
                                       plane_normal = normal, 
@@ -434,8 +428,9 @@ class Trimesh():
         self.vertex_normals = unitize(np.mean(vertex_normals, axis=1))
         
     @log_time   
-    def generate_face_colors(self):
-        if np.shape(self.face_colors) == (len(self.faces), 3): return
+    def generate_face_colors(self, force_default=False):
+        if (np.shape(self.face_colors) == (len(self.faces), 3)) and (not force_default): 
+            return
         self.face_colors = np.tile(DEFAULT_COLOR, (len(self.faces), 1))
         
     @log_time       
@@ -918,19 +913,19 @@ def connected_edges(G, nodes):
 def facets(mesh, return_area = True):
     '''
     Returns lists of facets of a mesh. 
-    Facets are defined as groups of faces which are both adjacent 
-    and have identical normal vectors.
+    Facets are defined as groups of faces which are both adjacent and parallel
     
-    facets are a list of indices in mesh.faces
+    facets returned reference indices in mesh.faces
     If return_area is True, both the list of facets and their area are returned. 
     '''
     face_idx       = mesh.face_adjacency()
     normal_pairs   = mesh.face_normals[[face_idx]]
     parallel       = np.abs(np.sum(normal_pairs[:,0,:] * normal_pairs[:,1,:], axis=1) - 1) < TOL_ZERO
     graph_parallel = nx.from_edgelist(face_idx[parallel])
-    facets         = nx.connected_components(graph_parallel)
+    facets         = list(nx.connected_components(graph_parallel))
     
-    if not return_area: return facets
+    if not return_area: 
+        return facets
     facets_area    = [triangles_area(mesh.vertices[[mesh.faces[facet]]]) for facet in facets]
     return facets, facets_area
 
@@ -980,15 +975,15 @@ def align_vectors(vector_start, vector_end):
     vector_start = unitize(vector_start)
     vector_end   = unitize(vector_end)
     cross        = np.cross(vector_start, vector_end)
-    # we clip the norm to 1, as otherwise floating point precision
+    # we clip the norm to 1, as otherwise floating point bs
     # can cause the arcsin to error
     norm         = np.clip(np.linalg.norm(cross), -TOL_ZERO, 1)
     if norm < TOL_ZERO:
         # if the norm is zero, the vectors are the same
         # and no rotation is needed
         return np.eye(4)
-    angle        = np.arcsin(norm) 
-    T            = tr.rotation_matrix(angle, cross)
+    angle = np.arcsin(norm) 
+    T     = tr.rotation_matrix(angle, cross)
     return T
 
 def triangles_cross(triangles):
@@ -1049,7 +1044,7 @@ def triangles_any_coplanar(triangles):
     distances    = point_plane_distance(points       = triangles[1:].reshape((-1,3)),
                                         plane_normal = test_normal,
                                         plane_origin = test_vertex)
-    any_coplanar = np.any(distances < TOL_ZERO)
+    any_coplanar = np.any(np.all(np.abs(distances.reshape((-1,3)) < TOL_ZERO), axis=1))
     return any_coplanar
     
 def triangles_mass_properties(triangles, density = 1.0):
@@ -1116,7 +1111,7 @@ def triangles_mass_properties(triangles, density = 1.0):
               'inertia'     : inertia.tolist()}
     return result
     
-def load_stl(file_obj):
+def load_stl(file_obj, file_type=None):
     if detect_binary_file(file_obj): return load_stl_binary(file_obj)
     else:                            return load_stl_ascii(file_obj)
         
@@ -1201,7 +1196,7 @@ def load_stl_ascii(file_obj):
                    faces        = faces, 
                    face_normals = face_normals)
                    
-def load_wavefront(file_obj):
+def load_wavefront(file_obj, file_type=None):
     '''
     Loads a Wavefront .obj file_obj into a Trimesh object
     Discards texture normals and vertex color information
@@ -1259,7 +1254,6 @@ def export_collada(mesh, filename):
     '''
     Export a mesh as collada, to filename
     '''
-
     import inspect
     MODULE_PATH = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
     template = Template(open(os.path.join(MODULE_PATH, 
@@ -1278,6 +1272,32 @@ def export_collada(mesh, filename):
     replacement['FCOUNT']   = str(len(mesh.faces))
     with open(filename, 'wb') as outfile:
         outfile.write(template.substitute(replacement))
+
+MESH_LOADERS   = {'stl': load_stl, 
+                  'obj': load_wavefront}
+
+ASSIMP_FORMATS = ['dae', 
+                  'blend', 
+                  '3ds', 
+                  'ase', 
+                  'obj', 
+                  'ifc', 
+                  'xgl', 
+                  'zgl',
+                  'ply',
+                  'lwo',
+                  'lxo',
+                  'x',
+                  'ac',
+                  'ms3d',
+                  'cob',
+                  'scn']
+try: 
+    import pyassimp
+    MESH_LOADERS.update(zip(ASSIMP_FORMATS, 
+                            [load_assimp]*len(ASSIMP_FORMATS)))
+except:
+    log.debug('No pyassimp, only native loaders available!')
         
 if __name__ == '__main__':
     formatter = logging.Formatter("[%(asctime)s] %(levelname)-7s (%(filename)s:%(lineno)3s) %(message)s", 
@@ -1289,13 +1309,7 @@ if __name__ == '__main__':
     log.addHandler(handler_stream)
     np.set_printoptions(precision=6, suppress=True)
     
-    mesh = load_mesh('models/1002_tray_bottom.STL')
-    #mesh = load_mesh('models/unit_cube.STL')
-    #mesh = load_mesh('models/angle_block.STL')
-    #mesh = load_mesh('models/src_bot.STL')
-    #mass = mesh.mass_properties()
-    #mesh.fix_normals()
-    #mesh.show()
+    mesh = load_mesh('models/1002_tray_bottom.STL').process()
+    mesh.show()
 
-    
-    
+ 
