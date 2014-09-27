@@ -33,6 +33,8 @@ PASTELS = {'red'    : [194,59,34],
 
 DEFAULT_COLOR  = PASTELS['blue']
 
+def available_formats():
+    return _MESH_LOADERS.keys()
 
 def log_time(method):
     def timed(*args, **kwargs):
@@ -57,10 +59,10 @@ def load_mesh(file_obj, file_type=None):
         file_type = (str(file_obj).split('.')[-1]).lower()
         file_obj  = open(file_obj, 'rb')
 
-    mesh = MESH_LOADERS[file_type](file_obj, file_type)
+    mesh = _MESH_LOADERS[file_type](file_obj, file_type)
     file_obj.close()
-    log.info('loaded mesh using %s containing %i faces', 
-             MESH_LOADERS[file_type].__name__, 
+    log.info('loaded mesh using function %s, containing %i faces', 
+             _MESH_LOADERS[file_type].__name__, 
              len(mesh.faces))
     return mesh
 
@@ -1273,29 +1275,29 @@ def export_collada(mesh, filename):
     with open(filename, 'wb') as outfile:
         outfile.write(template.substitute(replacement))
 
-MESH_LOADERS   = {'stl': load_stl, 
+_MESH_LOADERS   = {'stl': load_stl, 
                   'obj': load_wavefront}
 
-ASSIMP_FORMATS = ['dae', 
-                  'blend', 
-                  '3ds', 
-                  'ase', 
-                  'obj', 
-                  'ifc', 
-                  'xgl', 
-                  'zgl',
-                  'ply',
-                  'lwo',
-                  'lxo',
-                  'x',
-                  'ac',
-                  'ms3d',
-                  'cob',
-                  'scn']
+_ASSIMP_FORMATS = ['dae', 
+                   'blend', 
+                   '3ds', 
+                   'ase', 
+                   'obj', 
+                   'ifc', 
+                   'xgl', 
+                   'zgl',
+                   'ply',
+                   'lwo',
+                   'lxo',
+                   'x',
+                   'ac',
+                   'ms3d',
+                   'cob',
+                   'scn']
 try: 
     import pyassimp
-    MESH_LOADERS.update(zip(ASSIMP_FORMATS, 
-                            [load_assimp]*len(ASSIMP_FORMATS)))
+    _MESH_LOADERS.update(zip(_ASSIMP_FORMATS, 
+                             [load_assimp]*len(_ASSIMP_FORMATS)))
 except:
     log.debug('No pyassimp, only native loaders available!')
         
