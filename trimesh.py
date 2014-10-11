@@ -140,7 +140,9 @@ class Trimesh():
         Returns a list of Trimesh objects, based on face connectivity.
         Splits into individual components, sometimes referred to as 'bodies'
         '''
-        return split(self)
+        meshes = split(self)
+        log.info('split found %i components', len(meshes))
+        return meshes
 
     def face_adjacency(self):
         '''
@@ -971,8 +973,8 @@ def split_gt(mesh, check_watertight=True):
         faces                    = replacement[faces_original]
         meshes.append(Trimesh(faces        = faces, 
                               face_normals = face_normals, 
-                                  vertices     = vertices))
-        return list(meshes)
+                              vertices     = vertices))
+    return list(meshes)
 
 def split(mesh, check_watertight=True):
     if _has_gt: return split_gt(mesh, check_watertight)
