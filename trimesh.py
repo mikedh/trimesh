@@ -15,6 +15,13 @@ from time import time as time_function
 from string import Template
 import networkx as nx
 
+try: 
+    from graph_tool import Graph
+    from graph_tool.topology import label_components
+    has_gt = True
+except: 
+    has_gt = False
+
 import logging
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
@@ -136,6 +143,7 @@ class Trimesh():
         Returns a list of Trimesh objects, based on face connectivity.
         Splits into individual components, sometimes referred to as 'bodies'
         '''
+        if has_gt: return split_gt(self)
         return split_by_face_connectivity(self)
 
     def face_adjacency(self):
@@ -154,7 +162,7 @@ class Trimesh():
         edges = faces_to_edges(self.faces, sort=True)
         # this will return the indices for duplicate edges
         # every edge appears twice in a well constructed mesh
-        # so for every row in edge_idx, self.edges[edge_idx[*][0]] == self.edges[edge_idx[*][1]]
+        # so for every row in edge_idx, edges[edge_idx[*][0]] == edges[edge_idx[*][1]]
         # in this call to group rows, we discard edges which don't occur twice
         edge_idx = group_rows(edges, require_count=2)
 
@@ -398,13 +406,6 @@ class Trimesh():
         '''
         self.vertices = self.vertices[[self.faces]].reshape((-1,3))
         self.faces    = np.arange(len(self.vertices)).reshape((-1,3))
-
-    @log_time
-    def generate_edges(self):
-        '''
-        Populate self.edges from face information.
-        '''
-        self.edges = faces_to_edges(self.faces, sort=True)
         
     @log_time    
     def generate_face_normals(self):
@@ -571,7 +572,6 @@ def cross_section(mesh,
     '''
     Return a cross section of the trimesh based on plane origin and normal. 
     Basically a bunch of plane-line intersection queries
-    Depends on properly ordered edge information, as done by generate_edges
 
     origin:        (3) array of plane origin
     normal:        (3) array for plane normal
@@ -583,10 +583,10 @@ def cross_section(mesh,
     if len(mesh.faces) == 0: 
         raise NameError("Cannot compute cross section of empty mesh.")
     tic = time_function()
-    mesh.generate_edges()
+    edges = faces_to_edges(mesh.faces, sort=True)
     intersections, valid  = plane_line_intersection(plane_origin, 
                                                     plane_normal, 
-                                                    mesh.vertices[[mesh.edges.T]],
+                                                    mesh.vertices[[edges.T]],
                                                     line_segments = True)
     toc = time_function()
     log.debug('mesh_cross_section found %i intersections in %fs.', np.sum(valid), toc-tic)
@@ -956,7 +956,22 @@ def split_by_face_connectivity(mesh, check_watertight=True):
     log.info('split mesh into %i components.',
              len(new_meshes))
     return list(new_meshes)
+
+def split_gt(mesh, check_watertight=True):
+    g = Graph()
+    g.add_edge_list(mesh.face_adjacency())
     
+    p = label_components(g, directed=False)[0].a
+    if check_watertight: d = g.degree_property_map('total').a
+    meshes = deque()
+    for component_id in np.unique(p):
+        current  = np.equal(p, component_id)
+        if (check_watertight) and (d[current] != 3).any(): continue
+        vertices = mesh.vertices[mesh.faces[current]].reshape((-1,3))
+        faces    = np.arange(len(vertices)).reshape((-1,3))
+        meshes.append(Trimesh(faces=faces, vertices=vertices).process())
+    return list(meshes)
+
 def transform_points(points, matrix):
     '''
     Returns points, rotated by transformation matrix 
@@ -1311,7 +1326,8 @@ if __name__ == '__main__':
     log.addHandler(handler_stream)
     np.set_printoptions(precision=6, suppress=True)
     
-    mesh = load_mesh('models/1002_tray_bottom.STL').process()
-    mesh.show()
-
- 
+    m = load_mesh('models/kinematic_tray.STL').process()
+    #mesh.show()
+    m = load_mesh('models/src_bot.STL').process()
+    
+    s = m.split()
