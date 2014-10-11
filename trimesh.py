@@ -10,35 +10,33 @@ import os
 from collections import deque
 import sys
 
-
 from time import time as time_function
 from string import Template
 import networkx as nx
-
-try: 
-    from graph_tool import Graph
-    from graph_tool.topology import label_components
-    has_gt = True
-except: 
-    has_gt = False
 
 import logging
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
 
+try: 
+    from graph_tool import Graph
+    from graph_tool.topology import label_components
+    _has_gt = True
+except: 
+    _has_gt = False
+    log.warn('No graph-tool! Some operations will be much slower!')
+
 PY3 = sys.version_info.major >= 3
-if not PY3: 
-    range = xrange
+if not PY3: range = xrange
 
 TOL_ZERO  = 1e-12
 TOL_MERGE = 1e-9
 
-PASTELS = {'red'    : [194,59,34],
-           'purple' : [150,111,214],
-           'blue'   : [119,158,203],
-           'brown'  : [160,85,45]}
-
-DEFAULT_COLOR  = PASTELS['blue']
+COLORS = {'red'    : [194,59,34],
+          'purple' : [150,111,214],
+          'blue'   : [119,158,203],
+          'brown'  : [160,85,45]}
+DEFAULT_COLOR  = COLORS['blue']
 
 def available_formats():
     return _MESH_LOADERS.keys()
@@ -61,7 +59,6 @@ def load_mesh(file_obj, file_type=None):
     file_obj: a filename string, or a file object
     '''
 
-        
     if not hasattr(file_obj, 'read'):
         file_type = (str(file_obj).split('.')[-1]).lower()
         file_obj  = open(file_obj, 'rb')
@@ -143,8 +140,7 @@ class Trimesh():
         Returns a list of Trimesh objects, based on face connectivity.
         Splits into individual components, sometimes referred to as 'bodies'
         '''
-        if has_gt: return split_gt(self)
-        return split_by_face_connectivity(self)
+        return split(self)
 
     def face_adjacency(self):
         '''
@@ -180,9 +176,7 @@ class Trimesh():
         Check if a mesh is watertight. 
         This currently only checks to see if every face has three adjacent faces
         '''
-        adjacency  = nx.from_edgelist(self.face_adjacency())
-        watertight = np.equal(list(adjacency.degree().values()), 3).all()
-        return watertight
+        return is_watertight(self)
 
     @log_time
     def remove_degenerate_faces(self):
@@ -931,7 +925,7 @@ def facets(mesh, return_area = True):
     facets_area    = [triangles_area(mesh.vertices[[mesh.faces[facet]]]) for facet in facets]
     return facets, facets_area
 
-def split_by_face_connectivity(mesh, check_watertight=True):
+def split_nx(mesh, check_watertight=True):
     '''
     Given a mesh, will split it up into a list of meshes based on face connectivity
     If check_watertight is true, it will only return meshes where each face has
@@ -959,18 +953,47 @@ def split_by_face_connectivity(mesh, check_watertight=True):
 
 def split_gt(mesh, check_watertight=True):
     g = Graph()
-    g.add_edge_list(mesh.face_adjacency())
-    
-    p = label_components(g, directed=False)[0].a
-    if check_watertight: d = g.degree_property_map('total').a
+    g.add_edge_list(mesh.face_adjacency())    
+    components = label_components(g, directed=False)[0].a
+    if check_watertight: degree = g.degree_property_map('total').a
     meshes = deque()
-    for component_id in np.unique(p):
-        current  = np.equal(p, component_id)
-        if (check_watertight) and (d[current] != 3).any(): continue
-        vertices = mesh.vertices[mesh.faces[current]].reshape((-1,3))
-        faces    = np.arange(len(vertices)).reshape((-1,3))
-        meshes.append(Trimesh(faces=faces, vertices=vertices).process())
-    return list(meshes)
+    for component_id in np.unique(components):
+        current  = np.equal(components, component_id)
+        if (check_watertight) and (degree[current] != 3).any(): continue
+        # these faces have the original vertex indices
+        faces_original = mesh.faces[current]
+        face_normals   = mesh.face_normals[current]
+        # we find the unique vertex indices, so we can reindex from zero
+        unique_vert    = np.unique(faces_original)
+        vertices       = mesh.vertices[unique_vert]
+        replacement    = np.zeros(unique_vert.max()+1, dtype=np.int)
+        replacement[unique_vert] = np.arange(len(unique_vert))
+        faces                    = replacement[faces_original]
+        meshes.append(Trimesh(faces        = faces, 
+                              face_normals = face_normals, 
+                                  vertices     = vertices))
+        return list(meshes)
+
+def split(mesh, check_watertight=True):
+    if _has_gt: return split_gt(mesh, check_watertight)
+    else:       return split_nx(mesh, check_watertight)
+    
+
+def is_watertight(mesh):
+    def watertight_gt():
+        g = Graph()
+        g.add_edge_list(mesh.face_adjacency())    
+        degree     = g.degree_property_map('total').a
+        watertight = (degree == 3).all()
+        return watertight
+
+    def watertight_nx():
+        adjacency  = nx.from_edgelist(mesh.face_adjacency())
+        watertight = np.equal(list(adjacency.degree().values()), 3).all()
+        return watertight
+
+    if _has_gt: return watertight_gt()
+    else:       return watertight_nx()
 
 def transform_points(points, matrix):
     '''
@@ -1291,7 +1314,7 @@ def export_collada(mesh, filename):
         outfile.write(template.substitute(replacement))
 
 _MESH_LOADERS   = {'stl': load_stl, 
-                  'obj': load_wavefront}
+                   'obj': load_wavefront}
 
 _ASSIMP_FORMATS = ['dae', 
                    'blend', 
@@ -1314,7 +1337,7 @@ try:
     _MESH_LOADERS.update(zip(_ASSIMP_FORMATS, 
                              [load_assimp]*len(_ASSIMP_FORMATS)))
 except:
-    log.debug('No pyassimp, only native loaders available!')
+    log.warn('No pyassimp, only native loaders available!')
         
 if __name__ == '__main__':
     formatter = logging.Formatter("[%(asctime)s] %(levelname)-7s (%(filename)s:%(lineno)3s) %(message)s", 
@@ -1326,8 +1349,10 @@ if __name__ == '__main__':
     log.addHandler(handler_stream)
     np.set_printoptions(precision=6, suppress=True)
     
-    m = load_mesh('models/kinematic_tray.STL').process()
-    #mesh.show()
+    m = load_mesh('models/kinematic_tray.STL').process() 
     m = load_mesh('models/src_bot.STL').process()
     
-    s = m.split()
+    import timeit
+    
+    import time
+

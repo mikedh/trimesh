@@ -35,10 +35,13 @@ class MeshTests(unittest.TestCase):
             log.info('Attempting to load %s', filename)
             location = os.path.abspath(os.path.join(TEST_DIR, filename))
             meshes.append(trimesh.load_mesh(location))
+            meshes[-1].metadata['filename'] = filename
         self.meshes = list(meshes)
 
     def test_meshes(self):
         for mesh in self.meshes:
+
+            log.info('Testing %s', mesh.metadata['filename'])
             self.assertTrue(len(mesh.faces) > 0)
             self.assertTrue(len(mesh.vertices) > 0)
             
@@ -51,7 +54,7 @@ class MeshTests(unittest.TestCase):
             
             mesh.generate_face_colors()
             mesh.generate_vertex_colors()
-            mesh.fix_normals()
+            #mesh.fix_normals()
             
 class MassTests(unittest.TestCase):
     def setUp(self):
