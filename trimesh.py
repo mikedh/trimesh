@@ -19,7 +19,7 @@ log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
 
 try: 
-    from graph_tool import Graph
+    from graph_tool import Graph as GTGraph
     from graph_tool.topology import label_components
     _has_gt = True
 except: 
@@ -192,11 +192,12 @@ class Trimesh():
                   np.sum(np.logical_not(nondegenerate)),
                   len(nondegenerate))
 
-    def facets(self):
+    @log_time
+    def facets(self, return_area=True):
         '''
         Return a list of face indices for coplanar adjacent faces
         '''
-        return facets(self)
+        return facets(self, return_area)
 
     @log_time    
     def fix_normals(self):
@@ -908,7 +909,7 @@ def connected_edges(G, nodes):
     edges = G.subgraph(nodes_in_G).edges()
     return edges
 
-def facets(mesh, return_area = True):
+def _facets_nx(mesh, return_area=True):
     '''
     Returns lists of facets of a mesh. 
     Facets are defined as groups of faces which are both adjacent and parallel
@@ -926,8 +927,40 @@ def facets(mesh, return_area = True):
         return facets
     facets_area    = [triangles_area(mesh.vertices[[mesh.faces[facet]]]) for facet in facets]
     return facets, facets_area
+    
+def _facets_gt(mesh, return_area=True):
+    '''
+    Returns lists of facets of a mesh. 
+    Facets are defined as groups of faces which are both adjacent and parallel
+    
+    facets returned reference indices in mesh.faces
+    If return_area is True, both the list of facets and their area are returned. 
+    '''
+    face_idx       = mesh.face_adjacency()
+    normal_pairs   = mesh.face_normals[[face_idx]]
+    parallel       = np.abs(np.sum(normal_pairs[:,0,:] * normal_pairs[:,1,:], axis=1) - 1) < TOL_ZERO
+    graph_parallel = GTGraph()
+    graph_parallel.add_edge_list(face_idx[parallel])
 
-def split_nx(mesh, check_watertight=True):
+    # all of this block is to convert the component label to a component sequence
+    connected = label_components(graph_parallel, directed=False)[0].a
+    order     = connected.argsort()
+    connected = connected[order]
+    dupe      = connected[1:] != connected[:-1]
+    dupe_idx  = np.append(0, np.nonzero(dupe)[0] + 1)
+    dupe_len  = np.diff(np.hstack((dupe_idx, len(connected)))) 
+    dupe_ok   = dupe_len > 1
+    facets_idx = [order[i:(i+j)] for i, j in zip(dupe_idx[dupe_ok], dupe_len[dupe_ok])]
+    if not return_area: 
+        return facet_idx
+    facets_area = [triangles_area(mesh.vertices[[mesh.faces[facet]]]) for facet in facets_idx]
+    return facets_idx, facets_area
+    
+def facets(mesh, return_area=True):
+    if _has_gt: return _facets_gt(mesh, return_area)
+    else:       return _facets_nx(mesh, return_area)
+    
+def _split_nx(mesh, check_watertight=True):
     '''
     Given a mesh, will split it up into a list of meshes based on face connectivity
     If check_watertight is true, it will only return meshes where each face has
@@ -953,8 +986,8 @@ def split_nx(mesh, check_watertight=True):
              len(new_meshes))
     return list(new_meshes)
 
-def split_gt(mesh, check_watertight=True):
-    g = Graph()
+def _split_gt(mesh, check_watertight=True):
+    g = GTGraph()
     g.add_edge_list(mesh.face_adjacency())    
     components = label_components(g, directed=False)[0].a
     if check_watertight: degree = g.degree_property_map('total').a
@@ -977,25 +1010,24 @@ def split_gt(mesh, check_watertight=True):
     return list(meshes)
 
 def split(mesh, check_watertight=True):
-    if _has_gt: return split_gt(mesh, check_watertight)
-    else:       return split_nx(mesh, check_watertight)
+    if _has_gt: return _split_gt(mesh, check_watertight)
+    else:       return _split_nx(mesh, check_watertight)
+
+def _is_watertight_gt(mesh):
+    g = GTGraph()
+    g.add_edge_list(mesh.face_adjacency())    
+    degree     = g.degree_property_map('total').a
+    watertight = (degree == 3).all()
+    return watertight
+
+def _is_watertight_nx(mesh):
+    adjacency  = nx.from_edgelist(mesh.face_adjacency())
+    watertight = np.equal(list(adjacency.degree().values()), 3).all()
+    return watertight
     
-
 def is_watertight(mesh):
-    def watertight_gt():
-        g = Graph()
-        g.add_edge_list(mesh.face_adjacency())    
-        degree     = g.degree_property_map('total').a
-        watertight = (degree == 3).all()
-        return watertight
-
-    def watertight_nx():
-        adjacency  = nx.from_edgelist(mesh.face_adjacency())
-        watertight = np.equal(list(adjacency.degree().values()), 3).all()
-        return watertight
-
-    if _has_gt: return watertight_gt()
-    else:       return watertight_nx()
+    if _has_gt: return _is_watertight_gt(mesh)
+    else:       return _is_watertight_nx(mesh)
 
 def transform_points(points, matrix):
     '''
@@ -1352,9 +1384,8 @@ if __name__ == '__main__':
     np.set_printoptions(precision=6, suppress=True)
     
     m = load_mesh('models/kinematic_tray.STL').process() 
-    m = load_mesh('models/src_bot.STL').process()
     
-    import timeit
-    
-    import time
+    facet_idx, facets_area = m.facets(1)
+    facet = facet_idx[np.argmax(facets_area)]
 
+    Trimesh(vertices = m.vertices, faces = m.faces[facet]).show()
