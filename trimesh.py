@@ -30,7 +30,7 @@ PY3 = sys.version_info.major >= 3
 if not PY3: range = xrange
 
 TOL_ZERO  = 1e-12
-TOL_MERGE = 1e-9
+TOL_MERGE = 1e-10
 
 COLORS = {'red'    : [194,59,34],
           'purple' : [150,111,214],
@@ -180,7 +180,6 @@ class Trimesh():
         '''
         return is_watertight(self)
 
-    @log_time
     def remove_degenerate_faces(self):
         '''
         Removes degenerate faces, or faces that have zero area.
@@ -192,7 +191,6 @@ class Trimesh():
                   np.sum(np.logical_not(nondegenerate)),
                   len(nondegenerate))
 
-    @log_time
     def facets(self, return_area=True):
         '''
         Return a list of face indices for coplanar adjacent faces
@@ -478,6 +476,10 @@ class Trimesh():
         return np.mean(self.vertices, axis=0)
         
     @property
+    def center_mass(self):
+        return self.mass_properties()['center_mass']
+        
+    @property
     def box_size(self):
         return np.diff(self.bounds, axis=0)[0]
         
@@ -748,7 +750,34 @@ def counterclockwise_angles(vector, vectors):
     angles  = np.arctan2(dets, dots)
     angles += (angles < 0.0)*np.pi*2
     return angles
-
+    
+def group(values, min_length=0, max_length=np.inf):
+    '''
+    Return the indices of values that are identical
+    
+    Arguments
+    ----------
+    values:     1D array 
+    min_length: int, the shortest group allowed
+                All groups will have len >= min_length
+    max_length: int, the longest group allowed
+                All groups will have len <= max_length
+    
+    Returns
+    ----------
+    groups: sequence of indices to form groups
+            IE [0,1,0,1] returns [[0,2], [1,3]]
+    '''
+    order     = values.argsort()
+    values    = values[order]
+    dupe      = np.greater(np.abs(np.diff(values)), TOL_ZERO)
+    dupe_idx  = np.append(0, np.nonzero(dupe)[0] + 1)
+    dupe_len  = np.diff(np.hstack((dupe_idx, len(values)))) 
+    dupe_ok   = np.logical_and(np.greater_equal(dupe_len, min_length),
+                               np.less_equal(   dupe_len, max_length))
+    groups    = [order[i:(i+j)] for i, j in zip(dupe_idx[dupe_ok], dupe_len[dupe_ok])]
+    return groups
+    
 def hashable_rows(data, digits=None):
     '''
     We turn our array into integers, based on the precision 
@@ -819,6 +848,11 @@ def group_rows(data, require_count=None, digits=None):
     '''
     
     def group_dict():
+        '''
+        Simple hash table based grouping. 
+        The loop and appends make this rather slow on very large arrays,
+        But it works on irregular groups nicely, unlike the slicing version of this function
+        '''
         observed = dict()
         hashable = hashable_rows(data, digits=digits)
         for index, key in enumerate(hashable):
@@ -942,17 +976,10 @@ def _facets_gt(mesh, return_area=True):
     graph_parallel = GTGraph()
     graph_parallel.add_edge_list(face_idx[parallel])
 
-    # all of this block is to convert the component label to a component sequence
-    connected = label_components(graph_parallel, directed=False)[0].a
-    order     = connected.argsort()
-    connected = connected[order]
-    dupe      = connected[1:] != connected[:-1]
-    dupe_idx  = np.append(0, np.nonzero(dupe)[0] + 1)
-    dupe_len  = np.diff(np.hstack((dupe_idx, len(connected)))) 
-    dupe_ok   = dupe_len > 1
-    facets_idx = [order[i:(i+j)] for i, j in zip(dupe_idx[dupe_ok], dupe_len[dupe_ok])]
-    if not return_area: 
-        return facet_idx
+    connected  = label_components(graph_parallel, directed=False)[0].a
+    facets_idx = group(connected, min_length=2)
+    
+    if not return_area: return facet_idx
     facets_area = [triangles_area(mesh.vertices[[mesh.faces[facet]]]) for facet in facets_idx]
     return facets_idx, facets_area
     
@@ -992,9 +1019,8 @@ def _split_gt(mesh, check_watertight=True):
     components = label_components(g, directed=False)[0].a
     if check_watertight: degree = g.degree_property_map('total').a
     meshes = deque()
-    for component_id in np.unique(components):
-        current  = np.equal(components, component_id)
-        if (check_watertight) and (degree[current] != 3).any(): continue
+    for current in group(components):
+        if check_watertight and (degree[current] != 3).any(): continue
         # these faces have the original vertex indices
         faces_original = mesh.faces[current]
         face_normals   = mesh.face_normals[current]
@@ -1017,7 +1043,7 @@ def _is_watertight_gt(mesh):
     g = GTGraph()
     g.add_edge_list(mesh.face_adjacency())    
     degree     = g.degree_property_map('total').a
-    watertight = (degree == 3).all()
+    watertight = np.equal(degree, 3).all()
     return watertight
 
 def _is_watertight_nx(mesh):
@@ -1384,8 +1410,3 @@ if __name__ == '__main__':
     np.set_printoptions(precision=6, suppress=True)
     
     m = load_mesh('models/kinematic_tray.STL').process() 
-    
-    facet_idx, facets_area = m.facets(1)
-    facet = facet_idx[np.argmax(facets_area)]
-
-    Trimesh(vertices = m.vertices, faces = m.faces[facet]).show()

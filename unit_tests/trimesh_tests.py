@@ -1,6 +1,7 @@
 import trimesh
 import unittest
 import logging
+import time
 from collections import deque
 import os
 import numpy as np
@@ -46,16 +47,36 @@ class MeshTests(unittest.TestCase):
             self.assertTrue(len(mesh.vertices) > 0)
             
             mesh.process()
+
+            tic = [time.time()]
             split     = mesh.split()
+            tic.append(time.time())
             facets    = mesh.facets()
+            tic.append(time.time())
+
+            trimesh._has_gt = False
+
+            split     = mesh.split()            
+            tic.append(time.time())
+            facets    = mesh.facets()
+            tic.append(time.time())
+
+            trimesh._has_gt = True
+
+            times = np.diff(tic)
+
+            log.info('Graph-tool sped up split by %f and facets by %f', (times[2] / times[0]), (times[3] / times[1]))
+
             section   = mesh.cross_section(normal=[0,0,1], origin=mesh.centroid)
-            adjacency = mesh.face_adjacency()
             hull      = mesh.convex_hull()
             
             mesh.generate_face_colors()
             mesh.generate_vertex_colors()
-            #mesh.fix_normals()
             
+    def test_fix_normals(self):
+        for mesh in self.meshes[:2]:
+            mesh.fix_normals()
+
 class MassTests(unittest.TestCase):
     def setUp(self):
         # inertia numbers pulled from solidworks
