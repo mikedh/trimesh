@@ -6,9 +6,8 @@ Library for importing and doing simple operations on triangular meshes.
 
 import numpy as np
 import struct
-import os
+import os, sys, inspect
 from collections import deque
-import sys
 
 from time import time as time_function
 from string import Template
@@ -31,12 +30,12 @@ if not PY3: range = xrange
 
 TOL_ZERO  = 1e-12
 TOL_MERGE = 1e-10
-
 COLORS = {'red'    : [194,59,34],
           'purple' : [150,111,214],
           'blue'   : [119,158,203],
           'brown'  : [160,85,45]}
 DEFAULT_COLOR  = COLORS['blue']
+MODULE_PATH    = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 
 def available_formats():
     return _MESH_LOADERS.keys()
@@ -65,9 +64,11 @@ def load_mesh(file_obj, file_type=None):
 
     mesh = _MESH_LOADERS[file_type](file_obj, file_type)
     file_obj.close()
-    log.info('loaded mesh using function %s, containing %i faces', 
+    
+    log.debug('loaded mesh using function %s, containing %i faces', 
              _MESH_LOADERS[file_type].__name__, 
              len(mesh.faces))
+             
     return mesh
 
 def load_assimp(file_obj, file_type=None):
@@ -111,7 +112,8 @@ class Trimesh():
                  vertex_normals  = None,
                  face_colors     = None,
                  vertex_colors   = None,
-                 metadata        = None):
+                 metadata        = None,
+                 process_on_load = False):
 
         self.vertices        = np.array(vertices)
         self.faces           = np.array(faces)
@@ -123,6 +125,9 @@ class Trimesh():
         
         if isinstance(metadata, dict):
             self.metadate.update(metadata)
+            
+        if process_on_load: 
+            self.process()
             
     def process(self):
         '''
@@ -440,7 +445,7 @@ class Trimesh():
         '''
         if np.shape(self.vertex_colors) == (len(self.vertices), 3): 
             return
-        if np.shape(self.face_colors) == (len(self.faces), 3):
+        elif np.shape(self.face_colors) == (len(self.faces), 3):
             # case where face_colors is populated, but vertex_colors isn't
             # we then generate vertex colors from the face colors
             vertex_colors = np.zeros((len(self.vertices), 3,3))
@@ -450,8 +455,8 @@ class Trimesh():
             vertex_colors  = unitize(np.mean(vertex_colors, axis=1))
             vertex_colors *= (255.0 / np.max(vertex_colors, axis=1).reshape((-1,1)))
             self.vertex_colors = vertex_colors.astype(int)
-            return
-        self.vertex_colors = np.tile(DEFAULT_COLOR, (len(self.vertices), 1))
+        else:
+            self.vertex_colors = np.tile(DEFAULT_COLOR, (len(self.vertices), 1))
         
     def transform(self, matrix):
         '''
@@ -513,6 +518,53 @@ class Trimesh():
         '''
         from mesh_render import MeshRender
         MeshRender(self, smooth=smooth, smooth_angle=smooth_angle)
+
+    def boolean(self, other_mesh, operation='union'):
+        '''
+        Use cork (https://github.com/gilbo/cork) 
+        for boolean operations. Writing meshes to disk is a bit silly, 
+        we should really make an extension which uses the numpy arrays
+        in place. However, boolean operations are slow enough that the io time
+        is still a tiny fraction of the total time (with an SSD at least :D)
+
+        Arguments
+        -----------
+        other_mesh: Trimesh object of other mesh
+        operation:  Which boolean operation to do. Cork supports:
+                    'union'
+                    'diff'
+                    'isct' (intersection)
+                    'xor'
+                    'resolve'
+
+        Returns
+        -----------
+        Trimesh object of result 
+        '''
+        from subprocess import check_call
+        
+        filename_a   = '.tmp.meshA.off'
+        filename_b   = '.tmp.meshB.off'
+        filename_out = '.tmp.meshout.off'
+        
+        export_off(self,       filename_a)
+        export_off(other_mesh, filename_b)
+        
+        args = [os.path.join(MODULE_PATH,'bin/cork'),
+                '-' + operation, 
+                filename_a,
+                filename_b,
+                filename_out]
+        
+        check_call(args)
+        result = load_mesh(filename_out)
+        
+        os.remove(filename_a)
+        os.remove(filename_b)
+        os.remove(filename_out)
+     
+        return result
+
 
     def export(self, filename):
         export_stl(self, filename)
@@ -687,6 +739,13 @@ def surface_normal(points):
     '''
     return np.linalg.svd(points)[2][-1]
 
+def plane_fit(points):
+    C = points.mean(axis=0)
+    x = points - C
+    M = np.dot(x.T, x)
+    N = np.linalg.svd(M)[0][:,-1]
+    return C, N
+
 def radial_sort(points, 
                 origin = None, 
                 normal = None):
@@ -716,7 +775,8 @@ def radial_sort(points,
                
 def project_to_plane(points, 
                      normal           = [0,0,1], 
-                     origin           = [0,0,0], 
+                     origin           = [0,0,0],
+                     transform        = None,
                      return_transform = False):
     '''
     Projects a set of (n,3) points onto a plane, returning (n,2) points
@@ -724,10 +784,15 @@ def project_to_plane(points,
 
     if np.all(np.abs(normal) < TOL_ZERO):
         raise NameError('Normal must be nonzero!')
-    T        = align_vectors(normal, [0,0,1])
-    T[0:3,3] = -np.array(origin) 
-    xy       = transform_points(points, T)[:,0:2]
-    if return_transform: return xy, T
+
+    if transform is None:
+        transform        = align_vectors(normal, [0,0,1])
+        transform[0:3,3] = -np.array(origin) 
+
+    xy = transform_points(points, transform)[:,0:2]
+
+    if return_transform: 
+        return xy, transform
     return xy
 
 def planar_hull(mesh, 
@@ -1296,33 +1361,45 @@ def load_stl_ascii(file_obj):
                    faces        = faces, 
                    face_normals = face_normals)
                    
+def load_off(file_obj, file_type=None):
+    file_ok = file_obj.readline().strip() == 'OFF'
+    if not file_ok: raise NameError('Not an OFF file!')
+
+    header  = np.array(file_obj.readline().split()).astype(int)
+    blob    = np.array(file_obj.read().split())
+    data_ok = np.sum(header * [3,4,0]) == len(blob)    
+    if not data_ok: raise NameError('Incorrect number of vertices or faces!')
+
+    vertices = blob[0:(header[0]*3)].astype(float).reshape((-1,3))
+    faces    = blob[(header[0]*3):].astype(int).reshape((-1,4))[:,1:]
+    mesh     = Trimesh(vertices=vertices, faces=faces)
+    return mesh
+
+
+
 def load_wavefront(file_obj, file_type=None):
     '''
     Loads a Wavefront .obj file_obj into a Trimesh object
     Discards texture normals and vertex color information
     https://en.wikipedia.org/wiki/Wavefront_.obj_file
     '''
-    def parse_face(line):
-        #faces are vertex/texture/normal and 1-indexed
-        face = [None]*3
-        for i in range(3):
-            face[i] = int(line[i].split('/')[0]) - 1
-        return face
-    vertices = deque()
-    faces    = deque()
-    normals  = deque()
-    line_key = {'vn': normals, 'v': vertices, 'f':faces}
-
-    for raw_line in file_obj:
-        line = raw_line.strip().split()
-        if len(line) == 0: continue
-        if line[0] ==  'v': vertices.append(list(map(float, line[-3:]))); continue
-        if line[0] == 'vn': normals.append(list(map(float, line[-3:]))); continue
-        if line[0] ==  'f': faces.append(parse_face(line[-3:]));
-    mesh = Trimesh(vertices       = np.array(vertices, dtype=float),
-                   faces          = np.array(faces,    dtype=int),
-                   vertex_normals = np.array(normals,  dtype=float))
+    data     = np.array(file_obj.read().split())
+    data_str = data.astype(str)
+    
+    # find the locations of keys, then find the proceeding values
+    vid = np.nonzero(data_str == 'v')[0].reshape((-1,1))  + np.arange(3) + 1
+    nid = np.nonzero(data_str == 'vn')[0].reshape((-1,1)) + np.arange(3) + 1
+    fid = np.nonzero(data_str == 'f')[0].reshape((-1,1))  + np.arange(3) + 1
+    
+    # if we wanted to use the texture/vertex normals, we could slice this differently.
+    faces = np.array([i.split(b'/') for i in data[fid].reshape(-1)])[:,0].reshape((-1,3))
+    # wavefront has 1- indexed faces, as opposed to 0- indexed
+    faces = faces.astype(int) - 1
+    mesh  = Trimesh(vertices       = data[vid].astype(float),
+                    vertex_normals = data[nid].astype(float),
+                    faces          = faces)
     mesh.generate_face_normals()
+
     return mesh
     
 def export_stl(mesh, filename):
@@ -1350,12 +1427,23 @@ def export_stl(mesh, filename):
                        mesh.vertices[[mesh.faces[index]]], 
                        mesh.face_normals[index])
 
+
+def export_off(mesh, filename):
+    file_obj = open(filename, 'wb')
+    file_obj.write('OFF\n')
+    file_obj.write(str(len(mesh.vertices)) + ' ' + str(len(mesh.faces)) + ' 0\n')
+    file_obj.close()
+
+    file_obj      = open(filename, 'ab')
+    faces_stacked = np.column_stack((np.ones(len(mesh.faces))*3, mesh.faces))
+    np.savetxt(file_obj, mesh.vertices, fmt='%.14f')
+    np.savetxt(file_obj, faces_stacked, fmt='%i')
+    file_obj.close()
+
 def export_collada(mesh, filename):
     '''
     Export a mesh as collada, to filename
     '''
-    import inspect
-    MODULE_PATH = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
     template = Template(open(os.path.join(MODULE_PATH, 
                                           'templates', 
                                           'collada_template.dae'), 'rb').read())
@@ -1373,7 +1461,8 @@ def export_collada(mesh, filename):
     with open(filename, 'wb') as outfile:
         outfile.write(template.substitute(replacement))
 
-_MESH_LOADERS   = {'stl': load_stl, 
+_MESH_LOADERS   = {'stl': load_stl,
+                   'off': load_off,
                    'obj': load_wavefront}
 
 _ASSIMP_FORMATS = ['dae', 
@@ -1409,4 +1498,22 @@ if __name__ == '__main__':
     log.addHandler(handler_stream)
     np.set_printoptions(precision=6, suppress=True)
     
-    m = load_mesh('models/kinematic_tray.STL').process() 
+    #m = load_mesh('models/kinematic_tray.STL')
+
+    m = load_mesh('models/tube.obj')
+ 
+    '''
+    d = np.array(open('models/tube.obj', 'rb').read().split())
+    data_str = d.astype(str)
+    
+    vid = np.nonzero(data_str == 'v')[0].reshape((-1,1)) + np.arange(3) + 1
+    nid = np.nonzero(data_str == 'vn')[0].reshape((-1,1)) + np.arange(3) + 1
+    fid = np.nonzero(data_str == 'f')[0].reshape((-1,1)) + np.arange(3) + 1
+    
+    vertices = d[vid].astype(float)
+    normals  = d[nid].astype(float)
+    faces    = np.array([i.split(b'/') for i in d[fid].reshape(-1)])[:,0].reshape((-1,3)).astype(int)
+    '''
+
+    a = load_mesh('ballA.off').process()
+    b = load_mesh('ballB.off').process()
