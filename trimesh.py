@@ -140,12 +140,14 @@ class Trimesh():
         return self
 
     @log_time
-    def split(self):
+    def split(self, check_watertight=True):
         '''
         Returns a list of Trimesh objects, based on face connectivity.
         Splits into individual components, sometimes referred to as 'bodies'
+
+        if check_watertight: only meshes which are watertight are returned
         '''
-        meshes = split(self)
+        meshes = split(self, check_watertight)
         log.info('split found %i components', len(meshes))
         return meshes
 
@@ -1497,23 +1499,3 @@ if __name__ == '__main__':
     log.setLevel(logging.DEBUG)
     log.addHandler(handler_stream)
     np.set_printoptions(precision=6, suppress=True)
-    
-    #m = load_mesh('models/kinematic_tray.STL')
-
-    m = load_mesh('models/tube.obj')
- 
-    '''
-    d = np.array(open('models/tube.obj', 'rb').read().split())
-    data_str = d.astype(str)
-    
-    vid = np.nonzero(data_str == 'v')[0].reshape((-1,1)) + np.arange(3) + 1
-    nid = np.nonzero(data_str == 'vn')[0].reshape((-1,1)) + np.arange(3) + 1
-    fid = np.nonzero(data_str == 'f')[0].reshape((-1,1)) + np.arange(3) + 1
-    
-    vertices = d[vid].astype(float)
-    normals  = d[nid].astype(float)
-    faces    = np.array([i.split(b'/') for i in d[fid].reshape(-1)])[:,0].reshape((-1,3)).astype(int)
-    '''
-
-    a = load_mesh('ballA.off').process()
-    b = load_mesh('ballB.off').process()
