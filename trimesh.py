@@ -26,7 +26,8 @@ except:
     log.warn('No graph-tool! Some operations will be much slower!')
 
 PY3 = sys.version_info.major >= 3
-if not PY3: range = xrange
+if PY3: basestring = str
+else:   range      = xrange
 
 TOL_ZERO  = 1e-12
 TOL_MERGE = 1e-10
@@ -113,8 +114,9 @@ class Trimesh():
                  face_colors     = None,
                  vertex_colors   = None,
                  metadata        = None,
-                 process_on_load = False):
+                 process_on_load = True):
 
+        
         self.vertices        = np.array(vertices)
         self.faces           = np.array(faces)
         self.face_normals    = np.array(face_normals)
@@ -138,7 +140,10 @@ class Trimesh():
         self.remove_duplicate_faces()
         self.remove_degenerate_faces()
         return self
-
+        
+    def rezero(self):
+        self.vertices -= self.vertices.min(axis=0)
+        
     @log_time
     def split(self, check_watertight=True):
         '''
@@ -150,6 +155,10 @@ class Trimesh():
         meshes = split(self, check_watertight)
         log.info('split found %i components', len(meshes))
         return meshes
+
+    @property
+    def body_count(self):
+        return split(self, only_count=True)
 
     def face_adjacency(self):
         '''
@@ -433,10 +442,10 @@ class Trimesh():
         self.vertex_normals = unitize(np.mean(vertex_normals, axis=1))
         
     @log_time   
-    def generate_face_colors(self, force_default=False):
+    def generate_face_colors(self, force_default=False, color=DEFAULT_COLOR):
         if (np.shape(self.face_colors) == (len(self.faces), 3)) and (not force_default): 
             return
-        self.face_colors = np.tile(DEFAULT_COLOR, (len(self.faces), 1))
+        self.face_colors = np.tile(color, (len(self.faces), 1))
         
     @log_time       
     def generate_vertex_colors(self):
@@ -484,7 +493,7 @@ class Trimesh():
         
     @property
     def center_mass(self):
-        return self.mass_properties()['center_mass']
+        return self.mass_properties(skip_inertia=True)['center_mass']
         
     @property
     def box_size(self):
@@ -495,7 +504,7 @@ class Trimesh():
         return np.min(self.box_size)
         
     @log_time  
-    def mass_properties(self, density = 1.0):
+    def mass_properties(self, density = 1.0, skip_inertia=False):
         '''
         Returns the mass properties of the current mesh.
         
@@ -509,8 +518,9 @@ class Trimesh():
             'inertia'     : Taken at the center of mass and aligned with global coordinate system
             'center_mass' : Center of mass location, in global coordinate system
         '''
-        return triangles_mass_properties(triangles = self.vertices[[self.faces]], 
-                                         density   = density)
+        return triangles_mass_properties(triangles    = self.vertices[[self.faces]], 
+                                         density      = density,
+                                         skip_inertia = skip_inertia)
 
     def show(self, smooth = None, smooth_angle = np.radians(20)):
         '''
@@ -523,11 +533,8 @@ class Trimesh():
 
     def boolean(self, other_mesh, operation='union'):
         '''
-        Use cork (https://github.com/gilbo/cork) 
-        for boolean operations. Writing meshes to disk is a bit silly, 
-        we should really make an extension which uses the numpy arrays
-        in place. However, boolean operations are slow enough that the io time
-        is still a tiny fraction of the total time (with an SSD at least :D)
+        Use cork with python bindings (https://github.com/stevedh/cork)
+        for boolean operations.
 
         Arguments
         -----------
@@ -543,30 +550,26 @@ class Trimesh():
         -----------
         Trimesh object of result 
         '''
-        from subprocess import check_call
+        def astuple(mesh):
+            return (mesh.faces.astype(np.uint32), mesh.vertices.astype(np.float32))
+            
+        import cork
+        operations = {'union' : cork.computeUnion,
+                      'isct'  : cork.computeIntersection,
+                      'diff'  : cork.computeDifference}
         
-        filename_a   = '.tmp.meshA.off'
-        filename_b   = '.tmp.meshB.off'
-        filename_out = '.tmp.meshout.off'
-        
-        export_off(self,       filename_a)
-        export_off(other_mesh, filename_b)
-        
-        args = [os.path.join(MODULE_PATH,'bin/cork'),
-                '-' + operation, 
-                filename_a,
-                filename_b,
-                filename_out]
-        
-        check_call(args)
-        result = load_mesh(filename_out)
-        
-        os.remove(filename_a)
-        os.remove(filename_b)
-        os.remove(filename_out)
-     
-        return result
+        result      = operations[operation](astuple(self), astuple(other))
+        result_mesh = Trimesh(vertices = result[1], faces=result[0])
+        return result_mesh
 
+    def __add__(self, other):
+        new_faces    = np.vstack((self.faces, (other.faces + len(self.vertices))))
+        new_vertices = np.vstack((self.vertices, other.vertices))
+        new_colors   = np.vstack((self.face_colors, other.face_colors))
+
+        return Trimesh(vertices    = new_vertices, 
+                       faces       = new_faces, 
+                       face_colors = new_colors)
 
     def export(self, filename):
         export_stl(self, filename)
@@ -742,6 +745,18 @@ def surface_normal(points):
     return np.linalg.svd(points)[2][-1]
 
 def plane_fit(points):
+    '''
+    Given a set of points, find an origin and normal using least squares
+
+    Arguments
+    ---------
+    points: (n,3) 
+
+    Returns
+    ---------
+    C: (3) point on the plane
+    N: (3) normal vector
+    '''
     C = points.mean(axis=0)
     x = points - C
     M = np.dot(x.T, x)
@@ -779,7 +794,8 @@ def project_to_plane(points,
                      normal           = [0,0,1], 
                      origin           = [0,0,0],
                      transform        = None,
-                     return_transform = False):
+                     return_transform = False,
+                     return_planar    = True):
     '''
     Projects a set of (n,3) points onto a plane, returning (n,2) points
     '''
@@ -791,11 +807,11 @@ def project_to_plane(points,
         transform        = align_vectors(normal, [0,0,1])
         transform[0:3,3] = -np.array(origin) 
 
-    xy = transform_points(points, transform)[:,0:2]
+    transformed = transform_points(points, transform)[:,0:(3-int(return_planar))]
 
     if return_transform: 
-        return xy, transform
-    return xy
+        return transformed, transform
+    return transformed
 
 def planar_hull(mesh, 
                 normal           = [0,0,1], 
@@ -1054,7 +1070,7 @@ def facets(mesh, return_area=True):
     if _has_gt: return _facets_gt(mesh, return_area)
     else:       return _facets_nx(mesh, return_area)
     
-def _split_nx(mesh, check_watertight=True):
+def _split_nx(mesh, check_watertight=True, only_count=False):
     '''
     Given a mesh, will split it up into a list of meshes based on face connectivity
     If check_watertight is true, it will only return meshes where each face has
@@ -1075,18 +1091,25 @@ def _split_nx(mesh, check_watertight=True):
                                   face_normals = mesh.face_normals[[connected_faces]]))
     face_adjacency = nx.from_edgelist(mesh.face_adjacency())
     new_meshes     = deque()
-    list(map(mesh_from_components, nx.connected_components(face_adjacency)))
+    components     = list(nx.connected_components(face_adjacency))
+    if only_count: return len(components)
+
+    for component in components: mesh_from_components(component)
     log.info('split mesh into %i components.',
              len(new_meshes))
     return list(new_meshes)
 
-def _split_gt(mesh, check_watertight=True):
+def _split_gt(mesh, check_watertight=True, only_count=False):
     g = GTGraph()
     g.add_edge_list(mesh.face_adjacency())    
-    components = label_components(g, directed=False)[0].a
-    if check_watertight: degree = g.degree_property_map('total').a
-    meshes = deque()
-    for current in group(components):
+    component_labels = label_components(g, directed=False)[0].a
+    if check_watertight: 
+        degree = g.degree_property_map('total').a
+    meshes     = deque()
+    components = group(component_labels)
+    if only_count: return len(components)
+
+    for current in components:
         if check_watertight and (degree[current] != 3).any(): continue
         # these faces have the original vertex indices
         faces_original = mesh.faces[current]
@@ -1102,9 +1125,9 @@ def _split_gt(mesh, check_watertight=True):
                               vertices     = vertices))
     return list(meshes)
 
-def split(mesh, check_watertight=True):
-    if _has_gt: return _split_gt(mesh, check_watertight)
-    else:       return _split_nx(mesh, check_watertight)
+def split(mesh, check_watertight=True, only_count=False):
+    if _has_gt: return _split_gt(mesh, check_watertight, only_count)
+    else:       return _split_nx(mesh, check_watertight, only_count)
 
 def _is_watertight_gt(mesh):
     g = GTGraph()
@@ -1136,7 +1159,7 @@ def transform_points(points, matrix):
 def align_vectors(vector_start, vector_end):
     '''
     Returns the 4x4 transformation matrix which will rotate from 
-    vector_start (3,) to vector end (3,) 
+    vector_end (3,) to vector_start (3,) 
     '''
     import transformations as tr
     vector_start = unitize(vector_start)
@@ -1144,13 +1167,19 @@ def align_vectors(vector_start, vector_end):
     cross        = np.cross(vector_start, vector_end)
     # we clip the norm to 1, as otherwise floating point bs
     # can cause the arcsin to error
-    norm         = np.clip(np.linalg.norm(cross), -TOL_ZERO, 1)
+    norm         = np.clip(np.linalg.norm(cross), -1, 1)
+    direction    = np.sign(np.dot(vector_start, vector_end))
+  
     if norm < TOL_ZERO:
         # if the norm is zero, the vectors are the same
         # and no rotation is needed
-        return np.eye(4)
-    angle = np.arcsin(norm) 
-    T     = tr.rotation_matrix(angle, cross)
+        T       = np.eye(4)
+        T[0:3] *= direction
+    else:  
+        angle = np.arcsin(norm) 
+        if direction < 0:
+            angle = np.pi - angle
+        T = tr.rotation_matrix(angle, cross)
     return T
 
 def triangles_cross(triangles):
@@ -1214,15 +1243,15 @@ def triangles_any_coplanar(triangles):
     any_coplanar = np.any(np.all(np.abs(distances.reshape((-1,3)) < TOL_ZERO), axis=1))
     return any_coplanar
     
-def triangles_mass_properties(triangles, density = 1.0):
+def triangles_mass_properties(triangles, density = 1.0, skip_inertia=False):
     '''
     Calculate the mass properties of a group of triangles
     
     http://www.geometrictools.com/Documentation/PolyhedralMassProperties.pdf
     '''
     crosses = triangles_cross(triangles)
-    # thought vectorizing would make this slightly nicer, though it's still pretty ugly
-    # these are the sub expressions of the integral 
+    # thought vectorizing would make this slightly nicer, though it's still a bit ugly
+    # these are the subexpressions of the integral 
     f1 = triangles.sum(axis=1)
     
     # triangles[:,0,:] will give rows like [[x0, y0, z0], ...] (the first vertex of every triangle)
@@ -1259,6 +1288,12 @@ def triangles_mass_properties(triangles, density = 1.0):
     volume      = integrated[0]
     center_mass = integrated[1:4] / volume
 
+    result = {'density'     : density,
+              'volume'      : volume,
+              'mass'        : density * volume,
+              'center_mass' : center_mass.tolist()}
+    if skip_inertia: return result
+              
     inertia = np.zeros((3,3))
     inertia[0,0] = integrated[5] + integrated[6] - (volume * (center_mass[[1,2]]**2).sum())
     inertia[1,1] = integrated[4] + integrated[6] - (volume * (center_mass[[0,2]]**2).sum())
@@ -1270,12 +1305,8 @@ def triangles_mass_properties(triangles, density = 1.0):
     inertia[2,1] = inertia[1,2]
     inertia *= density
     
-    # lists instead of numpy arrays, in case we want to serialize
-    result = {'density'     : density,
-              'volume'      : volume,
-              'mass'        : density * volume,
-              'center_mass' : center_mass.tolist(),
-              'inertia'     : inertia.tolist()}
+    result['inertia'] = inertia.tolist()
+    
     return result
     
 def load_stl(file_obj, file_type=None):
@@ -1364,8 +1395,9 @@ def load_stl_ascii(file_obj):
                    face_normals = face_normals)
                    
 def load_off(file_obj, file_type=None):
-    file_ok = file_obj.readline().strip() == 'OFF'
-    if not file_ok: raise NameError('Not an OFF file!')
+    header_string = file_obj.readline().decode().strip()
+    if not header_string == 'OFF': 
+        raise NameError('Not an OFF file! Header was ' + header_string)
 
     header  = np.array(file_obj.readline().split()).astype(int)
     blob    = np.array(file_obj.read().split())
@@ -1376,8 +1408,6 @@ def load_off(file_obj, file_type=None):
     faces    = blob[(header[0]*3):].astype(int).reshape((-1,4))[:,1:]
     mesh     = Trimesh(vertices=vertices, faces=faces)
     return mesh
-
-
 
 def load_wavefront(file_obj, file_type=None):
     '''
@@ -1463,6 +1493,10 @@ def export_collada(mesh, filename):
     with open(filename, 'wb') as outfile:
         outfile.write(template.substitute(replacement))
 
+def random_color():
+    color = np.int_(np.random.random(3)*254)
+    return color
+
 _MESH_LOADERS   = {'stl': load_stl,
                    'off': load_off,
                    'obj': load_wavefront}
@@ -1499,3 +1533,17 @@ if __name__ == '__main__':
     log.setLevel(logging.DEBUG)
     log.addHandler(handler_stream)
     np.set_printoptions(precision=6, suppress=True)
+
+    m = load_mesh('models/1002_tray_bottom.STL')
+    
+    import trimesh
+    TOL_ANGLE = np.radians(1)
+    
+    mesh = m
+    
+
+    
+    
+    
+    
+    
