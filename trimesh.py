@@ -246,15 +246,26 @@ class Trimesh():
                 # and negate its normal vector
                 self.faces[face_pair[1]] = self.faces[face_pair[1]][::-1]
                 self.face_normals[face_pair[1]] *= (reversed*2) - 1
-                self.vertices[[self.faces[face_pair[1]]]]
+                
             # the normals of every connected face now all pointed in 
             # the same direction, but there is no guarantee that they aren't all
             # pointed in the wrong direction
-            # NOTE this check appears to have an issue and normals will sometimes
-            # be incorrectly directed. 
-            faces     = self.faces[[connected]]
-            leftmost  = np.argmin(np.min(self.vertices[:,0][[faces]], axis=1))
-            backwards = np.dot([-1.0,0,0], self.face_normals[leftmost]) > 0.0
+            # note that we have to find a face which ISN'T perpendicular to the x axis 
+            # thus we go through all the candidate faces that are at the extreme left
+            # until we find one that has a nonzero dot product with the x axis
+            faces       = self.faces[[connected]]
+            faces_x      = np.min(self.vertices[:,0][[faces]], axis=1)
+            left_order  = np.argsort(faces_x)
+            left_values = faces_x[left_order]
+            left_candidates = np.abs(left_values - left_values[0]) < TOL_ZERO
+            backwards = None
+
+            for leftmost in left_order[left_candidates]:                
+                face_dot = np.dot([-1.0,0,0], self.face_normals[leftmost]) 
+                print self.face_normals[leftmost], faces_x[leftmost], face_dot
+                if abs(face_dot) > TOL_ZERO: 
+                    backwards = face_dot < 0.0
+                    break
             if backwards: self.face_normals[[connected]] *= -1.0
             
             winding_tri  = connected[0]
@@ -443,6 +454,9 @@ class Trimesh():
         
     @log_time   
     def generate_face_colors(self, force_default=False, color=DEFAULT_COLOR):
+        '''
+        Apply face colors. If none are defined, set to default color
+        '''
         if (np.shape(self.face_colors) == (len(self.faces), 3)) and (not force_default): 
             return
         self.face_colors = np.tile(color, (len(self.faces), 1))
@@ -807,7 +821,8 @@ def project_to_plane(points,
         transform        = align_vectors(normal, [0,0,1])
         transform[0:3,3] = -np.array(origin) 
 
-    transformed = transform_points(points, transform)[:,0:(3-int(return_planar))]
+    transformed = transform_points(points, transform)
+    transformed = transformed[:,0:(3-int(return_planar))]
 
     if return_transform: 
         return transformed, transform
@@ -1168,17 +1183,13 @@ def align_vectors(vector_start, vector_end):
     # we clip the norm to 1, as otherwise floating point bs
     # can cause the arcsin to error
     norm         = np.clip(np.linalg.norm(cross), -1, 1)
-    direction    = np.sign(np.dot(vector_start, vector_end))
   
     if norm < TOL_ZERO:
         # if the norm is zero, the vectors are the same
         # and no rotation is needed
         T       = np.eye(4)
-        T[0:3] *= direction
     else:  
         angle = np.arcsin(norm) 
-        if direction < 0:
-            angle = np.pi - angle
         T = tr.rotation_matrix(angle, cross)
     return T
 
@@ -1493,8 +1504,41 @@ def export_collada(mesh, filename):
     with open(filename, 'wb') as outfile:
         outfile.write(template.substitute(replacement))
 
+
+def hsv_to_rgb(h, s, v):
+    '''
+    http://martin.ankerl.com/2009/12/09/how-to-create-random-colors-programmatically/
+    HSV values in [0..1]
+    returns [r, g, b] values from 0 to 255
+    '''
+    h_i = int(h*6)
+    f   = h*6 - h_i
+    p = v * (1 - s)
+    q = v * (1 - f*s)
+    t = v * (1 - (1 - f) * s)
+    if   h_i == 0:
+        r, g, b = v, t, p
+    elif h_i == 1:
+        r, g, b = q, v, p
+    elif h_i == 2:
+        r, g, b = p, v, t
+    elif h_i == 3:
+        r, g, b = p, q, v
+    elif h_i == 4:
+        r, g, b = t, p, v
+    elif h_i == 5:
+        r, g, b = v, p, q
+        
+    return (np.array([r,g,b])*256).astype(int)
+
+        
 def random_color():
-    color = np.int_(np.random.random(3)*254)
+
+    # use golden ratio
+    golden_ratio_conjugate = 0.618033988749895
+    h = np.mod(np.random.random() + golden_ratio_conjugate, 1)
+    color = hsv_to_rgb(h, 0.5, 0.95)
+    #color = np.int_(np.random.random(3)*255)
     return color
 
 _MESH_LOADERS   = {'stl': load_stl,
