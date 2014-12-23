@@ -29,6 +29,15 @@ class VectorTests(unittest.TestCase):
         length_check = np.abs(length - 1.0) < TOL_ZERO
         self.assertTrue(np.all(length_check))
 
+    def test_align(self):
+        target = np.array([0,0,1])
+        for i in xrange(15):
+            vector  = trimesh.unitize(np.random.random(3) - .5)
+            T       = trimesh.align_vectors(vector, target)
+            result  = np.dot(T, np.append(vector, 1))[0:3]
+            aligned = np.abs(result-target).sum() < TOL_ZERO
+            self.assertTrue(aligned)
+
 class MeshTests(unittest.TestCase):
     def setUp(self):
         meshes = deque()

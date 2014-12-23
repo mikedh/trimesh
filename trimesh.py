@@ -262,7 +262,6 @@ class Trimesh():
 
             for leftmost in left_order[left_candidates]:                
                 face_dot = np.dot([-1.0,0,0], self.face_normals[leftmost]) 
-                print self.face_normals[leftmost], faces_x[leftmost], face_dot
                 if abs(face_dot) > TOL_ZERO: 
                     backwards = face_dot < 0.0
                     break
@@ -334,12 +333,15 @@ class Trimesh():
   
         '''
         from scipy.spatial import ConvexHull
-        faces = ConvexHull(self.vertices).simplices
-        mesh  = Trimesh(vertices = self.vertices, faces = faces)
+        faces  = ConvexHull(self.vertices).simplices
+        convex = Trimesh(vertices=self.vertices.copy(), faces=faces)
         # the normals and triangle winding returned by scipy/qhull's
         # ConvexHull are apparently random, so we need to completely fix them
-        mesh.fix_normals()
-        return mesh
+        convex.fix_normals()
+        # since we just copied all the vertices over, we will have a bunch
+        # of unreferenced vertices, so it is best to remove them
+        convex.remove_unreferenced_vertices()
+        return convex
 
     def merge_vertices(self, angle_max=None):
         if angle_max != None: self.merge_vertices_kdtree(angle_max)
@@ -419,7 +421,13 @@ class Trimesh():
                   len(self.faces))
         self.faces        = self.faces[[unique]]
         self.face_normals = self.face_normals[[unique]]
-        
+
+
+    def remove_unreferenced_vertices(self):
+        unique, inverse = np.unique(self.faces.reshape(-1), return_inverse=True)
+        self.faces      = inverse.reshape((-1,3))          
+        self.vertices   = self.vertices[unique]
+
     @log_time
     def unmerge_vertices(self):
         '''
@@ -453,12 +461,11 @@ class Trimesh():
         self.vertex_normals = unitize(np.mean(vertex_normals, axis=1))
         
     @log_time   
-    def generate_face_colors(self, force_default=False, color=DEFAULT_COLOR):
+    def generate_face_colors(self, color=None):
         '''
         Apply face colors. If none are defined, set to default color
         '''
-        if (np.shape(self.face_colors) == (len(self.faces), 3)) and (not force_default): 
-            return
+        if color is None: color = DEFAULT_COLOR
         self.face_colors = np.tile(color, (len(self.faces), 1))
         
     @log_time       
@@ -821,11 +828,11 @@ def project_to_plane(points,
         transform        = align_vectors(normal, [0,0,1])
         transform[0:3,3] = -np.array(origin) 
 
-    transformed = transform_points(points, transform)
-    transformed = transformed[:,0:(3-int(return_planar))]
+    transformed = transform_points(points, transform)[:,0:(3-int(return_planar))]
 
     if return_transform: 
-        return transformed, transform
+        polygon_to_3D = np.linalg.inv(transform)
+        return transformed, polygon_to_3D
     return transformed
 
 def planar_hull(mesh, 
@@ -1077,7 +1084,7 @@ def _facets_gt(mesh, return_area=True):
     connected  = label_components(graph_parallel, directed=False)[0].a
     facets_idx = group(connected, min_length=2)
     
-    if not return_area: return facet_idx
+    if not return_area: return facets_idx
     facets_area = [triangles_area(mesh.vertices[[mesh.faces[facet]]]) for facet in facets_idx]
     return facets_idx, facets_area
     
@@ -1183,13 +1190,17 @@ def align_vectors(vector_start, vector_end):
     # we clip the norm to 1, as otherwise floating point bs
     # can cause the arcsin to error
     norm         = np.clip(np.linalg.norm(cross), -1, 1)
+    direction    = np.sign(np.dot(vector_start, vector_end))
   
     if norm < TOL_ZERO:
         # if the norm is zero, the vectors are the same
         # and no rotation is needed
         T       = np.eye(4)
+        T[0:3] *= direction
     else:  
         angle = np.arcsin(norm) 
+        if direction < 0:
+            angle = np.pi - angle
         T = tr.rotation_matrix(angle, cross)
     return T
 
@@ -1586,8 +1597,15 @@ if __name__ == '__main__':
     mesh = m
     
 
-    
-    
+    target = np.array([0,0,1])
+    for i in xrange(15):
+        vector = trimesh.unitize(np.random.random(3) - .5)
+        T      = trimesh.align_vectors(vector, target)
+        result = np.dot(T, np.append(vector, 1))[0:3]
+        ok = np.abs(result-target).sum() < TOL_ZERO
+
+
+
     
     
     
