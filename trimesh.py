@@ -29,13 +29,15 @@ PY3 = sys.version_info.major >= 3
 if PY3: basestring = str
 else:   range      = xrange
 
-TOL_ZERO  = 1e-12
-TOL_MERGE = 1e-10
+TOL_ZERO   = 1e-12
+TOL_MERGE  = 1e-10
+TOL_PLANAR = TOL_ZERO
+
 COLORS = {'red'    : [194,59,34],
           'purple' : [150,111,214],
           'blue'   : [119,158,203],
           'brown'  : [160,85,45]}
-DEFAULT_COLOR  = COLORS['blue']
+DEFAULT_COLOR  = COLORS['purple']
 MODULE_PATH    = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 
 def available_formats():
@@ -460,15 +462,17 @@ class Trimesh():
         vertex_normals[[self.faces[:,2],2]] = self.face_normals
         self.vertex_normals = unitize(np.mean(vertex_normals, axis=1))
         
-    @log_time   
+    def verify_face_colors(self):
+        if np.shape(self.face_colors) != np.shape(self.faces):
+            self.generate_face_colors()
+    
     def generate_face_colors(self, color=None):
         '''
         Apply face colors. If none are defined, set to default color
         '''
         if color is None: color = DEFAULT_COLOR
         self.face_colors = np.tile(color, (len(self.faces), 1))
-        
-    @log_time       
+
     def generate_vertex_colors(self):
         '''
         Populate self.vertex_colors
@@ -579,13 +583,17 @@ class Trimesh():
                       'isct'  : cork.computeIntersection,
                       'diff'  : cork.computeDifference}
         
-        result      = operations[operation](astuple(self), astuple(other))
+        result      = operations[operation](astuple(self), astuple(other_mesh))
         result_mesh = Trimesh(vertices = result[1], faces=result[0])
+        result_mesh.verify_normals()
         return result_mesh
 
     def __add__(self, other):
         new_faces    = np.vstack((self.faces, (other.faces + len(self.vertices))))
         new_vertices = np.vstack((self.vertices, other.vertices))
+
+        self.verify_face_colors()
+        other.verify_face_colors()
         new_colors   = np.vstack((self.face_colors, other.face_colors))
 
         return Trimesh(vertices    = new_vertices, 
@@ -1058,7 +1066,7 @@ def _facets_nx(mesh, return_area=True):
     '''
     face_idx       = mesh.face_adjacency()
     normal_pairs   = mesh.face_normals[[face_idx]]
-    parallel       = np.abs(np.sum(normal_pairs[:,0,:] * normal_pairs[:,1,:], axis=1) - 1) < TOL_ZERO
+    parallel       = np.abs(np.sum(normal_pairs[:,0,:] * normal_pairs[:,1,:], axis=1) - 1) < TOL_PLANAR
     graph_parallel = nx.from_edgelist(face_idx[parallel])
     facets         = list(nx.connected_components(graph_parallel))
     
@@ -1077,7 +1085,7 @@ def _facets_gt(mesh, return_area=True):
     '''
     face_idx       = mesh.face_adjacency()
     normal_pairs   = mesh.face_normals[[face_idx]]
-    parallel       = np.abs(np.sum(normal_pairs[:,0,:] * normal_pairs[:,1,:], axis=1) - 1) < TOL_ZERO
+    parallel       = np.abs(np.sum(normal_pairs[:,0,:] * normal_pairs[:,1,:], axis=1) - 1) < TOL_PLANAR
     graph_parallel = GTGraph()
     graph_parallel.add_edge_list(face_idx[parallel])
 
