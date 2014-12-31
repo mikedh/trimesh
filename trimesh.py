@@ -213,7 +213,11 @@ class Trimesh():
         '''
         Return a list of face indices for coplanar adjacent faces
         '''
-        return facets(self, return_area)
+        facet_list = facets(self)
+        if return_area:
+            facets_area = [triangles_area(self.vertices[[self.faces[i]]]) for i in facet_list]
+            return facet_list, facets_area
+        return facet_list
 
     @log_time    
     def fix_normals(self):
@@ -1056,7 +1060,16 @@ def connected_edges(G, nodes):
     edges = G.subgraph(nodes_in_G).edges()
     return edges
 
-def _facets_nx(mesh, return_area=True):
+def _facets_group(mesh):
+    adjacency = nx.from_edgelist(mesh.face_adjacency())
+    facets    = deque()
+    for group in group_rows(mesh.face_normals):
+        if len(group) < 2: continue
+        facets.extend([i for i in nx.connected_components(adjacency.subgraph(group)) if len(i) > 1])
+    return np.array(facets)
+
+
+def _facets_nx(mesh):
     '''
     Returns lists of facets of a mesh. 
     Facets are defined as groups of faces which are both adjacent and parallel
@@ -1069,13 +1082,9 @@ def _facets_nx(mesh, return_area=True):
     parallel       = np.abs(np.sum(normal_pairs[:,0,:] * normal_pairs[:,1,:], axis=1) - 1) < TOL_PLANAR
     graph_parallel = nx.from_edgelist(face_idx[parallel])
     facets         = list(nx.connected_components(graph_parallel))
+    return facets
     
-    if not return_area: 
-        return facets
-    facets_area    = [triangles_area(mesh.vertices[[mesh.faces[facet]]]) for facet in facets]
-    return facets, facets_area
-    
-def _facets_gt(mesh, return_area=True):
+def _facets_gt(mesh):
     '''
     Returns lists of facets of a mesh. 
     Facets are defined as groups of faces which are both adjacent and parallel
@@ -1091,14 +1100,14 @@ def _facets_gt(mesh, return_area=True):
 
     connected  = label_components(graph_parallel, directed=False)[0].a
     facets_idx = group(connected, min_length=2)
+    return facets_idx
     
-    if not return_area: return facets_idx
-    facets_area = [triangles_area(mesh.vertices[[mesh.faces[facet]]]) for facet in facets_idx]
-    return facets_idx, facets_area
-    
-def facets(mesh, return_area=True):
-    if _has_gt: return _facets_gt(mesh, return_area)
-    else:       return _facets_nx(mesh, return_area)
+
+
+
+def facets(mesh):
+    if _has_gt: return _facets_gt(mesh)
+    else:       return _facets_nx(mesh)
     
 def _split_nx(mesh, check_watertight=True, only_count=False):
     '''
@@ -1597,23 +1606,17 @@ if __name__ == '__main__':
     log.addHandler(handler_stream)
     np.set_printoptions(precision=6, suppress=True)
 
-    m = load_mesh('models/1002_tray_bottom.STL')
+    m = load_mesh('models/featuretype.stl')
     
-    import trimesh
-    TOL_ANGLE = np.radians(1)
-    
-    mesh = m
-    
-
-    target = np.array([0,0,1])
-    for i in xrange(15):
-        vector = trimesh.unitize(np.random.random(3) - .5)
-        T      = trimesh.align_vectors(vector, target)
-        result = np.dot(T, np.append(vector, 1))[0:3]
-        ok = np.abs(result-target).sum() < TOL_ZERO
-
-
-
-    
-    
-    
+    tic = time_function()
+    fn = _facets_nx(m)
+    log.info('facets_nx in %f', time_function()-tic)
+    tic = time_function()
+    fgt = _facets_gt(m)
+    log.info('facets_gt in %f', time_function()-tic)
+    tic = time_function()
+    fgr = _facets_group(m)
+    log.info('facets_new in %f', time_function()-tic)
+    m.generate_face_colors()
+    m.face_colors[np.hstack(fgr)] = [1,0,0]
+    m.show()
