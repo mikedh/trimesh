@@ -2,7 +2,7 @@ import numpy as np
 from shapely.geometry import Point, Polygon, LineString
 import time
 
-import trimesh
+from mesh_base import Trimesh
 
 from scipy.spatial import cKDTree
 from collections import deque
@@ -20,7 +20,7 @@ def solid_to_mesh(solid):
     occ_mesh = solid.createMesh()
     faces    = np.array(list(occ_mesh.triangles)).reshape((-1,3)).astype(int)
     vertices = np.array(list(occ_mesh.vertices)).reshape((-1,3)).astype(float)
-    mesh     = trimesh.Trimesh(vertices=vertices, faces=faces)
+    mesh     = Trimesh(vertices=vertices, faces=faces)
     return mesh
 
 def three_dimensionalize(points):

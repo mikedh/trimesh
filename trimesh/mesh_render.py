@@ -43,7 +43,7 @@ class MeshRender(pyglet.window.Window):
         if smooth:
             self.mesh = deepcopy(mesh)
             self.mesh.unmerge_vertices()
-            self.mesh.merge_vertices_kdtree(angle_max=self.smooth_angle)
+            self.mesh.merge_vertices(angle_max=self.smooth_angle)
         else: self.mesh = mesh
      
         self.mesh.generate_vertex_colors()
