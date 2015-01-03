@@ -36,7 +36,6 @@ def hsv_to_rgb(h, s, v):
 def random_color():
     # use golden ratio
     golden_ratio_conjugate = 0.618033988749895
-    h = np.mod(np.random.random() + golden_ratio_conjugate, 1)
+    h     = np.mod(np.random.random() + golden_ratio_conjugate, 1)
     color = hsv_to_rgb(h, 0.5, 0.95)
-    #color = np.int_(np.random.random(3)*255)
     return color

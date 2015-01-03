@@ -1,20 +1,13 @@
 """
-NetworkX
+trimesh.py
 ========
-    NetworkX (NX) is a Python package for the creation, manipulation, and
-    study of the structure, dynamics, and functions of complex networks.
-    https://networkx.lanl.gov/
+Python library for loading triangular meshes and doing simple operations on them. Included loaders are binary/ASCII STL and Wavefront (OBJ), included exporters are binary STL or COLLADA. If Assimp/pyassimp are available, meshes can be loaded using the assimp loaders.
+
 Using
 -----
-    Just write in Python
-    >>> import networkx as nx
-    >>> G=nx.Graph()
-    >>> G.add_edge(1,2)
-    >>> G.add_node(42)
-    >>> print(sorted(G.nodes()))
-    [1, 2, 42]
-    >>> print(sorted(G.edges()))
-    [(1, 2)]
+    >>> import trimesh
+    >>> m = trimesh.load_mesh('models/ballA.off')
+    >>> m.show()
 """
 
 from __future__ import absolute_import

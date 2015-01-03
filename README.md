@@ -24,15 +24,12 @@ Requires numpy and networkx, additional functions are available with scipy (>.12
     
     # load_mesh can accept a filename or file object, 
     # however file objects require 'file_type' specified (eg. file_type='stl')
+    # on load, does basic cleanup of mesh, including merging vertices 
+    # and removing duplicate/degenerate faces
     mesh = trimesh.load_mesh('./models/unit_cube.STL')
     
-    # does basic cleanup of mesh, including merging vertices and removing
-    # duplicate/degenerate faces
-    mesh.process()
-
     # split mesh based on connected components
-    # by default this will only return watertight meshes, but the 
-    # check can be disabled
+    # by default this will only return watertight meshes, but the check can be disabled
     meshes = mesh.split() 
 
     # first component  

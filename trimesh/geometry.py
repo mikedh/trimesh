@@ -5,8 +5,8 @@ import logging
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
 
-def plane_line_intersection(plane_ori, 
-                            plane_dir, 
+def plane_line_intersection(plane_origin, 
+                            plane_normal, 
                             endpoints,                            
                             line_segments = True):
     '''
@@ -14,9 +14,9 @@ def plane_line_intersection(plane_ori,
 
     Arguments
     ---------
-    plane_ori: plane origin, (3) list
-    plane_dir: plane direction (3) list
-    endpoints: points defining lines to be intersected, (2,n,3)
+    plane_origin:  plane origin, (3) list
+    plane_normal:  plane direction (3) list
+    endpoints:     points defining lines to be intersected, (2,n,3)
     line_segments: if True, only returns intersections as valid if
                    vertices from endpoints are on different sides
                    of the plane.
@@ -29,17 +29,17 @@ def plane_line_intersection(plane_ori,
     '''
     endpoints = np.array(endpoints)
     line_dir  = unitize(endpoints[1] - endpoints[0])
-    plane_dir = unitize(plane_dir)
+    plane_normal = unitize(plane_normal)
 
-    t = np.dot(plane_dir, np.transpose(plane_ori - endpoints[0]))
-    b = np.dot(plane_dir, np.transpose(line_dir))
+    t = np.dot(plane_normal, np.transpose(plane_origin - endpoints[0]))
+    b = np.dot(plane_normal, np.transpose(line_dir))
     
     # If the plane normal and line direction are perpendicular, it means
     # the vector is 'on plane', and there isn't a valid intersection.
     # We discard on-plane vectors by checking that the dot product is nonzero
     valid = np.abs(b) > TOL_ZERO
     if line_segments:
-        test = np.dot(plane_dir, np.transpose(plane_ori - endpoints[1]))
+        test = np.dot(plane_normal, np.transpose(plane_origin - endpoints[1]))
         different_sides = np.sign(t) != np.sign(test)
         valid           = np.logical_and(valid, different_sides)
         

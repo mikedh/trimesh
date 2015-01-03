@@ -9,8 +9,6 @@ log.addHandler(logging.NullHandler())
 from constants import *
 from grouping import group, group_rows
 from geometry import faces_to_edges, unitize
-from trimesh import Trimesh
-
 
 try: 
     from graph_tool import Graph as GTGraph
@@ -93,9 +91,9 @@ def split_nx(mesh, check_watertight=True, only_count=False):
         replacement = dict()
         replacement.update(np.column_stack((unique, np.arange(len(unique)))))
         faces = replace_references(faces, replacement).reshape((-1,3))
-        new_meshes.append(Trimesh(vertices     = mesh.vertices[[unique]],
-                                  faces        = faces,
-                                  face_normals = mesh.face_normals[[connected_faces]]))
+        new_meshes.append(mesh.__class__(vertices     = mesh.vertices[[unique]],
+                                         faces        = faces,
+                                         face_normals = mesh.face_normals[[connected_faces]]))
     face_adjacency = nx.from_edgelist(mesh.face_adjacency())
     new_meshes     = deque()
     components     = list(nx.connected_components(face_adjacency))
@@ -127,9 +125,9 @@ def split_gt(mesh, check_watertight=True, only_count=False):
         replacement    = np.zeros(unique_vert.max()+1, dtype=np.int)
         replacement[unique_vert] = np.arange(len(unique_vert))
         faces                    = replacement[faces_original]
-        meshes.append(Trimesh(faces        = faces, 
-                              face_normals = face_normals, 
-                              vertices     = vertices))
+        meshes.append(mesh.__class__(faces        = faces, 
+                                     face_normals = face_normals, 
+                                     vertices     = vertices))
     return list(meshes)
 
 def split(mesh, check_watertight=True, only_count=False):
