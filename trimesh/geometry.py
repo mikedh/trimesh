@@ -188,8 +188,8 @@ def planar_hull(mesh,
                 return_transform = False):
     from scipy.spatial import ConvexHull
     planar , T = project_to_plane(mesh.vertices,
-                                  normal = normal,
-                                  origin = origin,
+                                  plane_normal     = normal,
+                                  plane_origin     = origin,
                                   return_transform = True)
     hull_edges = ConvexHull(planar).simplices
     if return_transform:

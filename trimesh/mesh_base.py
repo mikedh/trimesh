@@ -22,7 +22,8 @@ import geometry
 import graph_ops
 import color
 
-from geometry import unitize
+from geometry import unitize, transform_points
+
 
 def log_time(method):
     def timed(*args, **kwargs):

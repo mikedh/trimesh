@@ -1,10 +1,12 @@
 import numpy as np
 from collections import deque
 
+
 import logging
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
 
+from geometry import unitize
 from constants import *
 
 def merge_vertices_hash(mesh):
