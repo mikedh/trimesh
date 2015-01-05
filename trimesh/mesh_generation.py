@@ -33,8 +33,8 @@ def three_dimensionalize(points):
 
 def extrude_shapely(polygon, 
                     height, 
-                    height_pad  = [0,0], 
-                    contour_pad = 0,
+                    height_pad   = [0,0], 
+                    contour_pad  = 0,
                     return_solid = False):
 
     shell = np.array(polygon.exterior.coords)

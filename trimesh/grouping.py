@@ -6,8 +6,8 @@ import logging
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
 
-from geometry import unitize
-from constants import *
+from .geometry import unitize
+from .constants import *
 
 def merge_vertices_hash(mesh):
     '''

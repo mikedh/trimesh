@@ -1,5 +1,5 @@
 import numpy as np
-from constants import *
+from .constants import *
 
 import logging
 log = logging.getLogger(__name__)
@@ -147,6 +147,17 @@ def radial_sort(points,
     #return the points sorted by angle
     return points[[np.argsort(angles)]]
                
+
+def plane_transform(origin, normal):
+    '''                                                                                                                                                                    
+    Given the origin and normal of a plane, find the transform that will move that                                                                                         
+    plane to be coplanar with the XY plane                                                                                                                                 
+    '''
+    transform        =  align_vectors(normal, [0,0,1])
+    transform[0:3,3] = -np.dot(transform, np.append(origin, 1))[0:3]
+    return transform
+
+
 def project_to_plane(points, 
                      plane_normal     = [0,0,1], 
                      plane_origin     = [0,0,0],
@@ -172,9 +183,8 @@ def project_to_plane(points,
         raise NameError('Normal must be nonzero!')
 
     if transform is None:
-        transform        = align_vectors(plane_normal, [0,0,1])
-        transform[0:3,3] = -np.array(plane_origin) 
-
+        transform = plane_transform(plane_origin, plane_normal)
+        
     transformed = transform_points(points, transform)[:,0:(3-int(return_planar))]
 
     if return_transform: 
@@ -193,8 +203,8 @@ def planar_hull(mesh,
                                   return_transform = True)
     hull_edges = ConvexHull(planar).simplices
     if return_transform:
-        return planar[[hull_edges]], T
-    return planar[[hull_edges]]
+        return planar[hull_edges], T
+    return planar[hull_edges]
     
 def counterclockwise_angles(vector, vectors):
     dots    = np.dot(vector, np.array(vectors).T)
@@ -218,7 +228,9 @@ def transform_points(points, matrix):
 def align_vectors(vector_start, vector_end):
     '''
     Returns the 4x4 transformation matrix which will rotate from 
-    vector_end (3,) to vector_start (3,) 
+    vector_start (3,) to vector_end (3,), ex:
+    
+    vector_end == np.dot(T, np.append(vector_start, 1))[0:3]
     '''
     import transformations as tr
     vector_start = unitize(vector_start)

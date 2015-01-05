@@ -6,9 +6,9 @@ import logging
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
 
-from constants import *
-from grouping import group, group_rows
-from geometry import faces_to_edges, unitize
+from .constants import *
+from .grouping import group, group_rows, replace_references
+from .geometry import faces_to_edges, unitize
 
 try: 
     from graph_tool import Graph as GTGraph
@@ -19,6 +19,18 @@ except:
     log.warn('No graph-tool! Some operations will be much slower!')
     
 def facets(mesh):
+    '''
+    Find the list of parallel adjacent faces.
+    
+    Arguments
+    ---------
+    mesh:  Trimesh
+    
+    Returns
+    ---------
+    facets: list of groups of face indexes (in mesh.faces) of parallel 
+            adjacent faces. 
+    '''
     if _has_gt: return facets_gt(mesh)
     else:       return facets_nx(mesh)
 
@@ -35,11 +47,17 @@ def connected_edges(G, nodes):
     return edges
 
 def facets_group(mesh):
+    '''
+    Find facets by grouping normals then getting the adjacency subgraph.
+    The other two methods for finding facets rely on looking at the angle between
+    adjacent faces, and then if they are below TOL_ZERO, adding them to a graph
+    of parallel faces. This method should be somewhat more robust.
+    '''
     adjacency = nx.from_edgelist(mesh.face_adjacency())
     facets    = deque()
-    for group in group_rows(mesh.face_normals):
-        if len(group) < 2: continue
-        facets.extend([i for i in nx.connected_components(adjacency.subgraph(group)) if len(i) > 1])
+    for row_group in group_rows(mesh.face_normals):
+        if len(row_group) < 2: continue
+        facets.extend([i for i in nx.connected_components(adjacency.subgraph(row_group)) if len(i) > 1])
     return np.array(facets)
 
 def facets_nx(mesh):

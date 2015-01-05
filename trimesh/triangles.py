@@ -1,5 +1,5 @@
 import numpy as np
-from geometry import unitize
+from .geometry import unitize
 
 def cross(triangles):
     '''
@@ -50,7 +50,7 @@ def all_coplanar(triangles):
     
 def any_coplanar(triangles):
     '''
-    Given a list of triangles, if the first triangle is coplanar with ANY
+    Given a list of triangles, if the FIRST triangle is coplanar with ANY
     of the following triangles, return True.
     Otherwise, return False. 
     '''
@@ -64,12 +64,12 @@ def any_coplanar(triangles):
     
 def mass_properties(triangles, density = 1.0, skip_inertia=False):
     '''
-    Calculate the mass properties of a group of triangles
+    Calculate the mass properties of a group of triangles.
     
+    Implemented from:
     http://www.geometrictools.com/Documentation/PolyhedralMassProperties.pdf
     '''
     crosses = cross(triangles)
-    # thought vectorizing would make this slightly nicer, though it's still a bit ugly
     # these are the subexpressions of the integral 
     f1 = triangles.sum(axis=1)
     

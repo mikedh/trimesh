@@ -10,19 +10,14 @@ import logging
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
 
-import sys
-PY3 = sys.version_info.major >= 3
-if PY3: basestring = str
-else:   range      = xrange
+from . import triangles
+from . import grouping
+from . import geometry
+from . import graph_ops
+from . import color
 
-from constants import *
-import triangles
-import grouping
-import geometry
-import graph_ops
-import color
-
-from geometry import unitize, transform_points
+from .constants import *
+from .geometry import unitize, transform_points
 
 
 def log_time(method):
@@ -114,8 +109,7 @@ class Trimesh():
         # will share an edge
         face_idx = np.tile(np.arange(len(self.faces)), (3,1)).T.reshape(-1)[[edge_idx]]
         return face_idx
-        
-    @log_time
+
     def is_watertight(self):
         '''
         Check if a mesh is watertight. 
@@ -315,7 +309,7 @@ class Trimesh():
         '''
         Summed area of all triangles in the current mesh.
         '''
-        return triangles.area(self.vertices[[self.faces]])
+        return triangles.area(self.vertices[self.faces])
         
     @property
     def bounds(self):
@@ -363,7 +357,7 @@ class Trimesh():
         Smooth will re-merge vertices to fix the shading, but can be slow
         on larger meshes. 
         '''
-        from mesh_render import MeshRender
+        from .mesh_render import MeshRender
         MeshRender(self, smooth=smooth, smooth_angle=smooth_angle)
 
     def boolean(self, other_mesh, operation='union'):
@@ -411,7 +405,8 @@ class Trimesh():
                        face_colors = new_colors)
 
     def export(self, filename):
-        io.export_stl(self, filename)
+        from .mesh_io import export_stl
+        export_stl(self, filename)
         
 if __name__ == '__main__':
     formatter = logging.Formatter("[%(asctime)s] %(levelname)-7s (%(filename)s:%(lineno)3s) %(message)s", 

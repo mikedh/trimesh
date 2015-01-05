@@ -1,8 +1,8 @@
 import numpy as np
 import struct
 
-from mesh_base import Trimesh
-from constants import *
+from .mesh_base import Trimesh
+from .constants import *
 
 import logging
 log = logging.getLogger(__name__)

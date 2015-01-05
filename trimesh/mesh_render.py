@@ -11,7 +11,10 @@ class MeshRender(pyglet.window.Window):
     def __init__(self, 
                  mesh         = None, 
                  smooth       = None,
-                 smooth_angle = np.radians(20)):
+                 smooth_angle = np.radians(20),
+                 base_trans   = None,
+                 base_rot     = None,
+                 center       = True):
         conf = Config(sample_buffers=1,
                       samples=4,
                       depth_size=16,
@@ -30,6 +33,8 @@ class MeshRender(pyglet.window.Window):
         self.cull         = True
         self.init_gl()
         
+        
+
         if mesh != None: 
             self.add_mesh(mesh)
             self.run()
@@ -43,8 +48,9 @@ class MeshRender(pyglet.window.Window):
         if smooth:
             self.mesh = deepcopy(mesh)
             self.mesh.unmerge_vertices()
-            self.mesh.merge_vertices(angle_max=self.smooth_angle)
-        else: self.mesh = mesh
+            #self.mesh.merge_vertices(angle_max=self.smooth_angle)
+        else: 
+            self.mesh = mesh
      
         self.mesh.generate_vertex_colors()
         self.mesh.verify_normals()

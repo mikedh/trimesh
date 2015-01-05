@@ -31,7 +31,7 @@ class VectorTests(unittest.TestCase):
 
     def test_align(self):
         target = np.array([0,0,1])
-        for i in xrange(15):
+        for i in range(100):
             vector  = trimesh.unitize(np.random.random(3) - .5)
             T       = trimesh.geometry.align_vectors(vector, target)
             result  = np.dot(T, np.append(vector, 1))[0:3]
