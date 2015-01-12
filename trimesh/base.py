@@ -93,22 +93,7 @@ class Trimesh():
         graph.add_edges_from(mesh.face_adjacency())
         groups = nx.connected_components(graph_connected.subgraph(interesting_faces))
         '''
-        
-        # first generate the list of edges for the current faces
-        edges = geometry.faces_to_edges(self.faces, sort=True)
-        # this will return the indices for duplicate edges
-        # every edge appears twice in a well constructed mesh
-        # so for every row in edge_idx, edges[edge_idx[*][0]] == edges[edge_idx[*][1]]
-        # in this call to group rows, we discard edges which don't occur twice
-        edge_idx = grouping.group_rows(edges, require_count=2)
-
-        if len(edge_idx) == 0:
-            log.error('No adjacent faces detected! Did you merge vertices?')
-        # returns the pairs of all adjacent faces
-        # so for every row in face_idx, self.faces[face_idx[*][0]] and self.faces[face_idx[*][1]]
-        # will share an edge
-        face_idx = np.tile(np.arange(len(self.faces)), (3,1)).T.reshape(-1)[[edge_idx]]
-        return face_idx
+        return graph_ops.face_adjacency(self)
 
     def is_watertight(self):
         '''
