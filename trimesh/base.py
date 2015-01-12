@@ -58,9 +58,9 @@ class Trimesh():
         Convenience function to do basic processing on a raw mesh
         '''
         self.merge_vertices()
-        self.verify_face_normals()
         self.remove_duplicate_faces()
         self.remove_degenerate_faces()
+        self.verify_face_normals()
         return self
         
     def rezero(self):
@@ -124,6 +124,10 @@ class Trimesh():
         '''
         nondegenerate = geometry.nondegenerate_faces(self.faces)
         self.faces    = self.faces[nondegenerate]
+
+        if np.shape(self.face_normals) == np.shape(self.faces):
+            self.face_normals = self.face_normals[nondegenerate]
+
         log.debug('%i/%i faces were degenerate and have been removed',
                   np.sum(np.logical_not(nondegenerate)),
                   len(nondegenerate))
@@ -163,11 +167,12 @@ class Trimesh():
         '''
         Check to make sure face normals are defined. 
         '''
-        if (np.shape(self.face_normals) != np.shape(self.faces)):
-            log.debug('Generating face normals for faces %s and passed face normals %s',
-                      str(np.shape(self.faces)),
-                      str(np.shape(self.face_normals)))
+        if np.shape(self.face_normals) != np.shape(self.faces):
+            log.debug('Generating face normals as shape check failed')
             self.generate_face_normals()
+        else:
+            self.face_normals, valid = geometry.unitize(self.face_normals, check_valid=True)
+            if not np.all(valid):  self.generate_face_normals()
 
     def cross_section(self,
                       normal,
@@ -226,7 +231,8 @@ class Trimesh():
                   len(self.faces) - len(unique),
                   len(self.faces))
         self.faces        = self.faces[[unique]]
-        self.face_normals = self.face_normals[[unique]]
+        if np.shape(self.face_normals) == np.shape(self.faces):
+            self.face_normals = self.face_normals[[unique]]
 
 
     def remove_unreferenced_vertices(self):

@@ -79,8 +79,7 @@ def unitize(points, check_valid=False):
         if axis == 1: unit_vectors = (points[valid].T / length[valid]).T
         elif valid:   unit_vectors = points / length
         else:         unit_vectors = []
-        return unit_vectors, valid
-        
+        return unit_vectors, valid        
     unit_vectors = (points.T / length).T
     return unit_vectors
     
@@ -213,7 +212,6 @@ def counterclockwise_angles(vector, vectors):
     angles += (angles < 0.0)*np.pi*2
     return angles
 
-
 def transform_points(points, matrix):
     '''
     Returns points, rotated by transformation matrix 
@@ -300,4 +298,76 @@ def nondegenerate_faces(faces):
     Returns a 1D boolean array where non-degenerate faces are 'True'                        Faces should be (n, m) where for Trimeshes m=3. Returns (n) array                       '''
     nondegenerate = np.all(np.diff(np.sort(faces, axis=1), axis=1) != 0, axis=1)
     return nondegenerate
+
+def absolute_orientation(points_A, points_B, return_error=False):
+    '''
+    Calculates the transform that best aligns points_A with points_B
+    Uses Horn's method for the absolute orientation problem, in 3D with no scaling.
+
+    Arguments
+    ---------
+    points_A:     (n,3) list of points
+    points_B:     (n,3) list of points, T*points_A
+    return_error: boolean, if True returns (n) list of euclidean distances
+                  representing the distance from  T*points_A[i] to points_B[i]
+
+
+    Returns
+    ---------
+    M:    (4,4) transformation matrix for the transform that best aligns points_A to 
+           points_B
+    error: (n) list of euclidean distances
+    '''
+    dim = np.shape(points_A)
+    if ((np.shape(points_B) <> dim) or (dim[1] <> 3)): return False
+    lc = np.average(points_A, axis=0)
+    rc = np.average(points_B, axis=0)
+    left  = points_A - lc
+    right = points_B - rc
+
+    M = np.dot(left.T, right)
+
+    [[Sxx, Sxy, Sxz], 
+     [Syx, Syy, Syz], 
+     [Szx, Szy, Szz]] = M
+
+    N=[[(Sxx+Syy+Szz), (Syz-Szy), (Szx-Sxz), (Sxy-Syx)],
+       [(Syz-Szy), (Sxx-Syy-Szz), (Sxy+Syx), (Szx+Sxz)],
+       [(Szx-Sxz), (Sxy+Syx), (-Sxx+Syy-Szz), (Syz+Szy)],
+       [(Sxy-Syx), (Szx+Sxz), (Syz+Szy),(-Sxx-Syy+Szz)]]
+
+    (w,v) = np.linalg.eig(N)
+
+    q = v[:,np.argmax(w)]
+    q = q/np.linalg.norm(q)
+
+    M1 = [[q[0], -q[1], -q[2], -q[3]], 
+          [q[1],  q[0],  q[3], -q[2]], 
+          [q[2], -q[3],  q[0],  q[1]],
+          [q[3],  q[2], -q[1],  q[0]]]
+
+    M2 = [[q[0], -q[1], -q[2], -q[3]], 
+          [q[1],  q[0], -q[3],  q[2]], 
+          [q[2],  q[3],  q[0], -q[1]],
+          [q[3], -q[2],  q[1],  q[0]]]
+
+    R = np.dot(np.transpose(M1),M2)[1:4,1:4]
+    T = rc - np.dot(R, lc)
+
+    M          = np.eye(4) 
+    M[0:3,0:3] = R
+    M[0:3,3]   = T
+
+    if return_error: 
+        return M, transform_error(points_A, points_B, M)
+    return M
+
+def transform_error(points_A, points_B, M):
+    '''
+    Returns the squared euclidean distance per point
+
+    '''
+    dim = np.shape(points_A)
+    AR  = np.hstack((points_A, np.ones((dim[0],1)))).T
+    return (np.sum(((np.dot(M,AR)[0:3,:]-np.array(points_B).T)**2), axis=0))
 

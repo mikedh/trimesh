@@ -30,6 +30,7 @@ class VectorTests(unittest.TestCase):
         self.assertTrue(np.all(length_check))
 
     def test_align(self):
+        log.info('Testing vector alignment')
         target = np.array([0,0,1])
         for i in range(100):
             vector  = trimesh.unitize(np.random.random(3) - .5)
@@ -37,6 +38,19 @@ class VectorTests(unittest.TestCase):
             result  = np.dot(T, np.append(vector, 1))[0:3]
             aligned = np.abs(result-target).sum() < TOL_ZERO
             self.assertTrue(aligned)
+
+    def test_horn(self):
+        log.info('Testing absolute orientation')
+        for i in range(10):
+            points_A = (np.random.random(self.test_dim) - .5) * 100
+            angle    = 4*np.pi*(np.random.random() - .5)
+            vector   = trimesh.unitize(np.random.random(3) - .5)
+            offset   = 100*(np.random.random(3)-.5)
+            T        = trimesh.transformations.rotation_matrix(angle, vector)
+            T[0:3,3] = offset
+            points_B = trimesh.geometry.transform_points(points_A, T)
+            M, error = trimesh.geometry.absolute_orientation(points_A, points_B, return_error=True)
+            self.assertTrue(np.all(error < TOL_ZERO))
 
 class MeshTests(unittest.TestCase):
     def setUp(self):
@@ -114,12 +128,26 @@ class MassTests(unittest.TestCase):
             log.info('%i mass parameters confirmed for %s', parameter_count, truth['filename'])  
                 
 if __name__ == '__main__':
-    formatter = logging.Formatter("[%(asctime)s] %(levelname)-7s (%(filename)s:%(lineno)3s) %(message)s", "%Y-%m-%d %H:%M:%S")
+    try: 
+        from colorlog import ColoredFormatter
+        formatter = ColoredFormatter(
+            "%(log_color)s%(levelname)-8s%(reset)s %(filename)17s:%(lineno)-4s  %(blue)4s%(message)s",
+            datefmt = None,
+            reset   = True,
+            log_colors = {'DEBUG':    'cyan',
+                          'INFO':     'green',
+                          'WARNING':  'yellow',
+                          'ERROR':    'red',
+                          'CRITICAL': 'red' } )
+    except:
+        formatter = logging.Formatter(
+            "[%(asctime)s] %(levelname)-7s (%(filename)s:%(lineno)3s) %(message)s", "%Y-%m-%d %H:%M:%S")
+
+    log_level      = logging.DEBUG
     handler_stream = logging.StreamHandler()
     handler_stream.setFormatter(formatter)
-    handler_stream.setLevel(logging.DEBUG)
-    log.setLevel(logging.DEBUG)
+    handler_stream.setLevel(log_level)
+    log.setLevel(log_level)
     log.addHandler(handler_stream)
     np.set_printoptions(precision=4, suppress=True)
     unittest.main()
-

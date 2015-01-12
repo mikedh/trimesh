@@ -1,7 +1,7 @@
 import numpy as np
 import struct
 
-from .mesh_base import Trimesh
+from .base import Trimesh
 from .constants import *
 
 import logging

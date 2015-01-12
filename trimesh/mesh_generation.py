@@ -2,7 +2,7 @@ import numpy as np
 from shapely.geometry import Point, Polygon, LineString
 import time
 
-from mesh_base import Trimesh
+from .base import Trimesh
 
 from scipy.spatial import cKDTree
 from collections import deque

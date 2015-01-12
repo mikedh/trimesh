@@ -17,6 +17,6 @@ if sys.version_info[:2] < (2, 7):
     message = "Python 2.7 or later is required for trimesh.py (%d.%d detected)."
     raise ImportError(message % sys.version_info[:2])
 
-from trimesh.mesh_base import Trimesh
+from trimesh.base import Trimesh
 from trimesh.mesh_io import load_mesh, available_formats
 from trimesh.geometry import unitize, transform_points
