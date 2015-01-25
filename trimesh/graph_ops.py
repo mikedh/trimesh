@@ -18,7 +18,7 @@ except:
     _has_gt = False
     log.warn('No graph-tool! Some operations will be much slower!')
 
-def face_adjacency(mesh):
+def face_adjacency(faces):
     '''
     Returns an (n,2) list of face indices.
     Each pair of faces in the list shares an edge, making them adjacent.
@@ -31,7 +31,7 @@ def face_adjacency(mesh):
     '''
 
     # first generate the list of edges for the current faces
-    edges = faces_to_edges(mesh.faces, sort=True)
+    edges = faces_to_edges(faces, sort=True)
     # this will return the indices for duplicate edges
     # every edge appears twice in a well constructed mesh
     # so for every row in edge_idx, edges[edge_idx[*][0]] == edges[edge_idx[*][1]]
@@ -43,7 +43,7 @@ def face_adjacency(mesh):
     # returns the pairs of all adjacent faces
     # so for every row in face_idx, self.faces[face_idx[*][0]] and self.faces[face_idx[*][1]]
     # will share an edge
-    face_idx = np.tile(np.arange(len(mesh.faces)), (3,1)).T.reshape(-1)[[edge_idx]]
+    face_idx = np.tile(np.arange(len(faces)), (3,1)).T.reshape(-1)[[edge_idx]]
     return face_idx
 
 def facets(mesh):

@@ -92,6 +92,9 @@ class MeshTests(unittest.TestCase):
 
             section   = mesh.cross_section(normal=[0,0,1], origin=mesh.centroid)
             hull      = mesh.convex_hull()
+
+            sample    = mesh.sample(1000)
+            self.assertTrue(sample.shape == (1000,3))
             
             mesh.generate_face_colors()
             mesh.generate_vertex_colors()

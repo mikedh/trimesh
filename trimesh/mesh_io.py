@@ -25,9 +25,8 @@ def load_mesh(file_obj, file_type=None):
     mesh = _MESH_LOADERS[file_type](file_obj, file_type)
     file_obj.close()
     
-    log.debug('loaded mesh using function %s, containing %i faces', 
-             _MESH_LOADERS[file_type].__name__, 
-             len(mesh.faces))
+    log.debug('loaded mesh using %s',
+             _MESH_LOADERS[file_type].__name__)
              
     return mesh
 

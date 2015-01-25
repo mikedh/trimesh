@@ -4,6 +4,8 @@ import time
 
 from .base import Trimesh
 
+from copy import deepcopy
+
 from scipy.spatial import cKDTree
 from collections import deque
 import logging
@@ -18,9 +20,12 @@ except:
 
 def solid_to_mesh(solid):
     occ_mesh = solid.createMesh()
+    occ_mesh.optimize()
     faces    = np.array(list(occ_mesh.triangles)).reshape((-1,3)).astype(int)
     vertices = np.array(list(occ_mesh.vertices)).reshape((-1,3)).astype(float)
     mesh     = Trimesh(vertices=vertices, faces=faces)
+    if not mesh.is_watertight(): 
+        raise NameError('Mesh returned from openCASCADE isn\'t watertight!')
     return mesh
 
 def three_dimensionalize(points):

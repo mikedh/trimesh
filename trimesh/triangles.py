@@ -12,7 +12,7 @@ def cross(triangles):
     crosses = np.cross(vectors[:,0], vectors[:,1])
     return crosses
     
-def area(triangles):
+def area(triangles, sum=True):
     '''
     Calculates the sum area of input triangles 
 
@@ -20,7 +20,9 @@ def area(triangles):
     returns:   area, (n)
     '''
     crosses = cross(triangles)
-    area    = np.sum(np.sum(crosses**2, axis=1)**.5)*.5
+    area    = (np.sum(crosses**2, axis=1)**.5)*.5
+    if sum: 
+        return np.sum(area)
     return area
     
 def normals(triangles):

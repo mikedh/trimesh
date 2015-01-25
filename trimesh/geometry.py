@@ -1,4 +1,5 @@
 import numpy as np
+from . import transformations as tr
 from .constants import *
 
 import logging
@@ -230,7 +231,7 @@ def align_vectors(vector_start, vector_end):
     
     vector_end == np.dot(T, np.append(vector_start, 1))[0:3]
     '''
-    import transformations as tr
+    
     vector_start = unitize(vector_start)
     vector_end   = unitize(vector_end)
     cross        = np.cross(vector_start, vector_end)
@@ -295,7 +296,9 @@ def faces_to_edges(faces, sort=True):
 
 def nondegenerate_faces(faces):
     '''
-    Returns a 1D boolean array where non-degenerate faces are 'True'                        Faces should be (n, m) where for Trimeshes m=3. Returns (n) array                       '''
+    Returns a 1D boolean array where non-degenerate faces are 'True'                        
+    Faces should be (n, m) where for Trimeshes m=3. Returns (n) array                       
+    '''
     nondegenerate = np.all(np.diff(np.sort(faces, axis=1), axis=1) != 0, axis=1)
     return nondegenerate
 
@@ -319,7 +322,7 @@ def absolute_orientation(points_A, points_B, return_error=False):
     error: (n) list of euclidean distances
     '''
     dim = np.shape(points_A)
-    if ((np.shape(points_B) <> dim) or (dim[1] <> 3)): return False
+    if ((np.shape(points_B) != dim) or (dim[1] != 3)): return False
     lc = np.average(points_A, axis=0)
     rc = np.average(points_B, axis=0)
     left  = points_A - lc

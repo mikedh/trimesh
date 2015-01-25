@@ -15,6 +15,7 @@ from . import grouping
 from . import geometry
 from . import graph_ops
 from . import color
+from . import sample
 
 from .constants import *
 from .geometry import unitize, transform_points
@@ -93,7 +94,7 @@ class Trimesh():
         graph.add_edges_from(mesh.face_adjacency())
         groups = nx.connected_components(graph_connected.subgraph(interesting_faces))
         '''
-        return graph_ops.face_adjacency(self)
+        return graph_ops.face_adjacency(self.faces)
 
     def is_watertight(self):
         '''
@@ -211,6 +212,10 @@ class Trimesh():
 
     @log_time
     def remove_duplicate_faces(self):
+        '''
+        For the current mesh, remove any faces which are duplicated. 
+        This can occur if faces are below the 
+        '''
         unique = grouping.unique_rows(np.sort(self.faces, axis=1), digits=0)
         log.debug('%i/%i faces were duplicate and have been removed',
                   len(self.faces) - len(unique),
@@ -220,7 +225,26 @@ class Trimesh():
             self.face_normals = self.face_normals[[unique]]
 
 
+    def sample(self, count):
+        '''
+        Return random samples distributed normally across the 
+        surface of the mesh
+
+        Arguments
+        ---------
+        count: int, number of points to sample
+
+        Returns
+        ---------
+        samples: (count, 3) float, points on surface of mesh
+        '''
+        return sample.random_sample(self, count)
+            
     def remove_unreferenced_vertices(self):
+        '''
+        For the current mesh, remove all vertices which are not referenced by
+        a face. 
+        '''
         unique, inverse = np.unique(self.faces.reshape(-1), return_inverse=True)
         self.faces      = inverse.reshape((-1,3))          
         self.vertices   = self.vertices[unique]
@@ -295,12 +319,11 @@ class Trimesh():
         '''
         self.vertices = transform_points(self.vertices, matrix)
 
-    @property
-    def area(self):
+    def area(self, sum=True):
         '''
         Summed area of all triangles in the current mesh.
         '''
-        return triangles.area(self.vertices[self.faces])
+        return triangles.area(self.vertices[self.faces], sum=sum)
         
     @property
     def bounds(self):
