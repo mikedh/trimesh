@@ -40,7 +40,7 @@ class Trimesh():
                  face_colors     = None,
                  vertex_colors   = None,
                  metadata        = None,
-                 process_on_load = True):
+                 process         = True):
 
         
         self.vertices        = np.array(vertices)
@@ -52,7 +52,7 @@ class Trimesh():
         self.metadata        = dict()
         
         if isinstance(metadata, dict): self.metadate.update(metadata)
-        if process_on_load:            self.process()
+        if process:                    self.process()
             
     def process(self):
         '''

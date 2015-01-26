@@ -9,4 +9,5 @@ setup(name='trimesh',
       author_email='mik3dh@gmail.com',
       url='github.com/mikedh/trimesh.py',
       packages=['trimesh'],
+      install_requires=['numpy', 'scipy', 'networkx', 'pyglet']
      )

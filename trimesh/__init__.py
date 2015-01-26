@@ -17,7 +17,7 @@ if _version_info[:2] < (2, 7):
     raise ImportError(message % sys.version_info[:2])
 
 from .base import Trimesh
-from .geometry import unitize
+from .geometry import unitize, transform_points
 from .mesh_io import load_mesh, available_formats
 from . import transformations
 
