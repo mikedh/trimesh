@@ -27,7 +27,7 @@
 	<fresnel_effect bval="false"/>
 	<mirror_color r="1" g="1" b="1" a="1"/>
 	<specular_reflect fval="0"/>
-	<translucency fval="0"/>
+	<translucency fval="0.5"/>
 	<transmit_filter fval="1"/>
 	<transparency fval="0"/>
 	<type sval="shinydiffusemat"/>
@@ -90,39 +90,27 @@
 	<type sval="light_mat"/>
 </material>
 
-
-
-<light name="Lamp.001">
-	<color r="1" g="1" b="1" a="1"/>
-	<corner x="-0.25" y="-0.25" z="1.99646"/>
-	<from x="0" y="0" z="1.99646"/>
-	<point1 x="-0.25" y="0.25" z="1.99646"/>
-	<point2 x="0.25" y="-0.25" z="1.99646"/>
-	<power fval="5"/>
-	<samples ival="16"/>
-	<type sval="arealight"/>
-</light>
-
+$LIGHT_XML
 $MESH_XML
 $CAMERA_XML
 
 <background name="world_background">
-	<color r="0.437557" g="0.546283" b="1" a="1"/>
+	<color r="1.0" g="1.0" b="1.2" a="1.0"/>
 	<power fval="1"/>
 	<type sval="constant"/>
 </background>
 
 <integrator name="default">
-	<bounces ival="3"/>
+	<bounces ival="5"/>
 	<caustic_mix ival="5"/>
 	<diffuseRadius fval="1"/>
-	<fg_bounces ival="3"/>
+	<fg_bounces ival="5"/>
 	<fg_samples ival="32"/>
 	<finalGather bval="true"/>
 	<photons ival="200000"/>
 	<raydepth ival="4"/>
 	<search ival="150"/>
-	<shadowDepth ival="2"/>
+	<shadowDepth ival="3"/>
 	<show_map bval="false"/>
 	<transpShad bval="false"/>
 	<type sval="photonmapping"/>
@@ -134,9 +122,9 @@ $CAMERA_XML
 </integrator>
 
 <render>
-	<AA_inc_samples ival="2"/>
-	<AA_minsamples ival="4"/>
-	<AA_passes ival="2"/>
+	<AA_inc_samples ival="3"/>
+	<AA_minsamples ival="5"/>
+	<AA_passes ival="3"/>
 	<AA_pixelwidth fval="1.5"/>
 	<AA_threshold fval="0.05"/>
 	<background_name sval="world_background"/>

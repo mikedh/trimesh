@@ -53,6 +53,7 @@ class MeshRender(pyglet.window.Window):
         else: 
             self.mesh = mesh
      
+        self.mesh.verify_face_colors()
         self.mesh.generate_vertex_colors()
         self.mesh.verify_normals()
         
@@ -155,68 +156,3 @@ class MeshRender(pyglet.window.Window):
         
     def run(self):
         pyglet.app.run()
-
-def to_yafaray_xml(mesh, 
-                   material_xml='<set_material sval=\"defaultMat\"/>'):
-
-    '''
-    Return the yafaray xml string for the mesh specified. 
-
-    http://www.yafaray.org/development/documentation/XMLspecs#Mesh
-    http://www.wings3d.com/forum/showthread.php?tid=146
-    '''
-    from string import Template
-    from StringIO import StringIO
-
-    format_dict = {'vertex_count' : len(mesh.vertices),
-                   'face_count'   : len(mesh.faces)}
-
-    s = StringIO()
-    np.savetxt(s, mesh.vertices, '<p x=\"%.6f\" y=\"%.6f\" z=\"%.6f\"/>'); s.seek(0)
-    format_dict['vertex_xml'] = s.read()
-
-    s = StringIO()
-    np.savetxt(s, mesh.faces, '<f a=\"%d\" b=\"%d\" c=\"%d\"/>'); s.seek(0)
-    format_dict['face_xml'] = s.read()
-
-    mesh_template  = '<mesh vertices=\"$vertex_count\" '
-    mesh_template += 'faces=\"$face_count\" '
-    mesh_template += 'has_orco=\"false\" has_uv=\"false\" type=\"0\">\n'
-    mesh_template += '$vertex_xml\n'
-    mesh_template += material_xml
-    mesh_template += '$face_xml\n'
-    mesh_template += '</mesh>\n'
-    mesh_template += '<smooth ID=\"0\" angle="25.000\"/>'
-
-    result = Template(mesh_template).substitute(format_dict)
-    return result
-
-def yafa_scene(mesh):
-    import os, inspect
-
-    MODULE_PATH = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-    template    = Template(open(os.path.join(MODULE_PATH,
-                                             'templates',
-                                             'yafaray_template.xml'), 'rb').read())
-
-    mesh_xml = to_yafaray_xml(mesh)
-
-    camera_origin = tuple(mesh.centroid + [0,0,mesh.box_size.max()])
-    camera_dest   = tuple(mesh.centroid)
-    camera_up     = (0.,1.,0.)
-    camera_res    = (640, 480)
-
-    camera_xml  = '<camera name=\"cam\">\n'
-    camera_xml += '<from x=\"%.6f\" y=\"%.6f\" z=\"%.6f\"/>\n' % camera_origin
-    camera_xml += '<resx ival=\"%d\"/>\n<resy ival=\"%d\"/>\n' % camera_res
-    camera_xml += '<to x=\"%.6f\" y=\"%.6f\" z=\"%.6f\"/>\n'   % camera_dest
-    camera_xml += '<up x=\"%.6f\" y=\"%.6f\" z=\"%.6f\"/>\n'   % camera_up
-    camera_xml += '<type sval=\"perspective\"/>\n</camera>'
-
-    res_xml     = '<width ival=\"%d\">\n<height ival=\"%d\">\n' % camera_res
-
-    result = template.substitute(MESH_XML   = mesh_xml, 
-                                 CAMERA_XML = camera_xml,
-                                 RES_XML    = res_xml)
-    return result
-    

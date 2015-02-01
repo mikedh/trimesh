@@ -109,14 +109,15 @@ class Trimesh():
         This function will only work if vertices are merged. 
         '''
         nondegenerate = geometry.nondegenerate_faces(self.faces)
-        self.faces    = self.faces[nondegenerate]
-
-        if np.shape(self.face_normals) == np.shape(self.faces):
-            self.face_normals = self.face_normals[nondegenerate]
-
-        log.debug('%i/%i faces were degenerate and have been removed',
-                  np.sum(np.logical_not(nondegenerate)),
-                  len(nondegenerate))
+        if not nondegenerate.all():
+            if np.shape(self.face_normals) == np.shape(self.faces):
+                self.face_normals = self.face_normals[nondegenerate]
+            if np.shape(self.face_colors) == np.shape(self.faces):
+                self.face_colors = self.face_colors[nondegenerate]
+            log.debug('%i/%i faces were degenerate and have been removed',
+                      np.sum(np.logical_not(nondegenerate)),
+                      len(nondegenerate))
+            self.faces    = self.faces[nondegenerate]
 
     def facets(self, return_area=True):
         '''
@@ -217,13 +218,16 @@ class Trimesh():
         This can occur if faces are below the 
         '''
         unique = grouping.unique_rows(np.sort(self.faces, axis=1), digits=0)
-        log.debug('%i/%i faces were duplicate and have been removed',
-                  len(self.faces) - len(unique),
-                  len(self.faces))
-        self.faces        = self.faces[[unique]]
-        if np.shape(self.face_normals) == np.shape(self.faces):
-            self.face_normals = self.face_normals[[unique]]
-
+        if len(self.faces) != len(unique):
+            log.debug('%i/%i faces were duplicate and have been removed',
+                      len(self.faces) - len(unique),
+                      len(self.faces))
+            
+            if np.shape(self.face_colors) == np.shape(self.faces):
+                self.face_colors = self.face_colors[[unique]]
+            if np.shape(self.face_normals) == np.shape(self.faces):
+                self.face_normals = self.face_normals[[unique]]
+            self.faces = self.faces[[unique]]
 
     def sample(self, count):
         '''
@@ -283,6 +287,9 @@ class Trimesh():
         
     def verify_face_colors(self):
         if np.shape(self.face_colors) != np.shape(self.faces):
+            log.info('Generating face colors as shape check failed %s, instead of %s.',
+                     str(np.shape(self.face_colors)),
+                     str(np.shape(self.faces)))
             self.generate_face_colors()
     
     def generate_face_colors(self, assign_color=None):
@@ -300,7 +307,7 @@ class Trimesh():
         '''
         if np.shape(self.vertex_colors) == (len(self.vertices), 3): 
             return
-        elif np.shape(self.face_colors) == (len(self.faces), 3):
+        elif np.shape(self.face_colors) == np.shape(self.faces):
             # case where face_colors is populated, but vertex_colors isn't
             # we then generate vertex colors from the face colors
             vertex_colors = np.zeros((len(self.vertices), 3,3))
@@ -311,6 +318,9 @@ class Trimesh():
             vertex_colors *= (255.0 / np.max(vertex_colors, axis=1).reshape((-1,1)))
             self.vertex_colors = vertex_colors.astype(int)
         else:
+            log.info('Vertex colors being set to default, face colors are %s vs faces %s', 
+                     str(np.shape(self.face_colors)),
+                     str(np.shape(self.faces)))
             self.vertex_colors = np.tile(color.DEFAULT_COLOR, (len(self.vertices), 1))
         
     def transform(self, matrix):
@@ -409,14 +419,17 @@ class Trimesh():
     def __add__(self, other):
         new_faces    = np.vstack((self.faces, (other.faces + len(self.vertices))))
         new_vertices = np.vstack((self.vertices, other.vertices))
+        new_normals  = np.vstack((self.face_normals, other.face_normals))
 
         self.verify_face_colors()
         other.verify_face_colors()
         new_colors   = np.vstack((self.face_colors, other.face_colors))
 
-        return Trimesh(vertices    = new_vertices, 
-                       faces       = new_faces, 
-                       face_colors = new_colors)
+        result =  Trimesh(vertices     = new_vertices, 
+                          faces        = new_faces,
+                          face_normals = new_normals,
+                          face_colors  = new_colors)
+        return result
 
     def export(self, filename):
         from .mesh_io import export_stl
