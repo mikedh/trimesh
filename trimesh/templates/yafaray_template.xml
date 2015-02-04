@@ -51,11 +51,11 @@
 	<IOR fval="1"/>
 	<color r="0.0678124" g="0.329362" b="0.762696" a="1"/>
 	<diffuse_reflect fval="1"/>
-	<emit fval="0"/>
+	<emit fval="0.25"/>
 	<fresnel_effect bval="false"/>
 	<mirror_color r="1" g="1" b="1" a="1"/>
 	<specular_reflect fval="0"/>
-	<translucency fval="0"/>
+	<translucency fval="0.5"/>
 	<transmit_filter fval="1"/>
 	<transparency fval="0"/>
 	<type sval="shinydiffusemat"/>
@@ -122,9 +122,9 @@ $CAMERA_XML
 </integrator>
 
 <render>
-	<AA_inc_samples ival="3"/>
+	<AA_inc_samples ival="2"/>
 	<AA_minsamples ival="5"/>
-	<AA_passes ival="3"/>
+	<AA_passes ival="2"/>
 	<AA_pixelwidth fval="1.5"/>
 	<AA_threshold fval="0.05"/>
 	<background_name sval="world_background"/>
