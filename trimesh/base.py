@@ -16,6 +16,7 @@ from . import geometry
 from . import graph_ops
 from . import color
 from . import sample
+from . import comparison
 
 from .constants import *
 from .geometry import unitize, transform_points
@@ -430,6 +431,9 @@ class Trimesh():
                           face_normals = new_normals,
                           face_colors  = new_colors)
         return result
+
+    def identifier(self):
+        return comparison.rotationally_invariant_identifier(self)
 
     def export(self, filename):
         from .mesh_io import export_stl
