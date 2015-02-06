@@ -13,6 +13,7 @@ TOL_CHECK = 1e-2
 log = logging.getLogger('trimesh')
 log.addHandler(logging.NullHandler())
 
+
 class VectorTests(unittest.TestCase):
     def setUp(self):
         self.test_dim = (100,3)
@@ -98,6 +99,30 @@ class MeshTests(unittest.TestCase):
             
             mesh.generate_face_colors()
             mesh.generate_vertex_colors()
+
+    def test_hash(self):
+        for mesh in self.meshes:
+            if not mesh.is_watertight(): 
+                log.warn('Hashing non- watertight mesh (%s) produces garbage!',
+                         mesh.metadata['filename'])
+                continue
+            log.info('Hashing %s', mesh.metadata['filename'])
+            result = deque()
+            for i in xrange(10):
+                mesh.rezero()
+                matrix = trimesh.transformations.random_rotation_matrix()
+                matrix[0:3,3] = (np.random.random(3)-.5)*20
+                mesh.transform(matrix)
+                result.append(json.loads(trimesh.comparison.rotationally_invariant_identifier(mesh)))
+
+            ok = (np.abs(np.diff(result, axis=0)) < 1e-3).all()
+            if not ok:
+                log.error('Hashes on %s differ after transform! diffs:\n %s\n', 
+                          mesh.metadata['filename'],
+                          str(np.diff(result, axis=0)))
+            self.assertTrue(ok)
+
+
             
     def test_fix_normals(self):
         for mesh in self.meshes[:2]:
@@ -142,7 +167,8 @@ if __name__ == '__main__':
                           'WARNING':  'yellow',
                           'ERROR':    'red',
                           'CRITICAL': 'red' } )
-    except:
+    except: 
+
         formatter = logging.Formatter(
             "[%(asctime)s] %(levelname)-7s (%(filename)s:%(lineno)3s) %(message)s", "%Y-%m-%d %H:%M:%S")
 

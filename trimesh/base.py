@@ -21,17 +21,6 @@ from . import comparison
 from .constants import *
 from .geometry import unitize, transform_points
 
-
-def log_time(method):
-    def timed(*args, **kwargs):
-        tic    = time_function()
-        result = method(*args, **kwargs)
-        log.debug('%s executed in %.4f seconds.',
-                  method.__name__,
-                  time_function()-tic)
-        return result
-    return timed
-
 class Trimesh():
     def __init__(self, 
                  vertices        = None, 
@@ -225,10 +214,10 @@ class Trimesh():
                       len(self.faces))
             
             if np.shape(self.face_colors) == np.shape(self.faces):
-                self.face_colors = self.face_colors[[unique]]
+                self.face_colors = self.face_colors[unique]
             if np.shape(self.face_normals) == np.shape(self.faces):
-                self.face_normals = self.face_normals[[unique]]
-            self.faces = self.faces[[unique]]
+                self.face_normals = self.face_normals[unique]
+            self.faces = self.faces[unique]
 
     def sample(self, count):
         '''
@@ -357,7 +346,6 @@ class Trimesh():
     def scale(self):
         return np.min(self.box_size)
         
-    @log_time  
     def mass_properties(self, density = 1.0, skip_inertia=False):
         '''
         Returns the mass properties of the current mesh.
@@ -432,6 +420,7 @@ class Trimesh():
                           face_colors  = new_colors)
         return result
 
+    @log_time
     def identifier(self):
         return comparison.rotationally_invariant_identifier(self)
 

@@ -1,5 +1,13 @@
 import numpy as np
+
+import logging
+log = logging.getLogger(__name__)
+log.addHandler(logging.NullHandler())
+
 _FORMAT_STRING = '.6f'
+_MIN_BIN_COUNT = 20
+_FREQ_COUNT    = 6
+_TOL_FREQ      = 1e-3
 
 def _format_json(data):
     '''
@@ -9,6 +17,25 @@ def _format_json(data):
     '''
     result = '[' + ','.join(map(lambda o: format(o, _FORMAT_STRING), data)) + ']'
     return result
+
+def _zero_pad(data, count):
+    '''
+    Arguments
+    --------
+    data: (n) length 1D array 
+    count: int
+
+    Returns
+    --------
+    padded: (count) length 1D array if (n < count), otherwise length (n)
+    '''
+    if len(data) == 0:
+        return np.zeros(count)
+    elif len(data) < count:
+        padded = np.zeros(count)
+        padded[-len(data):] = data
+        return padded
+    else: return data
 
 def rotationally_invariant_identifier(mesh):
     '''
@@ -36,26 +63,41 @@ def rotationally_invariant_identifier(mesh):
     
     # since we will be computing the shape distribution of the radii, we need to make sure there
     # are enough values to populate more than one sample per bin.  
-    bin_count = np.min([256, 
-                        mesh.vertices.shape[0] * 0.25, 
-                        mesh.faces.shape[0]    * 0.25])
+    bin_count = int(np.min([256, 
+                            mesh.vertices.shape[0] * 0.2, 
+                            mesh.faces.shape[0]    * 0.2]))
+    if bin_count > _MIN_BIN_COUNT:
+        face_area       = mesh.area(sum=False)
+        face_radii      = vertex_radii[mesh.faces]
+        area_weight     = np.tile((face_area.reshape((-1,1))*(1.0/3.0)), (1,3))
+        hist, bin_edges = np.histogram(face_radii.reshape(-1), bins=bin_count, weights=area_weight.reshape(-1))
 
-    face_area       = mesh.area(sum=False)
-    face_radii      = vertex_radii[mesh.faces]
-    area_weight     =  np.tile((face_area.reshape((-1,1))*(1.0/3.0)), (1,3))
-    hist, bin_edges = np.histogram(face_radii.reshape(-1), bins=bin_count, weights=area_weight.reshape(-1))
+        # we calculate the fft of the radius distribution
+        fft  = np.abs(np.fft.fft(hist))
+        # the magnitude is dependant on our area weighting being good, which it definitely isn't
+        # frequency should be more solid
+        freq = np.fft.fftfreq(face_radii.size, d=(bin_edges[1] - bin_edges[0]))
 
-    # we calculate the fft of the radius distribution
-    fft  = np.abs(np.fft.fft(hist))
-    # the magnitude is dependant on our area weighting being good, which it definitely isn't
-    # frequency should be more solid
-    freq = np.fft.fftfreq(face_radii.size, d=(bin_edges[1] - bin_edges[0]))
-    
+        # now we must select the top FREQ_COUNT frequencies
+        # if there are a bunch of frequencies whose components are very close in magnitude,
+        # just picking the top FREQ_COUNT of them is non-deterministic
+        # thus we take the top frequencies which have a magnitude that is distingushable 
+        # and we zero pad if this means fewer values available
+        fft_top   = fft.argsort()[-(_FREQ_COUNT + 1):]
+        fft_start = np.nonzero(np.diff(fft[fft_top]) > _TOL_FREQ)[0][0] + 1
+        fft_top   = fft_top[fft_start:]
+
+        # zero pad the result
+        freq_formatted = _zero_pad(np.sort(freq[fft_top]), _FREQ_COUNT)
+    else: 
+        log.warn('Mesh isn\'t dense enough to calculate frequency information for unique identifier!')
+        freq_formatted = np.zeros(_FREQ_COUNT)
+
     # using the volume (from surface integral), mean radius, and top frequencies
     # note that we are sorting the top 5 frequencies here. 
     identifier = np.hstack((mass_properties['volume'],
                             vertex_radii.mean(),
-                            np.sort(freq[np.argsort(fft)[-5:]])))
+                            freq_formatted))
 
     # return as a json string rather than an array
     return _format_json(identifier)
@@ -63,21 +105,18 @@ def rotationally_invariant_identifier(mesh):
 
 if __name__ == '__main__':
     import trimesh
-    m = trimesh.load_mesh('models/featuretype.STL')
-    #m = trimesh.load_mesh('models/nonconvex.STL')
-    #m = trimesh.load_mesh('models/ballA.off')
-
-    from collections import deque
     import json
-    np.set_printoptions(precision=5, suppress=True)
-
+    from collections import deque
+    mesh = trimesh.load_mesh('models/segway_wheel_left.STL')
+    
     result = deque()
     for i in xrange(100):
+        mesh.rezero()
         matrix = trimesh.transformations.random_rotation_matrix()
         matrix[0:3,3] = (np.random.random(3)-.5)*20
-        m.transform(matrix)
-        result.append(json.loads(rotationally_invariant_identifier(m)))
+        mesh.transform(matrix)
+        result.append(json.loads(rotationally_invariant_identifier(mesh)))
 
-    ok = (np.abs(np.diff(result, axis=0)) < 1e-8).all()
-    print np.diff(result, axis=0)
-    print ok
+    ok = (np.abs(np.diff(result, axis=0)) < 1e-3).all()
+    if not ok:
+        print 'Hashes differ after transform! diffs:\n %s\n' % str(np.diff(result, axis=0))
