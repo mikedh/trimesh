@@ -66,6 +66,11 @@ def rotationally_invariant_identifier(mesh):
     bin_count = int(np.min([256, 
                             mesh.vertices.shape[0] * 0.2, 
                             mesh.faces.shape[0]    * 0.2]))
+    
+    # if any of the frequency checks fail, we will use this zero length vector as the 
+    # formatted information for the identifier
+    freq_formatted = np.zeros(_FREQ_COUNT)
+
     if bin_count > _MIN_BIN_COUNT:
         face_area       = mesh.area(sum=False)
         face_radii      = vertex_radii[mesh.faces]
@@ -83,25 +88,23 @@ def rotationally_invariant_identifier(mesh):
         # just picking the top FREQ_COUNT of them is non-deterministic
         # thus we take the top frequencies which have a magnitude that is distingushable 
         # and we zero pad if this means fewer values available
-        fft_top   = fft.argsort()[-(_FREQ_COUNT + 1):]
-        fft_start = np.nonzero(np.diff(fft[fft_top]) > _TOL_FREQ)[0][0] + 1
-        fft_top   = fft_top[fft_start:]
-
-        # zero pad the result
-        freq_formatted = _zero_pad(np.sort(freq[fft_top]), _FREQ_COUNT)
+        fft_top = fft.argsort()[-(_FREQ_COUNT + 1):] 
+        fft_ok  = np.diff(fft[fft_top]) > _TOL_FREQ
+        # only include freqeuncy information if they are distingushable above background noise
+        if fft_ok.any():
+            fft_start = np.nonzero(fft_ok)[0][0] + 1 
+            fft_top   = fft_top[fft_start:]
+            freq_formatted = _zero_pad(np.sort(freq[fft_top]), _FREQ_COUNT)
     else: 
         log.warn('Mesh isn\'t dense enough to calculate frequency information for unique identifier!')
-        freq_formatted = np.zeros(_FREQ_COUNT)
-
+        
     # using the volume (from surface integral), mean radius, and top frequencies
-    # note that we are sorting the top 5 frequencies here. 
     identifier = np.hstack((mass_properties['volume'],
                             vertex_radii.mean(),
                             freq_formatted))
 
     # return as a json string rather than an array
     return _format_json(identifier)
-
 
 if __name__ == '__main__':
     import trimesh

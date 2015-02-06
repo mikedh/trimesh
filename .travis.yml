@@ -8,6 +8,8 @@ virtualenv:
 
 before_install:
  - sudo apt-get install -qq python-numpy python-shapely python-dev build-essential libatlas-base-dev gfortran
+ - wget https://launchpad.net/ubuntu/+source/python-scipy/0.13.3-1/+build/5560958/+files/python-scipy_0.13.3-1_amd64.deb
+ - sudo dpkg -i *.deb
 
 install:
   - pip install .
