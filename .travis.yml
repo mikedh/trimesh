@@ -7,7 +7,7 @@ virtualenv:
   system_site_packages: true
 
 before_install:
- - sudo apt-get install -qq python-numpy python-shapely
+ - sudo apt-get install -qq python-numpy python-shapely python-dev build-essential libatlas-base-dev gfortran
 
 install:
   - pip install .
