@@ -113,7 +113,7 @@ class MeshTests(unittest.TestCase):
                 matrix = trimesh.transformations.random_rotation_matrix()
                 matrix[0:3,3] = (np.random.random(3)-.5)*20
                 mesh.transform(matrix)
-                result.append(json.loads(trimesh.comparison.rotationally_invariant_identifier(mesh)))
+                result.append(mesh.identifier())
 
             ok = (np.abs(np.diff(result, axis=0)) < 1e-3).all()
             if not ok:

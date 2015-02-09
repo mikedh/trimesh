@@ -1,21 +1,22 @@
 import numpy as np
 
+from .grouping import group_rows
+
 import logging
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
 
-_FORMAT_STRING = '.6f'
 _MIN_BIN_COUNT = 20
-_FREQ_COUNT    = 6
 _TOL_FREQ      = 1e-3
 
-def _format_json(data):
+def _format_json(data, digits=6):
     '''
     Built in json library doesn't have a good way of setting the precision of floating point
     numbers. Since we intend to use the string as a key in a dict, we need formatting to be
     identitical and well understood. 
     '''
-    result = '[' + ','.join(map(lambda o: format(o, _FORMAT_STRING), data)) + ']'
+    format_str = '.' + str(int(digits)) + 'f'
+    result     = '[' + ','.join(map(lambda o: format(o, format_str), data)) + ']'
     return result
 
 def _zero_pad(data, count):
@@ -37,7 +38,27 @@ def _zero_pad(data, count):
         return padded
     else: return data
 
-def rotationally_invariant_identifier(mesh):
+def merge_duplicates(meshes):
+    '''
+    Given a list of meshes, find meshes which are duplicates and merge them.
+
+    Arguments
+    ---------
+    meshes: (n) list of meshes
+
+    Returns
+    ---------
+    merged: (m) list of meshes where (m <= n)
+    '''
+    hashes = [i.identifier() for i in meshes]
+    groups = group_rows(hashes, digits=1)
+    merged = [None] * len(groups)
+    for i, group in enumerate(groups):
+        merged[i] = meshes[group[0]]
+        merged[i].metadata['quantity'] = len(group)
+    return np.array(merged)
+
+def rotationally_invariant_identifier(mesh, length=6, as_json=False):
     '''
     Given an input mesh, return a string that has the following properties:
     * invariant to rotation of the mesh
@@ -55,6 +76,8 @@ def rotationally_invariant_identifier(mesh):
     identifer: string representing mesh. Formatting is 1D array in JSON. 
     '''
 
+    frequency_count = int(length - 2)
+
     # calculate the mass properties of the mesh, which is doing a surface integral to
     # find the center of volume of the mesh
     mass_properties = mesh.mass_properties(skip_inertia=True)
@@ -69,13 +92,15 @@ def rotationally_invariant_identifier(mesh):
     
     # if any of the frequency checks fail, we will use this zero length vector as the 
     # formatted information for the identifier
-    freq_formatted = np.zeros(_FREQ_COUNT)
+    freq_formatted = np.zeros(frequency_count)
 
     if bin_count > _MIN_BIN_COUNT:
         face_area       = mesh.area(sum=False)
         face_radii      = vertex_radii[mesh.faces]
         area_weight     = np.tile((face_area.reshape((-1,1))*(1.0/3.0)), (1,3))
-        hist, bin_edges = np.histogram(face_radii.reshape(-1), bins=bin_count, weights=area_weight.reshape(-1))
+        hist, bin_edges = np.histogram(face_radii.reshape(-1), 
+                                       bins=bin_count, 
+                                       weights=area_weight.reshape(-1))
 
         # we calculate the fft of the radius distribution
         fft  = np.abs(np.fft.fft(hist))
@@ -88,23 +113,26 @@ def rotationally_invariant_identifier(mesh):
         # just picking the top FREQ_COUNT of them is non-deterministic
         # thus we take the top frequencies which have a magnitude that is distingushable 
         # and we zero pad if this means fewer values available
-        fft_top = fft.argsort()[-(_FREQ_COUNT + 1):] 
+        fft_top = fft.argsort()[-(frequency_count + 1):] 
         fft_ok  = np.diff(fft[fft_top]) > _TOL_FREQ
         # only include freqeuncy information if they are distingushable above background noise
         if fft_ok.any():
             fft_start = np.nonzero(fft_ok)[0][0] + 1 
             fft_top   = fft_top[fft_start:]
-            freq_formatted = _zero_pad(np.sort(freq[fft_top]), _FREQ_COUNT)
+            freq_formatted = _zero_pad(np.sort(freq[fft_top]), frequency_count)
     else: 
         log.warn('Mesh isn\'t dense enough to calculate frequency information for unique identifier!')
         
-    # using the volume (from surface integral), mean radius, and top frequencies
+    # using the volume (from surface integral), surface area, and top frequencies
     identifier = np.hstack((mass_properties['volume'],
-                            vertex_radii.mean(),
+                            mass_properties['surface_area'],
                             freq_formatted))
 
-    # return as a json string rather than an array
-    return _format_json(identifier)
+    if as_json:
+        # return as a json string rather than an array
+        return _format_json(identifier)
+    return identifier
+
 
 if __name__ == '__main__':
     import trimesh

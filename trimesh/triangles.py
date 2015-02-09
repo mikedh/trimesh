@@ -71,7 +71,9 @@ def mass_properties(triangles, density = 1.0, skip_inertia=False):
     Implemented from:
     http://www.geometrictools.com/Documentation/PolyhedralMassProperties.pdf
     '''
-    crosses = cross(triangles)
+    crosses      = cross(triangles)
+    surface_area = np.sum(np.sum(crosses**2, axis=1)**.5)*.5
+
     # these are the subexpressions of the integral 
     f1 = triangles.sum(axis=1)
     
@@ -109,10 +111,11 @@ def mass_properties(triangles, density = 1.0, skip_inertia=False):
     volume      = integrated[0]
     center_mass = integrated[1:4] / volume
 
-    result = {'density'     : density,
-              'volume'      : volume,
-              'mass'        : density * volume,
-              'center_mass' : center_mass.tolist()}
+    result = {'density'      : density,
+              'surface_area' : surface_area,
+              'volume'       : volume,
+              'mass'         : density * volume,
+              'center_mass'  : center_mass.tolist()}
     if skip_inertia: return result
               
     inertia = np.zeros((3,3))
