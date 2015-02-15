@@ -1,7 +1,7 @@
 import numpy as np
 
 from .grouping import group_rows
-
+from .constants import log_time
 import logging
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
@@ -38,6 +38,7 @@ def _zero_pad(data, count):
         return padded
     else: return data
 
+@log_time
 def merge_duplicates(meshes):
     '''
     Given a list of meshes, find meshes which are duplicates and merge them.
@@ -56,11 +57,15 @@ def merge_duplicates(meshes):
     for i, group in enumerate(groups):
         merged[i] = meshes[group[0]]
         merged[i].metadata['quantity'] = len(group)
+        
+    log.info('merge_duplicates reduced part count from %d to %d', 
+             len(meshes),
+             len(merged))
     return np.array(merged)
 
 def rotationally_invariant_identifier(mesh, length=6, as_json=False):
     '''
-    Given an input mesh, return a string that has the following properties:
+    Given an input mesh, return a vector or string that has the following properties:
     * invariant to rotation of the mesh
     * robust to different tesselation of the surfaces
     * meshes that are similar but not identical return values that are close in euclidean distance
@@ -121,18 +126,16 @@ def rotationally_invariant_identifier(mesh, length=6, as_json=False):
             fft_top   = fft_top[fft_start:]
             freq_formatted = _zero_pad(np.sort(freq[fft_top]), frequency_count)
     else: 
-        log.warn('Mesh isn\'t dense enough to calculate frequency information for unique identifier!')
+        log.debug('Mesh isn\'t dense enough to calculate frequency information for unique identifier!')
         
     # using the volume (from surface integral), surface area, and top frequencies
     identifier = np.hstack((mass_properties['volume'],
                             mass_properties['surface_area'],
                             freq_formatted))
-
     if as_json:
         # return as a json string rather than an array
         return _format_json(identifier)
     return identifier
-
 
 if __name__ == '__main__':
     import trimesh

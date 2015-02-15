@@ -95,9 +95,7 @@ $MESH_XML
 $CAMERA_XML
 
 <background name="world_background">
-	<color r="1.0" g="1.0" b="1.2" a="1.0"/>
-	<power fval="1"/>
-	<type sval="constant"/>
+	<type sval="gradientback"/>
 </background>
 
 <integrator name="default">

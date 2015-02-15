@@ -11,7 +11,7 @@ log.addHandler(logging.NullHandler())
 def available_formats():
     return _MESH_LOADERS.keys()
 
-def load_mesh(file_obj, file_type=None):
+def load_mesh(file_obj, file_type=None, process=True):
     '''
     Load a mesh file into a Trimesh object
 
@@ -27,7 +27,9 @@ def load_mesh(file_obj, file_type=None):
     
     log.debug('loaded mesh using %s',
              _MESH_LOADERS[file_type].__name__)
-             
+
+    if process: mesh.process()
+
     return mesh
 
 def load_assimp(file_obj, file_type=None):
@@ -48,7 +50,8 @@ def load_assimp(file_obj, file_type=None):
     def LPMesh_to_Trimesh(lp):
         return Trimesh(vertices       = lp.vertices,
                        vertex_normals = lp.normals,
-                       faces          = lp.faces)
+                       faces          = lp.faces,
+                       vertex_colors  = lp.colors)
 
     if not hasattr(file_obj, 'read'):
         # if there is no read attribute, we assume we've been passed a file name

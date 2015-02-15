@@ -30,9 +30,8 @@ class Trimesh():
                  face_colors     = None,
                  vertex_colors   = None,
                  metadata        = None,
-                 process         = True):
+                 process         = False):
 
-        
         self.vertices        = np.array(vertices)
         self.faces           = np.array(faces)
         self.face_normals    = np.array(face_normals)
@@ -99,15 +98,7 @@ class Trimesh():
         This function will only work if vertices are merged. 
         '''
         nondegenerate = geometry.nondegenerate_faces(self.faces)
-        if not nondegenerate.all():
-            if np.shape(self.face_normals) == np.shape(self.faces):
-                self.face_normals = self.face_normals[nondegenerate]
-            if np.shape(self.face_colors) == np.shape(self.faces):
-                self.face_colors = self.face_colors[nondegenerate]
-            log.debug('%i/%i faces were degenerate and have been removed',
-                      np.sum(np.logical_not(nondegenerate)),
-                      len(nondegenerate))
-            self.faces    = self.faces[nondegenerate]
+        self.update_faces(nondegenerate)
 
     def facets(self, return_area=True):
         '''
@@ -148,8 +139,10 @@ class Trimesh():
             log.debug('Generating face normals as shape check failed')
             self.generate_face_normals()
         else:
-            self.face_normals, valid = geometry.unitize(self.face_normals, check_valid=True)
-            if not np.all(valid):  self.generate_face_normals()
+            face_normals, valid = geometry.unitize(self.face_normals, 
+                                                   check_valid=True)
+            if not np.all(valid):  
+                self.generate_face_normals()
 
     def cross_section(self,
                       normal,
@@ -201,6 +194,24 @@ class Trimesh():
         if not (angle_max is None): grouping.merge_vertices_kdtree(self)
         else:                       grouping.merge_vertices_hash(self)
 
+    def update_faces(self, valid):
+        '''
+        In many cases, we will want to remove specific faces. 
+        However, there is additional bookkeeping to do this cleanly. 
+        This function updates the set of faces with a validity mask,
+        as well as keeping track of normals and colors.
+
+        Arguments
+        ---------
+        valid: either (m) int, or (len(self.faces)) bool. 
+        '''
+        if valid.dtype.name == 'bool' and valid.all(): return
+        if np.shape(self.face_colors) == np.shape(self.faces):
+            self.face_colors = self.face_colors[valid]
+        if np.shape(self.face_normals) == np.shape(self.faces):
+            self.face_normals = self.face_normals[valid]
+        self.faces = self.faces[valid]
+        
     @log_time
     def remove_duplicate_faces(self):
         '''
@@ -208,16 +219,7 @@ class Trimesh():
         This can occur if faces are below the 
         '''
         unique = grouping.unique_rows(np.sort(self.faces, axis=1), digits=0)
-        if len(self.faces) != len(unique):
-            log.debug('%i/%i faces were duplicate and have been removed',
-                      len(self.faces) - len(unique),
-                      len(self.faces))
-            
-            if np.shape(self.face_colors) == np.shape(self.faces):
-                self.face_colors = self.face_colors[unique]
-            if np.shape(self.face_normals) == np.shape(self.faces):
-                self.face_normals = self.face_normals[unique]
-            self.faces = self.faces[unique]
+        self.update_faces(unique)
 
     def sample(self, count):
         '''
@@ -257,9 +259,13 @@ class Trimesh():
         '''
         If no normal information is loaded, we can get it from cross products
         Normal direction will be incorrect if mesh faces aren't ordered (right-hand rule)
+
+        This will also remove faces which have zero area. 
         '''
-        self.face_normals = triangles.normals(self.vertices[[self.faces]])
-        
+        face_normals, valid = triangles.normals(self.vertices[[self.faces]])
+        self.update_faces(valid)
+        self.face_normals = face_normals
+
     @log_time    
     def generate_vertex_normals(self):
         '''

@@ -43,6 +43,7 @@ class MeshRender(pyglet.window.Window):
     def add_mesh(self, mesh):
         self.translation = np.array([0,0,-np.max(mesh.box_size)])
         
+        '''
         if self.smooth == None: smooth = len(mesh.faces) < FACE_COUNT_SMOOTH
         else:                   smooth = self.smooth
         
@@ -52,7 +53,11 @@ class MeshRender(pyglet.window.Window):
             #self.mesh.merge_vertices(angle_max=self.smooth_angle)
         else: 
             self.mesh = mesh
-     
+        '''
+
+        self.mesh = deepcopy(mesh)
+        self.mesh.unmerge_vertices()
+
         self.mesh.verify_face_colors()
         self.mesh.generate_vertex_colors()
         self.mesh.verify_normals()

@@ -77,11 +77,15 @@ def unitize(points, check_valid=False):
     length       = np.sum(points ** 2, axis=axis) ** .5
     if check_valid:
         valid = np.greater(length, TOL_ZERO)
-        if axis == 1: unit_vectors = (points[valid].T / length[valid]).T
-        elif valid:   unit_vectors = points / length
-        else:         unit_vectors = []
+        if axis == 1: 
+            unit_vectors = (points[valid].T / length[valid]).T
+        elif len(points.shape) == 1 and valid: 
+            unit_vectors = points / length
+        else:         
+            unit_vectors = []
         return unit_vectors, valid        
-    unit_vectors = (points.T / length).T
+    else: 
+        unit_vectors = (points.T / length).T
     return unit_vectors
     
 def major_axis(points):

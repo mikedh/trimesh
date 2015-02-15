@@ -32,8 +32,9 @@ def normals(triangles):
     triangles: vertices of triangles, (n,3,3)
     returns:   normal vectors, (n,3)
     '''
-    normals = unitize(cross(triangles))
-    return normals
+    crosses = cross(triangles)
+    normals, valid = unitize(crosses, check_valid=True)
+    return normals, valid
     
 def all_coplanar(triangles):
     '''
