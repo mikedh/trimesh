@@ -57,7 +57,6 @@ def merge_duplicates(meshes):
     for i, group in enumerate(groups):
         merged[i] = meshes[group[0]]
         merged[i].metadata['quantity'] = len(group)
-        
     log.info('merge_duplicates reduced part count from %d to %d', 
              len(meshes),
              len(merged))

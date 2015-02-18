@@ -191,8 +191,10 @@ class Trimesh():
         return convex
 
     def merge_vertices(self, angle_max=None):
-        if not (angle_max is None): grouping.merge_vertices_kdtree(self)
-        else:                       grouping.merge_vertices_hash(self)
+        if not (angle_max is None):
+            grouping.merge_vertices_kdtree(self, angle_max)
+        else:
+            grouping.merge_vertices_hash(self)
 
     def update_faces(self, valid):
         '''
@@ -370,14 +372,14 @@ class Trimesh():
                                          density      = density,
                                          skip_inertia = skip_inertia)
 
-    def show(self, smooth = None, smooth_angle = np.radians(20)):
+    def show(self):
         '''
         Render the mesh in an opengl window. Requires pyglet.
         Smooth will re-merge vertices to fix the shading, but can be slow
         on larger meshes. 
         '''
-        from .mesh_render import MeshRender
-        MeshRender(self, smooth=smooth, smooth_angle=smooth_angle)
+        from .render import MeshViewer
+        MeshViewer(self)
 
     def boolean(self, other_mesh, operation='union'):
         '''

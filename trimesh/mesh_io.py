@@ -267,31 +267,34 @@ def detect_binary_file(file_obj):
         else:      code = fbyte
         if code > 127: return True
     return False
-        
-_MESH_LOADERS   = {'stl': load_stl,
-                   'off': load_off,
-                   'obj': load_wavefront}
 
-_ASSIMP_FORMATS = ['dae', 
-                   'blend', 
-                   '3ds', 
-                   'ase', 
-                   'obj', 
-                   'ifc', 
-                   'xgl', 
-                   'zgl',
-                   'ply',
-                   'lwo',
-                   'lxo',
-                   'x',
-                   'ac',
-                   'ms3d',
-                   'cob',
-                   'scn']
+_MESH_LOADERS = dict()
 try: 
     import pyassimp
-    _MESH_LOADERS.update(zip(_ASSIMP_FORMATS, 
-                             [load_assimp]*len(_ASSIMP_FORMATS)))
+    if hasattr(pyassimp, 'available_formats'):
+        _assimp_formats = [i.lower() for i in pyassimp.available_formats()]
+    else: 
+        _assimp_formats = ['dae', 
+                           'blend', 
+                           '3ds', 
+                           'ase', 
+                           'obj', 
+                           'ifc', 
+                           'xgl', 
+                           'zgl',
+                           'ply',
+                           'lwo',
+                           'lxo',
+                           'x',
+                           'ac',
+                           'ms3d',
+                           'cob',
+                           'scn']
+    _MESH_LOADERS.update(zip(_assimp_formats,
+                             [load_assimp]*len(_assimp_formats)))
 except:
     log.warn('No pyassimp, only native loaders available!')
-        
+                
+_MESH_LOADERS.update({'stl': load_stl,
+                      'off': load_off,
+                      'obj': load_wavefront})

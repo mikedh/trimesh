@@ -14,8 +14,6 @@ def merge_vertices_hash(mesh):
     Removes duplicate vertices, based on integer hashes.
     This is roughly 20x faster than querying a KD tree in a loop
     '''
-    
-    tic       = time_function()
     pre_merge = len(mesh.vertices)
 
     unique, inverse = unique_rows(mesh.vertices, return_inverse=True)        

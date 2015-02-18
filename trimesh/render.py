@@ -2,33 +2,23 @@ import pyglet
 from pyglet.gl import *
 import numpy as np
 from copy import deepcopy
-
 from string import Template
 
+#smooth only when fewer faces than this, to prevent lockups in normal use
+SMOOTH_MAX_FACES = 20000
+SMOOTH_ANGLE     = np.radians(25)
 
-# when smoothing isn't specified, only smooth if there
-# are fewer faces than this, to prevent lockups in normal use
-FACE_COUNT_SMOOTH = 20000
-
-class MeshRender(pyglet.window.Window):
-    def __init__(self, 
-                 mesh         = None, 
-                 smooth       = None,
-                 smooth_angle = np.radians(20),
-                 base_trans   = None,
-                 base_rot     = None,
-                 center       = True):
+class MeshViewer(pyglet.window.Window):
+    def __init__(self, mesh):
         conf = Config(sample_buffers=1,
                       samples=4,
                       depth_size=16,
                       double_buffer=True)
         try: 
-            super(MeshRender, self).__init__(config=conf, resizable=True)
+            super(MeshViewer, self).__init__(config=conf, resizable=True)
         except pyglet.window.NoSuchConfigException:
-            super(MeshRender, self).__init__(resizable=True)
+            super(MeshViewer, self).__init__(resizable=True)
             
-        self.smooth       = smooth
-        self.smooth_angle = smooth_angle
         self.batch        = pyglet.graphics.Batch()        
         self.rotation     = np.zeros(3)
         self.translation  = np.zeros(3)
@@ -36,37 +26,28 @@ class MeshRender(pyglet.window.Window):
         self.cull         = True
         self.init_gl()
         
-        if mesh != None: 
-            self.add_mesh(mesh)
-            self.run()
+        self.add_mesh(mesh)
+        self.run()
 
     def add_mesh(self, mesh):
-        self.translation = np.array([0,0,-np.max(mesh.box_size)])
-        
-        '''
-        if self.smooth == None: smooth = len(mesh.faces) < FACE_COUNT_SMOOTH
-        else:                   smooth = self.smooth
-        
+        smooth = len(mesh.faces) < SMOOTH_MAX_FACES
+
         if smooth:
-            self.mesh = deepcopy(mesh)
-            self.mesh.unmerge_vertices()
-            #self.mesh.merge_vertices(angle_max=self.smooth_angle)
-        else: 
-            self.mesh = mesh
-        '''
+            mesh.unmerge_vertices()
+            mesh.merge_vertices(SMOOTH_ANGLE)
 
-        self.mesh = deepcopy(mesh)
-        self.mesh.unmerge_vertices()
+        mesh.verify_face_colors()
+        mesh.generate_vertex_colors()
+        mesh.verify_normals()
+        
+        vertices = (mesh.vertices-mesh.centroid).reshape(-1).tolist()
+        normals  = mesh.vertex_normals.reshape(-1).tolist()
+        colors   = mesh.vertex_colors.reshape(-1).tolist()
+        indices  = mesh.faces.reshape(-1).tolist()
 
-        self.mesh.verify_face_colors()
-        self.mesh.generate_vertex_colors()
-        self.mesh.verify_normals()
-        
-        vertices = (self.mesh.vertices-self.mesh.centroid).reshape(-1).tolist()
-        normals  = self.mesh.vertex_normals.reshape(-1).tolist()
-        colors   = self.mesh.vertex_colors.reshape(-1).tolist()
-        indices  = self.mesh.faces.reshape(-1).tolist()
-        
+        mesh.merge_vertices()
+
+        self.set_base_view(mesh)
         self.vertex_list = self.batch.add_indexed(len(vertices)//3, # count
                                                   GL_TRIANGLES,     # mode 
                                                   None,             # group
@@ -105,9 +86,9 @@ class MeshRender(pyglet.window.Window):
         glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE)
         glEnable(GL_COLOR_MATERIAL)
         
-    def set_base_view(self):
+    def set_base_view(self, mesh):
         self.rotation    = np.zeros(3)
-        self.translation = np.array([0,0,-np.max(self.mesh.box_size)])
+        self.translation = np.array([0,0,-np.max(mesh.box_size)])
         
     def toggle_culling(self):
         self.cull = not self.cull

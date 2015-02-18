@@ -174,6 +174,7 @@ def split_gt(mesh, check_watertight=True, only_count=False):
         meshes.append(mesh.__class__(faces        = faces, 
                                      face_normals = face_normals, 
                                      vertices     = vertices))
+        meshes[-1].metadata.update(mesh.metadata)
     return list(meshes)
 
 def split(mesh, check_watertight=True, only_count=False):
