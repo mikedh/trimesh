@@ -1,53 +1,6 @@
 import numpy as np
 from . import transformations as tr
 from .constants import *
-
-import logging
-log = logging.getLogger(__name__)
-log.addHandler(logging.NullHandler())
-
-def plane_line_intersection(plane_origin, 
-                            plane_normal, 
-                            endpoints,                            
-                            line_segments = True):
-    '''
-    Calculates plane-line intersections
-
-    Arguments
-    ---------
-    plane_origin:  plane origin, (3) list
-    plane_normal:  plane direction (3) list
-    endpoints:     points defining lines to be intersected, (2,n,3)
-    line_segments: if True, only returns intersections as valid if
-                   vertices from endpoints are on different sides
-                   of the plane.
-
-    Returns
-    ---------
-    intersections: (m, 3) list of cartesian intersection points
-    valid        : (n, 3) list of booleans indicating whether a valid
-                   intersection occurred
-    '''
-    endpoints = np.array(endpoints)
-    line_dir  = unitize(endpoints[1] - endpoints[0])
-    plane_normal = unitize(plane_normal)
-
-    t = np.dot(plane_normal, np.transpose(plane_origin - endpoints[0]))
-    b = np.dot(plane_normal, np.transpose(line_dir))
-    
-    # If the plane normal and line direction are perpendicular, it means
-    # the vector is 'on plane', and there isn't a valid intersection.
-    # We discard on-plane vectors by checking that the dot product is nonzero
-    valid = np.abs(b) > TOL_ZERO
-    if line_segments:
-        test = np.dot(plane_normal, np.transpose(plane_origin - endpoints[1]))
-        different_sides = np.sign(t) != np.sign(test)
-        valid           = np.logical_and(valid, different_sides)
-        
-    d  = np.divide(t[valid], b[valid])
-    intersection  = endpoints[0][valid]
-    intersection += np.reshape(d, (-1,1)) * line_dir[valid]
-    return intersection, valid
     
 def point_plane_distance(points, plane_normal, plane_origin=[0,0,0]):
     w         = np.array(points) - plane_origin
@@ -92,9 +45,10 @@ def major_axis(points):
     '''
     Returns an approximate vector representing the major axis of points
     '''
-    sq = np.dot(np.transpose(points), points)
-    d, v = np.linalg.eig(sq)
-    return v[np.argmax(d)]
+    #sq = np.dot(points, np.transpose(points))
+    #d, v = np.linalg.eig(sq)
+    u,s,v = np.linalg.svd(points)
+    return v[0]
         
 def surface_normal(points):
     '''
@@ -153,14 +107,13 @@ def radial_sort(points,
                
 
 def plane_transform(origin, normal):
-    '''                                                                                                                                                                    
-    Given the origin and normal of a plane, find the transform that will move that                                                                                         
-    plane to be coplanar with the XY plane                                                                                                                                 
+    '''
+    Given the origin and normal of a plane, find the transform that will move 
+    that plane to be coplanar with the XY plane                                                                                                                                 
     '''
     transform        =  align_vectors(normal, [0,0,1])
     transform[0:3,3] = -np.dot(transform, np.append(origin, 1))[0:3]
     return transform
-
 
 def project_to_plane(points, 
                      plane_normal     = [0,0,1], 
@@ -241,7 +194,7 @@ def align_vectors(vector_start, vector_end):
     cross        = np.cross(vector_start, vector_end)
     # we clip the norm to 1, as otherwise floating point bs
     # can cause the arcsin to error
-    norm         = np.clip(np.linalg.norm(cross), -1, 1)
+    norm         = np.clip(np.linalg.norm(cross), -1.0, 1.0)
     direction    = np.sign(np.dot(vector_start, vector_end))
   
     if norm < TOL_ZERO:
@@ -255,38 +208,6 @@ def align_vectors(vector_start, vector_end):
             angle = np.pi - angle
         T = tr.rotation_matrix(angle, cross)
     return T
-
-def cross_section(mesh, 
-                  plane_origin  = [0,0,0], 
-                  plane_normal  = [0,0,1],
-                  return_planar = False):
-    '''
-    Return a cross section of the trimesh based on plane origin and normal. 
-    Basically a bunch of plane-line intersection queries
-
-    origin:        (3) array of plane origin
-    normal:        (3) array for plane normal
-    return_planar: bool, True returns:
-                         (m,2,2) list of 2D line segments
-                         False returns:
-                         (m,2,3) list of 3D line segments
-    '''
-    if len(mesh.faces) == 0: 
-        raise NameError("Cannot compute cross section of empty mesh.")
-    tic = time_function()
-    edges = faces_to_edges(mesh.faces, sort=True)
-    intersections, valid  = plane_line_intersection(plane_origin, 
-                                                    plane_normal, 
-                                                    mesh.vertices[[edges.T]],
-                                                    line_segments = True)
-    toc = time_function()
-    log.debug('mesh_cross_section found %i intersections in %fs.', np.sum(valid), toc-tic)
-    if not return_planar: 
-        return intersections.reshape(-1,2,3)
-
-    return  project_to_plane(intersections.reshape((-1,3)),
-                             plane_normal = plane_normal,
-                             plane_origin = plane_origin).reshape((-1,2,2))
     
 def faces_to_edges(faces, sort=True):
     '''                                                                                 
@@ -325,6 +246,15 @@ def absolute_orientation(points_A, points_B, return_error=False):
            points_B
     error: (n) list of euclidean distances
     '''
+
+    def transform_error():
+        '''
+        Returns the squared euclidean distance per point
+        '''
+        dim = np.shape(points_A)
+        AR  = np.hstack((points_A, np.ones((dim[0],1)))).T
+        return (np.sum(((np.dot(M,AR)[0:3,:]-np.array(points_B).T)**2), axis=0))
+
     dim = np.shape(points_A)
     if ((np.shape(points_B) != dim) or (dim[1] != 3)): return False
     lc = np.average(points_A, axis=0)
@@ -366,15 +296,5 @@ def absolute_orientation(points_A, points_B, return_error=False):
     M[0:3,3]   = T
 
     if return_error: 
-        return M, transform_error(points_A, points_B, M)
+        return M, transform_error()
     return M
-
-def transform_error(points_A, points_B, M):
-    '''
-    Returns the squared euclidean distance per point
-
-    '''
-    dim = np.shape(points_A)
-    AR  = np.hstack((points_A, np.ones((dim[0],1)))).T
-    return (np.sum(((np.dot(M,AR)[0:3,:]-np.array(points_B).T)**2), axis=0))
-

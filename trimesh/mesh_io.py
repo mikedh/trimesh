@@ -4,10 +4,6 @@ import struct
 from .base import Trimesh
 from .constants import *
 
-import logging
-log = logging.getLogger(__name__)
-log.addHandler(logging.NullHandler())
-
 def available_formats():
     return _MESH_LOADERS.keys()
 

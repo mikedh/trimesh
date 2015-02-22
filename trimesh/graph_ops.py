@@ -2,10 +2,6 @@ import networkx as nx
 import numpy as np
 from collections import deque
 
-import logging
-log = logging.getLogger(__name__)
-log.addHandler(logging.NullHandler())
-
 from .constants import *
 from .grouping import group, group_rows, replace_references
 from .geometry import faces_to_edges, unitize

@@ -6,10 +6,6 @@ Library for importing and doing simple operations on triangular meshes.
 
 import numpy as np
 
-import logging
-log = logging.getLogger(__name__)
-log.addHandler(logging.NullHandler())
-
 from . import triangles
 from . import grouping
 from . import geometry
@@ -166,12 +162,11 @@ class Trimesh():
         intersections: (n, 2, [2|3]) line segments where plane intersects triangles in mesh
                        
         '''
-        
-        return geometry.cross_section(mesh          = self, 
-                                      plane_normal  = normal, 
-                                      plane_origin  = origin,
-                                      return_planar = return_planar)
-    
+        from .intersections import mesh_plane_intersection
+        return mesh_plane_intersection(mesh          = self, 
+                                       plane_normal  = normal, 
+                                       plane_origin  = origin,
+                                       return_planar = return_planar)
     @log_time   
     def convex_hull(self):
         '''

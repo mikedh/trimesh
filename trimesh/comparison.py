@@ -1,10 +1,7 @@
 import numpy as np
 
 from .grouping import group_rows
-from .constants import log_time
-import logging
-log = logging.getLogger(__name__)
-log.addHandler(logging.NullHandler())
+from .constants import log, log_time
 
 _MIN_BIN_COUNT = 20
 _TOL_FREQ      = 1e-3

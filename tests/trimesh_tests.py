@@ -13,7 +13,6 @@ TOL_CHECK = 1e-2
 log = logging.getLogger('trimesh')
 log.addHandler(logging.NullHandler())
 
-
 class VectorTests(unittest.TestCase):
     def setUp(self):
         self.test_dim = (100,3)

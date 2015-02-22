@@ -1,10 +1,6 @@
 import numpy as np
 from .geometry import unitize
 
-import logging
-log = logging.getLogger(__name__)
-log.addHandler(logging.NullHandler())
-
 def random_sample(mesh, count):
     '''
     Sample the surface of a mesh, returning the specified number of points
