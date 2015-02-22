@@ -1,10 +1,41 @@
 import numpy as np
 import networkx as nx
+from collections import deque
 
 from .geometry  import faces_to_edges
 from .grouping  import group_rows
 from .triangles import normals
 from .constants import *
+
+def _hole_to_faces(hole, vertices=None):
+    '''
+    Given a loop of vertex indices  representing a hole, turn it into 
+    triangular faces.
+    If unable to do so, return None
+
+    Arguments
+    ---------
+    hole:     ordered loop of vertex indices
+    vertices: the vertices referenced by hole. 
+              If we were to add more involved remeshing algorithms, these 
+              would be required, however since we are only added triangles
+              and triangulated quads, it is not necessary. 
+
+    Returns
+    ---------
+    if succesfull: (n, 3) integer vertex indices
+    else:          None
+
+    '''
+    hole = np.array(hole)
+    if len(hole) == 3: 
+        return [hole]
+    if len(hole) == 4: 
+        face_A = hole[[0,1,2]]
+        face_B = hole[[2,3,0]]
+        return [face_A, face_B]
+    log.warn('Cannot fill %d length hole!', len(hole))
+    return None
 
 def fill_holes(mesh, raise_watertight=True):
     '''
@@ -37,13 +68,14 @@ def fill_holes(mesh, raise_watertight=True):
     graph  = nx.from_edgelist(np.column_stack((boundary_edges, index_as_dict)))
     cycles = np.array(nx.cycle_basis(graph))
 
-    if not (len(cycles.shape) == 2 and cycles.shape[1] == 3):
-        log.warn('Holes larger than a single triangle exist!')
-        if raise_watertight:
-            raise MeshError('Cannot create watertight mesh!')
-        new_faces = [i for i in cycles if len(i) == 3]
-    else:
-        new_faces = cycles
+    new_faces = deque()
+    for hole in cycles:
+        try:
+            new_faces.extend(_hole_to_faces(hole))
+        except TypeError: 
+            if raise_watertight: 
+                raise MeshError('Cannot create a watertight mesh!')
+    new_faces = np.array(new_faces)
 
     for face_index, face in enumerate(new_faces):
         # we compare the edge from the new face with 
@@ -75,4 +107,4 @@ def fill_holes(mesh, raise_watertight=True):
     mesh.faces        = np.vstack((mesh.faces, new_faces[valid]))
     mesh.face_normals = np.vstack((mesh.face_normals, new_normals[valid]))
 
-    log.info('Filled %i holes in mesh', np.sum(valid))
+    log.info('Filled in mesh with %i triangles', np.sum(valid))
