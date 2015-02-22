@@ -64,7 +64,6 @@ class MeshTests(unittest.TestCase):
 
     def test_meshes(self):
         for mesh in self.meshes:
-
             log.info('Testing %s', mesh.metadata['filename'])
             self.assertTrue(len(mesh.faces) > 0)
             self.assertTrue(len(mesh.vertices) > 0)
@@ -87,7 +86,6 @@ class MeshTests(unittest.TestCase):
             trimesh._has_gt = True
 
             times = np.diff(tic)
-
             log.info('Graph-tool sped up split by %f and facets by %f', (times[2] / times[0]), (times[3] / times[1]))
 
             section   = mesh.cross_section(normal=[0,0,1], origin=mesh.centroid)
@@ -121,11 +119,17 @@ class MeshTests(unittest.TestCase):
                           str(np.diff(result, axis=0)))
             self.assertTrue(ok)
 
-
+    def test_fill_holes(self):
+        for mesh in self.meshes[:5]:
+            mesh.faces = mesh.faces[1:-1]
+            self.assertFalse(mesh.is_watertight())
+            mesh.fill_holes()
+            self.assertTrue(mesh.is_watertight())
             
     def test_fix_normals(self):
         for mesh in self.meshes[:2]:
             mesh.fix_normals()
+
 
 class MassTests(unittest.TestCase):
     def setUp(self):

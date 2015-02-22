@@ -18,3 +18,6 @@ def log_time(method):
     timed.__name__ = method.__name__
     timed.__doc__  = method.__doc__
     return timed
+
+class MeshError(Exception):
+    pass

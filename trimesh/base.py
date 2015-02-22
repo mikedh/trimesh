@@ -12,6 +12,7 @@ from . import geometry
 from . import graph_ops
 from . import color
 from . import sample
+from . import repair
 from . import comparison
 
 from .constants import *
@@ -115,6 +116,9 @@ class Trimesh():
         and that self.faces is wound in the correct direction for all connected components.
         '''
         graph_ops.fix_normals(self)
+
+    def fill_holes(self):
+        repair.fill_holes(self)
 
     def verify_normals(self):
         '''

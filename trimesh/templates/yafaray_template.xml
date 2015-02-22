@@ -21,15 +21,15 @@
 
 <material name="Red.002">
 	<IOR fval="1"/>
-	<color r="0.83828" g="0.0722165" b="0.0187428" a="1"/>
-	<diffuse_reflect fval="1"/>
+	<color r="0.83828" g="0.0722165" b="0.0187428" a=".21"/>
+	<diffuse_reflect fval=".25"/>
 	<emit fval="0"/>
-	<fresnel_effect bval="false"/>
+	<fresnel_effect bval="true"/>
 	<mirror_color r="1" g="1" b="1" a="1"/>
 	<specular_reflect fval="0"/>
-	<translucency fval="0.5"/>
+	<translucency fval="0.0"/>
 	<transmit_filter fval="1"/>
-	<transparency fval="0"/>
+	<transparency fval="0.75"/>
 	<type sval="shinydiffusemat"/>
 </material>
 
@@ -55,7 +55,7 @@
 	<fresnel_effect bval="false"/>
 	<mirror_color r="1" g="1" b="1" a="1"/>
 	<specular_reflect fval="0"/>
-	<translucency fval="0.5"/>
+	<translucency fval="0.1"/>
 	<transmit_filter fval="1"/>
 	<transparency fval="0"/>
 	<type sval="shinydiffusemat"/>
@@ -95,24 +95,25 @@ $MESH_XML
 $CAMERA_XML
 
 <background name="world_background">
-	<type sval="gradientback"/>
+  <type sval="constant"/>
+  <color r="1" g="1" b="1" a="1"/>
 </background>
 
 <integrator name="default">
-	<bounces ival="5"/>
+	<bounces ival="3"/>
 	<caustic_mix ival="5"/>
 	<diffuseRadius fval="1"/>
 	<fg_bounces ival="5"/>
 	<fg_samples ival="32"/>
 	<finalGather bval="true"/>
 	<photons ival="200000"/>
-	<raydepth ival="4"/>
+	<raydepth ival="3"/>
 	<search ival="150"/>
 	<shadowDepth ival="3"/>
 	<show_map bval="false"/>
 	<transpShad bval="false"/>
 	<type sval="photonmapping"/>
-	<use_background bval="false"/>
+	<use_background bval="true"/>
 </integrator>
 
 <integrator name="volintegr">
