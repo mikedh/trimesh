@@ -20,11 +20,13 @@ def fill_holes(mesh, raise_watertight=True):
                       watertight mesh cannot be created. 
 
     '''
-    edges           = faces_to_edges(mesh.faces, sort=False)
-    edges_sorted    = np.sort(edges, axis=1)
+    edges        = faces_to_edges(mesh.faces, sort=False)
+    edges_sorted = np.sort(edges, axis=1)
     # we know that in a watertight mesh, every edge will be included twice
     # thus, every edge which appears only once is part of the boundary of a hole.
     boundary_groups = group_rows(edges_sorted, require_count=1)
+
+    if len(boundary_groups) < 3: return
     
     boundary_edges  = edges[boundary_groups]
     index_as_dict   = [{'index': i} for i in boundary_groups]
@@ -58,6 +60,8 @@ def fill_holes(mesh, raise_watertight=True):
 
     # since the winding is now correct, we can get consistant normals
     # just by doing the cross products on the face edges 
+    if len(new_faces) == 0: return
+
     new_normals, valid = normals(mesh.vertices[new_faces])
 
     # if face colors exist, assign the last face color to the new faces
