@@ -117,7 +117,7 @@ class Trimesh():
         '''
         graph_ops.fix_normals(self)
 
-    def fill_holes(self, raise_watertight):
+    def fill_holes(self, raise_watertight=True):
         repair.fill_holes(self, raise_watertight)
 
     def verify_normals(self):

@@ -156,8 +156,11 @@ def split_gt(mesh, check_watertight=True, only_count=False):
     components = group(component_labels)
     if only_count: return len(components)
 
-    for current in components:
-        if check_watertight and (degree[current] != 3).any(): continue
+    for i, current in enumerate(components):
+        if check_watertight:
+            degree_3 = degree[current] == 3
+            if not degree_3.all(): continue
+
         # these faces have the original vertex indices
         faces_original = mesh.faces[current]
         face_normals   = mesh.face_normals[current]
@@ -167,10 +170,11 @@ def split_gt(mesh, check_watertight=True, only_count=False):
         replacement    = np.zeros(unique_vert.max()+1, dtype=np.int)
         replacement[unique_vert] = np.arange(len(unique_vert))
         faces                    = replacement[faces_original]
-        meshes.append(mesh.__class__(faces        = faces, 
-                                     face_normals = face_normals, 
-                                     vertices     = vertices))
-        meshes[-1].metadata.update(mesh.metadata)
+        new_mesh = mesh.__class__(faces        = faces, 
+                                  face_normals = face_normals, 
+                                  vertices     = vertices)
+        new_mesh.metadata.update(mesh.metadata)
+        meshes.append(new_mesh)
     return list(meshes)
 
 def split(mesh, check_watertight=True, only_count=False):
