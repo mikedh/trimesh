@@ -157,9 +157,15 @@ def split_gt(mesh, check_watertight=True, only_count=False):
     if only_count: return len(components)
 
     for i, current in enumerate(components):
+        fill_holes = False
         if check_watertight:
             degree_3 = degree[current] == 3
-            if not degree_3.all(): continue
+            degree_2 = degree[current] == 2
+            if not degree_3.all():
+                if np.logical_or(degree_3, degree_2).all():
+                    fill_holes = True
+                else: 
+                    continue
 
         # these faces have the original vertex indices
         faces_original = mesh.faces[current]
@@ -174,6 +180,9 @@ def split_gt(mesh, check_watertight=True, only_count=False):
                                   face_normals = face_normals, 
                                   vertices     = vertices)
         new_mesh.metadata.update(mesh.metadata)
+        if fill_holes: 
+            try:              new_mesh.fill_holes(raise_watertight=True)
+            except MeshError: continue
         meshes.append(new_mesh)
     return list(meshes)
 

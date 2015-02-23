@@ -18,8 +18,8 @@ def _hole_to_faces(hole, vertices=None):
     hole:     ordered loop of vertex indices
     vertices: the vertices referenced by hole. 
               If we were to add more involved remeshing algorithms, these 
-              would be required, however since we are only added triangles
-              and triangulated quads, it is not necessary. 
+              would be required, however since we are only adding triangles
+              and triangulated quads it is not necessary. 
 
     Returns
     ---------
@@ -34,7 +34,7 @@ def _hole_to_faces(hole, vertices=None):
         face_A = hole[[0,1,2]]
         face_B = hole[[2,3,0]]
         return [face_A, face_B]
-    log.warn('Cannot fill %d length hole!', len(hole))
+    log.debug('Cannot fill %d length hole!', len(hole))
     return None
 
 def fill_holes(mesh, raise_watertight=True):
@@ -107,4 +107,4 @@ def fill_holes(mesh, raise_watertight=True):
     mesh.faces        = np.vstack((mesh.faces, new_faces[valid]))
     mesh.face_normals = np.vstack((mesh.face_normals, new_normals[valid]))
 
-    log.info('Filled in mesh with %i triangles', np.sum(valid))
+    log.debug('Filled in mesh with %i triangles', np.sum(valid))
