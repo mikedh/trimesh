@@ -71,19 +71,19 @@ class MeshTests(unittest.TestCase):
             mesh.process()
 
             tic = [time.time()]
-            split     = mesh.split()
+            split     = trimesh.graph_ops.split_gt(mesh)
             tic.append(time.time())
             facets    = mesh.facets()
             tic.append(time.time())
 
-            trimesh._has_gt = False
+            trimesh.geometry._has_gt = False
 
-            split     = mesh.split()            
+            split     = trimesh.graph_ops.split_nx(mesh) 
             tic.append(time.time())
             facets    = mesh.facets()
             tic.append(time.time())
 
-            trimesh._has_gt = True
+            trimesh.geometry._has_gt = True
 
             times = np.diff(tic)
             log.info('Graph-tool sped up split by %f and facets by %f', (times[2] / times[0]), (times[3] / times[1]))
@@ -121,6 +121,7 @@ class MeshTests(unittest.TestCase):
 
     def test_fill_holes(self):
         for mesh in self.meshes[:5]:
+            if not mesh.is_watertight(): continue
             mesh.faces = mesh.faces[1:-1]
             self.assertFalse(mesh.is_watertight())
             mesh.fill_holes()

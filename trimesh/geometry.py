@@ -209,7 +209,7 @@ def align_vectors(vector_start, vector_end):
         T = tr.rotation_matrix(angle, cross)
     return T
     
-def faces_to_edges(faces, sort=True):
+def faces_to_edges(faces, sort=True, return_index=False):
     '''                                                                                 
     Given a list of faces (n,3), return a list of edges (n*3,2)
     '''
@@ -217,6 +217,9 @@ def faces_to_edges(faces, sort=True):
                              faces[:,(1,2)],
                              faces[:,(2,0)])).reshape(-1,2)
     if sort: edges.sort(axis=1)
+    if return_index:
+        face_index = np.tile(np.arange(len(faces)), (3,1)).T.reshape(-1)
+        return edges, face_index
     return edges
 
 def nondegenerate_faces(faces):

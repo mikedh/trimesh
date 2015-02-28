@@ -7,6 +7,7 @@ from .constants import *
 def available_formats():
     return _MESH_LOADERS.keys()
 
+@log_time
 def load_mesh(file_obj, file_type=None, process=True):
     '''
     Load a mesh file into a Trimesh object

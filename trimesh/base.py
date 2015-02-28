@@ -101,7 +101,7 @@ class Trimesh():
         '''
         Return a list of face indices for coplanar adjacent faces
         '''
-        facet_list = graph_ops.facets(self)
+        facet_list = graph_ops.facets_group(self)
         if return_area:
             facets_area = [triangles.area(self.vertices[[self.faces[i]]]) for i in facet_list]
             return facet_list, facets_area
@@ -246,7 +246,6 @@ class Trimesh():
         self.faces      = inverse.reshape((-1,3))          
         self.vertices   = self.vertices[unique]
 
-    @log_time
     def unmerge_vertices(self):
         '''
         Removes all face references, so that every face contains
@@ -255,7 +254,6 @@ class Trimesh():
         self.vertices = self.vertices[[self.faces]].reshape((-1,3))
         self.faces    = np.arange(len(self.vertices)).reshape((-1,3))
         
-    @log_time    
     def generate_face_normals(self):
         '''
         If no normal information is loaded, we can get it from cross products
@@ -267,7 +265,6 @@ class Trimesh():
         self.update_faces(valid)
         self.face_normals = face_normals
 
-    @log_time    
     def generate_vertex_normals(self):
         '''
         If face normals are defined, produce approximate vertex normals based on the
@@ -427,7 +424,6 @@ class Trimesh():
                           face_colors  = new_colors)
         return result
 
-    @log_time
     def identifier(self):
         return comparison.rotationally_invariant_identifier(self)
 

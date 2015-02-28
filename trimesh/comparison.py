@@ -53,7 +53,8 @@ def merge_duplicates(meshes):
     merged = [None] * len(groups)
     for i, group in enumerate(groups):
         merged[i] = meshes[group[0]]
-        merged[i].metadata['quantity'] = len(group)
+        merged[i].metadata['quantity']       = len(group)
+        merged[i].metadata['original_index'] = group
     log.info('merge_duplicates reduced part count from %d to %d', 
              len(meshes),
              len(merged))
@@ -70,11 +71,14 @@ def rotationally_invariant_identifier(mesh, length=6, as_json=False):
 
     Arguments
     ---------
-    mesh: Trimesh
+    mesh:    Trimesh
+    length:  number of terms to compute of the identifier
+    as_json: whether to return the identifier as json (vs 1D float array)
 
     Returns
     ---------
-    identifer: string representing mesh. Formatting is 1D array in JSON. 
+    identifer: if not as_json: (length) float array of unique identifier
+               else:           same as above, but serialized as json
     '''
 
     frequency_count = int(length - 2)
@@ -140,7 +144,7 @@ if __name__ == '__main__':
     mesh = trimesh.load_mesh('models/segway_wheel_left.STL')
     
     result = deque()
-    for i in xrange(100):
+    for i in range(100):
         mesh.rezero()
         matrix = trimesh.transformations.random_rotation_matrix()
         matrix[0:3,3] = (np.random.random(3)-.5)*20
@@ -149,4 +153,4 @@ if __name__ == '__main__':
 
     ok = (np.abs(np.diff(result, axis=0)) < 1e-3).all()
     if not ok:
-        print 'Hashes differ after transform! diffs:\n %s\n' % str(np.diff(result, axis=0))
+        print('Hashes differ after transform! diffs:\n %s\n' % str(np.diff(result, axis=0)))
