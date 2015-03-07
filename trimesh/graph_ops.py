@@ -27,20 +27,22 @@ def face_adjacency(faces):
     '''
 
     # first generate the list of edges for the current faces
-    edges = faces_to_edges(faces, sort=True)
+    # also return the index for which face the edge is from
+    edges, edge_face_index = faces_to_edges(faces, sort=True, return_index=True)
     # this will return the indices for duplicate edges
     # every edge appears twice in a well constructed mesh
     # so for every row in edge_idx, edges[edge_idx[*][0]] == edges[edge_idx[*][1]]
     # in this call to group rows, we discard edges which don't occur twice
-    edge_idx = group_rows(edges, require_count=2)
+    edge_groups = group_rows(edges, require_count=2)
 
-    if len(edge_idx) == 0:
+    if len(edge_groups) == 0:
         log.error('No adjacent faces detected! Did you merge vertices?')
-    # returns the pairs of all adjacent faces
-    # so for every row in face_idx, self.faces[face_idx[*][0]] and self.faces[face_idx[*][1]]
-    # will share an edge
-    face_idx = np.tile(np.arange(len(faces)), (3,1)).T.reshape(-1)[[edge_idx]]
-    return face_idx
+
+    # the pairs of all adjacent faces
+    # so for every row in face_idx, self.faces[face_idx[*][0]] and 
+    # self.faces[face_idx[*][1]] will share an edge
+    adjacency = edge_face_index[edge_groups]
+    return adjacency
 
 def facets(mesh):
     '''

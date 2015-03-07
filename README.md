@@ -12,15 +12,23 @@ Python library for loading triangular meshes and doing simple operations on them
 * Calculate mass properties, including volume, center of mass, and moment of inertia (.246 s)
 * Find planar facets (.454 s)
 * Find and fix face normals and triangle winding (not fast or robust, 32.05 s)
-
 * Find convex hulls of meshes (.21 s)
+* Compute a rotation/translation invarient identifier for meshes
+* Merge duplicate meshes, based off of identifier
+* Determine if a mesh is watertight
+* Repair single triangle and single quad holes
+* Uniformly sample the surface of a mesh
 * Numerous utility functions, such as transforming points, unitizing vectors, etc. 
 
-### Requirements
-Requires numpy and networkx, additional functions are available with scipy (>.12), pyglet, and pyassimp
+### Installation:
+The easiest way to install is:
+    sudo pip install https://github.com/mikedh/trimesh.py.git
+
+To get the latest version of assimp/pyassimp from github:
+   sudo pip install git+https://github.com/robotics/assimp_latest.git 
 
 ### Example
-
+    import numpy as np
     import trimesh
     
     # load_mesh can accept a filename or file object, 
@@ -34,19 +42,22 @@ Requires numpy and networkx, additional functions are available with scipy (>.12
     meshes = mesh.split() 
 
     # first component  
-    m      = meshes[0]
+    m = meshes[0]
 
-    # opens opengl preview window of mesh with smooth shading
-    # smooth shading is disabled automatically for large meshes as it gets slow
-    m.show()
-    
+    # assign all faces a color
+    m.generate_face_colors()
+
     # find groups of coplanar adjacent faces
     facets, facets_area = m.facets(return_area=True)
-    
-    # display the largest facet of the first mesh
-    # it may be backwards, so try disabling culling with 'c'
-    trimesh.Trimesh(vertices = m.vertices, 
-                    faces    = m.faces[facets[np.argmax(facets_area)]]).show()
 
+    # the largest group of faces by area    
+    largest_facet = facets[np.argmax(facets_area)]
+
+    # set all faces of the largest facet to a random color
+    m.faces[largest_facet] = trimesh.color.random_color()
+
+    # preview mesh in an opengl window
+    m.show()
+    
 
 In the mesh view window, dragging rotates the view, ctl + drag pans, mouse wheel scrolls, 'z' returns to the base view, 'w' toggles wireframe mode, and 'c' toggles backface culling (useful if viewing non-watertight meshes).  
