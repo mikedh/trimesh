@@ -27,7 +27,7 @@ The easiest way to install is:
 
 To get the latest version of assimp/pyassimp from github:
 
-   sudo pip install git+https://github.com/robotics/assimp_latest.git 
+    sudo pip install git+https://github.com/robotics/assimp_latest.git 
 
 ### Example
     import numpy as np
