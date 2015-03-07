@@ -377,38 +377,6 @@ class Trimesh():
         from .render import MeshViewer
         MeshViewer(self)
 
-    def boolean(self, other_mesh, operation='union'):
-        '''
-        Use cork with python bindings (https://github.com/stevedh/cork)
-        for boolean operations.
-
-        Arguments
-        -----------
-        other_mesh: Trimesh object of other mesh
-        operation:  Which boolean operation to do. Cork supports:
-                    'union'
-                    'diff'
-                    'isct' (intersection)
-                    'xor'
-                    'resolve'
-
-        Returns
-        -----------
-        Trimesh object of result 
-        '''
-        def astuple(mesh):
-            return (mesh.faces.astype(np.uint32), mesh.vertices.astype(np.float32))
-            
-        import cork
-        operations = {'union' : cork.computeUnion,
-                      'isct'  : cork.computeIntersection,
-                      'diff'  : cork.computeDifference}
-        
-        result      = operations[operation](astuple(self), astuple(other_mesh))
-        result_mesh = Trimesh(vertices = result[1], faces=result[0])
-        result_mesh.verify_normals()
-        return result_mesh
-
     def __add__(self, other):
         new_faces    = np.vstack((self.faces, (other.faces + len(self.vertices))))
         new_vertices = np.vstack((self.vertices, other.vertices))
@@ -428,19 +396,5 @@ class Trimesh():
         return comparison.rotationally_invariant_identifier(self)
 
     def export(self, filename):
-        from .mesh_io import export_stl
+        from .io import export_stl
         export_stl(self, filename)
-        
-if __name__ == '__main__':
-    formatter = logging.Formatter("[%(asctime)s] %(levelname)-7s (%(filename)s:%(lineno)3s) %(message)s", 
-                                  "%Y-%m-%d %H:%M:%S")
-    handler_stream = logging.StreamHandler()
-    handler_stream.setFormatter(formatter)
-    handler_stream.setLevel(logging.DEBUG)
-    log.setLevel(logging.DEBUG)
-    log.addHandler(handler_stream)
-    np.set_printoptions(precision=6, suppress=True)
-
-    m = load_mesh('models/featuretype.stl')
-    
-

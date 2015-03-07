@@ -23,7 +23,7 @@ Python library for loading triangular meshes and doing simple operations on them
 ### Installation:
 The easiest way to install is:
 
-    sudo pip install https://github.com/mikedh/trimesh.py.git
+    sudo pip install git+https://github.com/mikedh/trimesh.py.git
 
 To get the latest version of assimp/pyassimp from github:
 

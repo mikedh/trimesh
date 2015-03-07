@@ -2,11 +2,6 @@ import numpy as np
 from . import transformations as tr
 from .constants import *
     
-def point_plane_distance(points, plane_normal, plane_origin=[0,0,0]):
-    w         = np.array(points) - plane_origin
-    distances = np.abs(np.dot(plane_normal, w.T) / np.linalg.norm(plane_normal))
-    return distances
-
 def unitize(points, check_valid=False):
     '''
     Flexibly turn a list of vectors into a list of unit vectors.
@@ -41,6 +36,11 @@ def unitize(points, check_valid=False):
         unit_vectors = (points.T / length).T
     return unit_vectors
     
+def point_plane_distance(points, plane_normal, plane_origin=[0,0,0]):
+    w         = np.array(points) - plane_origin
+    distances = np.abs(np.dot(plane_normal, w.T) / np.linalg.norm(plane_normal))
+    return distances
+
 def major_axis(points):
     '''
     Returns an approximate vector representing the major axis of points
