@@ -118,6 +118,14 @@ class Trimesh():
         graph_ops.fix_normals(self)
 
     def fill_holes(self, raise_watertight=True):
+        '''
+        Fill single triangle and single quad holes in the mesh.
+        
+        Arguments
+        ---------
+        raise_watertight: will raise an error if the current mesh cannot be
+                          repaired to be watertight.
+        '''
         repair.fill_holes(self, raise_watertight)
 
     def verify_normals(self):
@@ -128,6 +136,10 @@ class Trimesh():
         self.verify_vertex_normals()
 
     def verify_vertex_normals(self):
+        '''
+        Verify that vertex normals are defined. 
+        If they are not defined, generate them.
+        '''
         if np.shape(self.vertex_normals) != np.shape(self.vertices): 
             self.generate_vertex_normals()
             
@@ -190,6 +202,16 @@ class Trimesh():
         return convex
 
     def merge_vertices(self, angle_max=None):
+        '''
+        If a mesh has vertices that are closer than TOL_MERGE, 
+        redefine them to be the same vertex, and replace face references
+
+        Arguments
+        ---------
+        angle_max: if defined, only vertices which are closer than TOL_MERGE
+                   AND have vertex normals less than angle_max will be merged.
+                   This is useful for smooth shading, but is much slower. 
+        '''
         if not (angle_max is None):
             grouping.merge_vertices_kdtree(self, angle_max)
         else:
@@ -280,18 +302,22 @@ class Trimesh():
         self.vertex_normals = geometry.unitize(np.mean(vertex_normals, axis=1))
         
     def verify_face_colors(self):
+        '''
+        If face colors are not defined, define them. 
+        '''
         if np.shape(self.face_colors) != np.shape(self.faces):
             log.info('Generating face colors as shape check failed %s, instead of %s.',
                      str(np.shape(self.face_colors)),
                      str(np.shape(self.faces)))
-            self.generate_face_colors()
+            self.set_face_colors()
     
-    def generate_face_colors(self, assign_color=None):
+    def set_face_colors(self, face_color=None):
         '''
         Apply face colors. If none are defined, set to default color
         '''
-        if assign_color is None: assign_color = color.DEFAULT_COLOR
-        self.face_colors = np.tile(assign_color, (len(self.faces), 1))
+        if face_color is None: 
+            face_color = color.DEFAULT_COLOR
+        self.face_colors = np.tile(face_color, (len(self.faces), 1))
 
     def generate_vertex_colors(self):
         '''

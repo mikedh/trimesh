@@ -25,7 +25,9 @@ def load_mesh(file_obj, file_type=None, process=True):
     log.debug('loaded mesh using %s',
              _MESH_LOADERS[file_type].__name__)
 
-    if process: mesh.process()
+    if process: 
+        # if mesh is multi-body, process all bodies
+        [i.process() for i in np.append(mesh, [])]
 
     return mesh
 
@@ -225,7 +227,7 @@ def export_off(mesh, filename):
     np.savetxt(file_obj, faces_stacked, fmt='%i')
     file_obj.close()
 
-def export_collada(mesh, filename):
+def export_collada(mesh, file_obj=None):
     '''
     Export a mesh as collada, to filename
     '''
@@ -247,9 +249,33 @@ def export_collada(mesh, filename):
     replacement['VCOUNT']   = str(len(mesh.vertices))
     replacement['VCOUNTX3'] = str(len(mesh.vertices) * 3)
     replacement['FCOUNT']   = str(len(mesh.faces))
-    with open(filename, 'wb') as outfile:
-        outfile.write(template.substitute(replacement))
+
+    export = template.substitute(replacement)
+
+    return _write_export(export, file_obj)
+
+def export_json(mesh, file_obj=None):
+    mesh.verify_vertex_normals()
+    # the zeros indicate triangular faces
+    indices = np.column_stack((np.zeros(len(mesh.faces), dtype=int), 
+                               mesh.faces)).reshape(-1)
+    export = {"metadata": {"version": 4,
+                           "type": "Geometry"},
+              "indices" : indices.tolist(),
+              "vertices": mesh.vertices.reshape(-1).tolist(),
+              "normals" : mesh.vertex_normals.reshape(-1).tolist()}
+    return _write_export(export, file_obj)
         
+def _write_export(export, file_obj):
+    if file_obj is None:             
+        return export
+    elif hasattr(file_obj, 'write'): 
+        out_file = file_obj
+    else: 
+        out_file = open(file_obj, 'wb')
+    out_file.write(export)
+    return export
+
 def detect_binary_file(file_obj):
     '''
     Returns True if file has non-ASCII characters (> 0x7F, or 127)
