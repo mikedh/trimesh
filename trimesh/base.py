@@ -15,6 +15,8 @@ from . import sample
 from . import repair
 from . import comparison
 
+from .io.export import export_mesh
+
 from .constants import *
 from .geometry import unitize, transform_points
 
@@ -421,6 +423,5 @@ class Trimesh():
     def identifier(self):
         return comparison.rotationally_invariant_identifier(self)
 
-    def export(self, filename):
-        from .io import export_stl
-        export_stl(self, filename)
+    def export(self, file_obj=None, file_type='stl'):
+        return export_mesh(self, file_obj, file_type)
