@@ -18,6 +18,6 @@ if _version_info[:2] < (2, 7):
 
 from .base import Trimesh
 from .geometry import unitize, transform_points
-from .io.base import load_mesh, available_formats
+from .io.load import load_mesh, available_formats
 from . import transformations
 
