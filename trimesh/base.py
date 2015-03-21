@@ -301,7 +301,19 @@ class Trimesh():
         vertex_normals[[self.faces[:,0],0]] = self.face_normals
         vertex_normals[[self.faces[:,1],1]] = self.face_normals
         vertex_normals[[self.faces[:,2],2]] = self.face_normals
-        self.vertex_normals = geometry.unitize(np.mean(vertex_normals, axis=1))
+        mean_normals        = vertex_normals.mean(axis=1)
+        unit_normals, valid = geometry.unitize(mean_normals, check_valid=True)
+
+        mean_normals[valid] = unit_normals
+        # if the mean normal is zero, it generally means that you've encountered 
+        # the edge case where
+        # a) the vertex is only shared by 2 faces (mesh is not watertight)
+        # b) the two faces that share the vertex have normals pointed exactly
+        #    opposite each other. 
+        # since this means the vertex normal isn't defined, just make it anything
+        mean_normals[np.logical_not(valid)] = [1,0,0]
+
+        self.vertex_normals = mean_normals
         
     def verify_face_colors(self):
         '''

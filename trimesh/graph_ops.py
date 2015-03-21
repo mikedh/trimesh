@@ -1,6 +1,7 @@
 import networkx as nx
 import numpy as np
 from collections import deque
+from copy import deepcopy
 
 from .constants import *
 from .grouping import group, group_rows, replace_references
@@ -181,7 +182,10 @@ def split_gt(mesh, check_watertight=True, only_count=False):
         new_mesh = mesh.__class__(faces        = faces, 
                                   face_normals = face_normals, 
                                   vertices     = vertices)
-        new_mesh.metadata.update(mesh.metadata)
+        new_meta = deepcopy(mesh.metadata)
+        if 'name' in new_meta:
+            new_meta['name'] = new_meta['name'] + '_' + str(i)
+        new_mesh.metadata.update(new_meta)
         if fill_holes: 
             try:              new_mesh.fill_holes(raise_watertight=True)
             except MeshError: continue
