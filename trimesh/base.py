@@ -39,7 +39,7 @@ class Trimesh():
         self.vertex_colors   = np.array(vertex_colors)
         self.metadata        = dict()
         
-        if isinstance(metadata, dict): self.metadate.update(metadata)
+        if isinstance(metadata, dict): self.metadata.update(metadata)
         if process:                    self.process()
             
     def process(self):
