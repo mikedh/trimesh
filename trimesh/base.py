@@ -29,7 +29,8 @@ class Trimesh():
                  face_colors     = None,
                  vertex_colors   = None,
                  metadata        = None,
-                 process         = False):
+                 process         = False,
+                 **kwargs):
 
         self.vertices        = np.array(vertices)
         self.faces           = np.array(faces)
