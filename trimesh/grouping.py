@@ -12,9 +12,7 @@ def merge_vertices_hash(mesh):
     pre_merge = len(mesh.vertices)
 
     unique, inverse = unique_rows(mesh.vertices, return_inverse=True)        
-    mesh.faces      = inverse[[mesh.faces.reshape(-1)]].reshape((-1,3))
-    mesh.vertices   = mesh.vertices[[unique]]
-
+    mesh.update_vertices(unique, inverse)
     log.debug('merge_vertices_hash reduced vertex count from %i to %i.',
               pre_merge,
               len(mesh.vertices))
@@ -41,6 +39,7 @@ def merge_vertices_kdtree(mesh, angle_max=None):
     used        = np.zeros(len(mesh.vertices), dtype=np.bool)
     unique      = deque()
     replacement = dict()
+    inverse     = np.arange(len(mesh.vertices), dtype=np.int)
     
     if angle_max != None: mesh.verify_normals()
 
@@ -52,15 +51,14 @@ def merge_vertices_kdtree(mesh, angle_max=None):
             normals, aligned = group_vectors(mesh.vertex_normals[[neighbors]], TOL_ANGLE = angle_max)
             for group in aligned:
                 vertex_indices = neighbors[[group]]
-                replacement.update(np.column_stack((vertex_indices, [len(unique)] * len(group))))
+                inverse[vertex_indices] = len(unique)
+                #replacement.update(np.column_stack((vertex_indices, [len(unique)] * len(group))))
                 unique.append(vertex_indices[0])
         else:
-            replacement.update(np.column_stack((neighbors, [len(unique)]*len(neighbors))))
+            inverse[neighbors] = neighbors[0]
             unique.append(neighbors[0])
 
-    mesh.vertices = mesh.vertices[[unique]]
-    mesh.faces    = replace_references(mesh.faces, replacement)
-    if angle_max != None: mesh.generate_vertex_normals()
+    mesh.update_vertices(unique, inverse)
    
     log.debug('merge_vertices_kdtree reduced vertex count from %i to %i', 
               len(used),

@@ -220,6 +220,12 @@ class Trimesh():
         else:
             grouping.merge_vertices_hash(self)
 
+    def update_vertices(self, vertex_mask, inverse):
+        self.faces    = inverse[[self.faces.reshape(-1)]].reshape((-1,3))
+        if self.vertex_colors_ok():
+            self.vertex_colors = self.vertex_colors[vertex_mask]
+        self.vertices = self.vertices[vertex_mask]
+
     def update_faces(self, valid):
         '''
         In many cases, we will want to remove specific faces. 
@@ -315,6 +321,9 @@ class Trimesh():
         mean_normals[np.logical_not(valid)] = [1,0,0]
 
         self.vertex_normals = mean_normals
+
+    def vertex_colors_ok(self):
+        return self.vertex_colors.shape == self.vertices.shape
         
     def verify_face_colors(self):
         '''

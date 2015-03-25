@@ -1,3 +1,5 @@
+import numpy as np
+
 from ..base import Trimesh
 from ..constants import *
 
@@ -17,10 +19,11 @@ def load_assimp(file_obj, file_type=None):
     '''
 
     def LPMesh_to_Trimesh(lp):
+        colors = (np.reshape(lp.colors, (-1,4))[:,0:3] * 255).astype(np.int)
         return Trimesh(vertices       = lp.vertices,
                        vertex_normals = lp.normals,
                        faces          = lp.faces,
-                       vertex_colors  = lp.colors)
+                       vertex_colors  = colors)
 
     if not hasattr(file_obj, 'read'):
         # if there is no read attribute, we assume we've been passed a file name
@@ -38,14 +41,16 @@ def load_assimp(file_obj, file_type=None):
 _assimp_loaders = {}
 try: 
     import pyassimp
+
+    # this function was added to the master on github on 9/2014
     if hasattr(pyassimp, 'available_formats'):
         _assimp_formats = [i.lower() for i in pyassimp.available_formats()]
     else: 
+        log.warn('Older version of assimp detected, using hardcoded format list!')
         _assimp_formats = ['dae', 'blend', '3ds', 'ase',  'obj', 
                            'ifc', 'xgl',   'zgl', 'ply',  'lwo',
-                           'lxo', 'x',     'ac',  'ms3d', 'cob',
-                           'scn']
-    _assimp_loaders.update(zip(assimp_formats,
+                           'lxo', 'x',     'ac',  'ms3d', 'cob', 'scn']
+    _assimp_loaders.update(zip(_assimp_formats,
                                [load_assimp]*len(_assimp_formats)))
-except:
+except ImportError:
     log.warn('No pyassimp, only native loaders available!')
