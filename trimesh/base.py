@@ -47,6 +47,7 @@ class Trimesh():
         '''
         Convenience function to do basic processing on a raw mesh
         '''
+        
         self.merge_vertices()
         self.remove_duplicate_faces()
         self.remove_degenerate_faces()
@@ -54,6 +55,11 @@ class Trimesh():
         return self
         
     def rezero(self):
+        '''
+        Move the mesh so that all vertex vertices are positive.
+        IE subtract the min vertex from all vertices, moving it to
+        the first octant
+        '''
         self.vertices -= self.vertices.min(axis=0)
         
     @log_time
@@ -70,6 +76,10 @@ class Trimesh():
 
     @property
     def body_count(self):
+        '''
+        Return the number of groups of connected faces.
+        Bodies aren't necessarily watertight.
+        '''
         return graph_ops.split(self, only_count=True)
 
     def face_adjacency(self):

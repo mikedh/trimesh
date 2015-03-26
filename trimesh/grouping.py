@@ -17,14 +17,14 @@ def merge_vertices_hash(mesh):
               pre_merge,
               len(mesh.vertices))
 
-def merge_vertices_kdtree(mesh, angle_max=None):
+def merge_vertices_kdtree(mesh, max_angle=None):
     '''
     Merges vertices which are identical, AKA within 
     Cartesian distance TOL_MERGE of each other.  
     Then replaces references in mesh.faces
     
-    If angle_max == None, vertex normals won't be looked at. 
-    if angle_max has a value, vertices will only be considered identical
+    If max_angle == None, vertex normals won't be looked at. 
+    if max_angle has a value, vertices will only be considered identical
     if they are within TOL_MERGE of each other, and the angle between
     their normals is less than angle_max
 
@@ -34,26 +34,23 @@ def merge_vertices_kdtree(mesh, angle_max=None):
     '''
     from scipy.spatial import cKDTree as KDTree
     
-    tic         = time_function()
-    tree        = KDTree(mesh.vertices)
-    used        = np.zeros(len(mesh.vertices), dtype=np.bool)
-    unique      = deque()
-    replacement = dict()
-    inverse     = np.arange(len(mesh.vertices), dtype=np.int)
+    tree    = KDTree(mesh.vertices)
+    used    = np.zeros(len(mesh.vertices), dtype=np.bool)
+    inverse = np.arange(len(mesh.vertices), dtype=np.int)
+    unique  = deque()
     
-    if angle_max != None: mesh.verify_normals()
+    if max_angle != None: mesh.verify_normals()
 
     for index, vertex in enumerate(mesh.vertices):
         if used[index]: continue
         neighbors = np.array(tree.query_ball_point(mesh.vertices[index], TOL_MERGE))
         used[[neighbors]] = True
-        if angle_max != None:
-            normals, aligned = group_vectors(mesh.vertex_normals[[neighbors]], TOL_ANGLE = angle_max)
+        if max_angle != None:
+            normals, aligned = group_vectors(mesh.vertex_normals[[neighbors]], 
+                                             max_angle = max_angle)
             for group in aligned:
-                vertex_indices = neighbors[[group]]
-                inverse[vertex_indices] = len(unique)
-                #replacement.update(np.column_stack((vertex_indices, [len(unique)] * len(group))))
-                unique.append(vertex_indices[0])
+                inverse[neighbors[[group]]] = len(unique)
+                unique.append(neighbors[group[0]])
         else:
             inverse[neighbors] = neighbors[0]
             unique.append(neighbors[0])
@@ -218,18 +215,18 @@ def group_rows(data, require_count=None, digits=None):
     else:                     return group_slice()
 
 def group_vectors(vectors, 
-                  TOL_ANGLE        = np.radians(10), 
+                  max_angle        = np.radians(10), 
                   include_negative = False):
     '''
     Group vectors based on an angle tolerance, with the option to 
     include negative vectors. 
     
     This is very similar to a group_rows(stack_negative(rows))
-    The main difference is that TOL_ANGLE can be much looser, as we
+    The main difference is that max_angle can be much looser, as we
     are doing actual distance queries. 
     '''
     from scipy.spatial import cKDTree as KDTree
-    TOL_END             = np.tan(TOL_ANGLE)
+    dist_max            = np.tan(max_angle)
     unit_vectors, valid = unitize(vectors, check_valid = True)
     valid_index         = np.nonzero(valid)[0]
     consumed            = np.zeros(len(unit_vectors), dtype=np.bool)
@@ -239,9 +236,9 @@ def group_vectors(vectors,
     
     for index, vector in enumerate(unit_vectors):
         if consumed[index]: continue
-        aligned = np.array(tree.query_ball_point(vector, TOL_END))        
+        aligned = np.array(tree.query_ball_point(vector, dist_max))        
         if include_negative:
-            aligned = np.append(aligned, tree.query_ball_point(-1*vector, TOL_END))
+            aligned = np.append(aligned, tree.query_ball_point(-1*vector, dist_max))
         aligned = aligned.astype(int)
         consumed[[aligned]] = True
         unique_vectors.append(unit_vectors[aligned[-1]])
@@ -259,17 +256,3 @@ def stack_negative(rows):
     negative = rows[:,0] < 0
     stacked[negative] = np.roll(stacked[negative], 3, axis=1)
     return stacked
-    
-if __name__ == '__main__':
-    from scipy.spatial import cKDTree
-    
-    tree  = cKDTree(mesh.vertices)
-    graph = nx.from_edgelist(tree.query_pairs(TOL_MERGE))
-    
-    cliques = nx.clique.find_cliques(graph)
-    
-    used        = np.zeros(len(mesh.vertices), dtype=np.bool)
-    unique      = deque()
-    replacement = dict()
-    
-    
