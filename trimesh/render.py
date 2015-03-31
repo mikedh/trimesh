@@ -31,7 +31,8 @@ class MeshViewer(pyglet.window.Window):
 
     def add_mesh(self, mesh):
         smooth = len(mesh.faces) < SMOOTH_MAX_FACES
-
+        smooth = False
+        mesh.unmerge_vertices()
         if smooth:
             mesh.unmerge_vertices()
             mesh.merge_vertices(SMOOTH_ANGLE)
