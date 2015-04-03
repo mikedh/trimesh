@@ -36,16 +36,11 @@ class RayMeshIntersector:
         ---------
         intersections: (n) boolean array of whether or not the ray hit a triangle
         '''
-        #tic = time_function()
         ray_candidates = ray_triangle_candidates(rays = rays, 
                                                  tree = self.tree)
         intersections  = ray_triangle_boolean(triangles      = self.triangles, 
                                               rays           = rays, 
                                               ray_candidates = ray_candidates)
-        #toc = time_function()
-        #log.debug('Queried %i rays at %f rays/second',
-        #          len(rays),
-        #          len(rays) / (toc-tic))
         return intersections
         
 def ray_triangle_candidates(rays, triangles=None, tree=None):
@@ -100,35 +95,44 @@ def ray_bounds(rays, bounds, buffer_dist = 1e-5):
     '''
     # separate out the (n, 2, 3) rays array into (n, 3) 
     # origin/direction arrays
-    ray_origins    = rays[:,0,:]
-    ray_directions = unitize(rays[:,1,:])
+    ray_ori    = rays[:,0,:]
+    ray_dir = unitize(rays[:,1,:])
 
     # bounding box we are testing against
-    bounds  = np.reshape(bounds, (2,3))
+    bounds  = np.array(bounds)
 
-    # the projection of the vector (ray_origin -> bounding box corner) 
-    #onto ray_directions
-    project = np.column_stack((np.diag(np.dot(bounds[0] - ray_origins, ray_directions.T)),
-                               np.diag(np.dot(bounds[1] - ray_origins, ray_directions.T))))
+    # find the primary axis of the vector
+    axis       = np.abs(ray_dir).argmax(axis=1)
+    axis_bound = bounds.reshape((2,-1)).T[axis]
+    axis_ori   = np.array([ray_ori[i][a] for i, a in enumerate(axis)]).reshape((-1,1))
+    axis_dir   = np.array([ray_dir[i][a] for i, a in enumerate(axis)]).reshape((-1,1))
 
-    project_min = project.min(axis=1).reshape((-1,1))
-    project_max = project.max(axis=1).reshape((-1,1))
+    # parametric equation of a line
+    # point = direction*t + origin
+    # p = dt + o
+    # t = (p-o)/d
+    t = (axis_bound - axis_ori) / axis_dir
 
+    # prevent the bounding box from including triangles
+    # behind the ray origin
+    t[t < buffer_dist] = buffer_dist
+
+    # the value of t for both the upper and lower bounds
+    t_a = t[:,0].reshape((-1,1))
+    t_b = t[:,1].reshape((-1,1))
+
+    # the cartesion point for where the line hits the plane defined by
+    # axis
+    on_a = (ray_dir * t_a) + ray_ori
+    on_b = (ray_dir * t_b) + ray_ori
+
+    on_plane = np.column_stack((on_a, on_b)).reshape((-1,2,ray_dir.shape[1]))
     
-    project_min[project_min < buffer_dist] = -buffer_dist
-    project_max[project_max < buffer_dist] =  buffer_dist
-    
-
-    # stack the rays with min/max projections
-    ray_bounds = np.column_stack((ray_origins + ray_directions*project_min,
-                                  ray_origins + ray_directions*project_max)).reshape((-1,2,3))
-    # reformat bounds into (n,6) interleaved bounds
-    ray_bounds = np.column_stack((ray_bounds.min(axis=1), ray_bounds.max(axis=1)))
-
+    ray_bounding = np.hstack((on_plane.min(axis=1), on_plane.max(axis=1)))
     # pad the bounding box by TOL_BUFFER
     # not sure if this is necessary, but if the ray is  axis aligned
     # this function will otherwise return zero volume bounding boxes
     # which may or may not screw up the r-tree intersection queries
-    ray_bounds += np.array([-1,-1,-1,1,1,1]) * buffer_dist
-    
-    return ray_bounds
+    ray_bounding += np.array([-1,-1,-1,1,1,1]) * buffer_dist
+
+    return ray_bounding
