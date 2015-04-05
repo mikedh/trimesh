@@ -16,6 +16,7 @@ from . import repair
 from . import comparison
 
 from .io.export import export_mesh
+from .ray.ray_mesh import RayMeshIntersector
 
 from .constants import *
 from .geometry import unitize, transform_points
@@ -32,15 +33,32 @@ class Trimesh():
                  process         = False,
                  **kwargs):
 
+        # (n, 3) float, set of vertices
         self.vertices        = np.array(vertices)
+        # (m, 3) int of triangle faces, references self.vertices
         self.faces           = np.array(faces)
+        # (m, 3) float of triangle normals, 
         self.face_normals    = np.array(face_normals)
+        # (n, 3) float of vertex normals.
+        # can be created from face normals
         self.vertex_normals  = np.array(vertex_normals)
+        # (m, 3) int8 of RGB face colors
         self.face_colors     = np.array(face_colors)
+        # (n, 3) int8 of RGB vertex colors. 
+        # can be created from face colors
         self.vertex_colors   = np.array(vertex_colors)
+        # any metadata that should be tracked per- mesh
         self.metadata        = dict()
+
+        # create a ray- mesh intersector for the current mesh
+        # initializing is very inexpensive and object is convienent to have
+        # on first query expensive bookkeeping is done (creation of r-tree)
+        # and is cached for subsequent queries
+        self.ray             = RayMeshIntersector(self)
         
+        # update the mesh metadata with passed metadata
         if isinstance(metadata, dict): self.metadata.update(metadata)
+        # if requested, do basic mesh cleanup
         if process:                    self.process()
             
     def process(self):
@@ -434,10 +452,42 @@ class Trimesh():
         Smooth will re-merge vertices to fix the shading, but can be slow
         on larger meshes. 
         '''
+        # import is done here so if pyglet isn't installed, the rest
+        # of the module works anyways
         from .render import MeshViewer
         MeshViewer(self)
 
+    def identifier(self):
+        '''
+        Return a (6) float vector which is unique to the mesh,
+        and is robust to rotation and translation.
+        '''
+        return comparison.rotationally_invariant_identifier(self)
+
+    def export(self, file_obj=None, file_type='stl'):
+        '''
+        Export the current mesh to a file object. 
+        If file_obj is a filename, file will be written there. 
+
+        Supported formats are stl, off, and collada. 
+        '''
+        return export_mesh(self, file_obj, file_type)
+
+
     def __add__(self, other):
+        '''
+        Meshes can be added to each other.
+        Addition is defined as for the following meshes:
+        a + b = c
+        
+        c is a mesh which has all the faces from a and b, and
+        acompanying bookkeeping is done. 
+
+        Defining this also allows groups of meshes to be summed easily, 
+        for example like:
+
+        a = np.sum(meshes).show()
+        '''
         new_faces    = np.vstack((self.faces, (other.faces + len(self.vertices))))
         new_vertices = np.vstack((self.vertices, other.vertices))
         new_normals  = np.vstack((self.face_normals, other.face_normals))
@@ -451,9 +501,3 @@ class Trimesh():
                           face_normals = new_normals,
                           face_colors  = new_colors)
         return result
-
-    def identifier(self):
-        return comparison.rotationally_invariant_identifier(self)
-
-    def export(self, file_obj=None, file_type='stl'):
-        return export_mesh(self, file_obj, file_type)

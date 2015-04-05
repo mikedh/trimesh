@@ -4,12 +4,18 @@ Narrow phase ray- triangle intersection
 import numpy as np
 import time
 
+from ..constants import log, log_time
+
 from collections import deque
 
 TOL_ONPLANE = 1e-8
 TOL_ZERO    = 1e-12
 
-def ray_triangle_boolean(triangles, rays, ray_candidates=None):
+@log_time
+def rays_triangles_id(triangles,
+                      rays, 
+                      ray_candidates = None,
+                      return_any     = False):
     '''
     Arguments
     ---------
@@ -22,15 +28,23 @@ def ray_triangle_boolean(triangles, rays, ray_candidates=None):
     ---------
     intersections:  (m) bool of whether the ray hit any triangles
     '''
-    hits = np.zeros(len(rays), dtype=np.bool)
+    if return_any: hits = np.zeros(len(rays), dtype=np.bool)
+    else:          hits = [None] * len(rays)
     for ray_index, ray in enumerate(rays):
         if ray_candidates is None:
             triangle_candidates = triangles
         else: 
             triangle_candidates = triangles[ray_candidates[ray_index]]
-        hits[ray_index] = ray_triangles(triangle_candidates, *ray)
+        log.debug('Querying %i/%i triangles', 
+                  len(triangle_candidates), 
+                  len(triangles))
+        hit = ray_triangles_vec(triangle_candidates, *ray)
+        if return_any: hits[ray_index] = len(hit) > 0
+        else:          hits[ray_index] = hit
+
     return hits
 
+@log_time
 def ray_triangles(triangles, 
                  ray_origin, 
                  ray_direction):
@@ -65,7 +79,7 @@ def ray_triangle(triangle,
     T = ray_origin - triangle[0]
     u = np.dot(T, P) * inv_det
     
-    if (u < 0) or (u > (1)): 
+    if (u < 0) or (u > 1): 
         return False
     Q = np.cross(T, edges[0])
     v = np.dot(ray_direction, Q) * inv_det
@@ -75,11 +89,16 @@ def ray_triangle(triangle,
     if (t > TOL_ZERO):
         return True
     return False
-'''
 
-def ray_triangles(triangles, 
-                 ray_origin, 
-                 ray_direction):
+def _diag_dot(a, b):
+    result = np.array([np.dot(i,j) for i,j in zip(a,b)])
+    return result
+    #return np.diag(np.dot(a,b))
+
+@log_time
+def ray_triangles_vec(triangles, 
+                      ray_origin, 
+                      ray_direction):
     
     #http://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
 
@@ -97,26 +116,36 @@ def ray_triangles(triangles,
     P   = np.cross(ray_direction, edge1)
 
     #if determinant is near zero, ray lies in plane of triangle
-    det = np.diag(np.dot(edge0, P.T))
-
-    candidates[np.abs(det) < TOL_ONPLANE] = False    
-    inv_det = 1.0 / det[candidates]
-
-    T = ray_origin - vert0[candidates]
-    u = np.diag(np.dot(T, P[candidates].T)) * inv_det
+    det = _diag_dot(edge0, P)
     
+    candidates[np.abs(det) < TOL_ONPLANE] = False
+
+    if not candidates.any(): return candidates
+
+    inv_det = 1.0 / det[candidates]
+    T = ray_origin - vert0[candidates]
+    u = _diag_dot(T, P[candidates]) * inv_det
+
+    new_candidates         = np.logical_not(np.logical_or(u < 0, 
+                                                          u > 1))
+    candidates[candidates] = new_candidates
+    if not candidates.any(): return candidates    
+    inv_det = inv_det[new_candidates]
+    T       = T[new_candidates]
+    u       = u[new_candidates]
+
     Q = np.cross(T, edge0[candidates])
     v = np.dot(ray_direction, Q.T) * inv_det
 
-    t = np.diag(np.dot(edge1[candidates], Q.T)) * inv_det
-
-    t_ok = np.zeros(len(triangles), dtype=np.bool)
-    t_ok[candidates] = t > TOL_ZERO
-
-    candidates[np.logical_or((v < TOL_ZERO),(u + v > (1-TOL_ZERO)))]
-    candidates[np.logical_or(u<0, u>1)] = False
+    new_candidates = np.logical_not(np.logical_or((v     < TOL_ZERO),
+                                                  (u + v > (1-TOL_ZERO))))
+    candidates[candidates] = new_candidates
+    if not candidates.any(): return candidates
+    Q       = Q[new_candidates]
+    inv_det = inv_det[new_candidates]
     
-    hits = np.logical_and(candidates, t_ok)
-    return hits
+    t = _diag_dot(edge1[candidates], Q) * inv_det
+    candidates[candidates] = t > TOL_ZERO
+
+    return candidates
     
-'''
