@@ -2,10 +2,8 @@ import numpy as np
 import time
 
 import rtree.index as rtree
-from copy import deepcopy
 
 from ..constants       import *
-from ..intersections   import plane_line_intersection
 from ..geometry        import unitize
 from .ray_triangle_cpu import rays_triangles_id
 
@@ -44,7 +42,6 @@ class RayMeshIntersector:
             self._tree = create_tree(self.triangles)
         return self._tree
             
-
     def intersects_location(self, rays, return_all=True):
         '''
         Find out whether the rays in question hit any triangle on the mesh.
@@ -57,14 +54,9 @@ class RayMeshIntersector:
         ---------
         intersections: (n) sequence of triangle indexes
         '''
-        ray_candidates = ray_triangle_candidates(rays = rays, 
-                                                 tree = self.tree)
-        intersections  = ray_triangle_boolean(triangles      = self.triangles, 
-                                              rays           = rays, 
-                                              ray_candidates = ray_candidates)
-        return intersections
+        pass
 
-    def intersects_ids(self, rays, return_all=True):
+    def intersects_id(self, rays, return_any=False):
         '''
         Find the indexes of triangles the rays intersect
 
@@ -74,18 +66,25 @@ class RayMeshIntersector:
 
         Returns
         ---------
-        intersections: (n) boolean array of whether or not the ray hit a triangle
+        
+        intersections, return_any=True:
+            (n) sequence of triangle indexes which hit the ray
+        intersections, return_any=False:
+            (n) boolean array of whether the ray hit *any* triangle
+
+        
         '''
         ray_candidates = ray_triangle_candidates(rays = rays, 
                                                  tree = self.tree)
-        intersections  = ray_triangle_boolean(triangles      = self.triangles, 
-                                              rays           = rays, 
-                                              ray_candidates = ray_candidates)
+        intersections  = rays_triangles_id(triangles      = self.triangles, 
+                                           rays           = rays, 
+                                           ray_candidates = ray_candidates,
+                                           return_any     = return_any)
         return intersections
 
     def intersects_any(self, rays):
         '''
-        Find out whether the rays in question hit any triangle on the mesh.
+        Find out whether the rays in question hit *any* triangle on the mesh.
 
         Arguments
         ---------
@@ -95,14 +94,7 @@ class RayMeshIntersector:
         ---------
         intersections: (n) boolean array of whether or not the ray hit a triangle
         '''
-        rays = np.array(rays)
-        ray_candidates = ray_triangle_candidates(rays = rays, 
-                                                 tree = self.tree)
-        intersections  = rays_triangles_id(triangles      = self.triangles, 
-                                           rays           = rays, 
-                                           ray_candidates = ray_candidates,
-                                           return_any     = True)
-        return intersections
+        return self.intersects_id(rays, return_any=True)
 
 def ray_triangle_candidates(rays, triangles=None, tree=None):
     '''

@@ -8,7 +8,6 @@ from ..constants import log, log_time
 
 from collections import deque
 
-TOL_ONPLANE = 1e-8
 TOL_ZERO    = 1e-12
 
 @log_time
@@ -30,21 +29,17 @@ def rays_triangles_id(triangles,
     '''
     if return_any: hits = np.zeros(len(rays), dtype=np.bool)
     else:          hits = [None] * len(rays)
+  
     for ray_index, ray in enumerate(rays):
         if ray_candidates is None:
             triangle_candidates = triangles
         else: 
             triangle_candidates = triangles[ray_candidates[ray_index]]
-        log.debug('Querying %i/%i triangles', 
-                  len(triangle_candidates), 
-                  len(triangles))
         hit = ray_triangles_vec(triangle_candidates, *ray)
-        if return_any: hits[ray_index] = len(hit) > 0
-        else:          hits[ray_index] = hit
-
+        if return_any: hits[ray_index] = hit.sum() > 0
+        else:          hits[ray_index] = np.nonzero(hit)[0]
     return hits
 
-@log_time
 def ray_triangles(triangles, 
                  ray_origin, 
                  ray_direction):
@@ -72,7 +67,7 @@ def ray_triangle(triangle,
     P   = np.cross(ray_direction, edges[1])
     #if determinant is near zero, ray lies in plane of triangle
     det = np.dot(edges[0], P)
-    if np.abs(det) < TOL_ONPLANE: 
+    if np.abs(det) < TOL_ZERO: 
         return False
     inv_det = 1.0 / det
     
@@ -95,7 +90,6 @@ def _diag_dot(a, b):
     return result
     #return np.diag(np.dot(a,b))
 
-@log_time
 def ray_triangles_vec(triangles, 
                       ray_origin, 
                       ray_direction):
@@ -118,7 +112,7 @@ def ray_triangles_vec(triangles,
     #if determinant is near zero, ray lies in plane of triangle
     det = _diag_dot(edge0, P)
     
-    candidates[np.abs(det) < TOL_ONPLANE] = False
+    candidates[np.abs(det) < TOL_ZERO] = False
 
     if not candidates.any(): return candidates
 
@@ -126,7 +120,7 @@ def ray_triangles_vec(triangles,
     T = ray_origin - vert0[candidates]
     u = _diag_dot(T, P[candidates]) * inv_det
 
-    new_candidates         = np.logical_not(np.logical_or(u < 0, 
+    new_candidates         = np.logical_not(np.logical_or(u < 0,
                                                           u > 1))
     candidates[candidates] = new_candidates
     if not candidates.any(): return candidates    
