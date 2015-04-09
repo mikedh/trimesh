@@ -58,8 +58,9 @@ def facets(mesh):
     facets: list of groups of face indexes (in mesh.faces) of parallel 
             adjacent faces. 
     '''
-    if _has_gt: return facets_gt(mesh)
-    else:       return facets_nx(mesh)
+    return facets_group(mesh)
+    #if _has_gt: return facets_gt(mesh)
+    #else:       return facets_nx(mesh)
 
 def connected_edges(G, nodes):
     '''

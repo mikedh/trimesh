@@ -1,6 +1,7 @@
 from time import time as time_function
 TOL_ZERO   = 1e-12
-TOL_MERGE  = 1e-10
+# same as solidworks (according to their documentation)
+TOL_MERGE  = 1e-8
 TOL_PLANAR = 1e-10
 
 import logging as _logging
@@ -19,5 +20,4 @@ def log_time(method):
     timed.__doc__  = method.__doc__
     return timed
 
-class MeshError(Exception):
-    pass
+class MeshError(Exception): pass

@@ -100,6 +100,9 @@ class Trimesh():
         '''
         return graph_ops.split(self, only_count=True)
 
+    def edges(self):
+        return geometry.faces_to_edges(self.faces)
+        
     def face_adjacency(self):
         '''
         Returns an (n,2) list of face indices.
