@@ -31,15 +31,21 @@ def rays_triangles_id(triangles,
     if return_any: hits = np.zeros(len(rays), dtype=np.bool)
     else:          hits = [None] * len(rays)
   
+    # default set of candidate triangles to be queried 
+    # is every triangle. this is very slow
+    candidates = np.ones(len(triangles), dtype=np.bool)
+
     for ray_index, ray in enumerate(rays):
-        if ray_candidates is None:
-            triangle_candidates = triangles
-        else: 
-            triangle_candidates = triangles[ray_candidates[ray_index]]
-        hit = ray_triangles_vectorized(triangle_candidates, *ray)
-        if return_any: hits[ray_index] = hit.sum() > 0
-        else:          hits[ray_index] = np.nonzero(hit)[0]
-    return hits
+        if ray_candidates is not None:
+            candidates = ray_candidates[ray_index]
+
+        hit = ray_triangles_vectorized(triangles[candidates], *ray)
+
+        if return_any: 
+            hits[ray_index] = hit.sum() > 0
+        else:
+            hits[ray_index] = np.array(ray_candidates[ray_index])[hit]
+    return np.array(hits)
 
 def ray_triangles_loop(triangles, 
                        ray_origin, 

@@ -14,6 +14,7 @@ from . import color
 from . import sample
 from . import repair
 from . import comparison
+from . import intersections
 
 from .io.export import export_mesh
 from .ray.ray_mesh import RayMeshIntersector

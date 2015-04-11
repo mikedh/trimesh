@@ -96,17 +96,14 @@ class RayMeshIntersector:
         '''
         return self.intersects_id(rays, return_any=True)
 
-def ray_triangle_candidates(rays, triangles=None, tree=None):
+def ray_triangle_candidates(rays, tree):
     '''
     Do broad- phase search for triangles that the rays
     may intersect. 
 
     Does this by creating a bounding box for the ray as it 
-    passes through the volume occupied by 
+    passes through the volume occupied by the tree 
     '''
-    if tree is None:
-        tree = create_tree(triangles)
-
     ray_bounding   = ray_bounds(rays, tree.bounds)
     ray_candidates = [None] * len(rays)
     for ray_index, bounds in enumerate(ray_bounding):
