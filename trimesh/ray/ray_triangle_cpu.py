@@ -38,66 +38,17 @@ def rays_triangles_id(triangles,
     for ray_index, ray in enumerate(rays):
         if ray_candidates is not None:
             candidates = ray_candidates[ray_index]
-
-        hit = ray_triangles_vectorized(triangles[candidates], *ray)
-
+        # query the triangle candidates
+        hit = ray_triangles(triangles[candidates], *ray)
         if return_any: 
-            hits[ray_index] = hit.sum() > 0
+            hits[ray_index] = hit.any()
         else:
-            hits[ray_index] = np.array(ray_candidates[ray_index])[hit]
+            hits[ray_index] = np.array(candidates)[hit]
     return np.array(hits)
 
-def ray_triangles_loop(triangles, 
-                       ray_origin, 
-                       ray_direction):
-    '''
-    Intersection of multiple triangles and a single ray. 
-    Roughly 10x slower than ray_triangles_vectorized
-    '''
-    for triangle in triangles:
-        if ray_triangle(triangle, ray_origin, ray_direction):
-            return True
-    return False
-
-def ray_triangle(triangle, 
-                 ray_origin, 
-                 ray_direction):
-    '''
-    Intersection test for a single ray and a single triangle
-
-    Uses Moller-Trumbore intersection algorithm
-    '''
-    
-
-    edges = [triangle[1] - triangle[0],
-             triangle[2] - triangle[0]]
-             
-    #P is a vector perpendicular to the ray direction and one
-    # triangle edge. 
-    P   = np.cross(ray_direction, edges[1])
-    #if determinant is near zero, ray lies in plane of triangle
-    det = np.dot(edges[0], P)
-    if np.abs(det) < TOL_ZERO: 
-        return False
-    inv_det = 1.0 / det
-    
-    T = ray_origin - triangle[0]
-    u = np.dot(T, P) * inv_det
-    
-    if (u < 0) or (u > 1): 
-        return False
-    Q = np.cross(T, edges[0])
-    v = np.dot(ray_direction, Q) * inv_det
-    if (v < TOL_ZERO) or (u + v > (1-TOL_ZERO)): 
-        return False
-    t = np.dot(edges[1], Q) * inv_det
-    if (t > TOL_ZERO):
-        return True
-    return False
-
-def ray_triangles_vectorized(triangles, 
-                             ray_origin, 
-                             ray_direction):
+def ray_triangles(triangles, 
+                  ray_origin, 
+                  ray_direction):
     '''
     Intersection of multiple triangles and a single ray.
 
@@ -127,8 +78,8 @@ def ray_triangles_vectorized(triangles,
     T = ray_origin - vert0[candidates]
     u = _diag_dot(T, P[candidates]) * inv_det
 
-    new_candidates         = np.logical_not(np.logical_or(u < 0,
-                                                          u > 1))
+    new_candidates         = np.logical_not(np.logical_or(u < TOL_ZERO,
+                                                          u > (1-TOL_ZERO)))
     candidates[candidates] = new_candidates
     if not candidates.any(): return candidates    
     inv_det = inv_det[new_candidates]

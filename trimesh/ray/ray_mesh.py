@@ -1,7 +1,7 @@
 import numpy as np
 import time
 
-import rtree.index as rtree
+
 
 from ..constants       import *
 from ..geometry        import unitize
@@ -42,9 +42,9 @@ class RayMeshIntersector:
             self._tree = create_tree(self.triangles)
         return self._tree
             
-    def intersects_location(self, rays, return_all=True):
+    def intersects_location(self, rays):
         '''
-        Find out whether the rays in question hit any triangle on the mesh.
+        Find out where the rays in question hit the mesh
 
         Arguments
         ---------
@@ -52,7 +52,7 @@ class RayMeshIntersector:
 
         Returns
         ---------
-        intersections: (n) sequence of triangle indexes
+        intersections: (n) sequence of (m,3) intersection points
         '''
         pass
 
@@ -123,7 +123,8 @@ def create_tree(triangles):
     ---------
     tree: Rtree object 
     '''
-  
+    import rtree.index as rtree
+
     # the property object required to get a 3D r-tree index
     properties = rtree.Property()
     properties.dimension = 3
