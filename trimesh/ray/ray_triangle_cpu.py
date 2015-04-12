@@ -74,12 +74,14 @@ def ray_triangles(triangles,
 
     if not candidates.any(): return candidates
 
+
     inv_det = 1.0 / det[candidates]
     T = ray_origin - vert0[candidates]
     u = _diag_dot(T, P[candidates]) * inv_det
 
-    new_candidates         = np.logical_not(np.logical_or(u < TOL_ZERO,
-                                                          u > (1-TOL_ZERO)))
+    new_candidates         = np.logical_not(np.logical_or(u < -TOL_ZERO,
+                                                          u > (1+TOL_ZERO)))
+
     candidates[candidates] = new_candidates
     if not candidates.any(): return candidates    
     inv_det = inv_det[new_candidates]
@@ -89,9 +91,10 @@ def ray_triangles(triangles,
     Q = np.cross(T, edge0[candidates])
     v = np.dot(ray_direction, Q.T) * inv_det
 
-    new_candidates = np.logical_not(np.logical_or((v     < TOL_ZERO),
-                                                  (u + v > (1-TOL_ZERO))))
+    new_candidates = np.logical_not(np.logical_or((v     < -TOL_ZERO),
+                                                  (u + v > (1+TOL_ZERO))))
     candidates[candidates] = new_candidates
+
     if not candidates.any(): return candidates
     Q       = Q[new_candidates]
     inv_det = inv_det[new_candidates]
