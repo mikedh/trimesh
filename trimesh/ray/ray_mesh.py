@@ -1,10 +1,9 @@
 import numpy as np
 import time
 
-
-
 from ..constants       import *
 from ..geometry        import unitize
+from ..intersections   import plane_line_intersection
 from .ray_triangle_cpu import rays_triangles_id
 
 class RayMeshIntersector:
@@ -54,7 +53,12 @@ class RayMeshIntersector:
         ---------
         intersections: (n) sequence of (m,3) intersection points
         '''
-        pass
+        intersections = self.intersects_id(rays)
+        locations     = ray_triangle_locations(triangles     = self.triangles,
+                                               rays          = rays,
+                                               intersections = intersections,
+                                               tri_normals   = self.mesh.face_normals)
+        return locations
 
     def intersects_id(self, rays, return_any=False):
         '''
@@ -94,7 +98,8 @@ class RayMeshIntersector:
         ---------
         intersections: (n) boolean array of whether or not the ray hit a triangle
         '''
-        return self.intersects_id(rays, return_any=True)
+        intersections = self.intersects_id(rays, return_any=True)
+        return intersections
 
 def ray_triangle_candidates(rays, tree):
     '''
@@ -187,3 +192,46 @@ def ray_bounds(rays, bounds, buffer_dist = 1e-5):
     ray_bounding += np.array([-1,-1,-1,1,1,1]) * buffer_dist
 
     return ray_bounding
+
+def ray_triangle_locations(triangles, 
+                           rays, 
+                           intersections, 
+                           tri_normals):
+    '''
+    Given a set of triangles, rays, and intersections between the two,
+    find the cartesian locations of the intersections points. 
+
+    Arguments
+    ----------
+    triangles:     (n, 3, 3) set of triangle vertices
+    rays:          (m, 2, 3) set of ray origins/ray direction pairs
+    intersections: (m) sequence of intersection indidices which triangles
+                    each ray hits. 
+
+    Returns
+    ----------
+    locations: (m) sequence of (p,3) cartesian points
+    '''
+    
+    ray_origin   = rays[:,0,:]
+    ray_vector   = rays[:,1,:]
+    ray_segments = np.array([ray_origin,
+                             ray_origin + ray_vector])
+    locations = [None] * len(rays)
+
+    for ray_index, tri_group in enumerate(intersections):
+        group_locations = np.zeros((len(tri_group), 3))
+        for group_index, tri_index in enumerate(tri_group):
+            origin  = triangles[tri_index][0]
+            normal  = tri_normals[tri_index]
+            segment = np.array(ray_segments[:,ray_index,:]).reshape((2,-1,3))
+            point, valid = plane_line_intersection(plane_origin = origin,
+                                               plane_normal = normal,
+                                               endpoints    = segment,
+                                               line_segments = False)
+            group_locations[group_index] = point
+            if not valid: 
+                raise ValueError('Intersections passed are in error!')
+        locations[ray_index] = group_locations
+    return np.array(locations)
+
