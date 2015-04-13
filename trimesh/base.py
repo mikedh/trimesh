@@ -132,11 +132,12 @@ class Trimesh():
         nondegenerate = geometry.nondegenerate_faces(self.faces)
         self.update_faces(nondegenerate)
 
-    def facets(self, return_area=True):
+    def facets(self, return_area=True, group_normals=False):
         '''
         Return a list of face indices for coplanar adjacent faces
         '''
-        facet_list = graph_ops.facets_group(self)
+        facet_func = [graph_ops.facets, graph_ops.facets_group][group_normals]
+        facet_list  = facet_func(self)
         if return_area:
             facets_area = [triangles.area(self.vertices[[self.faces[i]]]) for i in facet_list]
             return facet_list, facets_area
