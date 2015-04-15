@@ -59,24 +59,43 @@ def surface_normal(points):
     '''
     return np.linalg.svd(points)[2][-1]
 
-def plane_fit(points):
+def plane_fit(points, tolerance=TOL_ZERO, ignore_tolerance=True):
+    '''                                                                                 
+    Given a set of points, find an origin and normal using least squares                
+                                                                                        
+    Arguments                                                                           
+    ---------                                                                           
+    points: (n,3)                                                                       
+                                                                                        
+    Returns                                                                             
+    ---------                                                                           
+    C: (3) point on the plane                                                           
+    N: (3) normal vector                                                                
     '''
-    Given a set of points, find an origin and normal using least squares
 
-    Arguments
-    ---------
-    points: (n,3) 
-
-    Returns
-    ---------
-    C: (3) point on the plane
-    N: (3) normal vector
+    '''                                                                                 
+    # a simple test to see if the plane found from three random points in the set meets
+    # the tolerance requested, avoiding more expensive operations                       
+    reduced     = np.diff(points[np.random.choice(len(points), 3, replace=False)], axis\
+=0)                                                                                     
+    test_normal = unitize(np.cross(*reduced))                                           
+    reduced_ok  = np.ptp(np.dot(test_normal, points.T)) < tolerance                     
+    if reduced_ok:                                                                      
+        return points[0], test_normal                                                   
+                                                                                        
     '''
-    C = points.mean(axis=0)
+
+    C = points[0]
     x = points - C
     M = np.dot(x.T, x)
     N = np.linalg.svd(M)[0][:,-1]
+
+    if not ignore_tolerance:
+        normal_bad  = np.ptp(np.dot(test_normal, points.T)) > tolerance
+        if normal_bad: raise NameError('Plane outside tolerance!')
     return C, N
+
+
 
 def radial_sort(points, 
                 origin = None, 
@@ -105,7 +124,6 @@ def radial_sort(points,
     #return the points sorted by angle
     return points[[np.argsort(angles)]]
                
-
 def plane_transform(origin, normal):
     '''
     Given the origin and normal of a plane, find the transform that will move 
