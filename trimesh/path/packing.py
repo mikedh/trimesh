@@ -6,8 +6,7 @@ from time import clock as time_function
 
 from .constants import *
 from .polygons import polygon_obb, polygons_obb
-from .geometry import transformation_2D
-
+from .util     import transformation_2D
 
 class Bin:
     '''
@@ -116,17 +115,15 @@ def pack_rectangles(rectangles, sheet_size, shuffle=False):
   
 def pack_paths(paths):
     from collections import deque
+    import matplotlib.pyplot as plt
     polygons = deque()
     for path in paths:
-        current = path.polygons[path.root_paths[0]]
+        current = path.polygons[path.root[0]]
         polygons.extend([current]*path.metadata['quantity'])
-    inserted, transforms = multipack(np.array(polygons), plot=True)
-    '''
-    paths = np.array(paths)[inserted]
-    for path, tf in zip(paths, transforms):
-        path.plot_discrete(tf)
+    inserted, transforms = multipack(np.array(polygons))
+    for path, transform in zip(paths, transforms):
+        path.plot_discrete(show=False, transform=transform)
     plt.show()
-    ''' 
 
 def multipack(polygons, 
               sheet_size     = None,

@@ -26,11 +26,11 @@ def load_path(obj, file_type=None):
     Utility function which can be passed a filename, file object, or list of lines
     '''
     if hasattr(obj, 'read'):
-        loaded = MODEL_LOADERS[file_type](obj)    
+        loaded = _LOADERS[file_type](obj)    
     elif isinstance(obj, basestring):
         file_obj  = open(obj, 'rb')
         file_type = os.path.splitext(obj)[-1][1:].lower()
-        loaded = MODEL_LOADERS[file_type](file_obj)
+        loaded = _LOADERS[file_type](file_obj)
     elif is_sequence(obj):
         loaded = lines_to_path(obj)
     else:

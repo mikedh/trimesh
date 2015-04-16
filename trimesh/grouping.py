@@ -1,6 +1,9 @@
 import numpy as np
 from collections import deque
 
+from scipy.spatial import cKDTree as KDTree
+import networkx as nx
+
 from .geometry import unitize
 from .constants import *
 
@@ -11,7 +14,7 @@ def merge_vertices_hash(mesh):
     '''
     pre_merge = len(mesh.vertices)
 
-    unique, inverse = unique_rows(mesh.vertices, return_inverse=True)        
+    unique, inverse = unique_rows(mesh.vertices)
     mesh.update_vertices(unique, inverse)
     log.debug('merge_vertices_hash reduced vertex count from %i to %i.',
               pre_merge,
@@ -32,8 +35,7 @@ def merge_vertices_kdtree(mesh, max_angle=None):
     cKDTree requires scipy >= .12 for this query type and you 
     probably don't want to use plain python KDTree as it is crazy slow (~1000x in tests)
     '''
-    from scipy.spatial import cKDTree as KDTree
-    
+
     tree    = KDTree(mesh.vertices)
     used    = np.zeros(len(mesh.vertices), dtype=np.bool)
     inverse = np.arange(len(mesh.vertices), dtype=np.int)
@@ -131,8 +133,16 @@ def hashable_rows(data, digits=None):
     hashable = np.ascontiguousarray(as_int).view(np.dtype((np.void, 
                                                          as_int.dtype.itemsize * as_int.shape[1]))).reshape(-1)
     return hashable
+ 
+def unique_rows_kd(data, radius=1e-6):
+    tree  = KDTree(data)
+    pairs = tree.query_pairs(radius)
+
+    connected = nx.connected_components(nx.from_edgelist(pairs))
+    inverse   = np.arange(len(data))    
     
-def unique_rows(data, return_inverse=False, digits=None):
+    
+def unique_rows(data, digits=None):
     '''
     Returns indices of unique rows. It will return the 
     first occurrence of a row that is duplicated:
@@ -142,9 +152,7 @@ def unique_rows(data, return_inverse=False, digits=None):
     garbage, unique, inverse = np.unique(hashes, 
                                          return_index   = True, 
                                          return_inverse = True)
-    if return_inverse: 
-        return unique, inverse
-    return unique
+    return unique, inverse
     
 def group_rows(data, require_count=None, digits=None):
     '''

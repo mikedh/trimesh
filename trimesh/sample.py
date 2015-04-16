@@ -36,10 +36,10 @@ def random_sample(mesh, count):
     # this works because area_cum is sorted, and searchsorted
     # returns the index where area_sample that would need to be inserted
     # to maintain the sort on area_cum
-    face_index  = np.searchsorted(area_cum, area_sample)
-
-    triangles   = mesh.vertices[mesh.faces[face_index]]
-    barycentric = unitize(np.random.random((count, 3))).reshape((-1,3,1))
+    face_index   = np.searchsorted(area_cum, area_sample)
+    triangles    = mesh.vertices[mesh.faces[face_index]]
+    barycentric  = np.random.random((count, 3))
+    barycentric /= barycentric.sum(axis=1).reshape((-1,1))
     
-    samples = np.sum(triangles * barycentric, axis=1)
+    samples = np.sum(triangles * barycentric.reshape((-1,3,1)), axis=1)
     return samples

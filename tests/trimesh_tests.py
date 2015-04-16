@@ -56,6 +56,10 @@ class MeshTests(unittest.TestCase):
     def setUp(self):
         meshes = deque()
         for filename in os.listdir(TEST_DIR):
+            ext = os.path.splitext(filename)[-1][1:].lower() 
+            if not ext in trimesh.available_formats():
+                continue
+
             log.info('Attempting to load %s', filename)
             location = os.path.abspath(os.path.join(TEST_DIR, filename))
             meshes.append(trimesh.load_mesh(location))
@@ -88,7 +92,7 @@ class MeshTests(unittest.TestCase):
             times = np.diff(tic)
             log.info('Graph-tool sped up split by %f and facets by %f', (times[2] / times[0]), (times[3] / times[1]))
 
-            section   = mesh.cross_section(normal=[0,0,1], origin=mesh.centroid)
+            section   = mesh.section(plane_normal=[0,0,1], plane_origin=mesh.centroid)
             hull      = mesh.convex_hull()
 
             sample    = mesh.sample(1000)

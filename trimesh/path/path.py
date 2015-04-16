@@ -1,17 +1,16 @@
 '''
-vector_path
+path
 
 A library designed to work with vector paths, 
 or continuous paths in space
 '''
 import numpy as np
 import networkx as nx
-import json
 
 from shapely.geometry import Polygon, Point
 from copy import deepcopy
-
 from collections import deque
+
 from .polygons  import polygons_enclosure_tree, is_ccw
 from .constants import *
 from ..geometry import plane_fit, plane_transform, transform_points
@@ -19,10 +18,10 @@ from ..grouping import unique_rows
 
 class Path:
     '''
-    Three tiers of objects:
-    Vertices: coordinates, stored in self.vertices
-    Entities: objects with certain functions defined, that reference self.vertices
-    Paths   : lists of entity indices, that references self.entities
+    A Path object consists of two things:
+    vertices: (n,[2|3]) coordinates, stored in self.vertices
+    entities: geometric primitives (lines, arcs, and circles)
+              that reference indices in self.vertices
     '''
     def __init__(self, 
                  entities = [], 
@@ -37,11 +36,10 @@ class Path:
         '''
         self.entities = np.array(entities)
         self.vertices = np.array(vertices)
+        self.metadata = dict()
 
         if metadata.__class__.__name__ == 'dict':
-            self.metadata = metadata
-        else:
-            self.metadata = dict()
+            self.metadata.update(metadata)
 
         self._cache = {}
 
@@ -109,7 +107,7 @@ class Path:
         '''
         Merges vertices which are identical and replaces references
         '''
-        unique, inverse = unique_rows(self.vertices, return_inverse=True)
+        unique, inverse = unique_rows(self.vertices, digits=TOL_MERGE_DIGITS)
         self.vertices = self.vertices[unique]
         for entity in self.entities: 
             entity.points = inverse[entity.points]
@@ -127,8 +125,8 @@ class Path:
         self.entities = np.array(self.entities)[kept]
 
     def remove_duplicate_entities(self):
-        entity_hashes = np.array([i.hash() for i in self.entities])
-        unique        = unique_rows(entity_hashes)
+        entity_hashes  = np.array([i.hash() for i in self.entities])
+        unique,inverse = unique_rows(entity_hashes)
         if len(unique) != len(self.entities):
             self.entities = np.array(self.entities)[unique]
 
@@ -176,9 +174,9 @@ class Path:
         return discrete
 
     def to_dict(self):
-        export_entities = [e.todict() for e in self.entities]
-        export_object = {'entities' : export_entities, 
-                         'vertices' : self.vertices.tolist()}
+        export_entities = [e.to_dict() for e in self.entities]
+        export_object   = {'entities' : export_entities, 
+                           'vertices' : self.vertices.tolist()}
         return export_object
         
     def process(self):
@@ -188,8 +186,9 @@ class Path:
             process_function()  
             tic.append(time_function())
             label.append(process_function.__name__)
-        log.debug('%s processed in %f seconds',
+        log.debug('%s processed %d entities in %0.4f seconds',
                   self.__class__.__name__,
+                  len(self.entities),
                   tic[-1] - tic[0])
         log.debug('%s', str(np.column_stack((label, np.diff(tic)))))
         return self
@@ -206,8 +205,7 @@ class Path:
 
         new_path = self.__class__(entities = new_entities,
                                   vertices = new_vertices,
-                                  metadata = new_meta,
-                                  process  = False)
+                                  metadata = new_meta)
         return new_path
    
 class Path3D(Path):
@@ -302,13 +300,14 @@ class Path2D(Path):
 
     @property
     def polygons_full(self):
-        result = self._cache_get('polygons_full')
-        if result: return result
+        cached = self._cache_get('polygons_full')
+        if cached: 
+            return cached
         result = [None] * len(self.root)
         for index, root in enumerate(self.root):
             hole_index = self.connected_paths(root, include_self=False)
-            holes = [np.array(p.exterior.coords) for p in np.array(self.polygons)[hole_index]]
-            shell = np.array(self.polygons[root].exterior.coords)
+            holes = [p.exterior.coords for p in self.polygons[hole_index]]
+            shell = self.polygons[root].exterior.coords
             result[index] = Polygon(shell  = shell,
                                     holes  = holes)
         self._cache_put('polygons_full', result)
@@ -321,24 +320,26 @@ class Path2D(Path):
         return np.setdiff1d(paths, [path_id])
         
     def split(self):
-        result        = [None] * len(self.root)
-        paths    = np.array(self.paths)
-        polygons = np.array(self.polygons)
+        if len(self.root) == 1:
+            return [deepcopy(self)]
+        result   = [None] * len(self.root)
         for i, root in enumerate(self.root):
-            current_entities = deque()
-            new_paths        = deque()
-            connected = self.connected_paths(root, include_self=True)
-            paths = self.paths[[connected]]
-            for path in paths:
-                new_paths.append(np.arange(len(path)) + len(current_entities))
-                current_entities.extend(path)
-            result[i] = Path2D(entities = self.entities[[list(current_entities)]],
-                                     vertices = self.vertices,
-                                     process  = False)
-            result[i].paths    = np.array(new_paths)
-            result[i].polygons = self.polygons[[connected]]
-            result[i].metadata = self.metadata
-            result[i].generate_enclosure_tree()
+            connected    = self.connected_paths(root, include_self=True)
+            new_root     = np.nonzero(connected == root)[0]
+            new_entities = deque()
+            new_paths    = deque()
+
+            for path in self.paths[connected]:
+                new_paths.append(np.arange(len(path)) + len(new_entities))
+                new_entities.extend(path)
+            
+            result[i] = Path2D(entities = self.entities[new_entities],
+                               vertices = self.vertices)
+            result[i]._cache = {'entity_count' : len(new_entities),
+                                'paths'        : np.array(new_paths),
+                                'polygons'     : self.polygons[connected],
+                                'metadata'     : new_metadata,
+                                'enclosure'    : enclosure}
         return result
 
     def show(self):
@@ -367,9 +368,10 @@ class Path2D(Path):
                    'Arc1':    {'color':'b', 'linewidth':1}}
         for entity in self.entities:
             discrete = entity.discrete(self.vertices)
+            e_key    = entity.__class__.__name__ + str(int(entity.closed))
             plt.plot(discrete[:,0], 
                      discrete[:,1], 
-                     **eformat[entity.__class__.__name__ + str(int(entity.closed))])
+                     **eformat[e_key])
         if show: plt.show()
 
     def identifier(self):

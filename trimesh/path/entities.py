@@ -32,7 +32,7 @@ class Entity:
         hash[0:len(self.points)] = np.sort(self.points)
         return hash
         
-    def todict(self):
+    def to_dict(self):
         '''
         Returns a dictionary with all of the information about the entity. 
         '''

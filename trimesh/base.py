@@ -283,7 +283,7 @@ class Trimesh():
         For the current mesh, remove any faces which are duplicated. 
         This can occur if faces are below the 
         '''
-        unique = grouping.unique_rows(np.sort(self.faces, axis=1), digits=0)
+        unique,inverse = grouping.unique_rows(np.sort(self.faces, axis=1))
         self.update_faces(unique)
 
     def sample(self, count):

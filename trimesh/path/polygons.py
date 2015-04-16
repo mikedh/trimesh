@@ -4,15 +4,9 @@ import numpy as np
 import networkx as nx
 from collections import deque
 
+from ..geometry import unitize
 from .util      import transformation_2D
 from .constants import *
-from ..geometry import unitize
-
-
-import logging
-log = logging.getLogger(__name__)
-log.addHandler(logging.NullHandler())
-
 
 def polygons_enclosure_tree(polygons):
     '''
