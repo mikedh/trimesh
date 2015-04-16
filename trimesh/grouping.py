@@ -2,7 +2,6 @@ import numpy as np
 from collections import deque
 
 from scipy.spatial import cKDTree as KDTree
-import networkx as nx
 
 from .geometry import unitize
 from .constants import *
@@ -133,14 +132,6 @@ def hashable_rows(data, digits=None):
     hashable = np.ascontiguousarray(as_int).view(np.dtype((np.void, 
                                                          as_int.dtype.itemsize * as_int.shape[1]))).reshape(-1)
     return hashable
- 
-def unique_rows_kd(data, radius=1e-6):
-    tree  = KDTree(data)
-    pairs = tree.query_pairs(radius)
-
-    connected = nx.connected_components(nx.from_edgelist(pairs))
-    inverse   = np.arange(len(data))    
-    
     
 def unique_rows(data, digits=None):
     '''
@@ -233,7 +224,6 @@ def group_vectors(vectors,
     The main difference is that max_angle can be much looser, as we
     are doing actual distance queries. 
     '''
-    from scipy.spatial import cKDTree as KDTree
     dist_max            = np.tan(max_angle)
     unit_vectors, valid = unitize(vectors, check_valid = True)
     valid_index         = np.nonzero(valid)[0]
