@@ -1,4 +1,4 @@
 from __future__ import absolute_import
 
-from .base import VectorPath2D, VectorPath3D
-from .load import load_path, path_formats
+from .path import Path2D, Path3D
+from .io   import load_path, available_formats

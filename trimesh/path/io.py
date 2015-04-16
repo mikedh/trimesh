@@ -8,17 +8,20 @@ from cStringIO import StringIO
 
 from .constants import *
 from .util      import is_sequence
-from .base      import VectorPath2D, VectorPath3D
+from .path      import Path2D, Path3D
 from .entities  import Line, Arc, arc_center
 from .dxf       import dxf_to_vector
+
+from ..geometry import faces_to_edges
+from ..grouping import group_rows
 
 PY3 = sys.version_info.major >= 3
 if PY3: basestring = str 
 
-def path_formats():
-    return MODEL_LOADERS.keys()
+def available_formats():
+    return _LOADERS.keys()
 
-def load_path(obj, file_type=None, process=True):
+def load_path(obj, file_type=None):
     '''
     Utility function which can be passed a filename, file object, or list of lines
     '''
@@ -29,20 +32,19 @@ def load_path(obj, file_type=None, process=True):
         file_type = os.path.splitext(obj)[-1][1:].lower()
         loaded = MODEL_LOADERS[file_type](file_obj)
     elif is_sequence(obj):
-        loaded = lines_to_vectorpath(obj)
+        loaded = lines_to_path(obj)
     else:
         raise NameError('Not a supported object type!')
-        
-    if process: loaded.process()
+
     return loaded
 
 def dxf_to_path(file_obj, type=None):
     '''
-    Load a dxf file into a vectorpath container
+    Load a dxf file into a path container
     '''
     
     entities, vertices = dxf_to_vector(StringIO(file_obj.read()))
-    vector = VectorPath2D(entities, vertices)
+    vector = Path2D(entities, vertices)
     vector.metadata['is_planar'] = True
     return vector
 
@@ -55,12 +57,12 @@ def dict_to_path(drawing_obj):
         entities[entity_index] = loaders[entity['type']](points = entity['points'],
                                                          closed = entity['closed'])
 
-    drawing_type = [VectorPath2D, VectorPath3D][vertices.shape[1] - 2]
-    return drawing_type(entities=entities, vertices=vertices).process()
+    drawing_type = [Path2D, Path3D][vertices.shape[1] - 2]
+    return drawing_type(entities=entities, vertices=vertices)
     
 def lines_to_path(lines):
     '''
-    Given a set of line segments (n, 2, [2|3]), populate a vectorpath
+    Given a set of line segments (n, 2, [2|3]), populate a path
     '''
     shape = np.shape(lines)
     if len(shape) == 2:
@@ -75,10 +77,9 @@ def lines_to_path(lines):
     entities = deque()
     for i in range(0, (len(lines) * 2) - 1, 2):
         entities.append(Line([i, i+1]))
-    vector_type = [VectorPath2D, VectorPath3D][shape[2]-2]
+    vector_type = [Path2D, Path3D][shape[2]-2]
     vector = vector_type(entities = np.array(entities),
-                         vertices = lines.reshape((-1,shape[2])),
-                         process  = False)
+                         vertices = lines.reshape((-1,shape[2])))
     return vector
 
 def svg_to_path(file_obj, file_type=None):
@@ -111,14 +112,14 @@ def svg_to_path(file_obj, file_type=None):
     for svg_entity in parse_path(''.join(paths)):
         loaders[svg_entity.__class__.__name__](svg_entity)
 
-    vector = VectorPath2D(entities = np.array(entities), 
+    vector = Path2D(entities = np.array(entities), 
                              vertices = np.array(vertices))
     vector.metadata['is_planar'] = True
     return vector
  
-def vectorpath_to_svg(drawing):
+def path_to_svg(drawing):
     '''
-    Will turn a vectorpath drawing into an SVG path string. 
+    Will turn a path drawing into an SVG path string. 
 
     'holes' will be in reverse order, so they can be rendered as holes by the 
     '''
@@ -126,9 +127,11 @@ def vectorpath_to_svg(drawing):
         radius_str = format(radius, EXPORT_PRECISION)
         path_str  = '  M' + format(center[0]-radius, EXPORT_PRECISION) + ',' 
         path_str += format(center[1], EXPORT_PRECISION)       
-        path_str += 'a' + radius_str + ',' + radius_str + ',0,1,' + str(int(reverse)) + ','
+        path_str += 'a' + radius_str + ',' + radius_str  
+        path_str += ',0,1,' + str(int(reverse)) + ','
         path_str += format(2*radius, EXPORT_PRECISION) +  ',0'
-        path_str += 'a' + radius_str + ',' + radius_str + ',0,1,' + str(int(reverse)) + ','
+        path_str += 'a' + radius_str + ',' + radius_str
+        path_str += ',0,1,' + str(int(reverse)) + ','
         path_str += format(-2*radius, EXPORT_PRECISION) + ',0Z  '
         return path_str
 
@@ -142,7 +145,8 @@ def vectorpath_to_svg(drawing):
         C, R, N, angle = arc_center(vertices)
         if arc.closed: return circle_to_svgpath(C, R, reverse)
         large_flag = str(int(angle > np.pi))
-        sweep_flag = str(int(np.cross(vertex_mid-vertex_start, vertex_end-vertex_start) > 0))
+        sweep_flag = str(int(np.cross(vertex_mid-vertex_start, 
+                                      vertex_end-vertex_start) > 0))
         R_ex = format(R, EXPORT_PRECISION)
         x_ex = format(vertex_end[0],EXPORT_PRECISION)
         y_ex = format(vertex_end [1],EXPORT_PRECISION)
@@ -182,5 +186,28 @@ def vectorpath_to_svg(drawing):
         path_str += convert_path(path, reverse)
     return path_str
 
-MODEL_LOADERS = {'dxf': dxf_to_path,
-                 'svg': svg_to_path}
+def faces_to_path(mesh, face_ids=None):
+    '''
+    Given a mesh and face indices, find the outline edges and
+    turn them into a Path3D.
+
+    Arguments
+    ---------
+    mesh:  Trimesh object
+    facet: (n) list of indices of mesh.faces
+
+    Returns
+    ---------
+    path: Path3D of the outline of the facet
+    '''
+    if face_ids is None: faces = mesh.faces
+    else:                faces = mesh.faces[[face_ids]]
+
+    edges        = faces_to_edges(faces)
+    unique_edges = group_rows(edges, require_count=1)
+    segments     = mesh.vertices[edges[unique_edges]]        
+    path         = lines_to_path(segments)
+    return path
+
+_LOADERS = {'dxf': dxf_to_path,
+            'svg': svg_to_path}

@@ -1,4 +1,7 @@
 import numpy as np
+from ..geometry import faces_to_edges
+from ..grouping import group_rows
+
 
 def transformation_2D(offset=[0.0,0.0], theta=0.0):
     '''

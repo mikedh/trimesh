@@ -6,20 +6,18 @@ or continuous paths in space
 '''
 import numpy as np
 import networkx as nx
-import traceback
 import json
 
 from shapely.geometry import Polygon, Point
 from copy import deepcopy
-from scipy.spatial import cKDTree as KDTree
+
 from collections import deque
-from .entities  import Arc, Line
 from .polygons  import polygons_enclosure_tree, is_ccw
 from .constants import *
 from ..geometry import plane_fit, plane_transform, transform_points
 from ..grouping import unique_rows
 
-class VectorPath:
+class Path:
     '''
     Three tiers of objects:
     Vertices: coordinates, stored in self.vertices
@@ -29,7 +27,6 @@ class VectorPath:
     def __init__(self, 
                  entities = [], 
                  vertices = [],
-                 process  = True,
                  metadata = None):
         '''
         entities:
@@ -48,13 +45,12 @@ class VectorPath:
 
         self._cache = {}
 
-        if process: self.process()
-
     def _cache_verify(self):
         ok = 'entity_count' in self._cache
         ok = ok and (len(self.entities) == self._cache['entity_count'])
         if not ok: 
             self._cache = {'entity_count': len(self.entities)}
+            self.process()
 
     def _cache_get(self, key):
         self._cache_verify()
@@ -81,6 +77,10 @@ class VectorPath:
     @property
     def enclosure(self):
         return self._cache_get('enclosure')
+
+    @property
+    def discrete(self):
+        return self._cache_get('discrete')
 
     def scale(self):
         return np.max(np.ptp(self.vertices, axis=0))
@@ -210,7 +210,7 @@ class VectorPath:
                                   process  = False)
         return new_path
    
-class VectorPath3D(VectorPath):
+class Path3D(Path):
     def process_functions(self): 
         return [self.merge_vertices,
                 self.remove_duplicate_entities,
@@ -219,13 +219,14 @@ class VectorPath3D(VectorPath):
                 self.generate_discrete]
                
     def generate_discrete(self):
-        self.discrete = list(map(self.discretize_path, self.paths))
- 
+        discrete = list(map(self.discretize_path, self.paths))
+        self._cache_put('discrete', discrete)
+
     def to_planar(self, normal=None, transform=None):
         '''
         Check to see if current vectors are all coplanar.
         
-        If they are, return a VectorPath2D and a transform which will 
+        If they are, return a Path2D and a transform which will 
         transform the 2D representation back into 3 dimensions
         '''
         
@@ -242,7 +243,7 @@ class VectorPath3D(VectorPath):
         if np.any(np.std(vertices[:,2]) > TOL_MERGE):
             raise NameError('Points aren\'t planar!')
             
-        vector = VectorPath2D(entities = deepcopy(self.entities), 
+        vector = Path2D(entities = deepcopy(self.entities), 
                               vertices = vertices)
         to_3D  = np.linalg.inv(to_planar)
 
@@ -255,29 +256,23 @@ class VectorPath3D(VectorPath):
     def plot_discrete(self, show=False):
         import matplotlib.pyplot as plt
         from mpl_toolkits.mplot3d import Axes3D
-        try: 
-            test = self.axis
-        except:
-            self.fig  = plt.figure()
-            self.axis = self.fig.add_subplot(111, projection='3d')
+        fig  = plt.figure()
+        axis = fig.add_subplot(111, projection='3d')
         for discrete in self.discrete:
-            self.axis.plot(*discrete.T)
+            axis.plot(*discrete.T)
         if show: plt.show()
 
     def plot_entities(self, show=False):
         import matplotlib.pyplot as plt
         from mpl_toolkits.mplot3d import Axes3D
-        try: 
-            test = self.axis
-        except:
-            self.fig  = plt.figure()
-            self.axis = self.fig.add_subplot(111, projection='3d')
+        fig  = plt.figure()
+        axis = fig.add_subplot(111, projection='3d')
         for entity in self.entities:
             vertices = self.vertices[entity.points]
-            self.axis.plot(*vertices.T)        
+            axis.plot(*vertices.T)        
         if show: plt.show()
 
-class VectorPath2D(VectorPath):
+class Path2D(Path):
     def process_functions(self): 
         return [self.merge_vertices,
                 self.remove_duplicate_entities,
@@ -337,7 +332,7 @@ class VectorPath2D(VectorPath):
             for path in paths:
                 new_paths.append(np.arange(len(path)) + len(current_entities))
                 current_entities.extend(path)
-            result[i] = VectorPath2D(entities = self.entities[[list(current_entities)]],
+            result[i] = Path2D(entities = self.entities[[list(current_entities)]],
                                      vertices = self.vertices,
                                      process  = False)
             result[i].paths    = np.array(new_paths)

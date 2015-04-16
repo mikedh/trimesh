@@ -234,4 +234,3 @@ def ray_triangle_locations(triangles,
                 raise ValueError('Intersections passed are in error!')
         locations[ray_index] = group_locations
     return np.array(locations)
-

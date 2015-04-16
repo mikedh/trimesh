@@ -4,8 +4,8 @@ from .constants import *
 from .geometry import unitize, project_to_plane, faces_to_edges
 
 def mesh_plane_intersection(mesh, 
-                            plane_origin  = [0,0,0], 
-                            plane_normal  = [0,0,1],
+                            plane_normal,
+                            plane_origin  = None,
                             return_planar = False):
     '''
     Return a cross section of the trimesh based on plane origin and normal. 
@@ -20,19 +20,20 @@ def mesh_plane_intersection(mesh,
     '''
     if len(mesh.faces) == 0: 
         raise NameError("Cannot compute cross section of empty mesh.")
- 
-    edges = faces_to_edges(mesh.faces, sort=True)
+    if plane_origin is None: 
+        plane_origin = [0,0,0]
+
+    edges                 = faces_to_edges(mesh.faces, sort=True)
     intersections, valid  = plane_line_intersection(plane_origin, 
                                                     plane_normal, 
                                                     mesh.vertices[[edges.T]],
                                                     line_segments = True)
     log.debug('mesh_cross_section found %i intersections', len(intersections))
-    if not return_planar: 
-        return intersections.reshape(-1,2,3)
-
-    return project_to_plane(intersections.reshape((-1,3)),
-                            plane_normal = plane_normal,
-                            plane_origin = plane_origin).reshape((-1,2,2))
+    if return_planar:
+        return project_to_plane(intersections.reshape((-1,3)),
+                                plane_normal = plane_normal,
+                                plane_origin = plane_origin).reshape((-1,2,2))
+    return intersections.reshape(-1,2,3)
 
 def points_in_mesh(points, mesh):
     from rtree import Rtree

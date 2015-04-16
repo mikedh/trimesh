@@ -18,9 +18,13 @@ from . import intersections
 
 from .io.export import export_mesh
 from .ray.ray_mesh import RayMeshIntersector
-
 from .constants import *
 from .geometry import unitize, transform_points
+
+try: 
+    from .path.io import faces_to_path, lines_to_path
+except ImportError:
+    log.warn('Paths unavailable!', exc_info=True)
 
 class Trimesh():
     def __init__(self, 
@@ -192,10 +196,9 @@ class Trimesh():
             if not np.all(valid):  
                 self.generate_face_normals()
 
-    def cross_section(self,
-                      normal,
-                      origin        = None,
-                      return_planar = True):
+    def section(self,
+                plane_normal,
+                plane_origin = None):
         '''
         Returns a cross section of the current mesh and plane defined by
         origin and normal.
@@ -203,22 +206,19 @@ class Trimesh():
         Arguments
         ---------
 
-        normal:        (3) vector for plane normal
-        origin:        (3) vector for plane origin. If None, will use [0,0,0]
-        return_planar: boolean, whether to project cross section to plane or not
-                        If return_planar is True,  returned shape is (n, 2, 2) 
-                        If return_planar is False, returned shape is (n, 2, 3)
-                        
+        plane_normal: (3) vector for plane normal
+        plane_origin: (3) vector for plane origin. If None, will use [0,0,0]
+                            
         Returns
         ---------
-        intersections: (n, 2, [2|3]) line segments where plane intersects triangles in mesh
-                       
+        intersections: Path3D of intersections             
         '''
-        from .intersections import mesh_plane_intersection
-        return mesh_plane_intersection(mesh          = self, 
-                                       plane_normal  = normal, 
-                                       plane_origin  = origin,
-                                       return_planar = return_planar)
+        segments = intersections.mesh_plane_intersection(mesh         = self, 
+                                                         plane_normal = plane_normal, 
+                                                         plane_origin = plane_origin)
+        path     = lines_to_path(segments)
+        return path
+
     @log_time   
     def convex_hull(self):
         '''
@@ -406,6 +406,23 @@ class Trimesh():
         '''
         self.vertices = transform_points(self.vertices, matrix)
 
+    def outline(self, face_ids=None):
+        '''
+        Given a set of face ids, find the outline of the faces,
+        and return it as a Path3D
+
+        Arguments
+        ----------
+        face_ids: (n) int, list of indices for self.faces to 
+                  compute the outline of. 
+                  If None, outline of full mesh will be computed.
+        Returns
+        ----------
+        path:     Path3D object of the outline
+        '''
+        path = faces_to_path(self, face_ids)
+        return path
+        
     def area(self, sum=True):
         '''
         Summed area of all triangles in the current mesh.
@@ -444,7 +461,8 @@ class Trimesh():
             'volume'      : in global units^3
             'mass'        : From specified density
             'density'     : Included again for convenience (same as kwarg density)
-            'inertia'     : Taken at the center of mass and aligned with global coordinate system
+            'inertia'     : Taken at the center of mass and aligned with global 
+                            coordinate system
             'center_mass' : Center of mass location, in global coordinate system
         '''
         return triangles.mass_properties(triangles    = self.vertices[[self.faces]], 
