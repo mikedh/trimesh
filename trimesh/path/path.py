@@ -301,8 +301,7 @@ class Path2D(Path):
     @property
     def polygons_full(self):
         cached = self._cache_get('polygons_full')
-        if cached: 
-            return cached
+        if cached:  return cached
         result = [None] * len(self.root)
         for index, root in enumerate(self.root):
             hole_index = self.connected_paths(root, include_self=False)
@@ -314,12 +313,19 @@ class Path2D(Path):
         return result
         
     def connected_paths(self, path_id, include_self = False):
-        paths = nx.node_connected_component(self.enclosure, path_id)
+        if len(self.root) == 1:
+            path_ids = np.arange(len(self.paths))
+        else:
+            path_ids = nx.node_connected_component(self.enclosure, path_id)
         if include_self: 
-            return np.array(paths)
-        return np.setdiff1d(paths, [path_id])
+            return np.array(path_ids)
+        return np.setdiff1d(path_ids, [path_id])
         
     def split(self):
+        '''
+        If the current Path2D consists of n 'root' curves,
+        split them into a list of n Path2D objects
+        '''
         if len(self.root) == 1:
             return [deepcopy(self)]
         result   = [None] * len(self.root)
@@ -328,18 +334,20 @@ class Path2D(Path):
             new_root     = np.nonzero(connected == root)[0]
             new_entities = deque()
             new_paths    = deque()
+            new_metadata = {'split_2D' : i}
+            new_metadata.update(self.metadata)
 
             for path in self.paths[connected]:
                 new_paths.append(np.arange(len(path)) + len(new_entities))
                 new_entities.extend(path)
             
-            result[i] = Path2D(entities = self.entities[new_entities],
-                               vertices = self.vertices)
+            result[i] = Path2D(entities = deepcopy(self.entities[new_entities]),
+                               vertices = deepcopy(self.vertices))
             result[i]._cache = {'entity_count' : len(new_entities),
                                 'paths'        : np.array(new_paths),
                                 'polygons'     : self.polygons[connected],
                                 'metadata'     : new_metadata,
-                                'enclosure'    : enclosure}
+                                'root'         : new_root}
         return result
 
     def show(self):

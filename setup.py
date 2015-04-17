@@ -10,6 +10,7 @@ setup(name='trimesh',
       url='github.com/mikedh/trimesh.py',
       packages=['trimesh',
                 'trimesh.io',
-                'trimesh.ray'],
+                'trimesh.ray',
+                'trimesh.path'],
       install_requires=['numpy', 'scipy', 'networkx', 'pyglet']
      )

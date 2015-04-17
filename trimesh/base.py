@@ -70,7 +70,6 @@ class Trimesh():
         '''
         Convenience function to do basic processing on a raw mesh
         '''
-        
         self.merge_vertices()
         self.remove_duplicate_faces()
         self.remove_degenerate_faces()
@@ -105,6 +104,7 @@ class Trimesh():
         '''
         return graph_ops.split(self, only_count=True)
 
+    @property
     def edges(self):
         return geometry.faces_to_edges(self.faces)
         
@@ -141,7 +141,7 @@ class Trimesh():
         Return a list of face indices for coplanar adjacent faces
         '''
         facet_func = [graph_ops.facets, graph_ops.facets_group][group_normals]
-        facet_list  = facet_func(self)
+        facet_list = facet_func(self)
         if return_area:
             facets_area = [triangles.area(self.vertices[[self.faces[i]]]) for i in facet_list]
             return facet_list, facets_area
@@ -409,7 +409,9 @@ class Trimesh():
     def outline(self, face_ids=None):
         '''
         Given a set of face ids, find the outline of the faces,
-        and return it as a Path3D
+        and return it as a Path3D. Note that this implies a non-
+        watertight section, and the 'outline' of a watertight
+        mesh or subset of a mesh is an empty path. 
 
         Arguments
         ----------
@@ -431,9 +433,17 @@ class Trimesh():
         
     @property
     def bounds(self):
-        return np.vstack((np.min(self.vertices, axis=0),
-                          np.max(self.vertices, axis=0)))
-                          
+        '''
+        bounding box of the mesh. 
+
+        Returns
+        -------
+        bounds: (2,3) list of [min, max] coordinates
+        '''
+        bounds = np.vstack((np.min(self.vertices, axis=0),
+                            np.max(self.vertices, axis=0)))
+        return bounds
+
     @property                 
     def centroid(self):
         return np.mean(self.vertices, axis=0)
