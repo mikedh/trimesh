@@ -4,13 +4,11 @@ Narrow phase ray- triangle intersection
 import numpy as np
 import time
 
-from ..constants import log, log_time, TOL_ZERO
+from ..constants import log, TOL_ZERO
 
-@log_time
 def rays_triangles_id(triangles,
                       rays, 
-                      ray_candidates = None,
-                      return_any     = False):
+                      ray_candidates = None):
     '''
     Intersect a set of rays and triangles. 
 
@@ -20,16 +18,13 @@ def rays_triangles_id(triangles,
     rays:           (m, 2, 3) float array of ray start, ray directions
     ray_candidates: (m, *) int array of which triangles are candidates
                     for the ray. 
-    return_any:     bool flag for output format
 
     Returns
     ---------
-    intersections, return_any:      (m) bool of whether the ray hit any triangles
-    intersections, not return_any:  (m) sequence of triangle indexes hit by rays
+    intersections:  (m) sequence of triangle indexes hit by rays
     '''
 
-    if return_any: hits = np.zeros(len(rays), dtype=np.bool)
-    else:          hits = [None] * len(rays)
+    hits = [None] * len(rays)
   
     # default set of candidate triangles to be queried 
     # is every triangle. this is very slow
@@ -40,10 +35,7 @@ def rays_triangles_id(triangles,
             candidates = ray_candidates[ray_index]
         # query the triangle candidates
         hit = ray_triangles(triangles[candidates], *ray)
-        if return_any: 
-            hits[ray_index] = hit.any()
-        else:
-            hits[ray_index] = np.array(candidates)[hit]
+        hits[ray_index] = np.array(candidates)[hit]
     return np.array(hits)
 
 def ray_triangles(triangles, 

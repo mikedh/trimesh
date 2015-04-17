@@ -51,16 +51,16 @@ class RayMeshIntersector:
 
         Returns
         ---------
-        intersections: (n) sequence of (m,3) intersection points
+        locations: (n) sequence of (m,3) intersection points
         '''
-        intersections = self.intersects_id(rays)
-        locations     = ray_triangle_locations(triangles     = self.triangles,
-                                               rays          = rays,
-                                               intersections = intersections,
-                                               tri_normals   = self.mesh.face_normals)
+        hits      = self.intersects_id(rays)
+        locations = ray_triangle_locations(triangles     = self.triangles,
+                                           rays          = rays,
+                                           intersections = hits,
+                                           tri_normals   = self.mesh.face_normals)
         return locations
 
-    def intersects_id(self, rays, return_any=False):
+    def intersects_id(self, rays):
         '''
         Find the indexes of triangles the rays intersect
 
@@ -69,22 +69,15 @@ class RayMeshIntersector:
         rays: (n, 2, 3) array of ray origins and directions
 
         Returns
-        ---------
-        
-        intersections, return_any=True:
-            (n) sequence of triangle indexes which hit the ray
-        intersections, return_any=False:
-            (n) boolean array of whether the ray hit *any* triangle
-
-        
+        ---------        
+        hits: (n) sequence of triangle indexes which hit the ray
         '''
-        ray_candidates = ray_triangle_candidates(rays = rays, 
-                                                 tree = self.tree)
-        intersections  = rays_triangles_id(triangles      = self.triangles, 
-                                           rays           = rays, 
-                                           ray_candidates = ray_candidates,
-                                           return_any     = return_any)
-        return intersections
+        candidates = ray_triangle_candidates(rays = rays, 
+                                             tree = self.tree)
+        hits  = rays_triangles_id(triangles      = self.triangles, 
+                                  rays           = rays, 
+                                  ray_candidates = candidates)
+        return hits
 
     def intersects_any(self, rays):
         '''
@@ -96,10 +89,11 @@ class RayMeshIntersector:
 
         Returns
         ---------
-        intersections: (n) boolean array of whether or not the ray hit a triangle
+        hits_any: (n) boolean array of whether or not the ray hit any triangle
         '''
-        intersections = self.intersects_id(rays, return_any=True)
-        return intersections
+        hits     = self.intersects_id(rays)
+        hits_any = np.array([len(i) > 0 for i in hits])
+        return hits_any
 
 def ray_triangle_candidates(rays, tree):
     '''
