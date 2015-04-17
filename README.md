@@ -1,7 +1,7 @@
-trimesh.py
+trimesh
 ==========
 
-Python library for loading triangular meshes and doing simple operations on them. Included loaders are binary/ASCII STL and Wavefront (OBJ), included exporters are binary STL or COLLADA. If Assimp/pyassimp are available, meshes can be loaded using the assimp loaders. Note that this requires a version of the assimp python bindings from after September 2014. 
+Python library for loading and doing simple operations on triangular meshes. Included loaders are binary/ASCII STL, wavefront OBJ, and OFF. Included exporters are binary STL, COLLADA and OFF. If assimp/pyassimp are installed all the assimp formats will be available. Note that this requires a version of the assimp python bindings from after September 2014. 
 
 ### Features
 * Fast loading of binary STL files (on 234,230 face mesh, was 24.5x faster than assimp)
@@ -23,7 +23,7 @@ Python library for loading triangular meshes and doing simple operations on them
 ### Installation:
 The easiest way to install is:
 
-    sudo pip install git+https://github.com/mikedh/trimesh.py.git
+    sudo pip install git+https://github.com/mikedh/trimesh.git
 
 To get the latest version of assimp/pyassimp from github:
 
@@ -33,9 +33,12 @@ To get the latest version of assimp/pyassimp from github:
     import numpy as np
     import trimesh
     
+    # this list will be much longer if assimp is available
+    print(trimesh.available_formats())
+
     # load_mesh can accept a filename or file object, 
     # however file objects require 'file_type' specified (eg. file_type='stl')
-    # on load, does basic cleanup of mesh, including merging vertices 
+    # on load does basic cleanup of mesh, including merging vertices 
     # and removing duplicate/degenerate faces
     mesh = trimesh.load_mesh('./models/unit_cube.STL')
     
