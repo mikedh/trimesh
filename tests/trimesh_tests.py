@@ -67,6 +67,11 @@ class MeshTests(unittest.TestCase):
         self.meshes = list(meshes)
 
     def test_meshes(self):
+
+        has_gt = trimesh.graph_ops._has_gt
+        if not has_gt:
+            log.warn('No graph-tool to test!')
+
         for mesh in self.meshes:
             log.info('Testing %s', mesh.metadata['filename'])
             self.assertTrue(len(mesh.faces) > 0)
@@ -74,27 +79,25 @@ class MeshTests(unittest.TestCase):
             
             mesh.process()
 
-            tic = [time.time()]
-            split     = trimesh.graph_ops.split_gt(mesh)
-            tic.append(time.time())
-            facets    = mesh.facets()
-            tic.append(time.time())
-
-            trimesh.geometry._has_gt = False
+            if has_gt:
+                tic = [time.time()]
+                split     = trimesh.graph_ops.split_gt(mesh)
+                tic.append(time.time())
+                facets    = trimesh.graph_ops.facets_gt(mesh)
+                tic.append(time.time())
 
             split     = trimesh.graph_ops.split_nx(mesh) 
             tic.append(time.time())
-            facets    = mesh.facets()
+            facets    = trimesh.graph_ops.facets_nx(mesh)
             tic.append(time.time())
 
-            trimesh.geometry._has_gt = True
-
-            times = np.diff(tic)
-            log.info('Graph-tool sped up split by %f and facets by %f', (times[2] / times[0]), (times[3] / times[1]))
+            if has_gt:
+                times = np.diff(tic)
+                log.info('Graph-tool sped up split by %f and facets by %f', 
+                         (times[2] / times[0]), (times[3] / times[1]))
 
             section   = mesh.section(plane_normal=[0,0,1], plane_origin=mesh.centroid)
             hull      = mesh.convex_hull()
-
             sample    = mesh.sample(1000)
             self.assertTrue(sample.shape == (1000,3))
             
@@ -132,9 +135,8 @@ class MeshTests(unittest.TestCase):
             self.assertTrue(mesh.is_watertight())
             
     def test_fix_normals(self):
-        for mesh in self.meshes[:2]:
+        for mesh in self.meshes[-2:]:
             mesh.fix_normals()
-
 
 class MassTests(unittest.TestCase):
     def setUp(self):

@@ -83,11 +83,7 @@ class Trimesh():
     @property
     def bounds(self):
         '''
-        Bounding box of the mesh. 
-
-        Returns
-        -------
-        bounds: (2,3) list of [min, max] coordinates
+        (2,3) float, bounding box of the mesh of [min, max] coordinates
         '''
         bounds = np.vstack((np.min(self.vertices, axis=0),
                             np.max(self.vertices, axis=0)))
@@ -173,11 +169,10 @@ class Trimesh():
         '''
         Return a list of face indices for coplanar adjacent faces
         '''
-        facet_func = [graph_ops.facets, graph_ops.facets_group][group_normals]
-        facet_list = facet_func(self)
+        facets = [graph_ops.facets, graph_ops.facets_group][group_normals](self)
         if return_area:
-            facets_area = [triangles.area(self.vertices[[self.faces[i]]]) for i in facet_list]
-            return facet_list, facets_area
+            area = [triangles.area(self.vertices[self.faces[i]]) for i in facets]
+            return facets, area
         return facet_list
 
     @log_time    
