@@ -388,7 +388,7 @@ class Path2D(Path):
             raise NameError('Identifier only valid for single body')
         return [polygons[0].area, 
                 polygons[0].length, 
-                polygons[0].__hash__()*1e-3]
+                polygons[0].__hash__()*1e-5]
 
 def vertex_graph(entities, return_closed=False):
     graph  = nx.Graph()
