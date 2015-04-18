@@ -79,7 +79,7 @@ class RayMeshIntersector:
                                   ray_candidates = candidates)
         return hits
 
-    def intersects_any(self, rays):
+    def intersects_any_triangle(self, rays):
         '''
         Find out whether the rays in question hit *any* triangle on the mesh.
 
@@ -89,11 +89,33 @@ class RayMeshIntersector:
 
         Returns
         ---------
-        hits_any: (n) boolean array of whether or not the ray hit any triangle
+        hits_any: (n) boolean array of whether or not each ray hit any triangle
         '''
         hits     = self.intersects_id(rays)
         hits_any = np.array([len(i) > 0 for i in hits])
         return hits_any
+
+    def intersects_any(self, rays):
+        '''
+        Find out whether *any* ray hit *any* triangle on the mesh.
+        Equivilant to but signifigantly faster than (due to early exit):
+            intersects_any_triangle(rays).any()
+
+        Arguments
+        ---------
+        rays: (n, 2, 3) array of ray origins and directions
+
+        Returns
+        ---------
+        hit: boolean, whether any ray hit any triangle on the mesh
+        '''
+        candidates = ray_triangle_candidates(rays = rays, 
+                                             tree = self.tree)
+        hit = rays_triangles_id(triangles      = self.triangles, 
+                                rays           = rays, 
+                                ray_candidates = candidates,
+                                return_any     = True)
+        return hit
 
 def ray_triangle_candidates(rays, tree):
     '''
