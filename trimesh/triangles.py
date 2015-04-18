@@ -1,5 +1,6 @@
 import numpy as np
-from .geometry import unitize
+from .geometry import unitize, point_plane_distance
+from .constants import TOL_ZERO
 
 def cross(triangles):
     '''
@@ -57,7 +58,7 @@ def any_coplanar(triangles):
     of the following triangles, return True.
     Otherwise, return False. 
     '''
-    test_normal  = normal(triangles)[0]
+    test_normal  = normals(triangles)[0]
     test_vertex  = triangles[0][0]
     distances    = point_plane_distance(points       = triangles[1:].reshape((-1,3)),
                                         plane_normal = test_normal,

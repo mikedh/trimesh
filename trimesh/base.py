@@ -21,10 +21,14 @@ from .ray.ray_mesh import RayMeshIntersector
 from .constants import *
 from .geometry import unitize, transform_points
 
-try: 
-    from .path.io import faces_to_path, lines_to_path
+try: from .path.io import faces_to_path, lines_to_path
 except ImportError:
-    log.warn('Paths unavailable!', exc_info=True)
+    log.warn('trimesh.path unavailable!', exc_info=True)
+
+try: from scipy.spatial import ConvexHull
+except ImportError: 
+    log.warn('scipy ConvexHull unavailable', exc_info=True)
+
 
 class Trimesh():
     def __init__(self, 
@@ -75,6 +79,47 @@ class Trimesh():
         self.remove_degenerate_faces()
         self.verify_face_normals()
         return self
+
+    @property
+    def bounds(self):
+        '''
+        Bounding box of the mesh. 
+
+        Returns
+        -------
+        bounds: (2,3) list of [min, max] coordinates
+        '''
+        bounds = np.vstack((np.min(self.vertices, axis=0),
+                            np.max(self.vertices, axis=0)))
+        return bounds
+
+    @property                 
+    def centroid(self):
+        return np.mean(self.vertices, axis=0)
+        
+    @property
+    def center_mass(self):
+        return self.mass_properties(skip_inertia=True)['center_mass']
+        
+    @property
+    def box_size(self):
+        return np.diff(self.bounds, axis=0)[0]
+        
+    @property
+    def body_count(self):
+        '''
+        Return the number of groups of connected faces.
+        Bodies aren't necessarily watertight.
+        '''
+        return graph_ops.split(self, only_count=True)
+
+    @property
+    def triangles(self):
+        return self.vertices[self.faces]
+
+    @property
+    def edges(self):
+        return geometry.faces_to_edges(self.faces)
         
     def rezero(self):
         '''
@@ -95,18 +140,6 @@ class Trimesh():
         meshes = graph_ops.split(self, check_watertight)
         log.info('split found %i components', len(meshes))
         return meshes
-
-    @property
-    def body_count(self):
-        '''
-        Return the number of groups of connected faces.
-        Bodies aren't necessarily watertight.
-        '''
-        return graph_ops.split(self, only_count=True)
-
-    @property
-    def edges(self):
-        return geometry.faces_to_edges(self.faces)
         
     def face_adjacency(self):
         '''
@@ -205,7 +238,6 @@ class Trimesh():
         
         Arguments
         ---------
-
         plane_normal: (3) vector for plane normal
         plane_origin: (3) vector for plane origin. If None, will use [0,0,0]
                             
@@ -220,21 +252,29 @@ class Trimesh():
         return path
 
     @log_time   
-    def convex_hull(self):
+    def convex_hull(self, clean=True):
         '''
         Get a new Trimesh object representing the convex hull of the 
         current mesh. Requires scipy >.12.
-  
+
+        Argments
+        --------
+        clean: boolean, if True will fix normals and winding
+               to be coherent (as qhull/scipy outputs are not)
+
+        Returns
+        --------
+        convex: Trimesh object of convex hull of current mesh
         '''
-        from scipy.spatial import ConvexHull
         faces  = ConvexHull(self.vertices).simplices
         convex = Trimesh(vertices=self.vertices.copy(), faces=faces)
-        # the normals and triangle winding returned by scipy/qhull's
-        # ConvexHull are apparently random, so we need to completely fix them
-        convex.fix_normals()
-        # since we just copied all the vertices over, we will have a bunch
-        # of unreferenced vertices, so it is best to remove them
-        convex.remove_unreferenced_vertices()
+        if clean:
+            # the normals and triangle winding returned by scipy/qhull's
+            # ConvexHull are apparently random, so we need to completely fix them
+            convex.fix_normals()
+            # since we just copied all the vertices over, we will have a bunch
+            # of unreferenced vertices, so it is best to remove them
+            convex.remove_unreferenced_vertices()
         return convex
 
     def merge_vertices(self, angle_max=None):
@@ -254,6 +294,14 @@ class Trimesh():
             grouping.merge_vertices_hash(self)
 
     def update_vertices(self, vertex_mask, inverse):
+        '''
+        Arguments
+        ----------
+        vertex_mask: (len(self.vertices)) boolean array of which
+                     vertices to keep
+        inverse:     (len(self.vertices)) int array to reconstruct
+                     vertex references (such as output by np.unique)
+        '''
         self.faces    = inverse[[self.faces.reshape(-1)]].reshape((-1,3))
         if self.vertex_colors_ok():
             self.vertex_colors = self.vertex_colors[vertex_mask]
@@ -277,7 +325,6 @@ class Trimesh():
             self.face_normals = self.face_normals[valid]
         self.faces = self.faces[valid]
         
-    @log_time
     def remove_duplicate_faces(self):
         '''
         For the current mesh, remove any faces which are duplicated. 
@@ -431,35 +478,6 @@ class Trimesh():
         '''
         return triangles.area(self.vertices[self.faces], sum=sum)
         
-    @property
-    def bounds(self):
-        '''
-        bounding box of the mesh. 
-
-        Returns
-        -------
-        bounds: (2,3) list of [min, max] coordinates
-        '''
-        bounds = np.vstack((np.min(self.vertices, axis=0),
-                            np.max(self.vertices, axis=0)))
-        return bounds
-
-    @property                 
-    def centroid(self):
-        return np.mean(self.vertices, axis=0)
-        
-    @property
-    def center_mass(self):
-        return self.mass_properties(skip_inertia=True)['center_mass']
-        
-    @property
-    def box_size(self):
-        return np.diff(self.bounds, axis=0)[0]
-        
-    @property
-    def scale(self):
-        return np.min(self.box_size)
-        
     def mass_properties(self, density = 1.0, skip_inertia=False):
         '''
         Returns the mass properties of the current mesh.
@@ -505,7 +523,6 @@ class Trimesh():
         Supported formats are stl, off, and collada. 
         '''
         return export_mesh(self, file_obj, file_type)
-
 
     def __add__(self, other):
         '''
