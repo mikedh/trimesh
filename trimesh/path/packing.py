@@ -114,14 +114,10 @@ def pack_rectangles(rectangles, sheet_size, shuffle=False):
     return density, offset[inserted], inserted, consumed_box
   
 def pack_paths(paths):
-    from collections import deque
-    import matplotlib.pyplot as plt
-    polygons = deque()
-    for path in paths:
-        current = path.polygons[path.root[0]]
-        polygons.extend([current]*path.metadata['quantity'])
+    paths_full = np.hstack([[i]*i.metadata['quantity'] for i in paths])
+    polygons   = [i.polygons[i.root[0]] for i in paths_full]
     inserted, transforms = multipack(np.array(polygons))
-    for path, transform in zip(paths, transforms):
+    for path, transform in zip(paths_full, transforms):
         path.plot_discrete(show=False, transform=transform)
     plt.show()
 
