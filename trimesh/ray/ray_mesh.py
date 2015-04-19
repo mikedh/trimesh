@@ -40,6 +40,27 @@ class RayMeshIntersector:
         if self._tree is None:
             self._tree = create_tree(self.triangles)
         return self._tree
+
+    def intersects_id(self, rays, return_any=False):
+        '''
+        Find the indexes of triangles the rays intersect
+
+        Arguments
+        ---------
+        rays: (n, 2, 3) array of ray origins and directions
+
+        Returns
+        ---------        
+        hits: (n) sequence of triangle indexes which hit the ray
+        '''
+        rays       = np.array(rays, dtype=np.float)
+        candidates = ray_triangle_candidates(rays = rays, 
+                                             tree = self.tree)
+        hits  = rays_triangles_id(triangles      = self.triangles, 
+                                  rays           = rays, 
+                                  ray_candidates = candidates,
+                                  return_any     = return_any)
+        return hits
             
     def intersects_location(self, rays):
         '''
@@ -53,31 +74,13 @@ class RayMeshIntersector:
         ---------
         locations: (n) sequence of (m,3) intersection points
         '''
+        rays      = np.array(rays, dtype=np.float)
         hits      = self.intersects_id(rays)
         locations = ray_triangle_locations(triangles     = self.triangles,
                                            rays          = rays,
                                            intersections = hits,
                                            tri_normals   = self.mesh.face_normals)
         return locations
-
-    def intersects_id(self, rays):
-        '''
-        Find the indexes of triangles the rays intersect
-
-        Arguments
-        ---------
-        rays: (n, 2, 3) array of ray origins and directions
-
-        Returns
-        ---------        
-        hits: (n) sequence of triangle indexes which hit the ray
-        '''
-        candidates = ray_triangle_candidates(rays = rays, 
-                                             tree = self.tree)
-        hits  = rays_triangles_id(triangles      = self.triangles, 
-                                  rays           = rays, 
-                                  ray_candidates = candidates)
-        return hits
 
     def intersects_any_triangle(self, rays):
         '''
@@ -109,12 +112,7 @@ class RayMeshIntersector:
         ---------
         hit: boolean, whether any ray hit any triangle on the mesh
         '''
-        candidates = ray_triangle_candidates(rays = rays, 
-                                             tree = self.tree)
-        hit = rays_triangles_id(triangles      = self.triangles, 
-                                rays           = rays, 
-                                ray_candidates = candidates,
-                                return_any     = True)
+        hit = self.intersects_id(rays, return_any=True)
         return hit
 
 def ray_triangle_candidates(rays, tree):
@@ -240,7 +238,7 @@ def ray_triangle_locations(triangles,
         for group_index, tri_index in enumerate(tri_group):
             origin  = triangles[tri_index][0]
             normal  = tri_normals[tri_index]
-            segment = np.array(ray_segments[:,ray_index,:]).reshape((2,-1,3))
+            segment = ray_segments[:,ray_index,:].reshape((2,-1,3))
             point, valid = plane_line_intersection(plane_origin = origin,
                                                plane_normal = normal,
                                                endpoints    = segment,

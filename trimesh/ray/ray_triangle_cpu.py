@@ -36,7 +36,7 @@ def rays_triangles_id(triangles,
     hits       = [None] * len(rays)
 
     for ray_index, ray in enumerate(rays):
-        if ray_candidates is not None:
+        if not (ray_candidates is None):
             candidates = ray_candidates[ray_index]
         # query the triangle candidates
         hit = ray_triangles(triangles[candidates], *ray)
