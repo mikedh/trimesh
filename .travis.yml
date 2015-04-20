@@ -7,10 +7,8 @@ virtualenv:
   system_site_packages: true
 
 before_install:
-  - sudo bash -c 'echo "deb http://downloads.skewed.de/apt/trusty trusty universe" > /etc/apt/sources.list.d/graphtool.list'
-  - sudo bash -c 'echo "deb-src http://downloads.skewed.de/apt/trusty trusty universe" >> /etc/apt/sources.list.d/graphtool.list'
   - sudo apt-get update
-  - sudo apt-get install libspatialindex* python-graph-tool
+  - sudo apt-get install libspatialindex*
   - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
       wget http://repo.continuum.io/miniconda/Miniconda-3.4.2-Linux-x86_64.sh -O miniconda.sh;
     else
