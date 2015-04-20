@@ -1,7 +1,10 @@
 trimesh
 ==========
+[![Build Status](https://travis-ci.org/mikedh/trimesh.svg?branch=master)](https://travis-ci.org/mikedh/trimesh)
+
 
 Python library for loading and doing simple operations on triangular meshes. Included loaders are binary/ASCII STL, wavefront OBJ, and OFF. Included exporters are binary STL, COLLADA and OFF. If assimp/pyassimp are installed all the assimp formats will be available. Note that this requires a version of the assimp python bindings from after September 2014. 
+
 
 ### Features
 * Fast loading of binary STL files (on 234,230 face mesh, was 24.5x faster than assimp)
