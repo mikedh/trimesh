@@ -27,4 +27,4 @@ before_install:
 install:
   - pip install .
 
-script: "python tests/trimesh_tests.py"
+script: "cd tests; python trimesh_tests.py"
