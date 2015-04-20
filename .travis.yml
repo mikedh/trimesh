@@ -7,8 +7,8 @@ virtualenv:
   system_site_packages: true
 
 before_install:
-  - echo "deb http://downloads.skewed.de/apt/trusty trusty universe" > /etc/apt/sources.list.d/graphtool.list
-  - echo "deb-src http://downloads.skewed.de/apt/trusty trusty universe" >> /etc/apt/sources.list.d/graphtool.list
+  - sudo echo "deb http://downloads.skewed.de/apt/trusty trusty universe" > /etc/apt/sources.list.d/graphtool.list
+  - sudo echo "deb-src http://downloads.skewed.de/apt/trusty trusty universe" >> /etc/apt/sources.list.d/graphtool.list
   - sudo apt-get update
   - sudo apt-get install libspatialindex* python-graph-tool
   - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
