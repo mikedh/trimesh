@@ -79,8 +79,9 @@ class MeshTests(unittest.TestCase):
             
             mesh.process()
 
-            if has_gt:
-                tic = [time.time()]
+            tic = [time.time()]
+
+            if has_gt:                
                 split     = trimesh.graph_ops.split_gt(mesh)
                 tic.append(time.time())
                 facets    = trimesh.graph_ops.facets_gt(mesh)
