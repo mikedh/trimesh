@@ -18,16 +18,16 @@ from . import intersections
 
 from .io.export import export_mesh
 from .ray.ray_mesh import RayMeshIntersector
-from .constants import *
 from .geometry import unitize, transform_points
+from .constants import *
+
+from scipy.spatial import ConvexHull
 
 try: from .path.io import faces_to_path, lines_to_path
 except ImportError:
     log.warn('trimesh.path unavailable!', exc_info=True)
 
-try: from scipy.spatial import ConvexHull
-except ImportError: 
-    log.warn('scipy ConvexHull unavailable', exc_info=True)
+
 
 
 class Trimesh():
