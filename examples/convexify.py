@@ -6,7 +6,6 @@ of each body, then combine them back into one mesh.
 Useful for generating collision models of an object. 
 '''
 
-
 import trimesh
 import numpy as np
 
@@ -30,4 +29,4 @@ if __name__ == '__main__':
     convex_combined = np.sum(meshes_convex)
 
     # open a viewer window
-    #convex_combined.show()
+    convex_combined.show()

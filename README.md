@@ -32,6 +32,12 @@ To get the latest version of assimp/pyassimp from github:
 
     sudo pip install git+https://github.com/robotics/assimp_latest.git 
 
+In order to enable ray queries and path operations, it is a good idea to install rtree and shapely:
+
+    sudo apt-get install libspatialindex* libgeos-dev
+    sudo pip install shapely rtree
+
+
 ### Example
     import numpy as np
     import trimesh

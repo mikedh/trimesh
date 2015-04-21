@@ -15,7 +15,5 @@ setup(name='trimesh',
       install_requires = ['numpy', 
                           'scipy', 
                           'networkx', 
-                          'pyglet', 
-                          'rtree', 
-                          'shapely']
+                          'pyglet']
      )
