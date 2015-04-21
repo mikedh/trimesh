@@ -6,7 +6,6 @@ from string import Template
 
 #smooth only when fewer faces than this to prevent lockups in normal use
 SMOOTH_MAX_FACES = 20000
-SMOOTH_ANGLE     = np.radians(25)
 
 class MeshViewer(pyglet.window.Window):
     def __init__(self, mesh):
@@ -30,23 +29,19 @@ class MeshViewer(pyglet.window.Window):
         self.run()
 
     def add_mesh(self, mesh):
-        smooth = len(mesh.faces) < SMOOTH_MAX_FACES
-        smooth = False
-        mesh.unmerge_vertices()
-        if smooth:
-            mesh.unmerge_vertices()
-            mesh.merge_vertices(SMOOTH_ANGLE)
-
-        mesh.verify_face_colors()
-        mesh.generate_vertex_colors()
+        if len(mesh.faces) < SMOOTH_MAX_FACES:
+            mesh = deepcopy(mesh)
+            mesh.smooth()
+        else:
+            log.warn('Not smoothing large mesh, try mesh.unmerge_vertices()')
+            
+        mesh.verify_colors()
         mesh.verify_normals()
-        
+
         vertices = (mesh.vertices-mesh.centroid).reshape(-1).tolist()
         normals  = mesh.vertex_normals.reshape(-1).tolist()
         colors   = mesh.vertex_colors.reshape(-1).tolist()
         indices  = mesh.faces.reshape(-1).tolist()
-
-        mesh.merge_vertices()
 
         self.set_base_view(mesh)
         self.vertex_list = self.batch.add_indexed(len(vertices)//3, # count

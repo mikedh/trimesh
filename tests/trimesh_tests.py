@@ -103,7 +103,7 @@ class MeshTests(unittest.TestCase):
             self.assertTrue(sample.shape == (1000,3))
             
             mesh.set_face_colors()
-            mesh.generate_vertex_colors()
+            mesh.verify_vertex_colors()
 
     def test_hash(self):
         for mesh in self.meshes:

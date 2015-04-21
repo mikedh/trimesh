@@ -56,7 +56,7 @@ def merge_vertices_kdtree(mesh, max_angle=None):
             inverse[neighbors] = neighbors[0]
             unique.append(neighbors[0])
 
-    mesh.update_vertices(unique, inverse)
+    mesh.update_vertices(np.array(unique), inverse)
    
     log.debug('merge_vertices_kdtree reduced vertex count from %i to %i', 
               len(used),

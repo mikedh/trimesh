@@ -27,9 +27,6 @@ try: from .path.io import faces_to_path, lines_to_path
 except ImportError:
     log.warn('trimesh.path unavailable!', exc_info=True)
 
-
-
-
 class Trimesh():
     def __init__(self, 
                  vertices        = None, 
@@ -85,9 +82,8 @@ class Trimesh():
         '''
         (2,3) float, bounding box of the mesh of [min, max] coordinates
         '''
-        bounds = np.vstack((np.min(self.vertices, axis=0),
-                            np.max(self.vertices, axis=0)))
-        return bounds
+        return np.vstack((np.min(self.vertices, axis=0),
+                          np.max(self.vertices, axis=0)))
 
     @property                 
     def centroid(self):
@@ -116,6 +112,81 @@ class Trimesh():
     @property
     def edges(self):
         return geometry.faces_to_edges(self.faces)
+
+    @property
+    def vertex_colors_ok(self):
+        return self.vertex_colors.shape == self.vertices.shape
+
+    @property
+    def vertex_normals_ok(self):
+        return self.vertex_normals.shape == self.vertices.shape
+
+    @property
+    def face_normals_ok(self):
+        return self.face_normals.shape == self.faces.shape
+
+    @property
+    def face_colors_ok(self):
+        return self.face_colors.shape == self.faces.shape
+
+    def merge_vertices(self, angle_max=None):
+        '''
+        If a mesh has vertices that are closer than TOL_MERGE, 
+        redefine them to be the same vertex, and replace face references
+
+        Arguments
+        ---------
+        angle_max: if defined, only vertices which are closer than TOL_MERGE
+                   AND have vertex normals less than angle_max will be merged.
+                   This is useful for smooth shading, but is much slower. 
+        '''
+        if angle_max is None:
+            grouping.merge_vertices_hash(self)
+        else:
+            grouping.merge_vertices_kdtree(self, angle_max)
+
+    def update_vertices(self, mask, inverse):
+        '''
+        Arguments
+        ----------
+        vertex_mask: (len(self.vertices)) boolean array of which
+                     vertices to keep
+        inverse:     (len(self.vertices)) int array to reconstruct
+                     vertex references (such as output by np.unique)
+        '''
+        if mask.dtype.name == 'bool' and mask.all(): return
+        self.faces = inverse[[self.faces.reshape(-1)]].reshape((-1,3))
+        if self.vertex_colors_ok:
+            self.vertex_colors = self.vertex_colors[mask]
+        if self.vertex_normals_ok:
+            self.vertex_normals = self.vertex_normals[mask]
+        self.vertices = self.vertices[mask]
+
+    def update_faces(self, mask):
+        '''
+        In many cases, we will want to remove specific faces. 
+        However, there is additional bookkeeping to do this cleanly. 
+        This function updates the set of faces with a validity mask,
+        as well as keeping track of normals and colors.
+
+        Arguments
+        ---------
+        valid: either (m) int, or (len(self.faces)) bool. 
+        '''
+        if mask.dtype.name == 'bool' and mask.all(): return
+        if self.face_colors_ok:
+            self.face_colors = self.face_colors[mask]
+        if self.face_normals_ok:
+            self.face_normals = self.face_normals[mask]
+        self.faces = self.faces[mask]
+        
+    def remove_duplicate_faces(self):
+        '''
+        For the current mesh, remove any faces which are duplicated. 
+        This can occur if faces are below the 
+        '''
+        unique,inverse = grouping.unique_rows(np.sort(self.faces, axis=1))
+        self.update_faces(unique)
         
     def rezero(self):
         '''
@@ -224,6 +295,15 @@ class Trimesh():
             if not np.all(valid):  
                 self.generate_face_normals()
 
+    def smooth(self):
+        '''
+        Process a mesh so that smooth shading renders nicely.
+        This is done by merging vertices with a max angle critera. 
+        '''
+        self.unmerge_vertices()
+        self.verify_normals()
+        self.merge_vertices(ANGLE_SMOOTH)
+    
     def section(self,
                 plane_normal,
                 plane_origin = None):
@@ -271,62 +351,6 @@ class Trimesh():
             # of unreferenced vertices, so it is best to remove them
             convex.remove_unreferenced_vertices()
         return convex
-
-    def merge_vertices(self, angle_max=None):
-        '''
-        If a mesh has vertices that are closer than TOL_MERGE, 
-        redefine them to be the same vertex, and replace face references
-
-        Arguments
-        ---------
-        angle_max: if defined, only vertices which are closer than TOL_MERGE
-                   AND have vertex normals less than angle_max will be merged.
-                   This is useful for smooth shading, but is much slower. 
-        '''
-        if not (angle_max is None):
-            grouping.merge_vertices_kdtree(self, angle_max)
-        else:
-            grouping.merge_vertices_hash(self)
-
-    def update_vertices(self, vertex_mask, inverse):
-        '''
-        Arguments
-        ----------
-        vertex_mask: (len(self.vertices)) boolean array of which
-                     vertices to keep
-        inverse:     (len(self.vertices)) int array to reconstruct
-                     vertex references (such as output by np.unique)
-        '''
-        self.faces    = inverse[[self.faces.reshape(-1)]].reshape((-1,3))
-        if self.vertex_colors_ok():
-            self.vertex_colors = self.vertex_colors[vertex_mask]
-        self.vertices = self.vertices[vertex_mask]
-
-    def update_faces(self, valid):
-        '''
-        In many cases, we will want to remove specific faces. 
-        However, there is additional bookkeeping to do this cleanly. 
-        This function updates the set of faces with a validity mask,
-        as well as keeping track of normals and colors.
-
-        Arguments
-        ---------
-        valid: either (m) int, or (len(self.faces)) bool. 
-        '''
-        if valid.dtype.name == 'bool' and valid.all(): return
-        if np.shape(self.face_colors) == np.shape(self.faces):
-            self.face_colors = self.face_colors[valid]
-        if np.shape(self.face_normals) == np.shape(self.faces):
-            self.face_normals = self.face_normals[valid]
-        self.faces = self.faces[valid]
-        
-    def remove_duplicate_faces(self):
-        '''
-        For the current mesh, remove any faces which are duplicated. 
-        This can occur if faces are below the 
-        '''
-        unique,inverse = grouping.unique_rows(np.sort(self.faces, axis=1))
-        self.update_faces(unique)
 
     def sample(self, count):
         '''
@@ -394,39 +418,31 @@ class Trimesh():
         #    opposite each other. 
         # since this means the vertex normal isn't defined, just make it anything
         mean_normals[np.logical_not(valid)] = [1,0,0]
-
         self.vertex_normals = mean_normals
 
-    def vertex_colors_ok(self):
-        return self.vertex_colors.shape == self.vertices.shape
-        
+    def verify_colors(self):
+        '''
+        If face colors are not defined, define them. 
+        '''
+        self.verify_face_colors()
+        self.verify_vertex_colors()
+
     def verify_face_colors(self):
         '''
         If face colors are not defined, define them. 
         '''
-        if np.shape(self.face_colors) != np.shape(self.faces):
-            log.info('Generating face colors as shape check failed %s, instead of %s.',
-                     str(np.shape(self.face_colors)),
-                     str(np.shape(self.faces)))
+        if not self.face_colors_ok:
             self.set_face_colors()
-    
-    def set_face_colors(self, face_color=None):
-        '''
-        Apply face colors. If none are defined, set to default color
-        '''
-        if face_color is None: 
-            face_color = color.DEFAULT_COLOR
-        self.face_colors = np.tile(face_color, (len(self.faces), 1))
 
-    def generate_vertex_colors(self):
+    def verify_vertex_colors(self):
         '''
         Populate self.vertex_colors
         If self.face_colors are defined, we use those values to generate
         vertex colors. If not, we just set them to the DEFAULT_COLOR
         '''
-        if np.shape(self.vertex_colors) == (len(self.vertices), 3): 
+        if self.vertex_colors_ok:
             return
-        elif np.shape(self.face_colors) == np.shape(self.faces):
+        elif self.face_colors_ok:
             # case where face_colors is populated, but vertex_colors isn't
             # we then generate vertex colors from the face colors
             vertex_colors = np.zeros((len(self.vertices), 3,3))
@@ -436,11 +452,19 @@ class Trimesh():
             vertex_colors  = geometry.unitize(np.mean(vertex_colors, axis=1))
             vertex_colors *= (255.0 / np.max(vertex_colors, axis=1).reshape((-1,1)))
             self.vertex_colors = vertex_colors.astype(int)
+            log.debug('Setting vertex colors from face colors')
         else:
-            log.info('Vertex colors being set to default, face colors are %s vs faces %s', 
-                     str(np.shape(self.face_colors)),
-                     str(np.shape(self.faces)))
             self.vertex_colors = np.tile(color.DEFAULT_COLOR, (len(self.vertices), 1))
+            log.debug('Vertex colors set to default')
+
+    def set_face_colors(self, face_color=None):
+        '''
+        Apply face colors. If none are defined, set to default color
+        '''
+        if face_color is None: 
+            face_color = color.DEFAULT_COLOR
+        self.face_colors = np.tile(face_color, (len(self.faces), 1))
+        log.debug('Set face colors to %s', str(face_color))
         
     def transform(self, matrix):
         '''

@@ -30,4 +30,4 @@ if __name__ == '__main__':
     convex_combined = np.sum(meshes_convex)
 
     # open a viewer window
-    convex_combined.show()
+    #convex_combined.show()
