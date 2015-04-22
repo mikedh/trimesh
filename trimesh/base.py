@@ -516,7 +516,7 @@ class Trimesh():
                                          density      = density,
                                          skip_inertia = skip_inertia)
 
-    def show(self):
+    def show(self, smooth=None):
         '''
         Render the mesh in an opengl window. Requires pyglet.
         Smooth will re-merge vertices to fix the shading, but can be slow
@@ -525,7 +525,7 @@ class Trimesh():
         # import is done here so if pyglet isn't installed, the rest
         # of the module works anyways
         from .render import MeshViewer
-        MeshViewer(self)
+        MeshViewer(self, smooth)
 
     def identifier(self):
         '''

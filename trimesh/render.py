@@ -8,7 +8,7 @@ from string import Template
 SMOOTH_MAX_FACES = 20000
 
 class MeshViewer(pyglet.window.Window):
-    def __init__(self, mesh):
+    def __init__(self, mesh, smooth=None):
         conf = Config(sample_buffers=1,
                       samples=4,
                       depth_size=16,
@@ -25,16 +25,23 @@ class MeshViewer(pyglet.window.Window):
         self.cull         = True
         self.init_gl()
         
-        self.add_mesh(mesh)
+        self.add_mesh(mesh, smooth)
         self.run()
 
-    def add_mesh(self, mesh):
-        if len(mesh.faces) < SMOOTH_MAX_FACES:
-            mesh = deepcopy(mesh)
+    def add_mesh(self, mesh, smooth):
+        if smooth is None:
+            smooth = len(mesh.faces) < SMOOTH_MAX_FACES
+
+        # we don't want the render object to mess with the original mesh
+        mesh = deepcopy(mesh)
+
+        if smooth:
+            # will merge vertices close in angle
             mesh.smooth()
         else:
-            log.warn('Not smoothing large mesh, try mesh.unmerge_vertices()')
-            
+            # will show faceted surfaces instead of super wrong blending
+            mesh.unmerge_vertices()
+
         mesh.verify_colors()
         mesh.verify_normals()
 
