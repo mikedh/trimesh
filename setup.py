@@ -3,7 +3,7 @@
 from distutils.core import setup
 
 setup(name='trimesh',
-      version='1.2.3',
+      version='1.2.4',
       description='Load, process, and view triangular meshes.',
       author='Mike Dawson-Haggerty',
       author_email='mik3dh@gmail.com',
@@ -15,5 +15,7 @@ setup(name='trimesh',
       install_requires = ['numpy', 
                           'scipy', 
                           'networkx', 
-                          'pyglet']
+                          'pyglet',
+                          'rtree',
+                          'shapely']
      )
