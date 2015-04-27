@@ -1,7 +1,10 @@
 import numpy as np
 import struct
 import json
-from StringIO import StringIO
+
+#python 3
+try:                from cStringIO import StringIO
+except ImportError: from io import StringIO
 
 def export_mesh(mesh, file_obj, file_type=None):
     '''

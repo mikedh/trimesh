@@ -220,7 +220,7 @@ class Path3D(Path):
         discrete = list(map(self.discretize_path, self.paths))
         self._cache_put('discrete', discrete)
 
-    def to_planar(self, normal=None, transform=None):
+    def to_planar(self, normal=None, transform=None, check=True):
         '''
         Check to see if current vectors are all coplanar.
         
@@ -238,7 +238,7 @@ class Path3D(Path):
 
         vertices  = transform_points(self.vertices, to_planar)
         
-        if np.any(np.std(vertices[:,2]) > TOL_MERGE):
+        if check and np.any(np.std(vertices[:,2]) > TOL_MERGE):
             raise NameError('Points aren\'t planar!')
             
         vector = Path2D(entities = deepcopy(self.entities), 

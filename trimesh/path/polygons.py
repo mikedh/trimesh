@@ -201,7 +201,6 @@ def grid_polygon(polygon, pitch):
     points:   (n,3) points
     '''
     p      = polygon
-    print p.bounds
     bounds = np.reshape(p.bounds, (2,2))
     box    = np.diff(bounds, axis=1)
 

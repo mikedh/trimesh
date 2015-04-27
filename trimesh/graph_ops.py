@@ -271,23 +271,3 @@ def fix_normals(mesh):
         winding_test = np.diff(mesh.vertices[[mesh.faces[winding_tri]]], axis=0)
         winding_dir  = np.dot(unitize(np.cross(*winding_test)), mesh.face_normals[winding_tri])
         if winding_dir < 0: mesh.faces[[connected]] = np.fliplr(mesh.faces[[connected]])
-            
-def clusters(points, radius):
-    '''
-    Find clusters of points which have neighbors closer than radius
-    
-    Arguments
-    ---------
-    points: (n, d) points (of dimension d)
-    radius: max distance between points in a cluster
-
-    Returns:
-    groups: (m) sequence of indices for points
-
-    '''
-    tree   = KDTree(points)
-    pairs  = tree.query_pairs(radius)
-    graph  = nx.from_edgelist(pairs)
-    groups = list(nx.connected_components(graph))
-    return groups
-                  

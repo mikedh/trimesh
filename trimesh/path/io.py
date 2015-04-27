@@ -4,7 +4,9 @@ import os
 import sys
 
 from collections import deque
-from cStringIO import StringIO
+#python 3
+try:                from cStringIO import StringIO
+except ImportError: from io import StringIO
 
 from .constants import *
 from .util      import is_sequence

@@ -2,7 +2,7 @@ import numpy as np
 from collections import deque
 
 from scipy.spatial import cKDTree as KDTree
-
+from networkx import from_edgelist, connected_components
 from .geometry import unitize
 from .constants import *
 
@@ -254,3 +254,23 @@ def stack_negative(rows):
     negative = rows[:,0] < 0
     stacked[negative] = np.roll(stacked[negative], 3, axis=1)
     return stacked
+            
+def clusters(points, radius):
+    '''
+    Find clusters of points which have neighbors closer than radius
+    
+    Arguments
+    ---------
+    points: (n, d) points (of dimension d)
+    radius: max distance between points in a cluster
+
+    Returns:
+    groups: (m) sequence of indices for points
+
+    '''
+    tree   = KDTree(points)
+    pairs  = tree.query_pairs(radius)
+    graph  = from_edgelist(pairs)
+    groups = list(connected_components(graph))
+    return groups
+                  

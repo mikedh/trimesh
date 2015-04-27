@@ -129,6 +129,17 @@ class Trimesh():
     def face_colors_ok(self):
         return self.face_colors.shape == self.faces.shape
 
+    def normal_hits(self, face_index):
+        '''
+        Given a ray cast from the center of a face along the
+        face normal, return the face indices of the other triangles
+        that are hit. 
+        '''
+        face_normal = self.face_normals[face_index]
+        ray_origin  = mesh.vertices[mesh.faces[face_index]].mean(axis=0)
+        ray_origin += face_normal * TOL_BUFFER
+        hits = self.ray.intersects_id([[ray_origin, face_normal]])
+
     def merge_vertices(self, angle_max=None):
         '''
         If a mesh has vertices that are closer than TOL_MERGE, 
