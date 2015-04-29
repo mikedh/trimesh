@@ -290,7 +290,7 @@ class Path2D(Path):
         def path_to_polygon(path):
             discrete = discretize_path(self.entities, self.vertices, path)
             return Polygon(discrete)
-        polygons = np.array(map(path_to_polygon, self.paths))
+        polygons = np.array(list(map(path_to_polygon, self.paths)))
         self._cache_put('polygons', polygons)
 
     def generate_enclosure_tree(self):

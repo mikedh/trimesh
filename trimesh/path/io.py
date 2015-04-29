@@ -5,10 +5,6 @@ import sys
 
 from collections import deque
 
-#python 3
-try:                from cStringIO import StringIO
-except ImportError: from io import StringIO
-
 from .constants import *
 from .util      import is_sequence
 from .path      import Path2D, Path3D
@@ -19,7 +15,11 @@ from ..geometry import faces_to_edges
 from ..grouping import group_rows
 
 PY3 = sys.version_info.major >= 3
-if PY3: basestring = str 
+if PY3: 
+    from io import StringIO
+    basestring = str 
+else:
+    from cStringIO import StringIO
 
 def available_formats():
     return _LOADERS.keys()
@@ -29,11 +29,13 @@ def load_path(obj, file_type=None):
     Utility function which can be passed a filename, file object, or list of lines
     '''
     if hasattr(obj, 'read'):
-        loaded = _LOADERS[file_type](obj)    
+        loaded = _LOADERS[file_type](obj)
+        obj.close()
     elif isinstance(obj, basestring):
         file_obj  = open(obj, 'rb')
         file_type = os.path.splitext(obj)[-1][1:].lower()
         loaded = _LOADERS[file_type](file_obj)
+        file_obj.close()
     elif is_sequence(obj):
         loaded = lines_to_path(obj)
     else:
@@ -45,7 +47,7 @@ def dxf_to_path(file_obj, type=None):
     Load a dxf file into a path container
     '''
     
-    entities, vertices = dxf_to_vector(StringIO(file_obj.read()))
+    entities, vertices = dxf_to_vector(file_obj)
     vector = Path2D(entities, vertices)
     vector.metadata['is_planar'] = True
     return vector

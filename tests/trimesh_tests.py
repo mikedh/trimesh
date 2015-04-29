@@ -113,7 +113,7 @@ class MeshTests(unittest.TestCase):
                 continue
             log.info('Hashing %s', mesh.metadata['filename'])
             result = deque()
-            for i in xrange(10):
+            for i in range(10):
                 mesh.rezero()
                 matrix = trimesh.transformations.random_rotation_matrix()
                 matrix[0:3,3] = (np.random.random(3)-.5)*20
