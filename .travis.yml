@@ -2,6 +2,7 @@ language: python
 
 python:
   - "2.7"
+  - "3.4"
 
 virtualenv:
   system_site_packages: true
@@ -27,4 +28,4 @@ before_install:
 install:
   - pip install .
 
-script: "cd tests; python trimesh_tests.py"
+script: "cd tests; python trimesh_tests.py; python path_tests.py"

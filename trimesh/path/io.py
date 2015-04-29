@@ -4,6 +4,7 @@ import os
 import sys
 
 from collections import deque
+
 #python 3
 try:                from cStringIO import StringIO
 except ImportError: from io import StringIO
@@ -37,7 +38,6 @@ def load_path(obj, file_type=None):
         loaded = lines_to_path(obj)
     else:
         raise NameError('Not a supported object type!')
-
     return loaded
 
 def dxf_to_path(file_obj, type=None):

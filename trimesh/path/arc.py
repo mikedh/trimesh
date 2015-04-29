@@ -5,6 +5,11 @@ from .intersections import line_line
 from .util          import  three_dimensionalize, euclidean
 from .constants     import *
 
+try: 
+    from scipy.optimize import leastsq
+except ImportError: 
+    log.warn('No scipy.optimize for arc fitting!')
+
 def arc_center(points):
     '''
     Given three points of an arc, find the center, radius, normal, and angle.
@@ -28,7 +33,6 @@ def arc_center(points):
 
     #find the two edge vectors of the triangle
     edge_direction = np.diff(points, axis=0)
-    #unit_vectors   = unitize(vectors)
     edge_midpoints = (edge_direction*.5) + points[0:2]
 
     #three points define a plane, so we find its normal vector
@@ -107,7 +111,6 @@ def angles_to_threepoint(angles, center, radius):
     return planar + center
 
 def fit_circle(points):
-    from scipy.optimize import leastsq
     def circle_residuals(points, center):
         Ri = np.sqrt(np.sum((points - center)**2, axis=1))
         return Ri - np.mean(Ri)

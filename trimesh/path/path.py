@@ -11,6 +11,7 @@ from shapely.geometry import Polygon, Point
 from copy import deepcopy
 from collections import deque
 
+from .simplify  import simplify
 from .polygons  import polygons_enclosure_tree, is_ccw
 from .constants import *
 from ..geometry import plane_fit, plane_transform, transform_points
@@ -115,18 +116,17 @@ class Path:
     def replace_vertex_references(self, replacement_dict):
         for entity in self.entities: entity.rereference(replacement_dict)
 
-    def remove_entities(self, entity_ids, reindex_paths = False):
+    def remove_entities(self, entity_ids):
+        '''
+        Remove entities by their index.
+        '''
         if len(entity_ids) == 0: return
         kept = np.setdiff1d(np.arange(len(self.entities)), entity_ids)
-        if reindex_paths:
-            reindex       = np.arange(len(self.entities))
-            reindex[kept] = np.arange(len(kept))
-            self.paths    = [reindex[p] for p in self.paths]
         self.entities = np.array(self.entities)[kept]
 
     def remove_duplicate_entities(self):
-        entity_hashes  = np.array([i.hash() for i in self.entities])
-        unique,inverse = unique_rows(entity_hashes)
+        entity_hashes   = np.array([i.hash() for i in self.entities])
+        unique, inverse = unique_rows(entity_hashes)
         if len(unique) != len(self.entities):
             self.entities = np.array(self.entities)[unique]
 
@@ -321,6 +321,9 @@ class Path2D(Path):
             return np.array(path_ids)
         return np.setdiff1d(path_ids, [path_id])
         
+    def simplify(self):
+        simplify(self)
+
     def split(self):
         '''
         If the current Path2D consists of n 'root' curves,

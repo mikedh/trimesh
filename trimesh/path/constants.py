@@ -20,7 +20,8 @@ TOL_FACET  = .1875
 # what's the maximum facet angle
 # .2 radians ~= 15 degrees
 TOL_FACET_ANGLE = .2
-
+TOL_RADIUS      = 1e-2
+TOL_ASPECT      = .1
 EXPORT_PRECISION = '.5f'
 
 RES_LENGTH = .15
