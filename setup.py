@@ -17,5 +17,6 @@ setup(name='trimesh',
                           'networkx', 
                           'pyglet',
                           'rtree',
-                          'shapely']
+                          'shapely',
+                          'svg.path']
      )
