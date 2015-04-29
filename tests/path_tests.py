@@ -1,13 +1,9 @@
 import unittest
 import numpy as np
-
 import os
 from collections import deque
 from shapely.geometry import Polygon
 import logging
-import matplotlib.pyplot as plt
-log = logging.getLogger(__name__)
-log.addHandler(logging.NullHandler())
 
 import trimesh.path as vector
 
@@ -68,9 +64,6 @@ class ArcTests(unittest.TestCase):
         self.assertTrue(abs(R-res_radius) < TOL_ZERO)
         self.assertTrue(euclidean(C, res_center) < TOL_ZERO)
 
-    def test_discrete(self):
-        pass
-
 if __name__ == '__main__':
     formatter = logging.Formatter("[%(asctime)s] %(levelname)-7s" +
                                    "(%(filename)s:%(lineno)3s) %(message)s",                               
@@ -86,7 +79,6 @@ if __name__ == '__main__':
             continue
         logger.addHandler(handler_stream)
         logger.setLevel(level)
-
     np.set_printoptions(suppress=False)
 
     unittest.main()

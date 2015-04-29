@@ -23,7 +23,8 @@ from .constants import *
 
 from scipy.spatial import ConvexHull
 
-try: from .path.io import faces_to_path, lines_to_path
+try: 
+    from .path.io import faces_to_path, lines_to_path
 except ImportError:
     log.warn('trimesh.path unavailable!', exc_info=True)
 
