@@ -99,9 +99,11 @@ class Path:
         return sum_area
         
     def transform(self, transform):
+        self._cache = {}
         self.vertices = transform_points(self.vertices, transform)
 
     def rezero(self):
+        self._cache = {}
         self.vertices -= self.vertices.min(axis=0)
         
     def merge_vertices(self):
@@ -322,6 +324,7 @@ class Path2D(Path):
         return np.setdiff1d(path_ids, [path_id])
         
     def simplify(self):
+        self._cache = {}
         simplify(self)
 
     def split(self):

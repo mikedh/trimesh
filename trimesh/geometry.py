@@ -1,6 +1,6 @@
 import numpy as np
-from . import transformations as tr
-from .constants import *
+from .transformations import rotation_matrix
+from .constants       import *
     
 def unitize(points, check_valid=False):
     '''
@@ -38,7 +38,7 @@ def unitize(points, check_valid=False):
     
 def point_plane_distance(points, plane_normal, plane_origin=[0,0,0]):
     w         = np.array(points) - plane_origin
-    distances = np.abs(np.dot(plane_normal, w.T) / np.linalg.norm(plane_normal))
+    distances = np.dot(plane_normal, w.T) / np.linalg.norm(plane_normal)
     return distances
 
 def major_axis(points):
@@ -94,8 +94,6 @@ def plane_fit(points, tolerance=TOL_ZERO, ignore_tolerance=True):
         normal_bad  = np.ptp(np.dot(test_normal, points.T)) > tolerance
         if normal_bad: raise NameError('Plane outside tolerance!')
     return C, N
-
-
 
 def radial_sort(points, 
                 origin = None, 
@@ -224,7 +222,7 @@ def align_vectors(vector_start, vector_end):
         angle = np.arcsin(norm) 
         if direction < 0:
             angle = np.pi - angle
-        T = tr.rotation_matrix(angle, cross)
+        T = rotation_matrix(angle, cross)
     return T
     
 def faces_to_edges(faces, sort=True, return_index=False):

@@ -15,11 +15,12 @@ def simplify_circles(path):
     closed arc entities (also known as circles).
     '''
     lines = np.array([i.__class__.__name__ == 'Line' for i in path.entities])
+    # if all entities are lines, we don't need to check the individual path
     check = not lines.all()
     
-    old_entities = deque()    
     new_vertices = deque()
     new_entities = deque()
+    old_entities = deque()    
 
     for path_index, entities in enumerate(path.paths):
         if check and not lines[entities].all(): continue
@@ -35,10 +36,11 @@ def simplify_circles(path):
                                           len(path.vertices) +
                                           len(new_vertices)),
                                 closed = True))
-        new_vertices.extend(angles_to_threepoint([0,np.pi],
-                                                 C, R))        
+        new_vertices.extend(angles_to_threepoint([0,np.pi], C, R))        
         old_entities.extend(entities)
-    path.entities = np.append(path.entities,  new_entities)
-    path.vertices = np.vstack((path.vertices, new_vertices))
-    path.remove_entities(old_entities)
+    if len(new_vertices) > 0:
+        path.vertices = np.vstack((path.vertices, new_vertices))
+    if len(new_entities) > 0:
+        path.entities = np.append(path.entities,  new_entities)
+        path.remove_entities(old_entities)
   
