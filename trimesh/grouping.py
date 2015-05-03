@@ -105,6 +105,10 @@ def group(values, min_length=0, max_length=np.inf):
     groups    = [order[i:(i+j)] for i, j in zip(dupe_idx[dupe_ok], dupe_len[dupe_ok])]
     return groups
     
+def digits_merge():
+    digits = abs(int(np.log10(TOL_MERGE)))
+    return digits
+
 def hashable_rows(data, digits=None):
     '''
     We turn our array into integers, based on the precision 
@@ -122,17 +126,47 @@ def hashable_rows(data, digits=None):
                 or used as hash keys
     '''
     data = np.array(data)   
-    if digits == None: digits = abs(int(np.log10(TOL_MERGE)))
+    if digits is None: 
+        digits = digits_merge()
      
     if data.dtype.kind in 'ib':
         #if data is an integer or boolean, don't bother multiplying by precision
         as_int = data
     else:
-        as_int = ((data+10**-(digits+1))*10**digits).astype(np.int64)    
-    hashable = np.ascontiguousarray(as_int).view(np.dtype((np.void, 
-                                                         as_int.dtype.itemsize * as_int.shape[1]))).reshape(-1)
+        as_int = ((data+10**-(digits+1))*10**digits).astype(np.int64) 
+    dtype    = np.dtype((np.void, as_int.dtype.itemsize * as_int.shape[1]))
+    hashable = np.ascontiguousarray(as_int).view(dtype).reshape(-1)
     return hashable
-    
+
+def unique_float(data, 
+                 return_index = False,
+                 return_inverse=False,
+                 digits=None):
+    '''
+    Identical to the numpy.unique command, except evaluates floating point 
+    numbers, using a specified number of digits. 
+
+    If digits isn't specified, the libray default TOL_MERGE will be used. 
+    '''
+
+    if digits is None: 
+        digits = digits_merge()
+    data   = np.array(data, dtype=np.float)
+    as_int = (data*(10**digits)).astype(int)
+    _junk, unique, inverse = np.unique(as_int, 
+                                       return_index   = True,
+                                       return_inverse = True)
+    if (not return_index) and (not return_inverse):
+        return data[unique]
+    result = [data[unique]]
+    if return_index:
+        result.append(unique)
+    if return_inverse:
+        result.append(inverse)
+    return tuple(result)
+
+        
+
 def unique_rows(data, digits=None):
     '''
     Returns indices of unique rows. It will return the 
