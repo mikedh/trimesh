@@ -23,6 +23,6 @@ before_install:
   - conda install scipy
   
 install:
-  - pip install .
+  - pip install -e .[path]
 
 script: "cd tests; python trimesh_tests.py; python path_tests.py"
