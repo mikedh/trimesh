@@ -6,11 +6,12 @@ class Voxel:
     def __init__(self, mesh, pitch): 
         self.run = mesh_to_run(mesh, pitch)
 
-    @property
     def raw(self):
-        if not hasattr(self, '_raw'):
-            self._raw = run_to_raw(**self.run)
-        return self._raw
+        '''
+        Generate a raw 3D boolean array from the internal run-length encoded data
+        '''
+        raw = run_to_raw(**self.run)
+        return raw
          
     @property
     def pitch(self):
@@ -25,7 +26,15 @@ class Voxel:
         return volume
 
     def show(self):
-        plot_raw(self.raw, **self.run)
+        plot_raw(self.raw(), **self.run)
+
+def run_shrink(shape, index_xy, index_z, **kwargs):
+    xy_min = index_xy.min(axis=0)
+    xy_max = index_xy.max(axis=0)
+    
+    z_stack = np.hstack(index_z)
+    z_min = z_stack.min()
+    z_max = z_stack.max()
 
 def run_to_raw(shape, index_xy, index_z, **kwargs):
     raw = np.zeros(shape, dtype=np.bool)
@@ -35,6 +44,12 @@ def run_to_raw(shape, index_xy, index_z, **kwargs):
     return raw
 
 def mesh_to_run(mesh, pitch):
+    '''
+    Convert a mesh to a run-length encoded voxel grid. 
+
+    This is done via ray tests which return intersection points,
+    which is easily convertable to a raw 3D boolean voxel array
+    '''
     bounds    = mesh.bounds / pitch
     bounds[0] = np.floor(bounds[0]) * pitch
     bounds[1] = np.ceil( bounds[1]) * pitch
@@ -71,7 +86,8 @@ def mesh_to_run(mesh, pitch):
         index_z.sort()
 
         if np.mod(len(index_z), 2) != 0:
-            raise ValueError('Open mesh!')
+            # this is likely the on-vertex case
+            index_z = index_z[[0,-1]]
 
         run_z.append(index_z)
         run_xy.append(grid_index[i])

@@ -18,14 +18,13 @@ try:
 except: 
     log.error('Failed to import occmodel!')
 
-def solid_to_mesh(solid):
+def solid_to_mesh(solid, process=True):
     occ_mesh = solid.createMesh()
     occ_mesh.optimize()
     faces    = np.array(list(occ_mesh.triangles)).reshape((-1,3)).astype(int)
     vertices = np.array(list(occ_mesh.vertices)).reshape((-1,3)).astype(float)
-    mesh     = Trimesh(vertices=vertices, faces=faces, process=True)
-    if not mesh.is_watertight(): 
-        #raise NameError('Mesh returned from openCASCADE isn\'t watertight!')
+    mesh     = Trimesh(vertices=vertices, faces=faces, process=process)
+    if process and (not mesh.is_watertight()): 
         log.error('Mesh returned from openCASCADE isn\'t watertight!')
     return mesh
 

@@ -142,16 +142,16 @@ def create_tree(triangles):
     ---------
     tree: Rtree object 
     '''
-    import rtree.index as rtree
+    from rtree import index
 
     # the property object required to get a 3D r-tree index
-    properties = rtree.Property()
+    properties = index.Property()
     properties.dimension = 3
     # the (n,6) interleaved bounding box for every triangle
     tri_bounds = np.column_stack((triangles.min(axis=1), triangles.max(axis=1)))
   
     # stream loading wasn't getting proper index
-    tree       = rtree.Index(properties=properties)  
+    tree       = index.Index(properties=properties)  
     for i, bounds in enumerate(tri_bounds):
         tree.insert(i, bounds)
     
