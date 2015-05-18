@@ -6,35 +6,6 @@ from .constants import log, log_time
 _MIN_BIN_COUNT = 20
 _TOL_FREQ      = 1e-3
 
-def _format_json(data, digits=6):
-    '''
-    Built in json library doesn't have a good way of setting the precision of floating point
-    numbers. Since we intend to use the string as a key in a dict, we need formatting to be
-    identitical and well understood. 
-    '''
-    format_str = '.' + str(int(digits)) + 'f'
-    result     = '[' + ','.join(map(lambda o: format(o, format_str), data)) + ']'
-    return result
-
-def _zero_pad(data, count):
-    '''
-    Arguments
-    --------
-    data: (n) length 1D array 
-    count: int
-
-    Returns
-    --------
-    padded: (count) length 1D array if (n < count), otherwise length (n)
-    '''
-    if len(data) == 0:
-        return np.zeros(count)
-    elif len(data) < count:
-        padded = np.zeros(count)
-        padded[-len(data):] = data
-        return padded
-    else: return data
-
 @log_time
 def merge_duplicates(meshes):
     '''
@@ -154,3 +125,32 @@ if __name__ == '__main__':
     ok = (np.abs(np.diff(result, axis=0)) < 1e-3).all()
     if not ok:
         print('Hashes differ after transform! diffs:\n %s\n' % str(np.diff(result, axis=0)))
+
+def _format_json(data, digits=6):
+    '''
+    Built in json library doesn't have a good way of setting the precision of floating point
+    numbers. Since we intend to use the string as a key in a dict, we need formatting to be
+    identitical and well understood. 
+    '''
+    format_str = '.' + str(int(digits)) + 'f'
+    result     = '[' + ','.join(map(lambda o: format(o, format_str), data)) + ']'
+    return result
+
+def _zero_pad(data, count):
+    '''
+    Arguments
+    --------
+    data: (n) length 1D array 
+    count: int
+
+    Returns
+    --------
+    padded: (count) length 1D array if (n < count), otherwise length (n)
+    '''
+    if len(data) == 0:
+        return np.zeros(count)
+    elif len(data) < count:
+        padded = np.zeros(count)
+        padded[-len(data):] = data
+        return padded
+    else: return data

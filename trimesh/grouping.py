@@ -6,6 +6,8 @@ from networkx import from_edgelist, connected_components
 from .geometry import unitize
 from .constants import *
 
+_digits_merge = abs(int(np.log10(TOL_MERGE)))
+
 def merge_vertices_hash(mesh):
     '''
     Removes duplicate vertices, based on integer hashes.
@@ -105,10 +107,6 @@ def group(values, min_length=0, max_length=np.inf):
     groups    = [order[i:(i+j)] for i, j in zip(dupe_idx[dupe_ok], dupe_len[dupe_ok])]
     return groups
     
-def digits_merge():
-    digits = abs(int(np.log10(TOL_MERGE)))
-    return digits
-
 def hashable_rows(data, digits=None):
     '''
     We turn our array into integers, based on the precision 
@@ -127,7 +125,7 @@ def hashable_rows(data, digits=None):
     '''
     data = np.array(data)   
     if digits is None: 
-        digits = digits_merge()
+        digits = _digits_merge
      
     if data.dtype.kind in 'ib':
         #if data is an integer or boolean, don't bother multiplying by precision
@@ -150,7 +148,7 @@ def unique_float(data,
     '''
 
     if digits is None: 
-        digits = digits_merge()
+        digits = _digits_merge
     data   = np.array(data, dtype=np.float)
     as_int = (data*(10**digits)).astype(int)
     _junk, unique, inverse = np.unique(as_int, 
@@ -164,8 +162,6 @@ def unique_float(data,
     if return_inverse:
         result.append(inverse)
     return tuple(result)
-
-        
 
 def unique_rows(data, digits=None):
     '''
@@ -308,3 +304,36 @@ def clusters(points, radius):
     groups = list(connected_components(graph))
     return groups
                   
+def blocks(data, min_len = 2, max_len = np.inf):
+    '''
+    Given a boolean array, find the indicies of contiguous blocks
+    of True values. 
+
+    Arguments
+    ---------
+    data: (n) boolean array
+    min_len: int, the minimum length group to be returned
+    max_len: int, the maximum length group to be retuurned
+
+    Returns
+    ---------
+    blocks: (m) sequence of indicies referencing data
+    '''
+
+    if not data.dtype.kind in 'b': 
+        raise TypeError('Boolean data required!')
+
+    # find the inflection points, or locations where the array turns
+    # from True to False. 
+    infl = np.hstack(([0],
+                      np.nonzero(np.diff(data))[0] + 1,
+                      [len(data)]))
+    infl_len = np.diff(infl)    
+    infl_ok  = np.logical_and(infl_len >= min_len,
+                              infl_len <= max_len)
+    # check to make sure the values of each contiguous block are True
+    infl_ok  = np.logical_and(infl_ok, 
+                              data[infl[:-1]])
+    # inflate start/end indexes into full ranges of values 
+    blocks = [np.arange(infl[i], infl[i+1]) for i, ok in enumerate(infl_ok) if ok]
+    return blocks

@@ -109,7 +109,8 @@ def radial_sort(points,
     if origin==None: origin = np.average(points, axis=0)
     if normal==None: normal = surface_normal(points)
     
-    #create two axis perpendicular to each other and the normal, and project the points onto them
+    # create two axis perpendicular to each other and the normal, 
+    # and project the points onto them
     axis0 = [normal[0], normal[2], -normal[1]]
     axis1 = np.cross(normal, axis0)
     ptVec = points - origin

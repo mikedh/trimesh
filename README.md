@@ -3,7 +3,7 @@ trimesh
 [![Build Status](https://travis-ci.org/mikedh/trimesh.svg?branch=master)](https://travis-ci.org/mikedh/trimesh)
 
 
-Python library for loading and doing simple operations on triangular meshes. Included loaders are binary/ASCII STL, wavefront OBJ, and OFF. Included exporters are binary STL, COLLADA and OFF. If assimp/pyassimp are installed all the assimp formats will be available. Note that this requires a version of the assimp python bindings from after September 2014. 
+Python library for loading and simple operations on triangular meshes. Included loaders are binary/ASCII STL, wavefront OBJ, and OFF. Included exporters are binary STL, COLLADA and OFF. If assimp/pyassimp are installed, all assimp formats will be available. Note that this requires a version of the assimp python bindings from after September 2014. 
 
 
 ### Features
@@ -31,6 +31,10 @@ The easiest way to install is:
 To get the latest version of assimp/pyassimp from github:
 
     sudo pip install git+https://github.com/robotics/assimp_latest.git 
+
+If you would like to use ray queries or some path functionality, install dependancies:
+
+    sudo pip install shapely git+https://github.com/Toblerity/rtree.git svg.path 
 
 Rtree may not build without libspatialindex installed, get it with:
 

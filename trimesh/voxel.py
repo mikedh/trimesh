@@ -28,14 +28,6 @@ class Voxel:
     def show(self):
         plot_raw(self.raw(), **self.run)
 
-def run_shrink(shape, index_xy, index_z, **kwargs):
-    xy_min = index_xy.min(axis=0)
-    xy_max = index_xy.max(axis=0)
-    
-    z_stack = np.hstack(index_z)
-    z_min = z_stack.min()
-    z_max = z_stack.max()
-
 def run_to_raw(shape, index_xy, index_z, **kwargs):
     raw = np.zeros(shape, dtype=np.bool)
     for xy, z in zip(index_xy, index_z):

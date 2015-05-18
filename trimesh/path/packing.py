@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from shapely.geometry import Point, Polygon, LineString
 from time import clock as time_function
+from copy import deepcopy
 
 from .constants import *
 from .polygons import polygon_obb, polygons_obb
@@ -113,13 +114,16 @@ def pack_rectangles(rectangles, sheet_size, shuffle=False):
             
     return density, offset[inserted], inserted, consumed_box
   
-def pack_paths(paths):
-    paths_full = np.hstack([[i]*i.metadata['quantity'] for i in paths])
+def pack_paths(paths, show=False):
+    paths_full = np.hstack([[deepcopy(i) for j in range(i.metadata['quantity'])] for i in paths])
     polygons   = [i.polygons[i.root[0]] for i in paths_full]
     inserted, transforms = multipack(np.array(polygons))
     for path, transform in zip(paths_full, transforms):
-        path.plot_discrete(show=False, transform=transform)
-    plt.show()
+        path.transform(transform)
+        if show: path.plot_discrete(show=False)
+    if show: plt.show()
+    return paths_full
+
 
 def multipack(polygons, 
               sheet_size     = None,
