@@ -1,7 +1,7 @@
 import numpy as np
 
 from ..geometry import unitize 
-from .util      import three_dimensionalize, euclidean
+from ..util     import three_dimensionalize, euclidean
 from .constants import TOL_ZERO
     
 def line_line(origins, directions):

@@ -1,8 +1,8 @@
 import numpy as np
 
+from ..util          import  three_dimensionalize, euclidean
 from ..geometry     import unitize
 from .intersections import line_line
-from .util          import  three_dimensionalize, euclidean
 from .constants     import *
 
 try: 
@@ -29,7 +29,7 @@ def arc_center(points):
     angle:        float, angle swept by the arc
     '''
     #it's a lot easier to treat 2D as 3D with a zero Z value
-    is_2D, points = three_dimensionalize(points)
+    is_2D, points = three_dimensionalize(points, return_2D = True)
 
     #find the two edge vectors of the triangle
     edge_direction = np.diff(points, axis=0)
@@ -69,7 +69,7 @@ def discretize_arc(points, close = False):
     points: either (3,3) or (3,2) of points for arc going from 
             points[0] to points[2], going through control point points[1]
     '''
-    two_dimensional, points = three_dimensionalize(points)
+    two_dimensional, points = three_dimensionalize(points, return_2D = True)
     center, R, N, angle     = arc_center(points)
     if close: angle = np.pi * 2
     
@@ -91,7 +91,7 @@ def arc_tangents(points):
     '''
     returns tangent vectors for points
     '''
-    two_dimensional, points = three_dimensionalize(points)
+    two_dimensional, points = three_dimensionalize(points, return_2D=True)
     center, R, N, angle     = arc_center(points)
     vectors  = points - center
     tangents = unitize(np.cross(vectors, N))

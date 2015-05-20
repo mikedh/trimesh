@@ -3,7 +3,7 @@ trimesh
 [![Build Status](https://travis-ci.org/mikedh/trimesh.svg?branch=master)](https://travis-ci.org/mikedh/trimesh)
 
 
-Python library for loading and simple operations on triangular meshes. Included loaders are binary/ASCII STL, wavefront OBJ, and OFF. Included exporters are binary STL, COLLADA and OFF. If assimp/pyassimp are installed, all assimp formats will be available. Note that this requires a version of the assimp python bindings from after September 2014. 
+Python library for loading meshes, and doing simple operations on them. Included loaders are binary/ASCII STL, wavefront OBJ, and OFF. Included exporters are binary STL, COLLADA and OFF. If assimp/pyassimp are installed, all assimp formats will be available. Note that this requires a version of the assimp python bindings from after September 2014. 
 
 
 ### Features
@@ -21,7 +21,7 @@ Python library for loading and simple operations on triangular meshes. Included 
 * Determine if a mesh is watertight
 * Repair single triangle and single quad holes
 * Uniformly sample the surface of a mesh
-* Numerous utility functions, such as transforming points, unitizing vectors, etc. 
+* Numerous utility functions, such as transforming points, unitizing vectors, grouping rows, etc. 
 
 ### Installation:
 The easiest way to install is:
@@ -32,7 +32,7 @@ To get the latest version of assimp/pyassimp from github:
 
     sudo pip install git+https://github.com/robotics/assimp_latest.git 
 
-If you would like to use ray queries or some path functionality, install dependancies:
+If you would like to use ray queries or some path functionality, install dependencies:
 
     sudo pip install shapely git+https://github.com/Toblerity/rtree.git svg.path 
 
@@ -61,7 +61,7 @@ Rtree may not build without libspatialindex installed, get it with:
     m = meshes[0]
 
     # assign all faces a color
-    m.generate_face_colors()
+    m.set_face_colors()
 
     # find groups of coplanar adjacent faces
     facets, facets_area = m.facets(return_area=True)

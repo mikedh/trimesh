@@ -5,7 +5,7 @@ import networkx as nx
 from collections import deque
 
 from ..geometry import unitize
-from .util      import transformation_2D
+from ..util      import transformation_2D
 from .constants import *
 
 def polygons_enclosure_tree(polygons):
@@ -171,70 +171,16 @@ def rasterize_polygon(polygon, pitch, angle=0, return_points=False):
                 'LineString'         : handler_line,
                 'Point'              : handler_null}
     
-    x_extents =  bounds[:,0] + [-pitch, pitch]
-    tic = time_function()
+    x_extents = bounds[:,0] + [-pitch, pitch]
+ 
     for y_index in range(grid.shape[1]):
         y    = offset[1] + y_index*pitch
         test = LineString(np.column_stack((x_extents, [y,y])))
         hits = p.intersection(test)
         handlers[hits.__class__.__name__](hits)
-    toc = time_function()
-   
-    log.info('Rasterized polygon into %s grid in %f seconds.', str(shape), toc-tic)
 
-
+    log.info('Rasterized polygon into %s grid', str(shape))
     return grid, transform
-
-
-def grid_polygon(polygon, pitch):
-    '''
-    Given a shapely polygon, find the raster representation at a given angle
-    relative to the oriented bounding box
-    
-    Arguments
-    ----------
-    polygon: shapely polygon
-    pitch:   what is the edge length of a pixel
-
-    Returns
-    ----------
-    points:   (n,3) points
-    '''
-    p      = polygon
-    bounds = np.reshape(p.bounds, (2,2))
-    box    = np.diff(bounds, axis=1)
-
-    def fill(ranges):
-        
-        for group in np.reshape(ranges, (-1,2)):
-            x_members = np.arange(*group, step=pitch)
-            y_members = np.ones(len(x_members))*y
-            
-            points.extend(np.column_stack((x_members, y_members)))
-            
-    def handler_multi(geometries):
-        for geometry in geometries:
-            handlers[geometry.__class__.__name__](geometry) 
-
-    def handler_line(line):
-        fill(line.xy[0])
-
-    def handler_null(data):
-        pass
-
-    handlers = {'GeometryCollection' : handler_multi,
-                'MultiLineString'    : handler_multi,
-                'MultiPoint'         : handler_multi,
-                'LineString'         : handler_line,
-                'Point'              : handler_null}
-    
-    x_extents =  bounds[:,0] + [-pitch, pitch]
-    points    = deque()
-    for y in np.arange(bounds[0][1], bounds[1][1], pitch):
-        test = LineString(np.column_stack((x_extents, [y,y])))
-        hits = p.intersection(test)
-        handlers[hits.__class__.__name__](hits)
-    return np.array(points)
     
 def plot_raster(raster, pitch, offset=[0,0]):
     '''

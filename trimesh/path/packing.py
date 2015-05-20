@@ -7,7 +7,7 @@ from copy import deepcopy
 
 from .constants import *
 from .polygons import polygon_obb, polygons_obb
-from .util     import transformation_2D
+from ..util    import transformation_2D
 
 class Bin:
     '''

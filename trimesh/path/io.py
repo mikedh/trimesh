@@ -6,13 +6,13 @@ import sys
 from collections import deque
 
 from .constants import *
-from .util      import is_sequence
 from .path      import Path2D, Path3D
 from .entities  import Line, Arc, arc_center
 from .dxf       import dxf_to_vector
 
 from ..geometry import faces_to_edges
 from ..grouping import group_rows
+from ..util     import is_sequence
 
 PY3 = sys.version_info.major >= 3
 if PY3: 
