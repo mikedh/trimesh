@@ -8,7 +8,7 @@ import logging
 import trimesh.path as vector
 
 from trimesh.path.constants import *
-from trimesh.path.util      import euclidean
+from trimesh.util           import euclidean
 
 TEST_DIR   = '../models/2D'
 
