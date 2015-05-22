@@ -10,6 +10,7 @@ import json
 TEST_DIR  = '../models'
 TOL_ZERO  = 1e-9
 TOL_CHECK = 1e-2
+
 log = logging.getLogger('trimesh')
 log.addHandler(logging.NullHandler())
 
@@ -167,27 +168,6 @@ class MassTests(unittest.TestCase):
             log.info('%i mass parameters confirmed for %s', parameter_count, truth['filename'])  
                 
 if __name__ == '__main__':
-    try: 
-        from colorlog import ColoredFormatter
-        formatter = ColoredFormatter(
-            "%(log_color)s%(levelname)-8s%(reset)s %(filename)17s:%(lineno)-4s  %(blue)4s%(message)s",
-            datefmt = None,
-            reset   = True,
-            log_colors = {'DEBUG':    'cyan',
-                          'INFO':     'green',
-                          'WARNING':  'yellow',
-                          'ERROR':    'red',
-                          'CRITICAL': 'red' } )
-    except: 
 
-        formatter = logging.Formatter(
-            "[%(asctime)s] %(levelname)-7s (%(filename)s:%(lineno)3s) %(message)s", "%Y-%m-%d %H:%M:%S")
-
-    log_level      = logging.DEBUG
-    handler_stream = logging.StreamHandler()
-    handler_stream.setFormatter(formatter)
-    handler_stream.setLevel(log_level)
-    log.setLevel(log_level)
-    log.addHandler(handler_stream)
-    np.set_printoptions(precision=4, suppress=True)
+    trimesh.util.attach_stream_to_log()
     unittest.main()

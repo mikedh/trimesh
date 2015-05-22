@@ -1,4 +1,5 @@
 import numpy as np
+import logging
 from .geometry import faces_to_edges
 from .grouping import group_rows
 
@@ -63,3 +64,32 @@ def grid_linspace_2D(bounds, count):
     y_grid = np.linspace(*bounds[:,1], count = count)
     grid   = np.dstack(np.meshgrid(x_grid, y_grid)).reshape((-1,2))
     return grid
+
+def attach_stream_to_log(log_level=logging.DEBUG):
+    try: 
+        from colorlog import ColoredFormatter
+        formatter = ColoredFormatter(
+            "%(log_color)s%(levelname)-8s%(reset)s %(filename)17s:%(lineno)-4s  %(blue)4s%(message)s",
+            datefmt = None,
+            reset   = True,
+            log_colors = {'DEBUG':    'cyan',
+                          'INFO':     'green',
+                          'WARNING':  'yellow',
+                          'ERROR':    'red',
+                          'CRITICAL': 'red' } )
+    except ImportError: 
+        formatter = logging.Formatter(
+            "[%(asctime)s] %(levelname)-7s (%(filename)s:%(lineno)3s) %(message)s", 
+            "%Y-%m-%d %H:%M:%S")
+    handler_stream = logging.StreamHandler()
+    handler_stream.setFormatter(formatter)
+    handler_stream.setLevel(log_level)
+
+    for logger in logging.Logger.manager.loggerDict.values():
+        if logger.__class__.__name__ != 'Logger': continue
+        if logger.name in ['TerminalIPythonApp',
+                           'PYREADLINE']:
+            continue
+        logger.addHandler(handler_stream)
+        logger.setLevel(log_level)
+    np.set_printoptions(precision=4, suppress=True)
