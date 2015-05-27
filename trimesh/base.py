@@ -528,12 +528,12 @@ class Trimesh():
         from .render import MeshViewer
         MeshViewer(self, smooth)
 
-    def identifier(self):
+    def identifier(self, length=6):
         '''
-        Return a (6) float vector which is unique to the mesh,
+        Return a (length) float vector which is unique to the mesh,
         and is robust to rotation and translation.
         '''
-        return comparison.rotationally_invariant_identifier(self)
+        return comparison.rotationally_invariant_identifier(self, length)
 
     def export(self, file_obj=None, file_type='stl'):
         '''

@@ -331,7 +331,8 @@ def blocks(data, min_len = 2, max_len = np.inf):
     infl_len = np.diff(infl)    
     infl_ok  = np.logical_and(infl_len >= min_len,
                               infl_len <= max_len)
-    # check to make sure the values of each contiguous block are True
+    # check to make sure the values of each contiguous block are True,
+    # by checking the first value of each block
     infl_ok  = np.logical_and(infl_ok, 
                               data[infl[:-1]])
     # inflate start/end indexes into full ranges of values 

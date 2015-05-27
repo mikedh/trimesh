@@ -17,9 +17,15 @@ def transformation_2D(offset=[0.0,0.0], theta=0.0):
     return T
 
 def euclidean(a, b):
+    '''
+    Euclidean distance between vectors a and b
+    '''
     return np.sum((np.array(a) - b)**2) ** .5
 
 def is_sequence(arg):
+    '''
+    Returns true if arg is a sequence
+    '''
     return (not hasattr(arg, "strip") and
             hasattr(arg, "__getitem__") or
             hasattr(arg, "__iter__"))
@@ -35,6 +41,22 @@ def is_ccw(points):
     return area < 0
 
 def three_dimensionalize(points, return_2D=True):
+    '''
+    Given a set of (n,2) or (n,3) points, return them as (n,3) points
+
+    Arguments
+    ----------
+    points:    (n, 2) or (n,3) points
+    return_2D: boolean flag
+
+    Returns
+    ----------
+    if return_2D: 
+        is_2D: boolean, True if points were (n,2)
+        points: (n,3) set of points
+    else:
+        points: (n,3) set of points
+    '''
     points = np.array(points)
     shape = points.shape
  
@@ -54,18 +76,46 @@ def three_dimensionalize(points, return_2D=True):
     return points
 
 def grid_arange_2D(bounds, step):
+    '''
+    Return a 2D grid with specified spacing
+
+    Arguments
+    ---------
+    bounds: (2,2) list of [[minx, miny], [maxx, maxy]]
+    step:   float, separation between points
+    
+    Returns
+    -------
+    grid: (n, 2) list of 2D points
+    '''
     x_grid = np.arange(*bounds[:,0], step = step)
     y_grid = np.arange(*bounds[:,1], step = step)
     grid   = np.dstack(np.meshgrid(x_grid, y_grid)).reshape((-1,2))
     return grid
 
 def grid_linspace_2D(bounds, count):
+    '''
+    Return a count*count 2D grid
+
+    Arguments
+    ---------
+    bounds: (2,2) list of [[minx, miny], [maxx, maxy]]
+    count:  int, number of elements on a side
+    
+    Returns
+    -------
+    grid: (count**2, 2) list of 2D points
+    '''
     x_grid = np.linspace(*bounds[:,0], count = count)
     y_grid = np.linspace(*bounds[:,1], count = count)
     grid   = np.dstack(np.meshgrid(x_grid, y_grid)).reshape((-1,2))
     return grid
 
-def attach_stream_to_log(log_level=logging.DEBUG):
+def attach_stream_to_log(log_level=logging.DEBUG, blacklist=[]):
+    '''
+    Attach a stream handler to all loggers, so their output can be seen
+    on the console
+    '''
     try: 
         from colorlog import ColoredFormatter
         formatter = ColoredFormatter(
@@ -87,8 +137,9 @@ def attach_stream_to_log(log_level=logging.DEBUG):
 
     for logger in logging.Logger.manager.loggerDict.values():
         if logger.__class__.__name__ != 'Logger': continue
-        if logger.name in ['TerminalIPythonApp',
-                           'PYREADLINE']:
+        if (logger.name in ['TerminalIPythonApp',
+                            'PYREADLINE'] or 
+            logger.name in blacklist):
             continue
         logger.addHandler(handler_stream)
         logger.setLevel(log_level)
