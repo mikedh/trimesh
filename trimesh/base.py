@@ -116,19 +116,19 @@ class Trimesh():
 
     @property
     def vertex_colors_ok(self):
-        return self.vertex_colors.shape == self.vertices.shape
+        return np.shape(self.vertex_colors) == self.vertices.shape
 
     @property
     def vertex_normals_ok(self):
-        return self.vertex_normals.shape == self.vertices.shape
+        return np.shape(self.vertex_normals) == self.vertices.shape
 
     @property
     def face_normals_ok(self):
-        return self.face_normals.shape == self.faces.shape
+        return np.shape(self.face_normals) == self.faces.shape
 
     @property
     def face_colors_ok(self):
-        return self.face_colors.shape == self.faces.shape
+        return np.shape(self.face_colors) == self.faces.shape
 
     def merge_vertices(self, angle_max=None):
         '''

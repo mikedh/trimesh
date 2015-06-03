@@ -4,14 +4,14 @@ Create meshes from primitives, or with operations.
 
 import numpy as np
 
-from shapely.geometry import Point, Polygon, LineString
-from scipy.spatial import cKDTree, Delaunay
 from collections import deque
-from copy import deepcopy
 
 from .base import Trimesh
-from .constants import *
-from .util import grid_arange_2D, three_dimensionalize
+from .geometry import faces_to_edges
+from .grouping import group_rows
+from .graph_ops import face_adjacency
+
+from .util import three_dimensionalize
 
 def extrude_polygon(polygon, 
                     height):
@@ -31,7 +31,7 @@ def extrude_polygon(polygon,
         vertices.append(np.vstack((loop, loop+[0,0,height])))
         faces.append(new_faces.reshape((-1,3)))
  
-    vertices, faces = delaunay_polygon(polygon)
+    vertices, faces = triangulate_polygon(polygon)
     vertices        = three_dimensionalize(vertices, return_2D = False)
 
     # delaunay appears to deliver consistent winding
@@ -45,6 +45,47 @@ def extrude_polygon(polygon,
     mesh = Trimesh(*append_faces(vertices, faces), process=True)
     mesh.fix_normals()
     return mesh
+
+def triangulate_polygon(polygon):
+    '''
+    Given a shapely polygon, create a triangulation using meshpy.triangle
+    '''
+    import meshpy.triangle as triangle
+
+    def round_trip(start, length):
+        tiled = np.tile(np.arange(start, start+length).reshape((-1,1)), 2)
+        tiled = tiled.reshape(-1)[1:-1].reshape((-1,2))
+        tiled = np.vstack((tiled, [tiled[-1][-1], tiled[0][0]]))
+        return tiled
+
+    def add_boundary(boundary, start):
+        vertices.append(np.array(boundary.coords)[:-1])
+        facets.append(round_trip(start, len(vertices[-1])))
+
+    vertices = deque()
+    facets   = deque()
+    start    = len(polygon.exterior.coords) -1
+
+    add_boundary(polygon.exterior, 0)
+    for interior in polygon.interiors:
+        add_boundary(interior, start)
+        start += len(interior.coords) - 1
+
+    vertices    = np.vstack(vertices)
+    facets      = np.vstack(facets)
+    hole_starts = [i.coords[0] for i in polygon.interiors]
+
+    info = triangle.MeshInfo()
+    info.set_points(vertices)
+    info.set_facets(facets)
+    info.set_holes(hole_starts)
+  
+    mesh = triangle.build(info)
+  
+    mesh_vertices = np.array(mesh.points)
+    mesh_faces    = np.array(mesh.elements)
+
+    return mesh_vertices, mesh_faces
 
 def append_faces(vertices_seq, faces_seq): 
     '''
@@ -62,89 +103,3 @@ def append_faces(vertices_seq, faces_seq):
 
     return vertices, faces
 
-def nodes_grid(polygon, grid_count=10.0):
-    '''
-    For a shapely polygon, generate a set of vertices.
-
-    The strategy used in this function is to take all of the vertices 
-    from the boundary (interior and exterior), and stack those points 
-    with points taken on a grid inside the area. 
-
-    This is anecdotally the same thing solidworks does, and it is nice 
-    because it is easy while eliminating excessively long thin triangles.
-
-    Arguments
-    ---------
-    polygon: shapely.geometry Polygon object
-
-    Returns
-    ---------
-    nodes: (n,2) vertices
-    '''
-    boundary = np.array(polygon.exterior.coords)
-    if len(polygon.interiors) != 0:
-        interiors = np.vstack([i.coords for i in polygon.interiors])
-        boundary  = np.vstack((boundary, interiors))
-    
-    bounds     = np.reshape(polygon.bounds, (2,2))
-    radius     = np.ptp(bounds,axis=0).min() / grid_count
-    bounds[1] += radius
-
-    # create a (n, 2) grid from the bounds of the polygon
-    grid      = grid_arange_2D(bounds, radius)
-    # see if the points on the grid are contained by the polygon
-    contained = np.array([polygon.contains(Point(i)) for i in grid])
-    # remove any point on the grid close to a boundary point 
-    # or not inside polygon 
-    grid_cull = remove_close_set(boundary, grid[contained], radius)
-    # the nodes (AKA vertices) of the mesh are the boundary points
-    # and the culled grid points 
-    nodes     = np.vstack((boundary, grid_cull))
-
-    return nodes
-
-def delaunay_polygon(polygon):
-    '''
-    Calculates Delaunay trianglation of a polygon, 
-    discarding triangles which are not inside the polygon
-    
-    If points is not specified, it is calculated as the exterior of
-    the polygon and a number of points randomly sampled from
-    inside the polygon
-    '''
-    points      = nodes_grid(polygon)
-    faces       = Delaunay(points).simplices.copy()
-    test_points = points[faces].mean(axis=1)
-    intersects  = np.array([polygon.intersects(Point(i)) for i in test_points])
-    faces       = faces[intersects]
-    return points, faces
-
-def remove_close(points, radius):
-    '''
-    Given an (n, m) set of points where n=(2|3) return a list of points
-    where no point is closer than radius
-    '''
-    tree     = cKDTree(points)
-    consumed = np.zeros(len(points), dtype=np.bool)
-    unique   = np.zeros(len(points), dtype=np.bool)
-    for i in xrange(len(points)):
-        if consumed[i]: continue
-        neighbors = tree.query_ball_point(points[i], r=radius)
-        consumed[neighbors] = True
-        unique[i]           = True
-    return points[unique]
-
-def remove_close_set(points_fixed, points_reduce, radius):
-    '''
-    Given two sets of points and a radius, return a set of points
-    that is the subset of points_reduce where no point is within 
-    radius of any point in points_fixed
-    '''
-    tree_fixed  = cKDTree(points_fixed)
-    tree_reduce = cKDTree(points_reduce)
-    reduce_duplicates = tree_fixed.query_ball_tree(tree_reduce, r = radius)
-    reduce_duplicates = np.unique(np.hstack(reduce_duplicates).astype(int))
-    reduce_mask = np.ones(len(points_reduce), dtype=np.bool)
-    reduce_mask[reduce_duplicates] = False
-    points_clean = points_reduce[reduce_mask]
-    return points_clean

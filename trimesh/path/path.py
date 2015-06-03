@@ -284,6 +284,25 @@ class Path2D(Path):
     def body_count(self):
         return len(self.root)
 
+    @property
+    def polygons_full(self):
+        cached = self._cache_get('polygons_full')
+        if cached:  return cached
+        result = [None] * len(self.root)
+        for index, root in enumerate(self.root):
+            hole_index = self.connected_paths(root, include_self=False)
+            holes = [p.exterior.coords for p in self.polygons[hole_index]]
+            shell = self.polygons[root].exterior.coords
+            result[index] = Polygon(shell  = shell,
+                                    holes  = holes)
+        self._cache_put('polygons_full', result)
+        return result
+        
+    def extrude(self, height):
+        from ..creation import extrude_polygon
+        result = [extrude_polygon(i, height) for i in self.polygons_full]
+        return result
+
     def generate_discrete(self):
         '''
         Turn a vector path consisting of entities of any type into polygons
@@ -300,20 +319,7 @@ class Path2D(Path):
         self._cache_put('root',      root)
         self._cache_put('enclosure', enclosure.to_undirected())
 
-    @property
-    def polygons_full(self):
-        cached = self._cache_get('polygons_full')
-        if cached:  return cached
-        result = [None] * len(self.root)
-        for index, root in enumerate(self.root):
-            hole_index = self.connected_paths(root, include_self=False)
-            holes = [p.exterior.coords for p in self.polygons[hole_index]]
-            shell = self.polygons[root].exterior.coords
-            result[index] = Polygon(shell  = shell,
-                                    holes  = holes)
-        self._cache_put('polygons_full', result)
-        return result
-        
+
     def connected_paths(self, path_id, include_self = False):
         if len(self.root) == 1:
             path_ids = np.arange(len(self.paths))

@@ -2,11 +2,12 @@ trimesh
 ==========
 [![Build Status](https://travis-ci.org/mikedh/trimesh.svg?branch=master)](https://travis-ci.org/mikedh/trimesh)
 
-
-Python library for loading meshes, and doing simple operations on them. Included loaders are binary/ASCII STL, wavefront OBJ, and OFF. Included exporters are binary STL, COLLADA and OFF. If assimp/pyassimp are installed, all assimp formats will be available. Note that this requires a version of the assimp python bindings from after September 2014. 
-
+Python library for loading and doing simple operations on triangular meshes.
 
 ### Features
+* Included importers are binary/ASCII STL, Wavefront, and OFF
+* Included exporters are binary STL, COLLADA, and OFF
+* If pyassimp is available and recent, assimp loaders can be used.
 * Fast loading of binary STL files (on 234,230 face mesh, was 24.5x faster than assimp)
 * Preview meshes (requires pyglet). 
 * Calculate face adjacencies quickly (for the same 234,230 face mesh .248 s)
@@ -21,20 +22,25 @@ Python library for loading meshes, and doing simple operations on them. Included
 * Determine if a mesh is watertight
 * Repair single triangle and single quad holes
 * Uniformly sample the surface of a mesh
+* Find ray-mesh intersections
+* Voxelize watertight meshes
+* Load 2D or 3D vector paths from DXF or SVG files
+* Create meshes by extruding 2D profiles
 * Numerous utility functions, such as transforming points, unitizing vectors, grouping rows, etc. 
 
-### Installation:
+### Installation
 The easiest way to install is:
 
     sudo pip install git+https://github.com/mikedh/trimesh.git
 
-To get the latest version of assimp/pyassimp from github:
-
-    sudo pip install git+https://github.com/robotics/assimp_latest.git 
-
+### Dependencies
 If you would like to use ray queries or some path functionality, install dependencies:
 
     sudo pip install shapely git+https://github.com/Toblerity/rtree.git svg.path 
+
+To get the latest version of assimp/pyassimp from github:
+
+    sudo pip install git+https://github.com/robotics/assimp_latest.git 
 
 Rtree may not build without libspatialindex installed, get it with:
 

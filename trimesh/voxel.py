@@ -1,5 +1,6 @@
 import numpy as np
-from .grouping import unique_float
+from .grouping   import unique_float
+from .points     import plot_points
 from collections import deque
 
 class Voxel:
@@ -92,10 +93,5 @@ def mesh_to_run(mesh, pitch):
     return result        
 
 def plot_raw(raw, pitch, origin, **kwargs):
-    import matplotlib.pyplot as plt
-    from mpl_toolkits.mplot3d import Axes3D
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
     render = np.column_stack(np.nonzero(raw))*pitch + origin
-    ax.scatter(*render.T)
-    plt.show()
+    plot_points(render)
