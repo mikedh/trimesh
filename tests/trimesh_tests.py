@@ -168,6 +168,5 @@ class MassTests(unittest.TestCase):
             log.info('%i mass parameters confirmed for %s', parameter_count, truth['filename'])  
                 
 if __name__ == '__main__':
-
     trimesh.util.attach_stream_to_log()
     unittest.main()
