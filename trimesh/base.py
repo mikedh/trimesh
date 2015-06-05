@@ -9,7 +9,7 @@ import numpy as np
 from . import triangles
 from . import grouping
 from . import geometry
-from . import graph_ops
+from . import graph
 from . import color
 from . import sample
 from . import repair
@@ -104,7 +104,7 @@ class Trimesh():
         Return the number of groups of connected faces.
         Bodies aren't necessarily watertight.
         '''
-        return graph_ops.split(self, only_count=True)
+        return graph.split(self, only_count=True)
 
     @property
     def triangles(self):
@@ -205,7 +205,7 @@ class Trimesh():
 
         if check_watertight: only meshes which are watertight are returned
         '''
-        meshes = graph_ops.split(self, check_watertight)
+        meshes = graph.split(self, check_watertight)
         log.info('split found %i components', len(meshes))
         return meshes
         
@@ -220,14 +220,14 @@ class Trimesh():
         graph.add_edges_from(mesh.face_adjacency())
         groups = nx.connected_components(graph_connected.subgraph(interesting_faces))
         '''
-        return graph_ops.face_adjacency(self.faces)
+        return graph.face_adjacency(self.faces)
 
     def is_watertight(self):
         '''
         Check if a mesh is watertight. 
         This currently only checks to see if every face has three adjacent faces
         '''
-        return graph_ops.is_watertight(self)
+        return graph.is_watertight(self)
 
     def remove_degenerate_faces(self):
         '''
@@ -241,7 +241,7 @@ class Trimesh():
         '''
         Return a list of face indices for coplanar adjacent faces
         '''
-        facets = [graph_ops.facets, graph_ops.facets_group][group_normals](self)
+        facets = [graph.facets, graph.facets_group][group_normals](self)
         if return_area:
             area = [triangles.area(self.vertices[self.faces[i]]) for i in facets]
             return facets, area
@@ -255,7 +255,7 @@ class Trimesh():
         For face normals ensure that vectors are consistently pointed outwards,
         and that self.faces is wound in the correct direction for all connected components.
         '''
-        graph_ops.fix_normals(self)
+        graph.fix_normals(self)
 
     def fill_holes(self, raise_watertight=True):
         '''

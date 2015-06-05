@@ -8,8 +8,9 @@ from collections import deque
 
 from .base import Trimesh
 from .geometry import faces_to_edges
-from .grouping import group_rows
-from .graph_ops import face_adjacency
+from .grouping import group_rows, unique_rows
+
+from shapely.geometry import Polygon
 
 from .util import three_dimensionalize
 
@@ -75,38 +76,52 @@ def triangulate_polygon(polygon):
         tiled = np.vstack((tiled, [tiled[-1][-1], tiled[0][0]]))
         return tiled
 
-    def add_boundary(boundary, start):
-        vertices.append(np.array(boundary.coords)[:-1])
-        facets.append(round_trip(start, len(vertices[-1])))
+    def add_boundary(boundary, start):        
+        coords  = np.array(boundary.coords)
+        unique  = np.sort(unique_rows(coords)[0])
+        cleaned = coords[unique]
+
+        vertices.append(cleaned)
+        facets.append(round_trip(start, len(cleaned)))
+
+        # holes require points inside the region of the hole, which we find
+        # by creating a polygon from the cleaned boundary region, and then
+        # using a representative point. You could do things like take the mean of 
+        # the points, but this is more robust (to things like concavity), if slower. 
+        test = Polygon(cleaned)
+        holes.append(np.array(test.representative_point().coords)[0])
+
+        return len(cleaned)
 
     #sequence of (n,2) points in space
     vertices = deque()
     #sequence of (n,2) indices of vertices
     facets   = deque()
-    # shapely polygons have a duplicate first and last vertex
-    start    = len(polygon.exterior.coords) - 1
+    #list of (2) vertices in interior of hole regions
+    holes    = deque()
 
-    add_boundary(polygon.exterior, 0)
+    start = add_boundary(polygon.exterior, 0)
     for interior in polygon.interiors:
-        add_boundary(interior, start)
-        start += len(interior.coords) - 1
+        start += add_boundary(interior, start)
 
     # create clean (n,2) float array of vertices
     # and (m, 2) int array of facets
     # by stacking the sequence of (p,2) arrays
-    vertices    = np.vstack(vertices)
-    facets      = np.vstack(facets)
-    # hole starts in meshpy lingo are a (h, 2) list of (x,y) points
-    # which are on the boundary of a hole
-    hole_starts = [i.coords[0] for i in polygon.interiors]
+    vertices = np.vstack(vertices)
+    facets   = np.vstack(facets)
+    
+    # holes in meshpy lingo are a (h, 2) list of (x,y) points
+    # which are on inside the region of the hole
+    # we added a hole for the exterior, which we slice away here
+    holes    = np.array(holes)[1:]
 
     info = triangle.MeshInfo()
     info.set_points(vertices)
     info.set_facets(facets)
-    info.set_holes(hole_starts)
+    info.set_holes(holes)
     # setting the minimum angle to 30 degrees produces noticeable nicer
     # meshes than if left unset
-    mesh = triangle.build(info, min_angle=30)
+    mesh = triangle.build(info) #, min_angle=30)
   
     mesh_vertices = np.array(mesh.points)
     mesh_faces    = np.array(mesh.elements)

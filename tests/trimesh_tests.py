@@ -69,7 +69,7 @@ class MeshTests(unittest.TestCase):
 
     def test_meshes(self):
 
-        has_gt = trimesh.graph_ops._has_gt
+        has_gt = trimesh.graph._has_gt
         if not has_gt:
             log.warn('No graph-tool to test!')
 
@@ -83,14 +83,14 @@ class MeshTests(unittest.TestCase):
             tic = [time.time()]
 
             if has_gt:                
-                split     = trimesh.graph_ops.split_gt(mesh)
+                split     = trimesh.graph.split_gt(mesh)
                 tic.append(time.time())
-                facets    = trimesh.graph_ops.facets_gt(mesh)
+                facets    = trimesh.graph.facets_gt(mesh)
                 tic.append(time.time())
 
-            split     = trimesh.graph_ops.split_nx(mesh) 
+            split     = trimesh.graph.split_nx(mesh) 
             tic.append(time.time())
-            facets    = trimesh.graph_ops.facets_nx(mesh)
+            facets    = trimesh.graph.facets_nx(mesh)
             tic.append(time.time())
 
             if has_gt:

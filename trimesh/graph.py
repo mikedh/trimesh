@@ -214,6 +214,14 @@ def is_watertight(mesh):
     if _has_gt: return is_watertight_gt(mesh)
     else:       return is_watertight_nx(mesh)
     
+def color_broken(mesh, color=[255,0,0]):
+    adjacency = nx.from_edgelist(mesh.face_adjacency())
+    broken    = [k for k, v in adjacency.degree().iteritems() if v != 3]
+    broken    = np.array(broken)
+    mesh.face_colors[broken] = color
+    return broken
+
+
 def fix_normals(mesh):
     '''
     Find and fix problems with mesh.face_normals and mesh.faces winding direction.

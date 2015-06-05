@@ -8,7 +8,7 @@ import logging
 import trimesh.path as vector
 
 from trimesh.path.constants import *
-from trimesh.util           import euclidean
+from trimesh.util           import euclidean, attach_stream_to_log
 
 TEST_DIR   = '../models/2D'
 
@@ -65,20 +65,5 @@ class ArcTests(unittest.TestCase):
         self.assertTrue(euclidean(C, res_center) < TOL_ZERO)
 
 if __name__ == '__main__':
-    formatter = logging.Formatter("[%(asctime)s] %(levelname)-7s" +
-                                   "(%(filename)s:%(lineno)3s) %(message)s",                               
-                                   "%Y-%m-%d %H:%M:%S")
-    handler_stream = logging.StreamHandler()
-    handler_stream.setFormatter(formatter)
-    level = logging.INFO
-    handler_stream.setLevel(level)
-    for logger in logging.Logger.manager.loggerDict.values():
-        if logger.__class__.__name__ != 'Logger': continue
-        if logger.name in ['TerminalIPythonApp', 
-                           'PYREADLINE']:
-            continue
-        logger.addHandler(handler_stream)
-        logger.setLevel(level)
-    np.set_printoptions(suppress=False)
-
+    attach_stream_to_log()
     unittest.main()
