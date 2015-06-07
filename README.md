@@ -48,7 +48,7 @@ Rtree may not build without libspatialindex installed, get it with:
 
 If you would like to use the trimesh.creation functions, meshpy is required:
 
-   sudo pip install meshpy
+    sudo pip install meshpy
 
 ### Example
     import numpy as np
