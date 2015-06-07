@@ -19,9 +19,8 @@ from . import intersections
 from .io.export    import export_mesh
 from .ray.ray_mesh import RayMeshIntersector
 from .points       import unitize, transform_points
+from .convex       import convex_hull
 from .constants    import *
-
-from scipy.spatial import ConvexHull
 
 try: 
     from .path.io import faces_to_path, lines_to_path
@@ -342,16 +341,8 @@ class Trimesh():
         --------
         convex: Trimesh object of convex hull of current mesh
         '''
-        faces  = ConvexHull(self.vertices).simplices
-        convex = Trimesh(vertices=self.vertices.copy(), faces=faces)
-        if clean:
-            # the normals and triangle winding returned by scipy/qhull's
-            # ConvexHull are apparently random, so we need to completely fix them
-            convex.fix_normals()
-            # since we just copied all the vertices over, we will have a bunch
-            # of unreferenced vertices, so it is best to remove them
-            convex.remove_unreferenced_vertices()
-        return convex
+        result = convex_hull(self, clean)
+        return result
 
     def sample(self, count):
         '''

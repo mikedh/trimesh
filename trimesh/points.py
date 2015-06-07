@@ -5,6 +5,7 @@ import numpy as np
 from scipy.spatial import cKDTree as KDTree
 
 from .constants import TOL_ZERO
+from .geometry import plane_transform
 
 def unitize(points, check_valid=False):
     '''
