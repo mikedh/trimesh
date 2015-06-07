@@ -2,7 +2,8 @@ import numpy as np
 import networkx as nx
 from collections import deque
 
-from .geometry  import faces_to_edges, unitize
+from .geometry  import faces_to_edges
+from .points    import unitize
 from .grouping  import group_rows
 from .triangles import normals
 from .constants import *

@@ -2,8 +2,9 @@ import numpy as np
 from collections import deque
 
 from scipy.spatial import cKDTree as KDTree
-from networkx import from_edgelist, connected_components
-from .geometry import unitize
+from networkx      import from_edgelist, connected_components
+
+from .points    import unitize
 from .constants import *
 
 _digits_merge = abs(int(np.log10(TOL_MERGE)))

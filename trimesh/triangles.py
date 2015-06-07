@@ -1,5 +1,6 @@
 import numpy as np
-from .geometry import unitize, point_plane_distance
+
+from .points    import unitize, point_plane_distance
 from .constants import TOL_ZERO
 
 def cross(triangles):

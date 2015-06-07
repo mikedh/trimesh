@@ -16,10 +16,10 @@ from . import repair
 from . import comparison
 from . import intersections
 
-from .io.export import export_mesh
+from .io.export    import export_mesh
 from .ray.ray_mesh import RayMeshIntersector
-from .geometry import unitize, transform_points
-from .constants import *
+from .points       import unitize, transform_points
+from .constants    import *
 
 from scipy.spatial import ConvexHull
 
@@ -296,14 +296,14 @@ class Trimesh():
             if not np.all(valid):  
                 self.generate_face_normals()
 
-    def smooth(self):
+    def smooth(self, angle=.4):
         '''
         Process a mesh so that smooth shading renders nicely.
         This is done by merging vertices with a max angle critera. 
         '''
         self.unmerge_vertices()
         self.verify_normals()
-        self.merge_vertices(ANGLE_SMOOTH)
+        self.merge_vertices(angle)
     
     def section(self,
                 plane_normal,

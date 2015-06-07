@@ -14,7 +14,8 @@ from collections import deque
 from .simplify  import simplify
 from .polygons  import polygons_enclosure_tree, is_ccw
 from .constants import *
-from ..geometry import plane_fit, plane_transform, transform_points
+from ..points   import plane_fit, transform_points
+from ..geometry import plane_transform
 from ..grouping import unique_rows
 
 class Path:

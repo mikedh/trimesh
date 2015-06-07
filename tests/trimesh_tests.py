@@ -49,8 +49,8 @@ class VectorTests(unittest.TestCase):
             offset   = 100*(np.random.random(3)-.5)
             T        = trimesh.transformations.rotation_matrix(angle, vector)
             T[0:3,3] = offset
-            points_B = trimesh.geometry.transform_points(points_A, T)
-            M, error = trimesh.geometry.absolute_orientation(points_A, points_B, return_error=True)
+            points_B = trimesh.points.transform_points(points_A, T)
+            M, error = trimesh.points.absolute_orientation(points_A, points_B, return_error=True)
             self.assertTrue(np.all(error < TOL_ZERO))
 
 class MeshTests(unittest.TestCase):

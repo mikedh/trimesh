@@ -2,7 +2,7 @@ trimesh
 ==========
 [![Build Status](https://travis-ci.org/mikedh/trimesh.svg?branch=master)](https://travis-ci.org/mikedh/trimesh)
 
-Python library for loading and doing simple operations on triangular meshes.
+Python library for loading and doing operations on triangular meshes.
 
 ### Features
 * Included importers are binary/ASCII STL, Wavefront, and OFF
@@ -45,6 +45,10 @@ To get the latest version of assimp/pyassimp from github:
 Rtree may not build without libspatialindex installed, get it with:
 
     sudo apt-get install libspatialindex* 
+
+If you would like to use the trimesh.creation functions, meshpy is required:
+
+   sudo pip install meshpy
 
 ### Example
     import numpy as np

@@ -28,7 +28,7 @@ class MeshViewer(pyglet.window.Window):
         self.add_mesh(mesh, smooth)
         self.run()
 
-    def add_mesh(self, mesh, smooth):
+    def add_mesh(self, mesh, smooth=None):
         if smooth is None:
             smooth = len(mesh.faces) < SMOOTH_MAX_FACES
 
@@ -42,8 +42,9 @@ class MeshViewer(pyglet.window.Window):
             # will show faceted surfaces instead of super wrong blending
             mesh.unmerge_vertices()
 
-        mesh.verify_colors()
         mesh.verify_normals()
+        mesh.verify_colors()
+
 
         vertices = (mesh.vertices-mesh.centroid).reshape(-1).tolist()
         normals  = mesh.vertex_normals.reshape(-1).tolist()

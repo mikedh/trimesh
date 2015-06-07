@@ -4,9 +4,9 @@ import numpy as np
 import networkx as nx
 from collections import deque
 
-from ..geometry import unitize
+from ..points    import unitize
 from ..util      import transformation_2D
-from .constants import *
+from .constants  import *
 
 def polygons_enclosure_tree(polygons):
     '''

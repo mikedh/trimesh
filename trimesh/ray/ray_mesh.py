@@ -2,7 +2,7 @@ import numpy as np
 import time
 
 from ..constants       import *
-from ..geometry        import unitize
+from ..points          import unitize
 from ..intersections   import plane_line_intersection
 from .ray_triangle_cpu import rays_triangles_id
 

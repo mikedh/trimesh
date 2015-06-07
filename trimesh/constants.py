@@ -4,8 +4,6 @@ TOL_ZERO   = 1e-12
 TOL_MERGE  = 1e-8
 TOL_PLANAR = 1e-10
 
-ANGLE_SMOOTH = .4
-
 import logging as _logging
 log = _logging.getLogger('trimesh')
 log.addHandler(_logging.NullHandler())

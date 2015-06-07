@@ -11,13 +11,8 @@ Using
 
 '''
 
-from sys import version_info as _version_info
-if _version_info[:2] < (2, 7):
-    message = "Python 2.7 or later is required for trimesh.py (%d.%d detected)."
-    raise ImportError(message % sys.version_info[:2])
-
-from .base import Trimesh
-from .geometry import unitize, transform_points
+from .base    import Trimesh
+from .points  import unitize, transform_points
 from .io.load import load_mesh, available_formats
-from . import transformations
+from .        import transformations
 

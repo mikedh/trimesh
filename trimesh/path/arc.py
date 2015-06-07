@@ -1,7 +1,7 @@
 import numpy as np
 
 from ..util         import  three_dimensionalize, euclidean
-from ..geometry     import unitize
+from ..points       import unitize
 from .intersections import line_line
 from .constants     import *
 

@@ -1,7 +1,8 @@
 import numpy as np
 
 from .constants import *
-from .geometry import unitize, project_to_plane, faces_to_edges
+from .geometry  import faces_to_edges
+from .points    import  unitize, project_to_plane 
 
 def mesh_plane_intersection(mesh, 
                             plane_normal,
@@ -34,26 +35,6 @@ def mesh_plane_intersection(mesh,
                                 plane_normal = plane_normal,
                                 plane_origin = plane_origin).reshape((-1,2,2))
     return intersections.reshape(-1,2,3)
-
-def points_in_mesh(points, mesh):
-    from rtree import Rtree
-    points = np.array(points)
-    tri_3D = mesh.vertices[mesh.faces]
-    tri_2D = tri_3D[:,:,0:2]
-    z_bounds = np.column_stack((np.min(tri_3D[:,:,2], axis=1),
-                                np.max(tri_3D[:,:,2], axis=1)))
-    bounds = np.column_stack((np.min(tri_2D, axis=1), 
-                              np.max(tri_2D, axis=1)))
-    tree = Rtree()
-    for i, bound in enumerate(bounds):
-        tree.insert(i, bound)
-
-    result = np.zeros(len(points), dtype=np.bool)
-    for point_index, point in enumerate(points):
-        intersections = np.array(list(tree.intersection(point[0:2].tolist())))
-        in_triangle   = [point_in_triangle_2D(point[0:2], tri_2D[i]) for i in intersections]
-        result[point_index] = np.int(np.mod(np.sum(in_triangle), 2)) == 0
-    return result
 
 def plane_line_intersection(plane_origin, 
                             plane_normal, 

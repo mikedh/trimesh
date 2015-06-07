@@ -10,7 +10,7 @@ import numpy as np
 
 from .constants import *
 from .arc       import discretize_arc, arc_center
-from ..geometry import unitize
+from ..points   import unitize
 
 _HASH_LENGTH = 5
 

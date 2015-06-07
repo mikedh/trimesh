@@ -2,17 +2,14 @@
 Create meshes from primitives, or with operations. 
 '''
 
-import numpy as np
-
-from collections import deque
-
-from .base import Trimesh
+from .base     import Trimesh
 from .geometry import faces_to_edges
 from .grouping import group_rows, unique_rows
+from .util     import three_dimensionalize
 
+import numpy as np
+from collections import deque
 from shapely.geometry import Polygon
-
-from .util import three_dimensionalize
 
 def extrude_polygon(polygon, 
                     height):
@@ -59,6 +56,15 @@ def extrude_polygon(polygon,
 def triangulate_polygon(polygon):
     '''
     Given a shapely polygon, create a triangulation using meshpy.triangle
+
+    Arguments
+    ---------
+    polygon: Shapely.geometry Polygon
+
+    Returns
+    --------
+    mesh_vertices: (n, 2) float array of 2D points
+    mesh_faces:    (n, 3) int array of vertex indicies representing triangles
     '''
     import meshpy.triangle as triangle
 
@@ -76,8 +82,14 @@ def triangulate_polygon(polygon):
         tiled = np.vstack((tiled, [tiled[-1][-1], tiled[0][0]]))
         return tiled
 
-    def add_boundary(boundary, start):        
+    def add_boundary(boundary, start):
+        # coords is an (n, 2) ordered list of points on the polygon boundary
+        # the first and last points are the same, and there are no
+        # guarentees on points not being duplicated (which will 
+        # later cause meshpy/triangle to shit a brick)
         coords  = np.array(boundary.coords)
+        # find indices points which occur only once, and sort them
+        # to maintain order
         unique  = np.sort(unique_rows(coords)[0])
         cleaned = coords[unique]
 
@@ -111,10 +123,11 @@ def triangulate_polygon(polygon):
     facets   = np.vstack(facets)
     
     # holes in meshpy lingo are a (h, 2) list of (x,y) points
-    # which are on inside the region of the hole
+    # which are inside the region of the hole
     # we added a hole for the exterior, which we slice away here
     holes    = np.array(holes)[1:]
 
+    # call meshpy.triangle on our cleaned representation of the Shapely polygon
     info = triangle.MeshInfo()
     info.set_points(vertices)
     info.set_facets(facets)
@@ -132,6 +145,13 @@ def append_faces(vertices_seq, faces_seq):
     '''
     Given a sequence of zero- indexed faces and vertices,
     combine them into a single (n,3) list of faces and (m,3) vertices
+
+    Arguments
+    ---------
+    vertices_seq: (n) sequence of (m,d) vertex arrays
+    faces_seq     (n) sequence of (p,j) faces, zero indexed
+                  and referencing their counterpoint vertices
+
     '''
     vertices_len = np.array([len(i) for i in vertices_seq])
     face_offset  = np.append(0, np.cumsum(vertices_len)[:-1])

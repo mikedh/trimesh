@@ -1,5 +1,6 @@
 import numpy as np
-from .geometry import unitize
+
+from .points import unitize
 
 def random_sample(mesh, count):
     '''

@@ -1,6 +1,6 @@
 import numpy as np
 
-from ..geometry import unitize 
+from ..points   import unitize 
 from ..util     import three_dimensionalize, euclidean
 from .constants import TOL_ZERO
     
