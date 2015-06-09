@@ -214,14 +214,6 @@ def is_watertight_nx(mesh):
 def is_watertight(mesh):
     if _has_gt: return is_watertight_gt(mesh)
     else:       return is_watertight_nx(mesh)
-    
-def color_broken(mesh, color=[255,0,0]):
-    adjacency = nx.from_edgelist(mesh.face_adjacency())
-    broken    = [k for k, v in adjacency.degree().iteritems() if v != 3]
-    broken    = np.array(broken)
-    mesh.face_colors[broken] = color
-    return broken
-
 
 def fix_normals(mesh):
     '''
@@ -280,3 +272,11 @@ def fix_normals(mesh):
         winding_test = np.diff(mesh.vertices[[mesh.faces[winding_tri]]], axis=0)
         winding_dir  = np.dot(unitize(np.cross(*winding_test)), mesh.face_normals[winding_tri])
         if winding_dir < 0: mesh.faces[[connected]] = np.fliplr(mesh.faces[[connected]])
+
+def broken_faces(mesh, color=[255,0,0]):
+    adjacency = nx.from_edgelist(mesh.face_adjacency())
+    broken    = [k for k, v in adjacency.degree().iteritems() if v != 3]
+    broken    = np.array(broken)
+    if not color is None:
+        mesh.face_colors[broken] = color
+    return broken

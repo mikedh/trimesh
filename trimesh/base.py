@@ -244,7 +244,7 @@ class Trimesh():
         if return_area:
             area = [triangles.area(self.vertices[self.faces[i]]) for i in facets]
             return facets, area
-        return facet_list
+        return facets
 
     @log_time    
     def fix_normals(self):

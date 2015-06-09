@@ -101,7 +101,7 @@ def plane_fit(points, tolerance=TOL_ZERO):
     N = np.linalg.svd(M)[0][:,-1]
 
     if not tolerance is None:
-        normal_bad  = np.ptp(np.dot(test_normal, points.T)) > tolerance
+        normal_bad  = np.ptp(np.dot(N, points.T)) > tolerance
         if normal_bad: 
             raise ValueError('Plane outside tolerance!')
     return C, N

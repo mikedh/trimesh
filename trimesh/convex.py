@@ -37,11 +37,11 @@ def convex_hull(mesh, clean=True):
         convex.remove_unreferenced_vertices()
     return convex
 
-def planar_hull(mesh, 
+def planar_hull(vertices,
                 normal, 
                 origin           = [0,0,0], 
                 return_transform = False):
-    planar , T = project_to_plane(mesh.vertices,
+    planar , T = project_to_plane(vertices,
                                   plane_normal     = normal,
                                   plane_origin     = origin,
                                   return_transform = True)
