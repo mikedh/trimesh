@@ -17,8 +17,8 @@ if __name__ == '__main__':
     # this takes the (2,3) bounding box and slices it into [minz, maxz]
     z_extents = mesh.bounds[:,2]
 
-    # 10 evenly spaced z values, between the extents of the mesh
-    z_levels  = np.linspace(*z_extents, num=10)
+    # slice every .1 model units (eg, inches)
+    z_levels  = np.arange(*z_extents, step=.25)
 
     # create an array to hold the section objects
     sections  = [None] * len(z_levels)
@@ -31,10 +31,12 @@ if __name__ == '__main__':
 
     # summing the array of path objects will put all of the curves
     # into one Path3D object, which we can then plot easily in 3D
-    np.sum(sections).show()
-
+    #np.sum(sections).show()
+    
+    sections[2].show()
+    
     # we can also transform each section in space onto the XY plane
     # note that if the Path3D object couldn't find a plane which all 
     # of the entities lie on, it will raise a MeshError
-    section_2D, T_matrix = sections[0].to_planar()
-    section_2D.show()
+    #section_2D, T_matrix = sections[0].to_planar()
+    #section_2D.show()

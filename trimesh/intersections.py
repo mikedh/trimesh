@@ -58,8 +58,8 @@ def plane_line_intersection(plane_origin,
     valid        : (n, 3) list of booleans indicating whether a valid
                    intersection occurred
     '''
-    endpoints = np.array(endpoints)
-    line_dir  = unitize(endpoints[1] - endpoints[0])
+    endpoints    = np.array(endpoints)
+    line_dir     = unitize(endpoints[1] - endpoints[0])
     plane_normal = unitize(plane_normal)
 
     t = np.dot(plane_normal, np.transpose(plane_origin - endpoints[0]))
@@ -68,12 +68,15 @@ def plane_line_intersection(plane_origin,
     # If the plane normal and line direction are perpendicular, it means
     # the vector is 'on plane', and there isn't a valid intersection.
     # We discard on-plane vectors by checking that the dot product is nonzero
-    valid = np.abs(b) > TOL_ZERO
+    valid = np.abs(b) > TOL_MERGE
     if line_segments:
         test = np.dot(plane_normal, np.transpose(plane_origin - endpoints[1]))
         different_sides = np.sign(t) != np.sign(test)
-        valid           = np.logical_and(valid, different_sides)
-        
+        nonzero = np.logical_or(np.abs(t) > TOL_MERGE,
+                                np.abs(test) > TOL_MERGE)
+        valid = np.logical_and(valid, different_sides)
+        valid = np.logical_and(valid, nonzero)
+
     d  = np.divide(t[valid], b[valid])
     intersection  = endpoints[0][valid]
     intersection += np.reshape(d, (-1,1)) * line_dir[valid]

@@ -193,7 +193,7 @@ class Path:
                   self.__class__.__name__,
                   len(self.entities),
                   tic[-1] - tic[0])
-        log.debug('%s', str(np.column_stack((label, np.diff(tic)))))
+        #log.debug('%s', str(np.column_stack((label, np.diff(tic)))))
         return self
 
     def __add__(self, other):

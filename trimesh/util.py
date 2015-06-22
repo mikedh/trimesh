@@ -60,10 +60,17 @@ def is_sequence(arg):
     '''
     Returns true if arg is a sequence
     '''
-    return (not hasattr(arg, "strip") and
-            hasattr(arg, "__getitem__") or
-            hasattr(arg, "__iter__"))
-    
+    seq = (not hasattr(arg, "strip") and
+           hasattr(arg, "__getitem__") or
+           hasattr(arg, "__iter__"))
+
+    # numpy sometimes returns objects that are single float64 values
+    # but sure look like sequences, so we check the shape
+    if hasattr(arg, 'shape'):
+        seq = seq and arg.shape != ()
+
+    return seq
+
 def is_ccw(points):
     '''
     Given an (n,2) set of points, return True if they are counterclockwise
@@ -145,7 +152,7 @@ def grid_linspace_2D(bounds, count):
     grid   = np.dstack(np.meshgrid(x_grid, y_grid)).reshape((-1,2))
     return grid
 
-def attach_stream_to_log(log_level=logging.DEBUG, blacklist=[]):
+def attach_to_log(log_level=logging.DEBUG, blacklist=[]):
     '''
     Attach a stream handler to all loggers, so their output can be seen
     on the console

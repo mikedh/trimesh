@@ -8,7 +8,7 @@ import logging
 import trimesh.path as vector
 
 from trimesh.path.constants import *
-from trimesh.util           import euclidean, attach_stream_to_log
+from trimesh.util           import euclidean, attach_to_log
 
 TEST_DIR   = '../models/2D'
 
@@ -65,5 +65,5 @@ class ArcTests(unittest.TestCase):
         self.assertTrue(euclidean(C, res_center) < TOL_ZERO)
 
 if __name__ == '__main__':
-    attach_stream_to_log()
+    attach_to_log()
     unittest.main()
