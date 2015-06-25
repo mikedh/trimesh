@@ -11,6 +11,7 @@ import numpy as np
 from .constants import *
 from .arc       import discretize_arc, arc_center
 from ..points   import unitize
+from ..util     import replace_references
 
 _HASH_LENGTH = 5
 
@@ -21,6 +22,17 @@ class Entity:
         self.points = np.array(points)
         self.closed = closed
         
+    @property
+    def _class_id(self):
+        '''
+        Return an integer that is unique to the class type.
+        Note that this implementation will fail if a class is defined
+        that starts with the same letter as an existing class. 
+        Since this function is called a lot, it is a tradeoff between 
+        speed and robustness where speed won. 
+        '''
+        return ord(self.__class__.__name__[0])
+
     def hash(self):
         '''
         Returns a string unique to the entity.
@@ -28,7 +40,7 @@ class Entity:
         by comparing the string returned by this function.
         '''
         hash = np.zeros(_HASH_LENGTH, dtype=np.int)
-        hash[-2:] = self._CLASS_ID, int(self.closed)
+        hash[-2:] = self._class_id, int(self.closed)
         hash[0:len(self.points)] = np.sort(self.points)
         return hash
         
@@ -82,53 +94,16 @@ class Entity:
         return self.points[[0,-1]]
             
 class Arc(Entity):
-    _CLASS_ID = 1
     def discrete(self, vertices):
         return discretize_arc(vertices[[self.points]], 
                               close = self.closed)
                               
     def center(self, vertices):
         return arc_center(vertices[[self.points]])
-        
-    def offset(self, vertices, distance, normal=None):
-        new_points = arc_offset(vertices[[self.points]], distance)
-        return new_points
-        
+                
     def tangents(self, vertices):
         return arc_tangents(vertices[[self.points]])
 
 class Line(Entity):
-    _CLASS_ID = 0
     def discrete(self, vertices):
         return vertices[[self.points]]
-        
-    def offset(self, vertices, distance, normal=[0,0,1]):
-        points = vertices[[self.points]]
-        line_vec = np.diff(points)
-        perp_vec = unitize(np.cross(line_vec, normal))
-        new_points = points + perp_vec*distance
-        return new_points 
-        
-    def tangents(self, vertices):
-        points   = vertices[[self.points]]
-        tangents = np.tile(unitize(np.diff(points, axis=0)), (2,1))
-        return tangents
-        
-        
-def is_ccw(points):
-    '''https://stackoverflow.com/questions/1165647/how-to-determine-if-a-list-of-polygon-points-are-in-clockwise-order
-    
-    '''
-    xd = np.diff(points[:,0])
-    yd = np.sum(np.column_stack((points[:,1], 
-                                 points[:,1])).reshape(-1)[1:-1].reshape((-1,2)), axis=1)
-    area = np.sum(xd*yd)*.5
-    return area < 0
-        
-def replace_references(data, reference_dict):
-    # Replace references in place
-    view = np.array(data).view().reshape((-1))
-    for i, value in enumerate(view):
-        if value in reference_dict:
-            view[i] = reference_dict[value]
-    return view

@@ -2,7 +2,7 @@ from time import time as time_function
 TOL_ZERO   = 1e-12
 # same as solidworks (according to their documentation)
 TOL_MERGE  = 1e-8
-TOL_PLANAR = 1e-10
+TOL_PLANAR = 1e-5
 
 import logging as _logging
 log = _logging.getLogger('trimesh')

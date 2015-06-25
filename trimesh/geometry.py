@@ -20,7 +20,7 @@ def counterclockwise_angles(vector, vectors):
     angles += (angles < 0.0)*np.pi*2
     return angles
 
-def align_vectors(vector_start, vector_end):
+def align_vectors(vector_start, vector_end, return_angle=False):
     '''
     Returns the 4x4 transformation matrix which will rotate from 
     vector_start (3,) to vector_end (3,), ex:
@@ -46,6 +46,8 @@ def align_vectors(vector_start, vector_end):
         if direction < 0:
             angle = np.pi - angle
         T = rotation_matrix(angle, cross)
+    if return_angle:
+        return T, angle
     return T
     
 def faces_to_edges(faces, sort=True, return_index=False):

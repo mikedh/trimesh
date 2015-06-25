@@ -5,42 +5,9 @@ import numpy as np
 from scipy.spatial import cKDTree as KDTree
 
 from .constants import TOL_ZERO
-from .geometry import plane_transform
-
-def unitize(points, check_valid=False):
-    '''
-    Flexibly turn a list of vectors into a list of unit vectors.
-    
-    Arguments
-    ---------
-    points:       (n,m) or (j) input array of vectors. 
-                  For 1D arrays, points is treated as a single vector
-                  For 2D arrays, each row is treated as a vector
-    check_valid:  boolean, if True enables valid output and checking
-
-    Returns
-    ---------
-    unit_vectors: (n,m) or (j) length array of unit vectors
-
-    valid:        (n) boolean array, output only if check_valid.
-                   True for all valid (nonzero length) vectors, thus m=sum(valid)
-    '''
-    points       = np.array(points)
-    axis         = len(points.shape) - 1
-    length       = np.sum(points ** 2, axis=axis) ** .5
-    if check_valid:
-        valid = np.greater(length, TOL_ZERO)
-        if axis == 1: 
-            unit_vectors = (points[valid].T / length[valid]).T
-        elif len(points.shape) == 1 and valid: 
-            unit_vectors = points / length
-        else:         
-            unit_vectors = []
-        return unit_vectors, valid        
-    else: 
-        unit_vectors = (points.T / length).T
-    return unit_vectors
-      
+from .geometry  import plane_transform
+from .util      import unitize
+   
 def transform_points(points, matrix):
     '''
     Returns points, rotated by transformation matrix 

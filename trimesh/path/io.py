@@ -86,6 +86,12 @@ def lines_to_path(lines):
                          vertices = lines.reshape((-1,shape[2])))
     return vector
 
+def polygon_to_path(polygon):
+    def add_boundary(boundary):
+        coords = np.array(boundary.coords)
+    entities = deque()
+    vertices = deque()
+
 def svg_to_path(file_obj, file_type=None):
     def complex_to_list(values):
         return [values.real, values.imag]

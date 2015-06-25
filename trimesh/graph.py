@@ -115,7 +115,8 @@ def facets_gt(mesh):
     '''
     face_idx       = mesh.face_adjacency()
     normal_pairs   = mesh.face_normals[[face_idx]]
-    parallel       = np.abs(np.sum(normal_pairs[:,0,:] * normal_pairs[:,1,:], axis=1) - 1) < TOL_PLANAR
+    normal_dot     = np.abs(np.sum(normal_pairs[:,0,:] * normal_pairs[:,1,:], axis=1) - 1)
+    parallel       = normal_dot < TOL_PLANAR
     graph_parallel = GTGraph()
     graph_parallel.add_edge_list(face_idx[parallel])
 

@@ -223,7 +223,7 @@ class Path3D(Path):
         discrete = list(map(self.discretize_path, self.paths))
         self._cache_put('discrete', discrete)
 
-    def to_planar(self, normal=None, transform=None, check=True):
+    def to_planar(self, normal=None, to_2D=None, check=True):
         '''
         Check to see if current vectors are all coplanar.
         
@@ -231,22 +231,21 @@ class Path3D(Path):
         transform the 2D representation back into 3 dimensions
         '''
         
-        if transform is None:
+        if to_2D is None:
             C, N = plane_fit(self.vertices)
             if normal is not None:
                 N *= np.sign(np.dot(N, normal))
-            to_planar = plane_transform(C,N)
-        else:
-            to_planar = transform
-
-        vertices  = transform_points(self.vertices, to_planar)
+            to_2D = plane_transform(C,N)
+ 
+        flat = transform_points(self.vertices, to_2D)
         
-        if check and np.any(np.std(vertices[:,2]) > TOL_MERGE):
+        if check and np.any(np.std(flat[:,2]) > TOL_PLANAR):
+            log.error('points have z with deviation %f', np.std(flat[:,2]))
             raise NameError('Points aren\'t planar!')
             
         vector = Path2D(entities = deepcopy(self.entities), 
-                              vertices = vertices)
-        to_3D  = np.linalg.inv(to_planar)
+                        vertices = flat[:,0:2])
+        to_3D  = np.linalg.inv(to_2D)
 
         return vector, to_3D
 

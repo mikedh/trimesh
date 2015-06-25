@@ -1,5 +1,8 @@
 from time  import time as time_function
 from numpy import log10 as _log10
+
+from ..constants import TOL_PLANAR
+
 #when running multiprocess functions, how many processes?
 PROCESS_COUNT = 3
 

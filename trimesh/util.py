@@ -152,6 +152,14 @@ def grid_linspace_2D(bounds, count):
     grid   = np.dstack(np.meshgrid(x_grid, y_grid)).reshape((-1,2))
     return grid
 
+def replace_references(data, reference_dict):
+    # Replace references in place
+    view = np.array(data).view().reshape((-1))
+    for i, value in enumerate(view):
+        if value in reference_dict:
+            view[i] = reference_dict[value]
+    return view
+
 def attach_to_log(log_level=logging.DEBUG, blacklist=[]):
     '''
     Attach a stream handler to all loggers, so their output can be seen
