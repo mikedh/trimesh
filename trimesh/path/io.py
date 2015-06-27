@@ -36,6 +36,9 @@ def load_path(obj, file_type=None):
         file_type = os.path.splitext(obj)[-1][1:].lower()
         loaded = _LOADERS[file_type](file_obj)
         file_obj.close()
+    elif obj.__class__.__name__ == 'Polygon':
+        lines  = polygon_to_lines(obj)
+        loaded = lines_to_path(lines)
     elif is_sequence(obj):
         loaded = lines_to_path(obj)
     else:
@@ -82,15 +85,28 @@ def lines_to_path(lines):
     for i in range(0, (len(lines) * 2) - 1, 2):
         entities.append(Line([i, i+1]))
     vector_type = [Path2D, Path3D][shape[2]-2]
-    vector = vector_type(entities = np.array(entities),
-                         vertices = lines.reshape((-1,shape[2])))
+    vector      = vector_type(entities = np.array(entities),
+                              vertices = lines.reshape((-1, shape[2])))
     return vector
 
-def polygon_to_path(polygon):
-    def add_boundary(boundary):
-        coords = np.array(boundary.coords)
-    entities = deque()
-    vertices = deque()
+def polygon_to_lines(polygon):
+    '''
+    Given a shapely.geometry.Polygon, convert it to a set
+    of (n,2,2) line segments.
+    '''
+    def append_boundary(boundary):
+        vertices = np.array(boundary.coords)
+        lines.append(np.column_stack((vertices[:-1],
+                                      vertices[1:])).reshape((-1,2,2)))
+    lines = deque()
+
+    append_boundary(polygon.exterior)
+    for interior in polygon.interiors:
+        append_boundary(interior)
+
+    return np.vstack(lines)
+
+
 
 def svg_to_path(file_obj, file_type=None):
     def complex_to_list(values):
