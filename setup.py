@@ -3,7 +3,7 @@
 from distutils.core import setup
 
 setup(name='trimesh',
-      version='1.2.5',
+      version='1.2.6',
       description='Load, process, and view triangular meshes.',
       author='Mike Dawson-Haggerty',
       author_email='mik3dh@gmail.com',
