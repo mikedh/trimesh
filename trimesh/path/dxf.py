@@ -11,6 +11,11 @@ http://www.autodesk.com/techpubs/autocad/acadr14/dxf/
 
 from .entities import Line, Arc
 from collections import deque
+
+# py3
+try:                from cStringIO import StringIO
+except ImportError: from io import StringIO
+
 import numpy as np
 
 import logging
@@ -411,8 +416,10 @@ class Blocks:
     def update(self, value):
         self.last_block.update(value)
 
-def _raw_dxf_file(fd):
-    data = []; Skip = True
+def _raw_dxf_file(file_in):
+    data = []
+    Skip = True
+    fd   = StringIO(file_in.read())
 
     for line in fd:
         group_code = int(line)
@@ -554,21 +561,3 @@ def dxf_to_vector(file_obj):
     
     log.debug('Successfully loaded %i entities from DXF', len(entities))
     return entities, vertices
-
-
-if __name__ == '__main__':
-    import trimesh
-    formatter = logging.Formatter("[%(asctime)s] %(levelname)-7s (%(filename)s:\
-%(lineno)3s) %(message)s", "%Y-%m-%d %H:%M:%S")
-    handler_stream = logging.StreamHandler()
-    handler_stream.setFormatter(formatter)
-    level = logging.DEBUG
-    handler_stream.setLevel(level)
-    loggers = [log, logging.getLogger('trimesh')]
-    for logger in loggers:
-        logger.addHandler(handler_stream)
-        logger.setLevel(level)
-    d = read_dxf_file(open('3615.dxf', 'rb'))
-
-
-
