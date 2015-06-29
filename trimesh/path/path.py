@@ -223,7 +223,7 @@ class Path3D(Path):
         discrete = list(map(self.discretize_path, self.paths))
         self._cache_put('discrete', discrete)
 
-    def to_planar(self, normal=None, to_2D=None, check=True):
+    def to_planar(self, to_2D=None, normal=None, check=True):
         '''
         Check to see if current vectors are all coplanar.
         

@@ -4,7 +4,7 @@ Functions dealing with (n,d) points
 import numpy as np
 from scipy.spatial import cKDTree as KDTree
 
-from .constants import TOL_ZERO
+from .constants import *
 from .geometry  import plane_transform
 from .util      import unitize
    
@@ -48,7 +48,7 @@ def surface_normal(points):
     normal = np.linalg.svd(points)[2][-1]
     return normal
 
-def plane_fit(points, tolerance=TOL_ZERO):
+def plane_fit(points, tolerance=None):
     '''                                   
     Given a set of points, find an origin and normal using least squares
     Arguments
@@ -67,9 +67,10 @@ def plane_fit(points, tolerance=TOL_ZERO):
     M = np.dot(x.T, x)
     N = np.linalg.svd(M)[0][:,-1]
 
-    if not tolerance is None:
-        normal_bad  = np.ptp(np.dot(N, points.T)) > tolerance
-        if normal_bad: 
+    if not (tolerance is None):
+        normal_range  = np.ptp(np.dot(N, points.T))
+        if normal_range > TOL_PLANAR: 
+            log.error('Points have peak to peak of %f', normal_range)
             raise ValueError('Plane outside tolerance!')
     return C, N
 
