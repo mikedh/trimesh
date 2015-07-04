@@ -60,7 +60,9 @@ class Trimesh():
         # initializing is very inexpensive and object is convienent to have
         # on first query expensive bookkeeping is done (creation of r-tree)
         # and is cached for subsequent queries
-        self.ray             = RayMeshIntersector(self)
+        self.ray    = RayMeshIntersector(self)
+
+        self.visual = color.VisualAttributes(self)
         
         # update the mesh metadata with passed metadata
         if isinstance(metadata, dict): self.metadata.update(metadata)
@@ -114,20 +116,12 @@ class Trimesh():
         return geometry.faces_to_edges(self.faces)
 
     @property
-    def vertex_colors_ok(self):
-        return np.shape(self.vertex_colors) == self.vertices.shape
-
-    @property
     def vertex_normals_ok(self):
         return np.shape(self.vertex_normals) == self.vertices.shape
 
     @property
     def face_normals_ok(self):
         return np.shape(self.face_normals) == self.faces.shape
-
-    @property
-    def face_colors_ok(self):
-        return np.shape(self.face_colors) == self.faces.shape
 
     def merge_vertices(self, angle_max=None):
         '''
@@ -156,8 +150,8 @@ class Trimesh():
         '''
         if mask.dtype.name == 'bool' and mask.all(): return
         self.faces = inverse[[self.faces.reshape(-1)]].reshape((-1,3))
-        if self.vertex_colors_ok:
-            self.vertex_colors = self.vertex_colors[mask]
+        self.visual.update_vertices(mask)
+
         if self.vertex_normals_ok:
             self.vertex_normals = self.vertex_normals[mask]
         self.vertices = self.vertices[mask]
@@ -174,8 +168,8 @@ class Trimesh():
         valid: either (m) int, or (len(self.faces)) bool. 
         '''
         if mask.dtype.name == 'bool' and mask.all(): return
-        if self.face_colors_ok:
-            self.face_colors = self.face_colors[mask]
+        self.visual.update_faces(mask)
+
         if self.face_normals_ok:
             self.face_normals = self.face_normals[mask]
         self.faces = self.faces[mask]
@@ -411,52 +405,6 @@ class Trimesh():
         # since this means the vertex normal isn't defined, just make it anything
         mean_normals[np.logical_not(valid)] = [1,0,0]
         self.vertex_normals = mean_normals
-
-    def verify_colors(self):
-        '''
-        If face colors are not defined, define them. 
-        '''
-        self.verify_face_colors()
-        self.verify_vertex_colors()
-
-    def verify_face_colors(self):
-        '''
-        If face colors are not defined, define them. 
-        '''
-        if not self.face_colors_ok:
-            self.set_face_colors()
-
-    def verify_vertex_colors(self):
-        '''
-        Populate self.vertex_colors
-        If self.face_colors are defined, we use those values to generate
-        vertex colors. If not, we just set them to the DEFAULT_COLOR
-        '''
-        if self.vertex_colors_ok:
-            return
-        elif self.face_colors_ok:
-            # case where face_colors is populated, but vertex_colors isn't
-            # we then generate vertex colors from the face colors
-            vertex_colors = np.zeros((len(self.vertices), 3,3))
-            vertex_colors[[self.faces[:,0],0]] = self.face_colors
-            vertex_colors[[self.faces[:,1],1]] = self.face_colors
-            vertex_colors[[self.faces[:,2],2]] = self.face_colors
-            vertex_colors  = geometry.unitize(np.mean(vertex_colors, axis=1))
-            vertex_colors *= (255.0 / np.max(vertex_colors, axis=1).reshape((-1,1)))
-            self.vertex_colors = vertex_colors.astype(int)
-            log.debug('Setting vertex colors from face colors')
-        else:
-            self.vertex_colors = np.tile(color.DEFAULT_COLOR, (len(self.vertices), 1))
-            log.debug('Vertex colors set to default')
-
-    def set_face_colors(self, face_color=None):
-        '''
-        Apply face colors. If none are defined, set to default color
-        '''
-        if face_color is None: 
-            face_color = color.DEFAULT_COLOR
-        self.face_colors = np.tile(face_color, (len(self.faces), 1))
-        log.debug('Set face colors to %s', str(face_color))
         
     def transform(self, matrix):
         '''
@@ -508,16 +456,21 @@ class Trimesh():
                                          density      = density,
                                          skip_inertia = skip_inertia)
 
+    def scene(self):
+        '''
+        Return a scene containing the mesh. 
+        '''
+        from .scene import Scene
+        return Scene(self)
+
     def show(self, smooth=None):
         '''
         Render the mesh in an opengl window. Requires pyglet.
         Smooth will re-merge vertices to fix the shading, but can be slow
         on larger meshes. 
         '''
-        # import is done here so if pyglet isn't installed, the rest
-        # of the module works anyways
-        from .render import MeshViewer
-        MeshViewer(self, smooth)
+        scene = self.scene()
+        scene.show(smooth = smooth)
 
     def identifier(self, length=6):
         '''

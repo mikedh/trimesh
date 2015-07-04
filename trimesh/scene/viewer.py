@@ -2,21 +2,20 @@ import pyglet
 from pyglet.gl import *
 import numpy as np
 from copy import deepcopy
-from string import Template
 
 #smooth only when fewer faces than this to prevent lockups in normal use
 SMOOTH_MAX_FACES = 20000
 
-class MeshViewer(pyglet.window.Window):
-    def __init__(self, mesh, smooth=None):
+class SceneViewer(pyglet.window.Window):
+    def __init__(self, scene, smooth=None):
         conf = Config(sample_buffers=1,
                       samples=4,
                       depth_size=16,
                       double_buffer=True)
         try: 
-            super(MeshViewer, self).__init__(config=conf, resizable=True)
+            super(SceneViewer, self).__init__(config=conf, resizable=True)
         except pyglet.window.NoSuchConfigException:
-            super(MeshViewer, self).__init__(resizable=True)
+            super(SceneViewer, self).__init__(resizable=True)
             
         self.batch        = pyglet.graphics.Batch()        
         self.rotation     = np.zeros(3)
@@ -24,8 +23,10 @@ class MeshViewer(pyglet.window.Window):
         self.wireframe    = False
         self.cull         = True
         self.init_gl()
+
+        for name, mesh in scene.meshes.iteritems():
+            self.add_mesh(mesh, smooth=smooth)
         
-        self.add_mesh(mesh, smooth)
         self.run()
 
     def add_mesh(self, mesh, smooth=None):
@@ -43,12 +44,10 @@ class MeshViewer(pyglet.window.Window):
             mesh.unmerge_vertices()
 
         mesh.verify_normals()
-        mesh.verify_colors()
-
 
         vertices = (mesh.vertices-mesh.centroid).reshape(-1).tolist()
         normals  = mesh.vertex_normals.reshape(-1).tolist()
-        colors   = mesh.vertex_colors.reshape(-1).tolist()
+        colors   = mesh.visual.vertex_colors.reshape(-1).tolist()
         indices  = mesh.faces.reshape(-1).tolist()
 
         self.set_base_view(mesh)
@@ -61,6 +60,9 @@ class MeshViewer(pyglet.window.Window):
                                                   ('c3B/static', colors))
 
     def init_gl(self):
+        def vec(*args):
+            return (GLfloat * len(args))(*args)
+
         glClearColor(1, 1, 1, 1)
         glColor3f(1, 0, 0)
         glEnable(GL_DEPTH_TEST)
@@ -73,9 +75,6 @@ class MeshViewer(pyglet.window.Window):
         glEnable(GL_LIGHT0)
         glEnable(GL_LIGHT1)
         
-        # Define a simple function to create ctypes arrays of floats:
-        def vec(*args):
-            return (GLfloat * len(args))(*args)
 
         glLightfv(GL_LIGHT0, GL_POSITION, vec(.5, .5, 1, 0))
         glLightfv(GL_LIGHT0, GL_SPECULAR, vec(.5, .5, 1, 1))
