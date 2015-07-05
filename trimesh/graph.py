@@ -223,7 +223,6 @@ def fix_normals(mesh):
     For face normals ensure that vectors are consistently pointed outwards,
     and that mesh.faces is wound in the correct direction for all connected components.
     '''
-    mesh.generate_face_normals()
     # we create the face adjacency graph: 
     # every node in g is an index of mesh.faces
     # every edge in g represents two faces which are connected

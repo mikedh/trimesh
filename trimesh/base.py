@@ -118,11 +118,12 @@ class Trimesh(object):
 
     @face_normals.setter
     def face_normals(self, values):
-        if np.shape(values) == np.shape(self.faces):
-            self._face_normals = np.array(values)
-        else: 
-            raise ValueError('Face normals are incorrect shape!')
-
+        if np.shape(values) != np.shape(self.faces):
+            log.warn('Faces are %s, passed normals are %s', 
+                      np.shape(self.faces),
+                      np.shape(values))
+        self._face_normals = np.array(values)
+            
     @property
     def vertex_normals(self):
         if np.shape(self._vertex_normals) != np.shape(self.vertices):
@@ -132,10 +133,9 @@ class Trimesh(object):
 
     @vertex_normals.setter
     def vertex_normals(self, values):
-        if np.shape(values) == np.shape(self.vertices):
-            self._vertex_normals = np.array(values)
-        else: 
-            raise ValueError('Vertex normals are incorrect shape!')
+        if np.shape(values) != np.shape(self.vertices):
+            log.warn('Vertex normals are incorrect shape!')
+        self._vertex_normals = np.array(values)
 
     def _generate_face_normals(self):
         face_normals, valid = triangles.normals(self.vertices[[self.faces]])

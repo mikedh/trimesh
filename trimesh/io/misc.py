@@ -40,7 +40,7 @@ def load_wavefront(file_obj, file_type=None):
     mesh  = Trimesh(vertices       = data[vid].astype(float),
                     vertex_normals = data[nid].astype(float),
                     faces          = faces)
-    mesh.generate_face_normals()
+
 
     return mesh
 

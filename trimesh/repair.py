@@ -80,8 +80,6 @@ def fill_holes(mesh, raise_watertight=True, fill_planar=False):
     # just by doing the cross products on the face edges 
     new_normals, valid = normals(mesh.vertices[new_faces])
 
-
-
     # if face colors exist, assign the last face color to the new faces
     # note that this is a little cheesey, but it is very inexpensive and 
     # is the right thing to do if the mesh is a single color. 
@@ -92,8 +90,8 @@ def fill_holes(mesh, raise_watertight=True, fill_planar=False):
         new_colors = np.vstack((mesh.visual.face_colors, 
                                 new_colors))
 
-    mesh.faces        = np.vstack((mesh.faces, new_faces[valid]))
     mesh.face_normals = np.vstack((mesh.face_normals, new_normals[valid]))
+    mesh.faces        = np.vstack((mesh.faces, new_faces[valid]))
     mesh.visual.face_colors = new_colors
 
     log.debug('Filled in mesh with %i triangles', np.sum(valid))
