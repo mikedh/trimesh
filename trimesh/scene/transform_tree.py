@@ -9,8 +9,7 @@ class TransformTree:
     '''
     A feature complete if not particularly optimized implementation of a transform graph
     
-    Few allowances are made for thread safety, caching, or enforcing graph
-    structure at the moment. 
+    Few allowances are made for thread safety, caching, or enforcing graph structure.
     '''
 
     def __init__(self):
