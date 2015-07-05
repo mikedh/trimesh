@@ -3,11 +3,18 @@ from pyglet.gl import *
 import numpy as np
 from copy import deepcopy
 
+from threading import Thread
+
 #smooth only when fewer faces than this to prevent lockups in normal use
 SMOOTH_MAX_FACES = 20000
 
 class SceneViewer(pyglet.window.Window):
-    def __init__(self, scene, smooth=None):
+    def __init__(self, 
+                 scene, 
+                 smooth = None,
+                 block  = True):
+
+
         conf = Config(sample_buffers=1,
                       samples=4,
                       depth_size=16,
@@ -24,10 +31,14 @@ class SceneViewer(pyglet.window.Window):
         self.cull         = True
         self.init_gl()
 
-        for name, mesh in scene.meshes.iteritems():
+        for name, mesh in scene.meshes.items():
             self.add_mesh(mesh, smooth=smooth)
         
-        self.run()
+        if block: 
+            self.run()
+        else:
+            self._thread = Thread(target=self.run)
+            self._thread.start()
 
     def add_mesh(self, mesh, smooth=None):
         if smooth is None:

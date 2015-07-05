@@ -43,6 +43,6 @@ class Scene:
             return True
         return False
 
-    def show(self, smooth=None):
+    def show(self, smooth = None, block=True):
         from .viewer import SceneViewer
-        SceneViewer(self, smooth=smooth)
+        SceneViewer(self, smooth=smooth, block=block)
