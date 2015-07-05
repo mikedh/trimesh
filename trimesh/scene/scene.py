@@ -43,4 +43,4 @@ class Scene:
 
     def show(self, smooth=None):
         from .viewer import SceneViewer
-        SceneViewer(self).show(smooth=smooth)
+        SceneViewer(self)

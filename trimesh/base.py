@@ -33,8 +33,6 @@ class Trimesh():
                  faces           = None, 
                  face_normals    = None, 
                  vertex_normals  = None,
-                 face_colors     = None,
-                 vertex_colors   = None,
                  metadata        = None,
                  process         = False,
                  **kwargs):
@@ -48,11 +46,7 @@ class Trimesh():
         # (n, 3) float of vertex normals.
         # can be created from face normals
         self.vertex_normals  = np.array(vertex_normals)
-        # (m, 3) int8 of RGB face colors
-        self.face_colors     = np.array(face_colors)
-        # (n, 3) int8 of RGB vertex colors. 
-        # can be created from face colors
-        self.vertex_colors   = np.array(vertex_colors)
+
         # any metadata that should be tracked per- mesh
         self.metadata        = dict()
 
@@ -61,7 +55,6 @@ class Trimesh():
         # on first query expensive bookkeeping is done (creation of r-tree)
         # and is cached for subsequent queries
         self.ray    = RayMeshIntersector(self)
-
         self.visual = color.VisualAttributes(self)
         
         # update the mesh metadata with passed metadata
@@ -506,8 +499,6 @@ class Trimesh():
         new_vertices = np.vstack((self.vertices, other.vertices))
         new_normals  = np.vstack((self.face_normals, other.face_normals))
 
-        self.verify_face_colors()
-        other.verify_face_colors()
         new_colors   = np.vstack((self.face_colors, other.face_colors))
 
         result =  Trimesh(vertices     = new_vertices, 
