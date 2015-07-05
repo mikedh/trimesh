@@ -14,7 +14,7 @@ from collections import deque
 
 # py3
 try:                from cStringIO import StringIO
-except ImportError: from io import StringIO
+except ImportError: from io import BytesIO as StringIO
 
 import numpy as np
 
