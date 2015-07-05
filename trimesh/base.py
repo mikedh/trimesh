@@ -27,7 +27,7 @@ try:
 except ImportError:
     log.warn('trimesh.path unavailable!', exc_info=True)
 
-class Trimesh():
+class Trimesh(object):
     def __init__(self, 
                  vertices        = None, 
                  faces           = None, 
@@ -41,11 +41,11 @@ class Trimesh():
         self.vertices        = np.array(vertices)
         # (m, 3) int of triangle faces, references self.vertices
         self.faces           = np.array(faces)
-        # (m, 3) float of triangle normals, 
-        self.face_normals    = np.array(face_normals)
+
+        self._face_normals    = np.array(face_normals)
         # (n, 3) float of vertex normals.
         # can be created from face normals
-        self.vertex_normals  = np.array(vertex_normals)
+        self._vertex_normals  = np.array(vertex_normals)
 
         # any metadata that should be tracked per- mesh
         self.metadata        = dict()
@@ -71,7 +71,6 @@ class Trimesh():
         self.merge_vertices()
         self.remove_duplicate_faces()
         self.remove_degenerate_faces()
-        self.verify_face_normals()
         return self
 
     @property
@@ -111,13 +110,63 @@ class Trimesh():
         return geometry.faces_to_edges(self.faces)
 
     @property
-    def vertex_normals_ok(self):
-        return np.shape(self.vertex_normals) == self.vertices.shape
+    def face_normals(self):
+        if np.shape(self._face_normals) != np.shape(self.faces):
+            self._generate_face_normals()
+            log.debug('Generating face normals')
+        return self._face_normals
+
+    @face_normals.setter
+    def face_normals(self, values):
+        if np.shape(values) == np.shape(self.faces):
+            self._face_normals = np.array(values)
+        else: 
+            raise ValueError('Face normals are incorrect shape!')
 
     @property
-    def face_normals_ok(self):
-        return np.shape(self.face_normals) == self.faces.shape
+    def vertex_normals(self):
+        if np.shape(self._vertex_normals) != np.shape(self.vertices):
+            self._generate_vertex_normals()
+            log.debug('Generating vertex normals')
+        return self._vertex_normals
 
+    @vertex_normals.setter
+    def vertex_normals(self, values):
+        if np.shape(values) == np.shape(self.vertices):
+            self._vertex_normals = np.array(values)
+        else: 
+            raise ValueError('Vertex normals are incorrect shape!')
+
+    def _generate_face_normals(self):
+        face_normals, valid = triangles.normals(self.vertices[[self.faces]])
+        self.update_faces(valid)
+        self._face_normals = face_normals
+
+    def _generate_vertex_normals(self):
+        '''
+        If face normals are defined, produce approximate vertex normals based on the
+        average of the adjacent faces.
+        
+        If vertices are merged with no regard to normal angle, this is
+        going to render with weird shading.
+        '''
+        vertex_normals = np.zeros((len(self.vertices), 3,3))
+        vertex_normals[[self.faces[:,0],0]] = self.face_normals
+        vertex_normals[[self.faces[:,1],1]] = self.face_normals
+        vertex_normals[[self.faces[:,2],2]] = self.face_normals
+        mean_normals        = vertex_normals.mean(axis=1)
+        unit_normals, valid = geometry.unitize(mean_normals, check_valid=True)
+
+        mean_normals[valid] = unit_normals
+        # if the mean normal is zero, it generally means that you've encountered 
+        # the edge case where
+        # a) the vertex is only shared by 2 faces (mesh is not watertight)
+        # b) the two faces that share the vertex have normals pointed exactly
+        #    opposite each other. 
+        # since this means the vertex normal isn't defined, just make it anything
+        mean_normals[np.logical_not(valid)] = [1,0,0]
+        self._vertex_normals = mean_normals
+        
     def merge_vertices(self, angle_max=None):
         '''
         If a mesh has vertices that are closer than TOL_MERGE, 
@@ -146,9 +195,9 @@ class Trimesh():
         if mask.dtype.name == 'bool' and mask.all(): return
         self.faces = inverse[[self.faces.reshape(-1)]].reshape((-1,3))
         self.visual.update_vertices(mask)
-
-        if self.vertex_normals_ok:
-            self.vertex_normals = self.vertex_normals[mask]
+        
+        if self._vertex_normals.shape == self.vertices.shape:
+            self._vertex_normals = self._vertex_normals[mask]
         self.vertices = self.vertices[mask]
 
     def update_faces(self, mask):
@@ -163,11 +212,10 @@ class Trimesh():
         valid: either (m) int, or (len(self.faces)) bool. 
         '''
         if mask.dtype.name == 'bool' and mask.all(): return
+        if self._face_normals.shape == self.faces.shape:
+            self._face_normals = self._face_normals[mask]
+        self.faces = self.faces[mask]        
         self.visual.update_faces(mask)
-
-        if self.face_normals_ok:
-            self.face_normals = self.face_normals[mask]
-        self.faces = self.faces[mask]
         
     def remove_duplicate_faces(self):
         '''
@@ -256,41 +304,12 @@ class Trimesh():
         '''
         repair.fill_holes(self, raise_watertight)
 
-    def verify_normals(self):
-        '''
-        Check to make sure both face and vertex normals are defined. 
-        '''
-        self.verify_face_normals()
-        self.verify_vertex_normals()
-
-    def verify_vertex_normals(self):
-        '''
-        Verify that vertex normals are defined. 
-        If they are not defined, generate them.
-        '''
-        if np.shape(self.vertex_normals) != np.shape(self.vertices): 
-            self.generate_vertex_normals()
-            
-    def verify_face_normals(self):
-        '''
-        Check to make sure face normals are defined. 
-        '''
-        if np.shape(self.face_normals) != np.shape(self.faces):
-            log.debug('Generating face normals as shape check failed')
-            self.generate_face_normals()
-        else:
-            face_normals, valid = geometry.unitize(self.face_normals, 
-                                                   check_valid=True)
-            if not np.all(valid):  
-                self.generate_face_normals()
-
     def smooth(self, angle=.4):
         '''
         Process a mesh so that smooth shading renders nicely.
         This is done by merging vertices with a max angle critera. 
         '''
         self.unmerge_vertices()
-        self.verify_normals()
         self.merge_vertices(angle)
     
     def section(self,
@@ -365,42 +384,6 @@ class Trimesh():
         self.vertices = self.vertices[[self.faces]].reshape((-1,3))
         self.faces    = np.arange(len(self.vertices)).reshape((-1,3))
         
-    def generate_face_normals(self):
-        '''
-        If no normal information is loaded, we can get it from cross products
-        Normal direction will be incorrect if mesh faces aren't ordered (right-hand rule)
-
-        This will also remove faces which have zero area. 
-        '''
-        face_normals, valid = triangles.normals(self.vertices[[self.faces]])
-        self.update_faces(valid)
-        self.face_normals = face_normals
-
-    def generate_vertex_normals(self):
-        '''
-        If face normals are defined, produce approximate vertex normals based on the
-        average of the adjacent faces.
-        
-        If vertices are merged with no regard to normal angle, this is
-        going to render with weird shading.
-        '''
-        vertex_normals = np.zeros((len(self.vertices), 3,3))
-        vertex_normals[[self.faces[:,0],0]] = self.face_normals
-        vertex_normals[[self.faces[:,1],1]] = self.face_normals
-        vertex_normals[[self.faces[:,2],2]] = self.face_normals
-        mean_normals        = vertex_normals.mean(axis=1)
-        unit_normals, valid = geometry.unitize(mean_normals, check_valid=True)
-
-        mean_normals[valid] = unit_normals
-        # if the mean normal is zero, it generally means that you've encountered 
-        # the edge case where
-        # a) the vertex is only shared by 2 faces (mesh is not watertight)
-        # b) the two faces that share the vertex have normals pointed exactly
-        #    opposite each other. 
-        # since this means the vertex normal isn't defined, just make it anything
-        mean_normals[np.logical_not(valid)] = [1,0,0]
-        self.vertex_normals = mean_normals
-        
     def transform(self, matrix):
         '''
         Transform mesh vertices by matrix
@@ -453,19 +436,20 @@ class Trimesh():
 
     def scene(self):
         '''
-        Return a scene containing the mesh. 
+        Return a Scene object containing the current mesh. 
         '''
         from .scene import Scene
         return Scene(self)
 
-    def show(self, smooth=None):
+    def show(self, smooth=None, block=True):
         '''
         Render the mesh in an opengl window. Requires pyglet.
         Smooth will re-merge vertices to fix the shading, but can be slow
         on larger meshes. 
         '''
         scene = self.scene()
-        scene.show(smooth = smooth)
+        scene.show(smooth = smooth, 
+                   block  = block)
 
     def identifier(self, length=6):
         '''

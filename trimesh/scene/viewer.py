@@ -14,7 +14,6 @@ class SceneViewer(pyglet.window.Window):
                  smooth = None,
                  block  = True):
 
-
         conf = Config(sample_buffers=1,
                       samples=4,
                       depth_size=16,
@@ -31,16 +30,20 @@ class SceneViewer(pyglet.window.Window):
         self.cull         = True
         self.init_gl()
 
+        self._vertex_list = {}
+
+        self.scene = scene
+
         for name, mesh in scene.meshes.items():
-            self.add_mesh(mesh, smooth=smooth)
-        
+            self._add_mesh(name, mesh, smooth)
+
         if block: 
             self.run()
         else:
             self._thread = Thread(target=self.run)
             self._thread.start()
 
-    def add_mesh(self, mesh, smooth=None):
+    def _add_mesh(self, name, mesh, smooth=None):
         if smooth is None:
             smooth = len(mesh.faces) < SMOOTH_MAX_FACES
 
@@ -54,26 +57,22 @@ class SceneViewer(pyglet.window.Window):
             # will show faceted surfaces instead of super wrong blending
             mesh.unmerge_vertices()
 
-        mesh.verify_normals()
-
         vertices = (mesh.vertices-mesh.centroid).reshape(-1).tolist()
         normals  = mesh.vertex_normals.reshape(-1).tolist()
         colors   = mesh.visual.vertex_colors.reshape(-1).tolist()
         indices  = mesh.faces.reshape(-1).tolist()
 
         self.set_base_view(mesh)
-        self.vertex_list = self.batch.add_indexed(len(vertices)//3, # count
-                                                  GL_TRIANGLES,     # mode 
-                                                  None,             # group
-                                                  indices,          # indices 
-                                                  ('v3f/static', vertices),
-                                                  ('n3f/static', normals),
-                                                  ('c3B/static', colors))
 
+        self._vertex_list[name] = self.batch.add_indexed(len(vertices)//3, # count
+                                                         GL_TRIANGLES,     # mode 
+                                                         None,             # group
+                                                         indices,          # indices 
+                                                         ('v3f/static', vertices),
+                                                         ('n3f/static', normals),
+                                                         ('c3B/static', colors))
+        
     def init_gl(self):
-        def vec(*args):
-            return (GLfloat * len(args))(*args)
-
         glClearColor(1, 1, 1, 1)
         glColor3f(1, 0, 0)
         glEnable(GL_DEPTH_TEST)
@@ -148,11 +147,30 @@ class SceneViewer(pyglet.window.Window):
 
     def on_draw(self):
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        glLoadIdentity()
-        glTranslatef(*self.translation)
-        for i in range(2):
-            glRotatef(self.rotation[i], *np.roll([1,0,0], i))
-        self.batch.draw() 
+
+        for name, mesh in self.scene.meshes.items():
+
+            # in the gl_modelview stack, or the transforms from camera space
+            # to model space 
+            transform = self.scene.transforms.get(name)
+            glLoadIdentity()
+            glMultMatrixf(gl_vector(transform))
+            
+            glTranslatef(*self.translation)
+            for i in range(2):
+                glRotatef(self.rotation[i], *np.roll([1,0,0], i))
+                #self.batch.draw() 
+            self._vertex_list[name].draw(mode=GL_TRIANGLES)
+       
+        
         
     def run(self):
         pyglet.app.run()
+
+
+def gl_vector(array):
+    a = np.reshape(array, -1)
+    return (GLfloat * len(a))(*a)
+
+def vec(*args):
+    return (GLfloat * len(args))(*args)

@@ -13,14 +13,13 @@ class Scene:
     '''
 
     def __init__(self, 
-                 nodes       = None, 
-                 world_frame ='world'):
+                 nodes      = None, 
+                 base_frame ='world'):
 
         self.meshes      = {}
         self.lights      = {}
         self.camera      = None
-        self.transforms  = TransformTree()
-        self.world_frame = world_frame
+        self.transforms  = TransformTree(base_frame = base_frame)
 
         self.add_nodes(nodes)
 
@@ -37,8 +36,7 @@ class Scene:
             else:                        mesh_name = 'mesh_' + str(len(self.meshes))
 
             self.meshes[mesh_name] = nodes
-            self.transforms.update(frame_from = self.world_frame,
-                                   frame_to   = mesh_name, 
+            self.transforms.update(frame_to   = mesh_name, 
                                    matrix     = np.eye(4))
             return True
         return False

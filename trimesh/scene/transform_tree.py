@@ -12,13 +12,15 @@ class TransformTree:
     Few allowances are made for thread safety, caching, or enforcing graph structure.
     '''
 
-    def __init__(self):
+    def __init__(self, base_frame='world'):
         self._transforms = DiGraph()
         self._paths      = {}
+        self._is_changed = False
+        self.base_frame  = base_frame
 
     def update(self, 
-               frame_from, 
-               frame_to, 
+               frame_to,
+               frame_from = None,
                **kwargs):
         '''
         Update a transform in the tree.
@@ -37,6 +39,8 @@ class TransformTree:
         angle:       float, radians
         translation: (3) array
         '''
+        if frame_from is None:
+            frame_from = self.base_frame
 
         matrix = np.eye(4)
         if 'matrix' in kwargs:
@@ -69,9 +73,11 @@ class TransformTree:
                                       frame_to, 
                                       matrix = matrix, 
                                       time   = time.time())
+        self._is_changed = True
+
     def get(self,
-            frame_from,
-            frame_to):
+            frame_to,
+            frame_from = None):
         '''
         Get the transform from one frame to another, assuming they are connected
         in the transform tree. 
@@ -89,6 +95,9 @@ class TransformTree:
         ---------
         transform:  (4,4) homogenous transformation matrix
         '''
+        if frame_from is None:
+            frame_from = self.base_frame
+
         transform = np.eye(4)
         path, inverted = self._get_path(frame_from, frame_to)
         for i in range(len(path) - 1):

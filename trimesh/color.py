@@ -26,8 +26,8 @@ def face_to_vertex_color(mesh, face_colors, dtype=COLOR_DTYPE):
     '''
     Convert a set of face colors into a set of vertex colors.
     '''
-    vertex_colors = np.zeros((len(mesh.vertices), 3,3))
-    population    = np.zeros((len(mesh.vertices), 3), dtype=np.bool)
+    vertex_colors = np.zeros((len(mesh.vertices),3,3))
+    population    = np.zeros((len(mesh.vertices),3), dtype=np.bool)
 
     vertex_colors[[mesh.faces[:,0],0]] = face_colors
     vertex_colors[[mesh.faces[:,1],1]] = face_colors
@@ -37,7 +37,8 @@ def face_to_vertex_color(mesh, face_colors, dtype=COLOR_DTYPE):
     population[[mesh.faces[:,1], 1]] = True
     population[[mesh.faces[:,2], 2]] = True
 
-    populated     = np.clip(population.sum(axis=1), 1, np.inf)
+    # clip the population sum to 1, to avoid a division error in edge cases
+    populated     = np.clip(population.sum(axis=1), 1, 3)
     vertex_colors = vertex_colors.sum(axis=1) / populated.reshape((-1,1))
     return vertex_colors.astype(dtype)
 
@@ -64,6 +65,8 @@ class VisualAttributes(object):
         if np.shape(values) == np.shape(self.mesh.faces):
             self._face_colors = values
         elif np.shape(values) == (3,):
+            # case where a single RGB color has been passed to the setter
+            # here we apply this color to all faces 
             self.face_colors = np.tile(values, 
                                        (len(self.mesh.faces), 1))
         else: 

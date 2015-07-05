@@ -43,8 +43,6 @@ def merge_vertices_kdtree(mesh, max_angle=None):
     inverse = np.arange(len(mesh.vertices), dtype=np.int)
     unique  = deque()
     
-    if max_angle != None: mesh.verify_normals()
-
     for index, vertex in enumerate(mesh.vertices):
         if used[index]: continue
         neighbors = np.array(tree.query_ball_point(mesh.vertices[index], TOL_MERGE))
