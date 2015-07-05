@@ -2,7 +2,7 @@ import numpy as np
 from colorsys import hsv_to_rgb
 from .constants import TOL_ZERO
 
-COLORS = {'red'    : [194,59,34],
+COLORS = {'red'    : [205,59,34],
           'purple' : [150,111,214],
           'blue'   : [119,158,203],
           'brown'  : [160,85,45]}
@@ -27,11 +27,18 @@ def face_to_vertex_color(mesh, face_colors, dtype=COLOR_DTYPE):
     Convert a set of face colors into a set of vertex colors.
     '''
     vertex_colors = np.zeros((len(mesh.vertices), 3,3))
+    population    = np.zeros((len(mesh.vertices), 3), dtype=np.bool)
+
     vertex_colors[[mesh.faces[:,0],0]] = face_colors
     vertex_colors[[mesh.faces[:,1],1]] = face_colors
-    vertex_colors[[mesh.faces[:,2],2]] = face_colors    
-    populated = np.all(vertex_colors > TOL_ZERO, axis=2).sum(axis=1)
-    vertex_colors = np.sum(vertex_colors, axis=1) / populated.reshape((-1,1))
+    vertex_colors[[mesh.faces[:,2],2]] = face_colors
+
+    population[[mesh.faces[:,0], 0]] = True
+    population[[mesh.faces[:,1], 1]] = True
+    population[[mesh.faces[:,2], 2]] = True
+
+    populated     = np.clip(population.sum(axis=1), 1, np.inf)
+    vertex_colors = vertex_colors.sum(axis=1) / populated.reshape((-1,1))
     return vertex_colors.astype(dtype)
 
 class VisualAttributes(object):
@@ -56,6 +63,9 @@ class VisualAttributes(object):
     def face_colors(self, values):
         if np.shape(values) == np.shape(self.mesh.faces):
             self._face_colors = values
+        elif np.shape(values) == (3,):
+            self.face_colors = np.tile(values, 
+                                       (len(self.mesh.faces), 1))
         else: 
             raise ValueError('Face colors are the wrong shape!')
 

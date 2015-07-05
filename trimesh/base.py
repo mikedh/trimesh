@@ -54,9 +54,11 @@ class Trimesh():
         # initializing is very inexpensive and object is convienent to have
         # on first query expensive bookkeeping is done (creation of r-tree)
         # and is cached for subsequent queries
-        self.ray    = RayMeshIntersector(self)
+        self.ray     = RayMeshIntersector(self)
+
+        # hold vertex and face colors, as well as textures
         self.visual = color.VisualAttributes(self)
-        
+
         # update the mesh metadata with passed metadata
         if isinstance(metadata, dict): self.metadata.update(metadata)
         # if requested, do basic mesh cleanup
@@ -499,10 +501,12 @@ class Trimesh():
         new_vertices = np.vstack((self.vertices, other.vertices))
         new_normals  = np.vstack((self.face_normals, other.face_normals))
 
-        new_colors   = np.vstack((self.face_colors, other.face_colors))
+        new_colors   = np.vstack((self.visual.face_colors, 
+                                  other.visual.face_colors))
 
         result =  Trimesh(vertices     = new_vertices, 
                           faces        = new_faces,
-                          face_normals = new_normals,
-                          face_colors  = new_colors)
+                          face_normals = new_normals)
+        result.visual.face_colors = new_colors
+
         return result

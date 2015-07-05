@@ -32,18 +32,17 @@ class Scene:
         node_type = nodes.__class__.__name__
     
         if node_type == 'Trimesh':
-            # use or create a name the mesh will be referred to with
             if 'name' in nodes.metadata: mesh_name = nodes.metadata['name']
             elif hasattr(nodes, 'name'): mesh_name = nodes.name
             else:                        mesh_name = 'mesh_' + str(len(self.meshes))
 
             self.meshes[mesh_name] = nodes
-            self.transforms.update(self.world_frame,
-                                   mesh_name, 
-                                   matrix=np.eye(4))
+            self.transforms.update(frame_from = self.world_frame,
+                                   frame_to   = mesh_name, 
+                                   matrix     = np.eye(4))
             return True
         return False
 
     def show(self, smooth=None):
         from .viewer import SceneViewer
-        SceneViewer(self)
+        SceneViewer(self, smooth=smooth)
