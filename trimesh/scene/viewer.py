@@ -1,11 +1,11 @@
 import pyglet
 import numpy as np
 
-from copy import deepcopy
+from copy      import deepcopy
 from threading import Thread
 from pyglet.gl import *
 
-#smooth only when fewer faces than this to prevent lockups in normal use
+#smooth only when fewer faces than this
 SMOOTH_MAX_FACES = 20000
 
 class SceneViewer(pyglet.window.Window):
