@@ -5,9 +5,9 @@ trimesh
 Python library for loading and doing operations on triangular meshes.
 
 ### Features
-* Included importers are binary/ASCII STL, Wavefront, and OFF
-* Included exporters are binary STL, COLLADA, and OFF
-* If pyassimp is available and recent, assimp loaders can be used.
+* Import binary/ASCII STL, Wavefront, and OFF
+* Export binary STL, COLLADA, and OFF
+* If pyassimp is available and recent all assimp mesh formats can be imported
 * Fast loading of binary STL files (on 234,230 face mesh, was 24.5x faster than assimp)
 * Preview meshes (requires pyglet). 
 * Calculate face adjacencies quickly (for the same 234,230 face mesh .248 s)
