@@ -10,7 +10,7 @@ Using
     >>> m.show()
 
 '''
-
+from .version import __version__
 from .base    import Trimesh
 from .points  import unitize, transform_points
 from .io.load import load_mesh, available_formats
