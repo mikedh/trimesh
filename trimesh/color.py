@@ -1,6 +1,6 @@
 import numpy as np
 from colorsys import hsv_to_rgb
-from .constants import TOL_ZERO
+from .constants import TOL_ZERO, log
 
 COLORS = {'red'    : [205,59,34],
           'purple' : [150,111,214],
@@ -55,9 +55,8 @@ class VisualAttributes(object):
     @property
     def face_colors(self):
         if self._face_colors is None:
-            face_colors = np.tile(DEFAULT_COLOR,
-                                  (len(self.mesh.faces), 1))
-            return face_colors.astype(COLOR_DTYPE)
+            self._face_colors = np.tile(DEFAULT_COLOR,
+                                        (len(self.mesh.faces), 1))
         return self._face_colors
 
     @face_colors.setter

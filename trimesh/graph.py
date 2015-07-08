@@ -100,7 +100,7 @@ def facets_nx(mesh):
     '''
     face_idx       = mesh.face_adjacency()
     normal_pairs   = mesh.face_normals[[face_idx]]
-    parallel       = np.abs(np.sum(normal_pairs[:,0,:] * normal_pairs[:,1,:], axis=1) - 1) < TOL_PLANAR
+    parallel       = np.abs(np.sum(normal_pairs[:,0,:] * normal_pairs[:,1,:], axis=1) - 1) < TOL_FACET
     graph_parallel = nx.from_edgelist(face_idx[parallel])
     facets         = list(nx.connected_components(graph_parallel))
     return facets
@@ -116,7 +116,7 @@ def facets_gt(mesh):
     face_idx       = mesh.face_adjacency()
     normal_pairs   = mesh.face_normals[[face_idx]]
     normal_dot     = np.abs(np.sum(normal_pairs[:,0,:] * normal_pairs[:,1,:], axis=1) - 1)
-    parallel       = normal_dot < TOL_PLANAR
+    parallel       = normal_dot < TOL_FACET
     graph_parallel = GTGraph()
     graph_parallel.add_edge_list(face_idx[parallel])
 

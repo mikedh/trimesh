@@ -3,6 +3,7 @@ TOL_ZERO   = 1e-12
 # same as solidworks (according to their documentation)
 TOL_MERGE  = 1e-8
 TOL_PLANAR = 1e-5
+TOL_FACET  = 1e-7
 
 import logging as _logging
 log = _logging.getLogger('trimesh')

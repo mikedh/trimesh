@@ -31,9 +31,9 @@ class SceneViewer(pyglet.window.Window):
         self.init_gl()
 
         self._vertex_list = {}
-
+        self._scale  = 1.0
         self.scene = scene
-
+        
         for name, mesh in scene.meshes.items():
             self._add_mesh(name, mesh, smooth)
 
@@ -56,6 +56,8 @@ class SceneViewer(pyglet.window.Window):
         else:
             # will show faceted surfaces instead of super wrong blending
             mesh.unmerge_vertices()
+
+        self._scale = mesh.box_size.max()
 
         vertices = (mesh.vertices-mesh.centroid).reshape(-1).tolist()
         normals  = mesh.vertex_normals.reshape(-1).tolist()
@@ -125,7 +127,7 @@ class SceneViewer(pyglet.window.Window):
         #left mouse button, with control key down (pan)
         if ((buttons == pyglet.window.mouse.LEFT) and 
             (modifiers & pyglet.window.key.MOD_CTRL)):
-            scale = 1.0 / 100.0
+            scale = self._scale / 100.0
             self.translation[0:2] += np.array([dx, dy]) * scale
         #left mouse button, no modifier keys pressed (rotate)
         elif (buttons == pyglet.window.mouse.LEFT):
@@ -134,7 +136,7 @@ class SceneViewer(pyglet.window.Window):
             self.rotation = np.mod(self.rotation, 720)
 
     def on_mouse_scroll(self, x, y, dx, dy):
-        scale = 1.0 / 10.0
+        scale = self._scale / 10.0
         self.translation[2] += dy * scale
 
     def on_key_press(self, symbol, modifiers):
