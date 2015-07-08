@@ -273,7 +273,7 @@ class Trimesh(object):
         nondegenerate = geometry.nondegenerate_faces(self.faces)
         self.update_faces(nondegenerate)
 
-    def facets(self, return_area=True, group_normals=False):
+    def facets(self, return_area=False, group_normals=False):
         '''
         Return a list of face indices for coplanar adjacent faces
         '''

@@ -1,5 +1,6 @@
 import networkx as nx
 import numpy as np
+
 from collections import deque
 from copy import deepcopy
 
@@ -7,6 +8,7 @@ from .constants import *
 from .grouping  import group, group_rows, replace_references
 from .geometry  import faces_to_edges
 from .points    import unitize
+from .util      import diagonal_dot
 
 from scipy.spatial import cKDTree as KDTree
 
@@ -48,22 +50,6 @@ def face_adjacency(faces):
     adjacency = edge_face_index[edge_groups]
     return adjacency
 
-def facets(mesh):
-    '''
-    Find the list of parallel adjacent faces.
-    
-    Arguments
-    ---------
-    mesh:  Trimesh
-    
-    Returns
-    ---------
-    facets: list of groups of face indexes (in mesh.faces) of parallel 
-            adjacent faces. 
-    '''
-    if _has_gt: return facets_gt(mesh)
-    else:       return facets_nx(mesh)
-
 def connected_edges(G, nodes):
     '''
     Given graph G and list of nodes, return the list of edges that 
@@ -90,39 +76,41 @@ def facets_group(mesh):
         facets.extend([i for i in nx.connected_components(adjacency.subgraph(row_group)) if len(i) > 1])
     return np.array(facets)
 
-def facets_nx(mesh):
+def facets(mesh):
     '''
-    Returns lists of facets of a mesh. 
-    Facets are defined as groups of faces which are both adjacent and parallel
+    Find the list of parallel adjacent faces.
     
-    facets returned reference indices in mesh.faces
-    If return_area is True, both the list of facets and their area are returned. 
-    '''
-    face_idx       = mesh.face_adjacency()
-    normal_pairs   = mesh.face_normals[[face_idx]]
-    parallel       = np.abs(np.sum(normal_pairs[:,0,:] * normal_pairs[:,1,:], axis=1) - 1) < TOL_FACET
-    graph_parallel = nx.from_edgelist(face_idx[parallel])
-    facets         = list(nx.connected_components(graph_parallel))
-    return facets
+    Arguments
+    ---------
+    mesh:  Trimesh
     
-def facets_gt(mesh):
+    Returns
+    ---------
+    facets: list of groups of face indexes (in mesh.faces) of parallel 
+            adjacent faces. 
     '''
-    Returns lists of facets of a mesh. 
-    Facets are defined as groups of faces which are both adjacent and parallel
-    
-    facets returned reference indices in mesh.faces
-    If return_area is True, both the list of facets and their area are returned. 
-    '''
-    face_idx       = mesh.face_adjacency()
-    normal_pairs   = mesh.face_normals[[face_idx]]
-    normal_dot     = np.abs(np.sum(normal_pairs[:,0,:] * normal_pairs[:,1,:], axis=1) - 1)
-    parallel       = normal_dot < TOL_FACET
-    graph_parallel = GTGraph()
-    graph_parallel.add_edge_list(face_idx[parallel])
+    def facets_nx():
+        graph_parallel = nx.from_edgelist(face_idx[parallel])
+        facets_idx     = list(nx.connected_components(graph_parallel))
+        return facets_idx
+        
+    def facets_gt():
+        graph_parallel = GTGraph()
+        graph_parallel.add_edge_list(face_idx[parallel])
+        connected  = label_components(graph_parallel, directed=False)[0].a
+        facets_idx = group(connected, min_length=2)
+        return facets_idx
 
-    connected  = label_components(graph_parallel, directed=False)[0].a
-    facets_idx = group(connected, min_length=2)
-    return facets_idx
+    face_idx    = mesh.face_adjacency()
+    test_normal = mesh.face_normals[face_idx[:,0]]
+    test_points = mesh.vertices[mesh.faces[face_idx[:,1]]]
+    projection  = np.vstack((diagonal_dot(test_normal, test_points[:,0,:]),
+                             diagonal_dot(test_normal, test_points[:,1,:]),
+                             diagonal_dot(test_normal, test_points[:,2,:])))
+    parallel    = projection.ptp(axis=0) < TOL_PLANAR
+
+    if _has_gt: return facets_gt()
+    else:       return facets_nx()
 
 def split_nx(mesh, check_watertight=True, only_count=False):
     '''

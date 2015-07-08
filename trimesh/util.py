@@ -81,6 +81,16 @@ def is_ccw(points):
     area = np.sum(xd*yd)*.5
     return area < 0
 
+def diagonal_dot(a, b):
+    '''
+    Dot product by row of a and b.
+
+    Same as np.diag(np.dot(a, b.T)) but without the monstrous 
+    intermediate matrix (and is much faster, despite the loop). 
+    '''
+    result = np.array([np.dot(i,j) for i,j in zip(a,b)])
+    return result
+
 def three_dimensionalize(points, return_2D=True):
     '''
     Given a set of (n,2) or (n,3) points, return them as (n,3) points
@@ -193,3 +203,14 @@ def attach_to_log(log_level=logging.DEBUG, blacklist=[]):
         logger.addHandler(handler_stream)
         logger.setLevel(log_level)
     np.set_printoptions(precision=4, suppress=True)
+
+
+
+
+
+
+
+
+
+
+
