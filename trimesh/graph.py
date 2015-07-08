@@ -104,6 +104,9 @@ def facets(mesh):
     face_idx    = mesh.face_adjacency()
     test_normal = mesh.face_normals[face_idx[:,0]]
     test_points = mesh.vertices[mesh.faces[face_idx[:,1]]]
+    # we are testing the projection of every vertex of a triangle with the
+    # normal of its neighbor. If the faces are coplanar, this projection will
+    # be equal across all three vertices. 
     projection  = np.vstack((diagonal_dot(test_normal, test_points[:,0,:]),
                              diagonal_dot(test_normal, test_points[:,1,:]),
                              diagonal_dot(test_normal, test_points[:,2,:])))
