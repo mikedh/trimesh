@@ -102,16 +102,25 @@ def facets(mesh):
         return facets_idx
 
     face_idx    = mesh.face_adjacency()
-    test_normal = mesh.face_normals[face_idx[:,0]]
-    test_points = mesh.vertices[mesh.faces[face_idx[:,1]]]
-    # we are testing the projection of every vertex of a triangle with the
-    # normal of its neighbor. If the faces are coplanar, this projection will
-    # be equal across all three vertices. 
-    projection  = np.vstack((diagonal_dot(test_normal, test_points[:,0,:]),
-                             diagonal_dot(test_normal, test_points[:,1,:]),
-                             diagonal_dot(test_normal, test_points[:,2,:])))
-    parallel    = projection.ptp(axis=0) < TOL_PLANAR
 
+    # test adjacent faces for angle
+    normal_pairs = mesh.face_normals[[face_idx]]
+    normal_dot   = (np.sum(normal_pairs[:,0,:] * normal_pairs[:,1,:], axis=1) - 1)**2
+
+    # if normals are actually equal, they are parallel with a high degree of confidence
+    parallel     = normal_dot < TOL_ZERO
+    non_parallel = np.logical_not(parallel)
+
+    # saying that two faces *arent* parallel is more susceptible to error, so 
+    # we add a radius check
+    center      = mesh.triangles.mean(axis=1)
+    center_sq = np.sum(np.diff(center[face_idx], 
+                               axis = 1).reshape((-1,3)) ** 2, axis=1)
+    radius_sq = center_sq[non_parallel] / normal_dot[non_parallel]
+
+    parallel[non_parallel] = radius_sq > TOL_FACET_RSQ
+
+    # graph-tool is ~6x faster than nx but requires non- python packages
     if _has_gt: return facets_gt()
     else:       return facets_nx()
 
