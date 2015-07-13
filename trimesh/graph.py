@@ -98,7 +98,7 @@ def facets(mesh):
         graph_parallel = GTGraph()
         graph_parallel.add_edge_list(face_idx[parallel])
         connected  = label_components(graph_parallel, directed=False)[0].a
-        facets_idx = group(connected, min_length=2)
+        facets_idx = group(connected, min_len=2)
         return facets_idx
 
     face_idx    = mesh.face_adjacency()
