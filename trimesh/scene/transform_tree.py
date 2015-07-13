@@ -30,10 +30,11 @@ class TransformTree:
         Arguments
         ---------
         frame_from: hashable object, usually a string (eg 'world').
-                    If left as none it will be set to self.base_frame
+                    If left as None it will be set to self.base_frame
         frame_to:   hashable object, usually a string (eg 'mesh_0')
         
-        kwargs, can be used in various combinations:
+        Additional kwargs (can be used in combinations)
+        --------- 
         matrix:      (4,4) array 
         quaternion:  (4) quatenion
         axis:        (3) array

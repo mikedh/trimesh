@@ -383,9 +383,10 @@ class Path2D(Path):
     def plot_entities(self, show=False):
         import matplotlib.pyplot as plt
         plt.axes().set_aspect('equal', 'datalim')
-        eformat = {'Line0':   {'color':'g', 'linewidth':1}, 
-                   'Arc0':    {'color':'r', 'linewidth':1}, 
-                   'Arc1':    {'color':'b', 'linewidth':1}}
+        eformat = {'Line0'  : {'color':'g', 'linewidth':1}, 
+                   'Arc0'   : {'color':'r', 'linewidth':1}, 
+                   'Arc1'   : {'color':'b', 'linewidth':1},
+                   'Bezier0': {'color':'k', 'linewidth':2}}
         for entity in self.entities:
             discrete = entity.discrete(self.vertices)
             e_key    = entity.__class__.__name__ + str(int(entity.closed))

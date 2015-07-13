@@ -10,6 +10,7 @@ import numpy as np
 
 from .constants import *
 from .arc       import discretize_arc, arc_center
+from .bezier    import discretize_bezier
 from ..points   import unitize
 from ..util     import replace_references
 
@@ -95,15 +96,23 @@ class Entity:
             
 class Arc(Entity):
     def discrete(self, vertices):
-        return discretize_arc(vertices[[self.points]], 
+        return discretize_arc(vertices[self.points], 
                               close = self.closed)
                               
     def center(self, vertices):
-        return arc_center(vertices[[self.points]])
+        return arc_center(vertices[self.points])
                 
     def tangents(self, vertices):
-        return arc_tangents(vertices[[self.points]])
+        return arc_tangents(vertices[self.points])
 
 class Line(Entity):
     def discrete(self, vertices):
         return vertices[[self.points]]
+
+class Bezier(Entity):
+    def discrete(self, vertices):
+        return discretize_bezier(vertices[self.points])
+
+    def nodes(self):
+        return [[self.points[0], 
+                 self.points[-1]]]

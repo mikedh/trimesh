@@ -7,7 +7,7 @@ from collections import deque
 
 from .constants import *
 from .path      import Path2D, Path3D
-from .entities  import Line, Arc, arc_center
+from .entities  import Line, Arc, Bezier, arc_center
 from .dxf       import dxf_to_vector
 
 from ..geometry import faces_to_edges
@@ -123,14 +123,26 @@ def svg_to_path(file_obj, file_type=None):
         vertices.append(complex_to_list(svg_arc.point(.5)))
         vertices.append(complex_to_list(svg_arc.end))
 
+    def load_cubic(svg_cubic):
+        points = np.vstack(list(map(complex_to_list, 
+                                    [svg_cubic.start, 
+                                     svg_cubic.control1, 
+                                     svg_cubic.control2, 
+                                     svg_cubic.end])))
+        entities.append(Bezier(np.arange(len(points)) + len(vertices)))
+        vertices.extend(points)
+
+        #raise ValueError('Cubic Bezier not supported')
+
     from svg.path import parse_path
     from xml.dom.minidom import parseString as parse_xml
 
     # first, we grab all of the path strings from the xml file
     xml   = parse_xml(file_obj.read())
     paths = [p.attributes['d'].value for p in xml.getElementsByTagName('path')]
-    loaders = {'Arc'  : load_arc,
-               'Line' : load_line}
+    loaders = {'Arc'         : load_arc,
+               'Line'        : load_line,
+               'CubicBezier' : load_cubic}
                
     entities = deque()
     vertices = deque()

@@ -15,7 +15,6 @@ def merge_vertices_hash(mesh):
     This is roughly 20x faster than querying a KD tree in a loop
     '''
     pre_merge = len(mesh.vertices)
-
     unique, inverse = unique_rows(mesh.vertices)
     mesh.update_vertices(unique, inverse)
     log.debug('merge_vertices_hash reduced vertex count from %i to %i.',
@@ -122,10 +121,6 @@ def hashable_rows(data, digits=None):
     hashable:  (n) length array of custom data which can be sorted 
                 or used as hash keys
     '''
-    data = np.array(data)   
-    if digits is None: 
-        digits = _digits_merge
-
     as_int   = float_to_int(data, digits)
     dtype    = np.dtype((np.void, as_int.dtype.itemsize * as_int.shape[1]))
     hashable = np.ascontiguousarray(as_int).view(dtype).reshape(-1)
@@ -133,12 +128,12 @@ def hashable_rows(data, digits=None):
 
 def float_to_int(data, digits=None):
     data = np.array(data)   
-    if digits is None: digits = _digits_merge
-     
+    #if data is already an integer or boolean, we're done     
     if data.dtype.kind in 'ib':
-        #if data is an integer or boolean, don't bother multiplying by precision
         as_int = data
     else:
+        if digits is None: 
+            digits = _digits_merge
         as_int = ((data+10**-(digits+1))*10**digits).astype(np.int64) 
     return as_int
 
@@ -160,10 +155,8 @@ def unique_float(data,
     if (not return_index) and (not return_inverse):
         return data[unique]
     result = [data[unique]]
-    if return_index:
-        result.append(unique)
-    if return_inverse:
-        result.append(inverse)
+    if return_index:   result.append(unique)
+    if return_inverse: result.append(inverse)
     return tuple(result)
 
 def unique_rows(data, digits=None):
@@ -308,7 +301,7 @@ def clusters(points, radius):
     groups = list(connected_components(graph))
     return groups
                   
-def blocks(data, min_len = 2, max_len = np.inf, digits=None):
+def blocks(data, min_len=2, max_len=np.inf, digits=None):
     '''
     Given an array, find the indices of contiguous blocks
     of equal values.
