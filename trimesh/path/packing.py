@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from shapely.geometry import Point, Polygon, LineString
-from time import clock as time_function
+
 from copy import deepcopy
 
 from .constants import *

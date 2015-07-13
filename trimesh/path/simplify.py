@@ -8,7 +8,11 @@ from .constants import *
 
 def simplify(path):
     simplify_circles(path)
-
+    simplify_arcs(path)
+    
+def simplify_arcs(path):
+    pass
+    
 def simplify_circles(path):
     '''
     Turn closed paths represented with lines into 

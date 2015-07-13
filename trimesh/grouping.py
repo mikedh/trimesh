@@ -79,16 +79,16 @@ def replace_references(data, reference_dict):
             view[i] = reference_dict[value]
     return view.reshape(shape)
 
-def group(values, min_length=0, max_length=np.inf):
+def group(values, min_len=0, max_len=np.inf):
     '''
     Return the indices of values that are identical
     
     Arguments
     ----------
     values:     1D array 
-    min_length: int, the shortest group allowed
+    min_len:    int, the shortest group allowed
                 All groups will have len >= min_length
-    max_length: int, the longest group allowed
+    max_len:    int, the longest group allowed
                 All groups will have len <= max_length
     
     Returns
@@ -101,8 +101,8 @@ def group(values, min_length=0, max_length=np.inf):
     dupe      = np.greater(np.abs(np.diff(values)), TOL_ZERO)
     dupe_idx  = np.append(0, np.nonzero(dupe)[0] + 1)
     dupe_len  = np.diff(np.hstack((dupe_idx, len(values)))) 
-    dupe_ok   = np.logical_and(np.greater_equal(dupe_len, min_length),
-                               np.less_equal(   dupe_len, max_length))
+    dupe_ok   = np.logical_and(np.greater_equal(dupe_len, min_len),
+                               np.less_equal(   dupe_len, max_len))
     groups    = [order[i:(i+j)] for i, j in zip(dupe_idx[dupe_ok], dupe_len[dupe_ok])]
     return groups
     
@@ -125,15 +125,22 @@ def hashable_rows(data, digits=None):
     data = np.array(data)   
     if digits is None: 
         digits = _digits_merge
+
+    as_int   = float_to_int(data, digits)
+    dtype    = np.dtype((np.void, as_int.dtype.itemsize * as_int.shape[1]))
+    hashable = np.ascontiguousarray(as_int).view(dtype).reshape(-1)
+    return hashable
+
+def float_to_int(data, digits=None):
+    data = np.array(data)   
+    if digits is None: digits = _digits_merge
      
     if data.dtype.kind in 'ib':
         #if data is an integer or boolean, don't bother multiplying by precision
         as_int = data
     else:
         as_int = ((data+10**-(digits+1))*10**digits).astype(np.int64) 
-    dtype    = np.dtype((np.void, as_int.dtype.itemsize * as_int.shape[1]))
-    hashable = np.ascontiguousarray(as_int).view(dtype).reshape(-1)
-    return hashable
+    return as_int
 
 def unique_float(data, 
                  return_index = False,
@@ -146,10 +153,7 @@ def unique_float(data,
     If digits isn't specified, the libray default TOL_MERGE will be used. 
     '''
 
-    if digits is None: 
-        digits = _digits_merge
-    data   = np.array(data, dtype=np.float)
-    as_int = (data*(10**digits)).astype(int)
+    as_int = float_to_int(data, digits)
     _junk, unique, inverse = np.unique(as_int, 
                                        return_index   = True,
                                        return_inverse = True)
@@ -265,7 +269,8 @@ def group_vectors(vectors,
         if consumed[index]: continue
         aligned = np.array(tree.query_ball_point(vector, dist_max))        
         if include_negative:
-            aligned = np.append(aligned, tree.query_ball_point(-1*vector, dist_max))
+            aligned_negative = tree.query_ball_point(-1.0*vector, dist_max)
+            aligned = np.append(aligned, aligned_negative)
         aligned = aligned.astype(int)
         consumed[[aligned]] = True
         unique_vectors.append(unit_vectors[aligned[-1]])
@@ -286,7 +291,7 @@ def stack_negative(rows):
             
 def clusters(points, radius):
     '''
-    Find clusters of points which have neighbors closer than radius
+    Find clusters of points which have neighbours closer than radius
     
     Arguments
     ---------
@@ -303,24 +308,23 @@ def clusters(points, radius):
     groups = list(connected_components(graph))
     return groups
                   
-def blocks(data, min_len = 2, max_len = np.inf):
+def blocks(data, min_len = 2, max_len = np.inf, digits=None):
     '''
-    Given a boolean array, find the indicies of contiguous blocks
-    of True values. 
+    Given an array, find the indices of contiguous blocks
+    of equal values.
 
     Arguments
     ---------
-    data: (n) boolean array
+    data:    (n) array
     min_len: int, the minimum length group to be returned
     max_len: int, the maximum length group to be retuurned
+    digits:  if dealing with floats, how many digits to use
 
     Returns
     ---------
-    blocks: (m) sequence of indicies referencing data
+    blocks: (m) sequence of indices referencing data
     '''
-
-    if not data.dtype.kind in 'b': 
-        raise TypeError('Boolean data required!')
+    data = float_to_int(data, digits=digits)
 
     # find the inflection points, or locations where the array turns
     # from True to False. 
@@ -330,9 +334,10 @@ def blocks(data, min_len = 2, max_len = np.inf):
     infl_len = np.diff(infl)    
     infl_ok  = np.logical_and(infl_len >= min_len,
                               infl_len <= max_len)
-    # check to make sure the values of each contiguous block are True,
-    # by checking the first value of each block
-    infl_ok  = np.logical_and(infl_ok, 
+    if data.dtype.kind == 'b':
+        # check to make sure the values of each contiguous block are True,
+        # by checking the first value of each block
+        infl_ok  = np.logical_and(infl_ok, 
                               data[infl[:-1]])
     # inflate start/end indexes into full ranges of values 
     blocks = [np.arange(infl[i], infl[i+1]) for i, ok in enumerate(infl_ok) if ok]

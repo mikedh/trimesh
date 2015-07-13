@@ -108,24 +108,6 @@ def rotationally_invariant_identifier(mesh, length=6, as_json=False):
         return _format_json(identifier)
     return identifier
 
-if __name__ == '__main__':
-    import trimesh
-    import json
-    from collections import deque
-    mesh = trimesh.load_mesh('models/segway_wheel_left.STL')
-    
-    result = deque()
-    for i in range(100):
-        mesh.rezero()
-        matrix = trimesh.transformations.random_rotation_matrix()
-        matrix[0:3,3] = (np.random.random(3)-.5)*20
-        mesh.transform(matrix)
-        result.append(json.loads(rotationally_invariant_identifier(mesh)))
-
-    ok = (np.abs(np.diff(result, axis=0)) < 1e-3).all()
-    if not ok:
-        print('Hashes differ after transform! diffs:\n %s\n' % str(np.diff(result, axis=0)))
-
 def _format_json(data, digits=6):
     '''
     Built in json library doesn't have a good way of setting the precision of floating point

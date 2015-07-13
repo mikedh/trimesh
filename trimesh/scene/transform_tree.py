@@ -4,10 +4,12 @@ import time
 from networkx import DiGraph, shortest_path, NetworkXNoPath
 
 from ..transformations import quaternion_matrix, rotation_matrix
+from ..constants       import TransformError
+
 
 class TransformTree:
     '''
-    A feature complete if not particularly optimized implementation of a transform graph
+    A feature complete if not particularly optimized implementation of a transform graph.
     
     Few allowances are made for thread safety, caching, or enforcing graph structure.
     '''
@@ -27,10 +29,9 @@ class TransformTree:
 
         Arguments
         ---------
-        frame_from: hashable object, usually a string
-                    example: 'world'
-        frame_to:   hashable object, usually a string
-                    example: 'mesh_0'
+        frame_from: hashable object, usually a string (eg 'world').
+                    If left as none it will be set to self.base_frame
+        frame_to:   hashable object, usually a string (eg 'mesh_0')
         
         kwargs, can be used in various combinations:
         matrix:      (4,4) array 
@@ -86,10 +87,9 @@ class TransformTree:
 
         Arguments
         ---------
-        frame_from: a frame key, usually a string 
-                    example: 'world'
-        frame_to:   a frame key, usually a string 
-                    example: 'mesh_0'
+        frame_from: hashable object, usually a string (eg 'world').
+                    If left as None it will be set to self.base_frame
+        frame_to:   hashable object, usually a string (eg 'mesh_0')
 
         Returns
         ---------
