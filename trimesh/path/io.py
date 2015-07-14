@@ -118,7 +118,14 @@ def svg_to_path(file_obj, file_type=None):
         points = complex_to_float([svg_arc.start, 
                                    svg_arc.point(.5), 
                                    svg_arc.end])
-        entities.append(Arc(np.arange(3))+len(vertices))
+        entities.append(Arc(np.arange(3)+len(vertices)))
+        vertices.extend(points)
+
+    def load_quadratic(svg_quadratic):
+        points = complex_to_float([svg_quadratic.start, 
+                                   svg_quadratic.control, 
+                                   svg_quadratic.end])
+        entities.append(Bezier(np.arange(3)+len(vertices)))
         vertices.extend(points)
 
     def load_cubic(svg_cubic):
@@ -126,14 +133,7 @@ def svg_to_path(file_obj, file_type=None):
                                    svg_cubic.control1, 
                                    svg_cubic.control2, 
                                    svg_cubic.end])
-        entities.append(Bezier(np.arange(len(points))+len(vertices)))
-        vertices.extend(points)
-
-    def load_quadratic(svg_quadratic):
-        points = complex_to_float([svg_quadratic.start, 
-                                   svg_quadratic.control, 
-                                   svg_quadratic.end])
-        entities.append(Bezier(np.arange(len(points))+len(vertices)))
+        entities.append(Bezier(np.arange(4)+len(vertices)))
         vertices.extend(points)
 
     from svg.path        import parse_path
