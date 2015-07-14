@@ -34,7 +34,7 @@ def load_mesh(file_obj, file_type=None, process=True):
     file_obj.close()
     
     log.debug('loaded mesh using %s',
-             _mesh_loaders[file_type].__name__)
+              _mesh_loaders[file_type].__name__)
 
     if process: 
         # if mesh is multi-body, process all bodies
@@ -42,7 +42,7 @@ def load_mesh(file_obj, file_type=None, process=True):
 
     return mesh
 
-_mesh_loaders = dict()
+_mesh_loaders = {}
 _mesh_loaders.update(_assimp_loaders)
 _mesh_loaders.update(_stl_loaders)
 _mesh_loaders.update(_misc_loaders)

@@ -105,35 +105,35 @@ def polygon_to_lines(polygon):
     return np.vstack(lines)
 
 def svg_to_path(file_obj, file_type=None):
-    def complex_to_list(values):
-        return np.array([values.real, values.imag])
+    def complex_to_float(values):
+        return np.array([[i.real, i.imag] for i in values])
 
     def load_line(svg_line):
-        entities.append(Line(np.arange(2) + len(vertices)))
-        vertices.append(complex_to_list(svg_line.start))
-        vertices.append(complex_to_list(svg_line.end))
+        points = complex_to_float([svg_line.start, 
+                                   svg_line.end])
+        entities.append(Line(np.arange(2)+len(vertices)))
+        vertices.extend(points)
 
     def load_arc(svg_arc):
-        entities.append(Arc(np.arange(3) + len(vertices)))
-        vertices.append(complex_to_list(svg_arc.start))
-        vertices.append(complex_to_list(svg_arc.point(.5)))
-        vertices.append(complex_to_list(svg_arc.end))
-  
+        points = complex_to_float([svg_arc.start, 
+                                   svg_arc.point(.5), 
+                                   svg_arc.end])
+        entities.append(Arc(np.arange(3))+len(vertices))
+        vertices.extend(points)
+
     def load_cubic(svg_cubic):
-        points = np.vstack(list(map(complex_to_list, 
-                                    [svg_cubic.start, 
-                                     svg_cubic.control1, 
-                                     svg_cubic.control2, 
-                                     svg_cubic.end])))
-        entities.append(Bezier(np.arange(len(points)) + len(vertices)))
+        points = complex_to_float([svg_cubic.start, 
+                                   svg_cubic.control1, 
+                                   svg_cubic.control2, 
+                                   svg_cubic.end])
+        entities.append(Bezier(np.arange(len(points))+len(vertices)))
         vertices.extend(points)
 
     def load_quadratic(svg_quadratic):
-        points = np.vstack(list(map(complex_to_list, 
-                                    [svg_quadratic.start, 
-                                     svg_quadratic.control, 
-                                     svg_quadratic.end])))
-        entities.append(Bezier(np.arange(len(points)) + len(vertices)))
+        points = complex_to_float([svg_quadratic.start, 
+                                   svg_quadratic.control, 
+                                   svg_quadratic.end])
+        entities.append(Bezier(np.arange(len(points))+len(vertices)))
         vertices.extend(points)
 
     from svg.path        import parse_path
