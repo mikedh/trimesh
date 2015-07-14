@@ -27,7 +27,9 @@ TOL_RADIUS      = 1e-2
 TOL_ASPECT      = .1
 EXPORT_PRECISION = '.5f'
 
+# target length of a section when discretizing curves
 RES_LENGTH = .15
+# target angle of a section when discretizing curves
 RES_ANGLE  = .26
 
 import logging

@@ -1,9 +1,9 @@
 '''
-path
+path.py
 
-A library designed to work with vector paths, 
-or continuous paths in space
+A library designed to work with vector paths.
 '''
+
 import numpy as np
 import networkx as nx
 
@@ -301,6 +301,8 @@ class Path2D(Path):
     def extrude(self, height):
         from ..creation import extrude_polygon
         result = [extrude_polygon(i, height) for i in self.polygons_full]
+        if len(result) == 1: 
+            return result[0]
         return result
 
     def generate_discrete(self):
@@ -386,7 +388,7 @@ class Path2D(Path):
         eformat = {'Line0'  : {'color':'g', 'linewidth':1}, 
                    'Arc0'   : {'color':'r', 'linewidth':1}, 
                    'Arc1'   : {'color':'b', 'linewidth':1},
-                   'Bezier0': {'color':'k', 'linewidth':2}}
+                   'Bezier0': {'color':'k', 'linewidth':1}}
         for entity in self.entities:
             discrete = entity.discrete(self.vertices)
             e_key    = entity.__class__.__name__ + str(int(entity.closed))

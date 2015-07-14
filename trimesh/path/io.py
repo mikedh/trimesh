@@ -99,18 +99,14 @@ def polygon_to_lines(polygon):
         lines.append(np.column_stack((vertices[:-1],
                                       vertices[1:])).reshape((-1,2,2)))
     lines = deque()
-
     append_boundary(polygon.exterior)
     for interior in polygon.interiors:
         append_boundary(interior)
-
     return np.vstack(lines)
-
-
 
 def svg_to_path(file_obj, file_type=None):
     def complex_to_list(values):
-        return [values.real, values.imag]
+        return np.array([values.real, values.imag])
 
     def load_line(svg_line):
         entities.append(Line(np.arange(2) + len(vertices)))
@@ -122,7 +118,7 @@ def svg_to_path(file_obj, file_type=None):
         vertices.append(complex_to_list(svg_arc.start))
         vertices.append(complex_to_list(svg_arc.point(.5)))
         vertices.append(complex_to_list(svg_arc.end))
-
+  
     def load_cubic(svg_cubic):
         points = np.vstack(list(map(complex_to_list, 
                                     [svg_cubic.start, 
@@ -132,27 +128,33 @@ def svg_to_path(file_obj, file_type=None):
         entities.append(Bezier(np.arange(len(points)) + len(vertices)))
         vertices.extend(points)
 
-        #raise ValueError('Cubic Bezier not supported')
+    def load_quadratic(svg_quadratic):
+        points = np.vstack(list(map(complex_to_list, 
+                                    [svg_quadratic.start, 
+                                     svg_quadratic.control, 
+                                     svg_quadratic.end])))
+        entities.append(Bezier(np.arange(len(points)) + len(vertices)))
+        vertices.extend(points)
 
-    from svg.path import parse_path
+    from svg.path        import parse_path
     from xml.dom.minidom import parseString as parse_xml
 
     # first, we grab all of the path strings from the xml file
     xml   = parse_xml(file_obj.read())
     paths = [p.attributes['d'].value for p in xml.getElementsByTagName('path')]
-    loaders = {'Arc'         : load_arc,
-               'Line'        : load_line,
-               'CubicBezier' : load_cubic}
+    loaders = {'Arc'             : load_arc,
+               'Line'            : load_line,
+               'CubicBezier'     : load_cubic,
+               'QuadraticBezier' : load_quadratic}
                
     entities = deque()
     vertices = deque()
     
-    for svg_entity in parse_path(''.join(paths)):
-        loaders[svg_entity.__class__.__name__](svg_entity)
-
+    for svg_string in paths:
+        for svg_entity in parse_path(svg_string):
+            loaders[svg_entity.__class__.__name__](svg_entity)
     vector = Path2D(entities = np.array(entities), 
-                             vertices = np.array(vertices))
-    vector.metadata['is_planar'] = True
+                    vertices = np.array(vertices))
     return vector
  
 def path_to_svg(drawing):

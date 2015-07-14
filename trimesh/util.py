@@ -202,7 +202,7 @@ def attach_to_log(log_level=logging.DEBUG, blacklist=[]):
             continue
         logger.addHandler(handler_stream)
         logger.setLevel(log_level)
-    np.set_printoptions(precision=4, suppress=True)
+    np.set_printoptions(precision=5, suppress=True)
 
 
 
