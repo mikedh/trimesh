@@ -7,9 +7,7 @@ the rest of the project.
 
 http://www.autodesk.com/techpubs/autocad/acadr14/dxf/
 '''
-
-
-from .entities import Line, Arc
+from ..entities import Line, Arc
 from collections import deque
 
 # py3
@@ -555,9 +553,8 @@ def dxf_to_vector(file_obj):
     for entity in _raw_dxf_file(file_obj):
         if entity.type in conversions: conversions[entity.type](entity)
         else: log.debug('Entity type %s is unsupported.', str(entity.type))
-
-    vertices = np.array(vertices)
-    entities = np.array(entities)
     
     log.debug('Successfully loaded %i entities from DXF', len(entities))
-    return entities, vertices
+
+    return {'entities' : np.array(entities),
+            'vertices' : np.array(vertices)}

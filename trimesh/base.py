@@ -23,7 +23,8 @@ from .convex       import convex_hull
 from .constants    import *
 
 try: 
-    from .path.io import faces_to_path, lines_to_path
+    from .path.io.misc import faces_to_path
+    from .path.io.load import _create_path, load_path
 except ImportError:
     log.warn('trimesh.path unavailable!', exc_info=True)
 
@@ -331,7 +332,7 @@ class Trimesh(object):
         segments = intersections.mesh_plane_intersection(mesh         = self, 
                                                          plane_normal = plane_normal, 
                                                          plane_origin = plane_origin)
-        path     = lines_to_path(segments)
+        path     = load_path(segments)
         return path
 
     @log_time   
@@ -406,7 +407,7 @@ class Trimesh(object):
         ----------
         path:     Path3D object of the outline
         '''
-        path = faces_to_path(self, face_ids)
+        path = _create_path(**faces_to_path(self, face_ids))
         return path
         
     def area(self, sum=True):
