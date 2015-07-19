@@ -3,15 +3,19 @@ import numpy as np
 from ..points   import unitize 
 from ..util     import three_dimensionalize, euclidean
 from .constants import TOL_ZERO
-    
+
 def line_line(origins, directions):
     '''
     Find the intersection between two lines. 
     Uses terminology from:
     http://geomalgorithms.com/a05-_intersect-1.html
 
+    line 1:
     P(s) = p_0 + sU
+    line 2:
     Q(t) = q_0 + tV
+
+    
 
 
     Arguments
@@ -35,24 +39,25 @@ def line_line(origins, directions):
     if np.sum(np.abs(np.diff(directions, axis=0))) < TOL_ZERO:
         return False, None
 
+    q_0, p_0 = origins
+    v,   u   = directions
+    w        = p_0 - q_0
+    
     # the normal of the plane given by the two direction vectors
-    plane_normal  = unitize(np.cross(*directions))
+    plane_normal  = unitize(np.cross(u, v))
     # vectors perpendicular to the two lines
-    perpendicular = unitize(np.cross(directions, plane_normal))
-    # the vector from one origin point to the other
-    origins_vector = np.diff(origins, axis=0)[0]
-
+    v_perp = unitize(np.cross(v, plane_normal))
+ 
     # if the vector from origin to origin is on the plane given by
     # the direction vector, the dot product with the plane normal
     # should be within floating point error of zero
-    coplanar = abs(np.dot(plane_normal, origins_vector)) < TOL_ZERO
+    coplanar = abs(np.dot(plane_normal, w)) < TOL_ZERO
     if not coplanar:
         return False, None
 
-    s_intersection = (np.dot(-perpendicular[0], origins_vector) / 
-                      np.dot( perpendicular[0], directions[1]))
-
-    intersection = origins[0] + s_intersection*directions[0]
+    s_I = (np.dot(-v_perp, w) / 
+           np.dot( v_perp, u))
+    intersection = p_0 + s_I*u
 
     return True, intersection[:(3-is_2D)]
 

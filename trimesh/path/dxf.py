@@ -535,11 +535,11 @@ def dxf_to_vector(file_obj):
     def convert_spline(en):
         #http://www.autodesk.com/techpubs/autocad/acad2000/dxf/spline_dxf_06.htm
         control = np.column_stack((en.data['10'], en.data['20']))
+        knot    = np.array(en.data['40'])
         flag    = en.data['70']
-        for i in range(len(control) - 1):
-            entities.append(vp.Line([i+len(vertices), i+len(vertices)+1]))
-        vertices.extend(control)
-        
+        log.debug('Entity type SPLINE is in testing') 
+        return
+
     conversions = {'ARC'       : convert_arc, 
                    'LINE'      : convert_line,
                    'CIRCLE'    : convert_circle,

@@ -1,12 +1,12 @@
 import numpy as np
 
-from .constants import RES_LENGTH, TOL_ZERO
+from .constants import RES_LENGTH
 
 TEST_FACTOR  = 0.05
 MIN_SECTIONS = 10
 MAX_SECTIONS = 100
 
-def discretize_bezier(points):
+def discretize_bezier(points, count=None):
     '''
     Arguments
     ----------
@@ -25,20 +25,20 @@ def discretize_bezier(points):
         n        = len(points) - 1
         # binomial coefficents, i, and each point
         iterable = zip(binomial(n), np.arange(n+1), points)
-        stacked  = [((t**i)*(t_d**(n-i))).reshape((-1,1))*p*c for c, i, p in iterable]
+        stacked  = [((t**i)*(t_d**(n-i))).reshape((-1,1))*p*c for c,i,p in iterable]
         discrete = np.sum(stacked, axis=0)
         return discrete
     
     # make sure we have a numpy array
     points  = np.array(points)
 
-    # how much distance does a small percentage of the curve take
-    # this is so we can figure out how finely we have to sample t
-    test   = np.sum(np.diff(compute(np.array([0.0, TEST_FACTOR])), 
-                            axis = 0) ** 2) ** .5
-    count  = np.ceil((test/TEST_FACTOR) / RES_LENGTH)
-    count  = int(np.clip(count, MIN_SECTIONS, MAX_SECTIONS))
-
+    if count is None:
+        # how much distance does a small percentage of the curve take
+        # this is so we can figure out how finely we have to sample t
+        test   = np.sum(np.diff(compute(np.array([0.0, TEST_FACTOR])), 
+                                axis = 0) ** 2) ** .5
+        count  = np.ceil((test/TEST_FACTOR) / RES_LENGTH)
+        count  = int(np.clip(count, MIN_SECTIONS, MAX_SECTIONS))
     result = compute(np.linspace(0.0, 1.0, count))
     return result
 

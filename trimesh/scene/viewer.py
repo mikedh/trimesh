@@ -163,9 +163,7 @@ class SceneViewer(pyglet.window.Window):
                 glRotatef(self.rotation[i], *np.roll([1,0,0], i))
                 #self.batch.draw() 
             self._vertex_list[name].draw(mode=GL_TRIANGLES)
-       
-        
-        
+
     def run(self):
         pyglet.app.run()
 

@@ -123,7 +123,7 @@ class Trimesh(object):
                       np.shape(self.faces),
                       np.shape(values))
         self._face_normals = np.array(values)
-            
+
     @property
     def vertex_normals(self):
         if np.shape(self._vertex_normals) != np.shape(self.vertices):

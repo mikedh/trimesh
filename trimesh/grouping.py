@@ -50,7 +50,7 @@ def merge_vertices_kdtree(mesh, max_angle=None):
             normals, aligned = group_vectors(mesh.vertex_normals[[neighbors]], 
                                              max_angle = max_angle)
             for group in aligned:
-                inverse[neighbors[[group]]] = len(unique)
+                inverse[neighbors[group]] = len(unique)
                 unique.append(neighbors[group[0]])
         else:
             inverse[neighbors] = neighbors[0]
@@ -138,9 +138,9 @@ def float_to_int(data, digits=None):
     return as_int
 
 def unique_float(data, 
-                 return_index = False,
-                 return_inverse=False,
-                 digits=None):
+                 return_index   = False,
+                 return_inverse = False,
+                 digits         = None):
     '''
     Identical to the numpy.unique command, except evaluates floating point 
     numbers, using a specified number of digits. 
@@ -159,7 +159,7 @@ def unique_float(data,
     if return_inverse: result.append(inverse)
     return tuple(result)
 
-def unique_rows(data, digits=None):
+def unique_rows(data, digits = None):
     '''
     Returns indices of unique rows. It will return the 
     first occurrence of a row that is duplicated:
@@ -171,7 +171,7 @@ def unique_rows(data, digits=None):
                                          return_inverse = True)
     return unique, inverse
     
-def group_rows(data, require_count=None, digits=None):
+def group_rows(data, require_count = None, digits = None):
     '''
     Returns index groups of duplicate rows, for example:
     [[1,2], [3,4], [1,2]] will return [[0,2], [1]]
@@ -195,7 +195,7 @@ def group_rows(data, require_count=None, digits=None):
     ----------
     groups:        List or sequence of indices from data indicating identical rows.
                    If require_count != None, shape will be (j, require_count)
-                   If require_count == None, shape will be irregular (AKA a sequence)
+                   If require_count is None, shape will be irregular (AKA a sequence)
     '''
     
     def group_dict():
@@ -236,7 +236,7 @@ def group_rows(data, require_count=None, digits=None):
             return groups_idx.reshape(-1)
         return groups_idx
 
-    if require_count == None: return group_dict()
+    if require_count is None: return group_dict()
     else:                     return group_slice()
 
 def group_vectors(vectors, 

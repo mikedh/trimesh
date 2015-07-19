@@ -36,10 +36,10 @@ def arc_center(points):
     edge_midpoints = (edge_direction*.5) + points[0:2]
 
     #three points define a plane, so we find its normal vector
-    plane_normal = unitize(np.cross(*edge_direction[::-1]))
-
-    vector_perpendicular = unitize(np.cross(edge_direction, plane_normal))
+    plane_normal         = unitize(np.cross(*edge_direction[::-1]))
     vector_edge          = unitize(edge_direction)
+    vector_perpendicular = unitize(np.cross(vector_edge, plane_normal))
+
     intersects, center   = line_line(edge_midpoints, vector_perpendicular)
 
     if not intersects:
@@ -83,9 +83,18 @@ def discretize_arc(points, close = False):
     V1 = unitize(points[0] - center)
     V2 = unitize(np.cross(-N, V1))
     t  = np.linspace(0, angle, count)
-    val = center + R*np.cos(t).reshape((-1,1))*np.tile(V1, (count, 1)) 
-    val += R*np.sin(t).reshape((-1,1))*np.tile(V2, (count, 1))
-    return val[:,0:(3-two_dimensional)]
+
+    discrete  = np.tile(center, (count, 1))
+    discrete += R * np.cos(t).reshape((-1,1))*np.tile(V1, (count, 1)) 
+    discrete += R * np.sin(t).reshape((-1,1))*np.tile(V2, (count, 1))
+
+    if not close:
+        arc_ok = np.linalg.norm(points[[0,-1]]-discrete[[0,-1]], axis=1) 
+        assert (arc_ok < TOL_MERGE).all()
+
+    discrete  = discrete[:,0:(3-two_dimensional)]
+
+    return discrete
 
 def arc_tangents(points):
     '''

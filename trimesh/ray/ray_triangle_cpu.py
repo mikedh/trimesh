@@ -5,6 +5,7 @@ import numpy as np
 import time
 
 from ..constants import log, TOL_ZERO
+from ..util      import diagonal_dot
 
 def rays_triangles_id(triangles,
                       rays, 
@@ -70,14 +71,14 @@ def ray_triangles(triangles,
     P   = np.cross(ray_direction, edge1)
 
     #if determinant is near zero, ray lies in plane of triangle
-    det                                = _diag_dot(edge0, P)    
+    det                                = diagonal_dot(edge0, P)    
     candidates[np.abs(det) < TOL_ZERO] = False
 
     if not candidates.any(): return candidates
     # remove previously calculated terms which are no longer candidates
     inv_det = 1.0 / det[candidates]
     T       = ray_origin - vert0[candidates]
-    u       = _diag_dot(T, P[candidates]) * inv_det
+    u       = diagonal_dot(T, P[candidates]) * inv_det
 
     
     new_candidates         = np.logical_not(np.logical_or(u < -TOL_ZERO,
@@ -98,17 +99,7 @@ def ray_triangles(triangles,
     Q       = Q[new_candidates]
     inv_det = inv_det[new_candidates]
     
-    t = _diag_dot(edge1[candidates], Q) * inv_det
+    t = diagonal_dot(edge1[candidates], Q) * inv_det
     candidates[candidates] = t > TOL_ZERO
 
     return candidates
-
-def _diag_dot(a, b):
-    '''
-    Dot product by row of a and b.
-
-    Same as np.diag(np.dot(a, b.T)) but without the monstrous 
-    intermediate matrix (and is much faster). 
-    '''
-    result = np.array([np.dot(i,j) for i,j in zip(a,b)])
-    return result
