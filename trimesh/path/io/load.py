@@ -5,7 +5,7 @@ import sys
 
 from .dxf_load   import dxf_to_vector
 from .svg_load   import svg_to_path
-from .misc       import lines_to_path, polygon_to_lines
+from .misc       import lines_to_path, polygon_to_lines, dict_to_path
 
 from ..constants import log
 from ..path      import Path2D, Path3D
