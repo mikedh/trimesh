@@ -11,6 +11,7 @@ import numpy as np
 from .constants import *
 from .arc       import discretize_arc, arc_center
 from .bezier    import discretize_bezier
+
 from ..points   import unitize
 from ..util     import replace_references
 

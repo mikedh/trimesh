@@ -10,13 +10,8 @@ def line_line(origins, directions):
     Uses terminology from:
     http://geomalgorithms.com/a05-_intersect-1.html
 
-    line 1:
-    P(s) = p_0 + sU
-    line 2:
-    Q(t) = q_0 + tV
-
-    
-
+    line 1:    P(s) = p_0 + sU
+    line 2:    Q(t) = q_0 + tV
 
     Arguments
     ---------
@@ -39,6 +34,7 @@ def line_line(origins, directions):
     if np.sum(np.abs(np.diff(directions, axis=0))) < TOL_ZERO:
         return False, None
 
+    # using notation from docstring
     q_0, p_0 = origins
     v,   u   = directions
     w        = p_0 - q_0
@@ -55,8 +51,10 @@ def line_line(origins, directions):
     if not coplanar:
         return False, None
 
+    # value of parameter s where intersection occurs
     s_I = (np.dot(-v_perp, w) / 
            np.dot( v_perp, u))
+    # plug back into the equation of the line to find the point
     intersection = p_0 + s_I*u
 
     return True, intersection[:(3-is_2D)]
