@@ -2,7 +2,7 @@ import pyglet
 import numpy as np
 
 from copy      import deepcopy
-from threading import Thread
+from multiprocessing import Process
 from pyglet.gl import *
 
 #smooth only when fewer faces than this
@@ -40,7 +40,7 @@ class SceneViewer(pyglet.window.Window):
         if block: 
             self.run()
         else:
-            self._thread = Thread(target=self.run)
+            self._thread = Process(target=self.run)
             self._thread.start()
 
     def _add_mesh(self, name, mesh, smooth=None):
@@ -149,27 +149,25 @@ class SceneViewer(pyglet.window.Window):
 
     def on_draw(self):
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        glLoadIdentity()
+
+        # move the 'view' before drawing anything
+        glTranslatef(*self.translation)
+        for i in range(2):
+            glRotatef(self.rotation[i], *np.roll([1,0,0], i))
 
         for name, mesh in self.scene.meshes.items():
-
-            # in the gl_modelview stack, or the transforms from camera space
-            # to model space 
             transform = self.scene.transforms.get(name)
-            glLoadIdentity()
+            glPushMatrix()
             glMultMatrixf(gl_vector(transform))
-            
-            glTranslatef(*self.translation)
-            for i in range(2):
-                glRotatef(self.rotation[i], *np.roll([1,0,0], i))
-                #self.batch.draw() 
             self._vertex_list[name].draw(mode=GL_TRIANGLES)
+            glPopMatrix()
 
     def run(self):
         pyglet.app.run()
 
-
 def gl_vector(array):
-    a = np.reshape(array, -1)
+    a = np.array(array).T.reshape(-1)
     return (GLfloat * len(a))(*a)
 
 def vec(*args):

@@ -442,15 +442,15 @@ class Trimesh(object):
         from .scene import Scene
         return Scene(self)
 
-    def show(self, smooth=None, block=True):
+    def show(self, block=True):
         '''
         Render the mesh in an opengl window. Requires pyglet.
         Smooth will re-merge vertices to fix the shading, but can be slow
         on larger meshes. 
         '''
         scene = self.scene()
-        scene.show(smooth = smooth, 
-                   block  = block)
+        scene.show(block = block)
+        return scene
 
     def identifier(self, length=6):
         '''
