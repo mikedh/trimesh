@@ -107,7 +107,6 @@ class MeshTests(unittest.TestCase):
             sample    = mesh.sample(1000)
             self.assertTrue(sample.shape == (1000,3))
             
-
     def test_hash(self):
         for mesh in self.meshes:
             if not mesh.is_watertight(): 
@@ -142,6 +141,28 @@ class MeshTests(unittest.TestCase):
         for mesh in self.meshes[-2:]:
             mesh.fix_normals()
 
+class RayTests(unittest.TestCase):
+    def setUp(self):
+        def location(name):
+            return os.path.abspath(os.path.join(TEST_DIR, name))
+        self.meshes = [trimesh.load_mesh(location('unit_cube.STL'))]
+        self.rays   = [[[[-10,.5,.5],
+                         [1.0, 0,0]],
+                        [[-10,0,0],
+                         [1.0, 0,0]]]]
+        self.truth  = [{'count' : [3,4]}]
+
+    def test_rays(self):
+        for mesh, ray_test, truth in zip(self.meshes, self.rays, self.truth):
+            hit_id      = mesh.ray.intersects_id(ray_test)
+            hit_loc     = mesh.ray.intersects_location(ray_test)
+            hit_any     = mesh.ray.intersects_any(ray_test)
+            hit_any_tri = mesh.ray.intersects_any_triangle(ray_test)
+
+            for i in range(len(ray_test)):
+                self.assertTrue(len(hit_id[i])  == truth['count'][i])
+                self.assertTrue(len(hit_loc[i]) == truth['count'][i])
+                
 class MassTests(unittest.TestCase):
     def setUp(self):
         # inertia numbers pulled from solidworks
