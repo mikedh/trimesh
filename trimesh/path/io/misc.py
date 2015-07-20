@@ -1,7 +1,5 @@
 import numpy as np
 
-from ..constants import *
-from ..path      import Path2D, Path3D
 from ..entities  import Line, Arc
 
 from ...geometry import faces_to_edges
@@ -67,7 +65,7 @@ def faces_to_path(mesh, face_ids=None):
 
     Returns
     ---------
-    path: Path3D of the outline of the facet
+    dict
     '''
     if face_ids is None: faces = mesh.faces
     else:                faces = mesh.faces[[face_ids]]
