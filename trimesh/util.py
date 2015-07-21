@@ -169,7 +169,22 @@ def replace_references(data, reference_dict):
         if value in reference_dict:
             view[i] = reference_dict[value]
     return view
-
+    
+def is_binary_file(file_obj):
+    '''
+    Returns True if file has non-ASCII characters (> 0x7F, or 127)
+    Should work in both Python 2 and 3
+    '''
+    start  = file_obj.tell()
+    fbytes = file_obj.read(1024)
+    file_obj.seek(start)
+    is_str = isinstance(fbytes, str)
+    for fbyte in fbytes:
+        if is_str: code = ord(fbyte)
+        else:      code = fbyte
+        if code > 127: return True
+    return False
+    
 def attach_to_log(log_level=logging.DEBUG, blacklist=[]):
     '''
     Attach a stream handler to all loggers, so their output can be seen

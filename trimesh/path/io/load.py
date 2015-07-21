@@ -3,7 +3,7 @@ import json
 import os 
 import sys
 
-from .dxf_load   import dxf_to_vector
+from .dxf_load   import load_dxf
 from .svg_load   import svg_to_path
 from .misc       import lines_to_path, polygon_to_lines, dict_to_path
 
@@ -52,5 +52,5 @@ def _create_path(entities, vertices):
 def available_formats():
     return _LOADERS.keys()
 
-_LOADERS = {'dxf': dxf_to_vector,
+_LOADERS = {'dxf': load_dxf,
             'svg': svg_to_path}
