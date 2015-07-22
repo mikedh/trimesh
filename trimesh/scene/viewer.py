@@ -2,7 +2,7 @@ import pyglet
 import numpy as np
 
 from copy      import deepcopy
-from multiprocessing import Process
+from threading import Thread
 from pyglet.gl import *
 
 #smooth only when fewer faces than this
@@ -40,7 +40,7 @@ class SceneViewer(pyglet.window.Window):
         if block: 
             self.run()
         else:
-            self._thread = Process(target=self.run)
+            self._thread = Thread(target=self.run)
             self._thread.start()
 
     def _add_mesh(self, name, mesh, smooth=None):

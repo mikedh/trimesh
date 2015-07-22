@@ -18,9 +18,11 @@ class VectorTests(unittest.TestCase):
         file_list     = os.listdir(TEST_DIR)
         tic           = time_function()
         for filename in file_list:
-            log.info('Testing on %s', filename)
             file_path = os.path.join(TEST_DIR, filename)
+            tic_load = time_function()
             drawing = vector.load_path(file_path)
+            toc_load = time_function()
+            log.info('loaded %s in %f', filename, toc_load-tic_load)
             drawing.filename = filename
             self.drawings.append(drawing)
         toc = time_function()
