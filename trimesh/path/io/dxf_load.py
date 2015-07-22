@@ -65,9 +65,9 @@ def load_dxf(file_obj):
     # a group code then the next line is the value
     # we are removing all whitespace then splitting with the
     # splitlines function which uses the universal newline method
-    raw  = file_obj.read().decode('utf-8').upper().replace(' ', '')
+    raw  = str(file_obj.read().decode('ascii').upper().replace(' ', ''))
     # if this reshape fails, it means the DXF is malformed
-    blob = np.array(unicode.splitlines(raw)).reshape((-1,2))
+    blob = np.array(str.splitlines(raw)).reshape((-1,2))
     
     # find the section which contains the entities in the DXF file
     endsec       = np.nonzero(blob[:,1] == 'ENDSEC')[0]
