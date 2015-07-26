@@ -6,7 +6,7 @@ from threading import Thread
 from pyglet.gl import *
 
 #smooth only when fewer faces than this
-SMOOTH_MAX_FACES = 20000
+_SMOOTH_MAX_FACES = 20000
 
 class SceneViewer(pyglet.window.Window):
     def __init__(self, 
@@ -43,9 +43,8 @@ class SceneViewer(pyglet.window.Window):
             self._thread = Thread(target=self.run)
             self._thread.start()
 
-    def _add_mesh(self, name, mesh, smooth=None):
-        if smooth is None:
-            smooth = len(mesh.faces) < SMOOTH_MAX_FACES
+    def _add_mesh(self, name, mesh, smooth=None):        
+        smooth = len(mesh.faces) < SMOOTH_MAX_FACES
 
         # we don't want the render object to mess with the original mesh
         mesh = deepcopy(mesh)

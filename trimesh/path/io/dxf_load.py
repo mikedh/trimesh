@@ -1,6 +1,5 @@
 import numpy as np
 
-
 from ..constants import log
 from ..entities  import Line, Arc
 from ..util      import angles_to_threepoint
@@ -94,7 +93,7 @@ def load_dxf(file_obj):
     # get the section which contains entities in the DXF file
     entity_start = np.nonzero(blob[:,1] == 'ENTITIES')[0][0]
     entity_end   = endsec[np.searchsorted(endsec, entity_start)]
-    entity_blob = blob[entity_start:entity_end]
+    entity_blob  = blob[entity_start:entity_end]
     
     # store metadata pulled from the header of the DXF
     metadata = dict()

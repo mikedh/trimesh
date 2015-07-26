@@ -128,13 +128,13 @@ def hashable_rows(data, digits=None):
 
 def float_to_int(data, digits=None):
     data = np.array(data)   
-    #if data is already an integer or boolean, we're done     
     if data.dtype.kind in 'ib':
-        as_int = data
-    else:
-        if digits is None: 
+        #if data is already an integer or boolean, we're done
+        return data
+
+    if digits is None: 
             digits = _digits_merge
-        as_int = ((data+10**-(digits+1))*10**digits).astype(np.int64) 
+    as_int = ((data+10**-(digits+1))*10**digits).astype(np.int64) 
     return as_int
 
 def unique_float(data, 

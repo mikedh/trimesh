@@ -95,6 +95,10 @@ class Trimesh(object):
         return np.diff(self.bounds, axis=0)[0]
         
     @property
+    def scale(self):
+        return self.box_size.max()
+
+    @property
     def body_count(self):
         '''
         Return the number of groups of connected faces.
