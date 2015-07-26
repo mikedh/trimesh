@@ -117,3 +117,22 @@ class Bezier(Entity):
     def nodes(self):
         return [[self.points[0], 
                  self.points[-1]]]
+
+class BSpline(Entity):
+    def __init__(self, points, knots, closed=False):
+        self.points = points
+        self.knots  = knots
+        self.closed = closed
+
+    @property
+    def _class_id(self):
+        return sum([ord(i) for i in self.__class__.__name__])
+
+    def discrete(self, vertices):
+        return vertices[self.points]
+
+    def nodes(self):
+        return [[self.points[0], 
+                 self.points[-1]]]
+
+    

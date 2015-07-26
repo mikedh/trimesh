@@ -20,6 +20,7 @@ from .io.export    import export_mesh
 from .ray.ray_mesh import RayMeshIntersector
 from .points       import unitize, transform_points
 from .convex       import convex_hull
+from .units        import unit_conversion
 from .constants    import *
 
 try: 
@@ -43,6 +44,8 @@ class Trimesh(object):
         # (m, 3) int of triangle faces, references self.vertices
         self.faces           = np.array(faces)
 
+        # normals are accessed through setters/properties to 
+        # ensure they are at least somewhat reasonable
         self._face_normals    = np.array(face_normals)
         # (n, 3) float of vertex normals.
         # can be created from face normals
@@ -57,13 +60,15 @@ class Trimesh(object):
         # and is cached for subsequent queries
         self.ray     = RayMeshIntersector(self)
 
-        # hold vertex and face colors, as well as textures
+        # hold vertex and face colors, as well as textures someday
         self.visual = color.VisualAttributes(self)
 
         # update the mesh metadata with passed metadata
-        if isinstance(metadata, dict): self.metadata.update(metadata)
+        if isinstance(metadata, dict):
+            self.metadata.update(metadata)
         # if requested, do basic mesh cleanup
-        if process:                    self.process()
+        if process:
+            self.process()
             
     def process(self):
         '''
@@ -115,6 +120,13 @@ class Trimesh(object):
         return geometry.faces_to_edges(self.faces)
 
     @property
+    def units(self):
+        if 'units' in self.metadata:
+            return self.metadata['units']
+        else:
+            return None
+
+    @property
     def face_normals(self):
         if np.shape(self._face_normals) != np.shape(self.faces):
             self._generate_face_normals()
@@ -141,6 +153,15 @@ class Trimesh(object):
         if np.shape(values) != np.shape(self.vertices):
             log.warn('Vertex normals are incorrect shape!')
         self._vertex_normals = np.array(values)
+
+    def change_units(self, desired):
+        if self.units is None:
+            log.error('Current document doesn\'t have units specified!')
+        else:
+            conversion = unit_conversion(self.units,
+                                         desired)
+            self.vertices         *= conversion
+            self.metadata['units'] = desired
 
     def _generate_face_normals(self):
         face_normals, valid = triangles.normals(self.vertices[[self.faces]])

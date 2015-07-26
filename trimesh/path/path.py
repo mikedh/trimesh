@@ -18,6 +18,7 @@ from .constants import *
 from ..points   import plane_fit, transform_points
 from ..geometry import plane_transform
 from ..grouping import unique_rows
+from ..units    import unit_conversion
 
 class Path(object):
     '''
@@ -55,6 +56,9 @@ class Path(object):
         ok = processing or entity_ok
         return ok
 
+    def _cache_clear(self):
+        self._cache = {}
+
     def _cache_verify(self):
         if not self._cache_ok:
             self._cache = {'entity_count': len(self.entities)}
@@ -90,16 +94,35 @@ class Path(object):
     def discrete(self):
         return self._cache_get('discrete')
 
+    @property
     def scale(self):
         return np.max(np.ptp(self.vertices, axis=0))
- 
+
+    @property
     def bounds(self):
         return np.vstack((np.min(self.vertices, axis=0),
                           np.max(self.vertices, axis=0)))
-
+    @property
     def box_size(self):
         return np.diff(self.bounds, axis=0)[0]
- 
+
+    @property
+    def units(self):
+        if 'units' in self.metadata:
+                return self.metadata['units']
+        else:
+            return None
+
+    def change_units(self, desired):
+        if self.units is None:
+            log.error('Current document doesn\'t have units specified!')
+        else:
+            conversion = unit_conversion(self.units,
+                                         desired)
+            self.vertices *= conversion
+            self.metadata['units'] = desired
+            self._cache_clear()
+
     def area(self):
         sum_area = 0.0
         for path_index in self.paths:
@@ -328,7 +351,6 @@ class Path2D(Path):
         root, enclosure = polygons_enclosure_tree(self.polygons)
         self._cache_put('root',      root)
         self._cache_put('enclosure', enclosure.to_undirected())
-
 
     def connected_paths(self, path_id, include_self = False):
         if len(self.root) == 1:

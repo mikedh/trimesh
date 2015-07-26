@@ -68,10 +68,12 @@ def load_dxf(file_obj):
             entities.append(Line([i+len(vertices), i+len(vertices)+1]))
         vertices.extend(lines)
     def convert_spline(e_data):
-        # preliminary
         e      = multi_dict(e_data)
         points = np.column_stack((e['10'], e['20'])).astype(np.float)
         knots  = np.array(e['40']).astype(float)
+        entities.append(BSpline(points = np.arange(len(points))+len(vertices),
+                                knots  = knots))
+        vertices.extend(points)
 
     if is_binary_file(file_obj): 
         raise TypeError("Binary DXF is unsupported!")
@@ -111,8 +113,8 @@ def load_dxf(file_obj):
     loaders = {'LINE'       : convert_line,
                'LWPOLYLINE' : convert_polyline,
                'ARC'        : convert_arc,
-               'CIRCLE'     : convert_circle}
-               #'SPLINE'     : convert_spline}
+               'CIRCLE'     : convert_circle,
+               'SPLINE'     : convert_spline}
     vertices = deque()
     entities = deque()
     
