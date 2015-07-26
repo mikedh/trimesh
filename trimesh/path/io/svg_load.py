@@ -11,7 +11,7 @@ from ...grouping import group_rows
 from ...util     import is_sequence
 
 from collections import deque
-from lxml.etree  import fromstring as parse_xml
+from xml.dom.minidom import parseString as parse_xml
 
 try:     
     from svg.path import parse_path
@@ -53,12 +53,10 @@ def svg_to_path(file_obj, file_type=None):
                                    svg_cubic.end])
         entities.append(Bezier(np.arange(4)+len(vertices)))
         vertices.extend(points)
-
+    
     # first, we grab all of the path strings from the xml file
-    xml      = parse_xml(file_obj.read())
-    elements = deque()
-    for ns in xml.nsmap.values():
-        elements.extend(xml.findall('.//{'+ns+'}path'))
+    xml   = parse_xml(file_obj.read())
+    paths = [p.attributes['d'].value for p in xml.getElementsByTagName('path')]
 
     entities = deque()
     vertices = deque()  
@@ -67,8 +65,7 @@ def svg_to_path(file_obj, file_type=None):
                 'CubicBezier'     : load_cubic,
                 'QuadraticBezier' : load_quadratic}
 
-    for element in elements:
-        svg_string = element.get('d')
+    for svg_string in paths:
         for svg_entity in parse_path(svg_string):
             loaders[svg_entity.__class__.__name__](svg_entity)
     return {'entities' : np.array(entities),
