@@ -1,28 +1,45 @@
 import numpy as np
 
+
 from ..constants import log
 from ..entities  import Line, Arc
-from ...util     import is_binary_file
+from ..util      import angles_to_threepoint
+from ...util     import is_binary_file, multi_dict
 
 from collections import deque
 
-def angles_to_threepoint(angles, center, radius, normal=[0,0,1]):
-    if angles[1] < angles[0]: 
-        angles[1] += np.pi*2
-    angles = [angles[0], np.mean(angles), angles[1]]
-    planar = np.column_stack((np.cos(angles), np.sin(angles))) * radius
-    points = planar + center
-    return points
-    
-def multi_dict(pairs):
-    result = dict()
-    for k, v in pairs:
-        if k in result: 
-            result[k].append(v)
-        else:
-            result[k] = [v]
-    return result
+# the codes 
+_DXF_UNITS = {1 : 'inches',
+              2 : 'feet',
+              3 : 'miles',
+              4 : 'millimeters', 
+              5 : 'centimeters',
+              6 : 'meters',
+              7 : 'kilometers',
+              8 : 'microinches', 
+              9 : 'mils',
+              10 : 'yards',
+              11 : 'angstroms',
+              12 : 'nanometers', 
+              13 : 'microns',
+              14 : 'decimeters', 
+              15 : 'decameters', 
+              16 : 'hectometers', 
+              17 : 'gigameters',
+              18 : 'AU',
+              19 : 'light years', 
+              20 : 'parsecs'}
 
+def get_key(blob, field, code):
+    try: 
+        line = blob[np.nonzero(blob[:,1] == field)[0][0]+1]
+    except IndexError: 
+        return None
+    if line[0] == code:
+        return int(line[1])
+    else: 
+        return None
+    
 def load_dxf(file_obj):
     def convert_line(e_data):
         e = dict(e_data)
@@ -56,11 +73,10 @@ def load_dxf(file_obj):
         e      = multi_dict(e_data)
         points = np.column_stack((e['10'], e['20'])).astype(np.float)
         knots  = np.array(e['40']).astype(float)
-        
 
     if is_binary_file(file_obj): 
         raise TypeError("Binary DXF is unsupported!")
-        
+    
     # in a DXF file, lines come in pairs, 
     # a group code then the next line is the value
     # we are removing all whitespace then splitting with the
@@ -69,15 +85,28 @@ def load_dxf(file_obj):
     # if this reshape fails, it means the DXF is malformed
     blob = np.array(str.splitlines(raw)).reshape((-1,2))
     
-    # find the section which contains the entities in the DXF file
+    # get the section which contains the header in the DXF file
     endsec       = np.nonzero(blob[:,1] == 'ENDSEC')[0]
+    header_start = np.nonzero(blob[:,1] == 'HEADER')[0][0]
+    header_end   = endsec[np.searchsorted(endsec, header_start)]
+    header_blob = blob[header_start:header_end]
+
+    # get the section which contains entities in the DXF file
     entity_start = np.nonzero(blob[:,1] == 'ENTITIES')[0][0]
     entity_end   = endsec[np.searchsorted(endsec, entity_start)]
-
     entity_blob = blob[entity_start:entity_end]
-    group_code  = np.array(entity_blob[:,0])
-    group_check = np.logical_or(group_code == '0', 
-                                group_code == '5')
+    
+    # store metadata pulled from the header of the DXF
+    metadata = dict()
+    units    = get_key(header_blob, '$INSUNITS', '70')
+    if units in _DXF_UNITS:
+        metadata['units'] = _DXF_UNITS[units]
+    else: 
+        log.warn('DXF doesn\'t have units specified!')
+
+    # find the start points of entities
+    group_check = np.logical_or(entity_blob[:,0] == '0', 
+                                entity_blob[:,0] == '5')
     inflection = np.nonzero(np.logical_and(group_check[:-1], 
                                            group_check[:-1] == group_check[1:]))[0]
     loaders = {'LINE'       : convert_line,
@@ -97,7 +126,8 @@ def load_dxf(file_obj):
                 log.debug('Entity type %s not supported', entity_type)
             
     result = {'vertices' : np.vstack(vertices).astype(np.float),
-              'entities' : np.array(entities)}
+              'entities' : np.array(entities),
+              'metadata' : metadata}
               
     return result
             

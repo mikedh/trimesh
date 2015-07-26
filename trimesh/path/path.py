@@ -19,7 +19,7 @@ from ..points   import plane_fit, transform_points
 from ..geometry import plane_transform
 from ..grouping import unique_rows
 
-class Path:
+class Path(object):
     '''
     A Path object consists of two things:
     vertices: (n,[2|3]) coordinates, stored in self.vertices
@@ -46,10 +46,17 @@ class Path:
 
         self._cache = {}
 
+    @property
+    def _cache_ok(self):
+        processing = ('processing' in self._cache and 
+                      self._cache['processing'])
+        entity_ok = ('entity_count' in self._cache and 
+                     (len(self.entities) == self._cache['entity_count']))
+        ok = processing or entity_ok
+        return ok
+
     def _cache_verify(self):
-        ok = 'entity_count' in self._cache
-        ok = ok and (len(self.entities) == self._cache['entity_count'])
-        if not ok: 
+        if not self._cache_ok:
             self._cache = {'entity_count': len(self.entities)}
             self.process()
 
@@ -184,17 +191,17 @@ class Path:
         return export_object
         
     def process(self):
-        tic   = deque([time_function()])
-        label = deque()
-        for process_function in self.process_functions():
-            process_function()  
-            tic.append(time_function())
-            label.append(process_function.__name__)
+        self._cache['processing'] = True
+        tic = time_function()        
+        for func in self.process_functions():
+            func()
+        toc = time_function()
+        self._cache['processing']   = False
+        self._cache['entity_count'] = len(self.entities)
         log.debug('%s processed %d entities in %0.4f seconds',
                   self.__class__.__name__,
                   len(self.entities),
-                  tic[-1] - tic[0])
-        #log.debug('%s', str(np.column_stack((label, np.diff(tic)))))
+                  toc-tic)
         return self
 
     def __add__(self, other):

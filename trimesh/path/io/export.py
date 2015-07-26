@@ -1,6 +1,4 @@
 import numpy as np
-import struct
-import json
 
 #python 3
 try:                from cStringIO import StringIO
@@ -8,12 +6,12 @@ except ImportError: from io        import StringIO
 
 def export_path(path, file_obj, file_type=None):
     '''
-    Export a Trimesh object to a file- like object, or to a filename
+    Export a Path object to a file- like object, or to a filename
 
     Arguments
     ---------
-    file_obj: a filename string or a file-like object
-    file_type: str representing file type (eg: 'stl')
+    file_obj:  a filename string or a file-like object
+    file_type: str representing file type (eg: 'svg')
     process:   boolean flag, whether to process the mesh on load
 
     Returns:
@@ -21,16 +19,12 @@ def export_path(path, file_obj, file_type=None):
           depending on the file format. 
     
     '''
-
     if ((not hasattr(file_obj, 'read')) and 
         (not file_obj is None)):
         file_type = (str(file_obj).split('.')[-1]).lower()
         file_obj  = open(file_obj, 'wb')
-
-    export = _mesh_exporters[file_type](mesh, file_obj)
-    if not (file_obj is None): 
-        file_obj.close()
-    return export
+    export = _path_exporters[file_type](path)
+    return _write_export(export, file_obj)
 
 def _write_export(export, file_obj=None):
     '''
@@ -50,9 +44,8 @@ def _write_export(export, file_obj=None):
     else: 
         out_file = open(file_obj, 'wb')
     out_file.write(export)
-    return True
+    out_file.close()
+    return export
 
-_mesh_exporters = {'stl'  : export_stl,
-                   'json' : export_json,
-                   'dae'  : export_collada,
-                   'off'  : export_off}
+_path_exporters = {'svg'  : export_svg,
+                   'dict' : export_json}

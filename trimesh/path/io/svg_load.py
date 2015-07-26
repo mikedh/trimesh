@@ -11,6 +11,12 @@ from ...grouping import group_rows
 from ...util     import is_sequence
 
 from collections import deque
+from lxml.etree  import fromstring as parse_xml
+
+try:     
+    from svg.path import parse_path
+except:
+    log.warn('SVG path loading unavailable!')
 
 if sys.version_info.major >= 3:
     # python 3
@@ -48,20 +54,21 @@ def svg_to_path(file_obj, file_type=None):
         entities.append(Bezier(np.arange(4)+len(vertices)))
         vertices.extend(points)
 
-    from svg.path        import parse_path
-    from xml.dom.minidom import parseString as parse_xml
-
     # first, we grab all of the path strings from the xml file
-    xml   = parse_xml(file_obj.read())
-    paths = [p.attributes['d'].value for p in xml.getElementsByTagName('path')]
-    loaders = {'Arc'             : load_arc,
-               'Line'            : load_line,
-               'CubicBezier'     : load_cubic,
-               'QuadraticBezier' : load_quadratic}
-    entities = deque()
-    vertices = deque()
+    xml      = parse_xml(file_obj.read())
+    elements = deque()
+    for ns in xml.nsmap.values():
+        elements.extend(xml.findall('.//{'+ns+'}path'))
 
-    for svg_string in paths:
+    entities = deque()
+    vertices = deque()  
+    loaders  = {'Arc'             : load_arc,
+                'Line'            : load_line,
+                'CubicBezier'     : load_cubic,
+                'QuadraticBezier' : load_quadratic}
+
+    for element in elements:
+        svg_string = element.get('d')
         for svg_entity in parse_path(svg_string):
             loaders[svg_entity.__class__.__name__](svg_entity)
     return {'entities' : np.array(entities),

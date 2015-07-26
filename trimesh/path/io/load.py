@@ -40,13 +40,14 @@ def load_path(obj, file_type=None):
     path = _create_path(**loaded)
     return path
 
-def _create_path(entities, vertices):
+def _create_path(entities, vertices, metadata=None):
     shape = np.shape(vertices)
     if ((len(shape) != 2) or 
         (not shape[1] in [2,3])):
         raise ValueError('Vertices must be 2D or 3D!')
     path = [Path2D, Path3D][shape[1] == 3](entities = entities, 
-                                           vertices = vertices)
+                                           vertices = vertices,
+                                           metadata = metadata)
     return path
 
 def available_formats():

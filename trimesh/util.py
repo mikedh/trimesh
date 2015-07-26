@@ -169,6 +169,19 @@ def replace_references(data, reference_dict):
         if value in reference_dict:
             view[i] = reference_dict[value]
     return view
+
+def multi_dict(pairs):
+    '''
+    Given a set of key value pairs, create a dictionary. 
+    If a key occurs multiple times, stack the values into an array. 
+    '''
+    result = dict()
+    for k, v in pairs:
+        if k in result:
+            result[k].append(v)
+        else:
+            result[k] = [v]
+    return result
     
 def is_binary_file(file_obj):
     '''
