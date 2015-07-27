@@ -1,22 +1,22 @@
 import numpy as np
 
 from ..constants import log
-from ..entities  import Line, Arc
+from ..entities  import Line, Arc, BSpline
 from ..util      import angles_to_threepoint
 from ...util     import is_binary_file, multi_dict
 
 from collections import deque
 
-# the codes 
-_DXF_UNITS = {1 : 'inches',
-              2 : 'feet',
-              3 : 'miles',
-              4 : 'millimeters', 
-              5 : 'centimeters',
-              6 : 'meters',
-              7 : 'kilometers',
-              8 : 'microinches', 
-              9 : 'mils',
+# unit codes
+_DXF_UNITS = {1  : 'inches',
+              2  : 'feet',
+              3  : 'miles',
+              4  : 'millimeters', 
+              5  : 'centimeters',
+              6  : 'meters',
+              7  : 'kilometers',
+              8  : 'microinches', 
+              9  : 'mils',
               10 : 'yards',
               11 : 'angstroms',
               12 : 'nanometers', 
