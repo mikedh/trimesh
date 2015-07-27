@@ -8,7 +8,7 @@ from .constants import *
 from .grouping  import group, group_rows, replace_references
 from .geometry  import faces_to_edges
 from .points    import unitize
-from .util      import diagonal_dot
+from .util      import diagonal_dot, is_sequence
 
 from scipy.spatial import cKDTree as KDTree
 
@@ -273,10 +273,12 @@ def fix_normals(mesh):
         winding_dir  = np.dot(unitize(np.cross(*winding_test)), mesh.face_normals[winding_tri])
         if winding_dir < 0: mesh.faces[[connected]] = np.fliplr(mesh.faces[[connected]])
 
-def broken_faces(mesh, color=[255,0,0]):
+def broken_faces(mesh, color=None):
     adjacency = nx.from_edgelist(mesh.face_adjacency())
     broken    = [k for k, v in adjacency.degree().iteritems() if v != 3]
     broken    = np.array(broken)
     if not color is None:
-        mesh.face_colors[broken] = color
+        if not is_sequence(color):
+            color = [255,0,0]
+        mesh.visual.face_colors[broken] = color
     return broken

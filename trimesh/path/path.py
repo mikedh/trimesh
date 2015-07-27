@@ -335,8 +335,22 @@ class Path2D(Path):
         Arguments
         ----------
         height: float, how far to extrude the profile
-        **kwargs: passed to the meshing engine (meshpy.triangle). 
-                  min_angle
+        kwargs: passed directly to meshpy.triangle.build:
+                triangle.build(mesh_info, 
+                               verbose=False, 
+                               refinement_func=None, 
+                               attributes=False, 
+                               volume_constraints=True, 
+                               max_volume=None, 
+                               allow_boundary_steiner=True, 
+                               allow_volume_steiner=True, 
+                               quality_meshing=True, 
+                               generate_edges=None, 
+                               generate_faces=False, 
+                               min_angle=None)
+        Returns
+        --------
+        mesh: trimesh object representing extruded polygon
         '''
         from ..creation import extrude_polygon
         result = [extrude_polygon(i, height, **kwargs) for i in self.polygons_full]

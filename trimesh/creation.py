@@ -60,8 +60,20 @@ def triangulate_polygon(polygon, **kwargs):
 
     Arguments
     ---------
-    polygon: Shapely.geometry Polygon
-
+    polygon: Shapely.geometry.Polygon
+    kwargs: passed directly to meshpy.triangle.build:
+            triangle.build(mesh_info, 
+                           verbose=False, 
+                           refinement_func=None, 
+                           attributes=False, 
+                           volume_constraints=True, 
+                           max_volume=None, 
+                           allow_boundary_steiner=True, 
+                           allow_volume_steiner=True, 
+                           quality_meshing=True, 
+                           generate_edges=None, 
+                           generate_faces=False, 
+                           min_angle=None)
     Returns
     --------
     mesh_vertices: (n, 2) float array of 2D points
@@ -133,22 +145,8 @@ def triangulate_polygon(polygon, **kwargs):
     info.set_points(vertices)
     info.set_facets(facets)
     info.set_holes(holes)
-    '''
-    setting the minimum angle to 30 degrees produces noticeable nicer
-    meshes than if left unset
-    triangle.build(mesh_info, 
-                   verbose=False, 
-                   refinement_func=None, 
-                   attributes=False, 
-                   volume_constraints=True, 
-                   max_volume=None, 
-                   allow_boundary_steiner=True, 
-                   allow_volume_steiner=True, 
-                   quality_meshing=True, 
-                   generate_edges=None, 
-                   generate_faces=False, 
-                   min_angle=None)
-    '''
+
+    # uses kwargs
     mesh = triangle.build(info, **kwargs)
   
     mesh_vertices = np.array(mesh.points)
