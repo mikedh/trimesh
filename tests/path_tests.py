@@ -34,7 +34,7 @@ class VectorTests(unittest.TestCase):
 
     def test_discrete(self):
         for d in self.drawings:
-            self.assertTrue(len(d.polygons) == len(d.paths))
+            self.assertTrue(len(d.polygons_closed) == len(d.paths))
             for path in d.paths:
                 verts = d.discretize_path(path)
                 dists = np.sum((np.diff(verts, axis=0))**2, axis=1)**.5
@@ -49,10 +49,10 @@ class VectorTests(unittest.TestCase):
                 
     def test_paths(self):
         for d in self.drawings:
-            self.assertTrue(len(d.paths) == len(d.polygons))
+            self.assertTrue(len(d.paths) == len(d.polygons_closed))
             for i in range(len(d.paths)):
                 #self.assertTrue(d.polygons[i].is_valid)
-                self.assertTrue(d.polygons[i].area > TOL_ZERO) 
+                self.assertTrue(d.polygons_closed[i].area > TOL_ZERO) 
 
 class ArcTests(unittest.TestCase):
     def setUp(self):

@@ -25,7 +25,7 @@ def simplify_circles(path):
 
     for path_index, entities in enumerate(path.paths):
         if check and not lines[entities].all(): continue
-        points = np.array(path.polygons[path_index].exterior.coords)
+        points = np.array(path.polygons_closed[path_index].exterior.coords)
         
         # check aspect ratio as an early exit if the path is not a circle
         aspect = np.divide(*points.ptp(axis=0))

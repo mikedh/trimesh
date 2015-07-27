@@ -49,7 +49,7 @@ def load_dxf(file_obj):
         e = dict(e_data)
         R = float(e['40'])
         C = np.array([e['10'], e['20']]).astype(float)
-        points = angles_to_threepoint([0, np.pi], C, R)
+        points = angles_to_threepoint([0, np.pi], C[0:2], R)
         entities.append(Arc(points=(len(vertices) + np.arange(3)), closed=True))
         vertices.extend(points)
     def convert_arc(e_data):
@@ -57,8 +57,7 @@ def load_dxf(file_obj):
         R = float(e['40'])
         C = np.array([e['10'], e['20']], dtype=np.float)
         A = np.radians(np.array([e['50'], e['51']], dtype=np.float))
-        
-        points = angles_to_threepoint(A, C[0:2], R)  
+        points = angles_to_threepoint(A, C[0:2], R)
         entities.append(Arc(len(vertices) + np.arange(3), closed=False))
         vertices.extend(points)
     def convert_polyline(e_data):
@@ -76,7 +75,7 @@ def load_dxf(file_obj):
         vertices.extend(points)
 
     if is_binary_file(file_obj): 
-        raise TypeError("Binary DXF is unsupported!")
+        raise ValueError("Binary DXF is unsupported!")
     
     # in a DXF file, lines come in pairs, 
     # a group code then the next line is the value

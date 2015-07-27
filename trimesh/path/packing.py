@@ -116,7 +116,7 @@ def pack_rectangles(rectangles, sheet_size, shuffle=False):
   
 def pack_paths(paths, show=False):
     paths_full = np.hstack([[deepcopy(i) for j in range(i.metadata['quantity'])] for i in paths])
-    polygons   = [i.polygons[i.root[0]] for i in paths_full]
+    polygons   = [i.polygons_closed[i.root[0]] for i in paths_full]
     inserted, transforms = multipack(np.array(polygons))
     for path, transform in zip(paths_full, transforms):
         path.transform(transform)

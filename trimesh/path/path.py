@@ -79,8 +79,8 @@ class Path(object):
         return self._cache_get('paths')
 
     @property
-    def polygons(self):
-        return self._cache_get('polygons')
+    def polygons_closed(self):
+        return self._cache_get('polygons_closed')
 
     @property
     def root(self):
@@ -113,22 +113,15 @@ class Path(object):
         else:
             return None
 
-    def change_units(self, desired):
+    def set_units(self, desired):
         if self.units is None:
             log.error('Current document doesn\'t have units specified!')
         else:
             conversion = unit_conversion(self.units,
                                          desired)
             self.vertices *= conversion
-            self.metadata['units'] = desired
             self._cache_clear()
-
-    def area(self):
-        sum_area = 0.0
-        for path_index in self.paths:
-            sign      = ((path_index in self.root)*2) - 1
-            sum_area += (sign * self.polygons[path_index].area)
-        return sum_area
+        self.metadata['units'] = desired
         
     def transform(self, transform):
         self._cache = {}
@@ -216,7 +209,7 @@ class Path(object):
     def process(self):
         self._cache['processing'] = True
         tic = time_function()        
-        for func in self.process_functions():
+        for func in self._process_functions():
             func()
         toc = time_function()
         self._cache['processing']   = False
@@ -243,7 +236,7 @@ class Path(object):
         return new_path
    
 class Path3D(Path):
-    def process_functions(self): 
+    def _process_functions(self): 
         return [self.merge_vertices,
                 self.remove_duplicate_entities,
                 self.remove_unreferenced_vertices,
@@ -261,7 +254,6 @@ class Path3D(Path):
         If they are, return a Path2D and a transform which will 
         transform the 2D representation back into 3 dimensions
         '''
-        
         if to_2D is None:
             C, N = plane_fit(self.vertices)
             if normal is not None:
@@ -304,7 +296,7 @@ class Path3D(Path):
         if show: plt.show()
 
 class Path2D(Path):
-    def process_functions(self): 
+    def _process_functions(self): 
         return [self.merge_vertices,
                 self.remove_duplicate_entities,
                 self.generate_closed_paths,
@@ -322,16 +314,32 @@ class Path2D(Path):
         result = [None] * len(self.root)
         for index, root in enumerate(self.root):
             hole_index = self.connected_paths(root, include_self=False)
-            holes = [p.exterior.coords for p in self.polygons[hole_index]]
-            shell = self.polygons[root].exterior.coords
+            holes = [p.exterior.coords for p in self.polygons_closed[hole_index]]
+            shell = self.polygons_closed[root].exterior.coords
             result[index] = Polygon(shell  = shell,
                                     holes  = holes)
         self._cache_put('polygons_full', result)
         return result
+
+    def area(self):
+        '''
+        Return the area of the polygons interior
+        '''
+        area = np.sum([i.area for i in self.polygons_full])
+        return area
         
-    def extrude(self, height):
+    def extrude(self, height, **kwargs):
+        '''
+        Extrude the current 2D path into a 3D mesh. 
+
+        Arguments
+        ----------
+        height: float, how far to extrude the profile
+        **kwargs: passed to the meshing engine (meshpy.triangle). 
+                  min_angle
+        '''
         from ..creation import extrude_polygon
-        result = [extrude_polygon(i, height) for i in self.polygons_full]
+        result = [extrude_polygon(i, height, **kwargs) for i in self.polygons_full]
         if len(result) == 1: 
             return result[0]
         return result
@@ -345,10 +353,10 @@ class Path2D(Path):
             discrete = discretize_path(self.entities, self.vertices, path)
             return Polygon(discrete)
         polygons = np.array(list(map(path_to_polygon, self.paths)))
-        self._cache_put('polygons', polygons)
+        self._cache_put('polygons_closed', polygons)
 
     def generate_enclosure_tree(self):
-        root, enclosure = polygons_enclosure_tree(self.polygons)
+        root, enclosure = polygons_enclosure_tree(self.polygons_closed)
         self._cache_put('root',      root)
         self._cache_put('enclosure', enclosure.to_undirected())
 
@@ -389,7 +397,7 @@ class Path2D(Path):
                                vertices = deepcopy(self.vertices))
             result[i]._cache = {'entity_count' : len(new_entities),
                                 'paths'        : np.array(new_paths),
-                                'polygons'     : self.polygons[connected],
+                                'polygons'     : self.polygons_closed[connected],
                                 'metadata'     : new_metadata,
                                 'root'         : new_root}
         return result
@@ -407,7 +415,7 @@ class Path2D(Path):
             else:
                 transformed = transform_points(vertices, transform)
                 plt.plot(*transformed.T, color=color)
-        for i, polygon in enumerate(self.polygons):
+        for i, polygon in enumerate(self.polygons_closed):
             color = ['g','r'][i in self.root]
             plot_transformed(np.column_stack(polygon.boundary.xy), color=color)
         if show: plt.show()

@@ -12,13 +12,14 @@ from collections import deque
 from shapely.geometry import Polygon
 
 def extrude_polygon(polygon, 
-                    height):
+                    height,
+                    **kwargs):
     '''
     Turn a shapely.geometry Polygon object and a height (float)
     into a watertight Trimesh object. 
     '''
     # create a 2D triangulation of the shapely polygon
-    vertices, faces = triangulate_polygon(polygon)
+    vertices, faces = triangulate_polygon(polygon, **kwargs)
     
     # stack the (n,3) faces into (3*n, 2) edges
     edges        = faces_to_edges(faces, sort=True)
@@ -53,7 +54,7 @@ def extrude_polygon(polygon,
     mesh.fix_normals()
     return mesh
 
-def triangulate_polygon(polygon):
+def triangulate_polygon(polygon, **kwargs):
     '''
     Given a shapely polygon, create a triangulation using meshpy.triangle
 
@@ -132,9 +133,23 @@ def triangulate_polygon(polygon):
     info.set_points(vertices)
     info.set_facets(facets)
     info.set_holes(holes)
-    # setting the minimum angle to 30 degrees produces noticeable nicer
-    # meshes than if left unset
-    mesh = triangle.build(info) #, min_angle=30)
+    '''
+    setting the minimum angle to 30 degrees produces noticeable nicer
+    meshes than if left unset
+    triangle.build(mesh_info, 
+                   verbose=False, 
+                   refinement_func=None, 
+                   attributes=False, 
+                   volume_constraints=True, 
+                   max_volume=None, 
+                   allow_boundary_steiner=True, 
+                   allow_volume_steiner=True, 
+                   quality_meshing=True, 
+                   generate_edges=None, 
+                   generate_faces=False, 
+                   min_angle=None)
+    '''
+    mesh = triangle.build(info, **kwargs)
   
     mesh_vertices = np.array(mesh.points)
     mesh_faces    = np.array(mesh.elements)

@@ -154,14 +154,14 @@ class Trimesh(object):
             log.warn('Vertex normals are incorrect shape!')
         self._vertex_normals = np.array(values)
 
-    def change_units(self, desired):
+    def set_units(self, desired):
         if self.units is None:
             log.error('Current document doesn\'t have units specified!')
         else:
             conversion = unit_conversion(self.units,
                                          desired)
             self.vertices         *= conversion
-            self.metadata['units'] = desired
+        self.metadata['units'] = desired
 
     def _generate_face_normals(self):
         face_normals, valid = triangles.normals(self.vertices[[self.faces]])
