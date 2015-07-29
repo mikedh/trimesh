@@ -3,11 +3,11 @@ import numpy as np
 import networkx as nx
 import itertools
 
-from collections import deque
-from tempfile import NamedTemporaryFile
+from collections     import deque
+from tempfile        import NamedTemporaryFile
 from distutils.spawn import find_executable
-from subprocess import check_call
-from xml.etree import cElementTree
+from subprocess      import check_call
+from xml.etree       import cElementTree
 
 from ..constants import RES_MESH
 from ..base      import Trimesh
@@ -54,7 +54,7 @@ def load_step(file_obj, file_type=None):
         # store the mesh by id reference
         meshes[shell.get('id')] = mesh
 
-    # populate the graph of shape
+    # populate the graph of shapes and transforms
     g          = nx.MultiDiGraph() 
     # keys: {mesh id : shape id}
     mesh_shape = {}
@@ -66,11 +66,10 @@ def load_step(file_obj, file_type=None):
         mesh_id    = shape.get('shell')
         if not shape_unit is None:
             to_inches = float(shape_unit.split()[1]) * _METERS_TO_INCHES
-
         if not mesh_id is None:
-            mesh_shape[mesh_id] = shape_id
+            for i in mesh_id.split():
+                mesh_shape[i] = shape_id
             g.node[shape_id]['mesh'] = mesh_id
-
         for child in shape.getchildren():
             child_id  = child.get('ref')
             transform = np.array(child.get('xform').split(), 
