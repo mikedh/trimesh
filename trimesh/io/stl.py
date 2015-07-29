@@ -7,7 +7,7 @@ from ..util      import is_binary_file
  
 def load_stl(file_obj, file_type=None):
     if is_binary_file(file_obj): return load_stl_binary(file_obj)
-    else:                            return load_stl_ascii(file_obj)
+    else:                        return load_stl_ascii(file_obj)
         
 def load_stl_binary(file_obj):
     '''
@@ -39,7 +39,7 @@ def load_stl_binary(file_obj):
     # the struct.unpack call uses 100% memory until the whole thing crashes, 
     # so it's much better to raise an exception here. 
     if not data_ok:
-        raise NameError('Attempted to load binary STL with incorrect length in header!')
+        raise NameError('Binary STL has incorrect length in header!')
     
     # all of our vertices will be loaded in order due to the STL format, 
     # so faces are just sequential indices reshaped. 

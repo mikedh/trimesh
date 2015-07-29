@@ -14,6 +14,9 @@ TOL_PLANAR    = 1e-5
 # considered part of a facet (also known as coplanar)
 TOL_FACET_RSQ = 1e8
 
+# when meshing parts, what resolution to use
+RES_MESH = .005
+
 import logging as _logging
 log = _logging.getLogger('trimesh')
 log.addHandler(_logging.NullHandler())

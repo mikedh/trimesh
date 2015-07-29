@@ -46,3 +46,9 @@ _mesh_loaders = {}
 _mesh_loaders.update(_assimp_loaders)
 _mesh_loaders.update(_stl_loaders)
 _mesh_loaders.update(_misc_loaders)
+
+try: 
+    from .step import _step_loaders
+    _mesh_loaders.update(_step_loaders)
+except ImportError:
+    pass
