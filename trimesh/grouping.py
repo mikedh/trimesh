@@ -259,15 +259,18 @@ def group_vectors(vectors,
     aligned_index       = deque()
     
     for index, vector in enumerate(unit_vectors):
-        if consumed[index]: continue
-        aligned = np.array(tree.query_ball_point(vector, dist_max))        
+        if consumed[index]: 
+            continue
+        aligned = np.array(tree.query_ball_point(vector, dist_max))
+        vectors = unit_vectors[aligned]
         if include_negative:
-            aligned_negative = tree.query_ball_point(-1.0*vector, dist_max)
-            aligned = np.append(aligned, aligned_negative)
+            aligned_neg = tree.query_ball_point(-1.0*vector, dist_max)
+            vectors     = np.vstack((vectors, -unit_vectors[aligned_neg]))
+            aligned     = np.append(aligned, aligned_neg)
         aligned = aligned.astype(int)
-        consumed[[aligned]] = True
-        unique_vectors.append(unit_vectors[aligned[-1]])
-        aligned_index.append(valid_index[[aligned]])
+        consumed[aligned] = True
+        unique_vectors.append(np.median(vectors, axis=0))
+        aligned_index.append(valid_index[aligned])
     return np.array(unique_vectors), np.array(aligned_index)
     
 def stack_negative(rows):

@@ -43,14 +43,12 @@ class SceneViewer(pyglet.window.Window):
             self._thread = Thread(target=self.run)
             self._thread.start()
 
-    def _add_mesh(self, name, mesh, smooth=None):        
-        
+    def _add_mesh(self, name, mesh, smooth=False):                
         if smooth is None:
             smooth = len(mesh.faces) < _SMOOTH_MAX_FACES
-
+            
         # we don't want the render object to mess with the original mesh
         mesh = deepcopy(mesh)
-
         if smooth:
             # will merge vertices close in angle
             mesh.smooth()
