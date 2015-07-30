@@ -86,9 +86,9 @@ def diagonal_dot(a, b):
     Dot product by row of a and b.
 
     Same as np.diag(np.dot(a, b.T)) but without the monstrous 
-    intermediate matrix (and is much faster, despite the loop). 
+    intermediate matrix.
     '''
-    result = np.array([np.dot(i,j) for i,j in zip(a,b)])
+    result = (np.array(a)*b).sum(axis=1)
     return result
 
 def three_dimensionalize(points, return_2D=True):
