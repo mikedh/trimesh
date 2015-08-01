@@ -46,7 +46,8 @@ class SceneViewer(pyglet.window.Window):
     def _add_mesh(self, name, mesh, smooth=False):                
         if smooth is None:
             smooth = len(mesh.faces) < _SMOOTH_MAX_FACES
-            
+
+        smooth = False
         # we don't want the render object to mess with the original mesh
         mesh = deepcopy(mesh)
         if smooth:
@@ -57,7 +58,7 @@ class SceneViewer(pyglet.window.Window):
             mesh.unmerge_vertices()
 
         self._scale = mesh.box_size.max()
-
+        
         vertices = (mesh.vertices-mesh.centroid).reshape(-1).tolist()
         normals  = mesh.vertex_normals.reshape(-1).tolist()
         colors   = mesh.visual.vertex_colors.reshape(-1).tolist()
@@ -100,6 +101,9 @@ class SceneViewer(pyglet.window.Window):
         glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE)
         glEnable(GL_COLOR_MATERIAL)
         
+        #glShadeModel(GL_FLAT)
+
+
     def set_base_view(self, mesh):
         self.rotation    = np.zeros(3)
         self.translation = np.array([0,0,-np.max(mesh.box_size)])

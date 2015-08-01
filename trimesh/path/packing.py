@@ -6,7 +6,7 @@ from shapely.geometry import Point, Polygon, LineString
 from copy import deepcopy
 
 from .constants import *
-from .polygons import polygon_obb, polygons_obb
+from .polygons import polygon_obb
 from ..util    import transformation_2D
 
 class Bin:
@@ -137,7 +137,7 @@ def multipack(polygons,
 
     If sheet size isn't specified, it creates a large sheet that can fit all of the polygons
     '''
-    rectangles, transforms_obb  = polygons_obb(polygons)
+    rectangles, transforms_obb  = polygon_obb(polygons)
     rectangles                 += 2.0*buffer_dist
     polygon_area                = np.array([p.area for p in polygons])
 
@@ -150,6 +150,7 @@ def multipack(polygons,
         sum_dim    = np.sum(rectangles, axis=0)
         sheet_size = [sum_dim[0], max_dim[1]*2]
 
+    log.info('Packing %d polygons', len(polygons))
     for i in range(iterations):
         density, offset, inserted, sheet = pack_rectangles(rectangles, 
                                                            sheet_size = sheet_size, 

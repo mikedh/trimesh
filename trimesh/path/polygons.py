@@ -1,11 +1,11 @@
-from shapely.geometry import Polygon, LineString
+from shapely.geometry import Polygon, Point, LineString
 from rtree import Rtree
 import numpy as np
 import networkx as nx
 from collections import deque
 
 from ..points    import unitize
-from ..util      import transformation_2D
+from ..util      import transformation_2D, is_sequence, is_ccw
 from .constants  import *
 
 def polygons_enclosure_tree(polygons):
@@ -34,10 +34,29 @@ def polygons_enclosure_tree(polygons):
     roots          = [n for n, deg in list(g.in_degree().items()) if deg==0]
     return roots, g
     
-def polygons_obb(polygons):
+def polygon_obb(polygon):
     '''
-    Given a list of polygons, return a list of the minimum area rectangles, and transforms 
-    to align the polygons into that minimum area rectangle
+    Find the oriented bounding box of a Shapely polygon. 
+
+    The OBB is always aligned with an edge of the convex hull of the polygon.
+   
+    Arguments
+    -------------
+    polygons: shapely.geometry.Polygon or list of Polygons
+
+    Returns
+    -------------
+    size:                  (2) or (len(polygons), 2) list of edge lengths
+    transformation matriz: (3,3) or (len(polygons, 3,3) transformation matrix
+                           which will move input polygon from its original position 
+                           to the first quadrant where the AABB is the OBB
+    '''
+    if is_sequence(polygon): return _polygons_obb(polygon)
+    else:                    return _polygon_obb(polygon)
+
+def _polygons_obb(polygons):
+    '''
+    Find the OBBs for a list of shapely.geometry.Polygons
     '''
     rectangles = [None] * len(polygons)
     transforms = [None] * len(polygons)
@@ -45,34 +64,9 @@ def polygons_obb(polygons):
         rectangles[i], transforms[i] = polygon_obb(polygon)
     return np.array(rectangles), np.array(transforms)
 
-def polygon_obb(polygon):
+def _polygon_obb(polygon):
     '''
-    Find the oriented bounding box of a Shapely polygon. 
-
-    The OBB is always aligned with an edge of the convex hull of the polygon.
-    There is a clever linear time method of finding this called rotating calipers:
-
-    http://cgm.cs.mcgill.ca/~orm/maer.html
-    https://stackoverflow.com/questions/13542855/python-help-to-implement-an-algorithm-to-find-the-minimum-area-rectangle-for-gi
-    
-    http://code.activestate.com/recipes/117225-convex-hull-and-diameter-of-2d-point-sets/
-    
-    https://stackoverflow.com/questions/13542855/python-help-to-implement-an-algorithm-to-find-the-minimum-area-rectangle-for-gi
-    
-    http://web.cs.swarthmore.edu/~adanner/cs97/s08/pdf/calipers.pdf
-   
-    This is the less clever n^2 way, because the hull makes n smallish
-   
-    Arguments
-    -------------
-    polygons: Shapely polygon
-
-    Returns
-    -------------
-    size:                 (2) list of edge lengths
-    transformation matriz: (3,3) transformation matrix, which will move input
-                           polygon from its original position to the origin
-                           rotated so fits in axis aligned OBB of size
+    Find the OBB for a single shapely.geometry.Polygon
     '''
     rectangle    = None
     transform    = np.eye(3)
@@ -150,7 +144,8 @@ def rasterize_polygon(polygon, pitch, angle=0, return_points=False):
 
     def fill(ranges):
         ranges  = (np.array(ranges) - offset[0]) / pitch
-        x_index = np.array([np.floor(ranges[0]), np.ceil(ranges[1])]).astype(int)
+        x_index = np.array([np.floor(ranges[0]), 
+                            np.ceil(ranges[1])]).astype(int)
         if np.any(x_index < 0): return
         grid[x_index[0]:x_index[1], y_index] = True
         if (y_index > 0): grid[x_index[0]:x_index[1], y_index-1] = True
@@ -199,12 +194,77 @@ def plot_raster(raster, pitch, offset=[0,0]):
                                           pitch, 
                                           facecolor="grey"))
     
-def is_ccw(points):
-    '''https://stackoverflow.com/questions/1165647/how-to-determine-if-a-list-of-polygon-points-are-in-clockwise-order
-    
+def resample_loop(points, count):
     '''
-    xd = np.diff(points[:,0])
-    yd = np.sum(np.column_stack((points[:,1], 
-                                 points[:,1])).reshape(-1)[1:-1].reshape((-1,2)), axis=1)
-    area = np.sum(xd*yd)*.5
-    return area < 0
+    Given a loop of (n,d) points, resample them such that the
+    distance traversed along the loop is constant in between each 
+    of the resampled points.
+
+    Arguments
+    ----------
+    points:   (n,d) set of points in space
+    count:    number of evenly spaced points to find
+
+    Returns
+    ----------
+    resampled: (count,d) set of points evenly spaced on the perimeter
+    '''
+    points     = np.array(points)
+    vectors    = np.diff(points, axis=0)
+    norms      = np.linalg.norm(vectors, axis=1)
+    unit_vec   = vectors/norms.reshape((-1,1))
+    perimeter  = norms.sum()
+    cum_norm   = np.cumsum(norms)
+    samples    = np.linspace(0, perimeter, count+1)[:-1]
+    positions  = np.searchsorted(cum_norm, samples)
+    offsets    = np.append(0, cum_norm)[positions]
+
+    projection = samples - offsets
+    direction  = unit_vec[positions]
+    origin     = points[positions]
+    
+    resampled = origin + (direction*projection.reshape((-1,1)))
+    
+    return resampled
+
+def medial_axis(polygon, resolution=.01, clip=[10,1000]):
+    '''
+    Given a shapely polygon, find the approximate medial axis based
+    on a voronoi diagram of evenly spaced points on the boundary of the polygon.
+
+    Arguments
+    ----------
+    polygon:    a shapely.geometry.Polygon 
+    resolution: target distance between each sample on the polygon boundary
+    clip:       [minimum number of samples, maximum number of samples]
+                specifying a very fine resolution can cause the sample count to
+                explode, so clip specifies a minimum and maximum number of samples
+                to use per boundary region. To not clip, this can be specified as:
+                [0, np.inf]
+
+    Returns
+    ----------
+    lines:     (n,2,2) set of line segments
+    '''
+    def add_boundary(boundary):
+        count     = boundary.length / resolution
+        count     = int(np.clip(count, *clip))
+        points.append(resample_loop(boundary.coords, count))
+
+    from scipy.spatial import Voronoi
+
+    points = deque()
+    add_boundary(polygon.exterior)
+    for interior in polygon.interiors:
+        add_boundary(interior)
+
+    voronoi   = Voronoi(np.vstack(points))
+    contained = np.array([polygon.contains(Point(i)) for i in voronoi.vertices])
+    ridge     = np.reshape(voronoi.ridge_vertices, -1)
+    test      = np.logical_and(contained[ridge], 
+                               ridge >= 0).reshape((-1,2)).all(axis=1)
+    ridge     = ridge.reshape((-1,2))[test]
+    lines     = voronoi.vertices[ridge]
+    return lines
+
+

@@ -18,7 +18,7 @@ try:
     _has_gt = True
 except: 
     _has_gt = False
-    log.warn('No graph-tool! Some operations will be much slower!')
+    log.warning('No graph-tool! Some operations will be much slower!')
 
 def face_adjacency(faces):
     '''

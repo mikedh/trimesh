@@ -102,7 +102,7 @@ def load_dxf(file_obj):
     if units in _DXF_UNITS:
         metadata['units'] = _DXF_UNITS[units]
     else: 
-        log.warn('DXF doesn\'t have units specified!')
+        log.warning('DXF doesn\'t have units specified!')
 
     # find the start points of entities
     group_check = np.logical_or(entity_blob[:,0] == '0', 

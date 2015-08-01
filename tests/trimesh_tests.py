@@ -73,8 +73,9 @@ class MeshTests(unittest.TestCase):
         trimesh.graph._has_gt = False
 
         if not has_gt:
-            log.warn('No graph-tool to test!')
+            log.warning('No graph-tool to test!')
 
+        log.info('Running tests on %d meshes', len(self.meshes))
         for mesh in self.meshes:
             log.info('Testing %s', mesh.metadata['filename'])
             self.assertTrue(len(mesh.faces) > 0)
@@ -110,7 +111,7 @@ class MeshTests(unittest.TestCase):
     def test_hash(self):
         for mesh in self.meshes:
             if not mesh.is_watertight(): 
-                log.warn('Hashing non- watertight mesh (%s) produces garbage!',
+                log.warning('Hashing non- watertight mesh (%s) produces garbage!',
                          mesh.metadata['filename'])
                 continue
             log.info('Hashing %s', mesh.metadata['filename'])
@@ -138,19 +139,16 @@ class MeshTests(unittest.TestCase):
             self.assertTrue(mesh.is_watertight())
             
     def test_fix_normals(self):
-        for mesh in self.meshes[-2:]:
+        for mesh in self.meshes[5:]:
             mesh.fix_normals()
 
 class RayTests(unittest.TestCase):
     def setUp(self):
-        def location(name):
-            return os.path.abspath(os.path.join(TEST_DIR, name))
-        self.meshes = [trimesh.load_mesh(location('unit_cube.STL'))]
-        self.rays   = [[[[-10,.5,.5],
-                         [1.0, 0,0]],
-                        [[-10,0,0],
-                         [1.0, 0,0]]]]
-        self.truth  = [{'count' : [3,4]}]
+        with open('ray_data.json', 'r') as f_obj: 
+            data = json.load(f_obj)
+        self.meshes = [trimesh.load_mesh(location(f)) for f in data['filenames']]
+        self.rays   = data['rays']
+        self.truth  = data['truth']
 
     def test_rays(self):
         for mesh, ray_test, truth in zip(self.meshes, self.rays, self.truth):
@@ -162,11 +160,28 @@ class RayTests(unittest.TestCase):
             for i in range(len(ray_test)):
                 self.assertTrue(len(hit_id[i])  == truth['count'][i])
                 self.assertTrue(len(hit_loc[i]) == truth['count'][i])
-                
+
+    def test_rps(self):
+        dimension = (1000,3)
+        sphere    = trimesh.load_mesh(location('unit_sphere.STL'))
+
+        rays_ori = np.random.random(dimension)
+        rays_dir = np.tile([0,0,1], (dimension[0], 1))
+        rays_ori[:,2] = -5
+        rays = np.column_stack((rays_ori, rays_dir)).reshape((-1,2,3))
+        # force ray object to allocate tree before timing it
+        tree = sphere.ray.tree
+        tic = time.time()
+        sphere.ray.intersects_id(rays)
+        toc = time.time()
+        rps = dimension[0] / (toc-tic)
+        log.info('Measured %f rays/second', rps)
+
 class MassTests(unittest.TestCase):
     def setUp(self):
         # inertia numbers pulled from solidworks
-        self.truth  = json.load(open('mass_properties.json', 'r'))
+        with open('mass_properties.json', 'r') as f_obj:
+            self.truth  = json.load(f_obj)
         self.meshes = dict()
         for data in self.truth:
             filename = data['filename']
@@ -189,6 +204,9 @@ class MassTests(unittest.TestCase):
                 self.assertTrue(parameter_ok)
                 parameter_count += 1
             log.info('%i mass parameters confirmed for %s', parameter_count, truth['filename'])  
+   
+def location(name):
+    return os.path.abspath(os.path.join(TEST_DIR, name))
                 
 if __name__ == '__main__':
     trimesh.util.attach_to_log()

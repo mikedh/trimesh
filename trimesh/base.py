@@ -27,7 +27,7 @@ try:
     from .path.io.misc import faces_to_path
     from .path.io.load import _create_path, load_path
 except ImportError:
-    log.warn('trimesh.path unavailable!', exc_info=True)
+    log.warning('trimesh.path unavailable!', exc_info=True)
 
 class Trimesh(object):
     def __init__(self, 
@@ -136,7 +136,7 @@ class Trimesh(object):
     @face_normals.setter
     def face_normals(self, values):
         if np.shape(values) != np.shape(self.faces):
-            log.warn('Faces are %s, passed normals are %s', 
+            log.warning('Faces are %s, passed normals are %s', 
                       np.shape(self.faces),
                       np.shape(values))
         self._face_normals = np.array(values)
@@ -151,7 +151,7 @@ class Trimesh(object):
     @vertex_normals.setter
     def vertex_normals(self, values):
         if np.shape(values) != np.shape(self.vertices):
-            log.warn('Vertex normals are incorrect shape!')
+            log.warning('Vertex normals are incorrect shape!')
         self._vertex_normals = np.array(values)
 
     def set_units(self, desired):

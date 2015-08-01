@@ -19,7 +19,7 @@ def solid_to_mesh(solid, process=True):
     vertices = np.array(list(occ_mesh.vertices)).reshape((-1,3)).astype(float)
     mesh     = Trimesh(vertices=vertices, faces=faces, process=process)
     if process and (not mesh.is_watertight()): 
-        log.warn('Mesh returned from openCASCADE isn\'t watertight!')
+        log.warning('Mesh returned from openCASCADE isn\'t watertight!')
     return mesh
 
 def extrude_polygon(polygon,

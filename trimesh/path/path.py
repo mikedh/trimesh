@@ -214,10 +214,6 @@ class Path(object):
         toc = time_function()
         self._cache['processing']   = False
         self._cache['entity_count'] = len(self.entities)
-        log.debug('%s processed %d entities in %0.4f seconds',
-                  self.__class__.__name__,
-                  len(self.entities),
-                  toc-tic)
         return self
 
     def __add__(self, other):

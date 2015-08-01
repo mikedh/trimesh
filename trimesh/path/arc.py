@@ -8,7 +8,7 @@ from .constants     import *
 try: 
     from scipy.optimize import leastsq
 except ImportError: 
-    log.warn('No scipy.optimize for arc fitting!')
+    log.warning('No scipy.optimize for arc fitting!')
 
 def arc_center(points):
     '''

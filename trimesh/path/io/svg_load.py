@@ -16,7 +16,7 @@ from xml.dom.minidom import parseString as parse_xml
 try:     
     from svg.path import parse_path
 except:
-    log.warn('SVG path loading unavailable!')
+    log.warning('SVG path loading unavailable!')
 
 if sys.version_info.major >= 3:
     # python 3
