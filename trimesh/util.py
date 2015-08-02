@@ -68,8 +68,19 @@ def is_sequence(arg):
     # but sure look like sequences, so we check the shape
     if hasattr(arg, 'shape'):
         seq = seq and arg.shape != ()
-
     return seq
+
+def make_sequence(obj):
+    '''
+    Given an object, if it is a sequence return, otherwise
+    add it to a length 1 sequence and return.
+
+    Useful for wrapping functions which sometimes return single 
+    objects and other times return lists of objects. 
+    '''
+    if is_sequence(obj): return obj
+    else:                return np.array([obj])
+
 
 def is_ccw(points):
     '''

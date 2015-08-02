@@ -202,7 +202,7 @@ def resample_loop(points, count):
 
     Arguments
     ----------
-    points:   (n,d) set of points in space
+    points:   (n,d) sequence of points in space
     count:    number of evenly spaced points to find
 
     Returns
@@ -210,19 +210,29 @@ def resample_loop(points, count):
     resampled: (count,d) set of points evenly spaced on the perimeter
     '''
     points     = np.array(points)
+    # find the direction of each segment
     vectors    = np.diff(points, axis=0)
     norms      = np.linalg.norm(vectors, axis=1)
     unit_vec   = vectors/norms.reshape((-1,1))
     perimeter  = norms.sum()
+    # cumulative sum of section length increasing 
     cum_norm   = np.cumsum(norms)
+    # we discard the last sample so searchsorted doesn't
+    # return indices outside the range
     samples    = np.linspace(0, perimeter, count+1)[:-1]
+    # return the indices in cum_norm that each sample would
+    # need to be inserted at to maintain the sorted property
     positions  = np.searchsorted(cum_norm, samples)
     offsets    = np.append(0, cum_norm)[positions]
 
+    # the distance past the reference vertex we need to travel
     projection = samples - offsets
+    # find out which dirction we need to project
     direction  = unit_vec[positions]
+    # find out which vertex we're offset from
     origin     = points[positions]
     
+    # just the parametric equation for a line
     resampled = origin + (direction*projection.reshape((-1,1)))
     
     return resampled
@@ -247,23 +257,35 @@ def medial_axis(polygon, resolution=.01, clip=[10,1000]):
     lines:     (n,2,2) set of line segments
     '''
     def add_boundary(boundary):
+        # add a polygon.exterior or polygon.interior to
+        # the deque after resampling based on our resolution
         count     = boundary.length / resolution
         count     = int(np.clip(count, *clip))
         points.append(resample_loop(boundary.coords, count))
 
+    # do the import here to avoid it in general use and fail immediatly
+    # if we don't have scipy.spatial available
     from scipy.spatial import Voronoi
 
+    # create a sequence of [(n,2)] points
     points = deque()
     add_boundary(polygon.exterior)
     for interior in polygon.interiors:
         add_boundary(interior)
 
+    # create the voronoi diagram, after vertically stacking the points
+    # deque from a sequnce into a clean (m,2) array
     voronoi   = Voronoi(np.vstack(points))
+    # which voronoi vertices are contained inside the original polygon
     contained = np.array([polygon.contains(Point(i)) for i in voronoi.vertices])
     ridge     = np.reshape(voronoi.ridge_vertices, -1)
+    # for the medial axis, we only want to include vertices that are inside
+    # the original polygon, and are greater than zero
+    # negative indices indicate a vornoi vertex outside the diagram
     test      = np.logical_and(contained[ridge], 
                                ridge >= 0).reshape((-1,2)).all(axis=1)
     ridge     = ridge.reshape((-1,2))[test]
+    # index into lines, which are (n,2,2)
     lines     = voronoi.vertices[ridge]
     return lines
 

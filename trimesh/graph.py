@@ -199,22 +199,21 @@ def split_gt(mesh, check_watertight=True, only_count=False):
 def split(mesh, check_watertight=True, only_count=False):
     if _has_gt: return split_gt(mesh, check_watertight, only_count)
     else:       return split_nx(mesh, check_watertight, only_count)
-
-def is_watertight_gt(mesh):
-    g = GTGraph()
-    g.add_edge_list(mesh.face_adjacency())    
-    degree     = g.degree_property_map('total').a
-    watertight = np.equal(degree, 3).all()
-    return watertight
-
-def is_watertight_nx(mesh):
-    adjacency  = nx.from_edgelist(mesh.face_adjacency())
-    watertight = np.equal(list(adjacency.degree().values()), 3).all()
-    return watertight
     
 def is_watertight(mesh):
-    if _has_gt: return is_watertight_gt(mesh)
-    else:       return is_watertight_nx(mesh)
+    def is_watertight_gt():
+        g = GTGraph()
+        g.add_edge_list(mesh.face_adjacency())    
+        degree     = g.degree_property_map('total').a
+        watertight = np.equal(degree, 3).all()
+        return watertight
+    def is_watertight_nx():
+        adjacency  = nx.from_edgelist(mesh.face_adjacency())
+        watertight = np.equal(list(adjacency.degree().values()), 3).all()
+        return watertight
+
+    if _has_gt: return is_watertight_gt()
+    else:       return is_watertight_nx()
 
 def fix_normals(mesh):
     '''
@@ -277,8 +276,8 @@ def broken_faces(mesh, color=None):
     adjacency = nx.from_edgelist(mesh.face_adjacency())
     broken    = [k for k, v in adjacency.degree().iteritems() if v != 3]
     broken    = np.array(broken)
-    if not color is None:
-        if not is_sequence(color):
+    if not (color is None):
+        if (not is_sequence(color)):
             color = [255,0,0]
         mesh.visual.face_colors[broken] = color
     return broken
