@@ -267,7 +267,7 @@ class Trimesh(object):
 
         if check_watertight: only meshes which are watertight are returned
         '''
-        meshes = graph.split(self, check_watertight)
+        meshes = graph.split(self, check_watertight=check_watertight)
         log.info('split found %i components', len(meshes))
         return meshes
         

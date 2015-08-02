@@ -87,13 +87,13 @@ class MeshTests(unittest.TestCase):
 
             if has_gt:
                 trimesh.graph._has_gt = True 
-                split     = trimesh.graph.split_gt(mesh)
+                split     = trimesh.graph.split(mesh)
                 tic.append(time.time())
                 facets    = trimesh.graph.facets(mesh)
                 tic.append(time.time())
                 trimesh.graph._has_gt = False
 
-            split     = trimesh.graph.split_nx(mesh) 
+            split     = trimesh.graph.split(mesh) 
             tic.append(time.time())
             facets    = trimesh.graph.facets(mesh)
             tic.append(time.time())

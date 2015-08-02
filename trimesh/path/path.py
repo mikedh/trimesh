@@ -426,7 +426,7 @@ class Path2D(Path):
                 transformed = transform_points(vertices, transform)
                 plt.plot(*transformed.T, color=color)
         for i, polygon in enumerate(self.polygons_closed):
-            color = ['g','r'][i in self.root]
+            color = ['g','k'][i in self.root]
             plot_transformed(np.column_stack(polygon.boundary.xy), color=color)
         if show: plt.show()
 

@@ -67,7 +67,7 @@ def facets_group(mesh):
     Find facets by grouping normals then getting the adjacency subgraph.
     The other two methods for finding facets rely on looking at the angle between
     adjacent faces, and then if they are below TOL_ZERO, adding them to a graph
-    of parallel faces. This method should be somewhat more robust.
+    of parallel faces. This method is 'fuzzier'
     '''
     adjacency = nx.from_edgelist(mesh.face_adjacency())
     facets    = deque()
@@ -101,6 +101,7 @@ def facets(mesh):
         facets_idx = group(connected, min_len=2)
         return facets_idx
 
+    # (n,2) list of adjacent face indices
     face_idx    = mesh.face_adjacency()
 
     # test adjacent faces for angle
@@ -111,94 +112,114 @@ def facets(mesh):
     parallel     = normal_dot < TOL_ZERO
     non_parallel = np.logical_not(parallel)
 
-    # saying that two faces *arent* parallel is more susceptible to error, so 
-    # we add a radius check
+    # saying that two faces *arent* parallel is susceptible to error
+    # so we add a radius check which computes the distance between face
+    # centroids and divides it by the dot product of the normals
+    # this means that small angles between big faces will have a large
+    # radius which we can filter out easily.
+    # if you don't do this, floating point error on tiny faces can push
+    # the normals past a pure angle threshold even though the actual 
+    # deviation across the face is extremely small. 
     center      = mesh.triangles.mean(axis=1)
     center_sq = np.sum(np.diff(center[face_idx], 
                                axis = 1).reshape((-1,3)) ** 2, axis=1)
     radius_sq = center_sq[non_parallel] / normal_dot[non_parallel]
-
     parallel[non_parallel] = radius_sq > TOL_FACET_RSQ
 
-    # graph-tool is ~6x faster than nx but requires non- python packages
+    # graph-tool is ~6x faster than networkx but is more difficult to install
     if _has_gt: return facets_gt()
     else:       return facets_nx()
 
-def split_nx(mesh, check_watertight=True, only_count=False):
+def split(mesh, check_watertight=True, only_count=False):
     '''
     Given a mesh, will split it up into a list of meshes based on face connectivity
     If check_watertight is true, it will only return meshes where each face has
-    exactly 3 adjacent faces, which is a simple metric for being watertight.
+    exactly 3 adjacent faces.
+
+    Arguments
+    ----------
+    mesh: Trimesh 
+    check_watertight: if True, only return watertight components
+    only_count:       if True, return number of components rather
+                      than the components
+
+    Returns
+    ----------
+    if only_count: 
+        count: int, number of components
+    else:
+        meshes: list of Trimesh objects
     '''
-    def mesh_from_components(connected_faces):
-        if check_watertight:
-            subgraph   = nx.subgraph(face_adjacency, connected_faces)
-            watertight = np.equal(list(subgraph.degree().values()), 3).all()
-            if not watertight: return
-        faces  = mesh.faces[[connected_faces]]
-        unique = np.unique(faces.reshape(-1))
-        replacement = dict()
-        replacement.update(np.column_stack((unique, np.arange(len(unique)))))
-        faces = replace_references(faces, replacement).reshape((-1,3))
-        new_meshes.append(mesh.__class__(vertices     = mesh.vertices[[unique]],
-                                         faces        = faces,
-                                         face_normals = mesh.face_normals[[connected_faces]]))
-    face_adjacency = nx.from_edgelist(mesh.face_adjacency())
-    new_meshes     = deque()
-    components     = list(nx.connected_components(face_adjacency))
-    if only_count: return len(components)
 
-    for component in components: mesh_from_components(component)
-    log.info('split mesh into %i components.',
-             len(new_meshes))
-    return list(new_meshes)
+    def split_nx():
+        def mesh_from_components(connected_faces):
+            if check_watertight:
+                subgraph   = nx.subgraph(face_adjacency, connected_faces)
+                watertight = np.equal(list(subgraph.degree().values()), 3).all()
+                if not watertight: return
+            faces  = mesh.faces[[connected_faces]]
+            unique = np.unique(faces.reshape(-1))
+            replacement = dict()
+            replacement.update(np.column_stack((unique, np.arange(len(unique)))))
+            faces = replace_references(faces, replacement).reshape((-1,3))
+            new_meshes.append(mesh.__class__(vertices     = mesh.vertices[[unique]],
+                                             faces        = faces,
+                                             face_normals = mesh.face_normals[[connected_faces]]))
+        face_adjacency = nx.from_edgelist(mesh.face_adjacency())
+        new_meshes     = deque()
+        components     = list(nx.connected_components(face_adjacency))
+        if only_count: return len(components)
 
-def split_gt(mesh, check_watertight=True, only_count=False):
-    g = GTGraph()
-    g.add_edge_list(mesh.face_adjacency())    
-    component_labels = label_components(g, directed=False)[0].a
-    if check_watertight: 
-        degree = g.degree_property_map('total').a
-    meshes     = deque()
-    components = group(component_labels)
-    if only_count: return len(components)
+        for component in components: mesh_from_components(component)
+        log.info('split mesh into %i components.',
+                 len(new_meshes))
+        return list(new_meshes)
 
-    for i, current in enumerate(components):
-        fill_holes = False
-        if check_watertight:
-            degree_3 = degree[current] == 3
-            degree_2 = degree[current] == 2
-            if not degree_3.all():
-                if np.logical_or(degree_3, degree_2).all():
-                    fill_holes = True
-                else: 
-                    continue
+    def split_gt():
+        g = GTGraph()
+        g.add_edge_list(mesh.face_adjacency())    
+        component_labels = label_components(g, directed=False)[0].a
+        if check_watertight: 
+            degree = g.degree_property_map('total').a
+        meshes     = deque()
+        components = group(component_labels)
+        if only_count: return len(components)
 
-        # these faces have the original vertex indices
-        faces_original = mesh.faces[current]
-        face_normals   = mesh.face_normals[current]
-        # we find the unique vertex indices, so we can reindex from zero
-        unique_vert    = np.unique(faces_original)
-        vertices       = mesh.vertices[unique_vert]
-        replacement    = np.zeros(unique_vert.max()+1, dtype=np.int)
-        replacement[unique_vert] = np.arange(len(unique_vert))
-        faces                    = replacement[faces_original]
-        new_mesh = mesh.__class__(faces        = faces, 
-                                  face_normals = face_normals, 
-                                  vertices     = vertices)
-        new_meta = deepcopy(mesh.metadata)
-        if 'name' in new_meta:
-            new_meta['name'] = new_meta['name'] + '_' + str(i)
-        new_mesh.metadata.update(new_meta)
-        if fill_holes: 
-            try:              new_mesh.fill_holes(raise_watertight=True)
-            except MeshError: continue
-        meshes.append(new_mesh)
-    return list(meshes)
+        for i, current in enumerate(components):
+            fill_holes = False
+            if check_watertight:
+                degree_3 = degree[current] == 3
+                degree_2 = degree[current] == 2
+                if not degree_3.all():
+                    if np.logical_or(degree_3, degree_2).all():
+                        fill_holes = True
+                    else: 
+                        continue
 
-def split(mesh, check_watertight=True, only_count=False):
-    if _has_gt: return split_gt(mesh, check_watertight, only_count)
-    else:       return split_nx(mesh, check_watertight, only_count)
+            # these faces have the original vertex indices
+            faces_original = mesh.faces[current]
+            face_normals   = mesh.face_normals[current]
+            # we find the unique vertex indices, so we can reindex from zero
+            unique_vert    = np.unique(faces_original)
+            vertices       = mesh.vertices[unique_vert]
+            replacement    = np.zeros(unique_vert.max()+1, dtype=np.int)
+            replacement[unique_vert] = np.arange(len(unique_vert))
+            faces                    = replacement[faces_original]
+            new_mesh = mesh.__class__(faces        = faces, 
+                                      face_normals = face_normals, 
+                                      vertices     = vertices)
+            new_meta = deepcopy(mesh.metadata)
+            if 'name' in new_meta:
+                new_meta['name'] = new_meta['name'] + '_' + str(i)
+            new_mesh.metadata.update(new_meta)
+            if fill_holes: 
+                try:              new_mesh.fill_holes(raise_watertight=True)
+                except MeshError: continue
+            meshes.append(new_mesh)
+        return list(meshes)
+
+    if _has_gt: return split_gt()
+    else:       return split_nx()
     
 def is_watertight(mesh):
     def is_watertight_gt():

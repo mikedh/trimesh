@@ -56,18 +56,17 @@ def euclidean(a, b):
     '''
     return np.sum((np.array(a) - b)**2) ** .5
 
-def is_sequence(arg):
+def is_sequence(obj):
     '''
-    Returns true if arg is a sequence
+    Returns True if obj is a sequence.
     '''
-    seq = (not hasattr(arg, "strip") and
-           hasattr(arg, "__getitem__") or
-           hasattr(arg, "__iter__"))
-
+    seq = (not hasattr(obj, "strip") and
+           hasattr(obj, "__getitem__") or
+           hasattr(obj, "__iter__"))
     # numpy sometimes returns objects that are single float64 values
     # but sure look like sequences, so we check the shape
-    if hasattr(arg, 'shape'):
-        seq = seq and arg.shape != ()
+    if hasattr(obj, 'shape'):
+        seq = seq and obj.shape != ()
     return seq
 
 def make_sequence(obj):
@@ -242,14 +241,4 @@ def attach_to_log(log_level=logging.DEBUG, blacklist=[]):
         logger.addHandler(handler_stream)
         logger.setLevel(log_level)
     np.set_printoptions(precision=5, suppress=True)
-
-
-
-
-
-
-
-
-
-
 
