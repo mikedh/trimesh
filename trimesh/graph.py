@@ -73,7 +73,7 @@ def facets_group(mesh):
     facets    = deque()
     for row_group in group_rows(mesh.face_normals):
         if len(row_group) < 2: continue
-        facets.extend([i for i in nx.connected_components(adjacency.subgraph(row_group)) if len(i) > 1])
+        facets.extend([list(i) for i in nx.connected_components(adjacency.subgraph(row_group)) if len(i) > 1])
     return np.array(facets)
 
 def facets(mesh):
@@ -91,7 +91,7 @@ def facets(mesh):
     '''
     def facets_nx():
         graph_parallel = nx.from_edgelist(face_idx[parallel])
-        facets_idx     = list(nx.connected_components(graph_parallel))
+        facets_idx     = [list(i) for i in nx.connected_components(graph_parallel)]
         return facets_idx
         
     def facets_gt():
@@ -167,7 +167,7 @@ def split(mesh, check_watertight=True, only_count=False):
                                              face_normals = mesh.face_normals[[connected_faces]]))
         face_adjacency = nx.from_edgelist(mesh.face_adjacency())
         new_meshes     = deque()
-        components     = list(nx.connected_components(face_adjacency))
+        components     = [list(i) for i in nx.connected_components(face_adjacency)]
         if only_count: return len(components)
 
         for component in components: mesh_from_components(component)
@@ -251,6 +251,7 @@ def fix_normals(mesh):
     # we are going to traverse the graph using BFS, so we have to start
     # a traversal for every connected component
     for connected in nx.connected_components(graph):
+        connected = list(connected)
         # we traverse every pair of faces in the graph
         # we modify mesh.faces and mesh.face_normals in place 
         for face_pair in nx.bfs_edges(graph, connected[0]):
