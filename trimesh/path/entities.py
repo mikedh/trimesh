@@ -43,7 +43,8 @@ class Entity:
         '''
         hash = np.zeros(_HASH_LENGTH, dtype=np.int)
         hash[-2:] = self._class_id, int(self.closed)
-        hash[0:len(self.points)] = np.sort(self.points)
+        points_count = np.min([3, len(self.points)])
+        hash[0:points_count] = np.sort(self.points)[-points_count:]
         return hash
         
     def to_dict(self):
@@ -129,7 +130,14 @@ class BSpline(Entity):
         return sum([ord(i) for i in self.__class__.__name__])
 
     def discrete(self, vertices):
-        return vertices[self.points]
+        from scipy.interpolate import splev
+        control = vertices[self.points]
+        degree  = len(self.knots) - len(control) - 1
+        ipl     = np.linspace(0.0, 1.0, 200)
+        result  = [splev(ipl, [self.knots, i, degree]) for i in control.T]
+        result  = np.column_stack(result)
+        return result
+        
 
     def nodes(self):
         return [[self.points[0], 
