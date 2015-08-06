@@ -32,6 +32,11 @@ RES_LENGTH = .15
 # target angle of a section when discretizing curves
 RES_ANGLE  = .26
 
+RES_MAX_SECTIONS = 100
+RES_MIN_SECTIONS = 10
+RES_TEST_FACTOR  = .05
+
+
 import logging
 log = logging.getLogger('path')
 log.addHandler(logging.NullHandler())

@@ -1,10 +1,6 @@
 import numpy as np
 
-from .constants import RES_LENGTH
-
-TEST_FACTOR  = 0.05
-MIN_SECTIONS = 10
-MAX_SECTIONS = 100
+from .constants import RES_LENGTH, RES_TEST_FACTOR, RES_MIN_SECTIONS, RES_MAX_SECTIONS
 
 def discretize_bezier(points, count=None):
     '''
@@ -35,10 +31,10 @@ def discretize_bezier(points, count=None):
     if count is None:
         # how much distance does a small percentage of the curve take
         # this is so we can figure out how finely we have to sample t
-        test   = np.sum(np.diff(compute(np.array([0.0, TEST_FACTOR])), 
+        test   = np.sum(np.diff(compute(np.array([0.0, RES_TEST_FACTOR])), 
                                 axis = 0) ** 2) ** .5
-        count  = np.ceil((test/TEST_FACTOR) / RES_LENGTH)
-        count  = int(np.clip(count, MIN_SECTIONS, MAX_SECTIONS))
+        count  = np.ceil((test/RES_TEST_FACTOR) / RES_LENGTH)
+        count  = int(np.clip(count, RES_MIN_SECTIONS, RES_MAX_SECTIONS))
     result = compute(np.linspace(0.0, 1.0, count))
     return result
 

@@ -131,11 +131,11 @@ def float_to_int(data, digits=None):
     if data.dtype.kind in 'ib':
         #if data is already an integer or boolean, we're done
         return data
-
-    if digits is None: 
+    else: 
+        if digits is None: 
             digits = _digits_merge
-    as_int = ((data+10**-(digits+1))*10**digits).astype(np.int64) 
-    return as_int
+        as_int = (np.around(data, digits) * (10**digits)).astype(np.int64)
+        return as_int
 
 def unique_float(data, 
                  return_index   = False,

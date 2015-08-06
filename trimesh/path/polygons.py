@@ -1,8 +1,9 @@
 from shapely.geometry import Polygon, Point, LineString
-from rtree import Rtree
+from rtree            import Rtree
+from collections      import deque
+
 import numpy as np
 import networkx as nx
-from collections import deque
 
 from ..points    import unitize
 from ..util      import transformation_2D, is_sequence, is_ccw

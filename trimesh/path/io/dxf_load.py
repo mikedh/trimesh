@@ -1,9 +1,9 @@
 import numpy as np
 
-from ..constants import log
+from ..constants import log, TOL_MERGE
 from ..entities  import Line, Arc, BSpline
 from ..util      import angles_to_threepoint
-from ...util     import is_binary_file, multi_dict
+from ...util     import is_binary_file, is_ccw, multi_dict
 
 from collections import deque
 
@@ -66,12 +66,20 @@ def load_dxf(file_obj):
         for i in range(len(lines) - 1):
             entities.append(Line([i+len(vertices), i+len(vertices)+1]))
         vertices.extend(lines)
-    def convert_spline(e_data):
+    def convert_bspline(e_data):
+        # in the DXF there are n points and n ordered fields 
+        # with the same group code 
         e      = multi_dict(e_data)
         points = np.column_stack((e['10'], e['20'])).astype(np.float)
         knots  = np.array(e['40']).astype(float)
+        # check euclidean distance to see if closed
+        closed = np.linalg.norm(points[0] - points[-1]) < TOL_MERGE
+        # if it is closed, make sure it is CCW for later polygon happiness
+        if closed and (not is_ccw(points)):
+            points = points[::-1]
         entities.append(BSpline(points = np.arange(len(points))+len(vertices),
-                                knots  = knots))
+                                knots  = knots,
+                                closed = closed))
         vertices.extend(points)
 
     if is_binary_file(file_obj): 
@@ -113,7 +121,7 @@ def load_dxf(file_obj):
                'LWPOLYLINE' : convert_polyline,
                'ARC'        : convert_arc,
                'CIRCLE'     : convert_circle,
-               'SPLINE'     : convert_spline}
+               'SPLINE'     : convert_bspline}
     vertices = deque()
     entities = deque()
     

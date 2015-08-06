@@ -100,47 +100,45 @@ class Arc(Entity):
     def discrete(self, vertices):
         return discretize_arc(vertices[self.points], 
                               close = self.closed)
-                              
     def center(self, vertices):
         return arc_center(vertices[self.points])
                 
-    def tangents(self, vertices):
-        return arc_tangents(vertices[self.points])
-
 class Line(Entity):
     def discrete(self, vertices):
         return vertices[[self.points]]
 
-class Bezier(Entity):
+class Curve(Entity):
+    @property
+    def _class_id(self):
+        return sum([ord(i) for i in self.__class__.__name__])
+    def nodes(self):
+        return [[self.points[0], 
+                 self.points[1]],
+                [self.points[1], 
+                 self.points[-1]]]
+
+class Bezier(Curve):
     def discrete(self, vertices):
         return discretize_bezier(vertices[self.points])
 
-    def nodes(self):
-        return [[self.points[0], 
-                 self.points[-1]]]
-
-class BSpline(Entity):
+class BSpline(Curve):
     def __init__(self, points, knots, closed=False):
         self.points = points
         self.knots  = knots
         self.closed = closed
 
-    @property
-    def _class_id(self):
-        return sum([ord(i) for i in self.__class__.__name__])
-
-    def discrete(self, vertices):
+    def discrete(self, vertices, count=None):
+        # evaluate the b-spline using scipy/fitpack
         from scipy.interpolate import splev
+        # (n, d) control points where d is the dimension of vertices
         control = vertices[self.points]
         degree  = len(self.knots) - len(control) - 1
-        ipl     = np.linspace(0.0, 1.0, 200)
-        result  = [splev(ipl, [self.knots, i, degree]) for i in control.T]
-        result  = np.column_stack(result)
+        if count is None:
+            norm  = np.linalg.norm(np.diff(control, axis=0), axis=1).sum()
+            count = int(np.clip(RES_MIN_SECTIONS, 
+                                RES_MAX_SECTIONS, 
+                                norm / RES_LENGTH))
+        ipl    = np.linspace(self.knots[0], self.knots[-1], count)
+        result = [splev(ipl, [self.knots, i, degree]) for i in control.T]
+        result = np.column_stack(result)
         return result
-        
-
-    def nodes(self):
-        return [[self.points[0], 
-                 self.points[-1]]]
-
-    
