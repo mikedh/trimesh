@@ -158,7 +158,9 @@ class Path(object):
             self.entities = np.array(self.entities)[unique]
 
     def vertex_graph(self, return_closed=False):
-        return vertex_graph(self.entities, return_closed)
+        self._cache_verify()
+        graph = vertex_graph(self.entities, return_closed)
+        return graph
 
     def generate_closed_paths(self):
         '''

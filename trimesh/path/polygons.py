@@ -218,9 +218,8 @@ def resample_loop(points, count):
     perimeter  = norms.sum()
     # cumulative sum of section length increasing 
     cum_norm   = np.cumsum(norms)
-    # we discard the last sample so searchsorted doesn't
-    # return indices outside the range
-    samples    = np.linspace(0, perimeter, count+1)[:-1]
+    # evenly spaced samples
+    samples    = np.linspace(0, perimeter, count+1)
     # return the indices in cum_norm that each sample would
     # need to be inserted at to maintain the sorted property
     positions  = np.searchsorted(cum_norm, samples)
@@ -289,4 +288,60 @@ def medial_axis(polygon, resolution=.01, clip=[10,1000]):
     # index into lines, which are (n,2,2)
     lines     = voronoi.vertices[ridge]
     return lines
+
+class InversePolygon:
+    '''
+    Create an inverse polygon. 
+
+    The primary use case is that given a point inside a polygon,
+    you want to find the minimum distance to the boundary of the polygon.
+    '''
+    def __init__(self, polygon):
+        _DIST_BUFFER = .05    
+
+        # create a box around the polygon
+        bounds   = (np.array(polygon.bounds)) 
+        bounds  += (_DIST_BUFFER*np.array([-1,-1,1,1]))
+        coord_ext = bounds[np.array([2,1,2,3,0,3,0,1,2,1])].reshape((-1,2))
+        # set the interior of the box to the exterior of the polygon
+        coord_int = [np.array(polygon.exterior.coords)]
+        
+        # a box with an exterior- shaped hole in it
+        exterior  = Polygon(shell = coord_ext,
+                            holes = coord_int)
+        # make exterior polygons out of all of the interiors
+        interiors = [Polygon(i.coords) for i in polygon.interiors]
+        
+        # save these polygons to a flat list
+        self._polygons = np.append(exterior, interiors)
+
+    def distances(self, point):
+        '''
+        Find the minimum distances from a point to the exterior and interiors
+
+        Arguments
+        ---------
+        point: (2) list or shapely.geometry.Point
+
+        Returns
+        ---------
+        distances: (n) list of floats
+        '''
+        distances = [i.distance(Point(point)) for i in self._polygons]
+        return distances
+
+    def distance(self, point):
+        '''
+        Find the minimum distance from a point to the boundary of the polygon. 
+
+        Arguments
+        ---------
+        point: (2) list or shapely.geometry.Point
+
+        Returns
+        ---------
+        distance: float
+        '''
+        distance = np.min(self.distances(point))
+        return distance
 
