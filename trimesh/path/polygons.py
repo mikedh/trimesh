@@ -288,7 +288,9 @@ def medial_axis(polygon, resolution=.01, clip=[10,1000]):
     ridge     = ridge.reshape((-1,2))[test]
     # index into lines, which are (n,2,2)
     lines     = voronoi.vertices[ridge]
-    return lines
+    
+    from .io.load import load_path
+    return load_path(lines)
 
 class InversePolygon:
     '''

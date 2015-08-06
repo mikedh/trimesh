@@ -1,6 +1,6 @@
 import numpy as np
 
-from .constants import RES_LENGTH, RES_TEST_FACTOR, RES_MIN_SECTIONS, RES_MAX_SECTIONS
+from .constants import *
 
 def discretize_bezier(points, count=None):
     '''
@@ -38,6 +38,38 @@ def discretize_bezier(points, count=None):
     result = compute(np.linspace(0.0, 1.0, count))
     return result
 
+def discretize_bspline(control, knots, count=None):
+    '''
+    Given a B-Splines control points and knot vector, return
+    a sampled version of the curve.
+
+    Arguments
+    ----------
+    control:  (o,d) list of control points of the b- spline. 
+    knots:    (j) list of knots 
+    count:    int, number of sections to discretize the spline in to.
+              If not specified, RES_LENGTH will be used to inform this. 
+
+    Returns
+    ----------
+    discrete: (count,d) list of points, a polyline of the B-spline.
+    '''
+
+    # evaluate the b-spline using scipy/fitpack
+    from scipy.interpolate import splev
+    # (n, d) control points where d is the dimension of vertices
+    control = np.array(control)
+    degree  = len(knots) - len(control) - 1
+    if count is None:
+        norm  = np.linalg.norm(np.diff(control, axis=0), axis=1).sum()
+        count = int(np.clip(RES_MIN_SECTIONS, 
+                            RES_MAX_SECTIONS, 
+                            norm / RES_LENGTH))
+    ipl      = np.linspace(knots[0], knots[-1], count)
+    discrete = [splev(ipl, [knots, i, degree]) for i in control.T]
+    discrete = np.column_stack(discrete)
+    return discrete
+        
 def binomial(n):
     '''
     Return all binomial coefficents for a given order.

@@ -10,7 +10,7 @@ import numpy as np
 
 from .constants import *
 from .arc       import discretize_arc, arc_center
-from .bezier    import discretize_bezier
+from .curve     import discretize_bezier, discretize_bspline
 
 from ..points   import unitize
 from ..util     import replace_references
@@ -128,17 +128,7 @@ class BSpline(Curve):
         self.closed = closed
 
     def discrete(self, vertices, count=None):
-        # evaluate the b-spline using scipy/fitpack
-        from scipy.interpolate import splev
-        # (n, d) control points where d is the dimension of vertices
-        control = vertices[self.points]
-        degree  = len(self.knots) - len(control) - 1
-        if count is None:
-            norm  = np.linalg.norm(np.diff(control, axis=0), axis=1).sum()
-            count = int(np.clip(RES_MIN_SECTIONS, 
-                                RES_MAX_SECTIONS, 
-                                norm / RES_LENGTH))
-        ipl    = np.linspace(self.knots[0], self.knots[-1], count)
-        result = [splev(ipl, [self.knots, i, degree]) for i in control.T]
-        result = np.column_stack(result)
+        result = discretize_bspline(control = vertices[self.points], 
+                                    knots   = self.knots,
+                                    count   = count)
         return result
