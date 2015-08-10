@@ -271,6 +271,7 @@ class Trimesh(object):
         log.info('split found %i components', len(meshes))
         return meshes
         
+    @property
     def face_adjacency(self):
         '''
         Returns an (n,2) list of face indices.
@@ -279,11 +280,12 @@ class Trimesh(object):
         This is useful for lots of things, for example finding connected subgraphs:
         
         graph = nx.Graph()
-        graph.add_edges_from(mesh.face_adjacency())
+        graph.add_edges_from(mesh.face_adjacency)
         groups = nx.connected_components(graph_connected.subgraph(interesting_faces))
         '''
         return graph.face_adjacency(self.faces)
 
+    @property
     def is_watertight(self):
         '''
         Check if a mesh is watertight. 

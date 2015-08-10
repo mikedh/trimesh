@@ -18,7 +18,7 @@ def solid_to_mesh(solid, process=True):
     faces    = np.array(list(occ_mesh.triangles)).reshape((-1,3)).astype(int)
     vertices = np.array(list(occ_mesh.vertices)).reshape((-1,3)).astype(float)
     mesh     = Trimesh(vertices=vertices, faces=faces, process=process)
-    if process and (not mesh.is_watertight()): 
+    if process and (not mesh.is_watertight): 
         log.warning('Mesh returned from openCASCADE isn\'t watertight!')
     return mesh
 

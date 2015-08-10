@@ -110,7 +110,7 @@ class MeshTests(unittest.TestCase):
             
     def test_hash(self):
         for mesh in self.meshes:
-            if not mesh.is_watertight(): 
+            if not mesh.is_watertight: 
                 log.warning('Hashing non- watertight mesh (%s) produces garbage!',
                          mesh.metadata['filename'])
                 continue
@@ -132,11 +132,11 @@ class MeshTests(unittest.TestCase):
 
     def test_fill_holes(self):
         for mesh in self.meshes[:5]:
-            if not mesh.is_watertight(): continue
+            if not mesh.is_watertight: continue
             mesh.faces = mesh.faces[1:-1]
-            self.assertFalse(mesh.is_watertight())
+            self.assertFalse(mesh.is_watertight)
             mesh.fill_holes()
-            self.assertTrue(mesh.is_watertight())
+            self.assertTrue(mesh.is_watertight)
             
     def test_fix_normals(self):
         for mesh in self.meshes[5:]:

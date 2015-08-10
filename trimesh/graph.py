@@ -28,7 +28,7 @@ def face_adjacency(faces):
     This is useful for lots of things, for example finding connected subgraphs:
 
     graph = nx.Graph()
-    graph.add_edges_from(mesh.face_adjacency())
+    graph.add_edges_from(mesh.face_adjacency)
     groups = nx.connected_components(graph_connected.subgraph(interesting_faces))
     '''
 
@@ -69,7 +69,7 @@ def facets_group(mesh):
     adjacent faces, and then if they are below TOL_ZERO, adding them to a graph
     of parallel faces. This method is 'fuzzier'
     '''
-    adjacency = nx.from_edgelist(mesh.face_adjacency())
+    adjacency = nx.from_edgelist(mesh.face_adjacency)
     facets    = deque()
     for row_group in group_rows(mesh.face_normals):
         if len(row_group) < 2: continue
@@ -102,7 +102,7 @@ def facets(mesh):
         return facets_idx
 
     # (n,2) list of adjacent face indices
-    face_idx    = mesh.face_adjacency()
+    face_idx    = mesh.face_adjacency
 
     # test adjacent faces for angle
     normal_pairs = mesh.face_normals[[face_idx]]
@@ -165,7 +165,7 @@ def split(mesh, check_watertight=True, only_count=False):
             new_meshes.append(mesh.__class__(vertices     = mesh.vertices[[unique]],
                                              faces        = faces,
                                              face_normals = mesh.face_normals[[connected_faces]]))
-        face_adjacency = nx.from_edgelist(mesh.face_adjacency())
+        face_adjacency = nx.from_edgelist(mesh.face_adjacency)
         new_meshes     = deque()
         components     = [list(i) for i in nx.connected_components(face_adjacency)]
         if only_count: return len(components)
@@ -177,7 +177,7 @@ def split(mesh, check_watertight=True, only_count=False):
 
     def split_gt():
         g = GTGraph()
-        g.add_edge_list(mesh.face_adjacency())    
+        g.add_edge_list(mesh.face_adjacency)    
         component_labels = label_components(g, directed=False)[0].a
         if check_watertight: 
             degree = g.degree_property_map('total').a
@@ -224,12 +224,12 @@ def split(mesh, check_watertight=True, only_count=False):
 def is_watertight(mesh):
     def is_watertight_gt():
         g = GTGraph()
-        g.add_edge_list(mesh.face_adjacency())    
+        g.add_edge_list(mesh.face_adjacency)    
         degree     = g.degree_property_map('total').a
         watertight = np.equal(degree, 3).all()
         return watertight
     def is_watertight_nx():
-        adjacency  = nx.from_edgelist(mesh.face_adjacency())
+        adjacency  = nx.from_edgelist(mesh.face_adjacency)
         watertight = np.equal(list(adjacency.degree().values()), 3).all()
         return watertight
 
@@ -246,7 +246,7 @@ def fix_normals(mesh):
     # we create the face adjacency graph: 
     # every node in g is an index of mesh.faces
     # every edge in g represents two faces which are connected
-    graph = nx.from_edgelist(mesh.face_adjacency())
+    graph = nx.from_edgelist(mesh.face_adjacency)
     
     # we are going to traverse the graph using BFS, so we have to start
     # a traversal for every connected component
@@ -295,7 +295,7 @@ def fix_normals(mesh):
         if winding_dir < 0: mesh.faces[[connected]] = np.fliplr(mesh.faces[[connected]])
 
 def broken_faces(mesh, color=None):
-    adjacency = nx.from_edgelist(mesh.face_adjacency())
+    adjacency = nx.from_edgelist(mesh.face_adjacency)
     broken    = [k for k, v in adjacency.degree().iteritems() if v != 3]
     broken    = np.array(broken)
     if not (color is None):
