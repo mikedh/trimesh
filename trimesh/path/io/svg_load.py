@@ -30,20 +30,24 @@ def svg_to_path(file_obj, file_type=None):
         return np.array([[i.real, i.imag] for i in values])
 
     def load_line(svg_line):
-        points = complex_to_float([svg_line.start, 
-                                   svg_line.end])
+        points = complex_to_float([svg_line.point(0.0),
+                                   svg_line.point(1.0)])
+        if not starting: points[0] = vertices[-1]
         entities.append(Line(np.arange(2)+len(vertices)))
         vertices.extend(points)
+
     def load_arc(svg_arc):
         points = complex_to_float([svg_arc.start, 
                                    svg_arc.point(.5), 
                                    svg_arc.end])
+        if not starting: points[0] = vertices[-1]
         entities.append(Arc(np.arange(3)+len(vertices)))
         vertices.extend(points)
     def load_quadratic(svg_quadratic):
         points = complex_to_float([svg_quadratic.start, 
                                    svg_quadratic.control, 
                                    svg_quadratic.end])
+        if not starting: points[0] = vertices[-1]
         entities.append(Bezier(np.arange(3)+len(vertices)))
         vertices.extend(points)
     def load_cubic(svg_cubic):
@@ -51,6 +55,7 @@ def svg_to_path(file_obj, file_type=None):
                                    svg_cubic.control1, 
                                    svg_cubic.control2, 
                                    svg_cubic.end])
+        if not starting: points[0] = vertices[-1]
         entities.append(Bezier(np.arange(4)+len(vertices)))
         vertices.extend(points)
     
@@ -66,8 +71,11 @@ def svg_to_path(file_obj, file_type=None):
                 'QuadraticBezier' : load_quadratic}
 
     for svg_string in paths:
+        starting = True
         for svg_entity in parse_path(svg_string):
             loaders[svg_entity.__class__.__name__](svg_entity)
+            #starting = False
+
     return {'entities' : np.array(entities),
             'vertices' : np.array(vertices)}
  

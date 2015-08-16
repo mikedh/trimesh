@@ -35,6 +35,7 @@ class Entity:
         '''
         return ord(self.__class__.__name__[0])
 
+    @property
     def hash(self):
         '''
         Returns a string unique to the entity.
@@ -62,6 +63,7 @@ class Entity:
         '''
         self.points = replace_references(self.points, replacement)
         
+    @property
     def nodes(self):
         '''
         Returns an (n,2) list of nodes, or vertices on the path.
@@ -83,7 +85,8 @@ class Entity:
         '''
         return np.column_stack((self.points,
                                 self.points)).reshape(-1)[1:-1].reshape((-1,2))
-                       
+
+    @property
     def end_points(self):
         '''
         Returns the first and last points. Also note that if you
@@ -105,12 +108,14 @@ class Arc(Entity):
                 
 class Line(Entity):
     def discrete(self, vertices):
-        return vertices[[self.points]]
+        return vertices[self.points]
 
 class Curve(Entity):
     @property
     def _class_id(self):
         return sum([ord(i) for i in self.__class__.__name__])
+
+    @property
     def nodes(self):
         return [[self.points[0], 
                  self.points[1]],

@@ -13,13 +13,6 @@ def plane_transform(origin, normal):
     transform[0:3,3] = -np.dot(transform, np.append(origin, 1))[0:3]
     return transform
     
-def counterclockwise_angles(vector, vectors):
-    dots    = np.dot(vector, np.array(vectors).T)
-    dets    = np.cross(vector, vectors)
-    angles  = np.arctan2(dets, dots)
-    angles += (angles < 0.0)*np.pi*2
-    return angles
-
 def align_vectors(vector_start, vector_end, return_angle=False):
     '''
     Returns the 4x4 transformation matrix which will rotate from 

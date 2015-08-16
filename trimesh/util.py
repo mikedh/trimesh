@@ -207,7 +207,13 @@ def is_binary_file(file_obj):
         else:      code = fbyte
         if code > 127: return True
     return False
-    
+
+def decimal_to_digits(decimal, min_digits=None):
+    digits = abs(int(np.log10(decimal)))
+    if min_digits is not None:
+        digits = np.clip(digits, min_digits, 20)
+    return digits
+
 def attach_to_log(log_level=logging.DEBUG, blacklist=[]):
     '''
     Attach a stream handler to all loggers, so their output can be seen

@@ -13,14 +13,25 @@ def random_color(dtype=COLOR_DTYPE):
     '''
     Return a random RGB color using datatype specified.
     '''
-    golden_ratio_conjugate = 0.618033988749895
-    h     = np.mod(np.random.random() + golden_ratio_conjugate, 1)
-    color = np.array(hsv_to_rgb(h, 0.5, 0.95))
+    hue  = np.random.random() + .61803
+    hue %= 1.0
+    color = np.array(hsv_to_rgb(hue, .99, .99))
     if np.dtype(dtype).kind in 'iu':
         max_value = (2**(np.dtype(dtype).itemsize * 8)) - 1
         color    *= max_value
     color     = color.astype(dtype)
     return color
+
+def distinct_colors(dtype=COLOR_DTYPE, expected_length=50):
+    '''
+    Generator for colors 
+    '''
+    while True:
+        yield random_color(dtype)
+
+def average_color(a, b):
+    result = (np.array(a) + b) / 2
+    return result
 
 def face_to_vertex_color(mesh, face_colors, dtype=COLOR_DTYPE):
     '''

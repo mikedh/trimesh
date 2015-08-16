@@ -24,6 +24,7 @@ class VectorTests(unittest.TestCase):
             toc_load = time_function()
             log.info('loaded %s in %f', filename, toc_load-tic_load)
             drawing.filename = filename
+            drawing.process()
             self.drawings.append(drawing)
         toc = time_function()
         log.info('Successfully loaded %i drawings from %i files in %f seconds',

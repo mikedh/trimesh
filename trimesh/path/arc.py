@@ -43,7 +43,7 @@ def arc_center(points):
     intersects, center   = line_line(edge_midpoints, vector_perpendicular)
 
     if not intersects:
-        raise NameError('Segments do not intersect!')
+        raise ValueError('Segments do not intersect!')
 
     radius        = euclidean(points[0], center)
     vector_center = unitize(points[[0,2]] - center)

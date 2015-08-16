@@ -1,5 +1,4 @@
 from time  import time as time_function
-from numpy import log10 as _log10
 
 from ..constants import TOL_PLANAR
 
@@ -11,7 +10,6 @@ PROCESS_COUNT = 3
 #however different CAD packages export vertices with
 #different levels of precision
 TOL_MERGE        = 1e-5
-TOL_MERGE_DIGITS = abs(int(_log10(TOL_MERGE)))
 
 #less than this is considered zero
 TOL_ZERO      = 1e-12
@@ -22,9 +20,9 @@ TOL_ZERO      = 1e-12
 TOL_FACET  = .1875
 # what's the maximum facet angle
 # .2 radians ~= 15 degrees
-TOL_FACET_ANGLE = .2
-TOL_RADIUS      = 1e-2
-TOL_ASPECT      = .1
+TOL_FACET_ANGLE  = .2
+TOL_RADIUS       = 1e-2
+TOL_ASPECT       = .1
 EXPORT_PRECISION = '.5f'
 
 # target length of a section when discretizing curves

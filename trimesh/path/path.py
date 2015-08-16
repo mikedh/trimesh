@@ -19,6 +19,7 @@ from ..points   import plane_fit, transform_points
 from ..geometry import plane_transform
 from ..grouping import unique_rows
 from ..units    import unit_conversion
+from ..util     import decimal_to_digits 
 
 class Path(object):
     '''
@@ -135,7 +136,8 @@ class Path(object):
         '''
         Merges vertices which are identical and replaces references
         '''
-        unique, inverse = unique_rows(self.vertices, digits=TOL_MERGE_DIGITS)
+        digits = decimal_to_digits(TOL_MERGE * self.scale, min_digits=1)
+        unique, inverse = unique_rows(self.vertices, digits=digits)
         self.vertices = self.vertices[unique]
         for entity in self.entities: 
             entity.points = inverse[entity.points]
@@ -152,14 +154,14 @@ class Path(object):
         self.entities = np.array(self.entities)[kept]
 
     def remove_duplicate_entities(self):
-        entity_hashes   = np.array([i.hash() for i in self.entities])
+        entity_hashes   = np.array([i.hash for i in self.entities])
         unique, inverse = unique_rows(entity_hashes)
         if len(unique) != len(self.entities):
             self.entities = np.array(self.entities)[unique]
 
-    def vertex_graph(self, return_closed=False):
+    def vertex_graph(self):
         self._cache_verify()
-        graph = vertex_graph(self.entities, return_closed)
+        graph, closed = vertex_graph(self.entities, return_closed=True)
         return graph
 
     def generate_closed_paths(self):
@@ -464,7 +466,7 @@ def vertex_graph(entities, return_closed=False):
         if return_closed and entity.closed: 
             closed.append(index)
         else:             
-            graph.add_edges_from(entity.nodes(), 
+            graph.add_edges_from(entity.nodes, 
                                  entity_index = index)
     if return_closed:
         return graph, np.array(closed)
@@ -513,7 +515,7 @@ def generate_closed_paths(entities, vertices):
                 ((current_entity_path[-1] != entity_index) and 
                  (current_entity_path[0]  != entity_index))):
                 entity     = entities[entity_index]
-                endpoints  = entity.end_points() 
+                endpoints  = entity.end_points 
                 direction  = entity_direction(vertex_index, endpoints) * ccw_dir
                 current_entity_path.append(entity_index)
                 entity.points = entity.points[::direction]
@@ -526,12 +528,14 @@ def discretize_path(entities, vertices, path):
     Return a (n, dimension) list of vertices. 
     Samples arcs/curves to be line segments
     '''
-    pathlen  = len(path)
-    if pathlen == 0:  raise NameError('Cannot discretize empty path!')
-    if pathlen == 1:  return np.array(entities[path[0]].discrete(vertices))
+    path_len  = len(path)
+    if path_len == 0:  
+        raise NameError('Cannot discretize empty path!')
+    if path_len == 1:  
+        return np.array(entities[path[0]].discrete(vertices))
     discrete = deque()
     for i, entity_id in enumerate(path):
-        last    = (i == (pathlen - 1))
+        last    = (i == (path_len - 1))
         current = entities[entity_id].discrete(vertices)
         slice   = (int(last) * len(current)) + (int(not last) * -1)
         discrete.extend(current[:slice])
