@@ -13,6 +13,7 @@ from collections import deque
 
 from .simplify  import simplify
 from .polygons  import polygons_enclosure_tree, is_ccw
+from .traversal import vertex_graph, closed_paths, discretize_path
 from .constants import *
 
 from ..points   import plane_fit, transform_points
@@ -161,7 +162,7 @@ class Path(object):
 
     def vertex_graph(self):
         self._cache_verify()
-        graph, closed = vertex_graph(self.entities, return_closed=True)
+        graph, closed = vertex_graph(self.entities)
         return graph
 
     def generate_closed_paths(self):
@@ -174,7 +175,7 @@ class Path(object):
         This will also change the ordering of entity.points in place, so that
         a path may be traversed without having to reverse the entity
         '''
-        paths = generate_closed_paths(self.entities, self.vertices)
+        paths = closed_paths(self.entities, self.vertices)
         self._cache_put('paths', paths)
 
     def referenced_vertices(self):
@@ -459,84 +460,3 @@ class Path2D(Path):
                 polygons[0].length, 
                 polygons[0].__hash__()*1e-5]
 
-def vertex_graph(entities, return_closed=False):
-    graph  = nx.Graph()
-    closed = deque()
-    for index, entity in enumerate(entities):
-        if return_closed and entity.closed: 
-            closed.append(index)
-        else:             
-            graph.add_edges_from(entity.nodes, 
-                                 entity_index = index)
-    if return_closed:
-        return graph, np.array(closed)
-    return graph
-
-def generate_closed_paths(entities, vertices):
-    '''
-    Paths are lists of entity indices.
-    We first generate vertex paths using graph cycle algorithms, 
-    and then convert them to entity paths using 
-    a frankly worrying number of loops and conditionals...
-
-    This will also change the ordering of entity.points in place, so that
-    a path may be traversed without having to reverse the entity
-    '''
-    def entity_direction(a,b):
-        if   a[0] == b[0]: return  1
-        elif a[0] == b[1]: return -1
-        elif a[1] == b[1]: return  1
-        elif a[1] == b[0]: return -1
-        else: raise NameError('Can\'t determine direction, noncontinous path!')
-
-    graph, closed = vertex_graph(entities, return_closed=True)
-    paths = deque()        
-    paths.extend(np.reshape(closed, (-1,1)))
-
-    vertex_paths = np.array(nx.cycles.cycle_basis(graph))
-    
-    #all of the following is for converting vertex paths to entity paths
-    for idx, vertex_path in enumerate(vertex_paths):           
-        #we have removed all closed entities, so paths MUST have more than 2 vertices
-        if len(vertex_path) < 2: continue
-        # vertex path contains 'nodes', which are always on the path,
-        # regardless of entity type. 
-        # this is essentially a very coarsely discretized polygon
-        # thus it is valid to compute if the path is counter-clockwise on these
-        # vertices relatively cheaply, and reverse the path if it is clockwise
-        ccw_dir             = is_ccw(vertices[[np.append(vertex_path, vertex_path[0])]])*2 - 1
-        current_entity_path = deque()
-
-        for i in range(len(vertex_path)+1):
-            path_pos = np.mod(np.arange(2) + i, len(vertex_path))
-            vertex_index = np.array(vertex_path)[[path_pos]]
-            entity_index = graph.get_edge_data(*vertex_index)['entity_index']
-            if ((len(current_entity_path) == 0) or 
-                ((current_entity_path[-1] != entity_index) and 
-                 (current_entity_path[0]  != entity_index))):
-                entity     = entities[entity_index]
-                endpoints  = entity.end_points 
-                direction  = entity_direction(vertex_index, endpoints) * ccw_dir
-                current_entity_path.append(entity_index)
-                entity.points = entity.points[::direction]
-        paths.append(list(current_entity_path)[::ccw_dir])
-    paths  = np.array(paths)
-    return paths
-
-def discretize_path(entities, vertices, path):
-    '''
-    Return a (n, dimension) list of vertices. 
-    Samples arcs/curves to be line segments
-    '''
-    path_len  = len(path)
-    if path_len == 0:  
-        raise NameError('Cannot discretize empty path!')
-    if path_len == 1:  
-        return np.array(entities[path[0]].discrete(vertices))
-    discrete = deque()
-    for i, entity_id in enumerate(path):
-        last    = (i == (path_len - 1))
-        current = entities[entity_id].discrete(vertices)
-        slice   = (int(last) * len(current)) + (int(not last) * -1)
-        discrete.extend(current[:slice])
-    return np.array(discrete)    

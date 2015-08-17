@@ -7,6 +7,7 @@ import networkx as nx
 
 from ..points    import unitize
 from ..util      import transformation_2D, is_sequence, is_ccw
+from .traversal  import resample_path
 from .constants  import *
 
 def polygons_enclosure_tree(polygons):
@@ -195,48 +196,7 @@ def plot_raster(raster, pitch, offset=[0,0]):
                                           pitch, 
                                           pitch, 
                                           facecolor="grey"))
-    
-def resample_loop(points, count):
-    '''
-    Given a loop of (n,d) points, resample them such that the
-    distance traversed along the loop is constant in between each 
-    of the resampled points.
 
-    Arguments
-    ----------
-    points:   (n,d) sequence of points in space
-    count:    number of evenly spaced points to find
-
-    Returns
-    ----------
-    resampled: (count,d) set of points evenly spaced on the perimeter
-    '''
-    points     = np.array(points)
-    # find the direction of each segment
-    vectors    = np.diff(points, axis=0)
-    norms      = np.linalg.norm(vectors, axis=1)
-    unit_vec   = vectors/norms.reshape((-1,1))
-    perimeter  = norms.sum()
-    # cumulative sum of section length increasing 
-    cum_norm   = np.cumsum(norms)
-    # evenly spaced samples
-    samples    = np.linspace(0, perimeter, count+1)
-    # return the indices in cum_norm that each sample would
-    # need to be inserted at to maintain the sorted property
-    positions  = np.searchsorted(cum_norm, samples)
-    offsets    = np.append(0, cum_norm)[positions]
-
-    # the distance past the reference vertex we need to travel
-    projection = samples - offsets
-    # find out which dirction we need to project
-    direction  = unit_vec[positions]
-    # find out which vertex we're offset from
-    origin     = points[positions]
-    
-    # just the parametric equation for a line
-    resampled = origin + (direction*projection.reshape((-1,1)))
-    
-    return resampled
 
 def medial_axis(polygon, resolution=.01, clip=[10,1000]):
     '''
@@ -262,7 +222,7 @@ def medial_axis(polygon, resolution=.01, clip=[10,1000]):
         # the deque after resampling based on our resolution
         count     = boundary.length / resolution
         count     = int(np.clip(count, *clip))
-        points.append(resample_loop(boundary.coords, count))
+        points.append(resample_path(boundary.coords, count=count))
 
     # do the import here to avoid it in general use and fail immediatly
     # if we don't have scipy.spatial available
