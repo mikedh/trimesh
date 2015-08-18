@@ -168,12 +168,6 @@ class Path(object):
     def generate_closed_paths(self):
         '''
         Paths are lists of entity indices.
-        We first generate vertex paths using graph cycle algorithms, 
-        and then convert them to entity paths using 
-        a frankly worrying number of loops and conditionals...
-        
-        This will also change the ordering of entity.points in place, so that
-        a path may be traversed without having to reverse the entity
         '''
         paths = closed_paths(self.entities, self.vertices)
         self._cache_put('paths', paths)

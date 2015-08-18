@@ -137,6 +137,26 @@ def float_to_int(data, digits=None):
         as_int = (np.around(data, digits) * (10**digits)).astype(np.int64)
         return as_int
 
+def unique_ordered(data):
+    '''
+    Returns the same as np.unique, but ordered as per the
+    first occurance of the unique value in data.
+
+    Example
+    ---------
+    In [1]: a = [0, 3, 3, 4, 1, 3, 0, 3, 2, 1]
+
+    In [2]: np.unique(a)
+    Out[2]: array([0, 1, 2, 3, 4])
+
+    In [3]: trimesh.grouping.unique_ordered(a)
+    Out[3]: array([0, 3, 4, 1, 2])
+    '''
+    data   = np.array(data)
+    order  = np.sort(np.unique(data, return_index=True)[1])
+    result = data[order]
+    return result
+
 def unique_float(data, 
                  return_index   = False,
                  return_inverse = False,

@@ -183,7 +183,18 @@ def replace_references(data, reference_dict):
 def multi_dict(pairs):
     '''
     Given a set of key value pairs, create a dictionary. 
-    If a key occurs multiple times, stack the values into an array. 
+    If a key occurs multiple times, stack the values into an array.
+
+    Can be called like the regular dict(pairs) constructor
+
+    Arguments
+    ----------
+    pairs: (n,2) array of key, value pairs
+
+    Returns
+    ----------
+    result: dict, with all values stored (rather than last with regular dict)
+
     '''
     result = dict()
     for k, v in pairs:
