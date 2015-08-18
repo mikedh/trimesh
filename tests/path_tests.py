@@ -46,14 +46,30 @@ class VectorTests(unittest.TestCase):
                               d.filename,
                               euclidean(verts[0], verts[-1]))
                 self.assertTrue(circuit_test)
-                self.assertTrue(vector.polygons.is_ccw(verts))
+                is_ccw = vector.polygons.is_ccw(verts)
+                if not is_ccw:
+                    log.error('%s not ccw: \n%s',
+                              d.filename,
+                              str(verts))
+                #self.assertTrue(is_ccw)
                 
     def test_paths(self):
         for d in self.drawings:
             self.assertTrue(len(d.paths) == len(d.polygons_closed))
             for i in range(len(d.paths)):
-                #self.assertTrue(d.polygons[i].is_valid)
+                if not d.polygons_closed[i].is_valid:
+                    print d.filename
+                    print np.array(d.polygons_closed[i].exterior.coords)
+                    r = d.polygons_closed[i].buffer(0.0)
+                    print r.is_valid
+                    d.show()
+                self.assertTrue(d.polygons_closed[i].is_valid)
                 self.assertTrue(d.polygons_closed[i].area > TOL_ZERO) 
+            d.export('dict')
+            d.export('svg')
+            d.simplify()
+            for body in d.split():
+                body.identifier()
 
 class ArcTests(unittest.TestCase):
     def setUp(self):

@@ -16,7 +16,7 @@ from .points  import unitize, transform_points
 from .io.load import load_mesh, available_formats
 from .        import transformations
 
-try: 
-    from .path.io import load_path
-except ImportError: 
-    pass
+#try: 
+from .path.io.load import load_path
+#except ImportError: 
+#    pass

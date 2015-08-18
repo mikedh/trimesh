@@ -14,6 +14,7 @@ from collections import deque
 from .simplify  import simplify
 from .polygons  import polygons_enclosure_tree, is_ccw
 from .traversal import vertex_graph, closed_paths, discretize_path
+from .io.export import export_path
 from .constants import *
 
 from ..points   import plane_fit, transform_points
@@ -198,12 +199,15 @@ class Path(object):
         '''
         discrete = discretize_path(self.entities, self.vertices, path)
         return discrete
+        
+    def export(self, file_type='dict', file_obj=None):
+        return export_path(self, 
+                           file_type = file_type,
+                           file_obj  = file_obj)
 
     def to_dict(self):
-        export_entities = [e.to_dict() for e in self.entities]
-        export_object   = {'entities' : export_entities, 
-                           'vertices' : self.vertices.tolist()}
-        return export_object
+        export_dict = self.export(file_type='dict')
+        return export_dict
         
     def process(self):
         self._cache['processing'] = True
@@ -362,6 +366,18 @@ class Path2D(Path):
             discrete = discretize_path(self.entities, self.vertices, path)
             return Polygon(discrete)
         polygons = np.array(list(map(path_to_polygon, self.paths)))
+        for i, p in enumerate(polygons):
+            # try to recover invalid polygons by zero- buffering
+            if p.is_valid: 
+                continue
+            polygons[i] = p.buffer(0.0)
+            if polygons[i].is_valid:
+                log.warn('Recovered invalid polygon')
+            else:
+                log.error('Unrecoverable polygon detected!')
+                log.error('Broken polygon vertices: \n%s', 
+                          str(np.array(polygons[i].exterior.coords)))
+        
         self._cache_put('polygons_closed', polygons)
 
     def generate_enclosure_tree(self):
@@ -373,7 +389,7 @@ class Path2D(Path):
         if len(self.root) == 1:
             path_ids = np.arange(len(self.paths))
         else:
-            path_ids = nx.node_connected_component(self.enclosure, path_id)
+            path_ids = list(nx.node_connected_component(self.enclosure, path_id))
         if include_self: 
             return np.array(path_ids)
         return np.setdiff1d(path_ids, [path_id])
@@ -401,14 +417,15 @@ class Path2D(Path):
             for path in self.paths[connected]:
                 new_paths.append(np.arange(len(path)) + len(new_entities))
                 new_entities.extend(path)
-            
+            new_entities = np.array(new_entities)
+
             result[i] = Path2D(entities = deepcopy(self.entities[new_entities]),
                                vertices = deepcopy(self.vertices))
-            result[i]._cache = {'entity_count' : len(new_entities),
-                                'paths'        : np.array(new_paths),
-                                'polygons'     : self.polygons_closed[connected],
-                                'metadata'     : new_metadata,
-                                'root'         : new_root}
+            result[i]._cache = {'entity_count'   : len(new_entities),
+                                'paths'           : np.array(new_paths),
+                                'polygons_closed' : self.polygons_closed[connected],
+                                'metadata'        : new_metadata,
+                                'root'            : new_root}
         return result
 
     def show(self):
@@ -417,6 +434,7 @@ class Path2D(Path):
      
     def plot_discrete(self, show=False, transform=None):
         import matplotlib.pyplot as plt
+        self._cache_verify()
         plt.axes().set_aspect('equal', 'datalim')
         def plot_transformed(vertices, color='g'):
             if transform is None: 

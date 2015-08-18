@@ -23,7 +23,7 @@ def vertex_graph(entities):
 def edge_direction(a, b):
     '''
     Given two edges, find out whether the first edge needs to be
-    reversed to generate a path
+    reversed to generate path
     '''
     if   a[0] == b[0]: return  1
     elif a[0] == b[1]: return -1
@@ -84,7 +84,7 @@ def closed_paths(entities, vertices):
                                             graph, 
                                             entities, 
                                             vertices)
-        paths.append(entity_path)
+        paths.append(np.array(entity_path))
     paths = np.array(paths)
     return paths
     
