@@ -79,7 +79,9 @@ def discretize_arc(points, close = False):
     facets_d = int(np.ceil((R*angle) / RES_LENGTH))
     #we use the larger number so both RES_ANGLE and RES_LENGTH are satisfied
     count = np.max([facets_a, facets_d])
-    
+    count = int(np.clip(count, RES_MIN_SECTIONS, RES_MAX_SECTIONS))
+
+
     V1 = unitize(points[0] - center)
     V2 = unitize(np.cross(-N, V1))
     t  = np.linspace(0, angle, count)
@@ -119,13 +121,19 @@ def angles_to_threepoint(angles, center, radius):
     planar = np.column_stack((np.cos(angles), np.sin(angles)))*radius
     return planar + center
 
-def fit_circle(points):
+def fit_circle(points, prior=None):
     def circle_residuals(points, center):
         Ri = np.sqrt(np.sum((points - center)**2, axis=1))
         return Ri - np.mean(Ri)
 
     def current_residuals(center):
         return circle_residuals(points, center)
+
+    if prior is not None:
+        C_P, R_P = prior
+        error_prior = np.abs(current_residuals(C_P) - R_P).max()
+        if error_prior < TOL_RADIUS:
+            return C_P, R_P, error_prior
 
     center_estimate    = np.mean(points, axis=0)
     center_result, ier = leastsq(current_residuals, center_estimate)

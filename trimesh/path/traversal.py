@@ -128,13 +128,19 @@ def resample_path(points, count=None, step=None, step_round=False):
     # generate samples along the perimeter from kwarg count or step
     if (count is not None) and (step is not None):
         raise ValueError('Only step OR count can be specified')
-    elif count is not None:
+    if (count is None) and (step is None):
+        raise ValueError('Either step or count must be specified')
+    if (step_round) and (step is None):
+        raise ValueError('step_round requires step to be specified!')
+
+    if step_round:
+        count = int(perimeter / step)
+
+    if  count is not None:
         samples = np.linspace(0, perimeter, count)
     elif step is not None:
         samples = np.arange(0, perimeter, step)
-    else:
-        raise ValueError('Either step or count must be specified')
-
+    
     # return the indices in cum_norm that each sample would
     # need to be inserted at to maintain the sorted property
     positions = np.searchsorted(cum_norm, samples)

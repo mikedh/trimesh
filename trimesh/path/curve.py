@@ -66,7 +66,7 @@ def discretize_bspline(control, knots, count=None):
                             RES_MAX_SECTIONS, 
                             norm / RES_LENGTH))
     ipl      = np.linspace(knots[0], knots[-1], count)
-    discrete = [splev(ipl, [knots, i, degree]) for i in control.T]
+    discrete = splev(ipl, [knots, control.T, degree])
     discrete = np.column_stack(discrete)
     return discrete
         

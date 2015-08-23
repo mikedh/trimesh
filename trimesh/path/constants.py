@@ -17,11 +17,11 @@ TOL_ZERO      = 1e-12
 #what is the maximum facet length that is converted to a circle
 #if you didn't do this, octagons would be converted to circles
 #in the simplification step
-TOL_FACET  = .1875
+TOL_FACET_LENGTH  = .1875
 # what's the maximum facet angle
 # .2 radians ~= 15 degrees
 TOL_FACET_ANGLE  = .2
-TOL_RADIUS       = 1e-2
+TOL_RADIUS       = 1e-5
 TOL_ASPECT       = .1
 EXPORT_PRECISION = '.5f'
 
