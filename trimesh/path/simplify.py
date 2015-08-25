@@ -33,7 +33,7 @@ def simplify_circles(path):
 
         # make sure the facets all meet the length tolerances specified
         facet_len = np.sum(np.diff(points, axis=0)**2, axis=1)
-        facet_bad = facet_len > TOL_FACET**2
+        facet_bad = facet_len > TOL_FACET_LENGTH**2
         if facet_bad.any(): continue
 
         # fit a circle using least squares
