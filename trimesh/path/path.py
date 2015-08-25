@@ -12,7 +12,7 @@ from copy import deepcopy
 from collections import deque
 
 from .simplify  import simplify
-from .polygons  import polygons_enclosure_tree, is_ccw
+from .polygons  import polygons_enclosure_tree, is_ccw, medial_axis
 from .traversal import vertex_graph, closed_paths, discretize_path
 from .io.export import export_path
 from .constants import *
@@ -356,6 +356,10 @@ class Path2D(Path):
         if len(result) == 1: 
             return result[0]
         return result
+
+    def medial_axis(self):
+        medials = [medial_axis(i) for i in self.polygons_full]
+        return np.sum(medials)
 
     def generate_discrete(self):
         '''

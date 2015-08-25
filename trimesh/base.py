@@ -162,8 +162,8 @@ class Trimesh(object):
     def set_units(self, desired, guess=False):
         if self.units is None:
             if guess:
-                log.warn('Current document doesn\'t have units specified, guessing!')
                 self.units = units.unit_guess(self.scale)
+                log.warn('No units in document, guessing current units are %s', self.units)
             else: 
                 raise ValueError('No units specified, and not allowed to guess!')
         log.info('Converting units from %s to %s', self.units, desired)

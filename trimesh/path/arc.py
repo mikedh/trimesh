@@ -122,6 +122,21 @@ def angles_to_threepoint(angles, center, radius):
     return planar + center
 
 def fit_circle(points, prior=None):
+    '''
+    Fit a circle (or n-sphere) to a set of points using least squares. 
+    
+    Arguments
+    ---------
+    points: (n,d) set of points
+    prior:  ((d), float) tuple of best guess for (center, radius)
+
+    Returns
+    ---------
+    center: (d), location of center
+    radius: float, mean radius across circle
+    error:  float, peak to peak value of deviation from mean radius
+    '''
+    
     def circle_residuals(points, center):
         Ri = np.sqrt(np.sum((points - center)**2, axis=1))
         return Ri - np.mean(Ri)
@@ -131,15 +146,15 @@ def fit_circle(points, prior=None):
 
     if prior is not None:
         C_P, R_P = prior
-        error_prior = np.abs(current_residuals(C_P) - R_P).max()
-        if error_prior < TOL_RADIUS:
-            return C_P, R_P, error_prior
-
-    center_estimate    = np.mean(points, axis=0)
-    center_result, ier = leastsq(current_residuals, center_estimate)
+        error = np.abs(current_residuals(C_P) - R_P).max()
+        if error < TOL_RADIUS: return C_P, R_P, error
+        else:                  center_guess = C_P
+    else: 
+        center_guess = np.mean(points, axis=0)
+    center_result, ier = leastsq(current_residuals, center_guess)
     if not (ier in [1,2,3,4]):
-        raise NameError('Least square fit failed!')
+        raise ValueError('Least square fit failed!')
     Ri = np.sqrt(np.sum((points - center_result)**2, axis=1))
     R  = Ri.mean()
-    E  = np.max(np.abs(Ri - R))
+    E  = Ri.ptp()
     return center_result, R, E
