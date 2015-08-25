@@ -1,3 +1,4 @@
+
 '''
 trimesh.py
 
@@ -15,12 +16,12 @@ from . import sample
 from . import repair
 from . import comparison
 from . import intersections
+from . import units
 
 from .io.export    import export_mesh
 from .ray.ray_mesh import RayMeshIntersector
 from .points       import unitize, transform_points
 from .convex       import convex_hull
-from .units        import unit_conversion
 from .constants    import *
 
 try: 
@@ -126,6 +127,10 @@ class Trimesh(object):
         else:
             return None
 
+    @units.setter
+    def units(self, units):
+        self.metadata['units'] = units
+
     @property
     def face_normals(self):
         if np.shape(self._face_normals) != np.shape(self.faces):
@@ -154,13 +159,16 @@ class Trimesh(object):
             log.warning('Vertex normals are incorrect shape!')
         self._vertex_normals = np.array(values)
 
-    def set_units(self, desired):
+    def set_units(self, desired, guess=False):
         if self.units is None:
-            log.error('Current document doesn\'t have units specified!')
-        else:
-            conversion = unit_conversion(self.units,
-                                         desired)
-            self.vertices         *= conversion
+            if guess:
+                log.warn('Current document doesn\'t have units specified, guessing!')
+                self.units = units.unit_guess(self.scale)
+            else: 
+                raise ValueError('No units specified, and not allowed to guess!')
+        log.info('Converting units from %s to %s', self.units, desired)
+        conversion = units.unit_conversion(self.units, desired)
+        self.vertices         *= conversion
         self.metadata['units'] = desired
 
     def _generate_face_normals(self):

@@ -24,7 +24,7 @@ def unit_conversion(current, desired):
     conversion = _TO_INCHES[current] / _TO_INCHES[desired]
     return conversion
 
-def guess_units(scale):
+def unit_guess(scale):
     '''
     Wild ass guess for the units of a drawing or model, based on the scale.
     '''
