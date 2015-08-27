@@ -20,7 +20,7 @@ from .constants import *
 from ..points   import plane_fit, transform_points
 from ..geometry import plane_transform
 from ..grouping import unique_rows
-from ..units    import unit_conversion
+from ..units    import _set_units
 from ..util     import decimal_to_digits 
 
 class Path(object):
@@ -112,20 +112,19 @@ class Path(object):
     @property
     def units(self):
         if 'units' in self.metadata:
-                return self.metadata['units']
+            return self.metadata['units']
         else:
             return None
+    
+    @units.setter
+    def units(self, units):
+        self.metadata['units'] = units
+            
 
-    def set_units(self, desired):
-        if self.units is None:
-            log.error('Current document doesn\'t have units specified!')
-        else:
-            conversion = unit_conversion(self.units,
-                                         desired)
-            self.vertices *= conversion
-            self._cache_clear()
-        self.metadata['units'] = desired
-        
+    def set_units(self, desired, guess=False):
+        _set_units(self, desired, guess)
+        self._cache_clear()
+
     def transform(self, transform):
         self._cache = {}
         self.vertices = transform_points(self.vertices, transform)

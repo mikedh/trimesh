@@ -16,12 +16,12 @@ from . import sample
 from . import repair
 from . import comparison
 from . import intersections
-from . import units
 
 from .io.export    import export_mesh
 from .ray.ray_mesh import RayMeshIntersector
 from .points       import unitize, transform_points
 from .convex       import convex_hull
+from .units        import _set_units
 from .constants    import *
 
 try: 
@@ -160,16 +160,7 @@ class Trimesh(object):
         self._vertex_normals = np.array(values)
 
     def set_units(self, desired, guess=False):
-        if self.units is None:
-            if guess:
-                self.units = units.unit_guess(self.scale)
-                log.warn('No units in document, guessing current units are %s', self.units)
-            else: 
-                raise ValueError('No units specified, and not allowed to guess!')
-        log.info('Converting units from %s to %s', self.units, desired)
-        conversion = units.unit_conversion(self.units, desired)
-        self.vertices         *= conversion
-        self.metadata['units'] = desired
+        _set_units(self, desired, guess)
 
     def _generate_face_normals(self):
         face_normals, valid = triangles.normals(self.vertices[[self.faces]])

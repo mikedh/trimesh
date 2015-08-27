@@ -1,3 +1,5 @@
+from .constants import log
+
 # conversions to inches
 _TO_INCHES = {'microinches' : 1.0 / 1000.0, 
               'mils'        : 1.0 / 1000.0,
@@ -32,3 +34,18 @@ def unit_guess(scale):
         return 'millimeters'
     else:      
         return 'inches'
+
+def _set_units(obj, desired, guess):
+    if obj.units is None:
+        if guess:
+            obj.units = unit_guess(obj.scale)
+            log.warn('No units specified, guessing current units are %s',
+                     obj.units)
+        else:
+            raise ValueError('No units specified, and not allowed to guess!')
+    log.info('Converting units from %s to %s', obj.units, desired)
+    conversion = unit_conversion(obj.units, desired)
+    obj.vertices         *= conversion
+    obj.metadata['units'] = desired
+
+
