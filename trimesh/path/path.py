@@ -369,19 +369,20 @@ class Path2D(Path):
         def path_to_polygon(path):
             discrete = discretize_path(self.entities, self.vertices, path)
             return Polygon(discrete)
-        polygons = np.array(list(map(path_to_polygon, self.paths)))
-        for i, p in enumerate(polygons):
+
+        polygons = [None] * len(self.paths)
+        for i, path in enumerate(self.paths):
+            polygons[i] = path_to_polygon(path)
             # try to recover invalid polygons by zero- buffering
-            if p.is_valid: 
-                continue
-            polygons[i] = p.buffer(0.0)
-            if polygons[i].is_valid:
-                log.warn('Recovered invalid polygon')
-            else:
-                log.error('Unrecoverable polygon detected!')
-                log.error('Broken polygon vertices: \n%s', 
-                          str(np.array(polygons[i].exterior.coords)))
-        
+            if not polygons[i].is_valid: 
+                polygons[i] = polygons[i].buffer(0.0)
+                if polygons[i].is_valid:
+                    log.warn('Recovered invalid polygon')
+                else:
+                    log.error('Unrecoverable polygon detected!')
+                    log.error('Broken polygon vertices: \n%s', 
+                              str(np.array(polygons[i].exterior.coords)))
+        polygons = np.array(polygons)
         self._cache_put('polygons_closed', polygons)
 
     def generate_enclosure_tree(self):
