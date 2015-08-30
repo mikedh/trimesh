@@ -128,7 +128,7 @@ def fit_circle(points, prior=None):
     Arguments
     ---------
     points: (n,d) set of points
-    prior:  ((d), float) tuple of best guess for (center, radius)
+    prior:  tuple of best guess for (center, radius)
 
     Returns
     ---------
@@ -137,24 +137,26 @@ def fit_circle(points, prior=None):
     error:  float, peak to peak value of deviation from mean radius
     '''
     
-    def circle_residuals(points, center):
-        Ri = np.sqrt(np.sum((points - center)**2, axis=1))
-        return Ri - np.mean(Ri)
-
-    def current_residuals(center):
-        return circle_residuals(points, center)
+    def circle_residuals(center):
+        radii     = np.linalg.norm(points-center, axis=1)
+        residuals = radii - radii.mean()
+        return residuals
 
     if prior is not None:
         C_P, R_P = prior
-        error = np.abs(current_residuals(C_P) - R_P).max()
-        if error < TOL_RADIUS: return C_P, R_P, error
-        else:                  center_guess = C_P
+        error    = np.abs(circle_residuals(C_P)).max()
+        if error < TOL_RADIUS:
+            return C_P, R_P, error
+        else:                  
+            center_guess = C_P
     else: 
         center_guess = np.mean(points, axis=0)
-    center_result, ier = leastsq(current_residuals, center_guess)
-    if not (ier in [1,2,3,4]):
+
+    center_result, return_code = leastsq(circle_residuals, center_guess)
+    if not (return_code in [1,2,3,4]):
         raise ValueError('Least square fit failed!')
-    Ri = np.sqrt(np.sum((points - center_result)**2, axis=1))
-    R  = Ri.mean()
-    E  = Ri.ptp()
-    return center_result, R, E
+
+    radii  = np.linalg.norm(points-center_result, axis=1)
+    radius = radii.mean()
+    error  = radii.ptp()
+    return center_result, radius, error

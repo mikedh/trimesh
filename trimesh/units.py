@@ -36,6 +36,17 @@ def unit_guess(scale):
         return 'inches'
 
 def _set_units(obj, desired, guess):
+    '''
+    Given an object that has units and vertices attributes, convert units.
+
+    Arguments
+    ---------
+    obj:     object with units and vertices (eg Path or Trimesh)
+    desired: units desired (eg 'inches')
+    guess:   boolean, whether we are allowed to guess the units of the document
+             if they are not specified. 
+    '''
+
     if obj.units is None:
         if guess:
             obj.units = unit_guess(obj.scale)
@@ -44,8 +55,8 @@ def _set_units(obj, desired, guess):
         else:
             raise ValueError('No units specified, and not allowed to guess!')
     log.info('Converting units from %s to %s', obj.units, desired)
-    conversion = unit_conversion(obj.units, desired)
-    obj.vertices         *= conversion
-    obj.metadata['units'] = desired
+    conversion    = unit_conversion(obj.units, desired)
+    obj.vertices *= conversion
+    obj.units     = desired
 
 
