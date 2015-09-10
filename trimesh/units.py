@@ -23,6 +23,18 @@ _TO_INCHES = {'microinches' : 1.0 / 1000.0,
               'parsecs'     : 1.21483369e18}
 
 def unit_conversion(current, desired):
+    '''
+    Calculate the conversion from one set of units to another.
+
+    Arguments
+    ---------
+    current: str, unit system values are in now (eg 'millimeters')
+    desired: str, unit system we'd like values in (eg 'inches')
+
+    Returns
+    ---------
+    conversion: float, number to multiply by to put values into desired units
+    '''
     conversion = _TO_INCHES[current] / _TO_INCHES[desired]
     return conversion
 

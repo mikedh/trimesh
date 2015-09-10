@@ -56,3 +56,42 @@ def simplify_circles(path):
         path.entities = np.append(path.entities,  new_entities)
         path.remove_entities(old_entities)
   
+def merge_colinear(points):
+    '''
+    Given a set of points representing a path in space,
+    merge points which are colinear
+
+    Arguments
+    ----------
+    points: (n, d) set of points (where d is dimension)
+    
+    Returns
+    ----------
+    merged: (j, d) set of points with colinear and duplicate 
+             points merged, where (j < n)
+    '''
+    points         = np.array(points)
+    # the vector from one point to the next
+    direction      = np.diff(points, axis=0)
+    # the length of the direction vector
+    direction_norm = np.linalg.norm(direction, axis=1)
+    # make sure points don't have zero length
+    direction_ok   = direction_norm > TOL_MERGE
+    # change nonzero direction vectors to unit vectors
+    direction[direction_ok] /= direction_norm[direction_ok].reshape((-1,1))
+    # find the difference between subsequent direction vectors
+    direction_diff = np.linalg.norm(np.diff(direction, axis=0), axis=1)
+    # remove overlapping points
+    direction_diff[np.logical_not(direction_ok[:-1])] = 0
+
+    # magnitude of direction difference between vectors times direction length
+    colinear = (direction_diff * direction_norm[1:]) < TOL_MERGE
+    colinear_index = np.nonzero(colinear)[0]
+
+    mask = np.ones(len(points), dtype=np.bool)
+    # since we took some diffs, we need to offset by one
+    mask[colinear_index+1] = False
+
+    merged = points[mask]
+    
+    return merged
