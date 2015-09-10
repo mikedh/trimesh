@@ -82,7 +82,7 @@ def merge_colinear(points):
     # find the difference between subsequent direction vectors
     direction_diff = np.linalg.norm(np.diff(direction, axis=0), axis=1)
     # remove overlapping points
-    direction_diff[np.logical_not(direction_ok[:-1])] = 0
+    direction_diff[np.logical_not(direction_ok[:-1])] = 0.0
 
     # magnitude of direction difference between vectors times direction length
     colinear = (direction_diff * direction_norm[1:]) < TOL_MERGE
