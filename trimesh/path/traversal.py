@@ -164,7 +164,6 @@ def arctan2_points(points):
     angle[test] = (np.pi*2) + angle[test]
     return angle
 
-
 def discretize_path(entities, vertices, path):
     '''
     Return a (n, dimension) list of vertices. 

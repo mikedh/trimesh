@@ -7,10 +7,8 @@ Library for importing and doing simple operations on triangular meshes.
 import numpy as np
 
 from .points       import project_to_plane
-from .constants    import log_time
 from scipy.spatial import ConvexHull
 
-@log_time   
 def convex_hull(mesh, clean=True):
     '''
     Get a new Trimesh object representing the convex hull of the 

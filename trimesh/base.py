@@ -221,7 +221,7 @@ class Trimesh(object):
         self.faces = inverse[[self.faces.reshape(-1)]].reshape((-1,3))
         self.visual.update_vertices(mask)
         
-        if self._vertex_normals.shape == self.vertices.shape:
+        if np.shape(self._vertex_normals) == np.shape(self.vertices):
             self._vertex_normals = self._vertex_normals[mask]
         self.vertices = self.vertices[mask]
 
@@ -237,7 +237,7 @@ class Trimesh(object):
         valid: either (m) int, or (len(self.faces)) bool. 
         '''
         if mask.dtype.name == 'bool' and mask.all(): return
-        if self._face_normals.shape == self.faces.shape:
+        if np.shape(self._face_normals) == np.shape(self.faces):
             self._face_normals = self._face_normals[mask]
         self.faces = self.faces[mask]        
         self.visual.update_faces(mask)
@@ -420,9 +420,13 @@ class Trimesh(object):
     def outline(self, face_ids=None):
         '''
         Given a set of face ids, find the outline of the faces,
-        and return it as a Path3D. Note that this implies a non-
-        watertight section, and the 'outline' of a watertight
-        mesh or subset of a mesh is an empty path. 
+        and return it as a Path3D. 
+
+        The outline is defined here as every edge which is only 
+        included by a single triangle.
+
+        Note that this implies a non-watertight section, 
+        and the 'outline' of a watertight mesh is an empty path. 
 
         Arguments
         ----------

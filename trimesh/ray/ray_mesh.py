@@ -62,17 +62,18 @@ class RayMeshIntersector:
                                   return_any     = return_any)
         return hits
             
-    def intersects_location(self, rays):
+    def intersects_location(self, rays, return_id=False):
         '''
         Find out where the rays in question hit the mesh
 
         Arguments
         ---------
         rays: (n, 2, 3) array of ray origins and directions
-
+        return_id: boolean flag, if True return triangle indexes
         Returns
         ---------
         locations: (n) sequence of (m,3) intersection points
+        hits:      (n) list of face ids 
         '''
         rays      = np.array(rays, dtype=np.float)
         hits      = self.intersects_id(rays)
@@ -80,6 +81,8 @@ class RayMeshIntersector:
                                            rays          = rays,
                                            intersections = hits,
                                            tri_normals   = self.mesh.face_normals)
+        if return_id:
+            return locations, hits
         return locations
 
     def intersects_any_triangle(self, rays):

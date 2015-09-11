@@ -65,42 +65,53 @@ class VisualAttributes(object):
 
     @property
     def face_colors(self):
-        if self._face_colors is None:
+        if not self._face_colors_ok:
+            log.warn('Faces being set to default color')
             self._face_colors = np.tile(DEFAULT_COLOR,
                                         (len(self.mesh.faces), 1))
         return self._face_colors
 
     @face_colors.setter
     def face_colors(self, values):
-        if np.shape(values) == np.shape(self.mesh.faces):
-            self._face_colors = values
-        elif np.shape(values) == (3,):
+        if np.shape(values) == (3,):
             # case where a single RGB color has been passed to the setter
             # here we apply this color to all faces 
             self.face_colors = np.tile(values, 
                                        (len(self.mesh.faces), 1))
-        else: 
-            raise ValueError('Face colors are the wrong shape!')
+        else:
+            self._face_colors = values
 
     @property
     def vertex_colors(self):
-        if self._vertex_colors is None:
-            vertex_colors = face_to_vertex_color(self.mesh, 
-                                                 self.face_colors)
-            return vertex_colors
+        if not self._vertex_colors_ok:
+            log.warn('Vertex colors being generated.')
+            self._vertex_colors = face_to_vertex_color(self.mesh, 
+                                                       self.face_colors)
+            
         return self._vertex_colors
 
     @vertex_colors.setter
     def vertex_colors(self, values):
-        if np.shape(values) == np.shape(self.mesh.vertices):
-            self._vertex_colors = values
-        else: 
-            raise ValueError('Vertex colors are the wrong shape!')
+        self._vertex_colors = np.array(values)
+
+    @property
+    def _face_colors_ok(self):
+        ok = self._face_colors is not None
+        ok = ok and self._face_colors.shape == self.mesh.faces.shape
+        return ok
+
+    @property
+    def _vertex_colors_ok(self):
+        ok = self._vertex_colors is not None
+        ok = ok and self._vertex_colors.shape == self.mesh.vertices.shape
+        return ok
 
     def update_faces(self, mask):
-        if not (self._face_colors is None):
-            self._face_colors = self._face_colors[mask]
+        if self._face_colors is not None:
+            try:    self._face_colors = self._face_colors[mask]
+            except: log.warn('Face colors not updated')
 
     def update_vertices(self, mask):
-        if not (self._vertex_colors is None):
-            self._vertex_colors = self._vertex_colors[mask]
+        if self._vertex_colors is not None:
+            try:    self._vertex_colors = self._vertex_colors[mask]
+            except: log.warn('Vertex colors not updated')
