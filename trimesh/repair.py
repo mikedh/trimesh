@@ -8,6 +8,93 @@ from .grouping  import group_rows
 from .triangles import normals
 from .constants import *
 
+def fix_face_winding(mesh):
+    '''
+    Traverse and change mesh faces in-place to make sure winding is coherent, 
+    or that edges on adjacent faces are in opposite directions
+    '''
+    # we create the face adjacency graph: 
+    # every node in g is an index of mesh.faces
+    # every edge in g represents two faces which are connected
+    graph_all = nx.from_edgelist(mesh.face_adjacency)
+    
+    # we are going to traverse the graph using BFS, so we have to start
+    # a traversal for every connected component
+    for graph in nx.connected_component_subgraphs(graph_all):
+        start = graph.nodes()[0]
+        # we traverse every pair of faces in the graph
+        # we modify mesh.faces and mesh.face_normals in place 
+        for face_pair in nx.bfs_edges(graph, start):
+            # for each pair of faces, we convert them into edges,
+            # find the edge that both faces share, and then see if the edges
+            # are reversed in order as you would expect in a well constructed mesh
+            pair    = mesh.faces[[face_pair]]            
+            edges   = faces_to_edges(pair, sort=False)
+            overlap = group_rows(np.sort(edges,axis=1), require_count=2)
+            if len(overlap) == 0:
+                # only happens on non-watertight meshes
+                continue
+            edge_pair = edges[[overlap[0]]]
+            if edge_pair[0][0] == edge_pair[1][0]:
+                # if the edges aren't reversed, invert the order of one of the faces
+                mesh.faces[face_pair[1]] = mesh.faces[face_pair[1]][::-1]
+
+def fix_normals_direction(mesh):
+    '''
+    Check to see if a mesh has normals pointed outside the solid using ray tests.
+
+    If the mesh is not watertight, this is meaningless.
+    '''
+    # force face normals to be regenerated according to the right-hand rule
+    mesh.face_normals = None
+    # which direction should our test rays go
+    direction = -mesh.face_normals[0]
+    # origin of test ray
+    origin    = mesh.vertices[mesh.faces[0]].mean(axis=0)
+    origin   -= direction * mesh.box_size.max() * 2
+    rays = [[origin, direction]]
+    location, hit_id = mesh.ray.intersects_location(rays, return_id=True)
+    # the distance along the ray vector the hit happened at
+    projection = np.dot(location - origin, direction)
+    # the face index of the farthest face along the vector
+    face_outer = hit_id[0][projection.argmax()]
+    # the normal of this presumed outer face
+    normal_outer = mesh.face_normals[face_outer]
+    # dot product with our direction to see if it is pointing inside or 
+    # outside
+    normal_sign  = np.sign(np.dot(normal_outer, direction))
+
+    if normal_sign < 0:
+        # reverse the face normals
+        mesh.face_normals *= normal_sign
+        # since normals were regenerated, this means winding is backwards
+        # if winding is incoherent this won't fix anything
+        mesh.faces = np.fliplr(mesh.faces)
+
+def fix_normals(mesh):
+    '''
+    Fix the winding and direction of a mesh face and face normals in-place
+
+    Really only meaningful on watertight meshes, but will orient all 
+    faces and winding in a uniform way for non-watertight face patches as well.
+    '''
+    fix_face_winding(mesh)
+    fix_normals_direction(mesh)
+
+def broken_faces(mesh, color=None):
+    '''
+    Return the index of faces in the mesh which break the watertight status
+    of the mesh. If color is set, change the color of the broken faces. 
+    '''
+    adjacency = nx.from_edgelist(mesh.face_adjacency)
+    broken    = [k for k, v in adjacency.degree().iteritems() if v != 3]
+    broken    = np.array(broken)
+    if not (color is None):
+        if (not is_sequence(color)):
+            color = [255,0,0]
+        mesh.visual.face_colors[broken] = color
+    return broken
+
 def fill_holes(mesh, raise_watertight=True, fill_planar=False):
     '''
     Fill single- triangle holes on triangular meshes by adding new triangles

@@ -59,7 +59,7 @@ def simplify_circles(path):
 def merge_colinear(points):
     '''
     Given a set of points representing a path in space,
-    merge points which are colinear
+    merge points which are colinear.
 
     Arguments
     ----------
@@ -89,8 +89,8 @@ def merge_colinear(points):
     colinear_index = np.nonzero(colinear)[0]
 
     mask = np.ones(len(points), dtype=np.bool)
-    # since we took some diffs, we need to offset by one
-    mask[colinear_index+1] = False
+    # since we took diff, we need to offset by one
+    mask[colinear_index + 1] = False
 
     merged = points[mask]
     

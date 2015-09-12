@@ -1,5 +1,6 @@
 import numpy as np
 from colorsys import hsv_to_rgb
+
 from .constants import TOL_ZERO, log
 
 COLORS = {'red'    : [205,59,34],

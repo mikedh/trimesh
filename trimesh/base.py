@@ -318,7 +318,7 @@ class Trimesh(object):
         For face normals ensure that vectors are consistently pointed outwards,
         and that self.faces is wound in the correct direction for all connected components.
         '''
-        graph.fix_normals(self)
+        repair.fix_normals(self)
 
     def fill_holes(self, raise_watertight=True):
         '''
