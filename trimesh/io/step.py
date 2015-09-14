@@ -23,6 +23,10 @@ def load_step(file_obj, file_type=None):
     Use the Steptools Inc. Faceting Tool, then parse the generated XML:
     http://www.steptools.com/support/stdev_docs/stixmesh/XMLFormat.html
 
+    STEPtools Inc Author Tools ('export_product_asm') must be installed into PATH.
+    This can be found on their webpage: 
+    http://www.steptools.com/demos/stpidx_author_linux_x86_64_16.0.zip
+
     Return a list of meshes.
     '''
     
@@ -54,63 +58,75 @@ def load_step(file_obj, file_type=None):
         # store the mesh by id reference
         meshes[shell.get('id')] = mesh
 
-    # populate the graph of shapes and transforms
-    g          = nx.MultiDiGraph() 
-    # keys: {mesh id : shape id}
-    mesh_shape = {}
-    # assume that the document has consistant units
-    to_inches  = None
-    for shape in t.findall('shape'):
-        shape_id   = shape.get('id')
-        shape_unit = shape.get('unit')
-        mesh_id    = shape.get('shell')
-        if not shape_unit is None:
-            to_inches = float(shape_unit.split()[1]) * _METERS_TO_INCHES
-        if not mesh_id is None:
-            for i in mesh_id.split():
-                mesh_shape[i] = shape_id
-            g.node[shape_id]['mesh'] = mesh_id
-        for child in shape.getchildren():
-            child_id  = child.get('ref')
-            transform = np.array(child.get('xform').split(), 
-                                 dtype=np.float).reshape((4,4)).T
-            g.add_edge(shape_id, child_id, transform=transform)
-    
-    # which product ID has the root shape
-    prod_root  = t.getroot().get('root')
-    shape_root = None
-    for prod in t.findall('product'):
-        prod_id    = prod.get('id')
-        prod_name  = prod.get('name')
-        prod_shape = prod.get('shape')
-        if prod_id == prod_root:
-            shape_root = prod_shape
-        g.node[prod_shape]['product_name'] = prod_name 
+    try:
+        # populate the graph of shapes and transforms
+        g          = nx.MultiDiGraph() 
+        # keys: {mesh id : shape id}
+        mesh_shape = {}
+        # assume that the document has consistant units
+        to_inches  = None
+        for shape in t.findall('shape'):
+            shape_id   = shape.get('id')
+            shape_unit = shape.get('unit')
+            mesh_id    = shape.get('shell')
+            if not shape_unit is None:
+                to_inches = float(shape_unit.split()[1]) * _METERS_TO_INCHES
+            if not mesh_id is None:
+                for i in mesh_id.split():
+                    mesh_shape[i] = shape_id
+                #g.node[shape_id]['mesh'] = mesh_id
 
-    # now that the assembly tree has been populated, traverse it to
-    # find the final transforms and quantities for the meshes we extracted
-    for mesh_id in meshes.keys():
-        shape_id       = mesh_shape[mesh_id]
-        transforms_all = deque()
-        path_str       = deque()
-        for path in nx.all_simple_paths(g, shape_root, shape_id):
-            path_name = [g.node[i]['product_name'] for i in path[:-1]]
-            edges = np.column_stack((path[:-1], 
-                                     path[:-1])).reshape(-1)[1:-1].reshape((-1,2))
-            transforms = [np.eye(4)]
-            for e in edges:
-                # get every transform from the edge
-                local      = [i['transform'] for i in g.edge[e[0]][e[1]].values()]
-                # all the transforms are sequential, so we want combinations
-                transforms = [np.dot(*i) for i in itertools.product(transforms, local)]
-            transforms_all.extend(transforms)
-            path_str.extend(['/'.join(path_name)]*len(transforms))
-        meshes[mesh_id].vertices              *= to_inches
-        meshes[mesh_id].metadata['units']      = 'inches'
-        meshes[mesh_id].metadata['name']       = path_name[-1]
-        meshes[mesh_id].metadata['paths']      = np.array(path_str)
-        meshes[mesh_id].metadata['quantity']   = len(transforms_all)
-        meshes[mesh_id].metadata['transforms'] = np.array(transforms_all)
+                g.add_node(shape_id, {'mesh' : mesh_id})
+
+            for child in shape.getchildren():
+                child_id  = child.get('ref')
+                transform = np.array(child.get('xform').split(), 
+                                     dtype=np.float).reshape((4,4)).T
+                g.add_edge(shape_id, child_id, transform=transform)
+
+        # which product ID has the root shape
+        prod_root  = t.getroot().get('root')
+        shape_root = None
+        for prod in t.findall('product'):
+            prod_id    = prod.get('id')
+            prod_name  = prod.get('name')
+            prod_shape = prod.get('shape')
+            if prod_id == prod_root:
+                shape_root = prod_shape
+            g.node[prod_shape]['product_name'] = prod_name 
+
+        # now that the assembly tree has been populated, traverse it to
+        # find the final transforms and quantities for the meshes we extracted
+        for mesh_id in meshes.keys():
+            shape_id       = mesh_shape[mesh_id]
+            transforms_all = deque()
+            path_str       = deque()
+            if shape_id == shape_root:
+                paths = [[shape_id, shape_id]]
+            else:
+                paths = nx.all_simple_paths(g, shape_root, shape_id)
+
+            for path in paths:
+                path_name = [g.node[i]['product_name'] for i in path[:-1]]
+                edges = np.column_stack((path[:-1], 
+                                         path[:-1])).reshape(-1)[1:-1].reshape((-1,2))
+                transforms = [np.eye(4)]
+                for e in edges:
+                    # get every transform from the edge
+                    local      = [i['transform'] for i in g.edge[e[0]][e[1]].values()]
+                    # all the transforms are sequential, so we want combinations
+                    transforms = [np.dot(*i) for i in itertools.product(transforms, local)]
+                transforms_all.extend(transforms)
+                path_str.extend(['/'.join(path_name)]*len(transforms))
+            meshes[mesh_id].vertices              *= to_inches
+            meshes[mesh_id].metadata['units']      = 'inches'
+            meshes[mesh_id].metadata['name']       = path_name[-1]
+            meshes[mesh_id].metadata['paths']      = np.array(path_str)
+            meshes[mesh_id].metadata['quantity']   = len(transforms_all)
+            meshes[mesh_id].metadata['transforms'] = np.array(transforms_all)
+    except:
+        log.error('STEP load processing error!', exc_info=True)
+
     return meshes.values()
 
 _step_loaders = {'step' : load_step,
