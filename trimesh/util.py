@@ -1,6 +1,11 @@
 import numpy as np
 import logging
 
+from sys import version_info
+
+if version_info.major >= 3:
+    basestring = str
+
 from .constants import TOL_ZERO
 
 def unitize(points, check_valid=False):
@@ -55,6 +60,12 @@ def euclidean(a, b):
     Euclidean distance between vectors a and b
     '''
     return np.sum((np.array(a) - b)**2) ** .5
+
+def is_file(obj):
+    return hasattr(obj, 'read')
+
+def is_string(obj):
+    return isinstance(obj, basestring)
 
 def is_sequence(obj):
     '''

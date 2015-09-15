@@ -7,23 +7,26 @@ Python library for loading and doing operations on triangular meshes.
 ### Features
 * Import binary/ASCII STL, Wavefront, and OFF
 * Export binary STL, COLLADA, and OFF
-* If pyassimp is available and recent all assimp mesh formats can be imported
-* Fast loading of binary STL files (on 234,230 face mesh, was 24.5x faster than assimp)
+* Import all formats from assimp (if pyassimp installed)
+* Load STEP files as meshes (if STEPtools Inc. author tools installed)
 * Preview meshes (requires pyglet). 
+* Fast loading of binary and ASCII STL files (on 234,230 face mesh, was 24.5x faster than assimp)
 * Calculate face adjacencies quickly (for the same 234,230 face mesh .248 s)
 * Calculate cross sections (.146 s)
-* Split mesh based on face connectivity, requires networkx (4.96 s) or graph-tool (.584 s)
+* Split mesh based on face connectivity using networkx (4.96 s) or graph-tool (.584 s)
 * Calculate mass properties, including volume, center of mass, and moment of inertia (.246 s)
 * Find planar facets (.454 s)
-* Find and fix face normals and triangle winding (not fast or robust, 32.05 s)
+* Fix triangle winding to be consistent 
+* Fix normals to be oriented 'outwards', using ray tests
 * Find convex hulls of meshes (.21 s)
-* Compute a rotation/translation invarient identifier for meshes
-* Merge duplicate meshes, based off of identifier
+* Compute a rotation/translation/tessellation invariant identifier for meshes (from an FFT of the radius distribution)
+* Merge duplicate meshes from identifier
 * Determine if a mesh is watertight
 * Repair single triangle and single quad holes
 * Uniformly sample the surface of a mesh
 * Find ray-mesh intersections
 * Voxelize watertight meshes
+* Unit conversions
 * Load 2D or 3D vector paths from DXF or SVG files
 * Create meshes by extruding 2D profiles
 * Numerous utility functions, such as transforming points, unitizing vectors, grouping rows, etc. 

@@ -241,7 +241,7 @@ def remove_close_set(points_fixed, points_reduce, radius):
 def plot_points(points, show=True):    
     import matplotlib.pyplot as plt
 
-    dimension = np.shape(points)[2]    
+    dimension = np.shape(points)[1]    
     if dimension == 3:
         from mpl_toolkits.mplot3d import Axes3D
         fig = plt.figure()

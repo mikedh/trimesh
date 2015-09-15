@@ -5,15 +5,22 @@ from collections import deque
 
 class Voxel:
     def __init__(self, mesh, pitch): 
-        self.run = mesh_to_run(mesh, pitch)
-
+        self._run = mesh_to_run(mesh, pitch)
+        self._raw = None
+        
+    @property
     def raw(self):
         '''
         Generate a raw 3D boolean array from the internal run-length encoded data
         '''
-        raw = run_to_raw(**self.run)
-        return raw
+        if self._raw is  None:
+            self._raw = run_to_raw(**self.run)
+        return self._raw
          
+    @property
+    def run(self):
+        return self._run
+        
     @property
     def pitch(self):
         return self.run['pitch']
@@ -25,9 +32,9 @@ class Voxel:
     def volume(self):
         volume = self.raw.sum() * (self.pitch**2)
         return volume
-
+        
     def show(self):
-        plot_raw(self.raw(), **self.run)
+        plot_raw(self.raw, **self.run)
 
 def run_to_raw(shape, index_xy, index_z, **kwargs):
     raw = np.zeros(shape, dtype=np.bool)
@@ -94,4 +101,5 @@ def mesh_to_run(mesh, pitch):
 
 def plot_raw(raw, pitch, origin, **kwargs):
     render = np.column_stack(np.nonzero(raw))*pitch + origin
+    print render.shape
     plot_points(render)

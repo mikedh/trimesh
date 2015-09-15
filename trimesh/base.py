@@ -19,6 +19,7 @@ from . import intersections
 
 from .io.export    import export_mesh
 from .ray.ray_mesh import RayMeshIntersector
+from .voxel        import Voxel
 from .points       import unitize, transform_points
 from .convex       import convex_hull
 from .units        import _set_units
@@ -416,6 +417,22 @@ class Trimesh(object):
         Transform mesh vertices by matrix
         '''
         self.vertices = transform_points(self.vertices, matrix)
+
+    def voxelized(self, pitch):
+        '''
+        Return a Voxel object representing the current mesh
+        discretized into voxels at the specified pitch
+
+        Arguments
+        ----------
+        pitch: float, the edge length of a single voxel
+
+        Returns
+        ----------
+        voxelized: Voxel object representing the current mesh
+        '''
+        voxelized = Voxel(self, pitch)
+        return voxelized
 
     def outline(self, face_ids=None):
         '''

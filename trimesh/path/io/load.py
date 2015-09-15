@@ -1,7 +1,6 @@
 import numpy as np
 import json
 import os 
-import sys
 
 from .dxf_load   import load_dxf
 from .svg_load   import svg_to_path
@@ -10,20 +9,17 @@ from .misc       import lines_to_path, polygon_to_lines, dict_to_path
 from ..constants import log
 from ..path      import Path2D, Path3D
 
-from ...util     import is_sequence
-
-if sys.version_info.major >= 3:
-    basestring = str
+from ...util     import is_sequence, is_file, is_string
 
 def load_path(obj, file_type=None):
     '''
     Utility function which can be passed a filename, file object, or list of lines
     '''
     type_name = obj.__class__.__name__
-    if hasattr(obj, 'read'):
+    if is_file(obj):
         loaded = _LOADERS[file_type](obj)
         obj.close()
-    elif isinstance(obj, basestring):
+    elif is_string(obj):
         file_obj  = open(obj, 'rb')
         file_type = os.path.splitext(obj)[-1][1:].lower()
         loaded = _LOADERS[file_type](file_obj)
