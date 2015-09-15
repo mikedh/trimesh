@@ -95,7 +95,7 @@ def broken_faces(mesh, color=None):
         mesh.visual.face_colors[broken] = color
     return broken
 
-def fill_holes(mesh, raise_watertight=True, fill_planar=False):
+def fill_holes(mesh, raise_watertight=True):
     '''
     Fill single- triangle holes on triangular meshes by adding new triangles
     to fill the holes. New triangles will have proper winding and normals, 
@@ -130,10 +130,10 @@ def fill_holes(mesh, raise_watertight=True, fill_planar=False):
         # convert the hole, which is a polygon of vertex indices
         # to triangles and new vertices
         faces, vertex = _hole_to_faces(hole        = hole, 
-                                       vertices    = mesh.vertices,
-                                       fill_planar = fill_planar)
+                                       vertices    = mesh.vertices)
         if len(faces) == 0:
-            if raise_watertight: raise MeshError('Cannot create watertight mesh!')
+            if raise_watertight: 
+                raise MeshError('Cannot create watertight mesh!')
             continue
         # remeshing returns new vertices as negative indices, so change those
         # to absolute indices which won't be screwed up by the later appends
@@ -183,7 +183,7 @@ def fill_holes(mesh, raise_watertight=True, fill_planar=False):
 
     log.debug('Filled in mesh with %i triangles', np.sum(valid))
 
-def _hole_to_faces(hole, vertices=None, fill_planar=False):
+def _hole_to_faces(hole, vertices=None):
     '''
     Given a loop of vertex indices  representing a hole, turn it into 
     triangular faces.
@@ -211,34 +211,5 @@ def _hole_to_faces(hole, vertices=None, fill_planar=False):
     if len(hole) == 4: 
         face_A = hole[[0,1,2]]
         face_B = hole[[2,3,0]]
-        return [face_A, face_B], []
-    # if the hole is larger, and the user has selected, we see if all
-    # points of the hole lie on a plane, and then create triangles on that plane
-    if (fill_planar) and (not vertices is None):
-        points  = vertices[hole]
-        vectors = np.diff(points, axis=0)
-        normals = deque()
-        for i in range(len(vectors) - 1):
-            unit_normal, valid = unitize(np.cross(vectors[i], 
-                                                  vectors[i+1]),
-                                         check_valid=True)
-            if valid: normals.append(unit_normal)
-        normals     = np.array(normals)
-        is_coplanar = (np.sum(np.diff(normals, axis=0) ** 2, 
-                              axis=1) < TOL_ZERO**2).all()
-        if not is_coplanar: return [], []
-
-        # we close the hole polygon by making the last vertex equal the first
-        hole       = np.append(hole, hole[0])
-        # the new vertex is in the center of the hole
-        # this could be bad/stupid if the hole isn't convex
-        new_vertex = np.array([np.mean(points, axis=0)])
-        # close the hole with triangles from the boundary edge to the 
-        # center of the hole 
-        # negative indices in faces refer to new vertices,
-        # ie -1 = new_vertex[0], -2 = new_vertex[1], etc. 
-        new_faces  = np.column_stack((hole[np.arange(len(hole)-1)], 
-                                      hole[np.arange(1,len(hole))], 
-                                      np.ones(len(hole)-1, dtype=int)*-1))
-        return new_faces, new_vertex       
+        return [face_A, face_B], []       
     return [], []
