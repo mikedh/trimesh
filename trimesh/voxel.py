@@ -101,5 +101,4 @@ def mesh_to_run(mesh, pitch):
 
 def plot_raw(raw, pitch, origin, **kwargs):
     render = np.column_stack(np.nonzero(raw))*pitch + origin
-    print render.shape
     plot_points(render)
