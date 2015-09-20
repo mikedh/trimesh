@@ -31,6 +31,9 @@ try:
 except ImportError:
     log.warning('trimesh.path unavailable!', exc_info=True)
 
+try:                from .scene import Scene
+except ImportError: log.warning('previews unavailable!', exc_info=True)
+
 class Trimesh(object):
     def __init__(self, 
                  vertices        = None, 
@@ -486,7 +489,6 @@ class Trimesh(object):
         '''
         Return a Scene object containing the current mesh. 
         '''
-        from .scene import Scene
         return Scene(self)
 
     def show(self, block=True):

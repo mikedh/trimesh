@@ -20,14 +20,27 @@ if _STEP_FACETER is None:
 
 def load_step(file_obj, file_type=None):
     '''
-    Use the Steptools Inc. Faceting Tool, then parse the generated XML:
-    http://www.steptools.com/support/stdev_docs/stixmesh/XMLFormat.html
+    Use the STEPtools Inc. Author Tools binary to mesh a STEP file,
+    and return a list of Trimesh objects.
 
-    STEPtools Inc Author Tools ('export_product_asm') must be installed into PATH.
-    This can be found on their webpage: 
-    http://www.steptools.com/demos/stpidx_author_linux_x86_64_16.0.zip
+    Using this over openCASCADE as it is signifigantly more stable (though not OSS.) 
+    
+    STEPtools Inc. provides the binary under this license:
+    http://www.steptools.com/demos/license_author.html
 
-    Return a list of meshes.
+    To install the required binary ('export_product_asm') into PATH:
+        wget http://www.steptools.com/demos/stpidx_author_linux_x86_64_16.0.zip
+        unzip stpidx_author_linux_x86_64_16.0.zip
+        sudo cp stpidx_author_linux_x86_64/bin/export_product_asm /usr/bin/
+    
+    Arguments
+    ----------
+    file_obj:  file like object containing step file
+    file_type: unused
+
+    Returns
+    ----------
+    meshes: list of Trimesh objects (with correct metadata set from STEP file)
     '''
     
     with NamedTemporaryFile() as out_file:
@@ -125,7 +138,7 @@ def load_step(file_obj, file_type=None):
             meshes[mesh_id].metadata['quantity']   = len(transforms_all)
             meshes[mesh_id].metadata['transforms'] = np.array(transforms_all)
     except:
-        log.error('STEP load processing error!', exc_info=True)
+        log.error('STEP load processing error, aborting metadata!', exc_info=True)
 
     return meshes.values()
 

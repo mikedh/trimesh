@@ -137,14 +137,14 @@ def fit_circle(points, prior=None):
     error:  float, peak to peak value of deviation from mean radius
     '''
     
-    def circle_residuals(center):
-        radii     = np.linalg.norm(points-center, axis=1)
-        residuals = radii - radii.mean()
+    def residuals(center):
+        radii_sq  = ((points-center)**2).sum(axis=1)
+        residuals = radii_sq - radii_sq.mean()
         return residuals
 
     if prior is not None:
         C_P, R_P = prior
-        error    = np.abs(circle_residuals(C_P)).max()
+        error    = np.abs(residuals(C_P)).max()
         if error < TOL_RADIUS:
             return C_P, R_P, error
         else:                  
@@ -152,7 +152,7 @@ def fit_circle(points, prior=None):
     else: 
         center_guess = np.mean(points, axis=0)
 
-    center_result, return_code = leastsq(circle_residuals, center_guess)
+    center_result, return_code = leastsq(residuals, center_guess)
     if not (return_code in [1,2,3,4]):
         raise ValueError('Least square fit failed!')
 

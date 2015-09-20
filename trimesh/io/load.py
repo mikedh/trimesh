@@ -1,7 +1,7 @@
 import numpy as np
 
 from ..constants import log_time, log
-
+from ..util      import is_file, is_string, make_sequence
 from .assimp import _assimp_loaders
 from .stl    import _stl_loaders
 from .misc   import _misc_loaders
@@ -26,21 +26,22 @@ def load_mesh(file_obj, file_type=None, process=True):
     
     '''
 
-    if not hasattr(file_obj, 'read'):
+    if is_string(file_obj):
         file_type = (str(file_obj).split('.')[-1]).lower()
         file_obj  = open(file_obj, 'rb')
-
-    mesh = _mesh_loaders[file_type](file_obj, file_type)
+    
+    loaded = _mesh_loaders[file_type](file_obj, file_type)
     file_obj.close()
     
     log.debug('loaded mesh using %s',
               _mesh_loaders[file_type].__name__)
 
+    meshes = make_sequence(loaded)
     if process: 
-        # if mesh is multi-body, process all bodies
-        [i.process() for i in np.append(mesh, [])]
-
-    return mesh
+        [i.process() for i in meshes]
+    
+    if len(meshes) == 1: return meshes[0]
+    return meshes
 
 _mesh_loaders = {}
 _mesh_loaders.update(_assimp_loaders)
