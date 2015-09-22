@@ -29,6 +29,8 @@ def load_mesh(file_obj, file_type=None, process=True):
     if is_string(file_obj):
         file_type = (str(file_obj).split('.')[-1]).lower()
         file_obj  = open(file_obj, 'rb')
+        
+    file_type = str(file_type).lower()
     
     loaded = _mesh_loaders[file_type](file_obj, file_type)
     file_obj.close()

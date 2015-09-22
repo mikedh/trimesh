@@ -2,6 +2,8 @@ import numpy as np
 import struct
 import json
 
+from ..constants import log
+
 #python 3
 try:                from cStringIO import StringIO
 except ImportError: from io import StringIO
@@ -26,9 +28,13 @@ def export_mesh(mesh, file_obj, file_type=None):
         (not file_obj is None)):
         file_type = (str(file_obj).split('.')[-1]).lower()
         file_obj  = open(file_obj, 'wb')
-
+    file_type = str(file_type).lower()
+    
+    log.info('Exporting %d faces as %s', len(mesh.faces), file_type.upper())
+    
     export = _mesh_exporters[file_type](mesh, file_obj)
     if not (file_obj is None): 
+        file_obj.flush()
         file_obj.close()
     return export
 
@@ -60,7 +66,8 @@ def export_stl(mesh, file_obj=None):
         write_face(mesh.vertices[[mesh.faces[index]]], 
                    mesh.face_normals[index])
     temp_file.seek(0)
-    return _write_export(temp_file.read(), file_obj)
+    data = temp_file.read()
+    return _write_export(data, file_obj)
 
 def export_off(mesh, file_obj=None):
     export = 'OFF\n'
