@@ -28,7 +28,7 @@ EXPORT_PRECISION = '.5f'
 # target length of a section when discretizing curves
 RES_LENGTH = .15
 # target angle of a section when discretizing curves
-RES_ANGLE  = .26
+RES_ANGLE  = .2
 
 RES_MAX_SECTIONS = 150
 RES_MIN_SECTIONS = 10
