@@ -1,7 +1,6 @@
 import numpy as np
 import struct
 
-from ..base      import Trimesh
 from ..constants import TOL_ZERO
 from ..util      import is_binary_file
  
@@ -39,7 +38,7 @@ def load_stl_binary(file_obj):
     # the struct.unpack call uses 100% memory until the whole thing crashes, 
     # so it's much better to raise an exception here. 
     if not data_ok:
-        raise NameError('Binary STL has incorrect length in header!')
+        raise ValueError('Binary STL has incorrect length in header!')
     
     # all of our vertices will be loaded in order due to the STL format, 
     # so faces are just sequential indices reshaped. 
@@ -53,28 +52,26 @@ def load_stl_binary(file_obj):
 
     face_normals = blob[:,0]
     vertices     = blob[:,1:].reshape((-1,3))
-    
-    return Trimesh(vertices     = vertices,
-                   faces        = faces, 
-                   face_normals = face_normals)
+
+    return {'vertices'     : vertices,
+            'faces'        : faces, 
+            'face_normals' : face_normals}
 
 def load_stl_ascii(file_obj):
     '''
     Load an ASCII STL file.
-    
-    Should be pretty robust to whitespace changes due to the use of split()
     '''
-    
     header = file_obj.readline()
-    
-    text = file_obj.read().lower().split('endsolid')[0]
-    blob   = np.array(text.split())
+
+    text = file_obj.read().decode('utf-8').lower().split('endsolid')[0]
+    blob = np.array(text.split())
 
     # there are 21 'words' in each face
     face_len     = 21
-    face_count   = float(len(blob)) / face_len
-    if (face_count % 1) > TOL_ZERO:
-        raise NameError('Incorrect number of values in STL file!')
+    face_count   = float(len(blob)-1) / face_len
+
+    #if (face_count % 1) > TOL_ZERO:
+    #    raise NameError('Incorrect number of values in STL file!')
     face_count   = int(face_count)
     # this offset is to be added to a fixed set of indices that is tiled
     offset       = face_len * np.arange(face_count).reshape((-1,1))
@@ -87,10 +84,11 @@ def load_stl_ascii(file_obj):
     faces        = np.arange(face_count*3).reshape((-1,3))
     face_normals = blob[normal_index].astype(float)
     vertices     = blob[vertex_index.reshape((-1,3))].astype(float)
-    
-    return Trimesh(vertices     = vertices,
-                   faces        = faces, 
-                   face_normals = face_normals)
+
+    return {'vertices'     : vertices,
+            'faces'        : faces, 
+            'face_normals' : face_normals}
+
 
 _stl_loaders = {'stl':load_stl}
 

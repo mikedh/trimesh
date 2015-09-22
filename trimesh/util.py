@@ -74,6 +74,8 @@ def is_sequence(obj):
     seq = (not hasattr(obj, "strip") and
            hasattr(obj, "__getitem__") or
            hasattr(obj, "__iter__"))
+
+    seq = seq and not isinstance(obj, dict)
     # numpy sometimes returns objects that are single float64 values
     # but sure look like sequences, so we check the shape
     if hasattr(obj, 'shape'):

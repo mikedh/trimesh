@@ -1,6 +1,5 @@
 import numpy as np
 
-from ..base import Trimesh
 from ..constants import *
 
 def load_assimp(file_obj, file_type=None):
@@ -20,10 +19,10 @@ def load_assimp(file_obj, file_type=None):
 
     def LPMesh_to_Trimesh(lp):
         colors = (np.reshape(lp.colors, (-1,4))[:,0:3] * 255).astype(np.int)
-        return Trimesh(vertices       = lp.vertices,
-                       vertex_normals = lp.normals,
-                       faces          = lp.faces,
-                       vertex_colors  = colors)
+        return {'vertices'       : lp.vertices,
+                'vertex_normals' : lp.normals,
+                'faces'          : lp.faces,
+                'vertex_colors'  : colors}
 
     if not hasattr(file_obj, 'read'):
         # if there is no read attribute, we assume we've been passed a file name

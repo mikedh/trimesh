@@ -15,6 +15,7 @@ from . import color
 from . import sample
 from . import repair
 from . import comparison
+from . import boolean
 from . import intersections
 
 from .io.export    import export_mesh
@@ -32,7 +33,7 @@ except ImportError:
     log.warning('trimesh.path unavailable!', exc_info=True)
 
 try:                from .scene import Scene
-except ImportError: log.warning('previews unavailable!', exc_info=True)
+except ImportError: log.warning('Mesh previewing unavailable!', exc_info=True)
 
 class Trimesh(object):
     def __init__(self, 
@@ -516,6 +517,48 @@ class Trimesh(object):
         Supported formats are stl, off, and collada. 
         '''
         return export_mesh(self, file_obj, file_type)
+
+    def union(self, other):
+        '''
+        Boolean union between this mesh and n other meshes
+
+        Arguments
+        ---------
+        other: Trimesh, or list of Trimesh objects
+
+        Returns
+        ---------
+        union: Trimesh, union of self and other Trimesh objects
+        '''
+        return Trimesh(**boolean.union(self, other))
+
+    def difference(self, other):        
+        '''
+        Boolean difference between this mesh and n other meshes
+
+        Arguments
+        ---------
+        other: Trimesh, or list of Trimesh objects
+
+        Returns
+        ---------
+        difference: Trimesh, difference between self and other Trimesh objects
+        '''
+        return Trimesh(**boolean.difference(self, other))
+        
+    def intersection(self, other):
+        '''
+        Boolean intersection between this mesh and n other meshes
+
+        Arguments
+        ---------
+        other: Trimesh, or list of Trimesh objects
+
+        Returns
+        ---------
+        intersection: Trimesh of the volume contained by all passed meshes
+        '''
+        return Trimesh(**boolean.intersection(self, other))
 
     def __add__(self, other):
         '''

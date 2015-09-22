@@ -1,7 +1,10 @@
 import numpy as np
 
+from ..base      import Trimesh
+
 from ..constants import log_time, log
 from ..util      import is_file, is_string, make_sequence
+
 from .assimp import _assimp_loaders
 from .stl    import _stl_loaders
 from .misc   import _misc_loaders
@@ -38,9 +41,7 @@ def load_mesh(file_obj, file_type=None, process=True):
     log.debug('loaded mesh using %s',
               _mesh_loaders[file_type].__name__)
 
-    meshes = make_sequence(loaded)
-    if process: 
-        [i.process() for i in meshes]
+    meshes = [Trimesh(process=process, **i) for i in make_sequence(loaded)]
     
     if len(meshes) == 1: return meshes[0]
     return meshes

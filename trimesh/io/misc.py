@@ -1,7 +1,6 @@
 import numpy as np
 import struct
 
-from ..base import Trimesh
 from ..constants import *
 
 def load_off(file_obj, file_type=None):
@@ -16,8 +15,9 @@ def load_off(file_obj, file_type=None):
 
     vertices = blob[0:(header[0]*3)].astype(float).reshape((-1,3))
     faces    = blob[(header[0]*3):].astype(int).reshape((-1,4))[:,1:]
-    mesh     = Trimesh(vertices=vertices, faces=faces)
-    return mesh
+  
+    return {'vertices' : vertices,
+            'faces'    : faces}
 
 def load_wavefront(file_obj, file_type=None):
     '''
@@ -37,12 +37,9 @@ def load_wavefront(file_obj, file_type=None):
     faces = np.array([i.split(b'/') for i in data[fid].reshape(-1)])[:,0].reshape((-1,3))
     # wavefront has 1- indexed faces, as opposed to 0- indexed
     faces = faces.astype(int) - 1
-    mesh  = Trimesh(vertices       = data[vid].astype(float),
-                    vertex_normals = data[nid].astype(float),
-                    faces          = faces)
-
-
-    return mesh
+    return {'vertices'       : data[vid].astype(float),
+            'vertex_normals' : data[nid].astype(float),
+            'faces'          : faces}
 
 _misc_loaders = {'obj' : load_wavefront,
                  'off' : load_off}
