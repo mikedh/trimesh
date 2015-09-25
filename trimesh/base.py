@@ -530,7 +530,7 @@ class Trimesh(object):
         ---------
         union: Trimesh, union of self and other Trimesh objects
         '''
-        return Trimesh(**boolean.union(self, other))
+        return Trimesh(process=True, **boolean.union(self, other))
 
     def difference(self, other):        
         '''
@@ -544,7 +544,7 @@ class Trimesh(object):
         ---------
         difference: Trimesh, difference between self and other Trimesh objects
         '''
-        return Trimesh(**boolean.difference(self, other))
+        return Trimesh(process=True, **boolean.difference(self, other))
         
     def intersection(self, other):
         '''
@@ -558,7 +558,7 @@ class Trimesh(object):
         ---------
         intersection: Trimesh of the volume contained by all passed meshes
         '''
-        return Trimesh(**boolean.intersection(self, other))
+        return Trimesh(process=True, **boolean.intersection(self, other))
 
     def __add__(self, other):
         '''

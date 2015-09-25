@@ -68,8 +68,8 @@ def _scad_interface(meshes, operation='difference'):
     tempfile- happy solution for getting the basic CGAL CSG functionality. 
     '''
     files  = [NamedTemporaryFile(suffix='.STL') for i in meshes]
-    script =  NamedTemporaryFile(suffix='.scad')
     result =  NamedTemporaryFile(suffix='.STL')
+    script =  NamedTemporaryFile(suffix='.scad')
 
     # export the meshes to a temporary STL container
     for m, f in zip(meshes, files):

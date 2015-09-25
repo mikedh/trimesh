@@ -6,6 +6,7 @@ from .geometry  import faces_to_edges
 from .points    import unitize
 from .grouping  import group_rows
 from .triangles import normals
+from .util      import is_sequence
 from .constants import *
 
 def fix_face_winding(mesh):
@@ -17,7 +18,7 @@ def fix_face_winding(mesh):
     # every node in g is an index of mesh.faces
     # every edge in g represents two faces which are connected
     graph_all = nx.from_edgelist(mesh.face_adjacency)
-    
+    flipped   = 0
     # we are going to traverse the graph using BFS, so we have to start
     # a traversal for every connected component
     for graph in nx.connected_component_subgraphs(graph_all):
@@ -37,8 +38,9 @@ def fix_face_winding(mesh):
             edge_pair = edges[[overlap[0]]]
             if edge_pair[0][0] == edge_pair[1][0]:
                 # if the edges aren't reversed, invert the order of one of the faces
+                flipped += 1
                 mesh.faces[face_pair[1]] = mesh.faces[face_pair[1]][::-1]
-
+    log.info('Flipped %d/%d edges', flipped, len(mesh.faces)*3)
 def fix_normals_direction(mesh):
     '''
     Check to see if a mesh has normals pointed outside the solid using ray tests.
@@ -89,9 +91,8 @@ def broken_faces(mesh, color=None):
     adjacency = nx.from_edgelist(mesh.face_adjacency)
     broken    = [k for k, v in adjacency.degree().iteritems() if v != 3]
     broken    = np.array(broken)
-    if not (color is None):
-        if (not is_sequence(color)):
-            color = [255,0,0]
+    if color is not None:
+        if not is_sequence(color): color = [255,0,0]
         mesh.visual.face_colors[broken] = color
     return broken
 

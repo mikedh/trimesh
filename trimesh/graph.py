@@ -218,20 +218,32 @@ def split(mesh, check_watertight=True, only_count=False):
             meshes.append(new_mesh)
         return list(meshes)
 
-    if _has_gt: return split_gt()
-    else:       return split_nx()
+    if _has_gt: 
+        return split_gt()
+    else:       
+        return split_nx()
     
 def is_watertight(mesh):
     def is_watertight_gt():
         g = GTGraph()
-        g.add_edge_list(mesh.face_adjacency)    
+        g.add_edge_list(adjacency)
         degree     = g.degree_property_map('total').a
         watertight = np.equal(degree, 3).all()
         return watertight
     def is_watertight_nx():
-        adjacency  = nx.from_edgelist(mesh.face_adjacency)
-        watertight = np.equal(list(adjacency.degree().values()), 3).all()
+        g  = nx.from_edgelist(adjacency)
+        watertight = np.equal(list(g.degree().values()), 3).all()
         return watertight
 
-    if _has_gt: return is_watertight_gt()
-    else:       return is_watertight_nx()
+    if len(mesh.faces) == 0: 
+        return False
+
+    adjacency = mesh.face_adjacency
+
+    if len(adjacency) == 0:
+        return False
+
+    if _has_gt: 
+        return is_watertight_gt()
+    else:       
+        return is_watertight_nx()
