@@ -56,7 +56,7 @@ def simplify_circles(path):
         path.entities = np.append(path.entities,  new_entities)
         path.remove_entities(old_entities)
   
-def merge_colinear(points):
+def merge_colinear(points, scale=1.0):
     '''
     Given a set of points representing a path in space,
     merge points which are colinear.
@@ -64,7 +64,7 @@ def merge_colinear(points):
     Arguments
     ----------
     points: (n, d) set of points (where d is dimension)
-    
+    scale:  float, scale of drawing
     Returns
     ----------
     merged: (j, d) set of points with colinear and duplicate 
@@ -85,7 +85,7 @@ def merge_colinear(points):
     direction_diff[np.logical_not(direction_ok[:-1])] = 0.0
 
     # magnitude of direction difference between vectors times direction length
-    colinear = (direction_diff * direction_norm[1:]) < TOL_MERGE
+    colinear = (direction_diff * direction_norm[1:]) < (TOL_MERGE * scale)
     colinear_index = np.nonzero(colinear)[0]
 
     mask = np.ones(len(points), dtype=np.bool)

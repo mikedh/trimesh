@@ -26,13 +26,12 @@ TOL_ASPECT       = .1
 EXPORT_PRECISION = '.5f'
 
 # target length of a section when discretizing curves
-RES_LENGTH = .15
+RES_LENGTH = .005
 # target angle of a section when discretizing curves
 RES_ANGLE  = .2
 
-RES_MAX_SECTIONS = 150
-RES_MIN_SECTIONS = 10
-RES_TEST_FACTOR  = .05
+RES_MAX_SECTIONS = 10
+RES_MIN_SECTIONS = 5
 
 
 import logging

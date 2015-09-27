@@ -9,13 +9,11 @@ from distutils.spawn import find_executable
 from subprocess      import check_call
 from xml.etree       import cElementTree
 
-from ..constants import RES_MESH
+from ..constants import RES_MESH, log
 
 _METERS_TO_INCHES = 1.0 / .0254
 _STEP_FACETER     = find_executable('export_product_asm')
 
-if _STEP_FACETER is None: 
-    raise ImportError('Steptools not available!')
 
 def load_step(file_obj, file_type=None):
     '''
@@ -142,5 +140,9 @@ def load_step(file_obj, file_type=None):
 
     return meshes.values()
 
-_step_loaders = {'step' : load_step,
-                 'stp'  : load_step}
+if _STEP_FACETER is None: 
+    log.debug('STEP loading unavailable')
+    _step_loaders = {}
+else:
+    _step_loaders = {'step' : load_step,
+                     'stp'  : load_step}

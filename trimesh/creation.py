@@ -2,10 +2,11 @@
 Create meshes from primitives, or with operations. 
 '''
 
-from .base     import Trimesh
-from .geometry import faces_to_edges
-from .grouping import group_rows, unique_rows
-from .util     import three_dimensionalize
+from .base      import Trimesh
+from .constants import log
+from .geometry  import faces_to_edges
+from .grouping  import group_rows, unique_rows
+from .util      import three_dimensionalize
 
 import numpy as np
 from collections import deque
@@ -13,6 +14,7 @@ from shapely.geometry import Polygon
 
 def extrude_polygon(polygon, 
                     height,
+                    fix_normals=True,
                     **kwargs):
     '''
     Turn a shapely.geometry Polygon object and a height (float)
@@ -51,7 +53,7 @@ def extrude_polygon(polygon,
     mesh = Trimesh(*append_faces(vertices_seq, faces_seq), process=True)
     # the winding and normals of our mesh are arbitrary, although now we are
     # watertight so we can traverse the mesh and fix winding and normals 
-    mesh.fix_normals()
+    if fix_normals: mesh.fix_normals()
     return mesh
 
 def triangulate_polygon(polygon, **kwargs):
@@ -127,7 +129,10 @@ def triangulate_polygon(polygon, **kwargs):
 
     start = add_boundary(polygon.exterior, 0)
     for interior in polygon.interiors:
-        start += add_boundary(interior, start)
+        try: start += add_boundary(interior, start)
+        except: 
+            log.warn('invalid interior, continuing')
+            continue
 
     # create clean (n,2) float array of vertices
     # and (m, 2) int array of facets

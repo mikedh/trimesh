@@ -62,26 +62,22 @@ def load_stl_ascii(file_obj):
     Load an ASCII STL file.
     '''
     header = file_obj.readline()
-
+    
     text = file_obj.read()
     if hasattr(text, 'decode'):
         text = text.decode('utf-8')
     text = text.lower().split('endsolid')[0]
-
-
     blob = np.array(text.split())
 
     # there are 21 'words' in each face
-    face_len     = 21
-    face_count   = float(len(blob)) / face_len
+    face_len   = 21
+    face_count = float(len(blob)) / face_len
 
     if (face_count % 1) > TOL_ZERO:
         raise ValueError('Incorrect number of values in STL file!')
     face_count   = int(face_count)
     # this offset is to be added to a fixed set of indices that is tiled
     offset       = face_len * np.arange(face_count).reshape((-1,1))
-    # these hard coded indices will break if the exporter adds unexpected junk
-    # but then it wouldn't really be an STL file... 
     normal_index = np.tile([2,3,4], (face_count, 1)) + offset
     vertex_index = np.tile([8,9,10,12,13,14,16,17,18], (face_count, 1)) + offset
     

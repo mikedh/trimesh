@@ -2,7 +2,7 @@ import numpy as np
 
 from .constants import *
 
-def discretize_bezier(points, count=None):
+def discretize_bezier(points, count=None, scale=1.0):
     '''
     Arguments
     ----------
@@ -30,15 +30,16 @@ def discretize_bezier(points, count=None):
 
     if count is None:
         # how much distance does a small percentage of the curve take
-        # this is so we can figure out how finely we have to sample t
-        test   = np.sum(np.diff(compute(np.array([0.0, RES_TEST_FACTOR])), 
-                                axis = 0) ** 2) ** .5
-        count  = np.ceil((test/RES_TEST_FACTOR) / RES_LENGTH)
-        count  = int(np.clip(count, RES_MIN_SECTIONS, RES_MAX_SECTIONS))
+        # this is so we can figure out how finely we have to sample t   
+        norm  = np.linalg.norm(np.diff(points, axis=0), axis=1).sum() / scale
+        count = np.ceil(norm / RES_LENGTH)
+        count  = int(np.clip(count, 
+                             RES_MIN_SECTIONS*len(points), 
+                             RES_MAX_SECTIONS*len(points)))
     result = compute(np.linspace(0.0, 1.0, count))
     return result
 
-def discretize_bspline(control, knots, count=None):
+def discretize_bspline(control, knots, count=None, scale=1.0):
     '''
     Given a B-Splines control points and knot vector, return
     a sampled version of the curve.
@@ -62,9 +63,10 @@ def discretize_bspline(control, knots, count=None):
     degree  = len(knots) - len(control) - 1
     if count is None:
         norm  = np.linalg.norm(np.diff(control, axis=0), axis=1).sum()
-        count = int(np.clip(RES_MIN_SECTIONS, 
-                            RES_MAX_SECTIONS, 
-                            norm / RES_LENGTH))
+        count = int(np.clip(norm / (RES_LENGTH*scale),
+                            RES_MIN_SECTIONS*len(control), 
+                            RES_MAX_SECTIONS*len(control)))
+                            
     ipl      = np.linspace(knots[0], knots[-1], count)
     discrete = splev(ipl, [knots, control.T, degree])
     discrete = np.column_stack(discrete)

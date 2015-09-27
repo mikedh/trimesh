@@ -1,8 +1,6 @@
 import numpy as np
 import struct
 
-from ..constants import *
-
 def load_off(file_obj, file_type=None):
     header_string = file_obj.readline().decode().strip()
     if not header_string == 'OFF': 

@@ -164,7 +164,7 @@ def arctan2_points(points):
     angle[test] = (np.pi*2) + angle[test]
     return angle
 
-def discretize_path(entities, vertices, path):
+def discretize_path(entities, vertices, path, scale=1.0):
     '''
     Return a (n, dimension) list of vertices. 
     Samples arcs/curves to be line segments
@@ -177,7 +177,7 @@ def discretize_path(entities, vertices, path):
     discrete = deque()
     for i, entity_id in enumerate(path):
         last    = (i == (path_len - 1))
-        current = entities[entity_id].discrete(vertices)
+        current = entities[entity_id].discrete(vertices, scale=scale)
         slice   = (int(last) * len(current)) + (int(not last) * -1)
         discrete.extend(current[:slice])
     return np.array(discrete)    

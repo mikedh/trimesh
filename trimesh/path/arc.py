@@ -54,7 +54,7 @@ def arc_center(points):
 
     return center[:(3-is_2D)], radius, plane_normal, angle
 
-def discretize_arc(points, close = False):
+def discretize_arc(points, close = False, scale=1.0):
     '''
     Returns a version of a three point arc consisting of line segments
 
@@ -70,17 +70,15 @@ def discretize_arc(points, close = False):
             points[0] to points[2], going through control point points[1]
     '''
     two_dimensional, points = three_dimensionalize(points, return_2D = True)
-    center, R, N, angle     = arc_center(points)
+    center, R, N, angle = arc_center(points)
     if close: angle = np.pi * 2
     
     #the number of facets, based on the angle critera
-    facets_a = int(np.ceil(angle     / RES_ANGLE))
-    #the number of facets, based on the facet length critera
-    facets_d = int(np.ceil((R*angle) / RES_LENGTH))
-    #we use the larger number so both RES_ANGLE and RES_LENGTH are satisfied
-    count = np.max([facets_a, facets_d])
-    count = int(np.clip(count, RES_MIN_SECTIONS, RES_MAX_SECTIONS))
-
+    count_a = angle / RES_ANGLE
+    count_l = ((R*angle)/scale) / RES_LENGTH    
+    count = np.max([count_a, count_l])
+    count = np.clip(count, 4, 6.28/RES_ANGLE)
+    count = int(np.ceil(count))
 
     V1 = unitize(points[0] - center)
     V2 = unitize(np.cross(-N, V1))
@@ -91,8 +89,10 @@ def discretize_arc(points, close = False):
     discrete += R * np.sin(t).reshape((-1,1))*np.tile(V2, (count, 1))
 
     if not close:
-        arc_ok = np.linalg.norm(points[[0,-1]]-discrete[[0,-1]], axis=1) 
-        assert (arc_ok < TOL_MERGE).all()
+        arc_dist = np.linalg.norm(points[[0,-1]]-discrete[[0,-1]], axis=1) 
+        arc_ok   = (arc_dist < TOL_MERGE).all()
+        if not arc_ok:
+            raise ValueError('Arc endpoints diverging!')
 
     discrete  = discrete[:,0:(3-two_dimensional)]
 

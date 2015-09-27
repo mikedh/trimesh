@@ -8,6 +8,7 @@ from ..util      import is_file, is_string, make_sequence
 from .assimp import _assimp_loaders
 from .stl    import _stl_loaders
 from .misc   import _misc_loaders
+from .step   import _step_loaders
 
 def available_formats():
     return _mesh_loaders.keys()
@@ -50,9 +51,4 @@ _mesh_loaders = {}
 _mesh_loaders.update(_assimp_loaders)
 _mesh_loaders.update(_stl_loaders)
 _mesh_loaders.update(_misc_loaders)
-
-try: 
-    from .step import _step_loaders
-    _mesh_loaders.update(_step_loaders)
-except ImportError:
-    pass
+_mesh_loaders.update(_step_loaders)

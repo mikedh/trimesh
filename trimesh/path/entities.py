@@ -9,7 +9,7 @@ Design intent: only store references to vertex indices and pass the vertex
 import numpy as np
 
 from .constants import *
-from .arc       import discretize_arc, arc_center
+from .arc       import discretize_arc,    arc_center
 from .curve     import discretize_bezier, discretize_bspline
 
 from ..points   import unitize
@@ -100,14 +100,15 @@ class Entity:
         return self.points[[0,-1]]
             
 class Arc(Entity):
-    def discrete(self, vertices):
+    def discrete(self, vertices, scale=1.0):
         return discretize_arc(vertices[self.points], 
-                              close = self.closed)
+                              close = self.closed,
+                              scale = scale)
     def center(self, vertices):
         return arc_center(vertices[self.points])
                 
 class Line(Entity):
-    def discrete(self, vertices):
+    def discrete(self, vertices, scale=1.0):
         return vertices[self.points]
 
 class Curve(Entity):
@@ -123,8 +124,8 @@ class Curve(Entity):
                  self.points[-1]]]
 
 class Bezier(Curve):
-    def discrete(self, vertices):
-        return discretize_bezier(vertices[self.points])
+    def discrete(self, vertices, scale=1.0):
+        return discretize_bezier(vertices[self.points], scale=scale)
 
 class BSpline(Curve):
     def __init__(self, points, knots, closed=False):
@@ -132,8 +133,9 @@ class BSpline(Curve):
         self.knots  = knots
         self.closed = closed
 
-    def discrete(self, vertices, count=None):
+    def discrete(self, vertices, count=None, scale=1.0):
         result = discretize_bspline(control = vertices[self.points], 
                                     knots   = self.knots,
-                                    count   = count)
+                                    count   = count,
+                                    scale   = scale)
         return result

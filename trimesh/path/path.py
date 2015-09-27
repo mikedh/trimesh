@@ -21,7 +21,7 @@ from ..points   import plane_fit, transform_points
 from ..geometry import plane_transform
 from ..grouping import unique_rows
 from ..units    import _set_units
-from ..util     import decimal_to_digits 
+from ..util     import decimal_to_digits, is_sequence
 
 class Path(object):
     '''
@@ -92,6 +92,10 @@ class Path(object):
     @property
     def enclosure(self):
         return self._cache_get('enclosure')
+
+    @property
+    def enclosure_directed(self):
+        return self._cache_get('enclosure_directed')
 
     @property
     def discrete(self):
@@ -196,7 +200,7 @@ class Path(object):
         Return a (n, dimension) list of vertices. 
         Samples arcs/curves to be line segments
         '''
-        discrete = discretize_path(self.entities, self.vertices, path)
+        discrete = discretize_path(self.entities, self.vertices, path, scale=self.scale)
         return discrete
         
     def export(self, file_type='dict', file_obj=None):
@@ -366,16 +370,23 @@ class Path2D(Path):
         Uses shapely.geometry Polygons to populate self.polygons
         '''
         def path_to_polygon(path):
-            discrete = discretize_path(self.entities, self.vertices, path)
+            discrete = discretize_path(self.entities, self.vertices, path, scale=self.scale)
             return Polygon(discrete)
 
         polygons = [None] * len(self.paths)
         for i, path in enumerate(self.paths):
             polygons[i] = path_to_polygon(path)
             # try to recover invalid polygons by zero- buffering
-            if not polygons[i].is_valid: 
-                polygons[i] = polygons[i].buffer(0.0)
-                if polygons[i].is_valid:
+            if (not polygons[i].is_valid) or is_sequence(polygons[i]): 
+                buffered = polygons[i].buffer(TOL_MERGE*self.scale)
+
+                if buffered.is_valid and not is_sequence(buffered):
+                    unbuffered = buffered.buffer(-TOL_MERGE*self.scale)
+                    if unbuffered.is_valid and not is_sequence(unbuffered):
+                        polygons[i] = unbuffered
+                    else:
+                        polygons[i] = buffered
+
                     log.warn('Recovered invalid polygon')
                 else:
                     log.error('Unrecoverable polygon detected!')
@@ -387,7 +398,9 @@ class Path2D(Path):
     def generate_enclosure_tree(self):
         root, enclosure = polygons_enclosure_tree(self.polygons_closed)
         self._cache_put('root',      root)
-        self._cache_put('enclosure', enclosure.to_undirected())
+        self._cache_put('enclosure',          enclosure.to_undirected())
+        self._cache_put('enclosure_directed', enclosure)
+
 
     def connected_paths(self, path_id, include_self = False):
         if len(self.root) == 1:
