@@ -141,7 +141,7 @@ def load_step(file_obj, file_type=None):
     return meshes.values()
 
 if _STEP_FACETER is None: 
-    log.debug('STEP loading unavailable')
+    log.debug('STEP loading unavailable!')
     _step_loaders = {}
 else:
     _step_loaders = {'step' : load_step,

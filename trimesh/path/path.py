@@ -360,8 +360,28 @@ class Path2D(Path):
             return result[0]
         return result
 
-    def medial_axis(self):
-        medials = [medial_axis(i) for i in self.polygons_full]
+    def medial_axis(self, resolution=None, clip=None):
+
+        '''
+        Find the approximate medial axis based
+        on a voronoi diagram of evenly spaced points on the boundary of the polygon.
+
+        Arguments
+        ----------
+        resolution: target distance between each sample on the polygon boundary
+        clip:       [minimum number of samples, maximum number of samples]
+                    specifying a very fine resolution can cause the sample count to
+                    explode, so clip specifies a minimum and maximum number of samples
+                    to use per boundary region. To not clip, this can be specified as:
+                    [0, np.inf]
+
+        Returns
+        ----------
+        medial:     Path2D object
+        '''
+        if resolution is None:
+            resolution = self.scale / 1000.0
+        medials = [medial_axis(i, resolution, clip) for i in self.polygons_full]
         return np.sum(medials)
 
     def generate_discrete(self):

@@ -237,12 +237,9 @@ def is_watertight(mesh):
 
     if len(mesh.faces) == 0: 
         return False
-
     adjacency = mesh.face_adjacency
-
     if len(adjacency) == 0:
         return False
-
     if _has_gt: 
         return is_watertight_gt()
     else:       

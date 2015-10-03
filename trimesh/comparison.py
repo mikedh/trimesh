@@ -31,7 +31,7 @@ def merge_duplicates(meshes):
              len(merged))
     return np.array(merged)
 
-def rotationally_invariant_identifier(mesh, length=6, as_json=False):
+def rotationally_invariant_identifier(mesh, length=6, as_json=False, json_digits=None):
     '''
     Given an input mesh, return a vector or string that has the following properties:
     * invariant to rotation of the mesh

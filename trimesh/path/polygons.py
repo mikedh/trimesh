@@ -198,7 +198,7 @@ def plot_raster(raster, pitch, offset=[0,0]):
                                           facecolor="grey"))
 
 
-def medial_axis(polygon, resolution=.01, clip=[10,1000]):
+def medial_axis(polygon, resolution=.01, clip=None):
     '''
     Given a shapely polygon, find the approximate medial axis based
     on a voronoi diagram of evenly spaced points on the boundary of the polygon.
@@ -227,7 +227,7 @@ def medial_axis(polygon, resolution=.01, clip=[10,1000]):
     # do the import here to avoid it in general use and fail immediatly
     # if we don't have scipy.spatial available
     from scipy.spatial import Voronoi
-
+    if clip is None: clip = [10,1000]
     # create a sequence of [(n,2)] points
     points = deque()
     add_boundary(polygon.exterior)

@@ -502,12 +502,12 @@ class Trimesh(object):
         scene.show(block = block)
         return scene
 
-    def identifier(self, length=6):
+    def identifier(self, length=6, as_json=False):
         '''
         Return a (length) float vector which is unique to the mesh,
         and is robust to rotation and translation.
         '''
-        return comparison.rotationally_invariant_identifier(self, length)
+        return comparison.rotationally_invariant_identifier(self, length, as_json=as_json)
 
     def export(self, file_obj=None, file_type='stl'):
         '''
@@ -559,6 +559,25 @@ class Trimesh(object):
         intersection: Trimesh of the volume contained by all passed meshes
         '''
         return Trimesh(process=True, **boolean.intersection(self, other))
+    
+    def __eq__(self, other):
+        if not isinstance(other, self.__class__): 
+            return False
+
+        a_id = self.identifier()
+        b_id = other.identifier()
+
+        # find the percentage difference between the two hashes
+        diff    = np.abs(self.identifier() - other.identifier())
+        nonzero = np.abs(a_id) > 0.0
+        diff[nonzero] /= np.abs(a_id[nonzero])
+
+        # consider meshes equal if all terms of their hash differ by <1%
+        equal = (diff < .01).all()
+        return equal
+
+    def __hash__(self):
+        return self.identifier(as_json=True)
 
     def __add__(self, other):
         '''

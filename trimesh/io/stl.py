@@ -1,7 +1,6 @@
 import numpy as np
 import struct
 
-from ..constants import TOL_ZERO
 from ..util      import is_binary_file
  
 def load_stl(file_obj, file_type=None):
@@ -71,10 +70,10 @@ def load_stl_ascii(file_obj):
 
     # there are 21 'words' in each face
     face_len   = 21
-    face_count = float(len(blob)) / face_len
-
-    if (face_count % 1) > TOL_ZERO:
+    face_count = len(blob) / face_len
+    if (len(blob) % face_len) != 0:
         raise ValueError('Incorrect number of values in STL file!')
+
     face_count   = int(face_count)
     # this offset is to be added to a fixed set of indices that is tiled
     offset       = face_len * np.arange(face_count).reshape((-1,1))
