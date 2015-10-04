@@ -5,9 +5,11 @@ from shapely.geometry import Point, Polygon, LineString
 
 from copy import deepcopy
 
-from .constants import *
-from .polygons import polygon_obb
-from ..util    import transformation_2D
+from ..constants import log
+from ..constants import tol_path as tol
+
+from .polygons  import polygon_obb
+from ..util     import transformation_2D
 
 class Bin:
     '''
@@ -47,7 +49,7 @@ class Bin:
         
         # this means the inserted rectangle fits perfectly
         # since we already checked to see if it was negative, no abs is needed
-        if np.all(size_test < TOL_ZERO): 
+        if np.all(size_test < tol.zero): 
             return self.bounds[0:2]
         
         # since the rectangle fits but the empty space is too big, 

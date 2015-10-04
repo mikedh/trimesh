@@ -24,7 +24,7 @@ from .voxel        import Voxel
 from .points       import unitize, transform_points
 from .convex       import convex_hull
 from .units        import _set_units
-from .constants    import tol, log, _log_time
+from .constants    import log, _log_time, tol
 
 try: 
     from .path.io.misc import faces_to_path

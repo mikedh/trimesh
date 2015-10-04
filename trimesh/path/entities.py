@@ -8,7 +8,6 @@ Design intent: only store references to vertex indices and pass the vertex
 
 import numpy as np
 
-from .constants import *
 from .arc       import discretize_arc,    arc_center
 from .curve     import discretize_bezier, discretize_bspline
 

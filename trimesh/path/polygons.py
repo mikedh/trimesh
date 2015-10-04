@@ -5,10 +5,11 @@ from collections      import deque
 import numpy as np
 import networkx as nx
 
-from ..points    import unitize
-from ..util      import transformation_2D, is_sequence, is_ccw
-from .traversal  import resample_path
-from .constants  import *
+from ..constants  import log
+from ..points     import unitize
+from ..util       import transformation_2D, is_sequence, is_ccw
+from .traversal   import resample_path
+
 
 def polygons_enclosure_tree(polygons):
     '''

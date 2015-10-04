@@ -6,7 +6,7 @@ from sys import version_info
 if version_info.major >= 3:
     basestring = str
 
-from .constants import tol
+_TOL_ZERO = 1e-12
 
 def unitize(points, check_valid=False):
     '''
@@ -30,7 +30,7 @@ def unitize(points, check_valid=False):
     axis         = len(points.shape) - 1
     length       = np.sum(points ** 2, axis=axis) ** .5
     if check_valid:
-        valid = np.greater(length, tol.zero)
+        valid = np.greater(length, _TOL_ZERO)
         if axis == 1: 
             unit_vectors = (points[valid].T / length[valid]).T
         elif len(points.shape) == 1 and valid: 

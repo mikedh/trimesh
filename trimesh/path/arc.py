@@ -2,8 +2,10 @@ import numpy as np
 
 from ..util         import three_dimensionalize, euclidean
 from ..points       import unitize
+from ..constants    import log
+from ..constants    import tol_path as tol
+from ..constants    import res_path as res
 from .intersections import line_line
-from .constants     import tol, res, log
 
 try: 
     from scipy.optimize import leastsq
@@ -74,10 +76,10 @@ def discretize_arc(points, close = False, scale=1.0):
     if close: angle = np.pi * 2
     
     #the number of facets, based on the angle critera
-    count_a = angle / res.angle
-    count_l = ((R*angle)/scale) / res.length
+    count_a = angle / res.seg_angle
+    count_l = ((R*angle)) / (res.seg_frac * scale)
     count = np.max([count_a, count_l])
-    count = np.clip(count, 4, 6.28/res.angle)
+    count = np.clip(count, 4, 6.28/res.seg_angle)
     count = int(np.ceil(count))
 
     V1 = unitize(points[0] - center)

@@ -1,9 +1,10 @@
 import numpy as np
 
-from ..constants import log, tol
-from ..entities  import Line, Arc, BSpline
-from ..util      import angles_to_threepoint
-from ...util     import is_binary_file, is_ccw, multi_dict
+from ...constants import log
+from ...constants import tol_path as tol
+from ..entities   import Line, Arc, BSpline
+from ..util       import angles_to_threepoint
+from ...util      import is_binary_file, is_ccw, multi_dict
 
 from collections import deque
 

@@ -1,6 +1,6 @@
 import numpy as np
 
-from ..constants import *
+from ...constants import log
 from ..entities  import Line, Arc, Bezier, arc_center
 
 from collections import deque

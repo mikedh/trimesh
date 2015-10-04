@@ -4,7 +4,8 @@ from collections import deque
 
 from .arc       import fit_circle, angles_to_threepoint
 from .entities  import Arc
-from .constants import *
+from ..constants import log
+from ..constants import tol_path as tol
 
 def simplify(path):
     simplify_circles(path)
@@ -29,17 +30,17 @@ def simplify_circles(path):
         
         # check aspect ratio as an early exit if the path is not a circle
         aspect = np.divide(*points.ptp(axis=0))
-        if np.abs(aspect - 1.0) > tol.aspect: continue
+        if np.abs(aspect - 1.0) > tol.aspect_frac: continue
 
         # make sure the facets all meet the length tolerances specified
         facet_len = np.sum(np.diff(points, axis=0)**2, axis=1)
-        facet_bad = facet_len > tol.seg_length
+        facet_bad = facet_len > (tol.seg_frac * path.scale)
         if facet_bad.any(): continue
 
         # fit a circle using least squares
         C, R, E = fit_circle(points)
         # check to make sure the radius tolerance is met
-        if E > tol.radius: continue
+        if (E/R) > tol.radius_frac: continue
 
         # we've passed all the tests/exits, so convert the group of lines
         # to a single circle entity

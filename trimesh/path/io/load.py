@@ -6,10 +6,10 @@ from .dxf_load   import load_dxf
 from .svg_load   import svg_to_path
 from .misc       import lines_to_path, polygon_to_lines, dict_to_path
 
-from ..constants import log
 from ..path      import Path2D, Path3D
 
-from ...util     import is_sequence, is_file, is_string
+from ...constants import log
+from ...util      import is_sequence, is_file, is_string
 
 def load_path(obj, file_type=None):
     '''

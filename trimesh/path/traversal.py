@@ -5,7 +5,6 @@ from collections import deque
 
 from ..points    import unitize
 from ..util      import transformation_2D, is_sequence, is_ccw
-from .constants  import *
 
 def vertex_graph(entities):
     '''
