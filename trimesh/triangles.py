@@ -1,7 +1,7 @@
 import numpy as np
 
 from .points    import unitize, point_plane_distance
-from .constants import TOL_ZERO
+from .constants import tol
 
 def cross(triangles):
     '''
@@ -50,7 +50,7 @@ def all_coplanar(triangles):
     distances    = point_plane_distance(points       = triangles[1:].reshape((-1,3)),
                                         plane_normal = test_normal,
                                         plane_origin = test_vertex)
-    all_coplanar = np.all(np.abs(distances) < TOL_ZERO)
+    all_coplanar = np.all(np.abs(distances) < tol.zero)
     return all_coplanar
     
 def any_coplanar(triangles):
@@ -64,7 +64,7 @@ def any_coplanar(triangles):
     distances    = point_plane_distance(points       = triangles[1:].reshape((-1,3)),
                                         plane_normal = test_normal,
                                         plane_origin = test_vertex)
-    any_coplanar = np.any(np.all(np.abs(distances.reshape((-1,3)) < TOL_ZERO), axis=1))
+    any_coplanar = np.any(np.all(np.abs(distances.reshape((-1,3)) < tol.zero), axis=1))
     return any_coplanar
     
 def mass_properties(triangles, density = 1.0, skip_inertia=False):

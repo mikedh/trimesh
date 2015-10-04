@@ -29,17 +29,17 @@ def simplify_circles(path):
         
         # check aspect ratio as an early exit if the path is not a circle
         aspect = np.divide(*points.ptp(axis=0))
-        if np.abs(aspect - 1.0) > TOL_ASPECT: continue
+        if np.abs(aspect - 1.0) > tol.aspect: continue
 
         # make sure the facets all meet the length tolerances specified
         facet_len = np.sum(np.diff(points, axis=0)**2, axis=1)
-        facet_bad = facet_len > TOL_FACET_LENGTH**2
+        facet_bad = facet_len > tol.seg_length
         if facet_bad.any(): continue
 
         # fit a circle using least squares
         C, R, E = fit_circle(points)
         # check to make sure the radius tolerance is met
-        if E > TOL_RADIUS: continue
+        if E > tol.radius: continue
 
         # we've passed all the tests/exits, so convert the group of lines
         # to a single circle entity
@@ -76,7 +76,7 @@ def merge_colinear(points, scale=1.0):
     # the length of the direction vector
     direction_norm = np.linalg.norm(direction, axis=1)
     # make sure points don't have zero length
-    direction_ok   = direction_norm > TOL_MERGE
+    direction_ok   = direction_norm > tol.merge
     # change nonzero direction vectors to unit vectors
     direction[direction_ok] /= direction_norm[direction_ok].reshape((-1,1))
     # find the difference between subsequent direction vectors
@@ -85,7 +85,7 @@ def merge_colinear(points, scale=1.0):
     direction_diff[np.logical_not(direction_ok[:-1])] = 0.0
 
     # magnitude of direction difference between vectors times direction length
-    colinear = (direction_diff * direction_norm[1:]) < (TOL_MERGE * scale)
+    colinear = (direction_diff * direction_norm[1:]) < (tol.merge * scale)
     colinear_index = np.nonzero(colinear)[0]
 
     mask = np.ones(len(points), dtype=np.bool)

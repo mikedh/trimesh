@@ -1,12 +1,12 @@
 import numpy as np
 
 from .grouping import group_rows
-from .constants import log, log_time
+from .constants import log, _log_time
 
 _MIN_BIN_COUNT = 20
 _TOL_FREQ      = 1e-3
 
-@log_time
+@_log_time
 def merge_duplicates(meshes):
     '''
     Given a list of meshes, find meshes which are duplicates and merge them.

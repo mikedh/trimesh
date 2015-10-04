@@ -9,7 +9,7 @@ from distutils.spawn import find_executable
 from subprocess      import check_call
 from xml.etree       import cElementTree
 
-from ..constants import RES_MESH, log
+from ..constants import res, log
 
 _METERS_TO_INCHES = 1.0 / .0254
 _STEP_FACETER     = find_executable('export_product_asm')
@@ -49,7 +49,7 @@ def load_step(file_obj, file_type=None):
             else: 
                 file_name = file_obj
             check_call([_STEP_FACETER, file_name,
-                        '-tol', str(RES_MESH),
+                        '-tol', str(res.mesh),
                         '-o', out_file.name])
             t = cElementTree.parse(out_file)
             

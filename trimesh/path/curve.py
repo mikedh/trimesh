@@ -1,6 +1,6 @@
 import numpy as np
 
-from .constants import *
+from .constants import res
 
 def discretize_bezier(points, count=None, scale=1.0):
     '''
@@ -32,10 +32,10 @@ def discretize_bezier(points, count=None, scale=1.0):
         # how much distance does a small percentage of the curve take
         # this is so we can figure out how finely we have to sample t   
         norm  = np.linalg.norm(np.diff(points, axis=0), axis=1).sum() / scale
-        count = np.ceil(norm / RES_LENGTH)
+        count = np.ceil(norm / res.length)
         count  = int(np.clip(count, 
-                             RES_MIN_SECTIONS*len(points), 
-                             RES_MAX_SECTIONS*len(points)))
+                             res.min_sections*len(points), 
+                             res.max_sections*len(points)))
     result = compute(np.linspace(0.0, 1.0, count))
     return result
 
@@ -63,9 +63,9 @@ def discretize_bspline(control, knots, count=None, scale=1.0):
     degree  = len(knots) - len(control) - 1
     if count is None:
         norm  = np.linalg.norm(np.diff(control, axis=0), axis=1).sum()
-        count = int(np.clip(norm / (RES_LENGTH*scale),
-                            RES_MIN_SECTIONS*len(control), 
-                            RES_MAX_SECTIONS*len(control)))
+        count = int(np.clip(norm / (res.length*scale),
+                            res.min_sections*len(control), 
+                            res.max_sections*len(control)))
                             
     ipl      = np.linspace(knots[0], knots[-1], count)
     discrete = splev(ipl, [knots, control.T, degree])

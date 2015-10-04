@@ -141,7 +141,7 @@ class Path(object):
         '''
         Merges vertices which are identical and replaces references
         '''
-        digits = decimal_to_digits(TOL_MERGE * self.scale, min_digits=1)
+        digits = decimal_to_digits(tol.merge * self.scale, min_digits=1)
         unique, inverse = unique_rows(self.vertices, digits=digits)
         self.vertices = self.vertices[unique]
         for entity in self.entities: 
@@ -264,7 +264,7 @@ class Path3D(Path):
  
         flat = transform_points(self.vertices, to_2D)
         
-        if check and np.any(np.std(flat[:,2]) > TOL_PLANAR):
+        if check and np.any(np.std(flat[:,2]) > tol.planar):
             log.error('points have z with deviation %f', np.std(flat[:,2]))
             raise NameError('Points aren\'t planar!')
             
@@ -398,10 +398,10 @@ class Path2D(Path):
             polygons[i] = path_to_polygon(path)
             # try to recover invalid polygons by zero- buffering
             if (not polygons[i].is_valid) or is_sequence(polygons[i]): 
-                buffered = polygons[i].buffer(TOL_MERGE*self.scale)
+                buffered = polygons[i].buffer(tol.merge*self.scale)
 
                 if buffered.is_valid and not is_sequence(buffered):
-                    unbuffered = buffered.buffer(-TOL_MERGE*self.scale)
+                    unbuffered = buffered.buffer(-tol.merge*self.scale)
                     if unbuffered.is_valid and not is_sequence(unbuffered):
                         polygons[i] = unbuffered
                     else:

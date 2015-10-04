@@ -5,9 +5,9 @@ from scipy.spatial import cKDTree as KDTree
 from networkx      import from_edgelist, connected_components
 
 from .points    import unitize
-from .constants import *
+from .constants import log, tol
 
-_digits_merge = abs(int(np.log10(TOL_MERGE)))
+_digits_merge = abs(int(np.log10(tol.merge)))
 
 def merge_vertices_hash(mesh):
     '''
@@ -44,7 +44,8 @@ def merge_vertices_kdtree(mesh, max_angle=None):
     
     for index, vertex in enumerate(mesh.vertices):
         if used[index]: continue
-        neighbors = np.array(tree.query_ball_point(mesh.vertices[index], TOL_MERGE))
+        neighbors = np.array(tree.query_ball_point(mesh.vertices[index], 
+                                                   tol.merge))
         used[[neighbors]] = True
         if max_angle != None:
             normals, aligned = group_vectors(mesh.vertex_normals[[neighbors]], 
@@ -97,7 +98,7 @@ def group(values, min_len=0, max_len=np.inf):
     '''
     order     = values.argsort()
     values    = values[order]
-    dupe      = np.greater(np.abs(np.diff(values)), TOL_ZERO)
+    dupe      = np.greater(np.abs(np.diff(values)), tol.zero)
     dupe_idx  = np.append(0, np.nonzero(dupe)[0] + 1)
     dupe_len  = np.diff(np.hstack((dupe_idx, len(values)))) 
     dupe_ok   = np.logical_and(np.greater_equal(dupe_len, min_len),

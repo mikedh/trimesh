@@ -1,6 +1,6 @@
 import numpy as np
 
-from .constants import *
+from .constants import log, tol
 from .geometry  import faces_to_edges
 from .points    import  unitize, project_to_plane 
 
@@ -68,12 +68,12 @@ def plane_line_intersection(plane_origin,
     # If the plane normal and line direction are perpendicular, it means
     # the vector is 'on plane', and there isn't a valid intersection.
     # We discard on-plane vectors by checking that the dot product is nonzero
-    valid = np.abs(b) > TOL_MERGE
+    valid = np.abs(b) > tol.merge
     if line_segments:
         test = np.dot(plane_normal, np.transpose(plane_origin - endpoints[1]))
         different_sides = np.sign(t) != np.sign(test)
-        nonzero = np.logical_or(np.abs(t) > TOL_MERGE,
-                                np.abs(test) > TOL_MERGE)
+        nonzero = np.logical_or(np.abs(t) > tol.merge,
+                                np.abs(test) > tol.merge)
         valid = np.logical_and(valid, different_sides)
         valid = np.logical_and(valid, nonzero)
 

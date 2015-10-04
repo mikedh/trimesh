@@ -24,7 +24,7 @@ from .voxel        import Voxel
 from .points       import unitize, transform_points
 from .convex       import convex_hull
 from .units        import _set_units
-from .constants    import *
+from .constants    import tol, log, _log_time
 
 try: 
     from .path.io.misc import faces_to_path
@@ -263,7 +263,7 @@ class Trimesh(object):
         '''
         self.vertices -= self.vertices.min(axis=0)
         
-    @log_time
+    @_log_time
     def split(self, check_watertight=True):
         '''
         Returns a list of Trimesh objects, based on face connectivity.
@@ -315,7 +315,7 @@ class Trimesh(object):
             return facets, area
         return facets
 
-    @log_time    
+    @_log_time    
     def fix_normals(self):
         '''
         Find and fix problems with self.face_normals and self.faces winding direction.
@@ -366,7 +366,7 @@ class Trimesh(object):
         path     = load_path(segments)
         return path
 
-    @log_time   
+    @_log_time   
     def convex_hull(self, clean=True):
         '''
         Get a new Trimesh object representing the convex hull of the 

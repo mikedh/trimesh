@@ -1,7 +1,7 @@
 import numpy as np
 
 from .transformations import rotation_matrix
-from .constants       import *
+from .constants       import tol
 from .util            import unitize
 
 def plane_transform(origin, normal):
@@ -29,7 +29,7 @@ def align_vectors(vector_start, vector_end, return_angle=False):
     norm         = np.clip(np.linalg.norm(cross), -1.0, 1.0)
     direction    = np.sign(np.dot(vector_start, vector_end))
   
-    if norm < TOL_ZERO:
+    if norm < tol.zero:
         # if the norm is zero, the vectors are the same
         # and no rotation is needed
         T       = np.eye(4)

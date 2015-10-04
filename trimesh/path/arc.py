@@ -3,7 +3,7 @@ import numpy as np
 from ..util         import three_dimensionalize, euclidean
 from ..points       import unitize
 from .intersections import line_line
-from .constants     import *
+from .constants     import tol, res, log
 
 try: 
     from scipy.optimize import leastsq
@@ -49,7 +49,7 @@ def arc_center(points):
     vector_center = unitize(points[[0,2]] - center)
     angle         = np.arccos(np.clip(np.dot(*vector_center), -1.0, 1.0))
     large_arc     = np.dot(*edge_direction)
-    if (abs(angle) > TOL_ZERO) and (large_arc < 0.0): 
+    if (abs(angle) > tol.zero) and (large_arc < 0.0): 
         angle = (np.pi*2) - angle
 
     return center[:(3-is_2D)], radius, plane_normal, angle
@@ -74,10 +74,10 @@ def discretize_arc(points, close = False, scale=1.0):
     if close: angle = np.pi * 2
     
     #the number of facets, based on the angle critera
-    count_a = angle / RES_ANGLE
-    count_l = ((R*angle)/scale) / RES_LENGTH    
+    count_a = angle / res.angle
+    count_l = ((R*angle)/scale) / res.length
     count = np.max([count_a, count_l])
-    count = np.clip(count, 4, 6.28/RES_ANGLE)
+    count = np.clip(count, 4, 6.28/res.angle)
     count = int(np.ceil(count))
 
     V1 = unitize(points[0] - center)
@@ -90,7 +90,7 @@ def discretize_arc(points, close = False, scale=1.0):
 
     if not close:
         arc_dist = np.linalg.norm(points[[0,-1]]-discrete[[0,-1]], axis=1) 
-        arc_ok   = (arc_dist < TOL_MERGE).all()
+        arc_ok   = (arc_dist < tol.merge).all()
         if not arc_ok:
             raise ValueError('Arc endpoints diverging!')
 
@@ -142,15 +142,10 @@ def fit_circle(points, prior=None):
         residuals = radii_sq - radii_sq.mean()
         return residuals
 
-    if prior is not None:
-        C_P, R_P = prior
-        error    = np.abs(residuals(C_P)).max()
-        if error < TOL_RADIUS:
-            return C_P, R_P, error
-        else:                  
-            center_guess = C_P
-    else: 
+    if prior is None:
         center_guess = np.mean(points, axis=0)
+    else: 
+        center_guess = prior[0]
 
     center_result, return_code = leastsq(residuals, center_guess)
     if not (return_code in [1,2,3,4]):

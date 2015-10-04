@@ -4,7 +4,7 @@ Functions dealing with (n,d) points
 import numpy as np
 from scipy.spatial import cKDTree as KDTree
 
-from .constants import *
+from .constants import log, tol
 from .geometry  import plane_transform
 from .util      import unitize
    
@@ -69,7 +69,7 @@ def plane_fit(points, tolerance=None):
 
     if not (tolerance is None):
         normal_range  = np.ptp(np.dot(N, points.T))
-        if normal_range > TOL_PLANAR: 
+        if normal_range > tol.planar:
             log.error('Points have peak to peak of %f', normal_range)
             raise ValueError('Plane outside tolerance!')
     return C, N
@@ -123,7 +123,7 @@ def project_to_plane(points,
                       (n,3), where the Z column consists of zeros
     '''
 
-    if np.all(np.abs(plane_normal) < TOL_ZERO):
+    if np.all(np.abs(plane_normal) < tol.zero):
         raise NameError('Normal must be nonzero!')
 
     if transform is None:

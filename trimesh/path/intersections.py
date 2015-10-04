@@ -2,7 +2,7 @@ import numpy as np
 
 from ..points   import unitize 
 from ..util     import three_dimensionalize, euclidean
-from .constants import TOL_ZERO
+from .constants import tol
 
 def line_line(origins, directions):
     '''
@@ -31,7 +31,7 @@ def line_line(origins, directions):
     is_2D, directions = three_dimensionalize(directions)
     directions        = unitize(directions)
 
-    if np.sum(np.abs(np.diff(directions, axis=0))) < TOL_ZERO:
+    if np.sum(np.abs(np.diff(directions, axis=0))) < tol.zero:
         return False, None
 
     # using notation from docstring
@@ -47,7 +47,7 @@ def line_line(origins, directions):
     # if the vector from origin to origin is on the plane given by
     # the direction vector, the dot product with the plane normal
     # should be within floating point error of zero
-    coplanar = abs(np.dot(plane_normal, w)) < TOL_ZERO
+    coplanar = abs(np.dot(plane_normal, w)) < tol.zero
     if not coplanar:
         return False, None
 

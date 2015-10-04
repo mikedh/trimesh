@@ -4,7 +4,7 @@ import numpy as np
 from collections import deque
 from copy import deepcopy
 
-from .constants import *
+from .constants import log, tol
 from .grouping  import group, group_rows, replace_references
 from .geometry  import faces_to_edges
 from .points    import unitize
@@ -109,7 +109,7 @@ def facets(mesh):
     normal_dot   = (np.sum(normal_pairs[:,0,:] * normal_pairs[:,1,:], axis=1) - 1)**2
 
     # if normals are actually equal, they are parallel with a high degree of confidence
-    parallel     = normal_dot < TOL_ZERO
+    parallel     = normal_dot < tol.zero
     non_parallel = np.logical_not(parallel)
 
     # saying that two faces *arent* parallel is susceptible to error
@@ -124,7 +124,7 @@ def facets(mesh):
     center_sq = np.sum(np.diff(center[face_idx], 
                                axis = 1).reshape((-1,3)) ** 2, axis=1)
     radius_sq = center_sq[non_parallel] / normal_dot[non_parallel]
-    parallel[non_parallel] = radius_sq > TOL_FACET_RSQ
+    parallel[non_parallel] = radius_sq > tol.facet_rsq
 
     # graph-tool is ~6x faster than networkx but is more difficult to install
     if _has_gt: return facets_gt()

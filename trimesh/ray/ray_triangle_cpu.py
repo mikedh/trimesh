@@ -4,7 +4,7 @@ Narrow phase ray- triangle intersection
 import numpy as np
 import time
 
-from ..constants import log, TOL_ZERO
+from ..constants import log, tol
 from ..util      import diagonal_dot
 
 def rays_triangles_id(triangles,
@@ -72,7 +72,7 @@ def ray_triangles(triangles,
 
     #if determinant is near zero, ray lies in plane of triangle
     det                                = diagonal_dot(edge0, P)    
-    candidates[np.abs(det) < TOL_ZERO] = False
+    candidates[np.abs(det) < tol.zero] = False
 
     if not candidates.any(): return candidates
     # remove previously calculated terms which are no longer candidates
@@ -81,8 +81,8 @@ def ray_triangles(triangles,
     u       = diagonal_dot(T, P[candidates]) * inv_det
 
     
-    new_candidates         = np.logical_not(np.logical_or(u < -TOL_ZERO,
-                                                          u > (1+TOL_ZERO)))
+    new_candidates         = np.logical_not(np.logical_or(u < -tol.zero,
+                                                          u > (1+tol.zero)))
     candidates[candidates] = new_candidates
     if not candidates.any(): return candidates    
     inv_det = inv_det[new_candidates]
@@ -92,14 +92,14 @@ def ray_triangles(triangles,
     Q = np.cross(T, edge0[candidates])
     v = np.dot(ray_direction, Q.T) * inv_det
 
-    new_candidates = np.logical_not(np.logical_or((v     < -TOL_ZERO),
-                                                  (u + v > (1+TOL_ZERO))))
+    new_candidates = np.logical_not(np.logical_or((v     < -tol.zero),
+                                                  (u + v > (1+tol.zero))))
     candidates[candidates] = new_candidates
     if not candidates.any(): return candidates
     Q       = Q[new_candidates]
     inv_det = inv_det[new_candidates]
     
     t = diagonal_dot(edge1[candidates], Q) * inv_det
-    candidates[candidates] = t > TOL_ZERO
+    candidates[candidates] = t > tol.zero
 
     return candidates

@@ -2,7 +2,7 @@ import numpy as np
 
 from ..base      import Trimesh
 
-from ..constants import log_time, log
+from ..constants import _log_time, log
 from ..util      import is_file, is_string, make_sequence
 
 from .assimp import _assimp_loaders
@@ -13,7 +13,7 @@ from .step   import _step_loaders
 def available_formats():
     return _mesh_loaders.keys()
 
-@log_time
+@_log_time
 def load_mesh(file_obj, file_type=None, process=True):
     '''
     Load a mesh file into a Trimesh object

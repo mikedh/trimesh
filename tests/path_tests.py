@@ -39,8 +39,8 @@ class VectorTests(unittest.TestCase):
             for path in d.paths:
                 verts = d.discretize_path(path)
                 dists = np.sum((np.diff(verts, axis=0))**2, axis=1)**.5
-                self.assertTrue(np.all(dists > TOL_ZERO))
-                circuit_test = euclidean(verts[0], verts[-1]) < TOL_MERGE
+                self.assertTrue(np.all(dists > tol.zero))
+                circuit_test = euclidean(verts[0], verts[-1]) < tol.merge
                 if not circuit_test:
                     log.error('On file %s First and last vertex distance %f', 
                               d.filename,
@@ -61,7 +61,7 @@ class VectorTests(unittest.TestCase):
                     r = d.polygons_closed[i].buffer(0.0)
                     d.show()
                 self.assertTrue(d.polygons_closed[i].is_valid)
-                self.assertTrue(d.polygons_closed[i].area > TOL_ZERO) 
+                self.assertTrue(d.polygons_closed[i].area > tol.zero) 
             d.export('dict')
             d.export('svg')
             d.simplify()
@@ -77,8 +77,8 @@ class ArcTests(unittest.TestCase):
         points                 = self.test_points[0]
         res_center, res_radius = self.test_results[0]
         C, R, N, angle = vector.arc.arc_center(points)
-        self.assertTrue(abs(R-res_radius) < TOL_ZERO)
-        self.assertTrue(euclidean(C, res_center) < TOL_ZERO)
+        self.assertTrue(abs(R-res_radius) < tol.zero)
+        self.assertTrue(euclidean(C, res_center) < tol.zero)
 
 if __name__ == '__main__':
     attach_to_log()

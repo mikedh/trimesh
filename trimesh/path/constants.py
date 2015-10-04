@@ -1,39 +1,46 @@
-from time  import time as time_function
+from time import time as time_function
+from collections import namedtuple as _namedtuple
+from logging import getLogger   as _getLogger
+from logging import NullHandler as _NullHandler
 
-from ..constants import TOL_PLANAR
+### numerical tolerances
+class NumericalTolerance(_namedtuple('NumericalTolerance', 
+                                     ['zero', 
+                                      'merge',
+                                      'planar',
+                                      'seg_length',
+                                      'facet_ang',
+                                      'radius',
+                                      'aspect'])):
+    '''
+    tol.zero: consider floating point numbers less than this zero
+    tol.merge: when merging vertices, consider vertices closer than this
+               to be the same vertex
+    tol.planar: the maximum distance from a plane a point can be and
+                still be considered to be on the plane
+    '''
+class NumericalResolution(_namedtuple('NumericalResolution', 
+                                      ['length',
+                                       'angle',
+                                       'max_sections',
+                                       'min_sections'])):
+    '''
+    res.length: when discretizing curves, how long should a section be
+    res.angle:  when discretizing curves, what angle should a section span
+    '''
+tol = NumericalTolerance(zero      = 1e-12,
+                         merge     = 1e-5,
+                         planar    = 1e-5,
+                         seg_length = .19,
+                         facet_ang = .2,
+                         radius    = 1e-5,
+                         aspect    = .1)
+res = NumericalResolution(length = .005,
+                          angle  = .18,
+                          max_sections = 10,
+                          min_sections = 5)
+_EXPORT_PRECISION = '.5f'
 
-#when running multiprocess functions, how many processes?
-PROCESS_COUNT = 3
-
-#when merging vertices, what tolerance to use
-#in an ideal world this would be the same as TOL_ZERO
-#however different CAD packages export vertices with
-#different levels of precision
-TOL_MERGE        = 1e-5
-
-#less than this is considered zero
-TOL_ZERO      = 1e-12
-
-#what is the maximum facet length that is converted to a circle
-#if you didn't do this, octagons would be converted to circles
-#in the simplification step
-TOL_FACET_LENGTH  = .1875
-# what's the maximum facet angle
-# .2 radians ~= 15 degrees
-TOL_FACET_ANGLE  = .2
-TOL_RADIUS       = 1e-5
-TOL_ASPECT       = .1
-EXPORT_PRECISION = '.5f'
-
-# target length of a section when discretizing curves
-RES_LENGTH = .005
-# target angle of a section when discretizing curves
-RES_ANGLE  = .2
-
-RES_MAX_SECTIONS = 10
-RES_MIN_SECTIONS = 5
-
-
-import logging
-log = logging.getLogger('path')
-log.addHandler(logging.NullHandler())
+### logging
+log = _getLogger('path')
+log.addHandler(_NullHandler())

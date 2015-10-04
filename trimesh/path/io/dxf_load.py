@@ -1,6 +1,6 @@
 import numpy as np
 
-from ..constants import log, TOL_MERGE
+from ..constants import log, tol
 from ..entities  import Line, Arc, BSpline
 from ..util      import angles_to_threepoint
 from ...util     import is_binary_file, is_ccw, multi_dict
@@ -73,7 +73,7 @@ def load_dxf(file_obj):
         points = np.column_stack((e['10'], e['20'])).astype(np.float)
         knots  = np.array(e['40']).astype(float)
         # check euclidean distance to see if closed
-        closed = np.linalg.norm(points[0] - points[-1]) < TOL_MERGE
+        closed = np.linalg.norm(points[0] - points[-1]) < tol.merge
         # if it is closed, make sure it is CCW for later polygon happiness
         if closed and (not is_ccw(points)):
             points = points[::-1]

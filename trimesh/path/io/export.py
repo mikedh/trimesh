@@ -1,7 +1,7 @@
 import numpy as np
 
 from ..arc       import arc_center
-from ..constants import log, EXPORT_PRECISION
+from ..constants import log, _EXPORT_PRECISION
 
 def export_path(path, file_type, file_obj=None):
     '''
@@ -39,15 +39,15 @@ def export_svg(drawing):
     rendering libraries
     '''
     def circle_to_svgpath(center, radius, reverse):
-        radius_str = format(radius, EXPORT_PRECISION)
-        path_str  = '  M' + format(center[0]-radius, EXPORT_PRECISION) + ',' 
-        path_str += format(center[1], EXPORT_PRECISION)       
+        radius_str = format(radius, _EXPORT_PRECISION)
+        path_str  = '  M' + format(center[0]-radius, _EXPORT_PRECISION) + ',' 
+        path_str += format(center[1], _EXPORT_PRECISION)       
         path_str += 'a' + radius_str + ',' + radius_str  
         path_str += ',0,1,' + str(int(reverse)) + ','
-        path_str += format(2*radius, EXPORT_PRECISION) +  ',0'
+        path_str += format(2*radius, _EXPORT_PRECISION) +  ',0'
         path_str += 'a' + radius_str + ',' + radius_str
         path_str += ',0,1,' + str(int(reverse)) + ','
-        path_str += format(-2*radius, EXPORT_PRECISION) + ',0Z  '
+        path_str += format(-2*radius, _EXPORT_PRECISION) + ',0Z  '
         return path_str
     def svg_arc(arc, reverse):
         '''
@@ -62,22 +62,22 @@ def export_svg(drawing):
         large_flag = str(int(angle > np.pi))
         sweep_flag = str(int(np.cross(vertex_mid-vertex_start, 
                                       vertex_end-vertex_start) > 0))
-        R_ex = format(R, EXPORT_PRECISION)
-        x_ex = format(vertex_end[0],EXPORT_PRECISION)
-        y_ex = format(vertex_end [1],EXPORT_PRECISION)
+        R_ex = format(R, _EXPORT_PRECISION)
+        x_ex = format(vertex_end[0],_EXPORT_PRECISION)
+        y_ex = format(vertex_end [1],_EXPORT_PRECISION)
         arc_str  = 'A' + R_ex + ',' + R_ex + ' 0 ' 
         arc_str += large_flag + ',' + sweep_flag + ' '
         arc_str += x_ex + ',' + y_ex
         return arc_str
     def svg_line(line, reverse):
         vertex_end = drawing.vertices[line.points[-(not reverse)]]
-        x_ex = format(vertex_end[0], EXPORT_PRECISION) 
-        y_ex = format(vertex_end[1], EXPORT_PRECISION) 
+        x_ex = format(vertex_end[0], _EXPORT_PRECISION) 
+        y_ex = format(vertex_end[1], _EXPORT_PRECISION) 
         line_str = 'L' + x_ex + ',' + y_ex
         return line_str
     def svg_moveto(vertex_id):
-        x_ex = format(drawing.vertices[vertex_id][0], EXPORT_PRECISION) 
-        y_ex = format(drawing.vertices[vertex_id][1], EXPORT_PRECISION) 
+        x_ex = format(drawing.vertices[vertex_id][0], _EXPORT_PRECISION) 
+        y_ex = format(drawing.vertices[vertex_id][1], _EXPORT_PRECISION) 
         move_str = 'M' + x_ex + ',' + y_ex
         return move_str
     def convert_path(path, reverse=False):

@@ -1,27 +1,43 @@
-#to avoid confusion over function vs module name
 from time import time as time_function
+from collections import namedtuple as _namedtuple
+from logging import getLogger   as _getLogger
+from logging import NullHandler as _NullHandler
 
-# consider floating point numbers less than this zero
-TOL_ZERO      = 1e-12
-# when merging vertices, consider vertices closer than this
-# to be the same vertex. this is the same value (1e-8)
-# as the one solidworks uses (according to their documentation)
-TOL_MERGE     = 1e-8
-# if a point is within this distance to a plane, consider it on
-# the plane
-TOL_PLANAR    = 1e-5
-# the maximum squared radius two faces can form and still be
-# considered part of a facet (also known as coplanar)
-TOL_FACET_RSQ = 1e8
+### numerical tolerances
+class NumericalTolerance(_namedtuple('NumericalTolerance', 
+                                     ['zero', 
+                                      'merge',
+                                      'planar',
+                                      'facet_rsq'])):
+    '''
+    tol.zero: consider floating point numbers less than this zero
+    tol.merge: when merging vertices, consider vertices closer than this
+               to be the same vertex. Here we use the same value (1e-8)
+               as SolidWorks uses, according to their documentation.
+    tol.planar: the maximum distance from a plane a point can be and
+                still be considered to be on the plane
+    tol.facet_rsq: the minimum radius squared that an arc drawn from the 
+                   center of a face to the center of an adjacent face can
+                   be to consider the two faces coplanar. This method is more
+                   robust than considering just normal angles as it is tolerant
+                   of numerical error on very small faces. 
+    '''
+class NumericalResolution(_namedtuple('NumericalResolution', 
+                                      ['mesh'])):
+    '''
+    res.mesh: when meshing parts, what resolution to use
+    '''
+tol = NumericalTolerance(zero      = 1e-12,
+                         merge     = 1e-8,
+                         planar    = 1e-5,
+                         facet_rsq = 1e8)
+res = NumericalResolution(mesh = 5e-3)
 
-# when meshing parts, what resolution to use
-RES_MESH = .005
 
-import logging as _logging
-log = _logging.getLogger('trimesh')
-log.addHandler(_logging.NullHandler())
-
-def log_time(method):
+### logging
+log = _getLogger('trimesh')
+log.addHandler(_NullHandler())
+def _log_time(method):
     def timed(*args, **kwargs):
         tic    = time_function()
         result = method(*args, **kwargs)
@@ -33,5 +49,9 @@ def log_time(method):
     timed.__doc__  = method.__doc__
     return timed
 
-class MeshError(Exception): pass
-class TransformError(Exception): pass
+
+### exceptions
+class MeshError(Exception):
+    pass
+class TransformError(Exception): 
+    pass

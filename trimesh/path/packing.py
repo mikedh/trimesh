@@ -37,7 +37,7 @@ class Bin:
         size_test = bounds_to_size(self.bounds) - rectangle_size
 
         # this means the inserted rectangle is too big for the cell
-        if np.any(size_test < -TOL_ZERO): 
+        if np.any(size_test < -tol.zero)
             return None
         
         # since the cell is big enough for the current rectangle, either it
