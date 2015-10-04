@@ -7,8 +7,9 @@ import logging
 
 import trimesh.path as vector
 
-from trimesh.path.constants import *
-from trimesh.util           import euclidean, attach_to_log
+from trimesh.constants import log, time_function
+from trimesh.constants import tol_path as tol
+from trimesh.util      import euclidean, attach_to_log
 
 TEST_DIR   = '../models/2D'
 
