@@ -561,19 +561,7 @@ class Trimesh(object):
         return Trimesh(process=True, **boolean.intersection(self, other))
     
     def __eq__(self, other):
-        if not isinstance(other, self.__class__): 
-            return False
-
-        a_id = self.identifier()
-        b_id = other.identifier()
-
-        # find the percentage difference between the two hashes
-        diff    = np.abs(self.identifier() - other.identifier())
-        nonzero = np.abs(a_id) > 0.0
-        diff[nonzero] /= np.abs(a_id[nonzero])
-
-        # consider meshes equal if all terms of their hash differ by <1%
-        equal = (diff < .01).all()
+        equal = comparison.equal(self, other)
         return equal
 
     def __hash__(self):

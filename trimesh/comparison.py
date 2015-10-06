@@ -1,7 +1,8 @@
 import numpy as np
 
-from .grouping import group_rows
+from .grouping  import group_rows
 from .constants import log, _log_time
+from .constants import tol
 
 _MIN_BIN_COUNT = 20
 _TOL_FREQ      = 1e-3
@@ -31,6 +32,23 @@ def merge_duplicates(meshes):
              len(merged))
     return np.array(merged)
 
+def equal(a, b):
+    if not (hasattr(a, 'identifier') and 
+            hasattr(b, 'identifier')):
+        return False
+
+    a_id = a.identifier()
+    b_id = b.identifier()
+
+    # find the percentage difference between the two hashes
+    diff    = np.abs(a_id - b_id)
+    nonzero = np.abs(a_id) > tol.zero
+    diff[nonzero] /= np.abs(a_id[nonzero])
+
+    # consider meshes equal if all terms of their hash differ by <1%
+    equal = (diff < .01).all()
+    return equal
+    
 def rotationally_invariant_identifier(mesh, length=6, as_json=False, json_digits=None):
     '''
     Given an input mesh, return a vector or string that has the following properties:

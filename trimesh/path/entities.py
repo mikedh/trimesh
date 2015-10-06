@@ -16,7 +16,7 @@ from ..util     import replace_references
 
 _HASH_LENGTH = 5
 
-class Entity:
+class Entity(object):
     def __init__(self, 
                  points, 
                  closed = False):

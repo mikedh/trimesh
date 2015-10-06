@@ -105,7 +105,3 @@ class MeshError(Exception):
     pass
 class TransformError(Exception): 
     pass
-
-### logging
-log = _getLogger('path')
-log.addHandler(_NullHandler())

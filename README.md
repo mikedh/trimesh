@@ -2,26 +2,26 @@ trimesh
 ==========
 [![Build Status](https://travis-ci.org/mikedh/trimesh.svg?branch=master)](https://travis-ci.org/mikedh/trimesh)
 
-Python library for loading and doing operations on triangular meshes.
+Python (2.7-3.*) library for loading and utilizing triangular meshes.
 
 ### Features
 * Import binary/ASCII STL, Wavefront, and OFF
 * Export binary STL, COLLADA, and OFF
-* Import all formats from assimp (if pyassimp installed)
-* Load STEP files as meshes (if STEPtools Inc. author tools installed)
+* Import formats using assimp (if pyassimp installed)
+* Load STEP files as meshes (if STEPtools Inc. Author Tools installed)
 * Preview meshes (requires pyglet). 
 * Fast loading of binary and ASCII STL files (on 234,230 face mesh, was 24.5x faster than assimp)
 * Calculate face adjacencies quickly (for the same 234,230 face mesh .248 s)
 * Calculate cross sections (.146 s)
 * Split mesh based on face connectivity using networkx (4.96 s) or graph-tool (.584 s)
 * Calculate mass properties, including volume, center of mass, and moment of inertia (.246 s)
-* Find planar facets (.454 s)
+* Find coplanar groups of faces (.454 s)
 * Fix triangle winding to be consistent 
-* Fix normals to be oriented 'outwards', using ray tests
+* Fix normals to be oriented 'outwards' using ray tests
 * Find convex hulls of meshes (.21 s)
 * Compute a rotation/translation/tessellation invariant identifier for meshes (from an FFT of the radius distribution)
 * Merge duplicate meshes from identifier
-* Determine if a mesh is watertight
+* Determine if a mesh is watertight (manifold)
 * Repair single triangle and single quad holes
 * Uniformly sample the surface of a mesh
 * Find ray-mesh intersections
