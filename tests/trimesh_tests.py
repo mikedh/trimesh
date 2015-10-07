@@ -114,7 +114,7 @@ class MeshTests(unittest.TestCase):
                 log.warning('Hashing non- watertight mesh (%s) produces garbage!',
                          mesh.metadata['filename'])
                 continue
-            log.info('Hashing %s', mesh.metadata['filename'])
+            log.info('Hashing %s', mesh.metadata['filename']) 
             result = deque()
             for i in range(10):
                 mesh.rezero()
@@ -141,6 +141,15 @@ class MeshTests(unittest.TestCase):
     def test_fix_normals(self):
         for mesh in self.meshes[5:]:
             mesh.fix_normals()
+
+class EqualTest(unittest.TestCase):
+    def setUp(self):
+        self.a = trimesh.load_mesh(os.path.abspath(os.path.join(TEST_DIR, 'ballA.off')))
+        self.b = trimesh.load_mesh(os.path.abspath(os.path.join(TEST_DIR, 'ballB.off')))
+    
+    def test_equal(self):
+        self.assertTrue(self.a == self.b)
+        log.info('Mesh equality tested')
 
 class RayTests(unittest.TestCase):
     def setUp(self):
