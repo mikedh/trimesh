@@ -18,7 +18,7 @@ if __name__ == '__main__':
     z_extents = mesh.bounds[:,2]
 
     # slice every .1 model units (eg, inches)
-    z_levels  = np.arange(*z_extents, step=.3)
+    z_levels  = np.arange(*z_extents, step=.1)
 
     # create an array to hold the section objects
     sections  = [None] * len(z_levels)

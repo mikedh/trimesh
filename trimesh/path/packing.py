@@ -5,7 +5,7 @@ from shapely.geometry import Point, Polygon, LineString
 
 from copy import deepcopy
 
-from ..constants import log
+from ..constants import log, time_function
 from ..constants import tol_path as tol
 
 from .polygons  import polygon_obb
@@ -39,7 +39,7 @@ class Bin:
         size_test = bounds_to_size(self.bounds) - rectangle_size
 
         # this means the inserted rectangle is too big for the cell
-        if np.any(size_test < -tol.zero)
+        if np.any(size_test < -tol.zero):
             return None
         
         # since the cell is big enough for the current rectangle, either it
