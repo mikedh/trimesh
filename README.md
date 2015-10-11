@@ -6,10 +6,11 @@ Python (2.7-3.*) library for loading and utilizing triangular meshes.
 
 ### Features
 * Import binary/ASCII STL, Wavefront, and OFF
-* Export binary STL, COLLADA, and OFF
 * Import formats using assimp (if pyassimp installed)
-* Load STEP files as meshes (if STEPtools Inc. Author Tools installed)
-* Preview meshes (requires pyglet). 
+* Import STEP files as meshes (if STEPtools Inc. Author Tools installed)
+* Import 2D or 3D vector paths from DXF or SVG files
+* Export meshes as binary STL, COLLADA, or OFF
+* Preview meshes (requires pyglet)
 * Fast loading of binary and ASCII STL files (on 234,230 face mesh, was 24.5x faster than assimp)
 * Calculate face adjacencies quickly (for the same 234,230 face mesh .248 s)
 * Calculate cross sections (.146 s)
@@ -27,7 +28,6 @@ Python (2.7-3.*) library for loading and utilizing triangular meshes.
 * Find ray-mesh intersections
 * Voxelize watertight meshes
 * Unit conversions
-* Load 2D or 3D vector paths from DXF or SVG files
 * Create meshes by extruding 2D profiles
 * Numerous utility functions, such as transforming points, unitizing vectors, grouping rows, etc. 
 
