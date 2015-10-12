@@ -92,13 +92,17 @@ class Trimesh(object):
 
     @property
     def _geometry_id(self):
-        result = self.faces.modified + self.vertices.modified
+        '''
+        An integer which represents the current state of
+        the meshes vertices and faces. 
+        '''
+        result  = self.faces.modified 
+        result += self.vertices.modified
         return result
 
     @property
     def faces(self):
         return self._faces
-
     @faces.setter
     def faces(self, values):
         self._faces = util.tracked_array(values)
@@ -106,7 +110,6 @@ class Trimesh(object):
     @property
     def vertices(self):
         return self._vertices
-
     @vertices.setter
     def vertices(self, values):
         self._vertices = util.tracked_array(values)
@@ -116,15 +119,24 @@ class Trimesh(object):
         '''
         (2,3) float, bounding box of the mesh of [min, max] coordinates
         '''
-        return np.vstack((np.min(self.vertices, axis=0),
-                          np.max(self.vertices, axis=0)))
+        bounds = np.vstack((np.min(self.vertices, axis=0),
+                            np.max(self.vertices, axis=0)))
+        return bounds
 
     @property                 
     def centroid(self):
+        '''
+        The (3) point in space which is the average vertex. 
+        '''
         return np.mean(self.vertices, axis=0)
         
     @property
     def center_mass(self):
+        '''
+        The (3) point in space which is the center of mass/volume. 
+        
+        If the current mesh is not watertight, this is meaningless garbage. 
+        '''
         return self.mass_properties(skip_inertia=True)['center_mass']
         
     @property

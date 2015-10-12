@@ -16,11 +16,11 @@ from .polygons  import polygons_enclosure_tree, is_ccw, medial_axis
 from .traversal import vertex_graph, closed_paths, discretize_path
 from .io.export import export_path
 
-from ..points   import plane_fit, transform_points
-from ..geometry import plane_transform
-from ..grouping import unique_rows
-from ..units    import _set_units
-from ..util     import decimal_to_digits, is_sequence
+from ..points    import plane_fit, transform_points
+from ..geometry  import plane_transform
+from ..grouping  import unique_rows
+from ..units     import _set_units
+from ..util      import decimal_to_digits, is_sequence
 from ..constants import log, time_function
 from ..constants import tol_path as tol
 
