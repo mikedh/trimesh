@@ -8,6 +8,7 @@ import numpy as np
 import json
 
 TEST_DIR  = '../models'
+TEST_DIM = (100,3)
 TOL_ZERO  = 1e-9
 TOL_CHECK = 1e-2
 
@@ -16,7 +17,7 @@ log.addHandler(logging.NullHandler())
 
 class VectorTests(unittest.TestCase):
     def setUp(self):
-        self.test_dim = (100,3)
+        self.test_dim = TEST_DIM
 
     def test_unitize_multi(self):
         vectors = np.ones(self.test_dim)
@@ -53,6 +54,17 @@ class VectorTests(unittest.TestCase):
             M, error = trimesh.points.absolute_orientation(points_A, points_B, return_error=True)
             self.assertTrue(np.all(error < TOL_ZERO))
 
+class UtilTests(unittest.TestCase):
+    def test_track(self):
+        a = trimesh.util.tracked_array(np.random.random(TEST_DIM))
+        modified = deque()
+        modified.append(a.modified)
+        a[0] = 10
+        modified.append(a.modified)
+        a[1:] = 5
+        modified.append(a.modified)    
+        self.assertTrue((np.diff(modified) != 0).all())
+ 
 class MeshTests(unittest.TestCase):
     def setUp(self):
         meshes = deque()

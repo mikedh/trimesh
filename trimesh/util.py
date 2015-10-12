@@ -1,4 +1,5 @@
 import numpy as np
+import time
 import logging
 
 from sys import version_info
@@ -271,3 +272,29 @@ def attach_to_log(log_level=logging.DEBUG, blacklist=[]):
         logger.setLevel(log_level)
     np.set_printoptions(precision=5, suppress=True)
 
+class TrackedArray(np.ndarray):
+    _modified = time.time() % 1
+
+    @property
+    def modified(self):
+        return self.__hash__()
+
+    def _set_modified(self):
+        self._modified = time.time() % 1
+
+    def __hash__(self):
+        result  = float(id(self))
+        result *= self._modified
+        result *= 1e6
+        return int(result)
+
+    def __setitem__(self, i, y):
+        self._set_modified()
+        super(self.__class__, self).__setitem__(i, y)
+
+    def __setslice__(self, i, j, y):
+        self._set_modified()
+        super(self.__class__, self).__setslice__(i, j, y)
+
+def tracked_array(array):
+    return np.array(array).view(TrackedArray)

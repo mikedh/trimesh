@@ -17,6 +17,7 @@ from . import repair
 from . import comparison
 from . import boolean
 from . import intersections
+from . import util
 
 from .io.export    import export_mesh
 from .ray.ray_mesh import RayMeshIntersector
@@ -32,8 +33,10 @@ try:
 except ImportError:
     log.warning('trimesh.path unavailable!', exc_info=True)
 
-try:                from .scene import Scene
-except ImportError: log.warning('Mesh previewing unavailable!', exc_info=True)
+try:
+    from .scene import Scene
+except ImportError: 
+    log.warning('Mesh previewing unavailable!', exc_info=True)
 
 class Trimesh(object):
     def __init__(self, 
@@ -46,9 +49,11 @@ class Trimesh(object):
                  **kwargs):
 
         # (n, 3) float, set of vertices
-        self.vertices        = np.array(vertices)
+        self.vertices = np.array(vertices)
         # (m, 3) int of triangle faces, references self.vertices
-        self.faces           = np.array(faces)
+        self.faces = np.array(faces)
+
+        self._cache = {}
 
         # normals are accessed through setters/properties to 
         # ensure they are at least somewhat reasonable
@@ -84,6 +89,27 @@ class Trimesh(object):
         self.remove_duplicate_faces()
         self.remove_degenerate_faces()
         return self
+
+    @property
+    def _geometry_id(self):
+        result = self.faces.modified + self.vertices.modified
+        return result
+
+    @property
+    def faces(self):
+        return self._faces
+
+    @faces.setter
+    def faces(self, values):
+        self._faces = util.tracked_array(values)
+
+    @property
+    def vertices(self):
+        return self._vertices
+
+    @vertices.setter
+    def vertices(self, values):
+        self._vertices = util.tracked_array(values)
 
     @property
     def bounds(self):
