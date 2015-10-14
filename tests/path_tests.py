@@ -66,7 +66,11 @@ class VectorTests(unittest.TestCase):
             d.export('dict')
             d.export('svg')
             d.simplify()
-            for body in d.split():
+            split = d.split()
+            log.info('Split %s into %d bodies, checking identifiers',
+                     d.filename,
+                     len(split))
+            for body in split:
                 body.identifier()
 
 class ArcTests(unittest.TestCase):
