@@ -20,6 +20,6 @@ setup(name='trimesh',
                           'networkx', 
                           'pyglet'],
       extras_require    = {'path' : ['svg.path', 
-                                     'shapely', 
+                                     'Shapely', 
                                      'rtree']}
      )
