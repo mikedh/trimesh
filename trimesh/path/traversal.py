@@ -189,8 +189,9 @@ def resample_path(points, count=None, step=None, step_round=True):
     
     resampled = sampler.sample(samples)
     
+    check = np.linalg.norm(points[[0,-1]] - resampled[[0,-1]],axis=1)
+    assert check[0] < tol.merge
     if count is not None:
-        check = np.linalg.norm(points[[0,-1]] - resampled[[0,-1]],axis=1)
-        assert (check < tol.merge).all()
+        assert check[1] < tol.merge
 
     return resampled

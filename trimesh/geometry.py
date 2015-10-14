@@ -69,3 +69,28 @@ def nondegenerate_faces(faces):
     '''
     nondegenerate = np.all(np.diff(np.sort(faces, axis=1), axis=1) != 0, axis=1)
     return nondegenerate
+    
+def mean_vertex_normals(count, faces, face_normals):
+    '''
+    roduce approximate vertex normals based on the
+    average normals of adjacent faces.
+    
+    If vertices are merged with no regard to normal angle, this is
+    going to render with weird shading.
+    '''
+    vertex_normals = np.zeros((count, 3,3))
+    vertex_normals[[faces[:,0],0]] = face_normals
+    vertex_normals[[faces[:,1],1]] = face_normals
+    vertex_normals[[faces[:,2],2]] = face_normals
+    mean_normals        = vertex_normals.mean(axis=1)
+    unit_normals, valid = unitize(mean_normals, check_valid=True)
+
+    mean_normals[valid] = unit_normals
+    # if the mean normal is zero, it generally means: 
+    # a) the vertex is only shared by 2 faces (mesh is not watertight)
+    # b) the two faces that share the vertex have 
+    #    normals pointed exactly opposite each other. 
+    # since this means the vertex normal isn't defined, just make it anything
+    mean_normals[np.logical_not(valid)] = [1,0,0]
+    
+    return mean_normals

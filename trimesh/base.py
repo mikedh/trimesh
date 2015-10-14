@@ -47,37 +47,40 @@ class Trimesh(object):
                  metadata        = None,
                  process         = False,
                  **kwargs):
-
+                 
+        # cache computed values, which are cleared when
+        # self._geometry_id() changes, forcing a recompute
+        self._cache = util.Cache(id_function = self._geometry_id)
+                 
         # (n, 3) float, set of vertices
-        self.vertices = np.array(vertices)
+        self.vertices = vertices
         # (m, 3) int of triangle faces, references self.vertices
-        self.faces = np.array(faces)
-
-        self._cache = {}
+        self.faces    = faces
 
         # normals are accessed through setters/properties to 
         # ensure they are at least somewhat reasonable
-        self._face_normals    = np.array(face_normals)
+        self.face_normals = face_normals
+
         # (n, 3) float of vertex normals.
         # can be created from face normals
-        self._vertex_normals  = np.array(vertex_normals)
+        self.vertex_normals = vertex_normals
 
-        # any metadata that should be tracked per- mesh
-        self.metadata        = dict()
-
-        # create a ray- mesh intersector for the current mesh
-        # initializing is very inexpensive and object is convienent to have
-        # on first query expensive bookkeeping is done (creation of r-tree)
+        # create a ray-mesh query object for the current mesh
+        # initializing is very inexpensive and object is convenient to have.
+        # On first query expensive bookkeeping is done (creation of r-tree),
         # and is cached for subsequent queries
         self.ray     = RayMeshIntersector(self)
 
-        # hold vertex and face colors, as well as textures someday
+        # hold vertex and face colors
         self.visual = color.VisualAttributes(self)
-
+        
+        # any metadata that should be tracked per- mesh
+        self.metadata = dict()
         # update the mesh metadata with passed metadata
         if isinstance(metadata, dict):
             self.metadata.update(metadata)
-        # if requested, do basic mesh cleanup
+            
+        # if requested do basic mesh clean-up immediately
         if process:
             self.process()
             
@@ -89,20 +92,11 @@ class Trimesh(object):
         self.remove_duplicate_faces()
         self.remove_degenerate_faces()
         return self
-
-    @property
-    def _geometry_id(self):
-        '''
-        An integer which represents the current state of
-        the meshes vertices and faces. 
-        '''
-        result  = self.faces.modified 
-        result += self.vertices.modified
-        return result
-
+        
     @property
     def faces(self):
         return self._faces
+        
     @faces.setter
     def faces(self, values):
         self._faces = util.tracked_array(values)
@@ -110,10 +104,21 @@ class Trimesh(object):
     @property
     def vertices(self):
         return self._vertices
+        
     @vertices.setter
     def vertices(self, values):
         self._vertices = util.tracked_array(values)
+        
+    def _geometry_id(self):
+        '''
+        An integer which represents the current state of the meshes.
 
+        When core geometry vertices and faces. 
+        '''
+        result  = self.faces.modified() 
+        result += self.vertices.modified()
+        return result
+        
     @property
     def bounds(self):
         '''
@@ -157,7 +162,9 @@ class Trimesh(object):
 
     @property
     def triangles(self):
-        return self.vertices[self.faces]
+        # use of advanced indexing on our tracked arrays will 
+        # trigger a change (which nukes the cache)
+        return self.vertices.view(np.ndarray)[self.faces]
 
     @property
     def edges(self):
@@ -218,23 +225,10 @@ class Trimesh(object):
         If vertices are merged with no regard to normal angle, this is
         going to render with weird shading.
         '''
-        vertex_normals = np.zeros((len(self.vertices), 3,3))
-        vertex_normals[[self.faces[:,0],0]] = self.face_normals
-        vertex_normals[[self.faces[:,1],1]] = self.face_normals
-        vertex_normals[[self.faces[:,2],2]] = self.face_normals
-        mean_normals        = vertex_normals.mean(axis=1)
-        unit_normals, valid = geometry.unitize(mean_normals, check_valid=True)
-
-        mean_normals[valid] = unit_normals
-        # if the mean normal is zero, it generally means that you've encountered 
-        # the edge case where
-        # a) the vertex is only shared by 2 faces (mesh is not watertight)
-        # b) the two faces that share the vertex have normals pointed exactly
-        #    opposite each other. 
-        # since this means the vertex normal isn't defined, just make it anything
-        mean_normals[np.logical_not(valid)] = [1,0,0]
-        self._vertex_normals = mean_normals
-        
+        self._vertex_normals = geometry.mean_vertex_normals(len(self.vertices),
+                                                            self.faces,
+                                                            self.face_normals)
+                                                             
     def merge_vertices(self, angle_max=None):
         '''
         If a mesh has vertices that are closer than TOL_MERGE, 
@@ -325,7 +319,11 @@ class Trimesh(object):
         graph.add_edges_from(mesh.face_adjacency)
         groups = nx.connected_components(graph_connected.subgraph(interesting_faces))
         '''
-        return graph.face_adjacency(self.faces)
+        cached = self._cache.get('face_adjacency')
+        if cached is None:
+            return self._cache.set(key   = 'face_adjacency', 
+                                   value = graph.face_adjacency(self.faces))
+        return cached
 
     @property
     def is_watertight(self):
@@ -333,8 +331,11 @@ class Trimesh(object):
         Check if a mesh is watertight. 
         This currently only checks to see if every face has three adjacent faces
         '''
-        return graph.is_watertight(self)
-
+        cached = self._cache.get('is_watertight')
+        if cached is not None: return cached
+        return self._cache.set(key   = 'is_watertight', 
+                               value = graph.is_watertight(self))
+       
     def remove_degenerate_faces(self):
         '''
         Removes degenerate faces, or faces that have zero area.
@@ -503,7 +504,14 @@ class Trimesh(object):
         '''
         Summed area of all triangles in the current mesh.
         '''
-        return triangles.area(self.vertices[self.faces], sum=sum)
+        key    = 'area_' + str(int(sum))
+        cached = self._cache.get(key)
+        if cached is not None: 
+            return cached
+        area = triangles.area(self.triangles,
+                              sum = sum)
+        return self._cache.set(key   = key, 
+                               value = area)
         
     def mass_properties(self, density = 1.0, skip_inertia=False):
         '''
@@ -520,9 +528,17 @@ class Trimesh(object):
                             coordinate system
             'center_mass' : Center of mass location, in global coordinate system
         '''
-        return triangles.mass_properties(triangles    = self.vertices[[self.faces]], 
+        key  = 'mass_properties_' 
+        key += str(int(skip_inertia)) + '_' 
+        key += str(int(density * 1e3))
+        cached = self._cache.get(key)
+        if cached is not None: 
+            return cached
+        mass = triangles.mass_properties(triangles    = self.triangles,
                                          density      = density,
                                          skip_inertia = skip_inertia)
+        return self._cache.set(key   = key, 
+                               value = mass)
 
     def scene(self):
         '''
@@ -545,7 +561,15 @@ class Trimesh(object):
         Return a (length) float vector which is unique to the mesh,
         and is robust to rotation and translation.
         '''
-        return comparison.rotationally_invariant_identifier(self, length, as_json=as_json)
+        key = 'identifier' + str(length) + str(as_json)
+        cached = self._cache.get(key)
+        if cached is not None: return cached
+        identifier = comparison.rotationally_invariant_identifier(self, 
+                                                                  length, 
+                                                                  as_json=as_json)
+        return self._cache.set(key   = key,
+                               value = identifier)
+
 
     def export(self, file_obj=None, file_type='stl'):
         '''
@@ -612,7 +636,7 @@ class Trimesh(object):
         a + b = c
         
         c is a mesh which has all the faces from a and b, and
-        acompanying bookkeeping is done. 
+        accompanying bookkeeping is done. 
 
         Defining this also allows groups of meshes to be summed easily, 
         for example like:

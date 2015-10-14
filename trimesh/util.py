@@ -273,28 +273,65 @@ def attach_to_log(log_level=logging.DEBUG, blacklist=[]):
     np.set_printoptions(precision=5, suppress=True)
 
 class TrackedArray(np.ndarray):
-    _modified = time.time() % 1
+    '''
+    Track changes in a numpy ndarray. 
+    '''
+    def __array_finalize__(self, obj):
+        self._set_modified()
+        if hasattr(obj, '_set_modified'):
+            obj._set_modified(self._modified)
 
-    @property
+    def _set_modified(self, value=None):
+        if value is None:
+            self._modified = np.random.random()
+        else: 
+            self._modified = value
+
     def modified(self):
-        return self.__hash__()
-
-    def _set_modified(self):
-        self._modified = time.time() % 1
-
-    def __hash__(self):
         result  = float(id(self))
         result *= self._modified
-        result *= 1e6
+        if result < 1e8: result *= 1e6
         return int(result)
+        
+    def __hash__(self):
+        return self.modified()
 
     def __setitem__(self, i, y):
-        self._set_modified()
         super(self.__class__, self).__setitem__(i, y)
-
-    def __setslice__(self, i, j, y):
         self._set_modified()
+        
+    def __setslice__(self, i, j, y):
         super(self.__class__, self).__setslice__(i, j, y)
+        self._set_modified()
 
 def tracked_array(array):
+    '''
+    Subclass a numpy ndarray to track changes
+    '''
     return np.array(array).view(TrackedArray)
+
+class Cache:
+    def __init__(self, id_function):
+        self.id_function = id_function
+        self.id_current = None
+        self.cache = {}
+        
+    def get(self, key):
+        self.verify()
+        if key in self.cache: 
+            return self.cache[key]
+        return None
+        
+    def verify(self):
+        id_new = self.id_function()
+        if id_new != self.id_current: 
+            self.clear()
+        self.id_current = id_new
+
+    def clear(self):
+        self.cache = {}
+
+    def set(self, key, value):
+        self.verify()
+        self.cache[key] = value
+        return value

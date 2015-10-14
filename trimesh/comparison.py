@@ -76,7 +76,8 @@ def rotationally_invariant_identifier(mesh, length=6, as_json=False, json_digits
     # find the center of volume of the mesh
     mass_properties = mesh.mass_properties(skip_inertia=True)
     center_mass     = mass_properties['center_mass']
-    vertex_radii    = np.sum((mesh.vertices - mesh.center_mass)**2, axis=1) **.5
+    vertex_radii    = np.sum((mesh.vertices.view(np.ndarray) - mesh.center_mass)**2, 
+                             axis=1) **.5
     
     # since we will be computing the shape distribution of the radii, we need to make sure there
     # are enough values to populate more than one sample per bin.  

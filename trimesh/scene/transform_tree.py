@@ -16,6 +16,7 @@ class TransformTree:
 
     def __init__(self, base_frame='world'):
         self._transforms = DiGraph()
+        self._parents    = {}
         self._paths      = {}
         self._is_changed = False
         self.base_frame  = base_frame

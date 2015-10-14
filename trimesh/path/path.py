@@ -61,6 +61,9 @@ class Path(object):
         ok = processing or entity_ok
         return ok
 
+    def _geometry_id(self):
+        return None
+        
     def _cache_clear(self):
         self._cache = {}
 

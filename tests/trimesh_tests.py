@@ -58,11 +58,11 @@ class UtilTests(unittest.TestCase):
     def test_track(self):
         a = trimesh.util.tracked_array(np.random.random(TEST_DIM))
         modified = deque()
-        modified.append(a.modified)
+        modified.append(a.modified())
         a[0] = 10
-        modified.append(a.modified)
+        modified.append(a.modified())
         a[1:] = 5
-        modified.append(a.modified)    
+        modified.append(a.modified())    
         self.assertTrue((np.diff(modified) != 0).all())
  
 class MeshTests(unittest.TestCase):
@@ -232,3 +232,4 @@ def location(name):
 if __name__ == '__main__':
     trimesh.util.attach_to_log()
     unittest.main()
+    
