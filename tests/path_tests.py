@@ -71,8 +71,8 @@ class VectorTests(unittest.TestCase):
                      d.filename,
                      len(split))
             # broken in old ass travis vm
-            #for body in split:
-            #    body.identifier()
+            for body in split:
+                body.identifier()
 
 class ArcTests(unittest.TestCase):
     def setUp(self):

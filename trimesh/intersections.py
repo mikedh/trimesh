@@ -81,25 +81,3 @@ def plane_line_intersection(plane_origin,
     intersection  = endpoints[0][valid]
     intersection += np.reshape(d, (-1,1)) * line_dir[valid]
     return intersection, valid
-
-def point_in_triangle_2D(point, triangle):
-    # http://www.blackpawn.com/texts/pointinpoly/
-
-    v0, v1 = triangle[1:] - triangle[0]
-    v2     = point        - triangle[0]
- 
-    # Compute dot products
-    dot00 = np.dot(v0, v0)
-    dot01 = np.dot(v0, v1)
-    dot02 = np.dot(v0, v2)
-    dot11 = np.dot(v1, v1)
-    dot12 = np.dot(v1, v2)
-
-    # Compute barycentric coordinates
-    invDenom = 1.0 / (dot00 * dot11 - dot01 * dot01)
-    u = (dot11 * dot02 - dot01 * dot12) * invDenom
-    v = (dot00 * dot12 - dot01 * dot02) * invDenom
-
-    # Check if point is in triangle
-    return (u >= 0) and (v >= 0) and (u + v < 1)
-    
