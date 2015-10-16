@@ -1,8 +1,14 @@
 language: python
+sudo: required
+dist: trusty
 
 python:
   - "2.7"
+  - "3.2"
+  - "3.3"
   - "3.4"
+  - "3.5"
+  - "nightly"
 
 before_install:
   - sudo apt-get update
@@ -22,7 +28,6 @@ before_install:
   - source activate test-environment
   - conda install scipy
   
-install:
-  - pip install -e .[path]
-
-script: "cd tests; python trimesh_tests.py; python path_tests.py"
+install: pip install -e .[path]
+before_script: cd tests
+script: nosetests

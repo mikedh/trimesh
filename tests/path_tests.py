@@ -70,7 +70,6 @@ class VectorTests(unittest.TestCase):
             log.info('Split %s into %d bodies, checking identifiers',
                      d.filename,
                      len(split))
-            # broken in old ass travis vm
             for body in split:
                 body.identifier()
 
