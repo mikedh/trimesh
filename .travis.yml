@@ -11,7 +11,6 @@ python:
   - "nightly"
 
 before_install:
-  - sudo add-apt-repository -y ppa:ubuntugis/ppa
   - sudo apt-get update
   - sudo apt-get install libgeos-dev libspatialindex-dev libspatialindex1
   - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
