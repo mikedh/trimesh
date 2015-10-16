@@ -10,8 +10,10 @@ python:
 
 before_install:
   - sudo apt-get update
-  - sudo apt-get install -y libgeos-dev libspatialindex*
-  
+  - sudo apt-get install -y python-scipy python-numpy libgeos-dev libspatialindex*
+  - virtualenv --system-site-packages ../trimesh_testing
+  - source ../trimesh_testing/bin/activate
+
 install: pip install -e .[path]
 before_script: cd tests
 script: nosetests
