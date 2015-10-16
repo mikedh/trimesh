@@ -8,11 +8,12 @@ python:
   - "3.4"
   - "3.5"
 
+virtualenv:
+  - system_site_packages: true
+
 before_install:
   - sudo apt-get update
   - sudo apt-get install -y python-scipy python-numpy libgeos-dev libspatialindex*
-  - virtualenv --system-site-packages ../trimesh_testing
-  - source ../trimesh_testing/bin/activate
   - pip install nose
 
 install: pip install -e .[path]

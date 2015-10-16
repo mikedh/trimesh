@@ -71,8 +71,11 @@ class VectorTests(unittest.TestCase):
                      d.filename,
                      len(split))
             for body in split:
-                body.identifier()
-
+                try: body.identifier()
+                except:
+                    log.error('Fatal error in computing identifier for %s!',
+                              d.filename)
+                    raise ValueError('Identifier failed!')
 class ArcTests(unittest.TestCase):
     def setUp(self):
         self.test_points  = [[[0,0], [1.0,1], [2,0]]]

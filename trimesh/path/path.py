@@ -411,7 +411,6 @@ class Path2D(Path):
                         polygons[i] = unbuffered
                     else:
                         polygons[i] = buffered
-
                     log.warn('Recovered invalid polygon')
                 else:
                     log.error('Unrecoverable polygon detected!')
