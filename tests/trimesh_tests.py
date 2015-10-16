@@ -59,9 +59,11 @@ class UtilTests(unittest.TestCase):
         a = trimesh.util.tracked_array(np.random.random(TEST_DIM))
         modified = deque()
         modified.append(a.modified())
-        a[0] = 10
+        a[0][0] = 10
         modified.append(a.modified())
-        a[1:] = 5
+        a[1] = 5
+        modified.append(a.modified())    
+        a[2:] = 2
         modified.append(a.modified())    
         self.assertTrue((np.diff(modified) != 0).all())
  

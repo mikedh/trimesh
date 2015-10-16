@@ -474,13 +474,16 @@ class Path2D(Path):
         import matplotlib.pyplot as plt
         self.plot_discrete(show=True)
      
-    def plot_discrete(self, show=False, transform=None):
-        import matplotlib.pyplot as plt
+    def plot_discrete(self, show=False, transform=None, axes=None):
         self._cache_verify()
+        import matplotlib.pyplot as plt
         plt.axes().set_aspect('equal', 'datalim')
         def plot_transformed(vertices, color='g'):
             if transform is None: 
-                plt.plot(*vertices.T, color=color)
+                if axes is None:
+                    plt.plot(*vertices.T, color=color)
+                else:
+                    axes.plot(*vertices.T, color=color)
             else:
                 transformed = transform_points(vertices, transform)
                 plt.plot(*transformed.T, color=color)

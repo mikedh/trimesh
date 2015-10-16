@@ -122,9 +122,9 @@ class PathSample:
         # find the length of each segment
         self._norms = np.linalg.norm(self._vectors, axis=1)
         # unit vectors for each segment
-        self._unit_vec = self._vectors/self._norms.reshape((-1,1))
-        self._unit_vec = np.vstack((self._unit_vec, self._unit_vec[-1]))
-
+        nonzero = self._norms > tol.zero
+        self._unit_vec = self._vectors.copy()
+        self._unit_vec[nonzero] /= self._norms[nonzero].reshape((-1,1))
         # total distance in the path
         self.length = self._norms.sum()
         # cumulative sum of section length
@@ -135,6 +135,7 @@ class PathSample:
         # return the indices in cum_norm that each sample would
         # need to be inserted at to maintain the sorted property
         positions = np.searchsorted(self._cum_norm, distances)
+        positions = np.clip(positions, 0, len(self._unit_vec)-1)
         offsets   = np.append(0, self._cum_norm)[positions]
         # the distance past the reference vertex we need to travel
         projection = distances - offsets
