@@ -4,11 +4,9 @@ dist: trusty
 
 python:
   - "2.7"
-  - "3.2"
   - "3.3"
   - "3.4"
   - "3.5"
-  - "nightly"
 
 before_install:
   - sudo apt-get update
@@ -19,14 +17,7 @@ before_install:
       wget http://repo.continuum.io/miniconda/Miniconda3-3.4.2-Linux-x86_64.sh -O miniconda.sh;
     fi
   - bash miniconda.sh -b -p $HOME/miniconda
-  - export PATH="$HOME/miniconda/bin:$PATH"
-  - hash -r
-  - conda config --set always_yes yes --set changeps1 no
-  - conda update -q conda
-  - conda info -a
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION 
-  - source activate test-environment
-  - conda install scipy
+  - sudo conda install scipy
   
 install: pip install -e .[path]
 before_script: cd tests
