@@ -310,7 +310,26 @@ class InversePolygon:
         return distance
 
 def polygon_hash(polygon):
-    return [polygon.area, polygon.length]
+    result = [0.0,
+              0.0,
+              0.0,
+              0.0,
+              polygon.area, 
+              polygon.length]
+    
+    exterior = (np.array(polygon.exterior.coords) - polygon.centroid)
+    exterior_radii = ((exterior ** 2).sum(axis=1))
+    
+    result[0:2] = exterior_radii.mean(), exterior_radii.std()
+
+    if len(polygon.interiors) > 0:
+        interiors  = np.vstack([i for i in polygon.interiors])
+        interiors -= polygon.centroid
+        interiors_radii = ((interiors ** 2).sum(axis=1))
+        result[2:4] = interiors_radii.mean(), interiors_radii.std()
+
+    return result
+
 
 def random_polygon(segments=8, radius=1.0):
     angles = np.sort(np.cumsum(np.random.random(segments)*np.pi*2) % (np.pi*2))
@@ -318,6 +337,6 @@ def random_polygon(segments=8, radius=1.0):
     points = np.column_stack((np.cos(angles), np.sin(angles)))*radii.reshape((-1,1))
     points = np.vstack((points, points[0]))
     polygon = Polygon(points).buffer(0.0)
-    if trimesh.util.is_sequence(polygon):
+    if is_sequence(polygon):
         return polygon[0]
     return polygon

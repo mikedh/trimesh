@@ -122,7 +122,7 @@ def fft_freq_histogram(data, bin_count, frequency_count=4, weight=None):
     fft  = np.abs(np.fft.fft(hist))
     # the magnitude is dependant on our weighting being good
     # frequency should be more solid in more cases 
-    freq = np.fft.fftfreq(data.size, d=(bin_edges[1] - bin_edges[0]))
+    freq = np.fft.fftfreq(data.size, d=(bin_edges[1] - bin_edges[0])) + bin_edges[0]
 
     # now we must select the top FREQ_COUNT frequencies
     # if there are a bunch of frequencies whose components are very close in magnitude,
