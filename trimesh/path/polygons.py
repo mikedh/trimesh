@@ -309,3 +309,15 @@ class InversePolygon:
         distance = np.min(self.distances(point))
         return distance
 
+def polygon_hash(polygon):
+    return [polygon.area, polygon.length]
+
+def random_polygon(segments=8, radius=1.0):
+    angles = np.sort(np.cumsum(np.random.random(segments)*np.pi*2) % (np.pi*2))
+    radii  = np.random.random(segments)*radius
+    points = np.column_stack((np.cos(angles), np.sin(angles)))*radii.reshape((-1,1))
+    points = np.vstack((points, points[0]))
+    polygon = Polygon(points).buffer(0.0)
+    if trimesh.util.is_sequence(polygon):
+        return polygon[0]
+    return polygon

@@ -12,7 +12,7 @@ from copy import deepcopy
 from collections import deque
 
 from .simplify  import simplify
-from .polygons  import polygons_enclosure_tree, is_ccw, medial_axis
+from .polygons  import polygons_enclosure_tree, is_ccw, medial_axis, polygon_hash
 from .traversal import vertex_graph, closed_paths, discretize_path
 from .io.export import export_path
 
@@ -509,10 +509,6 @@ class Path2D(Path):
         if show: plt.show()
 
     def identifier(self):
-        polygons = self.polygons_full
-        if len(polygons) != 1: 
-            raise NameError('Identifier only valid for single body')
-        return [polygons[0].area, 
-                polygons[0].length, 
-                polygons[0].__hash__()*1e-5]
-
+        if len(self.polygons_full) != 1: 
+            raise TypeError('Identifier only valid for single body')
+        return polygon_hash(self.polygons_full[0])

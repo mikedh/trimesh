@@ -90,31 +90,14 @@ def rotationally_invariant_identifier(mesh, length=6, as_json=False, json_digits
     freq_formatted = np.zeros(frequency_count)
 
     if bin_count > _MIN_BIN_COUNT:
-        face_area       = mesh.area(sum=False)
-        face_radii      = vertex_radii[mesh.faces]
-        area_weight     = np.tile((face_area.reshape((-1,1))*(1.0/3.0)), (1,3))
-        hist, bin_edges = np.histogram(face_radii.reshape(-1), 
-                                       bins=bin_count, 
-                                       weights=area_weight.reshape(-1))
+        face_area   = mesh.area(sum=False)
+        face_radii  = vertex_radii[mesh.faces].reshape(-1)
+        area_weight = np.tile((face_area.reshape((-1,1))*(1.0/3.0)), (1,3)).reshape(-1)
 
-        # we calculate the fft of the radius distribution
-        fft  = np.abs(np.fft.fft(hist))
-        # the magnitude is dependant on our area weighting being good, which it definitely isn't
-        # frequency should be more solid
-        freq = np.fft.fftfreq(face_radii.size, d=(bin_edges[1] - bin_edges[0]))
-
-        # now we must select the top FREQ_COUNT frequencies
-        # if there are a bunch of frequencies whose components are very close in magnitude,
-        # just picking the top FREQ_COUNT of them is non-deterministic
-        # thus we take the top frequencies which have a magnitude that is distingushable 
-        # and we zero pad if this means fewer values available
-        fft_top = fft.argsort()[-(frequency_count + 1):] 
-        fft_ok  = np.diff(fft[fft_top]) > _TOL_FREQ
-        # only include freqeuncy information if they are distingushable above background noise
-        if fft_ok.any():
-            fft_start = np.nonzero(fft_ok)[0][0] + 1 
-            fft_top   = fft_top[fft_start:]
-            freq_formatted = _zero_pad(np.sort(freq[fft_top]), frequency_count)
+        freq_formatted = fft_freq_histogram(face_radii, 
+                                            bin_count=bin_count, 
+                                            frequency_count=frequency_count,
+                                            weight=area_weight)
     else: 
         log.debug('Mesh isn\'t dense enough to calculate frequency information for unique identifier!')
         
@@ -126,6 +109,36 @@ def rotationally_invariant_identifier(mesh, length=6, as_json=False, json_digits
         # return as a json string rather than an array
         return _format_json(identifier)
     return identifier
+
+def fft_freq_histogram(data, bin_count, frequency_count=4, weight=None):
+    data = np.reshape(data, -1)
+    if weight is None: 
+        weight = np.ones(len(data))
+
+    hist, bin_edges = np.histogram(data,
+                                   weights = weight,
+                                   bins    = bin_count)
+    # we calculate the fft of the radius distribution
+    fft  = np.abs(np.fft.fft(hist))
+    # the magnitude is dependant on our weighting being good
+    # frequency should be more solid in more cases 
+    freq = np.fft.fftfreq(data.size, d=(bin_edges[1] - bin_edges[0]))
+
+    # now we must select the top FREQ_COUNT frequencies
+    # if there are a bunch of frequencies whose components are very close in magnitude,
+    # just picking the top FREQ_COUNT of them is non-deterministic
+    # thus we take the top frequencies which have a magnitude that is distingushable 
+    # and we zero pad if this means fewer values available
+    fft_top = fft.argsort()[-(frequency_count + 1):] 
+    fft_ok  = np.diff(fft[fft_top]) > _TOL_FREQ
+    # only include freqeuncy information if they are distingushable above background noise
+    if fft_ok.any():
+        fft_start = np.nonzero(fft_ok)[0][0] + 1 
+        fft_top   = fft_top[fft_start:]
+        freq_formatted = _zero_pad(np.sort(freq[fft_top]), frequency_count)
+    else:
+        freq_formatted = np.zeros(frequency_count)
+    return freq_formatted
 
 def _format_json(data, digits=6):
     '''
@@ -155,3 +168,5 @@ def _zero_pad(data, count):
         padded[-len(data):] = data
         return padded
     else: return data
+
+
