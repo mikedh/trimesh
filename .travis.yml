@@ -17,4 +17,4 @@ before_install:
 
 install: pip install -e .[path]
 before_script: cd tests
-script: "python path_tests.py; path trimesh_tests.py"
+script: "python path_tests.py; python trimesh_tests.py"

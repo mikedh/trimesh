@@ -74,7 +74,7 @@ class VectorTests(unittest.TestCase):
                 try: body.identifier()
                 except:
                     log.error('Fatal error in computing identifier for %s!',
-                              d.filename)
+                              d.filename, exc_info=True)
 class ArcTests(unittest.TestCase):
     def setUp(self):
         self.test_points  = [[[0,0], [1.0,1], [2,0]]]
