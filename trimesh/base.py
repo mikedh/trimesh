@@ -621,6 +621,11 @@ class Trimesh(object):
         intersection: Trimesh of the volume contained by all passed meshes
         '''
         return Trimesh(process=True, **boolean.intersection(self, other))
+
+    def to_dict(self, basic=True):
+        result = {'faces'    : self.faces.view(np.ndarray),
+                  'vertices' : self.vertices.view(np.ndarray)}
+        return result
     
     def __eq__(self, other):
         equal = comparison.equal(self, other)

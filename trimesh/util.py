@@ -68,6 +68,9 @@ def is_file(obj):
 def is_string(obj):
     return isinstance(obj, basestring)
 
+def is_dict(obj):
+    return isinstance(obj, dict)
+
 def is_sequence(obj):
     '''
     Returns True if obj is a sequence.

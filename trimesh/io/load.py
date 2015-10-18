@@ -3,7 +3,7 @@ import numpy as np
 from ..base      import Trimesh
 
 from ..constants import _log_time, log
-from ..util      import is_file, is_string, make_sequence
+from ..util      import is_file, is_dict, is_string, make_sequence
 
 from .assimp import _assimp_loaders
 from .stl    import _stl_loaders
@@ -14,7 +14,7 @@ def available_formats():
     return _mesh_loaders.keys()
 
 @_log_time
-def load_mesh(file_obj, file_type=None, process=True):
+def load_mesh(obj, file_type=None, process=True):
     '''
     Load a mesh file into a Trimesh object
 
@@ -30,14 +30,15 @@ def load_mesh(file_obj, file_type=None, process=True):
     
     '''
 
-    if is_string(file_obj):
-        file_type = (str(file_obj).split('.')[-1]).lower()
-        file_obj  = open(file_obj, 'rb')
-        
+    if is_string(obj):
+        file_type = (str(obj).split('.')[-1]).lower()
+        obj = open(obj, 'rb')
+    elif is_dict(obj):
+        file_type = 'dict'
+
     file_type = str(file_type).lower()
-    
-    loaded = _mesh_loaders[file_type](file_obj, file_type)
-    file_obj.close()
+    loaded = _mesh_loaders[file_type](obj, file_type)
+    if is_file(obj): obj.close()
     
     log.debug('loaded mesh using %s',
               _mesh_loaders[file_type].__name__)

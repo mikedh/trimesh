@@ -4,7 +4,7 @@ import numpy as np
 from collections import deque
 from copy import deepcopy
 
-from .constants import log, tol
+from .constants import log, tol, MeshError
 from .grouping  import group, group_rows, replace_references
 from .geometry  import faces_to_edges
 from .points    import unitize

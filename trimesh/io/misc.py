@@ -39,5 +39,9 @@ def load_wavefront(file_obj, file_type=None):
             'vertex_normals' : data[nid].astype(float),
             'faces'          : faces}
 
-_misc_loaders = {'obj' : load_wavefront,
-                 'off' : load_off}
+def load_dict(data, file_type=None):
+    return data
+
+_misc_loaders = {'obj'  : load_wavefront,
+                 'off'  : load_off,
+                 'dict' : load_dict}
