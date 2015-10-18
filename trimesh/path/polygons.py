@@ -310,24 +310,11 @@ class InversePolygon:
         return distance
 
 def polygon_hash(polygon):
-    result = [0.0,
-              0.0,
-              0.0,
-              0.0,
+    result = [len(polygon.interiors),
+              polygon.convex_hull.area,
+              polygon.convex_hull.length,
               polygon.area, 
               polygon.length]
-    
-    exterior = (np.array(polygon.exterior.coords) - polygon.centroid)
-    exterior_radii = ((exterior ** 2).sum(axis=1))
-    
-    result[0:2] = exterior_radii.mean(), exterior_radii.std()
-
-    if len(polygon.interiors) > 0:
-        interiors  = np.vstack([i for i in polygon.interiors])
-        interiors -= polygon.centroid
-        interiors_radii = ((interiors ** 2).sum(axis=1))
-        result[2:4] = interiors_radii.mean(), interiors_radii.std()
-
     return result
 
 
