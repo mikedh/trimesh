@@ -310,6 +310,17 @@ class InversePolygon:
         return distance
 
 def polygon_hash(polygon):
+    '''
+    An approximate hash of a a shapely Polygon object.
+
+    Arguments
+    ---------
+    polygon: shapely.geometry.Polygon object
+    
+    Returns
+    ---------
+    hash: (5) length list of hash representing input polygon
+    '''
     result = [len(polygon.interiors),
               polygon.convex_hull.area,
               polygon.convex_hull.length,
@@ -319,6 +330,18 @@ def polygon_hash(polygon):
 
 
 def random_polygon(segments=8, radius=1.0):
+    '''
+    Generate a random polygon with a maximum number of sides and approximate radius.
+
+    Arguments
+    ---------
+    segments: int, the maximum number of sides the random polygon will have
+    radius:   float, the approximate radius of the polygon desired
+
+    Returns
+    ---------
+    polygon: shapely.geometry.Polygon object with random exterior, and no interiors. 
+    '''
     angles = np.sort(np.cumsum(np.random.random(segments)*np.pi*2) % (np.pi*2))
     radii  = np.random.random(segments)*radius
     points = np.column_stack((np.cos(angles), np.sin(angles)))*radii.reshape((-1,1))
