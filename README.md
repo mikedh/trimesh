@@ -1,10 +1,9 @@
-trimesh
-==========
+# trimesh #
 [![Build Status](https://travis-ci.org/mikedh/trimesh.svg?branch=master)](https://travis-ci.org/mikedh/trimesh)
 
 Python (2.7-3.*) library for loading and utilizing triangular meshes.
 
-### Features
+### Features ###
 * Import binary/ASCII STL, Wavefront, and OFF
 * Import formats using assimp (if pyassimp installed)
 * Import STEP files as meshes (if STEPtools Inc. Author Tools installed)
@@ -31,62 +30,76 @@ Python (2.7-3.*) library for loading and utilizing triangular meshes.
 * Create meshes by extruding 2D profiles
 * Numerous utility functions, such as transforming points, unitizing vectors, grouping rows, etc. 
 
-### Installation
+### Installation ###
 The easiest way to install is:
+```bash
+$ sudo pip install git+https://github.com/mikedh/trimesh.git
+```
 
-    sudo pip install git+https://github.com/mikedh/trimesh.git
+### Optional Dependencies ###
 
-### Dependencies
+#### Ray->mesh queries ####
 If you would like to use ray queries or some path functionality, install dependencies:
-
-    sudo pip install shapely git+https://github.com/Toblerity/rtree.git svg.path 
-
-To get the latest version of assimp/pyassimp from github:
-
-    sudo pip install git+https://github.com/robotics/assimp_latest.git 
+```bash
+$ sudo pip install shapely git+https://github.com/Toblerity/rtree.git svg.path 
+```
 
 Rtree may not build without libspatialindex installed, get it with:
+```bash
+$ sudo apt-get install libspatialindex* 
+```
 
-    sudo apt-get install libspatialindex* 
+#### Loading meshes with Assimp ####
+Trimesh supports loading meshes via Assimp,, but this requires a fairly recent version.
+To get the latest version of assimp/pyassimp from github:
+```bash
+$ sudo pip install git+https://github.com/robotics/assimp_latest.git 
+```
 
+#### Creating trimeshes ####
 If you would like to use the trimesh.creation functions, meshpy is required:
+```bash
+$ sudo pip install meshpy
+```
 
-    sudo pip install meshpy
+### Example ###
 
-### Example
-    import numpy as np
-    import trimesh
-    
-    # this list will be much longer if assimp is available
-    print(trimesh.available_formats())
+Here is an example of loading a core from file and colorizing its faces.
 
-    # load_mesh can accept a filename or file object, 
-    # however file objects require 'file_type' specified (eg. file_type='stl')
-    # on load does basic cleanup of mesh, including merging vertices 
-    # and removing duplicate/degenerate faces
-    mesh = trimesh.load_mesh('./models/unit_cube.STL')
-    
-    # split mesh based on connected components
-    # by default this will only return watertight meshes, but the check can be disabled
-    meshes = mesh.split() 
+```python
+import numpy as np
+import trimesh
 
-    # first component  
-    m = meshes[0]
+# this list will be much longer if assimp is available
+print(trimesh.available_formats())
 
-    # assign all faces a color
-    m.set_face_colors()
+# load_mesh can accept a filename or file object, 
+# however file objects require 'file_type' specified (eg. file_type='stl')
+# on load does basic cleanup of mesh, including merging vertices 
+# and removing duplicate/degenerate faces
+mesh = trimesh.load_mesh('./models/unit_cube.STL')
 
-    # find groups of coplanar adjacent faces
-    facets, facets_area = m.facets(return_area=True)
+# split mesh based on connected components
+# by default this will only return watertight meshes, but the check can be disabled
+meshes = mesh.split() 
 
-    # the largest group of faces by area    
-    largest_facet = facets[np.argmax(facets_area)]
+# first component  
+m = meshes[0]
 
-    # set all faces of the largest facet to a random color
-    m.faces[largest_facet] = trimesh.color.random_color()
+# assign all faces a color
+m.set_face_colors()
 
-    # preview mesh in an opengl window
-    m.show()
-    
+# find groups of coplanar adjacent faces
+facets, facets_area = m.facets(return_area=True)
+
+# the largest group of faces by area    
+largest_facet = facets[np.argmax(facets_area)]
+
+# set all faces of the largest facet to a random color
+m.faces[largest_facet] = trimesh.color.random_color()
+
+# preview mesh in an opengl window
+m.show()
+```
 
 In the mesh view window, dragging rotates the view, ctl + drag pans, mouse wheel scrolls, 'z' returns to the base view, 'w' toggles wireframe mode, and 'c' toggles backface culling (useful if viewing non-watertight meshes).  
