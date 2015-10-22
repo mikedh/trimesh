@@ -277,7 +277,12 @@ def attach_to_log(log_level=logging.DEBUG, blacklist=[]):
 
 class TrackedArray(np.ndarray):
     '''
-    Track changes in a numpy ndarray. 
+    Track changes in a numpy ndarray.
+
+    Attributes
+    ----------
+    modified: returns an identifier which will change when
+              array is modified
     '''
     def __array_finalize__(self, obj):
         self._set_modified()
@@ -314,6 +319,9 @@ def tracked_array(array):
     return np.array(array).view(TrackedArray)
 
 class Cache:
+    '''
+    Class to cache values until an id function changes.
+    '''
     def __init__(self, id_function):
         self.id_function = id_function
         self.id_current = None

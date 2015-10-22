@@ -19,16 +19,6 @@ class RayMeshIntersector:
         self._tree      = None
 
     @property
-    def triangles(self):
-        '''
-        A (n, 3, 3) array of triangle vertices
-        Only created when requested.
-        '''
-        if self._triangles is None:
-            self._triangles = self.mesh.vertices[self.mesh.faces]
-        return self._triangles
-
-    @property
     def tree(self):
         '''
         An r-tree that contains every triangle
@@ -37,7 +27,7 @@ class RayMeshIntersector:
         '''
 
         if self._tree is None:
-            self._tree = create_tree(self.triangles)
+            self._tree = create_tree(self.mesh.triangles)
         return self._tree
 
     def intersects_id(self, rays, return_any=False):
@@ -55,7 +45,7 @@ class RayMeshIntersector:
         rays       = np.array(rays, dtype=np.float)
         candidates = ray_triangle_candidates(rays = rays, 
                                              tree = self.tree)
-        hits  = rays_triangles_id(triangles      = self.triangles, 
+        hits  = rays_triangles_id(triangles      = self.mesh.triangles, 
                                   rays           = rays, 
                                   ray_candidates = candidates,
                                   return_any     = return_any)
@@ -76,7 +66,7 @@ class RayMeshIntersector:
         '''
         rays      = np.array(rays, dtype=np.float)
         hits      = self.intersects_id(rays)
-        locations = ray_triangle_locations(triangles     = self.triangles,
+        locations = ray_triangle_locations(triangles     = self.mesh.triangles,
                                            rays          = rays,
                                            intersections = hits,
                                            tri_normals   = self.mesh.face_normals)

@@ -2,11 +2,12 @@
 
 from distutils.core import setup
 
+# load __version__ cleanly
 exec(open('trimesh/version.py').read())
 
 setup(name='trimesh',
       version=__version__,
-      description='Load, process, and view triangular meshes.',
+      description='Import, export, process and view triangular meshes.',
       author='Mike Dawson-Haggerty',
       author_email='mik3dh@gmail.com',
       url='github.com/mikedh/trimesh',

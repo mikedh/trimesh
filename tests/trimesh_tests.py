@@ -164,7 +164,22 @@ class EqualTest(unittest.TestCase):
     def test_equal(self):
         self.assertTrue(self.a == self.b)
         log.info('Mesh equality tested')
-
+'''
+class BooleanTest(unittest.TestCase):
+    def setUp(self):
+        self.a = trimesh.load_mesh(os.path.abspath(os.path.join(TEST_DIR, 'ballA.off')))
+        self.b = trimesh.load_mesh(os.path.abspath(os.path.join(TEST_DIR, 'ballB.off')))
+    
+    def test_boolean(self):
+        a, b = self.a, self.b
+        d = a.difference(b)
+        self.assertTrue(d.is_watertight)
+        i = a.intersection(b)
+        self.assertTrue(i.is_watertight)
+        u = a.union(b)
+        self.assertTrue(u.is_watertight)
+'''
+   
 class RayTests(unittest.TestCase):
     def setUp(self):
         with open('ray_data.json', 'r') as f_obj: 

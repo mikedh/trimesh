@@ -205,7 +205,10 @@ class Path(object):
         Return a (n, dimension) list of vertices. 
         Samples arcs/curves to be line segments
         '''
-        discrete = discretize_path(self.entities, self.vertices, path, scale=self.scale)
+        discrete = discretize_path(self.entities, 
+                                   self.vertices, 
+                                   path, 
+                                   scale = self.scale)
         return discrete
         
     def export(self, file_type='dict', file_obj=None):

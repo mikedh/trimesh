@@ -2,7 +2,7 @@
 '''
 trimesh.py
 
-Library for importing and doing simple operations on triangular meshes.
+Library for importing, exporting and doing simple operations on triangular meshes.
 '''
 
 import numpy as np
@@ -51,7 +51,7 @@ class Trimesh(object):
         # cache computed values, which are cleared when
         # self._geometry_id() changes, forcing a recompute
         self._cache = util.Cache(id_function = self._geometry_id)
-                 
+        
         # (n, 3) float, set of vertices
         self.vertices = vertices
         # (m, 3) int of triangle faces, references self.vertices
@@ -99,6 +99,11 @@ class Trimesh(object):
         
     @faces.setter
     def faces(self, values):
+        values = np.array(values)
+        shape  = values.shape
+        if len(shape) == 2 and shape[1] == 4:
+            log.info('Triangulating quad faces')
+            values = geometry.triangulate_quads(values)
         self._faces = util.tracked_array(values)
 
     @property
@@ -190,10 +195,6 @@ class Trimesh(object):
 
     @face_normals.setter
     def face_normals(self, values):
-        if np.shape(values) != np.shape(self.faces):
-            log.warning('Faces are %s, passed normals are %s', 
-                      np.shape(self.faces),
-                      np.shape(values))
         self._face_normals = np.array(values)
 
     @property
@@ -205,8 +206,6 @@ class Trimesh(object):
 
     @vertex_normals.setter
     def vertex_normals(self, values):
-        if np.shape(values) != np.shape(self.vertices):
-            log.warning('Vertex normals are incorrect shape!')
         self._vertex_normals = np.array(values)
 
     def set_units(self, desired, guess=False):
@@ -652,12 +651,12 @@ class Trimesh(object):
         new_vertices = np.vstack((self.vertices, other.vertices))
         new_normals  = np.vstack((self.face_normals, other.face_normals))
 
-        new_colors   = np.vstack((self.visual.face_colors, 
-                                  other.visual.face_colors))
+        new_colors = np.vstack((self.visual.face_colors, 
+                                other.visual.face_colors))
 
-        result =  Trimesh(vertices     = new_vertices, 
-                          faces        = new_faces,
-                          face_normals = new_normals)
+        result = Trimesh(vertices     = new_vertices, 
+                         faces        = new_faces,
+                         face_normals = new_normals)
         result.visual.face_colors = new_colors
 
         return result

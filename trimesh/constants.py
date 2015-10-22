@@ -31,7 +31,7 @@ tol = _NumericalToleranceMesh(zero      = 1e-12,
                               merge     = 1e-8,
                               planar    = 1e-5,
                               facet_rsq = 1e8)
-res = _NumericalResolutionMesh(mesh = 1e-2)
+res = _NumericalResolutionMesh(mesh = 5e-3)
 
 
 ### numerical tolerances for paths
@@ -87,7 +87,7 @@ class _NumericalResolutionPath(_namedtuple('NumericalResolutionPath',
 tol_path = _NumericalTolerancePath(zero        = 1e-12,
                                    merge       = 1e-5,
                                    planar      = 1e-5,
-                                   seg_frac    = .05,
+                                   seg_frac    = .1,
                                    seg_angle   = .25,
                                    aspect_frac = .1,
                                    radius_frac = 1e-2,
