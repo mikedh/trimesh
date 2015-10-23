@@ -173,7 +173,7 @@ class Trimesh(object):
 
     @property
     def edges(self):
-        return geometry.faces_to_edges(self.faces)
+        return geometry.faces_to_edges(self.faces.view(np.ndarray))
 
     @property
     def units(self):
@@ -321,19 +321,18 @@ class Trimesh(object):
         cached = self._cache.get('face_adjacency')
         if cached is None:
             return self._cache.set(key   = 'face_adjacency', 
-                                   value = graph.face_adjacency(self.faces))
+                                   value = graph.face_adjacency(self.faces.view(np.ndarray)))
         return cached
 
     @property
     def is_watertight(self):
         '''
         Check if a mesh is watertight. 
-        This currently only checks to see if every face has three adjacent faces
         '''
         cached = self._cache.get('is_watertight')
         if cached is not None: return cached
         return self._cache.set(key   = 'is_watertight', 
-                               value = graph.is_watertight(self))
+                               value = graph.is_watertight(self.edges))
        
     def remove_degenerate_faces(self):
         '''

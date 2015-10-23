@@ -34,7 +34,9 @@ def face_adjacency(faces):
 
     # first generate the list of edges for the current faces
     # also return the index for which face the edge is from
-    edges, edge_face_index = faces_to_edges(faces, sort=True, return_index=True)
+    edges, edge_face_index = faces_to_edges(faces, 
+                                            sort = True, 
+                                            return_index = True)
     # this will return the indices for duplicate edges
     # every edge appears twice in a well constructed mesh
     # so for every row in edge_idx, edges[edge_idx[*][0]] == edges[edge_idx[*][1]]
@@ -112,7 +114,7 @@ def facets(mesh):
     parallel     = normal_dot < tol.zero
     non_parallel = np.logical_not(parallel)
 
-    # saying that two faces *arent* parallel is susceptible to error
+    # saying that two faces are *not* parallel is susceptible to error
     # so we add a radius check which computes the distance between face
     # centroids and divides it by the dot product of the normals
     # this means that small angles between big faces will have a large
@@ -213,8 +215,10 @@ def split(mesh, check_watertight=True, only_count=False):
                 new_meta['name'] = new_meta['name'] + '_' + str(i)
             new_mesh.metadata.update(new_meta)
             if fill_holes: 
-                try:              new_mesh.fill_holes(raise_watertight=True)
-                except MeshError: continue
+                try:
+                    new_mesh.fill_holes(raise_watertight=True)
+                except MeshError: 
+                    continue
             meshes.append(new_mesh)
         return list(meshes)
 
@@ -223,24 +227,17 @@ def split(mesh, check_watertight=True, only_count=False):
     else:       
         return split_nx()
     
-def is_watertight(mesh):
-    def is_watertight_gt():
-        g = GTGraph()
-        g.add_edge_list(adjacency)
-        degree     = g.degree_property_map('total').a
-        watertight = np.equal(degree, 3).all()
-        return watertight
-    def is_watertight_nx():
-        g  = nx.from_edgelist(adjacency)
-        watertight = np.equal(list(g.degree().values()), 3).all()
-        return watertight
-
-    if len(mesh.faces) == 0: 
-        return False
-    adjacency = mesh.face_adjacency
-    if len(adjacency) == 0:
-        return False
-    if _has_gt: 
-        return is_watertight_gt()
-    else:       
-        return is_watertight_nx()
+def is_watertight(edges):
+    '''
+    Arguments
+    ---------
+    edges: (n,2) int, set of vertex indices
+    
+    Returns
+    ---------
+    watertight: boolean, whether every edge is contained by two faces
+    '''
+    edges = np.sort(edges, axis=1)
+    groups = group_rows(edges, require_count=2)
+    watertight = (len(groups) * 2) == len(edges)
+    return watertight

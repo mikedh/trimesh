@@ -43,7 +43,7 @@ def align_vectors(vector_start, vector_end, return_angle=False):
         return T, angle
     return T
     
-def faces_to_edges(faces, sort=True, return_index=False):
+def faces_to_edges(faces, sort=False, return_index=False):
     '''
     Given a list of faces (n,3), return a list of edges (n*3,2)
     '''

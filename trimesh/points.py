@@ -153,59 +153,46 @@ def absolute_orientation(points_A, points_B, return_error=False):
     ---------
     M:    (4,4) transformation matrix for the transform that best aligns points_A to 
            points_B
-    error: (n) list of euclidean distances
+    error: float, list of maximum euclidean distance
     '''
 
-    def transform_error():
-        '''
-        Returns the squared euclidean distance per point
-        '''
-        dim = np.shape(points_A)
-        AR  = np.hstack((points_A, np.ones((dim[0],1)))).T
-        return (np.sum(((np.dot(M,AR)[0:3,:]-np.array(points_B).T)**2), axis=0))
-
-    dim = np.shape(points_A)
-    if ((np.shape(points_B) != dim) or (dim[1] != 3)): return False
+    points_A = np.array(points_A)
+    points_B = np.array(points_B)
+    if (points_A.shape != points_B.shape):
+        raise ValueError('Points must be of the same shape!')
     lc = np.average(points_A, axis=0)
     rc = np.average(points_B, axis=0)
     left  = points_A - lc
     right = points_B - rc
-
     M = np.dot(left.T, right)
-
     [[Sxx, Sxy, Sxz], 
      [Syx, Syy, Syz], 
      [Szx, Szy, Szz]] = M
-
     N=[[(Sxx+Syy+Szz), (Syz-Szy), (Szx-Sxz), (Sxy-Syx)],
        [(Syz-Szy), (Sxx-Syy-Szz), (Sxy+Syx), (Szx+Sxz)],
        [(Szx-Sxz), (Sxy+Syx), (-Sxx+Syy-Szz), (Syz+Szy)],
        [(Sxy-Syx), (Szx+Sxz), (Syz+Szy),(-Sxx-Syy+Szz)]]
-
     (w,v) = np.linalg.eig(N)
-
     q = v[:,np.argmax(w)]
     q = q/np.linalg.norm(q)
-
     M1 = [[q[0], -q[1], -q[2], -q[3]], 
           [q[1],  q[0],  q[3], -q[2]], 
           [q[2], -q[3],  q[0],  q[1]],
           [q[3],  q[2], -q[1],  q[0]]]
-
     M2 = [[q[0], -q[1], -q[2], -q[3]], 
           [q[1],  q[0], -q[3],  q[2]], 
           [q[2],  q[3],  q[0], -q[1]],
           [q[3], -q[2],  q[1],  q[0]]]
-
     R = np.dot(np.transpose(M1),M2)[1:4,1:4]
     T = rc - np.dot(R, lc)
-
+    
     M          = np.eye(4) 
     M[0:3,0:3] = R
     M[0:3,3]   = T
 
-    if return_error: 
-        return M, transform_error()
+    if return_error:
+        errors = np.sum((transform_points(points_A, M) - points_B)**2, axis = 1)
+        return M, errors.max()
     return M
 
 def remove_close(points, radius):
