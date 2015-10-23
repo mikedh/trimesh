@@ -1,5 +1,7 @@
 import numpy as np
 
+from collections import deque
+
 from .grouping  import group_rows
 from .constants import log, _log_time
 from .constants import tol
@@ -20,14 +22,30 @@ def merge_duplicates(meshes):
     ---------
     merged: (m) list of meshes where (m <= n)
     '''
+    # so we can use advanced indexing
+    meshes = np.array(meshes)
+    # by default an identifier is a 1D float array with 6 elements
     hashes = [i.identifier() for i in meshes]
     groups = group_rows(hashes, digits=1)
     merged = [None] * len(groups)
     for i, group in enumerate(groups):
-        merged[i] = meshes[group[0]]
-        if not 'quantity' in merged[i].metadata:
-            merged[i].metadata['quantity'] = len(group)
-            merged[i].metadata['original_index'] = group
+        quantity = 0
+        original_index = deque()
+        metadata = {}
+        for mesh in meshes[group]:
+            # if metadata exists don't nuke it
+            if 'quantity' in mesh.metadata:
+                quantity += mesh.metadata['quantity']
+            else: 
+                quantity += 1
+            if 'original_index' in mesh.metadata:
+                original_index.extend(mesh.metadata['original_index'])
+            metadata.update(mesh.metadata)
+            
+        metadata['quantity'] = int(quantity)
+        metadata['original_index'] = np.array(original_index, dtype=np.int)
+        merged[i] = mesh
+        merged[i].metadata = metadata 
     log.info('merge_duplicates reduced part count from %d to %d', 
              len(meshes),
              len(merged))
