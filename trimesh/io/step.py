@@ -52,7 +52,6 @@ def load_step(file_obj, file_type=None):
                         '-tol', str(res.mesh),
                         '-o', out_file.name])
             t = cElementTree.parse(out_file)
-            
     meshes   = {}
     # get the meshes without metadata from the XML document
     for shell in t.findall('shell'):
@@ -116,7 +115,9 @@ def load_step(file_obj, file_type=None):
                 paths = [[shape_id, shape_id]]
             else:
                 paths = nx.all_simple_paths(g, shape_root, shape_id)
-
+            paths = np.array(list(paths))
+            garbage, unique = np.unique(['.'.join(i) for i in paths], return_index=True)
+            paths = paths[unique]
             for path in paths:
                 path_name = [g.node[i]['product_name'] for i in path[:-1]]
                 edges = np.column_stack((path[:-1], 
@@ -127,6 +128,7 @@ def load_step(file_obj, file_type=None):
                     local      = [i['transform'] for i in g.edge[e[0]][e[1]].values()]
                     # all the transforms are sequential, so we want combinations
                     transforms = [np.dot(*i) for i in itertools.product(transforms, local)]
+                
                 transforms_all.extend(transforms)
                 path_str.extend(['/'.join(path_name)]*len(transforms))
             meshes[mesh_id]['vertices']              *= to_inches
