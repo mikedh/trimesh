@@ -68,9 +68,9 @@ def faces_to_path(mesh, face_ids=None):
     dict
     '''
     if face_ids is None: faces = mesh.faces
-    else:                faces = mesh.faces[[face_ids]]
+    else:                faces = mesh.faces[face_ids]
 
-    edges        = faces_to_edges(faces)
+    edges        = np.sort(faces_to_edges(faces), axis=1)
     unique_edges = group_rows(edges, require_count=1)
     segments     = mesh.vertices[edges[unique_edges]]        
     return lines_to_path(segments)

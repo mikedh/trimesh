@@ -43,7 +43,7 @@ def align_vectors(vector_start, vector_end, return_angle=False):
         return T, angle
     return T
     
-def faces_to_edges(faces, sort=False, return_index=False):
+def faces_to_edges(faces, return_index=False):
     '''
     Given a list of faces (n,3), return a list of edges (n*3,2)
     '''
@@ -51,7 +51,6 @@ def faces_to_edges(faces, sort=False, return_index=False):
     edges = np.column_stack((faces[:,(0,1)],
                              faces[:,(1,2)],
                              faces[:,(2,0)])).reshape(-1,2)
-    if sort: edges.sort(axis=1)
     if return_index:
         face_index = np.tile(np.arange(len(faces)), (3,1)).T.reshape(-1)
         return edges, face_index

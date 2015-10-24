@@ -30,7 +30,7 @@ def fix_face_winding(mesh):
             # find the edge that both faces share, and then see if the edges
             # are reversed in order as you would expect in a well constructed mesh
             pair    = mesh.faces[[face_pair]]            
-            edges   = faces_to_edges(pair, sort=False)
+            edges   = faces_to_edges(pair)
             overlap = group_rows(np.sort(edges,axis=1), require_count=2)
             if len(overlap) == 0:
                 # only happens on non-watertight meshes
@@ -110,7 +110,7 @@ def fill_holes(mesh, raise_watertight=True):
                       watertight mesh cannot be created. 
 
     '''
-    edges        = faces_to_edges(mesh.faces, sort=False)
+    edges        = faces_to_edges(mesh.faces)
     edges_sorted = np.sort(edges, axis=1)
     # we know that in a watertight mesh, every edge will be included twice
     # thus, every edge which appears only once is part of the boundary of a hole.

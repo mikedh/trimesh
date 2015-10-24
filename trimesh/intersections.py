@@ -24,7 +24,7 @@ def mesh_plane_intersection(mesh,
     if plane_origin is None: 
         plane_origin = [0,0,0]
 
-    edges                 = faces_to_edges(mesh.faces, sort=True)
+    edges = np.sort(faces_to_edges(mesh.faces), axis=1)
     intersections, valid  = plane_line_intersection(plane_origin, 
                                                     plane_normal, 
                                                     mesh.vertices[[edges.T]],

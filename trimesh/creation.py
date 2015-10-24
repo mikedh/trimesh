@@ -24,7 +24,7 @@ def extrude_polygon(polygon,
     vertices, faces = triangulate_polygon(polygon, **kwargs)
     
     # stack the (n,3) faces into (3*n, 2) edges
-    edges        = faces_to_edges(faces, sort=True)
+    edges = np.sort(faces_to_edges(faces), axis=1)
     # edges which only occur once are on the boundary of the polygon
     # since the triangulation may have subdivided the boundary of the
     # shapely polygon, we need to find it again

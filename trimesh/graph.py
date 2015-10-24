@@ -34,9 +34,8 @@ def face_adjacency(faces):
 
     # first generate the list of edges for the current faces
     # also return the index for which face the edge is from
-    edges, edge_face_index = faces_to_edges(faces, 
-                                            sort = True, 
-                                            return_index = True)
+    edges, edge_face_index = faces_to_edges(faces, return_index = True)
+    edges.sort(axis=1)
     # this will return the indices for duplicate edges
     # every edge appears twice in a well constructed mesh
     # so for every row in edge_idx, edges[edge_idx[*][0]] == edges[edge_idx[*][1]]
