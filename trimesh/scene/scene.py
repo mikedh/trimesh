@@ -13,33 +13,54 @@ class Scene:
     '''
 
     def __init__(self, 
-                 nodes      = None, 
+                 node      = None, 
                  base_frame ='world'):
 
-        self.meshes      = {}
-        self.lights      = {}
-        self.camera      = None
-        self.transforms  = TransformTree(base_frame = base_frame)
+        self.nodes = {}
 
-        self.add_nodes(nodes)
+        self.meshes     = {}
+        self.lights     = {}
+        self.camera     = None
+        self.transforms = TransformTree(base_frame = base_frame)
 
-    def add_nodes(self, nodes):
-        if nodes is None: return
-        if is_sequence(nodes):
-            result = [self.add_nodes(i) for i in nodes]
-            return result
-        node_type = nodes.__class__.__name__
-    
-        if node_type == 'Trimesh':
-            if 'name' in nodes.metadata: mesh_name = nodes.metadata['name']
-            elif hasattr(nodes, 'name'): mesh_name = nodes.name
-            else:                        mesh_name = 'mesh_' + str(len(self.meshes))
+        self.add_mesh(node)
 
-            self.meshes[mesh_name] = nodes
-            self.transforms.update(frame_to   = mesh_name, 
-                                   matrix     = np.eye(4))
-            return True
-        return False
+    def add_mesh(self, mesh):
+        if mesh is None: 
+            return
+        elif is_sequence(mesh):
+            return [self.add_mesh(i) for i in mesh]
+        elif mesh.__class__.__name__ != 'Trimesh':
+            return
+
+        if 'name' in mesh.metadata: 
+            name_mesh = mesh.metadata['name']
+        else:
+            name_mesh = 'mesh_' + str(len(self.meshes))
+
+        self.meshes[name_mesh] = mesh
+
+        if 'transforms' in mesh.metadata:
+            transforms = np.array(mesh.metadata['transforms'])
+        else:
+            transforms = np.eye(4).reshape((-1,4,4))
+
+        for i, transform in enumerate(transforms):
+            name_node = name_mesh + '_' + str(i)
+            self.nodes[name_node] = name_mesh
+            self.transforms.update(frame_to = name_node, 
+                                   matrix   = transform)
+
+    def _naive(self):
+        from copy import deepcopy
+        from collections import deque
+        result = deque()
+        for node_id, mesh_id in self.nodes.items():
+            transform = self.transforms.get(node_id)
+            current = deepcopy(self.meshes[mesh_id])
+            current.transform(transform)
+            result.append(current)
+        return np.array(result)
 
     def show(self, block=True):
         from .viewer import SceneViewer

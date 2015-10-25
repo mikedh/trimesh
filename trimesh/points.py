@@ -160,6 +160,9 @@ def absolute_orientation(points_A, points_B, return_error=False):
     points_B = np.array(points_B)
     if (points_A.shape != points_B.shape):
         raise ValueError('Points must be of the same shape!')
+    if len(points_A.shape) != 2 or points_A.shape[1] != 3:
+        raise ValueError('Points must be (n,3)!')
+
     lc = np.average(points_A, axis=0)
     rc = np.average(points_B, axis=0)
     left  = points_A - lc

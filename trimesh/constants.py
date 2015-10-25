@@ -8,7 +8,8 @@ class _NumericalToleranceMesh(_namedtuple('NumericalToleranceMesh',
                                          ['zero', 
                                           'merge',
                                           'planar',
-                                          'facet_rsq'])):
+                                          'facet_rsq',
+                                          'fit'])):
     '''
     tol.zero: consider floating point numbers less than this zero
     tol.merge: when merging vertices, consider vertices closer than this
@@ -30,7 +31,8 @@ class _NumericalResolutionMesh(_namedtuple('NumericalResolutionMesh',
 tol = _NumericalToleranceMesh(zero      = 1e-12,
                               merge     = 1e-8,
                               planar    = 1e-5,
-                              facet_rsq = 1e8)
+                              facet_rsq = 1e8,
+                              fit       = 1e-2)
 res = _NumericalResolutionMesh(mesh = 5e-3)
 
 

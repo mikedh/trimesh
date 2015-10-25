@@ -159,11 +159,11 @@ class SceneViewer(pyglet.window.Window):
         for i in range(2):
             glRotatef(self.rotation[i], *np.roll([1,0,0], i))
 
-        for name, mesh in self.scene.meshes.items():
-            transform = self.scene.transforms.get(name)
+        for name_node, name_mesh in self.scene.nodes.items():
             glPushMatrix()
+            transform = self.scene.transforms.get(name_node)
             glMultMatrixf(gl_vector(transform))
-            self._vertex_list[name].draw(mode=GL_TRIANGLES)
+            self._vertex_list[name_mesh].draw(mode=GL_TRIANGLES)
             glPopMatrix()
 
     def run(self):

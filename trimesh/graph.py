@@ -174,7 +174,7 @@ def split(mesh, check_watertight=True, only_count=False):
         for component in components: mesh_from_components(component)
         log.info('split mesh into %i components.',
                  len(new_meshes))
-        return list(new_meshes)
+        return np.array(new_meshes)
 
     def split_gt():
         g = GTGraph()
@@ -219,7 +219,7 @@ def split(mesh, check_watertight=True, only_count=False):
                 except MeshError: 
                     continue
             meshes.append(new_mesh)
-        return list(meshes)
+        return np.array(meshes)
 
     if _has_gt: 
         return split_gt()
