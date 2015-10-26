@@ -568,7 +568,6 @@ class Trimesh(object):
         return self._cache.set(key   = key,
                                value = identifier)
 
-
     def export(self, file_obj=None, file_type='stl'):
         '''
         Export the current mesh to a file object. 
@@ -576,7 +575,13 @@ class Trimesh(object):
 
         Supported formats are stl, off, and collada. 
         '''
-        return export_mesh(self, file_obj, file_type)
+        return export_mesh(mesh = self, 
+                           file_obj  = file_obj, 
+                           file_type = file_type)
+
+    def to_dict(self):
+        result = self.export(file_type='dict')
+        return result
 
     def union(self, other):
         '''
@@ -619,11 +624,6 @@ class Trimesh(object):
         intersection: Trimesh of the volume contained by all passed meshes
         '''
         return Trimesh(process=True, **boolean.intersection(self, other))
-
-    def to_dict(self, basic=True):
-        result = {'faces'    : self.faces.view(np.ndarray),
-                  'vertices' : self.vertices.view(np.ndarray)}
-        return result
     
     def __eq__(self, other):
         equal = comparison.equal(self, other)

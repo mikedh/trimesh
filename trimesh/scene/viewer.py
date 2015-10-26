@@ -43,7 +43,7 @@ class SceneViewer(pyglet.window.Window):
             self._thread = Thread(target=self.run)
             self._thread.start()
 
-    def _add_mesh(self, name, mesh, smooth=False):                
+    def _add_mesh(self, node_name, mesh, smooth=False):                
         if smooth is None:
             smooth = len(mesh.faces) < _SMOOTH_MAX_FACES
 
@@ -57,46 +57,27 @@ class SceneViewer(pyglet.window.Window):
             # will show faceted surfaces instead of super wrong blending
             mesh.unmerge_vertices()
 
-        self._scale = mesh.box_size.max()
-        
-        vertices = (mesh.vertices-mesh.centroid).reshape(-1).tolist()
-        normals  = mesh.vertex_normals.reshape(-1).tolist()
-        colors   = mesh.visual.vertex_colors.reshape(-1).tolist()
-        indices  = mesh.faces.reshape(-1).tolist()
-
-        self.set_base_view(mesh)
-
-        self._vertex_list[name] = self.batch.add_indexed(len(vertices)//3, # count
-                                                         GL_TRIANGLES,     # mode 
-                                                         None,             # group
-                                                         indices,          # indices 
-                                                         ('v3f/static', vertices),
-                                                         ('n3f/static', normals),
-                                                         ('c3B/static', colors))
+        self.set_base_view(mesh)    
+        self._scale = mesh.scale
+        self._vertex_list[node_name] = self.batch.add_indexed(*_mesh_to_vla(mesh))
         
     def init_gl(self):
         glClearColor(1, 1, 1, 1)
         glColor3f(1, 0, 0)
         glEnable(GL_DEPTH_TEST)
         glEnable(GL_CULL_FACE)
-        
-        # Simple light setup.  On Windows GL_LIGHT0 is enabled by default,
-        # but this is not the case on Linux or Mac, so remember to always 
-        # include it.
         glEnable(GL_LIGHTING)
         glEnable(GL_LIGHT0)
         glEnable(GL_LIGHT1)
-        
+        glLightfv(GL_LIGHT0, GL_POSITION, _gl_vector(.5, .5, 1, 0))
+        glLightfv(GL_LIGHT0, GL_SPECULAR, _gl_vector(.5, .5, 1, 1))
+        glLightfv(GL_LIGHT0, GL_DIFFUSE, _gl_vector(1, 1, 1, 1))
+        glLightfv(GL_LIGHT1, GL_POSITION, _gl_vector(1, 0, .5, 0))
+        glLightfv(GL_LIGHT1, GL_DIFFUSE, _gl_vector(.5, .5, .5, 1))
+        glLightfv(GL_LIGHT1, GL_SPECULAR, _gl_vector(1, 1, 1, 1))
 
-        glLightfv(GL_LIGHT0, GL_POSITION, vec(.5, .5, 1, 0))
-        glLightfv(GL_LIGHT0, GL_SPECULAR, vec(.5, .5, 1, 1))
-        glLightfv(GL_LIGHT0, GL_DIFFUSE, vec(1, 1, 1, 1))
-        glLightfv(GL_LIGHT1, GL_POSITION, vec(1, 0, .5, 0))
-        glLightfv(GL_LIGHT1, GL_DIFFUSE, vec(.5, .5, .5, 1))
-        glLightfv(GL_LIGHT1, GL_SPECULAR, vec(1, 1, 1, 1))
-
-        #glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, vec(1,1,1,1))
-        #glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, vec(1, 1, 1, 1))
+        #glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, _gl_vector(1,1,1,1))
+        #glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, _gl_vector((1, 1, 1, 1))
         #glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, 50)
         glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE)
         glEnable(GL_COLOR_MATERIAL)
@@ -106,7 +87,7 @@ class SceneViewer(pyglet.window.Window):
 
     def set_base_view(self, mesh):
         self.rotation    = np.zeros(3)
-        self.translation = np.array([0,0,-np.max(mesh.box_size)])
+        self.translation = mesh.centroid + [0,0,-np.max(mesh.box_size)]
         
     def toggle_culling(self):
         self.cull = not self.cull
@@ -119,7 +100,6 @@ class SceneViewer(pyglet.window.Window):
         else:              glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
         
     def on_resize(self, width, height):
-        # Override the default on_resize handler to create a 3D projection
         glViewport(0, 0, width, height)
         glMatrixMode(GL_PROJECTION)
         glLoadIdentity()
@@ -160,19 +140,37 @@ class SceneViewer(pyglet.window.Window):
             glRotatef(self.rotation[i], *np.roll([1,0,0], i))
 
         for name_node, name_mesh in self.scene.nodes.items():
-            glPushMatrix()
             transform = self.scene.transforms.get(name_node)
-            glMultMatrixf(gl_matrix(transform))
-            
+            glPushMatrix()
+            glMultMatrixf(_gl_matrix(transform))
             self._vertex_list[name_mesh].draw(mode=GL_TRIANGLES)
             glPopMatrix()
 
     def run(self):
         pyglet.app.run()
 
-def gl_matrix(array):
+def _mesh_to_vla(mesh):
+    '''
+    Convert a Trimesh object to args for an 
+    indexed vertex list constructor. 
+    '''
+    vertices = mesh.vertices.reshape(-1).tolist()
+    normals  = mesh.vertex_normals.reshape(-1).tolist()
+    colors   = mesh.visual.vertex_colors.reshape(-1).tolist()
+    indices  = mesh.faces.reshape(-1).tolist()
+
+    args = (len(vertices) // 3, # count
+            GL_TRIANGLES,       # mode 
+            None,               # group
+            indices,            # indices 
+            ('v3f/static', vertices),
+            ('n3f/static', normals),
+            ('c3B/static', colors))
+    return args
+    
+def _gl_matrix(array):
     a = np.array(array).T.reshape(-1)
     return (GLfloat * len(a))(*a)
 
-def vec(*args):
+def _gl_vector(*args):
     return (GLfloat * len(args))(*args)

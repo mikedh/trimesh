@@ -3,6 +3,7 @@ import struct
 import json
 
 from ..constants import log
+from ..util      import tolist_dict, is_string
 
 #python 3
 try:                from cStringIO import StringIO
@@ -23,9 +24,7 @@ def export_mesh(mesh, file_obj, file_type=None):
           depending on the file format. 
     
     '''
-
-    if ((not hasattr(file_obj, 'read')) and 
-        (not file_obj is None)):
+    if is_string(file_obj):
         file_type = (str(file_obj).split('.')[-1]).lower()
         file_obj  = open(file_obj, 'wb')
     file_type = str(file_type).lower()
@@ -106,21 +105,18 @@ def export_collada(mesh, file_obj=None):
     export = template.substitute(replacement)
     return _write_export(export, file_obj)
 
-def export_json(mesh, file_obj=None):
-    mesh.verify_vertex_normals()
-    # the zeros indicate triangular faces
-    indices = np.column_stack((np.zeros(len(mesh.faces), dtype=int), 
-                               mesh.faces)).reshape(-1)
-    export = {"metadata": {"version": 4,
-                           "type": "Geometry"},
-              "indices" : indices.tolist(),
-              "vertices": mesh.vertices.reshape(-1).tolist(),
-              "normals" : mesh.vertex_normals.reshape(-1).tolist()}
-
-    export = json.dumps(export)
-
-    return _write_export(export, file_obj)
+def export_dict(mesh, file_obj=None):
+    if file_obj is not None:
+        raise ValueError('Cannot export raw dict to file! Use json!')
+    export = {'metadata': tolist_dict(mesh.metadata),
+              'faces'   : mesh.faces.tolist(),
+              "vertices": mesh.vertices.tolist()}
+    return export
         
+def export_json(mesh, file_obj=None):
+    return _write_export(json.dumps(export_dict(mesh), 
+                                    file_obj))
+
 def _write_export(export, file_obj=None):
     '''
     Write a string to a file.
@@ -142,6 +138,7 @@ def _write_export(export, file_obj=None):
     return True
 
 _mesh_exporters = {'stl'  : export_stl,
+                   'dict' : export_dict,
                    'json' : export_json,
                    'dae'  : export_collada,
                    'off'  : export_off}

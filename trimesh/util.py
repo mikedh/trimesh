@@ -2,6 +2,8 @@ import numpy as np
 import time
 import logging
 
+from collections import defaultdict
+
 from sys import version_info
 
 if version_info.major >= 3:
@@ -212,12 +214,18 @@ def multi_dict(pairs):
     result: dict, with all values stored (rather than last with regular dict)
 
     '''
-    result = dict()
+    result = defaultdict(list)
     for k, v in pairs:
-        if k in result:
-            result[k].append(v)
+        result[k].append(v)
+    return result
+
+def tolist_dict(data):
+    def tolist(item):
+        if hasattr(item, 'tolist'):
+            return item.tolist()
         else:
-            result[k] = [v]
+            return item
+    result = {k:tolist(v) for k,v in data.items()}
     return result
     
 def is_binary_file(file_obj):

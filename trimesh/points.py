@@ -151,8 +151,8 @@ def absolute_orientation(points_A, points_B, return_error=False):
 
     Returns
     ---------
-    M:    (4,4) transformation matrix for the transform that best aligns points_A to 
-           points_B
+    M:    (4,4) transformation matrix for the transform that best aligns 
+           points_A to points_B
     error: float, list of maximum euclidean distance
     '''
 
