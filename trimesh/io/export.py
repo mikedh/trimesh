@@ -127,18 +127,14 @@ def _write_export(export, file_obj=None):
     export: a string of the export data
     file_obj: a file-like object or a filename
     '''
-
-    if file_obj is None:             
+    if not hasattr(file_obj, 'write'):
         return export
-    elif hasattr(file_obj, 'write'): 
-        out_file = file_obj
-    else: 
-        out_file = open(file_obj, 'wb')
-    out_file.write(export)
-    return True
+    file_obj.write(export)
+    return export
 
 _mesh_exporters = {'stl'  : export_stl,
                    'dict' : export_dict,
                    'json' : export_json,
+                   'off'  : export_off,
                    'dae'  : export_collada,
-                   'off'  : export_off}
+                   'collada': export_collada}
