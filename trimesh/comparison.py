@@ -41,41 +41,15 @@ def merge_duplicates(meshes):
                 quantity += 1
             metadata.update(mesh.metadata)
  
-        if not 'transforms' in metadata:
-            transforms = identical_mesh_transforms(meshes[group])
-            if transforms is not None:
-                metadata['transforms'] = transforms
         metadata['quantity'] = int(quantity)
         metadata['original_index'] = group
+
         merged[i] = meshes[group[0]]
         merged[i].metadata = metadata 
     log.info('merge_duplicates reduced part count from %d to %d', 
              len(meshes),
              len(merged))
     return np.array(merged)
-
-def identical_mesh_transforms(meshes):
-    '''
-    Try to find the transforms between identical meshes 
-    '''
-    meshes = np.array(meshes)
-    scale = np.reshape([i.bounds for i in meshes], (-1,3)).ptp(axis=0).max()
-    idx   = np.arange(len(meshes))
-    pairs = np.array(list(product(idx[:1], idx[1:])))
-    transforms = np.tile(np.eye(4), (len(meshes),1,1))
-    for i, pair in enumerate(pairs):
-        vertices = [m.vertices for m in meshes[pair]]
-        vertices = [v[np.lexsort(v.T)] for v in vertices]
-        if vertices[0].shape != vertices[1].shape:
-            log.warn('Mesh shape different, can\'t find transforms')
-            return None
-        t, e = absolute_orientation(*vertices, 
-                                    return_error=True)
-        if e > (tol.fit*scale):
-            log.warn('Meshes not identical enough for transforms(%f)', e)
-            return None
-        transforms[i+1] = t
-    return transforms
 
 def equal(a, b):
     if not (hasattr(a, 'identifier') and 
