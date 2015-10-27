@@ -38,7 +38,7 @@ $ sudo pip install git+https://github.com/mikedh/trimesh.git
 
 ### Optional Dependencies ###
 
-#### Ray->mesh queries ####
+#### Ray-mesh queries ####
 If you would like to use ray queries or some path functionality, install dependencies:
 ```bash
 $ sudo pip install shapely git+https://github.com/Toblerity/rtree.git svg.path 
@@ -64,7 +64,7 @@ $ sudo pip install meshpy
 
 ### Example ###
 
-Here is an example of loading a core from file and colorizing its faces.
+Here is an example of loading a cube from file and colorizing its faces.
 
 ```python
 import numpy as np

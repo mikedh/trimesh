@@ -38,7 +38,8 @@ def load_mesh(obj, file_type=None, process=True):
 
     file_type = str(file_type).lower()
     loaded = _mesh_loaders[file_type](obj, file_type)
-    if is_file(obj): obj.close()
+    if is_file(obj): 
+        obj.close()
     
     log.debug('loaded mesh using %s',
               _mesh_loaders[file_type].__name__)
