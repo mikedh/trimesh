@@ -4,9 +4,8 @@ import networkx as nx
 from collections import deque
 
 from ..points    import unitize
-from ..util      import is_ccw
 from ..constants import tol_path as tol
-
+from .util       import is_ccw
 
 def vertex_graph(entities):
     '''

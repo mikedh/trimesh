@@ -7,7 +7,8 @@ import networkx as nx
 
 from ..constants  import log
 from ..points     import unitize
-from ..util       import transformation_2D, is_sequence, is_ccw
+from ..util       import transformation_2D, is_sequence
+from .util        import is_ccw
 from .traversal   import resample_path
 
 

@@ -30,9 +30,8 @@ def export_mesh(mesh, file_obj, file_type=None):
     file_type = str(file_type).lower()
     
     log.info('Exporting %d faces as %s', len(mesh.faces), file_type.upper())
-    
     export = _mesh_exporters[file_type](mesh, file_obj)
-    if not (file_obj is None): 
+    if hasattr(file_obj, 'flush'):
         file_obj.flush()
         file_obj.close()
     return export
@@ -114,8 +113,7 @@ def export_dict(mesh, file_obj=None):
     return export
         
 def export_json(mesh, file_obj=None):
-    return _write_export(json.dumps(export_dict(mesh), 
-                                    file_obj))
+    return _write_export(json.dumps(export_dict(mesh),file_obj))
 
 def _write_export(export, file_obj=None):
     '''
@@ -127,9 +125,8 @@ def _write_export(export, file_obj=None):
     export: a string of the export data
     file_obj: a file-like object or a filename
     '''
-    if not hasattr(file_obj, 'write'):
-        return export
-    file_obj.write(export)
+    if hasattr(file_obj, 'write'):
+        file_obj.write(export)
     return export
 
 _mesh_exporters = {'stl'  : export_stl,
