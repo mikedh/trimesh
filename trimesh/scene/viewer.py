@@ -141,9 +141,13 @@ class SceneViewer(pyglet.window.Window):
 
         for name_node, name_mesh in self.scene.nodes.items():
             transform = self.scene.transforms.get(name_node)
+            # add a new matrix to the model stack
             glPushMatrix()
+            # transform by the nodes transform
             glMultMatrixf(_gl_matrix(transform))
+            # draw the mesh with its transform applied
             self._vertex_list[name_mesh].draw(mode=GL_TRIANGLES)
+            # pop the matrix stack as we drew what we needed to draw
             glPopMatrix()
 
     def run(self):
@@ -169,6 +173,8 @@ def _mesh_to_vla(mesh):
     return args
     
 def _gl_matrix(array):
+    # turn a numpy transformation matrix (row major, 4x4)
+    # to an GLfloat transformation matrix (column major, 16)
     a = np.array(array).T.reshape(-1)
     return (GLfloat * len(a))(*a)
 

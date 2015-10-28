@@ -113,7 +113,8 @@ def export_dict(mesh, file_obj=None):
     return export
         
 def export_json(mesh, file_obj=None):
-    return _write_export(json.dumps(export_dict(mesh),file_obj))
+    return _write_export(json.dumps(export_dict(mesh)), 
+                         file_obj)
 
 def _write_export(export, file_obj=None):
     '''
