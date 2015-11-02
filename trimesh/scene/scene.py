@@ -46,7 +46,7 @@ class Scene:
             transforms = np.eye(4).reshape((-1,4,4))
 
         for i, transform in enumerate(transforms):
-            name_node = name_mesh + '_' + str(i)
+            name_node = name_mesh + '/' + str(i)
             self.nodes[name_node] = name_mesh
             self.transforms.update(frame_to = name_node, 
                                    matrix   = transform)

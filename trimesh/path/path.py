@@ -12,7 +12,7 @@ from copy import deepcopy
 from collections import deque
 
 from .simplify  import simplify
-from .polygons  import polygons_enclosure_tree, is_ccw, medial_axis, polygon_hash
+from .polygons  import polygons_enclosure_tree, is_ccw, medial_axis, polygon_hash, recover_invalid
 from .traversal import vertex_graph, closed_paths, discretize_path
 from .io.export import export_path
 
@@ -403,22 +403,10 @@ class Path2D(Path):
 
         polygons = [None] * len(self.paths)
         for i, path in enumerate(self.paths):
-            polygons[i] = path_to_polygon(path)
-            # try to recover invalid polygons by zero- buffering
-            if (not polygons[i].is_valid) or is_sequence(polygons[i]): 
-                buffered = polygons[i].buffer(tol.merge*self.scale)
+            candidate = path_to_polygon(path)
+            candidate = recover_invalid(candidate, scale=self.scale)
+            polygons[i] = candidate
 
-                if buffered.is_valid and not is_sequence(buffered):
-                    unbuffered = buffered.buffer(-tol.merge*self.scale)
-                    if unbuffered.is_valid and not is_sequence(unbuffered):
-                        polygons[i] = unbuffered
-                    else:
-                        polygons[i] = buffered
-                    log.warn('Recovered invalid polygon')
-                else:
-                    log.error('Unrecoverable polygon detected!')
-                    log.error('Broken polygon vertices: \n%s', 
-                              str(np.array(polygons[i].exterior.coords)))
         polygons = np.array(polygons)
         self._cache_put('polygons_closed', polygons)
 

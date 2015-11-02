@@ -5,6 +5,7 @@ from collections      import deque
 import numpy as np
 import networkx as nx
 
+from ..constants  import tol_path as tol
 from ..constants  import log
 from ..points     import unitize
 from ..util       import transformation_2D, is_sequence
@@ -351,3 +352,21 @@ def random_polygon(segments=8, radius=1.0):
     if is_sequence(polygon):
         return polygon[0]
     return polygon
+
+def recover_invalid(polygon, scale=1.0):
+    if polygon.is_valid: 
+        return polygon
+
+    basic = polygon.buffer(0.0)
+    if basic.is_valid: 
+        return basic
+
+    buffered   = basic.buffer(tol.merge * scale)
+    unbuffered = buffered.buffer(-tol.merge * scale)
+
+    if unbuffered.is_valid and not is_sequence(unbuffered):
+        return unbuffered
+    elif buffered.is_valid:
+        return buffered
+    else:
+        return None
