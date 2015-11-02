@@ -72,18 +72,23 @@ def merge_colinear(points, scale=1.0):
              points merged, where (j < n)
     '''
     points         = np.array(points)
+
     # the vector from one point to the next
     direction      = np.diff(points, axis=0)
     # the length of the direction vector
     direction_norm = np.linalg.norm(direction, axis=1)
     # make sure points don't have zero length
     direction_ok   = direction_norm > tol.merge
+
+    # remove duplicate points 
+    points = np.vstack((points[0], points[1:][direction_ok]))
+    direction = direction[direction_ok]
+    direction_norm = direction_norm[direction_ok]
+    
     # change nonzero direction vectors to unit vectors
-    direction[direction_ok] /= direction_norm[direction_ok].reshape((-1,1))
+    direction /= direction_norm.reshape((-1,1))
     # find the difference between subsequent direction vectors
     direction_diff = np.linalg.norm(np.diff(direction, axis=0), axis=1)
-    # remove overlapping points
-    direction_diff[np.logical_not(direction_ok[:-1])] = 0.0
 
     # magnitude of direction difference between vectors times direction length
     colinear = (direction_diff * direction_norm[1:]) < (tol.merge * scale)
@@ -92,7 +97,5 @@ def merge_colinear(points, scale=1.0):
     mask = np.ones(len(points), dtype=np.bool)
     # since we took diff, we need to offset by one
     mask[colinear_index + 1] = False
-
     merged = points[mask]
-    
     return merged

@@ -93,7 +93,7 @@ tol_path = _NumericalTolerancePath(zero        = 1e-12,
                                    seg_angle   = .25,
                                    aspect_frac = .1,
                                    radius_frac = 1e-2,
-                                   radius_min  = 1e-2,
+                                   radius_min  = 1e-3,
                                    radius_max  = 50,
                                    tangent     = .0175)
 res_path = _NumericalResolutionPath(seg_frac     = .04,

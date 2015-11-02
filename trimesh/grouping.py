@@ -5,9 +5,8 @@ from scipy.spatial import cKDTree as KDTree
 from networkx      import from_edgelist, connected_components
 
 from .points    import unitize
+from .util      import decimal_to_digits
 from .constants import log, tol
-
-_digits_merge = abs(int(np.log10(tol.merge)))
 
 def merge_vertices_hash(mesh):
     '''
@@ -134,7 +133,11 @@ def float_to_int(data, digits=None):
         return data
     else: 
         if digits is None: 
-            digits = _digits_merge
+            digits = decimal_to_digits(tol.merge)
+        elif isinstance(digits, float):
+            digits = decimal_to_digits(digits)
+        elif not isinstance(digits, int):
+            raise ValueError('Digits must be None, int, or float!')
         as_int = (np.around(data, digits) * (10**digits)).astype(np.int64)
         return as_int
 
@@ -180,11 +183,22 @@ def unique_float(data,
     if return_inverse: result.append(inverse)
     return tuple(result)
 
-def unique_rows(data, digits = None):
+def unique_rows(data, digits=None):
     '''
     Returns indices of unique rows. It will return the 
     first occurrence of a row that is duplicated:
     [[1,2], [3,4], [1,2]] will return [0,1]
+
+    Arguments
+    ---------
+    data: (n,m) set of floating point data
+    digits: how many digits to consider for the purposes of uniqueness
+
+    Returns
+    --------
+    unique:  (j) array, index in data which is a unique row
+    inverse: (n) length array to reconstruct original
+                 example: unique[inverse] == data
     '''
     hashes                   = hashable_rows(data, digits=digits)
     garbage, unique, inverse = np.unique(hashes, 
