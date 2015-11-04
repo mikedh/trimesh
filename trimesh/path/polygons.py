@@ -353,20 +353,34 @@ def random_polygon(segments=8, radius=1.0):
         return polygon[0]
     return polygon
 
-def recover_invalid(polygon, scale=1.0):
+def polygon_scale(polygon):
+    box = np.abs(np.diff(np.reshape(polygon, (2,2)), axis=0))
+    scale = box.max()
+    return scale
+   
+def repair_invalid(polygon, scale=None):
+    '''
+    Given a shapely.geometry.Polygon, attempt to return a 
+    valid version of the polygon. If one can't be found, return None
+        
+    '''
     if polygon.is_valid: 
         return polygon
 
-    basic = polygon.buffer(0.0)
-    if basic.is_valid: 
+    basic = polygon.buffer(tol.zero)
+    if basic.is_valid:
+        log.debug('Recovered invalid polygon through zero buffering')
         return basic
 
-    buffered   = basic.buffer(tol.merge * scale)
-    unbuffered = buffered.buffer(-tol.merge * scale)
+    if scale is None:
+        scale = polygon_scale(polygon)
+        
+    buffered   = basic.buffer(tol.buffer * scale)
+    unbuffered = buffered.buffer(-tol.buffer * scale)
 
     if unbuffered.is_valid and not is_sequence(unbuffered):
+        log.debug('Recovered invalid polygon through double buffering')
         return unbuffered
-    elif buffered.is_valid:
-        return buffered
-    else:
-        return None
+
+    log.warn('Unable to recover polygon! Returning None!')
+    return None

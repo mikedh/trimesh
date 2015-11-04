@@ -78,8 +78,11 @@ def discretize_arc(points, close = False, scale=1.0):
     #the number of facets, based on the angle critera
     count_a = angle / res.seg_angle
     count_l = ((R*angle)) / (res.seg_frac * scale)
+    
+
     count = np.max([count_a, count_l])
-    count = np.clip(count, 4, 6.28/res.seg_angle)
+    # force at LEAST 4 points for the arc, otherwise the endpoints will diverge
+    count = np.clip(count, 4, np.inf)
     count = int(np.ceil(count))
 
     V1 = unitize(points[0] - center)
@@ -94,8 +97,9 @@ def discretize_arc(points, close = False, scale=1.0):
         arc_dist = np.linalg.norm(points[[0,-1]]-discrete[[0,-1]], axis=1) 
         arc_ok   = (arc_dist < tol.merge).all()
         if not arc_ok:
+            log.warn('Failed to discretize arc (endpoint distance %s)', str(arc_dist))
+            log.warn('Failed arc points: %s', str(points))
             raise ValueError('Arc endpoints diverging!')
-
     discrete  = discrete[:,0:(3-two_dimensional)]
 
     return discrete

@@ -51,6 +51,9 @@ class Scene:
             self.transforms.update(frame_to = name_node, 
                                    matrix   = transform)
 
+    def set_camera(center_rotation, quaternion, zoom):
+        pass
+                                   
     def _naive(self):
         from copy import deepcopy
         from collections import deque

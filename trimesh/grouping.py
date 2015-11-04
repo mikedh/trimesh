@@ -134,9 +134,10 @@ def float_to_int(data, digits=None):
     else: 
         if digits is None: 
             digits = decimal_to_digits(tol.merge)
-        elif isinstance(digits, float):
+        elif isinstance(digits, float) or isinstance(digits, np.float):
             digits = decimal_to_digits(digits)
-        elif not isinstance(digits, int):
+        elif not (isinstance(digits, int) or isinstance(digits, np.integer)):
+            log.warn('Digits were passed as %s!', digits.__class__.__name__)
             raise ValueError('Digits must be None, int, or float!')
         as_int = (np.around(data, digits) * (10**digits)).astype(np.int64)
         return as_int

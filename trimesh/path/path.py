@@ -11,8 +11,8 @@ from shapely.geometry import Polygon, Point
 from copy import deepcopy
 from collections import deque
 
-from .simplify  import simplify
-from .polygons  import polygons_enclosure_tree, is_ccw, medial_axis, polygon_hash, recover_invalid
+from .simplify  import simplify_path
+from .polygons  import polygons_enclosure_tree, is_ccw, medial_axis, polygon_hash, repair_invalid
 from .traversal import vertex_graph, closed_paths, discretize_path
 from .io.export import export_path
 
@@ -404,7 +404,7 @@ class Path2D(Path):
         polygons = [None] * len(self.paths)
         for i, path in enumerate(self.paths):
             candidate = path_to_polygon(path)
-            candidate = recover_invalid(candidate, scale=self.scale)
+            candidate = repair_invalid(candidate, scale=self.scale)
             polygons[i] = candidate
 
         polygons = np.array(polygons)
@@ -428,7 +428,7 @@ class Path2D(Path):
         
     def simplify(self):
         self._cache = {}
-        simplify(self)
+        simplify_path(self)
 
     def split(self):
         '''
