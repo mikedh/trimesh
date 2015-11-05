@@ -164,7 +164,7 @@ class EqualTest(unittest.TestCase):
     def test_equal(self):
         self.assertTrue(self.a == self.b)
         log.info('Mesh equality tested')
-'''
+
 class BooleanTest(unittest.TestCase):
     def setUp(self):
         self.a = trimesh.load_mesh(os.path.abspath(os.path.join(TEST_DIR, 'ballA.off')))
@@ -178,7 +178,7 @@ class BooleanTest(unittest.TestCase):
         self.assertTrue(i.is_watertight)
         u = a.union(b)
         self.assertTrue(u.is_watertight)
-'''
+
    
 class RayTests(unittest.TestCase):
     def setUp(self):

@@ -9,6 +9,8 @@ from ..util      import tolist_dict, is_string
 try:                from cStringIO import StringIO
 except ImportError: from io import StringIO
 
+from io import BytesIO
+
 def export_mesh(mesh, file_obj, file_type=None):
     '''
     Export a Trimesh object to a file- like object, or to a filename
@@ -41,7 +43,7 @@ def export_stl(mesh, file_obj=None):
     Saves a Trimesh object as a binary STL file.
     '''
     
-    temp_file = StringIO()
+    temp_file = BytesIO()
     if len(np.shape(mesh.face_normals)) != 2: 
         mesh.generate_normals()
 

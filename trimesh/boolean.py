@@ -2,6 +2,8 @@ import numpy as np
 
 from .io.stl import load_stl
 
+from string import Template
+
 from tempfile   import NamedTemporaryFile
 from subprocess import check_call
 
@@ -19,7 +21,7 @@ def difference(a, *args):
     difference: a - (other meshes), **kwargs for a Trimesh
     '''
     meshes = np.append(a,args)
-    result = _scad_interface(meshes, operation='difference')
+    result = _scad_operation(meshes, operation='difference')
     return result
 
 def union(a, *args):
@@ -37,7 +39,7 @@ def union(a, *args):
     '''
 
     meshes = np.append(a, args)
-    result = _scad_interface(meshes, operation='union')
+    result = _scad_operation(meshes, operation='union')
     return result
 
 def intersection(a, *args):
@@ -56,46 +58,60 @@ def intersection(a, *args):
     '''
 
     meshes = np.append(a,args)
-    result = _scad_interface(meshes, operation='intersection')
+    result = _scad_operation(meshes, operation='intersection')
     return result
-
-def _scad_interface(meshes, operation='difference'):
+    
+def scad_interface(meshes, script):
     '''
-    A hacky way to interface with openSCAD which is itself an interface
+    A way to interface with openSCAD which is itself an interface
     to the CGAL CSG bindings. 
-
-    CGAL is very stable if difficult to install/use, so this is a 
+    CGAL is very stable if difficult to install/use, so this function provides a 
     tempfile- happy solution for getting the basic CGAL CSG functionality. 
+
+    Arguments
+    ---------
+    meshes: list of Trimesh objects
+    script: string of the script to send to scad. 
+            Trimesh objects can be referenced in the script as
+            $mesh_0, $mesh_1, etc. 
     '''
-    files  = [NamedTemporaryFile(suffix='.STL') for i in meshes]
-    result =  NamedTemporaryFile(suffix='.STL')
-    script =  NamedTemporaryFile(suffix='.scad')
+    mesh_out   = [NamedTemporaryFile(suffix='.STL') for i in meshes]
+    mesh_in    =  NamedTemporaryFile(suffix='.STL')
+    script_out =  NamedTemporaryFile(suffix='.scad')
 
     # export the meshes to a temporary STL container
-    for m, f in zip(meshes, files):
+    for m, f in zip(meshes, mesh_out):
         m.export(f.name, file_type='stl')
     
-    # write the SCAD script to do the boolean operation
-    script.write(operation + '(){')
-    for f in files:
-        script.write('import(\"' + f.name + '\");')
-    script.write('}')
-    script.flush()
+    replacement = {'mesh_' + str(i) : m.name for i,m in enumerate(mesh_out)}
+    script_text = Template(script).substitute(replacement)
+    script_out.write(script_text.encode('utf-8'))
+    script_out.flush()
 
     # run the SCAD binary
     check_call(['openscad', 
-                script.name,
+                script_out.name,
                 '-o', 
-                result.name])
+                mesh_in.name])
 
     # bring the SCAD result back as a Trimesh object
-    result.seek(0)
-    result_mesh = load_stl(result)
+    mesh_in.seek(0)
+    mesh_result = load_stl(mesh_in)
     
     # close all the freaking temporary files
-    result.close()
-    script.close()
-    for f in files:
+    mesh_in.close()
+    script_out.close()
+    for f in mesh_out:
         f.close()
 
-    return result_mesh
+    return mesh_result
+
+def _scad_operation(meshes, operation='difference'):
+    '''
+    Run an operation on a set of meshes
+    '''
+    script = operation + '(){'
+    for i in range(len(meshes)):
+        script += 'import(\"$mesh_' + str(i) + '\");'
+    script += '}'
+    return scad_interface(meshes, script)
