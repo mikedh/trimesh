@@ -36,7 +36,8 @@ def export_mesh(mesh, file_obj, file_type=None):
     if hasattr(file_obj, 'flush'):
         file_obj.flush()
         file_obj.close()
-    return export
+    else:
+        return export
 
 def export_stl(mesh, file_obj=None):
     '''
