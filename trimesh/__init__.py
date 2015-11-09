@@ -17,4 +17,4 @@ from .io.load import load_mesh, available_formats
 from .        import transformations
 
 try: from .path.io.load import load_path
-except ImportError: pass
+except ImportError: pass #log.debug('Unable to import path functionality!')

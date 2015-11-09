@@ -344,3 +344,7 @@ class Cache:
         self.verify()
         self.cache[key] = value
         return value
+
+def stack_lines(indices):
+    return np.column_stack((indices[:-1],
+                            indices[1:])).reshape((-1,2))

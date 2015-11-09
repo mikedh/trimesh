@@ -62,7 +62,7 @@ class VectorTests(unittest.TestCase):
                     r = d.polygons_closed[i].buffer(0.0)
                     d.show()
                 self.assertTrue(d.polygons_closed[i].is_valid)
-                self.assertTrue(d.polygons_closed[i].area > tol.zero) 
+                self.assertTrue(d.polygons_closed[i].area > tol.zero)
             d.export('dict')
             d.export('svg')
             d.simplify()
@@ -71,10 +71,13 @@ class VectorTests(unittest.TestCase):
                      d.filename,
                      len(split))
             for body in split:
-                try: body.identifier()
-                except:
-                    log.error('Fatal error in computing identifier for %s!',
-                              d.filename, exc_info=True)
+                body.identifier()
+
+    def test_subset(self):
+        for d in self.drawings[:5]:
+            m = d.medial_axis()
+                
+
 class ArcTests(unittest.TestCase):
     def setUp(self):
         self.test_points  = [[[0,0], [1.0,1], [2,0]]]

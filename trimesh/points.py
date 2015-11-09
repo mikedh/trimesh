@@ -228,6 +228,19 @@ def remove_close_set(points_fixed, points_reduce, radius):
     points_clean = points_reduce[reduce_mask]
     return points_clean
 
+def contains_points(mesh, points):
+    '''
+    Check if a mesh contains a set of points, using ray tests. 
+    '''
+    
+    rays = np.column_stack((points, 
+                            np.tile([0,0,1.0], (len(points),1)))).reshape((-1,2,3))
+    ray_hits = mesh.ray.intersects_id(rays)
+    ray_hits_count = np.array([len(i) for i in ray_hits])
+    contains = np.mod(ray_hits_count, 2) == 1
+    return contains
+
+
 def plot_points(points, show=True):    
     import matplotlib.pyplot as plt
 

@@ -16,8 +16,10 @@ class Scene:
                  node      = None, 
                  base_frame ='world'):
 
-        self.nodes = {}
+        # instance name : mesh name
+        self.instances = {}
 
+        # dictionary, mesh name : Trimesh object
         self.meshes     = {}
         self.lights     = {}
         self.camera     = None
@@ -47,7 +49,7 @@ class Scene:
 
         for i, transform in enumerate(transforms):
             name_node = name_mesh + '/' + str(i)
-            self.nodes[name_node] = name_mesh
+            self.instances[name_node] = name_mesh
             self.transforms.update(frame_to = name_node, 
                                    matrix   = transform)
 
@@ -58,7 +60,7 @@ class Scene:
         from copy import deepcopy
         from collections import deque
         result = deque()
-        for node_id, mesh_id in self.nodes.items():
+        for node_id, mesh_id in self.instances.items():
             transform = self.transforms.get(node_id)
             current = deepcopy(self.meshes[mesh_id])
             current.transform(transform)

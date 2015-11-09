@@ -22,7 +22,7 @@ from . import util
 from .io.export    import export_mesh
 from .ray.ray_mesh import RayMeshIntersector
 from .voxel        import Voxel
-from .points       import unitize, transform_points
+from .points       import unitize, transform_points, contains_points
 from .convex       import convex_hull
 from .units        import _set_units
 from .constants    import log, _log_time, tol
@@ -625,6 +625,9 @@ class Trimesh(object):
         '''
         return Trimesh(process=True, **boolean.intersection(self, other))
     
+    def contains(self, points):
+        return contains_points(self, points)
+
     def __eq__(self, other):
         equal = comparison.equal(self, other)
         return equal

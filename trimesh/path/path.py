@@ -282,7 +282,7 @@ class Path3D(Path):
 
         return vector, to_3D
 
-    def show(self, entities=False):
+    def show(self, entities=True):
         if entities: self.plot_entities(show=True)
         else:        self.plot_discrete(show=True)
 
@@ -462,7 +462,7 @@ class Path2D(Path):
 
     def show(self):
         import matplotlib.pyplot as plt
-        self.plot_discrete(show=True)
+        self.plot_entities(show=True)
      
     def plot_discrete(self, show=False, transform=None, axes=None):
         self._cache_verify()

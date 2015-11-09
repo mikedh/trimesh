@@ -25,6 +25,7 @@ Python (2.7-3.*) library for loading and utilizing triangular meshes.
 * Repair single triangle and single quad holes
 * Uniformly sample the surface of a mesh
 * Find ray-mesh intersections
+* Boolean operations on meshes (intersection, union, difference) if OpenSCAD is installed
 * Voxelize watertight meshes
 * Unit conversions
 * Create meshes by extruding 2D profiles
@@ -50,13 +51,13 @@ $ sudo apt-get install libspatialindex*
 ```
 
 #### Loading meshes with Assimp ####
-Trimesh supports loading meshes via Assimp,, but this requires a fairly recent version.
+Trimesh supports loading meshes via Assimp, but this requires a fairly recent version.
 To get the latest version of assimp/pyassimp from github:
 ```bash
 $ sudo pip install git+https://github.com/robotics/assimp_latest.git 
 ```
 
-#### Creating trimeshes ####
+#### Creating meshes ####
 If you would like to use the trimesh.creation functions, meshpy is required:
 ```bash
 $ sudo pip install meshpy

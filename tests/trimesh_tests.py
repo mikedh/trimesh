@@ -165,6 +165,25 @@ class EqualTest(unittest.TestCase):
         self.assertTrue(self.a == self.b)
         log.info('Mesh equality tested')
 
+class ContainsTest(unittest.TestCase):
+    def setUp(self):
+        self.sphere = trimesh.load_mesh(os.path.abspath(os.path.join(TEST_DIR, 
+                                                                     'unit_sphere.STL')))
+    
+    def test_equal(self):
+        samples = (np.random.random((1000,3))-.5)*5
+        radius = np.linalg.norm(samples, axis=1)
+
+        margin = .025
+        truth_in = radius < 1.0 - margin
+        truth_out = radius > 1.0 + margin
+
+        contains = self.sphere.contains(samples)
+        
+        assert contains[truth_in].all()
+        assert not contains[truth_out].any()
+
+
 class BooleanTest(unittest.TestCase):
     def setUp(self):
         self.a = trimesh.load_mesh(os.path.abspath(os.path.join(TEST_DIR, 'ballA.off')))

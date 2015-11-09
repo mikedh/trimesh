@@ -5,6 +5,7 @@ from collections      import deque
 import numpy as np
 import networkx as nx
 
+from ..geometry   import medial_axis as _medial_axis
 from ..constants  import tol_path as tol
 from ..constants  import log
 from ..points     import unitize
@@ -200,6 +201,29 @@ def plot_raster(raster, pitch, offset=[0,0]):
                                           pitch, 
                                           facecolor="grey"))
 
+def resample_boundaries(polygon, resolution, clip=None):
+    def resample_boundary(boundary):
+        # add a polygon.exterior or polygon.interior to
+        # the deque after resampling based on our resolution
+        count = boundary.length / resolution
+        count = int(np.clip(count, *clip))
+        return resample_path(boundary.coords, count=count)
+    if clip is None: 
+        clip = [8,100]
+    # create a sequence of [(n,2)] points
+    result = {'shell' : resample_boundary(polygon.exterior),
+              'holes' : deque()}
+    for interior in polygon.interiors:
+        result['holes'].append(resample_boundary(interior))
+    result['holes'] = np.array(result['holes'])
+    return result
+
+def stack_boundaries(boundaries):
+    if len(boundaries['holes']) == 0:
+        return boundaries['shell']
+    result = np.vstack((boundaries['shell'],
+                       np.vstack(boundaries['holes'])))
+    return result
 
 def medial_axis(polygon, resolution=.01, clip=None):
     '''
@@ -220,41 +244,17 @@ def medial_axis(polygon, resolution=.01, clip=None):
     ----------
     lines:     (n,2,2) set of line segments
     '''
-    def add_boundary(boundary):
-        # add a polygon.exterior or polygon.interior to
-        # the deque after resampling based on our resolution
-        count     = boundary.length / resolution
-        count     = int(np.clip(count, *clip))
-        points.append(resample_path(boundary.coords, count=count))
+    def contains(points):
+        return np.array([polygon.contains(Point(i)) for i in points])
 
-    # do the import here to avoid it in general use and fail immediatly
-    # if we don't have scipy.spatial available
-    from scipy.spatial import Voronoi
-    if clip is None: clip = [10,1000]
-    # create a sequence of [(n,2)] points
-    points = deque()
-    add_boundary(polygon.exterior)
-    for interior in polygon.interiors:
-        add_boundary(interior)
+    boundary = resample_boundaries(polygon=polygon, 
+                                  resolution=resolution, 
+                                  clip=clip)
+    boundary = stack_boundaries(boundary)
 
-    # create the voronoi diagram, after vertically stacking the points
-    # deque from a sequnce into a clean (m,2) array
-    voronoi   = Voronoi(np.vstack(points))
-    # which voronoi vertices are contained inside the original polygon
-    contained = np.array([polygon.contains(Point(i)) for i in voronoi.vertices])
-    ridge     = np.reshape(voronoi.ridge_vertices, -1)
-    # for the medial axis, we only want to include vertices that are inside
-    # the original polygon, and are greater than zero
-    # negative indices indicate a vornoi vertex outside the diagram
-    test      = np.logical_and(contained[ridge], 
-                               ridge >= 0).reshape((-1,2)).all(axis=1)
-    ridge     = ridge.reshape((-1,2))[test]
-    # index into lines, which are (n,2,2)
-    lines     = voronoi.vertices[ridge]
-    
-    from .io.load import load_path
-    return load_path(lines)
-
+    return _medial_axis(samples = boundary,
+                        contains = contains)
+ 
 class InversePolygon:
     '''
     Create an inverse polygon. 

@@ -43,7 +43,7 @@ class SceneViewer(pyglet.window.Window):
             self._thread = Thread(target=self.run)
             self._thread.start()
 
-    def _add_mesh(self, node_name, mesh, smooth=False):                
+    def _add_mesh(self, node_name, mesh, smooth=False):
         if smooth is None:
             smooth = len(mesh.faces) < _SMOOTH_MAX_FACES
 
@@ -139,7 +139,7 @@ class SceneViewer(pyglet.window.Window):
         for i in range(2):
             glRotatef(self.rotation[i], *np.roll([1,0,0], i))
 
-        for name_node, name_mesh in self.scene.nodes.items():
+        for name_node, name_mesh in self.scene.instances.items():
             transform = self.scene.transforms.get(name_node)
             # add a new matrix to the model stack
             glPushMatrix()
