@@ -626,7 +626,22 @@ class Trimesh(object):
         return Trimesh(process=True, **boolean.intersection(self, other))
     
     def contains(self, points):
-        return contains_points(self, points)
+        '''
+        Given a set of points, determine whether or not they are inside the mesh.
+        This raises an error if called on a non- watertight mesh.
+
+        Arguments
+        ---------
+        points: (n,3) set of points in space
+        
+        Returns
+        ---------
+        contains: (n) boolean array, whether or not a point is inside the mesh
+        '''
+        if not self.is_watertight: 
+            raise ValueError('Non-watertight meshes can\'t contain anything!')
+        contains = contains_points(self, points)
+        return contains
 
     def __eq__(self, other):
         equal = comparison.equal(self, other)
