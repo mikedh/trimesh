@@ -40,6 +40,7 @@ def export_svg(drawing):
     'holes' will be in reverse order, so they can be rendered as holes by
     rendering libraries
     '''
+    points = drawing.vertices.view(np.ndarray)
     def circle_to_svgpath(center, radius, reverse):
         radius_str = format(radius, res.export)
         path_str  = '  M' + format(center[0]-radius, res.export) + ',' 
@@ -57,7 +58,7 @@ def export_svg(drawing):
         large-arc-flag: greater than 180 degrees
         sweep flag: direction (cw/ccw)
         '''
-        vertices = drawing.vertices[arc.points[::((reverse*-2) + 1)]]        
+        vertices = points[arc.points[::((reverse*-2) + 1)]]        
         vertex_start, vertex_mid, vertex_end = vertices
         C, R, N, angle = arc_center(vertices)
         if arc.closed: return circle_to_svgpath(C, R, reverse)
@@ -72,14 +73,14 @@ def export_svg(drawing):
         arc_str += x_ex + ',' + y_ex
         return arc_str
     def svg_line(line, reverse):
-        vertex_end = drawing.vertices[line.points[-(not reverse)]]
+        vertex_end = points[line.points[-(not reverse)]]
         x_ex = format(vertex_end[0], res.export) 
         y_ex = format(vertex_end[1], res.export) 
         line_str = 'L' + x_ex + ',' + y_ex
         return line_str
     def svg_moveto(vertex_id):
-        x_ex = format(drawing.vertices[vertex_id][0], res.export) 
-        y_ex = format(drawing.vertices[vertex_id][1], res.export) 
+        x_ex = format(points[vertex_id][0], res.export) 
+        y_ex = format(points[vertex_id][1], res.export) 
         move_str = 'M' + x_ex + ',' + y_ex
         return move_str
     def convert_path(path, reverse=False):

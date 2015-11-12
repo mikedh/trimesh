@@ -8,6 +8,9 @@ from sys import version_info
 if version_info.major >= 3:
     basestring = str
 
+log = logging.getLogger('trimesh')
+log.addHandler(logging.NullHandler())   
+    
 # included here so util has only standard library imports
 _TOL_ZERO = 1e-12
 
@@ -282,33 +285,35 @@ class TrackedArray(np.ndarray):
     modified: returns an identifier which will change when
               array is modified
     '''
+
     def __array_finalize__(self, obj):
         self._set_modified()
         if hasattr(obj, '_set_modified'):
             obj._set_modified(self._modified)
-
+            
     def _set_modified(self, value=None):
         if value is None:
-            self._modified = np.random.random()
-        else: 
-            self._modified = value
+            value = np.random.random()
+        self._modified = value
 
     def modified(self):
         result  = float(id(self))
-        result *= self._modified
+        if hasattr(self, '_modified'):
+            result *= self._modified
+
         if result < 1e8: result *= 1e6
         return int(result)
         
     def __hash__(self):
         return self.modified()
-
-    def __setitem__(self, i, y):
-        super(self.__class__, self).__setitem__(i, y)
-        self._set_modified()
         
-    def __setslice__(self, i, j, y):
-        super(self.__class__, self).__setslice__(i, j, y)
+    def __setitem__(self, i, y):
         self._set_modified()
+        super(self.__class__, self).__setitem__(i, y)
+
+    def __setslice__(self, i, j, y):
+        self._set_modified()
+        super(self.__class__, self).__setslice__(i, j, y)
 
 def tracked_array(array):
     '''
@@ -321,8 +326,9 @@ class Cache:
     Class to cache values until an id function changes.
     '''
     def __init__(self, id_function):
-        self.id_function = id_function
+        self._id_function = id_function
         self.id_current = None
+        self._lock = 0
         self.cache = {}
         
     def get(self, key):
@@ -332,18 +338,38 @@ class Cache:
         return None
         
     def verify(self):
-        id_new = self.id_function()
-        if id_new != self.id_current: 
+        id_new = self._id_function()
+        if (not self._lock) and (id_new != self.id_current):
+            if len(self.cache) > 0:
+                log.warn('Clearing cache of %d items', len(self.cache))
             self.clear()
-        self.id_current = id_new
+            self.id_set()
 
     def clear(self):
         self.cache = {}
+
+    def update(self, items):
+        self.cache.update(items)
+        self.id_set()
+       
+    def id_set(self):
+        self.id_current = self._id_function()
 
     def set(self, key, value):
         self.verify()
         self.cache[key] = value
         return value
+        
+    def __contains__(self, key):
+        self.verify()
+        return key in self.cache
+
+    def __enter__(self):
+        self._lock += 1
+        
+    def __exit__(self, *args):
+        self._lock -= 1
+        self.id_current = self._id_function()
 
 def stack_lines(indices):
     return np.column_stack((indices[:-1],

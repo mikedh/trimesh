@@ -327,7 +327,7 @@ def simplify_path(drawing):
                 entities.append(Line(points=line))
             vertices.extend(points)
             
-    drawing._cache_clear()
+    drawing._cache.clear()
     drawing.vertices = np.array(vertices)
     drawing.entities = np.array(entities)
 

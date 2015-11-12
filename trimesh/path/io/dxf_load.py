@@ -76,7 +76,7 @@ def load_dxf(file_obj):
         # check euclidean distance to see if closed
         closed = np.linalg.norm(points[0] - points[-1]) < tol.merge
         # if it is closed, make sure it is CCW for later polygon happiness
-        if closed and (not is_ccw(points)):
+        if closed and (not is_ccw(np.vstack((points, points[0])))):
             points = points[::-1]
         entities.append(BSpline(points = np.arange(len(points))+len(vertices),
                                 knots  = knots,

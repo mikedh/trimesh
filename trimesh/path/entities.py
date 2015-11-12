@@ -98,6 +98,9 @@ class Entity(object):
         '''
         return self.points[[0,-1]]
             
+    def reverse(self, direction=-1):
+        self.points = self.points[::direction]
+            
 class Arc(Entity):
     def discrete(self, vertices, scale=1.0):
         return discretize_arc(vertices[self.points], 

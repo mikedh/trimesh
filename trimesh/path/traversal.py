@@ -38,11 +38,13 @@ def vertex_to_entity_path(vertex_path, graph, entities, vertices):
     # this is essentially a very coarsely discretized polygon
     # thus it is valid to compute if the path is counter-clockwise on these
     # vertices relatively cheaply, and reverse the path if it is clockwise
-    ccw_dir = (is_ccw(vertices[np.append(vertex_path, vertex_path[0])])*2) - 1    
+    ccw_check = vertices[np.append(vertex_path, vertex_path[0])]
+    ccw_dir = (is_ccw(ccw_check)*2) - 1
+
     entity_path = deque()
     for i in range(len(vertex_path)+1):
         path_pos = np.mod(np.arange(2) + i, len(vertex_path))
-        vertex_index = np.array(vertex_path)[[path_pos]]
+        vertex_index = np.array(vertex_path)[path_pos]
         entity_index = graph.get_edge_data(*vertex_index)['entity_index']
         if ((len(entity_path) == 0) or 
             ((entity_path[-1] != entity_index) and 
@@ -53,6 +55,8 @@ def vertex_to_entity_path(vertex_path, graph, entities, vertices):
             entity.points = entity.points[::direction]
             entity_path.append(entity_index)
     entity_path = np.array(entity_path)[::ccw_dir]
+    
+    
     return entity_path
 
 def connected_open(graph):
@@ -110,7 +114,9 @@ def discretize_path(entities, vertices, path, scale=1.0):
         current = entities[entity_id].discrete(vertices, scale=scale)
         slice   = (int(last) * len(current)) + (int(not last) * -1)
         discrete.extend(current[:slice])
-    return np.array(discrete)    
+    discrete = np.array(discrete)
+  
+    return discrete
 
 class PathSample:
     def __init__(self, points):

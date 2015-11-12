@@ -24,6 +24,8 @@ from ..util      import decimal_to_digits, is_sequence
 from ..constants import log, time_function
 from ..constants import tol_path as tol
 
+from .. import util
+
 
 class Path(object):
     '''
@@ -44,67 +46,104 @@ class Path(object):
             (n, (2|3)) list of vertices
         '''
         self.entities = np.array(entities)
-        self.vertices = np.array(vertices)
+        self.vertices = vertices
         self.metadata = dict()
 
         if metadata.__class__.__name__ == 'dict':
             self.metadata.update(metadata)
 
-        self._cache = {}
+        self._cache = util.Cache(id_function = self._geometry_id)
 
+        # literally nothing will work if vertices aren't merged properly
+        self.merge_vertices()
+
+    def process(self):
+        log.debug('Processing drawing')
+        with self._cache:     
+            for func in self._process_functions():
+                func()
+        return self
+        
     @property
-    def _cache_ok(self):
-        processing = ('processing' in self._cache and 
-                      self._cache['processing'])
-        entity_ok = ('entity_count' in self._cache and 
-                     (len(self.entities) == self._cache['entity_count']))
-        ok = processing or entity_ok
-        return ok
+    def vertices(self):
+        return self._vertices
+        
+    @vertices.setter
+    def vertices(self, values):
+        self._vertices = util.tracked_array(values)
 
     def _geometry_id(self):
-        return None
-        
-    def _cache_clear(self):
-        self._cache = {}
-
-    def _cache_verify(self):
-        if not self._cache_ok:
-            self._cache = {'entity_count': len(self.entities)}
-            self.process()
-
-    def _cache_get(self, key):
-        self._cache_verify()
-        if key in self._cache: 
-            return self._cache[key]
-        return None
-
-    def _cache_put(self, key, value):
-        self._cache_verify()
-        self._cache[key] = value
+        result  = self.vertices.modified()
+        result += len(self.entities)
+        return result
 
     @property
     def paths(self):
-        return self._cache_get('paths')
+        if 'paths' in self._cache:
+            return self._cache.get('paths')
+        with self._cache:
+            paths = closed_paths(self.entities, self.vertices)
+        return self._cache.set('paths', paths)
 
     @property
     def polygons_closed(self):
-        return self._cache_get('polygons_closed')
+        if 'polygons_closed' in self._cache: 
+            return self._cache.get('polygons_closed')
+
+        def path_to_polygon(path):
+            discrete = discretize_path(self.entities, 
+                                       self.vertices, 
+                                       path, 
+                                       scale = self.scale)
+            return Polygon(discrete)
+   
+        def reverse_path(path):
+            for entity in self.entities[path]: 
+                entity.reverse()
+            return path[::-1]
+            
+        with self._cache:
+            polygons = [None] * len(self.paths)
+            for i, path in enumerate(self.paths):
+                candidate = path_to_polygon(path)
+                candidate = repair_invalid(candidate, scale=self.scale)
+                if not candidate.exterior.is_ccw:
+                    log.debug('Clockwise polygon detected, correcting!')
+                    self.paths[i] = reverse_path(path)
+                    candidate = Polygon(np.array(candidate.exterior.coords)[::-1])
+                polygons[i] = candidate
+            polygons = np.array(polygons)
+        return self._cache.set('polygons_closed', polygons)
 
     @property
     def root(self):
-        return self._cache_get('root')
+        if 'root' in self._cache:
+            return self._cache.get('root')
+        with self._cache:
+            root, enclosure = polygons_enclosure_tree(self.polygons_closed)
+        self._cache.set('enclosure_directed', enclosure)
+        return self._cache.set('root', root)
 
     @property
     def enclosure(self):
-        return self._cache_get('enclosure')
-
+        if 'enclosure' in self._cache:
+            return self._cache.get('enclosure')
+        with self._cache:
+            undirected = self.enclosure_directed.to_undirected()
+        return self._cache.set('enclosure', undirected)
+        
     @property
     def enclosure_directed(self):
-        return self._cache_get('enclosure_directed')
+        if 'enclosure_directed' in self._cache:
+            return self._cache.get('enclosure_directed')
+        with self._cache:
+            root, enclosure = polygons_enclosure_tree(self.polygons_closed)
+        self._cache.set('root', root)
+        return self._cache.set('enclosure_directed', enclosure)
 
     @property
     def discrete(self):
-        return self._cache_get('discrete')
+        return self._cache.get('discrete')
 
     @property
     def scale(self):
@@ -129,17 +168,13 @@ class Path(object):
     def units(self, units):
         self.metadata['units'] = units
             
-
     def set_units(self, desired, guess=False):
         _set_units(self, desired, guess)
-        self._cache_clear()
 
     def transform(self, transform):
-        self._cache = {}
         self.vertices = transform_points(self.vertices, transform)
 
     def rezero(self):
-        self._cache = {}
         self.vertices -= self.vertices.min(axis=0)
         
     def merge_vertices(self):
@@ -170,16 +205,8 @@ class Path(object):
             self.entities = np.array(self.entities)[unique]
 
     def vertex_graph(self):
-        self._cache_verify()
         graph, closed = vertex_graph(self.entities)
         return graph
-
-    def generate_closed_paths(self):
-        '''
-        Paths are lists of entity indices.
-        '''
-        paths = closed_paths(self.entities, self.vertices)
-        self._cache_put('paths', paths)
 
     def referenced_vertices(self):
         referenced = deque()
@@ -219,16 +246,6 @@ class Path(object):
     def to_dict(self):
         export_dict = self.export(file_type='dict')
         return export_dict
-        
-    def process(self):
-        self._cache['processing'] = True
-        tic = time_function()        
-        for func in self._process_functions():
-            func()
-        toc = time_function()
-        self._cache['processing']   = False
-        self._cache['entity_count'] = len(self.entities)
-        return self
 
     def __add__(self, other):
         new_entities = deepcopy(other.entities)
@@ -255,7 +272,7 @@ class Path3D(Path):
                
     def generate_discrete(self):
         discrete = list(map(self.discretize_path, self.paths))
-        self._cache_put('discrete', discrete)
+        self._cache.set('discrete', discrete)
 
     def to_planar(self, to_2D=None, normal=None, check=True):
         '''
@@ -308,10 +325,7 @@ class Path3D(Path):
 class Path2D(Path):
     def _process_functions(self): 
         return [self.merge_vertices,
-                self.remove_duplicate_entities,
-                self.generate_closed_paths,
-                self.generate_discrete,
-                self.generate_enclosure_tree]
+                self.remove_duplicate_entities]
                
     @property
     def body_count(self):
@@ -319,17 +333,18 @@ class Path2D(Path):
 
     @property
     def polygons_full(self):
-        cached = self._cache_get('polygons_full')
-        if cached:  return cached
-        result = [None] * len(self.root)
-        for index, root in enumerate(self.root):
-            hole_index = self.connected_paths(root, include_self=False)
-            holes = [p.exterior.coords for p in self.polygons_closed[hole_index]]
-            shell = self.polygons_closed[root].exterior.coords
-            result[index] = Polygon(shell  = shell,
-                                    holes  = holes)
-        self._cache_put('polygons_full', result)
-        return result
+        if 'polygons_full' in self._cache:
+            return self._cache.get('polygons_full') 
+
+        with self._cache:
+            result = [None] * len(self.root)
+            for index, root in enumerate(self.root):
+                hole_index = self.connected_paths(root, include_self=False)
+                holes = [p.exterior.coords for p in self.polygons_closed[hole_index]]
+                shell = self.polygons_closed[root].exterior.coords
+                result[index] = Polygon(shell  = shell,
+                                        holes  = holes)
+        return self._cache.set('polygons_full', result)
 
     def area(self):
         '''
@@ -392,31 +407,6 @@ class Path2D(Path):
         medials = [medial_axis(i, resolution, clip) for i in self.polygons_full]
         return np.sum(medials)
 
-    def generate_discrete(self):
-        '''
-        Turn a vector path consisting of entities of any type into polygons
-        Uses shapely.geometry Polygons to populate self.polygons
-        '''
-        def path_to_polygon(path):
-            discrete = discretize_path(self.entities, self.vertices, path, scale=self.scale)
-            return Polygon(discrete)
-
-        polygons = [None] * len(self.paths)
-        for i, path in enumerate(self.paths):
-            candidate = path_to_polygon(path)
-            candidate = repair_invalid(candidate, scale=self.scale)
-            polygons[i] = candidate
-
-        polygons = np.array(polygons)
-        self._cache_put('polygons_closed', polygons)
-
-    def generate_enclosure_tree(self):
-        root, enclosure = polygons_enclosure_tree(self.polygons_closed)
-        self._cache_put('root',      root)
-        self._cache_put('enclosure',          enclosure.to_undirected())
-        self._cache_put('enclosure_directed', enclosure)
-
-
     def connected_paths(self, path_id, include_self = False):
         if len(self.root) == 1:
             path_ids = np.arange(len(self.paths))
@@ -427,7 +417,7 @@ class Path2D(Path):
         return np.setdiff1d(path_ids, [path_id])
         
     def simplify(self):
-        self._cache = {}
+        self._cache.clear()
         simplify_path(self)
 
     def split(self):
@@ -435,37 +425,43 @@ class Path2D(Path):
         If the current Path2D consists of n 'root' curves,
         split them into a list of n Path2D objects
         '''
-        if len(self.root) == 1:
-            return [deepcopy(self)]
-        result   = [None] * len(self.root)
-        for i, root in enumerate(self.root):
-            connected    = self.connected_paths(root, include_self=True)
-            new_root     = np.nonzero(connected == root)[0]
-            new_entities = deque()
-            new_paths    = deque()
-            new_metadata = {'split_2D' : i}
-            new_metadata.update(self.metadata)
+        if self.root is None or len(self.root) == 0:
+            split = []
+        elif len(self.root) == 1:
+            split = [deepcopy(self)]
+        else:
+            split = [None] * len(self.root)
+            for i, root in enumerate(self.root):
+                connected = self.connected_paths(root, include_self=True)
+                new_root     = np.nonzero(connected == root)[0]
+                new_entities = deque()
+                new_paths    = deque()
+                new_metadata = {'split_2D' : i}
+                new_metadata.update(self.metadata)
 
-            for path in self.paths[connected]:
-                new_paths.append(np.arange(len(path)) + len(new_entities))
-                new_entities.extend(path)
-            new_entities = np.array(new_entities)
 
-            result[i] = Path2D(entities = deepcopy(self.entities[new_entities]),
-                               vertices = deepcopy(self.vertices))
-            result[i]._cache = {'entity_count'   : len(new_entities),
-                                'paths'           : np.array(new_paths),
-                                'polygons_closed' : self.polygons_closed[connected],
-                                'metadata'        : new_metadata,
-                                'root'            : new_root}
-        return result
+                for path in self.paths[connected]:
+                    new_paths.append(np.arange(len(path)) + len(new_entities))
+                    new_entities.extend(path)
+                new_entities = np.array(new_entities)
+                # prevents the copying from nuking cache
+                with self._cache:
+                    split[i] = Path2D(entities = deepcopy(self.entities[new_entities]),
+                                      vertices = deepcopy(self.vertices))
+                    split[i]._cache.update({'paths'          : np.array(new_paths),
+                                            'polygons_closed': self.polygons_closed[connected],
+                                            'root'           : new_root})
+                
+        [i._cache.id_set() for i in split]
+        self._cache.id_set()
+
+        return np.array(split)
 
     def show(self):
         import matplotlib.pyplot as plt
         self.plot_entities(show=True)
      
     def plot_discrete(self, show=False, transform=None, axes=None):
-        self._cache_verify()
         import matplotlib.pyplot as plt
         plt.axes().set_aspect('equal', 'datalim')
         def plot_transformed(vertices, color='g'):

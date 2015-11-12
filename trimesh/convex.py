@@ -23,8 +23,8 @@ def convex_hull(mesh, clean=True):
     --------
     convex: Trimesh object of convex hull of current mesh
     '''
-    faces  = ConvexHull(mesh.vertices).simplices
-    convex = mesh.__class__(vertices = mesh.vertices.copy(), 
+    faces  = ConvexHull(mesh.vertices.view(np.ndarray)).simplices
+    convex = mesh.__class__(vertices = mesh.vertices.view(np.ndarray).copy(), 
                             faces    = faces)
     if clean:
         # the normals and triangle winding returned by scipy/qhull's

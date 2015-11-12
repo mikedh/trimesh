@@ -18,6 +18,7 @@ Python (2.7-3.*) library for loading and utilizing triangular meshes.
 * Find coplanar groups of faces (.454 s)
 * Fix triangle winding to be consistent 
 * Fix normals to be oriented 'outwards' using ray tests
+* Calculate whether or not a point lies inside a watertight mesh using ray tests
 * Find convex hulls of meshes (.21 s)
 * Compute a rotation/translation/tessellation invariant identifier for meshes (from an FFT of the radius distribution)
 * Merge duplicate meshes from identifier

@@ -155,14 +155,14 @@ class SceneViewer(pyglet.window.Window):
 
 def _mesh_to_vla(mesh):
     '''
-    Convert a Trimesh object to args for an 
+    Convert a Trimesh object to arguments for an 
     indexed vertex list constructor. 
     '''
-    vertices = mesh.vertices.reshape(-1).tolist()
+    
     normals  = mesh.vertex_normals.reshape(-1).tolist()
     colors   = mesh.visual.vertex_colors.reshape(-1).tolist()
     indices  = mesh.faces.reshape(-1).tolist()
-
+    vertices = mesh.vertices.reshape(-1).tolist()
     args = (len(vertices) // 3, # count
             GL_TRIANGLES,       # mode 
             None,               # group

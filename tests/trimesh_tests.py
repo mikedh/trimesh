@@ -123,14 +123,16 @@ class MeshTests(unittest.TestCase):
             self.assertTrue(sample.shape == (1000,3))
             
     def test_hash(self):
+        count = 10
         for mesh in self.meshes:
             if not mesh.is_watertight: 
                 log.warning('Hashing non- watertight mesh (%s) produces garbage!',
                          mesh.metadata['filename'])
                 continue
-            log.info('Hashing %s', mesh.metadata['filename']) 
+            log.info('Hashing %s', mesh.metadata['filename'])
+            log.info('Trying hash at %d random transforms', count)
             result = deque()
-            for i in range(10):
+            for i in range(count):
                 mesh.rezero()
                 matrix = trimesh.transformations.random_rotation_matrix()
                 matrix[0:3,3] = (np.random.random(3)-.5)*20
@@ -182,7 +184,6 @@ class ContainsTest(unittest.TestCase):
         
         assert contains[truth_in].all()
         assert not contains[truth_out].any()
-
 
 class BooleanTest(unittest.TestCase):
     def setUp(self):

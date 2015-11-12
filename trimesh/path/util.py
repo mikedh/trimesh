@@ -16,4 +16,6 @@ def is_ccw(points):
     yd = np.sum(np.column_stack((points[:,1],
                                  points[:,1])).reshape(-1)[1:-1].reshape((-1,2)), axis=1)
     area = np.sum(xd*yd)*.5
-    return area < 0
+    ccw =  area < 0
+
+    return ccw

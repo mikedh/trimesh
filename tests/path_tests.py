@@ -49,22 +49,19 @@ class VectorTests(unittest.TestCase):
                 self.assertTrue(circuit_test)
                 is_ccw = vector.polygons.is_ccw(verts)
                 if not is_ccw:
-                    log.error('%s not ccw: \n%s',
-                              d.filename,
-                              str(verts))
+                    log.error('discrete %s not ccw!', d.filename)
                 #self.assertTrue(is_ccw)
-                
+    
+    
     def test_paths(self):
         for d in self.drawings:
             self.assertTrue(len(d.paths) == len(d.polygons_closed))
             for i in range(len(d.paths)):
-                if not d.polygons_closed[i].is_valid:
-                    r = d.polygons_closed[i].buffer(0.0)
-                    d.show()
                 self.assertTrue(d.polygons_closed[i].is_valid)
                 self.assertTrue(d.polygons_closed[i].area > tol.zero)
-            d.export('dict')
-            d.export('svg')
+            export_dict = d.export('dict')
+            export_svg  = d.export('svg')
+
             d.simplify()
             split = d.split()
             log.info('Split %s into %d bodies, checking identifiers',
@@ -74,7 +71,9 @@ class VectorTests(unittest.TestCase):
                 body.identifier()
 
     def test_subset(self):
-        for d in self.drawings[:5]:
+        for d in self.drawings[:10]:
+            if len(d.vertices) > 150: continue
+            log.info('Checking medial axis on %s', d.filename)
             m = d.medial_axis()
                 
 

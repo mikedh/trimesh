@@ -580,6 +580,12 @@ class Trimesh(object):
                            file_type = file_type)
 
     def to_dict(self):
+        '''
+        Return a dictionary representation of the current mesh, with keys 
+        that can be used as the kwargs for the Trimesh constructor, eg:
+        
+        a = Trimesh(**other_mesh.to_dict())
+        '''
         result = self.export(file_type='dict')
         return result
 
