@@ -73,8 +73,8 @@ class Path(object):
         self._vertices = util.tracked_array(values)
 
     def _geometry_id(self):
-        result  = self.vertices.modified()
-        result += len(self.entities)
+        result  = self.vertices.hashed()
+        result += str(len(self.entities))
         return result
 
     @property
@@ -325,7 +325,8 @@ class Path3D(Path):
 class Path2D(Path):
     def _process_functions(self): 
         return [self.merge_vertices,
-                self.remove_duplicate_entities]
+                self.remove_duplicate_entities,
+                self.remove_unreferenced_vertices]
                
     @property
     def body_count(self):
@@ -444,7 +445,7 @@ class Path2D(Path):
                     new_paths.append(np.arange(len(path)) + len(new_entities))
                     new_entities.extend(path)
                 new_entities = np.array(new_entities)
-                # prevents the copying from nuking cache
+                # prevents the copying from nuking our cache
                 with self._cache:
                     split[i] = Path2D(entities = deepcopy(self.entities[new_entities]),
                                       vertices = deepcopy(self.vertices))

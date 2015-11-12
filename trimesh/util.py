@@ -1,6 +1,7 @@
 import numpy as np
 import time
 import logging
+import hashlib
 
 from collections import defaultdict
 from sys import version_info
@@ -242,6 +243,11 @@ def decimal_to_digits(decimal, min_digits=None):
         digits = np.clip(digits, min_digits, 20)
     return digits
 
+def hash_object(obj):
+    hasher = hashlib.md5()
+    hasher.update(obj)
+    return hasher.hexdigest()
+
 def attach_to_log(log_level=logging.DEBUG, blacklist=[]):
     '''
     Attach a stream handler to all loggers, so their output can be seen
@@ -287,10 +293,14 @@ class TrackedArray(np.ndarray):
     '''
 
     def __array_finalize__(self, obj):
-        self._set_modified()
-        if hasattr(obj, '_set_modified'):
-            obj._set_modified(self._modified)
+        pass
+        #self._set_modified()
+        #if hasattr(obj, '_set_modified'):
+        #    obj._set_modified(self._modified)
             
+    def hashed(self):
+        return hash_object(self)
+
     def _set_modified(self, value=None):
         if value is None:
             value = np.random.random()
@@ -319,7 +329,7 @@ def tracked_array(array):
     '''
     Subclass a numpy ndarray to track changes
     '''
-    return np.array(array).view(TrackedArray)
+    return np.ascontiguousarray(array).view(TrackedArray)
 
 class Cache:
     '''
@@ -339,7 +349,7 @@ class Cache:
         
     def verify(self):
         id_new = self._id_function()
-        if (not self._lock) and (id_new != self.id_current):
+        if (self._lock == 0) and (id_new != self.id_current):
             if len(self.cache) > 0:
                 log.warn('Clearing cache of %d items', len(self.cache))
             self.clear()

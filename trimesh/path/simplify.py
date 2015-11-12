@@ -44,14 +44,14 @@ def fit_circle_check(points, prior=None, scale=1.0, verbose=False):
     # check to make sure radius is between min and max allowed
     if not tol.radius_min < (R/scale) < tol.radius_max:
         if verbose: 
-            log.warning('circle fit error: R %f', R / scale)
+            log.debug('circle fit error: R %f', R / scale)
         return None
    
     # check point radius error 
     r_error = r_deviation / R
     if r_error > tol.radius_frac:
         if verbose: 
-            log.warning('circle fit error: fit %s', str(r_error))
+            log.debug('circle fit error: fit %s', str(r_error))
         return None
               
     vectors = np.diff(points, axis=0)
@@ -65,12 +65,12 @@ def fit_circle_check(points, prior=None, scale=1.0, verbose=False):
 
     if (angle   > tol.seg_angle).any():
         if verbose: 
-            log.warning('circle fit error: angle %s', str(angle))
+            log.debug('circle fit error: angle %s', str(angle))
         return None
     
     if (scaled  > tol.seg_frac).any():
         if verbose: 
-            log.warning('circle fit error: segment %s', str(scaled))
+            log.debug('circle fit error: segment %s', str(scaled))
         return None
 
     # check to make sure the line segments on the ends are actually 
@@ -82,7 +82,7 @@ def fit_circle_check(points, prior=None, scale=1.0, verbose=False):
     tangent = np.abs(tangent - np.pi/2).max()
     if tangent > tol.tangent:
         if verbose: 
-            log.warning('circle fit error: tangent %f', 
+            log.debug('circle fit error: tangent %f', 
                         np.degrees(tangent))
         return None
 
@@ -186,7 +186,7 @@ def arc_march(points, scale=None):
         checked = fit_circle_check(points[current], 
                                    prior=prior, 
                                    scale=scale,
-                                   verbose=True)
+                                   verbose=False)
         arc_ok  = checked is not None
     
         # since we are going over the points twice, on the second pass we only

@@ -209,7 +209,7 @@ def resample_boundaries(polygon, resolution, clip=None):
         count = int(np.clip(count, *clip))
         return resample_path(boundary.coords, count=count)
     if clip is None: 
-        clip = [8,100]
+        clip = [8,200]
     # create a sequence of [(n,2)] points
     result = {'shell' : resample_boundary(polygon.exterior),
               'holes' : deque()}
@@ -364,9 +364,12 @@ def repair_invalid(polygon, scale=None):
     valid version of the polygon. If one can't be found, return None
         
     '''
+    # if the polygon is already valid, return immediately
     if polygon.is_valid: 
         return polygon
 
+    # basic repair involves buffering the polygon outwards
+    # this will fix a subset of problems. 
     basic = polygon.buffer(tol.zero)
     if basic.is_valid:
         log.debug('Recovered invalid polygon through zero buffering')
