@@ -246,7 +246,8 @@ def decimal_to_digits(decimal, min_digits=None):
 def hash_object(obj):
     hasher = hashlib.md5()
     hasher.update(obj)
-    return hasher.hexdigest()
+    hashed = hasher.hexdigest()
+    return hashed
 
 def attach_to_log(log_level=logging.DEBUG, blacklist=[]):
     '''
@@ -293,29 +294,21 @@ class TrackedArray(np.ndarray):
     '''
 
     def __array_finalize__(self, obj):
-        pass
-        #self._set_modified()
-        #if hasattr(obj, '_set_modified'):
-        #    obj._set_modified(self._modified)
+        self._set_modified()
+        if hasattr(obj, '_set_modified'):
+            obj._set_modified()
             
     def hashed(self):
-        return hash_object(self)
-
-    def _set_modified(self, value=None):
-        if value is None:
-            value = np.random.random()
-        self._modified = value
-
-    def modified(self):
-        result  = float(id(self))
-        if hasattr(self, '_modified'):
-            result *= self._modified
-
-        if result < 1e8: result *= 1e6
-        return int(result)
+        if self._modified or not hasattr(self, '_hashed'):
+            self._hashed = hash_object(self)
+        self._modified = False
+        return self._hashed
+            
+    def _set_modified(self):
+        self._modified = True
         
     def __hash__(self):
-        return self.modified()
+        return self.hashed()
         
     def __setitem__(self, i, y):
         self._set_modified()

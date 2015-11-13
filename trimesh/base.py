@@ -120,8 +120,8 @@ class Trimesh(object):
 
         When core geometry vertices and faces. 
         '''
-        result  = self.faces.modified() 
-        result += self.vertices.modified()
+        result  = self.faces.hashed()
+        result += self.vertices.hashed()
         return result
         
     @property
