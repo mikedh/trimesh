@@ -158,14 +158,15 @@ def split(mesh, check_watertight=True, only_count=False):
                 subgraph   = nx.subgraph(face_adjacency, connected_faces)
                 watertight = np.equal(list(subgraph.degree().values()), 3).all()
                 if not watertight: return
-            faces  = mesh.faces[[connected_faces]]
+            faces  = mesh.faces[connected_faces]
+            face_normals = mesh.face_normals[connected_faces]
             unique = np.unique(faces.reshape(-1))
             replacement = dict()
             replacement.update(np.column_stack((unique, np.arange(len(unique)))))
             faces = replace_references(faces, replacement).reshape((-1,3))
             new_meshes.append(mesh.__class__(vertices     = mesh.vertices[[unique]],
                                              faces        = faces,
-                                             face_normals = mesh.face_normals[[connected_faces]]))
+                                             face_normals = face_normals))
         face_adjacency = nx.from_edgelist(mesh.face_adjacency)
         new_meshes     = deque()
         components     = [list(i) for i in nx.connected_components(face_adjacency)]

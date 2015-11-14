@@ -99,8 +99,15 @@ class Entity(object):
         return self.points[[0,-1]]
             
     def reverse(self, direction=-1):
+        '''
+        Reverse the current entity.
+        '''
         self.points = self.points[::direction]
-            
+
+class Line(Entity):
+    def discrete(self, vertices, scale=1.0):
+        return vertices[self.points]
+        
 class Arc(Entity):
     def discrete(self, vertices, scale=1.0):
         return discretize_arc(vertices[self.points], 
@@ -108,10 +115,6 @@ class Arc(Entity):
                               scale = scale)
     def center(self, vertices):
         return arc_center(vertices[self.points])
-                
-class Line(Entity):
-    def discrete(self, vertices, scale=1.0):
-        return vertices[self.points]
 
 class Curve(Entity):
     @property

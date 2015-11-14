@@ -282,47 +282,55 @@ def attach_to_log(log_level=logging.DEBUG, blacklist=[]):
         logger.addHandler(handler_stream)
         logger.setLevel(log_level)
     np.set_printoptions(precision=5, suppress=True)
-
+    
+def tracked_array(array):
+    '''
+    Properly subclass a numpy ndarray to track changes. 
+    '''
+    return np.ascontiguousarray(array).view(TrackedArray)
+    
 class TrackedArray(np.ndarray):
     '''
     Track changes in a numpy ndarray.
 
-    Attributes
+    Methods
     ----------
-    modified: returns an identifier which will change when
-              array is modified
+    hashed: returns an identifier which will change when array is modified
     '''
 
     def __array_finalize__(self, obj):
-        self._set_modified()
-        if hasattr(obj, '_set_modified'):
-            obj._set_modified()
+        # set a modified flag on every TrackedArray
+        # This flag will be set on every change, as well as during copies
+        self._modified = True
+        if isinstance(obj, type(self)):
+            obj._modified = True
             
     def hashed(self):
+        '''
+        Returns an MD5 hash of the current array in hexadecimal string form. 
+        
+        This is quite fast; on a modern i7 desktop a (1000000,3) floating point 
+        array was hashed reliably in .03 seconds. 
+        
+        This is only recomputed if a modified flag is set, which may have false positives 
+        (forcing an unnecessary recompute) but will never have false negatives 
+        which would return an incorrect hash. 
+        '''
         if self._modified or not hasattr(self, '_hashed'):
             self._hashed = hash_object(self)
         self._modified = False
         return self._hashed
-            
-    def _set_modified(self):
-        self._modified = True
-        
+
     def __hash__(self):
         return self.hashed()
         
     def __setitem__(self, i, y):
-        self._set_modified()
+        self._modified = True
         super(self.__class__, self).__setitem__(i, y)
 
     def __setslice__(self, i, j, y):
-        self._set_modified()
+        self._modified = True
         super(self.__class__, self).__setslice__(i, j, y)
-
-def tracked_array(array):
-    '''
-    Subclass a numpy ndarray to track changes
-    '''
-    return np.ascontiguousarray(array).view(TrackedArray)
 
 class Cache:
     '''

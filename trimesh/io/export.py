@@ -112,7 +112,7 @@ def export_dict(mesh, file_obj=None):
         raise ValueError('Cannot export raw dict to file! Use json!')
     export = {'metadata': tolist_dict(mesh.metadata),
               'faces'   : mesh.faces.tolist(),
-              "vertices": mesh.vertices.tolist()}
+              'vertices': mesh.vertices.tolist()}
     return export
         
 def export_json(mesh, file_obj=None):
