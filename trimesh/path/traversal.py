@@ -178,7 +178,7 @@ def resample_path(points, count=None, step=None, step_round=True):
     resampled: (j,d) set of points on the path
     '''
 
-    points = np.array(points)
+    points = np.array(points, dtype=np.float)
     # generate samples along the perimeter from kwarg count or step
     if (count is not None) and (step is not None):
         raise ValueError('Only step OR count can be specified')

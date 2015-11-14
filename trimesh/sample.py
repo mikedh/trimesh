@@ -24,7 +24,7 @@ def random_sample(mesh, count):
        
        
     '''
-    return area_sample(mesh, np.random.random(count))
+    return area_sample(mesh, count)
 
 def even_sample(mesh, count):
     '''
@@ -37,18 +37,13 @@ def even_sample(mesh, count):
     result = remove_close(samples, radius)
     return result
 
-
-def area_sample(mesh, samples):
+def area_sample(mesh, count):
     '''
     Sample the surface of a mesh, returning the specified number of points
-    
-    (From our email list):
-    1. Sample a triangle proportional to surface area. 
-       This assumes your mesh is representative of the surface, 
-       so no weirdness like long thin triangles.
-    2. Sample uniformly from the barycentric coordinates of the triangle. 
-       This works for any simplex.
-       
+
+    For individual triangle sampling uses this method:
+    http://mathworld.wolfram.com/TrianglePointPicking.html
+
     Arguments
     ---------
     mesh: Trimesh object
@@ -57,26 +52,43 @@ def area_sample(mesh, samples):
     Returns
     ---------
     samples: (count,3) points in space, on the surface of mesh
-       
-       
+         
     '''
-    # will return a list of the areas of each face of the mesh
+
+    #len(mesh.faces) float array of the areas of each face of the mesh
     area     = mesh.area(sum=False)
     # total area (float)
     area_sum = np.sum(area)
-    # cumulative area (len(mesh.faces))
+    # cumulative area (len(mesh.faces)) 
     area_cum = np.cumsum(area)
-    
-    samples = np.array(samples) * area_sum
+    face_pick  = np.random.random(count) * area_sum
+    face_index = np.searchsorted(area_cum, face_pick)
 
-    # find the face index which is in that area slot
-    # this works because area_cum is sorted, and searchsorted
-    # returns the index where area_sample that would need to be inserted
-    # to maintain the sort on area_cum
-    face_index   = np.searchsorted(area_cum, samples)
-    triangles    = mesh.triangles[face_index]
-    barycentric  = np.random.random((len(samples), 3))
-    barycentric /= barycentric.sum(axis=1).reshape((-1,1))
+    # pull triangles into the form of an origin + 2 vectors
+    tri_origins  = mesh.triangles[:,0]
+    tri_vectors  = mesh.triangles[:,1:]
+    tri_vectors -= np.tile(tri_origins, (1,2)).reshape((-1,2,3))
+
+    # pull the vectors for the faces we are going to sample from
+    tri_origins = tri_origins[face_index]
+    tri_vectors = tri_vectors[face_index]
+
+    # randomly generate two 0-1 scalar components to multiply edge vectors by
+    random_lengths = np.random.random((len(tri_vectors), 2, 1))
+
+    # points will be distributed on a quadrilateral if we use 2 0-1 samples
+    # if the two scalar components sum less than 1.0 the point will be
+    # inside the triangle, so we find vectors longer than 1.0 and
+    # transform them to be inside the triangle
+    random_test = random_lengths.sum(axis=1).reshape(-1) > 1.0
+    random_lengths[random_test] -= 1.0
+    random_lengths = np.abs(random_lengths)
+
+    # multiply triangle edge vectors by the random lengths and sum
+    sample_vector = (tri_vectors*random_lengths).sum(axis=1)
+
+    # finally, offset by the origin to generate
+    # (n,3) points in space on the triangle
+    samples = sample_vector + tri_origins
     
-    samples = np.sum(triangles * barycentric.reshape((-1,3,1)), axis=1)
     return samples

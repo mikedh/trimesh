@@ -48,7 +48,7 @@ class Trimesh(object):
                  process         = False,
                  **kwargs):
                  
-        # cache computed values, which are cleared when
+        # cache computed values which are cleared when
         # self._geometry_id() changes, forcing a recompute
         self._cache = util.Cache(id_function = self._geometry_id)
         

@@ -322,7 +322,7 @@ class TrackedArray(np.ndarray):
         return self._hashed
 
     def __hash__(self):
-        return self.hashed()
+        return int(self.hashed(), 16)
         
     def __setitem__(self, i, y):
         self._modified = True

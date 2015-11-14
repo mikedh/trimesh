@@ -10,6 +10,7 @@ Python (2.7-3.*) library for loading and utilizing triangular meshes.
 * Import 2D or 3D vector paths from DXF or SVG files
 * Export meshes as binary STL, COLLADA, or OFF
 * Preview meshes (requires pyglet)
+* Internal caching of computed values which are automatically cleared when vertices or faces are changed
 * Fast loading of binary and ASCII STL files (on 234,230 face mesh, was 24.5x faster than assimp)
 * Calculate face adjacencies quickly (for the same 234,230 face mesh .248 s)
 * Calculate cross sections (.146 s)
