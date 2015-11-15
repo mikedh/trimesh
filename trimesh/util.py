@@ -295,7 +295,7 @@ class TrackedArray(np.ndarray):
 
     Methods
     ----------
-    hashed: returns an identifier which will change when array is modified
+    md5: returns hexadecimal string of md5 of array
     '''
 
     def __array_finalize__(self, obj):
@@ -305,9 +305,9 @@ class TrackedArray(np.ndarray):
         if isinstance(obj, type(self)):
             obj._modified = True
             
-    def hashed(self):
+    def md5(self):
         '''
-        Returns an MD5 hash of the current array in hexadecimal string form. 
+        Return an MD5 hash of the current array in hexadecimal string form. 
         
         This is quite fast; on a modern i7 desktop a (1000000,3) floating point 
         array was hashed reliably in .03 seconds. 
@@ -322,7 +322,7 @@ class TrackedArray(np.ndarray):
         return self._hashed
 
     def __hash__(self):
-        return int(self.hashed(), 16)
+        return int(self.md5(), 16)
         
     def __setitem__(self, i, y):
         self._modified = True

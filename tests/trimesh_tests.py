@@ -58,21 +58,21 @@ class UtilTests(unittest.TestCase):
     def test_track(self):
         a = trimesh.util.tracked_array(np.random.random(TEST_DIM))
         modified = deque()
-        modified.append(int(a.hashed(), 16))
+        modified.append(int(a.md5(), 16))
         a[0][0] = 10
-        modified.append(int(a.hashed(), 16))
+        modified.append(int(a.md5(), 16))
         a[1] = 5
-        modified.append(int(a.hashed(), 16))
+        modified.append(int(a.md5(), 16))
         a[2:] = 2
-        modified.append(int(a.hashed(), 16))
+        modified.append(int(a.md5(), 16))
         self.assertTrue((np.diff(modified) != 0).all())
 
         modified = deque()
-        modified.append(int(a.hashed(), 16))
+        modified.append(int(a.md5(), 16))
         b = a[[0,1,2]]
-        modified.append(int(a.hashed(), 16))
+        modified.append(int(a.md5(), 16))
         c = a[1:]
-        modified.append(int(a.hashed(), 16))
+        modified.append(int(a.md5(), 16))
         self.assertTrue((np.diff(modified) == 0).all())
 
  

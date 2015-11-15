@@ -144,3 +144,12 @@ class BSpline(Curve):
                                     count   = count,
                                     scale   = scale)
         return result
+
+    def to_dict(self):
+        '''
+        Returns a dictionary with all of the information about the entity. 
+        '''
+        return {'type'  : self.__class__.__name__, 
+                'points': self.points.tolist(),
+                'knots' : self.knots.tolist(),
+                'closed': self.closed}

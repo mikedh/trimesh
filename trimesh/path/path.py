@@ -73,7 +73,7 @@ class Path(object):
         self._vertices = util.tracked_array(values)
 
     def _geometry_id(self):
-        result  = self.vertices.hashed()
+        result  = self.vertices.md5()
         result += str(len(self.entities))
         return result
 

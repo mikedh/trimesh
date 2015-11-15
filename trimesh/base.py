@@ -118,12 +118,10 @@ class Trimesh(object):
         
     def _geometry_id(self):
         '''
-        An integer which represents the current state of the meshes.
-
-        When core geometry vertices and faces. 
+        Returns a hashable value which represents the current state of the mesh.
         '''
-        result  = self.faces.hashed()
-        result += self.vertices.hashed()
+        result  = self.faces.md5()
+        result += self.vertices.md5()
         return result
         
     @property

@@ -5,41 +5,6 @@ from .points import unitize, remove_close
 def random_sample(mesh, count):
     '''
     Sample the surface of a mesh, returning the specified number of points
-    
-    (From our email list):
-    1. Sample a triangle proportional to surface area. 
-       This assumes your mesh is representative of the surface, 
-       so no weirdness like long thin triangles.
-    2. Sample uniformly from the barycentric coordinates of the triangle. 
-       This works for any simplex.
-       
-    Arguments
-    ---------
-    mesh: Trimesh object
-    count: number of points to samples
-    
-    Returns
-    ---------
-    samples: (count,3) points in space, on the surface of mesh
-       
-       
-    '''
-    return area_sample(mesh, count)
-
-def even_sample(mesh, count):
-    '''
-    Sample the surface of a mesh, returning samples which are 
-    approximately evenly spaced. 
-    '''
-    area = mesh.area()
-    radius = np.sqrt(area / (2*count))
-    samples = random_sample(mesh, count*5)
-    result = remove_close(samples, radius)
-    return result
-
-def area_sample(mesh, count):
-    '''
-    Sample the surface of a mesh, returning the specified number of points
 
     For individual triangle sampling uses this method:
     http://mathworld.wolfram.com/TrianglePointPicking.html
@@ -47,11 +12,11 @@ def area_sample(mesh, count):
     Arguments
     ---------
     mesh: Trimesh object
-    count: number of points to samples
+    count: number of points to return
     
     Returns
     ---------
-    samples: (count,3) points in space, on the surface of mesh
+    samples: (count,3) points in space on the surface of mesh
          
     '''
 
@@ -92,3 +57,14 @@ def area_sample(mesh, count):
     samples = sample_vector + tri_origins
     
     return samples
+
+def even_sample(mesh, count):
+    '''
+    Sample the surface of a mesh, returning samples which are 
+    approximately evenly spaced. 
+    '''
+    area = mesh.area()
+    radius = np.sqrt(area / (2*count))
+    samples = random_sample(mesh, count*5)
+    result = remove_close(samples, radius)
+    return result
