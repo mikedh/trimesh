@@ -544,14 +544,14 @@ class Trimesh(object):
         '''
         return Scene(self)
 
-    def show(self, block=True):
+    def show(self):
         '''
         Render the mesh in an opengl window. Requires pyglet.
         Smooth will re-merge vertices to fix the shading, but can be slow
         on larger meshes. 
         '''
         scene = self.scene()
-        scene.show(block = block)
+        scene.show()
         return scene
 
     def identifier(self, length=6, as_json=False):

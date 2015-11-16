@@ -12,42 +12,46 @@ class SceneViewer(pyglet.window.Window):
     def __init__(self, 
                  scene, 
                  smooth = None,
-                 block  = True):
+                 save_image = None,
+                 resolution = (640,480)):
 
         conf = Config(sample_buffers=1,
                       samples=4,
                       depth_size=16,
                       double_buffer=True)
-        try: 
-            super(SceneViewer, self).__init__(config=conf, resizable=True)
-        except pyglet.window.NoSuchConfigException:
-            super(SceneViewer, self).__init__(resizable=True)
-            
-        self.batch        = pyglet.graphics.Batch()        
-        self.rotation     = np.zeros(3)
-        self.translation  = np.zeros(3)
-        self.wireframe    = False
-        self.cull         = True
-        self.init_gl()
 
+        self._img = save_image
+        visible = save_image is None
+        width, height = resolution
+
+        try: 
+            super(SceneViewer, self).__init__(config=conf, 
+                                              visible=visible, 
+                                              resizable=True,
+                                              width=width,
+                                              height=height)
+        except pyglet.window.NoSuchConfigException:
+            super(SceneViewer, self).__init__(resizable=True,
+                                              visible = visible,
+                                              width=width,
+                                              height=height)
+            
+        self.batch        = pyglet.graphics.Batch()
         self._vertex_list = {}
-        self._scale  = 1.0
-        self.scene = scene
+        self.scene        = scene
         
         for name, mesh in scene.meshes.items():
             self._add_mesh(name, mesh, smooth)
+            
+        self.reset_view()
+        self.init_gl()
+        self.set_size(*resolution)
+        self.run()
 
-        if block: 
-            self.run()
-        else:
-            self._thread = Thread(target=self.run)
-            self._thread.start()
-
-    def _add_mesh(self, node_name, mesh, smooth=False):
+    def _add_mesh(self, node_name, mesh, smooth=None):
         if smooth is None:
             smooth = len(mesh.faces) < _SMOOTH_MAX_FACES
 
-        smooth = False
         # we don't want the render object to mess with the original mesh
         mesh = deepcopy(mesh)
         if smooth:
@@ -57,9 +61,14 @@ class SceneViewer(pyglet.window.Window):
             # will show faceted surfaces instead of super wrong blending
             mesh.unmerge_vertices()
 
-        self.set_base_view(mesh)    
-        self._scale = mesh.scale
         self._vertex_list[node_name] = self.batch.add_indexed(*_mesh_to_vla(mesh))
+
+    def reset_view(self):
+        self.view = {'wireframe'   : False,
+                     'cull'        : True,
+                     'rotation'    : np.zeros(3),
+                     'translation' : np.zeros(3),
+                     'center'      : self.scene.centroid()}
         
     def init_gl(self):
         glClearColor(1, 1, 1, 1)
@@ -75,29 +84,22 @@ class SceneViewer(pyglet.window.Window):
         glLightfv(GL_LIGHT1, GL_POSITION, _gl_vector(1, 0, .5, 0))
         glLightfv(GL_LIGHT1, GL_DIFFUSE, _gl_vector(.5, .5, .5, 1))
         glLightfv(GL_LIGHT1, GL_SPECULAR, _gl_vector(1, 1, 1, 1))
-
-        #glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, _gl_vector(1,1,1,1))
-        #glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, _gl_vector((1, 1, 1, 1))
-        #glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, 50)
         glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE)
         glEnable(GL_COLOR_MATERIAL)
-        
-        #glShadeModel(GL_FLAT)
-
-
-    def set_base_view(self, mesh):
-        self.rotation    = np.zeros(3)
-        self.translation = mesh.centroid + [0,0,-np.max(mesh.box_size)]
-        
+                
     def toggle_culling(self):
-        self.cull = not self.cull
-        if self.cull: glEnable(GL_CULL_FACE)
-        else:         glDisable(GL_CULL_FACE)
+        self.view['cull'] = not self.view['cull']
+        if self.view['cull']:
+            glEnable(GL_CULL_FACE)
+        else:
+            glDisable(GL_CULL_FACE)
         
     def toggle_wireframe(self):
-        self.wireframe = not self.wireframe
-        if self.wireframe: glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
-        else:              glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
+        self.view['wireframe'] = not self.view['wireframe']
+        if self.view['wireframe']: 
+            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
+        else:
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
         
     def on_resize(self, width, height):
         glViewport(0, 0, width, height)
@@ -105,28 +107,27 @@ class SceneViewer(pyglet.window.Window):
         glLoadIdentity()
         gluPerspective(60., width / float(height), .01, 1000.)
         glMatrixMode(GL_MODELVIEW)
-    
+
     def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
+        delta = np.array([dy, dx], dtype=np.float) / [self.height, -self.width]
+
         #left mouse button, with control key down (pan)
         if ((buttons == pyglet.window.mouse.LEFT) and 
             (modifiers & pyglet.window.key.MOD_CTRL)):
-            scale = self._scale / 100.0
-            self.translation[0:2] += np.array([dx, dy]) * scale
+            self.view['translation'][0:2] += delta
+
         #left mouse button, no modifier keys pressed (rotate)
         elif (buttons == pyglet.window.mouse.LEFT):
-            scale = 1.0
-            self.rotation[0:2] += np.array([-1*dy, dx]) * scale
-            self.rotation = np.mod(self.rotation, 720)
+            self.view['rotation'][0:2]+= delta
 
     def on_mouse_scroll(self, x, y, dx, dy):
-        scale = self._scale / 10.0
-        self.translation[2] += dy * scale
+        self.view['translation'][2] += float(dy) / self.height
 
     def on_key_press(self, symbol, modifiers):
         if symbol == pyglet.window.key.W:
             self.toggle_wireframe()
         elif symbol == pyglet.window.key.Z:
-            self.set_base_view()
+            self.reset_view()
         elif symbol == pyglet.window.key.C:
             self.toggle_culling()
 
@@ -134,11 +135,15 @@ class SceneViewer(pyglet.window.Window):
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         glLoadIdentity()
 
-        # move the 'view' before drawing anything
-        glTranslatef(*self.translation)
-        for i in range(2):
-            glRotatef(self.rotation[i], *np.roll([1,0,0], i))
+        # update the scene with the altered view from the interface
+        if (self.view['rotation'] > .01).any():
+            self.scene.set_camera(ypr=self.view['rotation']*np.pi)
 
+        # pull the new camera transform from the scene
+        transform_camera = self.scene.transforms.get('camera')
+        # apply the camera transform to the matrix stack
+        glMultMatrixf(_gl_matrix(transform_camera))
+        
         for name_node, name_mesh in self.scene.instances.items():
             transform = self.scene.transforms.get(name_node)
             # add a new matrix to the model stack
@@ -149,6 +154,19 @@ class SceneViewer(pyglet.window.Window):
             self._vertex_list[name_mesh].draw(mode=GL_TRIANGLES)
             # pop the matrix stack as we drew what we needed to draw
             glPopMatrix()
+
+    def save_image(self, filename):
+        pyglet.image.get_buffer_manager().get_color_buffer().save(filename)
+
+    def flip(self):
+        '''
+        This function is the last thing executed in the event loop.
+        '''
+        super(self.__class__, self).flip()
+
+        if self._img is not None:
+            self.save_image(self._img)
+            self.close()
 
     def run(self):
         pyglet.app.run()

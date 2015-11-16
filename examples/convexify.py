@@ -10,9 +10,13 @@ import trimesh
 import numpy as np
 
 if __name__ == '__main__':
+    
+    # attach to trimesh logs
+    trimesh.util.attach_to_log()
+
     # load the mesh from filename
     # file objects are also supported
-    mesh = trimesh.load_mesh('../models/featuretype.STL')
+    mesh = trimesh.load_mesh('../models/box.STL')
 
     # split the mesh into connected components of the face adjacency graph. 
     # splitting sometimes produces non- watertight meshes
@@ -28,5 +32,10 @@ if __name__ == '__main__':
     # combine all components into one mesh
     convex_combined = np.sum(meshes_convex)
 
-    # open a viewer window
+    # show the original mesh
+    trimesh.constants.log.info('Showing original mesh')
+    mesh.show()
+
+    # open a viewer window for convexified mesh
+    trimesh.constants.log.info('Showing convexified mesh')
     convex_combined.show()

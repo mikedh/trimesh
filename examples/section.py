@@ -9,6 +9,9 @@ import trimesh
 import numpy as np
 
 if __name__ == '__main__':
+    # print trimesh log messages to console
+    trimesh.util.attach_to_log()
+
     # load the mesh from filename
     # file objects are also supported
     mesh = trimesh.load_mesh('../models/featuretype.STL')

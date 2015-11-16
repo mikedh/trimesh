@@ -1,7 +1,12 @@
 import numpy as np
 
-from ..util          import is_sequence
-from .transform_tree import TransformTree
+from ..points          import transform_points
+from ..util            import is_sequence
+from ..transformations import rotation_matrix
+from .transform_tree   import TransformTree
+
+from collections import deque
+
 
 class Scene:
     '''
@@ -13,7 +18,7 @@ class Scene:
     '''
 
     def __init__(self, 
-                 node      = None, 
+                 node       = None, 
                  base_frame ='world'):
 
         # instance name : mesh name
@@ -26,8 +31,15 @@ class Scene:
         self.transforms = TransformTree(base_frame = base_frame)
 
         self.add_mesh(node)
+        self.set_camera()
 
     def add_mesh(self, mesh):
+        '''
+        Add a mesh to the scene.
+
+        If the mesh has multiple transforms defined in its metadata, 
+        a new instance of the mesh will be created at each transform. 
+        '''
         if mesh is None: 
             return
         elif is_sequence(mesh):
@@ -53,12 +65,66 @@ class Scene:
             self.transforms.update(frame_to = name_node, 
                                    matrix   = transform)
 
-    def set_camera(center_rotation, quaternion, zoom):
-        pass
-                                   
-    def _naive(self):
+    def bounds(self):
+        '''
+        Return the overall bounding box of the scene.
+
+        Returns
+        --------
+        bounds: (2,3) float points for min, max corner
+        '''
+        corners = deque()
+        for instance, mesh_name in self.instances.items():
+            transform = self.transforms.get(instance)
+            corners.append(transform_points(self.meshes[mesh_name].bounds, 
+                                            transform))
+        corners = np.vstack(corners)
+        bounds  = np.array([corners.min(axis=0), 
+                            corners.max(axis=0)])
+        return bounds
+
+    def box_size(self):
+        return np.diff(self.bounds(), axis=0).reshape(-1)
+
+    def scale(self):
+        return self.box_size.max()
+
+    def centroid(self):
+        '''
+        Return the center of the bounding box for the scene.
+
+        Returns
+        --------
+        centroid: (3) float point for center of bounding box
+        '''
+        centroid = np.mean(self.bounds(), axis=0)
+        return centroid
+            
+    def set_camera(self, ypr=None, distance=None, center=None):
+        if center is None:
+            center = self.centroid()
+        if distance is None:
+            distance = np.diff(self.bounds(), axis=0).max()
+        if ypr is None:
+            ypr = np.zeros(3)
+
+        translation = np.eye(4)
+        translation[0:3,3] = center
+        translation[2][3] += distance*1.5
+
+        transform = np.dot(rotation_matrix(ypr[0], [1,0,0], point=center),
+                           rotation_matrix(ypr[1], [0,1,0], point=center))
+        transform = np.dot(transform, translation)
+        
+        transform = np.linalg.inv(transform)
+
+        self.transforms.update('camera', matrix=transform)
+
+    def dump(self):
+        '''
+        Append all meshes in scene to single mesh.
+        '''
         from copy import deepcopy
-        from collections import deque
         result = deque()
         for node_id, mesh_id in self.instances.items():
             transform = self.transforms.get(node_id)
@@ -67,6 +133,10 @@ class Scene:
             result.append(current)
         return np.array(result)
 
-    def show(self, block=True):
+    def save_image(self, file_obj, resolution=(1024,768)):
         from .viewer import SceneViewer
-        SceneViewer(self, block=block)
+        SceneViewer(self, save_image=file_obj, resolution=resolution)
+
+    def show(self, **kwargs):
+        from .viewer import SceneViewer
+        SceneViewer(self, **kwargs)
