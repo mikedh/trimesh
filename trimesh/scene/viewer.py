@@ -41,13 +41,13 @@ class SceneViewer(pyglet.window.Window):
         self.batch        = pyglet.graphics.Batch()
         self._vertex_list = {}
         self.scene        = scene
+        self.reset_view()
         
         for name, mesh in scene.meshes.items():
             self._add_mesh(name, mesh, smooth)
-            
-        self.reset_view()
-        self.init_gl()
+    
         self.set_size(*resolution)
+        self.init_gl()
         self.run()
 
     def _add_mesh(self, node_name, mesh, smooth=None):
@@ -57,10 +57,9 @@ class SceneViewer(pyglet.window.Window):
         # we don't want the render object to mess with the original mesh
         mesh = deepcopy(mesh)
         if smooth:
-            # will merge vertices close in angle
+            # merge vertices close in angle (using kdtree), can be slow on large meshes
             mesh.smooth()
         else:
-            # will show faceted surfaces instead of super wrong blending
             mesh.unmerge_vertices()
 
         self._vertex_list[node_name] = self.batch.add_indexed(*_mesh_to_vla(mesh))
@@ -92,7 +91,8 @@ class SceneViewer(pyglet.window.Window):
         glLightfv(GL_LIGHT1, GL_SPECULAR, _gl_vector(1, 1, 1, 1))
         glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE)
         glEnable(GL_COLOR_MATERIAL)
-                
+        glShadeModel(GL_SMOOTH)
+        
     def toggle_culling(self):
         self.view['cull'] = not self.view['cull']
         if self.view['cull']:
