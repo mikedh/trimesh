@@ -5,6 +5,8 @@ from copy      import deepcopy
 from threading import Thread
 from pyglet.gl import *
 
+from ..transformations import euler_matrix
+
 #smooth only when fewer faces than this
 _SMOOTH_MAX_FACES = 20000
 
@@ -64,11 +66,15 @@ class SceneViewer(pyglet.window.Window):
         self._vertex_list[node_name] = self.batch.add_indexed(*_mesh_to_vla(mesh))
 
     def reset_view(self):
+        '''
+        Set view to base.
+        '''
         self.view = {'wireframe'   : False,
                      'cull'        : True,
                      'rotation'    : np.zeros(3),
                      'translation' : np.zeros(3),
-                     'center'      : self.scene.centroid()}
+                     'center'      : self.scene.centroid,
+                     'scale'       : self.scene.scale}
         
     def init_gl(self):
         glClearColor(1, 1, 1, 1)
@@ -109,7 +115,7 @@ class SceneViewer(pyglet.window.Window):
         glMatrixMode(GL_MODELVIEW)
 
     def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
-        delta = np.array([dy, dx], dtype=np.float) / [self.height, -self.width]
+        delta = np.array([dx, dy], dtype=np.float) / [self.width, self.height]
 
         #left mouse button, with control key down (pan)
         if ((buttons == pyglet.window.mouse.LEFT) and 
@@ -118,10 +124,10 @@ class SceneViewer(pyglet.window.Window):
 
         #left mouse button, no modifier keys pressed (rotate)
         elif (buttons == pyglet.window.mouse.LEFT):
-            self.view['rotation'][0:2]+= delta
+            self.view['rotation'][0:2]+= delta[::-1]*[-1,1]
 
     def on_mouse_scroll(self, x, y, dx, dy):
-        self.view['translation'][2] += float(dy) / self.height
+        self.view['translation'][2] += (float(dy) / self.height) * 10
 
     def on_key_press(self, symbol, modifiers):
         if symbol == pyglet.window.key.W:
@@ -135,15 +141,15 @@ class SceneViewer(pyglet.window.Window):
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         glLoadIdentity()
 
-        # update the scene with the altered view from the interface
-        if (self.view['rotation'] > .01).any():
-            self.scene.set_camera(ypr=self.view['rotation']*np.pi)
-
         # pull the new camera transform from the scene
         transform_camera = self.scene.transforms.get('camera')
         # apply the camera transform to the matrix stack
         glMultMatrixf(_gl_matrix(transform_camera))
-        
+
+        # dragging the mouse moves the view transform (but doesn't alter the scene)
+        transform_view = view_transform(self.view)
+        glMultMatrixf(_gl_matrix(transform_view))
+
         for name_node, name_mesh in self.scene.instances.items():
             transform = self.scene.transforms.get(name_node)
             # add a new matrix to the model stack
@@ -160,7 +166,8 @@ class SceneViewer(pyglet.window.Window):
 
     def flip(self):
         '''
-        This function is the last thing executed in the event loop.
+        This function is the last thing executed in the event loop,
+        so if we want to close the window (self) here is the place to do it.
         '''
         super(self.__class__, self).flip()
 
@@ -170,6 +177,16 @@ class SceneViewer(pyglet.window.Window):
 
     def run(self):
         pyglet.app.run()
+
+def view_transform(view):
+    '''
+    Given a dictionary containing view parameters calculate a transformation matrix. 
+    '''
+    transform = euler_matrix(*(view['rotation']*np.pi))
+    transform[0:3,3]  = view['center']
+    transform[0:3,3] -= np.dot(transform[0:3,0:3], view['center'])
+    transform[0:3,3] += view['translation']*view['scale']
+    return transform
 
 def _mesh_to_vla(mesh):
     '''
@@ -196,5 +213,10 @@ def _gl_matrix(array):
     a = np.array(array).T.reshape(-1)
     return (GLfloat * len(a))(*a)
 
-def _gl_vector(*args):
-    return (GLfloat * len(args))(*args)
+def _gl_vector(array, *args):
+    # turn a set of args into a flat opengl format vector
+    array = np.array(array)
+    if len(args) > 0:
+        array = np.append(array, args)
+    vector = (GLfloat * len(array))(*array)
+    return vector

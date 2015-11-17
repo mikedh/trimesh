@@ -65,6 +65,7 @@ class Scene:
             self.transforms.update(frame_to = name_node, 
                                    matrix   = transform)
 
+    @property
     def bounds(self):
         '''
         Return the overall bounding box of the scene.
@@ -83,12 +84,15 @@ class Scene:
                             corners.max(axis=0)])
         return bounds
 
+    @property
     def box_size(self):
-        return np.diff(self.bounds(), axis=0).reshape(-1)
+        return np.diff(self.bounds, axis=0).reshape(-1)
 
+    @property
     def scale(self):
         return self.box_size.max()
 
+    @property
     def centroid(self):
         '''
         Return the center of the bounding box for the scene.
@@ -97,25 +101,24 @@ class Scene:
         --------
         centroid: (3) float point for center of bounding box
         '''
-        centroid = np.mean(self.bounds(), axis=0)
+        centroid = np.mean(self.bounds, axis=0)
         return centroid
             
-    def set_camera(self, ypr=None, distance=None, center=None):
+    def set_camera(self, angles=None, distance=None, center=None):
         if center is None:
-            center = self.centroid()
+            center = self.centroid
         if distance is None:
-            distance = np.diff(self.bounds(), axis=0).max()
-        if ypr is None:
-            ypr = np.zeros(3)
+            distance = np.diff(self.bounds, axis=0).max()
+        if angles is None:
+            angles = np.zeros(3)
 
         translation = np.eye(4)
         translation[0:3,3] = center
         translation[2][3] += distance*1.5
 
-        transform = np.dot(rotation_matrix(ypr[0], [1,0,0], point=center),
-                           rotation_matrix(ypr[1], [0,1,0], point=center))
+        transform = np.dot(rotation_matrix(angles[0], [1,0,0], point=center),
+                           rotation_matrix(angles[1], [0,1,0], point=center))
         transform = np.dot(transform, translation)
-        
         transform = np.linalg.inv(transform)
 
         self.transforms.update('camera', matrix=transform)
@@ -140,3 +143,4 @@ class Scene:
     def show(self, **kwargs):
         from .viewer import SceneViewer
         SceneViewer(self, **kwargs)
+ 
