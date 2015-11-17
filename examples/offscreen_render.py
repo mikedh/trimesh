@@ -16,7 +16,7 @@ if __name__ == '__main__':
     for i, angle in enumerate(np.linspace(0, np.pi, 10)):
         trimesh.constants.log.info('Saving image %d', i)
         # move the camera of the scene around the object
-        scene.set_camera(ypr=[0,angle,0])
+        scene.set_camera(angles=[0,angle,0])
         # save a render of the object as a png
         scene.save_image('render_' + str(i) + '.png', resolution=np.array([1920,1080])*2)
     

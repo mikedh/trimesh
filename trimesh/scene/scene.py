@@ -125,7 +125,7 @@ class Scene:
 
     def dump(self):
         '''
-        Append all meshes in scene to single mesh.
+        Append all meshes in scene to a list of meshes.
         '''
         from copy import deepcopy
         result = deque()
