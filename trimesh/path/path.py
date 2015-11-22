@@ -247,6 +247,9 @@ class Path(object):
         export_dict = self.export(file_type='dict')
         return export_dict
 
+    def copy(self):
+        return deepcopy(self)
+
     def __add__(self, other):
         new_entities = deepcopy(other.entities)
         for entity in new_entities:

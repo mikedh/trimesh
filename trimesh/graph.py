@@ -5,7 +5,7 @@ from collections import deque
 from copy import deepcopy
 
 from .constants import log, tol, MeshError
-from .grouping  import group, group_rows, replace_references
+from .grouping  import group, group_rows, boolean_rows, replace_references
 from .geometry  import faces_to_edges
 from .points    import unitize
 from .util      import diagonal_dot, is_sequence
@@ -51,6 +51,15 @@ def face_adjacency(faces):
     adjacency = edge_face_index[edge_groups]
     return adjacency
 
+def shared_edges(faces_a, faces_b):
+    '''  
+    Given two sets of faces, find the edges which are in both sets.
+    '''
+    e_a = np.sort(faces_to_edges(faces_a), axis=1)
+    e_b = np.sort(faces_to_edges(faces_b), axis=1)
+    shared = boolean_rows(e_a, e_b, operation=set.intersection)
+    return shared
+
 def connected_edges(G, nodes):
     '''
     Given graph G and list of nodes, return the list of edges that 
@@ -76,7 +85,7 @@ def facets_group(mesh):
         if len(row_group) < 2: continue
         facets.extend([list(i) for i in nx.connected_components(adjacency.subgraph(row_group)) if len(i) > 1])
     return np.array(facets)
-
+ 
 def facets(mesh):
     '''
     Find the list of parallel adjacent faces.

@@ -153,6 +153,17 @@ class PathSample:
         
         return resampled
         
+    def truncate(self, distance):
+        '''
+        Return a truncated version of the path.
+        Only one vertex (at the endpoint) will be added.
+        '''
+        position = np.searchsorted(self._cum_norm, distance)
+        offset   = distance - self._cum_norm[position-1]
+        print offset#distance, position, self._cum_norm[position-1], self._cum_norm
+        a = self._points[:position+1]
+
+        print np.linalg.norm(np.diff(a, axis=0),axis=1).sum()
 
 def resample_path(points, count=None, step=None, step_round=True):
     '''

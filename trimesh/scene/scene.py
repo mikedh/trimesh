@@ -26,7 +26,7 @@ class Scene:
 
         # dictionary, mesh name : Trimesh object
         self.meshes     = {}
-        self.lights     = {}
+        self.flags      = {}
         self.camera     = None
         self.transforms = TransformTree(base_frame = base_frame)
 
@@ -62,6 +62,7 @@ class Scene:
         for i, transform in enumerate(transforms):
             name_node = name_mesh + '/' + str(i)
             self.instances[name_node] = name_mesh
+            self.flags[name_node] = {'visible':True}
             self.transforms.update(frame_to = name_node, 
                                    matrix   = transform)
 
@@ -119,9 +120,9 @@ class Scene:
         transform = np.dot(rotation_matrix(angles[0], [1,0,0], point=center),
                            rotation_matrix(angles[1], [0,1,0], point=center))
         transform = np.dot(transform, translation)
-        transform = np.linalg.inv(transform)
-
-        self.transforms.update('camera', matrix=transform)
+        self.transforms.update(frame_from = 'camera', 
+                               frame_to   = self.transforms.base_frame,
+                               matrix     = transform)
 
     def dump(self):
         '''

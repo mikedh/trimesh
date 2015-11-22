@@ -57,6 +57,10 @@ def faces_to_edges(faces, return_index=False):
     return edges
 
 def triangulate_quads(quads):
+    '''
+    Given a set of quad faces, return them as triangle faces.
+    '''
+    quads = np.array(quads)
     faces = np.vstack((quads[:,[0,1,2]],
                        quads[:,[2,3,0]]))
     return faces

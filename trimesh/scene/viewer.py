@@ -17,52 +17,55 @@ class SceneViewer(pyglet.window.Window):
                  save_image = None,
                  resolution = (640,480)):
 
-        conf = Config(sample_buffers=1,
-                      samples=4,
-                      depth_size=16,
-                      double_buffer=True)
-
-        self._img = save_image
+        self.events = []
         visible = save_image is None
         width, height = resolution
 
-        try: 
+        try:
+            conf = Config(sample_buffers = 1,
+                          samples        = 4,
+                          depth_size     = 16,
+                          double_buffer  = True)
             super(SceneViewer, self).__init__(config=conf, 
                                               visible=visible, 
                                               resizable=True,
                                               width=width,
                                               height=height)
         except pyglet.window.NoSuchConfigException:
-            super(SceneViewer, self).__init__(resizable=True,
+            conf = Config(double_buffer=True)
+            super(SceneViewer, self).__init__(config = conf,
+                                              resizable=True,
                                               visible = visible,
                                               width=width,
                                               height=height)
             
-        self.batch        = pyglet.graphics.Batch()
+        self.batch = pyglet.graphics.Batch()
+        self.scene = scene
+        self._img  = save_image
         self._vertex_list = {}
-        self.scene        = scene
         self.reset_view()
         
         for name, mesh in scene.meshes.items():
             self._add_mesh(name, mesh, smooth)
-    
-        self.set_size(*resolution)
+            
         self.init_gl()
-        self.run()
+        self.set_size(*resolution)
+        pyglet.app.run()
 
     def _add_mesh(self, node_name, mesh, smooth=None):
         if smooth is None:
             smooth = len(mesh.faces) < _SMOOTH_MAX_FACES
 
         # we don't want the render object to mess with the original mesh
-        mesh = deepcopy(mesh)
+        mesh_render = mesh.copy()
+        
         if smooth:
-            # merge vertices close in angle (using kdtree), can be slow on large meshes
-            mesh.smooth()
+            # merge vertices close in angle (uses a KDtree), can be slow on large meshes
+            mesh_render.smooth()
         else:
-            mesh.unmerge_vertices()
+            mesh_render.unmerge_vertices()
 
-        self._vertex_list[node_name] = self.batch.add_indexed(*_mesh_to_vla(mesh))
+        self._vertex_list[node_name] = self.batch.add_indexed(*_mesh_to_vertex_list(mesh_render))
 
     def reset_view(self):
         '''
@@ -74,6 +77,7 @@ class SceneViewer(pyglet.window.Window):
                      'translation' : np.zeros(3),
                      'center'      : self.scene.centroid,
                      'scale'       : self.scene.scale}
+
         
     def init_gl(self):
         glClearColor(1, 1, 1, 1)
@@ -92,7 +96,7 @@ class SceneViewer(pyglet.window.Window):
         glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE)
         glEnable(GL_COLOR_MATERIAL)
         glShadeModel(GL_SMOOTH)
-        
+
     def toggle_culling(self):
         self.view['cull'] = not self.view['cull']
         if self.view['cull']:
@@ -113,7 +117,8 @@ class SceneViewer(pyglet.window.Window):
         glLoadIdentity()
         gluPerspective(60., width / float(height), .01, 1000.)
         glMatrixMode(GL_MODELVIEW)
-
+        self.events.append('resize')
+        
     def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
         delta = np.array([dx, dy], dtype=np.float) / [self.width, self.height]
 
@@ -127,7 +132,7 @@ class SceneViewer(pyglet.window.Window):
             self.view['rotation'][0:2]+= delta[::-1]*[-1,1]
 
     def on_mouse_scroll(self, x, y, dx, dy):
-        self.view['translation'][2] += (float(dy) / self.height) * 10
+        self.view['translation'][2] += (float(dy) / self.height) * 25
 
     def on_key_press(self, symbol, modifiers):
         if symbol == pyglet.window.key.W:
@@ -147,10 +152,13 @@ class SceneViewer(pyglet.window.Window):
         glMultMatrixf(_gl_matrix(transform_camera))
 
         # dragging the mouse moves the view transform (but doesn't alter the scene)
-        transform_view = view_transform(self.view)
+        transform_view = _view_transform(self.view)
         glMultMatrixf(_gl_matrix(transform_view))
 
         for name_node, name_mesh in self.scene.instances.items():
+            if ('visible' in self.scene.flags[name_node] and 
+                not self.scene.flags[name_node]['visible']):
+                continue
             transform = self.scene.transforms.get(name_node)
             # add a new matrix to the model stack
             glPushMatrix()
@@ -160,9 +168,10 @@ class SceneViewer(pyglet.window.Window):
             self._vertex_list[name_mesh].draw(mode=GL_TRIANGLES)
             # pop the matrix stack as we drew what we needed to draw
             glPopMatrix()
-
+        
     def save_image(self, filename):
-        pyglet.image.get_buffer_manager().get_color_buffer().save(filename)
+        colorbuffer = pyglet.image.get_buffer_manager().get_color_buffer()
+        colorbuffer.save(filename)
 
     def flip(self):
         '''
@@ -175,12 +184,10 @@ class SceneViewer(pyglet.window.Window):
             self.save_image(self._img)
             self.close()
 
-    def run(self):
-        pyglet.app.run()
-
-def view_transform(view):
+def _view_transform(view):
     '''
-    Given a dictionary containing view parameters calculate a transformation matrix. 
+    Given a dictionary containing view parameters,
+    calculate a transformation matrix. 
     '''
     transform = euler_matrix(*(view['rotation']*np.pi))
     transform[0:3,3]  = view['center']
@@ -188,19 +195,19 @@ def view_transform(view):
     transform[0:3,3] += view['translation']*view['scale']
     return transform
 
-def _mesh_to_vla(mesh):
+def _mesh_to_vertex_list(mesh, group=None):
     '''
     Convert a Trimesh object to arguments for an 
     indexed vertex list constructor. 
     '''
-    
     normals  = mesh.vertex_normals.reshape(-1).tolist()
     colors   = mesh.visual.vertex_colors.reshape(-1).tolist()
     indices  = mesh.faces.reshape(-1).tolist()
     vertices = mesh.vertices.reshape(-1).tolist()
+    
     args = (len(vertices) // 3, # count
             GL_TRIANGLES,       # mode 
-            None,               # group
+            group,              # group
             indices,            # indices 
             ('v3f/static', vertices),
             ('n3f/static', normals),
@@ -208,13 +215,17 @@ def _mesh_to_vla(mesh):
     return args
     
 def _gl_matrix(array):
-    # turn a numpy transformation matrix (row major, 4x4)
-    # to an GLfloat transformation matrix (column major, 16)
+    '''
+    Convert a sane numpy transformation matrix (row major, (4,4))
+    to an stupid GLfloat transformation matrix (column major, (16,))
+    '''
     a = np.array(array).T.reshape(-1)
     return (GLfloat * len(a))(*a)
 
 def _gl_vector(array, *args):
-    # turn a set of args into a flat opengl format vector
+    '''
+    Convert an array and a set of args into a flat vector of GLfloat
+    '''
     array = np.array(array)
     if len(args) > 0:
         array = np.append(array, args)

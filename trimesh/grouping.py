@@ -206,7 +206,7 @@ def unique_rows(data, digits=None):
                                          return_index   = True, 
                                          return_inverse = True)
     return unique, inverse
-    
+
 def group_rows(data, require_count = None, digits = None):
     '''
     Returns index groups of duplicate rows, for example:
@@ -275,6 +275,29 @@ def group_rows(data, require_count = None, digits = None):
     if require_count is None: return group_dict()
     else:                     return group_slice()
 
+def boolean_rows(a, b, operation=set.intersection):
+    '''
+    Find the rows in two arrays which occur in both rows. 
+
+    Arguments
+    ---------
+    a: (n,d) array
+    b: (m,d) array
+    operation: boolean set operation function:
+               set.intersection
+               set.difference
+               set.union
+
+    Returns
+    --------
+    shared: (p, d) array containing rows in both a and b
+    '''
+    a = float_to_int(a)
+    b = float_to_int(b)
+    shared = operation({tuple(i) for i in a}, {tuple(j) for j in b})
+    shared = np.array(list(shared))
+    return shared
+
 def group_vectors(vectors, 
                   max_angle        = np.radians(10), 
                   include_negative = False):
@@ -317,8 +340,13 @@ def stack_negative(rows):
     rows     = np.array(rows)
     width    = rows.shape[1]
     stacked  = np.column_stack((rows, rows*-1))
-    negative = rows[:,0] < 0
-    stacked[negative] = np.roll(stacked[negative], 3, axis=1)
+
+    nonzero  = np.abs(rows) > tol.zero
+    negative = rows < -tol.zero
+
+    roll = np.logical_and(nonzero, negative).any(axis=1)
+
+    stacked[roll] = np.roll(stacked[roll], 3, axis=1)
     return stacked
             
 def clusters(points, radius):

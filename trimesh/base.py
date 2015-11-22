@@ -6,6 +6,7 @@ Library for importing, exporting and doing simple operations on triangular meshe
 '''
 
 import numpy as np
+from copy import deepcopy
 
 from . import triangles
 from . import grouping
@@ -544,14 +545,14 @@ class Trimesh(object):
         '''
         return Scene(self)
 
-    def show(self):
+    def show(self, **kwargs):
         '''
         Render the mesh in an opengl window. Requires pyglet.
         Smooth will re-merge vertices to fix the shading, but can be slow
         on larger meshes. 
         '''
         scene = self.scene()
-        scene.show()
+        scene.show(**kwargs)
         return scene
 
     def identifier(self, length=6, as_json=False):
@@ -648,6 +649,9 @@ class Trimesh(object):
             raise ValueError('Non-watertight meshes can\'t contain anything!')
         contains = contains_points(self, points)
         return contains
+
+    def copy(self):
+        return deepcopy(self)
 
     def __eq__(self, other):
         equal = comparison.equal(self, other)
