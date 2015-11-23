@@ -160,10 +160,22 @@ class PathSample:
         '''
         position = np.searchsorted(self._cum_norm, distance)
         offset   = distance - self._cum_norm[position-1]
-        print offset#distance, position, self._cum_norm[position-1], self._cum_norm
-        a = self._points[:position+1]
+        
+        if offset < tol.merge:
+            truncated = self._points[:position+1]
+        else:
+            vector = unitize(np.diff(self._points[np.arange(2) + position], 
+                                        axis=0).reshape(-1))
+            vector *= offset
+            endpoint  = self._points[position] + vector
+            truncated = np.vstack((self._points[:position+1],
+                                   endpoint))
 
-        print np.linalg.norm(np.diff(a, axis=0),axis=1).sum()
+        assert (np.linalg.norm(np.diff(truncated, axis=0),axis=1).sum() - distance) < tol.merge
+        
+        return truncated
+
+
 
 def resample_path(points, count=None, step=None, step_round=True):
     '''

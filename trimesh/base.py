@@ -50,8 +50,8 @@ class Trimesh(object):
                  **kwargs):
                  
         # cache computed values which are cleared when
-        # self._geometry_id() changes, forcing a recompute
-        self._cache = util.Cache(id_function = self._geometry_id)
+        # self.md5() changes, forcing a recompute
+        self._cache = util.Cache(id_function = self.md5)
         
         # (n, 3) float, set of vertices
         self.vertices = vertices
@@ -117,11 +117,11 @@ class Trimesh(object):
     def vertices(self, values):
         self._vertices = util.tracked_array(values)
         
-    def _geometry_id(self):
+    def md5(self):
         '''
-        Returns a hashable value which represents the current state of the mesh.
+        Return an appended MD5 for the faces and vertices. 
         '''
-        result  = self.faces.md5()
+        result = self.faces.md5()
         result += self.vertices.md5()
         return result
         
@@ -499,19 +499,33 @@ class Trimesh(object):
         path = _create_path(**faces_to_path(self, face_ids))
         return path
         
-    def area(self, sum=True):
+    @property
+    def area(self):
         '''
         Summed area of all triangles in the current mesh.
         '''
-        key    = 'area_' + str(int(sum))
+        key    = 'area'
         cached = self._cache.get(key)
         if cached is not None: 
             return cached
-        area = triangles.area(self.triangles,
-                              sum = sum)
+        area = self.area_faces.sum()
         return self._cache.set(key   = key, 
                                value = area)
-        
+    @property                           
+    def area_faces(self):
+        '''
+        The area of each face in the mesh
+        '''
+        key    = 'area_faces'
+        cached = self._cache.get(key)
+        if cached is not None: 
+            return cached
+        area_faces = triangles.area(self.triangles, sum = False)
+        return self._cache.set(key   = key, 
+                               value = area_faces) 
+                               
+                               
+
     def mass_properties(self, density = 1.0, skip_inertia=False):
         '''
         Returns the mass properties of the current mesh.

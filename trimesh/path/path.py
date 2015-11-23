@@ -86,62 +86,6 @@ class Path(object):
         return self._cache.set('paths', paths)
 
     @property
-    def polygons_closed(self):
-        if 'polygons_closed' in self._cache: 
-            return self._cache.get('polygons_closed')
-
-        def path_to_polygon(path):
-            discrete = discretize_path(self.entities, 
-                                       self.vertices, 
-                                       path, 
-                                       scale = self.scale)
-            return Polygon(discrete)
-   
-        def reverse_path(path):
-            for entity in self.entities[path]: 
-                entity.reverse()
-            return path[::-1]
-            
-        with self._cache:
-            polygons = [None] * len(self.paths)
-            for i, path in enumerate(self.paths):
-                candidate = path_to_polygon(path)
-                candidate = repair_invalid(candidate, scale=self.scale)
-                if not candidate.exterior.is_ccw:
-                    log.debug('Clockwise polygon detected, correcting!')
-                    self.paths[i] = reverse_path(path)
-                    candidate = Polygon(np.array(candidate.exterior.coords)[::-1])
-                polygons[i] = candidate
-            polygons = np.array(polygons)
-        return self._cache.set('polygons_closed', polygons)
-
-    @property
-    def root(self):
-        if 'root' in self._cache:
-            return self._cache.get('root')
-        with self._cache:
-            root, enclosure = polygons_enclosure_tree(self.polygons_closed)
-        self._cache.set('enclosure_directed', enclosure)
-        return self._cache.set('root', root)
-
-    @property
-    def enclosure(self):
-        if 'enclosure' in self._cache:
-            return self._cache.get('enclosure')
-        with self._cache:
-            undirected = self.enclosure_directed.to_undirected()
-        return self._cache.set('enclosure', undirected)
-        
-    @property
-    def enclosure_directed(self):
-        if 'enclosure_directed' in self._cache:
-            return self._cache.get('enclosure_directed')
-        with self._cache:
-            root, enclosure = polygons_enclosure_tree(self.polygons_closed)
-        self._cache.set('root', root)
-        return self._cache.set('enclosure_directed', enclosure)
-
-    @property
     def discrete(self):
         return self._cache.get('discrete')
 
@@ -503,3 +447,60 @@ class Path2D(Path):
         if len(self.polygons_full) != 1: 
             raise TypeError('Identifier only valid for single body')
         return polygon_hash(self.polygons_full[0])
+
+
+    @property
+    def polygons_closed(self):
+        if 'polygons_closed' in self._cache: 
+            return self._cache.get('polygons_closed')
+
+        def path_to_polygon(path):
+            discrete = discretize_path(self.entities, 
+                                       self.vertices, 
+                                       path, 
+                                       scale = self.scale)
+            return Polygon(discrete)
+   
+        def reverse_path(path):
+            for entity in self.entities[path]: 
+                entity.reverse()
+            return path[::-1]
+            
+        with self._cache:
+            polygons = [None] * len(self.paths)
+            for i, path in enumerate(self.paths):
+                candidate = path_to_polygon(path)
+                candidate = repair_invalid(candidate, scale=self.scale)
+                if not candidate.exterior.is_ccw:
+                    log.debug('Clockwise polygon detected, correcting!')
+                    self.paths[i] = reverse_path(path)
+                    candidate = Polygon(np.array(candidate.exterior.coords)[::-1])
+                polygons[i] = candidate
+            polygons = np.array(polygons)
+        return self._cache.set('polygons_closed', polygons)
+
+    @property
+    def root(self):
+        if 'root' in self._cache:
+            return self._cache.get('root')
+        with self._cache:
+            root, enclosure = polygons_enclosure_tree(self.polygons_closed)
+        self._cache.set('enclosure_directed', enclosure)
+        return self._cache.set('root', root)
+
+    @property
+    def enclosure(self):
+        if 'enclosure' in self._cache:
+            return self._cache.get('enclosure')
+        with self._cache:
+            undirected = self.enclosure_directed.to_undirected()
+        return self._cache.set('enclosure', undirected)
+        
+    @property
+    def enclosure_directed(self):
+        if 'enclosure_directed' in self._cache:
+            return self._cache.get('enclosure_directed')
+        with self._cache:
+            root, enclosure = polygons_enclosure_tree(self.polygons_closed)
+        self._cache.set('root', root)
+        return self._cache.set('enclosure_directed', enclosure)

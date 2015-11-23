@@ -109,7 +109,7 @@ def rotationally_invariant_identifier(mesh, length=6, as_json=False, json_digits
     freq_formatted = np.zeros(frequency_count)
 
     if bin_count > _MIN_BIN_COUNT:
-        face_area   = mesh.area(sum=False)
+        face_area   = mesh.area_faces
         face_radii  = vertex_radii[mesh.faces].reshape(-1)
         area_weight = np.tile((face_area.reshape((-1,1))*(1.0/3.0)), (1,3)).reshape(-1)
 
