@@ -80,6 +80,9 @@ class Trimesh(object):
         # update the mesh metadata with passed metadata
         if isinstance(metadata, dict):
             self.metadata.update(metadata)
+
+            
+        self.merge_vertices()
             
         # if requested do basic mesh clean-up immediately
         if process:
@@ -89,7 +92,6 @@ class Trimesh(object):
         '''
         Convenience function to do basic processing on a raw mesh
         '''
-        self.merge_vertices()
         self.remove_duplicate_faces()
         self.remove_degenerate_faces()
         return self
@@ -321,8 +323,9 @@ class Trimesh(object):
         '''
         cached = self._cache.get('face_adjacency')
         if cached is None:
+            adjacency = graph.face_adjacency(self.faces.view(np.ndarray))
             return self._cache.set(key   = 'face_adjacency', 
-                                   value = graph.face_adjacency(self.faces.view(np.ndarray)))
+                                   value = adjacency)
         return cached
 
     @property
@@ -349,7 +352,7 @@ class Trimesh(object):
         '''
         facets = [graph.facets, graph.facets_group][group_normals](self)
         if return_area:
-            area = [triangles.area(self.vertices[self.faces[i]]) for i in facets]
+            area = np.array([self.area_faces[i].sum() for i in facets])
             return facets, area
         return facets
 
@@ -511,6 +514,7 @@ class Trimesh(object):
         area = self.area_faces.sum()
         return self._cache.set(key   = key, 
                                value = area)
+
     @property                           
     def area_faces(self):
         '''
