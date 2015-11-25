@@ -33,6 +33,7 @@ def export_mesh(mesh, file_obj, file_type=None):
     
     log.info('Exporting %d faces as %s', len(mesh.faces), file_type.upper())
     export = _mesh_exporters[file_type](mesh, file_obj)
+    
     if hasattr(file_obj, 'flush'):
         file_obj.flush()
         file_obj.close()

@@ -28,6 +28,8 @@ from .convex       import convex_hull
 from .units        import _set_units
 from .constants    import log, _log_time, tol
 
+from scipy.spatial import cKDTree as KDTree
+
 try: 
     from .path.io.misc import faces_to_path
     from .path.io.load import _create_path, load_path
@@ -337,6 +339,17 @@ class Trimesh(object):
         if cached is not None: return cached
         return self._cache.set(key   = 'is_watertight', 
                                value = graph.is_watertight(self.edges))
+       
+    @property
+    def kdtree(self):
+        '''
+        Return a KDTree of the vertices of the mesh
+        '''
+        cached = self._cache.get('kdtree')
+        if cached is not None: return cached
+        kdtree = KDTree(self.vertices)
+        return self._cache.set(key   = 'kdtree',
+                               value = kdtree)
        
     def remove_degenerate_faces(self):
         '''

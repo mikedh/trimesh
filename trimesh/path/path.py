@@ -8,6 +8,7 @@ import numpy as np
 import networkx as nx
 
 from shapely.geometry import Polygon, Point
+from scipy.spatial import cKDTree as KDTree
 from copy import deepcopy
 from collections import deque
 
@@ -84,6 +85,14 @@ class Path(object):
         with self._cache:
             paths = closed_paths(self.entities, self.vertices)
         return self._cache.set('paths', paths)
+
+    @property
+    def kdtree(self):
+        if 'kdtree' in self._cache:
+            return self._cache.get('kdtree')
+        with self._cache:
+            kdtree = KDTree(self.vertices.view(np.ndarray))
+        return self._cache.set('kdtree', kdtree)
 
     @property
     def discrete(self):
