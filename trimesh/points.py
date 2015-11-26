@@ -6,16 +6,24 @@ from scipy.spatial import cKDTree as KDTree
 
 from .constants import log, tol
 from .geometry  import plane_transform
-from .util      import unitize
+from .util      import unitize, TrackedArray, Cache
    
-def transform_points(points, matrix):
+def transform_points(points, matrix, translate=True):
     '''
     Returns points, rotated by transformation matrix 
     If points is (n,2), matrix must be (3,3)
     if points is (n,3), matrix must be (4,4)
+
+    Arguments
+    ----------
+    points: (n, 2|3) set of points
+    matrix: (3|4, 3|4) rotation matrix
+    translate: boolean, apply translation from matrix or not
+
     '''
     dimension   = np.shape(points)[1]
-    stacked     = np.column_stack((points, np.ones(len(points))))
+    column      = np.zeros(len(points)) + int(bool(translate))
+    stacked     = np.column_stack((points, column))
     transformed = np.dot(matrix, stacked.T).T[:,0:dimension]
     return transformed
 
@@ -256,4 +264,11 @@ def plot_points(points, show=True):
         raise ValueError('Points must be 2D or 3D, not %dD', dimension)
 
     if show: plt.show()
-    
+
+class PointCloud(TrackedArray):
+    '''
+    Subclass of TrackedArray, which is subclass of np.ndarray
+    '''
+    def show(self):
+        plot_points(self)
+

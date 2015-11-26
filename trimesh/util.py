@@ -243,7 +243,10 @@ def decimal_to_digits(decimal, min_digits=None):
         digits = np.clip(digits, min_digits, 20)
     return digits
 
-def hash_object(obj):
+def md5_object(obj):
+    '''
+    If an object is hashable, return the hex string of the MD5.
+    '''
     hasher = hashlib.md5()
     hasher.update(obj)
     hashed = hasher.hexdigest()
@@ -257,7 +260,8 @@ def attach_to_log(log_level=logging.DEBUG, blacklist=[]):
     try: 
         from colorlog import ColoredFormatter
         formatter = ColoredFormatter(
-            "%(log_color)s%(levelname)-8s%(reset)s %(filename)17s:%(lineno)-4s  %(blue)4s%(message)s",
+            ("%(log_color)s%(levelname)-8s%(reset)s " + 
+             "%(filename)17s:%(lineno)-4s  %(blue)4s%(message)s"),
             datefmt = None,
             reset   = True,
             log_colors = {'DEBUG':    'cyan',
@@ -299,8 +303,11 @@ class TrackedArray(np.ndarray):
     '''
 
     def __array_finalize__(self, obj):
-        # set a modified flag on every TrackedArray
-        # This flag will be set on every change, as well as during copies
+        '''
+        Sets a modified flag on every TrackedArray
+        This flag will be set on every change, as well as during copies
+        and certain types of slicing. 
+        '''
         self._modified = True
         if isinstance(obj, type(self)):
             obj._modified = True
@@ -312,16 +319,20 @@ class TrackedArray(np.ndarray):
         This is quite fast; on a modern i7 desktop a (1000000,3) floating point 
         array was hashed reliably in .03 seconds. 
         
-        This is only recomputed if a modified flag is set, which may have false positives 
-        (forcing an unnecessary recompute) but will never have false negatives 
-        which would return an incorrect hash. 
+        This is only recomputed if a modified flag is set which may have false 
+        positives (forcing an unnecessary recompute) but will not have false 
+        negatives which would return an incorrect hash. 
         '''
+
         if self._modified or not hasattr(self, '_hashed'):
-            self._hashed = hash_object(self)
+            self._hashed = md5_object(self)
         self._modified = False
         return self._hashed
 
     def __hash__(self):
+        '''
+        Hash is required to return an int, so we convert the hex string to int.
+        '''
         return int(self.md5(), 16)
         
     def __setitem__(self, i, y):
@@ -343,12 +354,21 @@ class Cache:
         self.cache = {}
         
     def get(self, key):
+        '''
+        Get a key from the cache.
+
+        If the key is unavailable or the cache has been invalidated returns None.
+        '''
         self.verify()
         if key in self.cache: 
             return self.cache[key]
         return None
         
     def verify(self):
+        '''
+        Verify that the cached values are still for the same value of id_function, 
+        and delete all stored items if the value of id_function has changed. 
+        '''
         id_new = self._id_function()
         if (self._lock == 0) and (id_new != self.id_current):
             if len(self.cache) > 0:
@@ -357,9 +377,15 @@ class Cache:
             self.id_set()
 
     def clear(self):
+        '''
+        Remove all elements in the cache. 
+        '''
         self.cache = {}
 
     def update(self, items):
+        '''
+        Update the cache with a set of key, value pairs without checking id_function.
+        '''
         self.cache.update(items)
         self.id_set()
        

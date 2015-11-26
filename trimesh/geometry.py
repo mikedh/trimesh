@@ -13,6 +13,12 @@ def plane_transform(origin, normal):
     transform[0:3,3] = -np.dot(transform, np.append(origin, 1))[0:3]
     return transform
     
+def transform_around(matrix, point):
+    matrix = np.array(matrix)
+    matrix[0:3,3] = -np.dot(matrix, np.append(point, 0))[0:3]
+    return matrix
+
+
 def align_vectors(vector_start, vector_end, return_angle=False):
     '''
     Returns the 4x4 transformation matrix which will rotate from 
