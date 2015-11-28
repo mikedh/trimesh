@@ -16,9 +16,6 @@ def merge_vertices_hash(mesh):
     pre_merge = len(mesh.vertices)
     unique, inverse = unique_rows(mesh.vertices)
     mesh.update_vertices(unique, inverse)
-    log.debug('merge_vertices_hash reduced vertex count from %i to %i.',
-              pre_merge,
-              len(mesh.vertices))
 
 def merge_vertices_kdtree(mesh, max_angle=None):
     '''
@@ -55,13 +52,8 @@ def merge_vertices_kdtree(mesh, max_angle=None):
         else:
             inverse[neighbors] = neighbors[0]
             unique.append(neighbors[0])
-
     mesh.update_vertices(np.array(unique), inverse)
    
-    log.debug('merge_vertices_kdtree reduced vertex count from %i to %i', 
-              len(used),
-              len(unique))
-
 def replace_references(data, reference_dict):
     '''
     Replace elements in an array as per a dictionary of replacement values. 
@@ -127,6 +119,9 @@ def hashable_rows(data, digits=None):
     return hashable
 
 def float_to_int(data, digits=None):
+    '''
+    Given a numpy array of data represent it as integers.
+    '''
     data = np.array(data)   
     if data.dtype.kind in 'ib':
         #if data is already an integer or boolean, we're done

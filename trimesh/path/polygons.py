@@ -184,6 +184,13 @@ def rasterize_polygon(polygon, pitch, angle=0, return_points=False):
     log.info('Rasterized polygon into %s grid', str(shape))
     return grid, transform
     
+def plot_polygon(polygon):
+    import matplotlib.pyplot as plt
+    plt.plot(*polygon.exterior.xy)
+    for interior in polygon.interiors:
+        plt.plot(*interior.xy)
+    plt.show()
+
 def plot_raster(raster, pitch, offset=[0,0]):
     '''
     Plot a raster representation. 

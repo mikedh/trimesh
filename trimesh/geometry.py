@@ -14,9 +14,14 @@ def plane_transform(origin, normal):
     return transform
     
 def transform_around(matrix, point):
-    matrix = np.array(matrix)
-    matrix[0:3,3] = -np.dot(matrix, np.append(point, 0))[0:3]
-    return matrix
+    point = np.array(point)
+    translate = np.eye(4)
+    translate[0:3,3] = -point
+    result = np.dot(matrix, translate)
+    translate[0:3,3] = point
+    result = np.dot(translate, result)
+
+    return result
 
 
 def align_vectors(vector_start, vector_end, return_angle=False):
