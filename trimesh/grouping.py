@@ -5,7 +5,7 @@ from scipy.spatial import cKDTree as KDTree
 from networkx      import from_edgelist, connected_components
 
 from .points    import unitize
-from .util      import decimal_to_digits
+from .util      import decimal_to_digits, vector_to_spherical, spherical_to_vector
 from .constants import log, tol
 
 def merge_vertices_hash(mesh):
@@ -17,7 +17,7 @@ def merge_vertices_hash(mesh):
     unique, inverse = unique_rows(mesh.vertices)
     mesh.update_vertices(unique, inverse)
 
-def merge_vertices_kdtree(mesh, max_angle=None):
+def merge_vertices_kdtree(mesh, angle=None):
     '''
     Merges vertices which are identical, AKA within 
     Cartesian distance TOL_MERGE of each other.  
@@ -37,21 +37,24 @@ def merge_vertices_kdtree(mesh, max_angle=None):
     used    = np.zeros(len(mesh.vertices), dtype=np.bool)
     inverse = np.arange(len(mesh.vertices), dtype=np.int)
     unique  = deque()
-    
+
+    vectors = mesh.vertex_normals
+
     for index, vertex in enumerate(mesh.vertices):
-        if used[index]: continue
+        if used[index]: 
+            continue
+
         neighbors = np.array(tree.query_ball_point(mesh.vertices[index], 
                                                    tol.merge))
-        used[[neighbors]] = True
-        if max_angle != None:
-            normals, aligned = group_vectors(mesh.vertex_normals[[neighbors]], 
-                                             max_angle = max_angle)
-            for group in aligned:
-                inverse[neighbors[group]] = len(unique)
-                unique.append(neighbors[group[0]])
+        if angle is not None:
+            groups = group_vectors(vectors[neighbors], angle=angle)[1]
         else:
-            inverse[neighbors] = neighbors[0]
-            unique.append(neighbors[0])
+            groups = np.arange(len(neighbors)).astype(int).reshape((1,-1))
+                            
+        used[neighbors] = True
+        for group in groups:
+            inverse[neighbors[group]] = len(unique)
+            unique.append(neighbors[group[0]])
     mesh.update_vertices(np.array(unique), inverse)
    
 def replace_references(data, reference_dict):
@@ -294,7 +297,7 @@ def boolean_rows(a, b, operation=set.intersection):
     return shared
 
 def group_vectors(vectors, 
-                  max_angle        = np.radians(10), 
+                  angle        = np.radians(10), 
                   include_negative = False):
     '''
     Group vectors based on an angle tolerance, with the option to 
@@ -304,7 +307,7 @@ def group_vectors(vectors,
     The main difference is that max_angle can be much looser, as we
     are doing actual distance queries. 
     '''
-    dist_max            = np.tan(max_angle)
+    dist_max            = np.tan(angle)
     unit_vectors, valid = unitize(vectors, check_valid = True)
     valid_index         = np.nonzero(valid)[0]
     consumed            = np.zeros(len(unit_vectors), dtype=np.bool)
@@ -326,7 +329,41 @@ def group_vectors(vectors,
         unique_vectors.append(np.median(vectors, axis=0))
         aligned_index.append(valid_index[aligned])
     return np.array(unique_vectors), np.array(aligned_index)
+
+def group_vectors_spherical(vectors, 
+                            angle = np.radians(10)):
+    '''
+    Group vectors based on an angle tolerance, with the option to 
+    include negative vectors. 
     
+    This is very similar to a group_rows(stack_negative(rows))
+    The main difference is that max_angle can be much looser, as we
+    are doing actual distance queries. 
+    '''
+    spherical = vector_to_spherical(vectors)
+    angles, groups = group_distance(spherical, angle)
+    new_vectors = spherical_to_vector(angles)
+
+    return new_vectors, groups
+
+def group_distance(values, distance):
+    consumed = np.zeros(len(values), dtype=np.bool)
+    tree     = KDTree(values)
+
+    # (n, d) set of values that are unique
+    unique  = deque()
+    # (n) sequence of indicies in values
+    groups = deque()
+    
+    for index, value in enumerate(values):
+        if consumed[index]: 
+            continue
+        group = np.array(tree.query_ball_point(value, distance), dtype=np.int)
+        consumed[group] = True
+        unique.append(np.median(values[group], axis=0))
+        groups.append(group)
+    return np.array(unique), np.array(groups)
+ 
 def stack_negative(rows):
     '''
     Given an input of rows (n,d), return an array which is (n,2*d)

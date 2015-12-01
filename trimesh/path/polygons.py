@@ -186,9 +186,10 @@ def rasterize_polygon(polygon, pitch, angle=0, return_points=False):
     
 def plot_polygon(polygon):
     import matplotlib.pyplot as plt
-    plt.plot(*polygon.exterior.xy)
+    plt.axes().set_aspect('equal', 'datalim')
+    plt.plot(*polygon.exterior.xy, color='b')
     for interior in polygon.interiors:
-        plt.plot(*interior.xy)
+        plt.plot(*interior.xy, color='r')
     plt.show()
 
 def plot_raster(raster, pitch, offset=[0,0]):

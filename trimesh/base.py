@@ -232,8 +232,8 @@ class Trimesh(object):
         self._vertex_normals = geometry.mean_vertex_normals(len(self.vertices),
                                                             self.faces,
                                                             self.face_normals)
-                                                             
-    def merge_vertices(self, angle_max=None):
+
+    def merge_vertices(self, angle=None):
         '''
         If a mesh has vertices that are closer than TOL_MERGE, 
         redefine them to be the same vertex, and replace face references
@@ -244,10 +244,12 @@ class Trimesh(object):
                    AND have vertex normals less than angle_max will be merged.
                    This is useful for smooth shading, but is much slower. 
         '''
-        if angle_max is None:
+        if angle is None:
             grouping.merge_vertices_hash(self)
         else:
-            grouping.merge_vertices_kdtree(self, angle_max)
+            grouping.merge_vertices_kdtree(self, angle)
+
+
 
     def update_vertices(self, mask, inverse):
         '''

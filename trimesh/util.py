@@ -103,6 +103,29 @@ def make_sequence(obj):
     if is_sequence(obj): return np.array(obj)
     else:                return np.array([obj])
 
+def vector_to_spherical(cartesian):
+    '''
+    Convert a set of cartesian points to (n,2) spherical vectors
+    '''
+    x,y,z = np.array(cartesian).T
+    # cheat on divide by zero errors
+    x[np.abs(x) < tol.zero] = tol.zero
+    spherical = np.column_stack((np.arctan(y/x),
+                                 np.arccos(z)))
+    return spherical
+
+def spherical_to_vector(spherical):
+    '''
+    Convert a set of (n,2) spherical vectors to (n,3) vectors
+    '''
+    theta, phi = np.array(spherical).T
+    st, ct = np.sin(theta), np.cos(theta)
+    sp, cp = np.sin(phi),   np.cos(phi)
+    vectors = np.column_stack((ct*sp,
+                               st*sp,
+                               cp))
+    return vectors
+
 def diagonal_dot(a, b):
     '''
     Dot product by row of a and b.
