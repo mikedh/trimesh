@@ -65,7 +65,13 @@ If you would like to use the trimesh.creation functions, meshpy is required:
 $ sudo pip install meshpy
 ```
 
-### Example ###
+#### Boolean operations ####
+If you would like to use the trimesh.boolean (union, intersection, difference) functions which use openSCAD/CGAL:
+```bash
+$ sudo apt-get install openscad
+```
+
+### Quick Start ###
 
 Here is an example of loading a cube from file and colorizing its faces.
 
@@ -73,36 +79,18 @@ Here is an example of loading a cube from file and colorizing its faces.
 import numpy as np
 import trimesh
 
-# this list will be much longer if assimp is available
-print(trimesh.available_formats())
-
-# load_mesh can accept a filename or file object, 
-# however file objects require 'file_type' specified (eg. file_type='stl')
-# on load does basic cleanup of mesh, including merging vertices 
-# and removing duplicate/degenerate faces
-mesh = trimesh.load_mesh('./models/unit_cube.STL')
-
-# split mesh based on connected components
-# by default this will only return watertight meshes, but the check can be disabled
-meshes = mesh.split() 
-
-# first component  
-m = meshes[0]
-
-# assign all faces a color
-m.set_face_colors()
+# load a file by name or from a buffer
+mesh = trimesh.load_mesh('./models/featuretype.STL')
 
 # find groups of coplanar adjacent faces
-facets, facets_area = m.facets(return_area=True)
+facets, facets_area = mesh.facets(return_area=True)
 
-# the largest group of faces by area    
-largest_facet = facets[np.argmax(facets_area)]
+# set each facet to a random color
+for facet in facets:
+    mesh.visual.face_colors[facet] = trimesh.color.random_color()
 
-# set all faces of the largest facet to a random color
-m.faces[largest_facet] = trimesh.color.random_color()
-
-# preview mesh in an opengl window
+# preview mesh in an opengl window if you installed pyglet 
 m.show()
 ```
 
-In the mesh view window, dragging rotates the view, ctl + drag pans, mouse wheel scrolls, 'z' returns to the base view, 'w' toggles wireframe mode, and 'c' toggles backface culling (useful if viewing non-watertight meshes).  
+In the mesh view window, dragging rotates the view, ctl + drag pans, mouse wheel scrolls, 'z' returns to the base view, 'w' toggles wireframe mode, and 'c' toggles backface culling.
