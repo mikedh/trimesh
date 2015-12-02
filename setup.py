@@ -18,9 +18,9 @@ setup(name='trimesh',
                           'trimesh.scene'],
       install_requires = ['numpy', 
                           'scipy', 
-                          'networkx', 
-                          'pyglet'],
+                          'networkx'],
       extras_require    = {'path' : ['svg.path', 
                                      'Shapely', 
-                                     'rtree']}
+                                     'rtree'],
+                           'viewer' : ['pyglet']}
      )
