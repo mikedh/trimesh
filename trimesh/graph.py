@@ -166,7 +166,8 @@ def split(mesh, check_watertight=True, only_count=False):
             if check_watertight:
                 subgraph   = nx.subgraph(face_adjacency, connected_faces)
                 watertight = np.equal(list(subgraph.degree().values()), 3).all()
-                if not watertight: return
+                if not watertight: 
+                    return
             faces  = mesh.faces[connected_faces]
             face_normals = mesh.face_normals[connected_faces]
             unique = np.unique(faces.reshape(-1))
@@ -177,9 +178,11 @@ def split(mesh, check_watertight=True, only_count=False):
                                              faces        = faces,
                                              face_normals = face_normals))
         face_adjacency = nx.from_edgelist(mesh.face_adjacency)
-        new_meshes     = deque()
-        components     = [list(i) for i in nx.connected_components(face_adjacency)]
-        if only_count: return len(components)
+        new_meshes = deque()
+        components = [list(i) for i in nx.connected_components(face_adjacency)]
+
+        if only_count: 
+            return len(components)
 
         for component in components: mesh_from_components(component)
         log.info('split mesh into %i components.',
@@ -206,7 +209,7 @@ def split(mesh, check_watertight=True, only_count=False):
                         fill_holes = True
                     else: 
                         continue
-
+            
             # these faces have the original vertex indices
             faces_original = mesh.faces[current]
             face_normals   = mesh.face_normals[current]

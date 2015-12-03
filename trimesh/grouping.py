@@ -297,7 +297,7 @@ def boolean_rows(a, b, operation=set.intersection):
     return shared
 
 def group_vectors(vectors, 
-                  angle        = np.radians(10), 
+                  angle = np.radians(10), 
                   include_negative = False):
     '''
     Group vectors based on an angle tolerance, with the option to 
@@ -343,7 +343,6 @@ def group_vectors_spherical(vectors,
     spherical = vector_to_spherical(vectors)
     angles, groups = group_distance(spherical, angle)
     new_vectors = spherical_to_vector(angles)
-
     return new_vectors, groups
 
 def group_distance(values, distance):

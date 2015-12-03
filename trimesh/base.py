@@ -43,12 +43,12 @@ except ImportError:
 
 class Trimesh(object):
     def __init__(self, 
-                 vertices        = None, 
-                 faces           = None, 
-                 face_normals    = None, 
-                 vertex_normals  = None,
-                 metadata        = None,
-                 process         = False,
+                 vertices       = None, 
+                 faces          = None, 
+                 face_normals   = None, 
+                 vertex_normals = None,
+                 metadata       = None,
+                 process        = True,
                  **kwargs):
                  
         # cache computed values which are cleared when
@@ -82,20 +82,19 @@ class Trimesh(object):
         # update the mesh metadata with passed metadata
         if isinstance(metadata, dict):
             self.metadata.update(metadata)
-
-            
-        self.merge_vertices()
-            
-        # if requested do basic mesh clean-up immediately
+        
         if process:
             self.process()
             
     def process(self):
         '''
-        Convenience function to do basic processing on a raw mesh
+        Convenience function to remove garbage and make mesh sane. 
         '''
+        self.merge_vertices()
         self.remove_duplicate_faces()
         self.remove_degenerate_faces()
+        # if we've removed any degenerate faces force a regen
+        self.face_normals
         return self
         
     @property
@@ -194,8 +193,10 @@ class Trimesh(object):
     @property
     def face_normals(self):
         if np.shape(self._face_normals) != np.shape(self.faces):
-            self._generate_face_normals()
             log.debug('Generating face normals')
+            face_normals, valid = triangles.normals(self.triangles)
+            self.update_faces(valid)
+            self._face_normals = face_normals
         return self._face_normals
 
     @face_normals.setter
@@ -215,11 +216,6 @@ class Trimesh(object):
 
     def set_units(self, desired, guess=False):
         _set_units(self, desired, guess)
-
-    def _generate_face_normals(self):
-        face_normals, valid = triangles.normals(self.vertices[[self.faces]])
-        self.update_faces(valid)
-        self._face_normals = face_normals
 
     def _generate_vertex_normals(self):
         '''
@@ -248,8 +244,6 @@ class Trimesh(object):
             grouping.merge_vertices_hash(self)
         else:
             grouping.merge_vertices_kdtree(self, angle)
-
-
 
     def update_vertices(self, mask, inverse):
         '''
@@ -352,7 +346,7 @@ class Trimesh(object):
         kdtree = KDTree(self.vertices)
         return self._cache.set(key   = 'kdtree',
                                value = kdtree)
-       
+
     def remove_degenerate_faces(self):
         '''
         Removes degenerate faces, or faces that have zero area.
