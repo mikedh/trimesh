@@ -46,7 +46,7 @@ def _create_path(entities, vertices, metadata=None):
                                            metadata = metadata)
     return path
 
-def available_formats():
+def path_formats():
     return _LOADERS.keys()
 
 _LOADERS = {'dxf': load_dxf,

@@ -5,6 +5,7 @@ from collections import deque
 from shapely.geometry import Polygon
 import logging
 
+import trimesh
 import trimesh.path as vector
 
 from trimesh.constants import log, time_function
@@ -21,7 +22,7 @@ class VectorTests(unittest.TestCase):
         for filename in file_list:
             file_path = os.path.join(TEST_DIR, filename)
             tic_load = time_function()
-            drawing = vector.load_path(file_path)
+            drawing = trimesh.load(file_path)
             toc_load = time_function()
             log.info('loaded %s in %f', filename, toc_load-tic_load)
             drawing.filename = filename

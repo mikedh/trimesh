@@ -157,9 +157,17 @@ class Path(object):
         if len(unique) != len(self.entities):
             self.entities = np.array(self.entities)[unique]
 
+    @property
+    def is_closed(self):
+        return all(i == 2 for i in self.vertex_graph.degree().values())
+
+    @property
     def vertex_graph(self):
-        graph, closed = vertex_graph(self.entities)
-        return graph
+        if 'vertex_graph' in self._cache:
+            return self._cache.get('vertex_graph')
+        with self._cache:
+            graph, closed = vertex_graph(self.entities)
+        return self._cache.set('vertex_graph', graph)
 
     def referenced_vertices(self):
         referenced = deque()
@@ -202,6 +210,12 @@ class Path(object):
 
     def copy(self):
         return deepcopy(self)
+
+    def show(self):
+        if self.is_closed:
+            self.plot_discrete(show=True)
+        else:
+            self.plot_entities(show=True)
 
     def __add__(self, other):
         new_entities = deepcopy(other.entities)
@@ -254,11 +268,7 @@ class Path3D(Path):
         to_3D  = np.linalg.inv(to_2D)
 
         return vector, to_3D
-
-    def show(self, entities=True):
-        if entities: self.plot_entities(show=True)
-        else:        self.plot_discrete(show=True)
-
+ 
     def plot_discrete(self, show=False):
         import matplotlib.pyplot as plt
         from mpl_toolkits.mplot3d import Axes3D
@@ -414,10 +424,6 @@ class Path2D(Path):
 
         return np.array(split)
 
-    def show(self):
-        import matplotlib.pyplot as plt
-        self.plot_entities(show=True)
-     
     def plot_discrete(self, show=False, transform=None, axes=None):
         import matplotlib.pyplot as plt
         plt.axes().set_aspect('equal', 'datalim')

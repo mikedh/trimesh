@@ -1,7 +1,6 @@
 import numpy as np
 
 from ..base      import Trimesh
-
 from ..constants import _log_time, log
 from ..util      import is_file, is_dict, is_string, make_sequence
 
@@ -10,8 +9,49 @@ from .stl    import _stl_loaders
 from .misc   import _misc_loaders
 from .step   import _step_loaders
 
-def available_formats():
+def load_path(*args, **kwargs):
+    raise ImportError('No path functionality available!')
+def path_formats():
+    return []
+
+try:
+    from ..path.io.load import load_path, path_formats
+except:
+    log.warning('No path functionality available!', exc_info=True)
+
+def mesh_formats():
     return _mesh_loaders.keys()
+
+def available_formats():
+    return np.append(mesh_formats(), path_formats())
+
+def load(obj, file_type=None, **kwargs):
+    '''
+    Load a mesh or vectorized path into a 
+    Trimesh, Path2D, or Path3D object.
+
+    Arguments
+    ---------
+    file_obj: a filename string or a file-like object
+    file_type: str representing file type (eg: 'stl')
+
+    Returns:
+    geometry: Trimesh, Path2D, Path3D, or list of same. 
+    '''
+
+    if is_string(obj):
+        file_type = (str(obj).split('.')[-1]).lower()
+        obj = open(obj, 'rb')
+    elif file_type is None and not hasattr(obj, 'read'):
+        file_type = obj.__class__.__name__
+
+    if file_type in mesh_formats():
+        return load_mesh(obj, file_type, **kwargs)
+    elif file_type in path_formats():
+        return load_path(obj, file_type, **kwargs)
+
+    raise ValueError('File type: %s not supported', str(file_type))
+
 
 @_log_time
 def load_mesh(obj, file_type=None, process=True):
