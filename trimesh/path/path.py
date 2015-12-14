@@ -116,7 +116,19 @@ class Path(object):
             return self.metadata['units']
         else:
             return None
-    
+
+    @property
+    def is_closed(self):
+        return all(i == 2 for i in self.vertex_graph.degree().values())
+
+    @property
+    def vertex_graph(self):
+        if 'vertex_graph' in self._cache:
+            return self._cache.get('vertex_graph')
+        with self._cache:
+            graph, closed = vertex_graph(self.entities)
+        return self._cache.set('vertex_graph', graph)
+   
     @units.setter
     def units(self, units):
         self.metadata['units'] = units
@@ -156,19 +168,7 @@ class Path(object):
         unique, inverse = unique_rows(entity_hashes)
         if len(unique) != len(self.entities):
             self.entities = np.array(self.entities)[unique]
-
-    @property
-    def is_closed(self):
-        return all(i == 2 for i in self.vertex_graph.degree().values())
-
-    @property
-    def vertex_graph(self):
-        if 'vertex_graph' in self._cache:
-            return self._cache.get('vertex_graph')
-        with self._cache:
-            graph, closed = vertex_graph(self.entities)
-        return self._cache.set('vertex_graph', graph)
-
+            
     def referenced_vertices(self):
         referenced = deque()
         for entity in self.entities: 

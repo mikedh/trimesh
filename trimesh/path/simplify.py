@@ -186,7 +186,7 @@ def arc_march(points, scale=None):
         checked = fit_circle_check(points[current], 
                                    prior=prior, 
                                    scale=scale,
-                                   verbose=False)
+                                   verbose=True)
         arc_ok  = checked is not None
     
         # since we are going over the points twice, on the second pass we only

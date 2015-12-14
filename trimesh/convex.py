@@ -9,7 +9,7 @@ import numpy as np
 from .points       import project_to_plane
 from scipy.spatial import ConvexHull
 
-def convex_hull(mesh, clean=True):
+def convex_hull(mesh, clean=True, suppress_errors=False):
     '''
     Get a new Trimesh object representing the convex hull of the 
     current mesh. Requires scipy >.12.
@@ -23,7 +23,7 @@ def convex_hull(mesh, clean=True):
     --------
     convex: Trimesh object of convex hull of current mesh
     '''
-    faces  = ConvexHull(mesh.vertices.view(np.ndarray)).simplices
+    faces = ConvexHull(mesh.vertices.view(np.ndarray)).simplices
     convex = mesh.__class__(vertices = mesh.vertices.view(np.ndarray).copy(), 
                             faces    = faces)
     if clean:

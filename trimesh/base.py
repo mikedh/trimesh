@@ -189,7 +189,19 @@ class Trimesh(object):
     @units.setter
     def units(self, units):
         self.metadata['units'] = units
-
+        
+    def set_units(self, desired, guess=False):
+        '''
+        Convert the units of the mesh into a specified unit.
+   
+        Arguments
+        ----------
+        desired: string, units to convert to (eg 'inches')
+        guess:   boolean, if self.units are not valid should we 
+                 guess the current units of the document and then convert?
+        '''
+        _set_units(self, desired, guess)
+        
     @property
     def face_normals(self):
         if np.shape(self._face_normals) != np.shape(self.faces):
@@ -213,10 +225,7 @@ class Trimesh(object):
     @vertex_normals.setter
     def vertex_normals(self, values):
         self._vertex_normals = np.array(values)
-
-    def set_units(self, desired, guess=False):
-        _set_units(self, desired, guess)
-
+        
     def _generate_vertex_normals(self):
         '''
         If face normals are defined, produce approximate vertex normals based on the
@@ -537,8 +546,13 @@ class Trimesh(object):
         return self._cache.set(key   = key, 
                                value = area_faces) 
                                
-                               
-
+    @property
+    def volume(self):
+        '''
+        Volume of the current mesh.
+        '''
+        return self.mass_properties(skip_inertia=True)['volume']
+                         
     def mass_properties(self, density = 1.0, skip_inertia=False):
         '''
         Returns the mass properties of the current mesh.
