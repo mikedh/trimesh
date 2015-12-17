@@ -65,6 +65,10 @@ class VisualAttributes(object):
         self._face_colors   = None
 
     @property
+    def defined(self):
+        return self._face_colors is not None
+
+    @property
     def face_colors(self):
         if not self._face_colors_ok:
             log.warn('Faces being set to default color')

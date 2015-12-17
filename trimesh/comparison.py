@@ -117,8 +117,6 @@ def rotationally_invariant_identifier(mesh, length=6, as_json=False, json_digits
                                             bin_count=bin_count, 
                                             frequency_count=frequency_count,
                                             weight=area_weight)
-    else: 
-        log.debug('Mesh isn\'t dense enough to calculate frequency information for unique identifier!')
         
     # using the volume (from surface integral), surface area, and top frequencies
     identifier = np.hstack((mass_properties['volume'],

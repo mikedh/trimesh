@@ -170,17 +170,21 @@ def fill_holes(mesh, raise_watertight=True):
 
     # if face colors exist, assign the last face color to the new faces
     # note that this is a little cheesey, but it is very inexpensive and 
-    # is the right thing to do if the mesh is a single color. 
-    color_shape = np.shape(mesh.visual.face_colors)
-    if len(color_shape) == 2 and color_shape[1] == 3:
-        new_colors = np.tile(mesh.visual.face_colors[-1], 
-                             (np.sum(valid), 1))
-        new_colors = np.vstack((mesh.visual.face_colors, 
-                                new_colors))
+    # is the right thing to do if the mesh is a single color.
+
 
     mesh.face_normals = np.vstack((mesh.face_normals, new_normals[valid]))
     mesh.faces        = np.vstack((mesh.faces, new_faces[valid]))
-    mesh.visual.face_colors = new_colors
+
+    if mesh.visual.defined:
+        color_shape = np.shape(mesh.visual.face_colors)
+        if len(color_shape) == 2 and color_shape[1] == 3:
+            new_colors = np.tile(mesh.visual.face_colors[-1], 
+                                 (np.sum(valid), 1))
+            new_colors = np.vstack((mesh.visual.face_colors, 
+                                    new_colors))
+            mesh.visual.face_colors = new_colors
+    
 
     log.debug('Filled in mesh with %i triangles', np.sum(valid))
 
