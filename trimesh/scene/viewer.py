@@ -60,7 +60,8 @@ class SceneViewer(pyglet.window.Window):
         mesh_render = mesh.copy()
         
         if smooth:
-            # merge vertices close in angle (uses a KDtree), can be slow on large meshes
+            # merge vertices close in angle (uses a KDtree), 
+            # can be slow on large meshes
             mesh_render.smooth()
         else:
             mesh_render.unmerge_vertices()
@@ -224,7 +225,7 @@ def _gl_matrix(array):
 
 def _gl_vector(array, *args):
     '''
-    Convert an array and a set of args into a flat vector of GLfloat
+    Convert an array and an optional set of args into a flat vector of GLfloat
     '''
     array = np.array(array)
     if len(args) > 0:

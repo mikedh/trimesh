@@ -55,7 +55,7 @@ def ray_triangles(triangles,
     '''
     Intersection of multiple triangles and a single ray.
 
-    Uses Moller-Trumbore intersection algorithm
+    Moller-Trumbore intersection algorithm.
     '''
     candidates = np.ones(len(triangles), dtype=np.bool)
 
@@ -68,10 +68,10 @@ def ray_triangles(triangles,
 
     #P is a vector perpendicular to the ray direction and one
     # triangle edge. 
-    P   = np.cross(ray_direction, edge1)
+    P = np.cross(ray_direction, edge1)
 
     #if determinant is near zero, ray lies in plane of triangle
-    det                                = diagonal_dot(edge0, P)    
+    det = diagonal_dot(edge0, P)    
     candidates[np.abs(det) < tol.zero] = False
 
     if not candidates.any(): return candidates
@@ -81,8 +81,8 @@ def ray_triangles(triangles,
     u       = diagonal_dot(T, P[candidates]) * inv_det
 
     
-    new_candidates         = np.logical_not(np.logical_or(u < -tol.zero,
-                                                          u > (1+tol.zero)))
+    new_candidates = np.logical_not(np.logical_or(u < -tol.zero,
+                                                  u > (1+tol.zero)))
     candidates[candidates] = new_candidates
     if not candidates.any(): return candidates    
     inv_det = inv_det[new_candidates]

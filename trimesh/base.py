@@ -425,7 +425,7 @@ class Trimesh(object):
         path     = load_path(segments)
         return path
 
-    @_log_time   
+    @property
     def convex_hull(self, clean=True):
         '''
         Get a new Trimesh object representing the convex hull of the 
@@ -440,8 +440,14 @@ class Trimesh(object):
         --------
         convex: Trimesh object of convex hull of current mesh
         '''
-        result = convex_hull(self, clean)
-        return result
+        key  = 'convex_hull_' 
+        key += str(int(clean))
+        cached = self._cache.get(key)
+        if cached is not None: 
+            return cached
+        hull = convex_hull(self, clean)
+        return self._cache.set(key   = key, 
+                               value = hull)
 
     def sample(self, count):
         '''

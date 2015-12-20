@@ -24,7 +24,7 @@ class Scene:
         # instance name : mesh name
         self.instances = {}
 
-        # dictionary, mesh name : Trimesh object
+        # mesh name : Trimesh object
         self.meshes     = {}
         self.flags      = {}
         self.camera     = None

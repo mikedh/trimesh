@@ -143,7 +143,7 @@ def create_tree(triangles):
     tri_bounds = np.column_stack((triangles.min(axis=1), triangles.max(axis=1)))
   
     # stream loading wasn't getting proper index
-    tree       = index.Index(properties=properties)  
+    tree = index.Index(properties=properties)  
     for i, bounds in enumerate(tri_bounds):
         tree.insert(i, bounds)
     
@@ -157,7 +157,7 @@ def ray_bounds(rays, bounds, buffer_dist = 1e-5):
     '''
     # separate out the (n, 2, 3) rays array into (n, 3) 
     # origin/direction arrays
-    ray_ori    = rays[:,0,:]
+    ray_ori = rays[:,0,:]
     ray_dir = unitize(rays[:,1,:])
 
     # bounding box we are testing against

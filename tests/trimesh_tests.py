@@ -4,6 +4,7 @@ import logging
 import time
 from collections import deque
 import os
+import sys
 import numpy as np
 import json
 
@@ -14,6 +15,8 @@ TOL_CHECK = 1e-2
 
 log = logging.getLogger('trimesh')
 log.addHandler(logging.NullHandler())
+
+_QUICK = '-q' in sys.argv
 
 class VectorTests(unittest.TestCase):
     def setUp(self):
@@ -127,7 +130,7 @@ class MeshTests(unittest.TestCase):
                          (times[2] / times[0]), (times[3] / times[1]))
 
             section   = mesh.section(plane_normal=[0,0,1], plane_origin=mesh.centroid)
-            hull      = mesh.convex_hull()
+            hull      = mesh.convex_hull
             sample    = mesh.sample(1000)
             self.assertTrue(sample.shape == (1000,3))
             
@@ -200,6 +203,7 @@ class BooleanTest(unittest.TestCase):
         self.b = trimesh.load_mesh(os.path.abspath(os.path.join(TEST_DIR, 'ballB.off')))
     
     def test_boolean(self):
+        if _QUICK: return
         a, b = self.a, self.b
         d = a.difference(b)
         self.assertTrue(d.is_watertight)

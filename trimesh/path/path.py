@@ -13,7 +13,7 @@ from copy import deepcopy
 from collections import deque
 
 from .simplify  import simplify_path
-from .polygons  import polygons_enclosure_tree, is_ccw, medial_axis, polygon_hash, repair_invalid
+from .polygons  import polygons_enclosure_tree, is_ccw, medial_axis, polygon_hash, repair_invalid, polygon_obb
 from .traversal import vertex_graph, closed_paths, discretize_path
 from .io.export import export_path
 
@@ -293,7 +293,14 @@ class Path2D(Path):
         return [self.merge_vertices,
                 self.remove_duplicate_entities,
                 self.remove_unreferenced_vertices]
-               
+
+    def apply_obb(self):
+        if len(self.root) == 1:
+            bounds, T = polygon_obb(self.polygons_closed[self.root[0]])
+            self.transform(T)
+        else:
+            raise ValueError('Not implemented for multibody geometry')
+
     @property
     def body_count(self):
         return len(self.root)
@@ -313,6 +320,7 @@ class Path2D(Path):
                                         holes  = holes)
         return self._cache.set('polygons_full', result)
 
+    @property
     def area(self):
         '''
         Return the area of the polygons interior
