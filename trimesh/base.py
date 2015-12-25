@@ -1,4 +1,3 @@
-
 '''
 trimesh.py
 
@@ -175,9 +174,33 @@ class Trimesh(object):
         # trigger a change (which nukes the cache)
         return self.vertices.view(np.ndarray)[self.faces]
 
+    def triangles_tree(self):
+        tree = triangles.bounds_tree(self.triangles)
+        return tree
+
     @property
     def edges(self):
         return geometry.faces_to_edges(self.faces.view(np.ndarray))
+
+    @property
+    def edges_unique(self):
+        key = 'edges_unique'
+        if key in self._cache:
+            return self._cache.get(key)
+        else:
+            edges_sorted = np.sort(self.edges, axis=1)
+            unique = grouping.unique_rows(edges_sorted)[0]
+            edges_unique = edges_sorted[unique]
+            return self._cache.set(key   = key,
+                                   value = edges_unique)
+    
+    @property
+    def euler_number(self):
+        '''
+        Return the Euler characteristic, a topological invariant, for the mesh
+        '''
+        euler = len(self.vertices) - len(self.edges_unique) + len(self.faces)
+        return euler
 
     @property
     def units(self):
@@ -345,16 +368,11 @@ class Trimesh(object):
         return self._cache.set(key   = 'is_watertight', 
                                value = graph.is_watertight(self.edges))
        
-    @property
     def kdtree(self):
         '''
         Return a KDTree of the vertices of the mesh
         '''
-        cached = self._cache.get('kdtree')
-        if cached is not None: return cached
-        kdtree = KDTree(self.vertices)
-        return self._cache.set(key   = 'kdtree',
-                               value = kdtree)
+        return KDTree(self.vertices.view(np.ndarray))
 
     def remove_degenerate_faces(self):
         '''

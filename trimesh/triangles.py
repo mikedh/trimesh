@@ -135,3 +135,30 @@ def mass_properties(triangles, density = 1.0, skip_inertia=False):
     result['inertia'] = inertia.tolist()
     
     return result
+
+def bounds_tree(triangles):
+    '''
+    Given a set of triangles, create an r-tree for broad- phase 
+    collision detection
+
+    Arguments
+    ---------
+    triangles: (n, 3, 3) list of vertices
+
+    Returns
+    ---------
+    tree: Rtree object 
+    '''
+    from rtree import index
+
+    # the property object required to get a 3D r-tree index
+    properties = index.Property()
+    properties.dimension = 3
+    # the (n,6) interleaved bounding box for every triangle
+    tri_bounds = np.column_stack((triangles.min(axis=1), triangles.max(axis=1)))
+  
+    # stream loading wasn't getting proper index
+    tree = index.Index(properties=properties)  
+    for i, bounds in enumerate(tri_bounds):
+        tree.insert(i, bounds)    
+    return tree

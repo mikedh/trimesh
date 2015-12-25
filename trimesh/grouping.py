@@ -33,7 +33,7 @@ def merge_vertices_kdtree(mesh, angle=None):
     probably don't want to use plain python KDTree as it is crazy slow (~1000x in tests)
     '''
 
-    tree    = mesh.kdtree
+    tree = mesh.kdtree()
     used    = np.zeros(len(mesh.vertices), dtype=np.bool)
     inverse = np.arange(len(mesh.vertices), dtype=np.int)
     unique  = deque()

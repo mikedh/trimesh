@@ -13,23 +13,6 @@ class RayMeshIntersector:
     def __init__(self, mesh):
         self.mesh = mesh
 
-        # create triangles and tree from mesh only when requested,
-        # rather than on initialization. 
-        self._triangles = None
-        self._tree      = None
-
-    @property
-    def tree(self):
-        '''
-        An r-tree that contains every triangle
-        This is moderately expensive and can be reused,
-        and is only created when requested
-        '''
-
-        if self._tree is None:
-            self._tree = create_tree(self.mesh.triangles)
-        return self._tree
-
     def intersects_id(self, rays, return_any=False):
         '''
         Find the indexes of triangles the rays intersect
@@ -44,7 +27,7 @@ class RayMeshIntersector:
         '''
         rays       = np.array(rays, dtype=np.float)
         candidates = ray_triangle_candidates(rays = rays, 
-                                             tree = self.tree)
+                                             tree = self.mesh.triangles_tree())
         hits  = rays_triangles_id(triangles      = self.mesh.triangles, 
                                   rays           = rays, 
                                   ray_candidates = candidates,
@@ -120,34 +103,6 @@ def ray_triangle_candidates(rays, tree):
     for ray_index, bounds in enumerate(ray_bounding):
         ray_candidates[ray_index] = list(tree.intersection(bounds))
     return ray_candidates
-
-def create_tree(triangles):
-    '''
-    Given a set of triangles, create an r-tree for broad- phase 
-    collision detection
-
-    Arguments
-    ---------
-    triangles: (n, 3, 3) list of vertices
-
-    Returns
-    ---------
-    tree: Rtree object 
-    '''
-    from rtree import index
-
-    # the property object required to get a 3D r-tree index
-    properties = index.Property()
-    properties.dimension = 3
-    # the (n,6) interleaved bounding box for every triangle
-    tri_bounds = np.column_stack((triangles.min(axis=1), triangles.max(axis=1)))
-  
-    # stream loading wasn't getting proper index
-    tree = index.Index(properties=properties)  
-    for i, bounds in enumerate(tri_bounds):
-        tree.insert(i, bounds)
-    
-    return tree
 
 def ray_bounds(rays, bounds, buffer_dist = 1e-5):
     '''
