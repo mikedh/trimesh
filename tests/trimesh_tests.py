@@ -241,7 +241,7 @@ class RayTests(unittest.TestCase):
         rays_ori[:,2] = -5
         rays = np.column_stack((rays_ori, rays_dir)).reshape((-1,2,3))
         # force ray object to allocate tree before timing it
-        tree = sphere.ray.tree
+        tree = sphere.triangles_tree()
         tic = time.time()
         sphere.ray.intersects_id(rays)
         toc = time.time()
