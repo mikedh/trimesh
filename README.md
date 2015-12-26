@@ -90,7 +90,7 @@ for facet in facets:
     mesh.visual.face_colors[facet] = trimesh.color.random_color()
 
 # preview mesh in an opengl window if you installed pyglet 
-m.show()
+mesh.show()
 ```
 
 In the mesh view window, dragging rotates the view, ctl + drag pans, mouse wheel scrolls, 'z' returns to the base view, 'w' toggles wireframe mode, and 'c' toggles backface culling.
