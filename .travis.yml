@@ -1,19 +1,21 @@
 language: python
 sudo: required
 dist: trusty
-
 python:
-  - "2.7"
-  - "3.3"
-  - "3.4"
-  - "3.5"
-
+- '2.7'
+- '3.3'
+- '3.4'
+- '3.5'
+deploy:
+  provider: pypi
+  user: mikedh
+  password:
+    secure: HbsOtokNjlpRE98DpeeX1uPzMR3XWZbovtyPA2gS4eobkod7YyBXDgj30uOwcMvJMo4sX7Fi3X59qY43qHLiftTFhaMtN4+E1N0HaVVfmTi/Iv/L4qd4gMjCjg6M7N1wiCmYA+ceB8pAGOzLoo2K2uXixBfkeQjxUZjKTHfQYlM=
 before_install:
-  - sudo apt-get update
-  - sudo apt-get install -y python-scipy python-numpy libgeos-dev openscad libspatialindex*
-  - virtualenv --system-site-packages ../trimesh_testing
-  - source ../trimesh_testing/bin/activate
-
+- sudo apt-get update
+- sudo apt-get install -y python-scipy python-numpy libgeos-dev openscad libspatialindex*
+- virtualenv --system-site-packages ../trimesh_testing
+- source ../trimesh_testing/bin/activate
 install: pip install -e .[path]
 before_script: cd tests
-script: "python path_tests.py; python trimesh_tests.py"
+script: python path_tests.py; python trimesh_tests.py
