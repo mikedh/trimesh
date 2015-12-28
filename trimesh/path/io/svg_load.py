@@ -60,7 +60,6 @@ def svg_to_path(file_obj, file_type=None):
         starting = True
         for svg_entity in parse_path(svg_string):
             loaders[svg_entity.__class__.__name__](svg_entity)
-            starting = False
 
     return {'entities' : np.array(entities),
             'vertices' : np.array(vertices)}

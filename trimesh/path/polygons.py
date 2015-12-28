@@ -24,7 +24,6 @@ def polygons_enclosure_tree(polygons):
     tree = Rtree()
     for i, polygon in enumerate(polygons):
         tree.insert(i, polygon.bounds)
-
     count = len(polygons)
     g     = nx.DiGraph()
     g.add_nodes_from(np.arange(count))
@@ -366,6 +365,13 @@ def polygon_scale(polygon):
     scale = box.max()
     return scale
    
+def path_to_polygon(path, scale=None):
+    try: 
+        polygon = Polygon(path)
+    except ValueError:
+        return None
+    return repair_invalid(polygon, scale)
+  
 def repair_invalid(polygon, scale=None):
     '''
     Given a shapely.geometry.Polygon, attempt to return a 
@@ -373,12 +379,16 @@ def repair_invalid(polygon, scale=None):
         
     '''
     # if the polygon is already valid, return immediately
-    if polygon.is_valid: 
+    if polygon.is_valid:
         return polygon
 
     # basic repair involves buffering the polygon outwards
     # this will fix a subset of problems. 
     basic = polygon.buffer(tol.zero)
+
+    if basic.area < tol.zero:
+        return None
+
     if basic.is_valid:
         log.debug('Recovered invalid polygon through zero buffering')
         return basic

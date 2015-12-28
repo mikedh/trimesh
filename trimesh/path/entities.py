@@ -100,10 +100,8 @@ class Entity(object):
             
     @property
     def is_valid(self):
-        valid = np.any(np.diff(self.points) > 0)
-        return valid
+        return True
         
-
     def reverse(self, direction=-1):
         '''
         Reverse the current entity.
@@ -122,7 +120,9 @@ class Line(Entity):
         '''
         If the first point is the same as the end point, the polyline is closed
         '''
-        return self.points[0] == self.points[-1]
+        ends = self.points[0] == self.points[-1]
+        closed = ends and len(self.points) > 2
+        return closed
 
     @closed.setter
     def closed(self, value):
@@ -131,7 +131,12 @@ class Line(Entity):
         or not, ignore any attempt to manually define the closed property. 
         '''
         return
-        
+
+    @property
+    def is_valid(self):
+        valid = np.any((self.points - self.points[0]) != 0)
+        return valid
+
 class Arc(Entity):
     def discrete(self, vertices, scale=1.0):
         return discretize_arc(vertices[self.points], 

@@ -13,7 +13,7 @@ from copy import deepcopy
 from collections import deque
 
 from .simplify  import simplify_path
-from .polygons  import polygons_enclosure_tree, is_ccw, medial_axis, polygon_hash, repair_invalid, polygon_obb
+from .polygons  import polygons_enclosure_tree, is_ccw, medial_axis, polygon_hash, path_to_polygon, polygon_obb
 from .traversal import vertex_graph, closed_paths, discretize_path
 from .io.export import export_path
 
@@ -26,7 +26,6 @@ from ..constants import log, time_function
 from ..constants import tol_path as tol
 
 from .. import util
-
 
 class Path(object):
     '''
@@ -162,6 +161,10 @@ class Path(object):
         if len(entity_ids) == 0: return
         kept = np.setdiff1d(np.arange(len(self.entities)), entity_ids)
         self.entities = np.array(self.entities)[kept]
+
+    def remove_invalid(self):
+        valid = np.array([i.is_valid for i in self.entities], dtype=np.bool)
+        self.entities = self.entities[valid]
 
     def remove_duplicate_entities(self):
         entity_hashes   = np.array([i.hash for i in self.entities])
@@ -426,10 +429,8 @@ class Path2D(Path):
                     split[i]._cache.update({'paths'          : np.array(new_paths),
                                             'polygons_closed': self.polygons_closed[connected],
                                             'root'           : new_root})
-                
         [i._cache.id_set() for i in split]
         self._cache.id_set()
-
         return np.array(split)
 
     def plot_discrete(self, show=False, transform=None, axes=None):
@@ -452,7 +453,8 @@ class Path2D(Path):
     def plot_entities(self, show=False):
         import matplotlib.pyplot as plt
         plt.axes().set_aspect('equal', 'datalim')
-        eformat = {'Line0'  : {'color'  :'g', 'linewidth':1}, 
+        eformat = {'Line0'  : {'color'  :'g', 'linewidth':1},
+                   'Line1'  : {'color'  :'y', 'linewidth':1},
                    'Arc0'   : {'color'  :'r', 'linewidth':1}, 
                    'Arc1'   : {'color'  :'b', 'linewidth':1},
                    'Bezier0': {'color'  :'k', 'linewidth':1},
@@ -473,34 +475,42 @@ class Path2D(Path):
 
 
     @property
+    def polygons_valid(self):
+        exists = self.polygons_closed
+        return self._cache.get('polygons_valid')
+
+    @property
     def polygons_closed(self):
         if 'polygons_closed' in self._cache: 
             return self._cache.get('polygons_closed')
 
-        def path_to_polygon(path):
-            discrete = discretize_path(self.entities, 
-                                       self.vertices, 
-                                       path, 
-                                       scale = self.scale)
-            return Polygon(discrete)
-   
         def reverse_path(path):
             for entity in self.entities[path]: 
                 entity.reverse()
             return path[::-1]
-            
         with self._cache:
-            polygons = [None] * len(self.paths)
+            polygons = [None]  * len(self.paths)
+            valid    = [False] * len(self.paths)
             for i, path in enumerate(self.paths):
-                candidate = path_to_polygon(path)
-                candidate = repair_invalid(candidate, scale=self.scale)
+                discrete = discretize_path(self.entities, 
+                                           self.vertices, 
+                                           path, 
+                                           scale = self.scale)
+                candidate = path_to_polygon(discrete, scale=self.scale)
+                if candidate is None: 
+                    continue
                 if not candidate.exterior.is_ccw:
                     log.debug('Clockwise polygon detected, correcting!')
                     self.paths[i] = reverse_path(path)
                     candidate = Polygon(np.array(candidate.exterior.coords)[::-1])
                 polygons[i] = candidate
-            polygons = np.array(polygons)
-        return self._cache.set('polygons_closed', polygons)
+                valid[i]    = True
+            valid = np.array(valid, dtype=np.bool)
+            polygons = np.array(polygons)[valid]
+
+        self._cache.set('polygons_valid',  valid)
+        self._cache.set('polygons_closed', polygons)
+        return polygons
 
     @property
     def root(self):
