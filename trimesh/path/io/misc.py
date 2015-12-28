@@ -35,24 +35,30 @@ def lines_to_path(lines):
     for i in range(0, (len(lines) * 2) - 1, 2):
         entities.append(Line([i, i+1]))
     vertices = lines.reshape((-1,dimension))
+
     return {'entities' : entities,
             'vertices' : vertices}
 
-def polygon_to_lines(polygon):
+def polygon_to_path(polygon):
     '''
     Given a shapely.geometry.Polygon, convert it to a set
     of (n,2,2) line segments.
     '''
     def append_boundary(boundary):
-        vertices = np.array(boundary.coords)
-        lines.append(np.column_stack((vertices[:-1],
-                                      vertices[1:])).reshape((-1,2,2)))
-    lines = deque()
+        entities.append(Line(np.arange(len(boundary.coords)) + 
+                             len(vertices)))
+        vertices.extend(boundary.coords)
+
+    entities = deque()
+    vertices = deque()
+
     append_boundary(polygon.exterior)
     for interior in polygon.interiors:
         append_boundary(interior)
-    return np.vstack(lines)
 
+    return {'entities' : np.array(entities),
+            'vertices' : np.array(vertices)}
+        
 def faces_to_path(mesh, face_ids=None):
     '''
     Given a mesh and face indices, find the outline edges and

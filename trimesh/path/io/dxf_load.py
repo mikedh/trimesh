@@ -64,9 +64,9 @@ def load_dxf(file_obj):
     def convert_polyline(e_data):
         e     = multi_dict(e_data)
         lines = np.column_stack((e['10'], e['20'])).astype(np.float)
-        for i in range(len(lines) - 1):
-            entities.append(Line([i+len(vertices), i+len(vertices)+1]))
+        entities.append(Line(np.arange(len(lines))+len(vertices)))
         vertices.extend(lines)
+
     def convert_bspline(e_data):
         # in the DXF there are n points and n ordered fields 
         # with the same group code 

@@ -1,6 +1,8 @@
 import numpy as np
 import time
 
+
+from ..util            import Cache
 from ..points          import unitize
 from ..intersections   import plane_line_intersection
 from .ray_triangle_cpu import rays_triangles_id
@@ -11,7 +13,17 @@ class RayMeshIntersector:
     Precomputes an r-tree for each triangle on the mesh.
     '''
     def __init__(self, mesh):
-        self.mesh = mesh
+        self.mesh   = mesh
+        self._cache = Cache(self.mesh.md5)
+
+
+    @property
+    def tree(self):
+        if 'tree' in self._cache:
+            return self._cache.get('tree')
+        else:
+            return self._cache.set('tree',
+                                   self.mesh.triangles_tree())
 
     def intersects_id(self, rays, return_any=False):
         '''
@@ -27,7 +39,7 @@ class RayMeshIntersector:
         '''
         rays       = np.array(rays, dtype=np.float)
         candidates = ray_triangle_candidates(rays = rays, 
-                                             tree = self.mesh.triangles_tree())
+                                             tree = self.tree)
         hits  = rays_triangles_id(triangles      = self.mesh.triangles, 
                                   rays           = rays, 
                                   ray_candidates = candidates,

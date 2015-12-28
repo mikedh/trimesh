@@ -4,7 +4,7 @@ import os
 
 from .dxf_load   import load_dxf
 from .svg_load   import svg_to_path
-from .misc       import lines_to_path, polygon_to_lines, dict_to_path
+from .misc       import lines_to_path, polygon_to_path, dict_to_path
 
 from ..path      import Path2D, Path3D
 
@@ -25,8 +25,7 @@ def load_path(obj, file_type=None):
         loaded = _LOADERS[file_type](file_obj)
         file_obj.close()
     elif type_name == 'Polygon':
-        lines  = polygon_to_lines(obj)
-        loaded = lines_to_path(lines)
+        loaded = polygon_to_path(obj)
     elif type_name == 'dict':
         loaded = dict_to_path(obj)
     elif is_sequence(obj):

@@ -44,7 +44,7 @@ def svg_to_path(file_obj, file_type=None):
         if not starting: points[0] = vertices[-1]
         entities.append(Bezier(np.arange(4)+len(vertices)))
         vertices.extend(points)
-    
+
     # first, we grab all of the path strings from the xml file
     xml   = parse_xml(file_obj.read())
     paths = [p.attributes['d'].value for p in xml.getElementsByTagName('path')]
@@ -60,7 +60,7 @@ def svg_to_path(file_obj, file_type=None):
         starting = True
         for svg_entity in parse_path(svg_string):
             loaders[svg_entity.__class__.__name__](svg_entity)
-            #starting = False
+            starting = False
 
     return {'entities' : np.array(entities),
             'vertices' : np.array(vertices)}

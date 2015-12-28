@@ -37,7 +37,14 @@ class VectorTests(unittest.TestCase):
 
     def test_discrete(self):
         for d in self.drawings:
-            self.assertTrue(len(d.polygons_closed) == len(d.paths))
+            try:
+                closed = len(d.polygons_closed) == len(d.paths)
+            except:
+                log.error('Failed on %s!', d.filename, exc_info=True)
+                closed = False
+
+            self.assertTrue(closed)
+
             for path in d.paths:
                 verts = d.discretize_path(path)
                 dists = np.sum((np.diff(verts, axis=0))**2, axis=1)**.5
@@ -56,7 +63,15 @@ class VectorTests(unittest.TestCase):
     
     def test_paths(self):
         for d in self.drawings:
-            self.assertTrue(len(d.paths) == len(d.polygons_closed))
+
+            try:
+                closed = len(d.polygons_closed) == len(d.paths)
+            except:
+                log.error('Failed on %s!', d.filename, exc_info=True)
+                closed = False
+
+            self.assertTrue(closed)
+
             for i in range(len(d.paths)):
                 self.assertTrue(d.polygons_closed[i].is_valid)
                 self.assertTrue(d.polygons_closed[i].area > tol.zero)
