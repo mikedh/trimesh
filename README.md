@@ -1,7 +1,7 @@
 # trimesh #
 [![Build Status](https://travis-ci.org/mikedh/trimesh.svg?branch=master)](https://travis-ci.org/mikedh/trimesh)
 
-Python (2.7-3.*) library for loading and utilizing triangular meshes.
+Python (2.7-3.*) library for loading and utilizing triangular meshes. The goal of the library is to provide a fully featured Trimesh object which allows for easy manipulation and analysis, in the style of the excellent Polygon object in the Shapely library.
 
 ### Features ###
 * Import binary/ASCII STL, Wavefront, and OFF

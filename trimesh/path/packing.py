@@ -1,14 +1,14 @@
 import numpy as np 
 import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
+
 from shapely.geometry import Point, Polygon, LineString
 
-from copy import deepcopy
+from collections import deque
 
 from ..constants import log, time_function
 from ..constants import tol_path as tol
 
-from .polygons  import polygon_obb
+from .polygons  import polygon_obb, transform_polygon
 from ..util     import transformation_2D
 
 class Bin:
@@ -117,7 +117,13 @@ def pack_rectangles(rectangles, sheet_size, shuffle=False):
     return density, offset[inserted], inserted, consumed_box
   
 def pack_paths(paths, show=False):
-    paths_full = np.hstack([[deepcopy(i) for j in range(i.metadata['quantity'])] for i in paths])
+    paths_full = deque()
+    for path in paths:
+        if 'quantity' in path.metadata:
+            paths_full.extend([path.copy() for i in range(path.metadata['quantity'])])
+        else:
+            paths_full.append(path.copy())
+
     polygons   = [i.polygons_closed[i.root[0]] for i in paths_full]
     inserted, transforms = multipack(np.array(polygons))
     for path, transform in zip(paths_full, transforms):
@@ -177,7 +183,10 @@ def multipack(polygons,
     transforms_packed.reshape(-1,9)[:,[2,5]] += overall_offset + buffer_dist
  
     if plot: 
-        transform_polygons(np.array(polygons)[overall_inserted], transforms_packed, plot=True)
+        print transforms_packed[0]
+        transform_polygon(np.array(polygons)[overall_inserted],  
+                          transforms_packed, 
+                          plot=True)
         plt.show()
 
     rectangles -= 2.0*buffer_dist
@@ -191,46 +200,7 @@ def multipack(polygons,
 
     return overall_inserted, transforms_packed
 
-def display_pack(polygons, target_resolution=[640,480], target_fill=1.0):
-    '''
-    Utility function to pack polygons for an interface display
-    '''
-    inserted, tf_packed, tf_obb, sheet, rectangles = multipack(polygons, return_all=True)
-    
-    scale_packed = np.min(np.divide(target_resolution, sheet)) * target_fill
-    scale_focus  = np.divide(target_resolution, rectangles).min(axis=1) * target_fill
-    
-    center_offset_packed = (target_resolution - (scale_packed*sheet)) * .5
-    center_offset_focus  = (target_resolution - rectangles*scale_focus.reshape((-1,1))) * .5
-   
-    tf_packed_scale = np.eye(3) * scale_packed
-    tf_focus_scale  = np.tile(np.eye(3), (len(scale_focus), 1, 1))
-    tf_focus_scale *= scale_focus.reshape((-1,1,1))
+class Packer:
+    def __init__(self, sheet_size=None):
+        pass
 
-    tf_packed_display = np.dot(tf_packed, tf_packed_scale)
-    tf_focus_display  = np.array([np.dot(a,b) for a,b in zip(tf_focus_scale, tf_obb)])
-    
-    tf_packed_display[:,0:2,2] += center_offset_packed    
-    tf_focus_display[:,0:2,2]  += center_offset_focus
-
-    return inserted, tf_packed_display, tf_focus_display
-
-def transform_polygon(polygon, transform, plot=False):
-    '''
-    Transform a single shapely polygon, returning a vertex list
-    '''
-    vertices = np.column_stack(polygon.boundary.xy)
-    vertices = np.dot(transform, np.column_stack((vertices, 
-                                                  np.ones(len(vertices)))).T)[0:2,:]
-    if plot: plt.plot(*vertices)
-    return vertices.T
-    
-def transform_polygons(polygons, transforms, plot=False):
-    '''
-    Transform a list of Shapely polygons, returning vertex lists. 
-    '''
-    if plot: plt.axes().set_aspect('equal', 'datalim')
-    paths = [None] * len(polygons)
-    for i in range(len(polygons)):
-        paths[i] = transform_polygon(polygons[i], transforms[i], plot=plot)
-    return paths

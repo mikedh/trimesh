@@ -8,7 +8,7 @@ import networkx as nx
 from ..geometry   import medial_axis as _medial_axis
 from ..constants  import tol_path as tol
 from ..constants  import log
-from ..points     import unitize
+from ..points     import unitize, transform_points
 from ..util       import transformation_2D, is_sequence
 from .util        import is_ccw
 from .traversal   import resample_path
@@ -95,24 +95,15 @@ def polygon_obb(polygon):
 
     
 def transform_polygon(polygon, transform, plot=False):
-    '''
-    Transform a single shapely polygon, returning a vertex list
-    '''
-    vertices = np.column_stack(polygon.boundary.xy)
-    vertices = np.dot(transform, np.column_stack((vertices, 
-                                                  np.ones(len(vertices)))).T)[0:2,:]
-    if plot: plt.plot(*vertices)
-    return vertices.T
-    
-def transform_polygons(polygons, transforms, plot=False):
-    '''
-    Transform a list of Shapely polygons, returning vertex lists. 
-    '''
-    if plot: plt.axes().set_aspect('equal', 'datalim')
-    paths = [None] * len(polygons)
-    for i in range(len(polygons)):
-        paths[i] = transform_polygon(polygons[i], transforms[i], plot=plot)
-    return paths
+    if is_sequence(polygon):
+        result = [transform_polygon(p,t) for p,t in zip(polygon, transform)]
+    else:
+        shell = transform_points(np.array(polygon.exterior.coords), transform)
+        holes = [transform_points(np.array(i.coords), transform) for i in polygon.interiors]
+        result = Polygon(shell=shell, holes=holes)
+    if plot: 
+        plot_polygon(result)
+    return result
 
 def rasterize_polygon(polygon, pitch, angle=0, return_points=False):
     '''
@@ -183,13 +174,20 @@ def rasterize_polygon(polygon, pitch, angle=0, return_points=False):
     log.info('Rasterized polygon into %s grid', str(shape))
     return grid, transform
     
-def plot_polygon(polygon):
+def plot_polygon(polygon, show=True):
     import matplotlib.pyplot as plt
+
+    def plot_single(single):
+        plt.plot(*single.exterior.xy, color='b')
+        for interior in single.interiors:
+            plt.plot(*interior.xy, color='r')
+
     plt.axes().set_aspect('equal', 'datalim')
-    plt.plot(*polygon.exterior.xy, color='b')
-    for interior in polygon.interiors:
-        plt.plot(*interior.xy, color='r')
-    plt.show()
+    if is_sequence(polygon):
+        [plot_single(i) for i in polygon]
+    else:
+        plot_single(polygon)
+    if show: plt.show()
 
 def plot_raster(raster, pitch, offset=[0,0]):
     '''
