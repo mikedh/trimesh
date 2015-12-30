@@ -109,7 +109,7 @@ def vector_to_spherical(cartesian):
     '''
     x,y,z = np.array(cartesian).T
     # cheat on divide by zero errors
-    x[np.abs(x) < tol.zero] = tol.zero
+    x[np.abs(x) < _TOL_ZERO] = _TOL_ZERO
     spherical = np.column_stack((np.arctan(y/x),
                                  np.arccos(z)))
     return spherical

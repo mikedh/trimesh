@@ -496,8 +496,8 @@ class Trimesh(object):
         Removes all face references, so that every face contains
         three unique vertex indices.
         '''
-        self.vertices = self.vertices[[self.faces]].reshape((-1,3))
-        self.faces    = np.arange(len(self.vertices)).reshape((-1,3))
+        self.vertices = self.vertices[self.faces].reshape((-1,3))
+        self.faces = np.arange(len(self.vertices)).reshape((-1,3))
         
     def transform(self, matrix):
         '''

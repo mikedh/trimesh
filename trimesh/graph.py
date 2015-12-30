@@ -52,7 +52,7 @@ def face_adjacency(faces):
     return adjacency
 
 def shared_edges(faces_a, faces_b):
-    '''  
+    '''
     Given two sets of faces, find the edges which are in both sets.
     '''
     e_a = np.sort(faces_to_edges(faces_a), axis=1)
