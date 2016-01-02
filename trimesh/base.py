@@ -278,6 +278,7 @@ class Trimesh(object):
         inverse:     (len(self.vertices)) int array to reconstruct
                      vertex references (such as output by np.unique)
         '''
+
         if mask.dtype.name == 'bool' and mask.all(): return
         self.faces = inverse[[self.faces.reshape(-1)]].reshape((-1,3))
         self.visual.update_vertices(mask)
@@ -297,6 +298,7 @@ class Trimesh(object):
         ---------
         valid: either (m) int, or (len(self.faces)) bool. 
         '''
+
         if mask.dtype.name == 'bool' and mask.all(): return
         if np.shape(self._face_normals) == np.shape(self.faces):
             self._face_normals = self._face_normals[mask]
@@ -306,16 +308,14 @@ class Trimesh(object):
     def remove_duplicate_faces(self):
         '''
         For the current mesh, remove any faces which are duplicated. 
-        This can occur if faces are below the 
         '''
-        unique,inverse = grouping.unique_rows(np.sort(self.faces, axis=1))
+        unique, inverse = grouping.unique_rows(np.sort(self.faces, axis=1))
         self.update_faces(unique)
         
     def rezero(self):
         '''
         Move the mesh so that all vertex vertices are positive.
-        IE subtract the min vertex from all vertices, moving it to
-        the first octant
+        Does this by subtracting the min XYZ value from all vertices
         '''
         self.vertices -= self.vertices.min(axis=0)
         
@@ -325,7 +325,14 @@ class Trimesh(object):
         Returns a list of Trimesh objects, based on face connectivity.
         Splits into individual components, sometimes referred to as 'bodies'
 
-        if check_watertight: only meshes which are watertight are returned
+        Arguments
+        ---------
+        check_watertight: only meshes which are watertight are returned
+        adjacency: if not None, override face adjacency with custom values (n,2)
+
+        Returns
+        ---------
+        meshes: (n) list of Trimesh objects
         '''
         meshes = graph.split(self, 
                              check_watertight = check_watertight,
@@ -364,27 +371,44 @@ class Trimesh(object):
        
     def kdtree(self):
         '''
-        Return a KDTree of the vertices of the mesh
+        Return a scipy.spatial.cKDTree of the vertices of the mesh.
+        Not cached as this lead to memory issues and segfaults.
         '''
         return KDTree(self.vertices.view(np.ndarray))
 
     def remove_degenerate_faces(self):
         '''
-        Removes degenerate faces, or faces that have zero area.
-        This function will only work if vertices are merged. 
+        Remove degenerate faces (faces with zero area) from the current mesh.
         '''
         nondegenerate = geometry.nondegenerate_faces(self.faces)
         self.update_faces(nondegenerate)
 
-    def facets(self, return_area=False, group_normals=False):
+    def facets(self, return_area=False):
         '''
-        Return a list of face indices for coplanar adjacent faces
+        Return a list of face indices for coplanar adjacent faces.
+
+        Arguments
+        ---------
+        return_area: boolean, if True return area of each group of faces
+
+        Returns
+        ---------
+        facets: (n) sequence of face indices
+        area:   (n) float list of face group area (if return_area)
         '''
-        facets = [graph.facets, graph.facets_group][group_normals](self)
+        key = 'facets_' + str(int(return_area))
+        if key in self._cache:
+            return self._cache.get(key)
+
+        facets = graph.facets(self)
         if return_area:
             area = np.array([self.area_faces[i].sum() for i in facets])
-            return facets, area
-        return facets
+            result = (facets, area)
+        else: 
+            result = facets
+
+        return self._cache.set(key   = key,
+                               value = result)
 
     @_log_time    
     def fix_normals(self):
