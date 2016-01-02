@@ -51,6 +51,32 @@ def face_adjacency(faces):
     adjacency = edge_face_index[edge_groups]
     return adjacency
 
+def adjacency_angle(mesh, angle):
+    '''
+    Return the adjacent faces of a mesh only if the faces
+    are at less than a specified angle.
+
+    Arguments
+    ----------
+    mesh: Trimesh object
+    angle: angle in radians, faces at angles LARGER than this
+           will be considered NOT adjacenct
+
+    Returns
+    ----------
+    adjacency: (n,2) int list of face indices in mesh
+    '''
+
+    # use the cached adjacency if possible
+    adjacency = mesh.face_adjacency
+    normals = mesh.face_normals[adjacency]
+    dots = diagonal_dot(normals[:,0], normals[:,1])
+
+    # the same as np.arccos(dots) < angle, but 3x faster
+    adj_ok = np.abs(dots - 1) < np.cos(angle)
+    result = adjacency[adj_ok]
+    return result
+
 def shared_edges(faces_a, faces_b):
     '''
     Given two sets of faces, find the edges which are in both sets.
@@ -140,7 +166,7 @@ def facets(mesh):
     if _has_gt: return facets_gt()
     else:       return facets_nx()
 
-def split(mesh, check_watertight=True, only_count=False):
+def split(mesh, check_watertight=True, adjacency=None):
     '''
     Given a mesh, will split it up into a list of meshes based on face connectivity
     If check_watertight is true, it will only return meshes where each face has
@@ -150,21 +176,18 @@ def split(mesh, check_watertight=True, only_count=False):
     ----------
     mesh: Trimesh 
     check_watertight: if True, only return watertight components
-    only_count:       if True, return number of components rather
-                      than the components
+    adjacency: (n,2) list of face adjacency to override using the plain
+               adjacency calculated automatically. 
 
     Returns
     ----------
-    if only_count: 
-        count: int, number of components
-    else:
-        meshes: list of Trimesh objects
+    meshes: list of Trimesh objects
     '''
 
     def split_nx():
         def mesh_from_components(connected_faces):
             if check_watertight:
-                subgraph   = nx.subgraph(face_adjacency, connected_faces)
+                subgraph   = nx.subgraph(adjacency_graph, connected_faces)
                 watertight = np.equal(list(subgraph.degree().values()), 3).all()
                 if not watertight: 
                     return
@@ -177,12 +200,10 @@ def split(mesh, check_watertight=True, only_count=False):
             new_meshes.append(mesh.__class__(vertices     = mesh.vertices[[unique]],
                                              faces        = faces,
                                              face_normals = face_normals))
-        face_adjacency = nx.from_edgelist(mesh.face_adjacency)
-        new_meshes = deque()
-        components = [list(i) for i in nx.connected_components(face_adjacency)]
 
-        if only_count: 
-            return len(components)
+        adjacency_graph = nx.from_edgelist(adjacency)
+        new_meshes = deque()
+        components = [list(i) for i in nx.connected_components(adjacency_graph)]
 
         for component in components: mesh_from_components(component)
         log.info('split mesh into %i components.',
@@ -191,14 +212,12 @@ def split(mesh, check_watertight=True, only_count=False):
 
     def split_gt():
         g = GTGraph()
-        g.add_edge_list(mesh.face_adjacency)    
+        g.add_edge_list(adjacency)
         component_labels = label_components(g, directed=False)[0].a
         if check_watertight: 
             degree = g.degree_property_map('total').a
         meshes     = deque()
         components = group(component_labels)
-        if only_count: return len(components)
-
         for i, current in enumerate(components):
             fill_holes = False
             if check_watertight:
@@ -234,6 +253,9 @@ def split(mesh, check_watertight=True, only_count=False):
             meshes.append(new_mesh)
         return np.array(meshes)
 
+    if adjacency is None:
+        adjacency = mesh.face_adjacency
+    
     if _has_gt: 
         return split_gt()
     else:       

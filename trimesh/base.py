@@ -161,14 +161,6 @@ class Trimesh(object):
         return self.box_size.max()
 
     @property
-    def body_count(self):
-        '''
-        Return the number of groups of connected faces.
-        Bodies aren't necessarily watertight.
-        '''
-        return graph.split(self, only_count=True)
-
-    @property
     def triangles(self):
         # use of advanced indexing on our tracked arrays will 
         # trigger a change (which nukes the cache)
@@ -328,14 +320,16 @@ class Trimesh(object):
         self.vertices -= self.vertices.min(axis=0)
         
     @_log_time
-    def split(self, check_watertight=True):
+    def split(self, check_watertight=True, adjacency=None):
         '''
         Returns a list of Trimesh objects, based on face connectivity.
         Splits into individual components, sometimes referred to as 'bodies'
 
         if check_watertight: only meshes which are watertight are returned
         '''
-        meshes = graph.split(self, check_watertight=check_watertight)
+        meshes = graph.split(self, 
+                             check_watertight = check_watertight,
+                             adjacency        = adjacency)
         log.info('split found %i components', len(meshes))
         return meshes
         
