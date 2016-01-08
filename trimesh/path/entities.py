@@ -8,11 +8,9 @@ Design intent: only store references to vertex indices and pass the vertex
 
 import numpy as np
 
-from .arc       import discretize_arc,    arc_center
-from .curve     import discretize_bezier, discretize_bspline
-
-from ..points   import unitize
-from ..util     import replace_references
+from .arc   import discretize_arc, arc_center
+from .curve import discretize_bezier, discretize_bspline
+from ..util import replace_references
 
 _HASH_LENGTH = 5
 
@@ -110,7 +108,7 @@ class Entity(object):
 
 class Line(Entity):
     '''
-    A line or polyline entity
+    A line or poly-line entity
     '''
     def discrete(self, vertices, scale=1.0):
         return vertices[self.points]

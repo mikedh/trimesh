@@ -124,6 +124,10 @@ class MeshTests(unittest.TestCase):
             facets    = trimesh.graph.facets(mesh)
             tic.append(time.time())
 
+            facets, area = mesh.facets(1)
+            faces = facets[np.argmax(area)]
+            outline = mesh.outline(faces)
+
             if has_gt:
                 times = np.diff(tic)
                 log.info('Graph-tool sped up split by %f and facets by %f', 

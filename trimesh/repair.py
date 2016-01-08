@@ -201,8 +201,6 @@ def _hole_to_faces(hole, vertices=None):
               If we were to add more involved remeshing algorithms, these 
               would be required, however since we are only adding triangles
               and triangulated quads it is not necessary. 
-    fill_planar: fill larger holes if every vertex of the boundary lies on a plane
-                 this will not work reliably on non- convex holes 
     Returns
     ---------
     (n, 3) new faces 
