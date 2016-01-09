@@ -97,20 +97,6 @@ def connected_edges(G, nodes):
         nodes_in_G.extend(nx.node_connected_component(G, node))
     edges = G.subgraph(nodes_in_G).edges()
     return edges
-
-def facets_group(mesh):
-    '''
-    Find facets by grouping normals then getting the adjacency subgraph.
-    The other two methods for finding facets rely on looking at the angle between
-    adjacent faces, and then if they are below TOL_ZERO, adding them to a graph
-    of parallel faces. This method is 'fuzzier'
-    '''
-    adjacency = nx.from_edgelist(mesh.face_adjacency)
-    facets    = deque()
-    for row_group in group_rows(mesh.face_normals):
-        if len(row_group) < 2: continue
-        facets.extend([list(i) for i in nx.connected_components(adjacency.subgraph(row_group)) if len(i) > 1])
-    return np.array(facets)
  
 def facets(mesh):
     '''
@@ -260,7 +246,43 @@ def split(mesh, check_watertight=True, adjacency=None):
         return split_gt()
     else:       
         return split_nx()
-    
+
+def smoothed(mesh, angle):
+    '''
+    Return a non- watertight version of the mesh which will
+    render nicely with smooth shading. 
+
+    Arguments
+    ---------
+    mesh: Trimesh object
+    angle: float, radians 
+
+    Returns
+    ---------
+    smooth: Trimesh object
+    '''
+    adjacency = adjacency_angle(mesh, angle)
+    original_faces = mesh.faces.view(np.ndarray)
+    original_vertices = mesh.vertices.view(np.ndarray)
+    faces    = deque()
+    vertices = deque()
+    normals  = deque()
+    mask = np.arange(len(original_vertices))    
+
+    for indices in nx.connected_components(nx.from_edgelist(adjacency)):
+        indices = list(indices)
+        current = original_faces[indices]
+        unique  = np.unique(current.reshape(-1))
+        mask[unique] = np.arange(len(unique)) + len(vertices)
+        faces.extend(mask[current])
+        vertices.extend(original_vertices[current])
+        normals.extend(mesh.face_normals[indices])
+    smooth = type(mesh)(vertices = np.array(vertices),
+                        faces    = np.array(faces),
+                        face_normals = np.array(normals),
+                        process = False)
+    return smooth
+
 def is_watertight(edges):
     '''
     Arguments

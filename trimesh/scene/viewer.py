@@ -8,7 +8,7 @@ from pyglet.gl import *
 from ..transformations import euler_matrix
 
 #smooth only when fewer faces than this
-_SMOOTH_MAX_FACES = 20000
+_SMOOTH_MAX_FACES = 100000
 
 class SceneViewer(pyglet.window.Window):
     def __init__(self, 
@@ -56,17 +56,13 @@ class SceneViewer(pyglet.window.Window):
         if smooth is None:
             smooth = len(mesh.faces) < _SMOOTH_MAX_FACES
 
-        # we don't want the render object to mess with the original mesh
-        mesh_render = mesh.copy()
-        
         if smooth:
-            # merge vertices close in angle (uses a KDtree), 
-            # can be slow on large meshes
-            mesh_render.smooth()
+            display = mesh.smoothed()
         else:
-            mesh_render.unmerge_vertices()
+            display = mesh.copy()
+            display.unmerge_vertices()
 
-        self._vertex_list[node_name] = self.batch.add_indexed(*_mesh_to_vertex_list(mesh_render))
+        self._vertex_list[node_name] = self.batch.add_indexed(*_mesh_to_vertex_list(display))
 
     def reset_view(self):
         '''
@@ -78,7 +74,6 @@ class SceneViewer(pyglet.window.Window):
                      'translation' : np.zeros(3),
                      'center'      : self.scene.centroid,
                      'scale'       : self.scene.scale}
-
         
     def init_gl(self):
         glClearColor(1, 1, 1, 1)

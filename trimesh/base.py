@@ -431,14 +431,13 @@ class Trimesh(object):
         '''
         repair.fill_holes(self, raise_watertight)
 
-    def smooth(self, angle=.4):
+    def smoothed(self, angle=.4):
         '''
-        Process a mesh so that smooth shading renders nicely.
-        This is done by merging vertices with a max angle critera. 
+        Return a version of the current mesh which will render nicely.
         '''
-        self.unmerge_vertices()
-        self.merge_vertices(angle)
-    
+        return graph.smoothed(self, angle)
+
+
     def section(self,
                 plane_normal,
                 plane_origin = None):

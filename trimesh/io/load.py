@@ -45,10 +45,10 @@ def load(obj, file_type=None, **kwargs):
     elif file_type is None and not hasattr(obj, 'read'):
         file_type = obj.__class__.__name__
 
-    if file_type in mesh_formats():
-        return load_mesh(obj, file_type, **kwargs)
-    elif file_type in path_formats():
+    if file_type in path_formats():
         return load_path(obj, file_type, **kwargs)
+    elif file_type in mesh_formats():
+        return load_mesh(obj, file_type, **kwargs)
 
     raise ValueError('File type: %s not supported', str(file_type))
 
