@@ -34,41 +34,18 @@ Python (2.7-3.*) library for loading and utilizing triangular meshes. The goal o
 * Numerous utility functions, such as transforming points, unitizing vectors, grouping rows, etc. 
 
 ### Installation ###
+
 The easiest way to install is:
 ```bash
-$ sudo pip install git+https://github.com/mikedh/trimesh.git
+$ sudo pip install trimesh
 ```
 
 ### Optional Dependencies ###
 
-#### Ray-mesh queries ####
-If you would like to use ray queries or some path functionality, install dependencies:
+Basic functionality is available immediately. Some functions (ray queries, polygon handling, mesh creation, viewer windows, boolean operations, additional importers) require additional libraries:
 ```bash
-$ sudo pip install shapely git+https://github.com/Toblerity/rtree.git svg.path 
-```
-
-Rtree may not build without libspatialindex installed, get it with:
-```bash
-$ sudo apt-get install libspatialindex* 
-```
-
-#### Loading meshes with Assimp ####
-Trimesh supports loading meshes via Assimp, but this requires a fairly recent version.
-To get the latest version of assimp/pyassimp from github:
-```bash
-$ sudo pip install git+https://github.com/robotics/assimp_latest.git 
-```
-
-#### Creating meshes ####
-If you would like to use the trimesh.creation functions, meshpy is required:
-```bash
-$ sudo pip install meshpy
-```
-
-#### Boolean operations ####
-If you would like to use the trimesh.boolean (union, intersection, difference) functions which use openSCAD/CGAL:
-```bash
-$ sudo apt-get install openscad
+$ sudo apt-get install cmake openscad libspatialindex* 
+$ sudo pip install pyglet shapely git+https://github.com/robotics/assimp_latest.git git+https://github.com/Toblerity/rtree.git svg.path meshpy
 ```
 
 ### Quick Start ###
@@ -82,6 +59,13 @@ import trimesh
 # load a file by name or from a buffer
 mesh = trimesh.load_mesh('./models/featuretype.STL')
 
+# is the current mesh watertight?
+print(mesh.is_watertight)
+
+# since the mesh is in fact watertight, it means there is a 
+# volumetric center of mass which we can set as the origin for our mesh
+mesh.vertices -= mesh.center_mass
+
 # find groups of coplanar adjacent faces
 facets, facets_area = mesh.facets(return_area=True)
 
@@ -89,7 +73,7 @@ facets, facets_area = mesh.facets(return_area=True)
 for facet in facets:
     mesh.visual.face_colors[facet] = trimesh.color.random_color()
 
-# preview mesh in an opengl window if you installed pyglet 
+# preview mesh in an opengl window if you installed pyglet with pip 
 mesh.show()
 ```
 
