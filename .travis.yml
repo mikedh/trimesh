@@ -20,5 +20,7 @@ before_install:
 - virtualenv --system-site-packages ../trimesh_testing
 - source ../trimesh_testing/bin/activate
 install: pip install -e .[path]
+
 before_script: cd tests
 script: python path_tests.py; python trimesh_tests.py
+after_script: cd ..
