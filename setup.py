@@ -2,20 +2,22 @@
 
 from setuptools import setup
 
-# load __version__ cleanly
+# load __version__
 exec(open('trimesh/version.py').read())
 
-with open('README.md', 'r') as file_obj:
-    readme = file_obj.read()
+try:
+    import pypandoc
+    long_description = pypandoc.convert('README.md', 'rst')
+except ImportError:
+    long_description = open('README.md', 'r').read()
 
-
-setup(name='trimesh',
-      version=__version__,
-      description='Import, export, process and view triangular meshes.',
-      long_description=readme,
+setup(name = 'trimesh',
+      version = __version__,
+      description='Import, export, process, analyze and view triangular meshes.',
+      long_description=long_description,
       author='Mike Dawson-Haggerty',
       author_email='mik3dh@gmail.com',
-      license='MIT',
+      license = 'MIT',
       url='github.com/mikedh/trimesh',
       packages         = ['trimesh',
                           'trimesh.io',

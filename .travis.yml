@@ -9,8 +9,8 @@ python:
 - '3.5'
 
 before_deploy:
-- pwd
-- ls
+- sudo apt-get install pandoc
+- sudo pip install pypandoc
 
 deploy:
   provider: pypi
