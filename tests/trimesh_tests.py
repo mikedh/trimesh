@@ -225,7 +225,8 @@ class BooleanTest(unittest.TestCase):
    
 class RayTests(unittest.TestCase):
     def setUp(self):
-        with open('ray_data.json', 'r') as f_obj: 
+        ray_filename = os.path.join(SCRIPT_DIR, 'ray_data.json')
+        with open(ray_filename, 'r') as f_obj: 
             data = json.load(f_obj)
         self.meshes = [trimesh.load_mesh(location(f)) for f in data['filenames']]
         self.rays   = data['rays']
@@ -261,7 +262,10 @@ class RayTests(unittest.TestCase):
 class MassTests(unittest.TestCase):
     def setUp(self):
         # inertia numbers pulled from solidworks
-        with open('mass_properties.json', 'r') as f_obj:
+
+        mass_filename = os.path.join(SCRIPT_DIR, 'mass_properties.json')
+
+        with open(mass_filename, 'r') as f_obj:
             self.truth  = json.load(f_obj)
         self.meshes = dict()
         for data in self.truth:
