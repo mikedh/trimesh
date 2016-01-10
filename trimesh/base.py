@@ -172,7 +172,11 @@ class Trimesh(object):
 
     @property
     def edges(self):
-        return geometry.faces_to_edges(self.faces.view(np.ndarray))
+        if 'edges' in self._cache:
+            return self._cache.get('edges')
+        else:
+            return self._cache.set(key = 'edges',
+                                   value = geometry.faces_to_edges(self.faces.view(np.ndarray)))
 
     @property
     def edges_unique(self):
@@ -320,14 +324,14 @@ class Trimesh(object):
         self.vertices -= self.vertices.min(axis=0)
         
     @_log_time
-    def split(self, check_watertight=True, adjacency=None):
+    def split(self, only_watertight=True, adjacency=None):
         '''
         Returns a list of Trimesh objects, based on face connectivity.
         Splits into individual components, sometimes referred to as 'bodies'
 
         Arguments
         ---------
-        check_watertight: only meshes which are watertight are returned
+        only_watertight: only meshes which are watertight are returned
         adjacency: if not None, override face adjacency with custom values (n,2)
 
         Returns
@@ -335,7 +339,7 @@ class Trimesh(object):
         meshes: (n) list of Trimesh objects
         '''
         meshes = graph.split(self, 
-                             check_watertight = check_watertight,
+                             only_watertight = only_watertight,
                              adjacency        = adjacency)
         log.info('split found %i components', len(meshes))
         return meshes
@@ -420,16 +424,14 @@ class Trimesh(object):
         '''
         repair.fix_normals(self)
 
-    def fill_holes(self, raise_watertight=True):
+    def fill_holes(self):
         '''
         Fill single triangle and single quad holes in the mesh.
         
-        Arguments
-        ---------
-        raise_watertight: will raise an error if the current mesh cannot be
-                          repaired to be watertight.
+        Returns:
+        watertight: bool, is the mesh watertight after the function is done?
         '''
-        repair.fill_holes(self, raise_watertight)
+        return repair.fill_holes(self)
 
     def smoothed(self, angle=.4):
         '''

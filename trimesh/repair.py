@@ -41,6 +41,7 @@ def fix_face_winding(mesh):
                 flipped += 1
                 mesh.faces[face_pair[1]] = mesh.faces[face_pair[1]][::-1]
     log.info('Flipped %d/%d edges', flipped, len(mesh.faces)*3)
+
 def fix_normals_direction(mesh):
     '''
     Check to see if a mesh has normals pointed outside the solid using ray tests.
@@ -96,7 +97,7 @@ def broken_faces(mesh, color=None):
         mesh.visual.face_colors[broken] = color
     return broken
 
-def fill_holes(mesh, raise_watertight=True):
+def fill_holes(mesh):
     '''
     Fill single- triangle holes on triangular meshes by adding new triangles
     to fill the holes. New triangles will have proper winding and normals, 
@@ -106,18 +107,18 @@ def fill_holes(mesh, raise_watertight=True):
     Arguments
     ---------
     mesh: Trimesh object
-    raise_watertight: boolean, if True will raise an error if a 
-                      watertight mesh cannot be created. 
-
     '''
-    edges        = faces_to_edges(mesh.faces)
+    edges = mesh.edges
     edges_sorted = np.sort(edges, axis=1)
+
     # we know that in a watertight mesh, every edge will be included twice
     # thus, every edge which appears only once is part of the boundary of a hole.
     boundary_groups = group_rows(edges_sorted, require_count=1)
 
-    if len(boundary_groups) < 3: return
-    
+    if len(boundary_groups) < 3: 
+        watertight = len(boundary_groups) == 0
+        return watertight
+
     boundary_edges  = edges[boundary_groups]
     index_as_dict   = [{'index': i} for i in boundary_groups]
 
@@ -133,8 +134,6 @@ def fill_holes(mesh, raise_watertight=True):
         faces, vertex = _hole_to_faces(hole        = hole, 
                                        vertices    = mesh.vertices)
         if len(faces) == 0:
-            if raise_watertight: 
-                raise MeshError('Cannot create watertight mesh!')
             continue
         # remeshing returns new vertices as negative indices, so change those
         # to absolute indices which won't be screwed up by the later appends
@@ -145,8 +144,11 @@ def fill_holes(mesh, raise_watertight=True):
     new_faces  = np.array(new_faces)
     new_vertex = np.array(new_vertex)
 
-    # no new faces have been added, so nothing further to do
-    if len(new_faces) == 0: return
+    if len(new_faces) == 0: 
+        # no new faces have been added, so nothing further to do
+        # the mesh is NOT watertight, as boundary groups exist
+        # but we didn't add any new faces to fill them in
+        return False
 
     for face_index, face in enumerate(new_faces):
         # we compare the edge from the new face with 
@@ -167,16 +169,13 @@ def fill_holes(mesh, raise_watertight=True):
     # since the winding is now correct, we can get consistant normals
     # just by doing the cross products on the face edges 
     new_normals, valid = normals(mesh.vertices[new_faces])
-
-    # if face colors exist, assign the last face color to the new faces
-    # note that this is a little cheesey, but it is very inexpensive and 
-    # is the right thing to do if the mesh is a single color.
-
-
     mesh.face_normals = np.vstack((mesh.face_normals, new_normals[valid]))
     mesh.faces        = np.vstack((mesh.faces, new_faces[valid]))
 
     if mesh.visual.defined:
+        # if face colors exist, assign the last face color to the new faces
+        # note that this is a little cheesey, but it is very inexpensive and 
+        # is the right thing to do if the mesh is a single color.
         color_shape = np.shape(mesh.visual.face_colors)
         if len(color_shape) == 2 and color_shape[1] == 3:
             new_colors = np.tile(mesh.visual.face_colors[-1], 
@@ -184,10 +183,9 @@ def fill_holes(mesh, raise_watertight=True):
             new_colors = np.vstack((mesh.visual.face_colors, 
                                     new_colors))
             mesh.visual.face_colors = new_colors
-    
-
     log.debug('Filled in mesh with %i triangles', np.sum(valid))
-
+    return mesh.is_watertight
+    
 def _hole_to_faces(hole, vertices=None):
     '''
     Given a loop of vertex indices  representing a hole, turn it into 

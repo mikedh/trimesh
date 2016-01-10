@@ -8,7 +8,7 @@ from .constants import log, tol, MeshError
 from .grouping  import group, group_rows, boolean_rows, replace_references
 from .geometry  import faces_to_edges
 from .points    import unitize
-from .util      import diagonal_dot, is_sequence
+from .util      import diagonal_dot, is_sequence, append_faces
 
 from scipy.spatial import cKDTree as KDTree
 
@@ -80,6 +80,15 @@ def adjacency_angle(mesh, angle):
 def shared_edges(faces_a, faces_b):
     '''
     Given two sets of faces, find the edges which are in both sets.
+
+    Arguments
+    ---------
+    faces_a: (n,3) int, set of faces
+    faces_b: (m,3) int, set of faces
+
+    Returns
+    ---------
+    shared: (p, 2) int, set of edges
     '''
     e_a = np.sort(faces_to_edges(faces_a), axis=1)
     e_b = np.sort(faces_to_edges(faces_b), axis=1)
@@ -152,16 +161,16 @@ def facets(mesh):
     if _has_gt: return facets_gt()
     else:       return facets_nx()
 
-def split(mesh, check_watertight=True, adjacency=None):
+def split(mesh, only_watertight=True, adjacency=None):
     '''
     Given a mesh, will split it up into a list of meshes based on face connectivity
-    If check_watertight is true, it will only return meshes where each face has
+    If only_watertight is true, it will only return meshes where each face has
     exactly 3 adjacent faces.
 
     Arguments
     ----------
     mesh: Trimesh 
-    check_watertight: if True, only return watertight components
+    only_watertight: if True, only return watertight components
     adjacency: (n,2) list of face adjacency to override using the plain
                adjacency calculated automatically. 
 
@@ -171,73 +180,18 @@ def split(mesh, check_watertight=True, adjacency=None):
     '''
 
     def split_nx():
-        def mesh_from_components(connected_faces):
-            if check_watertight:
-                subgraph   = nx.subgraph(adjacency_graph, connected_faces)
-                watertight = np.equal(list(subgraph.degree().values()), 3).all()
-                if not watertight: 
-                    return
-            faces  = mesh.faces[connected_faces]
-            face_normals = mesh.face_normals[connected_faces]
-            unique = np.unique(faces.reshape(-1))
-            replacement = dict()
-            replacement.update(np.column_stack((unique, np.arange(len(unique)))))
-            faces = replace_references(faces, replacement).reshape((-1,3))
-            new_meshes.append(mesh.__class__(vertices     = mesh.vertices[[unique]],
-                                             faces        = faces,
-                                             face_normals = face_normals))
-
         adjacency_graph = nx.from_edgelist(adjacency)
-        new_meshes = deque()
-        components = [list(i) for i in nx.connected_components(adjacency_graph)]
-
-        for component in components: mesh_from_components(component)
-        log.info('split mesh into %i components.',
-                 len(new_meshes))
-        return np.array(new_meshes)
+        components = nx.connected_components(adjacency_graph)
+        result = submesh(mesh, components, only_watertight=only_watertight)
+        return result
 
     def split_gt():
         g = GTGraph()
         g.add_edge_list(adjacency)
         component_labels = label_components(g, directed=False)[0].a
-        if check_watertight: 
-            degree = g.degree_property_map('total').a
-        meshes     = deque()
         components = group(component_labels)
-        for i, current in enumerate(components):
-            fill_holes = False
-            if check_watertight:
-                degree_3 = degree[current] == 3
-                degree_2 = degree[current] == 2
-                if not degree_3.all():
-                    if np.logical_or(degree_3, degree_2).all():
-                        fill_holes = True
-                    else: 
-                        continue
-            
-            # these faces have the original vertex indices
-            faces_original = mesh.faces[current]
-            face_normals   = mesh.face_normals[current]
-            # we find the unique vertex indices, so we can reindex from zero
-            unique_vert    = np.unique(faces_original)
-            vertices       = mesh.vertices[unique_vert]
-            replacement    = np.zeros(unique_vert.max()+1, dtype=np.int)
-            replacement[unique_vert] = np.arange(len(unique_vert))
-            faces                    = replacement[faces_original]
-            new_mesh = mesh.__class__(faces        = faces, 
-                                      face_normals = face_normals, 
-                                      vertices     = vertices)
-            new_meta = deepcopy(mesh.metadata)
-            if 'name' in new_meta:
-                new_meta['name'] = new_meta['name'] + '_' + str(i)
-            new_mesh.metadata.update(new_meta)
-            if fill_holes: 
-                try:
-                    new_mesh.fill_holes(raise_watertight=True)
-                except MeshError: 
-                    continue
-            meshes.append(new_mesh)
-        return np.array(meshes)
+        result = submesh(mesh, components, only_watertight=only_watertight)
+        return result
 
     if adjacency is None:
         adjacency = mesh.face_adjacency
@@ -262,29 +216,70 @@ def smoothed(mesh, angle):
     smooth: Trimesh object
     '''
     adjacency = adjacency_angle(mesh, angle)
-    # take a view of vertices/faces to avoid nuking cache
+    smooth = submesh(mesh,
+                     nx.connected_components(nx.from_edgelist(adjacency)),
+                     only_watertight = False,
+                     append = True)
+
+    return smooth
+
+def submesh(mesh, faces_sequence, only_watertight=False, append=False):
+    '''
+    Return a subset of the mesh.
+
+    Arguments
+    ----------
+    mesh: Trimesh object
+    faces_sequence: sequence of face indices from mesh
+    only_watertight: only return submeshes which are watertight. 
+    append: return a single mesh which has the faces specified appended.
+            if this flag is set, only_watertight is ignored
+
+    Returns
+    ---------
+    if append: Trimesh object
+    else:      list of Trimesh objects
+    '''
+
+    # avoid nuking the cache on the original mesh
     original_faces    = mesh.faces.view(np.ndarray)
     original_vertices = mesh.vertices.view(np.ndarray)
+
     faces    = deque()
     vertices = deque()
     normals  = deque()
+
+    # for reindexing faces
     mask = np.arange(len(original_vertices))    
 
-    for indices in nx.connected_components(nx.from_edgelist(adjacency)):
-        indices = list(indices)
-        current = original_faces[indices]
-        unique  = np.unique(current.reshape(-1))
-        mask[unique] = np.arange(len(unique)) + len(vertices)
-        faces.extend(mask[current])
-        vertices.extend(original_vertices[unique])
-        normals.extend(mesh.face_normals[indices])
+    for faces_index in faces_sequence:
+        # sanitize indices in case they are coming in as a set or tuple
+        faces_index   = np.array(list(faces_index))
+        faces_current = original_faces[faces_index]
+        unique = np.unique(faces_current.reshape(-1))
+        
+        # redefine face indices from zero
+        mask[unique] = np.arange(len(unique))
 
-    smooth = type(mesh)(vertices = np.array(vertices),
-                        faces    = np.array(faces),
-                        face_normals = np.array(normals),
-                        process = False)
-
-    return smooth
+        faces.append(mask[faces_current])
+        vertices.append(original_vertices[unique])
+        normals.append(mesh.face_normals[faces_index])
+        
+    if append:
+        vertices, faces = append_faces(vertices, faces)
+        appended = type(mesh)(vertices = vertices,
+                              faces = faces,
+                              face_normals = np.vstack(normals),
+                              process = False)
+        return appended
+    result = [type(mesh)(vertices     = v, 
+                         faces        = f, 
+                         face_normals = n) for v,f,n in zip(vertices, faces, normals)]
+    if only_watertight:
+        watertight = np.array([i.fill_holes() for i in result])
+        result     = np.array(result)[watertight]
+    result = np.array(result)
+    return result
 
 def is_watertight(edges):
     '''
