@@ -6,7 +6,7 @@ from .base      import Trimesh
 from .constants import log
 from .geometry  import faces_to_edges
 from .grouping  import group_rows, unique_rows
-from .util      import three_dimensionalize
+from .util      import three_dimensionalize, append_faces
 
 import numpy as np
 from collections import deque
@@ -158,27 +158,4 @@ def triangulate_polygon(polygon, **kwargs):
     mesh_faces    = np.array(mesh.elements)
 
     return mesh_vertices, mesh_faces
-
-def append_faces(vertices_seq, faces_seq): 
-    '''
-    Given a sequence of zero- indexed faces and vertices,
-    combine them into a single (n,3) list of faces and (m,3) vertices
-
-    Arguments
-    ---------
-    vertices_seq: (n) sequence of (m,d) vertex arrays
-    faces_seq     (n) sequence of (p,j) faces, zero indexed
-                  and referencing their counterpoint vertices
-
-    '''
-    vertices_len = np.array([len(i) for i in vertices_seq])
-    face_offset  = np.append(0, np.cumsum(vertices_len)[:-1])
-    
-    for offset, faces in zip(face_offset, faces_seq):
-        faces += offset
-
-    vertices = np.vstack(vertices_seq)
-    faces    = np.vstack(faces_seq)
-
-    return vertices, faces
 

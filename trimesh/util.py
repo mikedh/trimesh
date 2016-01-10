@@ -434,3 +434,28 @@ class Cache:
 def stack_lines(indices):
     return np.column_stack((indices[:-1],
                             indices[1:])).reshape((-1,2))
+
+def append_faces(vertices_seq, faces_seq): 
+    '''
+    Given a sequence of zero- indexed faces and vertices,
+    combine them into a single (n,3) list of faces and (m,3) vertices
+
+    Arguments
+    ---------
+    vertices_seq: (n) sequence of (m,d) vertex arrays
+    faces_seq     (n) sequence of (p,j) faces, zero indexed
+                  and referencing their counterpoint vertices
+
+    '''
+    vertices_len = np.array([len(i) for i in vertices_seq])
+    face_offset  = np.append(0, np.cumsum(vertices_len)[:-1])
+    
+    for offset, faces in zip(face_offset, faces_seq):
+        faces += offset
+
+    vertices = np.vstack(vertices_seq)
+    faces    = np.vstack(faces_seq)
+
+    return vertices, faces
+
+
