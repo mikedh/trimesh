@@ -9,7 +9,7 @@ python:
 - '3.5'
 
 before_deploy:
-- sudo apt-get install pandoc
+- sudo apt-get install pandoc -y
 - sudo pip install pypandoc
 
 deploy:
