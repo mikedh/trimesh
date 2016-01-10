@@ -340,7 +340,7 @@ class Trimesh(object):
         '''
         meshes = graph.split(self, 
                              only_watertight = only_watertight,
-                             adjacency        = adjacency)
+                             adjacency       = adjacency)
         log.info('split found %i components', len(meshes))
         return meshes
         

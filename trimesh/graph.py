@@ -276,7 +276,7 @@ def submesh(mesh, faces_sequence, only_watertight=False, append=False):
                          faces        = f, 
                          face_normals = n) for v,f,n in zip(vertices, faces, normals)]
     if only_watertight:
-        watertight = np.array([i.fill_holes() for i in result])
+        watertight = np.array([i.fill_holes() and len(i.faces) > 4 for i in result])
         result     = np.array(result)[watertight]
     result = np.array(result)
     return result
