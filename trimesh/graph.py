@@ -262,7 +262,8 @@ def smoothed(mesh, angle):
     smooth: Trimesh object
     '''
     adjacency = adjacency_angle(mesh, angle)
-    original_faces = mesh.faces.view(np.ndarray)
+    # take a view of vertices/faces to avoid nuking cache
+    original_faces    = mesh.faces.view(np.ndarray)
     original_vertices = mesh.vertices.view(np.ndarray)
     faces    = deque()
     vertices = deque()
@@ -275,12 +276,14 @@ def smoothed(mesh, angle):
         unique  = np.unique(current.reshape(-1))
         mask[unique] = np.arange(len(unique)) + len(vertices)
         faces.extend(mask[current])
-        vertices.extend(original_vertices[current])
+        vertices.extend(original_vertices[unique])
         normals.extend(mesh.face_normals[indices])
+
     smooth = type(mesh)(vertices = np.array(vertices),
                         faces    = np.array(faces),
                         face_normals = np.array(normals),
                         process = False)
+
     return smooth
 
 def is_watertight(edges):

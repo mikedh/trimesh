@@ -127,6 +127,7 @@ class MeshTests(unittest.TestCase):
             facets, area = mesh.facets(1)
             faces = facets[np.argmax(area)]
             outline = mesh.outline(faces)
+            smoothed = mesh.smoothed()
 
             if has_gt:
                 times = np.diff(tic)
