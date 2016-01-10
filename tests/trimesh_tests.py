@@ -5,10 +5,15 @@ import time
 from collections import deque
 import os
 import sys
+import inspect
 import numpy as np
 import json
 
-TEST_DIR  = '../models'
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+MODELS_DIR = '../models'
+TEST_DIR   = os.path.abspath(os.path.join(SCRIPT_DIR, MODELS_DIR))
+
 TEST_DIM = (100,3)
 TOL_ZERO  = 1e-9
 TOL_CHECK = 1e-2

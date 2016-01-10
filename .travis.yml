@@ -8,6 +8,10 @@ python:
 - '3.4'
 - '3.5'
 
+before_deploy:
+- pwd
+- ls
+
 deploy:
   provider: pypi
   user: mikedh
@@ -21,6 +25,4 @@ before_install:
 - source ../trimesh_testing/bin/activate
 install: pip install -e .[path]
 
-before_script: cd tests
-script: python path_tests.py; python trimesh_tests.py
-after_script: cd ..
+script: python tests/path_tests.py; python test/trimesh_tests.py

@@ -1,6 +1,7 @@
 import unittest
 import numpy as np
 import os
+import inspect
 from collections import deque
 from shapely.geometry import Polygon
 import logging
@@ -12,7 +13,9 @@ from trimesh.constants import log, time_function
 from trimesh.constants import tol_path as tol
 from trimesh.util      import euclidean, attach_to_log
 
-TEST_DIR   = '../models/2D'
+SCRIPT_DIR = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+MODELS_DIR = '../models/2D'
+TEST_DIR   = os.path.abspath(os.path.join(SCRIPT_DIR, MODELS_DIR))
 
 class VectorTests(unittest.TestCase):
     def setUp(self):
