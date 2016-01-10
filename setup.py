@@ -5,11 +5,15 @@ from setuptools import setup
 # load __version__
 exec(open('trimesh/version.py').read())
 
-try:
-    import pypandoc
-    long_description = pypandoc.convert('README.md', 'rst')
-except ImportError:
-    long_description = open('README.md', 'r').read()
+import os
+if os.path.exists('README.md'):
+    try:
+        import pypandoc
+        long_description = pypandoc.convert('README.md', 'rst')
+    except ImportError:
+        long_description = open('README.md', 'r').read()
+else:
+    long_description = ''
 
 setup(name = 'trimesh',
       version = __version__,
