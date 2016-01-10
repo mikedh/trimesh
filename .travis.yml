@@ -25,4 +25,4 @@ before_install:
 - source ../trimesh_testing/bin/activate
 install: pip install -e .[path]
 
-script: python tests/path_tests.py; python test/trimesh_tests.py
+script: python tests/path_tests.py; python tests/trimesh_tests.py
