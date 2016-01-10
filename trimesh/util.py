@@ -275,10 +275,10 @@ def md5_object(obj):
     hashed = hasher.hexdigest()
     return hashed
 
-def attach_to_log(log_level=logging.DEBUG, blacklist=[]):
+def attach_to_log(log_level = logging.DEBUG, 
+                  blacklist = ['TerminalIPythonApp','PYREADLINE']):
     '''
-    Attach a stream handler to all loggers, so their output can be seen
-    on the console
+    Attach a stream handler to all loggers.
     '''
     try: 
         from colorlog import ColoredFormatter
@@ -301,10 +301,9 @@ def attach_to_log(log_level=logging.DEBUG, blacklist=[]):
     handler_stream.setLevel(log_level)
 
     for logger in logging.Logger.manager.loggerDict.values():
-        if logger.__class__.__name__ != 'Logger': continue
-        if (logger.name in ['TerminalIPythonApp',
-                            'PYREADLINE'] or 
-            logger.name in blacklist):
+        if logger.__class__.__name__ != 'Logger': 
+            continue
+        if logger.name in blacklist:
             continue
         logger.addHandler(handler_stream)
         logger.setLevel(log_level)
@@ -315,7 +314,7 @@ def tracked_array(array):
     Properly subclass a numpy ndarray to track changes. 
     '''
     return np.ascontiguousarray(array).view(TrackedArray)
-    
+
 class TrackedArray(np.ndarray):
     '''
     Track changes in a numpy ndarray.
@@ -372,7 +371,7 @@ class Cache:
     '''
     def __init__(self, id_function):
         self._id_function = id_function
-        self.id_current = None
+        self.id_current   = None
         self._lock = 0
         self.cache = {}
         
