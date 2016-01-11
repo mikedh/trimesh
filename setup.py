@@ -6,14 +6,13 @@ from setuptools import setup
 exec(open('trimesh/version.py').read())
 
 import os
+long_description = ''
 if os.path.exists('README.md'):
     try:
         import pypandoc
         long_description = pypandoc.convert('README.md', 'rst')
     except ImportError:
         long_description = open('README.md', 'r').read()
-else:
-    long_description = ''
 
 setup(name = 'trimesh',
       version = __version__,
@@ -22,16 +21,30 @@ setup(name = 'trimesh',
       author='Mike Dawson-Haggerty',
       author_email='mik3dh@gmail.com',
       license = 'MIT',
-      url='github.com/mikedh/trimesh',
-      packages         = ['trimesh',
-                          'trimesh.io',
-                          'trimesh.ray',
-                          'trimesh.path',
-                          'trimesh.path.io',
-                          'trimesh.scene'],
-      install_requires = ['numpy', 
-                          'scipy', 
-                          'networkx'],
+      url='http://github.com/mikedh/trimesh',
+      keywords = 'mesh graphics',
+      classifiers = [
+          'Development Status :: 3 - Alpha',
+          'License :: OSI Approved :: MIT License',
+          'Programming Language :: Python',
+          'Programming Language :: Python :: 2.7',
+          'Programming Language :: Python :: 3.3',
+          'Programming Language :: Python :: 3.4',
+          'Programming Language :: Python :: 3.5',
+          'Natural Language :: English',
+          'Operating System :: POSIX :: Linux',
+          'Topic :: Scientific/Engineering' ],
+      packages = [
+          'trimesh',
+          'trimesh.io',
+          'trimesh.ray',
+          'trimesh.path',
+          'trimesh.path.io',
+          'trimesh.scene'],
+      install_requires = [
+          'numpy', 
+          'scipy', 
+          'networkx' ],
       extras_require    = {'path' : ['svg.path', 
                                      'Shapely', 
                                      'rtree'],
