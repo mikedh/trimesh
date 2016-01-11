@@ -183,7 +183,6 @@ def multipack(polygons,
     transforms_packed.reshape(-1,9)[:,[2,5]] += overall_offset + buffer_dist
  
     if plot: 
-        print transforms_packed[0]
         transform_polygon(np.array(polygons)[overall_inserted],  
                           transforms_packed, 
                           plot=True)

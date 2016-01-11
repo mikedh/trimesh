@@ -272,13 +272,17 @@ def submesh(mesh, faces_sequence, only_watertight=False, append=False):
                               face_normals = np.vstack(normals),
                               process = False)
         return appended
+
+    # we use the type(mesh) class rather than importing Trimesh from base
+    # as this causes a circular import
     result = [type(mesh)(vertices     = v, 
                          faces        = f, 
                          face_normals = n) for v,f,n in zip(vertices, faces, normals)]
+    result = np.array(result)
     if only_watertight:
         watertight = np.array([i.fill_holes() and len(i.faces) > 4 for i in result])
-        result     = np.array(result)[watertight]
-    result = np.array(result)
+        result     = result[watertight]
+    
     return result
 
 def is_watertight(edges):
