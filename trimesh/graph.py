@@ -1,11 +1,10 @@
-import networkx as nx
 import numpy as np
+import networkx as nx
 
 from collections import deque
-from copy import deepcopy
 
 from .constants import log, tol, MeshError
-from .grouping  import group, group_rows, boolean_rows, replace_references
+from .grouping  import group, group_rows, boolean_rows
 from .geometry  import faces_to_edges
 from .points    import unitize
 from .util      import diagonal_dot, is_sequence, append_faces
@@ -67,13 +66,16 @@ def adjacency_angle(mesh, angle):
     adjacency: (n,2) int list of face indices in mesh
     '''
 
-    # use the cached adjacency if possible
+    # use the cached adjacency if possible (n,2)
     adjacency = mesh.face_adjacency
+    # normal vectors for adjacent faces (n, 2, 3)
     normals = mesh.face_normals[adjacency]
+    # dot products of normals (n)
     dots = diagonal_dot(normals[:,0], normals[:,1])
-
-    # the same as np.arccos(dots) < angle, but 3x faster
-    adj_ok = np.abs(dots - 1) < np.cos(angle)
+    # clip for floating point error
+    dots = np.clip(dots, -1.0, 1.0)
+    adj_ok = np.abs(np.arccos(dots)) < angle
+    # result is (m,2)
     result = adjacency[adj_ok]
     return result
 
@@ -122,7 +124,7 @@ def facets(mesh):
     '''
     def facets_nx():
         graph_parallel = nx.from_edgelist(face_idx[parallel])
-        facets_idx     = [list(i) for i in nx.connected_components(graph_parallel)]
+        facets_idx = np.array([list(i) for i in nx.connected_components(graph_parallel)])
         return facets_idx
         
     def facets_gt():
@@ -216,8 +218,10 @@ def smoothed(mesh, angle):
     smooth: Trimesh object
     '''
     adjacency = adjacency_angle(mesh, angle)
+    graph = nx.from_edgelist(adjacency)
+    graph.add_nodes_from(np.arange(len(mesh.faces)))
     smooth = submesh(mesh,
-                     nx.connected_components(nx.from_edgelist(adjacency)),
+                     nx.connected_components(graph),
                      only_watertight = False,
                      append = True)
 
