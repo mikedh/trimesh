@@ -653,7 +653,7 @@ class Trimesh(object):
         return self._cache.set(key   = key,
                                value = identifier)
 
-    def export(self, file_obj=None, file_type='stl'):
+    def export(self, file_type='stl', file_obj=None):
         '''
         Export the current mesh to a file object. 
         If file_obj is a filename, file will be written there. 

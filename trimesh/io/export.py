@@ -1,4 +1,5 @@
 import numpy as np
+import base64
 import struct
 import json
 
@@ -108,13 +109,22 @@ def export_collada(mesh, file_obj=None):
     export = template.substitute(replacement)
     return _write_export(export, file_obj)
 
+def export_dict64(mesh, file_obj=None):
+    if file_obj is not None:
+        raise ValueError('Cannot export raw dict to file! Use json!')
+    export = {'metadata' : tolist_dict(mesh.metadata),
+              'faces' : base64.b64encode(mesh.faces.ravel().astype(np.uint32)),
+              'face_normals' : base64.b64encode(mesh.face_normals.ravel().astype(np.float32)),
+              'vertices': base64.b64encode(mesh.vertices.ravel().astype(np.float32))}
+    return export
+
 def export_dict(mesh, file_obj=None):
     if file_obj is not None:
         raise ValueError('Cannot export raw dict to file! Use json!')
-    export = {'metadata': tolist_dict(mesh.metadata),
-              'faces'   : mesh.faces.tolist(),
+    export = {'metadata' : tolist_dict(mesh.metadata),
+              'faces' : mesh.faces.tolist(),
               'face_normals' : mesh.face_normals.tolist(),
-              'vertices': mesh.vertices.tolist()}
+              'vertices' : mesh.vertices.tolist()}
     return export
         
 def export_json(mesh, file_obj=None):
@@ -137,6 +147,7 @@ def _write_export(export, file_obj=None):
 
 _mesh_exporters = {'stl'  : export_stl,
                    'dict' : export_dict,
+                   'dict64' : export_dict64,
                    'json' : export_json,
                    'off'  : export_off,
                    'dae'  : export_collada,
