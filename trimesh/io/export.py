@@ -1,10 +1,9 @@
 import numpy as np
-import base64
 import struct
 import json
 
 from ..constants import log
-from ..util      import tolist_dict, is_string
+from ..util      import tolist_dict, is_string, array_to_base64
 
 #python 3
 try:                from cStringIO import StringIO
@@ -112,19 +111,19 @@ def export_collada(mesh, file_obj=None):
 def export_dict64(mesh, file_obj=None):
     if file_obj is not None:
         raise ValueError('Cannot export raw dict to file! Use json!')
-    export = {'metadata' : tolist_dict(mesh.metadata),
-              'faces' : base64.b64encode(mesh.faces.ravel().astype(np.uint32)),
-              'face_normals' : base64.b64encode(mesh.face_normals.ravel().astype(np.float32)),
-              'vertices': base64.b64encode(mesh.vertices.ravel().astype(np.float32))}
+    export = {'metadata'     : tolist_dict(mesh.metadata),
+              'faces'        : array_to_base64(mesh.faces,        np.uint32),
+              'face_normals' : array_to_base64(mesh.face_normals, np.float32),
+              'vertices'     : array_to_base64(mesh.vertices,     np.float32)}
     return export
 
 def export_dict(mesh, file_obj=None):
     if file_obj is not None:
         raise ValueError('Cannot export raw dict to file! Use json!')
-    export = {'metadata' : tolist_dict(mesh.metadata),
-              'faces' : mesh.faces.tolist(),
+    export = {'metadata'     : tolist_dict(mesh.metadata),
+              'faces'        : mesh.faces.tolist(),
               'face_normals' : mesh.face_normals.tolist(),
-              'vertices' : mesh.vertices.tolist()}
+              'vertices'     : mesh.vertices.tolist()}
     return export
         
 def export_json(mesh, file_obj=None):

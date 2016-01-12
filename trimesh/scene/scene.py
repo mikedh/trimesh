@@ -128,11 +128,10 @@ class Scene:
         '''
         Append all meshes in scene to a list of meshes.
         '''
-        from copy import deepcopy
         result = deque()
         for node_id, mesh_id in self.instances.items():
             transform = self.transforms.get(node_id)
-            current = deepcopy(self.meshes[mesh_id])
+            current   = self.meshes[mesh_id].copy()
             current.transform(transform)
             result.append(current)
         return np.array(result)

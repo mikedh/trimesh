@@ -1,7 +1,7 @@
 import numpy as np
 import time
 
-from networkx import DiGraph, shortest_path, NetworkXNoPath
+from networkx import DiGraph, shortest_path, NetworkXNoPath, to_edgelist
 
 from ..transformations import quaternion_matrix, rotation_matrix
 from ..constants       import TransformError
@@ -77,6 +77,9 @@ class TransformTree:
                                       matrix = matrix, 
                                       time   = time.time())
         self._is_changed = True
+
+    def export(self):
+        return to_edgelist(self._transforms)
 
     def get(self,
             frame_to,

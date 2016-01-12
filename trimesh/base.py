@@ -426,7 +426,7 @@ class Trimesh(object):
 
     def fill_holes(self):
         '''
-        Fill single triangle and single quad holes in the mesh.
+        Fill single triangle and single quad holes in the current mesh.
         
         Returns:
         watertight: bool, is the mesh watertight after the function is done?
@@ -436,6 +436,12 @@ class Trimesh(object):
     def smoothed(self, angle=.4):
         '''
         Return a version of the current mesh which will render nicely.
+        Does not change current mesh in any way.
+
+        Returns
+        ---------
+        smoothed: Trimesh object, non watertight version of current mesh
+                  which will render nicely with smooth shading. 
         '''
         return graph.smoothed(self, angle)
 
@@ -503,8 +509,7 @@ class Trimesh(object):
             
     def remove_unreferenced_vertices(self):
         '''
-        For the current mesh, remove all vertices which are not referenced by
-        a face. 
+        Remove all vertices in the current mesh which are not referenced by a face. 
         '''
         unique, inverse = np.unique(self.faces.reshape(-1), return_inverse=True)
         self.faces      = inverse.reshape((-1,3))          
@@ -512,8 +517,8 @@ class Trimesh(object):
 
     def unmerge_vertices(self):
         '''
-        Removes all face references, so that every face contains
-        three unique vertex indices.
+        Removes all face references so that every face contains three unique 
+        vertex indices and no faces are adjacent
         '''
         self.vertices = self.vertices[self.faces].reshape((-1,3))
         self.faces = np.arange(len(self.vertices)).reshape((-1,3))

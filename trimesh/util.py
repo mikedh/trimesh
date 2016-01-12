@@ -2,6 +2,7 @@ import numpy as np
 import time
 import logging
 import hashlib
+import base64
 
 from collections import defaultdict
 from sys import version_info
@@ -457,4 +458,14 @@ def append_faces(vertices_seq, faces_seq):
 
     return vertices, faces
 
+def array_to_base64(array, dtype=None):
+    # ravel also forces guarantees contiguous
+    flat = np.ravel(array)
+    if dtype is None:
+        dtype = flat.dtype
+    encoded = base64.b64encode(flat.astype(dtype))
+    return encoded
 
+def base64_to_array(encoded, dtype):
+    array = np.fromstring(base64.b64decode(encoded), dtype)
+    return array

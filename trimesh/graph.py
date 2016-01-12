@@ -277,7 +277,7 @@ def submesh(mesh, faces_sequence, only_watertight=False, append=False):
                               process = False)
         return appended
 
-    # we use the type(mesh) class rather than importing Trimesh from base
+    # we use type(mesh) rather than importing Trimesh from base
     # as this causes a circular import
     result = [type(mesh)(vertices     = v, 
                          faces        = f, 
