@@ -81,7 +81,7 @@ def scad_interface(meshes, script):
 
     # export the meshes to a temporary STL container
     for m, f in zip(meshes, mesh_out):
-        m.export(f.name, file_type='stl')
+        m.export(file_type='stl', file_obj=f.name)
     
     replacement = {'mesh_' + str(i) : m.name for i,m in enumerate(mesh_out)}
     script_text = Template(script).substitute(replacement)
