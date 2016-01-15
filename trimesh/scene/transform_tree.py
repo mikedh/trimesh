@@ -1,25 +1,75 @@
 import numpy as np
 import time
 
+import networkx as nx
 from networkx import DiGraph, shortest_path, NetworkXNoPath, to_edgelist
 
 from ..transformations import quaternion_matrix, rotation_matrix
 from ..constants       import TransformError
 
 
-class TransformTree:
-    '''
-    A feature complete if not particularly optimized implementation of a transform graph.
-    
-    Few allowances are made for thread safety, caching, or enforcing graph structure.
-    '''
+class EnforcedForest(nx.DiGraph):    
+    def __init__(self, *args, **kwargs):
+        self.flags = {'strict' : False,
+                      'assert_forest' : False}
+        for k, v in self.flags.items():
+            if k in kwargs:
+                self.flags[k] = kwargs[k]
+                kwargs.pop(k, None)
 
+        super(self.__class__, self).__init__(*args, **kwargs)
+        self._undirected = nx.Graph()
+
+    def add_edge(self, u, v, *args, **kwargs):
+        changed = False
+        if u == v:
+            if self.flags['strict']:
+                raise ValueError('Edge must be between two unique nodes!')
+            return changed
+        if self._undirected.has_edge(u, v):
+            self.remove_edges_from([[u, v], [v,u]])
+        elif len(self.nodes()) > 0:
+            try: 
+                path = nx.shortest_path(self._undirected, u, v)
+                if self.flags['strict']:
+                    raise ValueError('Multiple edge path exists between nodes!')
+                self.remove_path(path)
+                changed = True
+            except (nx.NetworkXError, nx.NetworkXNoPath):
+                pass
+
+        self._undirected.add_edge(u,v)
+        super(self.__class__, self).add_edge(u, v, *args, **kwargs)
+      
+        if self.flags['assert_forest']:
+            assert nx.is_forest(nx.Graph(self))
+            
+        return changed
+
+    def add_edges_from(self, *args, **kwargs):
+        raise ValueError('EnforcedTree requires add_edge method to be used!')
+
+    def add_path(self, *args, **kwargs):
+        raise ValueError('EnforcedTree requires add_edge method to be used!')
+
+    def remove_edge(self, *args, **kwargs):
+        super(self.__class__, self).remove_edge(*args, **kwargs)
+        self._undirected.remove_edge(*args, **kwargs)
+        
+    def remove_edges_from(self, *args, **kwargs):
+        super(self.__class__, self).remove_edges_from(*args, **kwargs)
+        self._undirected.remove_edges_from(*args, **kwargs)
+
+    def remove_path(self, path):
+        ebunch = np.array([[path[0], path[1]]])
+        ebunch = np.vstack((ebunch, np.fliplr(ebunch)))
+        self.remove_edges_from(ebunch)
+
+class TransformTree:
     def __init__(self, base_frame='world'):
-        self._transforms = DiGraph()
-        self._parents    = {}
-        self._paths      = {}
-        self._is_changed = False
-        self.base_frame  = base_frame
+        self.transforms = EnforcedForest()
+        self._paths     = {}
+        self.base_frame = base_frame
 
     def update(self, 
                frame_to,
@@ -63,23 +113,18 @@ class TransformTree:
             # we add the translations together rather than picking one. 
             matrix[0:3,3] += kwargs['translation']
 
-        if self._transforms.has_edge(frame_from, frame_to):
-            self._transforms.edge[frame_from][frame_to]['matrix'] = matrix
-            self._transforms.edge[frame_from][frame_to]['time']   = time.time()
-        else:
-            # since the connectivity has changed, throw out previously computed
-            # paths through the transform graph so queries compute new shortest paths
-            # we could only throw out transforms that are connected to the new edge,
-            # but this is less bookeeping at the expensive of being slower. 
+        changed = self.transforms.add_edge(frame_from, 
+                                           frame_to,
+                                           attr_dict = {'matrix' : matrix,
+                                                        'times'  : time.time()})
+        if changed:
             self._paths = {}
-            self._transforms.add_edge(frame_from, 
-                                      frame_to, 
-                                      matrix = matrix, 
-                                      time   = time.time())
-        self._is_changed = True
 
     def export(self):
-        return to_edgelist(self._transforms)
+        export = to_edgelist(self.transforms)
+        for e in export:
+            e[2]['matrix'] = np.array(e[2]['matrix']).tolist()
+        return export
 
     def get(self,
             frame_to,
@@ -100,22 +145,23 @@ class TransformTree:
         ---------
         transform:  (4,4) homogenous transformation matrix
         '''
+
+        tic = time.time()
         if frame_from is None:
             frame_from = self.base_frame
-
         transform = np.eye(4)
         path, inverted = self._get_path(frame_from, frame_to)
         for i in range(len(path) - 1):
-            matrix = self._transforms.get_edge_data(path[i], 
-                                                    path[i+1])['matrix']
+            matrix = self.transforms.get_edge_data(path[i], 
+                                                   path[i+1])['matrix']
             transform = np.dot(transform, matrix)
         if inverted:
             transform = np.linalg.inv(transform)
         return transform
 
     def clear(self):
-        self._transforms = DiGraph()
-        self._paths      = {}
+        self.transforms = EnforcedForest()
+        self._paths     = {}
         
     def _get_path(self, 
                   frame_from,
@@ -164,10 +210,10 @@ class TransformTree:
                   matrices forwards or backwards. 
         '''
         try: 
-            path = shortest_path(self._transforms, frame_from, frame_to)
+            path = shortest_path(self.transforms, frame_from, frame_to)
             inverted = False
         except NetworkXNoPath:
-            path = shortest_path(self._transforms, frame_to, frame_from)
+            path = shortest_path(self.transforms, frame_to, frame_from)
             inverted = True
         self._paths[(frame_from, frame_to)] = (path, inverted)
         return path, inverted
