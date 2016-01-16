@@ -5,7 +5,7 @@ import networkx as nx
 from networkx import DiGraph, shortest_path, NetworkXNoPath, to_edgelist
 
 from ..transformations import quaternion_matrix, rotation_matrix
-from ..constants       import TransformError
+from ..constants       import TransformError, _log_time
 
 
 class EnforcedForest(nx.DiGraph):    
@@ -65,11 +65,49 @@ class EnforcedForest(nx.DiGraph):
         ebunch = np.vstack((ebunch, np.fliplr(ebunch)))
         self.remove_edges_from(ebunch)
 
+    def shortest_path_undirected(self, u, v):
+        path = nx.shortest_path(self._undirected, u, v)
+        direction = np.zeros(len(path)-1, dtype=np.int)
+        
+        for i, edge in enumerate(path_to_edges(path)):
+            if self.has_edge(*edge):
+                direction[i] = 1
+            elif self.has_edge(*edge[::-1]):
+                direction[i] = -1
+            else:
+                raise ValueError('Edge doesn\'t exist!')
+        return path, direction
+
+
+def path_to_edges(path):
+    return np.column_stack((path, path)).reshape(-1)[1:-1].reshape((-1,2))
+
+def kwargs_to_matrix(**kwargs):
+    matrix = np.eye(4)
+    if 'matrix' in kwargs:
+        # a matrix takes precedence over other options
+        matrix = kwargs['matrix']
+    elif 'quaternion' in kwargs:
+        matrix = quaternion_matrix(kwargs['quaternion'])
+    elif ('axis' in kwargs) and ('angle' in kwargs):
+        matrix = rotation_matrix(kwargs['angle'],
+                                 kwargs['axis'])
+    else: 
+        raise ValueError('Couldn\'t update transform!')
+
+    if 'translation' in kwargs:
+        # translation can be used in conjunction with any of the methods of 
+        # specifying transforms. In the case a matrix and translation are passed,
+        # we add the translations together rather than picking one. 
+        matrix[0:3,3] += kwargs['translation']
+    return matrix
+
+
 class TransformTree:
     def __init__(self, base_frame='world'):
         self.transforms = EnforcedForest()
-        self._paths     = {}
         self.base_frame = base_frame
+        self._paths     = {}
 
     def update(self, 
                frame_to,
@@ -94,25 +132,7 @@ class TransformTree:
         '''
         if frame_from is None:
             frame_from = self.base_frame
-
-        matrix = np.eye(4)
-        if 'matrix' in kwargs:
-            # a matrix takes precedence over other options
-            matrix = kwargs['matrix']
-        elif 'quaternion' in kwargs:
-            matrix = quaternion_matrix(kwargs['quaternion'])
-        elif ('axis' in kwargs) and ('angle' in kwargs):
-            matrix = rotation_matrix(kwargs['angle'],
-                                     kwargs['axis'])
-        else: 
-            raise ValueError('Couldn\'t update transform!')
-
-        if 'translation' in kwargs:
-            # translation can be used in conjunction with any of the methods of 
-            # specifying transforms. In the case a matrix and translation are passed,
-            # we add the translations together rather than picking one. 
-            matrix[0:3,3] += kwargs['translation']
-
+        matrix  = kwargs_to_matrix(**kwargs)
         changed = self.transforms.add_edge(frame_from, 
                                            frame_to,
                                            attr_dict = {'matrix' : matrix,
@@ -146,17 +166,16 @@ class TransformTree:
         transform:  (4,4) homogenous transformation matrix
         '''
 
-        tic = time.time()
         if frame_from is None:
             frame_from = self.base_frame
         transform = np.eye(4)
-        path, inverted = self._get_path(frame_from, frame_to)
+        path, direction = self._get_path(frame_from, frame_to)
         for i in range(len(path) - 1):
-            matrix = self.transforms.get_edge_data(path[i], 
-                                                   path[i+1])['matrix']
+            edge = [path[i], path[i+1]][::direction[i]]
+            matrix = self.transforms.get_edge_data(*edge)['matrix']
+            if direction[i] < 0: 
+                matrix = np.linalg.inv(matrix)
             transform = np.dot(transform, matrix)
-        if inverted:
-            transform = np.linalg.inv(transform)
         return transform
 
     def clear(self):
@@ -184,36 +203,11 @@ class TransformTree:
         inverted: boolean flag, whether the path is traversing stored
                   matrices forwards or backwards. 
         '''
-        try: 
-            return self._paths[(frame_from, frame_to)]
-        except KeyError:
-            return self._generate_path(frame_from, frame_to)
-
-    def _generate_path(self, 
-                       frame_from, 
-                       frame_to):
-        '''
-        Generate a path between two frames.
+        key = (frame_from, frame_to)
+        if key in self._paths:
+            return self._paths[key]
         
-        Arguments
-        ---------
-        frame_from: a frame key, usually a string 
-                    example: 'world'
-        frame_to:   a frame key, usually a string 
-                    example: 'mesh_0'
-
-        Returns
-        ----------
-        path: (n) list of frame keys
-              example: ['mesh_finger', 'mesh_hand', 'world']
-        inverted: boolean flag, whether the path is traversing stored
-                  matrices forwards or backwards. 
-        '''
-        try: 
-            path = shortest_path(self.transforms, frame_from, frame_to)
-            inverted = False
-        except NetworkXNoPath:
-            path = shortest_path(self.transforms, frame_to, frame_from)
-            inverted = True
-        self._paths[(frame_from, frame_to)] = (path, inverted)
-        return path, inverted
+        path =  self.transforms.shortest_path_undirected(frame_from, 
+                                                         frame_to)
+        self._paths[key] = path
+        return path
