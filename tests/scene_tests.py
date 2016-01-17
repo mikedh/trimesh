@@ -4,6 +4,9 @@ import logging
 import numpy as np
 import networkx as nx
 
+
+from trimesh.scene.transforms import EnforcedForest
+
 log = logging.getLogger('trimesh')
 log.addHandler(logging.NullHandler())
 
@@ -12,7 +15,7 @@ def random_chr():
 
 class GraphTests(unittest.TestCase):
     def test_forest(self):
-        g = trimesh.scene.transform_tree.EnforcedForest()
+        g = EnforcedForest(assert_forest=True)
         for i in range(5000):
             g.add_edge(random_chr(), random_chr())
             assert nx.is_forest(g)

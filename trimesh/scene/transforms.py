@@ -10,8 +10,9 @@ from ..constants       import TransformError, _log_time
 
 class EnforcedForest(nx.DiGraph):    
     def __init__(self, *args, **kwargs):
-        self.flags = {'strict' : False,
+        self.flags = {'strict'        : False,
                       'assert_forest' : False}
+        
         for k, v in self.flags.items():
             if k in kwargs:
                 self.flags[k] = kwargs[k]
@@ -42,6 +43,8 @@ class EnforcedForest(nx.DiGraph):
         super(self.__class__, self).add_edge(u, v, *args, **kwargs)
       
         if self.flags['assert_forest']:
+            # this is quite slow but makes very sure structure is correct 
+            # so is mainly used for testing
             assert nx.is_forest(nx.Graph(self))
             
         return changed
@@ -66,7 +69,7 @@ class EnforcedForest(nx.DiGraph):
         self.remove_edges_from(ebunch)
 
     def shortest_path_undirected(self, u, v):
-        path = nx.shortest_path(self._undirected, u, v)
+        path      = nx.shortest_path(self._undirected, u, v)
         direction = np.zeros(len(path)-1, dtype=np.int)
         
         for i, edge in enumerate(path_to_edges(path)):
@@ -103,7 +106,7 @@ def kwargs_to_matrix(**kwargs):
     return matrix
 
 
-class TransformTree:
+class TransformForest:
     def __init__(self, base_frame='world'):
         self.transforms = EnforcedForest()
         self.base_frame = base_frame

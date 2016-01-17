@@ -3,7 +3,7 @@ import numpy as np
 from ..points          import transform_points
 from ..util            import is_sequence
 from ..transformations import rotation_matrix
-from .transform_tree   import TransformTree
+from .transforms       import TransformForest
 
 from collections import deque
 
@@ -28,7 +28,7 @@ class Scene:
         self.meshes     = {}
         self.flags      = {}
         self.camera     = None
-        self.transforms = TransformTree(base_frame = base_frame)
+        self.transforms = TransformForest(base_frame = base_frame)
 
         self.add_mesh(node)
         self.set_camera()
