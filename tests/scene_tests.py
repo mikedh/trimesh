@@ -18,7 +18,6 @@ class GraphTests(unittest.TestCase):
         g = EnforcedForest(assert_forest=True)
         for i in range(5000):
             g.add_edge(random_chr(), random_chr())
-            assert nx.is_forest(g)
 
 if __name__ == '__main__':
     trimesh.util.attach_to_log()

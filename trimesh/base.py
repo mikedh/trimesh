@@ -20,9 +20,9 @@ from . import intersections
 from . import util
 
 from .io.export    import export_mesh
-from .ray.ray_mesh import RayMeshIntersector
+from .ray.ray_mesh import RayMeshIntersector, contains_points
 from .voxel        import Voxel
-from .points       import unitize, transform_points, contains_points
+from .points       import unitize, transform_points
 from .convex       import convex_hull
 from .units        import _set_units
 from .constants    import log, _log_time, tol

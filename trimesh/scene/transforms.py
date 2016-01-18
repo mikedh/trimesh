@@ -34,11 +34,10 @@ class EnforcedForest(nx.DiGraph):
                 path = nx.shortest_path(self._undirected, u, v)
                 if self.flags['strict']:
                     raise ValueError('Multiple edge path exists between nodes!')
-                self.remove_path(path)
+                self.disconnect_path(path)
                 changed = True
             except (nx.NetworkXError, nx.NetworkXNoPath):
                 pass
-
         self._undirected.add_edge(u,v)
         super(self.__class__, self).add_edge(u, v, *args, **kwargs)
       
@@ -63,7 +62,7 @@ class EnforcedForest(nx.DiGraph):
         super(self.__class__, self).remove_edges_from(*args, **kwargs)
         self._undirected.remove_edges_from(*args, **kwargs)
 
-    def remove_path(self, path):
+    def disconnect_path(self, path):
         ebunch = np.array([[path[0], path[1]]])
         ebunch = np.vstack((ebunch, np.fliplr(ebunch)))
         self.remove_edges_from(ebunch)

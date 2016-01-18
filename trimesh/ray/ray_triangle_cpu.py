@@ -94,6 +94,9 @@ def ray_triangles(triangles,
 
     new_candidates = np.logical_not(np.logical_or((v     < -tol.zero),
                                                   (u + v > (1+tol.zero))))
+
+    #new_candidates = np.logical_not(np.logical_or((v     < tol.zero),
+    #                                              (u + v > (1-tol.zero))))
     candidates[candidates] = new_candidates
     if not candidates.any(): return candidates
     Q       = Q[new_candidates]

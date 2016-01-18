@@ -4,6 +4,7 @@ import time
 
 from ..util            import Cache
 from ..points          import unitize
+from ..grouping        import unique_rows
 from ..intersections   import plane_line_intersection
 from .ray_triangle_cpu import rays_triangles_id
 
@@ -48,7 +49,10 @@ class RayMeshIntersector:
             
     def intersects_location(self, rays, return_id=False):
         '''
-        Find out where the rays in question hit the mesh
+        Return unique cartesian locations where rays hit the mesh.
+        If you are counting the number of hits a ray had, this method 
+        should be used as if only the triangle index is used on- edge hits
+        will be counted twice. 
 
         Arguments
         ---------
@@ -121,6 +125,16 @@ def ray_bounds(rays, bounds, buffer_dist = 1e-5):
     Given a set of rays and a bounding box for the volume of interest
     where the rays will be passing through, find the bounding boxes 
     of the rays as they pass through the volume. 
+    
+    Arguments
+    ---------
+    rays: (n,2,3) array of ray origins and directions
+    bounds: (2,3) bounding box (min, max)
+    buffer_dist: float, distance to pad zero width bounding boxes
+
+    Returns
+    ---------
+    ray_bounding: (n) set of AABB of rays passing through volume
     '''
     # separate out the (n, 2, 3) rays array into (n, 3) 
     # origin/direction arrays
@@ -199,11 +213,26 @@ def ray_triangle_locations(triangles,
             normal  = tri_normals[tri_index]
             segment = ray_segments[:,ray_index,:].reshape((2,-1,3))
             point, valid = plane_line_intersection(plane_origin = origin,
-                                               plane_normal = normal,
-                                               endpoints    = segment,
-                                               line_segments = False)
+                                                   plane_normal = normal,
+                                                   endpoints    = segment,
+                                                   line_segments = False)
             group_locations[group_index] = point
             if not valid: 
                 raise ValueError('Intersections passed are in error!')
-        locations[ray_index] = group_locations
+        unique = unique_rows(group_locations)[0]
+        locations[ray_index] = group_locations[unique]
     return np.array(locations)
+
+def contains_points(mesh, points):
+    '''
+    Check if a mesh contains a set of points, using ray tests. 
+    '''
+    
+    rays = np.column_stack((points, 
+                            np.tile(unitize([0,0,1]), 
+                                    (len(points),1)))).reshape((-1,2,3))
+    ray_hits = mesh.ray.intersects_location(rays)
+    ray_hits_count = np.array([len(i) for i in ray_hits])
+    contains = np.mod(ray_hits_count, 2) == 1
+    return contains
+
