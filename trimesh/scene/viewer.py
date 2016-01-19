@@ -5,7 +5,7 @@ from copy      import deepcopy
 from threading import Thread
 from pyglet.gl import *
 
-from ..transformations import euler_matrix
+from ..transformations import euler_matrix, Arcball
 
 #smooth only when fewer faces than this
 _SMOOTH_MAX_FACES = 100000
@@ -16,7 +16,8 @@ class SceneViewer(pyglet.window.Window):
                  smooth = None,
                  save_image = None,
                  resolution = (640,480)):
-
+        self.scene = scene
+        self.reset_view()
         self.events = []
         visible = save_image is None
         width, height = resolution
@@ -40,10 +41,9 @@ class SceneViewer(pyglet.window.Window):
                                               height=height)
             
         self.batch = pyglet.graphics.Batch()
-        self.scene = scene
         self._img  = save_image
         self._vertex_list = {}
-        self.reset_view()
+
         
         for name, mesh in scene.meshes.items():
             self._add_mesh(name, mesh, smooth)
@@ -70,10 +70,10 @@ class SceneViewer(pyglet.window.Window):
         '''
         self.view = {'wireframe'   : False,
                      'cull'        : True,
-                     'rotation'    : np.zeros(3),
                      'translation' : np.zeros(3),
                      'center'      : self.scene.centroid,
-                     'scale'       : self.scene.scale}
+                     'scale'       : self.scene.scale,
+                     'ball'        : Arcball()}
         
     def init_gl(self):
         glClearColor(1, 1, 1, 1)
@@ -113,7 +113,11 @@ class SceneViewer(pyglet.window.Window):
         glLoadIdentity()
         gluPerspective(60., width / float(height), .01, 1000.)
         glMatrixMode(GL_MODELVIEW)
+        self.view['ball'].place([width/2, height/2], (width+height)/2)
         self.events.append('resize')
+        
+    def on_mouse_press(self, x, y, buttons, modifiers):
+        self.view['ball'].down([x,-y])
         
     def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
         delta = np.array([dx, dy], dtype=np.float) / [self.width, self.height]
@@ -125,11 +129,12 @@ class SceneViewer(pyglet.window.Window):
 
         #left mouse button, no modifier keys pressed (rotate)
         elif (buttons == pyglet.window.mouse.LEFT):
-            self.view['rotation'][0:2]+= delta[::-1]*[-1,1]
+            self.view['ball'].drag([x,-y])
 
     def on_mouse_scroll(self, x, y, dx, dy):
-        self.view['translation'][2] += (float(dy) / self.height) * 25
-
+        self.view['translation'][2] += ((float(dy) / self.height) * 
+                                        self.view['scale'] * 5)
+        
     def on_key_press(self, symbol, modifiers):
         if symbol == pyglet.window.key.W:
             self.toggle_wireframe()
@@ -185,10 +190,10 @@ def _view_transform(view):
     Given a dictionary containing view parameters,
     calculate a transformation matrix. 
     '''
-    transform = euler_matrix(*(view['rotation']*np.pi))
+    transform         = view['ball'].matrix()
     transform[0:3,3]  = view['center']
     transform[0:3,3] -= np.dot(transform[0:3,0:3], view['center'])
-    transform[0:3,3] += view['translation']*view['scale']
+    transform[0:3,3] += view['translation'] * view['scale']
     return transform
 
 def _mesh_to_vertex_list(mesh, group=None):
