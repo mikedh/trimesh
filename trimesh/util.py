@@ -459,13 +459,49 @@ def append_faces(vertices_seq, faces_seq):
     return vertices, faces
 
 def array_to_base64(array, dtype=None):
-    # ravel also forces guarantees contiguous
-    flat = np.ravel(array)
+    '''
+    Export a numpy array to a compact serializable dictionary.
+
+    Arguments
+    ---------
+    array: numpy array
+    dtype: optional, what dtype should array be encoded with.
+
+    Returns
+    ---------
+    encoded: dict with keys: 
+                 dtype: string of dtype
+                 shape: int tuple of shape
+                 base64: base64 encoded string of flat array
+    '''
+    shape = array.shape
+    # ravel also forces contiguous
+    flat  = np.ravel(array)
     if dtype is None:
-        dtype = flat.dtype
-    encoded = base64.b64encode(flat.astype(dtype))
+        dtype = array.dtype
+    encoded = {'dtype'  : np.dtype(dtype).str,
+               'shape'  : shape,
+               'base64' : base64.b64encode(flat.astype(dtype))}
     return encoded
 
-def base64_to_array(encoded, dtype):
-    array = np.fromstring(base64.b64decode(encoded), dtype)
+def base64_to_array(encoded):
+    '''
+    Turn a dictionary with base64 encoded strings back into a numpy array.
+
+    Arguments
+    ----------
+    encoded: dict with keys: 
+                 dtype: string of dtype
+                 shape: int tuple of shape
+                 base64: base64 encoded string of flat array
+
+    Returns
+    ----------
+    array: numpy array
+    '''
+    shape = encoded['shape']
+    dtype = np.dtype(encoded['dtype'])
+    array = np.fromstring(base64.b64decode(encoded['base64']), 
+                          dtype).reshape(shape)
+
     return array

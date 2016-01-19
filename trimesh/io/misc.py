@@ -1,6 +1,8 @@
 import numpy as np
 import struct
 
+from ..util import base64_to_array
+
 def load_off(file_obj, file_type=None):
     header_string = file_obj.readline().decode().strip()
     if not header_string == 'OFF': 
@@ -42,6 +44,12 @@ def load_wavefront(file_obj, file_type=None):
 def load_dict(data, file_type=None):
     return data
 
-_misc_loaders = {'obj'  : load_wavefront,
-                 'off'  : load_off,
-                 'dict' : load_dict}
+def load_dict64(data, file_type=None):
+    for key in ('vertices', 'faces', 'face_normals'):
+        data[key] = base64_to_array(data[key])
+    return data
+
+_misc_loaders = {'obj'    : load_wavefront,
+                 'off'    : load_off,
+                 'dict '  : load_dict,
+                 'dict64' : load_dict64}

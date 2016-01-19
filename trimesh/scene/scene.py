@@ -136,6 +136,26 @@ class Scene:
             result.append(current)
         return np.array(result)
 
+    def export(self, file_type='dict64'):
+        '''
+        Export a snapshot of the current scene.
+
+        Arguments
+        ----------
+        file_type: what encoding to use for meshes
+        
+        Returns
+        ----------
+        export: dict with keys:
+                meshes: list of meshes, encoded as per file_type
+                transforms: edge list of transforms, eg:
+                             ((u, v, {'matrix' : np.eye(4)}))
+        '''
+        export = {}
+        export['transforms'] = self.transforms.export() 
+        export['meshes'] = {name:mesh.export(file_type) for name, mesh in self.meshes.items()}
+        return export
+        
     def save_image(self, file_obj, resolution=(1024,768)):
         from .viewer import SceneViewer
         SceneViewer(self, save_image=file_obj, resolution=resolution)

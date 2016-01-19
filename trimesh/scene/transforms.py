@@ -138,7 +138,7 @@ class TransformForest:
         changed = self.transforms.add_edge(frame_from, 
                                            frame_to,
                                            attr_dict = {'matrix' : matrix,
-                                                        'times'  : time.time()})
+                                                        'time'   : time.time()})
         if changed:
             self._paths = {}
 
