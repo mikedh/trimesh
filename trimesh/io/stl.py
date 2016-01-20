@@ -27,10 +27,16 @@ def load_stl_binary(file_obj):
     # we save the location of the end of the file and seek back to where we started from
     data_end = file_obj.tell()
     file_obj.seek(data_start)
+    
+    # define a numpy datatype for the STL file
+    dtype = np.dtype([('normals',    np.float32, (3)), 
+                      ('vertices',   np.float32, (3,3)), 
+                      ('attributes', np.uint16)])
+
     # the binary format has a rigidly defined structure, and if the length
     # of the file doesn't match the header, the loaded version is almost
     # certainly going to be garbage. 
-    data_ok = (data_end - data_start) == (tri_count * 50)
+    data_ok = (data_end - data_start) == (tri_count * dtype.itemsize)
    
     # this check is to see if this really is a binary STL file. 
     # if we don't do this and try to load a file that isn't structured properly 
@@ -41,21 +47,13 @@ def load_stl_binary(file_obj):
     
     # all of our vertices will be loaded in order due to the STL format, 
     # so faces are just sequential indices reshaped. 
-    faces        = np.arange(tri_count*3).reshape((-1,3))
-
-    # this blob extracts 12 float values, with 2 pad bytes per face
-    # the first three floats are the face normal
-    # the next 9 are the three vertices 
-    blob = np.array(struct.unpack("<" + "12fxx"*tri_count, 
-                                  file_obj.read())).reshape((-1,4,3))
-
-    face_normals = blob[:,0]
-    vertices     = blob[:,1:].reshape((-1,3))
-
-    return {'vertices'     : vertices,
-            'faces'        : faces, 
-            'face_normals' : face_normals}
-
+    faces = np.arange(tri_count*3).reshape((-1,3))
+    blob  = np.fromstring(file_obj.read(), dtype= dtype)
+    result =  {'vertices'     : blob['vertices'].reshape((-1,3)),
+               'face_normals' : blob['normals'].reshape((-1,3)),
+               'faces'        : faces}
+    return result
+    
 def load_stl_ascii(file_obj):
     '''
     Load an ASCII STL file.

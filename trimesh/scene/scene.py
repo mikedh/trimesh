@@ -7,7 +7,6 @@ from .transforms       import TransformForest
 
 from collections import deque
 
-
 class Scene:
     '''
     A simple scene graph which can be rendered directly via pyglet/openGL,
@@ -27,7 +26,6 @@ class Scene:
         # mesh name : Trimesh object
         self.meshes     = {}
         self.flags      = {}
-        self.camera     = None
         self.transforms = TransformForest(base_frame = base_frame)
 
         self.add_mesh(node)

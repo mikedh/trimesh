@@ -117,7 +117,7 @@ class Trimesh(object):
         
     @vertices.setter
     def vertices(self, values):
-        self._vertices = util.tracked_array(values)
+        self._vertices = util.tracked_array(values, dtype=np.float64)
         
     def md5(self):
         '''
@@ -175,7 +175,7 @@ class Trimesh(object):
         if 'edges' in self._cache:
             return self._cache.get('edges')
         else:
-            return self._cache.set(key = 'edges',
+            return self._cache.set(key   = 'edges',
                                    value = geometry.faces_to_edges(self.faces.view(np.ndarray)))
 
     @property

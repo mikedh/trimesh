@@ -310,11 +310,15 @@ def attach_to_log(log_level = logging.DEBUG,
         logger.setLevel(log_level)
     np.set_printoptions(precision=5, suppress=True)
     
-def tracked_array(array):
+def tracked_array(array, dtype=None):
     '''
     Properly subclass a numpy ndarray to track changes. 
     '''
-    return np.ascontiguousarray(array).view(TrackedArray)
+    result = np.ascontiguousarray(array).view(TrackedArray)
+    if dtype is None: 
+        return result
+    return result.astype(dtype)
+
 
 class TrackedArray(np.ndarray):
     '''

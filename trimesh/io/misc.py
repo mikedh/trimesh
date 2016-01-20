@@ -51,5 +51,5 @@ def load_dict64(data, file_type=None):
 
 _misc_loaders = {'obj'    : load_wavefront,
                  'off'    : load_off,
-                 'dict '  : load_dict,
+                 'dict'   : load_dict,
                  'dict64' : load_dict64}

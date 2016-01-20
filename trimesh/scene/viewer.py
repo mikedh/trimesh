@@ -18,7 +18,7 @@ class SceneViewer(pyglet.window.Window):
                  resolution = (640,480)):
         self.scene = scene
         self.reset_view()
-        self.events = []
+        
         visible = save_image is None
         width, height = resolution
 
@@ -114,7 +114,6 @@ class SceneViewer(pyglet.window.Window):
         gluPerspective(60., width / float(height), .01, 1000.)
         glMatrixMode(GL_MODELVIEW)
         self.view['ball'].place([width/2, height/2], (width+height)/2)
-        self.events.append('resize')
         
     def on_mouse_press(self, x, y, buttons, modifiers):
         self.view['ball'].down([x,-y])
@@ -151,7 +150,7 @@ class SceneViewer(pyglet.window.Window):
         transform_camera = self.scene.transforms.get('camera')
         # apply the camera transform to the matrix stack
         glMultMatrixf(_gl_matrix(transform_camera))
-
+        
         # dragging the mouse moves the view transform (but doesn't alter the scene)
         transform_view = _view_transform(self.view)
         glMultMatrixf(_gl_matrix(transform_view))

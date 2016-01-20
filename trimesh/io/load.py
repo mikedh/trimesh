@@ -20,7 +20,7 @@ except:
     log.warning('No path functionality available!', exc_info=True)
 
 def mesh_formats():
-    return _mesh_loaders.keys()
+    return list(_mesh_loaders.keys())
 
 def available_formats():
     return np.append(mesh_formats(), path_formats())
@@ -42,16 +42,16 @@ def load(obj, file_type=None, **kwargs):
     if is_string(obj):
         file_type = (str(obj).split('.')[-1]).lower()
         obj = open(obj, 'rb')
-    elif file_type is None and not hasattr(obj, 'read'):
+        
+    if file_type is None:
         file_type = obj.__class__.__name__
 
     if file_type in path_formats():
         return load_path(obj, file_type, **kwargs)
     elif file_type in mesh_formats():
         return load_mesh(obj, file_type, **kwargs)
-
+        
     raise ValueError('File type: %s not supported', str(file_type))
-
 
 @_log_time
 def load_mesh(obj, file_type=None, process=True):
@@ -73,11 +73,13 @@ def load_mesh(obj, file_type=None, process=True):
     if is_string(obj):
         file_type = (str(obj).split('.')[-1]).lower()
         obj = open(obj, 'rb')
-    elif is_dict(obj):
-        file_type = 'dict'
 
+    if file_type is None:
+        file_type = obj.__class__.__name__
+    
     file_type = str(file_type).lower()
     loaded = _mesh_loaders[file_type](obj, file_type)
+    
     if is_file(obj): 
         obj.close()
     
