@@ -1,5 +1,4 @@
 import numpy as np
-import struct
 import json
 
 from ..constants import log
@@ -44,32 +43,24 @@ def export_stl(mesh, file_obj=None):
     '''
     Saves a Trimesh object as a binary STL file.
     '''
-    
-    temp_file = BytesIO()
-    if len(np.shape(mesh.face_normals)) != 2: 
-        mesh.generate_normals()
 
-    def write_face(vertices, normal):
-        #vertices: (3,3) array of floats
-        #normal:   (3) array of floats
-        temp_file.write(struct.pack('<3f', *normal))
-        for vertex in vertices: 
-            temp_file.write(struct.pack('<3f', *vertex))
-        temp_file.write(struct.pack('<h', 0))
+    dtype_stl = np.dtype([('normals',    np.float32, (3)), 
+                          ('vertices',   np.float32, (3,3)), 
+                          ('attributes', np.uint16)])
+    dtype_header = np.dtype([('header', np.void, 80),
+                             ('face_count', np.int32)])
+
+    header = np.zeros(1, dtype = dtype_header)
+    header['face_count'] = len(mesh.faces)
+
+    packed = np.zeros(len(mesh.faces), dtype=dtype_stl)
+    packed['normals']  = mesh.face_normals
+    packed['vertices'] = mesh.triangles
+
+    export  = header.tostring()
+    export += packed.tostring()
     
-    #write a blank header
-    temp_file.write(struct.pack("<80x"))
-    #write the number of faces
-    temp_file.write(struct.pack("@i", len(mesh.faces)))
-    # write the faces
-    # TODO: remove the for loop and do this as a single struct.pack operation
-    # like we do in the loader, as it is way, way faster.
-    for index in range(len(mesh.faces)):
-        write_face(mesh.vertices[[mesh.faces[index]]], 
-                   mesh.face_normals[index])
-    temp_file.seek(0)
-    data = temp_file.read()
-    return _write_export(data, file_obj)
+    return _write_export(export, file_obj)
 
 def export_off(mesh, file_obj=None):
     export = 'OFF\n'

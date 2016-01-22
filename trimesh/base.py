@@ -102,9 +102,9 @@ class Trimesh(object):
         
     @faces.setter
     def faces(self, values):
-        values = np.array(values)
+        values = np.array(values, dtype=np.int64)
         shape  = values.shape
-        if len(shape) != 2 or not shape[1] in [3,4]:
+        if len(shape) != 2 or not shape[1] in [3, 4]:
             raise ValueError('Faces must be (n,3) or (n,4)!')
         elif shape[1] == 4:
             log.info('Triangulating quad faces')
@@ -117,13 +117,16 @@ class Trimesh(object):
         
     @vertices.setter
     def vertices(self, values):
+        # make sure vertices are stored as a TrackedArray, which provides 
+        # an md5() method which can be used to monitor the array for changes.
+        # we also make sure vertices are stored as a float64 for consistency
         self._vertices = util.tracked_array(values, dtype=np.float64)
         
     def md5(self):
         '''
         Return an appended MD5 for the faces and vertices. 
         '''
-        result = self.faces.md5()
+        result  = self.faces.md5()
         result += self.vertices.md5()
         return result
         

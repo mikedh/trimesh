@@ -5,7 +5,7 @@ from copy      import deepcopy
 from threading import Thread
 from pyglet.gl import *
 
-from ..transformations import euler_matrix, Arcball
+from ..transformations import Arcball
 
 #smooth only when fewer faces than this
 _SMOOTH_MAX_FACES = 100000

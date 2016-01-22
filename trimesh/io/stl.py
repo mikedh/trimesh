@@ -2,6 +2,11 @@ import numpy as np
 import struct
 
 from ..util      import is_binary_file
+
+# define a numpy datatype for the STL file
+_stl_dtype = np.dtype([('normals',    np.float32, (3)), 
+                       ('vertices',   np.float32, (3,3)), 
+                       ('attributes', np.uint16)])
  
 def load_stl(file_obj, file_type=None):
     if is_binary_file(file_obj): return load_stl_binary(file_obj)
@@ -28,15 +33,10 @@ def load_stl_binary(file_obj):
     data_end = file_obj.tell()
     file_obj.seek(data_start)
     
-    # define a numpy datatype for the STL file
-    dtype = np.dtype([('normals',    np.float32, (3)), 
-                      ('vertices',   np.float32, (3,3)), 
-                      ('attributes', np.uint16)])
-
     # the binary format has a rigidly defined structure, and if the length
     # of the file doesn't match the header, the loaded version is almost
     # certainly going to be garbage. 
-    data_ok = (data_end - data_start) == (tri_count * dtype.itemsize)
+    data_ok = (data_end - data_start) == (tri_count * _stl_dtype.itemsize)
    
     # this check is to see if this really is a binary STL file. 
     # if we don't do this and try to load a file that isn't structured properly 
@@ -48,7 +48,8 @@ def load_stl_binary(file_obj):
     # all of our vertices will be loaded in order due to the STL format, 
     # so faces are just sequential indices reshaped. 
     faces = np.arange(tri_count*3).reshape((-1,3))
-    blob  = np.fromstring(file_obj.read(), dtype= dtype)
+    blob  = np.fromstring(file_obj.read(), dtype=_stl_dtype)
+    
     result =  {'vertices'     : blob['vertices'].reshape((-1,3)),
                'face_normals' : blob['normals'].reshape((-1,3)),
                'faces'        : faces}
