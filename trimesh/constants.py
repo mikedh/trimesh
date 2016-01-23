@@ -4,12 +4,7 @@ from logging import getLogger   as _getLogger
 from logging import NullHandler as _NullHandler
 
 ### numerical tolerances for meshes
-class _NumericalToleranceMesh(_namedtuple('NumericalToleranceMesh', 
-                                         ['zero', 
-                                          'merge',
-                                          'planar',
-                                          'facet_rsq',
-                                          'fit'])):
+class NumericalToleranceMesh(object):
     '''
     tol.zero: consider floating point numbers less than this zero
     tol.merge: when merging vertices, consider vertices closer than this
@@ -23,32 +18,30 @@ class _NumericalToleranceMesh(_namedtuple('NumericalToleranceMesh',
                    robust than considering just normal angles as it is tolerant
                    of numerical error on very small faces. 
     '''
-class _NumericalResolutionMesh(_namedtuple('NumericalResolutionMesh', 
-                                          ['mesh'])):
+    def __init__(self, **kwargs):
+        self.zero      = 1e-12
+        self.merge     = 1e-8
+        self.planar    = 1e-5
+        self.facet_rsq = 1e8
+        self.fit       = 1e-2
+
+        self.__dict__.update(kwargs)
+
+
+class NumericalResolutionMesh(object):
     '''
     res.mesh: when meshing solids, what distance to use
     '''
-tol = _NumericalToleranceMesh(zero      = 1e-12,
-                              merge     = 1e-8,
-                              planar    = 1e-5,
-                              facet_rsq = 1e8,
-                              fit       = 1e-2)
-res = _NumericalResolutionMesh(mesh = 5e-3)
+    def __init__(self, **kwargs):
+        self.mesh = 5e-3
 
+        self.__dict__.update(kwargs)
+
+tol = NumericalToleranceMesh()
+res = NumericalResolutionMesh()
 
 ### numerical tolerances for paths
-class _NumericalTolerancePath(_namedtuple('NumericalTolerancePath', 
-                                         ['zero', 
-                                          'merge',
-                                          'planar',
-                                          'buffer',
-                                          'seg_frac',
-                                          'seg_angle',
-                                          'aspect_frac',
-                                          'radius_frac',
-                                          'radius_min',
-                                          'radius_max',
-                                          'tangent'])):
+class NumericalTolerancePath(object):
     '''
     tol.zero: consider floating point numbers less than this zero
     tol.merge: when merging vertices, consider vertices closer than this
@@ -71,12 +64,22 @@ class _NumericalTolerancePath(_namedtuple('NumericalTolerancePath',
     tol.tangent: when simplifying line segments to curves, what is the maximum
                  angle the end sections can deviate from tangent that is acceptable.   
     '''
-class _NumericalResolutionPath(_namedtuple('NumericalResolutionPath', 
-                                           ['seg_frac',
-                                            'seg_angle',
-                                            'max_sections',
-                                            'min_sections',
-                                            'export'])):
+    def __init__(self, **kwargs):
+        self.zero        = 1e-12
+        self.merge       = 1e-5
+        self.planar      = 1e-5
+        self.buffer      = .05
+        self.seg_frac    = .125
+        self.seg_angle   = .8
+        self.aspect_frac = .1
+        self.radius_frac = 1e-2
+        self.radius_min  = 1e-3
+        self.radius_max  = 50
+        self.tangent     = .017
+
+        self.__dict__.update(kwargs)
+
+class NumericalResolutionPath(object):
     '''
     res.seg_frac: when discretizing curves, what percentage of the drawing
                   scale should we aim to make a single segment
@@ -87,22 +90,15 @@ class _NumericalResolutionPath(_namedtuple('NumericalResolutionPath',
                       of segments per control point
     res.export: format string to use when exporting floating point vertices
     '''
-tol_path = _NumericalTolerancePath(zero        = 1e-12,
-                                   merge       = 1e-5,
-                                   planar      = 1e-5,
-                                   buffer      = .05,
-                                   seg_frac    = .125,
-                                   seg_angle   = .8,
-                                   aspect_frac = .1,
-                                   radius_frac = 1e-2,
-                                   radius_min  = 1e-3,
-                                   radius_max  = 50,
-                                   tangent     = .0175)
-res_path = _NumericalResolutionPath(seg_frac     = .05,
-                                    seg_angle    = .08,
-                                    max_sections = 10,
-                                    min_sections = 5,
-                                    export       = '.5f')
+    def __init__(self, **kwargs):
+        self.seg_frac     = .05
+        self.seg_angle    = .08
+        self.max_sections = 10
+        self.min_sections = 5
+        self.export       = '.5f'
+
+tol_path = NumericalTolerancePath()
+res_path = NumericalResolutionPath()
 
 ### logging
 log = _getLogger('trimesh')

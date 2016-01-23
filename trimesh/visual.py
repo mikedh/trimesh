@@ -58,11 +58,22 @@ class VisualAttributes(object):
     '''
     Hold the visual attributes (usually colors) for a mesh. 
     '''
-    def __init__(self, mesh):
+    def __init__(self, mesh, **kwargs):
         self.mesh = mesh
 
         self._vertex_colors = None
         self._face_colors   = None
+
+        print kwargs.keys()
+
+        if 'vertex_colors' in kwargs:
+            self.vertex_colors = kwargs['vertex_colors']
+
+        if 'face_colors' in kwargs:
+            print 'got em', kwargs['face_colors']
+            self.face_colors = kwargs['face_colors']
+
+
 
     @property
     def defined(self):

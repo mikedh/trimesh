@@ -11,7 +11,7 @@ from . import triangles
 from . import grouping
 from . import geometry
 from . import graph
-from . import color
+from . import visual
 from . import sample
 from . import repair
 from . import comparison
@@ -74,7 +74,7 @@ class Trimesh(object):
         self.ray     = RayMeshIntersector(self)
 
         # hold vertex and face colors
-        self.visual = color.VisualAttributes(self)
+        self.visual = visual.VisualAttributes(self, **kwargs)
         
         # any metadata that should be tracked per- mesh
         self.metadata = dict()
@@ -446,7 +446,11 @@ class Trimesh(object):
         smoothed: Trimesh object, non watertight version of current mesh
                   which will render nicely with smooth shading. 
         '''
-        return graph.smoothed(self, angle)
+        if 'smoothed' in self._cache:
+            return self._cache.get('smoothed')
+        else:
+            return self._cache.set(key   = 'smoothed',
+                                   value = graph.smoothed(self, angle))
 
 
     def section(self,
