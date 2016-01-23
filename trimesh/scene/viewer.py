@@ -205,13 +205,18 @@ def _mesh_to_vertex_list(mesh, group=None):
     indices  = mesh.faces.reshape(-1).tolist()
     vertices = mesh.vertices.reshape(-1).tolist()
     
+    color_dimension = mesh.visual.vertex_colors.shape[1]
+    color_type = {3 : 'c3B', 
+                  4 : 'c4B'}[color_dimension]
+    color_type += '/static'
+
     args = (len(vertices) // 3, # count
             GL_TRIANGLES,       # mode 
             group,              # group
             indices,            # indices 
             ('v3f/static', vertices),
             ('n3f/static', normals),
-            ('c3B/static', colors))
+            (color_type,   colors))
     return args
     
 def _gl_matrix(array):

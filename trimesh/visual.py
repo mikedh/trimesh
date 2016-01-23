@@ -38,7 +38,11 @@ def face_to_vertex_color(mesh, face_colors, dtype=COLOR_DTYPE):
     '''
     Convert a set of face colors into a set of vertex colors.
     '''
-    vertex_colors = np.zeros((len(mesh.vertices),3,3))
+    
+    color_dim = np.shape(face_colors)[1]
+
+
+    vertex_colors = np.zeros((len(mesh.vertices),3,color_dim))
     population    = np.zeros((len(mesh.vertices),3), dtype=np.bool)
 
     vertex_colors[[mesh.faces[:,0],0]] = face_colors
@@ -66,7 +70,6 @@ class VisualAttributes(object):
 
         if 'vertex_colors' in kwargs:
             self.vertex_colors = kwargs['vertex_colors']
-
         if 'face_colors' in kwargs:
             self.face_colors = kwargs['face_colors']
 
@@ -76,7 +79,7 @@ class VisualAttributes(object):
 
     @property
     def face_colors(self):
-        ok = self._face_colors is not None
+        ok = len(self._face_colors.shape) == 2
         ok = ok and len(self._face_colors) == len(self.mesh.faces)
         if not ok:
             log.warn('Faces being set to default color')
@@ -92,12 +95,12 @@ class VisualAttributes(object):
             self.face_colors = np.tile(values, 
                                        (len(self.mesh.faces), 1))
         else:
-            self._face_colors = values
+            self._face_colors = np.array(values)
 
     @property
     def vertex_colors(self):
-        ok = self._vertex_colors is not None
-        ok = ok and len(self._vertex_colors) == len(self.mesh.vertices)
+        ok = len(self._vertex_colors.shape) == 2
+        ok = ok and (len(self._vertex_colors) == len(self.mesh.vertices))
         if not ok:
             log.warn('Vertex colors being generated.')
             self._vertex_colors = face_to_vertex_color(self.mesh, 
