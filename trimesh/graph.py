@@ -224,7 +224,6 @@ def smoothed(mesh, angle):
                      nx.connected_components(graph),
                      only_watertight = False,
                      append = True)
-
     return smooth
 
 def submesh(mesh, faces_sequence, only_watertight=False, append=False):

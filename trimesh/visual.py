@@ -64,16 +64,11 @@ class VisualAttributes(object):
         self._vertex_colors = None
         self._face_colors   = None
 
-        print kwargs.keys()
-
         if 'vertex_colors' in kwargs:
             self.vertex_colors = kwargs['vertex_colors']
 
         if 'face_colors' in kwargs:
-            print 'got em', kwargs['face_colors']
             self.face_colors = kwargs['face_colors']
-
-
 
     @property
     def defined(self):
@@ -81,7 +76,9 @@ class VisualAttributes(object):
 
     @property
     def face_colors(self):
-        if not self._face_colors_ok:
+        ok = self._face_colors is not None
+        ok = ok and len(self._face_colors) == len(self.mesh.faces)
+        if not ok:
             log.warn('Faces being set to default color')
             self._face_colors = np.tile(DEFAULT_COLOR,
                                         (len(self.mesh.faces), 1))
@@ -99,35 +96,26 @@ class VisualAttributes(object):
 
     @property
     def vertex_colors(self):
-        if not self._vertex_colors_ok:
+        ok = self._vertex_colors is not None
+        ok = ok and len(self._vertex_colors) == len(self.mesh.vertices)
+        if not ok:
             log.warn('Vertex colors being generated.')
             self._vertex_colors = face_to_vertex_color(self.mesh, 
                                                        self.face_colors)
-            
         return self._vertex_colors
 
     @vertex_colors.setter
     def vertex_colors(self, values):
         self._vertex_colors = np.array(values)
 
-    @property
-    def _face_colors_ok(self):
-        ok = self._face_colors is not None
-        ok = ok and self._face_colors.shape == self.mesh.faces.shape
-        return ok
-
-    @property
-    def _vertex_colors_ok(self):
-        ok = self._vertex_colors is not None
-        ok = ok and self._vertex_colors.shape == self.mesh.vertices.shape
-        return ok
-
     def update_faces(self, mask):
-        if self._face_colors is not None:
-            try:    self._face_colors = self._face_colors[mask]
-            except: log.warn('Face colors not updated')
+        try:
+            self._face_colors = self._face_colors[mask]
+        except: 
+            log.warn('Face colors not updated')
 
     def update_vertices(self, mask):
-        if self._vertex_colors is not None:
-            try:    self._vertex_colors = self._vertex_colors[mask]
-            except: log.warn('Vertex colors not updated')
+        try:
+            self._vertex_colors = self._vertex_colors[mask]
+        except: 
+            log.warn('Vertex colors not updated')
