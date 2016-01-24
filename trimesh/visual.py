@@ -65,8 +65,8 @@ class VisualAttributes(object):
     def __init__(self, mesh, **kwargs):
         self.mesh = mesh
 
-        self._vertex_colors = None
-        self._face_colors   = None
+        self._vertex_colors = np.array([])
+        self._face_colors   = np.array([])
 
         if 'vertex_colors' in kwargs:
             self.vertex_colors = kwargs['vertex_colors']

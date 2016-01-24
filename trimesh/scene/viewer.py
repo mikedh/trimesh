@@ -53,6 +53,7 @@ class SceneViewer(pyglet.window.Window):
         pyglet.app.run()
 
     def _add_mesh(self, node_name, mesh, smooth=None):
+    
         if smooth is None:
             smooth = len(mesh.faces) < _SMOOTH_MAX_FACES
 
@@ -202,18 +203,16 @@ def _mesh_to_vertex_list(mesh, group=None):
     '''
     normals  = mesh.vertex_normals.reshape(-1).tolist()
     colors   = mesh.visual.vertex_colors.reshape(-1).tolist()
-    indices  = mesh.faces.reshape(-1).tolist()
+    faces    = mesh.faces.reshape(-1).tolist()
     vertices = mesh.vertices.reshape(-1).tolist()
     
     color_dimension = mesh.visual.vertex_colors.shape[1]
-    color_type = {3 : 'c3B', 
-                  4 : 'c4B'}[color_dimension]
-    color_type += '/static'
+    color_type = 'c' + str(color_dimension) + 'B/static'
 
-    args = (len(vertices) // 3, # count
+    args = (len(mesh.vertices), # number of vertices
             GL_TRIANGLES,       # mode 
             group,              # group
-            indices,            # indices 
+            faces,              # indices 
             ('v3f/static', vertices),
             ('n3f/static', normals),
             (color_type,   colors))

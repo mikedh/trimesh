@@ -8,6 +8,7 @@ from .assimp import _assimp_loaders
 from .stl    import _stl_loaders
 from .misc   import _misc_loaders
 from .step   import _step_loaders
+from .ply    import _ply_loaders
 
 def load_path(*args, **kwargs):
     raise ImportError('No path functionality available!')
@@ -92,7 +93,11 @@ def load_mesh(obj, file_type=None, process=True):
     return meshes
 
 _mesh_loaders = {}
+# assimp has a lot of loaders, but they are all quite slow
+# so we load them first and replace them with native loaders
+# if the native loader exists
 _mesh_loaders.update(_assimp_loaders)
 _mesh_loaders.update(_stl_loaders)
 _mesh_loaders.update(_misc_loaders)
 _mesh_loaders.update(_step_loaders)
+_mesh_loaders.update(_ply_loaders)

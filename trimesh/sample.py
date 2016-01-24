@@ -63,8 +63,7 @@ def even_sample(mesh, count):
     Sample the surface of a mesh, returning samples which are 
     approximately evenly spaced. 
     '''
-    area = mesh.area()
-    radius = np.sqrt(area / (2*count))
+    radius = np.sqrt(mesh.area / (2*count))
     samples = random_sample(mesh, count*5)
     result = remove_close(samples, radius)
     return result
