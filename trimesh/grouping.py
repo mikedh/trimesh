@@ -125,7 +125,7 @@ def float_to_int(data, digits=None):
     '''
     Given a numpy array of data represent it as integers.
     '''
-    data = np.array(data)   
+    data = np.asanyarray(data)   
     if data.dtype.kind in 'ib':
         #if data is already an integer or boolean, we're done
         return data
@@ -155,7 +155,7 @@ def unique_ordered(data):
     In [3]: trimesh.grouping.unique_ordered(a)
     Out[3]: array([0, 3, 4, 1, 2])
     '''
-    data   = np.array(data)
+    data   = np.asanyarray(data)
     order  = np.sort(np.unique(data, return_index=True)[1])
     result = data[order]
     return result
@@ -368,7 +368,7 @@ def stack_negative(rows):
     Given an input of rows (n,d), return an array which is (n,2*d)
     Which is sign- independent
     '''
-    rows     = np.array(rows)
+    rows     = np.asanyarray(rows)
     width    = rows.shape[1]
     stacked  = np.column_stack((rows, rows*-1))
 

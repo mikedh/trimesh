@@ -122,10 +122,13 @@ class EnforcedForest(nx.DiGraph):
         
         for k, v in self.flags.items():
             if k in kwargs:
-                self.flags[k] = kwargs[k]
+                self.flags[k] = bool(kwargs[k])
                 kwargs.pop(k, None)
 
         super(self.__class__, self).__init__(*args, **kwargs)
+        # keep a second parallel but undirected copy of the graph
+        # all of the networkx methods for turning a directed graph
+        # into an undirected graph are quite slow, so we do minor bookkeeping 
         self._undirected = nx.Graph()
 
     def add_edge(self, u, v, *args, **kwargs):

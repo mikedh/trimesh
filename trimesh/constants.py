@@ -1,5 +1,4 @@
 from time import time as time_function
-from collections import namedtuple as _namedtuple
 from logging import getLogger   as _getLogger
 from logging import NullHandler as _NullHandler
 
@@ -65,6 +64,7 @@ class NumericalTolerancePath(object):
                  angle the end sections can deviate from tangent that is acceptable.   
     '''
     def __init__(self, **kwargs):
+        # default values
         self.zero        = 1e-12
         self.merge       = 1e-5
         self.planar      = 1e-5

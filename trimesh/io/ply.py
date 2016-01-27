@@ -1,20 +1,43 @@
 import numpy as np
 from collections import OrderedDict
 
-def load_ply(file_obj, file_type=None):
+def load_ply(file_obj, *args, **kwargs):
     '''
     Load a PLY file from an open file object.
+    
+    Arguments
+    ---------
+    file_obj: an open file- like object
+
+    Returns
+    ---------
+    mesh_kwargs: dictionary of mesh info which can be passed to 
+                 Trimesh constructor, eg: a = Trimesh(**mesh_kwargs)
     '''
+    # OrderedDict which is populated from the header
     elements = ply_read_header(file_obj)
+    # some elements are passed where the list dimensions
+    # are not included in the header, so this function goes 
+    # into the meat of the file and grabs the list dimensions 
+    # before we to the main data read as a single operation
     ply_populate_listsize(file_obj, elements)
 
+    # how many bytes are left in the file
     size_file = size_to_end(file_obj)
+    # how many bytes should the data structure described by
+    # the header take up
     size_elements = ply_elements_size(elements)
     
+    # if the number of bytes is not the same the file is probably corrupt
     if size_file != size_elements:
         raise ValueError('File is unexpected length!')
 
+    # with everything populated and a reasonable confidence the file
+    # is intact, read the data fields described by the header
     ply_populate_data(file_obj, elements)
+    # all of the data is now stored in elements, but we need it as
+    # a set of keyword arguments we can pass to the Trimesh constructor
+    # will look something like {'vertices' : (data), 'faces' : (data)} 
     mesh_kwargs = ply_elements_kwargs(elements)
     return mesh_kwargs
 
