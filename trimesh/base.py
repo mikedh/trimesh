@@ -436,6 +436,7 @@ class Trimesh(object):
         '''
         return repair.fill_holes(self)
 
+    @_log_time
     def smoothed(self, angle=.4):
         '''
         Return a version of the current mesh which will render nicely.

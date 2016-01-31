@@ -23,7 +23,9 @@ class VisualAttributes(object):
 
     @property
     def defined(self):
-        return self._face_colors is not None
+        defined = len(self._vertex_colors.shape) == 2
+        defined = defined or len(self._face_colors.shape) == 2
+        return defined
 
     @property
     def face_colors(self):
@@ -64,14 +66,14 @@ class VisualAttributes(object):
     def update_faces(self, mask):
         try:
             self._face_colors = self._face_colors[mask]
-        except: 
-            log.warn('Face colors not updated')
+        except:
+            pass
 
     def update_vertices(self, mask):
         try:
             self.vertex_colors = self._vertex_colors[mask]
         except: 
-            log.warn('Vertex colors not updated')
+            pass
 
 def _kwargs_to_color(mesh, **kwargs):
     def pick_option(vf):

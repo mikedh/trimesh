@@ -156,7 +156,7 @@ class SceneViewer(pyglet.window.Window):
         transform_view = _view_transform(self.view)
         glMultMatrixf(_gl_matrix(transform_view))
 
-        for name_node, name_mesh in self.scene.instances.items():
+        for name_node, name_mesh in self.scene.nodes.items():
             if ('visible' in self.scene.flags[name_node] and 
                 not self.scene.flags[name_node]['visible']):
                 continue

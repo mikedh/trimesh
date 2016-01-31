@@ -478,6 +478,7 @@ def array_to_base64(array, dtype=None):
                  shape: int tuple of shape
                  base64: base64 encoded string of flat array
     '''
+    array = np.asanyarray(array)
     shape = array.shape
     # ravel also forces contiguous
     flat  = np.ravel(array)

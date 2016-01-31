@@ -172,6 +172,7 @@ def fill_holes(mesh):
     mesh.face_normals = np.vstack((mesh.face_normals, new_normals[valid]))
     mesh.faces        = np.vstack((mesh.faces, new_faces[valid]))
 
+    
     if mesh.visual.defined:
         # if face colors exist, assign the last face color to the new faces
         # note that this is a little cheesey, but it is very inexpensive and 
@@ -183,6 +184,7 @@ def fill_holes(mesh):
             new_colors = np.vstack((mesh.visual.face_colors, 
                                     new_colors))
             mesh.visual.face_colors = new_colors
+    
     log.debug('Filled in mesh with %i triangles', np.sum(valid))
     return mesh.is_watertight
     

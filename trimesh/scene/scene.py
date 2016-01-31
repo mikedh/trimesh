@@ -21,7 +21,7 @@ class Scene:
                  base_frame ='world'):
 
         # instance name : mesh name
-        self.instances = {}
+        self.nodes = {}
 
         # mesh name : Trimesh object
         self.meshes     = {}
@@ -38,11 +38,12 @@ class Scene:
         If the mesh has multiple transforms defined in its metadata, 
         a new instance of the mesh will be created at each transform. 
         '''
-        if mesh is None: 
+        node_type = mesh.__class__.__name__
+        if node_type != 'Trimesh':
             return
         elif is_sequence(mesh):
-            return [self.add_mesh(i) for i in mesh]
-        elif mesh.__class__.__name__ != 'Trimesh':
+            for i in mesh:
+                self.add_mesh(i)
             return
 
         if 'name' in mesh.metadata: 
@@ -58,8 +59,8 @@ class Scene:
             transforms = np.eye(4).reshape((-1,4,4))
 
         for i, transform in enumerate(transforms):
-            name_node = name_mesh + '/' + str(i)
-            self.instances[name_node] = name_mesh
+            name_node = name_mesh + '_' + str(i)
+            self.nodes[name_node] = name_mesh
             self.flags[name_node] = {'visible':True}
             self.transforms.update(frame_to = name_node, 
                                    matrix   = transform)
@@ -74,7 +75,7 @@ class Scene:
         bounds: (2,3) float points for min, max corner
         '''
         corners = deque()
-        for instance, mesh_name in self.instances.items():
+        for instance, mesh_name in self.nodes.items():
             transform = self.transforms.get(instance)
             corners.append(transform_points(self.meshes[mesh_name].bounds, 
                                             transform))
@@ -127,7 +128,7 @@ class Scene:
         Append all meshes in scene to a list of meshes.
         '''
         result = deque()
-        for node_id, mesh_id in self.instances.items():
+        for node_id, mesh_id in self.nodes.items():
             transform = self.transforms.get(node_id)
             current   = self.meshes[mesh_id].copy()
             current.transform(transform)
@@ -150,7 +151,8 @@ class Scene:
                              ((u, v, {'matrix' : np.eye(4)}))
         '''
         export = {}
-        export['transforms'] = self.transforms.export() 
+        export['transforms'] = self.transforms.export()
+        export['nodes']  = self.nodes
         export['meshes'] = {name:mesh.export(file_type) for name, mesh in self.meshes.items()}
         return export
         

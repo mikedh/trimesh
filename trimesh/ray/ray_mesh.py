@@ -1,7 +1,6 @@
 import numpy as np
 import time
 
-
 from ..util            import Cache
 from ..points          import unitize
 from ..grouping        import unique_rows
@@ -112,7 +111,7 @@ def ray_triangle_candidates(rays, tree):
     may intersect. 
 
     Does this by creating a bounding box for the ray as it 
-    passes through the volume occupied by the tree 
+    passes through the volume occupied by the tree
     '''
     ray_bounding   = ray_bounds(rays, tree.bounds)
     ray_candidates = [None] * len(rays)
@@ -225,14 +224,24 @@ def ray_triangle_locations(triangles,
 
 def contains_points(mesh, points):
     '''
-    Check if a mesh contains a set of points, using ray tests. 
-    '''
-    
-    rays = np.column_stack((points, 
-                            np.tile(unitize([0,0,1]), 
-                                    (len(points),1)))).reshape((-1,2,3))
-    ray_hits = mesh.ray.intersects_location(rays)
-    ray_hits_count = np.array([len(i) for i in ray_hits])
-    contains = np.mod(ray_hits_count, 2) == 1
-    return contains
+    Check if a mesh contains a set of points, using ray tests.
 
+    If the point is on the surface of the mesh, behavior is undefined.
+
+    Arguments
+    ---------
+    mesh: Trimesh object
+    points: (n,3) points in space
+
+    Returns
+    ---------
+    contains: (n) boolean array, whether point is inside mesh or not
+    '''
+    vector = unitize([0,0,1])
+    rays = np.column_stack((points, 
+                            np.tile(vector,(len(points),1)))).reshape((-1,2,3))
+    hits = mesh.ray.intersects_location(rays)
+    hits_count = np.array([len(i) for i in hits])
+    contains = np.mod(hits_count, 2) == 1
+  
+    return contains
