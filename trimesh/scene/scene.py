@@ -1,7 +1,7 @@
 import numpy as np
 
 from ..points          import transform_points
-from ..util            import is_sequence
+from ..util            import is_sequence, is_instance_named
 from ..transformations import rotation_matrix
 from .transforms       import TransformForest
 
@@ -37,13 +37,10 @@ class Scene:
 
         If the mesh has multiple transforms defined in its metadata, 
         a new instance of the mesh will be created at each transform. 
-        '''
-        node_type = mesh.__class__.__name__
-        base_type_names = [b.__name__ for b in mesh.__class__.__bases__]
-        
-        if node_type != 'Trimesh' and not 'Trimesh' in base_type_names:
+        '''        
+        if not is_instance_named(mesh, 'Trimesh'):
             return
-        elif is_sequence(mesh):
+        if is_sequence(mesh):
             for i in mesh:
                 self.add_mesh(i)
             return

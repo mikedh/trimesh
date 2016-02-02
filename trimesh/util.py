@@ -1,3 +1,9 @@
+'''
+trimesh.util: utility functions
+
+ONLY IMPORTS STANDARD LIB AND NUMPY
+'''
+
 import numpy as np
 import time
 import logging
@@ -510,3 +516,25 @@ def base64_to_array(encoded):
                           dtype).reshape(shape)
 
     return array
+
+def is_instance_named(obj, name):
+    '''
+    Given an object, if it is a member of the class 'name',
+    or a subclass of 'name', return True.
+
+    Arguments
+    ---------
+    obj: instance of a class
+    name: string
+
+    Returns
+    ---------
+    bool, whether the object is a member of the named class
+    '''
+
+    # if obj is a member of the named class, return True
+    if obj.__class__.__name__ == name:
+        return True
+
+    # if obj is a subclass of the name, return True
+    return any(i.__name__ == name for i in obj.__class__.__bases__)
