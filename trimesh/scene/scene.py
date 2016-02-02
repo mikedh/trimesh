@@ -39,7 +39,9 @@ class Scene:
         a new instance of the mesh will be created at each transform. 
         '''
         node_type = mesh.__class__.__name__
-        if node_type != 'Trimesh':
+        base_type_names = [b.__name__ for b in mesh.__class__.__bases__]
+        
+        if node_type != 'Trimesh' and not 'Trimesh' in base_type_names:
             return
         elif is_sequence(mesh):
             for i in mesh:
