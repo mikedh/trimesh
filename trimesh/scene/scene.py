@@ -38,11 +38,11 @@ class Scene:
         If the mesh has multiple transforms defined in its metadata, 
         a new instance of the mesh will be created at each transform. 
         '''        
-        if not is_instance_named(mesh, 'Trimesh'):
-            return
         if is_sequence(mesh):
             for i in mesh:
                 self.add_mesh(i)
+            return
+        if not is_instance_named(mesh, 'Trimesh'):
             return
 
         if 'name' in mesh.metadata: 
