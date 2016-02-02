@@ -18,24 +18,39 @@ class VisualAttributes(object):
     def __init__(self, mesh, **kwargs):
         self.mesh = mesh
 
+        self._set = {'face'   : False,
+                     'vertex' : False}
+
         colors =  _kwargs_to_color(mesh, **kwargs)
         self.vertex_colors, self.face_colors = colors
 
     @property
     def defined(self):
-        defined = len(self._vertex_colors.shape) == 2
-        defined = defined or len(self._face_colors.shape) == 2
+        defined = self._face_ok and self._set['face']
+        defined = defined or (self._vertex_ok and self._set['vertex'])
         return defined
 
     @property
-    def face_colors(self):
+    def _face_ok(self):
         ok = self._face_colors is not None
         ok = ok and len(self._face_colors.shape) == 2
         ok = ok and len(self._face_colors) == len(self.mesh.faces)
-        if not ok:
+        return ok
+
+    @property
+    def _vertex_ok(self):
+        ok = self._vertex_colors is not None
+        ok = ok and len(self._vertex_colors.shape) == 2
+        ok = ok and (len(self._vertex_colors) == len(self.mesh.vertices))
+        return ok
+
+    @property
+    def face_colors(self):
+        if not self._face_ok:
             log.warn('Faces being set to default color')
             self._face_colors = np.tile(DEFAULT_COLOR,
                                         (len(self.mesh.faces), 1))
+            self._set['face'] = False
         return self._face_colors
 
     @face_colors.setter
@@ -47,21 +62,21 @@ class VisualAttributes(object):
                                        (len(self.mesh.faces), 1))
         else:
             self._face_colors = np.array(values)
+        self._set['face'] = self._face_ok
 
     @property
     def vertex_colors(self):
-        ok = self._vertex_colors is not None
-        ok = ok and len(self._vertex_colors.shape) == 2
-        ok = ok and (len(self._vertex_colors) == len(self.mesh.vertices))
-        if not ok:
+        if not self._vertex_ok:
             log.warn('Vertex colors being generated.')
             self._vertex_colors = face_to_vertex_color(self.mesh, 
                                                        self.face_colors)
+            self._set['vertex'] = False
         return self._vertex_colors
 
     @vertex_colors.setter
     def vertex_colors(self, values):
         self._vertex_colors = np.array(values)
+        self._set['vertex'] = self._vertex_ok
 
     def update_faces(self, mask):
         try:
@@ -76,6 +91,11 @@ class VisualAttributes(object):
             pass
 
 def _kwargs_to_color(mesh, **kwargs):
+    '''
+    Given a set of keyword arguments, see if any reference color
+    in their name, and match the dimensions of the mesh.
+    '''
+
     def pick_option(vf):
         if any(i is None for i in vf):
             return vf
@@ -105,7 +125,7 @@ def _kwargs_to_color(mesh, **kwargs):
             vertex.append(value)
         elif len(value) == len(mesh.faces):
             face.append(value)
-    return pick_option([pick_color(i) for i in vertex, face])
+    return pick_option([pick_color(i) for i in [vertex, face]])
 
 def random_color(dtype=COLOR_DTYPE):
     '''
@@ -119,17 +139,6 @@ def random_color(dtype=COLOR_DTYPE):
         color    *= max_value
     color     = color.astype(dtype)
     return color
-
-def distinct_colors(dtype=COLOR_DTYPE, expected_length=50):
-    '''
-    Generator for colors 
-    '''
-    while True:
-        yield random_color(dtype)
-
-def average_color(a, b):
-    result = (np.array(a) + b) / 2
-    return result
 
 def face_to_vertex_color(mesh, face_colors, dtype=COLOR_DTYPE):
     '''

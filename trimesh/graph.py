@@ -252,6 +252,9 @@ def submesh(mesh, faces_sequence, only_watertight=False, append=False):
     vertices = deque()
     normals  = deque()
 
+    face_colors = deque()
+    vertex_colors = deque()
+
     # for reindexing faces
     mask = np.arange(len(original_vertices))    
 
@@ -264,6 +267,9 @@ def submesh(mesh, faces_sequence, only_watertight=False, append=False):
         # redefine face indices from zero
         mask[unique] = np.arange(len(unique))
 
+
+        face_colors.append(mesh.visual.face_colors[faces_index])
+
         faces.append(mask[faces_current])
         vertices.append(original_vertices[unique])
         normals.append(mesh.face_normals[faces_index])
@@ -273,6 +279,7 @@ def submesh(mesh, faces_sequence, only_watertight=False, append=False):
         appended = type(mesh)(vertices = vertices,
                               faces = faces,
                               face_normals = np.vstack(normals),
+                              face_colors  = np.vstack(face_colors),
                               process = False)
         return appended
 
