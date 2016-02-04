@@ -6,17 +6,19 @@ from .dxf_load   import load_dxf
 from .svg_load   import svg_to_path
 from .misc       import lines_to_path, polygon_to_path, dict_to_path
 
-from ..path      import Path2D, Path3D
+from ..path      import Path, Path2D, Path3D
 
 from ...constants import log
-from ...util      import is_sequence, is_file, is_string
+from ...util      import is_sequence, is_file, is_string, is_instance_named
 
 def load_path(obj, file_type=None):
     '''
     Utility function which can be passed a filename, file object, or list of lines
     '''
-    type_name = obj.__class__.__name__
-    if is_file(obj):
+
+    if isinstance(obj, Path):
+        return obj
+    elif is_file(obj):
         loaded = _LOADERS[file_type](obj)
         obj.close()
     elif is_string(obj):
@@ -24,9 +26,9 @@ def load_path(obj, file_type=None):
         file_type = os.path.splitext(obj)[-1][1:].lower()
         loaded = _LOADERS[file_type](file_obj)
         file_obj.close()
-    elif type_name == 'Polygon':
+    elif is_instance_named(obj, 'Polygon'):
         loaded = polygon_to_path(obj)
-    elif type_name == 'dict':
+    elif is_instance_named(obj, 'dict'):
         loaded = dict_to_path(obj)
     elif is_sequence(obj):
         loaded = lines_to_path(obj)

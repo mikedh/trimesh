@@ -11,7 +11,7 @@ from ..constants import tol_path as tol
 from .polygons  import polygon_obb, transform_polygon
 from ..util     import transformation_2D
 
-class Bin:
+class RectangleBin:
     '''
     2D BSP tree node. 
     http://www.blackpawn.com/texts/lightmaps/
@@ -59,8 +59,8 @@ class Bin:
         length        = rectangle_size[not vertical]
         child_bounds  = self.split(length, vertical)
 
-        self.child[0] = Bin(bounds=child_bounds[0])
-        self.child[1] = Bin(bounds=child_bounds[1])
+        self.child[0] = RectangleBin(bounds=child_bounds[0])
+        self.child[1] = RectangleBin(bounds=child_bounds[1])
         
         return self.child[0].insert(rectangle_size)
    
@@ -103,7 +103,7 @@ def pack_rectangles(rectangles, sheet_size, shuffle=False):
         shuffle_len = int(np.random.random()* len(rectangles)) - 1  
         box_order[0:shuffle_len] = np.random.permutation(box_order[0:shuffle_len])
 
-    sheet = Bin(size=sheet_size)
+    sheet = RectangleBin(size=sheet_size)
     for index in box_order: 
         insert_location = sheet.insert(rectangles[index])
         if insert_location != None:
@@ -131,7 +131,6 @@ def pack_paths(paths, show=False):
         if show: path.plot_discrete(show=False)
     if show: plt.show()
     return paths_full
-
 
 def multipack(polygons, 
               sheet_size     = None,
@@ -178,8 +177,8 @@ def multipack(polygons,
     polygon_density = np.sum(polygon_area[overall_inserted])/np.product(overall_sheet)
     log.info('Final polygonal density is %f.', polygon_density)
 
-    transforms_obb     = transforms_obb[overall_inserted]
-    transforms_packed  = transforms_obb.copy()
+    transforms_obb    = transforms_obb[overall_inserted]
+    transforms_packed = transforms_obb.copy()
     transforms_packed.reshape(-1,9)[:,[2,5]] += overall_offset + buffer_dist
  
     if plot: 
@@ -203,3 +202,5 @@ class Packer:
     def __init__(self, sheet_size=None):
         pass
 
+    def add(self):
+        pass

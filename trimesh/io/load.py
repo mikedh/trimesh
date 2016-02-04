@@ -2,7 +2,7 @@ import numpy as np
 
 from ..base      import Trimesh
 from ..constants import _log_time, log
-from ..util      import is_file, is_dict, is_string, make_sequence
+from ..util      import is_file, is_dict, is_string, make_sequence, is_instance_named
 
 from .assimp import _assimp_loaders
 from .stl    import _stl_loaders
@@ -39,6 +39,12 @@ def load(obj, file_type=None, **kwargs):
     Returns:
     geometry: Trimesh, Path2D, Path3D, or list of same. 
     '''
+
+    if isinstance(obj, Trimesh):
+        return obj
+
+    if is_instance_named(obj, 'Path'):
+        return obj
 
     if is_string(obj):
         file_type = (str(obj).split('.')[-1]).lower()
@@ -89,13 +95,13 @@ def load_mesh(obj, file_type=None, process=True):
 
     meshes = [Trimesh(process=process, **i) for i in make_sequence(loaded)]
     
-    if len(meshes) == 1: return meshes[0]
+    if len(meshes) == 1: 
+        return meshes[0]
     return meshes
 
 _mesh_loaders = {}
 # assimp has a lot of loaders, but they are all quite slow
-# so we load them first and replace them with native loaders
-# if the native loader exists
+# so we load them first and replace them with native loaders if possible
 _mesh_loaders.update(_assimp_loaders)
 _mesh_loaders.update(_stl_loaders)
 _mesh_loaders.update(_misc_loaders)

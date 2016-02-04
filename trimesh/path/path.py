@@ -52,7 +52,7 @@ class Path(object):
         if metadata.__class__.__name__ == 'dict':
             self.metadata.update(metadata)
 
-        self._cache = util.Cache(id_function = self._geometry_id)
+        self._cache = util.Cache(id_function = self.md5)
 
         # literally nothing will work if vertices aren't merged properly
         self.merge_vertices()
@@ -72,7 +72,7 @@ class Path(object):
     def vertices(self, values):
         self._vertices = util.tracked_array(values)
 
-    def _geometry_id(self):
+    def md5(self):
         result  = self.vertices.md5()
         result += str(len(self.entities))
         return result
@@ -380,11 +380,17 @@ class Path2D(Path):
         ----------
         medial:     Path2D object
         '''
+        if 'medial' in self._cache:
+            return self._cache.get('medial')
+
         if resolution is None:
             resolution = self.scale / 1000.0
-        medials = [medial_axis(i, resolution, clip) for i in self.polygons_full]
-        return np.sum(medials)
 
+        medials = [medial_axis(i, resolution, clip) for i in self.polygons_full]
+        medials = np.sum(medials)
+        return self._cache.set(key = 'medial',
+                               value = medials)
+        
     def connected_paths(self, path_id, include_self = False):
         if len(self.root) == 1:
             path_ids = np.arange(len(self.paths))
