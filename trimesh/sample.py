@@ -21,7 +21,7 @@ def random_sample(mesh, count):
     '''
 
     #len(mesh.faces) float array of the areas of each face of the mesh
-    area     = mesh.area
+    area     = mesh.area_faces
     # total area (float)
     area_sum = np.sum(area)
     # cumulative area (len(mesh.faces)) 
