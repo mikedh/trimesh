@@ -169,7 +169,7 @@ def fill_holes(mesh):
     # since the winding is now correct, we can get consistant normals
     # just by doing the cross products on the face edges 
     new_normals, valid = normals(mesh.vertices[new_faces])
-    mesh.face_normals = np.vstack((mesh.face_normals, new_normals[valid]))
+    mesh.face_normals = np.vstack((mesh.face_normals, new_normals))
     mesh.faces        = np.vstack((mesh.faces, new_faces[valid]))
 
     

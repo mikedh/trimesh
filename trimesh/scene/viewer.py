@@ -77,22 +77,31 @@ class SceneViewer(pyglet.window.Window):
                      'ball'        : Arcball()}
         
     def init_gl(self):
-        glClearColor(1, 1, 1, 1)
-        glColor3f(1, 0, 0)
+        glClearColor(.93, .93, 1, 1)
+        #glColor3f(1, 0, 0)
+
         glEnable(GL_DEPTH_TEST)
         glEnable(GL_CULL_FACE)
         glEnable(GL_LIGHTING)
         glEnable(GL_LIGHT0)
         glEnable(GL_LIGHT1)
+
         glLightfv(GL_LIGHT0, GL_POSITION, _gl_vector(.5, .5, 1, 0))
         glLightfv(GL_LIGHT0, GL_SPECULAR, _gl_vector(.5, .5, 1, 1))
         glLightfv(GL_LIGHT0, GL_DIFFUSE, _gl_vector(1, 1, 1, 1))
         glLightfv(GL_LIGHT1, GL_POSITION, _gl_vector(1, 0, .5, 0))
         glLightfv(GL_LIGHT1, GL_DIFFUSE, _gl_vector(.5, .5, .5, 1))
         glLightfv(GL_LIGHT1, GL_SPECULAR, _gl_vector(1, 1, 1, 1))
+
         glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE)
         glEnable(GL_COLOR_MATERIAL)
         glShadeModel(GL_SMOOTH)
+
+        glMaterialfv(GL_FRONT, GL_AMBIENT, _gl_vector(0.192250, 0.192250, 0.192250))
+        glMaterialfv(GL_FRONT, GL_DIFFUSE, _gl_vector(0.507540, 0.507540, 0.507540))
+        glMaterialfv(GL_FRONT, GL_SPECULAR, _gl_vector(.5082730,.5082730,.5082730))
+        glMaterialf(GL_FRONT, GL_SHININESS, .4 * 128.0);
+
 
     def toggle_culling(self):
         self.view['cull'] = not self.view['cull']

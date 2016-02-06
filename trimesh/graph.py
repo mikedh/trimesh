@@ -269,7 +269,6 @@ def submesh(mesh, faces_sequence, only_watertight=False, append=False):
 
 
         face_colors.append(mesh.visual.face_colors[faces_index])
-
         faces.append(mask[faces_current])
         vertices.append(original_vertices[unique])
         normals.append(mesh.face_normals[faces_index])
@@ -287,7 +286,11 @@ def submesh(mesh, faces_sequence, only_watertight=False, append=False):
     # as this causes a circular import
     result = [type(mesh)(vertices     = v, 
                          faces        = f, 
-                         face_normals = n) for v,f,n in zip(vertices, faces, normals)]
+                         face_normals = n,
+                         face_colors  = c) for v,f,n,c in zip(vertices, 
+                                                              faces, 
+                                                              normals,
+                                                              face_colors)]
     result = np.array(result)
     if only_watertight:
         watertight = np.array([i.fill_holes() and len(i.faces) > 4 for i in result])

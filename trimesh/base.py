@@ -226,39 +226,37 @@ class Trimesh(object):
         
     @property
     def face_normals(self):
-        if np.shape(self._face_normals) != np.shape(self.faces):
-            log.debug('Generating face normals')
-            face_normals, valid = triangles.normals(self.triangles)
-            self.update_faces(valid)
-            self._face_normals = face_normals
-        return self._face_normals
+        cached = self._cache.get('face_normals')
+        if np.shape(cached) == np.shape(self.faces):
+            return cached
+
+        log.debug('Generating face normals')
+        face_normals, valid = triangles.normals(self.triangles)
+        self.update_faces(valid)
+        return self._cache.set(key = 'face_normals',
+                               value = face_normals)
 
     @face_normals.setter
     def face_normals(self, values):
-        self._face_normals = np.array(values)
+        self._cache.set(key = 'face_normals',
+                       value = np.asanyarray(values))
 
     @property
     def vertex_normals(self):
-        if np.shape(self._vertex_normals) != np.shape(self.vertices):
-            self._generate_vertex_normals()
+        cached = self._cache.get('vertex_normals')
+        if np.shape(cached) != np.shape(self.vertices):
             log.debug('Generating vertex normals')
-        return self._vertex_normals
+            normals = geometry.mean_vertex_normals(len(self.vertices),
+                                                            self.faces,
+                                                            self.face_normals)
+            return self._cache.set(key   = 'vertex_normals',
+                                   value = normals)
+        return cached
 
     @vertex_normals.setter
     def vertex_normals(self, values):
-        self._vertex_normals = np.array(values)
-        
-    def _generate_vertex_normals(self):
-        '''
-        If face normals are defined, produce approximate vertex normals based on the
-        average of the adjacent faces.
-        
-        If vertices are merged with no regard to normal angle, this is
-        going to render with weird shading.
-        '''
-        self._vertex_normals = geometry.mean_vertex_normals(len(self.vertices),
-                                                            self.faces,
-                                                            self.face_normals)
+        self._cache.set(key = 'vertex_normals',
+                        value = np.array(values))
 
     def merge_vertices(self, angle=None):
         '''
@@ -285,13 +283,21 @@ class Trimesh(object):
         inverse:     (len(self.vertices)) int array to reconstruct
                      vertex references (such as output by np.unique)
         '''
+        mask = np.asanyarray(mask)
 
-        if mask.dtype.name == 'bool' and mask.all(): return
+        if mask.dtype.name == 'bool' and mask.all(): 
+            return
         self.faces = inverse[[self.faces.reshape(-1)]].reshape((-1,3))
         self.visual.update_vertices(mask)
-        
-        if np.shape(self._vertex_normals) == np.shape(self.vertices):
-            self._vertex_normals = self._vertex_normals[mask]
+
+        # check the dimensions of the cached value rather than 
+        # using the property, which will enforce correct dimensions
+        # before returning anything
+        cached = self._cache.get('vertex_normals')
+        if np.shape(cached) == np.shape(self.vertices):
+            self._cache.set(key = 'vertex_normals',
+                            values = cached[mask])
+
         self.vertices = self.vertices[mask]
 
     def update_faces(self, mask):
@@ -305,10 +311,19 @@ class Trimesh(object):
         ---------
         valid: either (m) int, or (len(self.faces)) bool. 
         '''
+        mask = np.asanyarray(mask)
 
-        if mask.dtype.name == 'bool' and mask.all(): return
-        if np.shape(self._face_normals) == np.shape(self.faces):
-            self._face_normals = self._face_normals[mask]
+        if mask.dtype.name == 'bool':
+            if mask.all(): 
+                return
+        elif mask.dtype.name != 'int':
+            mask = mask.astype(np.int)
+
+        cached = self._cache.get('face_normals')
+        if np.shape(cached) == np.shape(self.faces):
+            self._cache.set(key = 'face_normals',
+                            value = cached[mask])
+
         self.faces = self.faces[mask]        
         self.visual.update_faces(mask)
         

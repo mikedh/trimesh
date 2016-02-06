@@ -74,11 +74,13 @@ class TransformForest:
         if frame_from is None:
             frame_from = self.base_frame
         transform = np.eye(4)
-        path, direction = self._get_path(frame_from, frame_to)
+        path = self._get_path(frame_from, frame_to)
+
         for i in range(len(path) - 1):
-            edge = [path[i], path[i+1]][::direction[i]]
-            matrix = self.transforms.get_edge_data(*edge)['matrix']
-            if direction[i] < 0: 
+            data, direction = self.transforms.get_edge_data_direction(path[i],
+                                                                      path[i+1])
+            matrix = data['matrix']
+            if direction < 0: 
                 matrix = np.linalg.inv(matrix)
             transform = np.dot(transform, matrix)
         return transform
@@ -105,8 +107,6 @@ class TransformForest:
         ----------
         path: (n) list of frame keys
               example: ['mesh_finger', 'mesh_hand', 'world']
-        inverted: boolean flag, whether the path is traversing stored
-                  matrices forwards or backwards. 
         '''
         key = (frame_from, frame_to)
         if not (key in self._paths):
@@ -178,17 +178,18 @@ class EnforcedForest(nx.DiGraph):
         self.remove_edges_from(ebunch)
 
     def shortest_path_undirected(self, u, v):
-        path      = nx.shortest_path(self._undirected, u, v)
-        direction = np.zeros(len(path)-1, dtype=np.int)
-        
-        for i, edge in enumerate(path_to_edges(path)):
-            if self.has_edge(*edge):
-                direction[i] = 1
-            elif self.has_edge(*edge[::-1]):
-                direction[i] = -1
-            else:
-                raise ValueError('Edge doesn\'t exist!')
-        return path, direction
+        path = nx.shortest_path(self._undirected, u, v)
+        return path
+
+    def get_edge_data_direction(self, u, v):
+        if self.has_edge(u,v):
+            direction = 1
+        elif self.has_edge(v,u):
+            direction = -1
+        else: 
+            raise ValueError('Edge doesnt exist!')
+        data = self.get_edge_data(*[u,v][::direction])
+        return data, direction
         
 def path_to_edges(path):
     '''
