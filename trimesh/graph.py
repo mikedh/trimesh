@@ -7,7 +7,7 @@ from .constants import log, tol, MeshError
 from .grouping  import group, group_rows, boolean_rows
 from .geometry  import faces_to_edges
 from .points    import unitize
-from .util      import diagonal_dot, is_sequence, append_faces
+from .util      import diagonal_dot, is_sequence
 
 from scipy.spatial import cKDTree as KDTree
 
@@ -184,7 +184,7 @@ def split(mesh, only_watertight=True, adjacency=None):
     def split_nx():
         adjacency_graph = nx.from_edgelist(adjacency)
         components = nx.connected_components(adjacency_graph)
-        result = submesh(mesh, components, only_watertight=only_watertight)
+        result = mesh.submesh(components, only_watertight=only_watertight)
         return result
 
     def split_gt():
@@ -192,7 +192,7 @@ def split(mesh, only_watertight=True, adjacency=None):
         g.add_edge_list(adjacency)
         component_labels = label_components(g, directed=False)[0].a
         components = group(component_labels)
-        result = submesh(mesh, components, only_watertight=only_watertight)
+        result = mesh.submesh(components, only_watertight=only_watertight)
         return result
 
     if adjacency is None:
@@ -220,83 +220,10 @@ def smoothed(mesh, angle):
     adjacency = adjacency_angle(mesh, angle)
     graph = nx.from_edgelist(adjacency)
     graph.add_nodes_from(np.arange(len(mesh.faces)))
-    smooth = submesh(mesh,
-                     nx.connected_components(graph),
-                     only_watertight = False,
-                     append = True)
+    smooth = mesh.submesh(nx.connected_components(graph),
+                          only_watertight = False,
+                          append = True)
     return smooth
-
-def submesh(mesh, faces_sequence, only_watertight=False, append=False):
-    '''
-    Return a subset of the mesh.
-
-    Arguments
-    ----------
-    mesh: Trimesh object
-    faces_sequence: sequence of face indices from mesh
-    only_watertight: only return submeshes which are watertight. 
-    append: return a single mesh which has the faces specified appended.
-            if this flag is set, only_watertight is ignored
-
-    Returns
-    ---------
-    if append: Trimesh object
-    else:      list of Trimesh objects
-    '''
-
-    # avoid nuking the cache on the original mesh
-    original_faces    = mesh.faces.view(np.ndarray)
-    original_vertices = mesh.vertices.view(np.ndarray)
-
-    faces    = deque()
-    vertices = deque()
-    normals  = deque()
-
-    face_colors = deque()
-    vertex_colors = deque()
-
-    # for reindexing faces
-    mask = np.arange(len(original_vertices))    
-
-    for faces_index in faces_sequence:
-        # sanitize indices in case they are coming in as a set or tuple
-        faces_index   = np.array(list(faces_index))
-        faces_current = original_faces[faces_index]
-        unique = np.unique(faces_current.reshape(-1))
-        
-        # redefine face indices from zero
-        mask[unique] = np.arange(len(unique))
-
-
-        face_colors.append(mesh.visual.face_colors[faces_index])
-        faces.append(mask[faces_current])
-        vertices.append(original_vertices[unique])
-        normals.append(mesh.face_normals[faces_index])
-        
-    if append:
-        vertices, faces = append_faces(vertices, faces)
-        appended = type(mesh)(vertices = vertices,
-                              faces = faces,
-                              face_normals = np.vstack(normals),
-                              face_colors  = np.vstack(face_colors),
-                              process = False)
-        return appended
-
-    # we use type(mesh) rather than importing Trimesh from base
-    # as this causes a circular import
-    result = [type(mesh)(vertices     = v, 
-                         faces        = f, 
-                         face_normals = n,
-                         face_colors  = c) for v,f,n,c in zip(vertices, 
-                                                              faces, 
-                                                              normals,
-                                                              face_colors)]
-    result = np.array(result)
-    if only_watertight:
-        watertight = np.array([i.fill_holes() and len(i.faces) > 4 for i in result])
-        result     = result[watertight]
-    
-    return result
 
 def is_watertight(edges):
     '''

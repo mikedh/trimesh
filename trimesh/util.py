@@ -10,7 +10,7 @@ import logging
 import hashlib
 import base64
 
-from collections import defaultdict
+from collections import defaultdict, deque
 from sys import version_info
 
 if version_info.major >= 3:
@@ -380,8 +380,11 @@ class Cache:
     '''
     Class to cache values until an id function changes.
     '''
-    def __init__(self, id_function):
-        self._id_function = id_function
+    def __init__(self, id_function=None):
+        if id_function is None:
+            self._id_function = lambda: None
+        else:
+            self._id_function = id_function
         self.id_current   = None
         self._lock = 0
         self.cache = {}
@@ -538,3 +541,76 @@ def is_instance_named(obj, name):
 
     # if obj is a subclass of the name, return True
     return any(i.__name__ == name for i in obj.__class__.__bases__)
+
+def submesh(mesh, 
+            faces_sequence, 
+            only_watertight = False, 
+            append = False):
+    '''
+    Return a subset of the mesh.
+
+    Arguments
+    ----------
+    mesh: Trimesh object
+    faces_sequence: sequence of face indices from mesh
+    only_watertight: only return submeshes which are watertight. 
+    append: return a single mesh which has the faces specified appended.
+            if this flag is set, only_watertight is ignored
+
+    Returns
+    ---------
+    if append: Trimesh object
+    else:      list of Trimesh objects
+    '''
+
+    # avoid nuking the cache on the original mesh
+    original_faces    = mesh.faces.view(np.ndarray)
+    original_vertices = mesh.vertices.view(np.ndarray)
+
+    faces    = deque()
+    vertices = deque()
+    normals  = deque()
+    visuals  = deque()
+
+    # for reindexing faces
+    mask = np.arange(len(original_vertices))    
+
+    for faces_index in faces_sequence:
+        
+        # sanitize indices in case they are coming in as a set or tuple
+        faces_index   = np.array(list(faces_index))
+        faces_current = original_faces[faces_index]
+        unique = np.unique(faces_current.reshape(-1))
+        
+        # redefine face indices from zero
+        mask[unique] = np.arange(len(unique))
+
+        faces.append(mask[faces_current])
+        vertices.append(original_vertices[unique])
+        normals.append(mesh.face_normals[faces_index])
+        visuals.extend(mesh.visual.subsets([faces_index]))
+
+    visuals = np.array(visuals)
+    if append:
+        vertices, faces = append_faces(vertices, faces)
+        appended = type(mesh)(vertices = vertices,
+                              faces = faces,
+                              face_normals = np.vstack(normals),
+                              visual  = visuals[0].union(visuals[1:]),
+                              process = False)
+        return appended
+
+    # we use type(mesh) rather than importing Trimesh from base
+    # as this causes a circular import
+    result = [type(mesh)(vertices     = v, 
+                         faces        = f, 
+                         face_normals = n,
+                         visual       = c) for v,f,n,c in zip(vertices, 
+                                                              faces, 
+                                                              normals,
+                                                              visuals)]
+    result = np.array(result)
+    if only_watertight:
+        watertight = np.array([i.fill_holes() and len(i.faces) > 4 for i in result])
+        result     = result[watertight]
+    return result

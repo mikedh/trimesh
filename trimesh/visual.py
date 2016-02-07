@@ -2,6 +2,7 @@ import numpy as np
 from colorsys import hsv_to_rgb
 from collections import deque
 
+from .util      import is_sequence
 from .constants import log
 
 COLORS = {'red'    : [205,59,34],
@@ -15,80 +16,78 @@ class VisualAttributes(object):
     '''
     Hold the visual attributes (usually colors) for a mesh. 
     '''
-    def __init__(self, mesh, **kwargs):
+    def __init__(self, mesh=None, **kwargs):
         self.mesh = mesh
-
         self._set = {'face'   : False,
                      'vertex' : False}
-
-        colors =  _kwargs_to_color(mesh, **kwargs)
+        colors = _kwargs_to_color(mesh, **kwargs)
         self.vertex_colors, self.face_colors = colors
 
     @property
     def defined(self):
-        defined = self._face_ok and self._set['face']
-        defined = defined or (self._vertex_ok and self._set['vertex'])
+        defined = np.any(self._set.values()) and self.mesh is not None
         return defined
 
     @property
-    def _face_ok(self):
-        ok = self._face_colors is not None
-        ok = ok and len(self._face_colors.shape) == 2
-        ok = ok and len(self._face_colors) == len(self.mesh.faces)
-        return ok
-
-    @property
-    def _vertex_ok(self):
-        ok = self._vertex_colors is not None
-        ok = ok and len(self._vertex_colors.shape) == 2
-        ok = ok and (len(self._vertex_colors) == len(self.mesh.vertices))
-        return ok
-
-    @property
     def face_colors(self):
-        if not self._face_ok:
-            log.warn('Faces being set to default color')
+        if not (is_sequence(self._face_colors) and
+                len(self._face_colors) == len(self.mesh.faces)):
             self._face_colors = np.tile(DEFAULT_COLOR,
                                         (len(self.mesh.faces), 1))
-            self._set['face'] = False
+            log.debug('Setting default colors for faces')
         return self._face_colors
-
+        
     @face_colors.setter
     def face_colors(self, values):
-        if np.shape(values) == (3,):
+        values = np.asanyarray(values)
+        if values.shape == (3,):
             # case where a single RGB color has been passed to the setter
             # here we apply this color to all faces 
-            self.face_colors = np.tile(values, 
+            self._face_colors = np.tile(values, 
                                        (len(self.mesh.faces), 1))
         else:
-            self._face_colors = np.array(values)
-        self._set['face'] = self._face_ok
+            self._face_colors = values
+
+        # this will only consider colors defined if they were passed as a sequence
+        # is_sequence gracefully handles both None and np.array(None)
+        self._set['face'] = is_sequence(values)
 
     @property
     def vertex_colors(self):
-        if not self._vertex_ok:
-            log.warn('Vertex colors being generated.')
+        if not (is_sequence(self._vertex_colors) and
+                len(self._vertex_colors) == len(self.mesh.vertices)):
+            log.debug('Vertex colors being generated from face colors')
             self._vertex_colors = face_to_vertex_color(self.mesh, 
                                                        self.face_colors)
-            self._set['vertex'] = False
         return self._vertex_colors
 
     @vertex_colors.setter
     def vertex_colors(self, values):
-        self._vertex_colors = np.array(values)
-        self._set['vertex'] = self._vertex_ok
+        self._vertex_colors = np.asanyarray(values)
+        self._set['vertex'] = is_sequence(values)
 
     def update_faces(self, mask):
-        try:
-            self._face_colors = self._face_colors[mask]
-        except:
-            pass
-
+        if not self._set['face']: 
+            return
+        try: self._face_colors = self._face_colors[mask]
+        except: log.warning('Face colors not updated', exc_info=True) 
+            
     def update_vertices(self, mask):
-        try:
-            self.vertex_colors = self._vertex_colors[mask]
-        except: 
-            pass
+        if not self._set['vertex']:
+            return
+        try:    self.vertex_colors = self._vertex_colors[mask]
+        except: log.warning('Vertex colors not updated', exc_info=True)
+
+    def subsets(self, faces_sequence):
+        result = deque()
+        for f in faces_sequence:
+            result.append(VisualAttributes())
+            if self._set['face']:
+                result[-1].face_colors = self.face_colors[np.array(list(f))]
+        return np.array(result)
+
+    def union(self, others):
+        return visuals_union(np.append(self, others))
 
 def _kwargs_to_color(mesh, **kwargs):
     '''
@@ -113,6 +112,14 @@ def _kwargs_to_color(mesh, **kwargs):
             signal = [i.ptp(axis=0).sum() for i in sequence]
             signal_max = np.argmax(signal)
             return sequence[signal_max]
+
+    if mesh is None:
+        result = [None, None]
+        if 'face_colors' in kwargs:
+            result[1] = np.asanyarray(kwargs['face_colors'])
+        if 'vertex_colors' in kwargs:
+            result[0] = np.asanyarray(kwargs['vertex_colors'])
+        return result
         
     vertex = deque()
     face   = deque()
@@ -126,6 +133,15 @@ def _kwargs_to_color(mesh, **kwargs):
         elif len(value) == len(mesh.faces):
             face.append(value)
     return pick_option([pick_color(i) for i in [vertex, face]])
+
+def visuals_union(visuals):
+    color = {'face_colors'   : None,
+             'vertex_colors' : None}
+    if all(is_sequence(i._face_colors) for i in visuals):
+        color['face_colors'] = np.vstack([i._face_colors for i in visuals])
+    if all(is_sequence(i._vertex_colors) for i in visuals):
+        colors['vertex_colors'] = np.vstack([i._vertex_colors for i in visuals])
+    return VisualAttributes(**color)
 
 def random_color(dtype=COLOR_DTYPE):
     '''

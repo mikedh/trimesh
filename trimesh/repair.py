@@ -172,7 +172,12 @@ def fill_holes(mesh):
     mesh.face_normals = np.vstack((mesh.face_normals, new_normals))
     mesh.faces        = np.vstack((mesh.faces, new_faces[valid]))
 
-    
+    # this is usually the case where two vertices of a triangle are just
+    # over tol.merge apart, but the normal calculation is screwed up 
+    # these could be fixed by merging the vertices in question here:
+    #if not valid.all():
+    #    print valid
+
     if mesh.visual.defined:
         # if face colors exist, assign the last face color to the new faces
         # note that this is a little cheesey, but it is very inexpensive and 

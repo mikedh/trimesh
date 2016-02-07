@@ -74,8 +74,12 @@ class Trimesh(object):
         self.ray     = RayMeshIntersector(self)
 
         # hold vertex and face colors
-        self.visual = visual.VisualAttributes(self, **kwargs)
-        
+        if 'visual' in kwargs:
+            self.visual = kwargs['visual']
+        else:
+            self.visual = visual.VisualAttributes(**kwargs)
+        self.visual.mesh = self
+
         # any metadata that should be tracked per- mesh
         self.metadata = dict()
         # update the mesh metadata with passed metadata
@@ -93,7 +97,7 @@ class Trimesh(object):
         self.remove_duplicate_faces()
         self.remove_degenerate_faces()
         # if we've removed any degenerate faces force a regen
-        self.face_normals
+        test = self.face_normals
         return self
         
     @property
@@ -121,6 +125,32 @@ class Trimesh(object):
         # an md5() method which can be used to monitor the array for changes.
         # we also make sure vertices are stored as a float64 for consistency
         self._vertices = util.tracked_array(values, dtype=np.float64)
+
+    @property
+    def face_normals(self):
+        if np.shape(self._face_normals) != np.shape(self.faces):
+            log.debug('Generating face normals as shape was incorrect')
+            face_normals, valid = triangles.normals(self.triangles)
+            self.update_faces(valid)
+            self._face_normals = face_normals
+        return self._face_normals
+
+    @face_normals.setter
+    def face_normals(self, values):
+        self._face_normals = np.asanyarray(values)
+
+    @property
+    def vertex_normals(self):
+        if np.shape(self._vertex_normals) != np.shape(self.vertices):
+            log.debug('Generating vertex normals')
+            self._vertex_normals = geometry.mean_vertex_normals(len(self.vertices),
+                                                                self.faces,
+                                                                self.face_normals)
+        return self._vertex_normals
+
+    @vertex_normals.setter
+    def vertex_normals(self, values):
+        self._vertex_normals = np.asanyarray(values)
         
     def md5(self):
         '''
@@ -223,40 +253,6 @@ class Trimesh(object):
                  guess the current units of the document and then convert?
         '''
         _set_units(self, desired, guess)
-        
-    @property
-    def face_normals(self):
-        cached = self._cache.get('face_normals')
-        if np.shape(cached) == np.shape(self.faces):
-            return cached
-
-        log.debug('Generating face normals')
-        face_normals, valid = triangles.normals(self.triangles)
-        self.update_faces(valid)
-        return self._cache.set(key = 'face_normals',
-                               value = face_normals)
-
-    @face_normals.setter
-    def face_normals(self, values):
-        self._cache.set(key = 'face_normals',
-                       value = np.asanyarray(values))
-
-    @property
-    def vertex_normals(self):
-        cached = self._cache.get('vertex_normals')
-        if np.shape(cached) != np.shape(self.vertices):
-            log.debug('Generating vertex normals')
-            normals = geometry.mean_vertex_normals(len(self.vertices),
-                                                            self.faces,
-                                                            self.face_normals)
-            return self._cache.set(key   = 'vertex_normals',
-                                   value = normals)
-        return cached
-
-    @vertex_normals.setter
-    def vertex_normals(self, values):
-        self._cache.set(key = 'vertex_normals',
-                        value = np.array(values))
 
     def merge_vertices(self, angle=None):
         '''
@@ -293,10 +289,8 @@ class Trimesh(object):
         # check the dimensions of the cached value rather than 
         # using the property, which will enforce correct dimensions
         # before returning anything
-        cached = self._cache.get('vertex_normals')
-        if np.shape(cached) == np.shape(self.vertices):
-            self._cache.set(key = 'vertex_normals',
-                            values = cached[mask])
+        if np.shape(self._vertex_normals) == np.shape(self.vertices):
+            self._vertex_normals = self._vertex_normals[mask]
 
         self.vertices = self.vertices[mask]
 
@@ -319,10 +313,8 @@ class Trimesh(object):
         elif mask.dtype.name != 'int':
             mask = mask.astype(np.int)
 
-        cached = self._cache.get('face_normals')
-        if np.shape(cached) == np.shape(self.faces):
-            self._cache.set(key = 'face_normals',
-                            value = cached[mask])
+        if np.shape(self._face_normals) == np.shape(self.faces):
+            self._face_normals = self._face_normals[mask]
 
         self.faces = self.faces[mask]        
         self.visual.update_faces(mask)
@@ -666,6 +658,27 @@ class Trimesh(object):
         scene = self.scene()
         scene.show(**kwargs)
         return scene
+
+    def submesh(self, faces_sequence, **kwargs): 
+        '''
+        Return a subset of the mesh.
+        
+        Arguments
+        ----------
+        mesh: Trimesh object
+        faces_sequence: sequence of face indices from mesh
+        only_watertight: only return submeshes which are watertight. 
+        append: return a single mesh which has the faces specified appended.
+                 if this flag is set, only_watertight is ignored
+
+        Returns
+        ---------
+        if append: Trimesh object
+        else:      list of Trimesh objects
+        '''
+        return util.submesh(mesh = self,
+                            faces_sequence=faces_sequence, 
+                            **kwargs)
 
     def identifier(self, length=6, as_json=False):
         '''
