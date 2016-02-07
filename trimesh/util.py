@@ -590,8 +590,8 @@ def submesh(mesh,
         normals.append(mesh.face_normals[faces_index])
         visuals.extend(mesh.visual.subsets([faces_index]))
 
-    visuals = np.array(visuals)
     if append:
+        visuals = np.array(visuals)
         vertices, faces = append_faces(vertices, faces)
         appended = type(mesh)(vertices = vertices,
                               faces = faces,
@@ -605,10 +605,11 @@ def submesh(mesh,
     result = [type(mesh)(vertices     = v, 
                          faces        = f, 
                          face_normals = n,
-                         visual       = c) for v,f,n,c in zip(vertices, 
-                                                              faces, 
-                                                              normals,
-                                                              visuals)]
+                         visual       = c,
+                         process = False) for v,f,n,c in zip(vertices, 
+                                                             faces, 
+                                                             normals,
+                                                             visuals)]
     result = np.array(result)
     if only_watertight:
         watertight = np.array([i.fill_holes() and len(i.faces) > 4 for i in result])
