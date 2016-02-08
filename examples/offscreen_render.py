@@ -2,24 +2,27 @@ import numpy as np
 import trimesh
 
 
-if __name__ == '__main__':    
+if __name__ == '__main__':
+    # print logged messages
     trimesh.util.attach_to_log()
 
     # load a mesh
-    mesh  = trimesh.load_mesh('../models/featuretype.STL')
-    # get a scene object containing the mesh
-    # this is equivalent to:
+    mesh  = trimesh.load('../models/featuretype.STL')
+
+    # get a scene object containing the mesh, this is equivalent to:
     # scene = trimesh.scene.Scene(mesh)
     scene = mesh.scene()
 
-    scene.save_image('test.png')
-    
-    '''    
-    # loop over angles between 0 and pi
-    for i, angle in enumerate(np.linspace(0, np.pi, 10)):
+    r = trimesh.transformations.rotation_matrix(np.radians(45.0), [0,1,0], 
+                                                scene.centroid)    
+    for i in range(4):
         trimesh.constants.log.info('Saving image %d', i)
-        # move the camera of the scene around the object
-        scene.set_camera(angles=[0,angle,0])
+        
+        # rotate the camera view
+        camera_new = np.dot(scene.transforms.get('camera'), r)
+        scene.transforms.update('camera', matrix=camera_new)
+
+        file_name = 'render_' + str(i) + '.png'
         # save a render of the object as a png
-        scene.save_image('render_' + str(i) + '.png', resolution=np.array([1920,1080])*2)
-    '''
+        scene.save_image(file_name,
+                         resolution=np.array([1920,1080])*2)

@@ -15,10 +15,9 @@ class SceneViewer(pyglet.window.Window):
                  scene, 
                  smooth = None,
                  save_image = None,
+                 flags = None,
                  resolution = (640,480)):
-        self.scene = scene
-        self.reset_view()
-        
+
         visible = save_image is None
         width, height = resolution
 
@@ -39,7 +38,9 @@ class SceneViewer(pyglet.window.Window):
                                               visible = visible,
                                               width=width,
                                               height=height)
-            
+
+        self.scene = scene
+        self.reset_view(flags=flags)
         self.batch = pyglet.graphics.Batch()
         self._img  = save_image
         self._vertex_list = {}
@@ -65,7 +66,7 @@ class SceneViewer(pyglet.window.Window):
 
         self._vertex_list[node_name] = self.batch.add_indexed(*_mesh_to_vertex_list(display))
 
-    def reset_view(self):
+    def reset_view(self, flags=None):
         '''
         Set view to base.
         '''
@@ -75,7 +76,12 @@ class SceneViewer(pyglet.window.Window):
                      'center'      : self.scene.centroid,
                      'scale'       : self.scene.scale,
                      'ball'        : Arcball()}
-        
+        if isinstance(flags, dict):
+            for k,v in flags.items():
+                if k in self.view:
+                    self.view[k] = v
+        self.update_flags()
+
     def init_gl(self):
         glClearColor(.93, .93, 1, 1)
         #glColor3f(1, 0, 0)
@@ -102,21 +108,25 @@ class SceneViewer(pyglet.window.Window):
         glMaterialfv(GL_FRONT, GL_SPECULAR, _gl_vector(.5082730,.5082730,.5082730))
         glMaterialf(GL_FRONT, GL_SHININESS, .4 * 128.0);
 
-
     def toggle_culling(self):
         self.view['cull'] = not self.view['cull']
-        if self.view['cull']:
-            glEnable(GL_CULL_FACE)
-        else:
-            glDisable(GL_CULL_FACE)
-        
+        self.update_flags()
+
     def toggle_wireframe(self):
         self.view['wireframe'] = not self.view['wireframe']
+        self.update_flags()
+
+    def update_flags(self):
         if self.view['wireframe']: 
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
         else:
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
-        
+
+        if self.view['cull']:
+            glEnable(GL_CULL_FACE)
+        else:
+            glDisable(GL_CULL_FACE)
+
     def on_resize(self, width, height):
         glViewport(0, 0, width, height)
         glMatrixMode(GL_PROJECTION)

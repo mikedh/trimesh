@@ -141,6 +141,7 @@ class Scene:
         Arguments
         ----------
         file_type: what encoding to use for meshes
+                   ie: dict, dict64, stl
         
         Returns
         ----------
@@ -155,9 +156,12 @@ class Scene:
         export['meshes'] = {name:mesh.export(file_type) for name, mesh in self.meshes.items()}
         return export
         
-    def save_image(self, file_obj, resolution=(1024,768)):
+    def save_image(self, file_obj, resolution=(1024,768), **kwargs):
         from .viewer import SceneViewer
-        SceneViewer(self, save_image=file_obj, resolution=resolution)
+        SceneViewer(self, 
+                    save_image = file_obj, 
+                    resolution = resolution, 
+                    **kwargs)
 
     def show(self, **kwargs):
         from .viewer import SceneViewer
