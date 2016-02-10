@@ -18,6 +18,9 @@ class SceneViewer(pyglet.window.Window):
                  flags = None,
                  resolution = (640,480)):
 
+        self.scene = scene
+        self.reset_view(flags=flags)
+
         visible = save_image is None
         width, height = resolution
 
@@ -39,8 +42,6 @@ class SceneViewer(pyglet.window.Window):
                                               width=width,
                                               height=height)
 
-        self.scene = scene
-        self.reset_view(flags=flags)
         self.batch = pyglet.graphics.Batch()
         self._img  = save_image
         self._vertex_list = {}

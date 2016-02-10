@@ -27,18 +27,14 @@ from .convex       import convex_hull
 from .units        import _set_units
 from .constants    import log, _log_time, tol
 
-from scipy.spatial import cKDTree as KDTree
+try: from .scene import Scene
+except ImportError: log.warning('Mesh previewing unavailable!', exc_info=True)
 
 try: 
     from .path.io.misc import faces_to_path
     from .path.io.load import _create_path, load_path
 except ImportError:
     log.warning('trimesh.path unavailable!', exc_info=True)
-
-try:
-    from .scene import Scene
-except ImportError: 
-    log.warning('Mesh previewing unavailable!', exc_info=True)
 
 class Trimesh(object):
     def __init__(self, 
@@ -388,6 +384,7 @@ class Trimesh(object):
         Return a scipy.spatial.cKDTree of the vertices of the mesh.
         Not cached as this lead to memory issues and segfaults.
         '''
+        from scipy.spatial import cKDTree as KDTree
         return KDTree(self.vertices.view(np.ndarray))
 
     def remove_degenerate_faces(self):
@@ -459,7 +456,6 @@ class Trimesh(object):
         else:
             return self._cache.set(key   = 'smoothed',
                                    value = graph.smoothed(self, angle))
-
 
     def section(self,
                 plane_normal,

@@ -6,10 +6,9 @@ Library for importing and doing simple operations on triangular meshes.
 
 import numpy as np
 
-from .points       import project_to_plane
-from scipy.spatial import ConvexHull
+from .points import project_to_plane
 
-def convex_hull(mesh, clean=True, suppress_errors=False):
+def convex_hull(mesh, clean=True):
     '''
     Get a new Trimesh object representing the convex hull of the 
     current mesh. Requires scipy >.12.
@@ -23,6 +22,8 @@ def convex_hull(mesh, clean=True, suppress_errors=False):
     --------
     convex: Trimesh object of convex hull of current mesh
     '''
+    from scipy.spatial import ConvexHull
+
     faces = ConvexHull(mesh.vertices.view(np.ndarray)).simplices
     convex = mesh.__class__(vertices = mesh.vertices.view(np.ndarray).copy(), 
                             faces    = faces)

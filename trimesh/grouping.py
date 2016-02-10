@@ -1,13 +1,15 @@
 import numpy as np
 from collections import deque
 
-from scipy.spatial import cKDTree as KDTree
 from networkx      import from_edgelist, connected_components
 
 from .points    import unitize
 from .util      import decimal_to_digits, vector_to_spherical, spherical_to_vector
 from .constants import log, tol
 
+try: from scipy.spatial import cKDTree as KDTree
+except ImportError: log.warning('Scipy unavailable')
+    
 def merge_vertices_hash(mesh):
     '''
     Removes duplicate vertices, based on integer hashes.
