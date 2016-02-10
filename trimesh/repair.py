@@ -54,7 +54,7 @@ def fix_normals_direction(mesh):
     direction = -mesh.face_normals[0]
     # origin of test ray
     origin    = mesh.vertices[mesh.faces[0]].mean(axis=0)
-    origin   -= direction * mesh.box_size.max() * 2
+    origin   -= direction * mesh.scale * 2
     rays = [[origin, direction]]
     location, hit_id = mesh.ray.intersects_location(rays, return_id=True)
     # the distance along the ray vector the hit happened at

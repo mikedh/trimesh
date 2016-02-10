@@ -164,6 +164,14 @@ class Trimesh(object):
         bounds = np.vstack((np.min(self.vertices, axis=0),
                             np.max(self.vertices, axis=0)))
         return bounds
+        
+    @property
+    def extents(self):
+        return np.diff(self.bounds, axis=0)[0]
+        
+    @property
+    def scale(self):
+        return self.extents.max()
 
     @property                 
     def centroid(self):
@@ -180,14 +188,6 @@ class Trimesh(object):
         If the current mesh is not watertight, this is meaningless garbage. 
         '''
         return self.mass_properties(skip_inertia=True)['center_mass']
-        
-    @property
-    def box_size(self):
-        return np.diff(self.bounds, axis=0)[0]
-        
-    @property
-    def scale(self):
-        return self.box_size.max()
 
     @property
     def triangles(self):

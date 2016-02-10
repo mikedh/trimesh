@@ -106,7 +106,7 @@ class Path(object):
         return np.vstack((np.min(self.vertices, axis=0),
                           np.max(self.vertices, axis=0)))
     @property
-    def box_size(self):
+    def extents(self):
         return np.diff(self.bounds, axis=0)[0]
 
     @property

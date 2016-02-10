@@ -84,12 +84,12 @@ class Scene:
         return bounds
 
     @property
-    def box_size(self):
+    def extents(self):
         return np.diff(self.bounds, axis=0).reshape(-1)
 
     @property
     def scale(self):
-        return self.box_size.max()
+        return self.extents.max()
 
     @property
     def centroid(self):
