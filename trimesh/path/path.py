@@ -393,7 +393,7 @@ class Path2D(Path):
         
     def connected_paths(self, path_id, include_self = False):
         if len(self.root) == 1:
-            path_ids = np.arange(len(self.paths))
+            path_ids = np.arange(len(self.polygons_closed))
         else:
             path_ids = list(nx.node_connected_component(self.enclosure, path_id))
         if include_self: 
