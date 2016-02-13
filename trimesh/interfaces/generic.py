@@ -14,8 +14,8 @@ class MeshScript:
         self.script  = script
 
     def __enter__(self):
-        self.mesh_pre = [NamedTemporaryFile(suffix='.STL', delete=False) for i in self.meshes]
-        self.mesh_post  = NamedTemporaryFile(suffix='.STL', delete=False)
+        self.mesh_pre = [NamedTemporaryFile(suffix='.STL') for i in self.meshes]
+        self.mesh_post  = NamedTemporaryFile(suffix='.STL')
         self.script_out = NamedTemporaryFile()
 
         # export the meshes to a temporary STL container
