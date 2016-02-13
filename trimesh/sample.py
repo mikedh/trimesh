@@ -1,7 +1,5 @@
 import numpy as np
 
-from .points import unitize, remove_close
-
 def random_sample(mesh, count):
     '''
     Sample the surface of a mesh, returning the specified number of points
@@ -63,6 +61,8 @@ def even_sample(mesh, count):
     Sample the surface of a mesh, returning samples which are 
     approximately evenly spaced. 
     '''
+    from .points import remove_close
+
     radius = np.sqrt(mesh.area / (2*count))
     samples = random_sample(mesh, count*5)
     result = remove_close(samples, radius)
