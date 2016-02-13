@@ -5,7 +5,7 @@ from distutils.spawn import find_executable
 import inspect
 import os
 
-def boolean_blender(meshes, operation='difference'):
+def boolean(meshes, operation='difference'):
     operation = str.upper(operation)
     if operation == 'INTERSECTION': 
         operation = 'INTERSECT'
@@ -22,6 +22,5 @@ def boolean_blender(meshes, operation='difference'):
     result['face_normals'] = None
     return result
 
-def exists():
-    exists = find_executable('blender') is not None
-    return exists
+exists = find_executable('blender') is not None
+

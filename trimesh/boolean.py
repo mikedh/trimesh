@@ -1,11 +1,8 @@
-from .interfaces.scad    import boolean_scad
-from .interfaces.blender import boolean_blender
+from .constants import log
 
-_engines = { None     : boolean_scad,
-            'scad'    : boolean_scad,
-            'blender' : boolean_blender}
+from . import interfaces
 
-def difference(meshes, engine='scad'):
+def difference(meshes, engine=None):
     '''
     Compute the boolean difference between a mesh an n other meshes.
 
@@ -22,7 +19,7 @@ def difference(meshes, engine='scad'):
     result = _engines[engine](meshes, operation='difference')
     return result
 
-def union(meshes, engine='scad'):
+def union(meshes, engine=None):
     '''
     Compute the boolean union between a mesh an n other meshes.
    
@@ -39,7 +36,7 @@ def union(meshes, engine='scad'):
     result = _engines[engine](meshes, operation='union')
     return result
 
-def intersection(meshes, engine='scad'):
+def intersection(meshes, engine=None):
     '''
     Compute the boolean intersection between a mesh an n other meshes.
    
@@ -57,3 +54,16 @@ def intersection(meshes, engine='scad'):
     result = _engines[engine](meshes, operation='intersection')
     return result
     
+def boolean_automatic(meshes, operation):
+    if interfaces.blender.exists:
+        result = interfaces.blender.boolean(meshes, operation)
+    elif interfaces.scad.exists:
+        result = interfaces.scad.boolean(meshes, operation)
+    else:
+        raise ValueError('No backends available for boolean operations!')
+    return result
+
+_engines = { None     : boolean_automatic,
+            'auto'    : boolean_automatic,
+            'scad'    : interfaces.scad.boolean,
+            'blender' : interfaces.blender.boolean}

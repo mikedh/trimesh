@@ -21,7 +21,7 @@ def interface_scad(meshes, script):
         result = scad.run('openscad $script -o $mesh_post')
     return result
     
-def boolean_scad(meshes, operation='difference'):
+def boolean(meshes, operation='difference'):
     '''
     Run an operation on a set of meshes
     '''
@@ -31,6 +31,5 @@ def boolean_scad(meshes, operation='difference'):
     script += '}'
     return interface_scad(meshes, script)
 
-def exists():
-    exists = find_executable('openscad') is not None
-    return exists
+exists = find_executable('openscad') is not None
+
