@@ -41,7 +41,7 @@ setup(name = 'trimesh',
           'trimesh.path',
           'trimesh.path.io',
           'trimesh.scene'],
-      package_data={'trimesh' : ['templates/*.template']}
+      package_data={'trimesh' : ['templates/*.template']},
       install_requires = [
           'numpy', 
           'scipy', 
