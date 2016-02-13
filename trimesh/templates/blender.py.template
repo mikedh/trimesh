@@ -1,0 +1,25 @@
+import os
+import bpy
+
+if __name__ == "__main__":
+  # Clear scene of default box
+  bpy.ops.wm.read_homefile()
+  bpy.ops.object.select_all(action='SELECT')
+  bpy.ops.object.delete(use_global=True)
+
+  mesh_pre  = $mesh_pre
+  mesh_post = os.path.abspath('$mesh_post')
+
+  # When you add objects to blender, other elements are pushed back
+  # by going last to first on the filenames we can preserve the index relation
+  for filename in mesh_pre[::-1]:
+    bpy.ops.import_mesh.stl(filepath=os.path.abspath(filename))
+
+  mesh  = bpy.context.scene.objects[0]
+  for other in bpy.context.scene.objects[1:]:
+    mod = mesh.modifiers.new('boolean', 'BOOLEAN') # add boolean modifier 
+    mod.object = other
+    mod.operation = '$operation'
+
+  bpy.ops.export_mesh.stl(filepath = mesh_post, 
+                          use_mesh_modifiers = True)

@@ -181,6 +181,14 @@ class MeshTests(unittest.TestCase):
         for mesh in self.meshes[5:]:
             mesh.fix_normals()
 
+
+
+class IOTest(unittest.TestCase):
+    def test_dae(self):
+        a = trimesh.load_mesh(os.path.abspath(os.path.join(TEST_DIR, 
+                                                           'ballA.off')))
+        r = a.export(file_type='dae')
+ 
 class EqualTest(unittest.TestCase):
     def setUp(self):
         self.a = trimesh.load_mesh(os.path.abspath(os.path.join(TEST_DIR, 'ballA.off')))
@@ -214,15 +222,19 @@ class BooleanTest(unittest.TestCase):
         self.b = trimesh.load_mesh(os.path.abspath(os.path.join(TEST_DIR, 'ballB.off')))
     
     def test_boolean(self):
-        if _QUICK: return
+        if _QUICK: 
+            return
         a, b = self.a, self.b
-        d = a.difference(b)
-        self.assertTrue(d.is_watertight)
-        i = a.intersection(b)
-        self.assertTrue(i.is_watertight)
-        u = a.union(b)
-        self.assertTrue(u.is_watertight)
 
+        for engine in ['scad', 'blender']:
+            log.info('Testing boolean ops with engine %s', engine)
+
+            d = a.difference(b, engine=engine)
+            self.assertTrue(d.is_watertight)
+            i = a.intersection(b, engine=engine)
+            self.assertTrue(i.is_watertight)
+            u = a.union(b, engine=engine)
+            self.assertTrue(u.is_watertight)
    
 class RayTests(unittest.TestCase):
     def setUp(self):

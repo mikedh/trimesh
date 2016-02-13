@@ -711,7 +711,7 @@ class Trimesh(object):
         result = self.export(file_type='dict')
         return result
 
-    def union(self, other):
+    def union(self, other, engine=None):
         '''
         Boolean union between this mesh and n other meshes
 
@@ -723,9 +723,11 @@ class Trimesh(object):
         ---------
         union: Trimesh, union of self and other Trimesh objects
         '''
-        return Trimesh(process=True, **boolean.union(self, other))
+        return Trimesh(process=True, 
+                       **boolean.union(meshes = np.append(self, other), 
+                                       engine = engine))
 
-    def difference(self, other):        
+    def difference(self, other, engine=None):
         '''
         Boolean difference between this mesh and n other meshes
 
@@ -737,9 +739,11 @@ class Trimesh(object):
         ---------
         difference: Trimesh, difference between self and other Trimesh objects
         '''
-        return Trimesh(process=True, **boolean.difference(self, other))
+        return Trimesh(process=True, 
+                       **boolean.difference(meshes = np.append(self, other), 
+                                            engine = engine))
         
-    def intersection(self, other):
+    def intersection(self, other, engine=None):
         '''
         Boolean intersection between this mesh and n other meshes
 
@@ -751,7 +755,9 @@ class Trimesh(object):
         ---------
         intersection: Trimesh of the volume contained by all passed meshes
         '''
-        return Trimesh(process=True, **boolean.intersection(self, other))
+        return Trimesh(process=True, 
+                       **boolean.intersection(meshes = np.append(self, other), 
+                                              engine = engine))
     
     def contains(self, points):
         '''

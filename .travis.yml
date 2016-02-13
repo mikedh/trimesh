@@ -20,7 +20,7 @@ deploy:
 
 before_install:
 - sudo apt-get update
-- sudo apt-get install -y python-scipy python-numpy libgeos-dev openscad libspatialindex*
+- sudo apt-get install -y python-scipy python-numpy libgeos-dev openscad blender libspatialindex*
 - virtualenv --system-site-packages ../trimesh_test
 - source ../trimesh_test/bin/activate
 - pip install nose

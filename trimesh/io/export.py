@@ -80,10 +80,10 @@ def export_collada(mesh, file_obj=None):
     import os, inspect
     from string import Template
     
-    MODULE_PATH = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-    template    = Template(open(os.path.join(MODULE_PATH, 
-                                             'templates', 
-                                             'collada_template.dae'), 'rb').read())
+    path_current = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+    template     = Template(open(os.path.join(path_current, 
+                                              '../templates/collada.dae.template'), 
+                                 'rb').read())
 
     # we bother setting this because np.array2string uses these printoptions 
     np.set_printoptions(threshold=np.inf, precision=5, linewidth=np.inf)

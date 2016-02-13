@@ -1,116 +1,59 @@
-import numpy as np
+from .interfaces.scad    import boolean_scad
+from .interfaces.blender import boolean_blender
 
-from .io.stl import load_stl
+_engines = { None     : boolean_scad,
+            'scad'    : boolean_scad,
+            'blender' : boolean_blender}
 
-from string     import Template
-from tempfile   import NamedTemporaryFile
-from subprocess import check_call
-
-def difference(a, *args):
+def difference(meshes, engine='scad'):
     '''
     Compute the boolean difference between a mesh an n other meshes.
 
     Arguments
     ----------
-    a:    Trimesh object 
-    args: Trimesh object or list of Trimesh objects
+    meshes: list of Trimesh object
+    engine: string, which backend to use. 
+            valid choices are 'blender' or 'scad'
 
     Returns
     ----------
     difference: a - (other meshes), **kwargs for a Trimesh
     '''
-    meshes = np.append(a,args)
-    result = _scad_operation(meshes, operation='difference')
+    result = _engines[engine](meshes, operation='difference')
     return result
 
-def union(a, *args):
+def union(meshes, engine='scad'):
     '''
     Compute the boolean union between a mesh an n other meshes.
    
     Arguments
     ----------
-    a:    Trimesh object 
-    args: Trimesh object or list of Trimesh objects
+    meshes: list of Trimesh object
+    engine: string, which backend to use. 
+            valid choices are 'blender' or 'scad'
 
     Returns
     ----------
     union: a + (other meshes), **kwargs for a Trimesh
     '''
-
-    meshes = np.append(a, args)
-    result = _scad_operation(meshes, operation='union')
+    result = _engines[engine](meshes, operation='union')
     return result
 
-def intersection(a, *args):
+def intersection(meshes, engine='scad'):
     '''
     Compute the boolean intersection between a mesh an n other meshes.
    
     Arguments
     ----------
-    a:    Trimesh object 
-    args: Trimesh object or list of Trimesh objects
+    meshes: list of Trimesh object
+    engine: string, which backend to use. 
+            valid choices are 'blender' or 'scad'
 
     Returns
     ----------
     intersection: **kwargs for a Trimesh object of the
                     volume that is contained by all meshes
     '''
-
-    meshes = np.append(a,args)
-    result = _scad_operation(meshes, operation='intersection')
+    result = _engines[engine](meshes, operation='intersection')
     return result
     
-def scad_interface(meshes, script):
-    '''
-    A way to interface with openSCAD which is itself an interface
-    to the CGAL CSG bindings. 
-    CGAL is very stable if difficult to install/use, so this function provides a 
-    tempfile- happy solution for getting the basic CGAL CSG functionality. 
-
-    Arguments
-    ---------
-    meshes: list of Trimesh objects
-    script: string of the script to send to scad. 
-            Trimesh objects can be referenced in the script as
-            $mesh_0, $mesh_1, etc. 
-    '''
-    mesh_out   = [NamedTemporaryFile(suffix='.STL') for i in meshes]
-    mesh_in    =  NamedTemporaryFile(suffix='.STL')
-    script_out =  NamedTemporaryFile(suffix='.scad')
-
-    # export the meshes to a temporary STL container
-    for m, f in zip(meshes, mesh_out):
-        m.export(file_type='stl', file_obj=f.name)
-    
-    replacement = {'mesh_' + str(i) : m.name for i,m in enumerate(mesh_out)}
-    script_text = Template(script).substitute(replacement)
-    script_out.write(script_text.encode('utf-8'))
-    script_out.flush()
-
-    # run the SCAD binary
-    check_call(['openscad', 
-                script_out.name,
-                '-o', 
-                mesh_in.name])
-
-    # bring the SCAD result back as a Trimesh object
-    mesh_in.seek(0)
-    mesh_result = load_stl(mesh_in)
-    
-    # close all the freaking temporary files
-    mesh_in.close()
-    script_out.close()
-    for f in mesh_out:
-        f.close()
-
-    return mesh_result
-
-def _scad_operation(meshes, operation='difference'):
-    '''
-    Run an operation on a set of meshes
-    '''
-    script = operation + '(){'
-    for i in range(len(meshes)):
-        script += 'import(\"$mesh_' + str(i) + '\");'
-    script += '}'
-    return scad_interface(meshes, script)
