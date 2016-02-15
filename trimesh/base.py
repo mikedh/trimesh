@@ -37,7 +37,7 @@ except ImportError:
     log.warning('trimesh.path unavailable!', exc_info=True)
 
 class Trimesh(object):
-    def __init__(self, 
+    def __init__(self,
                  vertices       = None, 
                  faces          = None, 
                  face_normals   = None, 
@@ -451,11 +451,14 @@ class Trimesh(object):
         smoothed: Trimesh object, non watertight version of current mesh
                   which will render nicely with smooth shading. 
         '''
-        if 'smoothed' in self._cache:
-            return self._cache.get('smoothed')
-        else:
-            return self._cache.set(key   = 'smoothed',
-                                   value = graph.smoothed(self, angle))
+        # this should be recomputed if visuals change, so we 
+        # store it in the visuals cache rather than the main mesh cache
+
+        cached = self.visual._cache.get('smoothed')
+        if cached is not None:
+            return cached
+        return self.visual._cache.set(key   = 'smoothed',
+                                      value = graph.smoothed(self, angle))
 
     def section(self,
                 plane_normal,

@@ -188,7 +188,7 @@ def fill_holes(mesh):
                                  (np.sum(valid), 1))
             new_colors = np.vstack((mesh.visual._face_colors, 
                                     new_colors))
-            mesh.visual._face_colors = new_colors
+            mesh.visual.face_colors = new_colors
     
     log.debug('Filled in mesh with %i triangles', np.sum(valid))
     return mesh.is_watertight

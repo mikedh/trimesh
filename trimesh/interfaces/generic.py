@@ -22,20 +22,19 @@ class MeshScript:
         for m, f in zip(self.meshes, self.mesh_pre):
             m.export(file_type='stl', file_obj=f.name)
 
-        replacement = {'mesh_' + str(i) : m.name for i,m in enumerate(self.mesh_pre)}
-        replacement['mesh_pre']  = str([i.name for i in self.mesh_pre])
-        replacement['mesh_post'] = self.mesh_post.name
+        self.replacement = {'mesh_' + str(i) : m.name for i,m in enumerate(self.mesh_pre)}
+        self.replacement['mesh_pre']  = str([i.name for i in self.mesh_pre])
+        self.replacement['mesh_post'] = self.mesh_post.name
+        self.replacement['script']    = self.script_out.name
 
-        script_text = Template(self.script).substitute(replacement)
+        script_text = Template(self.script).substitute(self.replacement)
         self.script_out.write(script_text.encode('utf-8'))
         self.script_out.flush()
 
         return self
 
     def run(self, command):
-        replacement = {'script'    : self.script_out.name,
-                       'mesh_post' : self.mesh_post.name}
-        command_run = Template(command).substitute(replacement).split()
+        command_run = Template(command).substitute(self.replacement).split()
         # run the binary
         check_call(command_run)
 

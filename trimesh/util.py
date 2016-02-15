@@ -1,7 +1,7 @@
 '''
 trimesh.util: utility functions
 
-ONLY IMPORTS STANDARD LIB AND NUMPY
+Only imports from numpy and the standard library are allowed in this file.
 '''
 
 import numpy as np

@@ -1,6 +1,7 @@
 import numpy as np
 
 from ..points          import transform_points
+from ..grouping        import group_rows
 from ..util            import is_sequence, is_instance_named
 from ..transformations import rotation_matrix
 from .transforms       import TransformForest
@@ -102,6 +103,22 @@ class Scene:
         '''
         centroid = np.mean(self.bounds, axis=0)
         return centroid
+
+
+    def duplicate_nodes(self):
+        '''
+        Return a sequence of node keys, where all keys in the group will
+        be of the same mesh
+        '''
+        mesh_ids  = {k : m.identifier() for k, m in self.meshes.items()}
+        
+        node_keys = np.array(self.nodes.keys())
+        node_ids  = [mesh_ids[v] for v in self.nodes.values()]
+        
+        node_groups = group_rows(node_ids, digits=1)
+        duplicates  = np.array([node_keys[g] for g in node_groups])
+        return duplicates
+
             
     def set_camera(self, angles=None, distance=None, center=None):
         if center is None:

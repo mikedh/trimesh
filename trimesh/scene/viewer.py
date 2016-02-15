@@ -52,6 +52,7 @@ class SceneViewer(pyglet.window.Window):
             
         self.init_gl()
         self.set_size(*resolution)
+        self.update_flags()
         pyglet.app.run()
 
     def _add_mesh(self, node_name, mesh, smooth=None):
