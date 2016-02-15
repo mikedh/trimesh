@@ -24,6 +24,6 @@ before_install:
 - virtualenv --system-site-packages ../trimesh_test
 - source ../trimesh_test/bin/activate
 - pip install nose
-install: pip install -e .[path]
+install: pip install .[path]
 
 script: nosetests
