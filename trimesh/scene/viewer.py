@@ -2,6 +2,7 @@ import pyglet
 import numpy as np
 
 from copy      import deepcopy
+from collections import deque
 from threading import Thread
 from pyglet.gl import *
 
@@ -44,9 +45,8 @@ class SceneViewer(pyglet.window.Window):
 
         self.batch = pyglet.graphics.Batch()
         self._img  = save_image
-        self._vertex_list = {}
+        self.vertex_list = {}
 
-        
         for name, mesh in scene.meshes.items():
             self._add_mesh(name, mesh, smooth)
             
@@ -55,7 +55,7 @@ class SceneViewer(pyglet.window.Window):
         self.update_flags()
         pyglet.app.run()
 
-    def _add_mesh(self, node_name, mesh, smooth=None):
+    def _add_mesh(self, name_mesh, mesh, smooth=None):
     
         if smooth is None:
             smooth = len(mesh.faces) < _SMOOTH_MAX_FACES
@@ -66,7 +66,7 @@ class SceneViewer(pyglet.window.Window):
             display = mesh.copy()
             display.unmerge_vertices()
 
-        self._vertex_list[node_name] = self.batch.add_indexed(*_mesh_to_vertex_list(display))
+        self.vertex_list[name_mesh] = self.batch.add_indexed(*mesh_to_vertex_list(display))
 
     def reset_view(self, flags=None):
         '''
@@ -108,7 +108,12 @@ class SceneViewer(pyglet.window.Window):
         glMaterialfv(GL_FRONT, GL_AMBIENT, _gl_vector(0.192250, 0.192250, 0.192250))
         glMaterialfv(GL_FRONT, GL_DIFFUSE, _gl_vector(0.507540, 0.507540, 0.507540))
         glMaterialfv(GL_FRONT, GL_SPECULAR, _gl_vector(.5082730,.5082730,.5082730))
+
         glMaterialf(GL_FRONT, GL_SHININESS, .4 * 128.0);
+
+        glEnable(GL_BLEND) 
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA) 
+
 
     def toggle_culling(self):
         self.view['cull'] = not self.view['cull']
@@ -177,19 +182,43 @@ class SceneViewer(pyglet.window.Window):
         transform_view = _view_transform(self.view)
         glMultMatrixf(_gl_matrix(transform_view))
 
-        for name_node, name_mesh in self.scene.nodes.items():
-            if ('visible' in self.scene.flags[name_node] and 
-                not self.scene.flags[name_node]['visible']):
+        # we want to render fully opaque objects first,
+        # followed by objects which have transparency
+        items = deque(self.scene.nodes.items())
+        count = -1
+        count_original = len(items)
+        
+        while len(items) > 0:
+            count += 1
+            item = items.popleft()
+            name_node, name_mesh = item
+
+            # if the flag isn't defined, this will be None
+            # by checking False explicitly, it makes the default
+            # behaviour to render meshes with no flag defined. 
+            if self.node_flag(name_node, 'visible') == False:
                 continue
+                
+            if self.scene.meshes[name_mesh].visual.transparency:
+                # put the current item onto the back of the queue
+                if count < count_original:
+                    items.append(item)
+                    continue
+
             transform = self.scene.transforms.get(name_node)
             # add a new matrix to the model stack
             glPushMatrix()
             # transform by the nodes transform
             glMultMatrixf(_gl_matrix(transform))
             # draw the mesh with its transform applied
-            self._vertex_list[name_mesh].draw(mode=GL_TRIANGLES)
+            self.vertex_list[name_mesh].draw(mode=GL_TRIANGLES)
             # pop the matrix stack as we drew what we needed to draw
             glPopMatrix()
+        
+    def node_flag(self, node, flag):
+        if flag in self.scene.flags[node]:
+            return self.scene.flags[node]
+        return None
         
     def save_image(self, filename):
         colorbuffer = pyglet.image.get_buffer_manager().get_color_buffer()
@@ -217,7 +246,7 @@ def _view_transform(view):
     transform[0:3,3] += view['translation'] * view['scale']
     return transform
 
-def _mesh_to_vertex_list(mesh, group=None):
+def mesh_to_vertex_list(mesh, group=None):
     '''
     Convert a Trimesh object to arguments for an 
     indexed vertex list constructor. 

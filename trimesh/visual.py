@@ -9,7 +9,7 @@ COLORS = {'red'    : [205,59,34],
           'purple' : [150,111,214],
           'blue'   : [119,158,203],
           'brown'  : [160,85,45]}
-COLOR_DTYPE = np.uint8
+COLOR_DTYPE = np.dtype(np.uint8)
 DEFAULT_COLOR = COLORS['purple']
 
 class VisualAttributes(object):
@@ -32,6 +32,25 @@ class VisualAttributes(object):
     def defined(self):
         defined = np.any(self._set.values()) and self.mesh is not None
         return defined
+
+    @property
+    def transparency(self):
+        cached = self._cache.get('transparency')
+        if cached is not None: 
+            return cached
+        transparency = False
+        color_max = (2**(COLOR_DTYPE.itemsize*8)) - 1
+        if self._set['face']:
+            transparency = (self._face_colors.ndim == 2 and
+                            self._face_colors.shape[1] == 4 and
+                            np.any(self._face_colors[:,3] < color_max))
+        elif self._set['vertex']:
+            transparency = (self._vertex_colors.ndim == 2 and
+                            self._vertex_colors.shape[1] == 4 and
+                            np.any(self._vertex_colors[:,3] < color_max))
+
+        return self._cache.set(key   = 'transparency',
+                               value = bool(transparency))
 
     def md5(self):
         md5 = ''
