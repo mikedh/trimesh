@@ -201,7 +201,7 @@ def unique_rows(data, digits=None):
     inverse: (n) length array to reconstruct original
                  example: unique[inverse] == data
     '''
-    hashes                   = hashable_rows(data, digits=digits)
+    hashes = hashable_rows(data, digits=digits)
     garbage, unique, inverse = np.unique(hashes, 
                                          return_index   = True, 
                                          return_inverse = True)

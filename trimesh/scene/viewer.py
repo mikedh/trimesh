@@ -217,7 +217,7 @@ class SceneViewer(pyglet.window.Window):
         
     def node_flag(self, node, flag):
         if flag in self.scene.flags[node]:
-            return self.scene.flags[node]
+            return self.scene.flags[node][flag]
         return None
         
     def save_image(self, filename):
