@@ -18,12 +18,12 @@ from . import comparison
 from . import boolean
 from . import intersections
 from . import util
+from . import convex
 
 from .io.export    import export_mesh
 from .ray.ray_mesh import RayMeshIntersector, contains_points
 from .voxel        import Voxel
 from .points       import unitize, transform_points
-from .convex       import convex_hull
 from .units        import _set_units
 from .constants    import log, _log_time, tol
 
@@ -396,6 +396,16 @@ class Trimesh(object):
         return self._cache.set(key   = 'is_watertight', 
                                value = graph.is_watertight(self.edges))
        
+    @property
+    def is_convex(self):
+        '''
+        Check if a mesh is convex. 
+        '''
+        cached = self._cache.get('is_convex')
+        if cached is not None: return cached
+        return self._cache.set(key   = 'is_convex', 
+                               value = convex.is_convex(self))     
+       
     def kdtree(self):
         '''
         Return a scipy.spatial.cKDTree of the vertices of the mesh.
@@ -500,27 +510,21 @@ class Trimesh(object):
         return path
 
     @property
-    def convex_hull(self, clean=True):
+    def convex_hull(self):
         '''
         Get a new Trimesh object representing the convex hull of the 
         current mesh. Requires scipy >.12.
-
-        Argments
-        --------
-        clean: boolean, if True will fix normals and winding
-               to be coherent (as qhull/scipy outputs are not)
 
         Returns
         --------
         convex: Trimesh object of convex hull of current mesh
         '''
-        key  = 'convex_hull_' 
-        key += str(int(clean))
-        cached = self._cache.get(key)
+
+        cached = self._cache.get('convex_hull')
         if cached is not None: 
             return cached
-        hull = convex_hull(self, clean)
-        return self._cache.set(key   = key, 
+        hull = convex.convex_hull(self)
+        return self._cache.set(key   = 'convex_hull', 
                                value = hull)
 
     def sample(self, count):

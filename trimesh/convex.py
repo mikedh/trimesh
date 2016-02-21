@@ -24,9 +24,10 @@ def convex_hull(mesh, clean=True):
     '''
     from scipy.spatial import ConvexHull
 
-    faces = ConvexHull(mesh.vertices.view(np.ndarray)).simplices
+    faces  = ConvexHull(mesh.vertices.view(np.ndarray)).simplices
     convex = mesh.__class__(vertices = mesh.vertices.view(np.ndarray).copy(), 
-                            faces    = faces)
+                            faces    = faces,
+                            process  = clean)
     if clean:
         # the normals and triangle winding returned by scipy/qhull's
         # ConvexHull are apparently random, so we need to completely fix them
@@ -36,6 +37,14 @@ def convex_hull(mesh, clean=True):
         convex.remove_unreferenced_vertices()
     return convex
 
+def is_convex(mesh):
+    '''
+    Test whether a mesh is convex or not.
+    '''
+    test = convex_hull(mesh, clean=False)
+    convex = test.faces.shape == mesh.faces.shape
+    return convex
+    
 def planar_hull(vertices,
                 normal, 
                 origin           = [0,0,0], 
