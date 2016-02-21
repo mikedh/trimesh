@@ -172,12 +172,9 @@ def visuals_union(visuals, *args):
     visuals = np.append(visuals, args)
     color = {'face_colors'   : None,
              'vertex_colors' : None}
-    if all(is_shape(i._face_colors, (-1,3)) or 
-           is_shape(i._face_colors, (-1,4)) for i in visuals):
+    if all(is_shape(i._face_colors, (-1,(3,4))) for i in visuals):
         color['face_colors'] = np.vstack([_rgba(i._face_colors) for i in visuals])
-
-    if all(is_shape(i._vertex_colors, (-1,3)) or 
-           is_shape(i._vertex_colors, (-1,4)) for i in visuals):
+    if all(is_shape(i._vertex_colors, (-1,(3,4))) for i in visuals):
         color['vertex_colors'] = np.vstack([i._vertex_colors for i in visuals])
     return VisualAttributes(**color)
 

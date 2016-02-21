@@ -108,13 +108,14 @@ def is_shape(obj, shape):
     ---------
     obj: np.ndarray to check the shape of
     shape: list or tuple of shape. 
-           Any negative value will be considered a wildcard
-    
+           Any negative term will be considered a wildcard
+           Any tuple term will be evaluated as an OR
+
     Returns
     ---------
     shape_ok: bool, True if shape of obj matches query shape
 
-    Example
+    Examples
     ------------------------
     In [1]: a = np.random.random((100,3))
 
@@ -129,12 +130,19 @@ def is_shape(obj, shape):
 
     In [5]: trimesh.util.is_shape(a, (100,-1))
     Out[5]: True
+
+    In [6]: trimesh.util.is_shape(a, (-1,(3,4)))
+    Out[6]: True
+
+    In [7]: trimesh.util.is_shape(a, (-1,(4,5)))
+    Out[7]: False
     '''
 
     if (not hasattr(obj, 'shape') or
         len(obj.shape) != len(shape)):
         return False
-    shape_ok = all(i == t for i,t in zip(obj.shape, shape) if t >= 0)
+    # magic line which compares obj.shape with query shape line by line
+    shape_ok = all(i == t or i in t for i,t in zip(obj.shape, shape) if t >= 0)
     return shape_ok
 
 def make_sequence(obj):
