@@ -24,7 +24,7 @@ _TOL_ZERO = 1e-12
 
 def unitize(points, check_valid=False):
     '''
-    Flexibly turn a list of vectors into a list of unit vectors.
+    Turn a list of vectors into a list of unit vectors.
     
     Arguments
     ---------
@@ -346,9 +346,8 @@ def attach_to_log(log_level = logging.DEBUG,
     handler_stream.setLevel(log_level)
 
     for logger in logging.Logger.manager.loggerDict.values():
-        if logger.__class__.__name__ != 'Logger': 
-            continue
-        if logger.name in blacklist:
+        if (logger.__class__.__name__ != 'Logger' or  
+            logger.name in blacklist):
             continue
         logger.addHandler(handler_stream)
         logger.setLevel(log_level)

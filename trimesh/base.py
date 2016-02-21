@@ -817,7 +817,7 @@ class Trimesh(object):
         new_faces    = np.vstack((self.faces, (other.faces + len(self.vertices))))
         new_vertices = np.vstack((self.vertices, other.vertices))
         new_normals  = np.vstack((self.face_normals, other.face_normals))
-        new_visual = visual.visuals_union(self.visual, other.visual)
+        new_visual   = visual.visuals_union(self.visual, other.visual)
 
         result = Trimesh(vertices     = new_vertices, 
                          faces        = new_faces,

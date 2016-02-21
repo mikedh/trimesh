@@ -185,8 +185,8 @@ class SceneViewer(pyglet.window.Window):
         # we want to render fully opaque objects first,
         # followed by objects which have transparency
         items = deque(self.scene.nodes.items())
-        count = -1
         count_original = len(items)
+        count = -1
         
         while len(items) > 0:
             count += 1
