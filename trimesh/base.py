@@ -187,7 +187,24 @@ class Trimesh(object):
         
         If the current mesh is not watertight, this is meaningless garbage. 
         '''
-        return self.mass_properties(skip_inertia=True)['center_mass']
+        center_mass = np.array(self.mass_properties(skip_inertia=True)['center_mass'])
+        return center_mass
+                               
+    @property
+    def volume(self):
+        '''
+        Volume of the current mesh.
+        '''
+        volume = self.mass_properties(skip_inertia=True)['volume']
+        return volume
+
+    @property
+    def moment_inertia(self):
+        '''
+        Return the (3,3) moment of inertia of the current matrix.
+        '''
+        inertia = np.array(self.mass_properties(skip_inertia=False)['inertia'])
+        return inertia
 
     @property
     def triangles(self):
@@ -607,13 +624,6 @@ class Trimesh(object):
         area_faces = triangles.area(self.triangles, sum = False)
         return self._cache.set(key   = key, 
                                value = area_faces) 
-                               
-    @property
-    def volume(self):
-        '''
-        Volume of the current mesh.
-        '''
-        return self.mass_properties(skip_inertia=True)['volume']
                          
     def mass_properties(self, density = 1.0, skip_inertia=False):
         '''
@@ -807,13 +817,11 @@ class Trimesh(object):
         new_faces    = np.vstack((self.faces, (other.faces + len(self.vertices))))
         new_vertices = np.vstack((self.vertices, other.vertices))
         new_normals  = np.vstack((self.face_normals, other.face_normals))
-
-        new_colors = np.vstack((self.visual.face_colors, 
-                                other.visual.face_colors))
+        new_visual = visual.visuals_union(self.visual, other.visual)
 
         result = Trimesh(vertices     = new_vertices, 
                          faces        = new_faces,
-                         face_normals = new_normals)
-        result.visual.face_colors = new_colors
+                         face_normals = new_normals,
+                         visual       = new_visual)
 
         return result

@@ -130,6 +130,7 @@ def mass_properties(triangles, density = 1.0, skip_inertia=False):
     inertia[0,2] = (integrated[9] - (volume * np.product(center_mass[[0,2]])))
     inertia[2,0] = inertia[0,2]
     inertia[2,1] = inertia[1,2]
+    inertia[1,0] = inertia[0,1]
     inertia *= density
     
     result['inertia'] = inertia.tolist()

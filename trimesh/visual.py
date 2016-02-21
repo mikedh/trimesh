@@ -2,7 +2,7 @@ import numpy as np
 from colorsys import hsv_to_rgb
 from collections import deque
 
-from .util      import is_sequence, tracked_array, Cache
+from .util      import is_sequence, is_shape, tracked_array, Cache
 from .constants import log
 
 COLORS = {'red'    : [205,59,34],
@@ -107,8 +107,10 @@ class VisualAttributes(object):
     def update_vertices(self, mask):
         if not self._set['vertex']:
             return
-        try:    self.vertex_colors = self._vertex_colors[mask]
-        except: log.warning('Vertex colors not updated', exc_info=True)
+        try:    
+            self.vertex_colors = self._vertex_colors[mask]
+        except: 
+            log.debug('Vertex colors not updated', exc_info=True)
 
     def subsets(self, faces_sequence):
         result = deque()
@@ -166,14 +168,26 @@ def _kwargs_to_color(mesh, **kwargs):
             face.append(value)
     return pick_option([pick_color(i) for i in [vertex, face]])
 
-def visuals_union(visuals):
+def visuals_union(visuals, *args):
+    visuals = np.append(visuals, args)
     color = {'face_colors'   : None,
              'vertex_colors' : None}
-    if all(is_sequence(i._face_colors) and i._set['face'] for i in visuals):
-        color['face_colors'] = np.vstack([i._face_colors for i in visuals])
-    if all(is_sequence(i._vertex_colors and i._set['vertex']) for i in visuals):
+    if all(is_shape(i._face_colors, (-1,3)) or 
+           is_shape(i._face_colors, (-1,4)) for i in visuals):
+        color['face_colors'] = np.vstack([_rgba(i._face_colors) for i in visuals])
+
+    if all(is_shape(i._vertex_colors, (-1,3)) or 
+           is_shape(i._vertex_colors, (-1,4)) for i in visuals):
         color['vertex_colors'] = np.vstack([i._vertex_colors for i in visuals])
     return VisualAttributes(**color)
+
+def _rgba(colors, dtype=COLOR_DTYPE):
+    colors = np.asanyarray(colors)
+    if is_shape(colors, (-1,3)):
+        opaque = (2**(np.dtype(dtype).itemsize * 8)) - 1
+        colors = np.column_stack((colors,
+                                  opaque * np.ones(len(colors))))
+    return colors.astype(dtype)
 
 def random_color(dtype=COLOR_DTYPE):
     '''

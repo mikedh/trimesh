@@ -99,6 +99,44 @@ def is_sequence(obj):
         seq = seq and obj.shape != ()
     return seq
 
+def is_shape(obj, shape):
+    '''
+    Compare the shape of a numpy.ndarray to a target shape, 
+    with any value less than zero being considered a wildcard
+
+    Arguments
+    ---------
+    obj: np.ndarray to check the shape of
+    shape: list or tuple of shape. 
+           Any negative value will be considered a wildcard
+    
+    Returns
+    ---------
+    shape_ok: bool, True if shape of obj matches query shape
+
+    Example
+    ------------------------
+    In [1]: a = np.random.random((100,3))
+
+    In [2]: a.shape
+    Out[2]: (100, 3)
+
+    In [3]: trimesh.util.is_shape(a, (-1,3))
+    Out[3]: True
+
+    In [4]: trimesh.util.is_shape(a, (-1,3,5))
+    Out[4]: False
+
+    In [5]: trimesh.util.is_shape(a, (100,-1))
+    Out[5]: True
+    '''
+
+    if (not hasattr(obj, 'shape') or
+        len(obj.shape) != len(shape)):
+        return False
+    shape_ok = all(i == t for i,t in zip(obj.shape, shape) if t >= 0)
+    return shape_ok
+
 def make_sequence(obj):
     '''
     Given an object, if it is a sequence return, otherwise

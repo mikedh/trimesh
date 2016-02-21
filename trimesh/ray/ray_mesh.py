@@ -237,6 +237,7 @@ def contains_points(mesh, points):
     ---------
     contains: (n) boolean array, whether point is inside mesh or not
     '''
+    points = np.asanyarray(points)
     vector = unitize([0,0,1])
     rays = np.column_stack((points, 
                             np.tile(vector,(len(points),1)))).reshape((-1,2,3))
