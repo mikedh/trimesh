@@ -141,9 +141,22 @@ def is_shape(obj, shape):
     if (not hasattr(obj, 'shape') or
         len(obj.shape) != len(shape)):
         return False
-    # magic line which compares obj.shape with query shape line by line
-    shape_ok = all(i == t or i in t for i,t in zip(obj.shape, shape) if t >= 0)
-    return shape_ok
+
+    for i, target in zip(obj.shape, shape):
+        # check if current field has multiple acceptable values
+        if is_sequence(target):
+            if i in target: continue
+            else:           return False
+        # check if current field is a wildcard
+        if target < 0: 
+            continue
+        # since we have a single target and a single value,
+        # if they are not equal we have an answer
+        if target != i: 
+            return False
+
+    # since none of the checks failed, the two shapes are the same
+    return True
 
 def make_sequence(obj):
     '''
