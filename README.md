@@ -44,7 +44,7 @@ $ sudo pip install trimesh
 
 Basic functionality is available immediately. Some functions (ray queries, polygon handling, mesh creation, viewer windows, boolean operations, additional importers) require additional libraries:
 ```bash
-$ sudo apt-get install cmake openscad libspatialindex* 
+$ sudo apt-get install cmake openscad blender libspatialindex-dev 
 $ sudo pip install pyglet shapely git+https://github.com/robotics/assimp_latest.git git+https://github.com/Toblerity/rtree.git svg.path meshpy
 ```
 

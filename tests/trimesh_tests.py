@@ -139,8 +139,13 @@ class MeshTests(unittest.TestCase):
                 log.info('Graph-tool sped up split by %f and facets by %f', 
                          (times[2] / times[0]), (times[3] / times[1]))
 
+            self.assertTrue(mesh.volume > 0.0)
+                
             section   = mesh.section(plane_normal=[0,0,1], plane_origin=mesh.centroid)
             hull      = mesh.convex_hull
+
+            self.assertTrue(hull.volume > 0.0)
+
             sample    = mesh.sample(1000)
             even_sample = trimesh.sample.even_sample(mesh, 100)
             self.assertTrue(sample.shape == (1000,3))
@@ -201,8 +206,7 @@ class EqualTest(unittest.TestCase):
 class ContainsTest(unittest.TestCase):
     def setUp(self):
         self.sphere = trimesh.load_mesh(os.path.abspath(os.path.join(TEST_DIR, 
-                                                                     'unit_sphere.STL')))
-    
+                                                                     'unit_sphere.STL')))    
     def test_equal(self):
         samples = (np.random.random((1000,3))-.5)*5
         radius = np.linalg.norm(samples, axis=1)

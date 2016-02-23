@@ -7,7 +7,7 @@ from .points    import unitize
 from .grouping  import group_rows
 from .triangles import normals
 from .util      import is_sequence
-from .constants import *
+from .constants import log, tol
 
 def fix_face_winding(mesh):
     '''
@@ -51,25 +51,16 @@ def fix_normals_direction(mesh):
     # force face normals to be regenerated according to the right-hand rule
     mesh.face_normals = None
     # which direction should our test rays go
-    direction = -mesh.face_normals[0]
-    # origin of test ray
-    origin    = mesh.vertices[mesh.faces[0]].mean(axis=0)
-    origin   -= direction * mesh.scale * 2
-    rays = [[origin, direction]]
-    location, hit_id = mesh.ray.intersects_location(rays, return_id=True)
-    # the distance along the ray vector the hit happened at
-    projection = np.dot(location - origin, direction)
-    # the face index of the farthest face along the vector
-    face_outer = hit_id[0][projection.argmax()]
-    # the normal of this presumed outer face
-    normal_outer = mesh.face_normals[face_outer]
-    # dot product with our direction to see if it is pointing inside or 
-    # outside
-    normal_sign  = np.sign(np.dot(normal_outer, direction))
+    direction = mesh.face_normals[0]
+    # test point
+    origin  = mesh.triangles[0].mean(axis=0)
+    origin += direction * tol.merge 
+    flipped = mesh.contains([origin])[0]
 
-    if normal_sign < 0:
+    if flipped:
+        log.debug('Flipping face normals and winding')
         # reverse the face normals
-        mesh.face_normals *= normal_sign
+        mesh.face_normals *= -1.0
         # since normals were regenerated, this means winding is backwards
         # if winding is incoherent this won't fix anything
         mesh.faces = np.fliplr(mesh.faces)
