@@ -92,14 +92,14 @@ def group(values, min_len=0, max_len=np.inf):
     groups: sequence of indices to form groups
             IE [0,1,0,1] returns [[0,2], [1,3]]
     '''
-    order     = values.argsort()
-    values    = values[order]
-    dupe      = np.greater(np.abs(np.diff(values)), tol.zero)
-    dupe_idx  = np.append(0, np.nonzero(dupe)[0] + 1)
-    dupe_len  = np.diff(np.hstack((dupe_idx, len(values)))) 
-    dupe_ok   = np.logical_and(np.greater_equal(dupe_len, min_len),
-                               np.less_equal(   dupe_len, max_len))
-    groups    = [order[i:(i+j)] for i, j in zip(dupe_idx[dupe_ok], dupe_len[dupe_ok])]
+    order    = values.argsort()
+    values   = values[order]
+    dupe     = np.greater(np.abs(np.diff(values)), tol.zero)
+    dupe_idx = np.append(0, np.nonzero(dupe)[0] + 1)
+    dupe_len = np.diff(np.hstack((dupe_idx, len(values)))) 
+    dupe_ok  = np.logical_and(np.greater_equal(dupe_len, min_len),
+                              np.less_equal(   dupe_len, max_len))
+    groups   = [order[i:(i+j)] for i, j in zip(dupe_idx[dupe_ok], dupe_len[dupe_ok])]
     return groups
     
 def hashable_rows(data, digits=None):
@@ -127,20 +127,29 @@ def float_to_int(data, digits=None):
     '''
     Given a numpy array of data represent it as integers.
     '''
-    data = np.asanyarray(data)   
+    data = np.asanyarray(data)
+
+    dtype_out = np.int32
+    if data.size == 0:
+        return data.astype(dtype_out)
+            
+    if digits is None: 
+        digits = decimal_to_digits(tol.merge)
+    elif isinstance(digits, float) or isinstance(digits, np.float):
+        digits = decimal_to_digits(digits)
+    elif not (isinstance(digits, int) or isinstance(digits, np.integer)):
+        log.warn('Digits were passed as %s!', digits.__class__.__name__)
+        raise ValueError('Digits must be None, int, or float!')
+
+    #if data is already an integer or boolean, we're done
     if data.dtype.kind in 'ib':
-        #if data is already an integer or boolean, we're done
-        return data
-    else: 
-        if digits is None: 
-            digits = decimal_to_digits(tol.merge)
-        elif isinstance(digits, float) or isinstance(digits, np.float):
-            digits = decimal_to_digits(digits)
-        elif not (isinstance(digits, int) or isinstance(digits, np.integer)):
-            log.warn('Digits were passed as %s!', digits.__class__.__name__)
-            raise ValueError('Digits must be None, int, or float!')
-        as_int = (np.around(data, digits) * (10**digits)).astype(np.int64)
-        return as_int
+        as_int = data.astype(dtype_out)
+    else:
+        data_max = np.abs(data).max() * 10**digits
+        dtype_out = [np.int32, np.int64][int(data_max > 2**31)]
+        as_int = (np.around(data, digits) * (10**digits)).astype(dtype_out)
+    
+    return as_int
 
 def unique_ordered(data):
     '''

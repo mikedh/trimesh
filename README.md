@@ -4,7 +4,7 @@
 Python (2.7-3.*) library for loading and utilizing triangular meshes. The goal of the library is to provide a fully featured Trimesh object which allows for easy manipulation and analysis, in the style of the excellent Polygon object in the Shapely library.
 
 ### Features ###
-* Import binary/ASCII STL, Wavefront, and OFF
+* Import binary/ASCII STL, Wavefront, OFF, and PLY
 * Import formats using assimp (if pyassimp installed)
 * Import STEP files as meshes (if STEPtools Inc. Author Tools installed)
 * Import 2D or 3D vector paths from DXF or SVG files

@@ -102,11 +102,10 @@ class Trimesh(object):
         
     @faces.setter
     def faces(self, values):
+        if values is None:
+            values = []
         values = np.array(values, dtype=np.int64)
-        shape  = values.shape
-        if len(shape) != 2 or not shape[1] in [3, 4]:
-            raise ValueError('Faces must be (n,3) or (n,4)!')
-        elif shape[1] == 4:
+        if util.is_shape(values, (-1,4)):
             log.info('Triangulating quad faces')
             values = geometry.triangulate_quads(values)
         self._faces = util.tracked_array(values)

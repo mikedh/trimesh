@@ -238,7 +238,35 @@ def remove_close_set(points_fixed, points_reduce, radius):
     reduce_mask[reduce_duplicates] = False
     points_clean = points_reduce[reduce_mask]
     return points_clean
+    
+def k_means(points, k, **kwargs):
+    '''
+    Find k centroids that attempt to minimize the k- means problem:
+    https://en.wikipedia.org/wiki/Metric_k-center
+    
+    Arguments
+    ----------
+    points: (n, d) set of points
+    k: int, number of centroids to compute
+    **kwargs: passed directly to scipy.cluster.vq.kmeans
+    
+    Returns
+    ----------
+    centroids: (k, d) set of points
+    labels: (n) set of indexes for which points belong to which centroid
+    '''
+    from scipy.cluster.vq import kmeans
+    from scipy.spatial import cKDTree
 
+    points = np.asanyarray(points)
+    points_std = points.std(axis=0)
+    whitened = points / points_std
+    centroids_whitened, distortion = kmeans(whitened, k, **kwargs)
+    centroids = centroids_whitened * points_std
+    tree = cKDTree(centroids)
+    labels = tree.query(points, k=1)[1]
+    return centroids, labels
+    
 def plot_points(points, show=True):    
     import matplotlib.pyplot as plt
 
