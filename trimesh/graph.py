@@ -20,7 +20,7 @@ except:
     _has_gt = False
     log.warning('No graph-tool! Some operations will be much slower!')
 
-def face_adjacency(faces):
+def face_adjacency(faces, return_edges=False):
     '''
     Returns an (n,2) list of face indices.
     Each pair of faces in the list shares an edge, making them adjacent.
@@ -48,8 +48,11 @@ def face_adjacency(faces):
     # the pairs of all adjacent faces
     # so for every row in face_idx, self.faces[face_idx[*][0]] and 
     # self.faces[face_idx[*][1]] will share an edge
-    adjacency = edge_face_index[edge_groups]
-    return adjacency
+    face_adjacency = edge_face_index[edge_groups]
+    if return_edges:
+        face_adjacency_edges = edges[edge_groups[:,0]]
+        return face_adjacency, face_adjacency_edges
+    return face_adjacency
 
 def adjacency_angle(mesh, angle):
     '''

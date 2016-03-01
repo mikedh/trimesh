@@ -65,9 +65,9 @@ class RayMeshIntersector:
         rays      = np.array(rays, dtype=np.float)
         hits      = self.intersects_id(rays)
         locations = ray_triangle_locations(triangles     = self.mesh.triangles,
-                                           rays          = rays,
-                                           intersections = hits,
-                                           tri_normals   = self.mesh.face_normals)
+                                                  rays          = rays,
+                                                  intersections = hits,
+                                                  tri_normals   = self.mesh.face_normals)
         if return_id:
             return locations, hits
         return locations
@@ -203,23 +203,25 @@ def ray_triangle_locations(triangles,
     ray_vector   = rays[:,1,:]
     ray_segments = np.array([ray_origin,
                              ray_origin + ray_vector])
-    locations = [None] * len(rays)
+    locations = [[]] * len(rays)
 
-    for ray_index, tri_group in enumerate(intersections):
+    for r, tri_group in enumerate(intersections):
         group_locations = np.zeros((len(tri_group), 3))
-        for group_index, tri_index in enumerate(tri_group):
+        valid = np.zeros(len(tri_group), dtype=np.bool)
+        for i, tri_index in enumerate(tri_group):
             origin  = triangles[tri_index][0]
             normal  = tri_normals[tri_index]
-            segment = ray_segments[:,ray_index,:].reshape((2,-1,3))
-            point, valid = plane_line_intersection(plane_origin = origin,
-                                                   plane_normal = normal,
-                                                   endpoints    = segment,
-                                                   line_segments = False)
-            group_locations[group_index] = point
-            if not valid: 
-                raise ValueError('Intersections passed are in error!')
+            segment = ray_segments[:,r,:].reshape((2,-1,3))
+            point, ok = plane_line_intersection(plane_origin  = origin,
+                                                plane_normal  = normal,
+                                                endpoints     = segment,
+                                                line_segments = False)
+            if ok:
+                valid[i] = True
+                group_locations[i] = point
+        group_locations = group_locations[valid]
         unique = unique_rows(group_locations)[0]
-        locations[ray_index] = group_locations[unique]
+        locations[r] = group_locations[unique]
     return np.array(locations)
 
 def contains_points(mesh, points):

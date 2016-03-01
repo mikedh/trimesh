@@ -67,3 +67,10 @@ def even_sample(mesh, count):
     samples = random_sample(mesh, count*5)
     result = remove_close(samples, radius)
     return result
+
+def sample_volume(mesh, count):
+    points = (np.random.random((count, 3))*mesh.extents) + mesh.bounds[0]
+    print points
+    countained = mesh.contains(points)
+    return points[contained]
+

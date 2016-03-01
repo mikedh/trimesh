@@ -40,7 +40,7 @@ def unitize(points, check_valid=False):
     valid:        (n) boolean array, output only if check_valid.
                    True for all valid (nonzero length) vectors, thus m=sum(valid)
     '''
-    points       = np.array(points)
+    points       = np.asanyarray(points)
     axis         = len(points.shape) - 1
     length       = np.sum(points ** 2, axis=axis) ** .5
     if check_valid:
@@ -470,11 +470,14 @@ class Cache:
             self.clear()
             self.id_set()
 
-    def clear(self):
+    def clear(self, exclude=None):
         '''
         Remove all elements in the cache. 
         '''
-        self.cache = {}
+        if exclude is not None:
+            self.cache = {k:v for k,v in self.cache.items() if k in exclude}
+        else:
+            self.cache = {}
 
     def update(self, items):
         '''

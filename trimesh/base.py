@@ -55,6 +55,13 @@ class Trimesh(object):
         # (m, 3) int of triangle faces, references self.vertices
         self.faces    = faces
 
+        # hold vertex and face colors
+        if 'visual' in kwargs:
+            self.visual = kwargs['visual']
+        else:
+            self.visual = visual.VisualAttributes(**kwargs)
+        self.visual.mesh = self
+        
         # normals are accessed through setters/properties to 
         # ensure they are at least somewhat reasonable
         self.face_normals = face_normals
@@ -69,31 +76,28 @@ class Trimesh(object):
         # and is cached for subsequent queries
         self.ray     = RayMeshIntersector(self)
 
-        # hold vertex and face colors
-        if 'visual' in kwargs:
-            self.visual = kwargs['visual']
-        else:
-            self.visual = visual.VisualAttributes(**kwargs)
-        self.visual.mesh = self
-
         # any metadata that should be tracked per- mesh
         self.metadata = dict()
         # update the mesh metadata with passed metadata
         if isinstance(metadata, dict):
             self.metadata.update(metadata)
-        
+
         if process:
             self.process()
-            
+
     def process(self):
         '''
         Convenience function to remove garbage and make mesh sane. 
         '''
-        self.merge_vertices()
-        self.remove_duplicate_faces()
-        self.remove_degenerate_faces()
-        # if we've removed any degenerate faces force a regen
-        test = self.face_normals
+        # will avoid clearing the cache during operations
+        with self._cache:
+            self.merge_vertices()
+            self.remove_duplicate_faces()
+            self.remove_degenerate_faces()
+        # since none of our process operations moved vertices or faces,
+        # we can keep face and vertex normals in the cache without recomputing
+        self._cache.clear(exclude = ['face_normals',
+                                     'vertex_normals'])
         return self
         
     @property
@@ -102,7 +106,7 @@ class Trimesh(object):
         
     @faces.setter
     def faces(self, values):
-        if values is None:
+        if values is None: 
             values = []
         values = np.array(values, dtype=np.int64)
         if util.is_shape(values, (-1,4)):
@@ -123,30 +127,37 @@ class Trimesh(object):
 
     @property
     def face_normals(self):
-        if np.shape(self._face_normals) != np.shape(self.faces):
-            log.debug('Generating face normals as shape was incorrect')
-            face_normals, valid = triangles.normals(self.triangles)
-            self.update_faces(valid)
-            self._face_normals = face_normals
-        return self._face_normals
+        cached = self._cache.get('face_normals')
+        if np.shape(cached) == np.shape(self.faces):
+            return cached
+        log.debug('Generating face normals as shape was incorrect')
+        face_normals, valid = triangles.normals(self.triangles)
+        self.update_faces(valid)
+        return self._cache.set(key   = 'face_normals',
+                               value = face_normals)
 
     @face_normals.setter
     def face_normals(self, values):
-        self._face_normals = np.asanyarray(values)
+        self._cache.set(key = 'face_normals',
+                        value = np.asanyarray(values))
 
     @property
     def vertex_normals(self):
-        if np.shape(self._vertex_normals) != np.shape(self.vertices):
-            log.debug('Generating vertex normals')
-            self._vertex_normals = geometry.mean_vertex_normals(len(self.vertices),
-                                                                self.faces,
-                                                                self.face_normals)
-        return self._vertex_normals
+        cached = self._cache.get('vertex_normals')
+        if np.shape(cached) == np.shape(self.vertices):
+            return cached
+        log.debug('Generating vertex normals')
+        vertex_normals = geometry.mean_vertex_normals(len(self.vertices),
+                                                      self.faces,
+                                                      self.face_normals)
+        return self._cache.set(key   = 'vertex_normals',
+                               value =  vertex_normals)
 
     @vertex_normals.setter
     def vertex_normals(self, values):
-        self._vertex_normals = np.asanyarray(values)
-        
+        self._cache.set(key = 'vertex_normals',
+                        value = np.asanyarray(values))
+
     def md5(self):
         '''
         Return an appended MD5 for the faces and vertices. 
@@ -209,32 +220,40 @@ class Trimesh(object):
     def triangles(self):
         # use of advanced indexing on our tracked arrays will 
         # trigger a change (which nukes the cache)
-        return self.vertices.view(np.ndarray)[self.faces]
+        cached = self._cache.get('triangles')
+        if cached is not None:
+            return cached
+        triangles = self.vertices.view(np.ndarray)[self.faces]
+        return self._cache.set(key   = 'triangles',
+                               value =  triangles)
 
     def triangles_tree(self):
+        '''
+        Return an R-tree containing each face of the mesh.
+        '''
         tree = triangles.bounds_tree(self.triangles)
         return tree
 
     @property
     def edges(self):
-        if 'edges' in self._cache:
-            return self._cache.get('edges')
-        else:
-            return self._cache.set(key   = 'edges',
-                                   value = geometry.faces_to_edges(self.faces.view(np.ndarray)))
+        cached = self._cache.get('edges')
+        if cached is not None:
+            return cached
+        edges = geometry.faces_to_edges(self.faces.view(np.ndarray))
+        return self._cache.set(key   = 'edges',
+                               value =  edges)
 
     @property
     def edges_unique(self):
-        key = 'edges_unique'
-        if key in self._cache:
-            return self._cache.get(key)
-        else:
-            edges_sorted = np.sort(self.edges, axis=1)
-            unique = grouping.unique_rows(edges_sorted)[0]
-            edges_unique = edges_sorted[unique]
-            return self._cache.set(key   = key,
-                                   value = edges_unique)
-    
+        cached = self._cache.get('edges_unique')
+        if cached is not None:
+            return cached
+        edges_sorted = np.sort(self.edges, axis=1)
+        unique = grouping.unique_rows(edges_sorted)[0]
+        edges_unique = edges_sorted[unique]
+        return self._cache.set(key   = 'edges_unique',
+                               value =  edges_unique)
+
     @property
     def euler_number(self):
         '''
@@ -298,11 +317,9 @@ class Trimesh(object):
         self.faces = inverse[[self.faces.reshape(-1)]].reshape((-1,3))
         self.visual.update_vertices(mask)
 
-        # check the dimensions of the cached value rather than 
-        # using the property, which will enforce correct dimensions
-        # before returning anything
-        if np.shape(self._vertex_normals) == np.shape(self.vertices):
-            self._vertex_normals = self._vertex_normals[mask]
+        cached_normals = self._cache.get('vertex_normals')
+        if np.shape(cached_normals) == np.shape(self.vertices):
+            self.vertex_normals = cached_normals[mask]
 
         self.vertices = self.vertices[mask]
 
@@ -325,8 +342,9 @@ class Trimesh(object):
         elif mask.dtype.name != 'int':
             mask = mask.astype(np.int)
 
-        if np.shape(self._face_normals) == np.shape(self.faces):
-            self._face_normals = self._face_normals[mask]
+        cached_normals = self._cache.get('face_normals')
+        if np.shape(cached_normals) == np.shape(self.faces):
+            self.face_normals = cached_normals[mask]
 
         self.faces = self.faces[mask]        
         self.visual.update_faces(mask)
@@ -380,9 +398,28 @@ class Trimesh(object):
         '''
         cached = self._cache.get('face_adjacency')
         if cached is None:
-            adjacency = graph.face_adjacency(self.faces.view(np.ndarray))
-            return self._cache.set(key   = 'face_adjacency', 
-                                   value = adjacency)
+            adjacency, edges = graph.face_adjacency(self.faces.view(np.ndarray),
+                                                    return_edges = True)
+            self._cache.set(key   = 'face_adjacency_edges',
+                            value = edges)
+            self._cache.set(key   = 'face_adjacency', 
+                            value = adjacency)
+            return adjacency
+        return cached
+
+    @property
+    def face_adjacency_edges(self):
+        '''
+        Returns the edges that are shared by the adjacent faces. 
+
+        Returns
+        --------
+        edges: (n, 2) list of vertex indices which correspond to face_adjacency
+        '''
+        cached = self._cache.get('face_adjacency_edges')
+        if cached is None:
+            adjacency = self.face_adjacency
+            return self._cache.get('face_adjacency_edges')
         return cached
 
     @property

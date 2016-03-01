@@ -278,7 +278,7 @@ class RayTests(unittest.TestCase):
 
     def test_contains(self):
         mesh = trimesh.load_mesh(location('unit_cube.STL'))
-        scale = 1+(trimesh.constants.tol.merge)
+        scale = 1+(trimesh.constants.tol.merge*2)
 
         test_on  = mesh.contains(mesh.vertices)
         test_in  = mesh.contains(mesh.vertices * (1.0/scale))

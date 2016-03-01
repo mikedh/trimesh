@@ -27,7 +27,7 @@ def mesh_plane_intersection(mesh,
     edges = np.sort(faces_to_edges(mesh.faces), axis=1)
     intersections, valid  = plane_line_intersection(plane_origin, 
                                                     plane_normal, 
-                                                    mesh.vertices[[edges.T]],
+                                                    mesh.vertices[edges.T],
                                                     line_segments = True)
     log.debug('mesh_cross_section found %i intersections', len(intersections))
     if return_planar:
@@ -60,7 +60,8 @@ def plane_line_intersection(plane_origin,
     '''
     endpoints    = np.array(endpoints)
     line_dir     = unitize(endpoints[1] - endpoints[0])
-    plane_normal = unitize(plane_normal)
+    plane_normal = unitize(np.asanyarray(plane_normal).reshape(3))
+    plane_origin = np.asanyarray(plane_origin).reshape(3)
 
     t = np.dot(plane_normal, np.transpose(plane_origin - endpoints[0]))
     b = np.dot(plane_normal, np.transpose(line_dir))
@@ -80,4 +81,5 @@ def plane_line_intersection(plane_origin,
     d  = np.divide(t[valid], b[valid])
     intersection  = endpoints[0][valid]
     intersection += np.reshape(d, (-1,1)) * line_dir[valid]
+
     return intersection, valid
