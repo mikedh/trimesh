@@ -8,12 +8,34 @@ def plane_transform(origin, normal):
     '''
     Given the origin and normal of a plane, find the transform that will move 
     that plane to be coplanar with the XY plane
+
+    Arguments
+    ----------
+    origin: (3,) float, point in space
+    normal: (3,) float, plane normal vector
+
+    Returns
+    ---------
+    transform: (4,4) float, transformation matrix
     '''
     transform        =  align_vectors(normal, [0,0,1])
     transform[0:3,3] = -np.dot(transform, np.append(origin, 1))[0:3]
     return transform
     
 def transform_around(matrix, point):
+    '''
+    Given a transformation matrix, apply its rotation component around a 
+    point in space. 
+
+    Arguments
+    ----------
+    matrix: (4,4) float, transformation matrix
+    point:  (3,)  float, point in space
+
+    Returns
+    ---------
+    result: (4,4) transformation matrix
+    '''
     point = np.array(point)
     translate = np.eye(4)
     translate[0:3,3] = -point
@@ -23,6 +45,17 @@ def transform_around(matrix, point):
     return result
 
 def nondegenerate_faces(faces):
+    '''
+    Find all faces which have three unique vertex indices.
+
+    Arguments
+    ----------
+    faces: (n, 3) int array of vertex indices
+
+    Returns
+    ----------
+    nondegenerate: (n,) bool array of faces that have 3 unique indices
+    '''
     diffed = np.diff(np.sort(faces, axis=1), axis=1)
     nondegenerate = np.all(diffed != 0, axis=1)
     return nondegenerate
