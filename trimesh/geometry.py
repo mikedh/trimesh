@@ -20,9 +20,13 @@ def transform_around(matrix, point):
     result = np.dot(matrix, translate)
     translate[0:3,3] = point
     result = np.dot(translate, result)
-
     return result
 
+def nondegenerate_faces(faces):
+    diffed = np.diff(np.sort(faces, axis=1), axis=1)
+    nondegenerate = np.all(diffed != 0, axis=1)
+    return nondegenerate
+    
 
 def align_vectors(vector_start, vector_end, return_angle=False):
     '''
@@ -75,14 +79,6 @@ def triangulate_quads(quads):
     faces = np.vstack((quads[:,[0,1,2]],
                        quads[:,[2,3,0]]))
     return faces
-
-def nondegenerate_faces(faces):
-    '''
-    Returns a 1D boolean array where non-degenerate faces are 'True'                        
-    Faces should be (n, m) where for Trimeshes m=3. Returns (n) array                       
-    '''
-    nondegenerate = np.all(np.diff(np.sort(faces, axis=1), axis=1) != 0, axis=1)
-    return nondegenerate
     
 def mean_vertex_normals(count, faces, face_normals):
     '''

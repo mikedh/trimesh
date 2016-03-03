@@ -147,9 +147,11 @@ class MeshTests(unittest.TestCase):
             self.assertTrue(hull.volume > 0.0)
 
             sample    = mesh.sample(1000)
-            even_sample = trimesh.sample.even_sample(mesh, 100)
+            even_sample = trimesh.sample.sample_surface_even(mesh, 100)
             self.assertTrue(sample.shape == (1000,3))
-            
+            log.info('finished testing meshes')
+
+
     def test_hash(self):
         count = 10
         for mesh in self.meshes:

@@ -19,6 +19,8 @@ def fix_face_winding(mesh):
     # every edge in g represents two faces which are connected
     graph_all = nx.from_edgelist(mesh.face_adjacency)
     flipped   = 0
+    faces = mesh.faces.view(np.ndarray).copy()
+
     # we are going to traverse the graph using BFS, so we have to start
     # a traversal for every connected component
     for graph in nx.connected_component_subgraphs(graph_all):
@@ -29,7 +31,8 @@ def fix_face_winding(mesh):
             # for each pair of faces, we convert them into edges,
             # find the edge that both faces share, and then see if the edges
             # are reversed in order as you would expect in a well constructed mesh
-            pair    = mesh.faces[[face_pair]]            
+            face_pair = np.ravel(face_pair)
+            pair    = faces[face_pair]
             edges   = faces_to_edges(pair)
             overlap = group_rows(np.sort(edges,axis=1), require_count=2)
             if len(overlap) == 0:
@@ -39,7 +42,9 @@ def fix_face_winding(mesh):
             if edge_pair[0][0] == edge_pair[1][0]:
                 # if the edges aren't reversed, invert the order of one of the faces
                 flipped += 1
-                mesh.faces[face_pair[1]] = mesh.faces[face_pair[1]][::-1]
+                faces[face_pair[1]] = faces[face_pair[1]][::-1]
+    if flipped > 0: 
+        mesh.faces = faces
     log.info('Flipped %d/%d edges', flipped, len(mesh.faces)*3)
 
 def fix_normals_direction(mesh):

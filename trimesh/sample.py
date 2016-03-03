@@ -1,6 +1,6 @@
 import numpy as np
 
-def random_sample(mesh, count):
+def sample_surface(mesh, count):
     '''
     Sample the surface of a mesh, returning the specified number of points
 
@@ -56,7 +56,16 @@ def random_sample(mesh, count):
     
     return samples
 
-def even_sample(mesh, count):
+def sample_volume(mesh, count):
+    '''
+    
+    '''
+    points = (np.random.random((count, 3))*mesh.extents) + mesh.bounds[0]
+    contained = mesh.contains(points)
+    samples = points[contained]
+    return samples
+
+def sample_surface_even(mesh, count):
     '''
     Sample the surface of a mesh, returning samples which are 
     approximately evenly spaced. 
@@ -64,13 +73,6 @@ def even_sample(mesh, count):
     from .points import remove_close
 
     radius = np.sqrt(mesh.area / (2*count))
-    samples = random_sample(mesh, count*5)
+    samples = sample_surface(mesh, count*5)
     result = remove_close(samples, radius)
     return result
-
-def sample_volume(mesh, count):
-    points = (np.random.random((count, 3))*mesh.extents) + mesh.bounds[0]
-    print points
-    countained = mesh.contains(points)
-    return points[contained]
-

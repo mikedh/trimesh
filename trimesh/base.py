@@ -87,9 +87,11 @@ class Trimesh(object):
 
     def process(self):
         '''
-        Convenience function to remove garbage and make mesh sane. 
+        Convenience function to remove garbage and make mesh sane.
+        Does this by merging duplicate vertices, removing duplicate 
+        and zero- area faces. 
         '''
-        # will avoid clearing the cache during operations
+        # avoid clearing the cache during operations
         with self._cache:
             self.merge_vertices()
             self.remove_duplicate_faces()
@@ -99,9 +101,14 @@ class Trimesh(object):
         self._cache.clear(exclude = ['face_normals',
                                      'vertex_normals'])
         return self
-        
+
     @property
     def faces(self):
+        # we validate face normals as the validation process may remove
+        # zero- area faces. If we didn't do this check here, the shape of 
+        # self.faces and self.face_normals could differ depending on the order
+        # they were queried in
+        self._validate_face_normals()
         return self._faces
         
     @faces.setter
@@ -125,16 +132,21 @@ class Trimesh(object):
         # we also make sure vertices are stored as a float64 for consistency
         self._vertices = util.tracked_array(values, dtype=np.float64)
 
+    def _validate_face_normals(self):
+        cached = self._cache.get('face_normals')
+        if np.shape(cached) != np.shape(self._faces):
+            log.debug('Generating face normals as shape was incorrect')
+            face_normals, valid = triangles.normals(self.triangles)
+            self.update_faces(valid)
+            self._cache.set(key = 'face_normals',
+                            value = face_normals)
+
     @property
     def face_normals(self):
+        self._validate_face_normals()
         cached = self._cache.get('face_normals')
-        if np.shape(cached) == np.shape(self.faces):
-            return cached
-        log.debug('Generating face normals as shape was incorrect')
-        face_normals, valid = triangles.normals(self.triangles)
-        self.update_faces(valid)
-        return self._cache.set(key   = 'face_normals',
-                               value = face_normals)
+        assert cached.shape == self._faces.shape
+        return cached
 
     @face_normals.setter
     def face_normals(self, values):
@@ -162,8 +174,8 @@ class Trimesh(object):
         '''
         Return an appended MD5 for the faces and vertices. 
         '''
-        result  = self.faces.md5()
-        result += self.vertices.md5()
+        result  = self._faces.md5()
+        result += self._vertices.md5()
         return result
         
     @property
@@ -223,7 +235,7 @@ class Trimesh(object):
         cached = self._cache.get('triangles')
         if cached is not None:
             return cached
-        triangles = self.vertices.view(np.ndarray)[self.faces]
+        triangles = self.vertices.view(np.ndarray)[self._faces]
         return self._cache.set(key   = 'triangles',
                                value =  triangles)
 
@@ -318,10 +330,12 @@ class Trimesh(object):
         self.visual.update_vertices(mask)
 
         cached_normals = self._cache.get('vertex_normals')
-        if np.shape(cached_normals) == np.shape(self.vertices):
-            self.vertex_normals = cached_normals[mask]
-
-        self.vertices = self.vertices[mask]
+        if cached_normals is not None:
+            try: 
+                self.vertex_normals = cached_normals[mask]
+            except: 
+                pass
+        self._vertices = self.vertices[mask]
 
     def update_faces(self, mask):
         '''
@@ -343,10 +357,10 @@ class Trimesh(object):
             mask = mask.astype(np.int)
 
         cached_normals = self._cache.get('face_normals')
-        if np.shape(cached_normals) == np.shape(self.faces):
+        if cached_normals is not None:
             self.face_normals = cached_normals[mask]
-
-        self.faces = self.faces[mask]        
+    
+        self._faces = self._faces[mask]        
         self.visual.update_faces(mask)
         
     def remove_duplicate_faces(self):
@@ -576,7 +590,7 @@ class Trimesh(object):
         ---------
         samples: (count, 3) float, points on surface of mesh
         '''
-        return sample.random_sample(self, count)
+        return sample.sample_surface(self, count)
             
     def remove_unreferenced_vertices(self):
         '''
@@ -591,7 +605,7 @@ class Trimesh(object):
         Removes all face references so that every face contains three unique 
         vertex indices and no faces are adjacent
         '''
-        self.vertices = self.vertices[self.faces].reshape((-1,3))
+        self.vertices = self.triangles.reshape((-1,3))
         self.faces = np.arange(len(self.vertices)).reshape((-1,3))
         
     def transform(self, matrix):
@@ -811,7 +825,6 @@ class Trimesh(object):
         return Trimesh(process=True, 
                        **boolean.intersection(meshes = np.append(self, other), 
                                               engine = engine))
-    
     def contains(self, points):
         '''
         Given a set of points, determine whether or not they are inside the mesh.
@@ -826,7 +839,7 @@ class Trimesh(object):
         contains: (n) boolean array, whether or not a point is inside the mesh
         '''
         if not self.is_watertight: 
-            raise ValueError('Non-watertight meshes can\'t contain anything!')
+            log.warning('Mesh is non- watertight for contained point query!')
         contains = contains_points(self, points)
         return contains
 
@@ -854,11 +867,10 @@ class Trimesh(object):
 
         a = np.sum(meshes).show()
         '''
+        new_normals  = np.vstack((self.face_normals, other.face_normals))
         new_faces    = np.vstack((self.faces, (other.faces + len(self.vertices))))
         new_vertices = np.vstack((self.vertices, other.vertices))
-        new_normals  = np.vstack((self.face_normals, other.face_normals))
         new_visual   = visual.visuals_union(self.visual, other.visual)
-
         result = Trimesh(vertices     = new_vertices, 
                          faces        = new_faces,
                          face_normals = new_normals,

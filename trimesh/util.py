@@ -40,9 +40,9 @@ def unitize(points, check_valid=False):
     valid:        (n) boolean array, output only if check_valid.
                    True for all valid (nonzero length) vectors, thus m=sum(valid)
     '''
-    points       = np.asanyarray(points)
-    axis         = len(points.shape) - 1
-    length       = np.sum(points ** 2, axis=axis) ** .5
+    points = np.asanyarray(points)
+    axis   = len(points.shape) - 1
+    length = np.sum(points ** 2, axis=axis) ** .5
     if check_valid:
         valid = np.greater(length, _TOL_ZERO)
         if axis == 1: 
@@ -50,7 +50,7 @@ def unitize(points, check_valid=False):
         elif len(points.shape) == 1 and valid: 
             unit_vectors = points / length
         else:         
-            unit_vectors = []
+            unit_vectors = np.array([])
         return unit_vectors, valid        
     else: 
         unit_vectors = (points.T / length).T
@@ -467,6 +467,7 @@ class Cache:
         if (self._lock == 0) and (id_new != self.id_current):
             if len(self.cache) > 0:
                 log.warn('Clearing cache of %d items', len(self.cache))
+                log.debug('Items cleared: %s', str(self.cache.keys()))
             self.clear()
             self.id_set()
 
@@ -474,10 +475,10 @@ class Cache:
         '''
         Remove all elements in the cache. 
         '''
-        if exclude is not None:
-            self.cache = {k:v for k,v in self.cache.items() if k in exclude}
-        else:
+        if exclude is None:
             self.cache = {}
+        else:
+            self.cache = {k:v for k,v in self.cache.items() if k in exclude}
 
     def update(self, items):
         '''
@@ -636,8 +637,7 @@ def submesh(mesh,
     # for reindexing faces
     mask = np.arange(len(original_vertices))    
 
-    for faces_index in faces_sequence:
-        
+    for faces_index in faces_sequence:        
         # sanitize indices in case they are coming in as a set or tuple
         faces_index   = np.array(list(faces_index))
         faces_current = original_faces[faces_index]
@@ -646,9 +646,9 @@ def submesh(mesh,
         # redefine face indices from zero
         mask[unique] = np.arange(len(unique))
 
+        normals.append(mesh.face_normals[faces_index])
         faces.append(mask[faces_current])
         vertices.append(original_vertices[unique])
-        normals.append(mesh.face_normals[faces_index])
         visuals.extend(mesh.visual.subsets([faces_index]))
 
     if append:
