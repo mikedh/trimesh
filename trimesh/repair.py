@@ -104,6 +104,9 @@ def fill_holes(mesh):
     ---------
     mesh: Trimesh object
     '''
+    if len(mesh.faces) < 3:
+        return False
+
     edges = mesh.edges
     edges_sorted = np.sort(edges, axis=1)
 
@@ -127,8 +130,8 @@ def fill_holes(mesh):
     for hole in cycles:
         # convert the hole, which is a polygon of vertex indices
         # to triangles and new vertices
-        faces, vertex = _hole_to_faces(hole        = hole, 
-                                       vertices    = mesh.vertices)
+        faces, vertex = _hole_to_faces(hole     = hole, 
+                                       vertices = mesh.vertices)
         if len(faces) == 0:
             continue
         # remeshing returns new vertices as negative indices, so change those
@@ -159,21 +162,27 @@ def fill_holes(mesh):
         if not reversed:
             new_faces[face_index] = face[::-1]
 
+
+
     if len(new_vertex) != 0:
-        mesh.vertices = np.vstack((mesh.vertices, new_vertex))
+        new_vertices = np.vstack((mesh.vertices, new_vertex))
+    else:
+        new_vertices = mesh.vertices
 
     # since the winding is now correct, we can get consistant normals
     # just by doing the cross products on the face edges 
-    new_normals, valid = normals(mesh.vertices[new_faces])
+    mesh._cache.clear(exclude=['face_normals'])
+    new_normals, valid = normals(new_vertices[new_faces])
     mesh.face_normals = np.vstack((mesh.face_normals, new_normals))
-    mesh.faces        = np.vstack((mesh.faces, new_faces[valid]))
+    mesh.faces        = np.vstack((mesh._faces, new_faces[valid]))
+    mesh.vertices     = new_vertices
+    mesh._cache.id_set()
 
     # this is usually the case where two vertices of a triangle are just
     # over tol.merge apart, but the normal calculation is screwed up 
     # these could be fixed by merging the vertices in question here:
     #if not valid.all():
     #    print valid
-
     if mesh.visual.defined:
         # if face colors exist, assign the last face color to the new faces
         # note that this is a little cheesey, but it is very inexpensive and 
