@@ -466,8 +466,9 @@ class Cache:
         id_new = self._id_function()
         if (self._lock == 0) and (id_new != self.id_current):
             if len(self.cache) > 0:
-                log.warn('Clearing cache of %d items', len(self.cache))
-                log.debug('Items cleared: %s', str(self.cache.keys()))
+                log.debug('%d items cleared from cache: %s', 
+                          len(self.cache),
+                          str(self.cache.keys()))
             self.clear()
             self.id_set()
 

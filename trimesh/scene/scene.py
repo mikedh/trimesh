@@ -105,7 +105,6 @@ class Scene:
         centroid = np.mean(self.bounds, axis=0)
         return centroid
 
-
     def duplicate_nodes(self):
         '''
         Return a sequence of node keys, where all keys in the group will
@@ -113,10 +112,11 @@ class Scene:
         '''
         mesh_ids  = {k : m.identifier() for k, m in self.meshes.items()}
         
-        node_keys = np.array(self.nodes.keys())
+        node_keys = np.array(list(self.nodes.keys()))
         node_ids  = [mesh_ids[v] for v in self.nodes.values()]
         
         node_groups = group_rows(node_ids, digits=1)
+
         duplicates  = np.array([node_keys[g] for g in node_groups])
         return duplicates
 

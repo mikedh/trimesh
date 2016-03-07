@@ -610,9 +610,15 @@ class Trimesh(object):
         
     def transform(self, matrix):
         '''
-        Transform mesh vertices by matrix
+        Transform mesh by a homogenous transformation matrix.
+        Normals are also transformed, to avoid them having to be 
+        recomputed from the faces. 
         '''
+        matrix  = np.asanyarray(matrix)
+        normals = np.dot(matrix[0:3, 0:3], self.face_normals.T).T
         self.vertices = transform_points(self.vertices, matrix)
+        self._cache.verify()
+        self.face_normals = normals
 
     def voxelized(self, pitch):
         '''

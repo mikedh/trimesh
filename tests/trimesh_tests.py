@@ -188,6 +188,16 @@ class MeshTests(unittest.TestCase):
         for mesh in self.meshes[5:]:
             mesh.fix_normals()
 
+class SceneTests(unittest.TestCase):
+    def setUp(self):
+        filename = os.path.join(TEST_DIR, 'box.STL')
+        mesh = trimesh.load(filename)
+        split = mesh.split()
+        scene = trimesh.scene.Scene(split)
+        self.scene = scene
+
+    def test_scene(self):
+        duplicates = self.scene.duplicate_nodes()
 
 
 class IOTest(unittest.TestCase):
