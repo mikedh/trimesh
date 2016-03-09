@@ -619,6 +619,8 @@ class Trimesh(object):
         self.vertices = transform_points(self.vertices, matrix)
         self._cache.verify()
         self.face_normals = normals
+        log.debug('Mesh transformed by matrix, normals restored to cache')
+
 
     def voxelized(self, pitch):
         '''

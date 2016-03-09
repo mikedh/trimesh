@@ -1,3 +1,5 @@
+
+import sys
 import numpy as np
 import trimesh
 
@@ -23,6 +25,10 @@ if __name__ == '__main__':
         scene.transforms.update('camera', matrix=camera_new)
 
         file_name = 'render_' + str(i) + '.png'
-        # save a render of the object as a png
-        scene.save_image(file_name,
-                         resolution=np.array([1920,1080])*2)
+
+        # saving an image requires an opengl context, so if -nw
+        # is passed don't save the image
+        if not '-nw' in sys.argv:
+            # save a render of the object as a png
+            scene.save_image(file_name,
+                             resolution=np.array([1920,1080])*2)

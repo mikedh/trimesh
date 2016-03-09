@@ -26,4 +26,7 @@ before_install:
 - pip install nose
 install: pip install .[path]
 
-script: nosetests
+script: 
+- nosetests
+- cd ../examples
+- for f in *.py; do python "$f" -nw; done
