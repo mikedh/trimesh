@@ -28,5 +28,5 @@ install: pip install .[path]
 
 script: 
 - nosetests
-- cd ../examples
+- cd examples
 - for f in *.py; do python "$f" -nw; done
