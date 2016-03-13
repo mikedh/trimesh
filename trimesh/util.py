@@ -603,10 +603,9 @@ def is_instance_named(obj, name):
 
     bases = list(obj.__class__.__bases__)
     bases = np.append(bases, [i.__base__ for i in bases])
- 
+    base_names = [i.__name__ for i in bases if hasattr(i, '__name__')]
     # if obj is a subclass of the name, return True
-    is_instance = any(i.__name__ == name for i in bases)
-    return is_instance
+    return name in base_names
 
 def submesh(mesh, 
             faces_sequence, 
