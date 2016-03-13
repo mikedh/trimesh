@@ -74,7 +74,7 @@ class Trimesh(object):
         # initializing is very inexpensive and object is convenient to have.
         # On first query expensive bookkeeping is done (creation of r-tree),
         # and is cached for subsequent queries
-        self.ray     = RayMeshIntersector(self)
+        self.ray = RayMeshIntersector(self)
 
         # any metadata that should be tracked per- mesh
         self.metadata = dict()
@@ -82,7 +82,9 @@ class Trimesh(object):
         if isinstance(metadata, dict):
             self.metadata.update(metadata)
 
-        if process:
+        if (process and
+            vertices is not None and
+            faces    is not None):
             self.process()
 
     def process(self):
@@ -620,7 +622,7 @@ class Trimesh(object):
         self._cache.verify()
         self.face_normals = normals
         log.debug('Mesh transformed by matrix, normals restored to cache')
-
+        return self
 
     def voxelized(self, pitch):
         '''
@@ -720,14 +722,25 @@ class Trimesh(object):
         '''
         return Scene(self)
 
-    def show(self, **kwargs):
+    def show(self, block=False, **kwargs):
         '''
         Render the mesh in an opengl window. Requires pyglet.
-        Smooth will re-merge vertices to fix the shading, but can be slow
-        on larger meshes. 
+        
+        Arguments
+        -----------
+        block:  bool, open window in new thread, or block until window is closed
+        smooth: bool, run smooth shading on mesh or not. Large meshes will be slow
+
+        Returns
+        -----------
+        scene: trimesh.scene.Scene object, of scene with current mesh in it
         '''
-        scene = self.scene()
-        scene.show(**kwargs)
+        if block:
+            scene.show(**kwargs)
+        else:
+            from threading import Thread
+            scene = self.scene()
+            Thread(target = scene.show, kwargs=kwargs).start()
         return scene
 
     def submesh(self, faces_sequence, **kwargs): 

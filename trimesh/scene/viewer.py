@@ -45,7 +45,9 @@ class SceneViewer(pyglet.window.Window):
 
         self.batch = pyglet.graphics.Batch()
         self._img  = save_image
-        self.vertex_list = {}
+
+        self.vertex_list     = {}
+        self.vertex_list_md5 = {}
 
         for name, mesh in scene.meshes.items():
             self._add_mesh(name, mesh, smooth)
@@ -55,18 +57,22 @@ class SceneViewer(pyglet.window.Window):
         self.update_flags()
         pyglet.app.run()
 
-    def _add_mesh(self, name_mesh, mesh, smooth=None):
-    
+    def _update_meshes(self):
+        for name, mesh in self.scene.meshes.items():
+            md5 = mesh.md5() + mesh.visual.md5()
+            if self.vertex_list_md5[name] != md5:
+                self._add_mesh(name, mesh)
+
+    def _add_mesh(self, name_mesh, mesh, smooth=None):    
         if smooth is None:
             smooth = len(mesh.faces) < _SMOOTH_MAX_FACES
-
         if smooth:
             display = mesh.smoothed()
         else:
             display = mesh.copy()
             display.unmerge_vertices()
-
         self.vertex_list[name_mesh] = self.batch.add_indexed(*mesh_to_vertex_list(display))
+        self.vertex_list_md5[name_mesh] = mesh.md5() + mesh.visual.md5()
 
     def reset_view(self, flags=None):
         '''
@@ -170,6 +176,7 @@ class SceneViewer(pyglet.window.Window):
             self.toggle_culling()
 
     def on_draw(self):
+        self._update_meshes()
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         glLoadIdentity()
 
@@ -215,6 +222,7 @@ class SceneViewer(pyglet.window.Window):
             # pop the matrix stack as we drew what we needed to draw
             glPopMatrix()
         
+
     def node_flag(self, node, flag):
         if flag in self.scene.flags[node]:
             return self.scene.flags[node][flag]

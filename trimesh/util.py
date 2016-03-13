@@ -597,13 +597,16 @@ def is_instance_named(obj, name):
     ---------
     bool, whether the object is a member of the named class
     '''
-
     # if obj is a member of the named class, return True
     if obj.__class__.__name__ == name:
         return True
 
+    bases = list(obj.__class__.__bases__)
+    bases = np.append(bases, [i.__base__ for i in bases])
+ 
     # if obj is a subclass of the name, return True
-    return any(i.__name__ == name for i in obj.__class__.__bases__)
+    is_instance = any(i.__name__ == name for i in bases)
+    return is_instance
 
 def submesh(mesh, 
             faces_sequence, 
