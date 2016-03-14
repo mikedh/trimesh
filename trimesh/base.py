@@ -46,10 +46,15 @@ class Trimesh(object):
                  process        = True,
                  **kwargs):
                  
-        # cache computed values which are cleared when
-        # self.md5() changes, forcing a recompute
+        # data stores information about the mesh which is cannot be regenerated
+        # core data is vertex locations and face information.
+        self._data  = util.DataStore()
+
+        # cache stores information about the mesh which CAN be regenerated, 
+        # but may be slow to calculate. In order to maintain consistency
+        # the cache is cleared when self.md5() changes
         self._cache = util.Cache(id_function = self.md5)
-        
+
         # (n, 3) float, set of vertices
         self.vertices = vertices
         # (m, 3) int of triangle faces, references self.vertices
@@ -111,43 +116,52 @@ class Trimesh(object):
         # self.faces and self.face_normals could differ depending on the order
         # they were queried in
         self._validate_face_normals()
-        return self._faces
+        return self._data['faces']
         
     @faces.setter
     def faces(self, values):
         if values is None: 
             values = []
-        values = np.array(values, dtype=np.int64)
+        values = np.asanyarray(values, dtype=np.int64)
         if util.is_shape(values, (-1,4)):
             log.info('Triangulating quad faces')
             values = geometry.triangulate_quads(values)
-        self._faces = util.tracked_array(values)
+        self._data['faces'] = values
 
     @property
     def vertices(self):
-        return self._vertices
+        return self._data['vertices']
         
     @vertices.setter
     def vertices(self, values):
         # make sure vertices are stored as a TrackedArray, which provides 
         # an md5() method which can be used to monitor the array for changes.
         # we also make sure vertices are stored as a float64 for consistency
-        self._vertices = util.tracked_array(values, dtype=np.float64)
+        self._data['vertices'] = np.asanyarray(values, dtype=np.float64)
 
-    def _validate_face_normals(self):
-        cached = self._cache.get('face_normals')
-        if np.shape(cached) != np.shape(self._faces):
+    def _validate_face_normals(self, faces=None):
+        '''
+        Make sure face normals are of correct shape. 
+
+        This function also removes faces which are zero area, and so must be 
+        called before returning faces or triangles to avoid inconsistant results
+        depending on which order functions are called.
+        '''
+        # pull faces directly from DataStore to avoid infinite recursion
+        if faces is None:
+            faces = self._data['faces']
+        if np.shape(self._cache.get('face_normals')) != np.shape(faces):
             log.debug('Generating face normals as shape was incorrect')
-            face_normals, valid = triangles.normals(self.triangles)
+            tri_cached = self.vertices.view(np.ndarray)[faces]
+            face_normals, valid = triangles.normals(tri_cached)
             self.update_faces(valid)
-            self._cache.set(key = 'face_normals',
-                            value = face_normals)
+            self._cache.set(key   = 'face_normals',
+                            value =  face_normals)
 
     @property
     def face_normals(self):
         self._validate_face_normals()
         cached = self._cache.get('face_normals')
-        assert cached.shape == self._faces.shape
         return cached
 
     @face_normals.setter
@@ -176,9 +190,7 @@ class Trimesh(object):
         '''
         Return an appended MD5 for the faces and vertices. 
         '''
-        result  = self._faces.md5()
-        result += self._vertices.md5()
-        return result
+        return self._data.md5()
         
     @property
     def bounds(self):
@@ -237,7 +249,7 @@ class Trimesh(object):
         cached = self._cache.get('triangles')
         if cached is not None:
             return cached
-        triangles = self.vertices.view(np.ndarray)[self._faces]
+        triangles = self.vertices.view(np.ndarray)[self.faces]
         return self._cache.set(key   = 'triangles',
                                value =  triangles)
 
@@ -337,7 +349,7 @@ class Trimesh(object):
                 self.vertex_normals = cached_normals[mask]
             except: 
                 pass
-        self._vertices = self.vertices[mask]
+        self.vertices = self.vertices[mask]
 
     def update_faces(self, mask):
         '''
@@ -362,7 +374,14 @@ class Trimesh(object):
         if cached_normals is not None:
             self.face_normals = cached_normals[mask]
     
-        self._faces = self._faces[mask]        
+        faces = self._data['faces']
+
+        # if Trimesh has been subclassed and faces have been moved from data 
+        # to cache, get faces from cache. 
+        if faces is None:
+            faces = self._cache['faces']
+
+        self.faces = faces[mask]        
         self.visual.update_faces(mask)
         
     def remove_duplicate_faces(self):

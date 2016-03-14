@@ -496,6 +496,12 @@ class Cache:
         self.cache[key] = value
         return value
         
+    def __getitem__(self, key):
+        return self.get(key)
+
+    def __setitem__(self, key, value):
+        return self.set(key, value)
+
     def __contains__(self, key):
         self.verify()
         return key in self.cache
@@ -506,6 +512,28 @@ class Cache:
     def __exit__(self, *args):
         self._lock -= 1
         self.id_current = self._id_function()
+
+class DataStore:
+    def __init__(self):
+        self.data = {}
+
+    def clear(self):
+        self.data = {}
+
+    def __getitem__(self,key):
+        try:
+            return self.data[key]
+        except KeyError:
+            return None
+
+    def __setitem__(self, key, data):
+        self.data[key] = tracked_array(data)
+
+    def md5(self):
+        md5 = ''
+        for key in np.sort(self.data.keys()):
+            md5 += self.data[key].md5()
+        return md5
 
 def stack_lines(indices):
     return np.column_stack((indices[:-1],
@@ -580,7 +608,6 @@ def base64_to_array(encoded):
     dtype = np.dtype(encoded['dtype'])
     array = np.fromstring(base64.b64decode(encoded['base64']), 
                           dtype).reshape(shape)
-
     return array
 
 def is_instance_named(obj, name):
@@ -597,15 +624,40 @@ def is_instance_named(obj, name):
     ---------
     bool, whether the object is a member of the named class
     '''
-    # if obj is a member of the named class, return True
-    if obj.__class__.__name__ == name:
-        return True
+    base = type_named(obj, name)
+    is_instance = base is not None
+    return is_instance 
 
+def type_bases(obj):
+    '''
+    Return the bases of the object passed.
+    '''
     bases = list(obj.__class__.__bases__)
     bases = np.append(bases, [i.__base__ for i in bases])
-    base_names = [i.__name__ for i in bases if hasattr(i, '__name__')]
-    # if obj is a subclass of the name, return True
-    return name in base_names
+    # we do the hasattr as None/NoneType can be in the list of bases
+    bases = [i for i in bases if hasattr(i, '__name__')]
+    return np.array(bases)
+
+def type_named(obj, name):
+    '''
+    Similar to the type() builtin, but looks in class bases for named instance.
+
+    Arguments
+    ----------
+    obj: object to look for class of
+    name : str, name of class
+
+    Returns
+    ----------
+    named class, or None
+    '''
+    # if obj is a member of the named class, return True
+    if obj.__class__.__name__ == name:
+        return obj.__class__
+    for base in type_bases(obj):
+        if base.__name__ == name:
+            return base
+    return None
 
 def submesh(mesh, 
             faces_sequence, 
@@ -627,7 +679,6 @@ def submesh(mesh,
     if append: Trimesh object
     else:      list of Trimesh objects
     '''
-
     # avoid nuking the cache on the original mesh
     original_faces    = mesh.faces.view(np.ndarray)
     original_vertices = mesh.vertices.view(np.ndarray)
@@ -653,27 +704,26 @@ def submesh(mesh,
         faces.append(mask[faces_current])
         vertices.append(original_vertices[unique])
         visuals.extend(mesh.visual.subsets([faces_index]))
-
+    # we use type(mesh) rather than importing Trimesh from base
+    # as this causes a circular import
+    trimesh_type = type_named(mesh, 'Trimesh')
     if append:
         visuals = np.array(visuals)
         vertices, faces = append_faces(vertices, faces)
-        appended = type(mesh)(vertices = vertices,
-                              faces = faces,
-                              face_normals = np.vstack(normals),
-                              visual  = visuals[0].union(visuals[1:]),
-                              process = False)
+        appended = trimesh_type(vertices = vertices,
+                                faces = faces,
+                                face_normals = np.vstack(normals),
+                                visual = visuals[0].union(visuals[1:]),
+                                process = False)
         return appended
-
-    # we use type(mesh) rather than importing Trimesh from base
-    # as this causes a circular import
-    result = [type(mesh)(vertices     = v, 
-                         faces        = f, 
-                         face_normals = n,
-                         visual       = c,
-                         process = False) for v,f,n,c in zip(vertices, 
-                                                             faces, 
-                                                             normals,
-                                                             visuals)]
+    result = [trimesh_type(vertices     = v, 
+                           faces        = f, 
+                           face_normals = n,
+                           visual       = c,
+                           process = False) for v,f,n,c in zip(vertices, 
+                                                               faces, 
+                                                               normals,
+                                                               visuals)]
     result = np.array(result)
     if only_watertight:
         watertight = np.array([i.fill_holes() and len(i.faces) > 4 for i in result])

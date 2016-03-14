@@ -174,7 +174,7 @@ def fill_holes(mesh):
     mesh._cache.clear(exclude=['face_normals'])
     new_normals, valid = normals(new_vertices[new_faces])
     mesh.face_normals = np.vstack((mesh.face_normals, new_normals))
-    mesh.faces        = np.vstack((mesh._faces, new_faces[valid]))
+    mesh.faces        = np.vstack((mesh._data['faces'], new_faces[valid]))
     mesh.vertices     = new_vertices
     mesh._cache.id_set()
 
