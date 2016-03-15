@@ -95,7 +95,7 @@ def faces_to_edges(faces, return_index=False):
     '''
     Given a list of faces (n,3), return a list of edges (n*3,2)
     '''
-
+    faces = np.asanyarray(faces)
     edges = np.column_stack((faces[:,(0,1)],
                              faces[:,(1,2)],
                              faces[:,(2,0)])).reshape(-1,2)

@@ -212,7 +212,8 @@ class EqualTest(unittest.TestCase):
         self.b = trimesh.load_mesh(os.path.abspath(os.path.join(TEST_DIR, 'ballB.off')))
     
     def test_equal(self):
-        self.assertTrue(self.a == self.b)
+        eq = trimesh.comparison.equal(self.a, self.b)
+        self.assertTrue(eq)
         log.info('Mesh equality tested')
 
 class ContainsTest(unittest.TestCase):
