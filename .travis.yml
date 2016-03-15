@@ -30,3 +30,4 @@ script:
 - nosetests
 - cd examples
 - for f in *.py; do python "$f" -nw; done
+- cd ..
