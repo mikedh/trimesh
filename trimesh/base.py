@@ -19,6 +19,7 @@ from . import boolean
 from . import intersections
 from . import util
 from . import convex
+from . import remesh
 
 from .io.export    import export_mesh
 from .ray.ray_mesh import RayMeshIntersector, contains_points
@@ -92,6 +93,13 @@ class Trimesh(object):
         if isinstance(metadata, dict):
             self.metadata.update(metadata)
 
+        # on returning faces or face normals, validate faces to ensure nonzero 
+        # normals and matching shape. Not validating can mean that you get different
+        # number of values depending on the order which you look at faces and face normals,
+        # but for some operations validation may want to be turned off during the operation
+        # then reinitialized for the end of the operation. 
+        self._validate = True
+
         # process is a cleanup function which brings the mesh to a consistant state
         # by merging vertices and removing zero- area and duplicate faces
         if (process and
@@ -153,6 +161,7 @@ class Trimesh(object):
         called before returning faces or triangles to avoid inconsistant results
         depending on which order functions are called.
         '''
+        if not self._validate: return 
         # pull faces directly from DataStore to avoid infinite recursion
         if faces is None:
             faces = self._data['faces']
@@ -643,6 +652,25 @@ class Trimesh(object):
         watertight: bool, is the mesh watertight after the function is done?
         '''
         return repair.fill_holes(self)
+
+    def subdivide(self, face_index=None):
+        '''
+        Subdivide a mesh, with each subdivided face replaced with four 
+        smaller faces.
+
+        Arguments
+        ----------
+        mesh: Trimesh object
+        face_index: faces to subdivide.
+                    if None: all faces of mesh will be subdivided
+                    if (n,) int array of indices: only specified faces will be 
+                       subdivided. Note that in this case the mesh will generally
+                       no longer be manifold, as the additional vertex on the midpoint
+                       will not be used by the adjacent faces to the faces specified,
+                       and an additional postprocessing step will be required to 
+                       make resulting mesh watertight
+        '''
+        remesh.subdivide(self, face_index=face_index)
 
     @_log_time
     def smoothed(self, angle=.4):
