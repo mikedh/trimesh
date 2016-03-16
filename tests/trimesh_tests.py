@@ -129,7 +129,11 @@ class MeshTests(unittest.TestCase):
             facets    = trimesh.graph.facets(mesh)
             tic.append(time.time())
 
-            facets, area = mesh.facets(1)
+            facets, area = mesh.facets(return_area=True)
+            if len(area) == 0:
+                log.warning('%s returned empty area!', 
+                            mesh.metadata['filename'])
+                continue
             faces = facets[np.argmax(area)]
             outline = mesh.outline(faces)
             smoothed = mesh.smoothed()

@@ -3,7 +3,6 @@ import numpy as np
 from collections import deque
 from itertools   import product
 
-from .points    import absolute_orientation
 from .grouping  import group_rows
 from .constants import log, _log_time
 from .constants import tol
@@ -11,45 +10,6 @@ from .constants import tol
 _MIN_BIN_COUNT = 20
 _TOL_FREQ      = 1e-3
 
-@_log_time
-def merge_duplicates(meshes):
-    '''
-    Given a list of meshes, find meshes which are duplicates and merge them.
-
-    Arguments
-    ---------
-    meshes: (n) list of meshes
-
-    Returns
-    ---------
-    merged: (m) list of meshes where (m <= n)
-    '''
-    # so we can use advanced indexing
-    meshes = np.array(meshes)
-    # by default an identifier is a 1D float array with 6 elements
-    hashes = [i.identifier() for i in meshes]
-    groups = group_rows(hashes, digits=1)
-    merged = [None] * len(groups)
-    for i, group in enumerate(groups):
-        quantity = 0
-        metadata = {}
-        for mesh in meshes[group]:
-            # if metadata exists don't nuke it
-            if 'quantity' in mesh.metadata:
-                quantity += mesh.metadata['quantity']
-            else: 
-                quantity += 1
-            metadata.update(mesh.metadata)
- 
-        metadata['quantity'] = int(quantity)
-        metadata['original_index'] = group
-
-        merged[i] = meshes[group[0]]
-        merged[i].metadata = metadata 
-    log.info('merge_duplicates reduced part count from %d to %d', 
-             len(meshes),
-             len(merged))
-    return np.array(merged)
 
 def equal(a, b):
     if not (hasattr(a, 'identifier') and 
@@ -146,15 +106,16 @@ def fft_freq_histogram(data, bin_count, frequency_count=4, weight=None):
     # just picking the top FREQ_COUNT of them is non-deterministic
     # thus we take the top frequencies which have a magnitude that is distingushable 
     # and we zero pad if this means fewer values available
-    fft_top = fft.argsort()[-(frequency_count + 1):] 
+    fft_top = fft.argsort()[-(frequency_count + 1):]
     fft_ok  = np.diff(fft[fft_top]) > _TOL_FREQ
-    # only include freqeuncy information if they are distingushable above background noise
     if fft_ok.any():
         fft_start = np.nonzero(fft_ok)[0][0] + 1 
         fft_top   = fft_top[fft_start:]
-        freq_formatted = _zero_pad(np.sort(freq[fft_top]), frequency_count)
+        freq_final = np.sort(freq[fft_top])
     else:
-        freq_formatted = np.zeros(frequency_count)
+        freq_final = []
+
+    freq_formatted = _zero_pad(freq_final, frequency_count)
     return freq_formatted
 
 def _format_json(data, digits=6):
@@ -187,3 +148,42 @@ def _zero_pad(data, count):
     else: return data
 
 
+@_log_time
+def merge_duplicates(meshes):
+    '''
+    Given a list of meshes, find meshes which are duplicates and merge them.
+
+    Arguments
+    ---------
+    meshes: (n) list of meshes
+
+    Returns
+    ---------
+    merged: (m) list of meshes where (m <= n)
+    '''
+    # so we can use advanced indexing
+    meshes = np.array(meshes)
+    # by default an identifier is a 1D float array with 6 elements
+    hashes = [i.identifier() for i in meshes]
+    groups = group_rows(hashes, digits=1)
+    merged = [None] * len(groups)
+    for i, group in enumerate(groups):
+        quantity = 0
+        metadata = {}
+        for mesh in meshes[group]:
+            # if metadata exists don't nuke it
+            if 'quantity' in mesh.metadata:
+                quantity += mesh.metadata['quantity']
+            else: 
+                quantity += 1
+            metadata.update(mesh.metadata)
+ 
+        metadata['quantity'] = int(quantity)
+        metadata['original_index'] = group
+
+        merged[i] = meshes[group[0]]
+        merged[i].metadata = metadata 
+    log.info('merge_duplicates reduced part count from %d to %d', 
+             len(meshes),
+             len(merged))
+    return np.array(merged)
