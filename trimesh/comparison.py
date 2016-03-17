@@ -3,6 +3,7 @@ import numpy as np
 from collections import deque
 from itertools   import product
 
+from .util      import zero_pad
 from .grouping  import group_rows
 from .constants import log, _log_time
 from .constants import tol
@@ -73,10 +74,11 @@ def rotationally_invariant_identifier(mesh, length=6, as_json=False, json_digits
         face_radii  = vertex_radii[mesh.faces].reshape(-1)
         area_weight = np.tile((face_area.reshape((-1,1))*(1.0/3.0)), (1,3)).reshape(-1)
 
-        freq_formatted = fft_freq_histogram(face_radii, 
-                                            bin_count=bin_count, 
-                                            frequency_count=frequency_count,
-                                            weight=area_weight)
+        if face_radii.std() > 1e-3:
+            freq_formatted = fft_freq_histogram(face_radii, 
+                                                bin_count=bin_count, 
+                                                frequency_count=frequency_count,
+                                                weight=area_weight)
         
     # using the volume (from surface integral), surface area, and top frequencies
     identifier = np.hstack((mass_properties['volume'],
@@ -115,7 +117,7 @@ def fft_freq_histogram(data, bin_count, frequency_count=4, weight=None):
     else:
         freq_final = []
 
-    freq_formatted = _zero_pad(freq_final, frequency_count)
+    freq_formatted = zero_pad(freq_final, frequency_count)
     return freq_formatted
 
 def _format_json(data, digits=6):
@@ -127,26 +129,6 @@ def _format_json(data, digits=6):
     format_str = '.' + str(int(digits)) + 'f'
     result     = '[' + ','.join(map(lambda o: format(o, format_str), data)) + ']'
     return result
-
-def _zero_pad(data, count):
-    '''
-    Arguments
-    --------
-    data: (n) length 1D array 
-    count: int
-
-    Returns
-    --------
-    padded: (count) length 1D array if (n < count), otherwise length (n)
-    '''
-    if len(data) == 0:
-        return np.zeros(count)
-    elif len(data) < count:
-        padded = np.zeros(count)
-        padded[-len(data):] = data
-        return padded
-    else: return data
-
 
 @_log_time
 def merge_duplicates(meshes):

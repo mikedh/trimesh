@@ -729,3 +729,24 @@ def submesh(mesh,
         watertight = np.array([i.fill_holes() and len(i.faces) > 4 for i in result])
         result     = result[watertight]
     return result
+
+def zero_pad(data, count):
+    '''
+    Arguments
+    --------
+    data: (n) length 1D array 
+    count: int
+
+    Returns
+    --------
+    padded: (count) length 1D array if (n < count), otherwise length (n)
+    '''
+    if len(data) == 0:
+        return np.zeros(count)
+    elif len(data) < count:
+        padded = np.zeros(count)
+        padded[-len(data):] = data
+        return padded
+    else: 
+        return data
+
