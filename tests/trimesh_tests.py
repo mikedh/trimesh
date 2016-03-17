@@ -210,16 +210,6 @@ class IOTest(unittest.TestCase):
                                                            'ballA.off')))
         r = a.export(file_type='dae')
  
-class EqualTest(unittest.TestCase):
-    def setUp(self):
-        self.a = trimesh.load_mesh(os.path.abspath(os.path.join(TEST_DIR, 'ballA.off')))
-        self.b = trimesh.load_mesh(os.path.abspath(os.path.join(TEST_DIR, 'ballB.off')))
-    
-    def test_equal(self):
-        eq = trimesh.comparison.equal(self.a, self.b)
-        self.assertTrue(eq)
-        log.info('Mesh equality tested')
-
 class ContainsTest(unittest.TestCase):
     def setUp(self):
         self.sphere = trimesh.load_mesh(os.path.abspath(os.path.join(TEST_DIR, 
