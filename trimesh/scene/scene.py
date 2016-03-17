@@ -110,7 +110,7 @@ class Scene:
         Return a sequence of node keys, where all keys in the group will
         be of the same mesh
         '''
-        mesh_ids  = {k : m.identifier() for k, m in self.meshes.items()}
+        mesh_ids  = {k : m.identifier for k, m in self.meshes.items()}
         
         node_keys = np.array(list(self.nodes.keys()))
         node_ids  = [mesh_ids[v] for v in self.nodes.values()]

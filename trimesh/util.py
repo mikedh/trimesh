@@ -529,6 +529,12 @@ class DataStore:
     def __setitem__(self, key, data):
         self.data[key] = tracked_array(data)
 
+    def __len__(self):
+        return len(self.data)
+
+    def values(self):
+        return self.data.values()
+
     def md5(self):
         md5 = ''
         for key in np.sort(self.data.keys()):
@@ -750,3 +756,22 @@ def zero_pad(data, count):
     else: 
         return data
 
+def format_json(data, digits=6):
+    '''
+    Function to turn a 1D float array into a json string
+
+    The built in json library doesn't have a good way of setting the 
+    precision of floating point numbers.
+
+    Arguments
+    ----------
+    data: (n,) float array
+    digits: int, number of digits of floating point numbers to include
+
+    Returns
+    ----------
+    as_json: string, data formatted into a JSON- parsable string
+    '''
+    format_str = '.' + str(int(digits)) + 'f'
+    as_json = '[' + ','.join(map(lambda o: format(o, format_str), data)) + ']'
+    return as_json

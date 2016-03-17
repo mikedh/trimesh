@@ -474,6 +474,7 @@ class Path2D(Path):
                      **eformat[e_key])
         if show: plt.show()
 
+    @property
     def identifier(self):
         if len(self.polygons_full) != 1: 
             raise TypeError('Identifier only valid for single body')

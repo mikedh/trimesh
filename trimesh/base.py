@@ -46,8 +46,7 @@ class Trimesh(object):
                  metadata       = None,
                  process        = True,
                  **kwargs):
-                 
-        # self._data stores information about the mesh which cannot be regenerated
+        # self._data stores information about the mesh which CANNOT be regenerated
         # in the base class all that is stored here is vertex and face information.
         # any data put into the store is converted to a TrackedArray (np.ndarray subclass)
         # which provides an md5() method which can be used to detect changes in the array.
@@ -399,7 +398,7 @@ class Trimesh(object):
     @units.setter
     def units(self, units):
         self.metadata['units'] = units
-        
+
     def convert_units(self, desired, guess=False):
         '''
         Convert the units of the mesh into a specified unit.
@@ -438,12 +437,13 @@ class Trimesh(object):
                      vertex references (such as output by np.unique)
         '''
         mask = np.asanyarray(mask)
-        if mask.dtype.name == 'bool' and mask.all(): 
-            return
+        if mask.dtype.name == 'bool' and mask.all(): return
+        if len(mask) == 0 or self.is_empty: return
+       
         self.faces = inverse[[self.faces.reshape(-1)]].reshape((-1,3))
         self.visual.update_vertices(mask)
         cached_normals = self._cache.get('vertex_normals')
-        if cached_normals is not None:
+        if util.is_shape(cached_normals, (-1,3)):
             try: 
                 self.vertex_normals = cached_normals[mask]
             except: 
@@ -461,16 +461,19 @@ class Trimesh(object):
         ---------
         valid: either (m) int, or (len(self.faces)) bool. 
         '''
+        if self.is_empty: return
         mask = np.asanyarray(mask)
         if mask.dtype.name == 'bool':
-            if mask.all(): 
-                return
+            if mask.all(): return
         elif mask.dtype.name != 'int':
             mask = mask.astype(np.int)
         cached_normals = self._cache.get('face_normals')
-        if cached_normals is not None:
-            self.face_normals = cached_normals[mask]
-    
+        if util.is_shape(cached_normals, (-1,3)):
+            try:
+                self.face_normals = cached_normals[mask]
+            except: 
+                pass
+
         faces = self._data['faces']
         # if Trimesh has been subclassed and faces have been moved from data 
         # to cache, get faces from cache. 
@@ -567,6 +570,23 @@ class Trimesh(object):
         is_watertight = graph.is_watertight(self.edges)
         self._cache['is_watertight'] = is_watertight
         return is_watertight
+
+    @property
+    def is_empty(self):
+        '''
+        Does the current mesh have data defined.
+
+        Returns
+        --------
+        empty: if True, no data exists in the mesh.
+        '''
+        if len(self._data) == 0: 
+            return True
+        shape_empty = [(), (0,)]
+        for value in self._data.values():
+            if value.shape in shape_empty: 
+                return True
+        return False
 
     @property
     def is_convex(self):
@@ -922,25 +942,22 @@ class Trimesh(object):
                             faces_sequence=faces_sequence, 
                             **kwargs)
 
-    def identifier(self, length=6):
+    @property
+    def identifier(self):
         '''
         Return a (length) float vector which is unique to the mesh,
         and is robust to rotation and translation.
-
-        Arguments
-        -----------
-        length: int, number of terms desired in the identifier
 
         Returns
         -----------
         identifier: (length,) float
         '''
-        key = 'identifier' + str(length)
+        key = 'identifier'
         cached = self._cache[key]
         if cached is not None: 
             return cached
         identifier = comparison.rotationally_invariant_identifier(self, 
-                                                                  length)
+                                                                  tol.id_len)
         self._cache[key] = identifier
         return identifier
 

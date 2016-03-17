@@ -3,6 +3,8 @@
 
 Python (2.7-3.*) library for loading and utilizing triangular meshes. The goal of the library is to provide a fully featured Trimesh object which allows for easy manipulation and analysis, in the style of the excellent Polygon object in the Shapely library.
 
+The API is mostly stable, but this should not be relied on and is not guaranteed; install a specific version if you plan on deploying something using trimesh as a backend.
+
 ### Features ###
 * Import binary/ASCII STL, Wavefront, OFF, and PLY
 * Import formats using assimp (if pyassimp installed)
@@ -50,7 +52,7 @@ $ sudo pip install pyglet shapely git+https://github.com/robotics/assimp_latest.
 
 ### Quick Start ###
 
-Here is an example of loading a cube from file and colorizing its faces.
+Here is an example of loading a mesh from file and colorizing its faces.
 
 ```python
 import numpy as np
@@ -62,9 +64,18 @@ mesh = trimesh.load_mesh('./models/featuretype.STL')
 # is the current mesh watertight?
 print(mesh.is_watertight)
 
-# since the mesh is in fact watertight, it means there is a 
+# what's the euler number for the mesh?
+print(mesh.euler_number)
+
+# lets get a convex hull of the mesh
+hull = mesh.convex_hull
+
+# since the mesh is watertight, it means there is a 
 # volumetric center of mass which we can set as the origin for our mesh
 mesh.vertices -= mesh.center_mass
+
+# what's the moment of inertia for the mesh?
+print(mesh.moment_inertia)
 
 # find groups of coplanar adjacent faces
 facets, facets_area = mesh.facets(return_area=True)

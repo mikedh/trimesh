@@ -23,7 +23,7 @@ class NumericalToleranceMesh(object):
         self.planar    = 1e-5
         self.facet_rsq = 1e8
         self.fit       = 1e-2
-
+        self.id_len    = 6
         self.__dict__.update(kwargs)
 
 

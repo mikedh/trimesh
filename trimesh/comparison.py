@@ -3,31 +3,13 @@ import numpy as np
 from collections import deque
 from itertools   import product
 
-from .util      import zero_pad
+from .util      import zero_pad, format_json
 from .grouping  import group_rows
 from .constants import log, _log_time
 from .constants import tol
 
 _MIN_BIN_COUNT = 20
 _TOL_FREQ      = 1e-3
-
-
-def equal(a, b):
-    if not (hasattr(a, 'identifier') and 
-            hasattr(b, 'identifier')):
-        return False
-
-    a_id = a.identifier()
-    b_id = b.identifier()
-
-    # find the percentage difference between the two hashes
-    diff    = np.abs(a_id - b_id)
-    nonzero = np.abs(a_id) > tol.zero
-    diff[nonzero] /= np.abs(a_id[nonzero])
-
-    # consider meshes equal if all terms of their hash differ by <1%
-    equal = (diff < tol.fit).all()
-    return equal
     
 def rotationally_invariant_identifier(mesh, length=6, as_json=False, json_digits=None):
     '''
@@ -86,7 +68,7 @@ def rotationally_invariant_identifier(mesh, length=6, as_json=False, json_digits
                             freq_formatted))
     if as_json:
         # return as a json string rather than an array
-        return _format_json(identifier)
+        return format_json(identifier)
     return identifier
 
 def fft_freq_histogram(data, bin_count, frequency_count=4, weight=None):
@@ -120,16 +102,6 @@ def fft_freq_histogram(data, bin_count, frequency_count=4, weight=None):
     freq_formatted = zero_pad(freq_final, frequency_count)
     return freq_formatted
 
-def _format_json(data, digits=6):
-    '''
-    Built in json library doesn't have a good way of setting the precision of floating point
-    numbers. Since we intend to use the string as a key in a dict, we need formatting to be
-    identitical and well understood. 
-    '''
-    format_str = '.' + str(int(digits)) + 'f'
-    result     = '[' + ','.join(map(lambda o: format(o, format_str), data)) + ']'
-    return result
-
 @_log_time
 def merge_duplicates(meshes):
     '''
@@ -146,7 +118,7 @@ def merge_duplicates(meshes):
     # so we can use advanced indexing
     meshes = np.array(meshes)
     # by default an identifier is a 1D float array with 6 elements
-    hashes = [i.identifier() for i in meshes]
+    hashes = [i.identifier for i in meshes]
     groups = group_rows(hashes, digits=1)
     merged = [None] * len(groups)
     for i, group in enumerate(groups):

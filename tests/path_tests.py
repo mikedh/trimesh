@@ -87,7 +87,7 @@ class VectorTests(unittest.TestCase):
                      d.filename,
                      len(split))
             for body in split:
-                body.identifier()
+                body.identifier
 
     def test_subset(self):
         for d in self.drawings[:10]:
