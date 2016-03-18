@@ -9,8 +9,9 @@ from .grouping  import group_rows, unique_rows
 from .util      import three_dimensionalize, append_faces
 
 import numpy as np
+
 from collections import deque
-from shapely.geometry import Polygon
+
 
 def extrude_polygon(polygon, 
                     height,
@@ -82,6 +83,7 @@ def triangulate_polygon(polygon, **kwargs):
     mesh_faces:    (n, 3) int array of vertex indicies representing triangles
     '''
     import meshpy.triangle as triangle
+    from shapely.geometry import Polygon
 
     def round_trip(start, length):
         '''
@@ -158,4 +160,50 @@ def triangulate_polygon(polygon, **kwargs):
     mesh_faces    = np.array(mesh.elements)
 
     return mesh_vertices, mesh_faces
+
+def box():
+    '''
+    Create a unit cube, centered at the origin with edges of length 1.0
+    '''
+    vertices = [0,0,0,0,0,1,0,1,0,0,1,1,1,0,0,1,0,1,1,1,0,1,1,1] 
+    vertices = np.array(vertices, dtype=np.float64).reshape((-1,3))
+    vertices -= 0.5
+    faces = [1,3,0,4,1,0,0,3,2,2,4,0,1,7,3,5,1,4,
+             5,7,1,3,7,2,6,4,2,2,7,6,6,5,4,7,5,6] 
+    faces = np.array(faces, dtype=np.int64).reshape((-1,3))
+    return Trimesh(vertices, faces)
+
+def icosahedron():
+    '''
+    Create an icosahedron, a 20 faced polyhedron.
+    '''
+    t = (1.0 + 5.0**.5) / 2.0
+    v = [-1,t,0,1,t,0,-1,-t,0,1,-t,0,0,-1,t,0,1,t,
+         0,-1,-t,0,1,-t,t,0,-1,t,0,1,-t,0,-1,-t,0,1]
+    f = [0,11,5,0,5,1,0,1,7,0,7,10,0,10,11,
+         1,5,9,5,11,4,11,10,2,10,7,6,7,1,8,
+         3,9,4,3,4,2,3,2,6,3,6,8,3,8,9,
+         4,9,5,2,4,11,6,2,10,8,6,7,9,8,1]
+    v = np.reshape(v, (-1,3))
+    f = np.reshape(f, (-1,3))
+    m = Trimesh(v,f)
+    return m
+
+def icosphere(subdivisions=3):
+    '''
+    Create an isophere of radius 1.0 centered at the origin.
+    '''
+    def refine_spherical():
+        vectors = ico.vertices
+        scalar  = (vectors ** 2).sum(axis=1)**.5
+        unit    = vectors / scalar.reshape((-1,1))
+        offset  = 1.0 - scalar
+        ico.vertices += unit * offset.reshape((-1,1))
+    ico = icosahedron()
+    ico._validate = False
+    for j in range(subdivisions): 
+        ico.subdivide()
+        refine_spherical()
+    ico._validate = True
+    return ico
 

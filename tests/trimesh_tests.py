@@ -157,7 +157,7 @@ class MeshTests(unittest.TestCase):
 
 
     def test_hash(self):
-        count = 10
+        count = 100
         for mesh in self.meshes:
             if not mesh.is_watertight: 
                 log.warning('Hashing non- watertight mesh (%s) produces garbage!',
