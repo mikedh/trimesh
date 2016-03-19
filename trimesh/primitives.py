@@ -148,3 +148,4 @@ class Box(Primitive):
         # so it goes in the cache, instead of the datastore
         self._cache['vertices'] = vertices
         self._cache['faces'] = faces
+

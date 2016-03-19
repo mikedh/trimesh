@@ -514,6 +514,12 @@ class Cache:
         self.id_current = self._id_function()
 
 class DataStore:
+    def is_empty(self):
+        if len(self.data) == 0: 
+            return True
+        empty = all(i.shape in [(), (0,)] for i in self.data.values())
+        return empty
+
     def __init__(self):
         self.data = {}
 

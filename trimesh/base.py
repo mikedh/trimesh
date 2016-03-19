@@ -477,7 +477,7 @@ class Trimesh(object):
         faces = self._data['faces']
         # if Trimesh has been subclassed and faces have been moved from data 
         # to cache, get faces from cache. 
-        if faces is None:
+        if not util.is_shape(faces, (-1,3)):
             faces = self._cache['faces']
 
         self.faces = faces[mask]        
@@ -580,13 +580,7 @@ class Trimesh(object):
         --------
         empty: if True, no data exists in the mesh.
         '''
-        if len(self._data) == 0: 
-            return True
-        shape_empty = [(), (0,)]
-        for value in self._data.values():
-            if value.shape in shape_empty: 
-                return True
-        return False
+        return self._data.is_empty()
 
     @property
     def is_convex(self):
