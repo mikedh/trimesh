@@ -82,7 +82,7 @@ facets, facets_area = mesh.facets(return_area=True)
 
 # set each facet to a random color
 for facet in facets:
-    mesh.visual.face_colors[facet] = trimesh.color.random_color()
+    mesh.visual.face_colors[facet] = trimesh.visual.random_color()
 
 # preview mesh in an opengl window if you installed pyglet with pip 
 mesh.show()

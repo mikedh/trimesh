@@ -537,7 +537,7 @@ class DataStore:
 
     def md5(self):
         md5 = ''
-        for key in np.sort(self.data.keys()):
+        for key in np.sort(list(self.data.keys())):
             md5 += self.data[key].md5()
         return md5
 
