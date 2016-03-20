@@ -2,7 +2,7 @@ import numpy as np
 from colorsys import hsv_to_rgb
 from collections import deque
 
-from .util      import is_sequence, is_shape, tracked_array, Cache
+from .util      import is_sequence, is_shape, tracked_array, Cache, DataStore
 from .constants import log
 
 COLORS = {'red'    : [205,59,34],
@@ -18,15 +18,24 @@ class VisualAttributes(object):
     '''
     def __init__(self, mesh=None, **kwargs):
         self.mesh = mesh
-        self._set = {'face'   : False,
-                     'vertex' : False}
-                     
+
+        self._validate = True
+
+        self._data = DataStore()
+        # cache computed values which are cleared when
+        # self.md5() changes, forcing a recompute
+        self._cache = Cache(id_function = self._data.md5)
+
         colors = _kwargs_to_color(mesh, **kwargs)
         self.vertex_colors, self.face_colors = colors
 
-        # cache computed values which are cleared when
-        # self.md5() changes, forcing a recompute
-        self._cache = Cache(id_function = self.md5)    
+
+
+    @property
+    def _set(self):
+        result = {'face'   : is_shape(self._data['face_colors'], (-1, (3,4))),
+                  'vertex' : is_shape(self._data['vertex_colors'], (-1,(3,4)))}
+        return result
 
     @property
     def defined(self):
@@ -41,9 +50,8 @@ class VisualAttributes(object):
         transparency = False
         color_max = (2**(COLOR_DTYPE.itemsize*8)) - 1
         if self._set['face']:
-            transparency = (self._face_colors.ndim == 2 and
-                            self._face_colors.shape[1] == 4 and
-                            np.any(self._face_colors[:,3] < color_max))
+            transparency = (is_shape(self._data['face_colors'], (-1,4)) and 
+                            np.any(self._data['face_colors'][:,3] < color_max))
         elif self._set['vertex']:
             transparency = (self._vertex_colors.ndim == 2 and
                             self._vertex_colors.shape[1] == 4 and
@@ -53,24 +61,17 @@ class VisualAttributes(object):
                                value = bool(transparency))
 
     def md5(self):
-        md5 = ''
-        if hasattr(self.mesh, 'md5'):
-            md5 += self.mesh.md5()            
-        if self._set['face']:
-            md5 += self._face_colors.md5()
-        if self._set['vertex']:
-            md5 += self._vertex_colors.md5()
-        return md5
+        return self._data.md5()
 
     @property
     def face_colors(self):
-        if not (is_sequence(self._face_colors) and
-                len(self._face_colors) == len(self.mesh.faces)):
-            self._face_colors = tracked_array(np.tile(DEFAULT_COLOR,
-                                                      (len(self.mesh.faces), 1)))
-            log.debug('Setting default colors for faces')
-        return self._face_colors
-        
+        cached = self._data['face_colors']
+        if not (is_sequence(cached) and
+                len(cached) == len(self.mesh.faces)):
+            log.debug('Returning default colors for faces')
+            return np.tile(DEFAULT_COLOR, (len(self.mesh.faces), 1))
+        return cached
+
     @face_colors.setter
     def face_colors(self, values):
         values = np.asanyarray(values)
@@ -78,46 +79,45 @@ class VisualAttributes(object):
             # case where a single RGB/RGBa color has been passed to the setter
             # we apply this color to all faces 
             values = np.tile(values, (len(self.mesh.faces), 1))
-
-        self._face_colors = tracked_array(values)
-        # this will only consider colors defined if they were passed as a sequence
-        # is_sequence gracefully handles both None and np.array(None)
-        self._set['face'] = is_sequence(values)
+        self._data['face_colors'] = values
 
     @property
     def vertex_colors(self):
-        if not (is_sequence(self._vertex_colors) and
-                len(self._vertex_colors) == len(self.mesh.vertices)):
+        stored = self._data['vertex_colors']
+        if not (is_sequence(stored) and
+                len(stored) == len(self.mesh.vertices)):
             log.debug('Vertex colors being generated from face colors')
-            self._vertex_colors = face_to_vertex_color(self.mesh, 
-                                                       self.face_colors)
-        return self._vertex_colors
+            return face_to_vertex_color(self.mesh, self.face_colors)
+        return stored
 
     @vertex_colors.setter
     def vertex_colors(self, values):
-        self._vertex_colors = tracked_array(values)
-        self._set['vertex'] = is_sequence(values)
+        self._data['vertex_colors'] = values
 
     def update_faces(self, mask):
-        if not self._set['face']: 
-            return
-        try: self._face_colors = self._face_colors[mask]
-        except: log.warning('Face colors not updated', exc_info=True) 
+        stored = self._data['face_colors']
+        if not is_shape(stored, (-1,(3,4))):
+            return 
+        try: 
+            self._data['face_colors'] = stored[mask]
+        except: 
+            log.warning('Face colors not updated', exc_info=True) 
             
     def update_vertices(self, mask):
-        if not self._set['vertex']:
+        stored = self._data['vertex_colors']
+        if not is_shape(stored, (-1, (3,4))):
             return
         try:    
-            self.vertex_colors = self._vertex_colors[mask]
+            self._data['vertex_colors'] = stored[mask]
         except: 
             log.debug('Vertex colors not updated', exc_info=True)
 
     def subsets(self, faces_sequence):
         result = deque()
+        face   = self.face_colors
         for f in faces_sequence:
             result.append(VisualAttributes())
-            if self._set['face']:
-                result[-1].face_colors = self.face_colors[np.array(list(f))]
+            result[-1].face_colors = face[list(f)]
         return np.array(result)
 
     def union(self, others):
@@ -172,13 +172,34 @@ def visuals_union(visuals, *args):
     visuals = np.append(visuals, args)
     color = {'face_colors'   : None,
              'vertex_colors' : None}
-    if all(is_shape(i._face_colors, (-1,(3,4))) for i in visuals):
-        color['face_colors'] = np.vstack([_rgba(i._face_colors) for i in visuals])
-    if all(is_shape(i._vertex_colors, (-1,(3,4))) for i in visuals):
-        color['vertex_colors'] = np.vstack([i._vertex_colors for i in visuals])
+
+    vertex_ok = True
+    vertex = [None] * len(visuals)
+
+    face_ok = True
+    face = [None] * len(visuals)
+
+    for i, v in enumerate(visuals):
+        if v.mesh is None:
+            if face_ok and v._set['face']: 
+                face[i] = rgba(v._data['face_colors'])
+            else:
+                face_ok = False
+            if vertex_ok and v._set['vertex']:
+                vertex[i] = rgba(v._data['vertex_colors'])
+            else:
+                vertex_ok = False
+        else:
+            vertex[i] = rgba(v.vertex_colors)
+            face[i] = rgba(v.face_colors)
+    if face_ok:
+        color['face_colors'] = np.vstack(face)
+    if vertex_ok:
+        color['vertex_colors'] = np.vstack(vertex)
+
     return VisualAttributes(**color)
 
-def _rgba(colors, dtype=COLOR_DTYPE):
+def rgba(colors, dtype=COLOR_DTYPE):
     colors = np.asanyarray(colors)
     if is_shape(colors, (-1,3)):
         opaque = (2**(np.dtype(dtype).itemsize * 8)) - 1

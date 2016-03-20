@@ -85,6 +85,15 @@ class TransformForest:
             transform = np.dot(transform, matrix)
         return transform
 
+    def __getitem__(self, key):
+        return self.get(key)
+        
+    def __setitem__(self, key, value):
+        value = np.asanyarray(value)
+        if value.shape != (4,4):
+            raise ValueError('Matrix must be specified!')
+        return self.update(key, matrix=value)
+        
     def clear(self):
         self.transforms = EnforcedForest()
         self._paths     = {}

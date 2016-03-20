@@ -183,15 +183,15 @@ def fill_holes(mesh):
     # these could be fixed by merging the vertices in question here:
     #if not valid.all():
     #    print valid
-    if mesh.visual.defined:
+    if mesh.visual.defined and mesh.visual._set['face']:
         # if face colors exist, assign the last face color to the new faces
         # note that this is a little cheesey, but it is very inexpensive and 
         # is the right thing to do if the mesh is a single color.
-        color_shape = np.shape(mesh.visual._face_colors)
+        stored = mesh.visual._data['face_colors']
+        color_shape = np.shape(stored)
         if len(color_shape) == 2:
-            new_colors = np.tile(mesh.visual._face_colors[-1], 
-                                 (np.sum(valid), 1))
-            new_colors = np.vstack((mesh.visual._face_colors, 
+            new_colors = np.tile(stored[-1], (np.sum(valid), 1))
+            new_colors = np.vstack((stored,
                                     new_colors))
             mesh.visual.face_colors = new_colors
     

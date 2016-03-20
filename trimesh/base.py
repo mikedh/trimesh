@@ -46,6 +46,9 @@ class Trimesh(object):
                  metadata       = None,
                  process        = True,
                  **kwargs):
+        '''
+        The Trimesh object
+        '''
         # self._data stores information about the mesh which CANNOT be regenerated
         # in the base class all that is stored here is vertex and face information.
         # any data put into the store is converted to a TrackedArray (np.ndarray subclass)
@@ -210,6 +213,12 @@ class Trimesh(object):
         '''
         md5 = self._data.md5()
         return md5
+
+    @property
+    def bounding_box(self):
+        from .primitives import Box
+        return Box(box_center=self.bounds.mean(axis=0),
+                   box_extents=self.extents)
 
     @property
     def bounds(self):

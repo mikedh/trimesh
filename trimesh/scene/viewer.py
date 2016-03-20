@@ -181,7 +181,7 @@ class SceneViewer(pyglet.window.Window):
         glLoadIdentity()
 
         # pull the new camera transform from the scene
-        transform_camera = self.scene.transforms.get('camera')
+        transform_camera = self.scene.transforms['camera']
         # apply the camera transform to the matrix stack
         glMultMatrixf(_gl_matrix(transform_camera))
         
@@ -212,7 +212,7 @@ class SceneViewer(pyglet.window.Window):
                     items.append(item)
                     continue
 
-            transform = self.scene.transforms.get(name_node)
+            transform = self.scene.transforms[name_node]
             # add a new matrix to the model stack
             glPushMatrix()
             # transform by the nodes transform
@@ -221,7 +221,6 @@ class SceneViewer(pyglet.window.Window):
             self.vertex_list[name_mesh].draw(mode=GL_TRIANGLES)
             # pop the matrix stack as we drew what we needed to draw
             glPopMatrix()
-        
 
     def node_flag(self, node, flag):
         if flag in self.scene.flags[node]:

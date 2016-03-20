@@ -87,6 +87,7 @@ class Sphere(Primitive):
         self._cache['vertices'] = ((ico.vertices * self.sphere_radius) + 
                                    self.sphere_center)
         self._cache['faces'] = ico.faces
+        self._cache['face_normals'] = ico.face_normals
 
 class Box(Primitive):    
     def __init__(self, *args, **kwargs):
@@ -96,7 +97,7 @@ class Box(Primitive):
         if 'box_transform' in kwargs:
             self.box_transform = kwargs['box_transform']
         if 'box_center' in kwargs:
-            self.box_extents = kwargs['box_center']
+            self.box_center = kwargs['box_center']
         self._unit_box = creation.box()
 
     @property
@@ -149,3 +150,12 @@ class Box(Primitive):
         self._cache['vertices'] = vertices
         self._cache['faces'] = faces
 
+def Extrusion(Primitive):
+    def __init__(self, *args, **kwargs):
+        super(Box, self).__init__(*args, **kwargs)
+        if 'extrude_path' in kwargs:
+            self.extrude_path = kwargs['extrude_path']
+        if 'extrude_transform' in kwargs:
+            self.extrude_transform = kwargs['extrude_transform']
+        if 'extrude_height' in kwargs:
+            self.extrude_height = kwargs['extrude_height']
