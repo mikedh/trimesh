@@ -16,7 +16,6 @@ class RayMeshIntersector:
         self.mesh   = mesh
         self._cache = Cache(self.mesh.md5)
 
-
     @property
     def tree(self):
         if 'tree' in self._cache:

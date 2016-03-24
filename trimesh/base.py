@@ -918,11 +918,7 @@ class Trimesh(object):
         scene: trimesh.scene.Scene object, of scene with current mesh in it
         '''
         scene = self.scene()
-        if block:
-            scene.show(**kwargs)
-        else:
-            from threading import Thread
-            Thread(target = scene.show, kwargs=kwargs).start()
+        scene.show(block=block, **kwargs)
         return scene
 
     def submesh(self, faces_sequence, **kwargs): 

@@ -6,6 +6,7 @@ from collections import deque
 from threading import Thread
 from pyglet.gl import *
 
+from ..constants import log
 from ..transformations import Arcball
 
 #smooth only when fewer faces than this
@@ -20,6 +21,8 @@ class SceneViewer(pyglet.window.Window):
                  resolution = (640,480)):
 
         self.scene = scene
+        self.scene._redraw = self._redraw
+        
         self.reset_view(flags=flags)
 
         visible = save_image is None
@@ -56,6 +59,9 @@ class SceneViewer(pyglet.window.Window):
         self.set_size(*resolution)
         self.update_flags()
         pyglet.app.run()
+
+    def _redraw(self):
+        self.on_draw()
 
     def _update_meshes(self):
         for name, mesh in self.scene.meshes.items():

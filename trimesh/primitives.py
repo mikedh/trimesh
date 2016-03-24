@@ -58,7 +58,11 @@ class Sphere(Primitive):
             self.sphere_radius = kwargs['radius']
         if 'center' in kwargs:
             self.sphere_center = kwargs['center']
-        self._unit_sphere = creation.icosphere()
+        if 'subdivisions' in kwargs:
+            self._data['subdivisions'] = int(kwargs['subdivisions'])
+        else:
+            self._data['subdivisions'] = 3
+        self._unit_sphere = creation.icosphere(subdivisions=self._data['subdivisions'])
 
     @property
     def sphere_center(self):

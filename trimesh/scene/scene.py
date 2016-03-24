@@ -181,7 +181,13 @@ class Scene:
                     resolution = resolution, 
                     **kwargs)
 
-    def show(self, **kwargs):
+    def show(self, block=True, **kwargs):
         from .viewer import SceneViewer
-        SceneViewer(self, **kwargs)
- 
+        def viewer():
+            SceneViewer(self, **kwargs)
+        if block:
+            viewer()
+        else:
+            from threading import Thread
+            Thread(target = viewer, kwargs=kwargs).start()
+
