@@ -47,10 +47,21 @@ class Trimesh(object):
                  process        = True,
                  **kwargs):
         '''
-        The Trimesh object
+        A Trimesh object contains a triangular, 3D mesh. 
+
+        Arguments
+        ----------
+        vertices:       (n,3) float set of vertex locations
+        faces:          (m,3) int set of triangular faces (quad faces will be triangulated)
+        face_normals:   (m,3) float set of normal vectors for faces. Passing these only
+                        serves as a speedup as otherwise they will be computed with 
+                        crossproducts
+        vertex_normals: (n,3) float set of normal vectors for vertices
+        metadata:       dict, any metadata about the mesh
+        process:        bool, if True basic mesh cleanup will be done on instantiation
         '''
         # self._data stores information about the mesh which CANNOT be regenerated
-        # in the base class all that is stored here is vertex and face information.
+        # in the base class all that is stored here is vertex and face information
         # any data put into the store is converted to a TrackedArray (np.ndarray subclass)
         # which provides an md5() method which can be used to detect changes in the array.
         self._data = util.DataStore()
@@ -60,10 +71,10 @@ class Trimesh(object):
         # the cache is cleared when self._data.md5() changes
         self._cache = util.Cache(id_function = self._data.md5)
 
+        # check for None only to avoid warning messages in subclasses
         if vertices is not None:
             # (n, 3) float, set of vertices
             self.vertices = vertices
-
         if faces is not None:
             # (m, 3) int of triangle faces, references self.vertices
             self.faces = faces

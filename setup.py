@@ -22,7 +22,7 @@ setup(name = 'trimesh',
       author_email='mik3dh@gmail.com',
       license = 'MIT',
       url='http://github.com/mikedh/trimesh',
-      keywords = 'mesh graphics',
+      keywords = 'graphics mesh geometry',
       classifiers = [
           'Development Status :: 3 - Alpha',
           'License :: OSI Approved :: MIT License',
