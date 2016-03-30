@@ -47,7 +47,7 @@ class Trimesh(object):
                  process        = True,
                  **kwargs):
         '''
-        A Trimesh object contains a triangular, 3D mesh. 
+        A Trimesh object contains a triangular 3D mesh. 
 
         Arguments
         ----------
@@ -60,7 +60,7 @@ class Trimesh(object):
         metadata:       dict, any metadata about the mesh
         process:        bool, if True basic mesh cleanup will be done on instantiation
         '''
-        # self._data stores information about the mesh which CANNOT be regenerated
+        # self._data stores information about the mesh which CANNOT be regenerated.
         # in the base class all that is stored here is vertex and face information
         # any data put into the store is converted to a TrackedArray (np.ndarray subclass)
         # which provides an md5() method which can be used to detect changes in the array.

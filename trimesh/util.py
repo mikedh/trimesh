@@ -781,3 +781,47 @@ def format_json(data, digits=6):
     format_str = '.' + str(int(digits)) + 'f'
     as_json = '[' + ','.join(map(lambda o: format(o, format_str), data)) + ']'
     return as_json
+
+class Words:
+    '''
+    A class to contain a list of words, such as the english language.
+    The primary purpose is to create random keyphrases to be used to name
+    things without resorting to giant hash strings.
+    '''
+    def __init__(self, file_name = '/usr/share/dict/words'):
+        self.words = np.loadtxt(file_name, dtype=str)
+        self.words_simple = np.array([i.lower() for i in self.words if str.isalpha(i)])
+        if len(self.words) == 0:
+            raise ValueError('No words available!')
+
+    def random_phrase(self, length = 2, delimiter='-'):
+        '''
+        Create a random phrase using words containing only charecters. 
+
+        Arguments
+        ----------
+        length:    int, how many words in phrase
+        delimiter: str, what to separate words with
+
+        Returns
+        ----------
+        phrase: str, length words separated by delimiter
+
+        Examples
+        ----------
+        In [1]: w = trimesh.util.Words()
+        In [2]: for i in range(10): print w.random_phrase()
+          ventilate-hindsight
+          federating-flyover
+          maltreat-patchiness
+          puppets-remonstrated
+          yoghourts-prut
+          inventory-clench
+          uncouple-bracket
+          hipped-croupier
+          puller-demesne
+          phenomenally-hairs
+        '''
+        result = delimiter.join(np.random.choice(self.words_simple,
+                                                 length))
+        return result
