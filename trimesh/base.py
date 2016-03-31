@@ -346,6 +346,8 @@ class Trimesh(object):
         # trigger a change flag which means the MD5 will have to be
         # recomputed. We can escape this check by viewing the array.
         triangles = self.vertices.view(np.ndarray)[self.faces]
+        # make triangles (which are derived from faces/vertices) not writeable
+        triangles.flags.writeable = False
         self._cache['triangles'] = triangles
         return triangles
 

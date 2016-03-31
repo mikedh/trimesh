@@ -29,7 +29,7 @@ def sample_surface(mesh, count):
 
     # pull triangles into the form of an origin + 2 vectors
     tri_origins  = mesh.triangles[:,0]
-    tri_vectors  = mesh.triangles[:,1:]
+    tri_vectors  = mesh.triangles[:,1:].copy()
     tri_vectors -= np.tile(tri_origins, (1,2)).reshape((-1,2,3))
 
     # pull the vectors for the faces we are going to sample from

@@ -11,7 +11,6 @@ _TO_INCHES = {'microinches' : 1.0 / 1000.0,
               'nanometers'  : 1.0 / 2.54e7,
               'microns'     : 1.0 / 2.54e4,
               'millimeters' : 1.0 / 2.54e1, 
-              'mm'          : 1.0 / 2.54e1, 
               'centimeters' : 1.0 / 2.54e0,
               'meters'      : 1.0 / 2.54e-2,
               'kilometers'  : 1.0 / 2.54e-5,
@@ -22,6 +21,15 @@ _TO_INCHES = {'microinches' : 1.0 / 1000.0,
               'AU'          : 5889679948818.897,
               'light years' : 3.72461748e17,
               'parsecs'     : 1.21483369e18}
+
+# if a unit is known by other symbols, include them here
+_synonyms = {'millimeters' : ['mm'],
+             'inches'      : ['in'],
+             'meters'      : ['m']}
+for key, new_keys in _synonyms.items():
+    value = _TO_INCHES[key]
+    for new_key in new_keys:
+        _TO_INCHES[new_key] = value
 
 def unit_conversion(current, desired):
     '''
