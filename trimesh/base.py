@@ -447,7 +447,7 @@ class Trimesh(object):
         else:
             grouping.merge_vertices_kdtree(self, angle)
 
-    def update_vertices(self, mask, inverse):
+    def update_vertices(self, mask, inverse=None):
         '''
         Arguments
         ----------
@@ -457,17 +457,17 @@ class Trimesh(object):
                      vertex references (such as output by np.unique)
         '''
         mask = np.asanyarray(mask)
-        if mask.dtype.name == 'bool' and mask.all(): return
-        if len(mask) == 0 or self.is_empty: return
-       
-        self.faces = inverse[[self.faces.reshape(-1)]].reshape((-1,3))
+        if mask.dtype.name == 'bool' and mask.all(): 
+            return
+        if len(mask) == 0 or self.is_empty: 
+            return
+        if inverse is not None:
+            self.faces = inverse[[self.faces.reshape(-1)]].reshape((-1,3))
         self.visual.update_vertices(mask)
         cached_normals = self._cache.get('vertex_normals')
         if util.is_shape(cached_normals, (-1,3)):
-            try: 
-                self.vertex_normals = cached_normals[mask]
-            except: 
-                pass
+            try: self.vertex_normals = cached_normals[mask]
+            except: pass
         self.vertices = self.vertices[mask]
 
     def update_faces(self, mask):
@@ -489,17 +489,13 @@ class Trimesh(object):
             mask = mask.astype(np.int)
         cached_normals = self._cache.get('face_normals')
         if util.is_shape(cached_normals, (-1,3)):
-            try:
-                self.face_normals = cached_normals[mask]
-            except: 
-                pass
-
+            try: self.face_normals = cached_normals[mask]
+            except: pass
         faces = self._data['faces']
         # if Trimesh has been subclassed and faces have been moved from data 
         # to cache, get faces from cache. 
         if not util.is_shape(faces, (-1,3)):
             faces = self._cache['faces']
-
         self.faces = faces[mask]        
         self.visual.update_faces(mask)
         
@@ -792,11 +788,13 @@ class Trimesh(object):
     def unmerge_vertices(self):
         '''
         Removes all face references so that every face contains three unique 
-        vertex indices and no faces are adjacent
+        vertex indices and no faces are adjacent.
         '''
-        self.vertices = self.triangles.reshape((-1,3))
-        self.faces = np.arange(len(self.vertices)).reshape((-1,3))
-        
+        with self._cache:
+            self.update_vertices(mask = self.faces.reshape(-1))
+            self.faces = np.arange(len(self.vertices)).reshape((-1,3))
+        self._cache.clear(exclude='face_normals')
+
     def transform(self, matrix):
         '''
         Transform mesh by a homogenous transformation matrix.

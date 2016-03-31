@@ -37,7 +37,8 @@ class VisualAttributes(object):
 
     @property
     def defined(self):
-        defined = np.any(self._set.values()) and self.mesh is not None
+        defined = np.any(self._set.values()) 
+        defined = defined and self.mesh is not None
         return defined
 
     @property
@@ -51,8 +52,7 @@ class VisualAttributes(object):
             transparency = (is_shape(self._data['face_colors'], (-1,4)) and 
                             np.any(self._data['face_colors'][:,3] < color_max))
         elif self._set['vertex']:
-            transparency = (self._vertex_colors.ndim == 2 and
-                            self._vertex_colors.shape[1] == 4 and
+            transparency = (is_shape(self._data['vertex_colors'], (-1,4)) and
                             np.any(self._vertex_colors[:,3] < color_max))
 
         return self._cache.set(key   = 'transparency',
