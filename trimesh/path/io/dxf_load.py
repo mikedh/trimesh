@@ -41,6 +41,17 @@ def get_key(blob, field, code):
         return None
     
 def load_dxf(file_obj):
+    '''
+    Load a DXF file to a dictionary containing vertices and entities.
+
+    Arguments
+    ----------
+    file_obj: file or file- like object (has object.read method)
+
+    Returns
+    ----------
+    result: dict, keys are  entities, vertices and metadata
+    '''
     def convert_line(e_data):
         e = dict(e_data)
         entities.append(Line(len(vertices) + np.arange(2)))

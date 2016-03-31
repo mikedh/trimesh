@@ -29,8 +29,6 @@ class VisualAttributes(object):
         colors = _kwargs_to_color(mesh, **kwargs)
         self.vertex_colors, self.face_colors = colors
 
-
-
     @property
     def _set(self):
         result = {'face'   : is_shape(self._data['face_colors'], (-1, (3,4))),
@@ -113,11 +111,11 @@ class VisualAttributes(object):
             log.debug('Vertex colors not updated', exc_info=True)
 
     def subsets(self, faces_sequence):
-        result = deque()
-        face   = self.face_colors
-        for f in faces_sequence:
-            result.append(VisualAttributes())
-            result[-1].face_colors = face[list(f)]
+        result = [VisualAttributes() for i in range(len(faces_sequence))]
+        if self._set['face']:
+            face = self._data['face_colors']
+            for i, f in enumerate(faces_sequence):
+                result[i].face_colors = face[list(f)]
         return np.array(result)
 
     def union(self, others):
@@ -180,18 +178,22 @@ def visuals_union(visuals, *args):
     face = [None] * len(visuals)
 
     for i, v in enumerate(visuals):
-        if v.mesh is None:
-            if face_ok and v._set['face']: 
+        face_ok   = face_ok and v._set['face']
+        vertex_ok = vertex_ok and v._set['vertex']
+
+        if face_ok:
+            if v.mesh is None:
+                # if the mesh is None, don't force a 
+                # dimension check for the colors
                 face[i] = rgba(v._data['face_colors'])
-            else:
-                face_ok = False
-            if vertex_ok and v._set['vertex']:
+            else: 
+                face[i] = rgba(v.face_colors)
+        if vertex_ok:
+            if v.mesh is None:
                 vertex[i] = rgba(v._data['vertex_colors'])
             else:
-                vertex_ok = False
-        else:
-            vertex[i] = rgba(v.vertex_colors)
-            face[i] = rgba(v.face_colors)
+                vertex[i] = rgba(v.vertex_colors)
+            
     if face_ok:
         color['face_colors'] = np.vstack(face)
     if vertex_ok:
@@ -199,7 +201,30 @@ def visuals_union(visuals, *args):
 
     return VisualAttributes(**color)
 
-def rgba(colors, dtype=COLOR_DTYPE):
+def color_to_float(color, dtype=None):
+    color = np.asanyarray(color)
+    if dtype is None:
+        dtype = color.dtype
+    else:
+        color = color.astype(dtype)
+    if dtype.kind in 'ui':
+        signed = int(dtype.kind == 'i')
+        color_max = float((2**((dtype.itemsize*8) - signed)) - 1)
+        color = color.astype(np.float) / color_max
+    return color
+
+def color_to_rgba(colors, dtype=None):
+    '''
+    Convert an RGB color to an RGBA color.
+
+    Arguments
+    ----------
+    colors: (n,[3|4]) set of RGB or RGBA colors
+    
+    Returns
+    ----------
+    colors: (n,4) set of RGBA colors
+    '''
     colors = np.asanyarray(colors)
     if is_shape(colors, (-1,3)):
         opaque = (2**(np.dtype(dtype).itemsize * 8)) - 1

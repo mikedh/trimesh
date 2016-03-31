@@ -1094,5 +1094,6 @@ class Trimesh(object):
         result = Trimesh(vertices     = new_vertices, 
                          faces        = new_faces,
                          face_normals = new_normals,
-                         visual       = new_visual)
+                         visual       = new_visual,
+                         process      = False)
         return result
