@@ -213,7 +213,7 @@ def color_to_float(color, dtype=None):
         color = color.astype(np.float) / color_max
     return color
 
-def color_to_rgba(colors, dtype=None):
+def rgba(colors, dtype=None):
     '''
     Convert an RGB color to an RGBA color.
 

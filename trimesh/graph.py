@@ -61,11 +61,11 @@ def adjacency_angle(mesh, angle, direction=np.less, return_edges=False):
 
     Arguments
     ----------
-    mesh: Trimesh object
-    angle: float, angle in radians by default faces at angles LARGER than 
-           this will be considered NOT adjacenct
-    direction: function, used to test face angle against angle kwarg
-               by default set to np.less
+    mesh:         Trimesh object
+    angle:        float, angle in radians by default faces at angles LARGER than 
+                   this will be considered NOT adjacenct
+    direction:    function, used to test face angle against angle kwarg
+                   by default set to np.less
     return_edges: bool, return edges affiliated with adjacency or not
 
     Returns

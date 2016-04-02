@@ -2,7 +2,10 @@ import numpy as np
 
 from .generic import MeshScript
 from distutils.spawn import find_executable
-    
+
+_scad_executable = find_executable('openscad')
+exists = _scad_executable is not None
+
 def interface_scad(meshes, script):
     '''
     A way to interface with openSCAD which is itself an interface
@@ -17,8 +20,10 @@ def interface_scad(meshes, script):
             Trimesh objects can be referenced in the script as
             $mesh_0, $mesh_1, etc. 
     '''
+    if not exists:
+        raise ValueError('No SCAD available!')
     with MeshScript(meshes = meshes, script = script) as scad:
-        result = scad.run('openscad $script -o $mesh_post')
+        result = scad.run(_scad_executable + ' $script -o $mesh_post')
     return result
     
 def boolean(meshes, operation='difference'):
@@ -31,5 +36,5 @@ def boolean(meshes, operation='difference'):
     script += '}'
     return interface_scad(meshes, script)
 
-exists = find_executable('openscad') is not None
+
 
