@@ -19,7 +19,7 @@ def convex_hull(mesh, clean=True):
     Argments
     --------
     clean: boolean, if True will fix normals and winding
-    to be coherent (as qhull/scipy outputs are not)
+           to be coherent (as qhull/scipy outputs are not)
 
     Returns
     --------

@@ -29,6 +29,18 @@ class VisualAttributes(object):
         colors = _kwargs_to_color(mesh, **kwargs)
         self.vertex_colors, self.face_colors = colors
 
+    def _choose(self):
+        '''
+        If both face and vertex colors are defined, choose one of them.
+        '''
+        if all(self._set.values()):
+            sig_face   = self._data['face_colors'].ptp(axis=0).sum()
+            sig_vertex = self._data['vertex_colors'].ptp(axis=0).sum()
+            if sig_face > sig_vertex:
+                self.vertex_colors = None
+            else:
+                self.face_colors = None
+        
     @property
     def _set(self):
         result = {'face'   : is_shape(self._data['face_colors'], (-1, (3,4))),
@@ -242,7 +254,7 @@ def random_color(dtype=COLOR_DTYPE):
     if np.dtype(dtype).kind in 'iu':
         max_value = (2**(np.dtype(dtype).itemsize * 8)) - 1
         color    *= max_value
-    color     = color.astype(dtype)
+    color = color.astype(dtype)
     return color
 
 def face_to_vertex_color(mesh, face_colors, dtype=COLOR_DTYPE):

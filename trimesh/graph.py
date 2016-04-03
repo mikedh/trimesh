@@ -25,11 +25,27 @@ def face_adjacency(faces, return_edges=False):
     Returns an (n,2) list of face indices.
     Each pair of faces in the list shares an edge, making them adjacent.
 
-    This is useful for lots of things, for example finding connected subgraphs:
+
+    Arguments
+    ----------
+    faces: (n, d) int, set of faces referencing vertices by index
+    return_edges: bool, return the edges shared by adjacent faces
+
+    Returns
+    ---------
+    adjacency: (m,2) int, indexes of faces that are adjacent
+    
+    if return_edges: 
+         edges: (m,2) int, indexes of vertices which make up the 
+                 edges shared by the adjacent faces
+
+    Example
+    ----------
+    This is useful for lots of things, such as finding connected components:
 
     graph = nx.Graph()
     graph.add_edges_from(mesh.face_adjacency)
-    groups = nx.connected_components(graph_connected.subgraph(interesting_faces))
+    groups = nx.connected_components(graph_connected)
     '''
 
     # first generate the list of edges for the current faces
@@ -222,8 +238,9 @@ def smoothed(mesh, angle):
 
     Arguments
     ---------
-    mesh: Trimesh object
-    angle: float, radians 
+    mesh:  Trimesh object
+    angle: float, angle in radians, adjacent faces which have normals
+           below this angle will be smoothed.
 
     Returns
     ---------

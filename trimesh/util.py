@@ -148,8 +148,9 @@ def is_shape(obj, shape):
             if i in target: continue
             else:           return False
         # check if current field is a wildcard
-        if target < 0: 
-            continue
+        if target < 0:
+            if i == 0: return False
+            else:      continue
         # since we have a single target and a single value,
         # if they are not equal we have an answer
         if target != i: 

@@ -264,6 +264,8 @@ def mesh_to_vertex_list(mesh, group=None):
     Convert a Trimesh object to arguments for an 
     indexed vertex list constructor. 
     '''
+    mesh.visual._choose()
+    
     normals  = mesh.vertex_normals.reshape(-1).tolist()
     colors   = mesh.visual.vertex_colors.reshape(-1).tolist()
     faces    = mesh.faces.reshape(-1).tolist()
