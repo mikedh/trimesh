@@ -29,7 +29,7 @@ class VisualAttributes(object):
         colors = _kwargs_to_color(mesh, **kwargs)
         self.vertex_colors, self.face_colors = colors
 
-    def _choose(self):
+    def choose(self):
         '''
         If both face and vertex colors are defined, choose one of them.
         '''
@@ -97,7 +97,12 @@ class VisualAttributes(object):
         if not (is_sequence(stored) and
                 len(stored) == len(self.mesh.vertices)):
             log.debug('Vertex colors being generated from face colors')
-            return face_to_vertex_color(self.mesh, self.face_colors)
+            cached = self._cache['vertex_colors']
+            if cached is None:
+                colors = face_to_vertex_color(self.mesh, self.face_colors)
+                self._cache['vertex_colors'] = colors
+                return colors
+            return cached
         return stored
 
     @vertex_colors.setter

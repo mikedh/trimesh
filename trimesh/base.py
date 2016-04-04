@@ -123,8 +123,14 @@ class Trimesh(object):
     def process(self):
         '''
         Convenience function to remove garbage and make mesh sane.
-        Does this by merging duplicate vertices, removing aduplicate 
-        and zero- area faces. 
+        
+        Does this by:
+            1) merging duplicate vertices
+            2) removing duplicate faces
+            3) removing zero- area faces
+            
+        On an 234213 face mesh this function executes in .0005s 
+        with a late 2014 i7.
         '''
         # avoid clearing the cache during operations
         with self._cache:
@@ -421,6 +427,9 @@ class Trimesh(object):
     def units(self, units):
         self.metadata['units'] = units
 
+    def guess_units(self):
+        pass
+        
     def convert_units(self, desired, guess=False):
         '''
         Convert the units of the mesh into a specified unit.
@@ -800,14 +809,19 @@ class Trimesh(object):
     def transform(self, matrix):
         '''
         Transform mesh by a homogenous transformation matrix.
-        Normals are also transformed, to avoid them having to be 
-        recomputed from the faces. 
+        Also transforms normals to avoid having to recompute them.
+
+        Arguments
+        ----------
+        matrix: (4,4) float, homogenous transformation matrix
         '''
         matrix  = np.asanyarray(matrix)
-        normals = np.dot(matrix[0:3, 0:3], self.face_normals.T).T
+        if matrix.shape != (4,4):
+            raise ValueError('Transformation matrix must be (4,4)!')
+        face_normals = np.dot(matrix[0:3, 0:3], self.face_normals.T).T
         self.vertices = transform_points(self.vertices, matrix)
         self._cache.verify()
-        self.face_normals = normals
+        self.face_normals = face_normals
         log.debug('Mesh transformed by matrix, normals restored to cache')
         return self
 
