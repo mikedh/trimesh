@@ -30,7 +30,6 @@ class MeshScript:
         script_text = Template(self.script).substitute(self.replacement)
         self.script_out.write(script_text.encode('utf-8'))
         self.script_out.flush()
-
         return self
 
     def run(self, command):

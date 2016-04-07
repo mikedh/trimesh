@@ -262,6 +262,10 @@ def random_color(dtype=COLOR_DTYPE):
     color = color.astype(dtype)
     return color
 
+def vertex_to_face_colors(vertex_colors, faces):
+    face_colors = vertex_colors[faces].mean(axis=2).astype(vertex_colors.dtype)
+    return face_colors
+
 def face_to_vertex_color(mesh, face_colors, dtype=COLOR_DTYPE):
     '''
     Convert a set of face colors into a set of vertex colors.

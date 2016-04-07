@@ -1,9 +1,20 @@
 import os
 import bpy
 
+def keep_only_first_mesh():
+  # different versions of blender sometimes return the wrong mesh
+  objects = bpy.context.scene.objects
+  if len(objects) > 1:
+    objects[-1].select = False
+    for other in objects[:-1]:
+      other.select = True
+    bpy.ops.object.delete()
+  objects[-1].select = True
+
 if __name__ == "__main__":
   # Clear scene of default box
   bpy.ops.wm.read_homefile()
+  bpy.ops.object.mode_set(mode='OBJECT')
   bpy.ops.object.select_all(action='SELECT')
   bpy.ops.object.delete(use_global=True)
 
@@ -20,6 +31,8 @@ if __name__ == "__main__":
     mod = mesh.modifiers.new('boolean', 'BOOLEAN') # add boolean modifier 
     mod.object = other
     mod.operation = '$operation'
-
+  
+  bpy.ops.object.modifier_apply(modifier = 'boolean')
+  keep_only_first_mesh()  
   bpy.ops.export_mesh.stl(filepath = mesh_post, 
                           use_mesh_modifiers = True)
