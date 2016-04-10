@@ -16,7 +16,7 @@ class VisualAttributes(object):
     '''
     Hold the visual attributes (usually colors) for a mesh. 
     '''
-    def __init__(self, mesh=None, **kwargs):
+    def __init__(self, mesh=None, dtype=None, **kwargs):
         self.mesh = mesh
 
         self._validate = True
@@ -25,6 +25,7 @@ class VisualAttributes(object):
         # cache computed values which are cleared when
         # self.md5() changes, forcing a recompute
         self._cache = Cache(id_function = self._data.md5)
+        self.dtype = dtype
 
         colors = _kwargs_to_color(mesh, **kwargs)
         self.vertex_colors, self.face_colors = colors
@@ -89,7 +90,7 @@ class VisualAttributes(object):
             # case where a single RGB/RGBa color has been passed to the setter
             # we apply this color to all faces 
             values = np.tile(values, (len(self.mesh.faces), 1))
-        self._data['face_colors'] = values
+        self._data['face_colors'] = rgba(values, dtype=self.dtype)
 
     @property
     def vertex_colors(self):
@@ -107,7 +108,7 @@ class VisualAttributes(object):
 
     @vertex_colors.setter
     def vertex_colors(self, values):
-        self._data['vertex_colors'] = values
+        self._data['vertex_colors'] = rgba(values, dtype=self.dtype)
 
     def update_faces(self, mask):
         stored = self._data['face_colors']
@@ -242,12 +243,16 @@ def rgba(colors, dtype=None):
     ----------
     colors: (n,4) set of RGBA colors
     '''
-    colors = np.asanyarray(colors)
+    if not is_sequence(colors): 
+        return
+    if dtype is None:
+        dtype = COLOR_DTYPE
+    colors = np.asanyarray(colors, dtype=dtype)
     if is_shape(colors, (-1,3)):
         opaque = (2**(np.dtype(dtype).itemsize * 8)) - 1
         colors = np.column_stack((colors,
                                   opaque * np.ones(len(colors))))
-    return colors.astype(dtype)
+    return colors
 
 def random_color(dtype=COLOR_DTYPE):
     '''
