@@ -3,7 +3,7 @@ import numpy as np
 from collections import deque
 
 from .arc import arc_center, fit_circle, angles_to_threepoint, discretize_arc
-from .entities import Arc, Line
+from .entities import Arc, Line, BSpline
 
 from ..util      import unitize, diagonal_dot
 from ..grouping  import unique_ordered
@@ -274,12 +274,44 @@ def merge_colinear(points, scale=None):
 
 def resample_spline(points, smooth=.001, count=None):
     from scipy.interpolate import splprep, splev
-    if count is None: count = len(points)    
-    points = np.array(points)
+    if count is None: 
+        count = len(points)    
+    points = np.asanyarray(points)
+    closed = np.linalg.norm(points[0] - points[-1]) < tol.merge 
+
     tpl = splprep(points.T, s=smooth)[0]
-    i   = np.linspace(0.0, 1.0, count)
+    i = np.linspace(0.0, 1.0, count)
     resampled = np.column_stack(splev(i, tpl))
+    
+    if closed:
+        shared = resampled[[0,-1]].mean(axis=0)
+        resampled[0]  = shared
+        resampled[-1] = shared
+
     return resampled
+
+def points_to_spline_entity(points, smooth=.0005, count=None):
+    from scipy.interpolate import splprep
+
+    if count is None: 
+        count = len(points)
+    points = np.asanyarray(points)
+    closed = np.linalg.norm(points[0] - points[-1]) < tol.merge 
+
+    knots, control, degree =  splprep(points.T, s=smooth)[0]
+    control = np.transpose(control)
+    index = np.arange(len(control))
+
+    if closed:
+        control[0] = control[[0,-1]].mean(axis=0)
+        control = control[:-1]
+        index[-1] = index[0]
+
+    entity = BSpline(points = index, 
+                     knots  = knots,
+                     closed = closed)
+        
+    return entity, control
 
 def three_point(indices):
     result = [indices[0],

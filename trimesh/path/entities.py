@@ -149,6 +149,15 @@ class Curve(Entity):
         return sum([ord(i) for i in self.__class__.__name__])
 
     @property
+    def closed(self):
+        '''
+        If the first point is the same as the end point, the polyline is closed
+        '''
+        ends = self.points[0] == self.points[-1]
+        closed = ends and len(self.points) > 2
+        return closed
+
+    @property
     def nodes(self):
         return [[self.points[0], 
                  self.points[1]],
@@ -160,10 +169,9 @@ class Bezier(Curve):
         return discretize_bezier(vertices[self.points], scale=scale)
 
 class BSpline(Curve):
-    def __init__(self, points, knots, closed=False):
+    def __init__(self, points, knots, closed=None):
         self.points = points
         self.knots  = knots
-        self.closed = closed
 
     def discrete(self, vertices, count=None, scale=1.0):
         result = discretize_bspline(control = vertices[self.points], 

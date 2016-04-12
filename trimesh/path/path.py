@@ -12,7 +12,7 @@ from scipy.spatial import cKDTree as KDTree
 from copy import deepcopy
 from collections import deque
 
-from .simplify  import simplify_path
+from .simplify  import simplify_path, points_to_spline_entity
 from .polygons  import polygons_enclosure_tree, is_ccw, medial_axis, polygon_hash, path_to_polygon, polygon_obb
 from .traversal import vertex_graph, closed_paths, discretize_path
 from .io.export import export_path
@@ -92,10 +92,6 @@ class Path(object):
         with self._cache:
             kdtree = KDTree(self.vertices.view(np.ndarray))
         return self._cache.set('kdtree', kdtree)
-
-    @property
-    def discrete(self):
-        return self._cache.get('discrete')
 
     @property
     def scale(self):
@@ -202,6 +198,33 @@ class Path(object):
                                    scale = self.scale)
         return discrete
         
+    def paths_to_splines(self, path_indexes=None, smooth=.0002):
+        '''
+        Convert paths into b-splines.
+        
+        Arguments
+        -----------
+        path_indexes: (n) int list of indexes for self.paths 
+        smooth:       float, how much the spline should smooth the curve
+        '''
+        if path_indexes is None:
+            path_indexes = np.arange(len(self.paths))
+        entities_keep = np.ones(len(self.entities), dtype=np.bool)
+        new_vertices = deque()
+        new_entities = deque()
+        for i in path_indexes:
+            path     = self.paths[i]
+            discrete = self.discrete[i]
+            entity, vertices = points_to_spline_entity(discrete)
+            entity.points += len(self.vertices) + len(new_vertices)
+            new_vertices.extend(vertices)
+            new_entities.append(entity)
+            entities_keep[path] = False
+        self.entities = np.append(self.entities[entities_keep], 
+                                  new_entities)
+        self.vertices = np.vstack((self.vertices, 
+                                   np.array(new_vertices)))
+
     def export(self, file_type='dict', file_obj=None):
         return export_path(self, 
                            file_type = file_type,
@@ -242,10 +265,15 @@ class Path3D(Path):
                 self.remove_unreferenced_vertices,
                 self.generate_closed_paths,
                 self.generate_discrete]
-               
-    def generate_discrete(self):
+        
+    @property
+    def discrete(self):
+        cached = self._cache['discrete']
+        if cached is not None:
+            return cached
         discrete = list(map(self.discretize_path, self.paths))
-        self._cache.set('discrete', discrete)
+        self._cache['discrete'] = discrete
+        return discrete
 
     def to_planar(self, to_2D=None, normal=None, check=True):
         '''
@@ -487,6 +515,12 @@ class Path2D(Path):
         return self._cache.get('polygons_valid')
 
     @property
+    def discrete(self):
+        if not 'discrete' in self._cache:
+            test = self.polygons_closed
+        return self._cache['discrete']
+
+    @property
     def polygons_closed(self):
         if 'polygons_closed' in self._cache: 
             return self._cache.get('polygons_closed')
@@ -495,7 +529,9 @@ class Path2D(Path):
             for entity in self.entities[path]: 
                 entity.reverse()
             return path[::-1]
+        
         with self._cache:
+            discretized = [None] * len(self.paths)
             polygons = [None]  * len(self.paths)
             valid    = [False] * len(self.paths)
             for i, path in enumerate(self.paths):
@@ -512,9 +548,12 @@ class Path2D(Path):
                     candidate = Polygon(np.array(candidate.exterior.coords)[::-1])
                 polygons[i] = candidate
                 valid[i]    = True
+                discretized[i] = discrete
             valid = np.array(valid, dtype=np.bool)
             polygons = np.array(polygons)[valid]
+            discretized = np.array(discretized)
 
+        self._cache.set('discrete',        discretized)
         self._cache.set('polygons_valid',  valid)
         self._cache.set('polygons_closed', polygons)
         return polygons

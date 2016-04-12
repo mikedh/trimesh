@@ -2,6 +2,7 @@ import numpy as np
 
 from ..entities  import Line, Arc
 
+from ...util     import is_shape
 from ...geometry import faces_to_edges
 from ...grouping import group_rows
 
@@ -21,23 +22,20 @@ def lines_to_path(lines):
     '''
     Given a set of line segments (n, 2, [2|3]), populate a path
     '''
-    shape = np.shape(lines)
-    dimension = shape[-1]
-    if len(shape) == 2:
-        lines     = np.column_stack((lines[:-1], lines[1:])).reshape((-1,2,dimension))
-        shape     = np.shape(lines)
+    lines = np.asanyarray(lines)
 
-    if ((len(shape) != 3) or 
-        (shape[1] != 2) or 
-        (not (shape[2] in [2,3]))):
-        raise ValueError('Lines MUST be (n, 2, [2|3])')
-    entities = deque()
-    for i in range(0, (len(lines) * 2) - 1, 2):
-        entities.append(Line([i, i+1]))
-    vertices = lines.reshape((-1,dimension))
-
-    return {'entities' : entities,
-            'vertices' : vertices}
+    if is_shape(lines, (-1, (2,3))):
+        result = {'entities' : np.array([Line(np.arange(len(lines)))]),
+                  'vertices' : lines}
+        return result
+    elif is_shape(lines, (-1,2,(2,3))):
+        entities = [Line([i, i+1]) for i in range(0, (lines.shape[0]*2) - 1, 2)]
+        vertices = lines.reshape((-1,lines.shape[2]))
+        result = {'entities' : entities,
+                  'vertices' : vertices}
+    else:
+        raise ValueError('Lines must be (n,(2|3)) or (n,2,(2|3))')
+    return result
 
 def polygon_to_path(polygon):
     '''
