@@ -251,7 +251,7 @@ def rgba(colors, dtype=None):
     if is_shape(colors, (-1,3)):
         opaque = (2**(np.dtype(dtype).itemsize * 8)) - 1
         colors = np.column_stack((colors,
-                                  opaque * np.ones(len(colors))))
+                                  opaque * np.ones(len(colors)))).astype(dtype)
     return colors
 
 def random_color(dtype=COLOR_DTYPE):

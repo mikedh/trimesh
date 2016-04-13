@@ -17,9 +17,10 @@ _HASH_LENGTH = 5
 class Entity(object):
     def __init__(self, 
                  points, 
-                 closed = False):
-        self.points = np.array(points)
-        self.closed = closed
+                 closed = None):
+        self.points = np.asanyarray(points)
+        if closed is not None:
+            self.closed = closed
         
     @property
     def _class_id(self):
@@ -59,7 +60,16 @@ class Entity(object):
         eg, if replacement = {0:107}, self.points = [0,1902] becomes [107, 1902]
         '''
         self.points = replace_references(self.points, replacement)
-        
+
+    @property
+    def closed(self):
+        '''
+        If the first point is the same as the end point, the entity is closed
+        '''
+        closed = (len(self.points) > 2 and
+                  np.equal(self.points[0], self.points[-1]))
+        return closed
+
     @property
     def nodes(self):
         '''
@@ -114,28 +124,21 @@ class Line(Entity):
         return vertices[self.points]
 
     @property
-    def closed(self):
-        '''
-        If the first point is the same as the end point, the polyline is closed
-        '''
-        ends = self.points[0] == self.points[-1]
-        closed = ends and len(self.points) > 2
-        return closed
-
-    @closed.setter
-    def closed(self, value):
-        '''
-        Since we can determine easily whether the set of points are closed
-        or not, ignore any attempt to manually define the closed property. 
-        '''
-        return
-
-    @property
     def is_valid(self):
         valid = np.any((self.points - self.points[0]) != 0)
         return valid
 
 class Arc(Entity):
+    @property
+    def closed(self):
+        if hasattr(self, '_closed'):
+            return self._closed
+        return False
+
+    @closed.setter
+    def closed(self, value):
+        self._closed = bool(value)
+        
     def discrete(self, vertices, scale=1.0):
         return discretize_arc(vertices[self.points], 
                               close = self.closed,
@@ -147,15 +150,6 @@ class Curve(Entity):
     @property
     def _class_id(self):
         return sum([ord(i) for i in self.__class__.__name__])
-
-    @property
-    def closed(self):
-        '''
-        If the first point is the same as the end point, the polyline is closed
-        '''
-        ends = self.points[0] == self.points[-1]
-        closed = ends and len(self.points) > 2
-        return closed
 
     @property
     def nodes(self):
