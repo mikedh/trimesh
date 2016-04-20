@@ -171,7 +171,13 @@ def box():
     faces = [1,3,0,4,1,0,0,3,2,2,4,0,1,7,3,5,1,4,
              5,7,1,3,7,2,6,4,2,2,7,6,6,5,4,7,5,6] 
     faces = np.array(faces, dtype=np.int64).reshape((-1,3))
-    return Trimesh(vertices, faces)
+    #face_normals = [0,0,-1,-1,0,0,0,0,-1,0,0,0,0,0,0,-1,0,
+    #                0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,1,0,0,1]
+    #face_normals = np.array(face_normals, dtype=np.float64).reshape(-1,3)
+    box = Trimesh(vertices = vertices, 
+                  faces = faces)#, 
+                  #face_normals = face_normals)
+    return box
 
 def icosahedron():
     '''

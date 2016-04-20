@@ -86,6 +86,20 @@ for facet in facets:
 
 # preview mesh in an opengl window if you installed pyglet with pip 
 mesh.show()
+
+# transform method can be passed a (4,4) matrix and will cleanly apply the transform
+mesh.transform(trimesh.transformations.random_rotation_matrix())
+
+# a minimum volume oriented bounding box is available
+print(mesh.bounding_box_oriented.box_extents)
+print(mesh.bounding_box_oriented.box_transform)
+
+# show the mesh overlayed with its oriented bounding box 
+# the bounding box is a trimesh.primitives.Box object, which subclasses
+# Trimesh and lazily evaluates to fill in vertices and faces when requested
+# (press w in viewer to see triangles)
+(mesh + mesh.bounding_box_oriented).show()
+
 ```
 
 In the mesh view window, dragging rotates the view, ctl + drag pans, mouse wheel scrolls, 'z' returns to the base view, 'w' toggles wireframe mode, and 'c' toggles backface culling.

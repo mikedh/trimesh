@@ -88,7 +88,7 @@ def polygon_obb(polygon):
                 offset   = -np.array([np.min(widths), np.min(heights)])
         rectangle = min_rect
         transform = transformation_2D(offset, theta)
-        return rectangle.tolist(), transform.tolist()
+        return rectangle, transform
 
     if is_sequence(polygon): return _polygons_obb()
     else:                    return _polygon_obb()

@@ -11,6 +11,11 @@ from .constants import tol
 from .util   import type_named, diagonal_dot
 from .points import project_to_plane
 
+try:
+    from scipy.spatial import ConvexHull
+except ImportError:
+    log.warning('Scipy import failed!')
+
 def convex_hull(mesh, clean=True):
     '''
     Get a new Trimesh object representing the convex hull of the 
@@ -25,8 +30,6 @@ def convex_hull(mesh, clean=True):
     --------
     convex: Trimesh object of convex hull of current mesh
     '''
-    from scipy.spatial import ConvexHull
-
 
     type_trimesh = type_named(mesh, 'Trimesh')
     faces  = ConvexHull(mesh.vertices.view(np.ndarray)).simplices
@@ -66,21 +69,46 @@ def is_convex(mesh):
     normals = np.tile(normals, (1,3)).reshape((-1,3))
     origins = np.tile(origins, (1,3)).reshape((-1,3))
     # project vertices of adjacent triangle onto normal
+    # note that two of these are always going to be zero so we 
+    # are doing more dot products than we really have to but finding
+    # the index of the the third vertex through graph op is way slower 
+    # than doing extra dot products. 
+    # there is probably a clever way to use the winding to get this forfree
     dots = diagonal_dot(triangles-origins, normals)
     # if all projections are negative, or 'behind' the triangle
     # the mesh is convex
     convex = (dots < tol.zero).all()    
     return convex
 
-def planar_hull(vertices,
-                normal, 
-                origin           = [0,0,0], 
-                return_transform = False):
-    planar , T = project_to_plane(vertices,
-                                  plane_normal     = normal,
-                                  plane_origin     = origin,
-                                  return_transform = True)
-    hull_edges = ConvexHull(planar).simplices
-    if return_transform:
-        return planar[hull_edges], T
-    return planar[hull_edges]
+def planar_hull(points, normal, origin=None, input_convex=False):
+    '''
+    Find the convex outline of a set of points projected to a plane.
+
+    Arguments
+    -----------
+    points: (n,3) float, input points
+    normal: (3) float vector, normal vector of plane
+    origin: (3) float, location of plane origin
+    input_convex: bool, if True we assume the input points are already from
+                  a convex hull which provides a speedup. 
+
+    Returns
+    -----------
+    hull_lines: (n,2,2) set of unordered line segments
+    T:          (4,4) float, transformation matrix 
+    '''
+    if origin is None:
+        origin = np.zeros(3)
+    if not input_convex:
+        pass
+    planar, T = project_to_plane(points,
+                                 plane_normal     = normal,
+                                 plane_origin     = origin,
+                                 return_planar    = False,
+                                 return_transform = True)
+    hull_edges = ConvexHull(planar[:,0:2]).simplices
+    hull_lines = planar[hull_edges]
+    planar_z = planar[:,2]
+    height = np.array([planar_z.min(),
+                       planar_z.max()])
+    return hull_lines, T, height

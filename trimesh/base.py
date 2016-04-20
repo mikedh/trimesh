@@ -20,6 +20,7 @@ from . import intersections
 from . import util
 from . import convex
 from . import remesh
+from . import bounds
 
 from .io.export    import export_mesh
 from .ray.ray_mesh import RayMeshIntersector, contains_points
@@ -143,6 +144,7 @@ class Trimesh(object):
         # being returned so there is no danger of inconsistent dimensions
         self._cache.clear(exclude = ['face_normals',
                                      'vertex_normals'])
+        self.metadata['processed'] = True
         return self
 
     @property
@@ -233,9 +235,24 @@ class Trimesh(object):
 
     @property
     def bounding_box(self):
-        from .primitives import Box
-        return Box(box_center=self.bounds.mean(axis=0),
-                   box_extents=self.extents)
+        bounding_box = self._cache['bounding_box']
+        if bounding_box is None:
+            from .primitives import Box
+            bounding_box = Box(box_center=self.bounds.mean(axis=0),
+                       box_extents=self.extents)
+            self._cache['bounding_box'] = bounding_box
+        return bounding_box
+
+    @property
+    def bounding_box_oriented(self):
+        obb = self._cache['obb']
+        if obb is None:
+            from .primitives import Box
+            to_origin, extents = bounds.oriented_bounds(self)
+            obb = Box(box_transform = np.linalg.inv(to_origin),
+                      box_extents   = extents)
+            self._cache['obb'] = obb
+        return obb
 
     @property
     def bounds(self):
@@ -249,6 +266,8 @@ class Trimesh(object):
         cached = self._cache['bounds']
         if cached is not None:
             return cached
+        # we use triangles instead of faces because
+        # if there is an unused vertex it will screw up the bounds
         in_mesh = self.triangles.reshape((-1,3))
         bounds = np.vstack((in_mesh.min(axis=0),
                             in_mesh.max(axis=0)))
@@ -815,11 +834,22 @@ class Trimesh(object):
         ----------
         matrix: (4,4) float, homogenous transformation matrix
         '''
-        matrix  = np.asanyarray(matrix)
+        matrix = np.asanyarray(matrix)
         if matrix.shape != (4,4):
             raise ValueError('Transformation matrix must be (4,4)!')
+
+        face_normals = self.face_normals
+        aligned = triangles.windings_aligned(self.vertices[self.faces[:1]], 
+                                             face_normals[:1])[0]
+
+
+
         face_normals = np.dot(matrix[0:3, 0:3], self.face_normals.T).T
+        # check the first face against the first normal to see if winding is correct
         self.vertices = transform_points(self.vertices, matrix)
+        if not aligned:
+            log.debug('Triangle normals not aligned after transform; flipping')
+            self.faces = np.fliplr(self.faces)
         self._cache.verify()
         self.face_normals = face_normals
         log.debug('Mesh transformed by matrix, normals restored to cache')

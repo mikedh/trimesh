@@ -6,7 +6,8 @@ from . import creation
 
 from .base      import Trimesh
 from .constants import log
-
+from .triangles import windings_aligned
+        
 class Primitive(Trimesh):
     '''
     Geometric primitives which are a subclass of Trimesh.
@@ -15,25 +16,20 @@ class Primitive(Trimesh):
     def __init__(self, *args, **kwargs):
         super(Primitive, self).__init__(*args, **kwargs)
         self._data.clear()
-
+        self._validate = False
+        
     @property
     def faces(self):
         stored = self._cache['faces']
         if util.is_shape(stored, (-1,3)):
             return stored
         self._create_mesh()
-        self._validate_face_normals()
+        #self._validate_face_normals()
         return self._cache['faces']
 
     @faces.setter
     def faces(self, values):
         log.warning('Primitive faces are immutable! Not setting!')
-
-    def _validate_face_normals(self, *args, **kwargs):
-        stored = self._cache['faces']
-        if not util.is_shape(stored, (-1,3)):
-            self._create_mesh()
-        super(Primitive, self)._validate_face_normals(self._cache['faces'])
 
     @property
     def vertices(self):
@@ -46,8 +42,22 @@ class Primitive(Trimesh):
 
     @vertices.setter
     def vertices(self, values):
-        log.warning('Primitive vertices are immutable! Not setting!')
+        if values is not None:
+            log.warning('Primitive vertices are immutable! Not setting!')
+
+    @property
+    def face_normals(self):
+        stored = self._cache['face_normals']
+        if util.is_shape(stored, (-1,3)):
+            return stored
+        self._create_mesh()
+        return self._cache['face_normals']
     
+    @face_normals.setter
+    def face_normals(self, values):
+        if values is not None:
+            log.warning('Primitive face normals are immutable! Not setting!')
+
     def _create_mesh(self):
         raise ValueError('Primitive doesn\'t define mesh creation!')
 
@@ -146,13 +156,19 @@ class Box(Primitive):
     def _create_mesh(self):
         log.debug('Creating mesh for box primitive')
         box = self._unit_box
-        vertices, faces = box.vertices, box.faces
+        vertices, faces, normals = box.vertices, box.faces, box.face_normals
         vertices = points.transform_points(vertices * self.box_extents, 
                                            self.box_transform)
+        normals = np.dot(self.box_transform[0:3,0:3], 
+                         normals.T).T
+        aligned = windings_aligned(vertices[faces[:1]], normals[:1])[0]
+        if not aligned:
+            faces = np.fliplr(faces)        
         # for a primitive the vertices and faces are derived from other information
         # so it goes in the cache, instead of the datastore
         self._cache['vertices'] = vertices
-        self._cache['faces'] = faces
+        self._cache['faces']    = faces
+        self._cache['face_normals'] = normals
 
 def Extrusion(Primitive):
     def __init__(self, *args, **kwargs):

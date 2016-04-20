@@ -1,5 +1,6 @@
 import numpy as np
 
+from .util      import diagonal_dot
 from .points    import unitize, point_plane_distance
 from .constants import tol
 
@@ -138,6 +139,26 @@ def mass_properties(triangles, density = 1.0, skip_inertia=False):
     result['inertia'] = inertia.tolist()
     
     return result
+
+def windings_aligned(triangles, normals_compare):
+    '''
+    Given a set of triangles and a set of normals determine if the two are aligned
+    
+    Arguments
+    ----------
+    triangles: (n,3,3) set of vertex locations
+    normals_compare: (n,3) set of normals
+
+    Returns
+    ----------
+    aligned: (n) bool list, are normals aligned with triangles
+    '''
+
+    calculated, valid = normals(triangles)    
+    difference = diagonal_dot(calculated, normals_compare[valid])
+    result = np.zeros(len(triangles), dtype=np.bool)
+    result[valid] = difference > 0.0
+    return result 
 
 def bounds_tree(triangles):
     '''

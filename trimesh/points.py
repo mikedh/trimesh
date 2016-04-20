@@ -37,8 +37,8 @@ def major_axis(points):
     Returns an approximate vector representing the major axis of points
     '''
     u,s,v = np.linalg.svd(points)
-    axis = v[0]
-    return axis 
+    axis_guess = v[np.argmax(s)]
+    return axis_guess 
 
 def surface_normal(points):
     '''
@@ -136,7 +136,8 @@ def project_to_plane(points,
     if transform is None:
         transform = plane_transform(plane_origin, plane_normal)
         
-    transformed = transform_points(points, transform)[:,0:(3-int(return_planar))]
+    transformed = transform_points(points, transform)
+    transformed = transformed[:,0:(3-int(return_planar))]
 
     if return_transform: 
         polygon_to_3D = np.linalg.inv(transform)
