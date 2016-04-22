@@ -77,7 +77,7 @@ def is_convex(mesh):
     dots = diagonal_dot(triangles-origins, normals)
     # if all projections are negative, or 'behind' the triangle
     # the mesh is convex
-    convex = (dots < tol.zero).all()    
+    convex = bool((dots < tol.zero).all())    
     return convex
 
 def planar_hull(points, normal, origin=None, input_convex=False):
