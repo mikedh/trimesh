@@ -6,6 +6,7 @@ from .constants  import log
 from .grouping   import group_vectors
 from .points     import transform_points, project_to_plane
 from .geometry   import rotation_2D_to_3D
+from .convex     import convex_hull
 
 from scipy.spatial import ConvexHull
 
@@ -33,7 +34,11 @@ def oriented_bounds_2D(points):
     return rectangle, transform
 
 def oriented_bounds(mesh, angle_tol=1e-6):
-    hull = mesh.convex_hull
+    # we could used the cached mesh.convex_hull, but that returns a mesh
+    # with fixed normals, which is very expensive
+    hull = convex_hull(mesh, clean=False)
+    hull.remove_unreferenced_vertices()
+
     vectors = group_vectors(hull.face_normals, 
                             angle=angle_tol,
                             include_negative=True)[0]
@@ -58,7 +63,7 @@ def oriented_bounds(mesh, angle_tol=1e-6):
     transformed = transform_points(hull.vertices, to_origin)
     box_center = (transformed.min(axis=0) + transformed.ptp(axis=0)*.5)
     to_origin[0:3, 3] = -box_center
-    
+ 
     log.debug('oriented_bounds checked %d vectors in %0.4fs',
               len(vectors),
               time.time()-tic)
