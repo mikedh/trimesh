@@ -32,17 +32,22 @@ def convex_hull(mesh, clean=True):
     '''
 
     type_trimesh = type_named(mesh, 'Trimesh')
-    faces  = ConvexHull(mesh.vertices.view(np.ndarray)).simplices
-    convex = type_trimesh(vertices = mesh.vertices.view(np.ndarray).copy(), 
-                            faces    = faces,
-                            process  = clean)
+    c = ConvexHull(mesh.vertices.view(np.ndarray).reshape((-1,3)))
+    
+    vid = np.sort(c.vertices)
+    mask = np.zeros(len(c.points), dtype=np.int64)
+    mask[vid] = np.arange(len(vid))
+        
+    faces    = mask[c.simplices]
+    vertices = c.points[vid].copy()
+
+    convex = type_trimesh(vertices = vertices, 
+                          faces    = faces,
+                          process  = True)
     if clean:
         # the normals and triangle winding returned by scipy/qhull's
         # ConvexHull are apparently random, so we need to completely fix them
         convex.fix_normals()
-        # since we just copied all the vertices over, we will have a bunch
-        # of unreferenced vertices, so it is best to remove them
-        convex.remove_unreferenced_vertices()
     return convex
 
 def is_convex(mesh):

@@ -15,6 +15,8 @@ DEFAULT_COLOR = COLORS['purple']
 class VisualAttributes(object):
     '''
     Hold the visual attributes (usually colors) for a mesh. 
+
+    This is a bit of a dumpster fire and probably needs a re-write
     '''
     def __init__(self, mesh=None, dtype=None, **kwargs):
         self.mesh = mesh
@@ -80,8 +82,9 @@ class VisualAttributes(object):
         if not (is_sequence(cached) and
                 len(cached) == len(self.mesh.faces)):
             log.debug('Returning default colors for faces')
-            return np.tile(DEFAULT_COLOR, (len(self.mesh.faces), 1))
-        return cached
+            self._data['face_colors'] = np.tile(DEFAULT_COLOR, 
+                                                (len(self.mesh.faces), 1))
+        return self._data['face_colors']
 
     @face_colors.setter
     def face_colors(self, values):

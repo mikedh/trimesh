@@ -602,6 +602,12 @@ class Trimesh(object):
         return self._cache['face_adjacency_edges']
         
     @property
+    def is_winding_consistent(self):
+        # consistent winding check is populated into the cache by is_watertight query
+        watertight = self.is_watertight
+        return self._cache['is_winding_consistent']
+
+    @property
     def is_watertight(self):
         '''
         Check if a mesh is watertight by making sure every edge is used by two faces.
@@ -612,10 +618,13 @@ class Trimesh(object):
         '''
 
         cached = self._cache.get('is_watertight')
-        if cached is not None: return cached
-        is_watertight = graph.is_watertight(self.edges)
-        self._cache['is_watertight'] = is_watertight
-        return is_watertight
+        if cached is not None: 
+            return cached
+        watertight, reversed = graph.is_watertight(self.edges, 
+                                                   return_winding=True)
+        self._cache['is_watertight'] = watertight
+        self._cache['is_winding_consistent'] = reversed
+        return watertight
 
     @property
     def is_empty(self):
@@ -775,6 +784,15 @@ class Trimesh(object):
         return path
 
     @property
+    def _convex_hull_raw(self):
+        cached = self._cache['convex_hull_raw']
+        if cached is not None: 
+            return cached
+        hull = convex.convex_hull(self, clean=False)
+        self._cache['convex_hull_raw'] = hull
+        return hull
+
+    @property
     def convex_hull(self):
         '''
         Get a new Trimesh object representing the convex hull of the 
@@ -788,7 +806,8 @@ class Trimesh(object):
         cached = self._cache.get('convex_hull')
         if cached is not None: 
             return cached
-        hull = convex.convex_hull(self)
+        hull = self._convex_hull_raw.copy()
+        hull.fix_normals()
         return self._cache.set(key   = 'convex_hull', 
                                value = hull)
 

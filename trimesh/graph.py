@@ -254,7 +254,7 @@ def smoothed(mesh, angle):
                           append = True)
     return smooth
 
-def is_watertight(edges):
+def is_watertight(edges, return_winding=False):
     '''
     Arguments
     ---------
@@ -264,7 +264,11 @@ def is_watertight(edges):
     ---------
     watertight: boolean, whether every edge is contained by two faces
     '''
-    edges = np.sort(edges, axis=1)
-    groups = group_rows(edges, require_count=2)
+    edges_sorted = np.sort(edges, axis=1)
+    groups = group_rows(edges_sorted, require_count=2)
     watertight = (len(groups) * 2) == len(edges)
+    if return_winding:
+        opposing = edges[groups].reshape((-1,4))[:,1:3].T
+        reversed = np.equal(*opposing).all()
+        return watertight, reversed
     return watertight

@@ -11,6 +11,19 @@ from .convex     import convex_hull
 from scipy.spatial import ConvexHull
 
 def oriented_bounds_2D(points):
+    '''
+    Find an oriented bounding box for a set of 2D points.
+
+    Arguments
+    ----------
+    points: (n,2) float, 2D points
+    
+    Returns
+    ----------
+    transform: (3,3) float, homogenous 2D transformation matrix to move the input set of 
+               points to the FIRST QUADRANT, so no value is negative. 
+    rectangle: (2,) float, size of extents once input points are transformed by transform
+    '''
     c = ConvexHull(np.asanyarray(points))
     hull = c.points[c.simplices]
     edge_vectors = unitize(np.diff(hull, axis=1).reshape((-1,2)))
@@ -31,14 +44,26 @@ def oriented_bounds_2D(points):
     transform = transformation_2D(offset, theta)
     rectangle = extents[area_min]
 
-    return rectangle, transform
+    return transform, rectangle
 
 def oriented_bounds(mesh, angle_tol=1e-6):
-    # we could used the cached mesh.convex_hull, but that returns a mesh
-    # with fixed normals, which is very expensive
-    hull = convex_hull(mesh, clean=False)
-    hull.remove_unreferenced_vertices()
+    '''
+    Find the oriented bounding box for a Trimesh 
 
+    Arguments
+    ----------
+    mesh: Trimesh object
+    angle_tol: float, angle in radians that OBB can be away from actual value
+               Larger numbers may experience substantial speedups, and 0.0 is 
+               an acceptable value. Default is small (1e-6) but non-zero.
+
+    Returns
+    ----------
+    to_origin: (4,4) float, transformation matrix which will move the center of the
+               bounding box of the input mesh to the origin. 
+    extents: (3,) float, the extents of the mesh once transformed with to_origin
+    '''
+    hull = mesh._convex_hull_raw
     vectors = group_vectors(hull.face_normals, 
                             angle=angle_tol,
                             include_negative=True)[0]
@@ -50,7 +75,7 @@ def oriented_bounds(mesh, angle_tol=1e-6):
                                             return_planar    = False,
                                             return_transform = True)
         height = projected[:,2].ptp()
-        box, rotation_2D = oriented_bounds_2D(projected[:,0:2])
+        rotation_2D, box = oriented_bounds_2D(projected[:,0:2])
         volume = np.product(box) * height
         toc = time.time()
         if volume < min_volume:

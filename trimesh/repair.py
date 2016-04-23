@@ -14,6 +14,11 @@ def fix_face_winding(mesh):
     Traverse and change mesh faces in-place to make sure winding is coherent, 
     or that edges on adjacent faces are in opposite directions
     '''
+    
+    if mesh.is_winding_consistent:
+        log.info('mesh has consistent winding, exiting winding repair')
+        return
+    
     # we create the face adjacency graph: 
     # every node in g is an index of mesh.faces
     # every edge in g represents two faces which are connected
