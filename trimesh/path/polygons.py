@@ -5,6 +5,8 @@ from collections      import deque
 import numpy as np
 import networkx as nx
 
+from .. import bounds
+
 from ..geometry   import medial_axis as _medial_axis
 from ..constants  import tol_path as tol
 from ..constants  import log
@@ -39,14 +41,14 @@ def polygons_enclosure_tree(polygons):
     roots = [n for n, deg in list(g.in_degree().items()) if deg==0]
     return roots, g
 
-def _multipolygons_obb(polygons):
+def polygons_obb(polygons):
     '''
     Find the OBBs for a list of shapely.geometry.Polygons
     '''
     rectangles = [None] * len(polygons)
     transforms = [None] * len(polygons)
     for i, p in enumerate(polygons):
-        rectangles[i], transforms[i] = polygon_obb(p)
+        transforms[i], rectangles[i] = polygon_obb(p)
     return np.array(rectangles), np.array(transforms)
     
 def polygon_obb(polygon):
@@ -61,30 +63,13 @@ def polygon_obb(polygon):
 
     Returns
     -------------
-    size:                  (2) or (len(polygons), 2) list of edge lengths
-    transformation matrix: (3,3) or (len(polygons, 3,3) transformation matrix
-                           which will move input polygon from its original position 
-                           to the first quadrant where the AABB is the OBB
+    transform: (3,3) float, transformation matrix
+               which will move input polygon from its original position 
+               to the first quadrant where the AABB is the OBB
+    extents:   (2,) float, extents of transformed polygon
     '''
-    rectangle    = None
-    transform    = np.eye(3)
-    hull         = np.column_stack(polygon.convex_hull.exterior.xy)
-    min_area     = np.inf
-    edge_vectors = unitize(np.diff(hull, axis=0))
-    perp_vectors = np.fliplr(edge_vectors) * [-1,1]
-    for edge_vector, perp_vector in zip(edge_vectors, perp_vectors):
-        widths      = np.dot(hull, edge_vector)
-        heights     = np.dot(hull, perp_vector)
-        rectangle   = np.array([np.ptp(widths), np.ptp(heights)])
-        area        = np.prod(rectangle)
-        if area < min_area:
-            min_area = area
-            min_rect = rectangle
-            theta    = np.arctan2(*edge_vector[::-1])
-            offset   = -np.array([np.min(widths), np.min(heights)])
-    rectangle = min_rect
-    transform = transformation_2D(offset, theta)
-    return rectangle, transform
+    points = np.asanyarray(polygon.exterior.coords)
+    return bounds.oriented_bounds_2D(points)
 
 def transform_polygon(polygon, transform, plot=False):
     if is_sequence(polygon):

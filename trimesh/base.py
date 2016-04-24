@@ -519,8 +519,8 @@ class Trimesh(object):
             mask = mask.astype(np.int)
         cached_normals = self._cache.get('face_normals')
         if util.is_shape(cached_normals, (-1,3)):
-            try: self.face_normals = cached_normals[mask]
-            except: pass
+            self.face_normals = cached_normals[mask]
+            #except: pass
         faces = self._data['faces']
         # if Trimesh has been subclassed and faces have been moved from data 
         # to cache, get faces from cache. 
@@ -857,20 +857,19 @@ class Trimesh(object):
         if matrix.shape != (4,4):
             raise ValueError('Transformation matrix must be (4,4)!')
 
-        face_normals = self.face_normals
-        aligned = triangles.windings_aligned(self.vertices[self.faces[:1]], 
-                                             face_normals[:1])[0]
-
-
-
-        face_normals = np.dot(matrix[0:3, 0:3], self.face_normals.T).T
+        new_normals  = np.dot(matrix[0:3, 0:3], self.face_normals.T).T
+        new_vertices = transform_points(self.vertices, matrix)
         # check the first face against the first normal to see if winding is correct
-        self.vertices = transform_points(self.vertices, matrix)
-        if not aligned:
+        aligned_pre = triangles.windings_aligned(self.vertices[self.faces[:1]], 
+                                                 self.face_normals[:1])[0]
+        aligned_post = triangles.windings_aligned(new_vertices[self.faces[:1]], 
+                                                  new_normals[:1])[0]
+        if aligned_pre != aligned_post:
             log.debug('Triangle normals not aligned after transform; flipping')
             self.faces = np.fliplr(self.faces)
         self._cache.verify()
-        self.face_normals = face_normals
+        self.vertices     = new_vertices
+        self.face_normals = new_normals
         log.debug('Mesh transformed by matrix, normals restored to cache')
         return self
 

@@ -77,17 +77,15 @@ def export_collada(mesh, file_obj=None):
     '''
     Export a mesh as collada, to filename
     '''
-    import os, inspect
+    import os
+    import inspect
     from string import Template
     
     path_current = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-    template     = Template(open(os.path.join(path_current, 
-                                              '../templates/collada.dae.template'), 
-                                 'rb').read())
+    path_template = os.path.join(path_current, '../templates/collada.dae.template')
 
     # we bother setting this because np.array2string uses these printoptions 
     np.set_printoptions(threshold=np.inf, precision=5, linewidth=np.inf)
-
     replacement = dict()
     replacement['VERTEX']   = np.array2string(mesh.vertices.reshape(-1))[1:-1]
     replacement['FACES']    = np.array2string(mesh.faces.reshape(-1))[1:-1]
@@ -95,9 +93,12 @@ def export_collada(mesh, file_obj=None):
     replacement['VCOUNT']   = str(len(mesh.vertices))
     replacement['VCOUNTX3'] = str(len(mesh.vertices) * 3)
     replacement['FCOUNT']   = str(len(mesh.faces))
-
+    
+    with open(path_template, 'rb') as template_obj:
+        template = Template(template_obj.read().decode('utf-8'))
     export = template.substitute(replacement)
-    return _write_export(export, file_obj)
+    result = _write_export(export, file_obj)
+    return result
 
 def export_dict64(mesh, file_obj=None):
     if file_obj is not None:

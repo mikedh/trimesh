@@ -8,7 +8,7 @@ from collections import deque
 from ..constants import log, time_function
 from ..constants import tol_path as tol
 
-from .polygons  import _multipolygon_obb, transform_polygon
+from .polygons  import polygons_obb, transform_polygon
 from ..util     import transformation_2D
 
 class RectangleBin:
@@ -144,9 +144,9 @@ def multipack(polygons,
 
     If sheet size isn't specified, it creates a large sheet that can fit all of the polygons
     '''
-    rectangles, transforms_obb  = _multipolygon_obb(polygons)
-    rectangles                 += 2.0*buffer_dist
-    polygon_area                = np.array([p.area for p in polygons])
+    transforms_obb, rectangles = polygons_obb(polygons)
+    rectangles                += 2.0*buffer_dist
+    polygon_area               = np.array([p.area for p in polygons])
 
 
     tic             = time_function()  

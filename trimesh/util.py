@@ -793,7 +793,7 @@ class Words:
         self.words = np.loadtxt(file_name, dtype=str)
         self.words_simple = np.array([i.lower() for i in self.words if str.isalpha(i)])
         if len(self.words) == 0:
-            raise ValueError('No words available!')
+            log.warning('No words available!')
 
     def random_phrase(self, length = 2, delimiter='-'):
         '''
@@ -823,6 +823,6 @@ class Words:
           puller-demesne
           phenomenally-hairs
         '''
-        result = delimiter.join(np.random.choice(self.words_simple,
-                                                 length))
+        result = str(delimiter).join(np.random.choice(self.words_simple,
+                                                      length))
         return result

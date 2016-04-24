@@ -6,7 +6,6 @@ from .constants  import log
 from .grouping   import group_vectors
 from .points     import transform_points, project_to_plane
 from .geometry   import rotation_2D_to_3D
-from .convex     import convex_hull
 
 from scipy.spatial import ConvexHull
 
@@ -29,18 +28,22 @@ def oriented_bounds_2D(points):
     edge_vectors = unitize(np.diff(hull, axis=1).reshape((-1,2)))
     perp_vectors = np.fliplr(edge_vectors) * [-1.0,1.0]
     bounds = np.zeros((len(edge_vectors), 4))
-    dt = hull.reshape((-1,2)).T
+    dt = c.points[c.vertices].reshape((-1,2)).T
+
     for i, edge, perp in zip(range(len(edge_vectors)),
                              edge_vectors, 
                              perp_vectors):
         a = np.dot(edge, dt)
         b = np.dot(perp, dt)
-        bounds[i] = [a.min(), b.min(), a.max(), b.max()]    
+        bounds[i] = [a.min(), b.min(), a.max(), b.max()]
+
     extents = np.diff(bounds.reshape((-1,2,2)), axis=1).reshape((-1,2))
     area = np.product(extents, axis=1)
     area_min = area.argmin()
+
     offset = -bounds[area_min][0:2]
     theta = np.arctan2(*edge_vectors[area_min][::-1])
+
     transform = transformation_2D(offset, theta)
     rectangle = extents[area_min]
 
@@ -53,9 +56,11 @@ def oriented_bounds(mesh, angle_tol=1e-6):
     Arguments
     ----------
     mesh: Trimesh object
-    angle_tol: float, angle in radians that OBB can be away from actual value
-               Larger numbers may experience substantial speedups, and 0.0 is 
-               an acceptable value. Default is small (1e-6) but non-zero.
+    angle_tol: float, angle in radians that OBB can be away from minimum volume
+               solution. Even with large values the returned extents will cover
+               the mesh. Larger numbers may experience substantial speedups. 
+               Acceptable values are floats >= 0.0.
+               The default is small (1e-6) but non-zero.
 
     Returns
     ----------

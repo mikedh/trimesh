@@ -216,7 +216,7 @@ def remove_close(points, radius):
     tree     = KDTree(points)
     consumed = np.zeros(len(points), dtype=np.bool)
     unique   = np.zeros(len(points), dtype=np.bool)
-    for i in xrange(len(points)):
+    for i in range(len(points)):
         if consumed[i]: continue
         neighbors = tree.query_ball_point(points[i], r=radius)
         consumed[neighbors] = True

@@ -148,7 +148,10 @@ class MeshTests(unittest.TestCase):
             section   = mesh.section(plane_normal=[0,0,1], plane_origin=mesh.centroid)
             hull      = mesh.convex_hull
 
-            self.assertTrue(hull.volume > 0.0)
+            volume_ok = hull.volume > 0.0
+            if not volume_ok:
+                log.error('zero hull volume for %s', mesh.metadata['filename'])
+            self.assertTrue(volume_ok)
 
             sample    = mesh.sample(1000)
             even_sample = trimesh.sample.sample_surface_even(mesh, 100)
