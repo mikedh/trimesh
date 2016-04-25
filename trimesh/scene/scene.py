@@ -181,6 +181,20 @@ class Scene:
                     resolution = resolution, 
                     **kwargs)
 
+    def explode(self, vector=[0.0,0.0,1.0], origin=None):
+        '''
+        Explode a scene around a point and vector.
+        '''
+        if origin is None:
+            origin = self.centroid
+        centroids = np.array([self.meshes[i].centroid for i in self.nodes.values()])
+        projected = np.dot(vector, (centroids-origin).T)
+        offsets = np.tile(vector, (len(centroids), 1)) * projected.reshape((-1,1))
+        for offset, node_key in zip(offsets, self.nodes.keys()):
+            current = self.transforms[node_key]
+            current[0:3,3] += offset
+            self.transforms[node_key] = current
+
     def show(self, block=True, **kwargs):
         from .viewer import SceneViewer
         def viewer():

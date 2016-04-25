@@ -5,12 +5,12 @@ from collections import deque
 from .util      import is_sequence, is_shape, tracked_array, Cache, DataStore
 from .constants import log
 
-COLORS = {'red'    : [205,59,34],
-          'purple' : [150,111,214],
-          'blue'   : [119,158,203],
-          'brown'  : [160,85,45]}
+COLORS = {'red'    : [205,59,34,255],
+          'purple' : [150,111,214,255],
+          'blue'   : [119,158,203,255],
+          'brown'  : [160,85,45,255]}
 COLOR_DTYPE = np.dtype(np.uint8)
-DEFAULT_COLOR = COLORS['purple']
+DEFAULT_COLOR = np.array(COLORS['purple'], dtype=COLOR_DTYPE)
 
 class VisualAttributes(object):
     '''
@@ -22,11 +22,11 @@ class VisualAttributes(object):
         self.mesh = mesh
 
         self._validate = True
-
         self._data = DataStore()
-        # cache computed values which are cleared when
-        # self.md5() changes, forcing a recompute
         self._cache = Cache(id_function = self._data.md5)
+
+        if dtype is None: 
+            dtype = COLOR_DTYPE
         self.dtype = dtype
 
         colors = _kwargs_to_color(mesh, **kwargs)
@@ -58,6 +58,11 @@ class VisualAttributes(object):
 
     @property
     def transparency(self):
+        '''
+        Returns
+        ------------
+        transparency: bool, does the visual attributes contain any transparency
+        '''
         cached = self._cache.get('transparency')
         if cached is not None: 
             return cached
@@ -78,13 +83,20 @@ class VisualAttributes(object):
 
     @property
     def face_colors(self):
-        cached = self._data['face_colors']
-        if not (is_sequence(cached) and
-                len(cached) == len(self.mesh.faces)):
-            log.debug('Returning default colors for faces')
-            self._data['face_colors'] = np.tile(DEFAULT_COLOR, 
-                                                (len(self.mesh.faces), 1))
-        return self._data['face_colors']
+        def ok(blob):
+            return is_shape(blob, (len(self.mesh.faces), (3,4)))
+
+        stored = self._data['face_colors']
+        cached = self._cache['face_colors']
+        if ok(stored):
+            return stored
+        elif ok(cached):
+            return cached
+        
+        log.debug('Returning default colors for faces.')
+        self._cache['face_colors'] = np.tile(DEFAULT_COLOR, 
+                                             (len(self.mesh.faces), 1))
+        return self._cache['face_colors']
 
     @face_colors.setter
     def face_colors(self, values):
@@ -97,19 +109,21 @@ class VisualAttributes(object):
 
     @property
     def vertex_colors(self):
+        def ok(blob):
+            return is_shape(blob, (len(self.mesh.vertices), (3,4)))
+
         stored = self._data['vertex_colors']
         cached = self._cache['vertex_colors']
-        if not (is_sequence(stored) and
-                len(stored) == len(self.mesh.vertices)):
-            log.debug('Vertex colors being generated from face colors')
-            cached = self._cache['vertex_colors']
-            if cached is None:
-                colors = face_to_vertex_color(self.mesh, self.face_colors)
-                self._cache['vertex_colors'] = colors
-                return colors
+        if ok(stored):
+            return stored
+        elif ok(cached):
             return cached
-        return stored
 
+        log.debug('Vertex colors being generated from face colors')
+        colors = face_to_vertex_color(self.mesh, self.face_colors)
+        self._cache['vertex_colors'] = colors
+        return colors
+   
     @vertex_colors.setter
     def vertex_colors(self, values):
         self._data['vertex_colors'] = rgba(values, dtype=self.dtype)
