@@ -98,6 +98,7 @@ class VisualAttributes(object):
     @property
     def vertex_colors(self):
         stored = self._data['vertex_colors']
+        cached = self._cache['vertex_colors']
         if not (is_sequence(stored) and
                 len(stored) == len(self.mesh.vertices)):
             log.debug('Vertex colors being generated from face colors')

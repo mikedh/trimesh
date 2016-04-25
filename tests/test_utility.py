@@ -2,17 +2,14 @@ import trimesh
 import unittest
 import logging
 import time
-from collections import deque
 import os
 import sys
 import inspect
 import numpy as np
 import json
+from collections import deque
 
-
-SCRIPT_DIR = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-MODELS_DIR = '../models'
-TEST_DIR   = os.path.abspath(os.path.join(SCRIPT_DIR, MODELS_DIR))
+import generic as g
 
 TEST_DIM = (100,3)
 TOL_ZERO  = 1e-9
@@ -83,121 +80,9 @@ class UtilTests(unittest.TestCase):
         modified.append(int(a.md5(), 16))
         self.assertTrue((np.diff(modified) == 0).all())
 
- 
-class MeshTests(unittest.TestCase):
-    def setUp(self):
-        meshes = deque()
-        for filename in os.listdir(TEST_DIR):
-            ext = os.path.splitext(filename)[-1][1:].lower() 
-            if not ext in trimesh.available_formats():
-                continue
-
-            log.info('Attempting to load %s', filename)
-            location = os.path.abspath(os.path.join(TEST_DIR, filename))
-            meshes.append(trimesh.load_mesh(location))
-            meshes[-1].metadata['filename'] = filename
-        self.meshes = list(meshes)
-
-    def test_meshes(self):
-
-        has_gt = trimesh.graph._has_gt
-        trimesh.graph._has_gt = False
-
-        if not has_gt:
-            log.warning('No graph-tool to test!')
-
-        log.info('Running tests on %d meshes', len(self.meshes))
-        for mesh in self.meshes:
-            log.info('Testing %s', mesh.metadata['filename'])
-            self.assertTrue(len(mesh.faces) > 0)
-            self.assertTrue(len(mesh.vertices) > 0)
-            
-            mesh.process()
-
-            tic = [time.time()]
-
-            if has_gt:
-                trimesh.graph._has_gt = True 
-                split     = trimesh.graph.split(mesh)
-                tic.append(time.time())
-                facets    = trimesh.graph.facets(mesh)
-                tic.append(time.time())
-                trimesh.graph._has_gt = False
-
-            split     = trimesh.graph.split(mesh) 
-            tic.append(time.time())
-            facets    = trimesh.graph.facets(mesh)
-            tic.append(time.time())
-
-            facets, area = mesh.facets(return_area=True)
-            if len(area) == 0:
-                log.warning('%s returned empty area!', 
-                            mesh.metadata['filename'])
-                continue
-            faces = facets[np.argmax(area)]
-            outline = mesh.outline(faces)
-            smoothed = mesh.smoothed()
-
-            if has_gt:
-                times = np.diff(tic)
-                log.info('Graph-tool sped up split by %f and facets by %f', 
-                         (times[2] / times[0]), (times[3] / times[1]))
-
-            self.assertTrue(mesh.volume > 0.0)
-                
-            section   = mesh.section(plane_normal=[0,0,1], plane_origin=mesh.centroid)
-            hull      = mesh.convex_hull
-
-            volume_ok = hull.volume > 0.0
-            if not volume_ok:
-                log.error('zero hull volume for %s', mesh.metadata['filename'])
-            self.assertTrue(volume_ok)
-
-            sample    = mesh.sample(1000)
-            even_sample = trimesh.sample.sample_surface_even(mesh, 100)
-            self.assertTrue(sample.shape == (1000,3))
-            log.info('finished testing meshes')
-
-
-    def test_hash(self):
-        count = 100
-        for mesh in self.meshes:
-            if not mesh.is_watertight: 
-                log.warning('Hashing non- watertight mesh (%s) produces garbage!',
-                         mesh.metadata['filename'])
-                continue
-            log.info('Hashing %s', mesh.metadata['filename'])
-            log.info('Trying hash at %d random transforms', count)
-            result = deque()
-            for i in range(count):
-                mesh.rezero()
-                matrix = trimesh.transformations.random_rotation_matrix()
-                matrix[0:3,3] = (np.random.random(3)-.5)*20
-                mesh.transform(matrix)
-                result.append(mesh.identifier)
-
-            ok = (np.abs(np.diff(result, axis=0)) < 1e-3).all()
-            if not ok:
-                log.error('Hashes on %s differ after transform! diffs:\n %s\n', 
-                          mesh.metadata['filename'],
-                          str(np.diff(result, axis=0)))
-            self.assertTrue(ok)
-
-    def test_fill_holes(self):
-        for mesh in self.meshes[:5]:
-            if not mesh.is_watertight: continue
-            mesh.faces = mesh.faces[1:-1]
-            self.assertFalse(mesh.is_watertight)
-            mesh.fill_holes()
-            self.assertTrue(mesh.is_watertight)
-            
-    def test_fix_normals(self):
-        for mesh in self.meshes[5:]:
-            mesh.fix_normals()
-
 class SceneTests(unittest.TestCase):
     def setUp(self):
-        filename = os.path.join(TEST_DIR, 'box.STL')
+        filename = os.path.join(g.dir_models, 'box.STL')
         mesh = trimesh.load(filename)
         split = mesh.split()
         scene = trimesh.scene.Scene(split)
@@ -209,13 +94,13 @@ class SceneTests(unittest.TestCase):
 
 class IOTest(unittest.TestCase):
     def test_dae(self):
-        a = trimesh.load_mesh(os.path.abspath(os.path.join(TEST_DIR, 
+        a = trimesh.load_mesh(os.path.abspath(os.path.join(g.dir_models, 
                                                            'ballA.off')))
         r = a.export(file_type='dae')
  
 class ContainsTest(unittest.TestCase):
     def setUp(self):
-        self.sphere = trimesh.load_mesh(os.path.abspath(os.path.join(TEST_DIR, 
+        self.sphere = trimesh.load_mesh(os.path.abspath(os.path.join(g.dir_models, 
                                                                      'unit_sphere.STL')))    
     def test_equal(self):
         samples = (np.random.random((1000,3))-.5)*5
@@ -232,8 +117,8 @@ class ContainsTest(unittest.TestCase):
 
 class BooleanTest(unittest.TestCase):
     def setUp(self):
-        self.a = trimesh.load_mesh(os.path.abspath(os.path.join(TEST_DIR, 'ballA.off')))
-        self.b = trimesh.load_mesh(os.path.abspath(os.path.join(TEST_DIR, 'ballB.off')))
+        self.a = trimesh.load_mesh(os.path.abspath(os.path.join(g.dir_models, 'ballA.off')))
+        self.b = trimesh.load_mesh(os.path.abspath(os.path.join(g.dir_models, 'ballB.off')))
     
     def test_boolean(self):
         if _QUICK: 
@@ -252,9 +137,7 @@ class BooleanTest(unittest.TestCase):
    
 class RayTests(unittest.TestCase):
     def setUp(self):
-        ray_filename = os.path.join(SCRIPT_DIR, 'ray_data.json')
-        with open(ray_filename, 'r') as f_obj: 
-            data = json.load(f_obj)
+        data = g.data['ray_data']
         self.meshes = [trimesh.load_mesh(location(f)) for f in data['filenames']]
         self.rays   = data['rays']
         self.truth  = data['truth']
@@ -301,15 +184,11 @@ class RayTests(unittest.TestCase):
 class MassTests(unittest.TestCase):
     def setUp(self):
         # inertia numbers pulled from solidworks
-
-        mass_filename = os.path.join(SCRIPT_DIR, 'mass_properties.json')
-
-        with open(mass_filename, 'r') as f_obj:
-            self.truth  = json.load(f_obj)
+        self.truth = g.data['mass_properties']
         self.meshes = dict()
         for data in self.truth:
             filename = data['filename']
-            location = os.path.abspath(os.path.join(TEST_DIR, filename))
+            location = os.path.abspath(os.path.join(g.dir_models, filename))
             self.meshes[filename] = trimesh.load_mesh(location)
 
     def test_mass(self):
@@ -330,7 +209,7 @@ class MassTests(unittest.TestCase):
             log.info('%i mass parameters confirmed for %s', parameter_count, truth['filename'])  
    
 def location(name):
-    return os.path.abspath(os.path.join(TEST_DIR, name))
+    return os.path.abspath(os.path.join(g.dir_models, name))
                 
 if __name__ == '__main__':
     trimesh.util.attach_to_log()
