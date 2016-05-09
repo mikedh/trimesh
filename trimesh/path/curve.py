@@ -1,6 +1,7 @@
 import numpy as np
 
 from ..constants import res_path as res
+from ..constants import tol_path as tol
 
 def discretize_bezier(points, count=None, scale=1.0):
     '''
@@ -37,6 +38,11 @@ def discretize_bezier(points, count=None, scale=1.0):
                              res.min_sections*len(points), 
                              res.max_sections*len(points)))
     result = compute(np.linspace(0.0, 1.0, count))
+
+    test =  np.sum((result[[0,-1]] - points[[0,-1]])**2, axis=1)
+    assert (test < tol.merge).all()
+    assert len(result) >= 2
+
     return result
 
 def discretize_bspline(control, knots, count=None, scale=1.0):

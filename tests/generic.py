@@ -1,3 +1,7 @@
+'''
+Module which contains all the imports and data available to unit tests
+'''
+
 import unittest
 import inspect
 import logging
@@ -11,6 +15,7 @@ import trimesh
 
 dir_current = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 dir_models  = os.path.join(dir_current, '../models')
+dir_2D      = os.path.join(dir_current, '../models/2D')
 dir_data    = os.path.join(dir_current, 'data')
 
 def _load_data():
@@ -24,7 +29,7 @@ def _load_data():
             data[name] = json.load(file_obj)
             
     data['model_paths'] = [os.path.join(dir_models, f) for f in os.listdir(dir_models)]
-
+    data['2D_files']    = [os.path.join(dir_2D, f) for f in os.listdir(dir_2D)]
     return data
 
 data = _load_data()

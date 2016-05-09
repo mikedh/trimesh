@@ -48,7 +48,7 @@ def extrude_polygon(polygon,
     
     # a sequence of zero- indexed faces, which will then be appended
     # with offsets to create the final mesh
-    faces_seq    = [faces, faces.copy()[:,::-1], vertical_faces]
+    faces_seq    = [faces[:,::-1], faces.copy(), vertical_faces]
     vertices_seq = [vertices_3D, (vertices_3D.copy() + [0.0, 0, height]), vertical]
 
     mesh = Trimesh(*append_faces(vertices_seq, faces_seq), process=True)

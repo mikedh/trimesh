@@ -77,8 +77,7 @@ def export_collada(mesh, file_obj=None):
     '''
     Export a mesh as collada, to filename
     '''
-    import os
-    import inspect
+    from ..templates import get_template
     from string import Template
     
     path_current = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))

@@ -22,6 +22,7 @@ from . import convex
 from . import remesh
 from . import bounds
 
+
 from .io.export    import export_mesh
 from .ray.ray_mesh import RayMeshIntersector, contains_points
 from .voxel        import Voxel
@@ -32,11 +33,11 @@ from .constants    import log, _log_time, tol
 try: from .scene import Scene
 except ImportError: log.warning('Mesh previewing unavailable!', exc_info=True)
 
-try: 
-    from .path.io.misc import faces_to_path
-    from .path.io.load import _create_path, load_path
-except ImportError:
-    log.warning('trimesh.path unavailable!', exc_info=True)
+#try: 
+from .path.io.misc import faces_to_path
+from .path.io.load import _create_path, load_path
+#except ImportError:
+#    log.warning('trimesh.path unavailable!', exc_info=True)
 
 class Trimesh(object):
     def __init__(self,
@@ -237,8 +238,8 @@ class Trimesh(object):
     def bounding_box(self):
         bounding_box = self._cache['bounding_box']
         if bounding_box is None:
-            from .primitives import Box
-            bounding_box = Box(box_center=self.bounds.mean(axis=0),
+            from . import primitives
+            bounding_box = primitives.Box(box_center=self.bounds.mean(axis=0),
                        box_extents=self.extents)
             self._cache['bounding_box'] = bounding_box
         return bounding_box
@@ -247,9 +248,9 @@ class Trimesh(object):
     def bounding_box_oriented(self):
         obb = self._cache['obb']
         if obb is None:
-            from .primitives import Box
+            from . import primitives
             to_origin, extents = bounds.oriented_bounds(self)
-            obb = Box(box_transform = np.linalg.inv(to_origin),
+            obb = primitives.Box(box_transform = np.linalg.inv(to_origin),
                       box_extents   = extents)
             self._cache['obb'] = obb
         return obb

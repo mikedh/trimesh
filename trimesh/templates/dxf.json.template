@@ -1,0 +1,7 @@
+{
+    "entities": "0\nSECTION\n2\nENTITIES\n${ENTITIES}0\nENDSEC", 
+    "footer": "0\nEOF\n", 
+    "header": "0\nSECTION\n2\nHEADER\n9\n$$ACADVER\n1\nAC1006\n9\n$$INSBASE\n10\n0.0\n20\n0.0\n30\n0.0\n9\n$$INSUNITS\n70\n$UNITS_CODE\n9\n$$EXTMIN\n$BOUNDS_MIN\n9\n$$EXTMAX\n$BOUNDS_MAX\n0\nENDSEC", 
+    "arc": "0\n$TYPE\n8\n$LAYER_NUMBER\n62\n$COLOR_NUMBER\n40\n$RADIUS\n50\n$ANGLE_MIN\n51\n$ANGLE_MAX\n$CENTER_POINT\n", 
+    "line": "0\n$TYPE\n5\n$NAME\n8\n$LAYER_NUMBER\n62\n$COLOR_NUMBER\n$POINTS\n"
+}

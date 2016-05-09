@@ -188,8 +188,16 @@ class Scene:
         if origin is None:
             origin = self.centroid
         centroids = np.array([self.meshes[i].centroid for i in self.nodes.values()])
-        projected = np.dot(vector, (centroids-origin).T)
-        offsets = np.tile(vector, (len(centroids), 1)) * projected.reshape((-1,1))
+
+        if np.shape(vector) == (3,):
+            vectors = np.tile(vector, (len(centroids), 1))
+            projected = np.dot(vector, (centroids-origin).T)
+            offsets = vectors * projected.reshape((-1,1))
+        elif isinstance(vector, float):
+            offsets = (centroids-origin) * vector
+        else:
+            raise ValueError('Explode vector must by (3,) or float')
+
         for offset, node_key in zip(offsets, self.nodes.keys()):
             current = self.transforms[node_key]
             current[0:3,3] += offset

@@ -19,8 +19,16 @@ def area(triangles, sum=True):
     '''
     Calculates the sum area of input triangles 
 
+    Arguments
+    ----------
     triangles: vertices of triangles (n,3,3)
-    returns:   area, (n)
+    sum:       bool, return summed area or individual triangle area
+    
+    Returns
+    ---------- 
+    area:
+        if sum: float, sum area of triangles
+        else:   (n,) float, individual area of triangles
     '''
     crosses = cross(triangles)
     area    = (np.sum(crosses**2, axis=1)**.5)*.5

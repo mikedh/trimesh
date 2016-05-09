@@ -220,8 +220,8 @@ def three_dimensionalize(points, return_2D=True):
     else:
         points: (n,3) set of points
     '''
-    points = np.array(points)
-    shape = points.shape
+    points = np.asanyarray(points)
+    shape  = points.shape
  
     if len(shape) != 2:
         raise ValueError('Points must be 2D array!')
@@ -743,7 +743,7 @@ def submesh(mesh,
         result     = result[watertight]
     return result
 
-def zero_pad(data, count):
+def zero_pad(data, count, right=True):
     '''
     Arguments
     --------
@@ -758,10 +758,13 @@ def zero_pad(data, count):
         return np.zeros(count)
     elif len(data) < count:
         padded = np.zeros(count)
-        padded[-len(data):] = data
+        if right:
+            padded[-len(data):] = data
+        else:
+            padded[:len(data)] = data
         return padded
     else: 
-        return data
+        return np.asanyarray(data)
 
 def format_json(data, digits=6):
     '''

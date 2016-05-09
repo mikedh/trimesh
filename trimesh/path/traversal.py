@@ -3,6 +3,7 @@ import networkx as nx
 
 from collections import deque
 
+from ..grouping  import unique_ordered
 from ..points    import unitize
 from ..constants import tol_path as tol
 from .util       import is_ccw
@@ -10,6 +11,7 @@ from .util       import is_ccw
 def vertex_graph(entities):
     '''
     Given a set of entity objects (which have node and closed attributes)
+    generate a 
     '''
     graph  = nx.Graph()
     closed = deque()
@@ -20,43 +22,67 @@ def vertex_graph(entities):
             graph.add_edges_from(entity.nodes, entity_index = index)
     return graph, np.array(closed)
     
-def edge_direction(a, b):
-    '''
-    Given two edges, find out whether the first edge needs to be
-    reversed to generate path
-    '''
-    if   a[0] == b[0]: return  1
-    elif a[0] == b[1]: return -1
-    elif a[1] == b[1]: return  1
-    elif a[1] == b[0]: return -1
-    else: 
-        raise ValueError('Can\'t determine direction, edges aren\'t connected!')
 
-def vertex_to_entity_path(vertex_path, graph, entities, vertices):
-    # vertex path contains 'nodes', which are always on the path,
-    # regardless of entity type. 
-    # this is essentially a very coarsely discretized polygon
-    # thus it is valid to compute if the path is counter-clockwise on these
-    # vertices relatively cheaply, and reverse the path if it is clockwise
-    ccw_check = vertices[np.append(vertex_path, vertex_path[0])]
-    ccw_dir = (is_ccw(ccw_check)*2) - 1
+def vertex_to_entity_path(vertex_path, graph, entities, vertices=None):
+    '''
+    Convert a path of vertex indices to a path of entity indices.
 
+    Arguments
+    ----------
+    vertex_path: (n,) int, list of vertex indicies
+    graph:       nx.Graph of the vertex connectivity
+    entities:    (m,) list of entity objects
+    vertices:    (p, d) float, list of vertices
+
+    Returns
+    ----------
+    entity_path: (q,) int, list of entity indices which make up vertex_path
+    '''
+    def edge_direction(a, b):
+        '''
+        Given two edges, figure out if the first needs to be reversed to 
+        keep the progression forward
+
+         [1,0] [1,2] -1
+         [1,0] [2,1] -1
+         [0,1] [1,2] 1
+         [0,1] [2,1] 1
+        '''
+        if a[0] == b[0]:
+            return -1
+        elif a[0] == b[1]:
+            return -1
+        elif a[1] == b[0]:
+            return 1
+        elif a[1] == b[1]:
+            return 1
+        else: 
+            raise ValueError('Can\'t determine direction, edges aren\'t connected!')
+
+    if vertices is None:
+        ccw_direction = 1
+    else:
+        ccw_check = is_ccw(vertices[np.append(vertex_path, vertex_path[0])])
+        ccw_direction = (ccw_check*2) - 1
+
+    # populate the list of entities
+    vertex_path = np.asanyarray(vertex_path)
     entity_path = deque()
-    for i in range(len(vertex_path)+1):
-        path_pos = np.mod(np.arange(2) + i, len(vertex_path))
-        vertex_index = np.array(vertex_path)[path_pos]
+    for i in np.arange(len(vertex_path)+1):
+        vertex_path_pos = np.mod(np.arange(2) + i, len(vertex_path))
+        vertex_index = vertex_path[vertex_path_pos]
         entity_index = graph.get_edge_data(*vertex_index)['entity_index']
-        if ((len(entity_path) == 0) or 
-            ((entity_path[-1] != entity_index) and 
-             (entity_path[0]  != entity_index))):
-            entity        = entities[entity_index]
-            direction     = edge_direction(vertex_index, entity.end_points) 
-            direction    *= ccw_dir
-            entity.points = entity.points[::direction]
-            entity_path.append(entity_index)
-    entity_path = np.array(entity_path)[::ccw_dir]
-    
-    
+        entity_path.append(entity_index)
+    # remove duplicate entities
+    entity_path = unique_ordered(entity_path)[::ccw_direction]
+
+    # traverse the entity path and reverse entities in place to align
+    # with this path ordering
+    round_trip = np.append(entity_path, entity_path[0])
+    for a,b in zip(round_trip[:-1], round_trip[1:]):
+        direction = edge_direction(entities[a].end_points,
+                                   entities[b].end_points)
+        entities[a].points = entities[a].points[::direction]
     return entity_path
 
 def connected_open(graph):
@@ -83,7 +109,8 @@ def closed_paths(entities, vertices):
     vertex_paths  = np.array(nx.cycles.cycle_basis(graph))
     
     for vertex_path in vertex_paths:
-        if len(vertex_path) < 2: continue
+        if len(vertex_path) < 2: 
+            continue
         entity_path = vertex_to_entity_path(vertex_path,
                                             graph, 
                                             entities, 

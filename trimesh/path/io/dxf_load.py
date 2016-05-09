@@ -64,6 +64,7 @@ def load_dxf(file_obj):
         points = angles_to_threepoint([0, np.pi], C[0:2], R)
         entities.append(Arc(points=(len(vertices) + np.arange(3)), closed=True))
         vertices.extend(points)
+
     def convert_arc(e_data):
         e = dict(e_data)
         R = float(e['40'])
@@ -125,10 +126,13 @@ def load_dxf(file_obj):
         log.warning('DXF doesn\'t have units specified!')
 
     # find the start points of entities
-    group_check = np.logical_or(entity_blob[:,0] == '0', 
-                                entity_blob[:,0] == '5')
-    inflection = np.nonzero(np.logical_and(group_check[:-1], 
-                                           group_check[:-1] == group_check[1:]))[0]
+    #group_check = np.logical_or(entity_blob[:,0] == '0', 
+    #                            entity_blob[:,0] == '5')
+    group_check = entity_blob[:,0] == '0'
+    inflection = np.nonzero(group_check)[0]
+
+    #inflection = np.nonzero(np.logical_and(group_check[:-1], 
+    #                                       group_check[:-1] == group_check[1:]))[0]
     loaders = {'LINE'       : convert_line,
                'LWPOLYLINE' : convert_polyline,
                'ARC'        : convert_arc,
@@ -145,7 +149,7 @@ def load_dxf(file_obj):
             else:
                 log.debug('Entity type %s not supported', entity_type)
             
-    result = {'vertices' : np.vstack(vertices).astype(np.float),
+    result = {'vertices' : np.vstack(vertices).astype(np.float64),
               'entities' : np.array(entities),
               'metadata' : metadata}
               

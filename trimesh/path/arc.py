@@ -47,14 +47,25 @@ def arc_center(points):
     if not intersects:
         raise ValueError('Segments do not intersect!')
 
-    radius        = euclidean(points[0], center)
-    vector_center = unitize(points[[0,2]] - center)
-    angle         = np.arccos(np.clip(np.dot(*vector_center), -1.0, 1.0))
-    large_arc     = np.dot(*edge_direction)
-    if (abs(angle) > tol.zero) and (large_arc < 0.0): 
+    radius  = euclidean(points[0], center)
+    vector  = unitize(points - center)
+    angle   = np.arccos(np.clip(np.dot(*vector[[0,2]]), -1.0, 1.0))
+    large_arc = (abs(angle) > tol.zero and 
+                 np.dot(*edge_direction) < 0.0)
+    if large_arc:
         angle = (np.pi*2) - angle
 
-    return center[:(3-is_2D)], radius, plane_normal, angle
+    angles = np.arctan2(*vector[:,0:2].T[::-1]) + np.pi*2
+    angles_sorted = np.sort(angles[[0,2]])
+    reverse  = angles_sorted[0] < angles[1] < angles_sorted[1]
+    angles_sorted = angles_sorted[::(1 - int(not reverse)*2)]
+
+    result = {'center' : center[:(3-is_2D)], 
+              'radius' : radius, 
+              'normal' : plane_normal, 
+              'span'   : angle, 
+              'angles' : angles_sorted}
+    return result
 
 def discretize_arc(points, close = False, scale=1.0):
     '''
@@ -72,7 +83,11 @@ def discretize_arc(points, close = False, scale=1.0):
             points[0] to points[2], going through control point points[1]
     '''
     two_dimensional, points = three_dimensionalize(points, return_2D = True)
-    center, R, N, angle = arc_center(points)
+    center_info = arc_center(points)
+    center, R, N, angle = (center_info['center'],
+                           center_info['radius'],
+                           center_info['normal'],
+                           center_info['span'])
     if close: angle = np.pi * 2
     
     #the number of facets, based on the angle critera

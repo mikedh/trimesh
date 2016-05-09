@@ -271,18 +271,20 @@ def k_means(points, k, **kwargs):
 def plot_points(points, show=True):    
     import matplotlib.pyplot as plt
 
-    dimension = np.shape(points)[1]    
+    points = np.asanyarray(points)
+    dimension = points.shape[1]    
     if dimension == 3:
         from mpl_toolkits.mplot3d import Axes3D
         fig = plt.figure()
         ax  = fig.add_subplot(111, projection='3d')
-        ax.scatter(*np.array(points).T)
+        ax.scatter(*points.T)
     elif dimension == 2:
-        plt.scatter(*np.array(points).T)
+        plt.scatter(*points.T)
     else:
         raise ValueError('Points must be 2D or 3D, not %dD', dimension)
 
-    if show: plt.show()
+    if show: 
+        plt.show()
 
 class PointCloud(TrackedArray):
     '''

@@ -49,7 +49,7 @@ def polygons_obb(polygons):
     transforms = [None] * len(polygons)
     for i, p in enumerate(polygons):
         transforms[i], rectangles[i] = polygon_obb(p)
-    return np.array(rectangles), np.array(transforms)
+    return np.array(transforms), np.array(rectangles)
     
 def polygon_obb(polygon):
     '''
@@ -354,7 +354,9 @@ def repair_invalid(polygon, scale=None):
         
     '''
     # if the polygon is already valid, return immediately
-    if polygon.is_valid:
+    if is_sequence(polygon):
+        pass
+    elif polygon.is_valid:
         return polygon
 
     # basic repair involves buffering the polygon outwards

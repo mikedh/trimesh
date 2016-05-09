@@ -24,25 +24,26 @@ def oriented_bounds_2D(points):
     rectangle: (2,) float, size of extents once input points are transformed by transform
     '''
     c = ConvexHull(np.asanyarray(points))
-    hull = c.points[c.simplices]
+    # (n,2,3) line segments
+    hull = c.points[c.simplices] 
+    # (3,n) points on the hull to check against
+    dot_test = c.points[c.vertices].reshape((-1,2)).T
     edge_vectors = unitize(np.diff(hull, axis=1).reshape((-1,2)))
     perp_vectors = np.fliplr(edge_vectors) * [-1.0,1.0]
     bounds = np.zeros((len(edge_vectors), 4))
-    dt = c.points[c.vertices].reshape((-1,2)).T
-
     for i, edge, perp in zip(range(len(edge_vectors)),
                              edge_vectors, 
                              perp_vectors):
-        a = np.dot(edge, dt)
-        b = np.dot(perp, dt)
-        bounds[i] = [a.min(), b.min(), a.max(), b.max()]
+        x = np.dot(edge, dot_test)
+        y = np.dot(perp, dot_test)
+        bounds[i] = [x.min(), y.min(), x.max(), y.max()]
 
-    extents = np.diff(bounds.reshape((-1,2,2)), axis=1).reshape((-1,2))
-    area = np.product(extents, axis=1)
+    extents  = np.diff(bounds.reshape((-1,2,2)), axis=1).reshape((-1,2))
+    area     = np.product(extents, axis=1)
     area_min = area.argmin()
 
     offset = -bounds[area_min][0:2]
-    theta = np.arctan2(*edge_vectors[area_min][::-1])
+    theta  = np.arctan2(*edge_vectors[area_min][::-1])
 
     transform = transformation_2D(offset, theta)
     rectangle = extents[area_min]
@@ -58,7 +59,8 @@ def oriented_bounds(mesh, angle_tol=1e-6):
     mesh: Trimesh object
     angle_tol: float, angle in radians that OBB can be away from minimum volume
                solution. Even with large values the returned extents will cover
-               the mesh. Larger numbers may experience substantial speedups. 
+               the mesh albeit with larger than minimal volume. 
+               Larger values may experience substantial speedups. 
                Acceptable values are floats >= 0.0.
                The default is small (1e-6) but non-zero.
 
@@ -68,6 +70,10 @@ def oriented_bounds(mesh, angle_tol=1e-6):
                bounding box of the input mesh to the origin. 
     extents: (3,) float, the extents of the mesh once transformed with to_origin
     '''
+    # this version of the cached convex hull has normals pointing in 
+    # arbitrary directions (straight from qhull)
+    # using this avoids having to compute the expensive corrected normals
+    # that mesh.convex_hull uses since normal directions don't matter here
     hull = mesh._convex_hull_raw
     vectors = group_vectors(hull.face_normals, 
                             angle=angle_tol,
@@ -82,7 +88,6 @@ def oriented_bounds(mesh, angle_tol=1e-6):
         height = projected[:,2].ptp()
         rotation_2D, box = oriented_bounds_2D(projected[:,0:2])
         volume = np.product(box) * height
-        toc = time.time()
         if volume < min_volume:
             min_volume = volume
             rotation_2D[0:2,2] = 0.0
