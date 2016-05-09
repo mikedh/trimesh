@@ -75,13 +75,13 @@ def export_off(mesh, file_obj=None):
 
 def export_collada(mesh, file_obj=None):
     '''
-    Export a mesh as collada, to filename
+    Export a mesh as a COLLADA file.
     '''
     from ..templates import get_template
     from string import Template
-    
-    path_current = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-    path_template = os.path.join(path_current, '../templates/collada.dae.template')
+
+    template_string = get_template('collada.dae.template').decode('utf-8')    
+    template = Template(template_string)
 
     # we bother setting this because np.array2string uses these printoptions 
     np.set_printoptions(threshold=np.inf, precision=5, linewidth=np.inf)
@@ -93,8 +93,6 @@ def export_collada(mesh, file_obj=None):
     replacement['VCOUNTX3'] = str(len(mesh.vertices) * 3)
     replacement['FCOUNT']   = str(len(mesh.faces))
     
-    with open(path_template, 'rb') as template_obj:
-        template = Template(template_obj.read().decode('utf-8'))
     export = template.substitute(replacement)
     result = _write_export(export, file_obj)
     return result

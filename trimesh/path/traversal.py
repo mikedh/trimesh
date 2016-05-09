@@ -43,19 +43,19 @@ def vertex_to_entity_path(vertex_path, graph, entities, vertices=None):
         Given two edges, figure out if the first needs to be reversed to 
         keep the progression forward
 
-         [1,0] [1,2] -1
-         [1,0] [2,1] -1
-         [0,1] [1,2] 1
-         [0,1] [2,1] 1
+         [1,0] [1,2] -1  1
+         [1,0] [2,1] -1 -1
+         [0,1] [1,2]  1  1
+         [0,1] [2,1]  1 -1
         '''
         if a[0] == b[0]:
-            return -1
+            return -1, 1
         elif a[0] == b[1]:
-            return -1
+            return -1, -1
         elif a[1] == b[0]:
-            return 1
+            return 1, 1
         elif a[1] == b[1]:
-            return 1
+            return 1, -1
         else: 
             raise ValueError('Can\'t determine direction, edges aren\'t connected!')
 
@@ -79,10 +79,12 @@ def vertex_to_entity_path(vertex_path, graph, entities, vertices=None):
     # traverse the entity path and reverse entities in place to align
     # with this path ordering
     round_trip = np.append(entity_path, entity_path[0])
-    for a,b in zip(round_trip[:-1], round_trip[1:]):
-        direction = edge_direction(entities[a].end_points,
-                                   entities[b].end_points)
-        entities[a].points = entities[a].points[::direction]
+    round_trip = zip(round_trip[:-1], round_trip[1:])
+    for a,b in round_trip:
+        da, db = edge_direction(entities[a].end_points,
+                                entities[b].end_points)
+        entities[a].points = entities[a].points[::da]
+        entities[b].points = entities[b].points[::db]
     return entity_path
 
 def connected_open(graph):

@@ -9,9 +9,9 @@ class DXFTest(g.unittest.TestCase):
         for p in self.single:
             p.vertices /= p.scale
             p.export(file_obj='res.dxf')
-            r = trimesh.load('res.dxf')
+            r = g.trimesh.load('res.dxf')
             ratio = abs(p.area - r.area) / p.area
-            assert ratio < trimesh.constants.tol.merge
+            assert ratio < .001
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

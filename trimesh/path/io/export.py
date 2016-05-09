@@ -65,7 +65,11 @@ def export_svg(drawing):
         '''
         vertices = points[arc.points[::((reverse*-2) + 1)]]        
         vertex_start, vertex_mid, vertex_end = vertices
-        C, R, N, angle = arc_center(vertices)
+        center_info = arc_center(vertices)
+        C, R, N, angle = (center_info['center'],
+                          center_info['radius'],
+                          center_info['normal'],
+                          center_info['span'])
         if arc.closed: return circle_to_svgpath(C, R, reverse)
         large_flag = str(int(angle > np.pi))
         sweep_flag = str(int(np.cross(vertex_mid-vertex_start, 

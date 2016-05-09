@@ -104,7 +104,12 @@ class ArcTests(unittest.TestCase):
     def test_center(self):
         points                 = self.test_points[0]
         res_center, res_radius = self.test_results[0]
-        C, R, N, angle = vector.arc.arc_center(points)
+        center_info = vector.arc.arc_center(points)
+        C, R, N, angle = (center_info['center'],
+                          center_info['radius'],
+                          center_info['normal'],
+                          center_info['span'])
+
         self.assertTrue(abs(R-res_radius) < tol.zero)
         self.assertTrue(euclidean(C, res_center) < tol.zero)
 

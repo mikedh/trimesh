@@ -138,7 +138,11 @@ def arc_march(points, scale=None):
         # to the list of arcs if they pass
         points_id = np.array(points_id)
         try:
-            C, R, N, A = arc_center(points[three_point(points_id)])
+            center_info = arc_center(points)
+            C, R, N, A = (center_info['center'],
+                          center_info['radius'],
+                          center_info['normal'],
+                          center_info['span'])
         except ValueError:
             return
 

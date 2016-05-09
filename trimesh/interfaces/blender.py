@@ -1,11 +1,11 @@
-from .generic import MeshScript
+from .generic    import MeshScript
+from ..templates import get_template
 
 from distutils.spawn import find_executable
 
-import inspect
-import os
-
 _blender_executable = find_executable('blender')
+_blender_template = get_template('blender.py.template').decode('utf-8')
+
 exists = _blender_executable is not None
 
 def boolean(meshes, operation='difference'):
@@ -15,9 +15,7 @@ def boolean(meshes, operation='difference'):
     if operation == 'INTERSECTION': 
         operation = 'INTERSECT'
 
-    current = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-    script = open(os.path.join(current, '../templates/blender.py.template'),'rb').read()
-    script = script.replace('$operation', operation)
+    script = _blender_template.replace('$operation', operation)
   
     with MeshScript(meshes = meshes, 
                     script = script) as blend:

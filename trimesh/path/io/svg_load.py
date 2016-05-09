@@ -1,7 +1,7 @@
 import numpy as np
 
 from ...constants import log
-from ..entities  import Line, Arc, Bezier, arc_center
+from ..entities  import Line, Arc, Bezier
 
 from collections import deque
 from xml.dom.minidom import parseString as parse_xml

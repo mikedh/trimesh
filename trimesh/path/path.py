@@ -543,24 +543,11 @@ class Path2D(Path):
                 if candidate is None: 
                     continue
                 if type(candidate).__name__ == 'MultiPolygon':
-                    print 'FUCK'
-                    print path
-                
-                    import matplotlib.pyplot as plt
-                    plt.plot(*discrete.T)
-                    plt.show()
                     area_ok = np.array([i.area for i in candidate]) > tol.zero
-                    #if area_ok.sum() == 1:
-                    #    candidate = candidate[np.nonzero(area_ok)[0][0]]
-                    #for i in candidate:
-                    f = []
-                    for eid in path:
-                        dis = self.entities[eid].discrete(self.vertices)
-                        plt.plot(*dis.T)
-                        f.append(dis[0])
-
-                    plt.scatter(*np.array(f).T)
-                    plt.show()
+                    if area_ok.sum() == 1:
+                        candidate = candidate[np.nonzero(area_ok)[0][0]]
+                    else:
+                        continue
                 if not candidate.exterior.is_ccw:
                     log.debug('Clockwise polygon detected, correcting!')
                     self.paths[i] = reverse_path(path)

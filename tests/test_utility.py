@@ -114,26 +114,6 @@ class ContainsTest(unittest.TestCase):
         
         assert contains[truth_in].all()
         assert not contains[truth_out].any()
-
-class BooleanTest(unittest.TestCase):
-    def setUp(self):
-        self.a = trimesh.load_mesh(os.path.abspath(os.path.join(g.dir_models, 'ballA.off')))
-        self.b = trimesh.load_mesh(os.path.abspath(os.path.join(g.dir_models, 'ballB.off')))
-    
-    def test_boolean(self):
-        if _QUICK: 
-            return
-        a, b = self.a, self.b
-
-        for engine in ['scad', 'blender']:
-            log.info('Testing boolean ops with engine %s', engine)
-
-            d = a.difference(b, engine=engine)
-            self.assertTrue(d.is_watertight)
-            i = a.intersection(b, engine=engine)
-            self.assertTrue(i.is_watertight)
-            u = a.union(b, engine=engine)
-            self.assertTrue(u.is_watertight)
    
 class RayTests(unittest.TestCase):
     def setUp(self):
