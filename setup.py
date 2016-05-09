@@ -41,6 +41,7 @@ setup(name = 'trimesh',
           'trimesh.path',
           'trimesh.path.io',
           'trimesh.scene',
+          'trimesh.templates',
           'trimesh.interfaces'],
       package_data={'trimesh' : ['templates/*.template']},
       install_requires = [
