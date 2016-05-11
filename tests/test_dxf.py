@@ -8,8 +8,8 @@ class DXFTest(g.unittest.TestCase):
     def test_export(self):
         for p in self.single:
             p.vertices /= p.scale
-            p.export(file_obj='res.dxf')
-            r = g.trimesh.load('res.dxf')
+            p.export(file_obj='temp.dxf')
+            r = g.trimesh.load('temp.dxf')
             ratio = abs(p.area - r.area) / p.area
             assert ratio < .001
 

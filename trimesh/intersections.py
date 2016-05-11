@@ -69,7 +69,7 @@ def plane_line_intersection(plane_origin,
     # If the plane normal and line direction are perpendicular, it means
     # the vector is 'on plane', and there isn't a valid intersection.
     # We discard on-plane vectors by checking that the dot product is nonzero
-    valid = np.abs(b) > tol.merge
+    valid = np.abs(b) > tol.zero
     if line_segments:
         test = np.dot(plane_normal, np.transpose(plane_origin - endpoints[1]))
         different_sides = np.sign(t) != np.sign(test)

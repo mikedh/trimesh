@@ -33,11 +33,11 @@ from .constants    import log, _log_time, tol
 try: from .scene import Scene
 except ImportError: log.warning('Mesh previewing unavailable!', exc_info=True)
 
-#try: 
-from .path.io.misc import faces_to_path
-from .path.io.load import _create_path, load_path
-#except ImportError:
-#    log.warning('trimesh.path unavailable!', exc_info=True)
+try: 
+    from .path.io.misc import faces_to_path
+    from .path.io.load import _create_path, load_path
+except ImportError:
+    log.warning('trimesh.path unavailable!', exc_info=True)
 
 class Trimesh(object):
     def __init__(self,
