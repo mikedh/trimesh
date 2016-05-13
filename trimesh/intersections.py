@@ -24,11 +24,23 @@ def mesh_plane_intersection(mesh,
     if plane_origin is None: 
         plane_origin = [0,0,0]
 
-    edges = np.sort(faces_to_edges(mesh.faces), axis=1)
     intersections, valid  = plane_line_intersection(plane_origin, 
                                                     plane_normal, 
-                                                    mesh.vertices[edges.T],
+                                                    mesh.vertices[mesh.edges_sorted.T],
                                                     line_segments = True)
+
+    # verify that edges intersecting the mesh are 2 two a face
+    new_valid = valid.copy().reshape((-1,3))
+    row_bad   = new_valid.sum(axis=1) != 2
+    new_valid[row_bad] = False
+    new_valid = new_valid.reshape(-1)
+
+    mask = np.ones(len(valid), dtype=np.bool)
+    mask[np.logical_not(new_valid)] = False
+
+    intersections_mask = mask[valid]
+    intersections = intersections[intersections_mask]
+
     log.debug('mesh_cross_section found %i intersections', len(intersections))
     if return_planar:
         return project_to_plane(intersections.reshape((-1,3)),
@@ -73,8 +85,8 @@ def plane_line_intersection(plane_origin,
     if line_segments:
         test = np.dot(plane_normal, np.transpose(plane_origin - endpoints[1]))
         different_sides = np.sign(t) != np.sign(test)
-        nonzero = np.logical_or(np.abs(t) > tol.merge,
-                                np.abs(test) > tol.merge)
+        nonzero = np.logical_or(np.abs(t) > tol.zero,
+                                np.abs(test) > tol.zero)
         valid = np.logical_and(valid, different_sides)
         valid = np.logical_and(valid, nonzero)
 

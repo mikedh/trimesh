@@ -415,11 +415,19 @@ class Trimesh(object):
         cached = self._cache['edges_unique']
         if cached is not None:
             return cached
-        edges_sorted = np.sort(self.edges, axis=1)
-        unique = grouping.unique_rows(edges_sorted)[0]
+        unique = grouping.unique_rows(self.edges_sorted)[0]
         edges_unique = edges_sorted[unique]
         self._cache['edges_unique'] = edges_unique
         return edges_unique
+        
+    @property
+    def edges_sorted(self):
+        cached = self._cache['edges_sorted']
+        if cached is not None:
+            return cached
+        edges_sorted = np.sort(self.edges, axis=1)
+        self._cache['edges_sorted'] = edges_sorted
+        return edges_sorted
 
     @property
     def euler_number(self):

@@ -12,7 +12,13 @@ import numpy as np
 
 from collections import deque
 
-
+try: 
+    import meshpy.triangle as triangle
+except ImportError: pass
+try:
+    from shapely.geometry import Polygon
+except ImportError: pass
+    
 def extrude_polygon(polygon, 
                     height,
                     fix_normals=True,
@@ -82,8 +88,6 @@ def triangulate_polygon(polygon, **kwargs):
     mesh_vertices: (n, 2) float array of 2D points
     mesh_faces:    (n, 3) int array of vertex indicies representing triangles
     '''
-    import meshpy.triangle as triangle
-    from shapely.geometry import Polygon
 
     def round_trip(start, length):
         '''

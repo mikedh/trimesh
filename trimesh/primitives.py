@@ -144,7 +144,10 @@ class Box(Primitive):
 
     @box_transform.setter
     def box_transform(self, matrix):
-        self._data['box_transform'] = np.asanyarray(matrix, dtype=np.float64)
+        matrix = np.asanyarray(matrix, dtype=np.float64)
+        if matrix.shape != (4,4):
+            raise ValueError('Matrix must be (4,4)!')
+        self._data['box_transform'] = matrix
 
     @property
     def is_oriented(self):
@@ -173,9 +176,26 @@ class Box(Primitive):
 def Extrusion(Primitive):
     def __init__(self, *args, **kwargs):
         super(Box, self).__init__(*args, **kwargs)
-        if 'extrude_path' in kwargs:
-            self.extrude_path = kwargs['extrude_path']
+        if 'extrude_polygon' in kwargs:
+            self.extrude_polygon   = kwargs['extrude_polygon']
         if 'extrude_transform' in kwargs:
             self.extrude_transform = kwargs['extrude_transform']
         if 'extrude_height' in kwargs:
-            self.extrude_height = kwargs['extrude_height']
+            self.extrude_height    = kwargs['extrude_height']
+            
+    @property
+    def extrude_transform(self):
+        stored = self._data['extrude_transform']
+        if np.shape(stored) == (4,4):
+            return stored
+        return np.eye(4)
+
+    @extrude_transform.setter
+    def extrude_transform(self, matrix):
+        matrix = np.asanyarray(matrix, dtype=np.float64)
+        if matrix.shape != (4,4):
+            raise ValueError('Matrix must be (4,4)!')
+        self._data['extrude_transform'] = matrix
+            
+            
+            

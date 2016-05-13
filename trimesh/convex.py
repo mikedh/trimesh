@@ -50,7 +50,7 @@ def convex_hull(mesh, clean=True):
         convex.fix_normals()
     return convex
 
-def is_convex(mesh):
+def is_convex(mesh, chunks=None):
     '''
     Test if a mesh is convex by projecting the vertices of 
     a triangle onto the normal of its adjacent face.
@@ -63,8 +63,12 @@ def is_convex(mesh):
     ----------
     convex: bool, is the mesh convex or not
     '''
+    chunk_block = 5e4
+    if chunks is None:
+        chunks = int(np.clip(len(mesh.faces) / chunk_block,1,10))
+
     # triangles from the second column of face adjacency
-    triangles = mesh.triangles[mesh.face_adjacency[:,1]]
+    triangles = mesh.triangles.copy()[mesh.face_adjacency[:,1]]
     # normals and origins from the first column of face adjacency
     normals = mesh.face_normals[mesh.face_adjacency[:,0]]
     origins = mesh.vertices[mesh.face_adjacency_edges[:,0]]
@@ -73,18 +77,26 @@ def is_convex(mesh):
     triangles = triangles.reshape((-1,3))
     normals = np.tile(normals, (1,3)).reshape((-1,3))
     origins = np.tile(origins, (1,3)).reshape((-1,3))
-    # project vertices of adjacent triangle onto normal
-    # note that two of these are always going to be zero so we 
-    # are doing more dot products than we really have to but finding
-    # the index of the the third vertex through graph op is way slower 
-    # than doing extra dot products. 
-    # there is probably a clever way to use the winding to get this forfree
-    dots = diagonal_dot(triangles-origins, normals)
-    # if all projections are negative, or 'behind' the triangle
-    # the mesh is convex
-    convex = bool((dots < tol.zero).all())    
-    return convex
+    triangles -= origins
 
+    # in non- convex meshes, we don't necessarily have to compute all 
+    # dots of every face since we are looking for logical ALL
+    for chunk_tri, chunk_norm in zip(np.array_split(triangles, chunks),
+                                     np.array_split(normals,   chunks)):
+        # project vertices of adjacent triangle onto normal
+        # note that two of these are always going to be zero so we 
+        # are doing more dot products than we really have to but finding
+        # the index of the the third vertex through graph op is way slower 
+        # than doing extra dot products. 
+        # there is probably a clever way to use the winding to get this forfree
+        dots = diagonal_dot(chunk_tri, chunk_norm)
+        # if all projections are negative, or 'behind' the triangle
+        # the mesh is convex
+        if not bool((dots < tol.merge).all()):
+            return False
+    return True
+        
+    
 def planar_hull(points, normal, origin=None, input_convex=False):
     '''
     Find the convex outline of a set of points projected to a plane.
