@@ -215,7 +215,18 @@ def unique_rows(data, digits=None):
                                          return_index   = True, 
                                          return_inverse = True)
     return unique, inverse
-
+    
+def unique_value_in_row(data, unique=None):
+    if unique is None:
+        unique = np.unique(data)
+    data = np.asanyarray(data)
+    result = np.zeros_like(data, dtype=np.bool, subok=False)
+    for value in unique:
+        test = np.equal(data, value)
+        test_ok = test.sum(axis=1) == 1
+        result[test_ok] = test[test_ok]
+    return result
+    
 def group_rows(data, require_count = None, digits = None):
     '''
     Returns index groups of duplicate rows, for example:

@@ -4,7 +4,7 @@ import time
 from ..util            import Cache
 from ..points          import unitize
 from ..grouping        import unique_rows
-from ..intersections   import plane_line_intersection
+from ..intersections   import plane_lines
 from .ray_triangle_cpu import rays_triangles_id
 
 class RayMeshIntersector:
@@ -211,10 +211,10 @@ def ray_triangle_locations(triangles,
             origin  = triangles[tri_index][0]
             normal  = tri_normals[tri_index]
             segment = ray_segments[:,r,:].reshape((2,-1,3))
-            point, ok = plane_line_intersection(plane_origin  = origin,
-                                                plane_normal  = normal,
-                                                endpoints     = segment,
-                                                line_segments = False)
+            point, ok = plane_lines(plane_origin  = origin,
+                                   plane_normal  = normal,
+                                   endpoints     = segment,
+                                   line_segments = False)
             if ok:
                 valid[i] = True
                 group_locations[i] = point

@@ -786,10 +786,10 @@ class Trimesh(object):
         ---------
         intersections: Path3D of intersections             
         '''
-        segments = intersections.mesh_plane_intersection(mesh         = self, 
-                                                         plane_normal = plane_normal, 
-                                                         plane_origin = plane_origin)
-        path     = load_path(segments)
+        lines = intersections.mesh_plane(mesh = self, 
+                                         plane_normal = plane_normal, 
+                                         plane_origin = plane_origin)
+        path = load_path(lines)
         return path
 
     @property

@@ -21,8 +21,8 @@ if __name__ == '__main__':
     # this takes the (2,3) bounding box and slices it into [minz, maxz]
     z_extents = mesh.bounds[:,2]
 
-    # slice every .1 model units (eg, inches)
-    z_levels  = np.arange(*z_extents, step=.1)
+    # slice every .125 model units (eg, inches)
+    z_levels  = np.arange(*z_extents, step=.125)
 
     # create an array to hold the section objects
     sections  = [None] * len(z_levels)
