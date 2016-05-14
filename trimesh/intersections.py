@@ -1,9 +1,8 @@
 import numpy as np
 
 from .constants import log, tol
-from .geometry  import faces_to_edges
 from .grouping  import unique_value_in_row
-from .points    import unitize, project_to_plane 
+from .points    import unitize
 
 def mesh_plane(mesh, 
                plane_normal,

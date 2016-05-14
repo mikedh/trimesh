@@ -217,6 +217,44 @@ def unique_rows(data, digits=None):
     return unique, inverse
     
 def unique_value_in_row(data, unique=None):
+    '''
+    For a 2D array of integers find the position of a value in each
+    row which only occurs once. If there are more than one value per
+    row which occur once, the last one is returned.
+    
+    Arguments
+    ----------
+    data:   (n,d) int
+    unique: (m) int, list of unique values contained in data.
+             speedup purposes only, generated from np.unique if not passed
+
+    Returns
+    ---------
+    result: (n,d) bool, with one or zero True values per row.
+
+
+    Example
+    -------------------------------------
+    In [0]: r = np.array([[-1,  1,  1],
+                          [-1,  1, -1],
+                          [-1,  1,  1],
+                          [-1,  1, -1],
+                          [-1,  1, -1]], dtype=np.int8)
+
+    In [1]: unique_value_in_row(r)
+    Out[1]: 
+           array([[ True, False, False],
+                  [False,  True, False],
+                  [ True, False, False],
+                  [False,  True, False],
+                  [False,  True, False]], dtype=bool)
+
+    In [2]: unique_value_in_row(r).sum(axis=1)
+    Out[2]: array([1, 1, 1, 1, 1])
+
+    In [3]: r[unique_value_in_row(r)]
+    Out[3]: array([-1,  1, -1,  1,  1], dtype=int8)
+    '''
     if unique is None:
         unique = np.unique(data)
     data = np.asanyarray(data)
