@@ -4,6 +4,7 @@ Create meshes from primitives, or with operations.
 
 from .base      import Trimesh
 from .constants import log
+from .triangles import normals
 from .geometry  import faces_to_edges
 from .grouping  import group_rows, unique_rows
 from .util      import three_dimensionalize, append_faces
@@ -18,7 +19,6 @@ except ImportError: pass
     
 def extrude_polygon(polygon, 
                     height,
-                    fix_normals=True,
                     **kwargs):
     '''
     Turn a shapely.geometry Polygon object and a height (float)
@@ -26,13 +26,19 @@ def extrude_polygon(polygon,
     '''
     # create a 2D triangulation of the shapely polygon
     vertices, faces = triangulate_polygon(polygon, **kwargs)
+
+    # make sure triangulation winding is pointing up
+    normal_test = normals([three_dimensionalize(vertices[faces[0]])[1]])[0]
+    if np.dot(normal_test, [0,0,1]) < 0:
+        faces = np.fliplr(faces)
     
     # stack the (n,3) faces into (3*n, 2) edges
-    edges = np.sort(faces_to_edges(faces), axis=1)
+    edges = faces_to_edges(faces)
+    edges_sorted = np.sort(edges, axis=1)
     # edges which only occur once are on the boundary of the polygon
     # since the triangulation may have subdivided the boundary of the
     # shapely polygon, we need to find it again
-    edges_unique = group_rows(edges, require_count = 1)
+    edges_unique = group_rows(edges_sorted, require_count = 1)
 
     # (n, 2, 2) set of line segments (positions, not references)
     boundary = vertices[edges[edges_unique]]
@@ -42,7 +48,7 @@ def extrude_polygon(polygon,
     vertical = np.tile(boundary.reshape((-1,2)), 2).reshape((-1,2))
     vertical = np.column_stack((vertical, 
                                 np.tile([0,height,0,height], len(boundary))))
-    vertical_faces  = np.tile([0,1,2,2,1,3], (len(boundary), 1))
+    vertical_faces  = np.tile([3,1,2,2,1,0], (len(boundary), 1))
     vertical_faces += np.arange(len(boundary)).reshape((-1,1)) * 4
     vertical_faces  = vertical_faces.reshape((-1,3))
 
@@ -55,9 +61,7 @@ def extrude_polygon(polygon,
     vertices_seq = [vertices_3D, (vertices_3D.copy() + [0.0, 0, height]), vertical]
 
     mesh = Trimesh(*append_faces(vertices_seq, faces_seq), process=True)
-    # the winding and normals of our mesh are arbitrary, although now we are
-    # watertight so we can traverse the mesh and fix winding and normals 
-    if fix_normals: mesh.fix_normals()
+
     return mesh
 
 def triangulate_polygon(polygon, **kwargs):
@@ -168,20 +172,23 @@ def triangulate_polygon(polygon, **kwargs):
 
 def box():
     '''
-    Create a unit cube, centered at the origin with edges of length 1.0
+    Return a unit cube, centered at the origin with edges of length 1.0
     '''
     vertices = [0,0,0,0,0,1,0,1,0,0,1,1,1,0,0,1,0,1,1,1,0,1,1,1] 
     vertices = np.array(vertices, dtype=np.float64).reshape((-1,3))
     vertices -= 0.5
+
     faces = [1,3,0,4,1,0,0,3,2,2,4,0,1,7,3,5,1,4,
              5,7,1,3,7,2,6,4,2,2,7,6,6,5,4,7,5,6] 
     faces = np.array(faces, dtype=np.int64).reshape((-1,3))
-    #face_normals = [0,0,-1,-1,0,0,0,0,-1,0,0,0,0,0,0,-1,0,
-    #                0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,1,0,0,1]
-    #face_normals = np.array(face_normals, dtype=np.float64).reshape(-1,3)
+
+    face_normals = [-1,0,0,0,-1,0,-1,0,0,0,0,-1,0,0,1,0,-1,
+                    0,0,0,1,0,1,0,0,0,-1,0,1,0,1,0,0,1,0,0]
+    face_normals = np.array(face_normals, dtype=np.float64).reshape(-1,3)
+
     box = Trimesh(vertices = vertices, 
-                  faces = faces)#, 
-                  #face_normals = face_normals)
+                  faces = faces,
+                  face_normals = face_normals)
     return box
 
 def icosahedron():
