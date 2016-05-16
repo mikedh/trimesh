@@ -42,6 +42,11 @@ The easiest way to install is:
 $ sudo pip install trimesh
 ```
 
+This command will install `trimesh`, with its required dependencies, namely
+[`numpy`](http://www.numpy.org/),
+[`scipy`](http://www.scipy.org/) and
+[`networkx`](https://networkx.github.io/).
+
 ### Optional Dependencies ###
 
 Basic functionality is available immediately. Some functions (ray queries, polygon handling, mesh creation, viewer windows, boolean operations, additional importers) require additional libraries:
