@@ -19,7 +19,7 @@ The API is mostly stable, but this should not be relied on and is not guaranteed
 * Split mesh based on face connectivity using networkx (4.96 s) or graph-tool (.584 s)
 * Calculate mass properties, including volume, center of mass, and moment of inertia (.246 s)
 * Find coplanar groups of faces (.454 s)
-* Fix triangle winding to be consistent 
+* Fix triangle winding to be consistent
 * Fix normals to be oriented 'outwards' using ray tests
 * Calculate whether or not a point lies inside a watertight mesh using ray tests
 * Find convex hulls of meshes (.21 s)
@@ -33,7 +33,7 @@ The API is mostly stable, but this should not be relied on and is not guaranteed
 * Voxelize watertight meshes
 * Unit conversions
 * Create meshes by extruding 2D profiles
-* Numerous utility functions, such as transforming points, unitizing vectors, grouping rows, etc. 
+* Numerous utility functions, such as transforming points, unitizing vectors, grouping rows, etc.
 
 ### Installation ###
 
@@ -46,7 +46,7 @@ $ sudo pip install trimesh
 
 Basic functionality is available immediately. Some functions (ray queries, polygon handling, mesh creation, viewer windows, boolean operations, additional importers) require additional libraries:
 ```bash
-$ sudo apt-get install cmake openscad blender libspatialindex-dev 
+$ sudo apt-get install cmake openscad blender libspatialindex-dev
 $ sudo pip install pyglet shapely git+https://github.com/robotics/assimp_latest.git git+https://github.com/Toblerity/rtree.git svg.path meshpy
 ```
 
@@ -70,7 +70,7 @@ print(mesh.euler_number)
 # lets get a convex hull of the mesh
 hull = mesh.convex_hull
 
-# since the mesh is watertight, it means there is a 
+# since the mesh is watertight, it means there is a
 # volumetric center of mass which we can set as the origin for our mesh
 mesh.vertices -= mesh.center_mass
 
@@ -84,7 +84,7 @@ facets, facets_area = mesh.facets(return_area=True)
 for facet in facets:
     mesh.visual.face_colors[facet] = trimesh.visual.random_color()
 
-# preview mesh in an opengl window if you installed pyglet with pip 
+# preview mesh in an opengl window if you installed pyglet with pip
 mesh.show()
 
 # transform method can be passed a (4,4) matrix and will cleanly apply the transform
@@ -94,7 +94,7 @@ mesh.transform(trimesh.transformations.random_rotation_matrix())
 print(mesh.bounding_box_oriented.box_extents)
 print(mesh.bounding_box_oriented.box_transform)
 
-# show the mesh overlayed with its oriented bounding box 
+# show the mesh overlayed with its oriented bounding box
 # the bounding box is a trimesh.primitives.Box object, which subclasses
 # Trimesh and lazily evaluates to fill in vertices and faces when requested
 # (press w in viewer to see triangles)
