@@ -58,7 +58,7 @@ class VectorTests(unittest.TestCase):
                               d.filename,
                               euclidean(verts[0], verts[-1]))
                 self.assertTrue(circuit_test)
-                is_ccw = vector.polygons.is_ccw(verts)
+                is_ccw = vector.util.is_ccw(verts)
                 if not is_ccw:
                     log.error('discrete %s not ccw!', d.filename)
                 #self.assertTrue(is_ccw)
