@@ -13,10 +13,10 @@ from copy import deepcopy
 from collections import deque
 
 from .simplify  import simplify_path, points_to_spline_entity
-from .polygons  import polygons_enclosure_tree, is_ccw, medial_axis, polygon_hash, path_to_polygon, polygon_obb
+from .polygons  import polygons_enclosure_tree, medial_axis, polygon_hash, path_to_polygon, polygon_obb
 from .traversal import vertex_graph, closed_paths, discretize_path
 from .io.export import export_path
-
+from .util      import is_ccw
 from ..points    import plane_fit, transform_points
 from ..geometry  import plane_transform
 from ..grouping  import unique_rows
@@ -383,8 +383,8 @@ class Path2D(Path):
         --------
         mesh: trimesh object representing extruded polygon
         '''
-        from ..creation import extrude_polygon
-        result = [extrude_polygon(i, height, **kwargs) for i in self.polygons_full]
+        from ..primitives import Extrusion
+        result = [Extrusion(polygon=i, height=height, **kwargs) for i in self.polygons_full]
         if len(result) == 1: 
             return result[0]
         return result

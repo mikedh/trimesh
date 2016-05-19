@@ -8,8 +8,8 @@ def mesh_plane(mesh,
                plane_normal,
                plane_origin  = None):
     '''
-    Return a cross section of the trimesh based on plane origin and normal
-    as a set of line segments on the plane.
+    Find a the intersections between a mesh and a plane, 
+    returning a set of line segments on that plane.
 
     Arguments
     ---------
@@ -24,8 +24,9 @@ def mesh_plane(mesh,
 
     def _triangle_cases(signs):
         '''
-        Bitbang a (3,) row of signs into an 8 bit integer.
-        We're doing this so we can group the triangles by intersection case.
+        Figure out which faces correspond to which intersection case from 
+        the signs of the dot product of each vertex.
+        Does this by bitbang each row of signs into an 8 bit integer.
 
         code : signs      : intersects
         0    : [-1 -1 -1] : No
@@ -63,6 +64,7 @@ def mesh_plane(mesh,
         return basic, one_vertex, one_edge
 
     def _handle_on_vertex(signs, faces, vertices):
+        # case where one vertex is on plane, two are on different sides
         vertex_plane = faces[signs == 0]
         edge_thru    = faces[signs != 0].reshape((-1,2))
         point_intersect, valid  = plane_lines(plane_origin, 
@@ -74,14 +76,13 @@ def mesh_plane(mesh,
         return lines
 
     def _handle_on_edge(signs, faces, vertices):
+        # case where two vertices are on the plane and one is off
         edges  = faces[signs == 0].reshape((-1,2))
         points = vertices[edges]
         return points
 
     def _handle_basic(signs, faces, vertices):
-        '''
-        Handle the case where one vertex is on one side and two are on the other
-        '''
+        #case where one vertex is on one side and two are on the other
         unique_element = unique_value_in_row(signs, unique = [-1,1])
         edges = np.column_stack((faces[unique_element],
                                  faces[np.roll(unique_element, 1, axis=1)],

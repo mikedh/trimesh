@@ -7,7 +7,7 @@ from . import creation
 from .base      import Trimesh
 from .constants import log
 from .triangles import windings_aligned
-        
+   
 class Primitive(Trimesh):
     '''
     Geometric primitives which are a subclass of Trimesh.
@@ -64,10 +64,10 @@ class Primitive(Trimesh):
 class Sphere(Primitive):
     def __init__(self, *args, **kwargs):
         super(Sphere, self).__init__(*args, **kwargs)
-        if 'radius' in kwargs:
-            self.sphere_radius = kwargs['radius']
-        if 'center' in kwargs:
-            self.sphere_center = kwargs['center']
+        if 'sphere_radius' in kwargs:
+            self.sphere_radius = kwargs['sphere_radius']
+        if 'sphere_center' in kwargs:
+            self.sphere_center = kwargs['sphere_center']
         if 'subdivisions' in kwargs:
             self._data['subdivisions'] = int(kwargs['subdivisions'])
         else:
@@ -106,11 +106,11 @@ class Sphere(Primitive):
 class Box(Primitive):    
     def __init__(self, *args, **kwargs):
         super(Box, self).__init__(*args, **kwargs)
-        if 'box_extents' in kwargs:
+        if 'extents' in kwargs:
             self.box_extents = kwargs['box_extents']
-        if 'box_transform' in kwargs:
+        if 'transform' in kwargs:
             self.box_transform = kwargs['box_transform']
-        if 'box_center' in kwargs:
+        if 'center' in kwargs:
             self.box_center = kwargs['box_center']
         self._unit_box = creation.box()
 
@@ -173,16 +173,17 @@ class Box(Primitive):
         self._cache['faces']    = faces
         self._cache['face_normals'] = normals
 
-def Extrusion(Primitive):
+class Extrusion(Primitive):
     def __init__(self, *args, **kwargs):
-        super(Box, self).__init__(*args, **kwargs)
+        super(Extrusion, self).__init__(*args, **kwargs)
+
         if 'extrude_polygon' in kwargs:
             self.extrude_polygon   = kwargs['extrude_polygon']
         if 'extrude_transform' in kwargs:
             self.extrude_transform = kwargs['extrude_transform']
         if 'extrude_height' in kwargs:
             self.extrude_height    = kwargs['extrude_height']
-            
+
     @property
     def extrude_transform(self):
         stored = self._data['extrude_transform']
@@ -196,6 +197,36 @@ def Extrusion(Primitive):
         if matrix.shape != (4,4):
             raise ValueError('Matrix must be (4,4)!')
         self._data['extrude_transform'] = matrix
-            
-            
-            
+
+    @property
+    def extrude_height(self):
+        stored = self._data['extrude_height']
+        if stored is None: 
+            raise ValueError('extrude height not specified!')
+        return stored[0]
+
+    @extrude_height.setter
+    def extrude_height(self, value):
+        height = float(value)
+        self._data['extrude_height'] = height
+
+    @property
+    def extrude_polygon(self):
+        stored = self._data['extrude_polygon']
+        if stored is None: 
+            raise ValueError('extrude polygon not specified!')
+        return stored[0]
+
+    @extrude_polygon.setter
+    def extrude_polygon(self, value):
+        polygon = creation.validate_polygon(value)
+        self._data['extrude_polygon'] = polygon
+
+    def _create_mesh(self):
+        log.debug('Creating mesh for extrude primitive')
+        mesh = creation.extrude_polygon(self.extrude_polygon,
+                                        self.extrude_height)
+        mesh.transform(self.extrude_transform)
+        self._cache['vertices']     = mesh.vertices
+        self._cache['faces']        = mesh.faces
+        self._cache['face_normals'] = mesh.face_normals

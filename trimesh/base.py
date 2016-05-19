@@ -398,10 +398,24 @@ class Trimesh(object):
         cached = self._cache['edges']
         if cached is not None:
             return cached
-        edges = geometry.faces_to_edges(self.faces.view(np.ndarray))
+        edges, index = geometry.faces_to_edges(self.faces.view(np.ndarray), 
+                                               return_index=True)
         self._cache['edges'] = edges
+        self._cache['edges_face'] = index
         return edges
+        
+    @property
+    def edges_face(self):
+        '''
+        Which face does each edge belong to.
 
+        Returns
+        ---------
+        edges_face: (n,) int, index of self.faces
+        '''
+        populate = self.edges
+        return self._cache['edges_face']
+        
     @property
     def edges_unique(self):
         '''

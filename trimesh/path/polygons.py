@@ -12,9 +12,7 @@ from ..constants  import tol_path as tol
 from ..constants  import log
 from ..points     import unitize, transform_points
 from ..util       import transformation_2D, is_sequence
-from .util        import is_ccw
 from .traversal   import resample_path
-
 
 def polygons_enclosure_tree(polygons):
     '''

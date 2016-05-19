@@ -27,7 +27,7 @@ def transform_points(points, matrix, translate=True):
     return transformed
 
 def point_plane_distance(points, plane_normal, plane_origin=[0,0,0]):
-    w         = np.array(points) - plane_origin
+    w = np.array(points) - plane_origin
     distances = np.dot(plane_normal, w.T) / np.linalg.norm(plane_normal)
     return distances
 

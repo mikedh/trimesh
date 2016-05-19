@@ -3,19 +3,34 @@ Create meshes from primitives, or with operations.
 '''
 
 from .base      import Trimesh
-from .constants import log
+from .constants import log, tol
 from .triangles import normals
 from .geometry  import faces_to_edges
 from .grouping  import group_rows, unique_rows
-from .util      import three_dimensionalize, append_faces
+
+from . import util
 
 import numpy as np
 
 from collections import deque
 
-try:
+try:    
     from shapely.geometry import Polygon
-except ImportError: pass
+except ImportError: 
+    pass
+
+def validate_polygon(obj):
+    if util.is_instance_named(obj, 'Polygon'):
+        polygon = obj
+    elif util.is_shape(obj, (-1,2)):
+        polygon = Polygon(obj)
+    else:
+        raise ValueError('Input not a polygon!')
+        
+    if (not polygon.is_valid or
+        polygon.area < tol.zero):
+        raise ValueError('Polygon is zero- area or invalid!')
+    return polygon
     
 def extrude_polygon(polygon, 
                     height,
@@ -28,7 +43,7 @@ def extrude_polygon(polygon,
     vertices, faces = triangulate_polygon(polygon, **kwargs)
 
     # make sure triangulation winding is pointing up
-    normal_test = normals([three_dimensionalize(vertices[faces[0]])[1]])[0]
+    normal_test = normals([util.three_dimensionalize(vertices[faces[0]])[1]])[0]
     if np.dot(normal_test, [0,0,1]) < 0:
         faces = np.fliplr(faces)
     
@@ -53,14 +68,14 @@ def extrude_polygon(polygon,
     vertical_faces  = vertical_faces.reshape((-1,3))
 
     # stack the (n,2) vertices with zeros to make them (n, 3)
-    vertices_3D  = three_dimensionalize(vertices, return_2D = False)
+    vertices_3D  = util.three_dimensionalize(vertices, return_2D = False)
     
     # a sequence of zero- indexed faces, which will then be appended
     # with offsets to create the final mesh
     faces_seq    = [faces[:,::-1], faces.copy(), vertical_faces]
     vertices_seq = [vertices_3D, (vertices_3D.copy() + [0.0, 0, height]), vertical]
 
-    mesh = Trimesh(*append_faces(vertices_seq, faces_seq), process=True)
+    mesh = Trimesh(*util.append_faces(vertices_seq, faces_seq), process=True)
 
     return mesh
 
