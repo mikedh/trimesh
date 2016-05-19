@@ -106,11 +106,11 @@ class Sphere(Primitive):
 class Box(Primitive):    
     def __init__(self, *args, **kwargs):
         super(Box, self).__init__(*args, **kwargs)
-        if 'extents' in kwargs:
+        if 'box_extents' in kwargs:
             self.box_extents = kwargs['box_extents']
-        if 'transform' in kwargs:
+        if 'box_transform' in kwargs:
             self.box_transform = kwargs['box_transform']
-        if 'center' in kwargs:
+        if 'box_center' in kwargs:
             self.box_center = kwargs['box_center']
         self._unit_box = creation.box()
 
