@@ -22,7 +22,7 @@ def mesh_plane(mesh,
     (m, 2, 3) float, list of 3D line segments
     '''
 
-    def _triangle_cases(signs):
+    def triangle_cases(signs):
         '''
         Figure out which faces correspond to which intersection case from 
         the signs of the dot product of each vertex.
@@ -39,6 +39,18 @@ def mesh_plane(mesh,
         16   : [0 0 1]    : Yes; one edge fully on plane
         20   : [0 1 1]    : No
         28   : [1 1 1]    : No
+
+        Arguments
+        ----------
+        signs: (n,3) int, all values are -1,0, or 1
+               Each row contains the dot product of all three vertices
+               in a face with respect to the plane
+        
+        Returns
+        ---------
+        basic:      (n,) bool, which faces are in the basic intersection case
+        one_vertex: (n,) bool, which faces are in the one vertex case
+        one_edge:   (n,) bool, which faces are in the one edge case
         '''
 
         signs_sorted = np.sort(signs, axis=1)
@@ -47,8 +59,13 @@ def mesh_plane(mesh,
             coded += signs_sorted[:,i] << 3-i
 
         # one edge fully on the plane
+        # note that we are only accepting *one* of the on- edge cases,
+        # where the other vertex has a positive dot product (16) instead
+        # of both on- edge cases ([6,16])
+        # this is so that for regions that are co-planar with the the section plane
+        # we don't end up with an invalid boundary
         key = np.zeros(29, dtype=np.bool)
-        key[[6,16]] = True
+        key[16] = True
         one_edge = key[coded]
 
         # one vertex on plane, other two on different sides
@@ -63,7 +80,7 @@ def mesh_plane(mesh,
 
         return basic, one_vertex, one_edge
 
-    def _handle_on_vertex(signs, faces, vertices):
+    def handle_on_vertex(signs, faces, vertices):
         # case where one vertex is on plane, two are on different sides
         vertex_plane = faces[signs == 0]
         edge_thru    = faces[signs != 0].reshape((-1,2))
@@ -75,13 +92,13 @@ def mesh_plane(mesh,
                                  point_intersect)).reshape((-1,2,3))
         return lines
 
-    def _handle_on_edge(signs, faces, vertices):
+    def handle_on_edge(signs, faces, vertices):
         # case where two vertices are on the plane and one is off
         edges  = faces[signs == 0].reshape((-1,2))
         points = vertices[edges]
         return points
 
-    def _handle_basic(signs, faces, vertices):
+    def handle_basic(signs, faces, vertices):
         #case where one vertex is on one side and two are on the other
         unique_element = unique_value_in_row(signs, unique = [-1,1])
         edges = np.column_stack((faces[unique_element],
@@ -108,10 +125,13 @@ def mesh_plane(mesh,
     signs[dots < -tol.merge] = -1
     signs[dots >  tol.merge] =  1
 
-    cases = _triangle_cases(signs)
-    handlers = (_handle_basic, 
-                _handle_on_vertex, 
-                _handle_on_edge)    
+    # figure out which triangles are in the cross section,
+    # and which of the three intersection cases they are in
+    cases = triangle_cases(signs)
+    # handlers for each case
+    handlers = (handle_basic, 
+                handle_on_vertex, 
+                handle_on_edge)    
 
     lines = np.vstack([h(signs[c],
                          mesh.faces[c],

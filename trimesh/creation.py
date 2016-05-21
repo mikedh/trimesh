@@ -32,16 +32,26 @@ def validate_polygon(obj):
         raise ValueError('Polygon is zero- area or invalid!')
     return polygon
     
-def extrude_polygon(polygon, 
+
+def extrude_polygon(polygon,
                     height,
-                    **kwargs):
+                    **kwargs):    
+    # create a 2D triangulation of the shapely polygon
+    vertices, faces = triangulate_polygon(polygon, **kwargs)
+    mesh = extrude_triangulation(vertices = vertices, 
+                                 faces    = faces,
+                                 height   = height, 
+                                 **kwargs)
+    return mesh
+
+def extrude_triangulation(vertices, 
+                          faces,
+                          height,
+                          **kwargs):
     '''
     Turn a shapely.geometry Polygon object and a height (float)
     into a watertight Trimesh object. 
     '''
-    # create a 2D triangulation of the shapely polygon
-    vertices, faces = triangulate_polygon(polygon, **kwargs)
-
     # make sure triangulation winding is pointing up
     normal_test = normals([util.three_dimensionalize(vertices[faces[0]])[1]])[0]
     if np.dot(normal_test, [0,0,1]) < 0:
@@ -240,3 +250,36 @@ def icosphere(subdivisions=3):
     ico._validate = True
     return ico
 
+def cylinder(radius, height, sections=32):
+    '''
+    Create a mesh of a cylinder along Z centered at the origin.
+
+    Arguments
+    ----------
+    radius: float, the radius of the cylinder
+    height: float, the height of the cylinder
+    sections: int, how many pie wedges should the cylinder be meshed as
+
+    Returns
+    ----------
+    cylinder: Trimesh, resulting mesh
+    '''
+    theta = np.linspace(0, np.pi*2, sections)
+
+    vertices = np.column_stack((np.sin(theta), np.cos(theta)))
+    vertices[0] = [0,0]
+    vertices *= radius
+
+    index = np.arange(1, len(vertices)+1)
+    index[-1] = 1
+
+    faces = np.tile(index.reshape((-1,1)), 
+                    (1,2)).reshape(-1)[1:-1].reshape((-1,2))
+    faces = np.column_stack((np.zeros(len(faces), dtype=np.int), faces))
+
+    cylinder = trimesh.creation.extrude_triangulation(vertices = vertices, 
+                                                  faces = faces, 
+                                                  height = height)
+    cylinder.vertices[:,2] -= height * .5
+    
+    return cylinder

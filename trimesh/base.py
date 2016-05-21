@@ -798,11 +798,13 @@ class Trimesh(object):
                             
         Returns
         ---------
-        intersections: Path3D of intersections             
+        intersections: Path3D of intersections
         '''
         lines = intersections.mesh_plane(mesh = self, 
                                          plane_normal = plane_normal, 
                                          plane_origin = plane_origin)
+        if len(lines) == 0:
+            raise ValueError('Specified plane doesn\'t intersect mesh!')
         path = load_path(lines)
         return path
 

@@ -18,6 +18,9 @@ dir_models  = os.path.join(dir_current, '../models')
 dir_2D      = os.path.join(dir_current, '../models/2D')
 dir_data    = os.path.join(dir_current, 'data')
 
+log = logging.getLogger('trimesh')
+log.addHandler(logging.NullHandler())
+
 def _load_data():
     data = {}
     for file_name in os.listdir(dir_data):
@@ -32,8 +35,9 @@ def _load_data():
     data['2D_files']    = [os.path.join(dir_2D, f) for f in os.listdir(dir_2D)]
     return data
 
+def get_mesh(file_name):
+    mesh = trimesh.load(os.path.join(dir_models,
+                                     file_name))
+    return mesh
+    
 data = _load_data()
-
-log = logging.getLogger('trimesh')
-log.addHandler(logging.NullHandler())
-

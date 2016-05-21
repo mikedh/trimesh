@@ -6,7 +6,7 @@ Library for importing and doing simple operations on triangular meshes.
 
 import numpy as np
 
-from .constants import tol
+from .constants import tol, log
 
 from .util   import type_named, diagonal_dot
 from .points import project_to_plane
