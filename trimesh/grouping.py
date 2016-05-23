@@ -296,7 +296,7 @@ def group_rows(data, require_count = None, digits = None):
         '''
         Simple hash table based grouping. 
         The loop and appends make this rather slow on very large arrays,
-        But it works on irregular groups nicely, unlike the slicing version of this function
+        but it works on irregular groups.
         '''
         observed = dict()
         hashable = hashable_rows(data, digits=digits)

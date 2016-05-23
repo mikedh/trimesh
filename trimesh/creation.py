@@ -266,20 +266,18 @@ def cylinder(radius, height, sections=32):
     '''
     theta = np.linspace(0, np.pi*2, sections)
 
-    vertices = np.column_stack((np.sin(theta), np.cos(theta)))
+    vertices = np.column_stack((np.sin(theta), np.cos(theta))) * radius
     vertices[0] = [0,0]
-    vertices *= radius
 
-    index = np.arange(1, len(vertices)+1)
+    index = np.arange(1, len(vertices)+1).reshape((-1,1))
     index[-1] = 1
 
-    faces = np.tile(index.reshape((-1,1)), 
-                    (1,2)).reshape(-1)[1:-1].reshape((-1,2))
+    faces = np.tile(index,(1,2)).reshape(-1)[1:-1].reshape((-1,2))
     faces = np.column_stack((np.zeros(len(faces), dtype=np.int), faces))
 
-    cylinder = trimesh.creation.extrude_triangulation(vertices = vertices, 
-                                                  faces = faces, 
-                                                  height = height)
+    cylinder = extrude_triangulation(vertices = vertices, 
+                                     faces  = faces, 
+                                     height = height)
     cylinder.vertices[:,2] -= height * .5
     
     return cylinder

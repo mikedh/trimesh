@@ -7,7 +7,10 @@ from .grouping   import group_vectors
 from .points     import transform_points, project_to_plane
 from .geometry   import rotation_2D_to_3D
 
-from scipy.spatial import ConvexHull
+try:
+    from scipy.spatial import ConvexHull
+except ImportError:
+    log.warning('Scipy import failed!')
 
 def oriented_bounds_2D(points):
     '''
