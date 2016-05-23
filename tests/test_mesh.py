@@ -29,6 +29,12 @@ class MeshTests(g.unittest.TestCase):
             self.assertTrue(len(mesh.faces) > 0)
             self.assertTrue(len(mesh.vertices) > 0)
             
+            self.assertTrue(len(mesh.edges) > 0)
+            self.assertTrue(len(mesh.edges_unique) > 0)
+            self.assertTrue(len(mesh.edges_sorted) > 0)
+            self.assertTrue(len(mesh.edges_face) > 0)
+            self.assertFalse(mesh.euler_number is None)
+
             mesh.process()
 
             tic = [g.time.time()]

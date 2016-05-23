@@ -430,7 +430,7 @@ class Trimesh(object):
         if cached is not None:
             return cached
         unique = grouping.unique_rows(self.edges_sorted)[0]
-        edges_unique = edges_sorted[unique]
+        edges_unique = self.edges_sorted[unique]
         self._cache['edges_unique'] = edges_unique
         return edges_unique
         
