@@ -11,7 +11,7 @@ from ..geometry   import medial_axis as _medial_axis
 from ..constants  import tol_path as tol
 from ..constants  import log
 from ..points     import transform_points
-from ..util       import transformation_2D, is_sequence, unitize
+from ..util       import transformation_2D, is_sequence
 from .traversal   import resample_path
 
 def polygons_enclosure_tree(polygons):

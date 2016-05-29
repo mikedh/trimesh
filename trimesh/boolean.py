@@ -1,5 +1,3 @@
-from .constants import log
-
 from . import interfaces
 
 def difference(meshes, engine=None):

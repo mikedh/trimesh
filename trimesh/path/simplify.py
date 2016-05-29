@@ -2,11 +2,10 @@ import numpy as np
 
 from collections import deque
 
-from .arc import arc_center, fit_circle, angles_to_threepoint, discretize_arc
+from .arc import arc_center, fit_circle, angles_to_threepoint
 from .entities import Arc, Line, BSpline
 
 from ..util      import unitize, diagonal_dot
-from ..grouping  import unique_ordered
 from ..constants import log
 from ..constants import tol_path as tol
 
