@@ -23,7 +23,7 @@ def subdivide(mesh, face_index=None):
     if face_index is None:
         face_index = np.arange(len(mesh.faces))
     else:
-        face_index = np.asanyarray(faces, dtype=np.int)
+        face_index = np.asanyarray(face_index, dtype=np.int64)
 
     # the (c,3) int set of vertex indices
     faces = mesh.faces[face_index]

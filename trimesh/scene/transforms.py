@@ -3,10 +3,7 @@ import time
 
 import networkx as nx
 
-from networkx import DiGraph, shortest_path, NetworkXNoPath, to_edgelist
-
 from ..transformations import quaternion_matrix, rotation_matrix
-from ..constants       import TransformError, _log_time
 
 class TransformForest:
     def __init__(self, base_frame='world'):
@@ -46,7 +43,7 @@ class TransformForest:
             self._paths = {}
 
     def export(self):
-        export = to_edgelist(self.transforms)
+        export = nx.to_edgelist(self.transforms)
         for e in export:
             e[2]['matrix'] = np.array(e[2]['matrix']).tolist()
         return export

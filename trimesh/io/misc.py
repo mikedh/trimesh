@@ -1,5 +1,4 @@
 import numpy as np
-import struct
 
 from ..util import base64_to_array
 

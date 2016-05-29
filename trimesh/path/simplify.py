@@ -88,14 +88,15 @@ def fit_circle_check(points, prior=None, scale=1.0, verbose=False):
 
     return (C,R)
 
-def is_circle(points, verbose=True, scale=None):
+def is_circle(points, scale, verbose=True):
     '''
     Given a set of points, quickly determine if they represent
     a circle or not. 
     '''
 
     # make sure input is a numpy array
-    points = np.array(points)
+    points = np.asanyarray(points)
+    scale = float(scale)
 
     # can only be a circle if the first and last point are the 
     # same (AKA is a closed path)
@@ -103,9 +104,6 @@ def is_circle(points, verbose=True, scale=None):
         return None
 
     box = points.ptp(axis=0)
-    if scale is None:
-        scale = box.max()
-        
     # the bounding box size of the points
     # check aspect ratio as an early exit if the path is not a circle
     aspect = np.divide(*box)
@@ -121,7 +119,7 @@ def is_circle(points, verbose=True, scale=None):
     control = angles_to_threepoint([0,np.pi*.5], *CR)
     return control
         
-def arc_march(points, scale=None):
+def arc_march(points, scale):
     '''
     Split a path into line and arc segments, using least squares fit.
     
@@ -156,9 +154,9 @@ def arc_march(points, scale=None):
     points = np.array(points)
     closed = np.linalg.norm(points[0] - points[-1]) < tol.merge
     count  = len(points)
-
-    if scale is None:
-        scale = np.ptp(points, axis=0).max()
+    scale  = float(scale)
+    #if scale is None:
+    #    scale = np.ptp(points, axis=0).max()
 
     arcs    = deque()
     current = deque()    
@@ -324,7 +322,7 @@ def three_point(indices):
     return np.array(result)
 
 def polygon_to_cleaned(polygon, scale):
-    buffered = polygon.buffer(tol.merge*scale).buffer(-tol.merge*scale)
+    buffered = polygon.buffer(0.0)
     points   = merge_colinear(buffered.exterior.coords)
     return points
 
@@ -350,7 +348,7 @@ def simplify_path(drawing):
                                 closed=True))
             vertices.extend(circle)
         else:
-            arc_idx = arc_march(points)
+            arc_idx = arc_march(points, scale=drawing.scale)
             if len(arc_idx) > 0:
                 for arc in arc_idx:
                     entities.append(Arc(points=three_point(arc)+len(vertices),
@@ -358,6 +356,7 @@ def simplify_path(drawing):
                 line_idx = infill_lines(arc_idx,len(points)) + len(vertices)
             else:
                 line_idx = pair_space(0, len(points)-1) + len(vertices)
+                line_idx = [np.mod(np.arange(len(points)+1), len(points)) + len(vertices)]
             
             for line in line_idx:
                 entities.append(Line(points=line))

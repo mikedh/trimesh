@@ -8,8 +8,6 @@ from ..util      import tolist_dict, is_string, array_to_base64
 try:                from cStringIO import StringIO
 except ImportError: from io import StringIO
 
-from io import BytesIO
-
 def export_mesh(mesh, file_obj, file_type=None):
     '''
     Export a Trimesh object to a file- like object, or to a filename

@@ -3,8 +3,7 @@ from collections import deque
 
 from networkx      import from_edgelist, connected_components
 
-from .points    import unitize
-from .util      import decimal_to_digits, vector_to_spherical, spherical_to_vector
+from .util      import decimal_to_digits, vector_to_spherical, spherical_to_vector, unitize
 from .constants import log, tol
 
 try: from scipy.spatial import cKDTree as KDTree
@@ -15,7 +14,6 @@ def merge_vertices_hash(mesh):
     Removes duplicate vertices, based on integer hashes.
     This is roughly 20x faster than querying a KD tree in a loop
     '''
-    pre_merge = len(mesh.vertices)
     unique, inverse = unique_rows(mesh.vertices)
     mesh.update_vertices(unique, inverse)
 
@@ -429,7 +427,6 @@ def stack_negative(rows):
     Which is sign- independent
     '''
     rows     = np.asanyarray(rows)
-    width    = rows.shape[1]
     stacked  = np.column_stack((rows, rows*-1))
 
     nonzero  = np.abs(rows) > tol.zero

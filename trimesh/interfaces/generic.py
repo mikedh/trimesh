@@ -1,5 +1,3 @@
-import numpy as np
-
 from ..io.stl   import load_stl
 
 from string     import Template

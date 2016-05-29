@@ -13,7 +13,8 @@ Using
 from .version import __version__
 from .base    import Trimesh
 
-from .points  import unitize, transform_points
+from .util    import unitize
+from .points  import transform_points
 from .io.load import load_mesh, load_path, load, available_formats
 
 from . import transformations

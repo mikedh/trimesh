@@ -1,5 +1,3 @@
-import numpy as np
-
 from .generic import MeshScript
 from distutils.spawn import find_executable
 

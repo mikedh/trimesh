@@ -1,7 +1,6 @@
 import numpy as np
 
-from ..points    import unitize 
-from ..util      import three_dimensionalize, euclidean
+from ..util      import three_dimensionalize, unitize
 from ..constants import tol_path as tol
 
 def line_line(origins, directions):

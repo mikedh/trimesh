@@ -5,7 +5,6 @@ Only imports from numpy and the standard library are allowed in this file.
 '''
 
 import numpy as np
-import time
 import logging
 import hashlib
 import base64

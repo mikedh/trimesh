@@ -4,7 +4,7 @@ import networkx as nx
 from collections import deque
 
 from ..grouping  import unique_ordered
-from ..points    import unitize
+from ..util      import unitize
 from ..constants import tol_path as tol
 from .util       import is_ccw
 
@@ -92,7 +92,7 @@ def connected_open(graph):
     for node, degree in graph.degree().items():
         if degree == 2:    continue
         if node in broken: continue
-        [broken.add(i) for i in nx.node_connected_component(g, node)]
+        [broken.add(i) for i in nx.node_connected_component(graph, node)]
     okay = set(graph.nodes()).difference(broken)
     return broken, okay
 

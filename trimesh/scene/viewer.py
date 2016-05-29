@@ -1,12 +1,9 @@
 import pyglet
+import pyglet.gl as gl
 import numpy as np
 
-from copy      import deepcopy
 from collections import deque
-from threading import Thread
-from pyglet.gl import *
 
-from ..constants import log
 from ..transformations import Arcball
 
 #smooth only when fewer faces than this
@@ -29,17 +26,17 @@ class SceneViewer(pyglet.window.Window):
         width, height = resolution
 
         try:
-            conf = Config(sample_buffers = 1,
-                          samples        = 4,
-                          depth_size     = 16,
-                          double_buffer  = True)
+            conf = gl.Config(sample_buffers = 1,
+                             samples        = 4,
+                             depth_size     = 16,
+                             double_buffer  = True)
             super(SceneViewer, self).__init__(config=conf, 
                                               visible=visible, 
                                               resizable=True,
                                               width=width,
                                               height=height)
         except pyglet.window.NoSuchConfigException:
-            conf = Config(double_buffer=True)
+            conf = gl.Config(double_buffer=True)
             super(SceneViewer, self).__init__(config = conf,
                                               resizable=True,
                                               visible = visible,
@@ -97,34 +94,34 @@ class SceneViewer(pyglet.window.Window):
         self.update_flags()
 
     def init_gl(self):
-        glClearColor(.93, .93, 1, 1)
+        gl.glClearColor(.93, .93, 1, 1)
         #glColor3f(1, 0, 0)
 
-        glEnable(GL_DEPTH_TEST)
-        glEnable(GL_CULL_FACE)
-        glEnable(GL_LIGHTING)
-        glEnable(GL_LIGHT0)
-        glEnable(GL_LIGHT1)
+        gl.glEnable(gl.GL_DEPTH_TEST)
+        gl.glEnable(gl.GL_CULL_FACE)
+        gl.glEnable(gl.GL_LIGHTING)
+        gl.glEnable(gl.GL_LIGHT0)
+        gl.glEnable(gl.GL_LIGHT1)
 
-        glLightfv(GL_LIGHT0, GL_POSITION, _gl_vector(.5, .5, 1, 0))
-        glLightfv(GL_LIGHT0, GL_SPECULAR, _gl_vector(.5, .5, 1, 1))
-        glLightfv(GL_LIGHT0, GL_DIFFUSE, _gl_vector(1, 1, 1, 1))
-        glLightfv(GL_LIGHT1, GL_POSITION, _gl_vector(1, 0, .5, 0))
-        glLightfv(GL_LIGHT1, GL_DIFFUSE, _gl_vector(.5, .5, .5, 1))
-        glLightfv(GL_LIGHT1, GL_SPECULAR, _gl_vector(1, 1, 1, 1))
+        gl.glLightfv(gl.GL_LIGHT0, gl.GL_POSITION, _gl_vector(.5, .5, 1, 0))
+        gl.glLightfv(gl.GL_LIGHT0, gl.GL_SPECULAR, _gl_vector(.5, .5, 1, 1))
+        gl.glLightfv(gl.GL_LIGHT0, gl.GL_DIFFUSE, _gl_vector(1, 1, 1, 1))
+        gl.glLightfv(gl.GL_LIGHT1, gl.GL_POSITION, _gl_vector(1, 0, .5, 0))
+        gl.glLightfv(gl.GL_LIGHT1, gl.GL_DIFFUSE, _gl_vector(.5, .5, .5, 1))
+        gl.glLightfv(gl.GL_LIGHT1, gl.GL_SPECULAR, _gl_vector(1, 1, 1, 1))
 
-        glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE)
-        glEnable(GL_COLOR_MATERIAL)
-        glShadeModel(GL_SMOOTH)
+        gl.glColorMaterial(gl.GL_FRONT_AND_BACK, gl.GL_AMBIENT_AND_DIFFUSE)
+        gl.glEnable(gl.GL_COLOR_MATERIAL)
+        gl.glShadeModel(gl.GL_SMOOTH)
 
-        glMaterialfv(GL_FRONT, GL_AMBIENT, _gl_vector(0.192250, 0.192250, 0.192250))
-        glMaterialfv(GL_FRONT, GL_DIFFUSE, _gl_vector(0.507540, 0.507540, 0.507540))
-        glMaterialfv(GL_FRONT, GL_SPECULAR, _gl_vector(.5082730,.5082730,.5082730))
+        gl.glMaterialfv(gl.GL_FRONT, gl.GL_AMBIENT, _gl_vector(0.192250, 0.192250, 0.192250))
+        gl.glMaterialfv(gl.GL_FRONT, gl.GL_DIFFUSE, _gl_vector(0.507540, 0.507540, 0.507540))
+        gl.glMaterialfv(gl.GL_FRONT, gl.GL_SPECULAR, _gl_vector(.5082730,.5082730,.5082730))
 
-        glMaterialf(GL_FRONT, GL_SHININESS, .4 * 128.0);
+        gl.glMaterialf(gl.GL_FRONT, gl.GL_SHININESS, .4 * 128.0);
 
-        glEnable(GL_BLEND) 
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA) 
+        gl.glEnable(gl.GL_BLEND) 
+        gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA) 
 
 
     def toggle_culling(self):
@@ -137,21 +134,21 @@ class SceneViewer(pyglet.window.Window):
 
     def update_flags(self):
         if self.view['wireframe']: 
-            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
+            gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
         else:
-            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
+            gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
 
         if self.view['cull']:
-            glEnable(GL_CULL_FACE)
+            gl.glEnable(gl.GL_CULL_FACE)
         else:
-            glDisable(GL_CULL_FACE)
+            gl.glDisable(gl.GL_CULL_FACE)
 
     def on_resize(self, width, height):
-        glViewport(0, 0, width, height)
-        glMatrixMode(GL_PROJECTION)
-        glLoadIdentity()
-        gluPerspective(60., width / float(height), .01, 1000.)
-        glMatrixMode(GL_MODELVIEW)
+        gl.glViewport(0, 0, width, height)
+        gl.glMatrixMode(gl.GL_PROJECTION)
+        gl.glLoadIdentity()
+        gl.gluPerspective(60., width / float(height), .01, 1000.)
+        gl.glMatrixMode(gl.GL_MODELVIEW)
         self.view['ball'].place([width/2, height/2], (width+height)/2)
         
     def on_mouse_press(self, x, y, buttons, modifiers):
@@ -183,17 +180,17 @@ class SceneViewer(pyglet.window.Window):
 
     def on_draw(self):
         self._update_meshes()
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        glLoadIdentity()
+        gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
+        gl.glLoadIdentity()
 
         # pull the new camera transform from the scene
         transform_camera = self.scene.transforms['camera']
         # apply the camera transform to the matrix stack
-        glMultMatrixf(_gl_matrix(transform_camera))
+        gl.glMultMatrixf(_gl_matrix(transform_camera))
         
         # dragging the mouse moves the view transform (but doesn't alter the scene)
         transform_view = _view_transform(self.view)
-        glMultMatrixf(_gl_matrix(transform_view))
+        gl.glMultMatrixf(_gl_matrix(transform_view))
 
         # we want to render fully opaque objects first,
         # followed by objects which have transparency
@@ -220,13 +217,13 @@ class SceneViewer(pyglet.window.Window):
 
             transform = self.scene.transforms[name_node]
             # add a new matrix to the model stack
-            glPushMatrix()
+            gl.glPushMatrix()
             # transform by the nodes transform
-            glMultMatrixf(_gl_matrix(transform))
+            gl.glMultMatrixf(_gl_matrix(transform))
             # draw the mesh with its transform applied
-            self.vertex_list[name_mesh].draw(mode=GL_TRIANGLES)
+            self.vertex_list[name_mesh].draw(mode=gl.GL_TRIANGLES)
             # pop the matrix stack as we drew what we needed to draw
-            glPopMatrix()
+            gl.glPopMatrix()
 
     def node_flag(self, node, flag):
         if flag in self.scene.flags[node]:
@@ -275,7 +272,7 @@ def mesh_to_vertex_list(mesh, group=None):
     color_type = 'c' + str(color_dimension) + 'B/static'
 
     args = (len(mesh.vertices), # number of vertices
-            GL_TRIANGLES,       # mode 
+            gl.GL_TRIANGLES,       # mode 
             group,              # group
             faces,              # indices 
             ('v3f/static', vertices),
@@ -289,7 +286,7 @@ def _gl_matrix(array):
     to an stupid GLfloat transformation matrix (column major, (16,))
     '''
     a = np.array(array).T.reshape(-1)
-    return (GLfloat * len(a))(*a)
+    return (gl.GLfloat * len(a))(*a)
 
 def _gl_vector(array, *args):
     '''
@@ -298,5 +295,5 @@ def _gl_vector(array, *args):
     array = np.array(array)
     if len(args) > 0:
         array = np.append(array, args)
-    vector = (GLfloat * len(array))(*array)
+    vector = (gl.GLfloat * len(array))(*array)
     return vector

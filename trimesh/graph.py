@@ -3,14 +3,10 @@ import networkx as nx
 
 from collections import deque
 
-from .constants import log, tol, MeshError
+from .constants import log, tol
 from .grouping  import group, group_rows, boolean_rows
 from .geometry  import faces_to_edges
-from .points    import unitize
-from .util      import diagonal_dot, is_sequence
-
-try: from scipy.spatial import cKDTree as KDTree
-except ImportError: log.warning('Scipy unavailable')
+from .util      import diagonal_dot
 
 try: 
     from graph_tool import Graph as GTGraph

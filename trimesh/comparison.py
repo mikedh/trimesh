@@ -1,12 +1,9 @@
 import numpy as np
 
-from collections import deque
-from itertools   import product
-
 from .util      import zero_pad, format_json
 from .grouping  import group_rows
 from .constants import log, _log_time
-from .constants import tol
+
 
 _MIN_BIN_COUNT = 20
 _TOL_FREQ      = 1e-3
@@ -37,7 +34,6 @@ def rotationally_invariant_identifier(mesh, length=6, as_json=False, json_digits
     # calculate the mass properties of the mesh, which is doing a surface integral to
     # find the center of volume of the mesh
     mass_properties = mesh.mass_properties(skip_inertia=True)
-    center_mass     = mass_properties['center_mass']
     vertex_radii    = np.sum((mesh.vertices.view(np.ndarray) - mesh.center_mass)**2, 
                              axis=1) **.5
     

@@ -6,11 +6,10 @@ import numpy as np
 
 from .base import Trimesh
 from .util import three_dimensionalize
-from .constants import *
+from .constants import log
 
 # openCASCADE bindings
 from occmodel import Face, Solid
-from geotools import Transform
 
 def solid_to_mesh(solid, process=True):
     occ_mesh = solid.createMesh()

@@ -2,7 +2,7 @@ import numpy as np
 
 from ..base      import Trimesh
 from ..constants import _log_time, log
-from ..util      import is_file, is_dict, is_string, make_sequence, is_instance_named
+from ..util      import is_file, is_string, make_sequence, is_instance_named
 
 from .assimp import _assimp_loaders
 from .stl    import _stl_loaders
@@ -10,15 +10,14 @@ from .misc   import _misc_loaders
 from .step   import _step_loaders
 from .ply    import _ply_loaders
 
-def load_path(*args, **kwargs):
-    raise ImportError('No path functionality available!')
-def path_formats():
-    return []
-
 try:
     from ..path.io.load import load_path, path_formats
 except:
     log.warning('No path functionality available!', exc_info=True)
+    def load_path(*args, **kwargs):
+        raise ImportError('No path functionality available!')
+    def path_formats():
+        return []
 
 def mesh_formats():
     return list(_mesh_loaders.keys())

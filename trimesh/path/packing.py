@@ -1,14 +1,11 @@
 import numpy as np 
 
-from shapely.geometry import Point, Polygon, LineString
-
 from collections import deque
 
 from ..constants import log, time_function
 from ..constants import tol_path as tol
 
 from .polygons  import polygons_obb, transform_polygon
-from ..util     import transformation_2D
 
 class RectangleBin:
     '''
@@ -128,7 +125,9 @@ def pack_paths(paths, show=False):
     for path, transform in zip(paths_full, transforms):
         path.transform(transform)
         if show: path.plot_discrete(show=False)
-    if show: plt.show()
+    if show:
+        import matplotlib.pyplot as plt
+        plt.show()
     return paths_full
 
 def multipack(polygons, 
@@ -184,8 +183,6 @@ def multipack(polygons,
         transform_polygon(np.array(polygons)[overall_inserted],  
                           transforms_packed, 
                           plot=True)
-        plt.show()
-
     rectangles -= 2.0*buffer_dist
     
     if return_all:

@@ -5,7 +5,6 @@ import numpy as np
 
 from .constants import log, tol
 from .geometry  import plane_transform
-from .util      import unitize, TrackedArray, Cache
     
 def transform_points(points, matrix, translate=True):
     '''
@@ -274,7 +273,6 @@ def plot_points(points, show=True):
     points = np.asanyarray(points)
     dimension = points.shape[1]    
     if dimension == 3:
-        from mpl_toolkits.mplot3d import Axes3D
         fig = plt.figure()
         ax  = fig.add_subplot(111, projection='3d')
         ax.scatter(*points.T)
@@ -285,11 +283,3 @@ def plot_points(points, show=True):
 
     if show: 
         plt.show()
-
-class PointCloud(TrackedArray):
-    '''
-    Subclass of TrackedArray, which is subclass of np.ndarray
-    '''
-    def show(self):
-        plot_points(self)
-

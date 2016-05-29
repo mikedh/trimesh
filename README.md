@@ -9,7 +9,7 @@ The API is mostly stable, but this should not be relied on and is not guaranteed
 * Import binary/ASCII STL, Wavefront, OFF, and PLY
 * Import formats using assimp (if pyassimp installed)
 * Import STEP files as meshes (if STEPtools Inc. Author Tools installed)
-* Import 2D or 3D vector paths from DXF or SVG files
+* Import and export 2D or 3D vector paths from/to DXF or SVG files
 * Export meshes as binary STL, COLLADA, or OFF
 * Preview meshes (requires pyglet)
 * Internal caching of computed values which are automatically cleared when vertices or faces are changed
@@ -19,7 +19,7 @@ The API is mostly stable, but this should not be relied on and is not guaranteed
 * Split mesh based on face connectivity using networkx (4.96 s) or graph-tool (.584 s)
 * Calculate mass properties, including volume, center of mass, and moment of inertia (.246 s)
 * Find coplanar groups of faces (.454 s)
-* Fix triangle winding to be consistent
+* Fix triangle winding to be consistent (slow)
 * Fix normals to be oriented 'outwards' using ray tests
 * Calculate whether or not a point lies inside a watertight mesh using ray tests
 * Find convex hulls of meshes (.21 s)
@@ -54,6 +54,9 @@ Basic functionality is available immediately. Some functions (ray queries, polyg
 $ sudo apt-get install cmake openscad blender libspatialindex-dev
 $ sudo pip install pyglet shapely git+https://github.com/robotics/assimp_latest.git git+https://github.com/Toblerity/rtree.git svg.path meshpy
 ```
+
+If you are using a lot of graph operations (specifically mesh.split()) trimesh will automatically use [`graph-tool`](https://graph-tool.skewed.de/download) if it is installed, for a roughly 10x speedup over networkx on certain operations.
+
 
 ### Quick Start ###
 
@@ -107,4 +110,12 @@ print(mesh.bounding_box_oriented.box_transform)
 
 ```
 
-In the mesh view window, dragging rotates the view, ctl + drag pans, mouse wheel scrolls, 'z' returns to the base view, 'w' toggles wireframe mode, and 'c' toggles backface culling.
+### Optional Viewer ###
+Trimesh includes an optional pyglet- based viewer for debugging/inspecting. In the mesh view window:
+
+* dragging rotates the view
+* ctl + drag pans
+* mouse wheel zooms
+* 'z' returns to the base view 
+* 'w' toggles wireframe mode
+* 'c' toggles backface culling

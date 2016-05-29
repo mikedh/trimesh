@@ -7,7 +7,7 @@ A library designed to work with vector paths.
 import numpy as np
 import networkx as nx
 
-from shapely.geometry import Polygon, Point
+from shapely.geometry import Polygon
 from scipy.spatial import cKDTree as KDTree
 from copy import deepcopy
 from collections import deque
@@ -16,13 +16,12 @@ from .simplify  import simplify_path, points_to_spline_entity
 from .polygons  import polygons_enclosure_tree, medial_axis, polygon_hash, path_to_polygon, polygon_obb
 from .traversal import vertex_graph, closed_paths, discretize_path
 from .io.export import export_path
-from .util      import is_ccw
 from ..points    import plane_fit, transform_points
 from ..geometry  import plane_transform
 from ..grouping  import unique_rows
 from ..units     import _set_units
-from ..util      import decimal_to_digits, is_sequence
-from ..constants import log, time_function
+from ..util      import decimal_to_digits
+from ..constants import log
 from ..constants import tol_path as tol
 
 from .. import util
@@ -302,7 +301,6 @@ class Path3D(Path):
  
     def plot_discrete(self, show=False):
         import matplotlib.pyplot as plt
-        from mpl_toolkits.mplot3d import Axes3D
         fig  = plt.figure()
         axis = fig.add_subplot(111, projection='3d')
         for discrete in self.discrete:
@@ -311,7 +309,6 @@ class Path3D(Path):
 
     def plot_entities(self, show=False):
         import matplotlib.pyplot as plt
-        from mpl_toolkits.mplot3d import Axes3D
         fig  = plt.figure()
         axis = fig.add_subplot(111, projection='3d')
         for entity in self.entities:

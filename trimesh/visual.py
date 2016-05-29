@@ -2,7 +2,7 @@ import numpy as np
 from colorsys import hsv_to_rgb
 from collections import deque
 
-from .util      import is_sequence, is_shape, tracked_array, Cache, DataStore
+from .util      import is_sequence, is_shape, Cache, DataStore
 from .constants import log
 
 COLORS = {'red'    : [205,59,34,255],

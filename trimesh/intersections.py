@@ -2,7 +2,7 @@ import numpy as np
 
 from .constants import log, tol
 from .grouping  import unique_value_in_row
-from .points    import unitize
+from .util      import unitize
 
 def mesh_plane(mesh, 
                plane_normal,

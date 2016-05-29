@@ -2,9 +2,8 @@
 Narrow phase ray- triangle intersection
 '''
 import numpy as np
-import time
 
-from ..constants import log, tol
+from ..constants import tol
 from ..util      import diagonal_dot
 
 def rays_triangles_id(triangles,

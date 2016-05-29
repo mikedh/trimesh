@@ -1,8 +1,7 @@
 import numpy as np
-import time
 
 from .transformations import rotation_matrix
-from .constants       import tol, log
+from .constants       import tol
 from .util            import unitize, stack_lines
 
 def plane_transform(origin, normal):

@@ -1,7 +1,7 @@
 import numpy as np
 
-from .util      import diagonal_dot
-from .points    import unitize, point_plane_distance
+from .util      import diagonal_dot, unitize
+from .points    import point_plane_distance
 from .constants import tol
 
 def cross(triangles):
@@ -54,7 +54,7 @@ def all_coplanar(triangles):
     triangles: vertices of triangles, (n,3,3)
     returns:   all_coplanar, bool
     '''
-    test_normal  = normal(triangles)[0]
+    test_normal  = normals(triangles)[0]
     test_vertex  = triangles[0][0]
     distances    = point_plane_distance(points       = triangles[1:].reshape((-1,3)),
                                         plane_normal = test_normal,

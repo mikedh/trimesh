@@ -1,8 +1,6 @@
 import numpy as np
-import time
 
-from ..util            import Cache
-from ..points          import unitize
+from ..util            import Cache, unitize
 from ..grouping        import unique_rows
 from ..intersections   import plane_lines
 from .ray_triangle_cpu import rays_triangles_id

@@ -1,5 +1,4 @@
 import numpy as np
-import json
 import os 
 
 from .dxf_load   import load_dxf
