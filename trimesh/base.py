@@ -1156,22 +1156,7 @@ class Trimesh(object):
 
     def __add__(self, other):
         '''
-        Addition for meshes is defined as an append of their faces.
-
-        Example
-        ----------
-        Where a and b are different Trimesh objects:
-        a + b = c
-        
-        c is a mesh which has all the faces from a and b, and
-        accompanying bookkeeping is done. 
-
-        Defining this also allows groups of meshes to be summed easily, 
-        for example like:
-
-        a = np.sum(meshes).show()
-
-        
+        Concatenate the mesh with another mesh
         '''
         result = util.concatenate(self, other)
         return result

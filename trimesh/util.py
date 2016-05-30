@@ -678,21 +678,20 @@ def concatenate(a, b):
     '''
     Concatenate two meshes.
 
-    Example
+    Arguments
     ----------
-    Where a and b are different Trimesh objects:
-    a + b = c
+    a: Trimesh object
+    b: Trimesh object
 
-    c is a mesh which has all the faces from a and b, and
-    accompanying bookkeeping is done. 
-
-    Defining this also allows groups of meshes to be summed easily, 
-    for example like:
-
-    a = np.sum(meshes).show()
+    Returns
+    ----------
+    result: Trimesh object containing all faces of a and b
     '''
+    # Extract the trimesh type to avoid a circular import,
+    # and assert that both inputs are Trimesh objects
     trimesh_type = type_named(a, 'Trimesh')
-
+    trimesh_type = type_named(b, 'Trimesh')
+    
     new_normals  = np.vstack((a.face_normals, b.face_normals))
     new_faces    = np.vstack((a.faces, (b.faces + len(a.vertices))))
     new_vertices = np.vstack((a.vertices, b.vertices))
