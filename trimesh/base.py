@@ -1,10 +1,11 @@
 '''
-trimesh.py
+github.com/mikedh/trimesh
 
 Library for importing, exporting and doing simple operations on triangular meshes.
 '''
 
 import numpy as np
+
 from copy import deepcopy
 
 from . import triangles
@@ -22,22 +23,20 @@ from . import convex
 from . import remesh
 from . import bounds
 
-
 from .io.export    import export_mesh
 from .ray.ray_mesh import RayMeshIntersector, contains_points
 from .voxel        import Voxel
 from .points       import transform_points
 from .units        import _set_units
 from .constants    import log, _log_time, tol
+from .scene        import Scene
 
-try: from .scene import Scene
-except ImportError: log.warning('Mesh previewing unavailable!', exc_info=True)
-
-try: 
+try:
     from .path.io.misc import faces_to_path
     from .path.io.load import _create_path, load_path
 except ImportError:
-    log.warning('trimesh.path unavailable!', exc_info=True)
+    log.warning('trimesh.path unavailable, try pip install shapely!', 
+                exc_info = True)
 
 class Trimesh(object):
     def __init__(self,
@@ -1174,13 +1173,5 @@ class Trimesh(object):
 
         
         '''
-        new_normals  = np.vstack((self.face_normals, other.face_normals))
-        new_faces    = np.vstack((self.faces, (other.faces + len(self.vertices))))
-        new_vertices = np.vstack((self.vertices, other.vertices))
-        new_visual   = visual.visuals_union(self.visual, other.visual)
-        result = Trimesh(vertices     = new_vertices, 
-                         faces        = new_faces,
-                         face_normals = new_normals,
-                         visual       = new_visual,
-                         process      = False)
+        result = util.concatenate(self, other)
         return result

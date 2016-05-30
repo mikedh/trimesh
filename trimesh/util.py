@@ -636,9 +636,11 @@ def is_instance_named(obj, name):
     ---------
     bool, whether the object is a member of the named class
     '''
-    base = type_named(obj, name)
-    is_instance = base is not None
-    return is_instance 
+    try:
+        base = type_named(obj, name)
+        return True
+    except ValueError:
+        return False 
 
 def type_bases(obj):
     '''
@@ -664,19 +666,50 @@ def type_named(obj, name):
     named class, or None
     '''
     # if obj is a member of the named class, return True
+    name = str(name)
     if obj.__class__.__name__ == name:
         return obj.__class__
     for base in type_bases(obj):
         if base.__name__ == name:
             return base
-    return None
+    raise ValueError('Unable to extract class of name ' + name)
+
+def concatenate(a, b):
+    '''
+    Concatenate two meshes.
+
+    Example
+    ----------
+    Where a and b are different Trimesh objects:
+    a + b = c
+
+    c is a mesh which has all the faces from a and b, and
+    accompanying bookkeeping is done. 
+
+    Defining this also allows groups of meshes to be summed easily, 
+    for example like:
+
+    a = np.sum(meshes).show()
+    '''
+    trimesh_type = type_named(a, 'Trimesh')
+
+    new_normals  = np.vstack((a.face_normals, b.face_normals))
+    new_faces    = np.vstack((a.faces, (b.faces + len(a.vertices))))
+    new_vertices = np.vstack((a.vertices, b.vertices))
+    new_visual   = a.visual.union(b.visual)
+    result = trimesh_type(vertices     = new_vertices, 
+                          faces        = new_faces,
+                          face_normals = new_normals,
+                          visual       = new_visual,
+                          process      = False)
+    return result
 
 def submesh(mesh, 
             faces_sequence, 
             only_watertight = False, 
-            append = False):
+            append          = False):
     '''
-    Return a subset of the mesh.
+    Return a subset of a mesh.
 
     Arguments
     ----------

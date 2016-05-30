@@ -204,9 +204,13 @@ class Scene:
             self.transforms[node_key] = current
 
     def show(self, block=True, **kwargs):
+        # this imports pyglet, and will raise an ImportError
+        # if pyglet is not available 
         from .viewer import SceneViewer
+
         def viewer():
             SceneViewer(self, **kwargs)
+
         if block:
             viewer()
         else:
