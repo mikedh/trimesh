@@ -108,6 +108,33 @@ def fill_holes(mesh):
     ---------
     mesh: Trimesh object
     '''
+
+    def hole_to_faces(hole):
+        '''
+        Given a loop of vertex indices  representing a hole, turn it into 
+        triangular faces.
+        If unable to do so, return None
+
+        Arguments
+        ---------
+        hole:     ordered loop of vertex indices
+
+        Returns
+        ---------
+        (n, 3) new faces 
+        (m, 3) new vertices
+        '''
+        hole = np.asanyarray(hole)
+        # the case where the hole is just a single missing triangle
+        if len(hole) == 3: 
+            return [hole], []
+        # the hole is a quad, which we fill with two triangles
+        if len(hole) == 4: 
+            face_A = hole[[0,1,2]]
+            face_B = hole[[2,3,0]]
+            return [face_A, face_B], []       
+        return [], []
+
     if len(mesh.faces) < 3:
         return False
 
@@ -134,8 +161,7 @@ def fill_holes(mesh):
     for hole in cycles:
         # convert the hole, which is a polygon of vertex indices
         # to triangles and new vertices
-        faces, vertex = _hole_to_faces(hole     = hole, 
-                                       vertices = mesh.vertices)
+        faces, vertex = hole_to_faces(hole = hole)
         if len(faces) == 0:
             continue
         # remeshing returns new vertices as negative indices, so change those
@@ -202,31 +228,3 @@ def fill_holes(mesh):
     log.debug('Filled in mesh with %i triangles', np.sum(valid))
     return mesh.is_watertight
     
-def _hole_to_faces(hole, vertices=None):
-    '''
-    Given a loop of vertex indices  representing a hole, turn it into 
-    triangular faces.
-    If unable to do so, return None
-
-    Arguments
-    ---------
-    hole:     ordered loop of vertex indices
-    vertices: the vertices referenced by hole. 
-              If we were to add more involved remeshing algorithms, these 
-              would be required, however since we are only adding triangles
-              and triangulated quads it is not necessary. 
-    Returns
-    ---------
-    (n, 3) new faces 
-    (m, 3) new vertices
-    '''
-    hole = np.array(hole)
-    # the case where the hole is just a single missing triangle
-    if len(hole) == 3: 
-        return [hole], []
-    # the hole is a quad, which we fill with two triangles
-    if len(hole) == 4: 
-        face_A = hole[[0,1,2]]
-        face_B = hole[[2,3,0]]
-        return [face_A, face_B], []       
-    return [], []
