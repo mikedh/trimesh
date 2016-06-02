@@ -426,15 +426,52 @@ class Trimesh(object):
         '''
 
         cached = self._cache['edges_unique']
-        if cached is not None:
-            return cached
-        unique = grouping.unique_rows(self.edges_sorted)[0]
-        edges_unique = self.edges_sorted[unique]
-        self._cache['edges_unique'] = edges_unique
+        if cached is not None: return cached
+
+        unique, inverse = grouping.unique_rows(self.edges_sorted)
+        edges_unique    = self.edges_sorted[unique]
+        self._cache['edges_unique']     = edges_unique
+        self._cache['edges_unique_idx'] = unique
+        self._cache['edges_unique_inv'] = inverse
         return edges_unique
-        
+
+    @property
+    def faces_unique_edges(self):
+        '''
+        For each face return which indexes in mesh.unique_edges constructs that face.
+
+        Returns
+        ---------
+        faces_unique_edges: self.faces.shape int, which indexes of self.edges_unique
+                            construct self.faces
+
+        Example
+        ---------
+        In [0]: mesh.faces[0:2]
+        Out[0]: 
+        TrackedArray([[    1,  6946, 24224],
+                      [ 6946,  1727, 24225]])
+
+        In [1]: mesh.edges_unique[mesh.faces_unique_edges[0:2]]
+        Out[1]: 
+        array([[[    1,  6946],
+                [ 6946, 24224],
+                [    1, 24224]],
+               [[ 1727,  6946],
+                [ 1727, 24225],
+                [ 6946, 24225]]])
+        '''
+        # make sure we have populated unique edges
+        populate = self.edges_unique
+        # we are relying on the fact that edges are stacked in triplets
+        result = self._cache['edges_unique_inv'].reshape((-1,3))
+        return result
+
     @property
     def edges_sorted(self):
+        '''
+        Edges, sorted along axis 1
+        '''
         cached = self._cache['edges_sorted']
         if cached is not None:
             return cached
@@ -459,7 +496,7 @@ class Trimesh(object):
 
     @property
     def units(self):
-        if 'units' in self.metadata:
+        if 'units' in self.metadata: 
             return self.metadata['units']
         else:
             return None
@@ -467,9 +504,6 @@ class Trimesh(object):
     @units.setter
     def units(self, units):
         self.metadata['units'] = units
-
-    def guess_units(self):
-        pass
         
     def convert_units(self, desired, guess=False):
         '''
@@ -620,13 +654,13 @@ class Trimesh(object):
         if cached is not None:
             return cached
         # this value is calculated as a byproduct of the face adjacency
-        adjacency = self.face_adjacency
+        populate = self.face_adjacency
         return self._cache['face_adjacency_edges']
         
     @property
     def is_winding_consistent(self):
         # consistent winding check is populated into the cache by is_watertight query
-        watertight = self.is_watertight
+        populate = self.is_watertight
         return self._cache['is_winding_consistent']
 
     @property
