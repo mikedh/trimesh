@@ -60,7 +60,9 @@ If you are using a lot of graph operations (specifically mesh.split()) trimesh w
 
 ### Quick Start ###
 
-Here is an example of loading a mesh from file and colorizing its faces. An ipython notebook version is available in examples/quick_start.ipynb
+Here is an example of loading a mesh from file and colorizing its faces. Here is a nicely formatted
+[ipython notebook version](examples/quick_start.ipynb) of this example.
+
 
 ```python
 import numpy as np

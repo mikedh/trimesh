@@ -51,5 +51,10 @@ setup(name = 'trimesh',
       extras_require    = {'path' : ['svg.path', 
                                      'Shapely', 
                                      'rtree'],
-                           'viewer' : ['pyglet']}
+                           'viewer' : ['pyglet'],
+                           'all'    : ['pyglet',
+                                       'Shapely',
+                                       'rtree',
+                                       'svg.path',
+                                       'meshpy']}
      )
