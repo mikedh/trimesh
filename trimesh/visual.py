@@ -38,7 +38,7 @@ class VisualAttributes(object):
         '''
         if all(self._set.values()):
             sig_face   = self._data['face_colors'].ptp(axis=0).sum()
-            sig_vertex = self._data['vertex_colors'].ptp(axis=0).sum()
+            sig_vertex = self._cache['vertex_colors'].ptp(axis=0).sum()
             if sig_face > sig_vertex:
                 self.vertex_colors = None
             else:
@@ -47,7 +47,7 @@ class VisualAttributes(object):
     @property
     def _set(self):
         result = {'face'   : is_shape(self._data['face_colors'], (-1, (3,4))),
-                  'vertex' : is_shape(self._data['vertex_colors'], (-1,(3,4)))}
+                  'vertex' : is_shape(self._cache['vertex_colors'], (-1,(3,4)))}
         return result
 
     @property
@@ -73,7 +73,7 @@ class VisualAttributes(object):
                             np.any(self._data['face_colors'][:,3] < color_max))
         elif self._set['vertex']:
             transparency = (is_shape(self._data['vertex_colors'], (-1,4)) and
-                            np.any(self._vertex_colors[:,3] < color_max))
+                            np.any(self._cache['vertex_colors'][:,3] < color_max))
 
         return self._cache.set(key   = 'transparency',
                                value = bool(transparency))
@@ -83,20 +83,13 @@ class VisualAttributes(object):
 
     @property
     def face_colors(self):
-        def ok(blob):
-            return is_shape(blob, (len(self.mesh.faces), (3,4)))
-
         stored = self._data['face_colors']
-        cached = self._cache['face_colors']
-        if ok(stored):
+        if is_shape(stored, (len(self.mesh.faces), (3,4))):
             return stored
-        elif ok(cached):
-            return cached
-        
         log.debug('Returning default colors for faces.')
-        self._cache['face_colors'] = np.tile(DEFAULT_COLOR, 
-                                             (len(self.mesh.faces), 1))
-        return self._cache['face_colors']
+        self._data['face_colors'] = np.tile(DEFAULT_COLOR, 
+                                            (len(self.mesh.faces), 1))
+        return self._data['face_colors']
 
     @face_colors.setter
     def face_colors(self, values):
@@ -109,14 +102,8 @@ class VisualAttributes(object):
 
     @property
     def vertex_colors(self):
-        def ok(blob):
-            return is_shape(blob, (len(self.mesh.vertices), (3,4)))
-
-        stored = self._data['vertex_colors']
         cached = self._cache['vertex_colors']
-        if ok(stored):
-            return stored
-        elif ok(cached):
+        if is_shape(cached, (len(self.mesh.vertices), (3,4))):
             return cached
 
         log.debug('Vertex colors being generated from face colors')
@@ -126,7 +113,7 @@ class VisualAttributes(object):
    
     @vertex_colors.setter
     def vertex_colors(self, values):
-        self._data['vertex_colors'] = rgba(values, dtype=self.dtype)
+        self._cache['vertex_colors'] = rgba(values, dtype=self.dtype)
 
     def update_faces(self, mask):
         stored = self._data['face_colors']
@@ -282,7 +269,7 @@ def random_color(dtype=COLOR_DTYPE):
     if np.dtype(dtype).kind in 'iu':
         max_value = (2**(np.dtype(dtype).itemsize * 8)) - 1
         color    *= max_value
-    color = color.astype(dtype)
+    color = np.append(color, max_value).astype(dtype)
     return color
 
 def vertex_to_face_colors(vertex_colors, faces):
