@@ -4,7 +4,6 @@ class VisualTest(g.unittest.TestCase):
     def test_visual(self):
         mesh = g.get_mesh('featuretype.STL')
 
-
         self.assertFalse(mesh.visual.defined)
 
         facets = mesh.facets()
@@ -15,7 +14,6 @@ class VisualTest(g.unittest.TestCase):
         self.assertFalse(mesh.visual.transparency)
 
         mesh.visual.face_colors[0] = [10,10,10,130]
-
         self.assertTrue(mesh.visual.transparency)
 
 
