@@ -597,8 +597,11 @@ class Trimesh(object):
         Move the mesh so that all vertex vertices are positive.
         Does this by subtracting the minimum coordinate from all vertices
         '''
-        self.vertices -= self.bounds[0]
-        
+        with self._cache:
+            self.vertices -= self.bounds[0]
+        self._cache.clear(exclude = ['face_normals',
+                                     'vertex_normals'])
+
     @_log_time
     def split(self, only_watertight=True, adjacency=None):
         '''
