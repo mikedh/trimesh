@@ -43,9 +43,7 @@ $ sudo pip install trimesh
 ```
 
 This command will install `trimesh`, with its required dependencies, namely
-[`numpy`](http://www.numpy.org/),
-[`scipy`](http://www.scipy.org/) and
-[`networkx`](https://networkx.github.io/).
+[numpy](http://www.numpy.org/), [scipy](http://www.scipy.org/) and [networkx](https://networkx.github.io/).
 
 ### Optional Dependencies ###
 
@@ -55,13 +53,13 @@ $ sudo apt-get install cmake openscad blender libspatialindex-dev
 $ sudo pip install pyglet shapely git+https://github.com/robotics/assimp_latest.git git+https://github.com/Toblerity/rtree.git svg.path meshpy
 ```
 
-If you are using a lot of graph operations (specifically mesh.split) trimesh will automatically use [`graph-tool`](https://graph-tool.skewed.de/download) if it is installed, for a roughly 10x speedup over networkx on certain operations.
+If you are using a lot of graph operations (specifically mesh.split) trimesh will automatically use [graph-tool](https://graph-tool.skewed.de/download) if it is installed, for a roughly 10x speedup over networkx on certain operations.
 
 
 ### Quick Start ###
 
 Here is an example of loading a mesh from file and colorizing its faces. Here is a nicely formatted
-[ipython notebook version](examples/quick_start.ipynb) of this example.
+[ipython notebook version](http://github.com/mikedh/trimesh/blob/master/examples/quick_start.ipynb) of this example.
 
 
 ```python
