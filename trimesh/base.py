@@ -211,13 +211,24 @@ class Trimesh(object):
         log.debug('Generating vertex normals')
         vertex_normals = geometry.mean_vertex_normals(len(self.vertices),
                                                       self.faces,
-                                                      self.face_normals)
+                                                      self.face_normals,
+                                                      sparse = self.vertices_faces_sparse)
         self._cache['vertex_normals'] = vertex_normals
         return vertex_normals
 
     @vertex_normals.setter
     def vertex_normals(self, values):
         self._cache['vertex_normals'] = np.asanyarray(values)
+
+    @property
+    def vertices_faces_sparse(self):
+        cached = self._cache['vertices_faces_sparse']
+        if cached is not None:
+            return cached
+        sparse = geometry.vertices_faces_sparse(vertex_count = len(self.vertices),
+                                                faces = self.faces)
+        self._cache['vertices_faces_sparse'] = sparse
+        return sparse
 
     def md5(self):
         '''

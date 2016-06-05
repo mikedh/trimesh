@@ -1,8 +1,13 @@
 import numpy as np
 
 from .transformations import rotation_matrix
-from .constants       import tol
+from .constants       import tol, log
 from .util            import unitize, stack_lines
+
+try: 
+    from scipy.sparse import coo_matrix
+except ImportError: 
+    log.warning('scipy.sparse.coo_matrix unavailable')
 
 def plane_transform(origin, normal):
     '''
@@ -113,30 +118,104 @@ def triangulate_quads(quads):
                        quads[:,[2,3,0]]))
     return faces
     
-def mean_vertex_normals(count, faces, face_normals):
+def mean_vertex_normals(vertex_count, faces, face_normals, **kwargs):
     '''
-    roduce approximate vertex normals based on the
-    average normals of adjacent faces.
-    
-    If vertices are merged with no regard to normal angle, this is
-    going to render with weird shading.
-    '''
-    vertex_normals = np.zeros((count, 3,3))
-    vertex_normals[[faces[:,0],0]] = face_normals
-    vertex_normals[[faces[:,1],1]] = face_normals
-    vertex_normals[[faces[:,2],2]] = face_normals
-    mean_normals        = vertex_normals.mean(axis=1)
-    unit_normals, valid = unitize(mean_normals, check_valid=True)
+    Find vertex normals from the mean of the faces that contain that vertex.
 
-    mean_normals[valid] = unit_normals
-    # if the mean normal is zero, it generally means: 
-    # a) the vertex is only shared by 2 faces (mesh is not watertight)
-    # b) the two faces that share the vertex have 
-    #    normals pointed exactly opposite each other. 
-    # since this means the vertex normal isn't defined, just make it anything
-    mean_normals[np.logical_not(valid)] = [1,0,0]
+    Arguments
+    -----------
+    vertex_count: int, the number of vertices faces refer to
+    faces:        (n,3) int, list of vertex indices
+    face_normals: (n,3) float, normal vector for each face
+
+    Returns
+    -----------
+    vertex_normals: (vertex_count, 3) float normals for every vertex
+                    Uncontained vertices will be zero.
+    '''
+    def summed_sparse():
+        # use a sparse matrix of which face contains each vertex to
+        # figure out the summed normal at each vertex
+        # allow cached sparse matrix to be passed
+        if 'sparse' in kwargs:
+            sparse = kwargs['sparse']
+        else:
+            sparse = vertices_faces_sparse(vertex_count, faces)
+        summed = sparse.dot(face_normals)
+        log.debug('Generated vertex normals using sparse matrix')
+        return summed
+
+    def summed_loop():
+        # loop through every face, in tests was ~50x slower than 
+        # doing this with a sparse matrix
+        summed = np.zeros((vertex_count, 3))
+        for face, normal in zip(faces, face_normals):
+            summed[face] += normal
+        return summed
     
-    return mean_normals
+    try: 
+        summed = summed_sparse()
+    except: 
+        log.warning('Unable to generate sparse matrix! Falling back!',
+                                      exc_info = True)
+        summed = summed_loop()
+    unit_normals, valid = unitize(summed, check_valid=True)
+    vertex_normals = np.zeros((vertex_count, 3), dtype=np.float64)
+    vertex_normals[valid] = unit_normals
+
+    return vertex_normals
+
+def vertices_faces_sparse(vertex_count, faces):
+    '''
+    Return a sparse matrix for which vertices are contained in which faces.
+
+    Returns
+    ---------
+    sparse: scipy.sparse.coo_matrix of shape (len(m.vertices), len(m.faces))
+            dtype is boolean
+
+    Example
+     ----------
+    In [1]: sparse = vertices_faces_sparse(len(mesh.vertices), mesh.faces)
+
+    In [2]: sparse.shape
+    Out[2]: (12, 20)
+
+    In [3]: m.faces.shape
+    Out[3]: (20, 3)
+
+    In [4]: m.vertices.shape
+    Out[4]: (12, 3)
+
+    In [5]: dense = sparse.toarray().astype(int)
+
+    In [6]: dense
+    Out[6]: 
+    array([[1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+           [0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+           [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+           [0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0],
+           [0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+           [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 0],
+           [0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+           [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 0, 1],
+           [1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0],
+           [0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0],
+           [0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1],
+           [0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1]])
+
+    In [7]: dense.sum(axis=0)
+    Out[7]: array([3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3])
+    '''
+    row  = faces.reshape(-1)
+    col  = np.tile(np.arange(len(faces)).reshape((-1,1)), (1,3)).reshape(-1)
+
+    shape  = (vertex_count, len(faces))
+    data   = np.ones(len(col), dtype=np.bool)
+    sparse = coo_matrix((data, (row,col)), 
+                        shape = shape, 
+                        dtype = np.bool)
+    return sparse
 
 def medial_axis(samples, contains):
     '''
