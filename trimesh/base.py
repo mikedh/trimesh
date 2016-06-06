@@ -164,7 +164,27 @@ class Trimesh(object):
             log.info('Triangulating quad faces')
             values = geometry.triangulate_quads(values)
         self._data['faces'] = values
+        
+    @property
+    def faces_sparse(self):
+        cached = self._cache['faces_sparse']
+        if cached is not None:
+            return cached
+        sparse = geometry.faces_sparse(vertex_count = len(self.vertices),
+                                       faces = self.faces)
+        self._cache['faces_sparse'] = sparse
+        return sparse
 
+    @property
+    def face_normals(self):
+        self._validate_face_normals()
+        cached = self._cache['face_normals']
+        return cached
+
+    @face_normals.setter
+    def face_normals(self, values):
+        self._cache['face_normals'] = np.asanyarray(values)
+        
     @property
     def vertices(self):
         return self._data['vertices']
@@ -194,41 +214,20 @@ class Trimesh(object):
             self._cache['face_normals'] = face_normals
 
     @property
-    def face_normals(self):
-        self._validate_face_normals()
-        cached = self._cache['face_normals']
-        return cached
-
-    @face_normals.setter
-    def face_normals(self, values):
-        self._cache['face_normals'] = np.asanyarray(values)
-
-    @property
     def vertex_normals(self):
         cached = self._cache['vertex_normals']
         if np.shape(cached) == np.shape(self.vertices):
             return cached
-        log.debug('Generating vertex normals')
         vertex_normals = geometry.mean_vertex_normals(len(self.vertices),
                                                       self.faces,
                                                       self.face_normals,
-                                                      sparse = self.vertices_faces_sparse)
+                                                      sparse = self.faces_sparse)
         self._cache['vertex_normals'] = vertex_normals
         return vertex_normals
 
     @vertex_normals.setter
     def vertex_normals(self, values):
         self._cache['vertex_normals'] = np.asanyarray(values)
-
-    @property
-    def vertices_faces_sparse(self):
-        cached = self._cache['vertices_faces_sparse']
-        if cached is not None:
-            return cached
-        sparse = geometry.vertices_faces_sparse(vertex_count = len(self.vertices),
-                                                faces = self.faces)
-        self._cache['vertices_faces_sparse'] = sparse
-        return sparse
 
     def md5(self):
         '''

@@ -1,6 +1,6 @@
 import generic as g
 
-class VertexNormalsTest(g.unittest.TestCase):
+class NormalsTest(g.unittest.TestCase):
     def test_vertex_normal(self):
         mesh = g.trimesh.creation.icosahedron()
         truth = g.trimesh.util.unitize(mesh.vertices)
@@ -10,14 +10,13 @@ class VertexNormalsTest(g.unittest.TestCase):
                                                          mesh.faces, 
                                                          mesh.face_normals, 
                                                          sparse=None)
-        assert g.np.allclose(normals-truth, 0.0)
+        self.assertTrue(g.np.allclose(normals-truth, 0.0))
 
         normals = g.trimesh.geometry.mean_vertex_normals(len(mesh.vertices), 
                                                          mesh.faces, 
                                                          mesh.face_normals)
-        assert g.np.allclose(normals-truth, 0.0)
-
-        self.assertTrue(mesh.vertices_faces_sparse is not None)
+        self.assertTrue(g.np.allclose(normals-truth, 0.0))
+        self.assertTrue(mesh.faces_sparse is not None)
         self.assertTrue(mesh.vertex_normals.shape == mesh.vertices.shape)
 
     def test_face_normals(self):

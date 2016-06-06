@@ -637,7 +637,7 @@ def is_instance_named(obj, name):
     bool, whether the object is a member of the named class
     '''
     try:
-        base = type_named(obj, name)
+        type_named(obj, name)
         return True
     except ValueError:
         return False 

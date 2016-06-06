@@ -140,7 +140,7 @@ def mean_vertex_normals(vertex_count, faces, face_normals, **kwargs):
         if 'sparse' in kwargs:
             sparse = kwargs['sparse']
         else:
-            sparse = vertices_faces_sparse(vertex_count, faces)
+            sparse = faces_sparse(vertex_count, faces)
         summed = sparse.dot(face_normals)
         log.debug('Generated vertex normals using sparse matrix')
         return summed
@@ -157,7 +157,7 @@ def mean_vertex_normals(vertex_count, faces, face_normals, **kwargs):
         summed = summed_sparse()
     except: 
         log.warning('Unable to generate sparse matrix! Falling back!',
-                                      exc_info = True)
+                    exc_info = True)
         summed = summed_loop()
     unit_normals, valid = unitize(summed, check_valid=True)
     vertex_normals = np.zeros((vertex_count, 3), dtype=np.float64)
@@ -165,26 +165,26 @@ def mean_vertex_normals(vertex_count, faces, face_normals, **kwargs):
 
     return vertex_normals
 
-def vertices_faces_sparse(vertex_count, faces):
+def faces_sparse(vertex_count, faces):
     '''
     Return a sparse matrix for which vertices are contained in which faces.
 
     Returns
     ---------
-    sparse: scipy.sparse.coo_matrix of shape (len(m.vertices), len(m.faces))
+    sparse: scipy.sparse.coo_matrix of shape (vertex_count, len(faces))
             dtype is boolean
 
     Example
      ----------
-    In [1]: sparse = vertices_faces_sparse(len(mesh.vertices), mesh.faces)
+    In [1]: sparse = faces_sparse(len(mesh.vertices), mesh.faces)
 
     In [2]: sparse.shape
     Out[2]: (12, 20)
 
-    In [3]: m.faces.shape
+    In [3]: mesh.faces.shape
     Out[3]: (20, 3)
 
-    In [4]: m.vertices.shape
+    In [4]: mesh.vertices.shape
     Out[4]: (12, 3)
 
     In [5]: dense = sparse.toarray().astype(int)
