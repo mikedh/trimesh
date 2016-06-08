@@ -170,8 +170,8 @@ class Trimesh(object):
         cached = self._cache['faces_sparse']
         if cached is not None:
             return cached
-        sparse = geometry.faces_sparse(vertex_count = len(self.vertices),
-                                       faces = self.faces)
+        sparse = geometry.index_sparse(column_count = len(self.vertices),
+                                       indices      = self.faces)
         self._cache['faces_sparse'] = sparse
         return sparse
 

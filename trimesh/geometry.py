@@ -92,6 +92,11 @@ def align_vectors(vector_start, vector_end, return_angle=False):
         if direction < 0:
             angle = np.pi - angle
         T = rotation_matrix(angle, cross)
+
+    check = np.dot(T[:3,:3], vector_start) - vector_end
+    if not np.allclose(check, 0.0):
+        raise ValueError('Vectors unaligned!')
+    
     if return_angle:
         return T, angle
     return T
@@ -140,7 +145,7 @@ def mean_vertex_normals(vertex_count, faces, face_normals, **kwargs):
         if 'sparse' in kwargs:
             sparse = kwargs['sparse']
         else:
-            sparse = faces_sparse(vertex_count, faces)
+            sparse = index_sparse(vertex_count, faces)
         summed = sparse.dot(face_normals)
         log.debug('Generated vertex normals using sparse matrix')
         return summed
@@ -165,13 +170,14 @@ def mean_vertex_normals(vertex_count, faces, face_normals, **kwargs):
 
     return vertex_normals
 
-def faces_sparse(vertex_count, faces):
+def index_sparse(column_count, indices):
     '''
     Return a sparse matrix for which vertices are contained in which faces.
 
+    
     Returns
     ---------
-    sparse: scipy.sparse.coo_matrix of shape (vertex_count, len(faces))
+    sparse: scipy.sparse.coo_matrix of shape (column_count, len(faces))
             dtype is boolean
 
     Example
@@ -207,10 +213,13 @@ def faces_sparse(vertex_count, faces):
     In [7]: dense.sum(axis=0)
     Out[7]: array([3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3])
     '''
-    row  = faces.reshape(-1)
-    col  = np.tile(np.arange(len(faces)).reshape((-1,1)), (1,3)).reshape(-1)
+    indices = np.asanyarray(indices)
+    column_count = int(column_count)
+    
+    row  = indices.reshape(-1)
+    col  = np.tile(np.arange(len(indices)).reshape((-1,1)), (1,indices.shape[1])).reshape(-1)
 
-    shape  = (vertex_count, len(faces))
+    shape  = (column_count, len(indices))
     data   = np.ones(len(col), dtype=np.bool)
     sparse = coo_matrix((data, (row,col)), 
                         shape = shape, 

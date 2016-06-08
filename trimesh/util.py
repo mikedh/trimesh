@@ -642,12 +642,17 @@ def is_instance_named(obj, name):
     except ValueError:
         return False 
 
-def type_bases(obj):
+def type_bases(obj, depth=4):
     '''
     Return the bases of the object passed.
     '''
-    bases = list(obj.__class__.__bases__)
-    bases = np.append(bases, [i.__base__ for i in bases])
+    bases = deque([list(obj.__class__.__bases__)])
+    for i in range(depth):
+        bases.append([i.__base__ for i in bases[-1] if i is not None])
+    try:
+        bases = np.hstack(bases)
+    except IndexError:
+        bases = []
     # we do the hasattr as None/NoneType can be in the list of bases
     bases = [i for i in bases if hasattr(i, '__name__')]
     return np.array(bases)

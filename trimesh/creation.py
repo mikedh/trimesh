@@ -16,14 +16,17 @@ from collections import deque
 
 try:    
     from shapely.geometry import Polygon
+    from shapely.wkb import loads as load_wkb
 except ImportError: 
-    pass
+    log.warning('shapely unavilable', exc_info=True)
 
 def validate_polygon(obj):
     if util.is_instance_named(obj, 'Polygon'):
         polygon = obj
     elif util.is_shape(obj, (-1,2)):
         polygon = Polygon(obj)
+    elif util.is_string(obj):
+        polygon = load_wkb(obj)
     else:
         raise ValueError('Input not a polygon!')
         
@@ -32,7 +35,6 @@ def validate_polygon(obj):
         raise ValueError('Polygon is zero- area or invalid!')
     return polygon
     
-
 def extrude_polygon(polygon,
                     height,
                     **kwargs):    

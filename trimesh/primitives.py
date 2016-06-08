@@ -221,6 +221,17 @@ class Extrusion(Primitive):
     def extrude_polygon(self, value):
         polygon = creation.validate_polygon(value)
         self._data['extrude_polygon'] = polygon
+        
+    @property
+    def extrude_direction(self):
+        direction = np.dot(self.extrude_transform[:3,:3], [0.0,0.0,1.0])
+        return direction
+        
+    def slide(self, distance):
+        translation = np.eye(4)
+        translation[2,3] = distance
+        self.extrude_transform = np.dot(self.extrude_transform,
+                                        translation)
 
     def _create_mesh(self):
         log.debug('Creating mesh for extrude primitive')
