@@ -514,6 +514,19 @@ class Cache:
         self.id_current = self._id_function()
 
 class DataStore:
+    @property
+    def mutable(self):
+        if not hasattr(self, '_mutable'):
+            self._mutable = True
+        return self._mutable
+        
+    @mutable.setter
+    def mutable(self, value):
+        value = bool(value)
+        for i in self.data.value():
+            i.flags.writeable = value
+        self._mutable = value
+        
     def is_empty(self):
         if len(self.data) == 0: 
             return True

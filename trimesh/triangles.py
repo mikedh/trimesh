@@ -194,3 +194,28 @@ def bounds_tree(triangles):
     for i, bounds in enumerate(tri_bounds):
         tree.insert(i, bounds)    
     return tree
+
+def nondegenerate(triangles):
+    '''
+    Find all faces which have three unique vertex indices.
+
+    Arguments
+    ----------
+    triangles: (n, 3, 3) float, set of triangles
+
+    Returns
+    ----------
+    nondegenerate: (n,) bool array of triangles that have 3 unique indices
+    '''    
+    a, valid_a = unitize(triangles[:,1] - triangles[:,0], check_valid=True)
+    b, valid_b = unitize(triangles[:,2] - triangles[:,0], check_valid=True)
+
+    diff = np.zeros((len(triangles), 3))
+    diff[valid_a]  = a
+    diff[valid_b] -= b
+
+    ok = (np.abs(diff) > tol.merge).any(axis=1)
+    ok[np.logical_not(valid_a)] = False
+    ok[np.logical_not(valid_b)] = False
+    
+    return ok

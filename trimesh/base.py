@@ -22,12 +22,12 @@ from . import util
 from . import convex
 from . import remesh
 from . import bounds
+from . import units
 
 from .io.export    import export_mesh
 from .ray.ray_mesh import RayMeshIntersector, contains_points
 from .voxel        import Voxel
 from .points       import transform_points
-from .units        import _set_units
 from .constants    import log, _log_time, tol
 from .scene        import Scene
 
@@ -390,7 +390,6 @@ class Trimesh(object):
         '''
         Return an R-tree containing each face of the mesh.
         '''
-
         tree = triangles.bounds_tree(self.triangles)
         return tree
 
@@ -480,7 +479,9 @@ class Trimesh(object):
     @property
     def edges_sorted(self):
         '''
-        Edges, sorted along axis 1
+        Returns
+        ----------
+        self.edges, but sorted along axis 1
         '''
         cached = self._cache['edges_sorted']
         if cached is not None:
@@ -493,14 +494,13 @@ class Trimesh(object):
     def euler_number(self):
         '''
         Return the Euler characteristic (a topological invariant) for the mesh
-        In order to guarentee correctness, this should be called after 
-        remove_duplicate_vertices()
+        In order to guarantee correctness, this should be called after 
+        remove_unreferenced_vertices
 
         Returns
         ----------
         euler_number: int, topological invarient
         '''
-
         euler = len(self.vertices) - len(self.edges_unique) + len(self.faces)
         return euler
 
@@ -512,8 +512,11 @@ class Trimesh(object):
             return None
 
     @units.setter
-    def units(self, units):
-        self.metadata['units'] = units
+    def units(self, value):
+        value = str(value)
+        if not units.validate(value):
+            raise ValueError(value + ' are not a valid unit!')
+        self.metadata['units'] = value
         
     def convert_units(self, desired, guess=False):
         '''
@@ -525,7 +528,7 @@ class Trimesh(object):
         guess:   boolean, if self.units are not valid should we 
                  guess the current units of the document and then convert?
         '''
-        _set_units(self, desired, guess)
+        units._set_units(self, desired, guess)
 
     def merge_vertices(self, angle=None):
         '''
@@ -742,7 +745,7 @@ class Trimesh(object):
         Remove degenerate faces (faces without 3 unique vertex indices) 
         from the current mesh.
         '''
-        nondegenerate = geometry.nondegenerate_faces(self.faces)
+        nondegenerate = triangles.nondegenerate(self.triangles)
         self.update_faces(nondegenerate)
 
     def facets(self, return_area=False):

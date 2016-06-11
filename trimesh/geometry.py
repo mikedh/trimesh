@@ -49,23 +49,6 @@ def transform_around(matrix, point):
     result = np.dot(translate, result)
     return result
 
-def nondegenerate_faces(faces):
-    '''
-    Find all faces which have three unique vertex indices.
-
-    Arguments
-    ----------
-    faces: (n, 3) int array of vertex indices
-
-    Returns
-    ----------
-    nondegenerate: (n,) bool array of faces that have 3 unique indices
-    '''
-    diffed = np.diff(np.sort(faces, axis=1), axis=1)
-    nondegenerate = np.all(diffed != 0, axis=1)
-    return nondegenerate
-    
-
 def align_vectors(vector_start, vector_end, return_angle=False):
     '''
     Returns the 4x4 transformation matrix which will rotate from 

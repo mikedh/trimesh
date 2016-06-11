@@ -26,10 +26,11 @@ _TO_INCHES = {'microinches' : 1.0 / 1000.0,
 _synonyms = {'millimeters' : ['mm'],
              'inches'      : ['in'],
              'meters'      : ['m']}
+             
 for key, new_keys in _synonyms.items():
-    value = _TO_INCHES[key]
+    _value = _TO_INCHES[key]
     for new_key in new_keys:
-        _TO_INCHES[new_key] = value
+        _TO_INCHES[new_key] = _value
 
 def unit_conversion(current, desired):
     '''
@@ -47,6 +48,9 @@ def unit_conversion(current, desired):
     conversion = _TO_INCHES[current] / _TO_INCHES[desired]
     return conversion
 
+def validate(units):
+    return units in _TO_INCHES
+    
 def unit_guess(scale):
     '''
     Wild ass guess for the units of a drawing or model, based on the scale.
