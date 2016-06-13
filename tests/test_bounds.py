@@ -9,12 +9,12 @@ class BoundsTest(g.unittest.TestCase):
             for i in range(100):
                 mat = g.trimesh.transformations.random_rotation_matrix()
                 mat[0:3,3] = (g.np.random.random(3) -.5)* 100
-                m.transform(mat)
+                m.apply_transform(mat)
 
                 box_ext = m.bounding_box_oriented.box_extents.copy()
                 box_t = m.bounding_box_oriented.box_transform.copy()
 
-                m.transform(g.np.linalg.inv(box_t))
+                m.apply_transform(g.np.linalg.inv(box_t))
 
                 test = m.bounds / (box_ext / 2.0)
                 test_ok = g.np.allclose(test, [[-1,-1,-1],[1,1,1]])

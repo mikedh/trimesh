@@ -237,7 +237,7 @@ class Extrusion(Primitive):
         log.debug('Creating mesh for extrude primitive')
         mesh = creation.extrude_polygon(self.extrude_polygon,
                                         self.extrude_height)
-        mesh.transform(self.extrude_transform)
+        mesh.apply_transform(self.extrude_transform)
         self._cache['vertices']     = mesh.vertices
         self._cache['faces']        = mesh.faces
         self._cache['face_normals'] = mesh.face_normals

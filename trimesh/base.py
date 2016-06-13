@@ -918,7 +918,21 @@ class Trimesh(object):
             self.faces = np.arange(len(self.vertices)).reshape((-1,3))
         self._cache.clear(exclude='face_normals')
 
-    def transform(self, matrix):
+    def apply_scale(self, scaling):
+        '''
+        Scale the mesh equally on all axis.
+
+        Arguments
+        ----------
+        scaling: float, scale factor
+        '''
+        scaling = float(scaling)
+        matrix = np.eye(4)
+        matrix[:3,:3] *= scaling
+        # apply_transform will work nicely even on negative scales
+        self.apply_transform(matrix)
+
+    def apply_transform(self, matrix):
         '''
         Transform mesh by a homogenous transformation matrix.
         Also transforms normals to avoid having to recompute them.
@@ -931,7 +945,9 @@ class Trimesh(object):
         if matrix.shape != (4,4):
             raise ValueError('Transformation matrix must be (4,4)!')
 
-        new_normals  = np.dot(matrix[0:3, 0:3], self.face_normals.T).T
+        new_normals = np.dot(matrix[0:3, 0:3], self.face_normals.T).T
+        # easier than figuring out what the scale factor of the matrix is
+        new_normals = util.unitize(new_normals)
         new_vertices = transform_points(self.vertices, matrix)
         # check the first face against the first normal to see if winding is correct
         aligned_pre = triangles.windings_aligned(self.vertices[self.faces[:1]], 
@@ -941,9 +957,11 @@ class Trimesh(object):
         if aligned_pre != aligned_post:
             log.debug('Triangle normals not aligned after transform; flipping')
             self.faces = np.fliplr(self.faces)
-        self._cache.verify()
-        self.vertices     = new_vertices
-        self.face_normals = new_normals
+        with self._cache:
+            self.vertices = new_vertices
+            self.face_normals = new_normals
+        self._cache.clear(exclude = ['face_normals'])
+
         log.debug('Mesh transformed by matrix, normals restored to cache')
         return self
 

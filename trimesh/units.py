@@ -71,6 +71,9 @@ def _set_units(obj, desired, guess):
     guess:   boolean, whether we are allowed to guess the units of the document
              if they are not specified. 
     '''
+    desired = str(desired)
+    if not validate(desired):
+        raise ValueError(desired + ' are not a valid unit!')
 
     if obj.units is None:
         if guess:

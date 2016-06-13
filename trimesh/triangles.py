@@ -197,7 +197,10 @@ def bounds_tree(triangles):
 
 def nondegenerate(triangles):
     '''
-    Find all faces which have three unique vertex indices.
+    Find all triangles which have nonzero area.
+    Degenerate triangles are divided into two cases:
+    1) Two of the three vertices are colocated
+    2) All three vertices are unique but colinear
 
     Arguments
     ----------
@@ -205,7 +208,7 @@ def nondegenerate(triangles):
 
     Returns
     ----------
-    nondegenerate: (n,) bool array of triangles that have 3 unique indices
+    nondegenerate: (n,) bool array of triangles that have area
     '''    
     a, valid_a = unitize(triangles[:,1] - triangles[:,0], check_valid=True)
     b, valid_b = unitize(triangles[:,2] - triangles[:,0], check_valid=True)

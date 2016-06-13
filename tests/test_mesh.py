@@ -96,7 +96,7 @@ class MeshTests(g.unittest.TestCase):
                 mesh.rezero()
                 matrix = g.trimesh.transformations.random_rotation_matrix()
                 matrix[0:3,3] = (g.np.random.random(3)-.5)*20
-                mesh.transform(matrix)
+                mesh.apply_transform(matrix)
                 result.append(mesh.identifier)
 
             ok = (g.np.abs(g.np.diff(result, axis=0)) < 1e-3).all()

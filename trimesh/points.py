@@ -19,7 +19,8 @@ def transform_points(points, matrix, translate=True):
     translate: boolean, apply translation from matrix or not
 
     '''
-    dimension   = np.shape(points)[1]
+    points = np.asanyarray(points)
+    dimension   = points.shape[1]
     column      = np.zeros(len(points)) + int(bool(translate))
     stacked     = np.column_stack((points, column))
     transformed = np.dot(matrix, stacked.T).T[:,0:dimension]

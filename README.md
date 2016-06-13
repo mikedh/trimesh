@@ -103,9 +103,12 @@ for facet in facets:
 mesh.show()
 
 # transform method can be passed a (4,4) matrix and will cleanly apply the transform
-mesh.transform(trimesh.transformations.random_rotation_matrix())
+mesh.apply_transform(trimesh.transformations.random_rotation_matrix())
 
-# a minimum volume oriented bounding box is available
+# axis aligned bounding box is available
+mesh.bounding_box.extents
+
+# a minimum volume oriented bounding box also available
 mesh.bounding_box_oriented.box_extents
 mesh.bounding_box_oriented.box_transform
 
@@ -113,7 +116,7 @@ mesh.bounding_box_oriented.box_transform
 # the bounding box is a trimesh.primitives.Box object, which subclasses
 # Trimesh and lazily evaluates to fill in vertices and faces when requested
 # (press w in viewer to see triangles)
-(mesh + mesh.bounding_box_oriented).show()
+(mesh + mesh.bounding_box_oriented + mesh.bounding_box).show()
 ```
 
 ### Optional Viewer ###
