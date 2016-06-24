@@ -1,6 +1,6 @@
 import numpy as np
 
-from ..util import base64_to_array
+from ..util import encoded_to_array
 
 def load_off(file_obj, file_type=None):
     header_string = file_obj.readline().decode().strip()
@@ -45,7 +45,7 @@ def load_dict(data, file_type=None):
 
 def load_dict64(data, file_type=None):
     for key in ('vertices', 'faces', 'face_normals'):
-        data[key] = base64_to_array(data[key])
+        data[key] =encoded_to_array(data[key])
     return data
 
 _misc_loaders = {'obj'    : load_wavefront,

@@ -176,13 +176,15 @@ class Box(Primitive):
 class Extrusion(Primitive):
     def __init__(self, *args, **kwargs):
         super(Extrusion, self).__init__(*args, **kwargs)
-
+        
         if 'extrude_polygon' in kwargs:
             self.extrude_polygon   = kwargs['extrude_polygon']
         if 'extrude_transform' in kwargs:
             self.extrude_transform = kwargs['extrude_transform']
         if 'extrude_height' in kwargs:
             self.extrude_height    = kwargs['extrude_height']
+
+        
 
     @property
     def extrude_transform(self):
@@ -203,12 +205,11 @@ class Extrusion(Primitive):
         stored = self._data['extrude_height']
         if stored is None: 
             raise ValueError('extrude height not specified!')
-        return stored[0]
+        return stored.copy()[0]
 
     @extrude_height.setter
     def extrude_height(self, value):
-        height = float(value)
-        self._data['extrude_height'] = height
+        self._data['extrude_height'] = float(value)
 
     @property
     def extrude_polygon(self):
@@ -224,14 +225,17 @@ class Extrusion(Primitive):
         
     @property
     def extrude_direction(self):
-        direction = np.dot(self.extrude_transform[:3,:3], [0.0,0.0,1.0])
+        direction = np.dot(self.extrude_transform[:3,:3], 
+                           [0.0,0.0,1.0])
         return direction
         
     def slide(self, distance):
+        distance = float(distance)
         translation = np.eye(4)
         translation[2,3] = distance
-        self.extrude_transform = np.dot(self.extrude_transform,
-                                        translation)
+        new_transform = np.dot(self.extrude_transform.copy(),
+                               translation.copy())
+        self.extrude_transform = new_transform
 
     def _create_mesh(self):
         log.debug('Creating mesh for extrude primitive')

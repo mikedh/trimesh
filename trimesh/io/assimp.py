@@ -40,16 +40,14 @@ def load_assimp(file_obj, file_type=None):
 _assimp_loaders = {}
 try: 
     import pyassimp
-
-    # this function was added to the master on github on 9/2014
     if hasattr(pyassimp, 'available_formats'):
         _assimp_formats = [i.lower() for i in pyassimp.available_formats()]
     else: 
-        log.warning('Older version of assimp detected, using hardcoded format list!')
+        log.warning('Older version of assimp detected, using hardcoded format list')
         _assimp_formats = ['dae', 'blend', '3ds', 'ase',  'obj', 
                            'ifc', 'xgl',   'zgl', 'ply',  'lwo',
                            'lxo', 'x',     'ac',  'ms3d', 'cob', 'scn']
     _assimp_loaders.update(zip(_assimp_formats,
                                [load_assimp]*len(_assimp_formats)))
 except ImportError:
-    log.warning('No pyassimp, only native loaders available!')
+    log.warning('pyassimp unavailable, using only native loaders')

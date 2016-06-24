@@ -138,7 +138,7 @@ def export_dxf(path):
         line_type = ['LINE', 'LWPOLYLINE'][int(is_poly)]
         result = templates['line'].substitute({'TYPE'         : line_type,
                                                'POINTS'       : format_points(points,
-                                                                              increment=not is_poly),
+                                                                              increment = not is_poly),
                                                'NAME'         : str(id(line))[:16],
                                                'LAYER_NUMBER' : layer,
                                                'COLOR_NUMBER' : color})

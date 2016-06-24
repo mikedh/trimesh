@@ -3,6 +3,8 @@ import generic as g
 class NormalsTest(g.unittest.TestCase):
     def test_vertex_normal(self):
         mesh = g.trimesh.creation.icosahedron()
+        # the icosahedron is centered at zero, so the true vertex
+        # normal is just a unit vector of the vertex position
         truth = g.trimesh.util.unitize(mesh.vertices)
 
         # force fallback to loop normal summing by passing None as the sparse matrix
@@ -18,11 +20,14 @@ class NormalsTest(g.unittest.TestCase):
         self.assertTrue(g.np.allclose(normals-truth, 0.0))
         self.assertTrue(mesh.faces_sparse is not None)
         self.assertTrue(mesh.vertex_normals.shape == mesh.vertices.shape)
-
+        self.assertTrue(g.np.allclose(mesh.vertex_normals-truth, 0.0))
+        
     def test_face_normals(self):
         mesh = g.trimesh.creation.icosahedron()
         self.assertTrue(mesh.face_normals.shape == mesh.faces.shape)
-
+        mesh.face_normals = None
+        self.assertTrue(mesh.face_normals.shape == mesh.faces.shape)
+        
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()

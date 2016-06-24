@@ -447,6 +447,14 @@ class Cache:
         self._lock = 0
         self.cache = {}
         
+    def decorator(self, function):
+        name = function.__name__
+        if name in self.cache:
+            return self.cache[name]
+        result = function()
+        self.cache[name] = result
+        return result
+        
     def get(self, key):
         '''
         Get a key from the cache.
@@ -530,8 +538,14 @@ class DataStore:
     def is_empty(self):
         if len(self.data) == 0: 
             return True
-        empty = all(i.shape in [(), (0,)] for i in self.data.values())
-        return empty
+        for v in self.data.values():
+            if is_sequence(v):
+                if len(v) > 0:
+                    return False
+            else:
+                if bool(np.isreal(v)):
+                    return False
+        return True
 
     def __init__(self):
         self.data = {}
@@ -587,7 +601,7 @@ def append_faces(vertices_seq, faces_seq):
 
     return vertices, faces
 
-def array_to_base64(array, dtype=None):
+def array_to_encoded(array, dtype=None, encoding='base64'):
     '''
     Export a numpy array to a compact serializable dictionary.
 
@@ -595,7 +609,7 @@ def array_to_base64(array, dtype=None):
     ---------
     array: numpy array
     dtype: optional, what dtype should array be encoded with.
-
+    encoding: str, 'base64' or 'binary'
     Returns
     ---------
     encoded: dict with keys: 
@@ -609,12 +623,18 @@ def array_to_base64(array, dtype=None):
     flat  = np.ravel(array)
     if dtype is None:
         dtype = array.dtype
+
     encoded = {'dtype'  : np.dtype(dtype).str,
-               'shape'  : shape,
-               'base64' : base64.b64encode(flat.astype(dtype))}
+               'shape'  : shape}
+    if encoding in ['base64', 'dict64']:
+        encoded['base64'] = base64.b64encode(flat.astype(dtype))
+    elif encoding == 'binary':
+        encoded['binary'] = array.tostring(order='C')
+    else:
+        raise ValueError('encoding {} is not available!'.format(encoding))
     return encoded
 
-def base64_to_array(encoded):
+def encoded_to_array(encoded):
     '''
     Turn a dictionary with base64 encoded strings back into a numpy array.
 
@@ -624,15 +644,20 @@ def base64_to_array(encoded):
                  dtype: string of dtype
                  shape: int tuple of shape
                  base64: base64 encoded string of flat array
-
+                 binary:  decode result coming from numpy.tostring 
     Returns
     ----------
     array: numpy array
     '''
     shape = encoded['shape']
     dtype = np.dtype(encoded['dtype'])
-    array = np.fromstring(base64.b64decode(encoded['base64']), 
-                          dtype).reshape(shape)
+    if 'base64' in encoded:
+        array = np.fromstring(base64.b64decode(encoded['base64']), dtype).reshape(shape)
+    elif 'binary' in encoded:
+        array = np.fromstring(encoded['binary'], 
+                              dtype = dtype, 
+                              count = np.product(shape))
+    array = array.reshape(shape)
     return array
 
 def is_instance_named(obj, name):

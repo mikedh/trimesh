@@ -1,5 +1,4 @@
 import numpy as np
-import struct
 
 from ..util      import is_binary_file
 
@@ -7,7 +6,9 @@ from ..util      import is_binary_file
 _stl_dtype = np.dtype([('normals',    np.float32, (3)), 
                        ('vertices',   np.float32, (3,3)), 
                        ('attributes', np.uint16)])
- 
+_stl_dtype_header = np.dtype([('header', np.void, 80),
+                             ('face_count', np.int32)])
+
 def load_stl(file_obj, file_type=None):
     if is_binary_file(file_obj): return load_stl_binary(file_obj)
     else:                        return load_stl_ascii(file_obj)
@@ -18,12 +19,9 @@ def load_stl_binary(file_obj):
     Uses a single main struct.unpack call, and is significantly faster
     than looping methods or ASCII STL. 
     '''
-    # get the file_obj header
-    header = file_obj.read(80)
-    
-    # get the file information about the number of triangles
-    tri_count    = int(struct.unpack("@i", file_obj.read(4))[0])
-    
+
+    header = np.fromstring(file_obj.read(84), dtype=_stl_dtype_header)
+
     # now we check the length from the header versus the length of the file
     # data_start should always be position 84, but hard coding that felt ugly
     data_start = file_obj.tell()
@@ -36,7 +34,7 @@ def load_stl_binary(file_obj):
     # the binary format has a rigidly defined structure, and if the length
     # of the file doesn't match the header, the loaded version is almost
     # certainly going to be garbage. 
-    data_ok = (data_end - data_start) == (tri_count * _stl_dtype.itemsize)
+    data_ok = (data_end - data_start) == (header['face_count'] * _stl_dtype.itemsize)
    
     # this check is to see if this really is a binary STL file. 
     # if we don't do this and try to load a file that isn't structured properly 
@@ -47,7 +45,7 @@ def load_stl_binary(file_obj):
     
     # all of our vertices will be loaded in order due to the STL format, 
     # so faces are just sequential indices reshaped. 
-    faces = np.arange(tri_count*3).reshape((-1,3))
+    faces = np.arange(header['face_count'] * 3).reshape((-1,3))
     blob  = np.fromstring(file_obj.read(), dtype=_stl_dtype)
     
     result =  {'vertices'     : blob['vertices'].reshape((-1,3)),
@@ -88,5 +86,31 @@ def load_stl_ascii(file_obj):
             'faces'        : faces, 
             'face_normals' : face_normals}
 
+def export_stl(mesh):
+    '''
+    Convert a Trimesh object into a binary STL file.
+
+    Arguments
+    ---------
+    mesh: Trimesh object
+
+    Returns
+    ---------
+    export: bytes, representing mesh in binary STL form
+    '''
+    header = np.zeros(1, dtype = _stl_dtype_header)
+    header['face_count'] = len(mesh.faces)
+
+    packed = np.zeros(len(mesh.faces), dtype=_stl_dtype)
+    packed['normals']  = mesh.face_normals
+    packed['vertices'] = mesh.triangles
+
+    export  = header.tostring()
+    export += packed.tostring()
+    
+    return export
+
 _stl_loaders = {'stl':load_stl}
+
+
 

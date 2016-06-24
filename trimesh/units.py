@@ -49,7 +49,15 @@ def unit_conversion(current, desired):
     return conversion
 
 def validate(units):
-    return units in _TO_INCHES
+    '''
+    Check whether a string represents the name of a valid unit
+    
+    Returns
+    ---------
+    valid: bool, is units string a valid unit or not
+    '''
+    valid = str(units) in _TO_INCHES
+    return valid
     
 def unit_guess(scale):
     '''
@@ -62,7 +70,7 @@ def unit_guess(scale):
 
 def _set_units(obj, desired, guess):
     '''
-    Given an object that has units and vertices attributes, convert units.
+    Given an object that has units and vertices attributes convert units.
 
     Arguments
     ---------
@@ -78,10 +86,9 @@ def _set_units(obj, desired, guess):
     if obj.units is None:
         if guess:
             obj.units = unit_guess(obj.scale)
-            log.warn('No units specified, guessing current units are %s',
-                     obj.units)
+            log.warn('No units specified, guessing current units are %s', obj.units)
         else:
-            raise ValueError('No units specified, and not allowed to guess!')
+            raise ValueError('No units specified and not allowed to guess!')
     log.info('Converting units from %s to %s', obj.units, desired)
     conversion    = unit_conversion(obj.units, desired)
     obj.vertices *= conversion

@@ -2,7 +2,9 @@ import numpy as np
 import json
 
 from ..constants import log
-from ..util      import tolist_dict, is_string, array_to_base64
+from ..util      import tolist_dict, is_string, array_to_encoded
+
+from . import stl
 
 #python 3
 try:                from cStringIO import StringIO
@@ -41,23 +43,7 @@ def export_stl(mesh, file_obj=None):
     '''
     Saves a Trimesh object as a binary STL file.
     '''
-
-    dtype_stl = np.dtype([('normals',    np.float32, (3)), 
-                          ('vertices',   np.float32, (3,3)), 
-                          ('attributes', np.uint16)])
-    dtype_header = np.dtype([('header', np.void, 80),
-                             ('face_count', np.int32)])
-
-    header = np.zeros(1, dtype = dtype_header)
-    header['face_count'] = len(mesh.faces)
-
-    packed = np.zeros(len(mesh.faces), dtype=dtype_stl)
-    packed['normals']  = mesh.face_normals
-    packed['vertices'] = mesh.triangles
-
-    export  = header.tostring()
-    export += packed.tostring()
-    
+    export = stl.export_stl(mesh)
     return _write_export(export, file_obj)
 
 def export_off(mesh, file_obj=None):
@@ -96,21 +82,24 @@ def export_collada(mesh, file_obj=None):
     return result
 
 def export_dict64(mesh, file_obj=None):
-    if file_obj is not None:
-        raise ValueError('Cannot export raw dict to file! Use json!')
-    export = {'metadata'     : tolist_dict(mesh.metadata),
-              'faces'        : array_to_base64(mesh.faces,        np.uint32),
-              'face_normals' : array_to_base64(mesh.face_normals, np.float32),
-              'vertices'     : array_to_base64(mesh.vertices,     np.float32)}
-    return export
+    return export_dict(mesh, 
+                       file_obj=file_obj, 
+                       encoding='dict64')
 
-def export_dict(mesh, file_obj=None):
+def export_dict(mesh, file_obj=None, encoding=None):
+    def encode(item, dtype=None):
+        if encoding is None:
+            return item.tolist()
+        else:
+            return array_to_encoded(item, 
+                                    dtype=dtype, 
+                                    encoding=encoding)
     if file_obj is not None:
         raise ValueError('Cannot export raw dict to file! Use json!')
     export = {'metadata'     : tolist_dict(mesh.metadata),
-              'faces'        : mesh.faces.tolist(),
-              'face_normals' : mesh.face_normals.tolist(),
-              'vertices'     : mesh.vertices.tolist()}
+              'faces'        : encode(mesh.faces,        np.uint32),
+              'face_normals' : encode(mesh.face_normals, np.float32),
+              'vertices'     : encode(mesh.vertices,     np.float32)}
     return export
         
 def export_json(mesh, file_obj=None):
