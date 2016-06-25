@@ -63,6 +63,15 @@ class Primitive(Trimesh):
 
 class Sphere(Primitive):
     def __init__(self, *args, **kwargs):
+        '''
+        Create a Sphere primitive, which is a subclass of Trimesh.
+
+        Arguments
+        ----------
+        sphere_radius: float, radius of sphere
+        sphere_center: (3,) float, center of sphere
+        subdivisions: int, number of subdivisions for icosphere. Default is 3
+        '''
         super(Sphere, self).__init__(*args, **kwargs)
         if 'sphere_radius' in kwargs:
             self.sphere_radius = kwargs['sphere_radius']
@@ -105,6 +114,16 @@ class Sphere(Primitive):
 
 class Box(Primitive):    
     def __init__(self, *args, **kwargs):
+        '''
+        Create a Box primitive, which is a subclass of Trimesh
+
+        Arguments
+        ----------
+        box_extents:   (3,) float, size of box
+        box_transform: (4,4) float, transformation matrix for box
+        box_center:    (3,) float, convience function which updates box_transform
+                       with a translation- only matrix
+        '''
         super(Box, self).__init__(*args, **kwargs)
         if 'box_extents' in kwargs:
             self.box_extents = kwargs['box_extents']
@@ -175,16 +194,22 @@ class Box(Primitive):
 
 class Extrusion(Primitive):
     def __init__(self, *args, **kwargs):
+        '''
+        Create an Extrusion primitive, which subclasses Trimesh
+
+        Arguments
+        ----------
+        extrude_polygon:   shapely.geometry.Polygon, polygon to extrude
+        extrude_transform: (4,4) float, transform to apply after extrusion
+        extrude_height:    float, height to extrude polygon by
+        '''
         super(Extrusion, self).__init__(*args, **kwargs)
-        
         if 'extrude_polygon' in kwargs:
             self.extrude_polygon   = kwargs['extrude_polygon']
         if 'extrude_transform' in kwargs:
             self.extrude_transform = kwargs['extrude_transform']
         if 'extrude_height' in kwargs:
             self.extrude_height    = kwargs['extrude_height']
-
-        
 
     @property
     def extrude_transform(self):

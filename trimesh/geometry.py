@@ -157,7 +157,6 @@ def index_sparse(column_count, indices):
     '''
     Return a sparse matrix for which vertices are contained in which faces.
 
-    
     Returns
     ---------
     sparse: scipy.sparse.coo_matrix of shape (column_count, len(faces))

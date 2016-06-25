@@ -4,7 +4,7 @@ import json
 from ..constants import log
 from ..util      import tolist_dict, is_string, array_to_encoded
 
-from . import stl
+from .stl import export_stl
 
 #python 3
 try:                from cStringIO import StringIO
@@ -39,13 +39,6 @@ def export_mesh(mesh, file_obj, file_type=None):
         file_obj.close()
     else:
         return export
-
-def export_stl(mesh):
-    '''
-    Saves a Trimesh object as a binary STL file.
-    '''
-    export = stl.export_stl(mesh)
-    return export
 
 def export_off(mesh):
     export = 'OFF\n'
@@ -82,7 +75,7 @@ def export_collada(mesh):
     return export
 
 def export_dict64(mesh):
-    return export_dict(mesh, encoding='dict64')
+    return export_dict(mesh, encoding='base64')
 
 def export_dict(mesh, encoding=None):
     def encode(item, dtype=None):
@@ -100,7 +93,8 @@ def export_dict(mesh, encoding=None):
     return export
         
 def export_json(mesh):
-    export = json.dumps(export_dict(mesh))
+    blob   = export_dict(mesh, encoding='base64')
+    export = json.dumps(blob)
     return export
     
 def export_msgpack(mesh):

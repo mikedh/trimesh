@@ -56,5 +56,7 @@ setup(name = 'trimesh',
                                        'Shapely',
                                        'rtree',
                                        'svg.path',
-                                       'meshpy']}
+                                       'meshpy',
+                                       'sympy',
+                                       'msgpack-python']}
      )

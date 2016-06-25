@@ -149,6 +149,17 @@ class Trimesh(object):
 
     @property
     def faces(self):
+        '''
+        The faces of the mesh.
+        
+        This is regarded as core information which cannot be regenerated from cache,
+        and as such is stored in self._data, which tracks the array for changes
+        and clears cached values of the mesh if this is altered. 
+        
+        Returns
+        ----------
+        faces: (n,3) int, representing triangles which reference self.vertices
+        '''
         # we validate face normals as the validation process may remove
         # zero- area faces. If we didn't do this check here, the shape of 
         # self.faces and self.face_normals could differ depending on the 
@@ -167,6 +178,13 @@ class Trimesh(object):
         
     @property
     def faces_sparse(self):
+        '''
+        A sparse matrix representation of the faces.
+        
+        Returns
+        ----------
+        sparse: scipy.sparse.coo_matrix with dtype=bool, shape=(len(self.vertices), len(self.faces)) 
+        '''
         cached = self._cache['faces_sparse']
         if cached is not None:
             return cached
@@ -187,6 +205,17 @@ class Trimesh(object):
         
     @property
     def vertices(self):
+        '''
+        The vertices of the mesh.
+        
+        This is regarded as core information which cannot be regenerated from cache,
+        and as such is stored in self._data, which tracks the array for changes
+        and clears cached values of the mesh if this is altered. 
+        
+        Returns
+        ----------
+        vertices: (n,3) float representing points in cartesian space
+        '''
         return self._data['vertices']
         
     @vertices.setter
@@ -201,6 +230,11 @@ class Trimesh(object):
         This function also removes faces which are zero area, and so must be 
         called before returning faces or triangles to avoid inconsistant results
         depending on which order functions are called.
+        
+        Arguments
+        ----------
+        faces: (n,3) int, if None uses self.faces
+               Available as an argument to avoid a circular reference in some functions
         '''
         if not self._validate: return 
         # pull faces directly from DataStore to avoid infinite recursion
@@ -215,6 +249,18 @@ class Trimesh(object):
 
     @property
     def vertex_normals(self):
+        '''
+        The vertex normals of the mesh. If the normals were loaded, we check to 
+        make sure we have the same number of vertex normals and vertices before
+        returning them. If there are no vertex normals defined, or a shape mismatch
+        we calculate the vertex normals from the mean normals of the faces the vertex
+        is used in.
+        
+        Returns
+        ----------
+        vertex_normals: (n,3) float, where n == len(self.vertices)
+                         Represents the surface normal at each vertex. 
+        '''
         cached = self._cache['vertex_normals']
         if np.shape(cached) == np.shape(self.vertices):
             return cached
@@ -245,16 +291,32 @@ class Trimesh(object):
 
     @property
     def bounding_box(self):
-        bounding_box = self._cache['bounding_box']
-        if bounding_box is None:
+        '''
+        An axis aligned bounding box for the current mesh.
+        
+        Returns
+        ----------
+        aabb: trimesh.primitives.Box object with transform and extents defined
+              to represent the axis aligned bounding box of the mesh
+        '''
+        aabb = self._cache['aabb']
+        if aabb is None:
             from . import primitives
-            bounding_box = primitives.Box(box_center=self.bounds.mean(axis=0),
-                       box_extents=self.extents)
-            self._cache['bounding_box'] = bounding_box
-        return bounding_box
+            aabb = primitives.Box(box_center  = self.bounds.mean(axis=0),
+                                  box_extents = self.extents)
+            self._cache['aabb'] = aabb
+        return aabb
 
     @property
     def bounding_box_oriented(self):
+        '''
+        An oriented bounding box for the current mesh.
+        
+        Returns
+        ---------
+        obb: trimesh.primitives.Box object with transform and extents defined
+             to represent the minimum volume oriented bounding box of the mesh
+        '''
         obb = self._cache['obb']
         if obb is None:
             from . import primitives
@@ -267,7 +329,7 @@ class Trimesh(object):
     @property
     def bounds(self):
         '''
-        Return the axis aligned bounds of the mesh. 
+        The axis aligned bounds of the mesh. 
 
         Returns
         -----------
@@ -388,7 +450,11 @@ class Trimesh(object):
 
     def triangles_tree(self):
         '''
-        Return an R-tree containing each face of the mesh.
+        An R-tree containing each face of the mesh.
+        
+        Returns
+        ----------
+        tree: rtree.index where each triangle in self.faces has a rectangular cell
         '''
         tree = triangles.bounds_tree(self.triangles)
         return tree
@@ -506,6 +572,13 @@ class Trimesh(object):
 
     @property
     def units(self):
+        '''
+        Definition of units for the mesh.
+        
+        Returns
+        ----------
+        units: str, unit system mesh is in, or None if not defined
+        '''
         if 'units' in self.metadata: 
             return self.metadata['units']
         else:
@@ -525,7 +598,7 @@ class Trimesh(object):
         Arguments
         ----------
         desired: string, units to convert to (eg 'inches')
-        guess:   boolean, if self.units are not valid should we 
+        guess:   boolean, if self.units are not defined should we 
                  guess the current units of the document and then convert?
         '''
         units._set_units(self, desired, guess)
@@ -548,6 +621,8 @@ class Trimesh(object):
 
     def update_vertices(self, mask, inverse=None):
         '''
+        Update vertices with a mask.
+        
         Arguments
         ----------
         vertex_mask: (len(self.vertices)) boolean array of which
@@ -600,20 +675,16 @@ class Trimesh(object):
         
     def remove_duplicate_faces(self):
         '''
-        For the current mesh, remove any faces which are duplicated. 
+        On the current mesh remove any faces which are duplicates. 
         '''
         unique, inverse = grouping.unique_rows(np.sort(self.faces, axis=1))
         self.update_faces(unique)
         
     def rezero(self):
         '''
-        Move the mesh so that all vertex vertices are positive.
-        Does this by subtracting the minimum coordinate from all vertices
+        Translate the mesh so that all vertex vertices are positive.
         '''
-        with self._cache:
-            self.vertices -= self.bounds[0]
-        self._cache.clear(exclude = ['face_normals',
-                                     'vertex_normals'])
+        self.apply_translation(self.bounds[0] * -1.0)
 
     @_log_time
     def split(self, only_watertight=True, adjacency=None):
@@ -639,14 +710,37 @@ class Trimesh(object):
     @property
     def face_adjacency(self):
         '''
-        Returns an (n,2) list of face indices.
-        Each pair of faces in the list shares an edge, making them adjacent.
+        Find faces that share an edge, which we call here 'adjacent'.
         
-        This is useful for lots of things, for example finding connected subgraphs:
+        Returns
+        ----------
+        adjacency: (n,2) int, pairs of faces which share an edge
         
-        graph = nx.Graph()
-        graph.add_edges_from(mesh.face_adjacency)
-        groups = nx.connected_components(graph_connected.subgraph(interesting_faces))
+        Example
+        ---------
+
+        In [1]: mesh = trimesh.load('models/featuretype.STL')
+ 
+        In [2]: mesh.face_adjacency
+        Out[2]:
+        array([[   0,    1],
+               [   2,    3],
+               [   0,    3],
+               ...,
+               [1112,  949],
+               [3467, 3475],
+               [1113, 3475]])
+
+        In [3]: mesh.faces[mesh.face_adjacency[0]]
+        Out[3]:
+        TrackedArray([[   1,    0,  408],
+                      [1239,    0,    1]], dtype=int64)
+
+        In [4]: import networkx as nx
+
+        In [5]: graph = nx.from_edgelist(mesh.face_adjacency)
+
+        In [6]: groups = nx.connected_components(graph)
         '''
         cached = self._cache['face_adjacency']
         if cached is not None:
@@ -675,6 +769,15 @@ class Trimesh(object):
         
     @property
     def is_winding_consistent(self):
+        '''
+        Does the mesh have consistent winding or not. 
+        A mesh with consistent winding has each shared edge 
+        going in an opposite direction from the other in the pair.
+        
+        Returns
+        --------
+        consistent: bool, if winding is consistent or not
+        '''
         # consistent winding check is populated into the cache by is_watertight query
         populate = self.is_watertight
         return self._cache['is_winding_consistent']
@@ -789,8 +892,9 @@ class Trimesh(object):
         '''
         Fill single triangle and single quad holes in the current mesh.
         
-        Returns:
-        watertight: bool, is the mesh watertight after the function is done?
+        Returns
+        ----------
+        watertight: bool, is the mesh watertight after the function completes
         '''
         return repair.fill_holes(self)
 
@@ -824,9 +928,9 @@ class Trimesh(object):
         smoothed: Trimesh object, non watertight version of current mesh
                   which will render nicely with smooth shading. 
         '''
-        # this should be recomputed if visuals change, so we 
+        
+        # smooth should be recomputed if visuals change, so we 
         # store it in the visuals cache rather than the main mesh cache
-
         cached = self.visual._cache.get('smoothed')
         if cached is not None:
             return cached
@@ -859,6 +963,13 @@ class Trimesh(object):
 
     @property
     def _convex_hull_raw(self):
+        '''
+        The raw convex hull return from qhull.
+        
+        Returns
+        ---------
+        hull: Trimesh object, raw from qhull with backwards faces
+        '''
         cached = self._cache['convex_hull_raw']
         if cached is not None: 
             return cached
@@ -918,6 +1029,21 @@ class Trimesh(object):
             self.faces = np.arange(len(self.vertices)).reshape((-1,3))
         self._cache.clear(exclude='face_normals')
 
+    def apply_translation(self, translation):
+        '''
+        Translate the current mesh.
+        
+        Arguments
+        ----------
+        translation: (3,) float, translation in XYZ
+        '''
+        translation = np.asanyarray(translation).reshape(3)
+        with self._cache:
+            self.vertices -= translation
+        # we are doing a simple translation so normals are preserved
+        self._cache.clear(exclude = ['face_normals',
+                                     'vertex_normals'])
+        
     def apply_scale(self, scaling):
         '''
         Scale the mesh equally on all axis.
@@ -941,6 +1067,7 @@ class Trimesh(object):
         ----------
         matrix: (4,4) float, homogenous transformation matrix
         '''
+        
         matrix = np.asanyarray(matrix)
         if matrix.shape != (4,4):
             raise ValueError('Transformation matrix must be (4,4)!')
@@ -1036,36 +1163,44 @@ class Trimesh(object):
         self._cache['area_faces'] = area_faces
         return area_faces
                          
-    def mass_properties(self, density = 1.0, skip_inertia=False):
+    def mass_properties(self, skip_inertia=False):
         '''
         Returns the mass properties of the current mesh.
         
         Assumes uniform density, and result is probably garbage if mesh
         isn't watertight. 
-
-        Returns dictionary with keys: 
-            'volume'      : in global units^3
-            'mass'        : From specified density
-            'density'     : Included again for convenience (same as kwarg density)
-            'inertia'     : Taken at the center of mass and aligned with global 
-                            coordinate system
-            'center_mass' : Center of mass location, in global coordinate system
+        
+        Arguments
+        ----------
+        skip_inertia: bool, skip inertia calculation or not
+        
+        Returns
+        ----------
+        properties: dict, with keys: 
+                    'volume'      : in global units^3
+                    'mass'        : From specified density
+                    'density'     : Included again for convenience (same as kwarg density)
+                    'inertia'     : Taken at the center of mass and aligned with global 
+                                    coordinate system
+                    'center_mass' : Center of mass location, in global coordinate system
         '''
         key  = 'mass_properties_' 
         key += str(int(skip_inertia)) + '_' 
-        key += str(int(density * 1e3))
         cached = self._cache[key]
         if cached is not None: 
             return cached
         mass = triangles.mass_properties(triangles    = self.triangles,
-                                         density      = density,
                                          skip_inertia = skip_inertia)
         self._cache[key] = mass
         return mass
 
     def scene(self):
         '''
-        Return a Scene object containing the current mesh. 
+        Get a Scene object containing the current mesh.
+        
+        Returns
+        ---------
+        trimesh.scene.scene.Scene object, containing the current mesh
         '''
         return Scene(self)
 
@@ -1109,12 +1244,12 @@ class Trimesh(object):
     @property
     def identifier(self):
         '''
-        Return a (length) float vector which is unique to the mesh,
+        Return a float vector which is unique to the mesh
         and is robust to rotation and translation.
 
         Returns
         -----------
-        identifier: (length,) float
+        identifier: (tol.id_len,) float
         '''
         key = 'identifier'
         cached = self._cache[key]
@@ -1216,9 +1351,17 @@ class Trimesh(object):
         return contains
 
     def copy(self):
+        '''
+        Get a copy of the current mesh.
+        
+        Returns
+        ---------
+        copied: current mesh, but deep copied.
+        '''
         return deepcopy(self)
 
     def __hash__(self):
+        # hash function requires an integer instead of a hex string
         hashed = int(self.md5(), 16)
         return hashed
 
