@@ -610,6 +610,7 @@ def array_to_encoded(array, dtype=None, encoding='base64'):
     array: numpy array
     dtype: optional, what dtype should array be encoded with.
     encoding: str, 'base64' or 'binary'
+    
     Returns
     ---------
     encoded: dict with keys: 
@@ -627,7 +628,10 @@ def array_to_encoded(array, dtype=None, encoding='base64'):
     encoded = {'dtype'  : np.dtype(dtype).str,
                'shape'  : shape}
     if encoding in ['base64', 'dict64']:
-        encoded['base64'] = base64.b64encode(flat.astype(dtype))
+        packed = base64.b64encode(flat.astype(dtype))
+        if hasattr(packed, 'decode'): 
+            packed = packed.decode('utf-8')
+        encoded['base64'] = packed
     elif encoding == 'binary':
         encoded['binary'] = array.tostring(order='C')
     else:
@@ -866,8 +870,12 @@ class Words:
     The primary purpose is to create random keyphrases to be used to name
     things without resorting to giant hash strings.
     '''
-    def __init__(self, file_name = '/usr/share/dict/words'):
-        self.words = np.loadtxt(file_name, dtype=str)
+    def __init__(self, file_name = '/usr/share/dict/words', words=None):
+        if words is None:
+            self.words = np.loadtxt(file_name, dtype=str)
+        else: 
+            self.words = np.array(words, dtype=str)
+            
         self.words_simple = np.array([i.lower() for i in self.words if str.isalpha(i)])
         if len(self.words) == 0:
             log.warning('No words available!')

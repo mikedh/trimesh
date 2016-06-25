@@ -31,22 +31,23 @@ def export_mesh(mesh, file_obj, file_type=None):
     file_type = str(file_type).lower()
     
     log.info('Exporting %d faces as %s', len(mesh.faces), file_type.upper())
-    export = _mesh_exporters[file_type](mesh, file_obj)
+    export = _mesh_exporters[file_type](mesh)
     
-    if hasattr(file_obj, 'flush'):
+    if hasattr(file_obj, 'write'):
+        file_obj.write(export)
         file_obj.flush()
         file_obj.close()
     else:
         return export
 
-def export_stl(mesh, file_obj=None):
+def export_stl(mesh):
     '''
     Saves a Trimesh object as a binary STL file.
     '''
     export = stl.export_stl(mesh)
-    return _write_export(export, file_obj)
+    return export
 
-def export_off(mesh, file_obj=None):
+def export_off(mesh):
     export = 'OFF\n'
     export += str(len(mesh.vertices)) + ' ' + str(len(mesh.faces)) + ' 0\n'
     temp_obj = StringIO()
@@ -55,9 +56,9 @@ def export_off(mesh, file_obj=None):
     np.savetxt(temp_obj, faces_stacked, fmt='%i')
     temp_obj.seek(0)
     export += temp_obj.read()
-    return _write_export(export, file_obj)
+    return export
 
-def export_collada(mesh, file_obj=None):
+def export_collada(mesh):
     '''
     Export a mesh as a COLLADA file.
     '''
@@ -78,52 +79,41 @@ def export_collada(mesh, file_obj=None):
     replacement['FCOUNT']   = str(len(mesh.faces))
     
     export = template.substitute(replacement)
-    result = _write_export(export, file_obj)
-    return result
+    return export
 
-def export_dict64(mesh, file_obj=None):
-    return export_dict(mesh, 
-                       file_obj=file_obj, 
-                       encoding='dict64')
+def export_dict64(mesh):
+    return export_dict(mesh, encoding='dict64')
 
-def export_dict(mesh, file_obj=None, encoding=None):
+def export_dict(mesh, encoding=None):
     def encode(item, dtype=None):
         if encoding is None:
             return item.tolist()
         else:
             return array_to_encoded(item, 
-                                    dtype=dtype, 
-                                    encoding=encoding)
-    if file_obj is not None:
-        raise ValueError('Cannot export raw dict to file! Use json!')
+                                    dtype = dtype, 
+                                    encoding = encoding)
+                                    
     export = {'metadata'     : tolist_dict(mesh.metadata),
               'faces'        : encode(mesh.faces,        np.uint32),
               'face_normals' : encode(mesh.face_normals, np.float32),
               'vertices'     : encode(mesh.vertices,     np.float32)}
     return export
         
-def export_json(mesh, file_obj=None):
-    return _write_export(json.dumps(export_dict(mesh)), 
-                         file_obj)
-
-def _write_export(export, file_obj=None):
-    '''
-    Write a string to a file.
-    If file_obj isn't specified, return the string
-
-    Arguments
-    ---------
-    export: a string of the export data
-    file_obj: a file-like object or a filename
-    '''
-    if hasattr(file_obj, 'write'):
-        file_obj.write(export)
+def export_json(mesh):
+    export = json.dumps(export_dict(mesh))
     return export
-
+    
+def export_msgpack(mesh):
+    import msgpack
+    blob = export_dict(mesh, encoding='binary')
+    export = msgpack.dumps(blob)
+    return export
+                         
 _mesh_exporters = {'stl'  : export_stl,
                    'dict' : export_dict,
-                   'dict64' : export_dict64,
                    'json' : export_json,
                    'off'  : export_off,
                    'dae'  : export_collada,
-                   'collada': export_collada}
+                   'dict64'  : export_dict64,
+                   'msgpack' : export_msgpack,
+                   'collada' : export_collada}
