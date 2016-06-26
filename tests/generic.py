@@ -10,8 +10,9 @@ import json
 import time
 
 import numpy as np
-
 import trimesh
+
+from collections import deque
 
 dir_current = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 dir_models  = os.path.join(dir_current, '../models')

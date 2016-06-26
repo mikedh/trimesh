@@ -82,30 +82,6 @@ class MeshTests(g.unittest.TestCase):
             g.log.info('finished testing meshes')
 
 
-    def test_hash(self):
-        count = 100
-        for mesh in self.meshes:
-            if not mesh.is_watertight: 
-                g.log.warning('Hashing non- watertight mesh (%s) produces garbage!',
-                         mesh.metadata['filename'])
-                continue
-            g.log.info('Hashing %s', mesh.metadata['filename'])
-            g.log.info('Trying hash at %d random transforms', count)
-            result = deque()
-            for i in range(count):
-                mesh.rezero()
-                matrix = g.trimesh.transformations.random_rotation_matrix()
-                matrix[0:3,3] = (g.np.random.random(3)-.5)*20
-                mesh.apply_transform(matrix)
-                result.append(mesh.identifier)
-
-            ok = (g.np.abs(g.np.diff(result, axis=0)) < 1e-3).all()
-            if not ok:
-                g.log.error('Hashes on %s differ after transform! diffs:\n %s\n', 
-                          mesh.metadata['filename'],
-                          str(g.np.diff(result, axis=0)))
-            self.assertTrue(ok)
-
     def test_fill_holes(self):
         for mesh in self.meshes[:5]:
             if not mesh.is_watertight: continue

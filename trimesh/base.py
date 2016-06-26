@@ -1039,7 +1039,7 @@ class Trimesh(object):
         '''
         translation = np.asanyarray(translation).reshape(3)
         with self._cache:
-            self.vertices -= translation
+            self.vertices += translation
         # we are doing a simple translation so normals are preserved
         self._cache.clear(exclude = ['face_normals',
                                      'vertex_normals'])
