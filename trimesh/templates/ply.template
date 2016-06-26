@@ -1,0 +1,10 @@
+ply
+format binary_little_endian 1.0
+comment github.com/mikedh/trimesh
+element vertex $vertex_count
+property float x
+property float y
+property float z
+element face $face_count
+property list uchar int vertex_indices
+end_header

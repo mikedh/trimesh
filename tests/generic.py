@@ -40,4 +40,8 @@ def get_mesh(file_name):
                                      file_name))
     return mesh
     
+def get_meshes(count):
+    meshes = [get_mesh(fn) for fn in [i for i in os.listdir(dir_models) if '.' in i][:count]]
+    return meshes
+    
 data = _load_data()

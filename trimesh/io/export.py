@@ -5,7 +5,7 @@ from ..constants import log
 from ..util      import tolist_dict, is_string, array_to_encoded
 
 from .stl import export_stl
-
+from .ply import export_ply
 #python 3
 try:                from cStringIO import StringIO
 except ImportError: from io import StringIO
@@ -41,14 +41,12 @@ def export_mesh(mesh, file_obj, file_type=None):
         return export
 
 def export_off(mesh):
+    faces_stacked = np.column_stack((np.ones(len(mesh.faces))*3, mesh.faces)).astype(np.int64)
     export = 'OFF\n'
     export += str(len(mesh.vertices)) + ' ' + str(len(mesh.faces)) + ' 0\n'
-    temp_obj = StringIO()
-    faces_stacked = np.column_stack((np.ones(len(mesh.faces))*3, mesh.faces))
-    np.savetxt(temp_obj, mesh.vertices, fmt='%.14f')
-    np.savetxt(temp_obj, faces_stacked, fmt='%i')
-    temp_obj.seek(0)
-    export += temp_obj.read()
+    export += np.array_str(mesh.vertices, precision=9).replace('[', '').replace(']', '').strip()
+    export += np.array_str(faces_stacked).replace('[', '').replace(']', '').strip()
+
     return export
 
 def export_collada(mesh):
@@ -93,7 +91,7 @@ def export_dict(mesh, encoding=None):
     return export
         
 def export_json(mesh):
-    blob   = export_dict(mesh, encoding='base64')
+    blob = export_dict(mesh, encoding='base64')
     export = json.dumps(blob)
     return export
     
@@ -103,7 +101,8 @@ def export_msgpack(mesh):
     export = msgpack.dumps(blob)
     return export
                          
-_mesh_exporters = {'stl'  : export_stl,
+_mesh_exporters = {'ply'  : export_ply, 
+                   'stl'  : export_stl,
                    'dict' : export_dict,
                    'json' : export_json,
                    'off'  : export_off,

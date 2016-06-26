@@ -1,5 +1,8 @@
 import numpy as np
 from collections import OrderedDict
+from string import Template
+
+from ..templates import get_template
 
 def load_ply(file_obj, *args, **kwargs):
     '''
@@ -41,6 +44,36 @@ def load_ply(file_obj, *args, **kwargs):
     mesh_kwargs = ply_elements_kwargs(elements)
     return mesh_kwargs
 
+def export_ply(mesh):
+    '''
+    Export a mesh in the PLY format.
+    
+    Arguments
+    ----------
+    mesh: Trimesh object
+    
+    Returns
+    ----------
+    export: bytes of result
+    '''
+    dtype_face = np.dtype([('count', '<u1'), 
+                           ('index', '<i4', (3))])
+    dtype_vertex = np.dtype([('vertex', '<f4', (3))])
+    
+    faces = np.zeros(len(mesh.faces), dtype=dtype_face)
+    faces['count'] = 3
+    faces['index'] = mesh.faces
+    
+    vertex = np.zeros(len(mesh.vertices), dtype=dtype_vertex)
+    vertex['vertex'] = mesh.vertices
+    
+    template = Template(get_template('ply.template'))
+    export = template.substitute({'vertex_count' : len(mesh.vertices),
+                                  'face_count'   : len(mesh.faces)}).encode('utf-8')
+    export += vertex.tostring()
+    export += faces.tostring()
+    return export
+    
 def ply_element_colors(element):
     '''
     Given an element, try to extract RGBA color from its properties
