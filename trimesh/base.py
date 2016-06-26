@@ -1163,7 +1163,7 @@ class Trimesh(object):
         self._cache['area_faces'] = area_faces
         return area_faces
                          
-    def mass_properties(self, skip_inertia=False):
+    def mass_properties(self, density=1.0, skip_inertia=False):
         '''
         Returns the mass properties of the current mesh.
         
@@ -1172,6 +1172,7 @@ class Trimesh(object):
         
         Arguments
         ----------
+        density:      float, density of the solid
         skip_inertia: bool, skip inertia calculation or not
         
         Returns
@@ -1185,11 +1186,13 @@ class Trimesh(object):
                     'center_mass' : Center of mass location, in global coordinate system
         '''
         key  = 'mass_properties_' 
-        key += str(int(skip_inertia)) + '_' 
+        key += str(int(skip_inertia)) + '_'
+        key += str(int(density * 1e5))
         cached = self._cache[key]
         if cached is not None: 
             return cached
         mass = triangles.mass_properties(triangles    = self.triangles,
+                                         density      = density,
                                          skip_inertia = skip_inertia)
         self._cache[key] = mass
         return mass
