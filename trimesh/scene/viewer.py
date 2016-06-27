@@ -226,7 +226,9 @@ class SceneViewer(pyglet.window.Window):
             gl.glPopMatrix()
 
     def node_flag(self, node, flag):
-        if flag in self.scene.flags[node]:
+        if (hasattr(self.scene, 'flags') and
+            node in self.scene.flags and
+            flag in self.scene.flags[node]):
             return self.scene.flags[node][flag]
         return None
         

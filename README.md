@@ -49,7 +49,7 @@ This command will install `trimesh`, with its required dependencies, namely
 
 Basic functionality is available immediately. Some functions (ray queries, polygon handling, mesh creation, viewer windows, boolean operations, additional importers) require additional libraries:
 ```bash
-$ sudo apt-get install cmake openscad blender libspatialindex-dev
+$ sudo apt-get install cmake openscad blender libspatialindex-dev libgeos-dev
 $ sudo pip install pyglet shapely git+https://github.com/robotics/assimp_latest.git rtree svg.path meshpy
 ```
 

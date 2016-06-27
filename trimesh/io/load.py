@@ -25,7 +25,7 @@ def mesh_formats():
 def available_formats():
     return np.append(mesh_formats(), path_formats())
 
-def load(obj, file_type=None, **kwargs):
+def load(file_obj, file_type=None, **kwargs):
     '''
     Load a mesh or vectorized path into a 
     Trimesh, Path2D, or Path3D object.
@@ -39,23 +39,27 @@ def load(obj, file_type=None, **kwargs):
     geometry: Trimesh, Path2D, Path3D, or list of same. 
     '''
 
-    if isinstance(obj, Trimesh):
-        return obj
+    if isinstance(file_obj, Trimesh):
+        return file_obj
 
-    if is_instance_named(obj, 'Path'):
-        return obj
+    if is_instance_named(file_obj, 'Path'):
+        return file_obj
 
-    if is_string(obj):
-        file_type = (str(obj).split('.')[-1]).lower()
-        obj = open(obj, 'rb')
+    if is_string(file_obj):
+        file_type = (str(file_obj).split('.')[-1])
+        file_obj = open(file_obj, 'rb')
         
     if file_type is None:
-        file_type = obj.__class__.__name__
+        file_type = file_obj.__class__.__name__
+    if is_string(file_type) and '.' in file_type:
+        file_type = file_type.split('.')[-1]
+
+    file_type = file_type.lower()
 
     if file_type in path_formats():
-        return load_path(obj, file_type, **kwargs)
+        return load_path(file_obj, file_type, **kwargs)
     elif file_type in mesh_formats():
-        return load_mesh(obj, file_type, **kwargs)
+        return load_mesh(file_obj, file_type, **kwargs)
         
     raise ValueError('File type: %s not supported', str(file_type))
 

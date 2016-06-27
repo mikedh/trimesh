@@ -18,7 +18,7 @@ class Scene:
     '''
 
     def __init__(self, 
-                 node       = None, 
+                 node       = None,
                  base_frame ='world'):
 
         # instance name : mesh name
@@ -29,8 +29,9 @@ class Scene:
         self.flags      = {}
         self.transforms = TransformForest(base_frame = base_frame)
 
-        self.add_mesh(node)
-        self.set_camera()
+        if node is not None:
+            self.add_mesh(node)
+            self.set_camera()
 
     def add_mesh(self, mesh):
         '''
@@ -114,7 +115,7 @@ class Scene:
         
         node_groups = group_rows(node_ids, digits=1)
 
-        duplicates  = np.array([node_keys[g] for g in node_groups])
+        duplicates  = [node_keys[g].tolist() for g in node_groups]
         return duplicates
 
             
@@ -168,7 +169,7 @@ class Scene:
         export = {}
         export['transforms'] = self.transforms.export()
         export['nodes']  = self.nodes
-        export['meshes'] = {name:mesh.export(file_type) for name, mesh in self.meshes.items()}
+        export['meshes'] = {name : mesh.export(file_type) for name, mesh in self.meshes.items()}
         return export
         
     def save_image(self, file_obj, resolution=(1024,768), **kwargs):

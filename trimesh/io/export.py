@@ -6,9 +6,6 @@ from ..util      import tolist_dict, is_string, array_to_encoded
 
 from .stl import export_stl
 from .ply import export_ply
-#python 3
-try:                from cStringIO import StringIO
-except ImportError: from io import StringIO
 
 def export_mesh(mesh, file_obj, file_type=None):
     '''

@@ -48,6 +48,10 @@ class TransformForest:
             e[2]['matrix'] = np.array(e[2]['matrix']).tolist()
         return export
 
+    def load(self, edgelist):
+        for edge in edgelist:
+            self.transforms.add_edge(edge[0], edge[1], **edge[2])
+
     def get(self,
             frame_to,
             frame_from = None):
