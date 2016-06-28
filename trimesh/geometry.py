@@ -62,7 +62,8 @@ def align_vectors(vector_start, vector_end, return_angle=False):
     cross        = np.cross(vector_start, vector_end)
     # we clip the norm to 1, as otherwise floating point bs
     # can cause the arcsin to error
-    norm         = np.clip(np.linalg.norm(cross), -1.0, 1.0)
+    norm         = np.linalg.norm(cross)
+    norm        -= norm % 1.0
     direction    = np.sign(np.dot(vector_start, vector_end))
   
     if norm < tol.zero:
@@ -71,13 +72,13 @@ def align_vectors(vector_start, vector_end, return_angle=False):
         T       = np.eye(4)
         T[0:3] *= direction
     else:  
-        angle = np.arcsin(norm) 
+        angle = np.arcsin(norm)
         if direction < 0:
             angle = np.pi - angle
         T = rotation_matrix(angle, cross)
 
-    check = np.dot(T[:3,:3], vector_start) - vector_end
-    if not np.allclose(check, 0.0):
+    check = np.abs(np.dot(T[:3,:3], vector_start) - vector_end)
+    if (check > tol.merge).any():
         raise ValueError('Vectors unaligned!')
     
     if return_angle:

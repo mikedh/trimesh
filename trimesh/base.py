@@ -144,7 +144,6 @@ class Trimesh(object):
         # being returned so there is no danger of inconsistent dimensions
         self._cache.clear(exclude = ['face_normals',
                                      'vertex_normals'])
-        self.metadata['processed'] = True
         return self
 
     @property
