@@ -86,7 +86,7 @@ def load(file_obj, file_type=None, **kwargs):
     return loaded
 
 @_log_time
-def load_mesh(file_obj, file_type):
+def load_mesh(file_obj, file_type=None):
     '''
     Load a mesh file into a Trimesh object
 
@@ -101,7 +101,16 @@ def load_mesh(file_obj, file_type):
           depending on the file format. 
     
     '''    
-    file_type = str(file_type).lower()
+
+    if is_string(file_obj):
+        # if file_obj is a path that exists use extension as file_type
+        if os.path.isfile(file_obj):
+            file_type = (str(file_obj).split('.')[-1])
+            file_obj = open(file_obj, 'rb')
+        else:
+            raise ValueError('File does not exist!')
+    file_type = file_type.lower()
+
     loaded = _mesh_loaders[file_type](file_obj, 
                                       file_type)
     if is_file(file_obj): 
