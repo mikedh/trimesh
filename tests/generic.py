@@ -14,7 +14,11 @@ import trimesh
 
 from collections import deque
 
-from StringIO import StringIO
+#python 3
+try:
+    from cStringIO import StringIO
+except ImportError:
+    from io import StringIO
 
 dir_current = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 dir_models  = os.path.join(dir_current, '../models')
