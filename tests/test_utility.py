@@ -94,14 +94,13 @@ class SceneTests(unittest.TestCase):
 
 class IOTest(unittest.TestCase):
     def test_dae(self):
-        a = trimesh.load_mesh(os.path.abspath(os.path.join(g.dir_models, 
-                                                           'ballA.off')))
+        a = g.get_mesh('ballA.off')
         r = a.export(file_type='dae')
  
 class ContainsTest(unittest.TestCase):
     def setUp(self):
-        self.sphere = trimesh.load_mesh(os.path.abspath(os.path.join(g.dir_models, 
-                                                                     'unit_sphere.STL')))    
+        self.sphere = g.get_mesh('unit_sphere.STL')
+
     def test_equal(self):
         samples = (np.random.random((1000,3))-.5)*5
         radius = np.linalg.norm(samples, axis=1)
@@ -118,7 +117,7 @@ class ContainsTest(unittest.TestCase):
 class RayTests(unittest.TestCase):
     def setUp(self):
         data = g.data['ray_data']
-        self.meshes = [trimesh.load_mesh(location(f)) for f in data['filenames']]
+        self.meshes = [g.get_mesh(f) for f in data['filenames']]
         self.rays   = data['rays']
         self.truth  = data['truth']
 
@@ -135,7 +134,7 @@ class RayTests(unittest.TestCase):
 
     def test_rps(self):
         dimension = (1000,3)
-        sphere    = trimesh.load_mesh(location('unit_sphere.STL'))
+        sphere    = g.get_mesh('unit_sphere.STL')
 
         rays_ori = np.random.random(dimension)
         rays_dir = np.tile([0,0,1], (dimension[0], 1))
@@ -150,7 +149,7 @@ class RayTests(unittest.TestCase):
         log.info('Measured %f rays/second', rps)
 
     def test_contains(self):
-        mesh = trimesh.load_mesh(location('unit_cube.STL'))
+        mesh = g.get_mesh('unit_cube.STL')
         scale = 1+(trimesh.constants.tol.merge*2)
 
         test_on  = mesh.contains(mesh.vertices)
@@ -168,8 +167,7 @@ class MassTests(unittest.TestCase):
         self.meshes = dict()
         for data in self.truth:
             filename = data['filename']
-            location = os.path.abspath(os.path.join(g.dir_models, filename))
-            self.meshes[filename] = trimesh.load_mesh(location)
+            self.meshes[filename] = g.get_mesh(filename)
 
     def test_mass(self):
         def check_parameter(a,b):
@@ -187,9 +185,6 @@ class MassTests(unittest.TestCase):
                 self.assertTrue(parameter_ok)
                 parameter_count += 1
             log.info('%i mass parameters confirmed for %s', parameter_count, truth['filename'])  
-   
-def location(name):
-    return os.path.abspath(os.path.join(g.dir_models, name))
                 
 if __name__ == '__main__':
     trimesh.util.attach_to_log()

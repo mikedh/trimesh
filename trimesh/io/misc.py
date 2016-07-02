@@ -1,8 +1,23 @@
 import numpy as np
+import json
 
-from ..util import encoded_to_array
+from .. import util
 
 def load_off(file_obj, file_type=None):
+    '''
+    Load an OFF file into the kwargs for a Trimesh constructor
+
+
+    Arguments
+    ----------
+    file_obj: file object containing an OFF file
+    file_type: not used
+    
+    Returns
+    ----------
+    loaded: dict with kwargs for Trimesh constructor (vertices, faces)
+ 
+    '''
     header_string = file_obj.readline().decode().strip()
     if not header_string == 'OFF': 
         raise NameError('Not an OFF file! Header was ' + header_string)
@@ -20,9 +35,19 @@ def load_off(file_obj, file_type=None):
 
 def load_wavefront(file_obj, file_type=None):
     '''
-    Loads a Wavefront .obj file_obj into a Trimesh object
-    Discards texture normals and vertex color information
-    https://en.wikipedia.org/wiki/Wavefront_.obj_file
+    Loads an ascii Wavefront OBJ file_obj into kwargs for the Trimesh constructor.
+
+    Discards texture normals and vertex color information.
+
+
+    Arguments
+    ----------
+    file_obj: file object containing a wavefront file
+    file_type: not used
+    
+    Returns
+    ----------
+    loaded: dict with kwargs for Trimesh constructor (vertices, faces)
     '''
     data     = np.array(file_obj.read().split())
     data_str = data.astype(str)
@@ -36,19 +61,64 @@ def load_wavefront(file_obj, file_type=None):
     faces = np.array([i.split(b'/') for i in data[fid].reshape(-1)])[:,0].reshape((-1,3))
     # wavefront has 1- indexed faces, as opposed to 0- indexed
     faces = faces.astype(int) - 1
-    return {'vertices'       : data[vid].astype(float),
-            'vertex_normals' : data[nid].astype(float),
-            'faces'          : faces}
+    loaded = {'vertices'       : data[vid].astype(float),
+              'vertex_normals' : data[nid].astype(float),
+              'faces'          : faces}
+    return loaded
+
+def load_msgpack(blob, file_type=None):
+    import msgpack
+    if util.is_file(blob):
+        data = msgpack.load(blob)
+    else:
+        data = msgpack.loads(blob)
+    loaded = load_dict(data)
+    return loaded
 
 def load_dict(data, file_type=None):
-    return data
+    '''
+    Load multiple input types into kwargs for a Trimesh constructor.
 
-def load_dict64(data, file_type=None):
-    for key in ('vertices', 'faces', 'face_normals'):
-        data[key] =encoded_to_array(data[key])
-    return data
+    Arguments
+    ----------
+    data: accepts multiple forms
+          -dict: has keys for vertices and faces as (n,3) numpy arrays
+          -dict: has keys for vertices/faces (n,3) arrays encoded in base64
+          -str:  json blob as dict with either straight array or base64 values
+          -file object: json blob of dict
+    file_type: not used
 
-_misc_loaders = {'obj'    : load_wavefront,
-                 'off'    : load_off,
-                 'dict'   : load_dict,
-                 'dict64' : load_dict64}
+    Returns
+    -----------
+    loaded: dict with keys 
+            -vertices: (n,3) float
+            -faces:    (n,3) int
+            -face_normals: (n,3) float (optional)
+    '''
+    if util.is_string(data):
+        if not '{' in data:
+            raise ValueError('Object is not a JSON encoded dictionary!')
+        data = json.loads(data.decode('utf-8'))
+    elif util.is_file(data):
+        data = json.load(data)
+
+    # now go through data structure and if anything is encoded as base64
+    # pull it back into numpy arrays
+    if util.is_dict(data):
+        loaded = {}
+        for key in ('vertices', 
+                    'faces', 
+                    'face_normals'):
+            if key in data:
+                loaded[key] = util.encoded_to_array(data[key])
+        return loaded
+    else:
+        raise ValueError('%s object passed to dict loader!',
+                         data.__class__.__name__)
+
+_misc_loaders = {'obj'     : load_wavefront,
+                 'off'     : load_off,
+                 'dict'    : load_dict,
+                 'dict64'  : load_dict,
+                 'json'    : load_dict,
+                 'msgpack' : load_msgpack}

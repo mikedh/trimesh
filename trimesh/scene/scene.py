@@ -166,10 +166,16 @@ class Scene:
                 transforms: edge list of transforms, eg:
                              ((u, v, {'matrix' : np.eye(4)}))
         '''
-        export = {}
-        export['transforms'] = self.transforms.export()
-        export['nodes']  = self.nodes
-        export['meshes'] = {name : mesh.export(file_type) for name, mesh in self.meshes.items()}
+        export = {'transforms' : self.transforms.export(),
+                  'nodes'      : self.nodes,
+                  'meshes'     : {}}
+        # if the mesh has an export method use it, otherwise put the mesh
+        # itself into the export object
+        for node, mesh in self.meshes.items():
+            if hasattr(mesh, 'export'): 
+                export['meshes'][node] = mesh.export(file_type)
+            else: 
+                export['meshes'][node] = mesh
         return export
         
     def save_image(self, file_obj, resolution=(1024,768), **kwargs):

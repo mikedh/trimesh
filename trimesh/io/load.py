@@ -1,4 +1,7 @@
 import numpy as np
+import os
+
+from .. import util
 
 from ..base      import Trimesh
 from ..constants import _log_time, log
@@ -27,44 +30,63 @@ def available_formats():
 
 def load(file_obj, file_type=None, **kwargs):
     '''
-    Load a mesh or vectorized path into a 
-    Trimesh, Path2D, or Path3D object.
+    Load a mesh or vectorized path into a Trimesh, Path2D, or Path3D object.
 
     Arguments
     ---------
     file_obj: a filename string or a file-like object
     file_type: str representing file type (eg: 'stl')
 
-    Returns:
+    Returns
+    ---------
     geometry: Trimesh, Path2D, Path3D, or list of same. 
     '''
+    # check to make sure we have a type specified if a file object is passed
+    if (util.is_file(file_obj) and 
+        file_type is None):
+        raise ValueError('If file object is passed file_type must be specified!')
 
-    if isinstance(file_obj, Trimesh):
-        return file_obj
-
-    if is_instance_named(file_obj, 'Path'):
+    # check to see if we're trying to load something that is already a Trimesh
+    out_types = ('Trimesh', 'Path')
+    if any(is_instance_named(file_obj, t) for t in out_types):
+        log.info('Loaded called on %s object, returning input',
+                 file_obj.__class__.__name__)
         return file_obj
 
     if is_string(file_obj):
-        file_type = (str(file_obj).split('.')[-1])
-        file_obj = open(file_obj, 'rb')
-        
+        # if file_obj is a path that exists use extension as file_type
+        if os.path.isfile(file_obj):
+            file_type = (str(file_obj).split('.')[-1])
+            file_obj = open(file_obj, 'rb')
+        # if a dict bracket is in the string, its probably a straight JSON
+        elif '{' in file_obj:
+            file_type = 'json'
+        else:
+            raise ValueError('File object passed as string that is not a file!')
+            
     if file_type is None:
         file_type = file_obj.__class__.__name__
+
+    # if someone has passed the whole filename as the file_type
+    # use the file extension as the file_type
     if is_string(file_type) and '.' in file_type:
         file_type = file_type.split('.')[-1]
-
     file_type = file_type.lower()
 
     if file_type in path_formats():
-        return load_path(file_obj, file_type, **kwargs)
+        loaded = load_path(file_obj, file_type, **kwargs)
     elif file_type in mesh_formats():
-        return load_mesh(file_obj, file_type, **kwargs)
-        
-    raise ValueError('File type: %s not supported', str(file_type))
+        loaded = load_mesh(file_obj, file_type, **kwargs)
+    else:
+        raise ValueError('File type: %s not supported', str(file_type))
+
+    for i in util.make_sequence(loaded):
+        # check to make sure loader actually loaded something
+        assert any(is_instance_named(i, t) for t in out_types)
+    return loaded
 
 @_log_time
-def load_mesh(obj, file_type=None, process=True):
+def load_mesh(file_obj, file_type):
     '''
     Load a mesh file into a Trimesh object
 
@@ -72,32 +94,23 @@ def load_mesh(obj, file_type=None, process=True):
     ---------
     file_obj: a filename string or a file-like object
     file_type: str representing file type (eg: 'stl')
-    process:   boolean flag, whether to process the mesh on load
-
+ 
     Returns:
+    ----------
     mesh: a single Trimesh object, or a list of Trimesh objects, 
           depending on the file format. 
     
-    '''
-
-    if is_string(obj):
-        file_type = (str(obj).split('.')[-1]).lower()
-        obj = open(obj, 'rb')
-
-    if file_type is None:
-        file_type = obj.__class__.__name__
-    
+    '''    
     file_type = str(file_type).lower()
-    loaded = _mesh_loaders[file_type](obj, file_type)
-    
-    if is_file(obj): 
-        obj.close()
+    loaded = _mesh_loaders[file_type](file_obj, 
+                                      file_type)
+    if is_file(file_obj): 
+        file_obj.close()
     
     log.debug('loaded mesh using %s',
               _mesh_loaders[file_type].__name__)
 
-    meshes = [Trimesh(process=process, **i) for i in make_sequence(loaded)]
-    
+    meshes = [Trimesh(**i) for i in make_sequence(loaded)]
     if len(meshes) == 1: 
         return meshes[0]
     return meshes

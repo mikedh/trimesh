@@ -114,6 +114,18 @@ def export_svg(drawing):
     return path_str
 
 def export_dxf(path):
+    '''
+    Export a 2D path object to a DXF file
+    
+    Arguments
+    ----------
+    path: trimesh.path.path.Path2D
+    
+    Returns
+    ----------
+    export: str, path formatted as a DXF file
+    '''
+    
     def format_points(points, increment = True):
         points = np.asanyarray(points)
         three = three_dimensionalize(points, return_2D =False)
@@ -180,8 +192,8 @@ def export_dxf(path):
                                              'UNITS_CODE': '1'})
     entities = templates['entities'].substitute({'ENTITIES' : entities_str})
     footer   = templates['footer'].substitute()
-    result   = '\n'.join([header, entities, footer])
-    return result
+    export   = '\n'.join([header, entities, footer])
+    return export
 
 def _write_export(export, file_obj=None):
     '''

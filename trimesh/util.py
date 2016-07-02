@@ -42,6 +42,10 @@ def unitize(points, check_valid=False):
     points = np.asanyarray(points)
     axis   = len(points.shape) - 1
     length = np.sum(points ** 2, axis=axis) ** .5
+    
+    if is_sequence(length):
+        length[np.isnan(length)] = 0.0
+    
     if check_valid:
         valid = np.greater(length, _TOL_ZERO)
         if axis == 1: 
@@ -92,6 +96,8 @@ def is_sequence(obj):
            hasattr(obj, "__iter__"))
 
     seq = seq and not isinstance(obj, dict)
+    seq = seq and not isinstance(obj, set)
+
     # numpy sometimes returns objects that are single float64 values
     # but sure look like sequences, so we check the shape
     if hasattr(obj, 'shape'):
@@ -653,6 +659,13 @@ def encoded_to_array(encoded):
     ----------
     array: numpy array
     '''
+    if not is_dict(encoded):
+        if is_sequence(encoded):
+            as_array = np.asanyarray(encoded)
+            return as_array
+        else:
+            raise ValueError('Unable to extract numpy array from input')
+
     shape = encoded['shape']
     dtype = np.dtype(encoded['dtype'])
     if 'base64' in encoded:
@@ -770,6 +783,20 @@ def submesh(mesh,
     if append: Trimesh object
     else:      list of Trimesh objects
     '''
+    # evaluate generators so we can escape early
+    faces_sequence = list(faces_sequence)
+
+    if len(faces_sequence) == 0: return []
+
+    # check to make sure we're not doing a whole bunch of work
+    # to deliver a subset which ends up as the whole mesh
+    if len(faces_sequence[0]) == len(mesh.faces):
+        all_faces = np.array_equal(np.sort(faces_sequence),
+                                   np.arange(len(faces_sequence)))
+        if all_faces:
+            log.debug('Subset of entire mesh requested, returning copy of original')
+            return mesh.copy()
+
     # avoid nuking the cache on the original mesh
     original_faces    = mesh.faces.view(np.ndarray)
     original_vertices = mesh.vertices.view(np.ndarray)
@@ -811,6 +838,7 @@ def submesh(mesh,
                            faces        = f, 
                            face_normals = n,
                            visual       = c,
+                           metadata     = mesh.metadata,
                            process = False) for v,f,n,c in zip(vertices, 
                                                                faces, 
                                                                normals,

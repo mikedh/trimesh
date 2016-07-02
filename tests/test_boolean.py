@@ -2,8 +2,8 @@ import generic as g
 
 class BooleanTest(g.unittest.TestCase):
     def setUp(self):
-        self.a = g.trimesh.load_mesh(g.os.path.join(g.dir_models, 'ballA.off'))
-        self.b = g.trimesh.load_mesh(g.os.path.join(g.dir_models, 'ballB.off'))
+        self.a = g.get_mesh('ballA.off')
+        self.b = g.get_mesh('ballB.off')
         self.truth = g.data['boolean']
     
     def is_zero(self, value):

@@ -1,6 +1,12 @@
 import numpy as np
 import json
 
+#python 3
+try:
+    from cStringIO import StringIO
+except ImportError:
+    from io import StringIO
+
 from ..constants import log
 from ..util      import tolist_dict, is_string, array_to_encoded
 
@@ -38,12 +44,27 @@ def export_mesh(mesh, file_obj, file_type=None):
         return export
 
 def export_off(mesh):
-    faces_stacked = np.column_stack((np.ones(len(mesh.faces))*3, mesh.faces)).astype(np.int64)
+    '''
+    Export a mesh as an OFF file, a simple text format
+    
+    Arguments
+    -----------
+    mesh: Trimesh object
+
+    Returns
+    -----------
+    export: str, string of OFF format output
+    '''
+    temp_obj = StringIO()
+    faces_stacked = np.column_stack((np.ones(len(mesh.faces))*3, mesh.faces))
+    # numpy arrays to string methods (array2string based ones anyway)
+    # are a terrible clusterfuck, so we use a StringIO and np.savetxt
+    np.savetxt(temp_obj, mesh.vertices, fmt='%.14f')
+    np.savetxt(temp_obj, faces_stacked, fmt='%i')
+    temp_obj.seek(0)
     export = 'OFF\n'
     export += str(len(mesh.vertices)) + ' ' + str(len(mesh.faces)) + ' 0\n'
-    export += np.array_str(mesh.vertices, precision=9).replace('[', '').replace(']', '').strip()
-    export += np.array_str(faces_stacked).replace('[', '').replace(']', '').strip()
-
+    export += temp_obj.read()
     return export
 
 def export_collada(mesh):
@@ -77,14 +98,16 @@ def export_dict(mesh, encoding=None):
         if encoding is None:
             return item.tolist()
         else:
+            if dtype is None: 
+                dtype = item.dtype
             return array_to_encoded(item, 
                                     dtype = dtype, 
                                     encoding = encoding)
                                     
     export = {'metadata'     : tolist_dict(mesh.metadata),
-              'faces'        : encode(mesh.faces,        np.uint32),
-              'face_normals' : encode(mesh.face_normals, np.float32),
-              'vertices'     : encode(mesh.vertices,     np.float32)}
+              'faces'        : encode(mesh.faces),
+              'face_normals' : encode(mesh.face_normals),
+              'vertices'     : encode(mesh.vertices)}
     return export
         
 def export_json(mesh):

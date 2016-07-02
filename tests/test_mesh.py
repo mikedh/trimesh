@@ -3,20 +3,9 @@ import generic as g
 from collections import deque 
 
 class MeshTests(g.unittest.TestCase):
-    def setUp(self):
-        meshes = deque()
-        for file_path in g.data['model_paths']:
-            ext = g.os.path.splitext(file_path)[-1][1:].lower() 
-            if not ext in g.trimesh.available_formats():
-                continue
-
-            g.log.info('Attempting to load %s', file_path)
-            
-            meshes.append(g.trimesh.load_mesh(file_path))
-            meshes[-1].metadata['filename'] = file_path
-        self.meshes = list(meshes)
-
     def test_meshes(self):
+        self.meshes = g.get_meshes()
+
         has_gt = g.trimesh.graph._has_gt
         g.trimesh.graph._has_gt = False
 
@@ -25,7 +14,7 @@ class MeshTests(g.unittest.TestCase):
 
         g.log.info('Running tests on %d meshes', len(self.meshes))
         for mesh in self.meshes:
-            g.log.info('Testing %s', mesh.metadata['filename'])
+            g.log.info('Testing %s', mesh.metadata['file_name'])
             self.assertTrue(len(mesh.faces) > 0)
             self.assertTrue(len(mesh.vertices) > 0)
             
@@ -55,7 +44,7 @@ class MeshTests(g.unittest.TestCase):
             facets, area = mesh.facets(return_area=True)
             if len(area) == 0:
                 g.log.warning('%s returned empty area!', 
-                            mesh.metadata['filename'])
+                            mesh.metadata['file_name'])
                 continue
             faces = facets[g.np.argmax(area)]
             outline = mesh.outline(faces)
@@ -73,7 +62,7 @@ class MeshTests(g.unittest.TestCase):
 
             volume_ok = hull.volume > 0.0
             if not volume_ok:
-                g.log.error('zero hull volume for %s', mesh.metadata['filename'])
+                g.log.error('zero hull volume for %s', mesh.metadata['file_name'])
             self.assertTrue(volume_ok)
 
             sample = mesh.sample(1000)
@@ -83,7 +72,7 @@ class MeshTests(g.unittest.TestCase):
 
 
     def test_fill_holes(self):
-        for mesh in self.meshes[:5]:
+        for mesh in g.get_meshes(5):
             if not mesh.is_watertight: continue
             mesh.faces = mesh.faces[1:-1]
             self.assertFalse(mesh.is_watertight)
@@ -91,7 +80,7 @@ class MeshTests(g.unittest.TestCase):
             self.assertTrue(mesh.is_watertight)
             
     def test_fix_normals(self):
-        for mesh in self.meshes[5:]:
+        for mesh in g.get_meshes(5):
             mesh.fix_normals()
                 
 if __name__ == '__main__':

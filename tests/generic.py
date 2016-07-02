@@ -14,6 +14,8 @@ import trimesh
 
 from collections import deque
 
+from StringIO import StringIO
+
 dir_current = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 dir_models  = os.path.join(dir_current, '../models')
 dir_2D      = os.path.join(dir_current, '../models/2D')
@@ -39,10 +41,14 @@ def _load_data():
 def get_mesh(file_name):
     mesh = trimesh.load(os.path.join(dir_models,
                                      file_name))
+    mesh.metadata['file_name'] = str(file_name)
     return mesh
     
-def get_meshes(count):
-    meshes = [get_mesh(fn) for fn in [i for i in os.listdir(dir_models) if '.' in i][:count]]
+def get_meshes(count=None):
+    ls = os.listdir(dir_models)
+    if count is None:
+        count = len(ls)
+    meshes = [get_mesh(fn) for fn in [i for i in ls if '.' in i][:count]]
     return meshes
     
 data = _load_data()

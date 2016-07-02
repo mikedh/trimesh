@@ -14,7 +14,6 @@ from ..constants import res, log
 _METERS_TO_INCHES = 1.0 / .0254
 _STEP_FACETER     = find_executable('export_product_asm')
 
-
 def load_step(file_obj, file_type=None):
     '''
     Use the STEPtools Inc. Author Tools binary to mesh a STEP file,
