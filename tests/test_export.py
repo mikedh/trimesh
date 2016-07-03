@@ -10,6 +10,7 @@ class ExportTest(g.unittest.TestCase):
         
                 # we don't have native loaders implemented for collada yet
                 if file_type in ['dae', 'collada']:
+                    g.log.warning('Still no native loaders implemented for collada!')
                     continue
 
                 if g.trimesh.util.is_string(export):
@@ -23,7 +24,7 @@ class ExportTest(g.unittest.TestCase):
                                 mesh.metadata['file_name'])
                 self.assertTrue(loaded.faces.shape    == mesh.faces.shape)
                 self.assertTrue(loaded.vertices.shape == mesh.vertices.shape)
-
+                g.log.info('Mesh vertices/faces consistent after export->import')
                 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

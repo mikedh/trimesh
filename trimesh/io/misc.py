@@ -67,6 +67,19 @@ def load_wavefront(file_obj, file_type=None):
     return loaded
 
 def load_msgpack(blob, file_type=None):
+    '''
+    Load a dict packed with msgpack into kwargs for Trimesh constructor
+
+    Arguments
+    ----------
+    blob: msgpack packed dict with keys for 'vertices' and 'faces'
+    file_type: not used
+
+    Returns
+    ----------
+    loaded: kwargs for Trimesh constructor (aka mesh=trimesh.Trimesh(**loaded))
+    '''
+
     import msgpack
     if util.is_file(blob):
         data = msgpack.load(blob)
@@ -78,12 +91,14 @@ def load_msgpack(blob, file_type=None):
 def load_dict(data, file_type=None):
     '''
     Load multiple input types into kwargs for a Trimesh constructor.
+    Tries to extract keys ['faces', 'vertices', 'face_normals', 'vertex_normals'].
 
     Arguments
     ----------
     data: accepts multiple forms
           -dict: has keys for vertices and faces as (n,3) numpy arrays
-          -dict: has keys for vertices/faces (n,3) arrays encoded in base64
+          -dict: has keys for vertices/faces (n,3) arrays encoded as dicts/base64
+                 with trimesh.util.array_to_encoded/trimesh.util.encoded_to_array
           -str:  json blob as dict with either straight array or base64 values
           -file object: json blob of dict
     file_type: not used
@@ -102,15 +117,26 @@ def load_dict(data, file_type=None):
     elif util.is_file(data):
         data = json.load(data)
 
+    # what shape should the data be to be usable
+    mesh_data = {'vertices'       : (-1,3),
+                 'faces'          : (-1, (3,4)),
+                 'face_normals'   : (-1,3),
+                 'vertex_normals' : (-1,3)}
+
     # now go through data structure and if anything is encoded as base64
     # pull it back into numpy arrays
     if util.is_dict(data):
         loaded = {}
-        for key in ('vertices', 
-                    'faces', 
-                    'face_normals'):
+        for key, shape in mesh_data.items():
             if key in data:
                 loaded[key] = util.encoded_to_array(data[key])
+                if not util.is_shape(loaded[key], shape):
+                    raise ValueError('Shape of %s is %s, not %s!',
+                                     key,
+                                     str(loaded[key].shape),
+                                         str(shape))
+        if len(key) == 0:
+            raise ValueError('Unable to extract any mesh data!')
         return loaded
     else:
         raise ValueError('%s object passed to dict loader!',
