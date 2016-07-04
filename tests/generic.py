@@ -17,8 +17,11 @@ from collections import deque
 #python 3
 try:
     from cStringIO import StringIO
+    _PY3 = False
 except ImportError:
     from io import StringIO
+    from io import BytesIO
+    _PY3 = True
 
 dir_current = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 dir_models  = os.path.join(dir_current, '../models')
@@ -27,6 +30,13 @@ dir_data    = os.path.join(dir_current, 'data')
 
 log = logging.getLogger('trimesh')
 log.addHandler(logging.NullHandler())
+
+def io_wrap(item):
+    if isinstance(item, str):
+        return StringIO(item)
+    if _PY3 and isinstance(item, bytes):
+        return BytesIO(item)
+    return item
 
 def _load_data():
     data = {}

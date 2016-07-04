@@ -8,7 +8,7 @@ except ImportError:
     from io import StringIO
 
 from ..constants import log
-from ..util      import tolist_dict, is_string, array_to_encoded
+from .. import util
 
 from .stl import export_stl
 from .ply import export_ply
@@ -28,7 +28,7 @@ def export_mesh(mesh, file_obj, file_type=None):
           depending on the file format. 
     
     '''
-    if is_string(file_obj):
+    if util.is_string(file_obj):
         file_type = (str(file_obj).split('.')[-1]).lower()
         file_obj  = open(file_obj, 'wb')
     file_type = str(file_type).lower()
@@ -55,16 +55,13 @@ def export_off(mesh):
     -----------
     export: str, string of OFF format output
     '''
-    temp_obj = StringIO()
-    faces_stacked = np.column_stack((np.ones(len(mesh.faces))*3, mesh.faces))
+    faces_stacked = np.column_stack((np.ones(len(mesh.faces))*3, mesh.faces)).astype(np.int64)
     # numpy arrays to string methods (array2string based ones anyway)
     # are a terrible clusterfuck, so we use a StringIO and np.savetxt
-    np.savetxt(temp_obj, mesh.vertices, fmt='%.14f')
-    np.savetxt(temp_obj, faces_stacked, fmt='%i')
-    temp_obj.seek(0)
     export = 'OFF\n'
     export += str(len(mesh.vertices)) + ' ' + str(len(mesh.faces)) + ' 0\n'
-    export += temp_obj.read()
+    export += util.array_to_string(mesh.vertices) + '\n'
+    export += util.array_to_string(faces_stacked)
     return export
 
 def export_collada(mesh):
@@ -100,11 +97,11 @@ def export_dict(mesh, encoding=None):
         else:
             if dtype is None: 
                 dtype = item.dtype
-            return array_to_encoded(item, 
+            return util.array_to_encoded(item, 
                                     dtype = dtype, 
                                     encoding = encoding)
                                     
-    export = {'metadata'     : tolist_dict(mesh.metadata),
+    export = {'metadata'     : util.tolist_dict(mesh.metadata),
               'faces'        : encode(mesh.faces),
               'face_normals' : encode(mesh.face_normals),
               'vertices'     : encode(mesh.vertices)}

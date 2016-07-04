@@ -135,15 +135,20 @@ def _parse_file_args(file_obj, file_type):
     if util.is_file(file_obj) and file_type is None:
         raise ValueError('File type must be specified when passing file objects!')
     if util.is_string(file_obj):
-        if os.path.isfile(file_obj):
+        try:    exists = os.path.isfile(file_obj)
+        except: exists = False
+        if exists:
             # if file_obj is a path that exists use extension as file_type
             file_type = (str(file_obj).split('.')[-1])
             file_obj = open(file_obj, 'rb')
-        elif '{' in file_obj:
-            # if a dict bracket is in the string, its probably a straight JSON
-            file_type = 'json'
         else:
-            raise ValueError('File object passed as string that is not a file!')
+            if file_type is not None:
+                return file_obj, file_type
+            elif '{' in file_obj:
+                # if a dict bracket is in the string, its probably a straight JSON
+                file_type = 'json'
+            else:
+                raise ValueError('File object passed as string that is not a file!')
             
     if file_type is None:
         file_type = file_obj.__class__.__name__

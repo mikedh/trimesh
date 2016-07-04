@@ -9,6 +9,7 @@ import logging
 import hashlib
 import base64
 import time
+import json
 
 from collections import defaultdict, deque
 from sys import version_info
@@ -620,6 +621,16 @@ def append_faces(vertices_seq, faces_seq):
 
     return vertices, faces
 
+def array_to_string(array):
+    array = np.asanyarray(array)
+    if not (len(array.shape) in [1,2]):
+        raise ValueError('array_to_string is only for 1D and 2D arrays!')
+    
+    dump = json.dumps(array.tolist())
+    as_str = dump.replace('], ', '\n').replace(']', '\n').replace('[', '').replace(',', '')
+    as_str = as_str.strip()
+    return as_str
+    
 def array_to_encoded(array, dtype=None, encoding='base64'):
     '''
     Export a numpy array to a compact serializable dictionary.
@@ -657,6 +668,27 @@ def array_to_encoded(array, dtype=None, encoding='base64'):
         raise ValueError('encoding {} is not available!'.format(encoding))
     return encoded
 
+def decode_keys(store, encoding='utf-8'):
+    '''
+    If a dictionary has keys that are bytes encode them (utf-8 default)
+    
+    Arguments
+    ---------
+    store: dict
+
+    Returns
+    ---------
+    store: dict, with same data and if keys were bytes they have been encoded
+    '''
+    keys = store.keys()
+    for key in keys:
+        if hasattr(key, 'decode'):
+            decoded = key.decode(encoding)
+            if key != decoded: 
+                store[key.decode(encoding)] = store[key]
+                store.pop(key)
+    return store
+
 def encoded_to_array(encoded):
     '''
     Turn a dictionary with base64 encoded strings back into a numpy array.
@@ -678,6 +710,8 @@ def encoded_to_array(encoded):
             return as_array
         else:
             raise ValueError('Unable to extract numpy array from input')
+    
+    encoded = decode_keys(encoded)
 
     shape = encoded['shape']
     dtype = np.dtype(encoded['dtype'])

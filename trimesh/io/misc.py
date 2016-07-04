@@ -18,7 +18,11 @@ def load_off(file_obj, file_type=None):
     loaded: dict with kwargs for Trimesh constructor (vertices, faces)
  
     '''
-    header_string = file_obj.readline().decode().strip()
+    header_string = file_obj.readline()
+    if hasattr(header_string, 'decode'):
+        header_string = header_string.decode('utf-8')
+    header_string = header_string.strip()
+
     if not header_string == 'OFF': 
         raise NameError('Not an OFF file! Header was ' + header_string)
 
@@ -81,7 +85,7 @@ def load_msgpack(blob, file_type=None):
     '''
 
     import msgpack
-    if util.is_file(blob):
+    if hasattr(blob, 'read'):
         data = msgpack.load(blob)
     else:
         data = msgpack.loads(blob)
@@ -110,6 +114,8 @@ def load_dict(data, file_type=None):
             -faces:    (n,3) int
             -face_normals: (n,3) float (optional)
     '''
+    if data is None:
+        raise ValueError('data passed to load_dict was None!')
     if util.is_string(data):
         if not '{' in data:
             raise ValueError('Object is not a JSON encoded dictionary!')
@@ -122,19 +128,19 @@ def load_dict(data, file_type=None):
                  'faces'          : (-1, (3,4)),
                  'face_normals'   : (-1,3),
                  'vertex_normals' : (-1,3)}
-
     # now go through data structure and if anything is encoded as base64
     # pull it back into numpy arrays
     if util.is_dict(data):
         loaded = {}
+        data = util.decode_keys(data, 'utf-8')
         for key, shape in mesh_data.items():
-            if key in data:
+            if key in data: 
                 loaded[key] = util.encoded_to_array(data[key])
                 if not util.is_shape(loaded[key], shape):
                     raise ValueError('Shape of %s is %s, not %s!',
                                      key,
                                      str(loaded[key].shape),
-                                         str(shape))
+                                     str(shape))
         if len(key) == 0:
             raise ValueError('Unable to extract any mesh data!')
         return loaded

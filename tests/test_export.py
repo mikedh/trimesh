@@ -12,9 +12,10 @@ class ExportTest(g.unittest.TestCase):
                 if file_type in ['dae', 'collada']:
                     g.log.warning('Still no native loaders implemented for collada!')
                     continue
-
-                if g.trimesh.util.is_string(export):
-                    export = g.StringIO(export)
+                    
+                g.log.info('Export/import testing on %s',
+                         mesh.metadata['file_name'])
+                export = g.io_wrap(export)
                 loaded = g.trimesh.load(file_obj  = export,
                                         file_type = file_type)
 

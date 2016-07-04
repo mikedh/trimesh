@@ -27,7 +27,8 @@ before_install:
 install: pip install .[all]
 
 script: 
-- nosetests
+- if [[ $TRAVIS_PYTHON_VERSION >= 3.0 ]]; then nosetests3; fi
+- if [[ $TRAVIS_PYTHON_VERSION <  3.0 ]]; then nosetests; fi
 - cd examples
 - for f in *.py; do python "$f" -nw; done
 - cd ..
