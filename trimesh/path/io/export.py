@@ -20,7 +20,8 @@ def export_path(path, file_type, file_obj=None):
     file_type: str representing file type (eg: 'svg')
     process:   boolean flag, whether to process the mesh on load
 
-    Returns:
+    Returns
+    ---------
     mesh: a single Trimesh object, or a list of Trimesh objects, 
           depending on the file format. 
     
@@ -212,7 +213,10 @@ def _write_export(export, file_obj=None):
         out_file = file_obj
     else: 
         out_file = open(file_obj, 'wb')
-    out_file.write(export)
+    try:
+        out_file.write(export)
+    except TypeError:
+        out_file.write(export.encode('utf-8'))
     out_file.close()
     return export
 

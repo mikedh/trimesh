@@ -27,7 +27,7 @@ before_install:
 install: pip install .[all]
 
 script: 
-- nose2
+- if [[ "${TRAVIS_PYTHON_VERSION}" != 2.7 ]]; then nose2; else "nose2-${TRAVIS_PYTHON_VERSION}"; fi;
 - cd examples
 - for f in *.py; do python "$f" -nw; done
 - cd ..

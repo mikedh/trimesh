@@ -42,9 +42,8 @@ class MeshTests(g.unittest.TestCase):
             tic.append(g.time.time())
 
             facets, area = mesh.facets(return_area=True)
-            if len(area) == 0:
-                g.log.warning('%s returned empty area!', 
-                            mesh.metadata['file_name'])
+            self.assertTrue(len(facets) == len(area))
+            if len(facets) == 0:
                 continue
             faces = facets[g.np.argmax(area)]
             outline = mesh.outline(faces)
