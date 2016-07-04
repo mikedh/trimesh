@@ -27,7 +27,7 @@ before_install:
 install: pip install .[all]
 
 script: 
-- if [[ "${TRAVIS_PYTHON_VERSION}" == 2.7 ]]; then export TESTCMD=nose2; else export TESTCMD="nose2-${TRAVIS_PYTHON_VERSION}"; fi;
+- nose2
 - echo $TESTCMD
 - $TESTCMD
 - cd examples
