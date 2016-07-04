@@ -8,12 +8,18 @@ import numpy as np
 import logging
 import hashlib
 import base64
+import time
 
 from collections import defaultdict, deque
 from sys import version_info
+from functools import wraps
 
-if version_info.major >= 3:
+_PY3 = version_info.major >= 3
+if _PY3:
     basestring = str
+    from io import StringIO
+else:
+    from StringIO import StringIO
 
 log = logging.getLogger('trimesh')
 log.addHandler(logging.NullHandler())   
@@ -440,6 +446,21 @@ class TrackedArray(np.ndarray):
         self._modified = True
         super(self.__class__, self).__setslice__(i, j, y)
 
+def cache_decorator(function):
+    @wraps(function)
+    def get_cached(*args, **kwargs):
+        self = args[0]
+        name = function.__name__
+        if not (name in self._cache):
+            tic = time.time()
+            self._cache[name] = function(*args, **kwargs)
+            toc = time.time()
+            log.debug('%s was not in cache, executed in %.6f',
+                      name,
+                      toc-tic)
+        return self._cache[name]
+    return property(get_cached)
+
 class Cache:
     '''
     Class to cache values until an id function changes.
@@ -452,14 +473,6 @@ class Cache:
         self.id_current   = None
         self._lock = 0
         self.cache = {}
-        
-    def decorator(self, function):
-        name = function.__name__
-        if name in self.cache:
-            return self.cache[name]
-        result = function()
-        self.cache[name] = result
-        return result
         
     def get(self, key):
         '''

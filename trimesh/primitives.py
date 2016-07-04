@@ -72,16 +72,16 @@ class Sphere(Primitive):
         sphere_center: (3,) float, center of sphere
         subdivisions: int, number of subdivisions for icosphere. Default is 3
         '''
+        if 'subdivisions' in kwargs: subdivisions = int(kwargs['subdivisions'])
+        else:                        subdivisions = 3
+
+        self._unit_sphere = creation.icosphere(subdivisions=subdivisions)
         super(Sphere, self).__init__(*args, **kwargs)
+
         if 'sphere_radius' in kwargs:
             self.sphere_radius = kwargs['sphere_radius']
         if 'sphere_center' in kwargs:
             self.sphere_center = kwargs['sphere_center']
-        if 'subdivisions' in kwargs:
-            self._data['subdivisions'] = int(kwargs['subdivisions'])
-        else:
-            self._data['subdivisions'] = 3
-        self._unit_sphere = creation.icosphere(subdivisions=self._data['subdivisions'])
 
     @property
     def sphere_center(self):
@@ -124,14 +124,15 @@ class Box(Primitive):
         box_center:    (3,) float, convience function which updates box_transform
                        with a translation- only matrix
         '''
+        self._unit_box = creation.box()
         super(Box, self).__init__(*args, **kwargs)
+
         if 'box_extents' in kwargs:
             self.box_extents = kwargs['box_extents']
         if 'box_transform' in kwargs:
             self.box_transform = kwargs['box_transform']
         if 'box_center' in kwargs:
             self.box_center = kwargs['box_center']
-        self._unit_box = creation.box()
 
     @property
     def box_center(self):
