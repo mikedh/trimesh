@@ -133,7 +133,7 @@ def triangulate_polygon(polygon, **kwargs):
         tiled = np.tile(np.arange(start, start+length).reshape((-1,1)), 2)
         tiled = tiled.reshape(-1)[1:-1].reshape((-1,2))
         tiled = np.vstack((tiled, [tiled[-1][-1], tiled[0][0]]))
-        return tiled.astype(np.int32)
+        return tiled
 
     def add_boundary(boundary, start):
         # coords is an (n, 2) ordered list of points on the polygon boundary
@@ -176,7 +176,7 @@ def triangulate_polygon(polygon, **kwargs):
     # and (m, 2) int array of facets
     # by stacking the sequence of (p,2) arrays
     vertices = np.vstack(vertices)
-    facets   = np.vstack(facets)
+    facets   = np.vstack(facets).tolist()
     
     # holes in meshpy lingo are a (h, 2) list of (x,y) points
     # which are inside the region of the hole

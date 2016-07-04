@@ -19,7 +19,8 @@ class BoundsTest(g.unittest.TestCase):
                 test = m.bounds / (box_ext / 2.0)
                 test_ok = g.np.allclose(test, [[-1,-1,-1],[1,1,1]])
                 if not test_ok:
-                    print test
+                    g.log.error('bounds test failed %s',
+                                str(test))
                 self.assertTrue(test_ok)
 
 if __name__ == '__main__':
