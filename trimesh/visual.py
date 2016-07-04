@@ -52,7 +52,7 @@ class VisualAttributes(object):
 
     @property
     def defined(self):
-        defined = np.any(self._set.values()) 
+        defined = any(self._set.values()) 
         defined = defined and self.mesh is not None
         return defined
 

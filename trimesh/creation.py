@@ -133,7 +133,7 @@ def triangulate_polygon(polygon, **kwargs):
         tiled = np.tile(np.arange(start, start+length).reshape((-1,1)), 2)
         tiled = tiled.reshape(-1)[1:-1].reshape((-1,2))
         tiled = np.vstack((tiled, [tiled[-1][-1], tiled[0][0]]))
-        return tiled
+        return tiled.astype(np.int32)
 
     def add_boundary(boundary, start):
         # coords is an (n, 2) ordered list of points on the polygon boundary

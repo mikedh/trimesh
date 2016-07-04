@@ -23,12 +23,11 @@ before_install:
 - sudo apt-get install -y python-scipy python-numpy libgeos-dev libspatialindex-dev openscad blender
 - virtualenv --system-site-packages ../trimesh_test
 - source ../trimesh_test/bin/activate
-- pip install nose
+- pip install nose2
 install: pip install .[all]
 
 script: 
-- if [[ $TRAVIS_PYTHON_VERSION >= 3.0 ]]; then nosetests3; fi
-- if [[ $TRAVIS_PYTHON_VERSION <  3.0 ]]; then nosetests; fi
+- nose2
 - cd examples
 - for f in *.py; do python "$f" -nw; done
 - cd ..
