@@ -20,7 +20,7 @@ deploy:
 
 before_install:
 - sudo apt-get update
-- sudo apt-get install -y libgeos-dev libspatialindex-dev openscad blender
+- sudo apt-get install -y libgeos-dev libspatialindex-dev openscad blender python-numpy python3-numpy python-scipy python3-scipy
 - pip install nose2
 install: pip install .[all]
 
