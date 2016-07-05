@@ -4,7 +4,6 @@ dist: trusty
 
 python:
 - '2.7'
-- '3.3'
 - '3.4'
 - '3.5'
 
@@ -29,13 +28,14 @@ before_install:
 # The next couple lines fix a crash with multiprocessing on Travis and are not specific to using Miniconda
 - sudo rm -rf /dev/shm
 - sudo ln -s /run/shm /dev/shm
+- conda install --yes python=$TRAVIS_PYTHON_VERSION numpy scipy
 - pip install nose2
-- conda install --yes python=$TRAVIS_PYTHON_VERSION atlas numpy scipy
 
 install: pip install .[all]
 
 script: 
+- cd tests
 - nose2
-- cd examples
+- cd ../examples
 - for f in *.py; do python "$f" -nw; done
 - cd ..
