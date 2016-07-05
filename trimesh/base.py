@@ -273,6 +273,7 @@ class Trimesh(object):
         vertex_normals: (n,3) float, where n == len(self.vertices)
                          Represents the surface normal at each vertex. 
         '''
+        assert hasattr(self.faces_sparse, 'dot')
         vertex_normals = geometry.mean_vertex_normals(len(self.vertices),
                                                       self.faces,
                                                       self.face_normals,
