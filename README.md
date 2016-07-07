@@ -24,7 +24,7 @@ The minimum set of packages required to import `trimesh` are
 
 ### Optional Dependencies ###
 
-To get the latest assimp for (additional import formats)[http://www.assimp.org/main_features_formats.html] (python-pyassimp in Ubuntu 14.04 is very old):
+To get the latest assimp for [additional import formats](http://www.assimp.org/main_features_formats.html) (python-pyassimp in Ubuntu 14.04 is very old):
 
 ```bash
 $ sudo pip install git+https://github.com/robotics/assimp_latest.git
@@ -36,12 +36,12 @@ If you are using a lot of graph operations (specifically mesh.split) trimesh wil
 ### Features ###
 
 * Import binary/ASCII STL, Wavefront OBJ, ASCII OFF, and binary PLY
-* Import formats using assimp (if pyassimp installed)
+* Import additional mesh formats using assimp (if pyassimp installed)
 * Import STEP files as meshes (if STEPtools Inc. Author Tools installed)
 * Import and export 2D or 3D vector paths from/to DXF or SVG files
 * Export meshes as binary STL, binary PLY, ASCII OFF, COLLADA, dictionaries, JSON- serializable dictionaries (base64 encoded arrays), MSGPACK- serializable dictionaries (binary string arrays)
 * Preview meshes (requires pyglet)
-* Internal caching of computed values which are automatically cleared when vertices or faces are changed from a lazily evaluated MD5 (based on a 'modified' flag on a TrackedArray, a numpy.ndarray subclass)
+* Internal caching of computed values which are automatically cleared when vertices or faces are changed (which we know from a lazily evaluated MD5)
 * Fast loading of binary files through importers written by defining custom numpy dtypes ( on a 234,230 face mesh, 24.5x faster than assimp)
 * Calculate face adjacencies quickly (for the same 234,230 face mesh .248 s)
 * Calculate cross sections (.146 s)
@@ -51,21 +51,22 @@ If you are using a lot of graph operations (specifically mesh.split) trimesh wil
 * Fix triangle winding to be consistent (slow)
 * Fix normals to be oriented 'outwards' using ray tests
 * Calculate whether or not a point lies inside a watertight mesh using ray tests
-* Find convex hulls of meshes (.21 s)
+* Find convex hulls of meshes
 * Compute a rotation/translation/tessellation invariant identifier for meshes (from an FFT of the radius distribution)
 * Merge duplicate meshes from identifier
 * Determine if a mesh is watertight (manifold)
 * Repair single triangle and single quad holes
 * Uniformly sample the surface of a mesh
-* Ray-mesh intersections querying simple yes/no, triangle hit index, or intersection cartesian location
+* Ray-mesh intersection
 * Boolean operations on meshes (intersection, union, difference) if OpenSCAD or blender is installed
 * Voxelize watertight meshes
 * Unit conversions
 * Subdivide faces of a mesh
 * Rapid computation of minimum- volume oriented bounding box transform for a mesh
-* Symbolic integration of function(x,y,z) over a triangulated surface and very quick (sympy-numpy lambda) evaluation of symbolic result over a mesh 
-* Create meshes with primitive objects (Extrude, Box, Sphere) which are subclasses of Trimesh and thus have all the features of Trimesh objects
-* Simple scene graph and transform tree, the preview window is just a pyglet endpoint for a scene. Scenes can also be exported as a dictionary.
+* Symbolic integration of function(x,y,z) over a triangle
+* Very quick (sympy-numpy lambda) evaluation of symbolic integral result over a mesh 
+* Create meshes with primitive objects (Extrude, Box, Sphere) which are subclasses of Trimesh
+* Simple scene graph and transform tree which can be rendered (pyglet) or exported.
 * Numerous utility functions, such as transforming points, unitizing vectors, tracking arrays for changes, grouping rows, etc.
 
 ### Quick Start ###
