@@ -16,7 +16,7 @@ from .ply    import _ply_loaders
 try:
     from ..path.io.load import load_path, path_formats
 except:
-    log.warning('No path functionality available!', exc_info=True)
+    log.warning('No path functionality available, try installing shapely', exc_info=True)
     def load_path(*args, **kwargs):
         raise ImportError('No path functionality available!')
     def path_formats():

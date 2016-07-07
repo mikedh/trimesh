@@ -35,7 +35,7 @@ try:
     from .path.io.misc import faces_to_path
     from .path.io.load import _create_path, load_path
 except ImportError:
-    log.warning('trimesh.path unavailable, try pip install shapely!', 
+    log.warning('trimesh.path unavailable probably due to imports needed. Printing traceback:', 
                 exc_info = True)
 
 class Trimesh(object):

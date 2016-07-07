@@ -1,19 +1,48 @@
 # trimesh #
 [![Build Status](https://travis-ci.org/mikedh/trimesh.svg?branch=master)](https://travis-ci.org/mikedh/trimesh)
 
-Python (2.7-3.*) library for loading and using triangular meshes. The goal of the library is to provide a fully featured Trimesh object which allows for easy manipulation and analysis, in the style of the excellent Polygon object in the Shapely library.
+Python (2.7-3*) library for loading and using triangular meshes. The goal of the library is to provide a fully featured Trimesh object which allows for easy manipulation and analysis, in the style of the excellent Polygon object in the Shapely library.
 
 The API is mostly stable, but this should not be relied on and is not guaranteed; install a specific version if you plan on deploying something using trimesh as a backend.
 
+### Installation ###
+
+The easiest way to install with most functionality is:
+```bash
+$ sudo apt-get install cmake openscad blender libspatialindex-dev libgeos-dev
+$ sudo pip install trimesh[all]
+```
+
+Or, for only minimal dependencies (no ray queries, boolean operations, vector path handling, mesh creation, viewer, etc):
+
+```bash
+$ sudo pip install trimesh
+```
+
+The minimum set of packages required to import `trimesh` are
+[numpy](http://www.numpy.org/), [scipy](http://www.scipy.org/) and [networkx](https://networkx.github.io/). 
+
+### Optional Dependencies ###
+
+To get the latest assimp for (additional import formats)[http://www.assimp.org/main_features_formats.html] (python-pyassimp in Ubuntu 14.04 is very old):
+
+```bash
+$ sudo pip install git+https://github.com/robotics/assimp_latest.git
+```
+
+If you are using a lot of graph operations (specifically mesh.split) trimesh will automatically use [graph-tool](https://graph-tool.skewed.de/download) if it is installed, for a roughly 10x speedup over networkx on certain operations.
+
+
 ### Features ###
-* Import binary/ASCII STL, Wavefront, OFF, and PLY
+
+* Import binary/ASCII STL, Wavefront OBJ, ASCII OFF, and binary PLY
 * Import formats using assimp (if pyassimp installed)
 * Import STEP files as meshes (if STEPtools Inc. Author Tools installed)
 * Import and export 2D or 3D vector paths from/to DXF or SVG files
-* Export meshes as binary STL, COLLADA, or OFF
+* Export meshes as binary STL, binary PLY, ASCII OFF, COLLADA, dictionaries, JSON- serializable dictionaries (base64 encoded arrays), MSGPACK- serializable dictionaries (binary string arrays)
 * Preview meshes (requires pyglet)
-* Internal caching of computed values which are automatically cleared when vertices or faces are changed
-* Fast loading of binary and ASCII STL files (on 234,230 face mesh, was 24.5x faster than assimp)
+* Internal caching of computed values which are automatically cleared when vertices or faces are changed from a lazily evaluated MD5 (based on a 'modified' flag on a TrackedArray, a numpy.ndarray subclass)
+* Fast loading of binary files through importers written by defining custom numpy dtypes ( on a 234,230 face mesh, 24.5x faster than assimp)
 * Calculate face adjacencies quickly (for the same 234,230 face mesh .248 s)
 * Calculate cross sections (.146 s)
 * Split mesh based on face connectivity using networkx (4.96 s) or graph-tool (.584 s)
@@ -28,33 +57,16 @@ The API is mostly stable, but this should not be relied on and is not guaranteed
 * Determine if a mesh is watertight (manifold)
 * Repair single triangle and single quad holes
 * Uniformly sample the surface of a mesh
-* Find ray-mesh intersections
-* Boolean operations on meshes (intersection, union, difference) if OpenSCAD is installed
+* Ray-mesh intersections querying simple yes/no, triangle hit index, or intersection cartesian location
+* Boolean operations on meshes (intersection, union, difference) if OpenSCAD or blender is installed
 * Voxelize watertight meshes
 * Unit conversions
-* Create meshes by extruding 2D profiles
-* Numerous utility functions, such as transforming points, unitizing vectors, grouping rows, etc.
-
-### Installation ###
-
-The easiest way to install is:
-```bash
-$ sudo pip install trimesh
-```
-
-This command will install `trimesh`, with its required dependencies, namely
-[numpy](http://www.numpy.org/), [scipy](http://www.scipy.org/) and [networkx](https://networkx.github.io/).
-
-### Optional Dependencies ###
-
-Basic functionality is available immediately. Some functions (ray queries, polygon handling, mesh creation, viewer windows, boolean operations, additional importers) require additional libraries:
-```bash
-$ sudo apt-get install cmake openscad blender libspatialindex-dev libgeos-dev
-$ sudo pip install pyglet shapely git+https://github.com/robotics/assimp_latest.git rtree svg.path meshpy
-```
-
-If you are using a lot of graph operations (specifically mesh.split) trimesh will automatically use [graph-tool](https://graph-tool.skewed.de/download) if it is installed, for a roughly 10x speedup over networkx on certain operations.
-
+* Subdivide faces of a mesh
+* Rapid computation of minimum- volume oriented bounding box transform for a mesh
+* Symbolic integration of function(x,y,z) over a triangulated surface and very quick (sympy-numpy lambda) evaluation of symbolic result over a mesh 
+* Create meshes with primitive objects (Extrude, Box, Sphere) which are subclasses of Trimesh and thus have all the features of Trimesh objects
+* Simple scene graph and transform tree, the preview window is just a pyglet endpoint for a scene. Scenes can also be exported as a dictionary.
+* Numerous utility functions, such as transforming points, unitizing vectors, tracking arrays for changes, grouping rows, etc.
 
 ### Quick Start ###
 
@@ -120,6 +132,7 @@ mesh.bounding_box_oriented.box_transform
 ```
 
 ### Optional Viewer ###
+
 Trimesh includes an optional pyglet- based viewer for debugging/inspecting. In the mesh view window:
 
 * dragging rotates the view

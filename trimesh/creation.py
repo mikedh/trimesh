@@ -18,7 +18,7 @@ try:
     from shapely.geometry import Polygon
     from shapely.wkb import loads as load_wkb
 except ImportError: 
-    log.warning('shapely unavilable', exc_info=True)
+    log.warning('shapely.geometry.Polygon not installed, some functions will not work!')
 
 def validate_polygon(obj):
     if util.is_instance_named(obj, 'Polygon'):
