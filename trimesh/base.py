@@ -571,22 +571,13 @@ class Trimesh(object):
         '''
         units._set_units(self, desired, guess)
 
-    def merge_vertices(self, angle=None):
+    def merge_vertices(self):
         '''
-        If a mesh has vertices that are closer than TOL_MERGE, 
-        redefine them to be the same vertex, and replace face references
-
-        Arguments
-        ---------
-        angle_max: if defined, only vertices which are closer than TOL_MERGE
-                   AND have vertex normals less than angle_max will be merged.
-                   This is useful for smooth shading, but is much slower. 
-        '''
-        if angle is None:
-            grouping.merge_vertices_hash(self)
-        else:
-            grouping.merge_vertices_kdtree(self, angle)
-
+        If a mesh has vertices that are closer than trimesh.constants.tol.merge
+        redefine them to be the same vertex and replace face references
+        '''        
+        grouping.merge_vertices_hash(self)
+        
     def update_vertices(self, mask, inverse=None):
         '''
         Update vertices with a mask.
@@ -799,7 +790,7 @@ class Trimesh(object):
     def kdtree(self):
         '''
         Return a scipy.spatial.cKDTree of the vertices of the mesh.
-        Not cached as this lead to memory issues and segfaults.
+        Not cached as this lead to observed memory issues and segfaults.
 
         Returns
         ---------
@@ -1303,7 +1294,7 @@ class Trimesh(object):
         
         Returns
         ---------
-        copied: current mesh, but deep copied.
+        copied: current mesh deep copied.
         '''
         return deepcopy(self)
 

@@ -15,8 +15,7 @@ class ExportTest(g.unittest.TestCase):
                     
                 g.log.info('Export/import testing on %s',
                          mesh.metadata['file_name'])
-                export = g.io_wrap(export)
-                loaded = g.trimesh.load(file_obj  = export,
+                loaded = g.trimesh.load(file_obj  = g.io_wrap(export),
                                         file_type = file_type)
 
                 if loaded.faces.shape != mesh.faces.shape:
