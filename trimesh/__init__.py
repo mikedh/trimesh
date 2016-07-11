@@ -10,8 +10,9 @@ Using
     >>> m.show()
 
 '''
-from .version import __version__
-from .base    import Trimesh
+from .version     import __version__
+from .base        import Trimesh
+from .scene.scene import Scene
 
 from .util    import unitize
 from .points  import transform_points

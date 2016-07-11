@@ -2,7 +2,8 @@ import numpy as np
 
 from .transformations import rotation_matrix
 from .constants       import tol, log
-from .util            import unitize, stack_lines
+
+from . import util
 
 try: 
     from scipy.sparse import coo_matrix
@@ -56,8 +57,8 @@ def align_vectors(vector_start, vector_end, return_angle=False):
     
     vector_end == np.dot(T, np.append(vector_start, 1))[0:3]
     '''
-    vector_start = unitize(vector_start)
-    vector_end   = unitize(vector_end)
+    vector_start = util.unitize(vector_start)
+    vector_end   = util.unitize(vector_end)
     cross        = np.cross(vector_start, vector_end)
     # we clip the norm to 1, as otherwise floating point bs
     # can cause the arcsin to error
@@ -97,6 +98,31 @@ def faces_to_edges(faces, return_index=False):
         return edges, face_index
     return edges
 
+def vector_angle(pairs):
+    '''
+    Find the angles between vector pairs
+    
+    Arguments
+    ----------
+    pairs: (n,2,3) set of vector pairs
+    
+    Returns
+    ----------
+    angles: (n,) float, angles between vectors
+    
+    Example
+    ----------
+    angles = mesh.face_normals[mesh.face_adjacency]
+    '''
+    pairs = np.asanyarray(pairs)
+    if not util.is_shape(pairs, (-1,2,3)):
+        raise ValueError('pairs must be (n,2,3)!')
+    dots = util.diagonal_dot(pairs[:,0], pairs[:,1])
+    # clip for floating point error
+    dots = np.clip(dots, -1.0, 1.0)
+    angles = np.abs(np.arccos(dots))
+    return angles
+    
 def triangulate_quads(quads):
     '''
     Given a set of quad faces, return them as triangle faces.
@@ -147,7 +173,7 @@ def mean_vertex_normals(vertex_count, faces, face_normals, **kwargs):
         log.warning('Unable to generate sparse matrix! Falling back!',
                     exc_info = True)
         summed = summed_loop()
-    unit_normals, valid = unitize(summed, check_valid=True)
+    unit_normals, valid = util.unitize(summed, check_valid=True)
     vertex_normals = np.zeros((vertex_count, 3), dtype=np.float64)
     vertex_normals[valid] = unit_normals
 
@@ -235,7 +261,7 @@ def medial_axis(samples, contains):
     # ridge vertices of -1 are outside, make sure they are False
     contained = np.append(contained, False)
     inside = [i for i in voronoi.ridge_vertices if contained[i].all()]
-    line_indices = np.vstack([stack_lines(i) for i in inside if len(i) >=2])
+    line_indices = np.vstack([util.stack_lines(i) for i in inside if len(i) >=2])
     lines = voronoi.vertices[line_indices]    
     return load_path(lines)
 

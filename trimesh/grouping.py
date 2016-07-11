@@ -16,46 +16,6 @@ def merge_vertices_hash(mesh):
     '''
     unique, inverse = unique_rows(mesh.vertices)
     mesh.update_vertices(unique, inverse)
-
-def merge_vertices_kdtree(mesh, angle=None):
-    '''
-    Merges vertices which are identical, AKA within 
-    Cartesian distance TOL_MERGE of each other.  
-    Then replaces references in mesh.faces
-    
-    If max_angle == None, vertex normals won't be looked at. 
-    if max_angle has a value, vertices will only be considered identical
-    if they are within TOL_MERGE of each other, and the angle between
-    their normals is less than angle_max
-
-    Performance note:
-    cKDTree requires scipy >= .12 for this query type and you 
-    probably don't want to use plain python KDTree as it is crazy slow (~1000x in tests)
-    '''
-
-    tree = mesh.kdtree()
-    used    = np.zeros(len(mesh.vertices), dtype=np.bool)
-    inverse = np.arange(len(mesh.vertices), dtype=np.int)
-    unique  = deque()
-
-    vectors = mesh.vertex_normals
-
-    for index, vertex in enumerate(mesh.vertices):
-        if used[index]: 
-            continue
-
-        neighbors = np.array(tree.query_ball_point(mesh.vertices[index], 
-                                                   tol.merge))
-        if angle is not None:
-            groups = group_vectors(vectors[neighbors], angle=angle)[1]
-        else:
-            groups = np.arange(len(neighbors)).astype(int).reshape((1,-1))
-                            
-        used[neighbors] = True
-        for group in groups:
-            inverse[neighbors[group]] = len(unique)
-            unique.append(neighbors[group[0]])
-    mesh.update_vertices(np.array(unique), inverse)
    
 def replace_references(data, reference_dict):
     '''

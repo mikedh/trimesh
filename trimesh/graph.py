@@ -66,43 +66,6 @@ def face_adjacency(faces, return_edges=False):
         return face_adjacency, face_adjacency_edges
     return face_adjacency
 
-def adjacency_angle(mesh, angle, direction=np.less, return_edges=False):
-    '''
-    Return the adjacent faces of a mesh only if the faces
-    are at less than a specified angle.
-
-    Arguments
-    ----------
-    mesh:         Trimesh object
-    angle:        float, angle in radians by default faces at angles LARGER than 
-                   this will be considered NOT adjacenct
-    direction:    function, used to test face angle against angle kwarg
-                   by default set to np.less
-    return_edges: bool, return edges affiliated with adjacency or not
-
-    Returns
-    ----------
-    adjacency: (n,2) int list of face indices in mesh
-    if return_edges:
-        edges: (n,2) int list of vertex indices in mesh (edges)
-    '''
-
-    # use the cached adjacency if possible (n,2)
-    adjacency = mesh.face_adjacency
-    # normal vectors for adjacent faces (n, 2, 3)
-    normals = mesh.face_normals[adjacency]
-    # dot products of normals (n)
-    dots = diagonal_dot(normals[:,0], normals[:,1])
-    # clip for floating point error
-    dots = np.clip(dots, -1.0, 1.0)
-    adj_ok = direction(np.abs(np.arccos(dots)), angle)
-    # result is (m,2)
-    new_adjacency = adjacency[adj_ok]
-    if return_edges:
-        edges = mesh.face_adjacency_edges[adj_ok]
-        return new_adjacency, edges
-    return new_adjacency
-
 def shared_edges(faces_a, faces_b):
     '''
     Given two sets of faces, find the edges which are in both sets.
@@ -242,7 +205,8 @@ def smoothed(mesh, angle):
     ---------
     smooth: Trimesh object
     '''
-    adjacency = adjacency_angle(mesh, angle)
+    angle_ok  = mesh.face_adjacency_angles <= angle
+    adjacency = mesh.face_adjacency[angle_ok]
     graph = nx.from_edgelist(adjacency)
     graph.add_nodes_from(np.arange(len(mesh.faces)))
     smooth = mesh.submesh(nx.connected_components(graph),

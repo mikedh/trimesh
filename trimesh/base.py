@@ -718,7 +718,7 @@ class Trimesh(object):
     @util.cache_decorator
     def face_adjacency_edges(self):
         '''
-        Returns the edges that are shared by the adjacent faces. 
+        Returns the edges that are shared by the adjacent faces.
 
         Returns
         --------
@@ -727,6 +727,20 @@ class Trimesh(object):
         # this value is calculated as a byproduct of the face adjacency
         populate = self.face_adjacency
         return self._cache['face_adjacency_edges']
+        
+    @util.cache_decorator    
+    def face_adjacency_angles(self):
+        '''
+        Return the angle between adjacent faces
+        
+        Returns
+        --------
+        adjacency_angle: (n,) float angle between adjacent faces.
+                         Each value corresponds with self.face_adjacency
+        '''
+        pairs = self.face_normals[self.face_adjacency]
+        angles = geometry.vector_angle(pairs)
+        return angles
         
     @util.cache_decorator
     def is_winding_consistent(self):
@@ -743,7 +757,7 @@ class Trimesh(object):
         populate = self.is_watertight
         return self._cache['is_winding_consistent']
 
-    @property
+    @util.cache_decorator
     def is_watertight(self):
         '''
         Check if a mesh is watertight by making sure every edge is used by two faces.
@@ -753,16 +767,13 @@ class Trimesh(object):
         is_watertight: bool, is mesh watertight or not
         '''
 
-        cached = self._cache.get('is_watertight')
-        if cached is not None: 
-            return cached
         watertight, reversed = graph.is_watertight(self.edges, 
                                                    return_winding=True)
         self._cache['is_watertight'] = watertight
         self._cache['is_winding_consistent'] = reversed
         return watertight
 
-    @property
+    @util.cache_decorator
     def is_empty(self):
         '''
         Does the current mesh have data defined.
@@ -773,7 +784,7 @@ class Trimesh(object):
         '''
         return self._data.is_empty()
 
-    @property
+    @util.cache_decorator
     def is_convex(self):
         '''
         Check if a mesh is convex or not.
@@ -782,12 +793,7 @@ class Trimesh(object):
         ----------
         is_convex: bool, is mesh convex or not
         '''
-
-        cached = self._cache['is_convex']
-        if cached is not None: 
-            return cached
         is_convex = convex.is_convex(self)
-        self._cache['is_convex'] = is_convex
         return is_convex
 
     def kdtree(self):
@@ -1198,8 +1204,7 @@ class Trimesh(object):
         -----------
         identifier: (tol.id_len,) float
         '''
-        identifier = comparison.rotationally_invariant_identifier(self, 
-                                                                  tol.id_len)
+        identifier = comparison.rotationally_invariant_identifier(self, tol.id_len)
         return identifier
 
     def export(self, file_type='stl', file_obj=None):
