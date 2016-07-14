@@ -23,6 +23,7 @@ from . import convex
 from . import remesh
 from . import bounds
 from . import units
+from . import permutate
 
 from .io.export    import export_mesh
 from .ray.ray_mesh import RayMeshIntersector, contains_points
@@ -897,7 +898,7 @@ class Trimesh(object):
 
     def section(self,
                 plane_normal,
-                plane_origin = None):
+                plane_origin):
         '''
         Returns a cross section of the current mesh and plane defined by
         origin and normal.
@@ -905,7 +906,7 @@ class Trimesh(object):
         Arguments
         ---------
         plane_normal: (3) vector for plane normal
-        plane_origin: (3) vector for plane origin. If None, will use [0,0,0]
+        plane_origin: (3) vector for plane origin
                             
         Returns
         ---------

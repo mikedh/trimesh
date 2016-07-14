@@ -6,7 +6,7 @@ from .util      import unitize
 
 def mesh_plane(mesh, 
                plane_normal,
-               plane_origin  = None):
+               plane_origin):
     '''
     Find a the intersections between a mesh and a plane, 
     returning a set of line segments on that plane.
@@ -114,6 +114,11 @@ def mesh_plane(mesh,
         assert valid.all()
         return intersections.reshape((-1,2,3))
 
+    plane_normal = np.asanyarray(plane_normal)
+    plane_origin = np.asanyarray(plane_origin)
+    if plane_origin.shape != (3,) or plane_normal.shape != (3,):
+        raise ValueError('Plane origin and normal must be (3,)!')
+        
     # dot product of each vertex with the plane normal, indexed by face
     # so for each face the dot product of each vertex is a row
     # shape is the same as mesh.faces (n,3)

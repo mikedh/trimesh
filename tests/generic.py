@@ -13,6 +13,7 @@ import numpy as np
 import trimesh
 
 from collections import deque
+from copy import deepcopy
 
 #python 3
 try:

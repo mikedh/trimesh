@@ -37,27 +37,27 @@ def transform(mesh, matrix=None):
 
     return permutated
     
-def noise(mesh, scale=None):
+def noise(mesh, magnitude=None):
     '''
     Add gaussian noise to every vertex of a mesh.
     Makes no effort to maintain topology or sanity.
     
     Arguments
     ----------
-    mesh:  Trimesh object (will not be mutated)
-    scale: float, what is the maximum distance per axis we can displace a vertex. 
-           Default value is mesh.scale/100.0
+    mesh:      Trimesh object (will not be mutated)
+    magnitude: float, what is the maximum distance per axis we can displace a vertex. 
+               Default value is mesh.scale/100.0
            
     Returns
     ----------
     permutated: Trimesh object, input mesh with noise applied
     '''
-    if scale is None:
-        scale = mesh.scale / 100.0
+    if magnitude is None:
+        magnitude = mesh.scale / 100.0
     
     # make sure we've re- ordered faces randomly before adding noise
     faces = np.random.permutation(mesh.faces)
-    vertices = mesh.vertices + (np.random.random(mesh.vertices.shape) - .5) * scale
+    vertices = mesh.vertices + ((np.random.random(mesh.vertices.shape) - .5) * magnitude)
     
     mesh_type = util.type_named(mesh, 'Trimesh')
     permutated = mesh_type(vertices = vertices,
