@@ -18,9 +18,6 @@ from functools import wraps
 _PY3 = version_info.major >= 3
 if _PY3:
     basestring = str
-    from io import StringIO
-else:
-    from StringIO import StringIO
 
 log = logging.getLogger('trimesh')
 log.addHandler(logging.NullHandler())   

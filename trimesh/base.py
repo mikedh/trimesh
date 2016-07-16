@@ -104,6 +104,8 @@ class Trimesh(object):
         # and is cached for subsequent queries
         self.ray = RayMeshIntersector(self)
 
+        self.permutated = permutate.Permutator(self)
+        
         # store metadata about the mesh in a dictionary
         self.metadata = dict()
         # update the mesh metadata with passed metadata

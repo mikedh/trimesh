@@ -2,7 +2,7 @@ import numpy as np
 
 from ..points          import transform_points
 from ..grouping        import group_rows
-from ..util            import is_sequence, is_instance_named
+from ..util            import is_sequence
 from ..transformations import rotation_matrix
 from .transforms       import TransformForest
 

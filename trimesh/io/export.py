@@ -1,11 +1,6 @@
 import numpy as np
 import json
 
-#python 3
-try:
-    from cStringIO import StringIO
-except ImportError:
-    from io import StringIO
 
 from ..constants import log
 from .. import util
@@ -57,7 +52,7 @@ def export_off(mesh):
     '''
     faces_stacked = np.column_stack((np.ones(len(mesh.faces))*3, mesh.faces)).astype(np.int64)
     # numpy arrays to string methods (array2string based ones anyway)
-    # are a terrible clusterfuck, so we use a StringIO and np.savetxt
+    # are a terrible clusterfuck, so we use our own method which is json dumps based
     export = 'OFF\n'
     export += str(len(mesh.vertices)) + ' ' + str(len(mesh.faces)) + ' 0\n'
     export += util.array_to_string(mesh.vertices) + '\n'

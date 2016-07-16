@@ -6,7 +6,6 @@ from collections import deque
 from .constants import log, tol
 from .grouping  import group, group_rows, boolean_rows
 from .geometry  import faces_to_edges
-from .util      import diagonal_dot
 
 try: 
     from graph_tool import Graph as GTGraph

@@ -4,6 +4,23 @@ from . import transformations
 from . import util
 from . import points
 
+class Permutator:
+    def __init__(self, mesh):
+        '''
+        A convienence object to get permutated versions of a mesh.
+        '''
+        self.mesh = mesh
+        
+    def transform(self):
+        return transform(self.mesh)
+        
+    def noise(self, magnitude=None):
+        return noise(self.mesh, magnitude)
+        
+    def tesselation(self):
+        return tesselation(self.mesh)
+        
+
 def transform(mesh, matrix=None):
     '''
     Return a permutated variant of a mesh by randomly reording faces 
@@ -64,12 +81,13 @@ def noise(mesh, magnitude=None):
                            faces    = faces)
     return permutated
     
-def facets(mesh):
+def tesselation(mesh):
     '''
-    Randomly remesh facets of mesh and reorder faces.
-    Will produce a mesh that has the exact surface area and
-    volume of the input but with a different tesselation, assuming
-    the input mesh does in fact have facets (coplanar groups of faces).
+    Subdivide each face of a mesh into three faces with the new vertex
+    randomly placed inside the old face. 
+    
+    This produces a mesh with exactly the same surface area and volume 
+    but with different tesselation.  
     
     Arguments
     ----------
@@ -79,5 +97,25 @@ def facets(mesh):
     ----------
     permutated: Trimesh object with remeshed facets
     '''
-    pass
+    # create random barycentric coordinates for each face
+    # pad all coordinates by a small amount to bias new vertex towards center
+    barycentric  = np.random.random(mesh.faces.shape) + .05
+    barycentric /=  barycentric.sum(axis=1).reshape((-1,1))
+
+    # create one new vertex somewhere in a face
+    vertex_face = (barycentric.reshape((-1,3,1)) * mesh.triangles).sum(axis=1)
+    vertex_face_id = np.arange(len(vertex_face)) + len(mesh.vertices)
     
+    # new vertices are the old vertices stacked on the vertices in the faces
+    vertices = np.vstack((mesh.vertices, vertex_face))
+    # there are three new faces per old face, and we maintain correct winding
+    faces = np.vstack((np.column_stack((mesh.faces[:,[0,1]], vertex_face_id)),
+                       np.column_stack((mesh.faces[:,[1,2]], vertex_face_id)),
+                       np.column_stack((mesh.faces[:,[2,0]], vertex_face_id))))
+    # make sure the order of the faces is permutated
+    faces = np.random.permutation(faces)
+    
+    mesh_type = util.type_named(mesh, 'Trimesh')
+    permutated = mesh_type(vertices = vertices,
+                           faces    = faces)
+    return permutated

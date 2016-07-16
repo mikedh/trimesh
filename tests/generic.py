@@ -14,7 +14,7 @@ import trimesh
 
 from collections import deque
 from copy import deepcopy
-
+from trimesh.constants import tol
 #python 3
 try:
     from cStringIO import StringIO
@@ -63,7 +63,16 @@ def get_meshes(count=None):
     ls = os.listdir(dir_models)
     if count is None:
         count = len(ls)
-    meshes = [get_mesh(fn) for fn in [i for i in ls if '.' in i][:count]]
-    return meshes
+    meshes = deque()
+    for file_name in ls:
+        extension = os.path.splitext(file_name)[-1][1:].lower()
+        if extension in trimesh.available_formats():
+            meshes.append(get_mesh(file_name))
+        else:
+            log.warning('%s has no loader, not running test on!', file_name)
+            
+        if len(meshes) >= count:
+            break
+    return list(meshes)
     
 data = _load_data()
