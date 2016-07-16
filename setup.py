@@ -6,12 +6,19 @@ from setuptools import setup
 exec(open('trimesh/version.py').read())
 
 import os
+import logging
+
+log = logging.getLogger('trimesh')
+log.addHandler(logging.NullHandler())
+
 long_description = ''
 if os.path.exists('README.md'):
     try:
         import pypandoc
         long_description = pypandoc.convert('README.md', 'rst')
     except ImportError:
+        log.error('Failed to import pypandoc, docs will look like garbage on pypi!',
+                  exc_info=True)
         long_description = open('README.md', 'r').read()
 
 setup(name = 'trimesh',

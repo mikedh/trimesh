@@ -9,7 +9,7 @@ python:
 
 before_deploy:
 - sudo apt-get install pandoc -y
-- sudo pip install pypandoc
+- pip install pypandoc
 
 deploy:
   provider: pypi
