@@ -15,6 +15,7 @@ import trimesh
 from collections import deque
 from copy import deepcopy
 from trimesh.constants import tol
+
 #python 3
 try:
     from cStringIO import StringIO

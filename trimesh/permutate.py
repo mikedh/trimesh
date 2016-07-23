@@ -4,24 +4,7 @@ from . import transformations
 from . import util
 from . import points
 
-class Permutator:
-    def __init__(self, mesh):
-        '''
-        A convienence object to get permutated versions of a mesh.
-        '''
-        self.mesh = mesh
-        
-    def transform(self):
-        return transform(self.mesh)
-        
-    def noise(self, magnitude=None):
-        return noise(self.mesh, magnitude)
-        
-    def tesselation(self):
-        return tesselation(self.mesh)
-        
-
-def transform(mesh, matrix=None):
+def transform(mesh):
     '''
     Return a permutated variant of a mesh by randomly reording faces 
     and rotatating + translating a mesh by a random matrix.
@@ -29,21 +12,14 @@ def transform(mesh, matrix=None):
     Arguments
     ----------
     mesh:   Trimesh object (will not be altered by this function)
-    matrix: (4,4) float, transformation matrix. Optional, if not 
-             passed a random matrix will be used.
              
     Returns
     ----------
     permutated: Trimesh object, same faces as input mesh but
                 rotated and reordered.
     '''
-    if matrix is None:
-        matrix = transformations.random_rotation_matrix()
-        matrix[0:3,3] = np.random.random(3)*1000
-    else:
-        matrix = np.asanyarray(matrix)
-        if matrix.shape != (4,4):
-            raise ValueError('Matrix must be (4,4)!')
+    matrix = transformations.random_rotation_matrix()
+    matrix[0:3,3] = np.random.random(3)*1000
 
     triangles = np.random.permutation(mesh.triangles).reshape((-1,3))
     triangles = points.transform_points(triangles, matrix)
@@ -72,7 +48,7 @@ def noise(mesh, magnitude=None):
     if magnitude is None:
         magnitude = mesh.scale / 100.0
     
-    # make sure we've re- ordered faces randomly before adding noise
+    # make sure we've re- ordered faces randomly
     faces = np.random.permutation(mesh.faces)
     vertices = mesh.vertices + ((np.random.random(mesh.vertices.shape) - .5) * magnitude)
     
@@ -119,3 +95,16 @@ def tesselation(mesh):
     permutated = mesh_type(vertices = vertices,
                            faces    = faces)
     return permutated
+    
+class Permutator:
+    def __init__(self, mesh):
+        '''
+        A convienence object to get permutated versions of a mesh.
+        '''
+        self.mesh = mesh
+    def transform(self):
+        return transform(self.mesh)
+    def noise(self, magnitude=None):
+        return noise(self.mesh, magnitude)
+    def tesselation(self):
+        return tesselation(self.mesh)

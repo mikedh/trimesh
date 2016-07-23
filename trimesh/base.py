@@ -104,7 +104,8 @@ class Trimesh(object):
         # and is cached for subsequent queries
         self.ray = RayMeshIntersector(self)
 
-        self.permutated = permutate.Permutator(self)
+        # a quick way to get permuated versions of the current mesh
+        self.permutate = permutate.Permutator(self)
         
         # store metadata about the mesh in a dictionary
         self.metadata = dict()
@@ -557,7 +558,7 @@ class Trimesh(object):
 
     @units.setter
     def units(self, value):
-        value = str(value)
+        value = str(value).lower()
         if not units.validate(value):
             raise ValueError(value + ' are not a valid unit!')
         self.metadata['units'] = value

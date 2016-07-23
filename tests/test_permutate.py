@@ -14,7 +14,7 @@ class PermutateTest(g.unittest.TestCase):
             self.assertFalse(test.md5() == mesh.md5())
 
         for mesh in g.get_meshes(5):
-            original = g.deepcopy(mesh)
+            original = mesh.copy()
             noise     = g.trimesh.permutate.noise(mesh)
             noise_1   = g.trimesh.permutate.noise(mesh, magnitude=mesh.scale/10.0)
             transform = g.trimesh.permutate.transform(mesh)
@@ -22,6 +22,8 @@ class PermutateTest(g.unittest.TestCase):
             make_assertions(mesh, noise)
             make_assertions(mesh, noise_1)
             make_assertions(mesh, transform)
+            
+            # make sure permutate didn't alter the original mesh
             self.assertTrue(original.md5() == mesh.md5())
 
     def test_tesselation(self):
@@ -38,10 +40,10 @@ class PermutateTest(g.unittest.TestCase):
            
     def test_base(self):
         for mesh in g.get_meshes(1):
-            tess = mesh.permutated.tesselation()
-            noise = mesh.permutated.noise()
-            noise = mesh.permutated.noise(magnitude=mesh.scale/10)
-            transform = mesh.permutated.transform()
+            tess = mesh.permutate.tesselation()
+            noise = mesh.permutate.noise()
+            noise = mesh.permutate.noise(magnitude=mesh.scale/10)
+            transform = mesh.permutate.transform()
             
             
 if __name__ == '__main__':
