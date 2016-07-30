@@ -118,7 +118,6 @@ class Scene:
         duplicates  = [node_keys[g].tolist() for g in node_groups]
         return duplicates
 
-            
     def set_camera(self, angles=None, distance=None, center=None):
         if center is None:
             center = self.centroid

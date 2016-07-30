@@ -365,27 +365,36 @@ class Trimesh(object):
     @util.cache_decorator
     def centroid(self):
         '''
-        The point in space which is the average vertex of the mesh.
+        The point in space which is the average of the triangle centroids
+        weighted by the area of each triangle.
+
+        This will be valid even for non- watertight meshes, unlike self.center_mass
         
         Returns
         ----------
         centroid: (3,) float, the average vertex
         '''
-        # use triangles rather than vertices as vertices may include unused points
-        in_mesh = self.triangles.reshape((-1,3))
-        centroid = in_mesh.mean(axis=0)
+
+        # use the centroid of each triangle weighted by
+        # the area of the triangle to find the overall centroid
+        centroid = np.average(self.triangles_center,
+                              axis    = 0,
+                              weights = self.area_faces)
         return centroid
 
     @util.cache_decorator
     def center_mass(self):
         '''
         The point in space which is the center of mass/volume.
+
         If the current mesh is not watertight, this is meaningless garbage.
 
         Returns
         -----------
         center_mass: (3,) float array, volumetric center of mass of the mesh
         '''
+        if not self.is_watertight:
+            log.warning('Center of mass requested for non- watertight mesh! Expect garbage!')
         center_mass = np.array(self.mass_properties(skip_inertia=True)['center_mass'])
         return center_mass
 
@@ -442,6 +451,19 @@ class Trimesh(object):
         '''
         tree = triangles.bounds_tree(self.triangles)
         return tree
+
+    @util.cache_decorator
+    def triangles_center(self):
+        '''
+        The center of each triangle (barycentric [1/3, 1/3, 1/3])
+
+        Returns
+        ---------
+        triangles_center: (len(self.faces), 3) float, center of each triangular face
+        '''
+        triangles_center = self.triangles.mean(axis=1)
+        return triangles_center
+        
 
     @util.cache_decorator
     def edges(self):
