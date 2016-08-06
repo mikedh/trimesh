@@ -122,7 +122,7 @@ class Scene:
         if center is None:
             center = self.centroid
         if distance is None:
-            distance = np.diff(self.bounds, axis=0).max()
+            distance = self.extents.max()
         if angles is None:
             angles = np.zeros(3)
 

@@ -147,7 +147,7 @@ class SceneViewer(pyglet.window.Window):
         gl.glViewport(0, 0, width, height)
         gl.glMatrixMode(gl.GL_PROJECTION)
         gl.glLoadIdentity()
-        gl.gluPerspective(60., width / float(height), .01, 1000.)
+        gl.gluPerspective(60., width / float(height), .01, self.scene.scale*5.0)
         gl.glMatrixMode(gl.GL_MODELVIEW)
         self.view['ball'].place([width/2, height/2], (width+height)/2)
         
@@ -167,8 +167,7 @@ class SceneViewer(pyglet.window.Window):
             self.view['ball'].drag([x,-y])
 
     def on_mouse_scroll(self, x, y, dx, dy):
-        self.view['translation'][2] += ((float(dy) / self.height) * 
-                                        self.view['scale'] * 5)
+        self.view['translation'][2] += float(dy) / self.height
         
     def on_key_press(self, symbol, modifiers):
         if symbol == pyglet.window.key.W:
@@ -255,7 +254,7 @@ def _view_transform(view):
     transform         = view['ball'].matrix()
     transform[0:3,3]  = view['center']
     transform[0:3,3] -= np.dot(transform[0:3,0:3], view['center'])
-    transform[0:3,3] += view['translation'] * view['scale']
+    transform[0:3,3] += view['translation'] * view['scale'] * 5.0
     return transform
 
 def mesh_to_vertex_list(mesh, group=None):
