@@ -3,12 +3,12 @@ import json
 from string import Template
 
 from ..arc        import arc_center
-from ...templates import get_template
+from ...resources import get_resource
 from ...util      import three_dimensionalize
 from ...constants import log
 from ...constants import res_path as res
 
-_templates_dxf = {k:Template(v) for k,v in json.loads(get_template('dxf.json.template')).items()}
+_templates_dxf = {k:Template(v) for k,v in json.loads(get_resource('dxf.json.template')).items()}
 
 def export_path(path, file_type, file_obj=None):
     '''

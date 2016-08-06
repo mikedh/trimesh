@@ -63,10 +63,11 @@ def export_collada(mesh):
     '''
     Export a mesh as a COLLADA file.
     '''
-    from ..templates import get_template
+    from ..resources import get_resource
+
     from string import Template
 
-    template_string = get_template('collada.dae.template')
+    template_string = get_resource('collada.dae.template')
     template = Template(template_string)
 
     # we bother setting this because np.array2string uses these printoptions 

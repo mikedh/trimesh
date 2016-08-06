@@ -2,17 +2,22 @@ import generic as g
 
 class BoundsTest(g.unittest.TestCase):
     def setUp(self):
-        self.meshes = [g.trimesh.load(g.os.path.join(g.dir_models, 
-                                          'featuretype.STL'))]
+        self.meshes = [g.get_mesh(i) for i in ['large_block.STL', 
+                                               'featuretype.STL']]
+        
     def test_obb_mesh(self):
         '''
         Test the OBB functionality in attributes of Trimesh objects
         '''
         for m in self.meshes:
+            g.log.info('Testing OBB of %s', m.metadata['file_name'])
             for i in range(100):
-                mat = g.trimesh.transformations.random_rotation_matrix()
-                mat[0:3,3] = (g.np.random.random(3) -.5)* 100
-                m.apply_transform(mat)
+                # on the first run through don't transform the points to see
+                # if we succeed in the meshes original orientation
+                if i > 0:
+                    mat = g.trimesh.transformations.random_rotation_matrix()
+                    mat[0:3,3] = (g.np.random.random(3) -.5)* 100
+                    m.apply_transform(mat)
 
                 box_ext = m.bounding_box_oriented.box_extents.copy()
                 box_t = m.bounding_box_oriented.box_transform.copy()
@@ -25,6 +30,7 @@ class BoundsTest(g.unittest.TestCase):
                     g.log.error('bounds test failed %s',
                                 str(test))
                 self.assertTrue(test_ok)
+                
     def test_obb_points(self):
         '''
         Test OBB functions with raw points as input

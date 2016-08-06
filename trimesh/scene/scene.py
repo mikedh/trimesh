@@ -168,6 +168,8 @@ class Scene:
         export = {'transforms' : self.transforms.export(),
                   'nodes'      : self.nodes,
                   'meshes'     : {}}
+                  #'info'       : {'centroid' : self.centroid,
+                  #                'extents'  : self.extents}}
         # if the mesh has an export method use it, otherwise put the mesh
         # itself into the export object
         for node, mesh in self.meshes.items():

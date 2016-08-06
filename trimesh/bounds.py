@@ -11,6 +11,8 @@ from .points     import project_to_plane, transform_points
 from . import util
 from . import triangles
 
+from . import grouping
+
 try:
     from scipy.spatial import ConvexHull
 except ImportError:
@@ -30,7 +32,10 @@ def oriented_bounds_2D(points):
                points so that the axis aligned bounding box is CENTERED AT THE ORIGIN
     rectangle: (2,) float, size of extents once input points are transformed by transform
     '''
-    c = ConvexHull(np.asanyarray(points))
+    
+    points = np.asanyarray(points)
+    points_unique = points[grouping.unique_rows(points)[0]]
+    c = ConvexHull(points_unique)
     # (n,2,3) line segments
     hull = c.points[c.simplices] 
     # (3,n) points on the hull to check against

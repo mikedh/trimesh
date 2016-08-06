@@ -3,7 +3,7 @@ import generic as g
 class ExportTest(g.unittest.TestCase):
     def test_export(self):
         file_types = list(g.trimesh.io.export._mesh_exporters.keys())
-        for mesh in g.get_meshes(3):
+        for mesh in g.get_meshes(5):
             for file_type in file_types:
                 export = mesh.export(file_type = file_type)
                 self.assertTrue(len(export) > 0)

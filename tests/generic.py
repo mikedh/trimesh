@@ -57,7 +57,11 @@ def _load_data():
 def get_mesh(file_name):
     mesh = trimesh.load(os.path.join(dir_models,
                                      file_name))
-    mesh.metadata['file_name'] = str(file_name)
+    if trimesh.util.is_sequence(mesh):
+        for i in mesh:
+            i.metadata['file_name'] = str(file_name)
+    else:
+        mesh.metadata['file_name'] = str(file_name)
     return mesh
     
 def get_meshes(count=None):
@@ -68,7 +72,11 @@ def get_meshes(count=None):
     for file_name in ls:
         extension = os.path.splitext(file_name)[-1][1:].lower()
         if extension in trimesh.available_formats():
-            meshes.append(get_mesh(file_name))
+            loaded = get_mesh(file_name)
+            if trimesh.util.is_instance_named(loaded, 'Trimesh'):
+                meshes.append(loaded)
+            else:
+                log.error('file %s loaded garbage!', file_name)
         else:
             log.warning('%s has no loader, not running test on!', file_name)
             

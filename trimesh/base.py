@@ -1224,12 +1224,20 @@ class Trimesh(object):
         identifier = comparison.rotationally_invariant_identifier(self, tol.id_len)
         return identifier
 
-    def export(self, file_type='stl', file_obj=None):
+    def export(self,file_obj=None, file_type='stl'):
         '''
         Export the current mesh to a file object. 
         If file_obj is a filename, file will be written there. 
 
-        Supported formats are stl, off, and collada. 
+        Supported formats are stl, off, ply, collada, json, dict, dict64, msgpack.
+
+        Arguments
+        ---------
+        file_obj: open writeable file object 
+                  str, file name where to save the mesh
+                  None, if you would like this function to return the export blob
+        file_type: str, which file type to export as. 
+                   If file name is passed this is not required
         '''
         return export_mesh(mesh = self, 
                            file_obj  = file_obj, 

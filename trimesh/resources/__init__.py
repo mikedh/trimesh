@@ -1,8 +1,8 @@
 from pkg_resources import resource_string
 
-def get_template(name):
+def get_resource(name):
     result = resource_string('trimesh',
-                             'templates/' + name)
+                             'resources/' + name)
     if hasattr(result, 'decode'):
         return result.decode('utf-8')
     return result
