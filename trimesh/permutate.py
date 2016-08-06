@@ -101,10 +101,10 @@ class Permutator:
         '''
         A convienence object to get permutated versions of a mesh.
         '''
-        self.mesh = mesh
+        self._mesh = mesh
     def transform(self):
-        return transform(self.mesh)
+        return transform(self._mesh)
     def noise(self, magnitude=None):
-        return noise(self.mesh, magnitude)
+        return noise(self._mesh, magnitude)
     def tesselation(self):
-        return tesselation(self.mesh)
+        return tesselation(self._mesh)

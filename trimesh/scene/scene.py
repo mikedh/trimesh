@@ -2,9 +2,11 @@ import numpy as np
 
 from ..points          import transform_points
 from ..grouping        import group_rows
-from ..util            import is_sequence
 from ..transformations import rotation_matrix
 from .transforms       import TransformForest
+
+from .. import util
+
 
 from collections import deque
 
@@ -23,6 +25,8 @@ class Scene:
 
         # instance name : mesh name
         self.nodes = {}
+        
+        self._cache = util.Cache(id_function=self.md5)
 
         # mesh name : Trimesh object
         self.meshes     = {}
@@ -40,7 +44,7 @@ class Scene:
         If the mesh has multiple transforms defined in its metadata, 
         a new instance of the mesh will be created at each transform. 
         '''        
-        if is_sequence(mesh):
+        if util.is_sequence(mesh):
             for i in mesh:
                 self.add_mesh(i)
             return
@@ -64,7 +68,15 @@ class Scene:
             self.transforms.update(frame_to = name_node, 
                                    matrix   = transform)
 
-    @property
+    def md5(self):
+        '''
+        MD5 of scene, which will change when meshes or transforms are changed
+        '''
+        mesh_hash = util.md5_object(np.sort([hash(i) for i in self.meshes.values()]))
+        result = mesh_hash + self.transforms.md5()
+        return result
+
+    @util.cache_decorator
     def bounds(self):
         '''
         Return the overall bounding box of the scene.
@@ -83,15 +95,15 @@ class Scene:
                             corners.max(axis=0)])
         return bounds
 
-    @property
+    @util.cache_decorator
     def extents(self):
         return np.diff(self.bounds, axis=0).reshape(-1)
 
-    @property
+    @util.cache_decorator
     def scale(self):
         return self.extents.max()
 
-    @property
+    @util.cache_decorator
     def centroid(self):
         '''
         Return the center of the bounding box for the scene.
@@ -126,13 +138,14 @@ class Scene:
         if angles is None:
             angles = np.zeros(3)
 
-        translation = np.eye(4)
+        translation        = np.eye(4)
         translation[0:3,3] = center
         translation[2][3] += distance*1.5
 
         transform = np.dot(rotation_matrix(angles[0], [1,0,0], point=center),
                            rotation_matrix(angles[1], [0,1,0], point=center))
         transform = np.dot(transform, translation)
+
         self.transforms.update(frame_from = 'camera', 
                                frame_to   = self.transforms.base_frame,
                                matrix     = transform)
@@ -174,7 +187,7 @@ class Scene:
         # itself into the export object
         for node, mesh in self.meshes.items():
             if hasattr(mesh, 'export'): 
-                export['meshes'][node] = mesh.export(file_type)
+                export['meshes'][node] = mesh.export(file_type=file_type)
             else: 
                 export['meshes'][node] = mesh
         return export
@@ -221,4 +234,3 @@ class Scene:
         else:
             from threading import Thread
             Thread(target = viewer, kwargs=kwargs).start()
-

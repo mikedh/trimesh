@@ -5,11 +5,14 @@ import networkx as nx
 
 from ..transformations import quaternion_matrix, rotation_matrix
 
+from .. import util
+
 class TransformForest:
     def __init__(self, base_frame='world'):
         self.transforms = EnforcedForest()
         self.base_frame = base_frame
         self._paths     = {}
+        self._updated   = time.time()
 
     def update(self, 
                frame_to,
@@ -41,6 +44,16 @@ class TransformForest:
                                                         'time'   : time.time()})
         if changed:
             self._paths = {}
+        self._updated = time.time()
+
+    def md5(self):
+        '''
+        MD5 of transforms.
+
+        Currently only hashing update time.
+        '''
+        result = util.md5_object(str(int(self._updated * 1000)))
+        return result
 
     def export(self):
         export = nx.to_edgelist(self.transforms)
