@@ -52,7 +52,7 @@ class TransformForest:
 
         Currently only hashing update time.
         '''
-        result = util.md5_object(str(int(self._updated * 1000)))
+        result = util.md5_object(str(int(self._updated * 1000)).encode('utf-8'))
         return result
 
     def export(self):

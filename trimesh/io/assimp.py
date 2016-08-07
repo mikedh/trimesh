@@ -49,5 +49,5 @@ try:
                            'lxo', 'x',     'ac',  'ms3d', 'cob', 'scn']
     _assimp_loaders.update(zip(_assimp_formats,
                                [load_assimp]*len(_assimp_formats)))
-except ImportError:
+except:
     log.warning('pyassimp unavailable, using only native loaders')
