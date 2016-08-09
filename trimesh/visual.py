@@ -215,7 +215,7 @@ def visuals_union(visuals, *args):
             if v.mesh is None:
                 # if the mesh is None, don't force a 
                 # dimension check for the colors
-                if util.is_sequence(v._data['face_colors']):
+                if util.is_shape(v._data['face_colors'], (-1,(3,4))):
                     face[i] = rgba(v._data['face_colors'])
                 else:
                     face_ok = False
@@ -223,7 +223,7 @@ def visuals_union(visuals, *args):
                 face[i] = rgba(v.face_colors)
         if vertex_ok:
             if v.mesh is None:
-                if util.is_sequence(v._data['vertex_colors']):
+                if util.is_shape(v._data['vertex_colors'], (-1,(3,4))):
                     vertex[i] = rgba(v._data['vertex_colors'])
                 else: 
                     vertex_ok = False
