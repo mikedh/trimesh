@@ -25,7 +25,6 @@ class Scene:
 
         # instance name : mesh name
         self.nodes = {}
-        
         self._cache = util.Cache(id_function=self.md5)
 
         # mesh name : Trimesh object
@@ -36,6 +35,8 @@ class Scene:
         if node is not None:
             self.add_mesh(node)
             self.set_camera()
+            
+        self._cache.id_set()
 
     def add_mesh(self, mesh):
         '''
@@ -180,9 +181,8 @@ class Scene:
         '''
         export = {'transforms' : self.transforms.export(),
                   'nodes'      : self.nodes,
-                  'meshes'     : {}}
-                  #'info'       : {'centroid' : self.centroid,
-                  #                'extents'  : self.extents}}
+                  'meshes'     : {},
+                  'scene_cache' : self._cache.cache}
         # if the mesh has an export method use it, otherwise put the mesh
         # itself into the export object
         for node, mesh in self.meshes.items():

@@ -493,7 +493,7 @@ class Cache:
             if len(self.cache) > 0:
                 log.debug('%d items cleared from cache: %s', 
                           len(self.cache),
-                          str(self.cache.keys()))
+                          str(list(self.cache.keys())))
             self.clear()
             self.id_set()
 
@@ -805,6 +805,9 @@ def concatenate(a, b):
                           face_normals = new_normals,
                           visual       = new_visual,
                           process      = False)
+    #result._cache.id_set()
+    #result.visual._cache.id_set()
+    
     return result
 
 def submesh(mesh, 

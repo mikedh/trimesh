@@ -2,6 +2,7 @@ import numpy as np
 from colorsys import hsv_to_rgb
 from collections import deque
 
+from . import util
 from .util      import is_sequence, is_shape, Cache, DataStore
 from .constants import log
 
@@ -190,40 +191,53 @@ def _kwargs_to_color(mesh, **kwargs):
     return pick_option([pick_color(i) for i in [vertex, face]])
 
 def visuals_union(visuals, *args):
+    '''
+    Concatenate two or more VisualAttribute objects.
+    
+    Arguments
+    ----------
+    visuals: VisualAttributes object, or array of same
+    *args:   VisualAttributes objects
+    
+    Returns
+    -----------
+    concatenated: VisualAttributes object containing data from input visuals
+    '''
     visuals = np.append(visuals, args)
-    color = {'face_colors'   : None,
-             'vertex_colors' : None}
 
     vertex_ok = True
+    face_ok   = True
+    face   = [None] * len(visuals)
     vertex = [None] * len(visuals)
-
-    face_ok = True
-    face = [None] * len(visuals)
-
+    
     for i, v in enumerate(visuals):
-        face_ok   = face_ok and v._set['face']
-        vertex_ok = vertex_ok and v._set['vertex']
-
         if face_ok:
             if v.mesh is None:
                 # if the mesh is None, don't force a 
                 # dimension check for the colors
-                face[i] = rgba(v._data['face_colors'])
+                if util.is_sequence(v._data['face_colors']):
+                    face[i] = rgba(v._data['face_colors'])
+                else:
+                    face_ok = False
             else: 
                 face[i] = rgba(v.face_colors)
         if vertex_ok:
             if v.mesh is None:
-                vertex[i] = rgba(v._data['vertex_colors'])
+                if util.is_sequence(v._data['vertex_colors']):
+                    vertex[i] = rgba(v._data['vertex_colors'])
+                else: 
+                    vertex_ok = False
             else:
                 vertex[i] = rgba(v.vertex_colors)
-            
-    if face_ok:
-        color['face_colors'] = np.vstack(face)
-    if vertex_ok:
-        color['vertex_colors'] = np.vstack(vertex)
+                
+    color = {'face_colors'   : None,
+             'vertex_colors' : None}
+    if face_ok:   color['face_colors']   = np.vstack(face)
+    if vertex_ok: color['vertex_colors'] = np.vstack(vertex)
 
-    return VisualAttributes(**color)
-
+    concatenated = VisualAttributes(**color)
+    return concatenated
+    
 def color_to_float(color, dtype=None):
     color = np.asanyarray(color)
     if dtype is None:
