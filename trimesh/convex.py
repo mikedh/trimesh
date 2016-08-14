@@ -32,7 +32,7 @@ def convex_hull(mesh, clean=True):
     '''
 
     type_trimesh = type_named(mesh, 'Trimesh')
-    c = ConvexHull(mesh.vertices.view(np.ndarray).reshape((-1,3)))
+    c = ConvexHull(mesh.vertices.view(np.ndarray).reshape((-1,3)), qhull_options='QbB')
     
     vid = np.sort(c.vertices)
     mask = np.zeros(len(c.points), dtype=np.int64)
