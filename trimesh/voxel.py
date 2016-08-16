@@ -67,7 +67,7 @@ def mesh_to_run(mesh, pitch):
     hits        = mesh.ray.intersects_location(rays)    
     raw_shape   = np.ptp(bounds/pitch, axis=0).astype(int)
     grid_origin = bounds[0]
-    grid_index  = ((grid/pitch) - (grid_origin[0:2]/pitch)).astype(int)
+    grid_index  = np.rint((grid/pitch) - (grid_origin[0:2]/pitch)).astype(int)
 
     run_z  = deque()
     run_xy = deque()
