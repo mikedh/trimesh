@@ -7,16 +7,16 @@ The API is mostly stable, but this should not be relied on and is not guaranteed
 
 ### Installation ###
 
-The easiest way to install with most functionality is:
+The **recommended* way to install with most functionality is:
 ```bash
-$ sudo apt-get install cmake openscad blender libspatialindex-dev libgeos-dev
-$ sudo pip install trimesh[all]
+sudo apt-get install cmake openscad blender libspatialindex-dev libgeos-dev
+sudo pip install trimesh[all]
 ```
 
 Or, for only minimal dependencies (no ray queries, boolean operations, vector path handling, mesh creation, viewer, etc):
 
 ```bash
-$ sudo pip install trimesh
+sudo pip install trimesh
 ```
 
 The minimum set of packages required to import `trimesh` are
@@ -27,7 +27,7 @@ The minimum set of packages required to import `trimesh` are
 To get the latest assimp for [additional import formats](http://www.assimp.org/main_features_formats.html) (python-pyassimp in Ubuntu 14.04 is very old):
 
 ```bash
-$ sudo pip install git+https://github.com/robotics/assimp_latest.git
+sudo pip install git+https://github.com/robotics/assimp_latest.git
 ```
 
 If you are using a lot of graph operations (specifically mesh.split) trimesh will automatically use [graph-tool](https://graph-tool.skewed.de/download) if it is installed, for a roughly 10x speedup over networkx on certain operations.
