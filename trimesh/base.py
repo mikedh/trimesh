@@ -32,13 +32,6 @@ from .points       import transform_points
 from .constants    import log, _log_time, tol
 from .scene        import Scene
 
-try:
-    from .path.io.misc import faces_to_path
-    from .path.io.load import _create_path, load_path
-except ImportError:
-    log.warning('trimesh.path unavailable probably due to imports needed. Printing traceback:', 
-                exc_info = True)
-
 class Trimesh(object):
     def __init__(self,
                  vertices       = None, 
@@ -937,6 +930,8 @@ class Trimesh(object):
         ---------
         intersections: Path3D of intersections
         '''
+        
+        from .io.load      import load_path
         lines = intersections.mesh_plane(mesh = self, 
                                          plane_normal = plane_normal, 
                                          plane_origin = plane_origin)
@@ -1103,6 +1098,9 @@ class Trimesh(object):
         ----------
         path:     Path3D object of the outline
         '''
+        from .path.io.misc import faces_to_path
+        from .path.io.load import _create_path
+
         path = _create_path(**faces_to_path(self, face_ids))
         return path
         

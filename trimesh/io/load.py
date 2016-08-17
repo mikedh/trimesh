@@ -1,4 +1,5 @@
 import numpy as np
+import traceback
 import os
 
 from .. import util
@@ -16,8 +17,13 @@ from .ply    import _ply_loaders
 try:
     from ..path.io.load import load_path, path_formats
 except:
-    log.warning('No path functionality available, try installing shapely', exc_info=True)
+    _path_traceback = traceback.format_exc(4)
     def load_path(*args, **kwargs):
+        '''
+        Dummy load path function that will raise an exception on use.
+        Import of path failed, probably because a dependency is not installed.
+        '''
+        print(_path_traceback)
         raise ImportError('No path functionality available!')
     def path_formats():
         return []

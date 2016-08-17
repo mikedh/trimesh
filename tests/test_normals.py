@@ -14,10 +14,13 @@ class NormalsTest(g.unittest.TestCase):
                                                          sparse=None)
         self.assertTrue(g.np.allclose(normals-truth, 0.0))
 
+        # make sure the automatic sparse matrix generation works as well
         normals = g.trimesh.geometry.mean_vertex_normals(len(mesh.vertices), 
                                                          mesh.faces, 
                                                          mesh.face_normals)
         self.assertTrue(g.np.allclose(normals-truth, 0.0))
+        
+        # make sure the Trimesh normals- related attributes are wired correctly
         self.assertTrue(mesh.faces_sparse is not None)
         self.assertTrue(mesh.vertex_normals.shape == mesh.vertices.shape)
         self.assertTrue(g.np.allclose(mesh.vertex_normals-truth, 0.0))
