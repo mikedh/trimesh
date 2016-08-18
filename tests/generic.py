@@ -55,13 +55,7 @@ def _load_data():
     return data
 
 def get_mesh(file_name):
-    mesh = trimesh.load(os.path.join(dir_models,
-                                     file_name))
-    if trimesh.util.is_sequence(mesh):
-        for i in mesh:
-            i.metadata['file_name'] = str(file_name)
-    else:
-        mesh.metadata['file_name'] = str(file_name)
+    mesh = trimesh.load(os.path.join(dir_models, file_name))
     return mesh
     
 def get_meshes(count=None):

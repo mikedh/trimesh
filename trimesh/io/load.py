@@ -54,7 +54,7 @@ def load(file_obj, file_type=None, **kwargs):
                  file_obj.__class__.__name__)
         return file_obj
 
-    file_obj, file_type = _parse_file_args(file_obj, file_type)
+    file_obj, file_type, metadata = _parse_file_args(file_obj, file_type)
 
     if file_type in path_formats():
         loaded = load_path(file_obj, file_type, **kwargs)
@@ -65,7 +65,9 @@ def load(file_obj, file_type=None, **kwargs):
 
     for i in util.make_sequence(loaded):
         # check to make sure loader actually loaded something
-        assert any(is_instance_named(i, t) for t in out_types)
+        # assert any(is_instance_named(i, t) for t in out_types)
+        i.metadata.update(metadata)
+
     return loaded
 
 @_log_time
@@ -84,7 +86,7 @@ def load_mesh(file_obj, file_type=None):
           depending on the file format. 
     
     '''
-    file_obj, file_type = _parse_file_args(file_obj, file_type)
+    file_obj, file_type, metadata  = _parse_file_args(file_obj, file_type)
     loaded = _mesh_loaders[file_type](file_obj, 
                                       file_type)
     if is_file(file_obj): 
@@ -94,6 +96,8 @@ def load_mesh(file_obj, file_type=None):
               _mesh_loaders[file_type].__name__)
 
     meshes = [Trimesh(**i) for i in make_sequence(loaded)]
+    for i in meshes: i.metadata.update(metadata)
+
     if len(meshes) == 1: 
         return meshes[0]
     return meshes
@@ -138,18 +142,22 @@ def _parse_file_args(file_obj, file_type):
     file_obj:  loadable object
     file_type: str, lower case of the type of file (eg 'stl', 'dae', etc)
     '''
+    metadata = {}
+
     if util.is_file(file_obj) and file_type is None:
         raise ValueError('File type must be specified when passing file objects!')
     if util.is_string(file_obj):
         try:    exists = os.path.isfile(file_obj)
         except: exists = False
         if exists:
+            metadata['file_path'] = file_obj
+            metadata['file_name'] = os.path.basename(file_obj)
             # if file_obj is a path that exists use extension as file_type
             file_type = (str(file_obj).split('.')[-1])
             file_obj = open(file_obj, 'rb')
         else:
             if file_type is not None:
-                return file_obj, file_type
+                return file_obj, file_type, metadata
             elif '{' in file_obj:
                 # if a dict bracket is in the string, its probably a straight JSON
                 file_type = 'json'
@@ -162,10 +170,10 @@ def _parse_file_args(file_obj, file_type):
     if is_string(file_type) and '.' in file_type:
         # if someone has passed the whole filename as the file_type
         # use the file extension as the file_type
+        metadata['file_name'] = os.path.basename(file_type)
         file_type = file_type.split('.')[-1]
     file_type = file_type.lower()
-
-    return file_obj, file_type
+    return file_obj, file_type, metadata
 
 _mesh_loaders = {}
 # assimp has a lot of loaders, but they are all quite slow

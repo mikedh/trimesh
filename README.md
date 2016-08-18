@@ -7,16 +7,16 @@ The API is mostly stable, but this should not be relied on and is not guaranteed
 
 ### Installation ###
 
-The **recommended* way to install with most functionality is:
+The **recommended** way to install with most functionality is:
 ```bash
 sudo apt-get install cmake openscad blender libspatialindex-dev libgeos-dev
-sudo pip install trimesh[all]
+pip install trimesh[all]
 ```
 
 Or, for only minimal dependencies (no ray queries, boolean operations, vector path handling, mesh creation, viewer, etc):
 
 ```bash
-sudo pip install trimesh
+pip install trimesh
 ```
 
 The minimum set of packages required to import `trimesh` are
@@ -24,7 +24,7 @@ The minimum set of packages required to import `trimesh` are
 
 ### Optional Dependencies ###
 
-To get the latest assimp for [additional import formats](http://www.assimp.org/main_features_formats.html) (python-pyassimp in Ubuntu 14.04 is very old):
+To install the latest assimp for [additional import formats](http://www.assimp.org/main_features_formats.html) (python-pyassimp in Ubuntu 14.04 is very old):
 
 ```bash
 sudo pip install git+https://github.com/robotics/assimp_latest.git
