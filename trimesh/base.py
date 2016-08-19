@@ -941,7 +941,7 @@ class Trimesh(object):
         return path
 
     @util.cache_decorator
-    def _convex_hull_raw(self):
+    def convex_hull_raw(self):
         '''
         The raw convex hull return from qhull.
         
@@ -962,7 +962,7 @@ class Trimesh(object):
         --------
         convex: Trimesh object of convex hull of current mesh
         '''
-        hull = self._convex_hull_raw.copy()
+        hull = self.convex_hull_raw.copy()
         hull.fix_normals()
         return hull
 

@@ -14,7 +14,7 @@ from . import triangles
 from . import grouping
 
 try:
-    from scipy.spatial import ConvexHull
+    from scipy import spatial
 except ImportError:
     log.warning('Scipy import failed!')
 
@@ -35,7 +35,7 @@ def oriented_bounds_2D(points):
     
     points = np.asanyarray(points)
     points_unique = points[grouping.unique_rows(points)[0]]
-    c = ConvexHull(points_unique)
+    c = spatial.ConvexHull(points_unique)
     # (n,2,3) line segments
     hull = c.points[c.simplices] 
     # (3,n) points on the hull to check against
@@ -85,20 +85,20 @@ def oriented_bounds(obj, angle_tol=1e-6):
                bounding box of the input mesh to the origin. 
     extents: (3,) float, the extents of the mesh once transformed with to_origin
     '''
-    if hasattr(obj, '_convex_hull_raw'):
+    if hasattr(obj, 'convex_hull_raw'):
         # if we have been passed a mesh, use its existing convex hull to pull from 
         # cache rather than recomputing. This version of the cached convex hull has 
         # normals pointing in arbitrary directions (straight from qhull)
         # using this avoids having to compute the expensive corrected normals
         # that mesh.convex_hull uses since normal directions don't matter here
-        vertices     = obj._convex_hull_raw.vertices
-        face_normals = obj._convex_hull_raw.face_normals
+        vertices     = obj.convex_hull_raw.vertices
+        face_normals = obj.convex_hull_raw.face_normals
     elif util.is_sequence(obj):
         points = np.asanyarray(obj)
         if util.is_shape(points, (-1,2)):
             return oriented_bounds_2D(points)
         elif util.is_shape(points, (-1,3)):
-            hull_obj = ConvexHull(points)
+            hull_obj = spatial.ConvexHull(points)
             vertices = hull_obj.points[hull_obj.vertices]
             face_normals, valid  = triangles.normals(hull_obj.points[hull_obj.simplices])
         else:
@@ -134,3 +134,48 @@ def oriented_bounds(obj, angle_tol=1e-6):
               len(vectors),
               time.time()-tic)
     return to_origin, extents
+
+def minimum_nsphere(obj):
+    '''
+    Compute the minimum n- sphere for a mesh or a set of points.
+
+    Uses the fact that the minimum n- sphere will be centered at one of
+    the vertices of the furthest site voronoi diagram.
+
+    Arguments
+    ----------
+    obj: Trimesh object OR
+         (n,d) float, set of points
+
+    Returns
+    ----------
+    center: (d) float, center of n- sphere
+    radius: float, radius of n-sphere
+    '''
+    
+    if hasattr(obj, 'convex_hull_raw'):
+        points = obj.convex_hull_raw.vertices
+    elif hasattr(obj, 'convex_hull'):
+        points = obj.convex_hull.vertices
+    else:
+        initial = np.asanyarray(obj)
+        if len(initial.shape) != 2:
+            raise ValueError('Points must be (n, dimension)!')
+        hull = spatial.ConvexHull(initial)
+        points = hull.points[hull.vertices]
+
+    # calculate a furthest site voronoi diagram
+    # this will fail if the points are ALL on the surface of
+    # the n-sphere, so we should really check to see if points
+    # are cospherical and then if so return the center of the fit n-sphere
+    voronoi = spatial.Voronoi(points, furthest_site=True)
+
+    # find the maximum radius point for each of the voronoi vertices
+    # this is worst case quite expensive, but we have used quick
+    # hull methods to reduce n for this operation
+    r2 = np.array([((points-v)**2).sum(axis=1).max() for v in voronoi.vertices])
+
+    center = voronoi.vertices[r2.argmin()]
+    radius = np.sqrt(r2.min())
+
+    return center, radius
