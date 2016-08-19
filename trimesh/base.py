@@ -316,6 +316,21 @@ class Trimesh(object):
         return obb
 
     @util.cache_decorator
+    def bounding_sphere(self):
+        '''
+        A minimum volume bounding sphere for the current mesh
+
+        Returns
+        --------
+        minball: trimesh.primitives.Sphere object 
+        '''
+        from . import primitives
+        center, radius = bounds.minimum_nsphere(self)
+        minball = primitives.Sphere(sphere_center = center,
+                                    sphere_radius = radius)
+        return minball
+
+    @util.cache_decorator
     def bounds(self):
         '''
         The axis aligned bounds of the mesh. 
