@@ -15,6 +15,7 @@ from . import grouping
 
 try:
     from scipy import spatial
+    from scipy.optimize import leastsq
 except ImportError:
     log.warning('Scipy import failed!')
 
@@ -134,48 +135,3 @@ def oriented_bounds(obj, angle_tol=1e-6):
               len(vectors),
               time.time()-tic)
     return to_origin, extents
-
-def minimum_nsphere(obj):
-    '''
-    Compute the minimum n- sphere for a mesh or a set of points.
-
-    Uses the fact that the minimum n- sphere will be centered at one of
-    the vertices of the furthest site voronoi diagram.
-
-    Arguments
-    ----------
-    obj: Trimesh object OR
-         (n,d) float, set of points
-
-    Returns
-    ----------
-    center: (d) float, center of n- sphere
-    radius: float, radius of n-sphere
-    '''
-    
-    if hasattr(obj, 'convex_hull_raw'):
-        points = obj.convex_hull_raw.vertices
-    elif hasattr(obj, 'convex_hull'):
-        points = obj.convex_hull.vertices
-    else:
-        initial = np.asanyarray(obj)
-        if len(initial.shape) != 2:
-            raise ValueError('Points must be (n, dimension)!')
-        hull = spatial.ConvexHull(initial)
-        points = hull.points[hull.vertices]
-
-    # calculate a furthest site voronoi diagram
-    # this will fail if the points are ALL on the surface of
-    # the n-sphere, so we should really check to see if points
-    # are cospherical and then if so return the center of the fit n-sphere
-    voronoi = spatial.Voronoi(points, furthest_site=True)
-
-    # find the maximum radius point for each of the voronoi vertices
-    # this is worst case quite expensive, but we have used quick
-    # hull methods to reduce n for this operation
-    r2 = np.array([((points-v)**2).sum(axis=1).max() for v in voronoi.vertices])
-
-    center = voronoi.vertices[r2.argmin()]
-    radius = np.sqrt(r2.min())
-
-    return center, radius

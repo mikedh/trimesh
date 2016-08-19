@@ -2,9 +2,10 @@ import numpy as np
 
 from collections import deque
 
-from .arc import arc_center, fit_circle, angles_to_threepoint
+from .arc import arc_center, angles_to_threepoint
 from .entities import Arc, Line, BSpline
 
+from ..nsphere   import fit_nsphere
 from ..util      import unitize, diagonal_dot
 from ..constants import log
 from ..constants import tol_path as tol
@@ -38,7 +39,7 @@ def fit_circle_check(points, prior=None, scale=1.0, verbose=False):
     if len(points) < 3: return None
 
     # do a least squares fit on the points
-    C, R, r_deviation = fit_circle(points, prior=prior)
+    C, R, r_deviation = fit_nsphere(points, prior=prior)
     
     # check to make sure radius is between min and max allowed
     if not tol.radius_min < (R/scale) < tol.radius_max:

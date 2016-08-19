@@ -986,3 +986,5 @@ class Words:
         result = str(delimiter).join(np.random.choice(self.words_simple,
                                                       length))
         return result
+
+

@@ -24,6 +24,7 @@ from . import remesh
 from . import bounds
 from . import units
 from . import permutate
+from . import nsphere
 
 from .io.export    import export_mesh
 from .ray.ray_mesh import RayMeshIntersector, contains_points
@@ -325,7 +326,7 @@ class Trimesh(object):
         minball: trimesh.primitives.Sphere object 
         '''
         from . import primitives
-        center, radius = bounds.minimum_nsphere(self)
+        center, radius = nsphere.minimum_nsphere(self)
         minball = primitives.Sphere(sphere_center = center,
                                     sphere_radius = radius)
         return minball

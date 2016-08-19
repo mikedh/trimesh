@@ -6,10 +6,7 @@ from ..constants    import tol_path as tol
 from ..constants    import res_path as res
 from .intersections import line_line
 
-try: 
-    from scipy.optimize import leastsq
-except ImportError: 
-    log.warning('No scipy.optimize for arc fitting!')
+
 
 def arc_center(points):
     '''
@@ -140,38 +137,3 @@ def angles_to_threepoint(angles, center, radius):
     angles = [angles[0], np.mean(angles), angles[1]]
     planar = np.column_stack((np.cos(angles), np.sin(angles)))*radius
     return planar + center
-
-def fit_circle(points, prior=None):
-    '''
-    Fit a circle (or n-sphere) to a set of points using least squares. 
-    
-    Arguments
-    ---------
-    points: (n,d) set of points
-    prior:  tuple of best guess for (center, radius)
-
-    Returns
-    ---------
-    center: (d), location of center
-    radius: float, mean radius across circle
-    error:  float, peak to peak value of deviation from mean radius
-    '''
-    
-    def residuals(center):
-        radii_sq  = ((points-center)**2).sum(axis=1)
-        residuals = radii_sq - radii_sq.mean()
-        return residuals
-
-    if prior is None:
-        center_guess = np.mean(points, axis=0)
-    else: 
-        center_guess = prior[0]
-
-    center_result, return_code = leastsq(residuals, center_guess)
-    if not (return_code in [1,2,3,4]):
-        raise ValueError('Least square fit failed!')
-
-    radii  = np.linalg.norm(points-center_result, axis=1)
-    radius = radii.mean()
-    error  = radii.ptp()
-    return center_result, radius, error
