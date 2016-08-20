@@ -1,21 +1,16 @@
 import numpy as np
 import time
 
-from .util       import unitize, transformation_2D
-
 from .constants  import log
-from .grouping   import group_vectors
 from .geometry   import rotation_2D_to_3D
-from .points     import project_to_plane, transform_points
 
 from . import util
+from . import points
 from . import triangles
-
 from . import grouping
 
 try:
     from scipy import spatial
-    from scipy.optimize import leastsq
 except ImportError:
     log.warning('Scipy import failed!')
 
@@ -41,7 +36,7 @@ def oriented_bounds_2D(points):
     hull = c.points[c.simplices] 
     # (3,n) points on the hull to check against
     dot_test = c.points[c.vertices].reshape((-1,2)).T
-    edge_vectors = unitize(np.diff(hull, axis=1).reshape((-1,2)))
+    edge_vectors = util.unitize(np.diff(hull, axis=1).reshape((-1,2)))
     perp_vectors = np.fliplr(edge_vectors) * [-1.0,1.0]
     bounds = np.zeros((len(edge_vectors), 4))
     for i, edge, perp in zip(range(len(edge_vectors)),
@@ -62,7 +57,7 @@ def oriented_bounds_2D(points):
     # to have a bounding box centered at the origin
     offset = -bounds[area_min][0:2] - (rectangle * .5)
     theta  = np.arctan2(*edge_vectors[area_min][::-1])
-    transform = transformation_2D(offset, theta)
+    transform = utiltransformation_2D(offset, theta)
 
     return transform, rectangle
 
@@ -107,16 +102,16 @@ def oriented_bounds(obj, angle_tol=1e-6):
     else:
         raise ValueError('Oriented bounds must be passed a mesh or a set of points!')
         
-    vectors = group_vectors(face_normals, 
-                            angle=angle_tol,
-                            include_negative=True)[0]
+    vectors = grouping.group_vectors(face_normals, 
+                                     angle=angle_tol,
+                                     include_negative=True)[0]
     min_volume = np.inf
     tic = time.time()
     for i, normal in enumerate(vectors):
-        projected, to_3D = project_to_plane(vertices,
-                                            plane_normal     = normal,
-                                            return_planar    = False,
-                                            return_transform = True)
+        projected, to_3D = points.project_to_plane(vertices,
+                                                   plane_normal     = normal,
+                                                   return_planar    = False,
+                                                   return_transform = True)
         height = projected[:,2].ptp()
         rotation_2D, box = oriented_bounds_2D(projected[:,0:2])
         volume = np.product(box) * height
@@ -127,7 +122,7 @@ def oriented_bounds(obj, angle_tol=1e-6):
             to_2D = np.linalg.inv(to_3D)
             extents = np.append(box, height)
     to_origin = np.dot(rotation_Z, to_2D)
-    transformed = transform_points(vertices, to_origin)
+    transformed = points.transform_points(vertices, to_origin)
     box_center = (transformed.min(axis=0) + transformed.ptp(axis=0)*.5)
     to_origin[0:3, 3] = -box_center
  

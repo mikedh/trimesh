@@ -35,11 +35,10 @@ def minimum_nsphere(obj):
         hull = spatial.ConvexHull(initial)
         points = hull.points[hull.vertices]
 
-
     # if all of the points are on an n-sphere already the voronoi 
     # method will fail so we check a least squares fit before 
     # bothering to compute the voronoi diagram
-    fit_C,fit_R,fit_E = fit_nsphere(points)
+    fit_C, fit_R, fit_E = fit_nsphere(points)
     if fit_E < 1e-3:
         return fit_C, fit_R
 
