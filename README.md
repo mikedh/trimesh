@@ -63,6 +63,7 @@ If you are using a lot of graph operations (specifically mesh.split) trimesh wil
 * Unit conversions
 * Subdivide faces of a mesh
 * Rapid computation of minimum- volume oriented bounding box transform for a mesh
+* Minimum volume bounding sphere / n-spheres
 * Symbolic integration of function(x,y,z) over a triangle
 * Very quick (sympy-numpy lambda) evaluation of symbolic integral result over a mesh 
 * Create meshes with primitive objects (Extrude, Box, Sphere) which are subclasses of Trimesh
