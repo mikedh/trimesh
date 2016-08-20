@@ -3,6 +3,7 @@ import time
 
 from .constants  import log
 from .geometry   import rotation_2D_to_3D
+from .points     import project_to_plane, transform_points
 
 from . import util
 from . import points
@@ -57,7 +58,7 @@ def oriented_bounds_2D(points):
     # to have a bounding box centered at the origin
     offset = -bounds[area_min][0:2] - (rectangle * .5)
     theta  = np.arctan2(*edge_vectors[area_min][::-1])
-    transform = utiltransformation_2D(offset, theta)
+    transform = util.transformation_2D(offset, theta)
 
     return transform, rectangle
 
@@ -108,10 +109,10 @@ def oriented_bounds(obj, angle_tol=1e-6):
     min_volume = np.inf
     tic = time.time()
     for i, normal in enumerate(vectors):
-        projected, to_3D = points.project_to_plane(vertices,
-                                                   plane_normal     = normal,
-                                                   return_planar    = False,
-                                                   return_transform = True)
+        projected, to_3D = project_to_plane(vertices,
+                                            plane_normal     = normal,
+                                            return_planar    = False,
+                                            return_transform = True)
         height = projected[:,2].ptp()
         rotation_2D, box = oriented_bounds_2D(projected[:,0:2])
         volume = np.product(box) * height
@@ -122,7 +123,7 @@ def oriented_bounds(obj, angle_tol=1e-6):
             to_2D = np.linalg.inv(to_3D)
             extents = np.append(box, height)
     to_origin = np.dot(rotation_Z, to_2D)
-    transformed = points.transform_points(vertices, to_origin)
+    transformed = transform_points(vertices, to_origin)
     box_center = (transformed.min(axis=0) + transformed.ptp(axis=0)*.5)
     to_origin[0:3, 3] = -box_center
  
