@@ -319,7 +319,12 @@ class Trimesh(object):
     @util.cache_decorator
     def bounding_sphere(self):
         '''
-        A minimum volume bounding sphere for the current mesh
+        A minimum volume bounding sphere for the current mesh.
+
+        Note that the Sphere primitive returned has an UNPADDED, EXACT
+        sphere_radius so while the distance of every vertex of the current 
+        mesh from sphere_center will be less than sphere_radius, the faceted 
+        sphere primitive may NOT CONTAIN EVER VERTEX
 
         Returns
         --------

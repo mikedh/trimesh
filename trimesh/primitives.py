@@ -72,8 +72,8 @@ class Sphere(Primitive):
         sphere_center: (3,) float, center of sphere
         subdivisions: int, number of subdivisions for icosphere. Default is 3
         '''
-        if 'subdivisions' in kwargs: subdivisions = int(kwargs['subdivisions'])
-        else:                        subdivisions = 3
+        try:    subdivisions = int(kwargs['subdivisions'])
+        except: subdivisions = 3
 
         self._unit_sphere = creation.icosphere(subdivisions=subdivisions)
         super(Sphere, self).__init__(*args, **kwargs)
