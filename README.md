@@ -13,7 +13,7 @@ sudo apt-get install cmake openscad blender libspatialindex-dev libgeos-dev
 pip install trimesh[all]
 ```
 
-Or, for only minimal dependencies (no ray queries, boolean operations, vector path handling, mesh creation, viewer, etc):
+Or, for only **minimal dependencies** (no ray queries, boolean operations, vector path handling, mesh creation, viewer, etc):
 
 ```bash
 pip install trimesh

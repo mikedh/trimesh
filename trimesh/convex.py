@@ -7,12 +7,10 @@ Library for importing and doing simple operations on triangular meshes.
 import numpy as np
 
 from .constants import tol, log
-
-from .util   import type_named, diagonal_dot
-from .points import project_to_plane
+from . import util
 
 try:
-    from scipy.spatial import ConvexHull
+    from scipy import spatial
 except ImportError:
     log.warning('Scipy import failed!')
 
@@ -31,8 +29,8 @@ def convex_hull(mesh, clean=True):
     convex: Trimesh object of convex hull of current mesh
     '''
 
-    type_trimesh = type_named(mesh, 'Trimesh')
-    c = ConvexHull(mesh.vertices.view(np.ndarray).reshape((-1,3)), qhull_options='QbB')
+    type_trimesh = util.type_named(mesh, 'Trimesh')
+    c = spatial.ConvexHull(mesh.vertices.view(np.ndarray).reshape((-1,3)), qhull_options='QbB')
     
     vid = np.sort(c.vertices)
     mask = np.zeros(len(c.points), dtype=np.int64)
@@ -89,7 +87,7 @@ def is_convex(mesh, chunks=None):
         # the index of the the third vertex through graph op is way slower 
         # than doing extra dot products. 
         # there is probably a clever way to use the winding to get this forfree
-        dots = diagonal_dot(chunk_tri, chunk_norm)
+        dots = util.diagonal_dot(chunk_tri, chunk_norm)
         # if all projections are negative, or 'behind' the triangle
         # the mesh is convex
         if not bool((dots < tol.merge).all()):
@@ -114,6 +112,8 @@ def planar_hull(points, normal, origin=None, input_convex=False):
     hull_lines: (n,2,2) set of unordered line segments
     T:          (4,4) float, transformation matrix 
     '''
+    from .points import project_to_plane
+
     if origin is None:
         origin = np.zeros(3)
     if not input_convex:
@@ -123,9 +123,33 @@ def planar_hull(points, normal, origin=None, input_convex=False):
                                  plane_origin     = origin,
                                  return_planar    = False,
                                  return_transform = True)
-    hull_edges = ConvexHull(planar[:,0:2]).simplices
+    hull_edges = spatial.ConvexHull(planar[:,0:2]).simplices
     hull_lines = planar[hull_edges]
     planar_z = planar[:,2]
     height = np.array([planar_z.min(),
                        planar_z.max()])
     return hull_lines, T, height
+
+def hull_points(obj):
+    '''
+    Try to extract a convex set of points from multiple input formats.
+
+    Arguments
+    ---------
+    obj: Trimesh object
+         (n,d) points
+         (m,) Trimesh objects
+
+    Returns
+    --------
+    points: (o,d) convex set of points
+    '''
+    if hasattr(obj, 'convex_hull_raw'):
+        points = obj.convex_hull_raw.vertices
+    elif is_sequence(obj):
+        initial = np.asanyarray(obj)
+        if len(initial.shape) != 2:
+            raise ValueError('Points must be (n, dimension)!')
+        hull   = spatial.ConvexHull(initial)
+        points = hull.points[hull.vertices]
+    return points

@@ -8,13 +8,13 @@ from .base      import Trimesh
 from .constants import log
 from .triangles import windings_aligned
    
-class Primitive(Trimesh):
+class _Primitive(Trimesh):
     '''
-    Geometric primitives which are a subclass of Trimesh.
+    Geometric _Primitives which are a subclass of Trimesh.
     Mesh is generated lazily when vertices or faces are requested.
     '''
     def __init__(self, *args, **kwargs):
-        super(Primitive, self).__init__(*args, **kwargs)
+        super(_Primitive, self).__init__(*args, **kwargs)
         self._data.clear()
         self._validate = False
         
@@ -58,13 +58,86 @@ class Primitive(Trimesh):
         if values is not None:
             log.warning('Primitive face normals are immutable! Not setting!')
 
+    def to_mesh(self):
+        '''
+        Return a copy of the _Primitive object as a trimesh.
+        '''
+        result = Trimesh(vertices = self.vertices,
+                         faces    = self.faces,
+                         face_normals = self.face_normals)
+        return result
+            
     def _create_mesh(self):
         raise ValueError('Primitive doesn\'t define mesh creation!')
 
-class Sphere(Primitive):
+class _PrimitiveAttributes(object):
+    '''
+    Store Primitive attributes. 
+    '''
+    def __init__(self, data, defaults, kwargs):
+        self._data     = data
+        self._defaults = defaults
+        self._data.update(defaults)
+        
+        for key, value in kwargs.items():
+            if key in defaults:
+                self._data[key] = util.convert_like(value, defaults[key])
+        
+    def __getattr__(self, key):
+        if '_' in key:
+            return super(_PrimitiveAttributes, self).__getattr__(key)
+        elif key in self._defaults:
+            return util.convert_like(self._data[key], self._defaults[key])
+        return super(_PrimitiveAttributes, self).__getattr__(key)
+            
+    def __setattr__(self, key, value):
+        if '_' in key:
+            return super(_PrimitiveAttributes, self).__setattr__(key, value) 
+        elif key in self._defaults:
+            self._data[key] = value
+        else:
+            raise ValueError('Only default attributes {} can be set!'.format(list(self._defaults.keys())))
+            
+class Cylinder(_Primitive):
     def __init__(self, *args, **kwargs):
         '''
-        Create a Sphere primitive, which is a subclass of Trimesh.
+        Create a Sphere _Primitive, which is a subclass of Trimesh.
+
+        Arguments
+        ----------
+        sphere_radius: float, radius of sphere
+        sphere_center: (3,) float, center of sphere
+        subdivisions: int, number of subdivisions for icosphere. Default is 3
+        '''
+        super(Cylinder, self).__init__(*args, **kwargs)
+        
+        defaults = {'height'    : 1.0,
+                    'radius'    : 1.0,
+                    'transform' : np.eye(4),
+                    'sections'  : 32}
+
+        self.primitive_data = _PrimitiveAttributes(self._data, defaults, kwargs)
+
+    def _create_mesh(self):
+        log.info('Creating cylinder mesh with r=%f, h=%f and %d sections',
+                 self.primitive_data.radius,
+                 self.primitive_data.height,
+                 self.primitive_data.sections)
+                 
+        mesh = creation.cylinder(radius   = self.primitive_data.radius,
+                                 height   = self.primitive_data.height,
+                                 sections = self.primitive_data.sections)
+        mesh.apply_transform(self.primitive_data.transform)
+        
+        self._cache['vertices']     = mesh.vertices
+        self._cache['faces']        = mesh.faces
+        self._cache['face_normals'] = mesh.face_normals
+        
+        
+class Sphere(_Primitive):
+    def __init__(self, *args, **kwargs):
+        '''
+        Create a Sphere _Primitive, which is a subclass of Trimesh.
 
         Arguments
         ----------
@@ -99,12 +172,25 @@ class Sphere(Primitive):
         stored = self._data['radius']
         if stored is None:
             return 1.0
-        return stored
+        return stored[0]
 
     @sphere_radius.setter
     def sphere_radius(self, value):
         self._data['radius'] = float(value)
 
+    @util.cache_decorator
+    def volume(self):
+        '''
+        Volume of the current sphere _Primitive.
+
+        Returns
+        --------
+        volume: float, volume of the sphere _Primitive
+        '''
+        
+        volume = (4.0*np.pi * (self.sphere_radius ** 3)) / 3.0
+        return volume
+    
     def _create_mesh(self):
         ico = self._unit_sphere
         self._cache['vertices'] = ((ico.vertices * self.sphere_radius) + 
@@ -112,10 +198,10 @@ class Sphere(Primitive):
         self._cache['faces'] = ico.faces
         self._cache['face_normals'] = ico.face_normals
 
-class Box(Primitive):    
+class Box(_Primitive):    
     def __init__(self, *args, **kwargs):
         '''
-        Create a Box primitive, which is a subclass of Trimesh
+        Create a Box _Primitive, which is a subclass of Trimesh
 
         Arguments
         ----------
@@ -176,8 +262,20 @@ class Box(Primitive):
         else:
             return False
 
+    @util.cache_decorator
+    def volume(self):
+        '''
+        Volume of the box _Primitive.
+
+        Returns
+        --------
+        volume: float, volume of box
+        '''
+        volume = float(np.product(self.box_extents))
+        return volume
+        
     def _create_mesh(self):
-        log.debug('Creating mesh for box primitive')
+        log.debug('Creating mesh for box _Primitive')
         box = self._unit_box
         vertices, faces, normals = box.vertices, box.faces, box.face_normals
         vertices = points.transform_points(vertices * self.box_extents, 
@@ -187,16 +285,16 @@ class Box(Primitive):
         aligned = windings_aligned(vertices[faces[:1]], normals[:1])[0]
         if not aligned:
             faces = np.fliplr(faces)        
-        # for a primitive the vertices and faces are derived from other information
+        # for a _Primitive the vertices and faces are derived from other information
         # so it goes in the cache, instead of the datastore
         self._cache['vertices'] = vertices
         self._cache['faces']    = faces
         self._cache['face_normals'] = normals
 
-class Extrusion(Primitive):
+class Extrusion(_Primitive):
     def __init__(self, *args, **kwargs):
         '''
-        Create an Extrusion primitive, which subclasses Trimesh
+        Create an Extrusion _Primitive, which subclasses Trimesh
 
         Arguments
         ----------
@@ -254,7 +352,7 @@ class Extrusion(Primitive):
         direction = np.dot(self.extrude_transform[:3,:3], 
                            [0.0,0.0,1.0])
         return direction
-        
+    
     def slide(self, distance):
         distance = float(distance)
         translation = np.eye(4)
@@ -264,7 +362,7 @@ class Extrusion(Primitive):
         self.extrude_transform = new_transform
 
     def _create_mesh(self):
-        log.debug('Creating mesh for extrude primitive')
+        log.debug('Creating mesh for extrude _Primitive')
         mesh = creation.extrude_polygon(self.extrude_polygon,
                                         self.extrude_height)
         mesh.apply_transform(self.extrude_transform)

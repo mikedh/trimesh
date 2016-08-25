@@ -539,6 +539,9 @@ class Cache:
         self.id_current = self._id_function()
 
 class DataStore:
+    def __init__(self):
+        self.data = {}
+        
     @property
     def mutable(self):
         if not hasattr(self, '_mutable'):
@@ -563,10 +566,7 @@ class DataStore:
                 if bool(np.isreal(v)):
                     return False
         return True
-
-    def __init__(self):
-        self.data = {}
-
+        
     def clear(self):
         self.data = {}
 
@@ -578,13 +578,19 @@ class DataStore:
 
     def __setitem__(self, key, data):
         self.data[key] = tracked_array(data)
-
+        
     def __len__(self):
         return len(self.data)
 
     def values(self):
         return self.data.values()
 
+    def update(self, values):
+        if not isinstance(values, dict):
+            raise ValueError('Update only implemented for dicts')
+        for key, value in values.items():
+            self[key] = value
+        
     def md5(self):
         md5 = ''
         for key in np.sort(list(self.data.keys())):
@@ -986,5 +992,20 @@ class Words:
         result = str(delimiter).join(np.random.choice(self.words_simple,
                                                       length))
         return result
-
-
+        
+def convert_like(item, like):
+    '''
+    Convert an item to have the dtype of another item
+    
+    Arguments
+    ----------
+    item: item to be converted
+    like: object with target dtype
+    
+    Returns
+    --------
+    result: item, but in dtype of like
+    '''
+    if isinstance(like, np.ndarray):
+        return np.asanyarray(item, dtype=like.dtype)
+    return like.__class__(item)

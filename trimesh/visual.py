@@ -24,7 +24,7 @@ class VisualAttributes(object):
 
         self._validate = True
         self._data = DataStore()
-        self._cache = Cache(id_function = self._data.md5)
+        self._cache = Cache(id_function = self.md5)
 
         if dtype is None: 
             dtype = COLOR_DTYPE
@@ -80,7 +80,10 @@ class VisualAttributes(object):
                                value = bool(transparency))
 
     def md5(self):
-        return self._data.md5()
+        result = self._data.md5()
+        if self.mesh is not None:
+            result += self.mesh.md5()
+        return result
 
     @property
     def face_colors(self):

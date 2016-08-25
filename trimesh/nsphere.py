@@ -1,7 +1,9 @@
 import numpy as np
 
+from . import convex
+
 try:
-    from scipy import spatial
+    from scipy          import spatial
     from scipy.optimize import leastsq
 except ImportError:
     log.warning('No scipy!')
@@ -11,8 +13,10 @@ def minimum_nsphere(obj):
     Compute the minimum n- sphere for a mesh or a set of points.
 
     Uses the fact that the minimum n- sphere will be centered at one of
-    the vertices of the furthest site voronoi diagram.
-
+    the vertices of the furthest site voronoi diagram, which is n*log(n)
+    but should be pretty fast due to using the scipy/qhull implementations
+    of convex hulls and voronoi diagrams.
+   
     Arguments
     ----------
     obj: Trimesh object OR
@@ -23,17 +27,10 @@ def minimum_nsphere(obj):
     center: (d) float, center of n- sphere
     radius: float, radius of n-sphere
     '''
-    
-    if hasattr(obj, 'convex_hull_raw'):
-        points = obj.convex_hull_raw.vertices
-    elif hasattr(obj, 'convex_hull'):
-        points = obj.convex_hull.vertices
-    else:
-        initial = np.asanyarray(obj)
-        if len(initial.shape) != 2:
-            raise ValueError('Points must be (n, dimension)!')
-        hull = spatial.ConvexHull(initial)
-        points = hull.points[hull.vertices]
+    # reduce the input points or mesh to the vertices of the convex hull
+    # since we are computing the furthest site voronoi diagram this reduces
+    # the input complexity substantially and returns the same value
+    points = convex.hull_points(obj)
 
     # if all of the points are on an n-sphere already the voronoi 
     # method will fail so we check a least squares fit before 
@@ -47,13 +44,15 @@ def minimum_nsphere(obj):
     # the n-sphere but hopefully the least squares check caught those cases
     voronoi = spatial.Voronoi(points, furthest_site=True)
 
-    # find the maximum radius point for each of the voronoi vertices
-    # this is worst case quite expensive, but we have used quick
+    # find the maximum radius^2 point for each of the voronoi vertices
+    # this is worst case quite expensive, but we have used quick convex
     # hull methods to reduce n for this operation
+    # we are doing comparisons on the radius^2 value so as to only do a sqrt once
     r2 = np.array([((points-v)**2).sum(axis=1).max() for v in voronoi.vertices])
 
-    center = voronoi.vertices[r2.argmin()]
-    radius = np.sqrt(r2.min())
+    r2_idx = r2.argmin()
+    center = voronoi.vertices[r2_idx]
+    radius = np.sqrt(r2[r2_idx])
 
     return center, radius
 
@@ -64,7 +63,7 @@ def fit_nsphere(points, prior=None):
     Arguments
     ---------
     points: (n,d) set of points
-    prior:  tuple of best guess for (center, radius)
+    prior:  (d,) float, best guess for center
 
     Returns
     ---------
@@ -78,10 +77,8 @@ def fit_nsphere(points, prior=None):
         residuals = radii_sq - radii_sq.mean()
         return residuals
 
-    if prior is None:
-        center_guess = np.mean(points, axis=0)
-    else: 
-        center_guess = prior[0]
+    if prior is None: center_guess = np.mean(points, axis=0)
+    else:             center_guess = prior
 
     center_result, return_code = leastsq(residuals, center_guess)
     if not (return_code in [1,2,3,4]):

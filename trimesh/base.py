@@ -1063,6 +1063,10 @@ class Trimesh(object):
         if matrix.shape != (4,4):
             raise ValueError('Transformation matrix must be (4,4)!')
 
+        if np.allclose(matrix, np.eye(4)):
+            log.debug('apply_tranform recieved identity matrix, returning without applying')
+            return
+            
         new_normals = np.dot(matrix[0:3, 0:3], self.face_normals.T).T
         # easier than figuring out what the scale factor of the matrix is
         new_normals = util.unitize(new_normals)

@@ -207,7 +207,7 @@ def arc_march(points, scale):
         elif arc_ok:
             # if we aren't ending and the fit looks good
             # just update the prior with the fit
-            prior = checked
+            prior = checked[0]
         elif prior is None:
             # we haven't seen an acceptable fit
             # so remove an index from the left

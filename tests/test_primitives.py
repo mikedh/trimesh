@@ -16,6 +16,13 @@ class BooleanTest(g.unittest.TestCase):
         self.primitives.append(g.trimesh.primitives.Box())
         self.primitives.append(g.trimesh.primitives.Box(box_center=[102.20,0,102.0],
                                                         box_extents = [29,100,1000]))
+
+        self.primitives.append(g.trimesh.primitives.Cylinder())
+        self.primitives.append(g.trimesh.primitives.Cylinder(radius=10,
+                                                             height=1,
+                                                             sections=40))
+        
+        
     def test_primitives(self):
         for primitive in self.primitives:
             self.assertTrue(g.trimesh.util.is_shape(primitive.faces,    (-1,3)))
