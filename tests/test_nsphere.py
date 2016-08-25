@@ -14,7 +14,7 @@ class NSphereTest(g.unittest.TestCase):
             
             self.assertTrue(len(s.sphere_center) == 3)
             self.assertTrue(s.sphere_radius > 0.0)
-            self.assertTrue(abs(s.sphere_radius[0] - R_check) < g.tol.fit)
+            self.assertTrue(abs(s.sphere_radius - R_check) < g.tol.fit)
             self.assertTrue(s.volume > (m.volume-g.tol.fit))
 
         # check minimum n-sphere for sets of points in 2,3, and 4 dimensions

@@ -30,7 +30,8 @@ def convex_hull(mesh, clean=True):
     '''
 
     type_trimesh = util.type_named(mesh, 'Trimesh')
-    c = spatial.ConvexHull(mesh.vertices.view(np.ndarray).reshape((-1,3)), qhull_options='QbB')
+    c = spatial.ConvexHull(mesh.vertices.view(np.ndarray).reshape((-1,3)),
+                           qhull_options='QbB')
     
     vid = np.sort(c.vertices)
     mask = np.zeros(len(c.points), dtype=np.int64)
@@ -146,10 +147,10 @@ def hull_points(obj):
     '''
     if hasattr(obj, 'convex_hull_raw'):
         points = obj.convex_hull_raw.vertices
-    elif is_sequence(obj):
+    elif util.is_sequence(obj):
         initial = np.asanyarray(obj)
         if len(initial.shape) != 2:
             raise ValueError('Points must be (n, dimension)!')
-        hull   = spatial.ConvexHull(initial)
+        hull   = spatial.ConvexHull(initial, qhull_options='QbB')
         points = hull.points[hull.vertices]
     return points
