@@ -5,13 +5,17 @@ from .constants  import log
 from .geometry   import rotation_2D_to_3D
 from .points     import project_to_plane, transform_points
 
+from .nsphere import minimum_nsphere
+
 from . import util
-from . import points
+from . import convex
 from . import triangles
 from . import grouping
+from . import transformations
 
 try:
     from scipy import spatial
+    from scipy import optimize
 except ImportError:
     log.warning('Scipy import failed!')
 
@@ -32,7 +36,7 @@ def oriented_bounds_2D(points):
     
     points = np.asanyarray(points)
     points_unique = points[grouping.unique_rows(points)[0]]
-    c = spatial.ConvexHull(points_unique)
+    c = spatial.ConvexHull(points_unique, qhull_options='QbB')
     # (n,2,3) line segments
     hull = c.points[c.simplices] 
     # (3,n) points on the hull to check against
@@ -131,3 +135,89 @@ def oriented_bounds(obj, angle_tol=1e-6):
               len(vectors),
               time.time()-tic)
     return to_origin, extents
+
+def minimum_cylinder(obj, sample_count=15):
+    '''
+    Find the approximate minimum volume cylinder which contains a mesh or set of points. 
+    
+    Samples a hemisphere in 12 degree increments and then uses scipy.optimize
+    to pick the final orientation of the cylinder.
+    
+    A nice discussion about better ways to implement this are here:
+    https://www.staff.uni-mainz.de/schoemer/publications/ALGO00.pdf
+    
+
+    Arguments
+    ----------
+    obj: Trimesh object OR
+         (n,3) float, points in space
+    sample_count: int, how densely should we sample the hemisphere.
+                  Angular spacing is 180 degrees / this number
+                  
+    Returns
+    ----------
+    result: dict, with keys:
+                'radius'    : float, radius of cylinder
+                'height'    : float, height of cylinder
+                'transform' : (4,4) float, transform from the origin to centered cylinder
+    '''
+    
+    def volume_from_angles(spherical, return_data=False):
+        '''
+        Takes spherical coordinates and calculates the volume of a cylinder
+        along that vector
+
+        Arguments
+        ---------
+        spherical: (2,) float, theta and phi
+        return_data: bool, flag for returned 
+
+        Returns
+        --------
+        if return_data:
+            transform ((4,4) float), radius (float), height (float)
+        else:
+            volume (float)
+        '''
+        to_2D = transformations.euler_matrix(*np.append(spherical,0))
+        projected = transform_points(hull, to_2D)
+        height = projected[:,2].ptp()
+        # in degenerate cases return as infinite volume
+        try:    center_2D, radius = minimum_nsphere(projected[:,0:2])
+        except: return np.inf
+   
+        center_3D = np.append(center_2D, projected[:,2].min() + (height * .5))
+        volume    = np.pi * height * (radius ** 2)
+        if return_data:
+            transform = np.dot(np.linalg.inv(to_2D), 
+                               transformations.translation_matrix(center_3D))
+            return transform, radius, height
+        return volume
+        
+    hull = convex.hull_points(obj)
+    if not util.is_shape(hull, (-1,3)):
+        raise ValueError('Input must be reducable to 3D points!')
+    
+    # sample a hemisphere so local hill climbing can do its thing
+    samples = util.grid_linspace_2D([[0,0], [np.pi, np.pi]], sample_count)
+    tic = [time.time()]
+    # the best vector in (2,) spherical coordinates
+    best = samples[np.argmin([volume_from_angles(i) for i in samples])]
+    tic.append(time.time())
+    
+    # since we already explored the global space, set the bounds to be
+    # just around the sample that had the lowest volume
+    step = 2*np.pi/sample_count
+    bounds = [(best[0]-step, best[0]+step),
+              (best[1]-step, best[1]+step)]
+    
+    # run the optimization
+    r = optimize.minimize(volume_from_angles, best, bounds=bounds)
+    tic.append(time.time())
+    
+    # actually chunk the information about the cylinder
+    transform, radius, height = volume_from_angles(r['x'], return_data=True)
+    result = {'transform' : transform, 
+              'radius'    : radius, 
+              'height'    : height}
+    return result  

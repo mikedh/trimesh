@@ -270,7 +270,8 @@ def k_means(points, k, **kwargs):
     
 def plot_points(points, show=True):    
     import matplotlib.pyplot as plt
-
+    from mpl_toolkits.mplot3d import Axes3D
+    
     points = np.asanyarray(points)
     dimension = points.shape[1]    
     if dimension == 3:

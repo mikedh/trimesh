@@ -337,6 +337,38 @@ class Trimesh(object):
         return minball
 
     @util.cache_decorator
+    def bounding_cylinder(self):
+        '''
+        A minimum volume bounding cylinder for the current mesh.
+
+        Returns
+        --------
+        mincyl: trimesh.primitives.Cylinder object 
+        '''
+        from . import primitives
+        kwargs = bounds.minimum_cylinder(self)
+        mincyl = primitives.Cylinder(**kwargs)
+        return mincyl
+        
+    @util.cache_decorator
+    def bounding_primitive(self):
+        '''
+        The minimum volume primitive (box, sphere, or cylinder) that bounds the mesh.
+        
+        Returns
+        ---------
+        bounding_primitive: trimesh.primitives.Sphere or 
+                            trimesh.primitives.Box
+                            trimesh.primitives.Cylinder
+        '''
+        options = [self.bounding_box_oriented, 
+                   self.bounding_sphere,
+                   self.bounding_cylinder]
+        volume_min = np.argmin([i.volume for i in options])
+        bounding_primitive = options[volume_min]
+        return bounding_primitive
+        
+    @util.cache_decorator
     def bounds(self):
         '''
         The axis aligned bounds of the mesh. 

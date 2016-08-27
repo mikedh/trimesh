@@ -101,13 +101,14 @@ class _PrimitiveAttributes(object):
 class Cylinder(_Primitive):
     def __init__(self, *args, **kwargs):
         '''
-        Create a Sphere _Primitive, which is a subclass of Trimesh.
+        Create a Cylinder Primitive, a subclass of Trimesh.
 
         Arguments
         ----------
-        sphere_radius: float, radius of sphere
-        sphere_center: (3,) float, center of sphere
-        subdivisions: int, number of subdivisions for icosphere. Default is 3
+        radius: float, radius of cylinder
+        height: float, height of cylinder
+        transform: (4,4) float, transformation matrix
+        sections: int, number of facets in circle
         '''
         super(Cylinder, self).__init__(*args, **kwargs)
         
@@ -115,7 +116,6 @@ class Cylinder(_Primitive):
                     'radius'    : 1.0,
                     'transform' : np.eye(4),
                     'sections'  : 32}
-
         self.primitive_data = _PrimitiveAttributes(self._data, defaults, kwargs)
 
     def _create_mesh(self):

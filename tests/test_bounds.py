@@ -30,6 +30,12 @@ class BoundsTest(g.unittest.TestCase):
                     g.log.error('bounds test failed %s',
                                 str(test))
                 self.assertTrue(test_ok)
+
+
+            c = m.bounding_cylinder
+            s = m.bounding_sphere
+            p = m.bounding_primitive
+ 
                 
     def test_obb_points(self):
         '''

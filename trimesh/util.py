@@ -260,6 +260,7 @@ def grid_arange_2D(bounds, step):
     -------
     grid: (n, 2) list of 2D points
     '''
+    bounds = np.asanyarray(bounds)
     x_grid = np.arange(*bounds[:,0], step = step)
     y_grid = np.arange(*bounds[:,1], step = step)
     grid   = np.dstack(np.meshgrid(x_grid, y_grid)).reshape((-1,2))
@@ -278,8 +279,9 @@ def grid_linspace_2D(bounds, count):
     -------
     grid: (count**2, 2) list of 2D points
     '''
-    x_grid = np.linspace(*bounds[:,0], count = count)
-    y_grid = np.linspace(*bounds[:,1], count = count)
+    bounds = np.asanyarray(bounds)
+    x_grid = np.linspace(*bounds[:,0], num=count)
+    y_grid = np.linspace(*bounds[:,1], num=count)
     grid   = np.dstack(np.meshgrid(x_grid, y_grid)).reshape((-1,2))
     return grid
 
