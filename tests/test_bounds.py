@@ -19,8 +19,8 @@ class BoundsTest(g.unittest.TestCase):
                     mat[0:3,3] = (g.np.random.random(3) -.5)* 100
                     m.apply_transform(mat)
 
-                box_ext = m.bounding_box_oriented.box_extents.copy()
-                box_t = m.bounding_box_oriented.box_transform.copy()
+                box_ext = m.bounding_box_oriented.primitive.extents.copy()
+                box_t = m.bounding_box_oriented.primitive.transform.copy()
 
                 m.apply_transform(g.np.linalg.inv(box_t))
 

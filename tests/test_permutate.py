@@ -30,8 +30,9 @@ class PermutateTest(g.unittest.TestCase):
         for mesh in g.get_meshes(5):
             tess = g.trimesh.permutate.tesselation(mesh)
             #print(tess.area-mesh.area)
-            self.assertTrue(tess.area   - mesh.area   < g.tol.merge)
-            self.assertTrue(tess.volume - mesh.volume < g.tol.merge)
+            self.assertTrue(abs(tess.area   - mesh.area)   < g.tol.merge)
+            volume_check = abs(tess.volume - mesh.volume) / mesh.scale
+            self.assertTrue(volume_check < g.tol.merge)
             self.assertTrue(len(mesh.faces) < len(tess.faces))
             if mesh.is_winding_consistent:
                 self.assertTrue(tess.is_winding_consistent)

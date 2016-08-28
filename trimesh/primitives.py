@@ -242,50 +242,13 @@ class Extrusion(_Primitive):
         extrude_height:    float, height to extrude polygon by
         '''
         super(Extrusion, self).__init__(*args, **kwargs)
-        if 'extrude_polygon' in kwargs:
-            self.extrude_polygon   = kwargs['extrude_polygon']
-        if 'extrude_transform' in kwargs:
-            self.extrude_transform = kwargs['extrude_transform']
-        if 'extrude_height' in kwargs:
-            self.extrude_height    = kwargs['extrude_height']
 
-    @property
-    def extrude_transform(self):
-        stored = self._data['extrude_transform']
-        if np.shape(stored) == (4,4):
-            return stored
-        return np.eye(4)
+        defaults = {'polygon'   : None,
+                    'transform' : np.eye(4),
+                    'height'    : 1.0}
+                    
+        self.primitive = _PrimitiveAttributes(self._data, defaults, kwargs)
 
-    @extrude_transform.setter
-    def extrude_transform(self, matrix):
-        matrix = np.asanyarray(matrix, dtype=np.float64)
-        if matrix.shape != (4,4):
-            raise ValueError('Matrix must be (4,4)!')
-        self._data['extrude_transform'] = matrix
-
-    @property
-    def extrude_height(self):
-        stored = self._data['extrude_height']
-        if stored is None: 
-            raise ValueError('extrude height not specified!')
-        return stored.copy()[0]
-
-    @extrude_height.setter
-    def extrude_height(self, value):
-        self._data['extrude_height'] = float(value)
-
-    @property
-    def extrude_polygon(self):
-        stored = self._data['extrude_polygon']
-        if stored is None: 
-            raise ValueError('extrude polygon not specified!')
-        return stored[0]
-
-    @extrude_polygon.setter
-    def extrude_polygon(self, value):
-        polygon = creation.validate_polygon(value)
-        self._data['extrude_polygon'] = polygon
-        
     @property
     def extrude_direction(self):
         direction = np.dot(self.extrude_transform[:3,:3], 
@@ -302,9 +265,9 @@ class Extrusion(_Primitive):
 
     def _create_mesh(self):
         log.debug('Creating mesh for extrude _Primitive')
-        mesh = creation.extrude_polygon(self.extrude_polygon,
-                                        self.extrude_height)
-        mesh.apply_transform(self.extrude_transform)
+        mesh = creation.extrude_polygon(self.primitive.polygon[0],
+                                        self.primitive.height)
+        mesh.apply_transform(self.primitive.transform)
         self._cache['vertices']     = mesh.vertices
         self._cache['faces']        = mesh.faces
         self._cache['face_normals'] = mesh.face_normals

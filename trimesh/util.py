@@ -91,6 +91,14 @@ def is_string(obj):
 def is_dict(obj):
     return isinstance(obj, dict)
 
+def is_none(obj):
+    if obj is None: return True
+    if (is_sequence(obj) and
+        len(obj) == 1 and 
+        obj[0] is None):
+        return True
+    return False
+
 def is_sequence(obj):
     '''
     Returns True if obj is a sequence.
@@ -1002,7 +1010,7 @@ def convert_like(item, like):
     Arguments
     ----------
     item: item to be converted
-    like: object with target dtype
+    like: object with target dtype. If None, item is returned unmodified
     
     Returns
     --------
@@ -1010,4 +1018,6 @@ def convert_like(item, like):
     '''
     if isinstance(like, np.ndarray):
         return np.asanyarray(item, dtype=like.dtype)
+    if is_none(like):
+        return item
     return like.__class__(item)
