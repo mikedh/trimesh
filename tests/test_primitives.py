@@ -3,12 +3,12 @@ import generic as g
 class BooleanTest(g.unittest.TestCase):
     def setUp(self):
         e = g.trimesh.primitives.Extrusion()
-        e.extrude_polygon = g.trimesh.path.polygons.random_polygon()
-        e.extrude_height = 1.0
+        e.primitive.polygon = g.trimesh.path.polygons.random_polygon()
+        e.primitive.height = 1.0
 
         self.primitives = [e]
-        self.primitives.append(g.trimesh.primitives.Extrusion(extrude_polygon=g.trimesh.path.polygons.random_polygon(),
-                                                              extrude_height = 293292.322))
+        self.primitives.append(g.trimesh.primitives.Extrusion(polygon=g.trimesh.path.polygons.random_polygon(),
+                                                              height = 293292.322))
         self.primitives.append(g.trimesh.primitives.Sphere())
         self.primitives.append(g.trimesh.primitives.Sphere(center=[0,0,100], 
                                                            radius=10.0, 
