@@ -136,14 +136,14 @@ def oriented_bounds(obj, angle_tol=1e-6):
               time.time()-tic)
     return to_origin, extents
 
-def minimum_cylinder(obj, sample_count=15):
+def minimum_cylinder(obj, sample_count=15, angle_tol=.001):
     '''
     Find the approximate minimum volume cylinder which contains a mesh or set of points. 
     
     Samples a hemisphere in 12 degree increments and then uses scipy.optimize
     to pick the final orientation of the cylinder.
     
-    A nice discussion about better ways to implement this are here:
+    A nice discussion about better ways to implement this is here:
     https://www.staff.uni-mainz.de/schoemer/publications/ALGO00.pdf
     
 
@@ -175,7 +175,9 @@ def minimum_cylinder(obj, sample_count=15):
         Returns
         --------
         if return_data:
-            transform ((4,4) float), radius (float), height (float)
+            transform ((4,4) float)
+            radius (float) 
+            height (float)
         else:
             volume (float)
         '''
@@ -185,10 +187,10 @@ def minimum_cylinder(obj, sample_count=15):
         # in degenerate cases return as infinite volume
         try:    center_2D, radius = minimum_nsphere(projected[:,0:2])
         except: return np.inf
-   
-        center_3D = np.append(center_2D, projected[:,2].min() + (height * .5))
-        volume    = np.pi * height * (radius ** 2)
+
+        volume = np.pi * height * (radius ** 2)
         if return_data:
+            center_3D = np.append(center_2D, projected[:,2].min() + (height * .5))
             transform = np.dot(np.linalg.inv(to_2D), 
                                transformations.translation_matrix(center_3D))
             return transform, radius, height
@@ -212,8 +214,10 @@ def minimum_cylinder(obj, sample_count=15):
               (best[1]-step, best[1]+step)]
     
     # run the optimization
-    r = optimize.minimize(volume_from_angles, best, bounds=bounds)
+    r = optimize.minimize(volume_from_angles, best, tol=angle_tol, method='SLSQP', bounds=bounds)
     tic.append(time.time())
+    
+    log.info('Performed search in %f and minimize in %f', *np.diff(tic))
     
     # actually chunk the information about the cylinder
     transform, radius, height = volume_from_angles(r['x'], return_data=True)

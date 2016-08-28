@@ -18,6 +18,7 @@ from . import repair
 from . import comparison
 from . import boolean
 from . import intersections
+from . import transformations
 from . import util
 from . import convex
 from . import remesh
@@ -296,8 +297,8 @@ class Trimesh(object):
               to represent the axis aligned bounding box of the mesh
         '''
         from . import primitives
-        aabb = primitives.Box(box_center  = self.bounds.mean(axis=0),
-                              box_extents = self.extents)
+        aabb = primitives.Box(transform = transformations.translation_matrix(self.bounds.mean(axis=0)),
+                              extents   = self.extents)
         return aabb
 
     @util.cache_decorator
@@ -312,8 +313,8 @@ class Trimesh(object):
         '''
         from . import primitives
         to_origin, extents = bounds.oriented_bounds(self)
-        obb = primitives.Box(box_transform = np.linalg.inv(to_origin),
-                             box_extents   = extents)
+        obb = primitives.Box(transform = np.linalg.inv(to_origin),
+                             extents   = extents)
         return obb
 
     @util.cache_decorator
@@ -332,8 +333,8 @@ class Trimesh(object):
         '''
         from . import primitives
         center, radius = nsphere.minimum_nsphere(self)
-        minball = primitives.Sphere(sphere_center = center,
-                                    sphere_radius = radius)
+        minball = primitives.Sphere(center = center,
+                                    radius = radius)
         return minball
 
     @util.cache_decorator
@@ -996,7 +997,10 @@ class Trimesh(object):
     @util.cache_decorator
     def convex_hull_raw(self):
         '''
-        The raw convex hull return from qhull.
+        The raw convex hull from qhull which has inconsistent face winding 
+        and face normals. This is exposed as fixing winding (as in mesh.convex_hull)
+        is quite expensive, and if normals or winding aren't required to be consistent
+        using this attribute will result in a signifigant speedup.
         
         Returns
         ---------

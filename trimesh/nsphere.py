@@ -2,6 +2,7 @@ import numpy as np
 
 from . import convex
 
+from .constants import log
 try:
     from scipy          import spatial
     from scipy.optimize import leastsq
@@ -36,7 +37,9 @@ def minimum_nsphere(obj):
     # method will fail so we check a least squares fit before 
     # bothering to compute the voronoi diagram
     fit_C, fit_R, fit_E = fit_nsphere(points)
+    radius_fit = ((points - fit_C)**2).sum(axis=1).max() ** .5
     if fit_E < 1e-3:
+        log.debug('Points were on an n-sphere, returning fit')
         return fit_C, fit_R
 
     # calculate a furthest site voronoi diagram
@@ -49,12 +52,13 @@ def minimum_nsphere(obj):
     # hull methods to reduce n for this operation
     # we are doing comparisons on the radius^2 value so as to only do a sqrt once
     r2 = np.array([((points-v)**2).sum(axis=1).max() for v in voronoi.vertices])
-
     r2_idx = r2.argmin()
-    center = voronoi.vertices[r2_idx]
-    radius = np.sqrt(r2[r2_idx])
+    radius_v = np.sqrt(r2[r2_idx])
+    center_v = voronoi.vertices[r2_idx]
 
-    return center, radius
+    if radius_v > radius_fit:
+        return fit_C, radius_fit
+    return center_v, radius_v
 
 def fit_nsphere(points, prior=None):
     '''
@@ -80,7 +84,7 @@ def fit_nsphere(points, prior=None):
     if prior is None: center_guess = np.mean(points, axis=0)
     else:             center_guess = prior
 
-    center_result, return_code = leastsq(residuals, center_guess)
+    center_result, return_code = leastsq(residuals, center_guess, gtol=1e-8)
     if not (return_code in [1,2,3,4]):
         raise ValueError('Least square fit failed!')
 

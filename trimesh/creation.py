@@ -197,13 +197,19 @@ def triangulate_polygon(polygon, **kwargs):
 
     return mesh_vertices, mesh_faces
 
-def box():
+def box(extents=None, transform=None):
     '''
     Return a unit cube, centered at the origin with edges of length 1.0
     '''
     vertices = [0,0,0,0,0,1,0,1,0,0,1,1,1,0,0,1,0,1,1,1,0,1,1,1] 
     vertices = np.array(vertices, dtype=np.float64).reshape((-1,3))
     vertices -= 0.5
+
+    if extents is not None:
+        extents = np.asanyarray(extents, dtype=np.float64)
+        if extents.shape != (3,):
+            raise ValueError('Extents must be (3,)!')
+        vertices *= extents
 
     faces = [1,3,0,4,1,0,0,3,2,2,4,0,1,7,3,5,1,4,
              5,7,1,3,7,2,6,4,2,2,7,6,6,5,4,7,5,6] 
@@ -213,9 +219,12 @@ def box():
                     0,0,0,1,0,1,0,0,0,-1,0,1,0,1,0,0,1,0,0]
     face_normals = np.array(face_normals, dtype=np.float64).reshape(-1,3)
 
-    box = Trimesh(vertices = vertices, 
-                  faces = faces,
+    box = Trimesh(vertices     = vertices, 
+                  faces        = faces,
                   face_normals = face_normals)
+    if transform is not None:
+        box.apply_transform(transform)
+                  
     return box
 
 def icosahedron():

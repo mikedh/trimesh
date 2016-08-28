@@ -10,18 +10,17 @@ class BooleanTest(g.unittest.TestCase):
         self.primitives.append(g.trimesh.primitives.Extrusion(extrude_polygon=g.trimesh.path.polygons.random_polygon(),
                                                               extrude_height = 293292.322))
         self.primitives.append(g.trimesh.primitives.Sphere())
-        self.primitives.append(g.trimesh.primitives.Sphere(sphere_center=[0,0,100], 
-                                                           sphere_radius=10.0, 
+        self.primitives.append(g.trimesh.primitives.Sphere(center=[0,0,100], 
+                                                           radius=10.0, 
                                                            subdivisions=5))
         self.primitives.append(g.trimesh.primitives.Box())
-        self.primitives.append(g.trimesh.primitives.Box(box_center=[102.20,0,102.0],
-                                                        box_extents = [29,100,1000]))
+        self.primitives.append(g.trimesh.primitives.Box(center=[102.20,0,102.0],
+                                                        extents = [29,100,1000]))
 
         self.primitives.append(g.trimesh.primitives.Cylinder())
         self.primitives.append(g.trimesh.primitives.Cylinder(radius=10,
                                                              height=1,
                                                              sections=40))
-        
         
     def test_primitives(self):
         for primitive in self.primitives:

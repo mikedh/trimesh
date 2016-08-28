@@ -14,7 +14,7 @@ try:
 except ImportError:
     log.warning('Scipy import failed!')
 
-def convex_hull(mesh, clean=True):
+def convex_hull(obj, clean=True):
     '''
     Get a new Trimesh object representing the convex hull of the 
     current mesh. Requires scipy >.12.
@@ -28,9 +28,14 @@ def convex_hull(mesh, clean=True):
     --------
     convex: Trimesh object of convex hull of current mesh
     '''
-
-    type_trimesh = util.type_named(mesh, 'Trimesh')
-    c = spatial.ConvexHull(mesh.vertices.view(np.ndarray).reshape((-1,3)),
+    from .base import Trimesh
+    if isinstance(obj, Trimesh):
+        points = obj.vertices.view(np.ndarray)
+    else:
+        points = np.asanyarray(obj, dtype=np.float64)
+        if not util.is_shape(points, (-1,3)):
+            raise ValueError('Object must be Trimesh or (n,3) points!')
+    c = spatial.ConvexHull(points.reshape((-1,3)),
                            qhull_options='QbB')
     
     vid = np.sort(c.vertices)
@@ -40,9 +45,9 @@ def convex_hull(mesh, clean=True):
     faces    = mask[c.simplices]
     vertices = c.points[vid].copy()
 
-    convex = type_trimesh(vertices = vertices, 
-                          faces    = faces,
-                          process  = True)
+    convex = Trimesh(vertices = vertices, 
+                      faces    = faces,
+                      process  = True)
     if clean:
         # the normals and triangle winding returned by scipy/qhull's
         # ConvexHull are apparently random, so we need to completely fix them

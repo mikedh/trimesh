@@ -1,4 +1,5 @@
 import numpy as np
+import pprint
 
 from . import util
 from . import points
@@ -60,20 +61,18 @@ class _Primitive(Trimesh):
 
     def to_mesh(self):
         '''
-        Return a copy of the _Primitive object as a trimesh.
+        Return a copy of the Primitive object as a trimesh.
         '''
-        result = Trimesh(vertices = self.vertices,
-                         faces    = self.faces,
-                         face_normals = self.face_normals)
+        result = Trimesh(vertices = self.vertices.copy(),
+                         faces    = self.faces.copy(),
+                         face_normals = self.face_normals.copy())
         return result
             
     def _create_mesh(self):
         raise ValueError('Primitive doesn\'t define mesh creation!')
 
+        
 class _PrimitiveAttributes(object):
-    '''
-    Store Primitive attributes. 
-    '''
     def __init__(self, data, defaults, kwargs):
         self._data     = data
         self._defaults = defaults
@@ -82,7 +81,16 @@ class _PrimitiveAttributes(object):
         for key, value in kwargs.items():
             if key in defaults:
                 self._data[key] = util.convert_like(value, defaults[key])
-        
+    
+        self.__doc__ = ('Store the attributes of a primitive object.\n\n' +
+                        'When these values are changed, the mesh geometry will \n' +
+                        'automatically be updated to reflect the new values.\n\n' +
+                        'Available properties and their default values are:\n' +
+                        pprint.pformat(defaults, width = -1) +'\n\n' +
+                        'Example\n---------------\n' +
+                        's = trimesh.primitives.Sphere() \n' +
+                        's.primitive.radius = 10\n\n')
+
     def __getattr__(self, key):
         if '_' in key:
             return super(_PrimitiveAttributes, self).__getattr__(key)
@@ -94,7 +102,7 @@ class _PrimitiveAttributes(object):
         if '_' in key:
             return super(_PrimitiveAttributes, self).__setattr__(key, value) 
         elif key in self._defaults:
-            self._data[key] = value
+            self._data[key] = util.convert_like(value,  self._defaults[key])
         else:
             raise ValueError('Only default attributes {} can be set!'.format(list(self._defaults.keys())))
             
@@ -116,18 +124,18 @@ class Cylinder(_Primitive):
                     'radius'    : 1.0,
                     'transform' : np.eye(4),
                     'sections'  : 32}
-        self.primitive_data = _PrimitiveAttributes(self._data, defaults, kwargs)
+        self.primitive = _PrimitiveAttributes(self._data, defaults, kwargs)
 
     def _create_mesh(self):
         log.info('Creating cylinder mesh with r=%f, h=%f and %d sections',
-                 self.primitive_data.radius,
-                 self.primitive_data.height,
-                 self.primitive_data.sections)
+                 self.primitive.radius,
+                 self.primitive.height,
+                 self.primitive.sections)
                  
-        mesh = creation.cylinder(radius   = self.primitive_data.radius,
-                                 height   = self.primitive_data.height,
-                                 sections = self.primitive_data.sections)
-        mesh.apply_transform(self.primitive_data.transform)
+        mesh = creation.cylinder(radius   = self.primitive.radius,
+                                 height   = self.primitive.height,
+                                 sections = self.primitive.sections)
+        mesh.apply_transform(self.primitive.transform)
         
         self._cache['vertices']     = mesh.vertices
         self._cache['faces']        = mesh.faces
@@ -145,38 +153,14 @@ class Sphere(_Primitive):
         sphere_center: (3,) float, center of sphere
         subdivisions: int, number of subdivisions for icosphere. Default is 3
         '''
-        try:    subdivisions = int(kwargs['subdivisions'])
-        except: subdivisions = 3
 
-        self._unit_sphere = creation.icosphere(subdivisions=subdivisions)
         super(Sphere, self).__init__(*args, **kwargs)
-
-        if 'sphere_radius' in kwargs:
-            self.sphere_radius = kwargs['sphere_radius']
-        if 'sphere_center' in kwargs:
-            self.sphere_center = kwargs['sphere_center']
-
-    @property
-    def sphere_center(self):
-        stored = self._data['center']
-        if stored is None:
-            return np.zeros(3)
-        return stored
-
-    @sphere_center.setter
-    def sphere_center(self, values):
-        self._data['center'] = np.asanyarray(values, dtype=np.float64)
-
-    @property
-    def sphere_radius(self):
-        stored = self._data['radius']
-        if stored is None:
-            return 1.0
-        return stored[0]
-
-    @sphere_radius.setter
-    def sphere_radius(self, value):
-        self._data['radius'] = float(value)
+        
+        defaults = {'radius'        : 1.0,
+                    'center'        : np.zeros(3, dtype=np.float64),
+                    'subdivisions'  : 3}
+                    
+        self.primitive = _PrimitiveAttributes(self._data, defaults, kwargs)
 
     @util.cache_decorator
     def volume(self):
@@ -188,15 +172,17 @@ class Sphere(_Primitive):
         volume: float, volume of the sphere _Primitive
         '''
         
-        volume = (4.0*np.pi * (self.sphere_radius ** 3)) / 3.0
+        volume = (4.0*np.pi * (self.primitive.radius** 3)) / 3.0
         return volume
     
     def _create_mesh(self):
-        ico = self._unit_sphere
-        self._cache['vertices'] = ((ico.vertices * self.sphere_radius) + 
-                                   self.sphere_center)
-        self._cache['faces'] = ico.faces
-        self._cache['face_normals'] = ico.face_normals
+        unit = creation.icosphere(subdivisions=self.primitive.subdivisions)
+        unit.vertices *= self.primitive.radius
+        unit.vertices += self.primitive.center
+        
+        self._cache['vertices']     = unit.vertices
+        self._cache['faces']        = unit.faces
+        self._cache['face_normals'] = unit.face_normals
 
 class Box(_Primitive):    
     def __init__(self, *args, **kwargs):
@@ -210,50 +196,11 @@ class Box(_Primitive):
         box_center:    (3,) float, convience function which updates box_transform
                        with a translation- only matrix
         '''
-        self._unit_box = creation.box()
         super(Box, self).__init__(*args, **kwargs)
-
-        if 'box_extents' in kwargs:
-            self.box_extents = kwargs['box_extents']
-        if 'box_transform' in kwargs:
-            self.box_transform = kwargs['box_transform']
-        if 'box_center' in kwargs:
-            self.box_center = kwargs['box_center']
-
-    @property
-    def box_center(self):
-        return self.box_transform[0:3,3]
-
-    @box_center.setter
-    def box_center(self, values):
-        transform = self.box_transform
-        transform[0:3,3] = values
-        self._data['box_transform'] = transform
-
-    @property
-    def box_extents(self):
-        stored = self._data['box_extents']
-        if util.is_shape(stored, (3,)):
-            return stored
-        return np.ones(3)
-
-    @box_extents.setter
-    def box_extents(self, values):
-        self._data['box_extents'] = np.asanyarray(values, dtype=np.float64)
-
-    @property
-    def box_transform(self):
-        stored = self._data['box_transform']
-        if util.is_shape(stored, (4,4)):
-            return stored
-        return np.eye(4)
-
-    @box_transform.setter
-    def box_transform(self, matrix):
-        matrix = np.asanyarray(matrix, dtype=np.float64)
-        if matrix.shape != (4,4):
-            raise ValueError('Matrix must be (4,4)!')
-        self._data['box_transform'] = matrix
+     
+        defaults = {'transform' : np.eye(4),
+                    'extents'   : np.ones(3)}
+        self.primitive = _PrimitiveAttributes(self._data, defaults, kwargs)
 
     @property
     def is_oriented(self):
@@ -271,25 +218,17 @@ class Box(_Primitive):
         --------
         volume: float, volume of box
         '''
-        volume = float(np.product(self.box_extents))
+        volume = float(np.product(self.primitive.extents))
         return volume
         
     def _create_mesh(self):
         log.debug('Creating mesh for box _Primitive')
-        box = self._unit_box
-        vertices, faces, normals = box.vertices, box.faces, box.face_normals
-        vertices = points.transform_points(vertices * self.box_extents, 
-                                           self.box_transform)
-        normals = np.dot(self.box_transform[0:3,0:3], 
-                         normals.T).T
-        aligned = windings_aligned(vertices[faces[:1]], normals[:1])[0]
-        if not aligned:
-            faces = np.fliplr(faces)        
-        # for a _Primitive the vertices and faces are derived from other information
-        # so it goes in the cache, instead of the datastore
-        self._cache['vertices'] = vertices
-        self._cache['faces']    = faces
-        self._cache['face_normals'] = normals
+        box = creation.box(extents   = self.primitive.extents,
+                           transform = self.primitive.transform)
+                              
+        self._cache['vertices']     = box.vertices
+        self._cache['faces']        = box.faces
+        self._cache['face_normals'] = box.face_normals
 
 class Extrusion(_Primitive):
     def __init__(self, *args, **kwargs):
