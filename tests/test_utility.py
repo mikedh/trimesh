@@ -139,7 +139,14 @@ class MassTests(unittest.TestCase):
                 self.assertTrue(parameter_ok)
                 parameter_count += 1
             log.info('%i mass parameters confirmed for %s', parameter_count, truth['filename'])  
-                
+           
+class SphericalTests(unittest.TestCase):
+    def test_spherical(self):
+        v = g.trimesh.unitize(g.np.random.random((1000,3))-.5)
+        spherical = g.trimesh.util.vector_to_spherical(v)    
+        v2 = g.trimesh.util.spherical_to_vector(spherical)
+        self.assertTrue((np.abs(v-v2) < g.trimesh.constants.tol.merge).all())
+           
 if __name__ == '__main__':
     trimesh.util.attach_to_log()
     unittest.main()

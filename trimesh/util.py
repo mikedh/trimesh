@@ -191,10 +191,12 @@ def vector_to_spherical(cartesian):
     '''
     Convert a set of cartesian points to (n,2) spherical vectors
     '''
-    x,y,z = np.array(cartesian).T
-    # cheat on divide by zero errors
-    x[np.abs(x) < _TOL_ZERO] = _TOL_ZERO
-    spherical = np.column_stack((np.arctan(y/x),
+    cartesian = np.asanyarray(cartesian, dtype=np.float64)
+    if not is_shape(cartesian, (-1,3)):
+        raise ValueError('Cartesian points must be (n,3)!')
+        
+    x,y,z = cartesian.T
+    spherical = np.column_stack((np.arctan2(y,x),
                                  np.arccos(z)))
     return spherical
 
@@ -202,7 +204,11 @@ def spherical_to_vector(spherical):
     '''
     Convert a set of (n,2) spherical vectors to (n,3) vectors
     '''
-    theta, phi = np.array(spherical).T
+    spherical = np.asanyarray(spherical, dtype=np.float64)
+    if not is_shape(spherical, (-1,2)):
+        raise ValueError('Spherical vectors must be passed as an (n,2) set of angles!')
+        
+    theta, phi = spherical.T
     st, ct = np.sin(theta), np.cos(theta)
     sp, cp = np.sin(phi),   np.cos(phi)
     vectors = np.column_stack((ct*sp,
