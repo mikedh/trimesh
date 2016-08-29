@@ -1045,7 +1045,6 @@ def superimposition_matrix(v0, v1, scale=False, usesvd=True):
     return affine_matrix_from_points(v0, v1, shear=False,
                                      scale=scale, usesvd=usesvd)
 
-
 def euler_matrix(ai, aj, ak, axes='sxyz'):
     """Return homogeneous rotation matrix from Euler angles and axis sequence.
 
@@ -1107,7 +1106,6 @@ def euler_matrix(ai, aj, ak, axes='sxyz'):
         M[k, j] = cj*si
         M[k, k] = cj*ci
     return M
-
 
 def euler_from_matrix(matrix, axes='sxyz'):
     """Return Euler angles from rotation matrix for specified axis sequence.
@@ -1872,3 +1870,10 @@ def is_same_transform(matrix0, matrix1):
     matrix1 = numpy.array(matrix1, dtype=numpy.float64, copy=True)
     matrix1 /= matrix1[3, 3]
     return numpy.allclose(matrix0, matrix1)
+
+def spherical_matrix(theta, phi):
+    '''
+    
+    '''
+    result = euler_matrix(theta, phi, 0.0)
+    return result

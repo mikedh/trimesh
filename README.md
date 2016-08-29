@@ -123,14 +123,25 @@ mesh.apply_transform(trimesh.transformations.random_rotation_matrix())
 mesh.bounding_box.extents
 
 # a minimum volume oriented bounding box also available
-mesh.bounding_box_oriented.box_extents
-mesh.bounding_box_oriented.box_transform
+# primitives are subclasses of Trimesh objects which automatically generate
+# faces and vertices from data stored in the 'primitive' attribute
+mesh.bounding_box_oriented.primitive.extents
+mesh.bounding_box_oriented.primitive.transform
 
-# show the mesh overlayed with its oriented bounding box
+# show the mesh appended with its oriented bounding box
 # the bounding box is a trimesh.primitives.Box object, which subclasses
 # Trimesh and lazily evaluates to fill in vertices and faces when requested
 # (press w in viewer to see triangles)
-(mesh + mesh.bounding_box_oriented + mesh.bounding_box).show()
+(mesh + mesh.bounding_box_oriented).show()
+
+# bounding spheres and bounding cylinders of meshes are also
+# available, and should be the minimum volume version of each
+# except in certain degenerate cases, where they will be no worse
+# than a least squares fit version of the primitive.
+print(mesh.bounding_box_oriented.volume, 
+      mesh.bounding_cylinder.volume,
+      mesh.bounding_sphere.volume)
+
 ```
 
 ### Optional Viewer ###

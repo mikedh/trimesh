@@ -181,7 +181,7 @@ def minimum_cylinder(obj, sample_count=15, angle_tol=.001):
         else:
             volume (float)
         '''
-        to_2D = transformations.euler_matrix(*np.append(spherical,0))
+        to_2D = transformations.spherical_matrix(*spherical)
         projected = transform_points(hull, to_2D)
         height = projected[:,2].ptp()
         # in degenerate cases return as infinite volume
