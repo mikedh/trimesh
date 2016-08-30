@@ -195,7 +195,7 @@ def vector_to_spherical(cartesian):
     if not is_shape(cartesian, (-1,3)):
         raise ValueError('Cartesian points must be (n,3)!')
         
-    x,y,z = cartesian.T
+    x,y,z = unitize(cartesian).T
     spherical = np.column_stack((np.arctan2(y,x),
                                  np.arccos(z)))
     return spherical

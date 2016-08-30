@@ -135,7 +135,7 @@ mesh.bounding_box_oriented.primitive.transform
 (mesh + mesh.bounding_box_oriented).show()
 
 # bounding spheres and bounding cylinders of meshes are also
-# available, and should be the minimum volume version of each
+# available, and will be the minimum volume version of each
 # except in certain degenerate cases, where they will be no worse
 # than a least squares fit version of the primitive.
 print(mesh.bounding_box_oriented.volume, 

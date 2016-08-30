@@ -73,7 +73,7 @@ class _Primitive(Trimesh):
 
         
 class _PrimitiveAttributes(object):
-    def __init__(self, data, defaults, kwargs):
+    def __init__(self, data, defaults, parent, kwargs):
         self._data     = data
         self._defaults = defaults
         self._data.update(defaults)
@@ -82,14 +82,14 @@ class _PrimitiveAttributes(object):
             if key in defaults:
                 self._data[key] = util.convert_like(value, defaults[key])
     
-        self.__doc__ = ('Store the attributes of a primitive object.\n\n' +
+        self.__doc__ = (('Store the attributes of a {prim} object.\n\n' +
                         'When these values are changed, the mesh geometry will \n' +
                         'automatically be updated to reflect the new values.\n\n' +
-                        'Available properties and their default values are:\n' +
-                        pprint.pformat(defaults, width = -1) +'\n\n' +
+                        'Available properties and their default values are:\n {def_s}\n\n' +
                         'Example\n---------------\n' +
-                        's = trimesh.primitives.Sphere() \n' +
-                        's.primitive.radius = 10\n\n')
+                        'p = trimesh.primitives.{prim}()\n' +
+                        'p.primitive.radius = 10\n\n').format(prim=parent.__class__.__name__,
+                                                              def_s = pprint.pformat(defaults, width = -1)[1:-1]))
 
     def __getattr__(self, key):
         if '_' in key:
@@ -104,7 +104,13 @@ class _PrimitiveAttributes(object):
         elif key in self._defaults:
             self._data[key] = util.convert_like(value,  self._defaults[key])
         else:
-            raise ValueError('Only default attributes {} can be set!'.format(list(self._defaults.keys())))
+            keys = list(self._defaults.keys())
+            raise ValueError('Only default attributes {} can be set!'.format(keys))
+            
+    def __dir__(self):
+        result = sorted(dir(type(self)) + 
+                        self._defaults.keys())
+        return result
             
 class Cylinder(_Primitive):
     def __init__(self, *args, **kwargs):
@@ -124,7 +130,7 @@ class Cylinder(_Primitive):
                     'radius'    : 1.0,
                     'transform' : np.eye(4),
                     'sections'  : 32}
-        self.primitive = _PrimitiveAttributes(self._data, defaults, kwargs)
+        self.primitive = _PrimitiveAttributes(self._data, defaults, self, kwargs)
 
     def _create_mesh(self):
         log.info('Creating cylinder mesh with r=%f, h=%f and %d sections',
@@ -149,8 +155,8 @@ class Sphere(_Primitive):
 
         Arguments
         ----------
-        sphere_radius: float, radius of sphere
-        sphere_center: (3,) float, center of sphere
+        radius: float, radius of sphere
+        center: (3,) float, center of sphere
         subdivisions: int, number of subdivisions for icosphere. Default is 3
         '''
 
@@ -160,7 +166,7 @@ class Sphere(_Primitive):
                     'center'        : np.zeros(3, dtype=np.float64),
                     'subdivisions'  : 3}
                     
-        self.primitive = _PrimitiveAttributes(self._data, defaults, kwargs)
+        self.primitive = _PrimitiveAttributes(self._data, defaults, self, kwargs)
 
     @util.cache_decorator
     def volume(self):
@@ -200,7 +206,7 @@ class Box(_Primitive):
      
         defaults = {'transform' : np.eye(4),
                     'extents'   : np.ones(3)}
-        self.primitive = _PrimitiveAttributes(self._data, defaults, kwargs)
+        self.primitive = _PrimitiveAttributes(self._data, defaults, self, kwargs)
 
     @property
     def is_oriented(self):
@@ -247,7 +253,7 @@ class Extrusion(_Primitive):
                     'transform' : np.eye(4),
                     'height'    : 1.0}
                     
-        self.primitive = _PrimitiveAttributes(self._data, defaults, kwargs)
+        self.primitive = _PrimitiveAttributes(self._data, defaults, self, kwargs)
 
     @property
     def extrude_direction(self):
