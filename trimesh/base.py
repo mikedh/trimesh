@@ -298,7 +298,8 @@ class Trimesh(object):
         '''
         from . import primitives
         aabb = primitives.Box(transform = transformations.translation_matrix(self.bounds.mean(axis=0)),
-                              extents   = self.extents)
+                              extents   = self.extents,
+                              mutable   = False)
         return aabb
 
     @util.cache_decorator
@@ -314,7 +315,8 @@ class Trimesh(object):
         from . import primitives
         to_origin, extents = bounds.oriented_bounds(self)
         obb = primitives.Box(transform = np.linalg.inv(to_origin),
-                             extents   = extents)
+                             extents   = extents,
+                             mutable   = False)
         return obb
 
     @util.cache_decorator
@@ -334,7 +336,8 @@ class Trimesh(object):
         from . import primitives
         center, radius = nsphere.minimum_nsphere(self)
         minball = primitives.Sphere(center = center,
-                                    radius = radius)
+                                    radius = radius,
+                                    mutable   = False)
         return minball
 
     @util.cache_decorator
@@ -348,7 +351,7 @@ class Trimesh(object):
         '''
         from . import primitives
         kwargs = bounds.minimum_cylinder(self)
-        mincyl = primitives.Cylinder(**kwargs)
+        mincyl = primitives.Cylinder(mutable=False, **kwargs)
         return mincyl
         
     @util.cache_decorator

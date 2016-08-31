@@ -77,19 +77,21 @@ class _PrimitiveAttributes(object):
         self._data     = data
         self._defaults = defaults
         self._data.update(defaults)
-        
+        self._mutable = True
         for key, value in kwargs.items():
             if key in defaults:
                 self._data[key] = util.convert_like(value, defaults[key])
-    
-        self.__doc__ = (('Store the attributes of a {prim} object.\n\n' +
+        if 'mutable' in kwargs:
+            self._mutable = bool(kwargs['mutable'])
+            
+        self.__doc__ = (('Store the attributes of a {prim_name} object.\n\n' +
                         'When these values are changed, the mesh geometry will \n' +
                         'automatically be updated to reflect the new values.\n\n' +
-                        'Available properties and their default values are:\n {def_s}\n\n' +
+                        'Available properties and their default values are:\n {prim_defaults}\n\n' +
                         'Example\n---------------\n' +
-                        'p = trimesh.primitives.{prim}()\n' +
-                        'p.primitive.radius = 10\n\n').format(prim=parent.__class__.__name__,
-                                                              def_s = pprint.pformat(defaults, width = -1)[1:-1]))
+                        'p = trimesh.primitives.{prim_name}()\n' +
+                        'p.primitive.radius = 10\n\n').format(prim_name = parent.__class__.__name__,
+                                                              prim_defaults = pprint.pformat(defaults, width = -1)[1:-1]))
 
     def __getattr__(self, key):
         if '_' in key:
@@ -102,7 +104,10 @@ class _PrimitiveAttributes(object):
         if '_' in key:
             return super(_PrimitiveAttributes, self).__setattr__(key, value) 
         elif key in self._defaults:
-            self._data[key] = util.convert_like(value,  self._defaults[key])
+            if self._mutable:
+                self._data[key] = util.convert_like(value,  self._defaults[key])
+            else:
+                raise ValueError('Primitive is configured as immutable! Cannot set attribute!')
         else:
             keys = list(self._defaults.keys())
             raise ValueError('Only default attributes {} can be set!'.format(keys))
@@ -151,7 +156,7 @@ class Cylinder(_Primitive):
 class Sphere(_Primitive):
     def __init__(self, *args, **kwargs):
         '''
-        Create a Sphere _Primitive, which is a subclass of Trimesh.
+        Create a Sphere Primitive, which is a subclass of Trimesh.
 
         Arguments
         ----------
@@ -197,10 +202,8 @@ class Box(_Primitive):
 
         Arguments
         ----------
-        box_extents:   (3,) float, size of box
-        box_transform: (4,4) float, transformation matrix for box
-        box_center:    (3,) float, convience function which updates box_transform
-                       with a translation- only matrix
+        extents:   (3,) float, size of box
+        transform: (4,4) float, transformation matrix for box center
         '''
         super(Box, self).__init__(*args, **kwargs)
      
@@ -210,8 +213,8 @@ class Box(_Primitive):
 
     @property
     def is_oriented(self):
-        if util.is_shape(self.box_transform, (4,4)):
-            return not np.allclose(self.box_transform[0:3,0:3], np.eye(3))
+        if util.is_shape(self.primitive.transform, (4,4)):
+            return not np.allclose(self.primitive.transform[0:3,0:3], np.eye(3))
         else:
             return False
 
@@ -243,9 +246,9 @@ class Extrusion(_Primitive):
 
         Arguments
         ----------
-        extrude_polygon:   shapely.geometry.Polygon, polygon to extrude
-        extrude_transform: (4,4) float, transform to apply after extrusion
-        extrude_height:    float, height to extrude polygon by
+        polygon:   shapely.geometry.Polygon, polygon to extrude
+        transform: (4,4) float, transform to apply after extrusion
+        height:    float, height to extrude polygon by
         '''
         super(Extrusion, self).__init__(*args, **kwargs)
 
@@ -257,7 +260,7 @@ class Extrusion(_Primitive):
 
     @property
     def extrude_direction(self):
-        direction = np.dot(self.extrude_transform[:3,:3], 
+        direction = np.dot(self.primitive.transform[:3,:3], 
                            [0.0,0.0,1.0])
         return direction
     
@@ -265,9 +268,9 @@ class Extrusion(_Primitive):
         distance = float(distance)
         translation = np.eye(4)
         translation[2,3] = distance
-        new_transform = np.dot(self.extrude_transform.copy(),
+        new_transform = np.dot(self.primitive.transform.copy(),
                                translation.copy())
-        self.extrude_transform = new_transform
+        self.primitive.transform = new_transform
 
     def _create_mesh(self):
         log.debug('Creating mesh for extrude _Primitive')

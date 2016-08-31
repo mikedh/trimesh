@@ -187,6 +187,45 @@ def make_sequence(obj):
     if is_sequence(obj): return np.array(obj)
     else:                return np.array([obj])
 
+def vector_consistent_sign(vectors):
+    '''
+    For a set of 3D vectors alter the sign so they are all in the upper 
+    hemisphere.
+   
+    Arguments
+    ----------
+    vectors: (n,3) float, set of vectors
+    
+    Returns
+    ----------
+    oriented: (n,3) float, set of vectors with same magnitude but all
+                           pointing in the same hemisphere.
+   
+    '''
+    vectors = np.asanyarray(vectors, dtype=np.float64)
+    if not is_shape(vectors, (-1,3)):
+        raise ValueError('Vectors must be (n,3)!')
+        
+    neg  = vectors < -_TOL_ZERO
+    zero = np.logical_not(np.logical_or(neg, vectors > _TOL_ZERO))
+    
+    # move all                          negative Z to positive
+    # then for zero Z vectors, move all negative Y to positive
+    # then for zero Y vectors, move all negative X to positive
+    
+    signs = np.ones(len(vectors), dtype=np.float64)
+    
+    # all vectors with negative Z values
+    signs[neg[:,2]] = -1.0
+    # all on-plane vectors with negative Y values
+    signs[np.logical_and(zero[:,2], neg[:,1])] = -1.0
+    # all on-plane vectors with zero Y values and negative X values
+    signs[np.logical_and(np.logical_and(zero[:,2], zero[:,1]), neg[:,0])] = -1.0
+    
+    oriented = vectors * signs.reshape((-1,1))
+    return result
+    
+    
 def vector_to_spherical(cartesian):
     '''
     Convert a set of cartesian points to (n,2) spherical vectors
