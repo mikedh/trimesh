@@ -39,18 +39,15 @@ def oriented_bounds_2D(points):
     c = spatial.ConvexHull(points_unique, qhull_options='QbB')
     # (n,2,3) line segments
     hull = c.points[c.simplices] 
-    # (3,n) points on the hull to check against
-    dot_test = c.points[c.vertices].reshape((-1,2)).T
+    hull_points = c.points[c.vertices]
+    
     edge_vectors = util.unitize(np.diff(hull, axis=1).reshape((-1,2)))
     perp_vectors = np.fliplr(edge_vectors) * [-1.0,1.0]
-    bounds = np.zeros((len(edge_vectors), 4))
-    for i, edge, perp in zip(range(len(edge_vectors)),
-                             edge_vectors, 
-                             perp_vectors):
-        x = np.dot(edge, dot_test)
-        y = np.dot(perp, dot_test)
-        bounds[i] = [x.min(), y.min(), x.max(), y.max()]
-
+    
+    x = np.dot(edge_vectors, hull_points.T)
+    y = np.dot(perp_vectors, hull_points.T)
+    bounds = np.column_stack((x.min(axis=1), y.min(axis=1), x.max(axis=1), y.max(axis=1)))
+    
     extents  = np.diff(bounds.reshape((-1,2,2)), axis=1).reshape((-1,2))
     area     = np.product(extents, axis=1)
     area_min = area.argmin()

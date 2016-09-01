@@ -9,6 +9,7 @@ class BooleanTest(g.unittest.TestCase):
         self.primitives = [e]
         self.primitives.append(g.trimesh.primitives.Extrusion(polygon=g.trimesh.path.polygons.random_polygon(),
                                                               height = 293292.322))
+                                          
         self.primitives.append(g.trimesh.primitives.Sphere())
         self.primitives.append(g.trimesh.primitives.Sphere(center=[0,0,100], 
                                                            radius=10.0, 

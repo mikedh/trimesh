@@ -25,7 +25,6 @@ class _Primitive(Trimesh):
         if util.is_shape(stored, (-1,3)):
             return stored
         self._create_mesh()
-        #self._validate_face_normals()
         return self._cache['faces']
 
     @faces.setter
@@ -221,7 +220,7 @@ class Box(_Primitive):
     @util.cache_decorator
     def volume(self):
         '''
-        Volume of the box _Primitive.
+        Volume of the box Primitive.
 
         Returns
         --------
@@ -273,7 +272,7 @@ class Extrusion(_Primitive):
         self.primitive.transform = new_transform
 
     def _create_mesh(self):
-        log.debug('Creating mesh for extrude _Primitive')
+        log.debug('Creating mesh for extrude Primitive')
         mesh = creation.extrude_polygon(self.primitive.polygon[0],
                                         self.primitive.height)
         mesh.apply_transform(self.primitive.transform)

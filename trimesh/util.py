@@ -187,7 +187,7 @@ def make_sequence(obj):
     if is_sequence(obj): return np.array(obj)
     else:                return np.array([obj])
 
-def vector_consistent_sign(vectors):
+def vector_hemisphere(vectors):
     '''
     For a set of 3D vectors alter the sign so they are all in the upper 
     hemisphere.
@@ -223,7 +223,7 @@ def vector_consistent_sign(vectors):
     signs[np.logical_and(np.logical_and(zero[:,2], zero[:,1]), neg[:,0])] = -1.0
     
     oriented = vectors * signs.reshape((-1,1))
-    return result
+    return oriented
     
     
 def vector_to_spherical(cartesian):

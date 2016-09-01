@@ -147,6 +147,19 @@ class SphericalTests(unittest.TestCase):
         v2 = g.trimesh.util.spherical_to_vector(spherical)
         self.assertTrue((np.abs(v-v2) < g.trimesh.constants.tol.merge).all())
            
+class HemisphereTests(unittest.TestCase):
+    def test_hemisphere(self):
+        v = trimesh.unitize(np.random.random((10000,3))-.5)
+        v[0] = [0,1,0]
+        v[1] = [1,0,0]
+        v[2] = [0,0,1]
+        v = np.column_stack((v,-v)).reshape((-1,3))
+    
+        resigned = trimesh.util.vector_hemisphere(v)
+    
+        check = (abs(np.diff(resigned.reshape((-1,2,3)), axis=1).sum(axis=2)) < trimesh.constants.tol.zero).all()
+        self.assertTrue(check)
+        
 if __name__ == '__main__':
     trimesh.util.attach_to_log()
     unittest.main()
