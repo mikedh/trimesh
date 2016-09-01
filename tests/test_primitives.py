@@ -33,6 +33,10 @@ class BooleanTest(g.unittest.TestCase):
             self.assertTrue(primitive.is_winding_consistent)
             self.assertTrue(primitive.is_watertight)
 
+            # check that overload of dir worked
+            self.assertTrue(len(dir(primitive)) > 0)
+            
+            
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()

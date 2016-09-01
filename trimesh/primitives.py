@@ -113,7 +113,7 @@ class _PrimitiveAttributes(object):
             
     def __dir__(self):
         result = sorted(dir(type(self)) + 
-                        self._defaults.keys())
+                        list(self._defaults.keys()))
         return result
             
 class Cylinder(_Primitive):
@@ -155,7 +155,7 @@ class Cylinder(_Primitive):
 class Sphere(_Primitive):
     def __init__(self, *args, **kwargs):
         '''
-        Create a Sphere Primitive, which is a subclass of Trimesh.
+        Create a Sphere Primitive a subclass of Trimesh.
 
         Arguments
         ----------
@@ -175,11 +175,11 @@ class Sphere(_Primitive):
     @util.cache_decorator
     def volume(self):
         '''
-        Volume of the current sphere _Primitive.
+        Volume of the current sphere Primitive.
 
         Returns
         --------
-        volume: float, volume of the sphere _Primitive
+        volume: float, volume of the sphere Primitive
         '''
         
         volume = (4.0*np.pi * (self.primitive.radius** 3)) / 3.0
@@ -197,11 +197,11 @@ class Sphere(_Primitive):
 class Box(_Primitive):    
     def __init__(self, *args, **kwargs):
         '''
-        Create a Box _Primitive, which is a subclass of Trimesh
+        Create a Box Primitive, a subclass of Trimesh
 
         Arguments
         ----------
-        extents:   (3,) float, size of box
+        extents:   (3,)  float, size of box
         transform: (4,4) float, transformation matrix for box center
         '''
         super(Box, self).__init__(*args, **kwargs)
@@ -212,6 +212,9 @@ class Box(_Primitive):
 
     @property
     def is_oriented(self):
+        '''
+        Returns whether or not the current box is rotated at all.
+        '''
         if util.is_shape(self.primitive.transform, (4,4)):
             return not np.allclose(self.primitive.transform[0:3,0:3], np.eye(3))
         else:
@@ -241,7 +244,7 @@ class Box(_Primitive):
 class Extrusion(_Primitive):
     def __init__(self, *args, **kwargs):
         '''
-        Create an Extrusion _Primitive, which subclasses Trimesh
+        Create an Extrusion Primitive, a subclass of Trimesh
 
         Arguments
         ----------
@@ -259,11 +262,28 @@ class Extrusion(_Primitive):
 
     @property
     def extrude_direction(self):
+        '''
+        Based on the extrudes transform, what is the vector along
+        which the polygon will be extruded
+        
+        Returns
+        ---------
+        direction: (3,) float vector. If self.primitive.transform is an 
+                   identity matrix this will be [0.0, 0.0, 1.0]
+        '''
         direction = np.dot(self.primitive.transform[:3,:3], 
                            [0.0,0.0,1.0])
         return direction
     
     def slide(self, distance):
+        '''
+        Alter the transform of the current extrusion to slide it along its
+        extrude_direction vector
+        
+        Arguments
+        -----------
+        distance: float, distance along self.extrude_direction to move
+        '''
         distance = float(distance)
         translation = np.eye(4)
         translation[2,3] = distance
