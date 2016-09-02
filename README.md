@@ -5,7 +5,7 @@ Python (2.7-3*) library for loading and using triangular meshes. The goal of the
 
 The API is mostly stable, but this should not be relied on and is not guaranteed; install a specific version if you plan on deploying something using trimesh as a backend.
 
-### Installation
+## Installation
 
 Once you have a python distribution and the system packages (from the pre-install), the **recommended** way to install with most functionality is:
 ```bash
@@ -22,15 +22,15 @@ The minimum set of packages required to import `trimesh` are
 [numpy](http://www.numpy.org/), [scipy](http://www.scipy.org/) and [networkx](https://networkx.github.io/). 
 
 
-#### Ubuntu Pre-install
+##### Ubuntu Pre-install
 ```bash
 sudo apt-get install cmake openscad blender libspatialindex-dev libgeos-dev
 ```
 
-#### Windows Pre-Install:
+##### Windows Pre-Install:
 The easiest way to get going on Windows is to install the Anaconda Python distribution, followed by `shapely`, `rtree`, and `meshpy` from the [Unofficial Windows Binaries from Christoph Gohlke](http://www.lfd.uci.edu/~gohlke/pythonlibs/)
 
-#### Optional Dependencies
+##### Optional Dependencies
 
 To install the latest assimp for [additional import formats](http://www.assimp.org/main_features_formats.html) (python-pyassimp in Ubuntu 14.04 is very old):
 
@@ -41,7 +41,7 @@ sudo pip install git+https://github.com/robotics/assimp_latest.git
 If you are using a lot of graph operations (specifically mesh.split) trimesh will automatically use [graph-tool](https://graph-tool.skewed.de/download) if it is installed, for a roughly 10x speedup over networkx on certain operations.
 
 
-### Features ###
+## Features
 
 * Import binary/ASCII STL, Wavefront OBJ, ASCII OFF, and binary PLY
 * Import additional mesh formats using assimp (if pyassimp installed)
@@ -78,7 +78,7 @@ If you are using a lot of graph operations (specifically mesh.split) trimesh wil
 * Simple scene graph and transform tree which can be rendered (pyglet) or exported.
 * Numerous utility functions, such as transforming points, unitizing vectors, tracking arrays for changes, grouping rows, etc.
 
-### Quick Start ###
+## Quick Start
 
 Here is an example of loading a mesh from file and colorizing its faces. Here is a nicely formatted
 [ipython notebook version](http://github.com/mikedh/trimesh/blob/master/examples/quick_start.ipynb) of this example.
@@ -152,7 +152,7 @@ print(mesh.bounding_box_oriented.volume,
 
 ```
 
-### Optional Viewer ###
+## Optional Viewer
 
 Trimesh includes an optional pyglet- based viewer for debugging/inspecting. In the mesh view window:
 

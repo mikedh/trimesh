@@ -2,16 +2,16 @@ import generic as g
 
 class BoundsTest(g.unittest.TestCase):
     def setUp(self):
-        self.meshes = [g.get_mesh(i) for i in ['large_block.STL', 
-                                               'featuretype.STL']]
-        
+        meshes = [g.get_mesh(i) for i in ['large_block.STL', 
+                                          'featuretype.STL']]
+        self.meshes = g.np.append(meshes, g.get_meshes(3))
     def test_obb_mesh(self):
         '''
         Test the OBB functionality in attributes of Trimesh objects
         '''
         for m in self.meshes:
             g.log.info('Testing OBB of %s', m.metadata['file_name'])
-            for i in range(100):
+            for i in range(10):
                 # on the first run through don't transform the points to see
                 # if we succeed in the meshes original orientation
                 if i > 0:

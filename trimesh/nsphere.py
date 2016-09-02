@@ -1,8 +1,8 @@
 import numpy as np
 
 from . import convex
-
 from .constants import log
+
 try:
     from scipy          import spatial
     from scipy.optimize import leastsq

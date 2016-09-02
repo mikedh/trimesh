@@ -33,26 +33,40 @@ def oriented_bounds_2D(points):
                points so that the axis aligned bounding box is CENTERED AT THE ORIGIN
     rectangle: (2,) float, size of extents once input points are transformed by transform
     '''
-    
+    # make sure input is a numpy array
     points = np.asanyarray(points)
+    # create a convex hull object of our points
+    # 'QbB' is a qhull option which has it scale the input to unit box 
+    # to avoid precision issues with very large/small meshes
     convex = spatial.ConvexHull(points, qhull_options='QbB')
     
     # (n,2,3) line segments
-    hull = convex.points[convex.simplices] 
+    hull_edges = convex.points[convex.simplices]
+    # (n,2) points on the convex hull
     hull_points = convex.points[convex.vertices]
     
-    edge_vectors = util.unitize(np.diff(hull, axis=1).reshape((-1,2)))
+    # unitize the direction of the edges of the hull polygon
+    edge_vectors = util.unitize(np.diff(hull_edges, axis=1).reshape((-1,2)))
+    # create a set of perpendicular vectors
     perp_vectors = np.fliplr(edge_vectors) * [-1.0,1.0]
     
+    # find the projection of every hull point on every edge vector
+    # this does create a potentially gigantic n^2 array in memory,
+    # and there is the 'rotating calipers' algorithm which avoids this
+    # however, we have reduced n with a convex hull and numpy dot products
+    # are extremely fast so in practice this usually ends up being pretty reasonable
     x = np.dot(edge_vectors, hull_points.T)
     y = np.dot(perp_vectors, hull_points.T)
+    
+    # reduce the projections to maximum and minimum per edge vector
     bounds = np.column_stack((x.min(axis=1), y.min(axis=1), x.max(axis=1), y.max(axis=1)))
     
+    # calculate the extents and area that a box drawn around each edge_vector
     extents  = np.diff(bounds.reshape((-1,2,2)), axis=1).reshape((-1,2))
     area     = np.product(extents, axis=1)
     area_min = area.argmin()
 
-    #(2,) float of OBB rectangle size
+    #(2,) float of smallest rectangle size
     rectangle = extents[area_min]
 
     # find the (3,3) homogenous transformation which moves the input points
@@ -83,6 +97,9 @@ def oriented_bounds(obj, angle_digits=2):
                bounding box of the input mesh to the origin. 
     extents: (3,) float, the extents of the mesh once transformed with to_origin
     '''
+    
+    # extract a set of convex hull vertices and normals from the input
+    # we bother to do this to avoid recomputing the full convex hull if possible
     if hasattr(obj, 'convex_hull_raw'):
         # if we have been passed a mesh, use its existing convex hull to pull from 
         # cache rather than recomputing. This version of the cached convex hull has 
@@ -105,10 +122,11 @@ def oriented_bounds(obj, angle_digits=2):
         raise ValueError('Oriented bounds must be passed a mesh or a set of points!')
                       
     # convert face normals to spherical coordinates on the upper hemisphere
-    # then merge angles to get unique spherical directions to check
+    # the vector_hemisphere call effectivly merges negative but otherwise identical vectors 
+    spherical_coords = util.vector_to_spherical(util.vector_hemisphere(hull_normals))
+    # the unique_rows call on merge angles gets unique spherical directions to check
     # we get a substantial speedup in the transformation matrix creation
     # inside the loop by converting to angles ahead of time
-    spherical_coords = util.vector_to_spherical(util.vector_hemisphere(hull_normals))
     spherical_unique = grouping.unique_rows(spherical_coords, digits=angle_digits)[0]
                             
     min_volume = np.inf
@@ -124,11 +142,15 @@ def oriented_bounds(obj, angle_digits=2):
         volume = np.product(box) * height
         if volume < min_volume:
             min_volume = volume
+            min_extents = np.append(box, height)
             min_2D = to_2D.copy()
             rotation_2D[0:2,2] = 0.0
             rotation_Z = rotation_2D_to_3D(rotation_2D)
-            extents = np.append(box, height)
+    
+    # combine the 2D OBB transformation with the 2D projection transform
     to_origin = np.dot(rotation_Z, min_2D)
+    
+    # transform points using our matrix to find the translation for the transform
     transformed = transform_points(vertices, to_origin)
     box_center = (transformed.min(axis=0) + transformed.ptp(axis=0)*.5)
     to_origin[0:3, 3] = -box_center
@@ -136,7 +158,8 @@ def oriented_bounds(obj, angle_digits=2):
     log.debug('oriented_bounds checked %d vectors in %0.4fs',
               len(spherical_unique),
               time.time()-tic)
-    return to_origin, extents
+              
+    return to_origin, min_extents
 
 def minimum_cylinder(obj, sample_count=15, angle_tol=.001):
     '''
