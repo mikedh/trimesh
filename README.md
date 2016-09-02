@@ -5,11 +5,10 @@ Python (2.7-3*) library for loading and using triangular meshes. The goal of the
 
 The API is mostly stable, but this should not be relied on and is not guaranteed; install a specific version if you plan on deploying something using trimesh as a backend.
 
-### Installation ###
+### Installation
 
-The **recommended** way to install with most functionality is:
+Once you have a python distribution and the system packages (from the pre-install), the **recommended** way to install with most functionality is:
 ```bash
-sudo apt-get install cmake openscad blender libspatialindex-dev libgeos-dev
 pip install trimesh[all]
 ```
 
@@ -22,7 +21,16 @@ pip install trimesh
 The minimum set of packages required to import `trimesh` are
 [numpy](http://www.numpy.org/), [scipy](http://www.scipy.org/) and [networkx](https://networkx.github.io/). 
 
-### Optional Dependencies ###
+
+#### Ubuntu Pre-install
+```bash
+sudo apt-get install cmake openscad blender libspatialindex-dev libgeos-dev
+```
+
+#### Windows Pre-Install:
+The easiest way to get going on Windows is to install the Anaconda Python distribution, followed by `shapely`, `rtree`, and `meshpy` from the [Unofficial Windows Binaries from Christoph Gohlke](http://www.lfd.uci.edu/~gohlke/pythonlibs/)
+
+#### Optional Dependencies
 
 To install the latest assimp for [additional import formats](http://www.assimp.org/main_features_formats.html) (python-pyassimp in Ubuntu 14.04 is very old):
 

@@ -35,11 +35,11 @@ def oriented_bounds_2D(points):
     '''
     
     points = np.asanyarray(points)
-    points_unique = points[grouping.unique_rows(points)[0]]
-    c = spatial.ConvexHull(points_unique, qhull_options='QbB')
+    convex = spatial.ConvexHull(points, qhull_options='QbB')
+    
     # (n,2,3) line segments
-    hull = c.points[c.simplices] 
-    hull_points = c.points[c.vertices]
+    hull = convex.points[convex.simplices] 
+    hull_points = convex.points[convex.vertices]
     
     edge_vectors = util.unitize(np.diff(hull, axis=1).reshape((-1,2)))
     perp_vectors = np.fliplr(edge_vectors) * [-1.0,1.0]
@@ -63,7 +63,7 @@ def oriented_bounds_2D(points):
 
     return transform, rectangle
 
-def oriented_bounds(obj, angle_tol=1e-6):
+def oriented_bounds(obj, angle_digits=2):
     '''
     Find the oriented bounding box for a Trimesh 
 
@@ -90,7 +90,7 @@ def oriented_bounds(obj, angle_tol=1e-6):
         # using this avoids having to compute the expensive corrected normals
         # that mesh.convex_hull uses since normal directions don't matter here
         vertices     = obj.convex_hull_raw.vertices
-        face_normals = obj.convex_hull_raw.face_normals
+        hull_normals = obj.convex_hull_raw.face_normals
     elif util.is_sequence(obj):
         points = np.asanyarray(obj)
         if util.is_shape(points, (-1,2)):
@@ -98,38 +98,43 @@ def oriented_bounds(obj, angle_tol=1e-6):
         elif util.is_shape(points, (-1,3)):
             hull_obj = spatial.ConvexHull(points)
             vertices = hull_obj.points[hull_obj.vertices]
-            face_normals, valid  = triangles.normals(hull_obj.points[hull_obj.simplices])
+            hull_normals, valid  = triangles.normals(hull_obj.points[hull_obj.simplices])
         else:
             raise ValueError('Points are not (n,3) or (n,2)!')
     else:
         raise ValueError('Oriented bounds must be passed a mesh or a set of points!')
-        
-    vectors = grouping.group_vectors(face_normals, 
-                                     angle=angle_tol,
-                                     include_negative=True)[0]
+                      
+    # convert face normals to spherical coordinates on the upper hemisphere
+    # then merge angles to get unique spherical directions to check
+    # we get a substantial speedup in the transformation matrix creation
+    # inside the loop by converting to angles ahead of time
+    spherical_coords = util.vector_to_spherical(util.vector_hemisphere(hull_normals))
+    spherical_unique = grouping.unique_rows(spherical_coords, digits=angle_digits)[0]
+                            
     min_volume = np.inf
     tic = time.time()
-    for i, normal in enumerate(vectors):
-        projected, to_3D = project_to_plane(vertices,
-                                            plane_normal     = normal,
-                                            return_planar    = False,
-                                            return_transform = True)
+    
+    for spherical in spherical_coords[spherical_unique]:
+        # a matrix which will rotate each hull normal to [0,0,1]
+        to_2D = np.linalg.inv(transformations.spherical_matrix(*spherical))
+        projected = transform_points(vertices, to_2D)                                   
+         
         height = projected[:,2].ptp()
         rotation_2D, box = oriented_bounds_2D(projected[:,0:2])
         volume = np.product(box) * height
         if volume < min_volume:
             min_volume = volume
+            min_2D = to_2D.copy()
             rotation_2D[0:2,2] = 0.0
             rotation_Z = rotation_2D_to_3D(rotation_2D)
-            to_2D = np.linalg.inv(to_3D)
             extents = np.append(box, height)
-    to_origin = np.dot(rotation_Z, to_2D)
+    to_origin = np.dot(rotation_Z, min_2D)
     transformed = transform_points(vertices, to_origin)
     box_center = (transformed.min(axis=0) + transformed.ptp(axis=0)*.5)
     to_origin[0:3, 3] = -box_center
  
     log.debug('oriented_bounds checked %d vectors in %0.4fs',
-              len(vectors),
+              len(spherical_unique),
               time.time()-tic)
     return to_origin, extents
 

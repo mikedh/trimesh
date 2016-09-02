@@ -1875,5 +1875,5 @@ def spherical_matrix(theta, phi):
     '''
     
     '''
-    result = euler_matrix(theta, phi, 0.0)
+    result = euler_matrix(0.0, phi, theta)
     return result
