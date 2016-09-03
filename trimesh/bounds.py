@@ -2,8 +2,6 @@ import numpy as np
 import time
 
 from .constants  import log
-from .geometry   import rotation_2D_to_3D
-from .points     import project_to_plane, transform_points
 
 from .nsphere import minimum_nsphere
 
@@ -73,7 +71,7 @@ def oriented_bounds_2D(points):
     # to have a bounding box centered at the origin
     offset = -bounds[area_min][0:2] - (rectangle * .5)
     theta  = np.arctan2(*edge_vectors[area_min][::-1])
-    transform = util.transformation_2D(offset, theta)
+    transform = transformations.planar_matrix(offset, theta)
 
     return transform, rectangle
 
@@ -135,7 +133,7 @@ def oriented_bounds(obj, angle_digits=2):
     for spherical in spherical_coords[spherical_unique]:
         # a matrix which will rotate each hull normal to [0,0,1]
         to_2D = np.linalg.inv(transformations.spherical_matrix(*spherical))
-        projected = transform_points(vertices, to_2D)                                   
+        projected = transformations.transform_points(vertices, to_2D)                                   
          
         height = projected[:,2].ptp()
         rotation_2D, box = oriented_bounds_2D(projected[:,0:2])
@@ -145,13 +143,13 @@ def oriented_bounds(obj, angle_digits=2):
             min_extents = np.append(box, height)
             min_2D = to_2D.copy()
             rotation_2D[0:2,2] = 0.0
-            rotation_Z = rotation_2D_to_3D(rotation_2D)
+            rotation_Z = transformations.planar_matrix_to_3D(rotation_2D)
     
     # combine the 2D OBB transformation with the 2D projection transform
     to_origin = np.dot(rotation_Z, min_2D)
     
     # transform points using our matrix to find the translation for the transform
-    transformed = transform_points(vertices, to_origin)
+    transformed = transformations.transform_points(vertices, to_origin)
     box_center = (transformed.min(axis=0) + transformed.ptp(axis=0)*.5)
     to_origin[0:3, 3] = -box_center
  
@@ -207,7 +205,7 @@ def minimum_cylinder(obj, sample_count=15, angle_tol=.001):
             volume (float)
         '''
         to_2D = transformations.spherical_matrix(*spherical)
-        projected = transform_points(hull, to_2D)
+        projected = transformations.transform_points(hull, to_2D)
         height = projected[:,2].ptp()
         # in degenerate cases return as infinite volume
         try:    center_2D, radius = minimum_nsphere(projected[:,0:2])

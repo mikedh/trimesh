@@ -2,12 +2,10 @@ import numpy as np
 import pprint
 
 from . import util
-from . import points
 from . import creation
 
 from .base      import Trimesh
 from .constants import log
-from .triangles import windings_aligned
    
 class _Primitive(Trimesh):
     '''
@@ -80,6 +78,7 @@ class _PrimitiveAttributes(object):
         for key, value in kwargs.items():
             if key in defaults:
                 self._data[key] = util.convert_like(value, defaults[key])
+        # if configured as immutable, apply setting afer instantiation values are set
         if 'mutable' in kwargs:
             self._mutable = bool(kwargs['mutable'])
             
@@ -155,7 +154,7 @@ class Cylinder(_Primitive):
 class Sphere(_Primitive):
     def __init__(self, *args, **kwargs):
         '''
-        Create a Sphere Primitive a subclass of Trimesh.
+        Create a Sphere Primitive, a subclass of Trimesh.
 
         Arguments
         ----------
@@ -172,6 +171,23 @@ class Sphere(_Primitive):
                     
         self.primitive = _PrimitiveAttributes(self._data, defaults, self, kwargs)
 
+    @property
+    def bounds(self):
+        # no docstring so will inherit Trimesh docstring
+        # return exact bounds from primitive center and radius (rather than faces)
+        # self.extents will also use this information
+        bounds = np.array([self.primitive.center - self.primitive.radius,
+                           self.primitive.center + self.primitive.radius])
+        return bounds
+        
+    @property
+    def bounding_box_oriented(self):
+        # for a sphere the oriented bounding box is the same as the axis aligned 
+        # bounding box, and a sphere is the absolute slowest case for the OBB calculation
+        # as it is a convex surface with a ton of face normals that all need to be checked
+        
+        return self.bounding_box
+		
     @util.cache_decorator
     def volume(self):
         '''

@@ -120,6 +120,9 @@ def is_shape(obj, shape):
     '''
     Compare the shape of a numpy.ndarray to a target shape, 
     with any value less than zero being considered a wildcard
+    
+    Note that if a list- like object is passed that is not a numpy
+    array, this function will not convert it and will return False.
 
     Arguments
     ---------
@@ -190,7 +193,11 @@ def make_sequence(obj):
 def vector_hemisphere(vectors):
     '''
     For a set of 3D vectors alter the sign so they are all in the upper 
-    hemisphere.
+    hemisphere. 
+    
+    If the vector lies on the plane, all vectors with negative Y will be reversed.
+    If the vector has a zero Z and Y value, vectors with a negative X value 
+    will be reversed
    
     Arguments
     ----------

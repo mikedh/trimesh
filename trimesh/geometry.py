@@ -265,28 +265,4 @@ def medial_axis(samples, contains):
     lines = voronoi.vertices[line_indices]    
     return load_path(lines)
 
-def rotation_2D_to_3D(matrix_2D):
-    '''
-    Given a 2D homogenous rotation matrix convert it to a 3D rotation
-    matrix that is rotating around the Z axis
 
-    Arguments
-    ----------
-    matrix_2D: (3,3) float, homogenous 2D rotation matrix
-    
-    Returns
-    ----------
-    matrix_3D: (4,4) float, homogenous 3D rotation matrix
-    '''
-
-    matrix_2D = np.asanyarray(matrix_2D)
-    if matrix_2D.shape != (3,3):
-        raise ValueError('Homogenous 2D transformation matrix required!')
-
-    matrix_3D = np.eye(4)    
-    # translation
-    matrix_3D[0:2, 3]   = matrix_2D[0:2,2] 
-    # rotation from 2D to around Z
-    matrix_3D[0:2, 0:2] = matrix_2D[0:2,0:2]
-
-    return matrix_3D
