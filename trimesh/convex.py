@@ -36,7 +36,7 @@ def convex_hull(obj, clean=True):
         if not util.is_shape(points, (-1,3)):
             raise ValueError('Object must be Trimesh or (n,3) points!')
     c = spatial.ConvexHull(points.reshape((-1,3)),
-                           qhull_options='QbB')
+                           qhull_options='QbB Pp')
     
     vid = np.sort(c.vertices)
     mask = np.zeros(len(c.points), dtype=np.int64)
@@ -156,6 +156,6 @@ def hull_points(obj):
         initial = np.asanyarray(obj)
         if len(initial.shape) != 2:
             raise ValueError('Points must be (n, dimension)!')
-        hull   = spatial.ConvexHull(initial, qhull_options='QbB')
+        hull   = spatial.ConvexHull(initial, qhull_options='QbB Pp')
         points = hull.points[hull.vertices]
     return points

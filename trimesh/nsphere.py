@@ -45,7 +45,7 @@ def minimum_nsphere(obj):
     # calculate a furthest site voronoi diagram
     # this will fail if the points are ALL on the surface of
     # the n-sphere but hopefully the least squares check caught those cases
-    voronoi = spatial.Voronoi(points, furthest_site=True)
+    voronoi = spatial.Voronoi(points, furthest_site=True, qhull_options='QbB Pp')
 
     # find the maximum radius^2 point for each of the voronoi vertices
     # this is worst case quite expensive, but we have used quick convex

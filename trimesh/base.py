@@ -1067,7 +1067,10 @@ class Trimesh(object):
         ----------
         translation: (3,) float, translation in XYZ
         '''
-        translation = np.asanyarray(translation).reshape(3)
+        translation = np.asanyarray(translation, dtype=np.float64)
+        if translation.shape != (3,):
+            raise ValueError('Translation must be (3,)!')
+            
         with self._cache:
             self.vertices += translation
         # we are doing a simple translation so normals are preserved
@@ -1083,6 +1086,9 @@ class Trimesh(object):
         scaling: float, scale factor
         '''
         scaling = float(scaling)
+        if not np.isfinite(scaling):
+            raise ValueError('Scaling factor must be finite number!')
+            
         matrix = np.eye(4)
         matrix[:3,:3] *= scaling
         # apply_transform will work nicely even on negative scales
@@ -1098,7 +1104,7 @@ class Trimesh(object):
         matrix: (4,4) float, homogenous transformation matrix
         '''
         
-        matrix = np.asanyarray(matrix)
+        matrix = np.asanyarray(matrix, dtype=np.float64)
         if matrix.shape != (4,4):
             raise ValueError('Transformation matrix must be (4,4)!')
 

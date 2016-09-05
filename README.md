@@ -7,7 +7,7 @@ The API is mostly stable, but this should not be relied on and is not guaranteed
 
 ## Installation
 
-Once you have a python distribution and the system packages (from the pre-install), the **recommended** way to install with most functionality is:
+Once you have a python distribution and the system packages from the pre-install, the **recommended** way to install with most functionality is:
 ```bash
 pip install trimesh[all]
 ```
@@ -23,6 +23,8 @@ The minimum set of packages required to import `trimesh` are
 
 
 ##### Ubuntu Pre-install
+Blender and openSCAD are backends used for boolean operations, libspatialindex and libgeos are the libraries used by RTree and Shapely respectivly, and cmake is include to build assimp if you want the latest version.
+
 ```bash
 sudo apt-get install cmake openscad blender libspatialindex-dev libgeos-dev
 ```
