@@ -6,6 +6,8 @@ import numpy as np
 from .constants import log, tol
 from .geometry  import plane_transform
 
+from . import transformations
+
 def point_plane_distance(points, plane_normal, plane_origin=[0,0,0]):
     w = np.array(points) - plane_origin
     distances = np.dot(plane_normal, w.T) / np.linalg.norm(plane_normal)
@@ -116,7 +118,7 @@ def project_to_plane(points,
     if transform is None:
         transform = plane_transform(plane_origin, plane_normal)
         
-    transformed = transform_points(points, transform)
+    transformed = transformations.transform_points(points, transform)
     transformed = transformed[:,0:(3-int(return_planar))]
 
     if return_transform: 
@@ -182,7 +184,7 @@ def absolute_orientation(points_A, points_B, return_error=False):
     M[0:3,3]   = T
 
     if return_error:
-        errors = np.sum((transform_points(points_A, M) - points_B)**2, axis = 1)
+        errors = np.sum((transformations.transform_points(points_A, M) - points_B)**2, axis = 1)
         return M, errors.max()
     return M
 

@@ -2,7 +2,6 @@ import numpy as np
 
 from . import transformations
 from . import util
-from . import points
 
 def transform(mesh):
     '''
@@ -22,7 +21,7 @@ def transform(mesh):
     matrix[0:3,3] = np.random.random(3)*1000
 
     triangles = np.random.permutation(mesh.triangles).reshape((-1,3))
-    triangles = points.transform_points(triangles, matrix)
+    triangles = transformations.transform_points(triangles, matrix)
 
     mesh_type = util.type_named(mesh, 'Trimesh')
     permutated = mesh_type(vertices = triangles,
