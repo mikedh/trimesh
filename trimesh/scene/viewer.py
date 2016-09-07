@@ -2,6 +2,8 @@ import pyglet
 import pyglet.gl as gl
 import numpy as np
 
+import os 
+
 from collections import deque
 
 from ..transformations import Arcball
@@ -22,7 +24,7 @@ class SceneViewer(pyglet.window.Window):
         
         self.reset_view(flags=flags)
 
-        visible = save_image is None
+        visible = save_image is None or os.name != 'posix'
         width, height = resolution
 
         try:

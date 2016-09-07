@@ -30,7 +30,6 @@ from . import nsphere
 from .io.export    import export_mesh
 from .ray.ray_mesh import RayMeshIntersector, contains_points
 from .voxel        import Voxel
-from .points       import transform_points
 from .constants    import log, _log_time, tol
 from .scene        import Scene
 
@@ -1115,7 +1114,7 @@ class Trimesh(object):
         new_normals = np.dot(matrix[0:3, 0:3], self.face_normals.T).T
         # easier than figuring out what the scale factor of the matrix is
         new_normals = util.unitize(new_normals)
-        new_vertices = transform_points(self.vertices, matrix)
+        new_vertices = transformations.transform_points(self.vertices, matrix)
         # check the first face against the first normal to see if winding is correct
         aligned_pre = triangles.windings_aligned(self.vertices[self.faces[:1]], 
                                                  self.face_normals[:1])[0]

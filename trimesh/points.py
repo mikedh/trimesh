@@ -5,26 +5,6 @@ import numpy as np
 
 from .constants import log, tol
 from .geometry  import plane_transform
-    
-def transform_points(points, matrix, translate=True):
-    '''
-    Returns points, rotated by transformation matrix 
-    If points is (n,2), matrix must be (3,3)
-    if points is (n,3), matrix must be (4,4)
-
-    Arguments
-    ----------
-    points: (n, 2|3) set of points
-    matrix: (3|4, 3|4) rotation matrix
-    translate: boolean, apply translation from matrix or not
-
-    '''
-    points = np.asanyarray(points)
-    dimension   = points.shape[1]
-    column      = np.zeros(len(points)) + int(bool(translate))
-    stacked     = np.column_stack((points, column))
-    transformed = np.dot(matrix, stacked.T).T[:,0:dimension]
-    return transformed
 
 def point_plane_distance(points, plane_normal, plane_origin=[0,0,0]):
     w = np.array(points) - plane_origin

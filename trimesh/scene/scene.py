@@ -1,8 +1,7 @@
 import numpy as np
 
-from ..points          import transform_points
 from ..grouping        import group_rows
-from ..transformations import rotation_matrix
+from ..transformations import rotation_matrix, transform_points
 from .transforms       import TransformForest
 
 from .. import util

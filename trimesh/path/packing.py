@@ -52,7 +52,7 @@ class RectangleBin:
         # we need to create some children to insert into
         # first, we decide which way to split
         vertical      = size_test[0] > size_test[1]
-        length        = rectangle_size[not vertical]
+        length        = rectangle_size[int(not vertical)]
         child_bounds  = self.split(length, vertical)
 
         self.child[0] = RectangleBin(bounds=child_bounds[0])
@@ -123,8 +123,7 @@ def pack_paths(paths, show=False):
     polygons   = [i.polygons_closed[i.root[0]] for i in paths_full]
     inserted, transforms = multipack(np.array(polygons))
     for path, transform in zip(paths_full, transforms):
-        path.transform(transform)
-        if show: path.plot_discrete(show=False)
+        if show: path.plot_discrete(show=False, transform=transform)
     if show:
         import matplotlib.pyplot as plt
         plt.show()
@@ -146,6 +145,10 @@ def multipack(polygons,
     rectangles                += 2.0*buffer_dist
     polygon_area               = np.array([p.area for p in polygons])
 
+
+    for i, r in enumerate(rectangles):
+        transforms_obb[i][0:2,2] += r*.5
+    
 
     tic             = time_function()  
     overall_density = 0
@@ -193,10 +196,3 @@ def multipack(polygons,
                 rectangles[overall_inserted])
 
     return overall_inserted, transforms_packed
-
-class Packer:
-    def __init__(self, sheet_size=None):
-        pass
-
-    def add(self):
-        pass

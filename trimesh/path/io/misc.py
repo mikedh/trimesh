@@ -75,6 +75,7 @@ def faces_to_path(mesh, face_ids=None):
     else:                faces = mesh.faces[face_ids]
 
     edges        = np.sort(faces_to_edges(faces), axis=1)
-    unique_edges = group_rows(edges, require_count=1)
-    segments     = mesh.vertices[edges[unique_edges]]        
+    unique_edges = group_rows(edges, require_count=1)    
+    segments     = mesh.vertices[edges[unique_edges]]
     return lines_to_path(segments)
+    

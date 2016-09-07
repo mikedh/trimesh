@@ -16,13 +16,17 @@ from .simplify  import simplify_path, points_to_spline_entity
 from .polygons  import polygons_enclosure_tree, medial_axis, polygon_hash, path_to_polygon, polygon_obb
 from .traversal import vertex_graph, closed_paths, discretize_path
 from .io.export import export_path
-from ..points    import plane_fit, transform_points
+from ..points    import plane_fit
 from ..geometry  import plane_transform
 from ..grouping  import unique_rows
 from ..units     import _set_units
 from ..util      import decimal_to_digits
 from ..constants import log
 from ..constants import tol_path as tol
+
+
+
+from .. import transformations
 
 from .. import util
 
@@ -36,7 +40,8 @@ class Path(object):
     def __init__(self, 
                  entities = [], 
                  vertices = [],
-                 metadata = None):
+                 metadata = None,
+                 process  = True):
         '''
         entities:
             Objects which contain things like keypoints, as 
@@ -53,8 +58,9 @@ class Path(object):
 
         self._cache = util.Cache(id_function = self.md5)
 
-        # literally nothing will work if vertices aren't merged properly
-        self.merge_vertices()
+        if process:
+            # literally nothing will work if vertices aren't merged properly
+            self.merge_vertices()
 
     def process(self):
         log.debug('Processing drawing')
@@ -130,8 +136,8 @@ class Path(object):
     def set_units(self, desired, guess=False):
         _set_units(self, desired, guess)
 
-    def transform(self, transform):
-        self.vertices = transform_points(self.vertices, transform)
+    def apply_transform(self, transform):
+        self.vertices = transformations.transform_points(self.vertices, transform)
 
     def rezero(self):
         self.vertices -= self.vertices.min(axis=0)
@@ -285,9 +291,10 @@ class Path3D(Path):
             C, N = plane_fit(self.vertices)
             if normal is not None:
                 N *= np.sign(np.dot(N, normal))
+                N = normal
             to_2D = plane_transform(C,N)
  
-        flat = transform_points(self.vertices, to_2D)
+        flat = transformations.transform_points(self.vertices, to_2D)
         
         if check and np.any(np.std(flat[:,2]) > tol.planar):
             log.error('points have z with deviation %f', np.std(flat[:,2]))
@@ -476,11 +483,11 @@ class Path2D(Path):
                 else:
                     axes.plot(*vertices.T, color=color)
             else:
-                transformed = transform_points(vertices, transform)
+                transformed = transformations.transform_points(vertices, transform)
                 plt.plot(*transformed.T, color=color)
         for i, polygon in enumerate(self.polygons_closed):
             color = ['g','k'][i in self.root]
-            plot_transformed(np.column_stack(polygon.boundary.xy), color=color)
+            plot_transformed(np.array(polygon.boundary.coords), color=color)
         if show: plt.show()
 
     def plot_entities(self, show=False):

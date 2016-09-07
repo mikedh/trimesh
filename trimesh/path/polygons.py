@@ -10,8 +10,8 @@ from .. import bounds
 from ..geometry   import medial_axis as _medial_axis
 from ..constants  import tol_path as tol
 from ..constants  import log
-from ..points     import transform_points
-from ..util       import transformation_2D, is_sequence
+from ..transformations import transform_points, planar_matrix
+from ..util       import is_sequence
 from .traversal   import resample_path
 
 def polygons_enclosure_tree(polygons):
@@ -101,7 +101,7 @@ def rasterize_polygon(polygon, pitch, angle=0, return_points=False):
     '''
     
     rectangle, transform = polygon_obb(polygon)
-    transform            = np.dot(transform, transformation_2D(theta=angle))
+    transform            = np.dot(transform, planar_matrix(origin=[0,0], theta=angle))
     vertices             = transform_polygon(polygon, transform)
    
     # after rotating, we want to move the polygon back to the first quadrant
