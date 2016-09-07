@@ -35,14 +35,7 @@ class Voxel:
         
     def show(self):
         plot_raw(self.raw, **self.run)
-
-def run_to_raw(shape, index_xy, index_z, **kwargs):
-    raw = np.zeros(shape, dtype=np.bool)
-    for xy, z in zip(index_xy, index_z):
-        for z_start, z_end in np.reshape(z,(-1,2)):
-            raw[xy[0], xy[1]][z_start:z_end] = True
-    return raw
-
+    
 def mesh_to_run(mesh, pitch):
     '''
     Convert a mesh to a run-length encoded voxel grid. 
@@ -65,7 +58,7 @@ def mesh_to_run(mesh, pitch):
                                     ray_vectors)).reshape((-1,2,3))
 
     hits        = mesh.ray.intersects_location(rays)    
-    raw_shape   = np.ptp(bounds/pitch, axis=0).astype(int)
+    raw_shape   = np.ceil(np.ptp(bounds/pitch, axis=0)).astype(int)
     grid_origin = bounds[0]
     grid_index  = np.rint((grid/pitch) - (grid_origin[0:2]/pitch)).astype(int)
 

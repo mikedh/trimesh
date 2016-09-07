@@ -62,20 +62,7 @@ def unitize(points, check_valid=False):
     else: 
         unit_vectors = (points.T / length).T
     return unit_vectors
-
-def transformation_2D(offset=[0.0,0.0], theta=0.0):
-    '''
-    2D homogeonous transformation matrix
-    '''
-    T = np.eye(3)
-    s = np.sin(theta)
-    c = np.cos(theta)
-
-    T[0,0:2] = [ c, s]
-    T[1,0:2] = [-s, c]
-    T[0:2,2] = offset
-    return T
-
+    
 def euclidean(a, b):
     '''
     Euclidean distance between vectors a and b
@@ -231,7 +218,6 @@ def vector_hemisphere(vectors):
     
     oriented = vectors * signs.reshape((-1,1))
     return oriented
-    
     
 def vector_to_spherical(cartesian):
     '''

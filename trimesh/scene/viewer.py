@@ -2,7 +2,7 @@ import pyglet
 import pyglet.gl as gl
 import numpy as np
 
-import os 
+import platform
 
 from collections import deque
 
@@ -10,6 +10,7 @@ from ..transformations import Arcball
 
 #smooth only when fewer faces than this
 _SMOOTH_MAX_FACES = 100000
+
 
 class SceneViewer(pyglet.window.Window):
     def __init__(self, 
@@ -24,7 +25,7 @@ class SceneViewer(pyglet.window.Window):
         
         self.reset_view(flags=flags)
 
-        visible = save_image is None or os.name != 'posix'
+        visible = (save_image is None) or (platform.system() != 'Linux')
         width, height = resolution
 
         try:
