@@ -53,8 +53,9 @@ class SceneViewer(pyglet.window.Window):
         self.vertex_list_md5 = {}
 
         for name, mesh in scene.meshes.items():
-            self._add_mesh(name, mesh, smooth)
-            
+            self._add_mesh(name_mesh = name, 
+                           mesh      = mesh, 
+                           smooth    = smooth)
         self.init_gl()
         self.set_size(*resolution)
         self.update_flags()

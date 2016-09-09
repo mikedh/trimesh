@@ -83,8 +83,7 @@ If you are using a lot of graph operations (specifically mesh.split) trimesh wil
 ## Quick Start
 
 Here is an example of loading a mesh from file and colorizing its faces. Here is a nicely formatted
-[ipython notebook version](http://github.com/mikedh/trimesh/blob/master/examples/quick_start.ipynb) of this example.
-
+[ipython notebook version](http://github.com/mikedh/trimesh/blob/master/examples/quick_start.ipynb) of this example. Also check out the [cross section example](https://github.com/mikedh/trimesh/blob/master/examples/section.ipynb) or possibly the [integration of a function over a mesh example](https://github.com/mikedh/trimesh/blob/master/examples/integrate.ipynb).
 
 ```python
 import numpy as np

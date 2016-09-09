@@ -29,8 +29,9 @@ class Voxel:
     def origin(self):
         return self.run['origin']
 
+    @property
     def volume(self):
-        volume = self.raw.sum() * (self.pitch**2)
+        volume = self.raw.sum() * (self.pitch**3)
         return volume
         
     def show(self):
@@ -92,6 +93,16 @@ def mesh_to_run(mesh, pitch):
               'pitch'    : pitch}    
     return result        
 
+def run_to_raw(shape, index_xy, index_z, **kwargs):
+    '''
+    Convert a set of voxel runs to a 3D numpy array.
+    '''
+    raw = np.zeros(shape, dtype=np.bool)
+    for xy, z in zip(index_xy, index_z):
+        for z_start, z_end in np.reshape(z,(-1,2)):
+            raw[xy[0], xy[1]][z_start:z_end] = True
+    return raw
+    
 def plot_raw(raw, pitch, origin, **kwargs):
     render = np.column_stack(np.nonzero(raw))*pitch + origin
     plot_points(render)
