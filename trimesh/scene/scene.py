@@ -127,7 +127,7 @@ class Scene:
         
         node_groups = group_rows(node_ids, digits=1)
 
-        duplicates  = [node_keys[g].tolist() for g in node_groups]
+        duplicates  = [np.sort(node_keys[g]).tolist() for g in node_groups]
         return duplicates
 
     def set_camera(self, angles=None, distance=None, center=None):
@@ -158,7 +158,7 @@ class Scene:
         for node_id, mesh_id in self.nodes.items():
             transform = self.transforms.get(node_id)
             current   = self.meshes[mesh_id].copy()
-            current.transform(transform)
+            current.apply_transform(transform)
             result.append(current)
         return np.array(result)
 

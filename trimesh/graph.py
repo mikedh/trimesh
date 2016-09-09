@@ -169,6 +169,9 @@ def split(mesh, only_watertight=True, adjacency=None):
 
     def split_nx():
         adjacency_graph = nx.from_edgelist(adjacency)
+        # make sure every face has a node, so single triangles 
+        # aren't discarded (as they aren't adjacent to anything)
+        adjacency_graph.add_nodes_from(np.arange(len(mesh.faces)))
         components = nx.connected_components(adjacency_graph)
         result = mesh.submesh(components, only_watertight=only_watertight)
         return result

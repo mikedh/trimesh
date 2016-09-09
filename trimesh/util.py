@@ -174,7 +174,7 @@ def make_sequence(obj):
     Useful for wrapping functions which sometimes return single 
     objects and other times return lists of objects. 
     '''
-    if is_sequence(obj): return np.array(obj)
+    if is_sequence(obj): return np.array(list(obj))
     else:                return np.array([obj])
 
 def vector_hemisphere(vectors):
