@@ -249,7 +249,7 @@ class Box(_Primitive):
         return volume
         
     def _create_mesh(self):
-        log.debug('Creating mesh for box _Primitive')
+        log.debug('Creating mesh for box Primitive')
         box = creation.box(extents   = self.primitive.extents,
                            transform = self.primitive.transform)
                               

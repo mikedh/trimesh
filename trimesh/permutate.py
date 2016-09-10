@@ -3,14 +3,14 @@ import numpy as np
 from . import transformations
 from . import util
 
-def transform(mesh):
+def transform(mesh, translation_scale=1000.0):
     '''
     Return a permutated variant of a mesh by randomly reording faces 
     and rotatating + translating a mesh by a random matrix.
     
     Arguments
     ----------
-    mesh:   Trimesh object (will not be altered by this function)
+    mesh:   Trimesh object (input will not be altered by this function)
              
     Returns
     ----------
@@ -18,7 +18,7 @@ def transform(mesh):
                 rotated and reordered.
     '''
     matrix = transformations.random_rotation_matrix()
-    matrix[0:3,3] = np.random.random(3)*1000
+    matrix[0:3,3] = np.random.random(3) * translation_scale
 
     triangles = np.random.permutation(mesh.triangles).reshape((-1,3))
     triangles = transformations.transform_points(triangles, matrix)

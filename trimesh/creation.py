@@ -221,7 +221,8 @@ def box(extents=None, transform=None):
 
     box = Trimesh(vertices     = vertices, 
                   faces        = faces,
-                  face_normals = face_normals)
+                  face_normals = face_normals,
+                  process      = False)
     if transform is not None:
         box.apply_transform(transform)
                   
@@ -230,28 +231,43 @@ def box(extents=None, transform=None):
 def icosahedron():
     '''
     Create an icosahedron, a 20 faced polyhedron.
+
     '''
     t = (1.0 + 5.0**.5) / 2.0
-    v = [-1,t,0,1,t,0,-1,-t,0,1,-t,0,0,-1,t,0,1,t,
-         0,-1,-t,0,1,-t,t,0,-1,t,0,1,-t,0,-1,-t,0,1]
-    f = [0,11,5,0,5,1,0,1,7,0,7,10,0,10,11,
-         1,5,9,5,11,4,11,10,2,10,7,6,7,1,8,
-         3,9,4,3,4,2,3,2,6,3,6,8,3,8,9,
-         4,9,5,2,4,11,6,2,10,8,6,7,9,8,1]
-    v = np.reshape(v, (-1,3))
-    f = np.reshape(f, (-1,3))
-    m = Trimesh(v,f)
-    return m
+    vertices = [-1,t,0,1,t,0,-1,-t,0,1,-t,0,0,-1,t,0,1,t,
+                 0,-1,-t,0,1,-t,t,0,-1,t,0,1,-t,0,-1,-t,0,1]
+    faces = [0,11,5,0,5,1,0,1,7,0,7,10,0,10,11,
+             1,5,9,5,11,4,11,10,2,10,7,6,7,1,8,
+             3,9,4,3,4,2,3,2,6,3,6,8,3,8,9,
+             4,9,5,2,4,11,6,2,10,8,6,7,9,8,1]
+    # make every vertex have radius 1.0
+    vertices = np.reshape(vertices, (-1,3)) / 1.9021130325903071
+    faces = np.reshape(faces, (-1,3))
+    mesh = Trimesh(vertices = vertices, 
+                   faces    = faces,
+                   process  = False)
+    return mesh
 
-def icosphere(subdivisions=3):
+def icosphere(subdivisions=3, radius = 1.0):
     '''
-    Create an isophere of radius 1.0 centered at the origin.
+    Create an isophere centered at the origin.
+    
+    Arguments
+    ----------
+    subdivisions: int, how many times to subdivide the mesh. 
+                  Note that the number of faces will grow as function of
+                  4 ** subdivisions, so you probably want to keep this under ~5
+    radius: float, radius of resulting sphere
+    
+    Returns
+    ---------
+    ico: trimesh.Trimesh object of sphere
     '''
     def refine_spherical():
         vectors = ico.vertices
         scalar  = (vectors ** 2).sum(axis=1)**.5
         unit    = vectors / scalar.reshape((-1,1))
-        offset  = 1.0 - scalar
+        offset  = radius - scalar
         ico.vertices += unit * offset.reshape((-1,1))
     ico = icosahedron()
     ico._validate = False
@@ -261,7 +277,7 @@ def icosphere(subdivisions=3):
     ico._validate = True
     return ico
 
-def cylinder(radius, height, sections=32):
+def cylinder(radius=1.0, height=1.0, sections=32):
     '''
     Create a mesh of a cylinder along Z centered at the origin.
 
