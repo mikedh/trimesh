@@ -20,14 +20,20 @@ class VoxelTest(g.unittest.TestCase):
                 self.assertTrue(isinstance(v.pitch, float))
                 self.assertTrue(g.np.isfinite(v.pitch))
                 
-                self.assertTrue(g.np.issubdtype(v.filled, int))
-                self.assertTrue(v.filled > 0)
+                self.assertTrue(g.np.issubdtype(v.filled_count, int))
+                self.assertTrue(v.filled_count > 0)
                 
                 self.assertTrue(isinstance(v.mesh, g.trimesh.Trimesh))
                 self.assertTrue(abs(v.mesh.volume - v.volume) < g.tol.merge)
                 
-                self.assertTrue(g.trimesh.util.is_shape(v.points, (-1,3)))            
-            
+                self.assertTrue(g.trimesh.util.is_shape(v.points, (-1,3)))
+
+                for p in v.points:
+                    self.assertTrue(v.is_filled(p))
+
+                outside = m.bounds[1] + m.scale
+                self.assertFalse(v.is_filled(outside))
+                    
             g.log.info('Mesh volume was %f, voxelized volume was %f',
                        m.volume,
                        v.volume)

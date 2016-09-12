@@ -1,13 +1,15 @@
 import numpy as np
+import networkx as nx
+
+from . import util
+
+from .constants import log, tol
 from collections import deque
 
-from networkx      import from_edgelist, connected_components
-
-from .util      import decimal_to_digits, vector_to_spherical, spherical_to_vector, unitize
-from .constants import log, tol
-
-try: from scipy.spatial import cKDTree as KDTree
-except ImportError: log.warning('Scipy unavailable')
+try: 
+    from scipy.spatial import cKDTree as KDTree
+except ImportError: 
+    log.warning('Scipy unavailable')
     
 def merge_vertices_hash(mesh):
     '''
@@ -92,9 +94,9 @@ def float_to_int(data, digits=None):
         return data.astype(dtype_out)
             
     if digits is None: 
-        digits = decimal_to_digits(tol.merge)
+        digits = util.decimal_to_digits(tol.merge)
     elif isinstance(digits, float) or isinstance(digits, np.float):
-        digits = decimal_to_digits(digits)
+        digits = util.decimal_to_digits(digits)
     elif not (isinstance(digits, int) or isinstance(digits, np.integer)):
         log.warn('Digits were passed as %s!', digits.__class__.__name__)
         raise ValueError('Digits must be None, int, or float!')
@@ -326,7 +328,7 @@ def group_vectors(vectors,
     are doing actual distance queries. 
     '''
     dist_max            = np.tan(angle)
-    unit_vectors, valid = unitize(vectors, check_valid = True)
+    unit_vectors, valid = util.unitize(vectors, check_valid = True)
     valid_index         = np.nonzero(valid)[0]
     consumed            = np.zeros(len(unit_vectors), dtype=np.bool)
     tree                = KDTree(unit_vectors)
@@ -358,9 +360,9 @@ def group_vectors_spherical(vectors,
     The main difference is that max_angle can be much looser, as we
     are doing actual distance queries. 
     '''
-    spherical = vector_to_spherical(vectors)
+    spherical = util.vector_to_spherical(vectors)
     angles, groups = group_distance(spherical, angle)
-    new_vectors = spherical_to_vector(angles)
+    new_vectors = util.spherical_to_vector(angles)
     return new_vectors, groups
 
 def group_distance(values, distance):
@@ -412,11 +414,11 @@ def clusters(points, radius):
     '''
     tree   = KDTree(points)
     pairs  = tree.query_pairs(radius)
-    graph  = from_edgelist(pairs)
-    groups = list(connected_components(graph))
+    graph  = nx.from_edgelist(pairs)
+    groups = list(nx.connected_components(graph))
     return groups
                   
-def blocks(data, min_len=2, max_len=np.inf, digits=None):
+def blocks(data, min_len=2, max_len=np.inf, digits=None, only_nonzero=False):
     '''
     Given an array, find the indices of contiguous blocks
     of equal values.
@@ -427,7 +429,8 @@ def blocks(data, min_len=2, max_len=np.inf, digits=None):
     min_len: int, the minimum length group to be returned
     max_len: int, the maximum length group to be retuurned
     digits:  if dealing with floats, how many digits to use
-
+    only_nonzero: bool, only return blocks of non- zero values
+    
     Returns
     ---------
     blocks: (m) sequence of indices referencing data
@@ -442,11 +445,45 @@ def blocks(data, min_len=2, max_len=np.inf, digits=None):
     infl_len = np.diff(infl)    
     infl_ok  = np.logical_and(infl_len >= min_len,
                               infl_len <= max_len)
-    if data.dtype.kind == 'b':
+
+    if only_nonzero:
         # check to make sure the values of each contiguous block are True,
         # by checking the first value of each block
         infl_ok  = np.logical_and(infl_ok, 
                               data[infl[:-1]])
+        print(infl_ok)
     # inflate start/end indexes into full ranges of values 
     blocks = [np.arange(infl[i], infl[i+1]) for i, ok in enumerate(infl_ok) if ok]
     return blocks
+
+def merge_intervals(intervals):
+    '''
+    Given a list of intervals, merge overlapping ranges into a single list 
+    of non- overlapping ranges
+    
+    Arguments
+    -----------
+    intervals: (n,2) list of [start, end] values for ranges
+    
+    Returns
+    -----------
+    merged: (m,2) list of [start, end] values of ranges with no overlaps
+    '''
+    def merge_generator(intervals):
+        intervals.sort(axis=1)
+        intervals = intervals[np.lexsort(intervals.T[::-1])]
+        low, high = intervals[0]
+        for current in intervals[1:]:
+            if current[0] <= high: 
+                high = max(high, current[1])  
+            else:
+                yield [low, high]
+                low, high = current 
+        yield [low, high]  
+        
+    intervals = np.asanyarray(intervals)
+    if not util.is_shape(intervals, (-1,2)):
+        raise ValueError('Intervals must be (n,2)!')
+
+    merged = np.array([i for i in merge_generator(intervals)])
+    return merged

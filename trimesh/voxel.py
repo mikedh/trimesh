@@ -83,7 +83,7 @@ class Voxel:
         return tuple(self.run['shape'])
         
     @util.cache_decorator
-    def filled(self):
+    def filled_count(self):
         '''
         Return the number of voxels that are occupied.
         
@@ -91,8 +91,10 @@ class Voxel:
         --------
         filled: int, number of voxels that are occupied
         '''
-        
-        filled = np.abs(np.diff(self.run['index_z'], axis=1)).sum()
+        if len(self.run['index_z']) > 0:
+            filled = np.abs(np.diff(self.run['index_z'], axis=1)).sum()
+        else:
+            filled = 0
         return filled
         
     @util.cache_decorator
@@ -115,7 +117,7 @@ class Voxel:
         ---------
         volume: float, volume of filled cells
         '''
-        volume = self.filled * (self.pitch**3)
+        volume = self.filled_count * (self.pitch**3)
         return volume
         
     @util.cache_decorator
@@ -147,6 +149,45 @@ class Voxel:
         '''
         mesh = run_to_mesh(self.run)
         return mesh
+
+    def point_to_index(self, point):
+        '''
+        Convert a point to an index in the raw array.
+
+        Arguments
+        ----------
+        point: (3,) float, point in space
+
+        Returns
+        ---------
+        index: (3,) int tuple, index in self.raw
+        '''
+        point = np.asanyarray(point)
+        if point.shape != (3,):
+            raise ValueError('to_index requires a single point')
+        index = np.round((point - self.origin) / self.pitch).astype(int)
+        index = tuple(index)
+        return index
+    
+    def is_filled(self, point):
+        '''
+        Query a point to see if the voxel cell it lies in is filled or not.
+
+        Arguments
+        ----------
+        point: (3,) float, point in space
+
+        Returns
+        ---------
+        is_filled: bool, is cell occupied or not
+        '''
+        index = self.point_to_index(point)
+        in_range = (np.array(index) < np.array(self.shape)).all()
+        if in_range:
+            is_filled = self.raw[index]
+        else:
+            is_filled = False
+        return is_filled
         
     def show(self):
         '''
@@ -243,8 +284,7 @@ def run_to_raw(shape, index_xy, index_z, **kwargs):
     '''
     raw = np.zeros(shape, dtype=np.bool)
     for xy, z in zip(index_xy, index_z):
-        for z_start, z_end in np.reshape(z,(-1,2)):
-            raw[xy[0], xy[1]][z_start:z_end] = True
+        raw[xy[0], xy[1]][z[0]:z[1]] = True
     return raw
    
 def raw_to_points(raw, pitch, origin):
@@ -287,7 +327,6 @@ def run_to_mesh(run):
     offsets = (run['index_xy'] * run['pitch'])
     offsets = np.column_stack((offsets, z_middle)) + run['origin']
     
-
     b = box()
     vertices = np.tile(b.vertices, (columns, 1, 1))
     vertices[:,:,2] *= z_height.reshape((-1,1))
@@ -296,9 +335,12 @@ def run_to_mesh(run):
     vertices = vertices.reshape((-1,3))
     
     faces = np.tile(b.faces, (columns, 1, 1))
-    face_offset = (np.tile(np.arange(columns)*len(b.vertices), (3,1)).T).reshape((-1,1,3))
+    face_offset = (np.tile(np.arange(columns)*len(b.vertices),
+                           (3,1)).T).reshape((-1,1,3))
     faces += face_offset
     faces = faces.reshape((-1,3))
     
-    rough = Trimesh(vertices=vertices, faces=faces, process=False)
+    rough = Trimesh(vertices = vertices,
+                    faces    = faces,
+                    process  = False)
     return rough
