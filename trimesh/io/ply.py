@@ -161,7 +161,7 @@ def ply_ascii(elements, file_obj):
     position = 0
 
     for key, values in elements.items():
-        dtype_str = values['properties'].values()[0]
+        dtype_str = list(values['properties'].values())[0]
         if '$LIST' in dtype_str:
             rows  = int(raw[position]) + 1
             count = values['length'] * rows
