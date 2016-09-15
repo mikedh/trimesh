@@ -2,8 +2,9 @@ import numpy as np
 from collections import OrderedDict
 from string import Template
 
+from ..util      import is_shape
 from ..resources import get_resource
-
+ 
 def load_ply(file_obj, *args, **kwargs):
     '''
     Load a PLY file from an open file object.
@@ -17,68 +18,182 @@ def load_ply(file_obj, *args, **kwargs):
     mesh_kwargs: dictionary of mesh info which can be passed to 
                  Trimesh constructor, eg: a = Trimesh(**mesh_kwargs)
     '''
-    def ply_element_colors(element):
+    
+    # OrderedDict which is populated from the header
+    elements, is_ascii = ply_read_header(file_obj)
+
+    if is_ascii:
+        ply_ascii(elements, file_obj)
+    else:
+        ply_binary(elements, file_obj)
+
+    kwargs = ply_elements_kwargs(elements) 
+    return kwargs
+
+def export_ply(mesh):
+    '''
+    Export a mesh in the PLY format.
+    
+    Arguments
+    ----------
+    mesh: Trimesh object
+    
+    Returns
+    ----------
+    export: bytes of result
+    '''
+    dtype_face = np.dtype([('count', '<u1'), 
+                           ('index', '<i4', (3))])
+    dtype_vertex = np.dtype([('vertex', '<f4', (3))])
+    
+    faces = np.zeros(len(mesh.faces), dtype=dtype_face)
+    faces['count'] = 3
+    faces['index'] = mesh.faces
+    
+    vertex = np.zeros(len(mesh.vertices), dtype=dtype_vertex)
+    vertex['vertex'] = mesh.vertices
+    
+    template = Template(get_resource('ply.template'))
+    export = template.substitute({'vertex_count' : len(mesh.vertices),
+                                  'face_count'   : len(mesh.faces)}).encode('utf-8')
+    export += vertex.tostring()
+    export += faces.tostring()
+    return export
+
+def ply_read_header(file_obj):
+    '''
+    Read the ASCII header of a PLY file, and leave the file object 
+    at the position of the start of data but past the data.
+    '''
+    # from ply specification
+    dtypes = {'char'  : 'i1',
+              'uchar' : 'u1',
+              'short' : 'i2',
+              'ushort': 'u2',
+              'int'   : 'i4',
+              'uint'  : 'u4',
+              'float' : 'f4',
+              'double': 'f8'}
+
+    if not 'ply' in str(file_obj.readline()):
+        raise ValueError('This aint a ply file')
+
+    encoding = file_obj.readline().decode('utf-8').strip().lower()
+    encoding_ascii = 'ascii' in encoding
+
+
+
+    endian   = ['<', '>'][int('big' in encoding)]
+    elements = OrderedDict()
+
+    while True:
+        line = file_obj.readline()
+        if line is None:
+            raise ValueError('Header wasn\'t terminated properly!')
+        line = line.decode('utf-8').strip().split()
+
+        if 'end_header' in line:
+            break
+
+        if 'element' in line[0]:
+            name, length = line[1:]
+            elements[name] = {'length'     : int(length), 
+                              'properties' : OrderedDict()}
+        elif 'property' in line[0]:
+            if len(line) == 3:
+                dtype, field = line[1:]
+                elements[name]['properties'][str(field)] = endian + dtypes[dtype]
+            elif 'list' in line[1]:
+                dtype_count, dtype, field = line[2:]
+                elements[name]['properties'][str(field)] = (endian +
+                                                            dtypes[dtype_count] + 
+                                                            ', ($LIST,)'+
+                                                            endian + 
+                                                            dtypes[dtype])
+    return elements, encoding_ascii
+
+def ply_elements_kwargs(elements):
+    '''
+    Given an elements data structure, extract the keyword
+    arguments that a Trimesh object constructor will expect.
+    '''
+    vertices = np.column_stack([elements['vertex']['data'][i] for i in 'xyz'])
+    if not is_shape(vertices, (-1,3)):
+        raise ValueError('Vertices were not (n,3)!')
+
+    if is_shape(elements['face']['data'], (-1, (3,4))):
+        faces = elements['face']['data']
+    else:
+        faces = elements['face']['data']['vertex_indices']['f1']
+
+    if not is_shape(faces, (-1,(3,4))):
+        raise ValueError('Faces weren\'t (n,(3|4))!')
+
+    face_colors   = ply_element_colors(elements['face'])
+    vertex_colors = ply_element_colors(elements['vertex'])
+
+    result = {'vertices'      : vertices,
+              'faces'         : faces,
+              'face_colors'   : face_colors,
+              'vertex_colors' : vertex_colors}
+    return result
+
+def ply_element_colors(element):
+    '''
+    Given an element, try to extract RGBA color from its properties
+    and return them as an (n,3|4) array.
+    '''
+    color_keys = ['red', 'green', 'blue', 'alpha']
+    candidate_colors = [element['data'][i] for i in color_keys if i in element['properties']]
+
+    if len(candidate_colors) >= 3:
+        return np.column_stack(candidate_colors)
+    return None
+
+def ply_ascii(elements, file_obj):
+    '''
+    Load data from an ASCII PLY file into the elements data structure.
+    '''
+    # list of strings, split by newlines and spaces
+    blob = file_obj.read()
+    # numpy array with string type
+    raw  = np.array(blob.split())
+    position = 0
+
+    for key, values in elements.items():
+        dtype_str = values['properties'].values()[0]
+        if '$LIST' in dtype_str:
+            rows  = int(raw[position]) + 1
+            count = values['length'] * rows
+            dtype = np.dtype(dtype_str.split('($LIST,)')[-1])
+            data  = raw[position:position+count].reshape((-1,rows)).astype(dtype)[:,1:]
+            elements[key]['data'] = data
+        else:
+            rows = len(values['properties'])
+            count = values['length'] * rows
+            data = raw[position:position+count].reshape((-1,rows)).astype(dtype_str)
+            elements[key]['data'] = {p:c for p,c in zip(values['properties'].keys(), data.T)}
+        position += count
+
+    if position != len(raw):
+        raise ValueError('File was unexpected length!')
+    return elements
+
+def ply_binary(elements, file_obj):
+    '''
+    Load the data from a binary PLY file into the elements data structure.
+    '''
+    def size_to_end(file_obj):
         '''
-        Given an element, try to extract RGBA color from its properties
-        and return them as an (n,3|4) array.
+        Given an open file object, return the number of bytes 
+        to the end of the file
         '''
-        color_keys = ['red', 'green', 'blue', 'alpha']
-        candidate_colors = [element['data'][i] for i in color_keys if i in element['properties']]
-
-        if len(candidate_colors) >= 3:
-            return np.column_stack(candidate_colors)
-        return None
-
-    def ply_read_header(file_obj):
-        '''
-        Read the ASCII header of a PLY file, and leave the file object 
-        at the position of the start of data. 
-        '''
-        # from ply specification
-        dtypes = {'char'  : 'i1',
-                  'uchar' : 'u1',
-                  'short' : 'i2',
-                  'ushort': 'u2',
-                  'int'   : 'i4',
-                  'uint'  : 'u4',
-                  'float' : 'f4',
-                  'double': 'f8'}
-
-        if not 'ply' in str(file_obj.readline()):
-            raise ValueError('This aint a ply file')
-        encoding = str(file_obj.readline()).strip().split()[1]
-
-        if 'ascii' in encoding:
-            raise ValueError('ASCII PLY not supported!')
-
-        endian   = ['<', '>']['big' in encoding]
-        elements = OrderedDict()
-
-        while True:
-            line = file_obj.readline()
-            if line is None:
-                raise ValueError('Header wasn\'t terminated properly!')
-            line = line.decode('utf-8').strip().split()
-            
-            if 'end_header' in line:
-                break
-
-            if 'element' in line[0]:
-                name, length = line[1:]
-                elements[name] = {'length'     : int(length), 
-                                  'properties' : OrderedDict()}
-            elif 'property' in line[0]:
-                if len(line) == 3:
-                    dtype, field = line[1:]
-                    elements[name]['properties'][str(field)] = endian + dtypes[dtype]
-                elif 'list' in line[1]:
-                    dtype_count, dtype, field = line[2:]
-                    elements[name]['properties'][str(field)] = (endian +
-                                                                dtypes[dtype_count] + 
-                                                                ', ($LIST,)'+
-                                                                endian + 
-                                                                dtypes[dtype])
-        return elements
+        position_current = file_obj.tell()
+        file_obj.seek(0,2)
+        position_end = file_obj.tell()
+        file_obj.seek(position_current)
+        size = position_end - position_current
+        return size
 
     def ply_populate_listsize(file_obj, elements):
         '''
@@ -111,7 +226,7 @@ def load_ply(file_obj, *args, **kwargs):
             itemsize = np.dtype(', '.join(props.values())).itemsize
             p_current += element['length'] * itemsize
         file_obj.seek(p_start)
-        
+
     def ply_populate_data(file_obj, elements):
         '''
         Given the data type and field information from the header,
@@ -124,21 +239,6 @@ def load_ply(file_obj, *args, **kwargs):
             elements[key]['data'] = np.fromstring(data, dtype=dtype)
         return elements
 
-    def ply_elements_kwargs(elements):
-        '''
-        Given an elements data structure, extract the keyword
-        arguments that a Trimesh object constructor will expect.
-        '''
-        vertices = np.column_stack([elements['vertex']['data'][i] for i in 'xyz'])
-        faces    = elements['face']['data']['vertex_indices']['f1']
-        face_colors   = ply_element_colors(elements['face'])
-        vertex_colors = ply_element_colors(elements['vertex'])
-        result = {'vertices' : vertices,
-                  'faces'    : faces,
-                  'face_colors'   : face_colors,
-                  'vertex_colors' : vertex_colors}
-        return result
-
     def ply_elements_size(elements):
         '''
         Given an elements data structure populated from the header, 
@@ -149,9 +249,7 @@ def load_ply(file_obj, *args, **kwargs):
             dtype = np.dtype(','.join(element['properties'].values()))
             size += element['length'] * dtype.itemsize
         return size
-    
-    # OrderedDict which is populated from the header
-    elements = ply_read_header(file_obj)
+
     # some elements are passed where the list dimensions
     # are not included in the header, so this function goes 
     # into the meat of the file and grabs the list dimensions 
@@ -171,54 +269,12 @@ def load_ply(file_obj, *args, **kwargs):
     # with everything populated and a reasonable confidence the file
     # is intact, read the data fields described by the header
     ply_populate_data(file_obj, elements)
+
+    if True: return elements
     # all of the data is now stored in elements, but we need it as
     # a set of keyword arguments we can pass to the Trimesh constructor
     # will look something like {'vertices' : (data), 'faces' : (data)} 
     mesh_kwargs = ply_elements_kwargs(elements)
     return mesh_kwargs
-
-def export_ply(mesh):
-    '''
-    Export a mesh in the PLY format.
     
-    Arguments
-    ----------
-    mesh: Trimesh object
-    
-    Returns
-    ----------
-    export: bytes of result
-    '''
-    dtype_face = np.dtype([('count', '<u1'), 
-                           ('index', '<i4', (3))])
-    dtype_vertex = np.dtype([('vertex', '<f4', (3))])
-    
-    faces = np.zeros(len(mesh.faces), dtype=dtype_face)
-    faces['count'] = 3
-    faces['index'] = mesh.faces
-    
-    vertex = np.zeros(len(mesh.vertices), dtype=dtype_vertex)
-    vertex['vertex'] = mesh.vertices
-    
-    template = Template(get_resource('ply.template'))
-    export = template.substitute({'vertex_count' : len(mesh.vertices),
-                                  'face_count'   : len(mesh.faces)}).encode('utf-8')
-    export += vertex.tostring()
-    export += faces.tostring()
-    return export
-    
-
-
-def size_to_end(file_obj):
-    '''
-    Given an open file object, return the number of bytes 
-    to the end of the file
-    '''
-    position_current = file_obj.tell()
-    file_obj.seek(0,2)
-    position_end = file_obj.tell()
-    file_obj.seek(position_current)
-    size = position_end - position_current
-    return size
-
 _ply_loaders = {'ply' : load_ply}
