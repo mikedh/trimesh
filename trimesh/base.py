@@ -408,7 +408,7 @@ class Trimesh(object):
         ----------
         scale: float, the largest side of the bounding box of the mesh
         '''
-        scale = self.extents.max()
+        scale = self.extents.mean()
         return scale
 
     @util.cache_decorator

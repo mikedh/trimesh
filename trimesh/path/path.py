@@ -82,27 +82,21 @@ class Path(object):
         result += str(len(self.entities))
         return result
 
-    @property
+    @util.cache_decorator
     def paths(self):
-        if 'paths' in self._cache:
-            return self._cache.get('paths')
-        with self._cache:
-            paths = closed_paths(self.entities, self.vertices)
-        return self._cache.set('paths', paths)
+        paths = closed_paths(self.entities, self.vertices)
+        return paths
 
-    @property
+    @util.cache_decorator
     def kdtree(self):
-        if 'kdtree' in self._cache:
-            return self._cache.get('kdtree')
-        with self._cache:
-            kdtree = KDTree(self.vertices.view(np.ndarray))
-        return self._cache.set('kdtree', kdtree)
+        kdtree = KDTree(self.vertices.view(np.ndarray))
+        return kdtree
 
     @property
     def scale(self):
-        return np.max(np.ptp(self.vertices, axis=0))
+        return self.extents.mean()
 
-    @property
+    @util.cache_decorator
     def bounds(self):
         return np.vstack((np.min(self.vertices, axis=0),
                           np.max(self.vertices, axis=0)))
@@ -121,13 +115,10 @@ class Path(object):
     def is_closed(self):
         return all(i == 2 for i in self.vertex_graph.degree().values())
 
-    @property
+    @util.cache_decorator
     def vertex_graph(self):
-        if 'vertex_graph' in self._cache:
-            return self._cache.get('vertex_graph')
-        with self._cache:
-            graph, closed = vertex_graph(self.entities)
-        return self._cache.set('vertex_graph', graph)
+        graph, closed = vertex_graph(self.entities)
+        return graph
    
     @units.setter
     def units(self, units):
@@ -342,22 +333,18 @@ class Path2D(Path):
     def body_count(self):
         return len(self.root)
 
-    @property
+    @util.cache_decorator
     def polygons_full(self):
-        if 'polygons_full' in self._cache:
-            return self._cache.get('polygons_full') 
+        result = [None] * len(self.root)
+        for index, root in enumerate(self.root):
+            hole_index = self.connected_paths(root, include_self=False)
+            holes = [p.exterior.coords for p in self.polygons_closed[hole_index]]
+            shell = self.polygons_closed[root].exterior.coords
+            result[index] = Polygon(shell  = shell,
+                                    holes  = holes)
+        return result
 
-        with self._cache:
-            result = [None] * len(self.root)
-            for index, root in enumerate(self.root):
-                hole_index = self.connected_paths(root, include_self=False)
-                holes = [p.exterior.coords for p in self.polygons_closed[hole_index]]
-                shell = self.polygons_closed[root].exterior.coords
-                result[index] = Polygon(shell  = shell,
-                                        holes  = holes)
-        return self._cache.set('polygons_full', result)
-
-    @property
+    @util.cache_decorator
     def area(self):
         '''
         Return the area of the polygons interior

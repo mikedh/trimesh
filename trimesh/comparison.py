@@ -1,6 +1,6 @@
 import numpy as np
 
-from .util      import zero_pad, format_json
+from .util      import zero_pad
 from .grouping  import group_rows
 from .constants import log, _log_time
 
@@ -8,7 +8,7 @@ from .constants import log, _log_time
 _MIN_BIN_COUNT = 20
 _TOL_FREQ      = 1e-3
     
-def rotationally_invariant_identifier(mesh, length=6, as_json=False, json_digits=None):
+def rotationally_invariant_identifier(mesh, length=6):
     '''
     Given an input mesh, return a vector or string that has the following properties:
     * invariant to rotation of the mesh
@@ -21,12 +21,10 @@ def rotationally_invariant_identifier(mesh, length=6, as_json=False, json_digits
     ---------
     mesh:    Trimesh
     length:  number of terms to compute of the identifier
-    as_json: whether to return the identifier as json (vs 1D float array)
 
     Returns
     ---------
-    identifer: if not as_json: (length) float array of unique identifier
-               else:           same as above, but serialized as json
+    identifer: (length) float array of unique identifier
     '''
 
     frequency_count = int(length - 2)
@@ -62,9 +60,6 @@ def rotationally_invariant_identifier(mesh, length=6, as_json=False, json_digits
     identifier = np.hstack((mass_properties['volume'],
                             mass_properties['surface_area'],
                             freq_formatted))
-    if as_json:
-        # return as a json string rather than an array
-        return format_json(identifier)
     return identifier
 
 def fft_freq_histogram(data, bin_count, frequency_count=4, weight=None):

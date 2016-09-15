@@ -101,7 +101,14 @@ class Scene:
 
     @util.cache_decorator
     def scale(self):
-        return self.extents.max()
+        '''
+        The approximate scale of the mesh
+        
+        Returns
+        -----------
+        scale: float, the mean of the bounding box edge lengths
+        '''
+        return self.extents.mean()
 
     @util.cache_decorator
     def centroid(self):
@@ -117,8 +124,14 @@ class Scene:
 
     def duplicate_nodes(self):
         '''
-        Return a sequence of node keys, where all keys in the group will
-        be of the same mesh
+        Return a sequence of node keys of identical meshes.
+
+        Will combine meshes duplicated by copying in space with different keys in 
+        self.meshes, as well as meshes repeated by self.nodes.
+
+        Returns
+        -----------
+        duplicates: (m) sequence of keys to self.nodes that represent identical geometry 
         '''
         mesh_ids  = {k : m.identifier for k, m in self.meshes.items()}
         
