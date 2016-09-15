@@ -709,7 +709,7 @@ def array_to_encoded(array, dtype=None, encoding='base64'):
     encoded = {'dtype'  : np.dtype(dtype).str,
                'shape'  : shape}
     if encoding in ['base64', 'dict64']:
-        packed = base64.b64encode(flat.astype(dtype))
+        packed = base64.b64encode(flat.astype(dtype).tostring())
         if hasattr(packed, 'decode'): 
             packed = packed.decode('utf-8')
         encoded['base64'] = packed
