@@ -1,8 +1,9 @@
 import numpy as np
-from collections import OrderedDict
-from string import Template
 
-from ..util      import is_shape
+from collections import OrderedDict
+from string      import Template
+
+from ..util      import is_shape, distance_to_end
 from ..resources import get_resource
  
 def load_ply(file_obj, *args, **kwargs):
@@ -20,14 +21,12 @@ def load_ply(file_obj, *args, **kwargs):
     '''
     
     # OrderedDict which is populated from the header
-    elements, is_ascii = ply_read_header(file_obj)
+    elements, is_ascii = read_ply_header(file_obj)
 
-    if is_ascii:
-        ply_ascii(elements, file_obj)
-    else:
-        ply_binary(elements, file_obj)
+    if is_ascii: ply_ascii(elements,  file_obj)
+    else:        ply_binary(elements, file_obj)
 
-    kwargs = ply_elements_kwargs(elements) 
+    kwargs = elements_to_kwargs(elements) 
     return kwargs
 
 def export_ply(mesh):
@@ -60,7 +59,7 @@ def export_ply(mesh):
     export += faces.tostring()
     return export
 
-def ply_read_header(file_obj):
+def read_ply_header(file_obj):
     '''
     Read the ASCII header of a PLY file, and leave the file object 
     at the position of the start of data but past the data.
@@ -80,8 +79,6 @@ def ply_read_header(file_obj):
 
     encoding = file_obj.readline().decode('utf-8').strip().lower()
     encoding_ascii = 'ascii' in encoding
-
-
 
     endian   = ['<', '>'][int('big' in encoding)]
     elements = OrderedDict()
@@ -112,7 +109,7 @@ def ply_read_header(file_obj):
                                                             dtypes[dtype])
     return elements, encoding_ascii
 
-def ply_elements_kwargs(elements):
+def elements_to_kwargs(elements):
     '''
     Given an elements data structure, extract the keyword
     arguments that a Trimesh object constructor will expect.
@@ -129,8 +126,8 @@ def ply_elements_kwargs(elements):
     if not is_shape(faces, (-1,(3,4))):
         raise ValueError('Faces weren\'t (n,(3|4))!')
 
-    face_colors   = ply_element_colors(elements['face'])
-    vertex_colors = ply_element_colors(elements['vertex'])
+    face_colors   = element_colors(elements['face'])
+    vertex_colors = element_colors(elements['vertex'])
 
     result = {'vertices'      : vertices,
               'faces'         : faces,
@@ -138,13 +135,13 @@ def ply_elements_kwargs(elements):
               'vertex_colors' : vertex_colors}
     return result
 
-def ply_element_colors(element):
+def element_colors(element):
     '''
     Given an element, try to extract RGBA color from its properties
     and return them as an (n,3|4) array.
     '''
-    color_keys = ['red', 'green', 'blue', 'alpha']
-    candidate_colors = [element['data'][i] for i in color_keys if i in element['properties']]
+    keys = ['red', 'green', 'blue', 'alpha']
+    candidate_colors = [element['data'][i] for i in keys if i in element['properties']]
 
     if len(candidate_colors) >= 3:
         return np.column_stack(candidate_colors)
@@ -155,7 +152,7 @@ def ply_ascii(elements, file_obj):
     Load data from an ASCII PLY file into the elements data structure.
     '''
     # list of strings, split by newlines and spaces
-    blob = file_obj.read()
+    blob = file_obj.read().decode('utf-8')
     # numpy array with string type
     raw  = np.array(blob.split())
     position = 0
@@ -183,19 +180,8 @@ def ply_binary(elements, file_obj):
     '''
     Load the data from a binary PLY file into the elements data structure.
     '''
-    def size_to_end(file_obj):
-        '''
-        Given an open file object, return the number of bytes 
-        to the end of the file
-        '''
-        position_current = file_obj.tell()
-        file_obj.seek(0,2)
-        position_end = file_obj.tell()
-        file_obj.seek(position_current)
-        size = position_end - position_current
-        return size
 
-    def ply_populate_listsize(file_obj, elements):
+    def populate_listsize(file_obj, elements):
         '''
         Given a set of elements populated from the header if there are any
         list properties seek in the file the length of the list. 
@@ -227,7 +213,7 @@ def ply_binary(elements, file_obj):
             p_current += element['length'] * itemsize
         file_obj.seek(p_start)
 
-    def ply_populate_data(file_obj, elements):
+    def populate_data(file_obj, elements):
         '''
         Given the data type and field information from the header,
         read the data and add it to a 'data' field in the element.
@@ -239,7 +225,7 @@ def ply_binary(elements, file_obj):
             elements[key]['data'] = np.fromstring(data, dtype=dtype)
         return elements
 
-    def ply_elements_size(elements):
+    def elements_size(elements):
         '''
         Given an elements data structure populated from the header, 
         calculate how long the file should be if it is intact.
@@ -254,13 +240,13 @@ def ply_binary(elements, file_obj):
     # are not included in the header, so this function goes 
     # into the meat of the file and grabs the list dimensions 
     # before we to the main data read as a single operation
-    ply_populate_listsize(file_obj, elements)
+    populate_listsize(file_obj, elements)
 
     # how many bytes are left in the file
-    size_file = size_to_end(file_obj)
+    size_file = distance_to_end(file_obj)
     # how many bytes should the data structure described by
     # the header take up
-    size_elements = ply_elements_size(elements)
+    size_elements = elements_size(elements)
     
     # if the number of bytes is not the same the file is probably corrupt
     if size_file != size_elements:
@@ -268,7 +254,7 @@ def ply_binary(elements, file_obj):
 
     # with everything populated and a reasonable confidence the file
     # is intact, read the data fields described by the header
-    ply_populate_data(file_obj, elements)
+    populate_data(file_obj, elements)
 
     if True: return elements
     # all of the data is now stored in elements, but we need it as

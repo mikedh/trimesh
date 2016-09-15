@@ -384,6 +384,25 @@ def is_binary_file(file_obj):
         if code > 127: return True
     return False
 
+def distance_to_end(file_obj):
+    '''
+    For an open file object how far is it to the end
+
+    Arguments
+    ----------
+    file_obj: open file- like object
+
+    Returns
+    ----------
+    distance: int, bytes to end of file
+    '''
+    position_current = file_obj.tell()
+    file_obj.seek(0,2)
+    position_end = file_obj.tell()
+    file_obj.seek(position_current)
+    distance = position_end - position_current
+    return distance
+
 def decimal_to_digits(decimal, min_digits=None):
     digits = abs(int(np.log10(decimal)))
     if min_digits is not None:
