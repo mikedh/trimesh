@@ -21,11 +21,26 @@ deploy:
 before_install:
 - sudo apt-get update
 - sudo apt-get install -y libgeos-dev libspatialindex-dev openscad blender
-- sudo apt-get install build-essential gfortran libatlas-base-dev python-pip python-dev
-- sudo pip install --upgrade pip
-- pip install nose2
 
-install: pip install .[all]
+install:
+  # We do this conditionally because it saves us some downloading if the
+  # version is the same.
+  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
+      wget https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh -O miniconda.sh;
+    else
+      wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
+    fi
+  - bash miniconda.sh -b -p $HOME/miniconda
+  - export PATH="$HOME/miniconda/bin:$PATH"
+  - hash -r
+  - conda config --set always_yes yes --set changeps1 no
+  - conda update -q conda
+  # Useful for debugging any issues with conda
+  - conda info -a
+  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy
+  - source activate test-environment
+  - pip install .[all]
+  - pip install nose2
 
 script: 
 - cd tests
