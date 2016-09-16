@@ -128,7 +128,8 @@ class Path(object):
         _set_units(self, desired, guess)
 
     def apply_transform(self, transform):
-        self.vertices = transformations.transform_points(self.vertices, transform)
+        self.vertices = transformations.transform_points(self.vertices, 
+                                                         transform)
 
     def rezero(self):
         self.vertices -= self.vertices.min(axis=0)
@@ -332,6 +333,19 @@ class Path2D(Path):
     @property
     def body_count(self):
         return len(self.root)
+
+    def to_3D(self):
+        '''
+        Convert 2D path to 3D path on the XY plane.
+
+        Returns
+        -----------
+        path_3D: Path3D version of current path
+        '''
+        path_3D = Path3D(entities = deepcopy(self.entities), 
+                         vertices = np.column_stack((self.vertices,
+                                                     np.zeros(len(self.vertices)))))
+        return path_3D
 
     @util.cache_decorator
     def polygons_full(self):
@@ -574,11 +588,8 @@ class Path2D(Path):
             undirected = self.enclosure_directed.to_undirected()
         return self._cache.set('enclosure', undirected)
         
-    @property
+    @util.cache_decorator
     def enclosure_directed(self):
-        if 'enclosure_directed' in self._cache:
-            return self._cache.get('enclosure_directed')
-        with self._cache:
-            root, enclosure = polygons_enclosure_tree(self.polygons_closed)
+        root, enclosure = polygons_enclosure_tree(self.polygons_closed)
         self._cache.set('root', root)
-        return self._cache.set('enclosure_directed', enclosure)
+        return enclosure
