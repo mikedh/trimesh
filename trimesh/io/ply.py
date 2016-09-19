@@ -134,7 +134,7 @@ def elements_to_kwargs(elements):
               'faces'         : faces,
               'face_colors'   : face_colors,
               'vertex_colors' : vertex_colors,
-              'metadata'      : {'ply_data' : elements}}
+              'ply_data'      : elements}
     return result
 
 def element_colors(element):

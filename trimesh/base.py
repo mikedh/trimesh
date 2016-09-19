@@ -121,6 +121,9 @@ class Trimesh(object):
             faces    is not None):
             self.process()
 
+        # store all passed kwargs for debugging purposes
+        self._kwargs = kwargs
+
     def process(self):
         '''
         Convenience function to remove garbage and make mesh sane.
