@@ -23,6 +23,7 @@ def load_ply(file_obj, *args, **kwargs):
     # OrderedDict which is populated from the header
     elements, is_ascii = read_ply_header(file_obj)
 
+    # functions will fill in elements from file_obj
     if is_ascii: ply_ascii(elements,  file_obj)
     else:        ply_binary(elements, file_obj)
 
@@ -132,7 +133,8 @@ def elements_to_kwargs(elements):
     result = {'vertices'      : vertices,
               'faces'         : faces,
               'face_colors'   : face_colors,
-              'vertex_colors' : vertex_colors}
+              'vertex_colors' : vertex_colors,
+              'metadata'      : {'ply_data' : elements}}
     return result
 
 def element_colors(element):
@@ -160,8 +162,11 @@ def ply_ascii(elements, file_obj):
     for key, values in elements.items():
         dtype_str = list(values['properties'].values())[0]
         if '$LIST' in dtype_str:
+            # the first row is the number of data points following
             rows  = int(raw[position]) + 1
             count = values['length'] * rows
+            # for index types the dtype_str contains the dtype of the count followed
+            # by the dtype of the values that follow
             dtype = np.dtype(dtype_str.split('($LIST,)')[-1])
             data  = raw[position:position+count].reshape((-1,rows)).astype(dtype)[:,1:]
             elements[key]['data'] = data
