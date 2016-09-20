@@ -71,13 +71,13 @@ def read_ply_header(file_obj):
               'short'   : 'i2',
               'ushort'  : 'u2',
               'int'     : 'i4',
-              'int16'   : 'i2'
-              'int32'   : 'i4'
+              'int16'   : 'i2',
+              'int32'   : 'i4',
               'uint'    : 'u4',
-              'uint16'  : 'u2'
+              'uint16'  : 'u2',
               'uint32'  : 'u4',
               'float'   : 'f4',
-              'float16' : 'f2'
+              'float16' : 'f2',
               'float32' : 'f4',
               'double'  : 'f8'}
 

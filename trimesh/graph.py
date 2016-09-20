@@ -207,6 +207,8 @@ def smoothed(mesh, angle):
     ---------
     smooth: Trimesh object
     '''
+    if len(mesh.face_adjacency) == 0:
+        return mesh
     angle_ok  = mesh.face_adjacency_angles <= angle
     adjacency = mesh.face_adjacency[angle_ok]
     graph = nx.from_edgelist(adjacency)
