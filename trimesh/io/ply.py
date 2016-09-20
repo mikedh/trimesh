@@ -65,15 +65,21 @@ def read_ply_header(file_obj):
     Read the ASCII header of a PLY file, and leave the file object 
     at the position of the start of data but past the data.
     '''
-    # from ply specification
-    dtypes = {'char'  : 'i1',
-              'uchar' : 'u1',
-              'short' : 'i2',
-              'ushort': 'u2',
-              'int'   : 'i4',
-              'uint'  : 'u4',
-              'float' : 'f4',
-              'double': 'f8'}
+    # from ply specification, and additional dtypes found in the wild
+    dtypes = {'char'    : 'i1',
+              'uchar'   : 'u1',
+              'short'   : 'i2',
+              'ushort'  : 'u2',
+              'int'     : 'i4',
+              'int16'   : 'i2'
+              'int32'   : 'i4'
+              'uint'    : 'u4',
+              'uint16'  : 'u2'
+              'uint32'  : 'u4',
+              'float'   : 'f4',
+              'float16' : 'f2'
+              'float32' : 'f4',
+              'double'  : 'f8'}
 
     if not 'ply' in str(file_obj.readline()):
         raise ValueError('This aint a ply file')
@@ -83,7 +89,7 @@ def read_ply_header(file_obj):
 
     endian   = ['<', '>'][int('big' in encoding)]
     elements = OrderedDict()
-
+    
     while True:
         line = file_obj.readline()
         if line is None:
