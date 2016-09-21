@@ -11,7 +11,7 @@ try:
     from graph_tool import Graph as GTGraph
     from graph_tool.topology import label_components
     _has_gt = True
-except: 
+except ImportError: 
     _has_gt = False
     log.warning('graph-tool unavailable, some operations will be much slower')
 
@@ -171,14 +171,21 @@ def split(mesh, only_watertight=True, adjacency=None):
         adjacency_graph = nx.from_edgelist(adjacency)
         # make sure every face has a node, so single triangles 
         # aren't discarded (as they aren't adjacent to anything)
-        adjacency_graph.add_nodes_from(np.arange(len(mesh.faces)))
+        if not only_watertight:
+            # if we are allowing non- watertight result add nodes for every
+            # face to make sure single, disconnected triangles are in the graph
+            adjacency_graph.add_nodes_from(np.arange(len(mesh.faces)))
         components = nx.connected_components(adjacency_graph)
         result = mesh.submesh(components, only_watertight=only_watertight)
         return result
 
     def split_gt():
         g = GTGraph()
+        if not only_watertight:
+            # same as above, for single triangles with no adjacency
+            g.add_vertex(len(mesh.faces))
         g.add_edge_list(adjacency)
+        
         component_labels = label_components(g, directed=False)[0].a
         components = group(component_labels)
         result = mesh.submesh(components, only_watertight=only_watertight)

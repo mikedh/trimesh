@@ -308,3 +308,20 @@ def cylinder(radius=1.0, height=1.0, sections=32):
     cylinder.vertices[:,2] -= height * .5
     
     return cylinder
+
+def random_soup(face_count=100):
+    '''
+    Return a random set of triangles as a Trimesh
+
+    Arguments
+    -----------
+    face_count: int, number of faces in resultant mesh
+
+    Returns
+    -----------
+    soup: Trimesh object with face_count random faces
+    '''
+    vertices = np.random.random((face_count*3,3)) - 0.5
+    faces = np.arange(face_count*3).reshape((-1,3))
+    soup = Trimesh(vertices=vertices, faces=faces)
+    return soup

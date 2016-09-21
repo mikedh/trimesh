@@ -16,8 +16,7 @@ from sys import version_info
 from functools import wraps
 
 _PY3 = version_info.major >= 3
-if _PY3:
-    basestring = str
+if _PY3: basestring = str
 
 log = logging.getLogger('trimesh')
 log.addHandler(logging.NullHandler())   
@@ -932,6 +931,8 @@ def submesh(mesh,
     for faces_index in faces_sequence:        
         # sanitize indices in case they are coming in as a set or tuple
         faces_index   = np.array(list(faces_index))
+        if len(faces_index) == 0:
+            continue
         faces_current = original_faces[faces_index]
         unique = np.unique(faces_current.reshape(-1))
         
@@ -964,7 +965,7 @@ def submesh(mesh,
                                                                normals,
                                                                visuals)]
     result = np.array(result)
-    if only_watertight:
+    if len(result) > 0 and only_watertight:
         watertight = np.array([i.fill_holes() and len(i.faces) > 4 for i in result])
         result     = result[watertight]
     return result

@@ -24,10 +24,14 @@ def export_mesh(mesh, file_obj, file_type=None):
     
     '''
     if util.is_string(file_obj):
-        file_type = (str(file_obj).split('.')[-1]).lower()
-        file_obj  = open(file_obj, 'wb')
+        file_type = (str(file_obj).split('.')[-1]).lower()        
+        if file_type in _mesh_exporters:
+            file_obj  = open(file_obj, 'wb')
     file_type = str(file_type).lower()
-    
+            
+    if not (file_type in _mesh_exporters):
+        raise ValueError('%s exporter not available!', file_type)
+
     log.info('Exporting %d faces as %s', len(mesh.faces), file_type.upper())
     export = _mesh_exporters[file_type](mesh)
     

@@ -83,16 +83,14 @@ def hashable_rows(data, digits=None):
     hashable = np.ascontiguousarray(as_int).view(dtype).reshape(-1)
     return hashable
 
-def float_to_int(data, digits=None):
+def float_to_int(data, digits=None, dtype_out=np.int32):
     '''
     Given a numpy array of data represent it as integers.
     '''
     data = np.asanyarray(data)
 
-    dtype_out = np.int32
     if data.size == 0:
-        return data.astype(dtype_out)
-            
+        return data.astype(dtype_out)            
     if digits is None: 
         digits = util.decimal_to_digits(tol.merge)
     elif isinstance(digits, float) or isinstance(digits, np.float):
@@ -107,7 +105,7 @@ def float_to_int(data, digits=None):
     else:
         data_max = np.abs(data).max() * 10**digits
         dtype_out = [np.int32, np.int64][int(data_max > 2**31)]
-        as_int = (np.around(data, digits) * (10**digits)).astype(dtype_out)
+        as_int = (np.round(data, digits) * (10**digits)).astype(dtype_out)
     
     return as_int
 
