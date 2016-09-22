@@ -123,7 +123,8 @@ def pack_paths(paths, show=False):
     polygons   = [i.polygons_closed[i.root[0]] for i in paths_full]
     inserted, transforms = multipack(np.array(polygons))
     for path, transform in zip(paths_full, transforms):
-        if show: path.plot_discrete(show=False, transform=transform)
+        path.apply_transform(transform)
+        if show: path.plot_discrete(show=False)
     if show:
         import matplotlib.pyplot as plt
         plt.show()
