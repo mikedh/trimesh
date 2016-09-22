@@ -52,6 +52,7 @@ def group(values, min_len=0, max_len=np.inf):
     groups: sequence of indices to form groups
             IE [0,1,0,1] returns [[0,2], [1,3]]
     '''
+    values   = np.asanyarray(values)
     order    = values.argsort()
     values   = values[order]
     dupe     = np.greater(np.abs(np.diff(values)), tol.zero)
@@ -315,7 +316,7 @@ def boolean_rows(a, b, operation=set.intersection):
     return shared
 
 def group_vectors(vectors, 
-                  angle = np.radians(10), 
+                  angle = np.radians(10),
                   include_negative = False):
     '''
     Group vectors based on an angle tolerance, with the option to 
@@ -325,39 +326,9 @@ def group_vectors(vectors,
     The main difference is that max_angle can be much looser, as we
     are doing actual distance queries. 
     '''
-    dist_max            = np.tan(angle)
-    unit_vectors, valid = util.unitize(vectors, check_valid = True)
-    valid_index         = np.nonzero(valid)[0]
-    consumed            = np.zeros(len(unit_vectors), dtype=np.bool)
-    tree                = KDTree(unit_vectors)
-    unique_vectors      = deque()
-    aligned_index       = deque()
-    
-    for index, vector in enumerate(unit_vectors):
-        if consumed[index]: 
-            continue
-        aligned = np.array(tree.query_ball_point(vector, dist_max))
-        vectors = unit_vectors[aligned]
-        if include_negative:
-            aligned_neg = tree.query_ball_point(-1.0*vector, dist_max)
-            vectors     = np.vstack((vectors, -unit_vectors[aligned_neg]))
-            aligned     = np.append(aligned, aligned_neg)
-        aligned = aligned.astype(int)
-        consumed[aligned] = True
-        unique_vectors.append(np.median(vectors, axis=0))
-        aligned_index.append(valid_index[aligned])
-    return np.array(unique_vectors), np.array(aligned_index)
+    if include_negative:
+        vectors = util.vector_hemisphere(vectors)
 
-def group_vectors_spherical(vectors, 
-                            angle = np.radians(10)):
-    '''
-    Group vectors based on an angle tolerance, with the option to 
-    include negative vectors. 
-    
-    This is very similar to a group_rows(stack_negative(rows))
-    The main difference is that max_angle can be much looser, as we
-    are doing actual distance queries. 
-    '''
     spherical = util.vector_to_spherical(vectors)
     angles, groups = group_distance(spherical, angle)
     new_vectors = util.spherical_to_vector(angles)
@@ -381,22 +352,6 @@ def group_distance(values, distance):
         groups.append(group)
     return np.array(unique), np.array(groups)
  
-def stack_negative(rows):
-    '''
-    Given an input of rows (n,d), return an array which is (n,2*d)
-    Which is sign- independent
-    '''
-    rows     = np.asanyarray(rows)
-    stacked  = np.column_stack((rows, rows*-1))
-
-    nonzero  = np.abs(rows) > tol.zero
-    negative = rows < -tol.zero
-
-    roll = np.logical_and(nonzero, negative).any(axis=1)
-
-    stacked[roll] = np.roll(stacked[roll], 3, axis=1)
-    return stacked
-            
 def clusters(points, radius):
     '''
     Find clusters of points which have neighbours closer than radius

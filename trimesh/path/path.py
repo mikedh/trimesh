@@ -222,7 +222,7 @@ class Path(object):
         self.vertices = np.vstack((self.vertices, 
                                    np.array(new_vertices)))
 
-    def export(self, file_type='dict', file_obj=None):
+    def export(self, file_obj=None, file_type='dict'):
         return export_path(self, 
                            file_type = file_type,
                            file_obj  = file_obj)
