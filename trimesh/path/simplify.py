@@ -2,8 +2,8 @@ import numpy as np
 
 from collections import deque
 
-from .arc import arc_center, angles_to_threepoint
-from .entities import Arc, Line, BSpline
+from . import arc
+from . import entities
 
 from ..nsphere   import fit_nsphere
 from ..util      import unitize, diagonal_dot
@@ -116,7 +116,7 @@ def is_circle(points, scale, verbose=True):
         return None
 
     # return the circle as three control points
-    control = angles_to_threepoint([0,np.pi*.5], *CR)
+    control = arc.angles_to_threepoint([0,np.pi*.5], *CR)
     return control
         
 def arc_march(points, scale):
@@ -135,13 +135,16 @@ def arc_march(points, scale):
         # do final checks on the points contained in current and append them
         # to the list of arcs if they pass
         points_id = np.array(points_id)
+        points_id = points_id[[0, int(len(points_id) / 2.0), -1]]
+      
         try:
-            center_info = arc_center(points)
+            center_info = arc.arc_center(points[points_id])
             C, R, N, A = (center_info['center'],
                           center_info['radius'],
                           center_info['normal'],
                           center_info['span'])
         except ValueError:
+            log.warning('Skipping candidate arc!', exc_info=True)
             return
 
         span = scale*(A/R)
@@ -151,7 +154,7 @@ def arc_march(points, scale):
             log.debug('Arc failed span test: %f', span)
 
 
-    points = np.array(points)
+    points = np.asanyarray(points)
     closed = np.linalg.norm(points[0] - points[-1]) < tol.merge
     count  = len(points)
     scale  = float(scale)
@@ -309,9 +312,9 @@ def points_to_spline_entity(points, smooth=.0005, count=None):
         control = control[:-1]
         index[-1] = index[0]
 
-    entity = BSpline(points = index, 
-                     knots  = knots,
-                     closed = closed)
+    entity = entities.BSpline(points = index, 
+                              knots  = knots,
+                              closed = closed)
         
     return entity, control
 
@@ -335,8 +338,8 @@ def simplify_path(drawing):
         log.debug('Path contains non- linear entities, skipping')
         return
      
-    vertices = deque()
-    entities = deque()
+    vert = deque()
+    ent = deque()
 
     for path_index in range(len(drawing.paths)):
         points = polygon_to_cleaned(drawing.polygons_closed[path_index], 
@@ -344,27 +347,27 @@ def simplify_path(drawing):
         circle = is_circle(points, scale=drawing.scale)
         
         if circle is not None:
-            entities.append(Arc(points=np.arange(3)+len(vertices),
-                                closed=True))
-            vertices.extend(circle)
+            ent.append(entities.Arc(points=np.arange(3)+len(vert),
+                                    closed=True))
+            vert.extend(circle)
         else:
             arc_idx = arc_march(points, scale=drawing.scale)
             if len(arc_idx) > 0:
                 for arc in arc_idx:
-                    entities.append(Arc(points=three_point(arc)+len(vertices),
-                                        closed=False))
-                line_idx = infill_lines(arc_idx,len(points)) + len(vertices)
+                    ent.append(entities.Arc(points=three_point(arc)+len(vert),
+                                            closed=False))
+                line_idx = infill_lines(arc_idx,len(points)) + len(vert)
             else:
-                line_idx = pair_space(0, len(points)-1) + len(vertices)
-                line_idx = [np.mod(np.arange(len(points)+1), len(points)) + len(vertices)]
+                line_idx = pair_space(0, len(points)-1) + len(vert)
+                line_idx = [np.mod(np.arange(len(points)+1), len(points)) + len(vert)]
             
             for line in line_idx:
-                entities.append(Line(points=line))
-            vertices.extend(points)
+                ent.append(entities.Line(points=line))
+            vert.extend(points)
             
     drawing._cache.clear()
-    drawing.vertices = np.array(vertices)
-    drawing.entities = np.array(entities)
+    drawing.vertices = np.array(vert)
+    drawing.entities = np.array(ent)
 
 def pair_space(start, end):
     if start == end: return []
