@@ -15,8 +15,6 @@ class SimplifyTest(g.unittest.TestCase):
 
         g.log.info('Simplify error ratio was %f %d', area_ratio, arc_count)
 
-        path.plot_entities(1)
-
         self.assertTrue(arc_count > 0)
         self.assertTrue(abs(area_ratio - 1) < 1e-2)
 

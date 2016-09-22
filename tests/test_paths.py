@@ -78,8 +78,8 @@ class VectorTests(unittest.TestCase):
             for i in range(len(d.paths)):
                 self.assertTrue(d.polygons_closed[i].is_valid)
                 self.assertTrue(d.polygons_closed[i].area > tol.zero)
-            export_dict = d.export('dict')
-            export_svg  = d.export('svg')
+            export_dict = d.export(file_type='dict')
+            export_svg  = d.export(file_type='svg')
 
             d.simplify()
             split = d.split()
