@@ -1,6 +1,7 @@
 import numpy as np
 
 from . import convex
+
 from .constants import log
 
 try:
@@ -33,19 +34,30 @@ def minimum_nsphere(obj):
     # the input complexity substantially and returns the same value
     points = convex.hull_points(obj)
 
+    # we are scaling the mesh to a unit cube
+    # initially qhull_options 'QbB' was used but there was a bug in
+    # presumably the scipy interface with that option
+    # to avoid this we scale to a unit cube ourselves inside this function
+    points_min = points.min(axis=0)
+    points_scale = points.ptp(axis=0).max()
+    points     = (points - points_min) / points_scale
+
     # if all of the points are on an n-sphere already the voronoi 
     # method will fail so we check a least squares fit before 
     # bothering to compute the voronoi diagram
     fit_C, fit_R, fit_E = fit_nsphere(points)
-    radius_fit = ((points - fit_C)**2).sum(axis=1).max() ** .5
-    if fit_E < 1e-3:
+    # return fit radius and center to global scale
+    fit_R = (((points - fit_C)**2).sum(axis=1).max() ** .5) * points_scale
+    fit_C  = (fit_C * points_scale) + points_min
+  
+    if fit_E < 1e-6:
         log.debug('Points were on an n-sphere, returning fit')
         return fit_C, fit_R
 
     # calculate a furthest site voronoi diagram
     # this will fail if the points are ALL on the surface of
     # the n-sphere but hopefully the least squares check caught those cases
-    voronoi = spatial.Voronoi(points, furthest_site=True, qhull_options='QbB Pp')
+    voronoi = spatial.Voronoi(points, furthest_site=True)#, qhull_options='QbB Pp')
 
     # find the maximum radius^2 point for each of the voronoi vertices
     # this is worst case quite expensive, but we have used quick convex
@@ -53,11 +65,14 @@ def minimum_nsphere(obj):
     # we are doing comparisons on the radius^2 value so as to only do a sqrt once
     r2 = np.array([((points-v)**2).sum(axis=1).max() for v in voronoi.vertices])
     r2_idx = r2.argmin()
-    radius_v = np.sqrt(r2[r2_idx])
     center_v = voronoi.vertices[r2_idx]
 
-    if radius_v > radius_fit:
-        return fit_C, radius_fit
+    # return voronoi radius and center to global scale
+    radius_v = np.sqrt(r2[r2_idx]) * points_scale
+    center_v = (center_v * points_scale) + points_min
+
+    if radius_v > fit_R:
+        return fit_C, fit_R
     return center_v, radius_v
 
 def fit_nsphere(points, prior=None):
