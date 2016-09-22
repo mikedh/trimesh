@@ -20,8 +20,8 @@ class SimplifyTest(g.unittest.TestCase):
 
     def test_simplify(self):
         for file_name in ['2D/cycloidal.dxf', 
-                          '2D/125_cycloidal.dxf',
-                          '2D/spline_1.DXF']:
+                          '2D/125_cycloidal.DXF',
+                          '2D/spline_1.dxf']:
             for polygon in g.get_mesh(file_name).polygons_full:
                 self.polygon_simplify(polygon)
 
