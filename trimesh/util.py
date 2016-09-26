@@ -1079,3 +1079,37 @@ def convert_like(item, like):
     if is_none(like):
         return item
     return like.__class__(item)
+
+def round_sigfig(value, sigfig=1):
+    '''
+    Round a single value to a specified number of signifigant figures.
+    
+    Arguments
+    ----------
+    values: float, value to be rounded
+    sigfig: int, number of signifigant figures to reduce to
+    
+    
+    Returns
+    ----------
+    rounded: values, but rounded to the specified number of signifigant figures
+    
+    
+    Example
+    ----------
+    In [1]: trimesh.util.round_sigfig(-232453.00014045456, 1)
+    Out[1]: -200000.0
+
+    In [2]: trimesh.util.round_sigfig(.00014045456, 1)
+    Out[2]: 0.0001
+
+    In [3]: trimesh.util.round_sigfig(.00014045456, 4)
+    Out[3]: 0.0001405
+    '''
+    sigfig = int(sigfig)
+    value  = float(value)
+    digits = int(np.floor(np.log10(np.abs(value))))
+    rounded = np.round(value, sigfig-digits-1)
+    return rounded
+    
+    

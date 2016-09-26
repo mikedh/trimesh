@@ -6,7 +6,7 @@ from . import grouping
 from collections import deque
 
 class Voxel:
-    def __init__(self, mesh, pitch):
+    def __init__(self, mesh, pitch, size_max=1e5):
         '''
         Create a voxel representation of a mesh through ray tests
         which are done immediatly on instantiation.
@@ -16,7 +16,7 @@ class Voxel:
         mesh:  Trimesh object
         pitch: float, how long should each edge of the voxel be
         '''
-        self._run   = mesh_to_run(mesh, pitch)     
+        self._run   = mesh_to_run(mesh, pitch, size_max=size_max)     
         self._cache = util.Cache(id_function = self._id)
         
     def _id(self):
@@ -196,7 +196,7 @@ class Voxel:
         '''
         self.mesh.show()
     
-def mesh_to_run(mesh, pitch):
+def mesh_to_run(mesh, pitch, size_max=1e5):
     '''
     Compute a list of occupied voxels from a Trimesh using ray tests.
     
@@ -218,6 +218,11 @@ def mesh_to_run(mesh, pitch):
     bounds    = mesh.bounds / pitch
     bounds[0] = np.floor(bounds[0]) * pitch
     bounds[1] = np.ceil( bounds[1]) * pitch
+    
+    size = np.product(np.diff(bounds, axis=0))
+    
+    if size > size_max:
+        raise ValueError('Voxels would be larger than max size!')
     
     
     x_grid = np.arange(*bounds[:,0], step = pitch)

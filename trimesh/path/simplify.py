@@ -338,8 +338,8 @@ def simplify_path(drawing):
         log.debug('Path contains non- linear entities, skipping')
         return
      
-    vert = deque()
-    ent = deque()
+    vertices_new = deque()
+    entities_new = deque()
 
     for path_index in range(len(drawing.paths)):
         points = polygon_to_cleaned(drawing.polygons_closed[path_index], 
@@ -347,27 +347,27 @@ def simplify_path(drawing):
         circle = is_circle(points, scale=drawing.scale)
         
         if circle is not None:
-            ent.append(entities.Arc(points=np.arange(3)+len(vert),
+            entities_new.append(entities.Arc(points=np.arange(3)+len(vertices_new),
                                     closed=True))
-            vert.extend(circle)
+            vertices_new.extend(circle)
         else:
             arc_idx = arc_march(points, scale=drawing.scale)
             if len(arc_idx) > 0:
                 for arc in arc_idx:
-                    ent.append(entities.Arc(points=three_point(arc)+len(vert),
+                    entities_new.append(entities.Arc(points=three_point(arc)+len(vertices_new),
                                             closed=False))
-                line_idx = infill_lines(arc_idx,len(points)) + len(vert)
+                line_idx = infill_lines(arc_idx,len(points)) + len(vertices_new)
             else:
-                line_idx = pair_space(0, len(points)-1) + len(vert)
-                line_idx = [np.mod(np.arange(len(points)+1), len(points)) + len(vert)]
+                line_idx = pair_space(0, len(points)-1) + len(vertices_new)
+                line_idx = [np.mod(np.arange(len(points)+1), len(points)) + len(vertices_new)]
             
             for line in line_idx:
-                ent.append(entities.Line(points=line))
-            vert.extend(points)
-            
+                entities_new.append(entities.Line(points=line))
+            vertices_new.extend(points)
+
     drawing._cache.clear()
-    drawing.vertices = np.array(vert)
-    drawing.entities = np.array(ent)
+    drawing.vertices = np.array(vertices_new)
+    drawing.entities = np.array(entities_new)
 
 def pair_space(start, end):
     if start == end: return []

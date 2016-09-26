@@ -35,12 +35,11 @@ def minimum_nsphere(obj):
     points = convex.hull_points(obj)
 
     # we are scaling the mesh to a unit cube
-    # initially qhull_options 'QbB' was used but there was a bug in
-    # presumably the scipy interface with that option
+    # this used to pass qhull_options 'QbB' to Voronoi however this had a bug somewhere
     # to avoid this we scale to a unit cube ourselves inside this function
     points_min = points.min(axis=0)
     points_scale = points.ptp(axis=0).max()
-    points     = (points - points_min) / points_scale
+    points = (points - points_min) / points_scale
 
     # if all of the points are on an n-sphere already the voronoi 
     # method will fail so we check a least squares fit before 
@@ -64,6 +63,7 @@ def minimum_nsphere(obj):
     # hull methods to reduce n for this operation
     # we are doing comparisons on the radius^2 value so as to only do a sqrt once
     r2 = np.array([((points-v)**2).sum(axis=1).max() for v in voronoi.vertices])
+    # we want the smallest sphere, so we take the min of the radii options
     r2_idx = r2.argmin()
     center_v = voronoi.vertices[r2_idx]
 
@@ -82,7 +82,7 @@ def fit_nsphere(points, prior=None):
     Arguments
     ---------
     points: (n,d) set of points
-    prior:  (d,) float, best guess for center
+    prior:  (d,) float, best guess for center of nsphere
 
     Returns
     ---------

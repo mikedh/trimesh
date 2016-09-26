@@ -94,8 +94,9 @@ class Path(object):
 
     @property
     def scale(self):
-        return self.extents.mean()
-
+        scale = self.extents.max()
+        return scale
+        
     @util.cache_decorator
     def bounds(self):
         return np.vstack((np.min(self.vertices, axis=0),

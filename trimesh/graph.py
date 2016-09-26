@@ -15,7 +15,7 @@ except ImportError:
     _has_gt = False
     log.warning('graph-tool unavailable, some operations will be much slower')
 
-def face_adjacency(faces, return_edges=False):
+def face_adjacency(faces=None, mesh=None, return_edges=False):
     '''
     Returns an (n,2) list of face indices.
     Each pair of faces in the list shares an edge, making them adjacent.
@@ -24,6 +24,7 @@ def face_adjacency(faces, return_edges=False):
     Arguments
     ----------
     faces: (n, d) int, set of faces referencing vertices by index
+    mesh:   Trimesh object, optional if passed will used cached edges
     return_edges: bool, return the edges shared by adjacent faces
 
     Returns
@@ -43,10 +44,16 @@ def face_adjacency(faces, return_edges=False):
     groups = nx.connected_components(graph_connected)
     '''
 
-    # first generate the list of edges for the current faces
-    # also return the index for which face the edge is from
-    edges, edge_face_index = faces_to_edges(faces, return_index = True)
-    edges.sort(axis=1)
+    if mesh is None:
+        # first generate the list of edges for the current faces
+        # also return the index for which face the edge is from
+        edges, edges_face = faces_to_edges(faces, return_index = True)
+        edges.sort(axis=1)
+    else:
+        # if passed a mesh, used the cached values for edges sorted
+        edges = mesh.edges_sorted
+        edges_face = mesh.edges_face
+        
     # this will return the indices for duplicate edges
     # every edge appears twice in a well constructed mesh
     # so for every row in edge_idx, edges[edge_idx[*][0]] == edges[edge_idx[*][1]]
@@ -59,7 +66,7 @@ def face_adjacency(faces, return_edges=False):
     # the pairs of all adjacent faces
     # so for every row in face_idx, self.faces[face_idx[*][0]] and 
     # self.faces[face_idx[*][1]] will share an edge
-    face_adjacency = edge_face_index[edge_groups]
+    face_adjacency = edges_face[edge_groups]
     if return_edges:
         face_adjacency_edges = edges[edge_groups[:,0]]
         return face_adjacency, face_adjacency_edges
@@ -139,8 +146,7 @@ def facets(mesh):
     # if you don't do this, floating point error on tiny faces can push
     # the normals past a pure angle threshold even though the actual 
     # deviation across the face is extremely small. 
-    center      = mesh.triangles.mean(axis=1)
-    center_sq = np.sum(np.diff(center[face_idx], 
+    center_sq = np.sum(np.diff(mesh.triangles_center[face_idx], 
                                axis = 1).reshape((-1,3)) ** 2, axis=1)
     radius_sq = center_sq[non_parallel] / normal_dot[non_parallel]
     parallel[non_parallel] = radius_sq > tol.facet_rsq
@@ -185,7 +191,6 @@ def split(mesh, only_watertight=True, adjacency=None):
             # same as above, for single triangles with no adjacency
             g.add_vertex(len(mesh.faces))
         g.add_edge_list(adjacency)
-        
         component_labels = label_components(g, directed=False)[0].a
         components = group(component_labels)
         result = mesh.submesh(components, only_watertight=only_watertight)

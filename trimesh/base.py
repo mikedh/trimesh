@@ -409,9 +409,9 @@ class Trimesh(object):
 
         Returns
         ----------
-        scale: float, the largest side of the bounding box of the mesh
+        scale: float, the mean of the bounding box edges rounded to one signifigant figure
         '''
-        scale = self.extents.mean()
+        scale = self.extents.max()
         return scale
 
     @util.cache_decorator
@@ -559,6 +559,16 @@ class Trimesh(object):
         self._cache['edges_unique_idx'] = unique
         self._cache['edges_unique_inv'] = inverse
         return edges_unique
+        
+    @util.cache_decorator
+    def edges_sorted(self):
+        '''
+        Returns
+        ----------
+        self.edges, but sorted along axis 1
+        '''
+        edges_sorted = np.sort(self.edges, axis=1)
+        return edges_sorted
 
     @util.cache_decorator
     def faces_unique_edges(self):
@@ -591,16 +601,6 @@ class Trimesh(object):
         # we are relying on the fact that edges are stacked in triplets
         result = self._cache['edges_unique_inv'].reshape((-1,3))
         return result
-
-    @util.cache_decorator
-    def edges_sorted(self):
-        '''
-        Returns
-        ----------
-        self.edges, but sorted along axis 1
-        '''
-        edges_sorted = np.sort(self.edges, axis=1)
-        return edges_sorted
 
     @util.cache_decorator
     def euler_number(self):
@@ -779,7 +779,7 @@ class Trimesh(object):
 
         In [6]: groups = nx.connected_components(graph)
         '''
-        adjacency, edges = graph.face_adjacency(self.faces.view(np.ndarray),
+        adjacency, edges = graph.face_adjacency(mesh = self,
                                                 return_edges = True)
         self._cache['face_adjacency_edges'] = edges
         return adjacency
