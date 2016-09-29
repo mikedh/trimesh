@@ -19,7 +19,7 @@ if __name__ == "__main__":
   bpy.ops.object.delete(use_global=True)
 
   mesh_pre  = $mesh_pre
-  mesh_post = os.path.abspath('$mesh_post')
+  mesh_post = os.path.abspath(r'$mesh_post')
 
   # When you add objects to blender, other elements are pushed back
   # by going last to first on the filenames we can preserve the index relation
