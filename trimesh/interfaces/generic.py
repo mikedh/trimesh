@@ -47,5 +47,10 @@ class MeshScript:
     
     def __exit__(self, *args, **kwargs):
         # delete all the freaking temporary files
+        from os import remove
+        remove(self.script_out.name)
+        for f in self.mesh_pre:
+            remove(f)
+        remove(self.mesh_post)
         pass
 
