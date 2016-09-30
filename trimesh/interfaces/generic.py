@@ -12,22 +12,27 @@ class MeshScript:
         self.script  = script
 
     def __enter__(self):
-        self.mesh_pre = [NamedTemporaryFile(suffix='.STL', mode='wb') for i in self.meshes]
-        self.mesh_post  = NamedTemporaryFile(suffix='.STL', mode='rb')
-        self.script_out = NamedTemporaryFile(mode='wb')
+        self.script_out = NamedTemporaryFile(mode='wb', delete=False)
+        tempname=self.script_out.name
+        
+        self.mesh_post  = '%s_out.STL'%tempname
 
         # export the meshes to a temporary STL container
-        for m, f in zip(self.meshes, self.mesh_pre):
-            m.export(file_type='stl', file_obj=f.name)
+        self.replacement={}
+        self.mesh_pre = []
+        for i, m in enumerate(self.meshes):
+            f='%s_%d.STL'%(tempname,i+1)
+            self.mesh_pre.append(f)
+            self.replacement['mesh_%d'%i]=f
+            m.export(file_type='stl', file_obj=f)
 
-        self.replacement = {'mesh_' + str(i) : m.name for i,m in enumerate(self.mesh_pre)}
-        self.replacement['mesh_pre']  = str([i.name for i in self.mesh_pre])
-        self.replacement['mesh_post'] = self.mesh_post.name
+        self.replacement['mesh_pre']  = str([f for f in self.mesh_pre])
+        self.replacement['mesh_post'] = self.mesh_post
         self.replacement['script']    = self.script_out.name
 
         script_text = Template(self.script).substitute(self.replacement)
         self.script_out.write(script_text.encode('utf-8'))
-        self.script_out.flush()
+        self.script_out.close()
         return self
 
     def run(self, command):
@@ -36,13 +41,16 @@ class MeshScript:
         check_call(command_run)
 
         # bring the binaries result back as a Trimesh object
-        self.mesh_post.seek(0)
-        mesh_result = load_stl(self.mesh_post)
+        with open(self.mesh_post, mode='rb') as f:
+            mesh_result = load_stl(f)
         return mesh_result
     
     def __exit__(self, *args, **kwargs):
-        # close all the freaking temporary files
-        self.mesh_post.close()
-        self.script_out.close()
+        # delete all the freaking temporary files
+        from os import remove
+        remove(self.script_out.name)
         for f in self.mesh_pre:
-            f.close()
+            remove(f)
+        remove(self.mesh_post)
+        pass
+
