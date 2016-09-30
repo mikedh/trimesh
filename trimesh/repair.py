@@ -93,7 +93,7 @@ def broken_faces(mesh, color=None):
     broken    = [k for k, v in adjacency.degree().iteritems() if v != 3]
     broken    = np.array(broken)
     if color is not None:
-        if not is_sequence(color): color = [255,0,0]
+        if not is_sequence(color): color = [255,0,0,255]
         mesh.visual.face_colors[broken] = color
     return broken
 

@@ -516,6 +516,17 @@ class Trimesh(object):
         triangles_center = self.triangles.mean(axis=1)
         return triangles_center
         
+    @util.cache_decorator
+    def triangles_cross(self):
+        '''
+        The cross product of two edges of each triangle. 
+
+        Returns
+        ---------
+        crosses: (n,3) float, cross product of each triangle
+        '''
+        crosses = triangles.cross(self.triangles)
+        return crosses
 
     @util.cache_decorator
     def edges(self):
@@ -1197,7 +1208,7 @@ class Trimesh(object):
         ---------
         area_faces: (n,) float, area of each face. 
         '''
-        area_faces = triangles.area(self.triangles, sum=False)
+        area_faces = triangles.area(crosses = self.triangles_cross, sum=False)
         return area_faces
                          
     def mass_properties(self, density=1.0, skip_inertia=False):
@@ -1229,6 +1240,7 @@ class Trimesh(object):
         if cached is not None: 
             return cached
         mass = triangles.mass_properties(triangles    = self.triangles,
+                                         crosses      = self.triangles_cross,
                                          density      = density,
                                          skip_inertia = skip_inertia)
         self._cache[key] = mass

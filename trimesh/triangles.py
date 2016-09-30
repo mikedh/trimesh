@@ -15,7 +15,7 @@ def cross(triangles):
     crosses = np.cross(vectors[:,0], vectors[:,1])
     return crosses
     
-def area(triangles, sum=True):
+def area(triangles=None, crosses=None, sum=True):
     '''
     Calculates the sum area of input triangles 
 
@@ -30,20 +30,22 @@ def area(triangles, sum=True):
         if sum: float, sum area of triangles
         else:   (n,) float, individual area of triangles
     '''
-    crosses = cross(triangles)
+    if crosses is None:
+        crosses = cross(triangles)
     area    = (np.sum(crosses**2, axis=1)**.5)*.5
     if sum: 
         return np.sum(area)
     return area
     
-def normals(triangles):
+def normals(triangles=None, crosses=None):
     '''
     Calculates the normals of input triangles 
     
     triangles: vertices of triangles, (n,3,3)
     returns:   normal vectors, (n,3)
     '''
-    crosses = cross(triangles)
+    if crosses is None:
+        crosses = cross(triangles)
     normals, valid = unitize(crosses, check_valid=True)
     return normals, valid
     
@@ -76,14 +78,18 @@ def any_coplanar(triangles):
     any_coplanar = np.any(np.all(np.abs(distances.reshape((-1,3)) < tol.zero), axis=1))
     return any_coplanar
     
-def mass_properties(triangles, density = 1.0, skip_inertia=False):
+def mass_properties(triangles, crosses=None, density = 1.0, skip_inertia=False):
     '''
     Calculate the mass properties of a group of triangles.
     
     Implemented from:
     http://www.geometrictools.com/Documentation/PolyhedralMassProperties.pdf
+
+    Arguments
+    ----------
     '''
-    crosses      = cross(triangles)
+    if crosses is None:
+        crosses = cross(triangles)
     surface_area = np.sum(np.sum(crosses**2, axis=1)**.5)*.5
 
     # these are the subexpressions of the integral 
