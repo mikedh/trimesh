@@ -34,7 +34,9 @@ class BooleanTest(g.unittest.TestCase):
             self.assertTrue(primitive.is_watertight)
 
             # check that overload of dir worked
-            self.assertTrue(len(dir(primitive)) > 0)
+            self.assertTrue(len([i for i in dir(primitive.primitive) if not '_' in i]) > 0)
+            
+            
             
             
 if __name__ == '__main__':

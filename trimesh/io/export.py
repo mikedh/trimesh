@@ -24,7 +24,8 @@ def export_mesh(mesh, file_obj, file_type=None):
     
     '''
     if util.is_string(file_obj):
-        file_type = (str(file_obj).split('.')[-1]).lower()        
+        if file_type is None:
+            file_type = (str(file_obj).split('.')[-1]).lower()        
         if file_type in _mesh_exporters:
             file_obj  = open(file_obj, 'wb')
     file_type = str(file_type).lower()
