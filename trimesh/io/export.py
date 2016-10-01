@@ -5,7 +5,7 @@ import json
 from ..constants import log
 from .. import util
 
-from .stl import export_stl
+from .stl import export_stl, export_stl_ascii
 from .ply import export_ply
 
 def export_mesh(mesh, file_obj, file_type=None):
@@ -126,4 +126,5 @@ _mesh_exporters = {'ply'  : export_ply,
                    'dae'  : export_collada,
                    'dict64'  : export_dict64,
                    'msgpack' : export_msgpack,
-                   'collada' : export_collada}
+                   'collada' : export_collada,
+                   'stl_ascii' : export_stl_ascii}

@@ -110,7 +110,39 @@ def export_stl(mesh):
     
     return export
 
-_stl_loaders = {'stl':load_stl}
+def export_stl_ascii(mesh):
+    '''
+    Convert a Trimesh object into an ASCII STL file.
+
+    Arguments
+    ---------
+    mesh: Trimesh object
+
+    Returns
+    ---------
+    export: str, mesh represented as an ASCII STL file
+    '''
+
+    # move all the data thats going into the STL file into one array
+    blob = np.zeros((len(mesh.faces), 4, 3))
+    blob[:,0,:]  = mesh.face_normals
+    blob[:,1:,:] = mesh.triangles
+
+    # create a lengthy format string for the data section of the file
+    format_string  = 'facet normal {} {} {}\nouter loop\n'
+    format_string += 'vertex {} {} {}\n' * 3
+    format_string += 'endloop\nendfacet\n'
+    format_string *=  len(mesh.faces)
+
+    # concatenate the header, data, and footer
+    export = 'solid \n'
+    export += format_string.format(*blob.reshape(-1))
+    export += 'endsolid'
+
+    return export
+
+_stl_loaders = {'stl'       : load_stl,
+                'stl_ascii' : load_stl}
 
 
 
