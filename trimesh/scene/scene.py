@@ -27,43 +27,44 @@ class Scene:
         self._cache = util.Cache(id_function=self.md5)
 
         # mesh name : Trimesh object
-        self.meshes     = {}
+        self.geometry     = {}
         self.flags      = {}
         self.transforms = TransformForest(base_frame = base_frame)
 
         if node is not None:
-            self.add_mesh(node)
-            self.set_camera()
-            
+            self.add_geometry(node)
+            self.set_camera()            
         self._cache.id_set()
 
-    def add_mesh(self, mesh):
+    def add_geometry(self, geometry):
         '''
-        Add a mesh to the scene.
+        Add a geometry to the scene.
 
-        If the mesh has multiple transforms defined in its metadata, 
-        a new instance of the mesh will be created at each transform. 
+        If the mesh has multiple transforms defined in its metadata, they will
+        all be copied into the TransformForest of the current scene automatically.
+
+        Arguments
+        ----------
+        geometry: Trimesh, Path3D, or list of same
         '''        
-        if util.is_sequence(mesh):
-            for i in mesh:
-                self.add_mesh(i)
-            return
-
-        if 'name' in mesh.metadata: 
-            name_mesh = mesh.metadata['name']
+        if util.is_sequence(geometry):
+            return [self.add_geometry(i) for i in geometry]
+            
+        if 'name' in geometry.metadata: 
+            name_geometry = geometry.metadata['name']
         else:
-            name_mesh = 'mesh_' + str(len(self.meshes))
+            name_geometry = 'geometry_' + str(len(self.geometry))
 
-        self.meshes[name_mesh] = mesh
+        self.geometry[name_geometry] = geometry
 
-        if 'transforms' in mesh.metadata:
-            transforms = np.array(mesh.metadata['transforms'])
+        if 'transforms' in geometry.metadata:
+            transforms = np.array(geometry.metadata['transforms']).reshape((-1,4,4))
         else:
             transforms = np.eye(4).reshape((-1,4,4))
 
         for i, transform in enumerate(transforms):
-            name_node = name_mesh + '_' + str(i)
-            self.nodes[name_node] = name_mesh
+            name_node = name_geometry + '_' + str(i)
+            self.nodes[name_node] = name_geometry
             self.flags[name_node] = {'visible':True}
             self.transforms.update(frame_to = name_node, 
                                    matrix   = transform)
@@ -72,7 +73,7 @@ class Scene:
         '''
         MD5 of scene, which will change when meshes or transforms are changed
         '''
-        mesh_hash = util.md5_object(np.sort([hash(i) for i in self.meshes.values()]))
+        mesh_hash = util.md5_object(np.sort([hash(i) for i in self.geometry.values()]))
         result = mesh_hash + self.transforms.md5()
         return result
 
@@ -88,7 +89,7 @@ class Scene:
         corners = deque()
         for instance, mesh_name in self.nodes.items():
             transform = self.transforms.get(instance)
-            corners.append(transform_points(self.meshes[mesh_name].bounds, 
+            corners.append(transform_points(self.geometry[mesh_name].bounds, 
                                             transform))
         corners = np.vstack(corners)
         bounds  = np.array([corners.min(axis=0), 
@@ -127,13 +128,13 @@ class Scene:
         Return a sequence of node keys of identical meshes.
 
         Will combine meshes duplicated by copying in space with different keys in 
-        self.meshes, as well as meshes repeated by self.nodes.
+        self.geometry, as well as meshes repeated by self.nodes.
 
         Returns
         -----------
         duplicates: (m) sequence of keys to self.nodes that represent identical geometry 
         '''
-        mesh_ids  = {k : m.identifier for k, m in self.meshes.items()}
+        mesh_ids  = {k : m.identifier for k, m in self.geometry.items()}
         
         node_keys = np.array(list(self.nodes.keys()))
         node_ids  = [mesh_ids[v] for v in self.nodes.values()]
@@ -170,7 +171,7 @@ class Scene:
         result = deque()
         for node_id, mesh_id in self.nodes.items():
             transform = self.transforms.get(node_id)
-            current   = self.meshes[mesh_id].copy()
+            current   = self.geometry[mesh_id].copy()
             current.apply_transform(transform)
             result.append(current)
         return np.array(result)
@@ -197,7 +198,7 @@ class Scene:
                   'scene_cache' : self._cache.cache}
         # if the mesh has an export method use it, otherwise put the mesh
         # itself into the export object
-        for node, mesh in self.meshes.items():
+        for node, mesh in self.geometry.items():
             if hasattr(mesh, 'export'): 
                 export['meshes'][node] = mesh.export(file_type=file_type)
             else: 
@@ -217,7 +218,7 @@ class Scene:
         '''
         if origin is None:
             origin = self.centroid
-        centroids = np.array([self.meshes[i].centroid for i in self.nodes.values()])
+        centroids = np.array([self.geometry[i].centroid for i in self.nodes.values()])
 
         if np.shape(vector) == (3,):
             vectors = np.tile(vector, (len(centroids), 1))

@@ -264,13 +264,9 @@ class Path3D(Path):
                 self.generate_closed_paths,
                 self.generate_discrete]
         
-    @property
+    @util.cache_decorator
     def discrete(self):
-        cached = self._cache['discrete']
-        if cached is not None:
-            return cached
         discrete = list(map(self.discretize_path, self.paths))
-        self._cache['discrete'] = discrete
         return discrete
 
     def to_planar(self, to_2D=None, normal=None, check=True):
@@ -298,7 +294,25 @@ class Path3D(Path):
         to_3D  = np.linalg.inv(to_2D)
 
         return vector, to_3D
- 
+
+    def scene(self):
+        '''
+        Get a scene object containing the current Path3D object.
+
+        Returns
+        --------
+        scene: trimesh.scene.Scene object containing current path
+        '''
+        from ..scene import Scene
+        scene = Scene(self)
+        return scene
+
+    def show(self):
+        '''
+        Show the current Path3D object.
+        '''
+        self.scene().show()
+    
     def plot_discrete(self, show=False):
         import matplotlib.pyplot as plt
         from mpl_toolkits.mplot3d import Axes3D
@@ -314,7 +328,7 @@ class Path3D(Path):
         fig  = plt.figure()
         axis = fig.add_subplot(111, projection='3d')
         for entity in self.entities:
-            vertices = self.vertices[entity.points]
+            vertices = entity.discrete(self.vertices)
             axis.plot(*vertices.T)        
         if show: plt.show()
 

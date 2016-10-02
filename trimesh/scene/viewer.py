@@ -6,11 +6,11 @@ import platform
 
 from collections import deque
 
+from .. import util
 from ..transformations import Arcball
 
 #smooth only when fewer faces than this
 _SMOOTH_MAX_FACES = 100000
-
 
 class SceneViewer(pyglet.window.Window):
     def __init__(self, 
@@ -48,14 +48,15 @@ class SceneViewer(pyglet.window.Window):
 
         self.batch = pyglet.graphics.Batch()
         self._img  = save_image
+        self._smooth = smooth
 
-        self.vertex_list     = {}
-        self.vertex_list_md5 = {}
-
-        for name, mesh in scene.meshes.items():
-            self._add_mesh(name_mesh = name, 
-                           mesh      = mesh, 
-                           smooth    = smooth)
+        self.vertex_list      = {}
+        self.vertex_list_md5  = {}
+        self.vertex_list_mode = {}
+        
+        for name, mesh in scene.geometry.items():
+            self.add_geometry(name = name, 
+                              geometry = mesh)
         self.init_gl()
         self.set_size(*resolution)
         self.update_flags()
@@ -65,22 +66,35 @@ class SceneViewer(pyglet.window.Window):
         self.on_draw()
 
     def _update_meshes(self):
-        for name, mesh in self.scene.meshes.items():
-            md5 = mesh.md5() + mesh.visual.md5()
-            if self.vertex_list_md5[name] != md5:
-                self._add_mesh(name, mesh)
+        for name, mesh in self.scene.geometry.items():
+            if self.vertex_list_md5[name] != geometry_md5(mesh):
+                self._add_geometry(name, mesh)
 
-    def _add_mesh(self, name_mesh, mesh, smooth=None):    
-        if smooth is None:
-            smooth = len(mesh.faces) < _SMOOTH_MAX_FACES
-        if smooth:
+    def _add_mesh(self, name, mesh):
+        if self._smooth and len(mesh.faces) < _SMOOTH_MAX_FACES:
             display = mesh.smoothed()
         else:
             display = mesh.copy()
             display.unmerge_vertices()
-        self.vertex_list[name_mesh] = self.batch.add_indexed(*mesh_to_vertex_list(display))
-        self.vertex_list_md5[name_mesh] = mesh.md5() + mesh.visual.md5()
 
+        self.vertex_list[name] = self.batch.add_indexed(*mesh_to_vertex_list(display))
+        self.vertex_list_md5[name] = geometry_md5(mesh)
+        self.vertex_list_mode[name] = gl.GL_TRIANGLES
+
+    def _add_path(self, name, path):
+        self.vertex_list[name] = self.batch.add_indexed(*path_to_vertex_list(path))
+        self.vertex_list_md5[name] = geometry_md5(path)
+        self.vertex_list_mode[name] = gl.GL_LINES
+        
+    def add_geometry(self, name, geometry):
+        geometry_type = type(geometry).__name__
+        if geometry_type == 'Trimesh':
+            return self._add_mesh(name, geometry)
+        elif geometry_type == 'Path3D':
+            return self._add_path(name, geometry)
+        else:
+            raise ValueError('Geometry passed is not a viewable type!')
+        
     def reset_view(self, flags=None):
         '''
         Set view to base.
@@ -127,7 +141,11 @@ class SceneViewer(pyglet.window.Window):
         gl.glEnable(gl.GL_BLEND) 
         gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA) 
 
-
+        gl.glEnable(gl.GL_LINE_SMOOTH)
+        gl.glHint(gl.GL_LINE_SMOOTH_HINT, gl.GL_NICEST)
+        
+        gl.glLineWidth(1.5)
+        
     def toggle_culling(self):
         self.view['cull'] = not self.view['cull']
         self.update_flags()
@@ -211,8 +229,10 @@ class SceneViewer(pyglet.window.Window):
             # behaviour to render meshes with no flag defined. 
             if self.node_flag(name_node, 'visible') == False:
                 continue
-                
-            if self.scene.meshes[name_mesh].visual.transparency:
+
+            mesh = self.scene.geometry[name_mesh]
+            if (hasattr(mesh, 'visual') and 
+                mesh.visual.transparency):
                 # put the current item onto the back of the queue
                 if count < count_original:
                     items.append(item)
@@ -223,8 +243,10 @@ class SceneViewer(pyglet.window.Window):
             gl.glPushMatrix()
             # transform by the nodes transform
             gl.glMultMatrixf(_gl_matrix(transform))
+            # get the mode of the current geometry
+            mode = self.vertex_list_mode[name_mesh]
             # draw the mesh with its transform applied
-            self.vertex_list[name_mesh].draw(mode=gl.GL_TRIANGLES)
+            self.vertex_list[name_mesh].draw(mode=mode)
             # pop the matrix stack as we drew what we needed to draw
             gl.glPopMatrix()
 
@@ -261,6 +283,12 @@ def _view_transform(view):
     transform[0:3,3] += view['translation'] * view['scale'] * 5.0
     return transform
 
+def geometry_md5(geometry):
+    md5 = geometry.md5()
+    if hasattr(geometry, 'visual'):
+        md5 += geometry.visual.md5()
+    return md5
+
 def mesh_to_vertex_list(mesh, group=None):
     '''
     Convert a Trimesh object to arguments for an 
@@ -277,12 +305,24 @@ def mesh_to_vertex_list(mesh, group=None):
     color_type = 'c' + str(color_dimension) + 'B/static'
 
     args = (len(mesh.vertices), # number of vertices
-            gl.GL_TRIANGLES,       # mode 
+            gl.GL_TRIANGLES,    # mode 
             group,              # group
             faces,              # indices 
             ('v3f/static', vertices),
             ('n3f/static', normals),
             (color_type,   colors))
+    return args
+
+def path_to_vertex_list(path, group=None):
+    lines = np.vstack([util.stack_lines(e.discrete(path.vertices)) for e in path.entities])
+    index = np.arange(len(lines))
+    
+    args = (len(lines),         # number of vertices
+            gl.GL_LINES,        # mode 
+            group,              # group
+            index.reshape(-1),  # indices 
+            ('v3f/static', lines.reshape(-1)),
+            ('c3f/static', np.array([.5,.10,.20]*len(lines))))
     return args
     
 def _gl_matrix(array):

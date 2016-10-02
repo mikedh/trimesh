@@ -664,8 +664,47 @@ class DataStore:
         return md5
 
 def stack_lines(indices):
+    '''
+    Stack a list of values that represent a polyline into 
+    individual line segments with duplicated consecutive values.
+
+    Arguments
+    ----------
+    indices: sequence of items
+    
+    Returns
+    ---------
+    stacked: (n,2) set of items
+
+    In [1]: trimesh.util.stack_lines([0,1,2])
+    Out[1]: 
+    array([[0, 1],
+           [1, 2]])
+
+    In [2]: trimesh.util.stack_lines([0,1,2,4,5])
+    Out[2]: 
+    array([[0, 1],
+           [1, 2],
+           [2, 4],
+           [4, 5]])
+
+    In [3]: trimesh.util.stack_lines([[0,0],[1,1],[2,2], [3,3]])
+    Out[3]: 
+    array([[0, 0],
+           [1, 1],
+           [1, 1],
+           [2, 2],
+           [2, 2],
+           [3, 3]])
+
+    '''
+    indices = np.asanyarray(indices)
+    if is_sequence(indices[0]):
+        shape = (-1,len(indices[0]))
+    else:
+        shape = (-1,2)
     return np.column_stack((indices[:-1],
-                            indices[1:])).reshape((-1,2))
+                            indices[1:])).reshape(shape)
 
 def append_faces(vertices_seq, faces_seq): 
     '''
