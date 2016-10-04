@@ -1,7 +1,6 @@
 import numpy as np
 import json
 
-
 from ..constants import log
 from .. import util
 
