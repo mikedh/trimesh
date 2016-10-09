@@ -1,6 +1,6 @@
 import numpy as np
 
-from .util      import diagonal_dot, unitize
+from .util      import diagonal_dot, unitize, is_shape
 from .points    import point_plane_distance
 from .constants import tol
 
@@ -228,3 +228,34 @@ def nondegenerate(triangles):
     ok[np.logical_not(valid_b)] = False
     
     return ok
+
+def barycentric_to_cartesian(triangles, barycentric, barycentric_index):
+    '''
+    Convert a set of barycentric coordinates on a list of triangles to cartesian points
+    
+    Arguments
+    ----------
+    triangles:         (n,3,3) float, set of triangles in space
+    barycentric:       (m,2) float, barycentric coordinates
+    barycentric_index: (m,) int, which index of triangles is each barycentric coordinate for
+
+    Returns
+    -----------
+    points: (m,3) float, points in space
+    '''
+    barycentric = np.asanyarray(barycentric, dtype=np.float64)
+    barycentric_index = np.asanyarray(barycentric_index, dtype=np.int64)
+    triangles = np.asanyarray(triangles, dtype=np.float64)
+
+    if is_shape(barycentric, (-1,2)):
+        barycentric  = np.column_stack((barycentric, 1.0-barycentric.sum(axis=1)))
+    elif not is_shape(barycentric, (-1,3)):
+        raise ValueError('Barycentric shape incorrect!')
+
+    if (barycentric < -tol.merge).any():
+        raise ValueError('Barycentric coordinates have negative terms!')
+
+    barycentric /= barycentric.sum(axis=1).reshape((-1,1))    
+    points = (triangles[barycentric_index]  * barycentric.reshape((-1,3,1))).sum(axis=1)
+
+    return points
