@@ -185,7 +185,7 @@ def ply_ascii(elements, file_obj):
 
     if position != len(raw):
         raise ValueError('File was unexpected length!')
-    return elements
+
 
 def ply_binary(elements, file_obj):
     '''
@@ -267,11 +267,5 @@ def ply_binary(elements, file_obj):
     # is intact, read the data fields described by the header
     populate_data(file_obj, elements)
 
-    if True: return elements
-    # all of the data is now stored in elements, but we need it as
-    # a set of keyword arguments we can pass to the Trimesh constructor
-    # will look something like {'vertices' : (data), 'faces' : (data)} 
-    mesh_kwargs = ply_elements_kwargs(elements)
-    return mesh_kwargs
     
 _ply_loaders = {'ply' : load_ply}

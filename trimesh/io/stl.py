@@ -27,9 +27,9 @@ def load_stl(file_obj, file_type=None):
               faces:        (m,3) int, indexes of vertices
               face_normals: (m,3) float, normal vector of each face
     '''
+    # save start of file obj
+    file_pos = file_obj.tell()
     try:
-        # save start position
-        file_pos = file_obj.tell()
         # check the file for a header which matches the file length
         # if that is true, it is almost certainly a binary STL file
         # if the header doesn't match the file length a HeaderError will be raised
@@ -76,7 +76,7 @@ def load_stl_binary(file_obj):
    
     # this check is to see if this really is a binary STL file. 
     # if we don't do this and try to load a file that isn't structured properly 
-    # the struct.unpack call uses 100% memory until the whole thing crashes, 
+    # we will be producing garbage or crashing hard
     # so it's much better to raise an exception here. 
     if not data_ok:
         raise HeaderError('Binary STL has incorrect length in header!')
