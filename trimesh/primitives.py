@@ -56,7 +56,7 @@ class _Primitive(Trimesh):
         if values is not None:
             log.warning('Primitive face normals are immutable! Not setting!')
 
-    def to_mesh(self):
+    def copy(self):
         '''
         Return a copy of the Primitive object as a trimesh.
         '''

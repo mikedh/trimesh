@@ -87,10 +87,9 @@ class SceneViewer(pyglet.window.Window):
         self.vertex_list_mode[name] = gl.GL_LINES
         
     def add_geometry(self, name, geometry):
-        geometry_type = type(geometry).__name__
-        if geometry_type == 'Trimesh':
+        if util.is_instance_named(geometry, 'Trimesh'):
             return self._add_mesh(name, geometry)
-        elif geometry_type == 'Path3D':
+        elif util.is_instance_named(geometry, 'Path3D'):
             return self._add_path(name, geometry)
         else:
             raise ValueError('Geometry passed is not a viewable type!')
