@@ -257,22 +257,56 @@ def barycentric_to_points(triangles, barycentric):
 
     return points
 
-def points_to_barycentric(triangles, points):
+def points_to_barycentric(triangles, points, method='cramer'):
     '''
     Find the barycentric coordinates of a points relative to triangles.
 
-    Implements:
-    http://blackpawn.com/texts/pointinpoly/
+    For the Cramer's rule solution implements:
+        http://blackpawn.com/texts/pointinpoly
+
+    For the cross product solution implements:
+        https://www.cs.ubc.ca/~heidrich/Papers/JGT.05.pdf 
+
 
     Arguments
     -----------
     triangles: (n,3,3) float, triangles in space
     points:    (n,3) float, point in space associated with a triangle
+    method:    str, which method to compute the barycentric coordinates with. Options:
+               -'cross': uses a method using cross products, roughly 2x slower but 
+                         different numerical robustness properties
+               -anything else: uses a cramer's rule solution
 
     Returns
     -----------
     barycentric: (n,3) float, barycentric 
     '''
+
+    def method_cross():
+        n = np.cross(edge_vectors[:,0], edge_vectors[:,1])
+        denominator = util.diagonal_dot(n,n)
+
+        barycentric = np.zeros((len(triangles), 3), dtype=np.float64)
+        barycentric[:,2] = util.diagonal_dot(np.cross(edge_vectors[:,0], w), n) / denominator
+        barycentric[:,1] = util.diagonal_dot(np.cross(w, edge_vectors[:,1]), n) / denominator
+        barycentric[:,0] = 1 - barycentric[:,1] - barycentric[:,2]
+        return barycentric
+
+    def method_cramer():
+        dot00 = util.diagonal_dot(edge_vectors[:,0], edge_vectors[:,0])
+        dot01 = util.diagonal_dot(edge_vectors[:,0], edge_vectors[:,1])
+        dot02 = util.diagonal_dot(edge_vectors[:,0], w)
+        dot11 = util.diagonal_dot(edge_vectors[:,1], edge_vectors[:,1])
+        dot12 = util.diagonal_dot(edge_vectors[:,1], w)
+
+        inverse_denominator = 1.0 / (dot00 * dot11 - dot01 * dot01)
+
+        barycentric = np.zeros((len(triangles), 3), dtype=np.float64)
+        barycentric[:,2] = (dot00 * dot12 - dot01 * dot02) * inverse_denominator
+        barycentric[:,1] = (dot11 * dot02 - dot01 * dot12) * inverse_denominator
+        barycentric[:,0] = 1 - barycentric[:,1] - barycentric[:,2]
+        return barycentric
+
     triangles = np.asanyarray(triangles, dtype=np.float64)
     points    = np.asanyarray(points,    dtype=np.float64)
 
@@ -284,17 +318,6 @@ def points_to_barycentric(triangles, points):
     edge_vectors = triangles[:,1:] - triangles[:,:1]
     w = points - triangles[:,0].reshape((-1,3))
 
-    dot00 = util.diagonal_dot(edge_vectors[:,0], edge_vectors[:,0])
-    dot01 = util.diagonal_dot(edge_vectors[:,0], edge_vectors[:,1])
-    dot02 = util.diagonal_dot(edge_vectors[:,0], w)
-    dot11 = util.diagonal_dot(edge_vectors[:,1], edge_vectors[:,1])
-    dot12 = util.diagonal_dot(edge_vectors[:,1], w)
-
-    inverse_denominator = 1.0 / (dot00 * dot11 - dot01 * dot01)
-
-    barycentric = np.zeros((len(triangles), 3), dtype=np.float64)
-    barycentric[:,2] = (dot00 * dot12 - dot01 * dot02) * inverse_denominator
-    barycentric[:,1] = (dot11 * dot02 - dot01 * dot12) * inverse_denominator
-    barycentric[:,0] = 1 - barycentric[:,1] - barycentric[:,2]
-    return barycentric
-
+    if method == 'cross':
+        return method_cross()
+    return method_cramer()
