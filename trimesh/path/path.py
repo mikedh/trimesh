@@ -125,7 +125,7 @@ class Path(object):
     def units(self, units):
         self.metadata['units'] = units
             
-    def set_units(self, desired, guess=False):
+    def convert_units(self, desired, guess=False):
         _set_units(self, desired, guess)
 
     def apply_transform(self, transform):

@@ -1,6 +1,7 @@
 import numpy as np
 
-from .util      import diagonal_dot, unitize, is_shape
+from . import util
+
 from .points    import point_plane_distance
 from .constants import tol
 
@@ -46,7 +47,7 @@ def normals(triangles=None, crosses=None):
     '''
     if crosses is None:
         crosses = cross(triangles)
-    normals, valid = unitize(crosses, check_valid=True)
+    normals, valid = util.unitize(crosses, check_valid=True)
     return normals, valid
     
 def all_coplanar(triangles):
@@ -169,7 +170,7 @@ def windings_aligned(triangles, normals_compare):
     '''
 
     calculated, valid = normals(triangles)    
-    difference = diagonal_dot(calculated, normals_compare[valid])
+    difference = util.diagonal_dot(calculated, normals_compare[valid])
     result = np.zeros(len(triangles), dtype=np.bool)
     result[valid] = difference > 0.0
     return result 
@@ -216,8 +217,8 @@ def nondegenerate(triangles):
     ----------
     nondegenerate: (n,) bool array of triangles that have area
     '''    
-    a, valid_a = unitize(triangles[:,1] - triangles[:,0], check_valid=True)
-    b, valid_b = unitize(triangles[:,2] - triangles[:,0], check_valid=True)
+    a, valid_a = util.unitize(triangles[:,1] - triangles[:,0], check_valid=True)
+    b, valid_b = util.unitize(triangles[:,2] - triangles[:,0], check_valid=True)
 
     diff = np.zeros((len(triangles), 3))
     diff[valid_a]  = a
@@ -229,33 +230,71 @@ def nondegenerate(triangles):
     
     return ok
 
-def barycentric_to_cartesian(triangles, barycentric, barycentric_index):
+def barycentric_to_points(triangles, barycentric):
     '''
     Convert a set of barycentric coordinates on a list of triangles to cartesian points
     
     Arguments
     ----------
     triangles:         (n,3,3) float, set of triangles in space
-    barycentric:       (m,2) float, barycentric coordinates
-    barycentric_index: (m,) int, which index of triangles is each barycentric coordinate for
-
+    barycentric:       (n,2) float, barycentric coordinates
+   
     Returns
     -----------
     points: (m,3) float, points in space
     '''
     barycentric = np.asanyarray(barycentric, dtype=np.float64)
-    barycentric_index = np.asanyarray(barycentric_index, dtype=np.int64)
     triangles = np.asanyarray(triangles, dtype=np.float64)
 
-    if is_shape(barycentric, (-1,2)):
-        barycentric  = np.column_stack((barycentric, 1.0-barycentric.sum(axis=1)))
-    elif not is_shape(barycentric, (-1,3)):
+    if util.is_shape(barycentric, (len(triangles),2)):
+        barycentric = np.column_stack((barycentric, 
+                                       1.0-barycentric.sum(axis=1)))
+    elif not util.is_shape(barycentric, (len(triangles),3)):
         raise ValueError('Barycentric shape incorrect!')
-
-    if (barycentric < -tol.merge).any():
-        raise ValueError('Barycentric coordinates have negative terms!')
-
+                                      
     barycentric /= barycentric.sum(axis=1).reshape((-1,1))    
-    points = (triangles[barycentric_index]  * barycentric.reshape((-1,3,1))).sum(axis=1)
+    points = (triangles * barycentric.reshape((-1,3,1))).sum(axis=1)
 
     return points
+
+def points_to_barycentric(triangles, points):
+    '''
+    Find the barycentric coordinates of a points relative to triangles.
+
+    Implements:
+    http://blackpawn.com/texts/pointinpoly/
+
+    Arguments
+    -----------
+    triangles: (n,3,3) float, triangles in space
+    points:    (n,3) float, point in space associated with a triangle
+
+    Returns
+    -----------
+    barycentric: (n,3) float, barycentric 
+    '''
+    triangles = np.asanyarray(triangles, dtype=np.float64)
+    points    = np.asanyarray(points,    dtype=np.float64)
+
+    if not util.is_shape(triangles, (-1,3,3)):
+        raise ValueError('triangles shape incorrect')
+    if not util.is_shape(points, (len(triangles), 3)):
+        raise ValueError('triangles and points must correspond')
+
+    edge_vectors = triangles[:,1:] - triangles[:,:1]
+    w = points - triangles[:,0].reshape((-1,3))
+
+    dot00 = util.diagonal_dot(edge_vectors[:,0], edge_vectors[:,0])
+    dot01 = util.diagonal_dot(edge_vectors[:,0], edge_vectors[:,1])
+    dot02 = util.diagonal_dot(edge_vectors[:,0], w)
+    dot11 = util.diagonal_dot(edge_vectors[:,1], edge_vectors[:,1])
+    dot12 = util.diagonal_dot(edge_vectors[:,1], w)
+
+    inverse_denominator = 1.0 / (dot00 * dot11 - dot01 * dot01)
+
+    barycentric = np.zeros((len(triangles), 3), dtype=np.float64)
+    barycentric[:,2] = (dot00 * dot12 - dot01 * dot02) * inverse_denominator
+    barycentric[:,1] = (dot11 * dot02 - dot01 * dot12) * inverse_denominator
+    barycentric[:,0] = 1 - barycentric[:,1] - barycentric[:,2]
+    return barycentric
+
