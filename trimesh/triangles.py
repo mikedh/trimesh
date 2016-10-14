@@ -307,9 +307,9 @@ def points_to_barycentric(triangles, points, method='cramer'):
         barycentric[:,0] = 1 - barycentric[:,1] - barycentric[:,2]
         return barycentric
 
+    # establish that input triangles and points are sane
     triangles = np.asanyarray(triangles, dtype=np.float64)
     points    = np.asanyarray(points,    dtype=np.float64)
-
     if not util.is_shape(triangles, (-1,3,3)):
         raise ValueError('triangles shape incorrect')
     if not util.is_shape(points, (len(triangles), 3)):
@@ -321,3 +321,65 @@ def points_to_barycentric(triangles, points, method='cramer'):
     if method == 'cross':
         return method_cross()
     return method_cramer()
+
+def closest_point(triangles, points):
+    '''
+    Return the closest point on the surface of each triangles for a 
+    list of corresponding points.
+
+    Arguments
+    ----------
+    triangles: (n,3,3) float, triangles in space
+    points:    (n,3)   float, points in space
+
+    Returns
+    ----------
+    closest: (n,3) float, point on each triangle closest to each point
+    '''
+
+    # establish that input triangles and points are sane
+    triangles = np.asanyarray(triangles, dtype=np.float64)
+    points    = np.asanyarray(points,    dtype=np.float64)
+    if not util.is_shape(triangles, (-1,3,3)):
+        raise ValueError('triangles shape incorrect')
+    if not util.is_shape(points, (len(triangles), 3)):
+        raise ValueError('triangles and points must correspond')
+
+    # convert points to barycentric coordinates
+    barycentric = points_to_barycentric(triangles, points)
+
+    # signs of barycentric coordinates
+    positive = barycentric > -tol.zero
+    positive_sum = positive.sum(axis=1)
+    # cases for signs of barycentric coordinates:
+    # 2 negative, 1 positive: closest point is positive vertex
+    # 1 negative, 2 positive: closest point is on edge between 2 positive
+    # 0 negative, 3 positive: closest point is @ barycentric coord
+    case_vertex      = positive_sum == 1
+    case_edge        = positive_sum == 2
+    case_barycentric = positive_sum == 3
+
+    # closest points to triangle
+    closest = np.zeros(points.shape, dtype=np.float64)
+
+    # case where nearest point is a triangle vertex
+    # just take that vertex
+    closest[case_vertex] = triangles[case_vertex][positive[case_vertex]]    
+
+    # case where projection is inside the triangle
+    # just evaluate the barycentric coordinates
+    closest[case_barycentric] = (triangles[case_barycentric] * 
+                                 barycentric[case_barycentric].reshape((-1,3,1))).sum(axis=1)
+
+    # edges for case_edges
+    edges = triangles[case_edge][positive[case_edge]].reshape((-1,2,3))
+    # for a line defined by A and B, and a point in space P
+    AB = np.diff(edges, axis=1).reshape((-1,3))
+    AP = points[case_edge] - edges[:,0]
+    # point projected onto line segment divided by line segment length squared
+    edge_distance = (util.diagonal_dot(AP, AB) / 
+                     util.diagonal_dot(AB, AB)).reshape((-1,1))
+    projection = edges[:,0] + (edge_distance * AB)
+    closest[case_edge] = projection
+
+    return closest

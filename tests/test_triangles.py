@@ -18,6 +18,16 @@ class TrianglesTest(g.unittest.TestCase):
                                                                        barycentric)
                     self.assertTrue((g.np.abs(points - m.triangles[:,i]) < 1e-8).all())
 
+
+    def test_closest(self):
+        closest = g.trimesh.triangles.closest_point(triangles = g.data['triangles']['triangles'],
+                                                    points    = g.data['triangles']['points'])
+        
+        comparison = (closest - g.data['triangles']['closest']).all()
+
+        self.assertTrue((comparison < 1e-8).all())
+        g.log.info('finished closest check on %d triangles', len(closest))
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()

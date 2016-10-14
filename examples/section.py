@@ -25,14 +25,16 @@ if __name__ == '__main__':
     z_levels  = np.arange(*z_extents, step=.125)
 
     # create an array to hold the section objects
-    sections  = [None] * len(z_levels)
+    sections  = []
 
-    for i, z in enumerate(z_levels):
+    for z in np.append(z_levels, 1000):
         # this will return a Path3D object, each of which will 
         # have curves in 3D space
-        sections[i] = mesh.section(plane_origin = [0,0,z],
-                                   plane_normal = [0,0,1])
-
+        try:
+            sections.append(mesh.section(plane_origin = [0,0,z],
+                                         plane_normal = [0,0,1]))
+        except ValueError:
+            print('Plane doesn\'t intersect mesh at {}'.format(z))
     # summing the array of path objects will put all of the curves
     # into one Path3D object, which we can then plot easily in 3D
     combined = np.sum(sections)
