@@ -371,7 +371,8 @@ def closest_point(triangles, points):
     closest[case_barycentric] = (triangles[case_barycentric] * 
                                  barycentric[case_barycentric].reshape((-1,3,1))).sum(axis=1)
 
-    # edges for case_edges
+    # case where the closest point lies on the edge of a triangle
+    # we have to find the closest point on a line
     edges = triangles[case_edge][positive[case_edge]].reshape((-1,2,3))
     # for a line defined by A and B, and a point in space P
     AB = np.diff(edges, axis=1).reshape((-1,3))
@@ -383,3 +384,27 @@ def closest_point(triangles, points):
     closest[case_edge] = projection
 
     return closest
+
+def to_kwargs(triangles):
+    '''
+    Convert a list of triangles to the kwargs for the Trimesh constructor.
+
+    Arguments
+    ---------
+    triangles: (n,3,3) float, triangles in space
+
+    Returns
+    ---------
+    kwargs: dict, with 'vertices' and 'faces' keys
+
+    Example
+    ---------
+    mesh = trimesh.Trimesh(**trimesh.triangles.to_kwargs(triangles))
+    '''
+    triangles = np.asanyarray(triangles, dtype=np.float64)
+    vertices = triangles.reshape((-1,3))
+    
+    kwargs = {'vertices' : vertices,
+              'faces'    : np.arange(len(vertices)).reshape((-1,3))}
+    
+    return kwargs

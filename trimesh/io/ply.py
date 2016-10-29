@@ -128,7 +128,19 @@ def elements_to_kwargs(elements):
     if is_shape(elements['face']['data'], (-1, (3,4))):
         faces = elements['face']['data']
     else:
-        faces = elements['face']['data']['vertex_indices']['f1']
+        blob = elements['face']['data']
+        # some exporters set this name to 'vertex_index' 
+        # and some others use 'vertex_indices', but we really
+        # don't care about the name unless there are multiple properties defined
+        if len(blob.dtype.names) == 1: 
+            name = blob.dtype.names[0]
+        elif len(blob.dtype.names) > 1:
+            for i in blob.dtype.names:
+                if i in ['vertex_index', 
+                         'vertex_indices']:
+                    name = i
+                    break
+        faces = elements['face']['data'][name]['f1']
 
     if not is_shape(faces, (-1,(3,4))):
         raise ValueError('Faces weren\'t (n,(3|4))!')

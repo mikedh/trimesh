@@ -138,6 +138,7 @@ class Trimesh(object):
         '''
         # avoid clearing the cache during operations
         with self._cache:
+            self.remove_infinite_values()
             self.merge_vertices()
             self.remove_duplicate_faces()
             self.remove_degenerate_faces()
@@ -720,6 +721,17 @@ class Trimesh(object):
             faces = self._cache['faces']
         self.faces = faces[mask]        
         self.visual.update_faces(mask)
+        
+    def remove_infinite_values(self):
+        '''
+        Ensure that every vertex and face consists of finite numbers.
+
+        This will remove vertices or faces containing np.nan and np.inf
+        '''
+        faces = np.isfinite(self.faces).all(axis=1)
+        vertices = np.isfinite(self.vertices).all(axis=1)
+        self.update_faces(faces)
+        self.update_vertices(vertices)
         
     def remove_duplicate_faces(self):
         '''

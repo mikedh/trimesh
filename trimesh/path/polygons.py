@@ -1,9 +1,9 @@
+import numpy as np
+import networkx as nx
+
 from shapely.geometry import Polygon, Point, LineString
 from rtree            import Rtree
 from collections      import deque
-
-import numpy as np
-import networkx as nx
 
 from .. import bounds
 
