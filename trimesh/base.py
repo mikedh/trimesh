@@ -26,6 +26,7 @@ from . import bounds
 from . import units
 from . import permutate
 from . import nsphere
+from . import nearest
 
 from .io.export    import export_mesh
 from .ray.ray_mesh import RayMeshIntersector, contains_points

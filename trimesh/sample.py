@@ -1,5 +1,7 @@
 import numpy as np
 
+from . import util
+
 def sample_surface(mesh, count):
     '''
     Sample the surface of a mesh, returning the specified number of points
@@ -58,7 +60,7 @@ def sample_surface(mesh, count):
 
 def sample_volume(mesh, count):
     '''
-    
+    Sample from inside a mesh.
     '''
     points = (np.random.random((count, 3))*mesh.extents) + mesh.bounds[0]
     contained = mesh.contains(points)
@@ -76,3 +78,27 @@ def sample_surface_even(mesh, count):
     samples = sample_surface(mesh, count*5)
     result = remove_close(samples, radius)
     return result
+
+def sample_surface_sphere(count):
+    '''
+    Correctly pick random points on the surface of a unit sphere
+
+    Uses this method:
+    http://mathworld.wolfram.com/SpherePointPicking.html
+
+    Arguments
+    ----------
+    count: int, number of points to return
+
+    Returns
+    ----------
+    points: (count,3) float, list of random points on a unit sphere
+    '''
+
+    u,v = np.random.random((2, count))
+
+    theta = np.pi * 2 * u
+    phi   = np.arccos((2*v) - 1)
+
+    points = util.spherical_to_vector(np.column_stack((theta, phi)))
+    return points
