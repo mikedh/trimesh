@@ -46,3 +46,30 @@ def closest_point_naive(triangles, points):
     distance = np.array([g[i] for i,g in zip(triangle_id, distance_2)]) ** .5
 
     return closest, distance, triangle_id
+
+class Nearest(object):
+    def __init__(self, mesh):
+        self.mesh = mesh
+
+    def on_surface(self, points):
+        return closest_point_naive(triangles = self.mesh.triangles,
+                                   points = points)
+
+    def vertex(self, points):
+        '''
+        Given a set of points, return the closest vertex index to each point
+
+        Arguments
+        ----------
+        points: (n,3) float, list of points in space
+
+        Returns
+        ----------
+        distance: (n,) float, distance from source point to vertex
+        vertex_id: (n,) int, index of mesh.vertices which is closest
+        '''
+        tree = self.mesh.kdtree()
+        return tree.query(points)
+
+    # use the docstring for the function we're wrapping
+    on_surface.__doc__ = closest_point_naive.__doc__

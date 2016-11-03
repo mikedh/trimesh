@@ -13,4 +13,5 @@ run apt-get update
 run apt-get install -y `cat /home/docker/config/apt.list`
 
 run pip3 install --upgrade pip
+run pip3 install git+https://github.com/robotics/assimp_latest.git
 run pip3 install trimesh[all] --upgrade

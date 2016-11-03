@@ -28,6 +28,19 @@ class NearestTest(g.unittest.TestCase):
         vector = g.trimesh.util.diagonal_dot(closest, points/2.0)
         self.assertTrue((g.np.abs(vector - 1.0) < .01).all())
 
+    def test_helper(self):
+        # just make sure the plumbing returns something
+        for mesh in g.get_meshes(2):
+            points = (g.np.random.random((100,3)) - .5) * 100
+
+            a = mesh.nearest.on_surface(points)
+            self.assertTrue(a is not None)
+
+            b = mesh.nearest.vertex(points)
+            self.assertTrue(b is not None)
+
+            
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

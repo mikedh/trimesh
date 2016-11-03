@@ -1,1 +1,1 @@
-libgeos-dev libspatialindex-dev gnupg2 blender openscad python3-graph-tool python3-pip python3-dev
+libgeos-dev libspatialindex-dev gnupg2 blender openscad python3-graph-tool python3-pip python3-dev cmake git
