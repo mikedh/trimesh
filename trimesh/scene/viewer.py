@@ -86,11 +86,19 @@ class SceneViewer(pyglet.window.Window):
         self.vertex_list_md5[name] = geometry_md5(path)
         self.vertex_list_mode[name] = gl.GL_LINES
         
+    def _add_points(self, name, pointcloud):
+        self.vertex_list[name] = self.batch.add_indexed(*points_to_vertex_list(pointcloud.vertices,
+                                                                               pointcloud.vertices_color))
+        self.vertex_list_md5[name] = geometry_md5(pointcloud)
+        self.vertex_list_mode[name] = gl.GL_POINTS
+        
     def add_geometry(self, name, geometry):
         if util.is_instance_named(geometry, 'Trimesh'):
             return self._add_mesh(name, geometry)
         elif util.is_instance_named(geometry, 'Path3D'):
             return self._add_path(name, geometry)
+        elif util.is_instance_named(geometry, 'PointCloud'):
+            return self._add_points(name, geometry)
         else:
             raise ValueError('Geometry passed is not a viewable type!')
         
@@ -112,8 +120,7 @@ class SceneViewer(pyglet.window.Window):
 
     def init_gl(self):
         gl.glClearColor(.93, .93, 1, 1)
-        #glColor3f(1, 0, 0)
-
+    
         gl.glEnable(gl.GL_DEPTH_TEST)
         gl.glEnable(gl.GL_CULL_FACE)
         gl.glEnable(gl.GL_LIGHTING)
@@ -144,7 +151,8 @@ class SceneViewer(pyglet.window.Window):
         gl.glHint(gl.GL_LINE_SMOOTH_HINT, gl.GL_NICEST)
         
         gl.glLineWidth(1.5)
-        
+        gl.glPointSize(4)        
+
     def toggle_culling(self):
         self.view['cull'] = not self.view['cull']
         self.update_flags()
@@ -296,12 +304,9 @@ def mesh_to_vertex_list(mesh, group=None):
     mesh.visual.choose()
     
     normals  = mesh.vertex_normals.reshape(-1).tolist()
-    colors   = mesh.visual.vertex_colors.reshape(-1).tolist()
     faces    = mesh.faces.reshape(-1).tolist()
     vertices = mesh.vertices.reshape(-1).tolist()
-    
-    color_dimension = mesh.visual.vertex_colors.shape[1]
-    color_type = 'c' + str(color_dimension) + 'B/static'
+    color_gl = _validate_colors(mesh.visual.vertex_colors, len(mesh.vertices))
 
     args = (len(mesh.vertices), # number of vertices
             gl.GL_TRIANGLES,    # mode 
@@ -309,7 +314,7 @@ def mesh_to_vertex_list(mesh, group=None):
             faces,              # indices 
             ('v3f/static', vertices),
             ('n3f/static', normals),
-            (color_type,   colors))
+            color_gl)
     return args
 
 def path_to_vertex_list(path, group=None):
@@ -319,10 +324,62 @@ def path_to_vertex_list(path, group=None):
     args = (len(lines),         # number of vertices
             gl.GL_LINES,        # mode 
             group,              # group
-            index.reshape(-1),  # indices 
+            index.reshape(-1).tolist(),  # indices 
             ('v3f/static', lines.reshape(-1)),
             ('c3f/static', np.array([.5,.10,.20]*len(lines))))
     return args
+    
+def points_to_vertex_list(points, colors, group=None):
+    points = np.asanyarray(points)
+
+    if not util.is_shape(points, (-1,3)):
+        print(points)
+        raise ValueError('Pointcloud must be (n,3)!')
+
+    color_gl = _validate_colors(colors, len(points))
+
+    index = np.arange(len(points))
+    
+    args = (len(points),         # number of vertices
+            gl.GL_POINTS,        # mode 
+            group,              # group
+            index.reshape(-1),  # indices 
+            ('v3f/static', points.reshape(-1)),
+            color_gl)
+    return args
+   
+def _validate_colors(colors, count):
+    '''
+    Given a list of colors (or None) return a GL- acceptable list of colors
+
+    Arguments
+    ------------
+    colors: (count, (3 or 4)) colors
+    
+    Returns
+    ---------
+    colors_type: str, color type
+    colors_gl:   list, count length
+    '''
+
+    colors = np.asanyarray(colors)
+    count  = int(count)
+    if util.is_shape(colors, (count, (3,4))):
+        # convert the numpy dtype code to an opengl one
+        colors_dtype = {'f' : 'f', 
+                        'i' : 'B',
+                        'u' : 'B'}[colors.dtype.kind]
+        # create the data type description string pyglet expects
+        colors_type = 'c' + str(colors.shape[1]) + colors_dtype + '/static'
+        # reshape the 2D array into a 1D one and then convert to a python list
+        colors = colors.reshape(-1).tolist()
+    else:
+        # case where colors are wrong shape, use a default color
+        colors = np.tile([.5,.10,.20], (count,1)).reshape(-1).tolist()
+        colors_type = 'c3f/static'
+
+    return colors_type, colors
+
     
 def _gl_matrix(array):
     '''

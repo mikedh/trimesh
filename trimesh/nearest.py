@@ -21,7 +21,7 @@ def closest_point_naive(triangles, points):
     ----------
     closest:     (m,3) float, closest point on triangles for each point
     distance:    (m,)  float, distance
-    triangle_id: (m,)  int, index of closest triangle for each point
+    triangle_id: (m,)  int, index of triangle containing closest point for each point
     '''
 
     # establish that input triangles and points are sane
@@ -52,6 +52,23 @@ class Nearest(object):
         self.mesh = mesh
 
     def on_surface(self, points):
+        '''
+        Given a NON- CORRESPONDING list of triangles and points, for each point
+        find the closest point on any triangle.
+        
+        Does this by constructing a very large intermediate array and 
+        comparing every point to every triangle.
+
+        Arguments
+        ----------
+        points:    (m,3)   float, points in space
+
+        Returns
+        ----------
+        closest:     (m,3) float, closest point on triangles for each point
+        distance:    (m,)  float, distance
+        triangle_id: (m,)  int, index of closest triangle for each point
+        '''
         return closest_point_naive(triangles = self.mesh.triangles,
                                    points = points)
 
@@ -71,5 +88,3 @@ class Nearest(object):
         tree = self.mesh.kdtree()
         return tree.query(points)
 
-    # use the docstring for the function we're wrapping
-    on_surface.__doc__ = closest_point_naive.__doc__

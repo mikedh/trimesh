@@ -7,12 +7,12 @@ from .constants import log, tol
 from .geometry  import plane_transform
 
 from . import transformations
+from . import util
 
 def point_plane_distance(points, plane_normal, plane_origin=[0,0,0]):
     w = np.array(points) - plane_origin
     distances = np.dot(plane_normal, w.T) / np.linalg.norm(plane_normal)
     return distances
-
 
 def major_axis(points):
     '''
@@ -250,7 +250,10 @@ def k_means(points, k, **kwargs):
     labels = tree.query(points, k=1)[1]
     return centroids, labels
     
-def plot_points(points, show=True):    
+def plot_points(points, show=True):
+    '''
+    Plot an (n,3) list of points using matplotlib
+    '''
     import matplotlib.pyplot as plt
     from mpl_toolkits.mplot3d import Axes3D
     
@@ -267,3 +270,57 @@ def plot_points(points, show=True):
 
     if show: 
         plt.show()
+
+class PointCloud(object):
+    '''
+    Hold a 3D set of points in an object which can be visualized 
+    in a scene.
+    '''
+    def __init__(self, *args, **kwargs):
+        self._data = util.DataStore()
+        
+        self.metadata = {}
+        if len(args) == 1:
+            self.vertices = args[0]
+        
+    def md5(self):
+        return self._data.md5()
+
+    @property
+    def bounds(self):
+        return np.array([self.vertices.min(axis=0), 
+                         self.vertices.max(axis=0)])
+
+    @property
+    def extents(self):
+        return self.bounds.ptp(axis=0)
+
+    @property
+    def centroid(self):
+        return self.vertices.mean(axis=0)
+
+    @property
+    def vertices(self):
+        return self._data['vertices']
+
+    @vertices.setter
+    def vertices(self, data):
+        data = np.asanyarray(data)
+        if not util.is_shape(data, (-1,3)):
+            raise ValueError('Point clouds only consist of (n,3) points!')
+        self._data['vertices'] = data
+        
+    @property
+    def vertices_color(self):
+        return self._data['vertices_color']
+        
+    @vertices_color.setter
+    def vertices_color(self, data):
+        self._data['vertices_color'] = data
+
+    def scene(self):
+        from .scene.scene import Scene
+        return Scene(self)
+
+    def show(self):
+        self.scene().show()
