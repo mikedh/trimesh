@@ -51,15 +51,35 @@ class NearestTest(g.unittest.TestCase):
             t = g.trimesh.util.spherical_to_vector(s)
             return t
 
+        # inscribed triangle on a circle on the XY plane
         triangle = points_on_circle(3)
+
+        # a circle of points surrounding the triangle
         query = points_on_circle(63) *2
+        # set the points up in space
         query[:,2] = 10
+        # a circle of points inside the triangle
         query = g.np.vstack((query, query * .1))
 
         result = g.trimesh.nearest.closest_point_naive([triangle], query)[0]
 
-        polygon = g.Polygon(triangle[:,0:2]).buffer(1e-5)
-        broken = g.np.array([not polygon.intersects(g.Point(i)) for i in result[:,0:2]])
+        polygon = g.Polygon(triangle[:,0:2])
+        polygon_buffer = polygon.buffer(1e-5)
+
+        # all of the points returned should be on the triangle we're querying
+        broken = g.np.array([not polygon_buffer.intersects(g.Point(i)) for i in result[:,0:2]])
+
+        # see what distance shapely thinks the nearest point is for the 2D triangle
+        # and the query points
+        distance_shapely = g.np.array([polygon.distance(g.Point(i)) for i in query[:,0:2]]) 
+
+        # see what distance our function returned for the nearest point
+        distance_ours = ((query[:,0:2] - result[:,0:2]) ** 2).sum(axis=1) ** .5
+
+        # how far was our distance from the one shapely gave
+        distance_test = g.np.abs(distance_shapely-distance_ours)
+
+
 
         '''
         # plot test to debug failures 
@@ -74,8 +94,7 @@ class NearestTest(g.unittest.TestCase):
         '''
         
         self.assertFalse(broken.any())
-            
-
+        self.assertTrue(distance_test.max() < g.trimesh.constants.tol.merge)
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
