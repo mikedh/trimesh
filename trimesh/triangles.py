@@ -371,6 +371,7 @@ def closest_point(triangles, points):
     closest[case_barycentric] = (triangles[case_barycentric] * 
                                  barycentric[case_barycentric].reshape((-1,3,1))).sum(axis=1)
 
+    #if case_edge.any():
     # case where the closest point lies on the edge of a triangle
     # we have to find the closest point on a line
     edges = triangles[case_edge][positive[case_edge]].reshape((-1,2,3))
@@ -380,6 +381,10 @@ def closest_point(triangles, points):
     # point projected onto line segment divided by line segment length squared
     edge_distance = (util.diagonal_dot(AP, AB) / 
                      util.diagonal_dot(AB, AB)).reshape((-1,1))
+    # our point needs to be on the edge, so the distance along the edge
+    # should be clipped to be between 0.0 and 1.0
+    edge_distance = np.clip(edge_distance, 0.0, 1.0)
+    
     projection = edges[:,0] + (edge_distance * AB)
     closest[case_edge] = projection
 

@@ -1,1 +1,1 @@
-libgeos-dev libspatialindex-dev gnupg2 python3-pip python3-dev cmake git
+libgeos-dev libspatialindex-dev gnupg2 python3-pip python3-dev cmake git python3-scipy python3-numpy

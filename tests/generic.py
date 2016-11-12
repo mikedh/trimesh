@@ -16,6 +16,8 @@ from collections import deque
 from copy import deepcopy
 from trimesh.constants import tol
 
+from shapely.geometry import Point, Polygon
+
 #python 3
 try:
     from cStringIO import StringIO

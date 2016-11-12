@@ -163,3 +163,13 @@ Trimesh includes an optional pyglet- based viewer for debugging/inspecting. In t
 * 'z' returns to the base view 
 * 'w' toggles wireframe mode
 * 'c' toggles backface culling
+
+## Containers
+   
+If you want to deploy something in containers that uses trimesh you can use the automated builds with all dependancies installed. For an Ubuntu 16.04 with all dependancies:
+
+`docker pull mikedh/trimesh`
+
+or a Debian Jessie based image with no boolean operations and slightly slower graph operations (graph-tool requires X as of this writing):
+
+`docker pull mikedh/trimesh_minimal`

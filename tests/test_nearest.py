@@ -39,6 +39,41 @@ class NearestTest(g.unittest.TestCase):
             b = mesh.nearest.vertex(points)
             self.assertTrue(b is not None)
 
+
+    def test_triangle(self):
+        def plot_tri(tri, color='g'):
+            plottable = g.np.vstack((tri, tri[0]))
+            plt.plot(plottable[:,0], plottable[:,1], color=color)
+
+        def points_on_circle(count):
+            theta = g.np.linspace(0, g.np.pi*2, count+1)[:count]
+            s =  g.np.column_stack((theta, [g.np.pi/2]*count))
+            t = g.trimesh.util.spherical_to_vector(s)
+            return t
+
+        triangle = points_on_circle(3)
+        query = points_on_circle(63) *2
+        query[:,2] = 10
+        query = g.np.vstack((query, query * .1))
+
+        result = g.trimesh.nearest.closest_point_naive([triangle], query)[0]
+
+        polygon = g.Polygon(triangle[:,0:2]).buffer(1e-5)
+        broken = g.np.array([not polygon.intersects(g.Point(i)) for i in result[:,0:2]])
+
+        '''
+        # plot test to debug failures 
+        import matplotlib.pyplot as plt
+        plottable = g.np.column_stack((result[:,0:2], query[:,0:2])).reshape((-1,2,2))
+        plot_tri(triangle, color='g')
+        for i in plottable:
+            plt.plot(*i.T, color='b')
+        plt.scatter(*result[:,0:2].T, color='k')
+        plt.scatter(*result[broken][:,0:2].T, color='r')
+        plt.show()
+        '''
+        
+        self.assertFalse(broken.any())
             
 
 
