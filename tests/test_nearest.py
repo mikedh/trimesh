@@ -17,7 +17,7 @@ class NearestTest(g.unittest.TestCase):
         triangles = sphere.triangles
 
         # do the check
-        closest, distance, tid = g.trimesh.nearest.closest_point_naive(triangles, points)
+        closest, distance, tid = g.trimesh.nearest.closest_point_naive(sphere, points)
 
         # the distance from a sphere of radius 1.0 to a sphere of radius 2.0
         # should be pretty darn close to 1.0
@@ -40,7 +40,28 @@ class NearestTest(g.unittest.TestCase):
             self.assertTrue(b is not None)
 
 
-    def test_triangle(self):
+    def test_nearest_naive(self):
+        funs = [g.trimesh.nearest.closest_point_naive,
+                g.trimesh.nearest.closest_point]
+        
+        data_points = g.deque()
+        data_dist   = g.deque()
+
+        tic  = [g.time.time()]
+        for i in funs:
+            p,d = self.check_nearest_point_function(i)
+            data_points.append(p)
+            data_dist.append(d)
+            tic.append(g.time.time())
+
+        self.assertTrue(g.np.ptp(data_points, axis=0).max() < g.tol.merge)
+        self.assertTrue(g.np.ptp(data_dist,   axis=0).max() < g.tol.merge)
+
+        log_msg = '\n'.join("{}: {}s".format(i,j) for i,j in zip([i.__name__ for i in funs], 
+                                                                g.np.diff(tic)))
+        g.log.info('Compared the following nearest point functions:\n' + log_msg)
+
+    def check_nearest_point_function(self, fun):
         def plot_tri(tri, color='g'):
             plottable = g.np.vstack((tri, tri[0]))
             plt.plot(plottable[:,0], plottable[:,1], color=color)
@@ -61,7 +82,9 @@ class NearestTest(g.unittest.TestCase):
         # a circle of points inside the triangle
         query = g.np.vstack((query, query * .1))
 
-        result = g.trimesh.nearest.closest_point_naive([triangle], query)[0]
+        mesh = g.Trimesh(**g.trimesh.triangles.to_kwargs([triangle]))
+
+        result, result_distance, result_tid = fun(mesh, query)
 
         polygon = g.Polygon(triangle[:,0:2])
         polygon_buffer = polygon.buffer(1e-5)
@@ -95,6 +118,8 @@ class NearestTest(g.unittest.TestCase):
         
         self.assertFalse(broken.any())
         self.assertTrue(distance_test.max() < g.trimesh.constants.tol.merge)
+
+        return result, result_distance
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

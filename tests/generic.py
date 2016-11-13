@@ -15,6 +15,7 @@ import trimesh
 from collections import deque
 from copy import deepcopy
 from trimesh.constants import tol
+from trimesh.base import Trimesh
 
 from shapely.geometry import Point, Polygon
 
