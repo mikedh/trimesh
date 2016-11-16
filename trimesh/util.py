@@ -22,7 +22,7 @@ if _PY3: basestring = str
 
 log = logging.getLogger('trimesh')
 log.addHandler(logging.NullHandler())   
-    
+
 try: 
     import rtree
     # some versions of rtree screw up indexes on stream loading
@@ -30,9 +30,9 @@ try:
     # or if we have to do a loop to insert things which is 5x slower
     _rtree_test = rtree.index.Index([(1564, [0,0,0,10,10,10],None)], 
                                     properties=rtree.index.Property(dimension=3))
-    _rtree_stream_ok = _rtree_test.intersection([1,1,1,2,2,2]).__next__() == 1564
+    _rtree_stream_ok = next(_rtree_test.intersection([1,1,1,2,2,2])) == 1564
 except ImportError: _rtree_stream_ok = False
-except: log.error('Rtree check crashed!', exc_info=True)
+
 
 # included here so util has only standard library imports
 _TOL_ZERO = 1e-12
