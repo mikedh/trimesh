@@ -498,7 +498,12 @@ class Trimesh(object):
         triangles.flags.writeable = False
         return triangles
 
+    
     def triangles_tree(self):
+        return self._triangles_tree
+
+    @util.cache_decorator
+    def _triangles_tree(self):
         '''
         An R-tree containing each face of the mesh.
         

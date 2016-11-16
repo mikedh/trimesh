@@ -103,6 +103,7 @@ res_path = NumericalResolutionPath()
 ### logging
 log = _getLogger('trimesh')
 log.addHandler(_NullHandler())
+
 def _log_time(method):
     def timed(*args, **kwargs):
         tic    = time_function()

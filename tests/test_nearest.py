@@ -102,8 +102,6 @@ class NearestTest(g.unittest.TestCase):
         # how far was our distance from the one shapely gave
         distance_test = g.np.abs(distance_shapely-distance_ours)
 
-
-
         '''
         # plot test to debug failures 
         import matplotlib.pyplot as plt

@@ -2,7 +2,7 @@ import numpy as np
 
 from . import util
 
-from .constants import tol
+from .constants import tol, _log_time
 from .triangles import closest_point as closest_point_corresponding
 
 from collections import deque
@@ -151,6 +151,7 @@ def closest_point(mesh, points):
         result_close[i] = close_points[idx]
         result_tid[i]   = candidate[idx]
         result_distance[i] = distance[idx]
+    # we were comparing the distance squared, so now take the square root
     result_distance **= .5
 
     return result_close, result_distance, result_tid
@@ -159,6 +160,7 @@ class Nearest(object):
     def __init__(self, mesh):
         self.mesh = mesh
 
+    @_log_time
     def on_surface(self, points):
         '''
         Given a NON- CORRESPONDING list of triangles and points, for each point

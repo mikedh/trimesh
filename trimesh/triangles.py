@@ -188,18 +188,11 @@ def bounds_tree(triangles):
     ---------
     tree: Rtree object 
     '''
-    from rtree import index
 
-    # the property object required to get a 3D r-tree index
-    properties = index.Property()
-    properties.dimension = 3
     # the (n,6) interleaved bounding box for every triangle
-    tri_bounds = np.column_stack((triangles.min(axis=1), triangles.max(axis=1)))
-  
-    # stream loading wasn't getting proper index
-    tree = index.Index(properties=properties)  
-    for i, bounds in enumerate(tri_bounds):
-        tree.insert(i, bounds)    
+    triangle_bounds = np.column_stack((triangles.min(axis=1), 
+                                       triangles.max(axis=1)))
+    tree = util.bounds_tree(triangle_bounds)
     return tree
 
 def nondegenerate(triangles):
@@ -259,7 +252,7 @@ def barycentric_to_points(triangles, barycentric):
 
 def points_to_barycentric(triangles, points, method='cramer'):
     '''
-    Find the barycentric coordinates of a points relative to triangles.
+    Find the barycentric coordinates of points relative to triangles.
 
     For the Cramer's rule solution implements:
         http://blackpawn.com/texts/pointinpoly
@@ -324,7 +317,7 @@ def points_to_barycentric(triangles, points, method='cramer'):
 
 def closest_point(triangles, points):
     '''
-    Return the closest point on the surface of each triangles for a 
+    Return the closest point on the surface of each triangle for a 
     list of corresponding points.
 
     Arguments
@@ -400,14 +393,16 @@ def to_kwargs(triangles):
 
     Returns
     ---------
-    kwargs: dict, with 'vertices' and 'faces' keys
+    kwargs: dict, with keys: 
+                   'vertices' : (n,3) float
+                   'faces'    : (m,3) int
 
     Example
     ---------
     mesh = trimesh.Trimesh(**trimesh.triangles.to_kwargs(triangles))
     '''
     triangles = np.asanyarray(triangles, dtype=np.float64)
-    vertices = triangles.reshape((-1,3))
+    vertices  = triangles.reshape((-1,3))
     
     kwargs = {'vertices' : vertices,
               'faces'    : np.arange(len(vertices)).reshape((-1,3))}

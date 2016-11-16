@@ -2,6 +2,8 @@
 trimesh.util: utility functions
 
 Only imports from numpy and the standard library are allowed in this file.
+
+Other libraries may be included but they must be wrapped in try/except blocks
 '''
 
 import numpy as np
@@ -21,6 +23,17 @@ if _PY3: basestring = str
 log = logging.getLogger('trimesh')
 log.addHandler(logging.NullHandler())   
     
+try: 
+    import rtree
+    # some versions of rtree screw up indexes on stream loading
+    # do a test here so we know if we are free to use stream loading
+    # or if we have to do a loop to insert things which is 5x slower
+    _rtree_test = rtree.index.Index([(1564, [0,0,0,10,10,10],None)], 
+                                    properties=rtree.index.Property(dimension=3))
+    _rtree_stream_ok = _rtree_test.intersection([1,1,1,2,2,2]).__next__() == 1564
+except ImportError: _rtree_stream_ok = False
+except: log.error('Rtree check crashed!', exc_info=True)
+
 # included here so util has only standard library imports
 _TOL_ZERO = 1e-12
 
@@ -1151,4 +1164,39 @@ def round_sigfig(value, sigfig=1):
     rounded = np.round(value, sigfig-digits-1)
     return rounded
     
+def bounds_tree(bounds):
+    '''
+    Given a set of axis aligned bounds, create an r-tree for broad- phase 
+    collision detection
+
+    Arguments
+    ---------
+    bounds: (n, dimension*2) list of non- interleaved bounds
+             for a 2D bounds tree:
+             [(minx, miny, maxx, maxy), ...]
+
+    Returns
+    ---------
+    tree: Rtree object
+    '''
+    bounds = np.asanyarray(bounds, dtype=np.float64)
     
+    if len(bounds.shape) != 2:
+        raise ValueError('Bounds must be (n,dimension*2)!')
+    dimension = bounds.shape[1]
+    if (dimension % 2) != 0:
+        raise ValueError('Bounds must be (n,dimension*2)!')
+    dimension = int(dimension / 2)
+    properties = rtree.index.Property(dimension=dimension)
+    if _rtree_stream_ok:
+        # stream load which we verified works above
+        tree = rtree.index.Index(zip(np.arange(len(bounds)), 
+                                     bounds, 
+                                     [None]*len(bounds)), 
+                                 properties=properties)
+    else:
+        # in some rtree versions stream loading wasn't getting proper index
+        tree = rtree.index.Index(properties=properties)
+        for i, b in enumerate(bounds):
+            tree.insert(i, b)    
+    return tree
