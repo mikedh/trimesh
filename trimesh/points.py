@@ -280,9 +280,12 @@ class PointCloud(object):
         self._data = util.DataStore()
         
         self.metadata = {}
+        
         if len(args) == 1:
             self.vertices = args[0]
-        
+        if 'vertices' in kwargs:
+            self.vertices = kwargs['vertices']
+            
     def md5(self):
         return self._data.md5()
 

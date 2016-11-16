@@ -23,6 +23,7 @@ if _PY3: basestring = str
 log = logging.getLogger('trimesh')
 log.addHandler(logging.NullHandler())   
 
+
 try: 
     import rtree
     # some versions of rtree screw up indexes on stream loading
@@ -1178,7 +1179,7 @@ def bounds_tree(bounds):
     Returns
     ---------
     tree: Rtree object
-    '''
+    '''    
     bounds = np.asanyarray(bounds, dtype=np.float64)
     
     if len(bounds.shape) != 2:
@@ -1189,13 +1190,14 @@ def bounds_tree(bounds):
     dimension = int(dimension / 2)
     properties = rtree.index.Property(dimension=dimension)
     if _rtree_stream_ok:
-        # stream load which we verified works above
+        # stream load was verified working on inport above
         tree = rtree.index.Index(zip(np.arange(len(bounds)), 
                                      bounds, 
                                      [None]*len(bounds)), 
                                  properties=properties)
     else:
-        # in some rtree versions stream loading wasn't getting proper index
+        # in some rtree versions stream loading goofs the index
+        log.warning('rtree stream loading broken! Try upgrading rtree!')
         tree = rtree.index.Index(properties=properties)
         for i, b in enumerate(bounds):
             tree.insert(i, b)    
