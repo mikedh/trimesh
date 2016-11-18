@@ -32,7 +32,9 @@ try:
     _rtree_test = rtree.index.Index([(1564, [0,0,0,10,10,10],None)], 
                                     properties=rtree.index.Property(dimension=3))
     _rtree_stream_ok = next(_rtree_test.intersection([1,1,1,2,2,2])) == 1564
-except ImportError: _rtree_stream_ok = False
+except:
+    log.warning('Rtree import or test failed!', exc_info=True)
+    _rtree_stream_ok = False
 
 
 # included here so util has only standard library imports
