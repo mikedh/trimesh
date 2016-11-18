@@ -16,26 +16,13 @@ import json
 from collections import defaultdict, deque
 from sys import version_info
 from functools import wraps
+from copy import deepcopy
 
 _PY3 = version_info.major >= 3
 if _PY3: basestring = str
 
 log = logging.getLogger('trimesh')
 log.addHandler(logging.NullHandler())   
-
-
-try: 
-    import rtree
-    # some versions of rtree screw up indexes on stream loading
-    # do a test here so we know if we are free to use stream loading
-    # or if we have to do a loop to insert things which is 5x slower
-    _rtree_test = rtree.index.Index([(1564, [0,0,0,10,10,10],None)], 
-                                    properties=rtree.index.Property(dimension=3))
-    _rtree_stream_ok = next(_rtree_test.intersection([1,1,1,2,2,2])) == 1564
-except:
-    log.warning('Rtree import or test failed!', exc_info=True)
-    _rtree_stream_ok = False
-
 
 # included here so util has only standard library imports
 _TOL_ZERO = 1e-12
@@ -1181,8 +1168,16 @@ def bounds_tree(bounds):
     Returns
     ---------
     tree: Rtree object
-    '''    
-    bounds = np.asanyarray(bounds, dtype=np.float64)
+    '''
+    import rtree
+    # some versions of rtree screw up indexes on stream loading
+    # do a test here so we know if we are free to use stream loading
+    # or if we have to do a loop to insert things which is 5x slower
+    rtree_test = rtree.index.Index([(1564, [0,0,0,10,10,10],None)], 
+                                   properties=rtree.index.Property(dimension=3))
+    rtree_stream_ok = next(rtree_test.intersection([1,1,1,2,2,2])) == 1564
+
+    bounds = np.asanyarray(deepcopy(bounds), dtype=np.float64)
     
     if len(bounds.shape) != 2:
         raise ValueError('Bounds must be (n,dimension*2)!')
@@ -1191,7 +1186,7 @@ def bounds_tree(bounds):
         raise ValueError('Bounds must be (n,dimension*2)!')
     dimension = int(dimension / 2)
     properties = rtree.index.Property(dimension=dimension)
-    if _rtree_stream_ok:
+    if rtree_stream_ok:
         # stream load was verified working on inport above
         tree = rtree.index.Index(zip(np.arange(len(bounds)), 
                                      bounds, 

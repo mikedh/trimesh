@@ -188,7 +188,8 @@ def bounds_tree(triangles):
     ---------
     tree: Rtree object 
     '''
-
+    triangles = np.asanyarray(triangles)
+    
     # the (n,6) interleaved bounding box for every triangle
     triangle_bounds = np.column_stack((triangles.min(axis=1), 
                                        triangles.max(axis=1)))
