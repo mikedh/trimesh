@@ -69,7 +69,16 @@ class MeshTests(g.unittest.TestCase):
             self.assertTrue(sample.shape == (1000,3))
             g.log.info('finished testing meshes')
 
+            # make sure vertex kdtree and triangles rtree exist
+            t = mesh.kdtree()
+            self.assertTrue(hasattr(t, 'query'))
+            r = mesh.triangles_tree()
+            self.assertTrue(hasattr(r, 'intersection'))
 
+            # some memory issues only show up when you copy the mesh a bunch
+            for i in range(300):
+                c = mesh.copy()
+                        
     def test_fill_holes(self):
         for mesh in g.get_meshes(5):
             if not mesh.is_watertight: continue

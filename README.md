@@ -170,6 +170,6 @@ If you want to deploy something in containers that uses trimesh you can use the 
 
 `docker pull mikedh/trimesh`
 
-or a Debian Jessie based image with no boolean operations and slightly slower graph operations (graph-tool requires X as of this writing):
+Or, for a smaller Debian Jessie based image with no boolean operations and slightly slower graph operations (as graph-tool requires X as of this writing):
 
 `docker pull mikedh/trimesh_minimal`

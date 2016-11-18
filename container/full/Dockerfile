@@ -1,3 +1,6 @@
+# a size unconstrained Ubuntu based image with all trimesh dependancies
+# includes X as graph-tool, blender, and openscad require it for install
+
 from ubuntu:16.04
 
 maintainer Dockerfiles
