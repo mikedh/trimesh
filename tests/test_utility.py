@@ -82,13 +82,11 @@ class UtilTests(unittest.TestCase):
 
     def test_bounds_tree(self):
         for attempt in range(3):
-            for stream_ok in [False, g.trimesh.util._rtree_stream_ok]:
-                g.trimesh.util._rtree_stream_ok = stream_ok
-                for dimension in [2,3]:
-                    t = g.np.random.random((1000,3,dimension))
-                    bounds = g.np.column_stack((t.min(axis=1), t.max(axis=1)))
-                    tree = g.trimesh.util.bounds_tree(bounds)
-                    self.assertTrue(0 in tree.intersection(bounds[0]))
+            for dimension in [2,3]:
+                t = g.np.random.random((1000,3,dimension))
+                bounds = g.np.column_stack((t.min(axis=1), t.max(axis=1)))
+                tree = g.trimesh.util.bounds_tree(bounds)
+                self.assertTrue(0 in tree.intersection(bounds[0]))
         
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
