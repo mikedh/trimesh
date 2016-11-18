@@ -76,7 +76,7 @@ class MeshTests(g.unittest.TestCase):
             self.assertTrue(hasattr(r, 'intersection'))
 
             # some memory issues only show up when you copy the mesh a bunch
-            for i in range(300):
+            for i in range(100):
                 c = mesh.copy()
                         
     def test_fill_holes(self):
