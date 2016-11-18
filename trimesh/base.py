@@ -1426,9 +1426,15 @@ class Trimesh(object):
         
         Returns
         ---------
-        copied: current mesh deep copied.
+        copied: current mesh deep copied safely
         '''
-        return deepcopy(self)
+        copied = Trimesh()
+        # only copy data, not cache
+        copied._data.data = deepcopy(self._data.data)
+        # make sure cache is set from here
+        copied._cache.verify()
+        
+        return copied
 
     def __hash__(self):
         # hash function requires an integer instead of a hex string

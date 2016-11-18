@@ -78,12 +78,14 @@ class MeshTests(g.unittest.TestCase):
             self.assertTrue(hasattr(r, 'intersection'))
             g.log.info('Triangles tree ok')
             
-            copy_count = 100
+            copy_count = 200
             g.log.info('Attempting to copy mesh %d times', copy_count)
             # some memory issues only show up when you copy the mesh a bunch
             for i in range(copy_count):
-                c = mesh.copy()
+                copied = mesh.copy()
             g.log.info('Multiple copies done')
+            self.assertTrue(g.np.allclose(copied.identifier,
+                                          mesh.identifier))
             
     def test_fill_holes(self):
         for mesh in g.get_meshes(5):

@@ -89,6 +89,10 @@ def mass_properties(triangles, crosses=None, density = 1.0, skip_inertia=False):
     Arguments
     ----------
     '''
+    triangles = np.asanyarray(triangles, dtype=np.float64)
+    if not util.is_shape(triangles, (-1,3,3)):
+        raise ValueError('Triangles must be (n,3,3)!')
+    
     if crosses is None:
         crosses = cross(triangles)
     surface_area = np.sum(np.sum(crosses**2, axis=1)**.5)*.5

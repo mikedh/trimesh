@@ -42,7 +42,7 @@ def convex_hull(obj, clean=True):
     mask = np.zeros(len(c.points), dtype=np.int64)
     mask[vid] = np.arange(len(vid))
         
-    faces    = mask[c.simplices]
+    faces    = mask[c.simplices].copy()
     vertices = c.points[vid].copy()
 
     convex = Trimesh(vertices = vertices, 
