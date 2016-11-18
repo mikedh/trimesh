@@ -77,7 +77,7 @@ class MeshTests(g.unittest.TestCase):
 
             # some memory issues only show up when you copy the mesh a bunch
             for i in range(100):
-                c = mesh.copy()
+                #c = mesh.copy()
                         
     def test_fill_holes(self):
         for mesh in g.get_meshes(5):
