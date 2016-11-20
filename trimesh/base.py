@@ -65,8 +65,8 @@ class Trimesh(object):
 
         # self._cache stores information about the mesh which CAN be regenerated from
         # self._data, but may be slow to calculate. In order to maintain consistency
-        # the cache is cleared when self._data.md5() changes
-        self._cache = util.Cache(id_function = self._data.md5)
+        # the cache is cleared when self._data.crc() changes
+        self._cache = util.Cache(id_function = self._data.crc)
 
         # check for None only to avoid warning messages in subclasses
         if vertices is not None:
@@ -168,6 +168,19 @@ class Trimesh(object):
         md5 = self._data.md5()
         return md5
 
+    def crc(self):
+        '''
+        A zlib.adler32 checksum for the current mesh data.
+        
+        This is about 5x faster than an MD5, and the checksum is 
+        checked every time something is requested from the cache so
+        it gets called a lot.
+        
+        Returns
+        ----------
+        crc: int, checksum of current mesh data
+        '''
+        
     @property
     def faces(self):
         '''
@@ -1422,17 +1435,26 @@ class Trimesh(object):
 
     def copy(self):
         '''
-        Get a copy of the current mesh.
+        Safely get a copy of the current mesh.
+        
+        Copied objects will have emptied caches to avoid memory issues and
+        so may be slow on initial operations until caches are regenerated.
+        
+        Current object will *not* have its cache cleared.
         
         Returns
         ---------
-        copied: current mesh deep copied safely
+        copied: copy of current mesh
         '''
         copied = Trimesh()
-        # only copy data, not cache
+        
+        # copy vertex and face data
         copied._data.data = deepcopy(self._data.data)
+        # copy 
+        copied.visual._data.data = deepcopy(self.visual._data.data)
+        
         # make sure cache is set from here
-        copied._cache.verify()
+        copied._cache.id_set()
         
         return copied
 

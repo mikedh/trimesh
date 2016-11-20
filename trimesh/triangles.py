@@ -12,6 +12,7 @@ def cross(triangles):
     triangles: vertices of triangles (n,3,3)
     returns:   cross product of two edge vectors (n,3)
     '''
+
     vectors = np.diff(triangles, axis=1)
     crosses = np.cross(vectors[:,0], vectors[:,1])
     return crosses
@@ -57,6 +58,10 @@ def all_coplanar(triangles):
     triangles: vertices of triangles, (n,3,3)
     returns:   all_coplanar, bool
     '''
+    triangles = np.asanyarray(triangles, dtype=np.float64)
+    if not util.is_shape(triangles, (-1,3,3)):
+        raise ValueError('Triangles must be (n,3,3)!')
+    
     test_normal  = normals(triangles)[0]
     test_vertex  = triangles[0][0]
     distances    = point_plane_distance(points       = triangles[1:].reshape((-1,3)),
@@ -71,6 +76,10 @@ def any_coplanar(triangles):
     of the following triangles, return True.
     Otherwise, return False. 
     '''
+    triangles = np.asanyarray(triangles, dtype=np.float64)
+    if not util.is_shape(triangles, (-1,3,3)):
+        raise ValueError('Triangles must be (n,3,3)!')
+    
     test_normal  = normals(triangles)[0]
     test_vertex  = triangles[0][0]
     distances    = point_plane_distance(points       = triangles[1:].reshape((-1,3)),
@@ -172,7 +181,10 @@ def windings_aligned(triangles, normals_compare):
     ----------
     aligned: (n) bool list, are normals aligned with triangles
     '''
-
+    triangles = np.asanyarray(triangles, dtype=np.float64)
+    if not util.is_shape(triangles, (-1,3,3)):
+        raise ValueError('Triangles must be (n,3,3)!')
+    
     calculated, valid = normals(triangles)    
     difference = util.diagonal_dot(calculated, normals_compare[valid])
     result = np.zeros(len(triangles), dtype=np.bool)
@@ -192,7 +204,9 @@ def bounds_tree(triangles):
     ---------
     tree: Rtree object 
     '''
-    triangles = np.asanyarray(triangles)
+    triangles = np.asanyarray(triangles, dtype=np.float64)
+    if not util.is_shape(triangles, (-1,3,3)):
+        raise ValueError('Triangles must be (n,3,3)!')
     
     # the (n,6) interleaved bounding box for every triangle
     triangle_bounds = np.column_stack((triangles.min(axis=1), 
@@ -214,7 +228,11 @@ def nondegenerate(triangles):
     Returns
     ----------
     nondegenerate: (n,) bool array of triangles that have area
-    '''    
+    '''
+    triangles = np.asanyarray(triangles, dtype=np.float64)
+    if not util.is_shape(triangles, (-1,3,3)):
+        raise ValueError('Triangles must be (n,3,3)!')
+    
     a, valid_a = util.unitize(triangles[:,1] - triangles[:,0], check_valid=True)
     b, valid_b = util.unitize(triangles[:,2] - triangles[:,0], check_valid=True)
 
@@ -243,7 +261,9 @@ def barycentric_to_points(triangles, barycentric):
     '''
     barycentric = np.asanyarray(barycentric, dtype=np.float64)
     triangles = np.asanyarray(triangles, dtype=np.float64)
-
+    
+    if not util.is_shape(triangles, (-1,3,3)):
+        raise ValueError('Triangles must be (n,3,3)!')
     if util.is_shape(barycentric, (len(triangles),2)):
         barycentric = np.column_stack((barycentric, 
                                        1.0-barycentric.sum(axis=1)))
@@ -407,9 +427,12 @@ def to_kwargs(triangles):
     mesh = trimesh.Trimesh(**trimesh.triangles.to_kwargs(triangles))
     '''
     triangles = np.asanyarray(triangles, dtype=np.float64)
+    if not util.is_shape(triangles, (-1,3,3)):
+        raise ValueError('Triangles must be (n,3,3)!')
+        
     vertices  = triangles.reshape((-1,3))
-    
+    faces = np.arange(len(vertices)).reshape((-1,3))
     kwargs = {'vertices' : vertices,
-              'faces'    : np.arange(len(vertices)).reshape((-1,3))}
+              'faces'    : faces}
     
     return kwargs

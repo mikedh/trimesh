@@ -12,6 +12,7 @@ import hashlib
 import base64
 import time
 import json
+import zlib
 
 from collections import defaultdict, deque
 from sys import version_info
@@ -420,6 +421,13 @@ def md5_object(obj):
     hashed = hasher.hexdigest()
     return hashed
 
+def md5_array(array, digits=5):
+    digits = int(digits)
+    array = np.asanyarray(array, dtype=np.float64).reshape(-1)
+    as_string = (('{0:.' + str(digits) + 'f}')*len(array)).format(*array)
+    hash = md5_object(as_string.encode('utf-8'))
+    return hash
+    
 def attach_to_log(log_level = logging.DEBUG, 
                   blacklist = ['TerminalIPythonApp','PYREADLINE']):
     '''
@@ -478,9 +486,11 @@ class TrackedArray(np.ndarray):
         This flag will be set on every change, as well as during copies
         and certain types of slicing. 
         '''
-        self._modified = True
+        self._modified_md5 = True
+        self._modified_crc = True
         if isinstance(obj, type(self)):
-            obj._modified = True
+            obj._modified_md5 = True
+            obj._modified_crc = True
             
     def md5(self):
         '''
@@ -494,11 +504,20 @@ class TrackedArray(np.ndarray):
         negatives which would return an incorrect hash. 
         '''
 
-        if self._modified or not hasattr(self, '_hashed'):
-            self._hashed = md5_object(self)
-        self._modified = False
-        return self._hashed
+        if self._modified_md5 or not hasattr(self, '_hashed_md5'):
+            self._hashed_md5 = md5_object(self) #str(self.adler32()) #
+        self._modified_md5 = False
+        return self._hashed_md5
 
+    def crc(self):
+        '''
+        Return a zlib adler32 checksum of the current data.
+        '''        
+        if self._modified_crc or not hasattr(self, '_hashed_crc'):
+            self._hashed_crc = zlib.adler32(self) & 0xffffffff
+        self._modified_crc = False
+        return self._hashed_crc
+        
     def __hash__(self):
         '''
         Hash is required to return an int, so we convert the hex string to int.
@@ -506,11 +525,13 @@ class TrackedArray(np.ndarray):
         return int(self.md5(), 16)
         
     def __setitem__(self, i, y):
-        self._modified = True
+        self._modified_md5 = True
+        self._modified_crc = True
         super(self.__class__, self).__setitem__(i, y)
 
     def __setslice__(self, i, j, y):
-        self._modified = True
+        self._modified_md5 = True
+        self._modified_crc = True
         super(self.__class__, self).__setslice__(i, j, y)
 
 def cache_decorator(function):
@@ -665,6 +686,10 @@ class DataStore:
         for key in np.sort(list(self.data.keys())):
             md5 += self.data[key].md5()
         return md5
+        
+    def crc(self):
+        crc = sum(i.crc() for i in self.data.values())
+        return crc
 
 def stack_lines(indices):
     '''
@@ -1169,6 +1194,15 @@ def bounds_tree(bounds):
     ---------
     tree: Rtree object
     '''
+    bounds = np.asanyarray(deepcopy(bounds), dtype=np.float64)
+    if len(bounds.shape) != 2:
+        raise ValueError('Bounds must be (n,dimension*2)!')
+        
+    dimension = bounds.shape[1]
+    if (dimension % 2) != 0:
+        raise ValueError('Bounds must be (n,dimension*2)!')
+    dimension = int(dimension / 2)
+    
     import rtree
     # some versions of rtree screw up indexes on stream loading
     # do a test here so we know if we are free to use stream loading
@@ -1177,14 +1211,6 @@ def bounds_tree(bounds):
                                    properties=rtree.index.Property(dimension=3))
     rtree_stream_ok = next(rtree_test.intersection([1,1,1,2,2,2])) == 1564
 
-    bounds = np.asanyarray(deepcopy(bounds), dtype=np.float64)
-    
-    if len(bounds.shape) != 2:
-        raise ValueError('Bounds must be (n,dimension*2)!')
-    dimension = bounds.shape[1]
-    if (dimension % 2) != 0:
-        raise ValueError('Bounds must be (n,dimension*2)!')
-    dimension = int(dimension / 2)
     properties = rtree.index.Property(dimension=dimension)
     if rtree_stream_ok:
         # stream load was verified working on inport above

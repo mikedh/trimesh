@@ -101,4 +101,22 @@ class MeshTests(g.unittest.TestCase):
                 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
-    g.unittest.main()
+
+    import cProfile, pstats, io
+    pr = cProfile.Profile()
+    pr.enable()
+    
+   
+    t = MeshTests()
+    t.test_meshes()
+   
+    pr.disable()
+    s = io.StringIO()
+    sortby = 'cumulative'
+    ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+    ps.print_stats()
+    print(s.getvalue())
+    
+    
+    #g.trimesh.util.attach_to_log()
+    #g.unittest.main()

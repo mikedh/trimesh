@@ -166,7 +166,7 @@ Trimesh includes an optional pyglet- based viewer for debugging/inspecting. In t
 
 ## Containers
    
-If you want to deploy something in containers that uses trimesh you can use the automated builds with all dependancies installed. For an Ubuntu 16.04 with all dependancies:
+If you want to deploy something in a container that uses trimesh, automated builds containing trimesh and its dependancies are available on docker hub. For an Ubuntu 16.04 based image:
 
 `docker pull mikedh/trimesh`
 
