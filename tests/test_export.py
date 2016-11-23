@@ -24,11 +24,13 @@ class ExportTest(g.unittest.TestCase):
                 loaded = g.trimesh.load(file_obj  = g.io_wrap(export),
                                         file_type = file_type)
 
-                
-                if loaded.faces.shape != mesh.faces.shape:
+                if (not g.trimesh.util.is_shape(loaded._data['faces'],    (-1,3)) or 
+                    not g.trimesh.util.is_shape(loaded._data['vertices'], (-1,3)) or
+                    loaded.faces.shape != mesh.faces.shape):
                     g.log.error('Export -> inport for %s on %s wrong shape!',
                                 file_type, 
                                 mesh.metadata['file_name'])
+                                
                 if loaded.vertices is None:
                     log.error('Export -> import for %s on %s gave None for vertices!',
                               file_type,
