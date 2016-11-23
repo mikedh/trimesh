@@ -407,6 +407,19 @@ def distance_to_end(file_obj):
     return distance
 
 def decimal_to_digits(decimal, min_digits=None):
+    '''
+    Return the number of digits to the first nonzero decimal.
+
+    Arguments
+    -----------
+    decimal:    float
+    min_digits: int, minumum number of digits to return
+
+    Returns
+    -----------
+
+    digits: int, number of digits to the first nonzero decimal
+    '''
     digits = abs(int(np.log10(decimal)))
     if min_digits is not None:
         digits = np.clip(digits, min_digits, 20)
@@ -414,19 +427,39 @@ def decimal_to_digits(decimal, min_digits=None):
 
 def md5_object(obj):
     '''
-    If an object is hashable, return the hex string of the MD5.
+    If an object is hashable, return the string of the MD5.
+
+    Arguments
+    -----------
+    obj: object
+
+    Returns
+    ----------
+    md5: str, MD5 hash
     '''
     hasher = hashlib.md5()
     hasher.update(obj)
-    hashed = hasher.hexdigest()
-    return hashed
+    md5 = hasher.hexdigest()
+    return md5
 
 def md5_array(array, digits=5):
+    '''
+    Take the MD5 of an array when considering the specified number of digits.
+
+    Arguments
+    ---------
+    array:  numpy array
+    digits: int, number of digits to account for in the MD5
+
+    Returns
+    ---------
+    md5: str, md5 hash of input
+    '''
     digits = int(digits)
     array = np.asanyarray(array, dtype=np.float64).reshape(-1)
-    as_string = (('{0:.' + str(digits) + 'f}')*len(array)).format(*array)
-    hash = md5_object(as_string.encode('utf-8'))
-    return hash
+    as_int = (array * 10 ** digits).astype(np.int64)
+    md5 = md5_object(as_int.tostring(order='C'))
+    return md5
     
 def attach_to_log(log_level = logging.DEBUG, 
                   blacklist = ['TerminalIPythonApp','PYREADLINE']):
@@ -478,6 +511,7 @@ class TrackedArray(np.ndarray):
     Methods
     ----------
     md5: returns hexadecimal string of md5 of array
+    crc: returns int zlib.adler32 checksum of array
     '''
 
     def __array_finalize__(self, obj):

@@ -6,9 +6,8 @@ class MeshTests(g.unittest.TestCase):
     def test_meshes(self):
         self.meshes = g.get_meshes()
 
-        has_gt = g.trimesh.graph._has_gt
-        g.trimesh.graph._has_gt = False
-
+        has_gt = g.deepcopy(g.trimesh.graph._has_gt)
+        
         if not has_gt:
             g.log.warning('No graph-tool to test!')
 
@@ -28,14 +27,15 @@ class MeshTests(g.unittest.TestCase):
 
             tic = [g.time.time()]
 
+            
             if has_gt:
                 g.trimesh.graph._has_gt = True 
                 split     = g.trimesh.graph.split(mesh)
                 tic.append(g.time.time())
                 facets    = g.trimesh.graph.facets(mesh)
                 tic.append(g.time.time())
-                g.trimesh.graph._has_gt = False
-
+                
+            g.trimesh.graph._has_gt = False
             split     = g.trimesh.graph.split(mesh) 
             tic.append(g.time.time())
             facets    = g.trimesh.graph.facets(mesh)
@@ -53,7 +53,8 @@ class MeshTests(g.unittest.TestCase):
                 times = g.np.diff(tic)
                 g.log.info('Graph-tool sped up split by %f and facets by %f', 
                          (times[2] / times[0]), (times[3] / times[1]))
-
+            g.trimesh.graph._has_gt = g.deepcopy(has_gt)
+                
             self.assertTrue(mesh.volume > 0.0)
                 
             section   = mesh.section(plane_normal=[0,0,1], plane_origin=mesh.centroid)
@@ -77,10 +78,12 @@ class MeshTests(g.unittest.TestCase):
             r = mesh.triangles_tree()
             self.assertTrue(hasattr(r, 'intersection'))
             g.log.info('Triangles tree ok')
-            
+
+            # some memory issues only show up when you copy the mesh a bunch
+            # specifically, if you cache c- objects then deepcopy the mesh this
+            # generally segfaults somewhat randomly
             copy_count = 200
             g.log.info('Attempting to copy mesh %d times', copy_count)
-            # some memory issues only show up when you copy the mesh a bunch
             for i in range(copy_count):
                 copied = mesh.copy()
             g.log.info('Multiple copies done')
@@ -109,7 +112,7 @@ if __name__ == '__main__':
    
     t = MeshTests()
     t.test_meshes()
-   
+    
     pr.disable()
     s = io.StringIO()
     sortby = 'cumulative'

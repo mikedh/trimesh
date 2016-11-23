@@ -180,6 +180,7 @@ class Trimesh(object):
         ----------
         crc: int, checksum of current mesh data
         '''
+        return self._data.crc()
         
     @property
     def faces(self):
@@ -1285,7 +1286,7 @@ class Trimesh(object):
         '''
         return Scene(self)
 
-    def show(self, block=True, **kwargs):
+    def show(self, **kwargs):
         '''
         Render the mesh in an opengl window. Requires pyglet.
         
@@ -1299,7 +1300,7 @@ class Trimesh(object):
         scene: trimesh.scene.Scene object, of scene with current mesh in it
         '''
         scene = self.scene()
-        scene.show(block=block, **kwargs)
+        scene.show(**kwargs)
         return scene
 
     def submesh(self, faces_sequence, **kwargs): 
@@ -1334,7 +1335,14 @@ class Trimesh(object):
         '''
         identifier = comparison.rotationally_invariant_identifier(self, tol.id_len)
         return identifier
-
+        
+    @util.cache_decorator
+    def identifier_md5(self):
+        '''
+        Return an MD5 of the rotation invarient identifier
+        '''
+        return util.md5_array(self.identifier, digits=4)
+        
     def export(self,file_obj=None, file_type='stl'):
         '''
         Export the current mesh to a file object. 
