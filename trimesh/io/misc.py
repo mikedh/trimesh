@@ -3,6 +3,7 @@ import json
 
 from .. import util
 
+
 def load_off(file_obj, file_type=None):
     '''
     Load an OFF file into the kwargs for a Trimesh constructor
@@ -12,30 +13,32 @@ def load_off(file_obj, file_type=None):
     ----------
     file_obj: file object containing an OFF file
     file_type: not used
-    
+
     Returns
     ----------
     loaded: dict with kwargs for Trimesh constructor (vertices, faces)
- 
+
     '''
     header_string = file_obj.readline()
     if hasattr(header_string, 'decode'):
         header_string = header_string.decode('utf-8')
     header_string = header_string.strip()
 
-    if not header_string == 'OFF': 
+    if not header_string == 'OFF':
         raise NameError('Not an OFF file! Header was ' + header_string)
 
-    header  = np.array(file_obj.readline().split()).astype(int)
-    blob    = np.array(file_obj.read().split())
-    data_ok = np.sum(header * [3,4,0]) == len(blob)    
-    if not data_ok: raise NameError('Incorrect number of vertices or faces!')
+    header = np.array(file_obj.readline().split()).astype(int)
+    blob = np.array(file_obj.read().split())
+    data_ok = np.sum(header * [3, 4, 0]) == len(blob)
+    if not data_ok:
+        raise NameError('Incorrect number of vertices or faces!')
 
-    vertices = blob[0:(header[0]*3)].astype(float).reshape((-1,3))
-    faces    = blob[(header[0]*3):].astype(int).reshape((-1,4))[:,1:]
-  
-    return {'vertices' : vertices,
-            'faces'    : faces}
+    vertices = blob[0:(header[0] * 3)].astype(float).reshape((-1, 3))
+    faces = blob[(header[0] * 3):].astype(int).reshape((-1, 4))[:, 1:]
+
+    return {'vertices': vertices,
+            'faces': faces}
+
 
 def load_wavefront(file_obj, file_type=None):
     '''
@@ -48,27 +51,30 @@ def load_wavefront(file_obj, file_type=None):
     ----------
     file_obj: file object containing a wavefront file
     file_type: not used
-    
+
     Returns
     ----------
     loaded: dict with kwargs for Trimesh constructor (vertices, faces)
     '''
-    data     = np.array(file_obj.read().split())
+    data = np.array(file_obj.read().split())
     data_str = data.astype(str)
-    
+
     # find the locations of keys, then find the proceeding values
-    vid = np.nonzero(data_str == 'v')[0].reshape((-1,1))  + np.arange(3) + 1
-    nid = np.nonzero(data_str == 'vn')[0].reshape((-1,1)) + np.arange(3) + 1
-    fid = np.nonzero(data_str == 'f')[0].reshape((-1,1))  + np.arange(3) + 1
-    
-    # if we wanted to use the texture/vertex normals, we could slice this differently.
-    faces = np.array([i.split(b'/') for i in data[fid].reshape(-1)])[:,0].reshape((-1,3))
+    vid = np.nonzero(data_str == 'v')[0].reshape((-1, 1)) + np.arange(3) + 1
+    nid = np.nonzero(data_str == 'vn')[0].reshape((-1, 1)) + np.arange(3) + 1
+    fid = np.nonzero(data_str == 'f')[0].reshape((-1, 1)) + np.arange(3) + 1
+
+    # if we wanted to use the texture/vertex normals, we could slice this
+    # differently.
+    faces = np.array([i.split(b'/')
+                      for i in data[fid].reshape(-1)])[:, 0].reshape((-1, 3))
     # wavefront has 1- indexed faces, as opposed to 0- indexed
     faces = faces.astype(int) - 1
-    loaded = {'vertices'       : data[vid].astype(float),
-              'vertex_normals' : data[nid].astype(float),
-              'faces'          : faces}
+    loaded = {'vertices': data[vid].astype(float),
+              'vertex_normals': data[nid].astype(float),
+              'faces': faces}
     return loaded
+
 
 def load_msgpack(blob, file_type=None):
     '''
@@ -92,6 +98,7 @@ def load_msgpack(blob, file_type=None):
     loaded = load_dict(data)
     return loaded
 
+
 def load_dict(data, file_type=None):
     '''
     Load multiple input types into kwargs for a Trimesh constructor.
@@ -109,7 +116,7 @@ def load_dict(data, file_type=None):
 
     Returns
     -----------
-    loaded: dict with keys 
+    loaded: dict with keys
             -vertices: (n,3) float
             -faces:    (n,3) int
             -face_normals: (n,3) float (optional)
@@ -124,17 +131,17 @@ def load_dict(data, file_type=None):
         data = json.load(data)
 
     # what shape should the data be to be usable
-    mesh_data = {'vertices'       : (-1,3),
-                 'faces'          : (-1, (3,4)),
-                 'face_normals'   : (-1,3),
-                 'vertex_normals' : (-1,3)}
+    mesh_data = {'vertices': (-1, 3),
+                 'faces': (-1, (3, 4)),
+                 'face_normals': (-1, 3),
+                 'vertex_normals': (-1, 3)}
     # now go through data structure and if anything is encoded as base64
     # pull it back into numpy arrays
     if util.is_dict(data):
         loaded = {}
         data = util.decode_keys(data, 'utf-8')
         for key, shape in mesh_data.items():
-            if key in data: 
+            if key in data:
                 loaded[key] = util.encoded_to_array(data[key])
                 if not util.is_shape(loaded[key], shape):
                     raise ValueError('Shape of %s is %s, not %s!',
@@ -148,9 +155,9 @@ def load_dict(data, file_type=None):
         raise ValueError('%s object passed to dict loader!',
                          data.__class__.__name__)
 
-_misc_loaders = {'obj'     : load_wavefront,
-                 'off'     : load_off,
-                 'dict'    : load_dict,
-                 'dict64'  : load_dict,
-                 'json'    : load_dict,
-                 'msgpack' : load_msgpack}
+_misc_loaders = {'obj': load_wavefront,
+                 'off': load_off,
+                 'dict': load_dict,
+                 'dict64': load_dict,
+                 'json': load_dict,
+                 'msgpack': load_msgpack}

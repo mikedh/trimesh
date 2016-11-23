@@ -2,7 +2,8 @@ import sympy as sp
 from sympy.parsing.sympy_parser import parse_expr as sympy_parse
 
 from .constants import log
-from . import util    
+from . import util
+
 
 def symbolic_barycentric(function):
     '''
@@ -42,10 +43,12 @@ def symbolic_barycentric(function):
     '''
 
     class evaluator:
+
         def __init__(self, expr, expr_args):
             self.lambdified = sp.lambdify(args=expr_args,
                                           expr=expr,
                                           modules='numpy')
+
         def __call__(self, mesh):
             '''
             Quickly evaluate the surface integral across a mesh
@@ -58,8 +61,8 @@ def symbolic_barycentric(function):
             ----------
             integrated: (len(faces),) float, integral evaluated for each face
             '''
-            integrated = self.lambdified(*mesh.triangles.reshape((-1,9)).T)
-            integrated *= 2 * mesh.area_faces  
+            integrated = self.lambdified(*mesh.triangles.reshape((-1, 9)).T)
+            integrated *= 2 * mesh.area_faces
             return integrated
 
     if util.is_string(function):
@@ -67,34 +70,34 @@ def symbolic_barycentric(function):
     # barycentric coordinates
     b1, b2 = sp.symbols('b1 b2', real=True, positive=True)
     # vertices of the triangles
-    x1,x2,x3,y1,y2,y3,z1,z2,z3 = sp.symbols('x1,x2,x3,y1,y2,y3,z1,z2,z3', 
-                                            real = True)
+    x1, x2, x3, y1, y2, y3, z1, z2, z3 = sp.symbols('x1,x2,x3,y1,y2,y3,z1,z2,z3',
+                                                    real=True)
 
     # generate the substitution dictionary to convert from cartesian to barycentric
     # since the input could have been a sympy expresion or a string
     # that we parsed substitute based on name to avoid id(x) issues
     substitutions = {}
     for symbol in function.free_symbols:
-        if   symbol.name == 'x':
-            substitutions[symbol] = b1*x1 + b2*x2 + (1-b1-b2)*x3
+        if symbol.name == 'x':
+            substitutions[symbol] = b1 * x1 + b2 * x2 + (1 - b1 - b2) * x3
         elif symbol.name == 'y':
-            substitutions[symbol] = b1*y1 + b2*y2 + (1-b1-b2)*y3
+            substitutions[symbol] = b1 * y1 + b2 * y2 + (1 - b1 - b2) * y3
         elif symbol.name == 'z':
-            substitutions[symbol] = b1*z1 + b2*z2 + (1-b1-b2)*z3
+            substitutions[symbol] = b1 * z1 + b2 * z2 + (1 - b1 - b2) * z3
     # apply the conversion to barycentric
     function = function.subs(substitutions)
     log.debug('converted function to barycentric: %s', str(function))
 
     # do the first integral for b1
     integrated_1 = sp.integrate(function, b1)
-    integrated_1 = (integrated_1.subs({b1 : 1-b2}) - 
-                    integrated_1.subs({b1 : 0})) 
+    integrated_1 = (integrated_1.subs({b1: 1 - b2}) -
+                    integrated_1.subs({b1: 0}))
 
     integrated_2 = sp.integrate(integrated_1, b2)
-    integrated_2 = (integrated_2.subs({b2 : 1}) - 
-                    integrated_2.subs({b2 : 0}))
+    integrated_2 = (integrated_2.subs({b2: 1}) -
+                    integrated_2.subs({b2: 0}))
 
-    lambdified = evaluator(expr      = integrated_2,
-                           expr_args = [x1,y1,z1,x2,y2,z2,x3,y3,z3])
-                
+    lambdified = evaluator(expr=integrated_2,
+                           expr_args=[x1, y1, z1, x2, y2, z2, x3, y3, z3])
+
     return lambdified, integrated_2

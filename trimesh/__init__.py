@@ -10,12 +10,12 @@ Using
     >>> m.show()
 
 '''
-from .version     import __version__
-from .base        import Trimesh
+from .version import __version__
+from .base import Trimesh
 from .scene.scene import Scene
 
-from .util    import unitize
-from .transformations  import transform_points
+from .util import unitize
+from .transformations import transform_points
 
 from .io.load import load_mesh, load_path, load, available_formats
 

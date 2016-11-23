@@ -9,54 +9,56 @@ from collections import deque
 from .. import util
 from ..transformations import Arcball
 
-#smooth only when fewer faces than this
+# smooth only when fewer faces than this
 _SMOOTH_MAX_FACES = 100000
 
+
 class SceneViewer(pyglet.window.Window):
-    def __init__(self, 
-                 scene, 
-                 smooth = None,
-                 save_image = None,
-                 flags = None,
-                 resolution = (640,480)):
+
+    def __init__(self,
+                 scene,
+                 smooth=None,
+                 save_image=None,
+                 flags=None,
+                 resolution=(640, 480)):
 
         self.scene = scene
         self.scene._redraw = self._redraw
-        
+
         self.reset_view(flags=flags)
 
         visible = (save_image is None) or (platform.system() != 'Linux')
         width, height = resolution
 
         try:
-            conf = gl.Config(sample_buffers = 1,
-                             samples        = 4,
-                             depth_size     = 16,
-                             double_buffer  = True)
-            super(SceneViewer, self).__init__(config=conf, 
-                                              visible=visible, 
+            conf = gl.Config(sample_buffers=1,
+                             samples=4,
+                             depth_size=16,
+                             double_buffer=True)
+            super(SceneViewer, self).__init__(config=conf,
+                                              visible=visible,
                                               resizable=True,
                                               width=width,
                                               height=height)
         except pyglet.window.NoSuchConfigException:
             conf = gl.Config(double_buffer=True)
-            super(SceneViewer, self).__init__(config = conf,
+            super(SceneViewer, self).__init__(config=conf,
                                               resizable=True,
-                                              visible = visible,
+                                              visible=visible,
                                               width=width,
                                               height=height)
 
         self.batch = pyglet.graphics.Batch()
-        self._img  = save_image
+        self._img = save_image
         self._smooth = smooth
 
-        self.vertex_list      = {}
-        self.vertex_list_md5  = {}
+        self.vertex_list = {}
+        self.vertex_list_md5 = {}
         self.vertex_list_mode = {}
-        
+
         for name, mesh in scene.geometry.items():
-            self.add_geometry(name = name, 
-                              geometry = mesh)
+            self.add_geometry(name=name,
+                              geometry=mesh)
         self.init_gl()
         self.set_size(*resolution)
         self.update_flags()
@@ -77,21 +79,23 @@ class SceneViewer(pyglet.window.Window):
             display = mesh.copy()
             display.unmerge_vertices()
 
-        self.vertex_list[name] = self.batch.add_indexed(*mesh_to_vertex_list(display))
+        self.vertex_list[name] = self.batch.add_indexed(
+            *mesh_to_vertex_list(display))
         self.vertex_list_md5[name] = geometry_md5(mesh)
         self.vertex_list_mode[name] = gl.GL_TRIANGLES
 
     def _add_path(self, name, path):
-        self.vertex_list[name] = self.batch.add_indexed(*path_to_vertex_list(path))
+        self.vertex_list[name] = self.batch.add_indexed(
+            *path_to_vertex_list(path))
         self.vertex_list_md5[name] = geometry_md5(path)
         self.vertex_list_mode[name] = gl.GL_LINES
-        
+
     def _add_points(self, name, pointcloud):
         self.vertex_list[name] = self.batch.add_indexed(*points_to_vertex_list(pointcloud.vertices,
                                                                                pointcloud.vertices_color))
         self.vertex_list_md5[name] = geometry_md5(pointcloud)
         self.vertex_list_mode[name] = gl.GL_POINTS
-        
+
     def add_geometry(self, name, geometry):
         if util.is_instance_named(geometry, 'Trimesh'):
             return self._add_mesh(name, geometry)
@@ -101,26 +105,26 @@ class SceneViewer(pyglet.window.Window):
             return self._add_points(name, geometry)
         else:
             raise ValueError('Geometry passed is not a viewable type!')
-        
+
     def reset_view(self, flags=None):
         '''
         Set view to base.
         '''
-        self.view = {'wireframe'   : False,
-                     'cull'        : True,
-                     'translation' : np.zeros(3),
-                     'center'      : self.scene.centroid,
-                     'scale'       : self.scene.scale,
-                     'ball'        : Arcball()}
+        self.view = {'wireframe': False,
+                     'cull': True,
+                     'translation': np.zeros(3),
+                     'center': self.scene.centroid,
+                     'scale': self.scene.scale,
+                     'ball': Arcball()}
         if isinstance(flags, dict):
-            for k,v in flags.items():
+            for k, v in flags.items():
                 if k in self.view:
                     self.view[k] = v
         self.update_flags()
 
     def init_gl(self):
         gl.glClearColor(.93, .93, 1, 1)
-    
+
         gl.glEnable(gl.GL_DEPTH_TEST)
         gl.glEnable(gl.GL_CULL_FACE)
         gl.glEnable(gl.GL_LIGHTING)
@@ -138,20 +142,23 @@ class SceneViewer(pyglet.window.Window):
         gl.glEnable(gl.GL_COLOR_MATERIAL)
         gl.glShadeModel(gl.GL_SMOOTH)
 
-        gl.glMaterialfv(gl.GL_FRONT, gl.GL_AMBIENT, _gl_vector(0.192250, 0.192250, 0.192250))
-        gl.glMaterialfv(gl.GL_FRONT, gl.GL_DIFFUSE, _gl_vector(0.507540, 0.507540, 0.507540))
-        gl.glMaterialfv(gl.GL_FRONT, gl.GL_SPECULAR, _gl_vector(.5082730,.5082730,.5082730))
+        gl.glMaterialfv(gl.GL_FRONT, gl.GL_AMBIENT,
+                        _gl_vector(0.192250, 0.192250, 0.192250))
+        gl.glMaterialfv(gl.GL_FRONT, gl.GL_DIFFUSE,
+                        _gl_vector(0.507540, 0.507540, 0.507540))
+        gl.glMaterialfv(gl.GL_FRONT, gl.GL_SPECULAR,
+                        _gl_vector(.5082730, .5082730, .5082730))
 
-        gl.glMaterialf(gl.GL_FRONT, gl.GL_SHININESS, .4 * 128.0);
+        gl.glMaterialf(gl.GL_FRONT, gl.GL_SHININESS, .4 * 128.0)
 
-        gl.glEnable(gl.GL_BLEND) 
-        gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA) 
+        gl.glEnable(gl.GL_BLEND)
+        gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 
         gl.glEnable(gl.GL_LINE_SMOOTH)
         gl.glHint(gl.GL_LINE_SMOOTH_HINT, gl.GL_NICEST)
-        
+
         gl.glLineWidth(1.5)
-        gl.glPointSize(4)        
+        gl.glPointSize(4)
 
     def toggle_culling(self):
         self.view['cull'] = not self.view['cull']
@@ -162,7 +169,7 @@ class SceneViewer(pyglet.window.Window):
         self.update_flags()
 
     def update_flags(self):
-        if self.view['wireframe']: 
+        if self.view['wireframe']:
             gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
         else:
             gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
@@ -176,28 +183,29 @@ class SceneViewer(pyglet.window.Window):
         gl.glViewport(0, 0, width, height)
         gl.glMatrixMode(gl.GL_PROJECTION)
         gl.glLoadIdentity()
-        gl.gluPerspective(60., width / float(height), .01, self.scene.scale*5.0)
+        gl.gluPerspective(60., width / float(height), .01,
+                          self.scene.scale * 5.0)
         gl.glMatrixMode(gl.GL_MODELVIEW)
-        self.view['ball'].place([width/2, height/2], (width+height)/2)
-        
+        self.view['ball'].place([width / 2, height / 2], (width + height) / 2)
+
     def on_mouse_press(self, x, y, buttons, modifiers):
-        self.view['ball'].down([x,-y])
-        
+        self.view['ball'].down([x, -y])
+
     def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
         delta = np.array([dx, dy], dtype=np.float) / [self.width, self.height]
 
-        #left mouse button, with control key down (pan)
-        if ((buttons == pyglet.window.mouse.LEFT) and 
-            (modifiers & pyglet.window.key.MOD_CTRL)):
+        # left mouse button, with control key down (pan)
+        if ((buttons == pyglet.window.mouse.LEFT) and
+                (modifiers & pyglet.window.key.MOD_CTRL)):
             self.view['translation'][0:2] += delta
 
-        #left mouse button, no modifier keys pressed (rotate)
+        # left mouse button, no modifier keys pressed (rotate)
         elif (buttons == pyglet.window.mouse.LEFT):
-            self.view['ball'].drag([x,-y])
+            self.view['ball'].drag([x, -y])
 
     def on_mouse_scroll(self, x, y, dx, dy):
         self.view['translation'][2] += float(dy) / self.height
-        
+
     def on_key_press(self, symbol, modifiers):
         if symbol == pyglet.window.key.W:
             self.toggle_wireframe()
@@ -215,8 +223,9 @@ class SceneViewer(pyglet.window.Window):
         transform_camera = self.scene.transforms['camera']
         # apply the camera transform to the matrix stack
         gl.glMultMatrixf(_gl_matrix(transform_camera))
-        
-        # dragging the mouse moves the view transform (but doesn't alter the scene)
+
+        # dragging the mouse moves the view transform (but doesn't alter the
+        # scene)
         transform_view = _view_transform(self.view)
         gl.glMultMatrixf(_gl_matrix(transform_view))
 
@@ -225,7 +234,7 @@ class SceneViewer(pyglet.window.Window):
         items = deque(self.scene.nodes.items())
         count_original = len(items)
         count = -1
-        
+
         while len(items) > 0:
             count += 1
             item = items.popleft()
@@ -233,13 +242,13 @@ class SceneViewer(pyglet.window.Window):
 
             # if the flag isn't defined, this will be None
             # by checking False explicitly, it makes the default
-            # behaviour to render meshes with no flag defined. 
+            # behaviour to render meshes with no flag defined.
             if self.node_flag(name_node, 'visible') == False:
                 continue
 
             mesh = self.scene.geometry[name_mesh]
-            if (hasattr(mesh, 'visual') and 
-                mesh.visual.transparency):
+            if (hasattr(mesh, 'visual') and
+                    mesh.visual.transparency):
                 # put the current item onto the back of the queue
                 if count < count_original:
                     items.append(item)
@@ -260,10 +269,10 @@ class SceneViewer(pyglet.window.Window):
     def node_flag(self, node, flag):
         if (hasattr(self.scene, 'flags') and
             node in self.scene.flags and
-            flag in self.scene.flags[node]):
+                flag in self.scene.flags[node]):
             return self.scene.flags[node][flag]
         return None
-        
+
     def save_image(self, filename):
         colorbuffer = pyglet.image.get_buffer_manager().get_color_buffer()
         colorbuffer.save(filename)
@@ -279,16 +288,18 @@ class SceneViewer(pyglet.window.Window):
             self.save_image(self._img)
             self.close()
 
+
 def _view_transform(view):
     '''
     Given a dictionary containing view parameters,
-    calculate a transformation matrix. 
+    calculate a transformation matrix.
     '''
-    transform         = view['ball'].matrix()
-    transform[0:3,3]  = view['center']
-    transform[0:3,3] -= np.dot(transform[0:3,0:3], view['center'])
-    transform[0:3,3] += view['translation'] * view['scale'] * 5.0
+    transform = view['ball'].matrix()
+    transform[0:3, 3] = view['center']
+    transform[0:3, 3] -= np.dot(transform[0:3, 0:3], view['center'])
+    transform[0:3, 3] += view['translation'] * view['scale'] * 5.0
     return transform
+
 
 def geometry_md5(geometry):
     md5 = geometry.md5()
@@ -296,58 +307,63 @@ def geometry_md5(geometry):
         md5 += geometry.visual.md5()
     return md5
 
+
 def mesh_to_vertex_list(mesh, group=None):
     '''
-    Convert a Trimesh object to arguments for an 
-    indexed vertex list constructor. 
+    Convert a Trimesh object to arguments for an
+    indexed vertex list constructor.
     '''
     mesh.visual.choose()
-    
-    normals  = mesh.vertex_normals.reshape(-1).tolist()
-    faces    = mesh.faces.reshape(-1).tolist()
+
+    normals = mesh.vertex_normals.reshape(-1).tolist()
+    faces = mesh.faces.reshape(-1).tolist()
     vertices = mesh.vertices.reshape(-1).tolist()
     color_gl = _validate_colors(mesh.visual.vertex_colors, len(mesh.vertices))
 
-    args = (len(mesh.vertices), # number of vertices
-            gl.GL_TRIANGLES,    # mode 
+    args = (len(mesh.vertices),  # number of vertices
+            gl.GL_TRIANGLES,    # mode
             group,              # group
-            faces,              # indices 
+            faces,              # indices
             ('v3f/static', vertices),
             ('n3f/static', normals),
             color_gl)
     return args
 
+
 def path_to_vertex_list(path, group=None):
-    lines = np.vstack([util.stack_lines(e.discrete(path.vertices)) for e in path.entities])
+    lines = np.vstack([util.stack_lines(e.discrete(path.vertices))
+                       for e in path.entities])
     index = np.arange(len(lines))
-    
+
     args = (len(lines),         # number of vertices
-            gl.GL_LINES,        # mode 
+            gl.GL_LINES,        # mode
             group,              # group
-            index.reshape(-1).tolist(),  # indices 
+            index.reshape(-1).tolist(),  # indices
             ('v3f/static', lines.reshape(-1)),
-            ('c3f/static', np.array([.5,.10,.20]*len(lines))))
+            ('c3f/static', np.array([.5, .10, .20] * len(lines))))
     return args
-    
+
+
 def points_to_vertex_list(points, colors, group=None):
     points = np.asanyarray(points)
 
-    if not util.is_shape(points, (-1,3)):
+    if not util.is_shape(points, (-1, 3)):
         print(points)
         raise ValueError('Pointcloud must be (n,3)!')
 
     color_gl = _validate_colors(colors, len(points))
 
     index = np.arange(len(points))
-    
+
     args = (len(points),         # number of vertices
-            gl.GL_POINTS,        # mode 
+            gl.GL_POINTS,        # mode
             group,              # group
-            index.reshape(-1),  # indices 
+            index.reshape(-1),  # indices
             ('v3f/static', points.reshape(-1)),
             color_gl)
     return args
-   
+
+
 def _validate_colors(colors, count):
     '''
     Given a list of colors (or None) return a GL- acceptable list of colors
@@ -355,7 +371,7 @@ def _validate_colors(colors, count):
     Arguments
     ------------
     colors: (count, (3 or 4)) colors
-    
+
     Returns
     ---------
     colors_type: str, color type
@@ -363,24 +379,24 @@ def _validate_colors(colors, count):
     '''
 
     colors = np.asanyarray(colors)
-    count  = int(count)
-    if util.is_shape(colors, (count, (3,4))):
+    count = int(count)
+    if util.is_shape(colors, (count, (3, 4))):
         # convert the numpy dtype code to an opengl one
-        colors_dtype = {'f' : 'f', 
-                        'i' : 'B',
-                        'u' : 'B'}[colors.dtype.kind]
+        colors_dtype = {'f': 'f',
+                        'i': 'B',
+                        'u': 'B'}[colors.dtype.kind]
         # create the data type description string pyglet expects
         colors_type = 'c' + str(colors.shape[1]) + colors_dtype + '/static'
         # reshape the 2D array into a 1D one and then convert to a python list
         colors = colors.reshape(-1).tolist()
     else:
         # case where colors are wrong shape, use a default color
-        colors = np.tile([.5,.10,.20], (count,1)).reshape(-1).tolist()
+        colors = np.tile([.5, .10, .20], (count, 1)).reshape(-1).tolist()
         colors_type = 'c3f/static'
 
     return colors_type, colors
 
-    
+
 def _gl_matrix(array):
     '''
     Convert a sane numpy transformation matrix (row major, (4,4))
@@ -388,6 +404,7 @@ def _gl_matrix(array):
     '''
     a = np.array(array).T.reshape(-1)
     return (gl.GLfloat * len(a))(*a)
+
 
 def _gl_vector(array, *args):
     '''

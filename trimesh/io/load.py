@@ -4,20 +4,21 @@ import os
 
 from .. import util
 
-from ..base      import Trimesh
+from ..base import Trimesh
 from ..constants import _log_time, log
-from ..util      import is_file, is_string, make_sequence, is_instance_named
+from ..util import is_file, is_string, make_sequence, is_instance_named
 
 from .assimp import _assimp_loaders
-from .stl    import _stl_loaders
-from .misc   import _misc_loaders
-from .step   import _step_loaders
-from .ply    import _ply_loaders
+from .stl import _stl_loaders
+from .misc import _misc_loaders
+from .step import _step_loaders
+from .ply import _ply_loaders
 
 try:
     from ..path.io.load import load_path, path_formats
 except:
     _path_traceback = traceback.format_exc(4)
+
     def load_path(*args, **kwargs):
         '''
         Dummy load path function that will raise an exception on use.
@@ -25,14 +26,18 @@ except:
         '''
         print(_path_traceback)
         raise ImportError('No path functionality available!')
+
     def path_formats():
         return []
+
 
 def mesh_formats():
     return list(_mesh_loaders.keys())
 
+
 def available_formats():
     return np.append(mesh_formats(), path_formats())
+
 
 def load(file_obj, file_type=None, **kwargs):
     '''
@@ -45,7 +50,7 @@ def load(file_obj, file_type=None, **kwargs):
 
     Returns
     ---------
-    geometry: Trimesh, Path2D, Path3D, or list of same. 
+    geometry: Trimesh, Path2D, Path3D, or list of same.
     '''
     # check to see if we're trying to load something that is already a Trimesh
     out_types = ('Trimesh', 'Path')
@@ -70,6 +75,7 @@ def load(file_obj, file_type=None, **kwargs):
 
     return loaded
 
+
 @_log_time
 def load_mesh(file_obj, file_type=None):
     '''
@@ -79,28 +85,30 @@ def load_mesh(file_obj, file_type=None):
     ---------
     file_obj: a filename string or a file-like object
     file_type: str representing file type (eg: 'stl')
- 
+
     Returns:
     ----------
-    mesh: a single Trimesh object, or a list of Trimesh objects, 
-          depending on the file format. 
-    
+    mesh: a single Trimesh object, or a list of Trimesh objects,
+          depending on the file format.
+
     '''
-    file_obj, file_type, metadata  = _parse_file_args(file_obj, file_type)
-    loaded = _mesh_loaders[file_type](file_obj, 
+    file_obj, file_type, metadata = _parse_file_args(file_obj, file_type)
+    loaded = _mesh_loaders[file_type](file_obj,
                                       file_type)
-    if is_file(file_obj): 
+    if is_file(file_obj):
         file_obj.close()
-    
+
     log.debug('loaded mesh using %s',
               _mesh_loaders[file_type].__name__)
 
     meshes = [Trimesh(**i) for i in make_sequence(loaded)]
-    for i in meshes: i.metadata.update(metadata)
+    for i in meshes:
+        i.metadata.update(metadata)
 
-    if len(meshes) == 1: 
+    if len(meshes) == 1:
         return meshes[0]
     return meshes
+
 
 def _parse_file_args(file_obj, file_type):
     '''
@@ -132,9 +140,9 @@ def _parse_file_args(file_obj, file_type):
                other object: like a shapely.geometry.Polygon, etc:
                     -------------------------------------------
                     file_obj:  same as input
-                    file_type: if None initially, set to the class name 
+                    file_type: if None initially, set to the class name
                                (in lower case), otherwise passed through
-    
+
     file_type: str, type of file and handled according to above
 
     Returns
@@ -145,10 +153,13 @@ def _parse_file_args(file_obj, file_type):
     metadata = {}
 
     if util.is_file(file_obj) and file_type is None:
-        raise ValueError('File type must be specified when passing file objects!')
+        raise ValueError(
+            'File type must be specified when passing file objects!')
     if util.is_string(file_obj):
-        try:    exists = os.path.isfile(file_obj)
-        except: exists = False
+        try:
+            exists = os.path.isfile(file_obj)
+        except:
+            exists = False
         if exists:
             metadata['file_path'] = file_obj
             metadata['file_name'] = os.path.basename(file_obj)
@@ -159,11 +170,13 @@ def _parse_file_args(file_obj, file_type):
             if file_type is not None:
                 return file_obj, file_type, metadata
             elif '{' in file_obj:
-                # if a dict bracket is in the string, its probably a straight JSON
+                # if a dict bracket is in the string, its probably a straight
+                # JSON
                 file_type = 'json'
             else:
-                raise ValueError('File object passed as string that is not a file!')
-            
+                raise ValueError(
+                    'File object passed as string that is not a file!')
+
     if file_type is None:
         file_type = file_obj.__class__.__name__
 
