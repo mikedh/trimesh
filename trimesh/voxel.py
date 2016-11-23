@@ -255,7 +255,7 @@ def mesh_to_run(mesh, pitch, size_max=1e5):
         # be a duplicate entry in hit (for both triangles)
         z = grouping.unique_float(z)
 
-        index_z = sorted(np.round(z / pitch).astype(int))
+        index_z = np.sort(np.round(z / pitch).astype(int))
         # if a hit is on edge, it will be returned twice
         # this np.unique call returns sorted, unique indicies
 
