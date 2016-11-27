@@ -161,6 +161,41 @@ def closest_point(mesh, points):
     return result_close, result_distance, result_tid
 
 
+def signed_distance(mesh, points):
+    '''
+    Find the signed distance from a mesh to a point.
+
+    Points outside the mesh will have negative distance
+    Points on the surface of the mesh exactly will be zero
+    Points inside the mesh will have positive distance
+
+    Arguments
+    -----------
+    mesh:   Trimesh object
+    points: (n,3) float, list of points in space
+
+    Returns
+    ----------
+    signed_distance: (n,3) float, signed distance from point to mesh
+    '''
+    # find the closest point on the mesh to the queried points
+    closest, distance, triangle_id = closest_point(mesh, points)
+
+    # normal vector of triangle containing closest point
+    normal = mesh.face_normals[triangle_id]
+
+    # unit vector from source point to closest point on surface
+    vector = (closest - points) / distance.reshape((-1, 1))
+
+    # sign of projection of vector onto normal
+    sign = np.sign(util.diagonal_dot(normal, vector))
+
+    # apply sign to previously computed distance
+    signed_distance = distance * sign
+
+    return signed_distance
+
+
 class Nearest(object):
 
     def __init__(self, mesh):
@@ -203,3 +238,36 @@ class Nearest(object):
         '''
         tree = self.mesh.kdtree()
         return tree.query(points)
+
+    def signed_distance(self, points):
+        '''
+        Find the signed distance from a mesh to a point.
+
+        Points outside the mesh will have negative distance
+        Points on the surface of the mesh exactly will be zero
+        Points inside the mesh will have positive distance
+
+        Arguments
+        -----------
+        points: (n,3) float, list of points in space
+
+        Returns
+        ----------
+        signed_distance: (n,3) float, signed distance from point to mesh
+        '''
+        return signed_distance(self.mesh, points)
+
+    def contains(self, points):
+        '''
+        Find if the current mesh contains points
+
+        Arguments
+        -----------
+        points: (n,3) float, list of points in space
+
+        Returns
+        ----------
+        contains: (n,) bool, True if a point is inside the mesh
+        '''
+
+        return self.signed_distance(points) >= 0

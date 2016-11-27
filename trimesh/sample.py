@@ -62,11 +62,21 @@ def sample_surface(mesh, count):
 
 def sample_volume(mesh, count):
     '''
-    Sample from inside a mesh.
+    Use rejection sampling to produce points randomly distributed in the volume of a mesh.
+
+    Arguments
+    ----------
+    mesh: Trimesh object
+    count: int, number of samples desired
+
+    Returns
+    ----------
+    samples: (n,3) float, points in the volume of the mesh. 
+             (n <= count) as samples are produced by rejecting points 
     '''
     points = (np.random.random((count, 3)) * mesh.extents) + mesh.bounds[0]
     contained = mesh.contains(points)
-    samples = points[contained]
+    samples = points[contained][:count]
     return samples
 
 

@@ -23,7 +23,7 @@ The minimum set of packages required to import `trimesh` are
 
 
 ##### Ubuntu Pre-install
-Blender and openSCAD are backends used for boolean operations, libspatialindex and libgeos are the libraries used by RTree and Shapely respectivly, and cmake is include to build assimp if you want the latest version.
+Blender and openSCAD are backends used for boolean operations, libspatialindex and libgeos are the libraries used by RTree and Shapely respectivly, and cmake is included to build assimp if you want the latest version.
 
 ```bash
 sudo apt-get install cmake openscad blender libspatialindex-dev libgeos-dev

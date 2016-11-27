@@ -124,8 +124,8 @@ class Trimesh(object):
         # process is a cleanup function which brings the mesh to a consistant state
         # by merging vertices and removing zero- area and duplicate faces
         if (process and
-            vertices is not None and
-                faces is not None):
+           (vertices is not None) and
+           (faces is not None)):
             self.process()
 
         # store all passed kwargs for debugging purposes
@@ -473,8 +473,7 @@ class Trimesh(object):
         center_mass: (3,) float array, volumetric center of mass of the mesh
         '''
         if not self.is_watertight:
-            log.warning(
-                'Center of mass requested for non- watertight mesh! Expect garbage!')
+            log.warning('Center of mass requested for non- watertight mesh!')
         center_mass = np.array(self.mass_properties(
             skip_inertia=True)['center_mass'])
         return center_mass
@@ -713,7 +712,7 @@ class Trimesh(object):
         if len(mask) == 0 or self.is_empty:
             return
         if inverse is not None:
-            self.faces = inverse[[self.faces.reshape(-1)]].reshape((-1, 3))
+            self.faces = inverse[self.faces.reshape(-1)].reshape((-1, 3))
         self.visual.update_vertices(mask)
         cached_normals = self._cache.get('vertex_normals')
         if util.is_shape(cached_normals, (-1, 3)):
@@ -1103,8 +1102,8 @@ class Trimesh(object):
         '''
         Remove all vertices in the current mesh which are not referenced by a face.
         '''
-        unique, inverse = np.unique(
-            self.faces.reshape(-1), return_inverse=True)
+        unique, inverse = np.unique(self.faces.reshape(-1), 
+                                    return_inverse=True)
         self.faces = inverse.reshape((-1, 3))
         self.vertices = self.vertices[unique]
 
