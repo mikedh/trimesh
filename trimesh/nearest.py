@@ -163,11 +163,11 @@ def closest_point(mesh, points):
 
 def signed_distance(mesh, points):
     '''
-    Find the signed distance from a mesh to a point.
+    Find the signed distance from a mesh to a list of points.
 
-    Points outside the mesh will have negative distance
-    Points on the surface of the mesh exactly will be zero
-    Points inside the mesh will have positive distance
+    * Points OUTSIDE the mesh will have NEGATIVE distance
+    * Points within tol.zero of the surface have POSITIVE distance
+    * Points INSIDE the mesh will have POSITIVE distance
 
     Arguments
     -----------
@@ -181,19 +181,23 @@ def signed_distance(mesh, points):
     # find the closest point on the mesh to the queried points
     closest, distance, triangle_id = closest_point(mesh, points)
 
+    # we only care about nonzero distances
+    nonzero = distance > tol.zero
+    
     # normal vector of triangle containing closest point
-    normal = mesh.face_normals[triangle_id]
+    normal = mesh.face_normals[triangle_id[nonzero]]
 
     # unit vector from source point to closest point on surface
-    vector = (closest - points) / distance.reshape((-1, 1))
+    vector  = closest[nonzero] - points[nonzero] 
+    vector /= distance[nonzero].reshape((-1, 1))
 
     # sign of projection of vector onto normal
     sign = np.sign(util.diagonal_dot(normal, vector))
-
+    
     # apply sign to previously computed distance
-    signed_distance = distance * sign
+    distance[nonzero] *= sign
 
-    return signed_distance
+    return distance
 
 
 class Nearest(object):
@@ -259,7 +263,7 @@ class Nearest(object):
 
     def contains(self, points):
         '''
-        Find if the current mesh contains points
+        Find if the current mesh contains points.
 
         Arguments
         -----------
