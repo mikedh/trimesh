@@ -201,18 +201,17 @@ def signed_distance(mesh, points):
 
 
 class Nearest(object):
-
+    '''
+    Proximity queries for the current mesh.
+    '''
     def __init__(self, mesh):
-        self.mesh = mesh
+        self._mesh = mesh
 
     @_log_time
     def on_surface(self, points):
         '''
-        Given a NON- CORRESPONDING list of triangles and points, for each point
-        find the closest point on any triangle.
-
-        Does this by constructing a very large intermediate array and
-        comparing every point to every triangle.
+        Given list of points, for each point find the closest point 
+        on any triangle of the mesh.
 
         Arguments
         ----------
@@ -224,7 +223,7 @@ class Nearest(object):
         distance:    (m,)  float, distance
         triangle_id: (m,)  int, index of closest triangle for each point
         '''
-        return closest_point(mesh=self.mesh,
+        return closest_point(mesh=self._mesh,
                              points=points)
 
     def vertex(self, points):
@@ -240,16 +239,16 @@ class Nearest(object):
         distance: (n,) float, distance from source point to vertex
         vertex_id: (n,) int, index of mesh.vertices which is closest
         '''
-        tree = self.mesh.kdtree()
+        tree = self._mesh.kdtree()
         return tree.query(points)
 
     def signed_distance(self, points):
         '''
-        Find the signed distance from a mesh to a point.
+        Find the signed distance from a mesh to a list of points.
 
-        Points outside the mesh will have negative distance
-        Points on the surface of the mesh exactly will be zero
-        Points inside the mesh will have positive distance
+        * Points OUTSIDE the mesh will have NEGATIVE distance
+        * Points within tol.zero of the surface have POSITIVE distance
+        * Points INSIDE the mesh will have POSITIVE distance
 
         Arguments
         -----------
@@ -259,7 +258,7 @@ class Nearest(object):
         ----------
         signed_distance: (n,3) float, signed distance from point to mesh
         '''
-        return signed_distance(self.mesh, points)
+        return signed_distance(self._mesh, points)
 
     def contains(self, points):
         '''
