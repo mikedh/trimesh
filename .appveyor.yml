@@ -19,10 +19,6 @@ environment:
     - PYTHON: "C:\\Python35-x64"
 
 install:
-  # We need wheel installed to build wheels
-  - "%PYTHON%\\python.exe -m pip install wheel nose2"
-
-install:
   # Check that we have the expected version and architecture for Python
   - "%PYTHON%\\python.exe --version"
   - "%PYTHON%\\python.exe -c \"import struct; print(struct.calcsize('P') * 8)\""
