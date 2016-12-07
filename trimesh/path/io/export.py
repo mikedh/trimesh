@@ -29,7 +29,7 @@ def export_path(path, file_type, file_obj=None):
 
     '''
     if ((not hasattr(file_obj, 'read')) and
-            (not file_obj is None)):
+            (file_obj is not None)):
         file_type = (str(file_obj).split('.')[-1]).lower()
         file_obj = open(file_obj, 'wb')
     export = _path_exporters[file_type](path)

@@ -17,7 +17,7 @@ class SceneViewer(pyglet.window.Window):
 
     def __init__(self,
                  scene,
-                 smooth=None,
+                 smooth=True,
                  save_image=None,
                  flags=None,
                  resolution=(640, 480)):

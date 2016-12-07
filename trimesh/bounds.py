@@ -59,8 +59,10 @@ def oriented_bounds_2D(points):
     y = np.dot(perp_vectors, hull_points.T)
 
     # reduce the projections to maximum and minimum per edge vector
-    bounds = np.column_stack(
-        (x.min(axis=1), y.min(axis=1), x.max(axis=1), y.max(axis=1)))
+    bounds = np.column_stack((x.min(axis=1), 
+                              y.min(axis=1), 
+                              x.max(axis=1), 
+                              y.max(axis=1)))
 
     # calculate the extents and area that a box drawn around each edge_vector
     extents = np.diff(bounds.reshape((-1, 2, 2)), axis=1).reshape((-1, 2))

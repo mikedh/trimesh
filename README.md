@@ -30,7 +30,7 @@ sudo apt-get install cmake openscad blender libspatialindex-dev libgeos-dev
 ```
 
 ##### Windows Pre-Install:
-The easiest way to get going on Windows is to install the Anaconda Python distribution, followed by `shapely`, `rtree`, and `meshpy` from the [Unofficial Windows Binaries from Christoph Gohlke](http://www.lfd.uci.edu/~gohlke/pythonlibs/)
+The easiest way to get going on Windows is to install the [Anaconda Python distribution](https://www.continuum.io/downloads), followed by `shapely`, `rtree`, and `meshpy` from the [Unofficial Windows Binaries from Christoph Gohlke](http://www.lfd.uci.edu/~gohlke/pythonlibs/)
 
 ##### Optional Dependencies
 
@@ -51,32 +51,32 @@ If you are using a lot of graph operations (specifically mesh.split) trimesh wil
 * Import and export 2D or 3D vector paths from/to DXF or SVG files
 * Export meshes as binary STL, binary PLY, ASCII OFF, COLLADA, dictionaries, JSON- serializable dictionaries (base64 encoded arrays), MSGPACK- serializable dictionaries (binary string arrays)
 * Preview meshes (requires pyglet)
-* Internal caching of computed values which are automatically cleared when vertices or faces are changed (which we know from a lazily evaluated MD5)
-* Fast loading of binary files through importers written by defining custom numpy dtypes ( on a 234,230 face mesh, 24.5x faster than assimp)
+* Internal caching of computed values which are cleared when vertices or faces are changed (validated with a zlib.adler32 CRC)
+* Fast loading of binary files through importers written by defining custom numpy dtypes (on a 234,230 face mesh, 24.5x faster than assimp)
 * Calculate face adjacencies quickly (for the same 234,230 face mesh .248 s)
 * Calculate cross sections (.146 s)
 * Split mesh based on face connectivity using networkx (4.96 s) or graph-tool (.584 s)
 * Calculate mass properties, including volume, center of mass, and moment of inertia (.246 s)
-* Find coplanar groups of faces (.454 s)
-* Fix triangle winding to be consistent (slow)
+* Find planar facets, or coplanar groups of faces (.454 s)
+* Fix triangle winding to be consistent 
 * Fix normals to be oriented 'outwards' using ray tests
-* Calculate whether or not a point lies inside a watertight mesh using ray tests
 * Find convex hulls of meshes
 * Compute a rotation/translation/tessellation invariant identifier for meshes (from an FFT of the radius distribution)
 * Merge duplicate meshes from identifier
-* Determine if a mesh is watertight (manifold)
+* Determine if a mesh is watertight
 * Repair single triangle and single quad holes
 * Uniformly sample the surface of a mesh
-* Ray-mesh intersection
-* Boolean operations on meshes (intersection, union, difference) if OpenSCAD or blender is installed
+* Ray-mesh queries
+* Boolean operations on meshes (intersection, union, difference) using OpenSCAD or Blender as backend
 * Voxelize watertight meshes
 * Unit conversions
 * Subdivide faces of a mesh
-* Rapid computation of minimum- volume oriented bounding box transform for a mesh
+* Rapid computation of minimum volume oriented bounding box for a mesh
 * Minimum volume bounding sphere / n-spheres
 * Symbolic integration of function(x,y,z) over a triangle
 * Very quick (sympy-numpy lambda) evaluation of symbolic integral result over a mesh 
 * Calculate nearest point on mesh surface and signed distance
+* Determine if a point lies inside or outside of a mesh using signed distance
 * Create meshes with primitive objects (Extrude, Box, Sphere) which are subclasses of Trimesh
 * Simple scene graph and transform tree which can be rendered (pyglet) or exported.
 * Numerous utility functions, such as transforming points, unitizing vectors, tracking arrays for changes, grouping rows, etc.
