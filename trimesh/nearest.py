@@ -183,17 +183,17 @@ def signed_distance(mesh, points):
 
     # we only care about nonzero distances
     nonzero = distance > tol.zero
-    
+
     # normal vector of triangle containing closest point
     normal = mesh.face_normals[triangle_id[nonzero]]
 
     # unit vector from source point to closest point on surface
-    vector  = closest[nonzero] - points[nonzero] 
+    vector = closest[nonzero] - points[nonzero]
     vector /= distance[nonzero].reshape((-1, 1))
 
     # sign of projection of vector onto normal
     sign = np.sign(util.diagonal_dot(normal, vector))
-    
+
     # apply sign to previously computed distance
     distance[nonzero] *= sign
 
@@ -204,6 +204,7 @@ class Nearest(object):
     '''
     Proximity queries for the current mesh.
     '''
+
     def __init__(self, mesh):
         self._mesh = mesh
 

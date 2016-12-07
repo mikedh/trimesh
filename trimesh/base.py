@@ -124,8 +124,8 @@ class Trimesh(object):
         # process is a cleanup function which brings the mesh to a consistant state
         # by merging vertices and removing zero- area and duplicate faces
         if (process and
-           (vertices is not None) and
-           (faces is not None)):
+            (vertices is not None) and
+                (faces is not None)):
             self.process()
 
         # store all passed kwargs for debugging purposes
@@ -1102,7 +1102,7 @@ class Trimesh(object):
         '''
         Remove all vertices in the current mesh which are not referenced by a face.
         '''
-        unique, inverse = np.unique(self.faces.reshape(-1), 
+        unique, inverse = np.unique(self.faces.reshape(-1),
                                     return_inverse=True)
         self.faces = inverse.reshape((-1, 3))
         self.vertices = self.vertices[unique]

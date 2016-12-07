@@ -290,64 +290,66 @@ def icosphere(subdivisions=3, radius=1.0):
     ico._validate = True
     return ico
 
-def uv_sphere(count=[32,32], 
+
+def uv_sphere(count=[32, 32],
               radius=1.0):
     '''
     Create a UV sphere (latitude + longitude) centered at the origin.
-    
+
     Roughly one order of magnitude faster than an icosphere but slightly uglier.
-    
+
     Arguments
     ----------
     count: (2,) int, number of lattitude and longitude lines
     angle: (3,) float, what angle 
     '''
-    
-    count = np.array(count, dtype=np.int) 
+
+    count = np.array(count, dtype=np.int)
     count += np.mod(count, 2)
     count[1] *= 2
 
     # generate vertices on a sphere using spherical coordinates
     theta = np.linspace(0, np.pi, count[0])
-    phi   = np.linspace(0, np.pi*2, count[1])[:-1]
-    spherical = np.dstack((np.tile(phi, (len(theta),1)).T,
-                           np.tile(theta, (len(phi),1)))).reshape((-1,2))
+    phi = np.linspace(0, np.pi * 2, count[1])[:-1]
+    spherical = np.dstack((np.tile(phi, (len(theta), 1)).T,
+                           np.tile(theta, (len(phi), 1)))).reshape((-1, 2))
     vertices = util.spherical_to_vector(spherical) * radius
-    
+
     # generate faces by creating a bunch of pie wedges
     c = len(theta)
     # a quad face as two triangles
-    pairs = np.array([[c,0,1],
-                      [c+1,c,1]])
+    pairs = np.array([[c, 0, 1],
+                      [c + 1, c, 1]])
 
     # increment both triangles in each quad face by the same offset
-    incrementor = np.tile(np.arange(c-1), (2,1)).T.reshape((-1,1))
+    incrementor = np.tile(np.arange(c - 1), (2, 1)).T.reshape((-1, 1))
     # create the faces for a single pie wedge of the sphere
-    strip = np.tile(pairs, (c-1, 1))   
+    strip = np.tile(pairs, (c - 1, 1))
     strip += incrementor
-    # the first and last faces will be degenerate since the first 
-    # and last vertex are identical in the two rows 
+    # the first and last faces will be degenerate since the first
+    # and last vertex are identical in the two rows
     strip = strip[1:-1]
-    
+
     # tile pie wedges into a sphere
-    faces = np.vstack([strip +(i*c) for i in range(len(phi))])
-  
+    faces = np.vstack([strip + (i * c) for i in range(len(phi))])
+
     # poles are repeated in every strip, so a mask to merge them
     mask = np.arange(len(vertices))
     # the top pole are all the same vertex
     mask[0::c] = 0
     # the bottom pole are all the same vertex
-    mask[c-1::c] = c-1
-    
+    mask[c - 1::c] = c - 1
+
     # faces masked to remove the duplicated pole vertices
     # and mod to wrap to fill in the last pie wedge
     faces = mask[np.mod(faces, len(vertices))]
-    
+
     # we save a lot of time by not processing again
     # since we did some bookkeeping mesh is watertight
     mesh = Trimesh(vertices=vertices, faces=faces, process=False)
     return mesh
-    
+
+
 def cylinder(radius=1.0, height=1.0, sections=32):
     '''
     Create a mesh of a cylinder along Z centered at the origin.

@@ -82,7 +82,7 @@ class Path(object):
         result = self.vertices.md5()
         result += str(len(self.entities))
         return result
-        
+
     @util.cache_decorator
     def paths(self):
         paths = closed_paths(self.entities, self.vertices)
@@ -545,14 +545,14 @@ class Path2D(Path):
         if len(self.polygons_full) != 1:
             raise TypeError('Identifier only valid for single body')
         return polygon_hash(self.polygons_full[0])
-        
+
     @util.cache_decorator
     def identifier_md5(self):
         '''
         Return an MD5 of the rotation invarient identifier
         '''
         return util.md5_array(self.identifier, digits=4)
-        
+
     @property
     def polygons_valid(self):
         exists = self.polygons_closed

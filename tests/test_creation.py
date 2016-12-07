@@ -10,6 +10,10 @@ class CreationTest(g.unittest.TestCase):
         self.assertTrue(len(mesh.split(only_watertight=True)) == 0)
         self.assertTrue(len(mesh.split(only_watertight=False)) == count)
 
+    def test_uv(self):
+        sphere = g.trimesh.creation.uv_sphere()
+        self.assertTrue(sphere.is_watertight)
+        self.assertTrue(sphere.is_winding_consistent)
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
