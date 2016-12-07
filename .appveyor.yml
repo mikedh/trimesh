@@ -1,0 +1,42 @@
+environment:
+
+  matrix:
+
+    # For Python versions available on Appveyor, see
+    # http://www.appveyor.com/docs/installed-software#python
+    # The list here is complete (excluding Python 2.6, which
+    # isn't covered by this document) at the time of writing.
+
+    - PYTHON: "C:\\Python27"
+    - PYTHON: "C:\\Python33"
+    - PYTHON: "C:\\Python34"
+    - PYTHON: "C:\\Python35"
+    - PYTHON: "C:\\Python27-x64"
+    - PYTHON: "C:\\Python33-x64"
+      DISTUTILS_USE_SDK: "1"
+    - PYTHON: "C:\\Python34-x64"
+      DISTUTILS_USE_SDK: "1"
+    - PYTHON: "C:\\Python35-x64"
+
+install:
+  # We need wheel installed to build wheels
+  - "%PYTHON%\\python.exe -m pip install wheel nose2"
+
+install:
+  # Check that we have the expected version and architecture for Python
+  - "%PYTHON%\\python.exe --version"
+  - "%PYTHON%\\python.exe -c \"import struct; print(struct.calcsize('P') * 8)\""
+
+  # We need wheel installed to build wheels
+  - "%PYTHON%\\python.exe -m pip install wheel nose2"
+
+  - "SET PATH=%PATH_EXTRAS%;%PYTHON%;%PYTHON%\\Scripts;%PATH%"
+
+  - "pip install --disable-pip-version-check --user --upgrade pip"
+  - "pip install --upgrade setuptools"
+  - "pip install --upgrade .[all]"  
+  
+build: off
+
+test_script:
+  - "nose2"
