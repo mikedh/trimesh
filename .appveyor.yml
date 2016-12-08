@@ -38,7 +38,7 @@ install:
 
   - "pip install --disable-pip-version-check --user --upgrade pip"
   - "pip install --upgrade setuptools"
-  - "pip install --upgrade .[all]"  
+  - "pip install .[all]"  
   
 build: off
 
