@@ -1,46 +1,24 @@
+build: false
+
 environment:
-
   matrix:
+    - PYTHON_VERSION: 2.7
+      MINICONDA: C:\Miniconda
+    - PYTHON_VERSION: 3.4
+      MINICONDA: C:\Miniconda3
 
-    # For Python versions available on Appveyor, see
-    # http://www.appveyor.com/docs/installed-software#python
-    # The list here is complete (excluding Python 2.6, which
-    # isn't covered by this document) at the time of writing.
-
-    - PYTHON: "C:\\Python27"
-    - PYTHON: "C:\\Python33"
-    - PYTHON: "C:\\Python34"
-    - PYTHON: "C:\\Python35"
-    - PYTHON: "C:\\Python27-x64"
-    - PYTHON: "C:\\Python33-x64"
-      DISTUTILS_USE_SDK: "1"
-    - PYTHON: "C:\\Python34-x64"
-      DISTUTILS_USE_SDK: "1"
-    - PYTHON: "C:\\Python35-x64"
+init:
+  - "ECHO %PYTHON_VERSION% %MINICONDA%"
 
 install:
-
-  # Check that we have the expected version and architecture for Python
-  - "%PYTHON%\\python.exe --version"
-  
-  # this installs the appropriate Miniconda (Py2/Py3, 32/64 bit),
-  # as well as pip, conda-build, and the binstar CLI
-  - powershell .\\continuous-integration\\appveyor\\install.ps1
-  - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
-  
-  - "conda install -c scitools shapely"
-  - "conda install numpy scipy"
-  
-  # We need wheel installed to build wheels
-  - "%PYTHON%\\python.exe -m pip install wheel nose2"
-
-  - "SET PATH=%PATH_EXTRAS%;%PYTHON%;%PYTHON%\\Scripts;%PATH%"
-
-  - "pip install --disable-pip-version-check --user --upgrade pip"
-  - "pip install --upgrade setuptools"
-  - "pip install .[all]"  
-  
-build: off
+  - "set PATH=%MINICONDA%;%MINICONDA%\\Scripts;%PATH%"
+  - conda config --set always_yes yes --set changeps1 no
+  - conda update -q conda
+  - conda info -a
+  - "conda create -q -n test-environment python=%PYTHON_VERSION% numpy scipy nose2"
+  - activate test-environment
+  - conda install -c scitools shapely
+  - pip install .[all]
 
 test_script:
-  - "nose2"
+  - nose2
