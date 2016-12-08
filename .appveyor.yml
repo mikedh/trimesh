@@ -19,8 +19,8 @@ install:
   - activate test-environment
   - conda install -c scitools shapely
   - conda install -c ioos rtree
-  - pip install nose2
-  - pip install .[all]
+  - pip install nose2, networkx, svg.path, sympy, msgpack-python
+  - pip install .
 
 test_script:
   - nose2
