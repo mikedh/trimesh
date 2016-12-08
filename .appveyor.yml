@@ -18,6 +18,7 @@ install:
   - "conda create -q -n test-environment python=%PYTHON_VERSION% numpy scipy"
   - activate test-environment
   - conda install -c scitools shapely
+  - conda install -c ioos rtree
   - pip install nose2
   - pip install .[all]
 
