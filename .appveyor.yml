@@ -15,9 +15,10 @@ install:
   - conda config --set always_yes yes --set changeps1 no
   - conda update -q conda
   - conda info -a
-  - "conda create -q -n test-environment python=%PYTHON_VERSION% numpy scipy nose2"
+  - "conda create -q -n test-environment python=%PYTHON_VERSION% numpy scipy"
   - activate test-environment
   - conda install -c scitools shapely
+  - pip install nose2
   - pip install .[all]
 
 test_script:
