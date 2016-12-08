@@ -19,10 +19,18 @@ environment:
     - PYTHON: "C:\\Python35-x64"
 
 install:
+
   # Check that we have the expected version and architecture for Python
   - "%PYTHON%\\python.exe --version"
-  - "%PYTHON%\\python.exe -c \"import struct; print(struct.calcsize('P') * 8)\""
-
+  
+  # this installs the appropriate Miniconda (Py2/Py3, 32/64 bit),
+  # as well as pip, conda-build, and the binstar CLI
+  - powershell .\\continuous-integration\\appveyor\\install.ps1
+  - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
+  
+  - "conda install -c scitools shapely"
+  - "conda install numpy scipy"
+  
   # We need wheel installed to build wheels
   - "%PYTHON%\\python.exe -m pip install wheel nose2"
 
