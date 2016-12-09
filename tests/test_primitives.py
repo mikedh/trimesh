@@ -2,13 +2,25 @@ import generic as g
 
 class BooleanTest(g.unittest.TestCase):
     def setUp(self):
-        e = g.trimesh.primitives.Extrusion()
-        e.primitive.polygon = g.trimesh.path.polygons.random_polygon()
-        e.primitive.height = 1.0
-
-        self.primitives = [e]
-        self.primitives.append(g.trimesh.primitives.Extrusion(polygon=g.trimesh.path.polygons.random_polygon(),
-                                                              height = 293292.322))
+        self.primitives = []
+        
+        try:
+            import meshpy
+            has_meshpy = True
+        except ImportError:
+            log.warning('No meshpy! Not testing extrude primitives!')
+            has_meshpy = False
+            
+        # do it with a flag in case there is more than one ImportError
+        if has_meshpy:
+            e = g.trimesh.primitives.Extrusion()
+            e.primitive.polygon = g.trimesh.path.polygons.random_polygon()
+            e.primitive.height = 1.0
+            self.primitives.append(e)
+        
+                
+            self.primitives.append(g.trimesh.primitives.Extrusion(polygon=g.trimesh.path.polygons.random_polygon(),
+                                                                  height = 293292.322))
                                           
         self.primitives.append(g.trimesh.primitives.Sphere())
         self.primitives.append(g.trimesh.primitives.Sphere(center=[0,0,100], 

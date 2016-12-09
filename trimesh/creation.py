@@ -291,8 +291,10 @@ def icosphere(subdivisions=3, radius=1.0):
     return ico
 
 
-def uv_sphere(count=[32, 32],
-              radius=1.0):
+def uv_sphere(radius=1.0,
+              count=[32, 32],
+              theta=None,
+              phi=None):
     '''
     Create a UV sphere (latitude + longitude) centered at the origin.
 
@@ -300,8 +302,14 @@ def uv_sphere(count=[32, 32],
 
     Arguments
     ----------
+    radius: float, radius of sphere 
     count: (2,) int, number of lattitude and longitude lines
-    angle: (3,) float, what angle 
+    theta: (n,) float, optional
+    phi:   (n,) float, optional
+
+    Returns
+    ----------
+    mesh: Trimesh object of UV sphere with specified parameters
     '''
 
     count = np.array(count, dtype=np.int)
@@ -309,8 +317,10 @@ def uv_sphere(count=[32, 32],
     count[1] *= 2
 
     # generate vertices on a sphere using spherical coordinates
-    theta = np.linspace(0, np.pi, count[0])
-    phi = np.linspace(0, np.pi * 2, count[1])[:-1]
+    if theta is None:
+        theta = np.linspace(0, np.pi, count[0])
+    if phi is None:
+        phi = np.linspace(0, np.pi * 2, count[1])[:-1]
     spherical = np.dstack((np.tile(phi, (len(theta), 1)).T,
                            np.tile(theta, (len(phi), 1)))).reshape((-1, 2))
     vertices = util.spherical_to_vector(spherical) * radius
@@ -348,6 +358,50 @@ def uv_sphere(count=[32, 32],
     # since we did some bookkeeping mesh is watertight
     mesh = Trimesh(vertices=vertices, faces=faces, process=False)
     return mesh
+
+
+def capsule(height=1.0,
+            radius=1.0,
+            count=[32, 32]):
+    '''
+    Create a mesh of a capsule, or a cylinder with hemispheric ends. 
+
+    Arguments
+    ----------
+    height: float, center to center distance of two spheres
+    radius: float, radius of the cylinder and hemispheres
+    count:  (2,) int, number of sections on lattitude and longitude
+
+    Returns
+    ----------
+    capsule: Trimesh of capsule with given properties
+             - cylinder axis is along Z
+             - one hemisphere is centered at the origin
+             - other hemisphere is centered along the Z axis at specified height
+    '''
+    height = float(height)
+    radius = float(radius)
+    count = np.array(count, dtype=np.int)
+    count += np.mod(count, 2)
+
+    # create a theta where there is a double band around the equator
+    # so that we can offset the top and bottom of a sphere to
+    # get a nicely meshed capsule
+    theta = np.linspace(0, np.pi, count[0])
+    center = np.clip(np.arctan(tol.merge / radius), tol.merge, np.inf)
+    offset = np.array([-center, center]) + (np.pi/2)
+    theta = np.insert(theta,
+                      int(len(theta)/2),
+                      offset)
+
+    capsule = uv_sphere(radius=radius,
+                        count=count,
+                        theta=theta)
+    
+    top = capsule.vertices[:,2] > tol.zero
+    capsule.vertices[top] += [0,0,height]
+
+    return capsule
 
 
 def cylinder(radius=1.0, height=1.0, sections=32):
