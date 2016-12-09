@@ -8,7 +8,7 @@ class BooleanTest(g.unittest.TestCase):
             import meshpy
             has_meshpy = True
         except ImportError:
-            log.warning('No meshpy! Not testing extrude primitives!')
+            g.log.warning('No meshpy! Not testing extrude primitives!')
             has_meshpy = False
             
         # do it with a flag in case there is more than one ImportError

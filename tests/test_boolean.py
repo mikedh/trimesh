@@ -10,6 +10,11 @@ class BooleanTest(g.unittest.TestCase):
         return abs(value) < .001
 
     def test_boolean(self):
+        if ((not g.trimesh.interfaces.blender.exists) and
+            (not g.trimesh.interfaces.scad.exists)):
+            g.log.warning('No boolean backends available to test!')
+            return
+
         a, b = self.a, self.b
 
         for engine in ['scad', 'blender']:
