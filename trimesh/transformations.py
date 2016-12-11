@@ -1976,11 +1976,14 @@ def transform_points(points, matrix, translate=True):
     '''
     points = np.asanyarray(points, dtype=np.float64)
     matrix = np.asanyarray(matrix, dtype=np.float64)
-    if (matrix.shape != (4, 4) and matrix.shape != (3, 3)):
-        raise ValueError('matrix must be (3,3) or (4,4)!')
-    if len(points.shape) != 2 or (points.shape[1] + 1 != matrix.shape[1]):
+    if (len(points.shape) != 2 or
+        (points.shape[1] + 1 != matrix.shape[1])):
         raise ValueError('matrix dimension must match points!')
 
+    if np.allclose(matrix, np.eye(matrix.shape[0])):
+        # don't bother to apply if matrix is an identity matrix
+        return points
+    
     dimension = points.shape[1]
     column = np.zeros(len(points)) + int(bool(translate))
     stacked = np.column_stack((points, column))

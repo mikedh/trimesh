@@ -29,7 +29,7 @@ from . import nsphere
 from . import nearest
 
 from .io.export import export_mesh
-from .ray.ray_mesh import RayMeshIntersector, contains_points
+from .ray.ray_mesh import RayMeshIntersector
 from .voxel import Voxel
 from .constants import log, _log_time, tol
 from .scene import Scene
@@ -1457,7 +1457,7 @@ class Trimesh(object):
         '''
         if not self.is_watertight:
             log.warning('Mesh is non- watertight for contained point query!')
-        contains = contains_points(self, points)
+        contains = self.nearest.contains(self, points)
         return contains
 
     def copy(self):

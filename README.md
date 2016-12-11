@@ -1,5 +1,5 @@
 # trimesh #
-[![Build Status](https://travis-ci.org/mikedh/trimesh.svg?branch=master)](https://travis-ci.org/mikedh/trimesh)
+[![Build Status](https://travis-ci.org/mikedh/trimesh.svg?branch=master)](https://travis-ci.org/mikedh/trimesh) [![Build status](https://ci.appveyor.com/api/projects/status/j8h3luwvst1tkghl?svg=true)](https://ci.appveyor.com/project/mikedh/trimesh)
 
 Python (2.7-3*) library for loading and using triangular meshes. The goal of the library is to provide a fully featured Trimesh object which allows for easy manipulation and analysis, in the style of the excellent Polygon object in the [Shapely library](http://toblerity.org/shapely/manual.html).
 

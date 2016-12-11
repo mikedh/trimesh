@@ -7,7 +7,7 @@ from .transforms import TransformForest
 from .. import util
 
 
-from collections import deque
+from collections import deque, OrderedDict
 
 
 class Scene:
@@ -28,7 +28,7 @@ class Scene:
         self._cache = util.Cache(id_function=self.md5)
 
         # mesh name : Trimesh object
-        self.geometry = {}
+        self.geometry = OrderedDict()
         self.flags = {}
         self.transforms = TransformForest(base_frame=base_frame)
 
@@ -126,6 +126,44 @@ class Scene:
         centroid = np.mean(self.bounds, axis=0)
         return centroid
 
+    @util.cache_decorator
+    def triangles(self):
+        '''
+        Return a correctly transformed polygon soup of the current scene.
+
+        Returns
+        ----------
+        triangles: (n,3,3) float, triangles in space
+        '''
+        triangles = deque()
+        triangles_index = deque()
+        for index, node_info in zip(range(len(self.nodes)),
+                                    self.nodes.items()):
+            node, geometry_name = node_info
+            geometry = self.geometry[geometry_name]
+            if not hasattr(geometry, 'triangles'):
+                continue
+            transform = self.transforms.get(node)
+            triangles.append(transform_points(geometry.triangles.reshape((-1,3)),
+                                              transform))
+            triangles_index.append(np.ones(len(geometry.triangles),
+                                           dtype=np.int64) * index)
+        triangles = np.vstack(triangles).reshape((-1,3,3))
+        self._cache['triangles_index'] = np.hstack(triangles_index)
+        return triangles
+
+    @util.cache_decorator
+    def triangles_index(self):
+        '''
+        Which index of self.nodes.values() does each triangle come from.
+
+        Returns
+        ---------
+        triangles_index: (len(self.triangles),) int, index of self.nodes.values()
+        '''
+        populate = self.triangles
+        return self._cache['triangles_index']
+    
     def duplicate_nodes(self):
         '''
         Return a sequence of node keys of identical meshes.

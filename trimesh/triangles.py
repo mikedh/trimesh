@@ -300,10 +300,10 @@ def points_to_barycentric(triangles, points, method='cramer'):
     '''
     Find the barycentric coordinates of points relative to triangles.
 
-    For the Cramer's rule solution implements:
+    The Cramer's rule solution implements:
         http://blackpawn.com/texts/pointinpoly
 
-    For the cross product solution implements:
+    The cross product solution implements:
         https://www.cs.ubc.ca/~heidrich/Papers/JGT.05.pdf
 
 
