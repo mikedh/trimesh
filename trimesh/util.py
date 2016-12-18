@@ -948,18 +948,19 @@ def encoded_to_array(encoded):
 
     encoded = decode_keys(encoded)
 
-    shape = encoded['shape']
+    
     dtype = np.dtype(encoded['dtype'])
     if 'base64' in encoded:
         array = np.fromstring(
             base64.b64decode(
                 encoded['base64']),
-            dtype).reshape(shape)
+            dtype)
     elif 'binary' in encoded:
         array = np.fromstring(encoded['binary'],
                               dtype=dtype,
                               count=np.product(shape))
-    array = array.reshape(shape)
+    if 'shape' in encoded:
+        array = array.reshape(encoded['shape'])
     return array
 
 

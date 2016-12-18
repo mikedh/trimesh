@@ -3,7 +3,15 @@ from ..resources import get_resource
 
 from distutils.spawn import find_executable
 
-_blender_executable = find_executable('blender')
+import os
+import platform
+
+_search_path = os.environ['PATH']
+if platform.system() == 'Windows':
+    _search_path += 'C:\Program Files\Blender Foundation\Blender;'
+    _search_path += 'C:\Program Files (x86)\Blender Foundation\Blender;'
+
+_blender_executable = find_executable('blender', path=_search_path)
 _blender_template = get_resource('blender.py.template')
 
 exists = _blender_executable is not None

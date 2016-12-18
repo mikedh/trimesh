@@ -26,7 +26,7 @@ from . import bounds
 from . import units
 from . import permutate
 from . import nsphere
-from . import nearest
+from . import proximity
 
 from .io.export import export_mesh
 from .ray.ray_mesh import RayMeshIntersector, contains_points
@@ -106,7 +106,7 @@ class Trimesh(object):
         self.permutate = permutate.Permutator(self)
 
         # convience class for nearest point queries
-        self.nearest = nearest.Nearest(self)
+        self.proximity = proximity.ProximityQuery(self)
 
         # store metadata about the mesh in a dictionary
         self.metadata = dict()

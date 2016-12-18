@@ -200,7 +200,7 @@ def signed_distance(mesh, points):
     return distance
 
 
-class Nearest(object):
+class ProximityQuery(object):
     '''
     Proximity queries for the current mesh.
     '''

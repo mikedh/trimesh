@@ -2,8 +2,8 @@ import numpy as np
 
 from .constants import log, tol
 from .grouping import unique_value_in_row
-from .util import unitize
 
+from . import util
 
 def mesh_plane(mesh,
                plane_normal,
@@ -173,8 +173,8 @@ def plane_lines(plane_origin,
     '''
     endpoints = np.asanyarray(endpoints)
     plane_origin = np.asanyarray(plane_origin).reshape(3)
-    line_dir = unitize(endpoints[1] - endpoints[0])
-    plane_normal = unitize(np.asanyarray(plane_normal).reshape(3))
+    line_dir = util.unitize(endpoints[1] - endpoints[0])
+    plane_normal = util.unitize(np.asanyarray(plane_normal).reshape(3))
 
     t = np.dot(plane_normal, (plane_origin - endpoints[0]).T)
     b = np.dot(plane_normal, line_dir.T)
@@ -196,3 +196,45 @@ def plane_lines(plane_origin,
     intersection += np.reshape(d, (-1, 1)) * line_dir[valid]
 
     return intersection, valid
+
+        
+def planes_lines(plane_origins,
+                 plane_normals,
+                 line_origins,
+                 line_directions):
+    '''
+    Given one line per plane, find the intersection points
+
+    Arguments
+    -----------
+    plane_origins:   (n,3) float, plane origins
+    plane_normals:   (n,3) float, plane normals
+    line_origins:    (n,3) float, line origins
+    line_directions: (n,3) float, line directions
+
+    Returns
+    ----------
+    on_plane: (n,3) float, points on specified planes
+    valid:    (n,) bool, did plane intersect line or not
+    '''
+
+    plane_origins = np.asanyarray(plane_origins, dtype=np.float64)
+    plane_normals = np.asanyarray(plane_normals, dtype=np.float64)
+    line_origins = np.asanyarray(line_origins, dtype=np.float64)
+    line_directions = np.asanyarray(line_directions, dtype=np.float64)
+    
+    origin_vectors = plane_origins - line_origins
+
+    projection_ori = util.diagonal_dot(origin_vectors, plane_normals)
+    projection_dir = util.diagonal_dot(line_directions, plane_normals)
+
+    valid = np.abs(projection_dir) > tol.merge
+
+    distance = np.divide(projection_ori[valid],
+                         projection_dir[valid])
+
+    on_plane = line_directions[valid] * distance.reshape((-1,1))
+    on_plane += line_origins[valid]
+
+    return on_plane, valid
+    

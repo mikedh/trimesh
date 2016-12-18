@@ -10,14 +10,16 @@ class BooleanTest(g.unittest.TestCase):
         return abs(value) < .001
 
     def test_boolean(self):
-        if ((not g.trimesh.interfaces.blender.exists) and
-            (not g.trimesh.interfaces.scad.exists)):
-            g.log.warning('No boolean backends available to test!')
-            return
-
         a, b = self.a, self.b
 
-        for engine in ['scad', 'blender']:
+        engines = [('blender', g.trimesh.interfaces.blender.exists),
+                   ('scad',    g.trimesh.interfaces.scad.exists)]
+        
+        for engine, exists in engines:
+            if not exists:
+                g.log.warning('skipping boolean engine %s', engine)
+                continue
+                
             g.log.info('Testing boolean ops with engine %s', engine)
             d = a.difference(b, engine=engine)
             self.assertTrue(d.is_watertight)
@@ -30,7 +32,9 @@ class BooleanTest(g.unittest.TestCase):
             u = a.union(b, engine=engine)
             self.assertTrue(u.is_watertight)
             self.assertTrue(self.is_zero(u.volume - self.truth['union']))
-
+                
+            g.log.info('booleans succeeded with %s', engine)
+            
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()

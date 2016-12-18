@@ -9,27 +9,34 @@ class RayTests(g.unittest.TestCase):
 
     def test_rays(self):
         for mesh, ray_test, truth in zip(self.meshes, self.rays, self.truth):
-            hit_id      = mesh.ray.intersects_id(ray_test)
-            hit_loc     = mesh.ray.intersects_location(ray_test)
-            hit_any     = mesh.ray.intersects_any(ray_test)
-            hit_any_tri = mesh.ray.intersects_any_triangle(ray_test)
+            ray_test = g.np.array(ray_test)
+            ray_origins = ray_test[:,0,:]
+            ray_directions = ray_test[:,1,:]
 
-            for i in range(len(ray_test)):
+            hit_id      = mesh.ray.intersects_id(ray_origins, 
+                                                 ray_directions)
+            hit_loc     = mesh.ray.intersects_location(ray_origins, 
+                                                       ray_directions)
+            hit_any     = mesh.ray.intersects_any(ray_origins, 
+                                                  ray_directions)
+            hit_any_tri = mesh.ray.intersects_any_triangle(ray_origins, 
+                                                           ray_directions)
+
+            for i in range(len(ray_origins)):
                 self.assertTrue(len(hit_id[i])  == truth['count'][i])
-                #self.assertTrue(len(hit_loc[i]) == truth['count'][i])
 
     def test_rps(self):
         dimension = (1000,3)
         sphere    = g.get_mesh('unit_sphere.STL')
 
-        rays_ori = g.np.random.random(dimension)
-        rays_dir = g.np.tile([0,0,1], (dimension[0], 1))
-        rays_ori[:,2] = -5
-        rays = g.np.column_stack((rays_ori, rays_dir)).reshape((-1,2,3))
-        # force rayr object to allocate tree before timing it
+        ray_origins = g.np.random.random(dimension)
+        ray_directions = g.np.tile([0,0,1], (dimension[0], 1))
+        ray_origins[:,2] = -5
+      
+        # force ray object to allocate tree before timing it
         tree = sphere.triangles_tree()
         tic = g.time.time()
-        sphere.ray.intersects_id(rays)
+        sphere.ray.intersects_id(ray_origins, ray_directions)
         toc = g.time.time()
         rps = dimension[0] / (toc-tic)
         g.log.info('Measured %f rays/second', rps)
