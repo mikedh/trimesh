@@ -106,7 +106,7 @@ class Trimesh(object):
         self.permutate = permutate.Permutator(self)
 
         # convience class for nearest point queries
-        self.proximity = proximity.ProximityQuery(self)
+        self.nearest = proximity.ProximityQuery(self)
 
         # store metadata about the mesh in a dictionary
         self.metadata = dict()
