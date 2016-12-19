@@ -222,7 +222,9 @@ class Trimesh(object):
 
         Returns
         ----------
-        sparse: scipy.sparse.coo_matrix with dtype=bool, shape=(len(self.vertices), len(self.faces))
+        sparse: scipy.sparse.coo_matrix with:
+                dtype: bool 
+                shape: (len(self.vertices), len(self.faces))
         '''
         sparse = geometry.index_sparse(column_count=len(self.vertices),
                                        indices=self.faces)
@@ -353,10 +355,10 @@ class Trimesh(object):
         '''
         A minimum volume bounding sphere for the current mesh.
 
-        Note that the Sphere primitive returned has an UNPADDED, EXACT
+        Note that the Sphere primitive returned has an unpadded, exact
         sphere_radius so while the distance of every vertex of the current
         mesh from sphere_center will be less than sphere_radius, the faceted
-        sphere primitive may NOT CONTAIN EVER VERTEX
+        sphere primitive may not contain every vertex
 
         Returns
         --------
