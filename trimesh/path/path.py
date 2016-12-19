@@ -350,8 +350,9 @@ class Path2D(Path):
 
     def apply_obb(self):
         if len(self.root) == 1:
-            bounds, T = polygon_obb(self.polygons_closed[self.root[0]])
-            self.transform(T)
+            matrix, bounds = polygon_obb(self.polygons_closed[self.root[0]])
+            self.apply_transform(matrix)
+            
         else:
             raise ValueError('Not implemented for multibody geometry')
 

@@ -89,6 +89,8 @@ class VectorTests(unittest.TestCase):
             for body in split:
                 body.identifier
 
+            d.apply_obb()
+                
     def test_subset(self):
         for d in self.drawings[:10]:
             if len(d.vertices) > 150: continue

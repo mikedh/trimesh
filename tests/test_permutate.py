@@ -16,7 +16,7 @@ class PermutateTest(g.unittest.TestCase):
         for mesh in g.get_meshes(5):
             original = mesh.copy()
             noise     = g.trimesh.permutate.noise(mesh)
-            noise_1   = g.trimesh.permutate.noise(mesh, magnitude=mesh.scale/10.0)
+            noise_1   = g.trimesh.permutate.noise(mesh, magnitude=mesh.scale/50.0)
             transform = g.trimesh.permutate.transform(mesh)
 
             make_assertions(mesh, noise)
