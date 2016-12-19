@@ -1,7 +1,7 @@
 import numpy as np
 
 try:
-    from ray_pyembree import RayMeshIntersector
+    from .ray_pyembree import RayMeshIntersector
 except ImportError:
     from .ray_triangle import RayMeshIntersector    
 
