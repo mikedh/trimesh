@@ -251,7 +251,7 @@ def ray_triangle_candidates(ray_origins,
                               bounds=tree.bounds)
     ray_candidates = [None] * len(ray_origins)
     for ray_index, bounds in enumerate(ray_bounding):
-        ray_candidates[ray_index] = list(tree.intersection(bounds))
+        ray_candidates[ray_index] = np.array(list(tree.intersection(bounds)))
     return ray_candidates
 
 
