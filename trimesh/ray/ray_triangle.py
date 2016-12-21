@@ -155,13 +155,15 @@ def rays_triangles_id(triangles,
     # default set of candidate triangles to be queried
     # is every triangle. this is very slow
     candidates = np.ones(len(triangles), dtype=np.bool)
-    hits = [None] * len(ray_origins)
+    hits = [[]] * len(ray_origins)
 
     for ray_index, ray_ori, ray_dir in zip(range(len(ray_origins)),
                                            ray_origins,
                                            ray_directions):
         # query the triangle candidates
         candidates = ray_candidates[ray_index]
+        if len(candidates) == 0: 
+            continue
         hit = ray_triangles(triangles[candidates],
                             ray_ori,
                             ray_dir)
