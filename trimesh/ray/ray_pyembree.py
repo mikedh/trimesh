@@ -27,8 +27,7 @@ class RayMeshIntersector:
     def intersects_location(self,
                             ray_origins,
                             ray_directions,
-                            multiple_hits=False,
-                            return_index=False):
+                            multiple_hits=False):
         '''
         Return the location of where a ray hits a surface.
 
@@ -43,15 +42,14 @@ class RayMeshIntersector:
         locations: (m,3) float, points where the ray intersects the surface
         ray_index: (m,) int, index of which ray location is from
         '''
-        (triangle_index, 
-         ray_index, 
+        (index_tri,
+         index_ray,
          locations) = self.intersects_id(ray_origins=ray_origins,
                                          ray_directions=ray_directions,
                                          multiple_hits=multiple_hits,
                                          return_locations=True)
-        if return_index:
-            return locations, ray_index
-        return locations
+        
+        return locations, index_ray
 
     def intersects_id(self,
                       ray_origins,
@@ -72,9 +70,9 @@ class RayMeshIntersector:
 
         Returns
         ----------
-        triangle_index: (m,) int, index of triangle the ray hit
-        ray_index:      (m,) int, index of ray
-        locations:      (m,3) float, locations in space
+        index_tri: (m,) int, index of triangle the ray hit
+        index_ray: (m,) int, index of ray
+        locations: (m,3) float, locations in space
         '''
 
         # make sure input is float64 for embree
@@ -157,12 +155,12 @@ class RayMeshIntersector:
                 break
 
         # stack the deques into nice 1D numpy arrays
-        result_triangle = np.hstack(result_triangle)
-        result_ray_idx = np.hstack(result_ray_idx)
+        index_tri = np.hstack(result_triangle)
+        index_ray = np.hstack(result_ray_idx)
 
         if return_locations:
-            return result_triangle, result_ray_idx, np.array(result_locations)
-        return result_triangle, result_ray_idx
+            return index_tri, index_ray, np.array(result_locations)
+        return index_tri, index_ray
 
     def intersects_first(self,
                          ray_origins,

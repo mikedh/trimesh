@@ -12,18 +12,18 @@ class RayTests(g.unittest.TestCase):
             ray_test = g.np.array(ray_test)
             ray_origins = ray_test[:,0,:]
             ray_directions = ray_test[:,1,:]
+            
 
-            hit_id      = mesh.ray.intersects_id(ray_origins, 
-                                                 ray_directions)
+            hit_tri, hit_ray = mesh.ray.intersects_id(ray_origins, 
+                                                      ray_directions)
             hit_loc     = mesh.ray.intersects_location(ray_origins, 
                                                        ray_directions)
             hit_any     = mesh.ray.intersects_any(ray_origins, 
                                                   ray_directions)
-            hit_any_tri = mesh.ray.intersects_any_triangle(ray_origins, 
-                                                           ray_directions)
+           
 
             for i in range(len(ray_origins)):
-                self.assertTrue(len(hit_id[i])  == truth['count'][i])
+                self.assertTrue(len(hit_tri)  == g.np.sum(truth['count']))
 
     def test_rps(self):
         dimension = (1000,3)
@@ -43,12 +43,12 @@ class RayTests(g.unittest.TestCase):
 
     def test_contains(self):
         mesh = g.get_mesh('unit_cube.STL')
-        scale = 1+(g.trimesh.constants.tol.merge*2)
+        scale = 1 + 1e-5
 
         test_on  = mesh.contains(mesh.vertices)
         test_in  = mesh.contains(mesh.vertices * (1.0/scale))
         test_out = mesh.contains(mesh.vertices * scale)
-        
+
         #assert test_on.all()
         self.assertTrue(test_in.all())
         self.assertFalse(test_out.any())

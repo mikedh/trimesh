@@ -1,8 +1,12 @@
 import numpy as np
 
-#from .ray_pyembree import RayMeshIntersector
-    
-from .ray_triangle import RayMeshIntersector    
+try:
+    import Hey
+    from .ray_pyembree import RayMeshIntersector
+except ImportError:
+    from .ray_triangle import RayMeshIntersector    
+
+from .. import grouping
 
 def contains_points(mesh, points):
     '''
@@ -22,8 +26,13 @@ def contains_points(mesh, points):
     ray_origins = np.asanyarray(points)
     # rays are all going in arbitrary direction
     ray_directions = np.tile([0,0,1.0], (len(points), 1))
-    hits = mesh.ray.intersects_location(ray_origins, ray_directions)
-    hits_count = np.array([len(i) for i in hits])
-    contains = np.mod(hits_count, 2) == 1
+    locations, index_ray = mesh.ray.intersects_location(ray_origins, ray_directions)
+    
+    if len(locations) == 0:
+        return np.zeros(len(points), dtype=np.bool)
+
+    hit_count = np.bincount(index_ray, minlength=len(points))
+    
+    contains = np.mod(hit_count, 2) == 1
 
     return contains
