@@ -64,7 +64,7 @@ def fix_normals_direction(mesh):
     direction = normals([mesh.triangles[0]])[0][0]
     # test point
     origin = mesh.triangles[0].mean(axis=0)
-    origin += mesh.face_normals[0] * 1e-2
+    origin += direction * 1e-2
     flipped = mesh.contains([origin])[0]
 
     if flipped:
