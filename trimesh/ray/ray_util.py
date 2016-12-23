@@ -1,11 +1,5 @@
 import numpy as np
 
-try:
-    import Hey
-    from .ray_pyembree import RayMeshIntersector
-except ImportError:
-    from .ray_triangle import RayMeshIntersector    
-
 from .. import grouping
 
 def contains_points(mesh, points):

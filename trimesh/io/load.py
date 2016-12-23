@@ -1,4 +1,5 @@
 import numpy as np
+import collections
 import traceback
 import os
 
@@ -77,22 +78,27 @@ def load(file_obj, file_type=None, **kwargs):
 
 
 @_log_time
-def load_mesh(file_obj, file_type=None):
+def load_mesh(file_obj, file_type=None, **kwargs):
     '''
     Load a mesh file into a Trimesh object
 
     Arguments
     ---------
-    file_obj: a filename string or a file-like object
+    file_obj:  str or file-like object
     file_type: str representing file type (eg: 'stl')
+    kwargs:    passed to Trimesh constructor
 
     Returns:
     ----------
-    mesh: a single Trimesh object, or a list of Trimesh objects,
+    mesh: Trimesh object, or a list of Trimesh objects
           depending on the file format.
 
     '''
-    file_obj, file_type, metadata = _parse_file_args(file_obj, file_type)
+    # turn a string into a file obj and type
+    (file_obj, 
+     file_type, 
+     metadata) = _parse_file_args(file_obj, file_type)
+
     loaded = _mesh_loaders[file_type](file_obj,
                                       file_type)
     if is_file(file_obj):
@@ -101,13 +107,16 @@ def load_mesh(file_obj, file_type=None):
     log.debug('loaded mesh using %s',
               _mesh_loaders[file_type].__name__)
 
-    meshes = [Trimesh(**i) for i in make_sequence(loaded)]
-    for i in meshes:
-        i.metadata.update(metadata)
+    meshes = collections.deque()
+    for mesh_kwargs in make_sequence(loaded):
+        mesh_kwargs.update(kwargs)
+        mesh = Trimesh(**mesh_kwargs)
+        mesh.metadata.update(metadata)
+        meshes.append(mesh)
 
     if len(meshes) == 1:
         return meshes[0]
-    return meshes
+    return np.array(meshes)
 
 
 def _parse_file_args(file_obj, file_type):

@@ -9,6 +9,10 @@ from pyembree.mesh_construction import TriangleMesh
 from .. import util
 from .. import intersections
 
+# based on an internal tolerance of embree?
+# 1e-4 definetly doesn't work
+_ray_offset_distance = 5e-3
+
 class RayMeshIntersector:
 
     def __init__(self, geometry):
@@ -27,7 +31,7 @@ class RayMeshIntersector:
     def intersects_location(self,
                             ray_origins,
                             ray_directions,
-                            multiple_hits=False):
+                            multiple_hits=True):
         '''
         Return the location of where a ray hits a surface.
 
@@ -54,7 +58,7 @@ class RayMeshIntersector:
     def intersects_id(self,
                       ray_origins,
                       ray_directions,
-                      multiple_hits=False,
+                      multiple_hits=True,
                       return_locations=False):
         '''
         Find the triangles hit by a list of rays, including optionally 
@@ -74,7 +78,6 @@ class RayMeshIntersector:
         index_ray: (m,) int, index of ray
         locations: (m,3) float, locations in space
         '''
-
         # make sure input is float64 for embree
         ray_origins = np.asanyarray(deepcopy(ray_origins), dtype=np.float64)
         ray_directions = np.asanyarray(ray_directions, dtype=np.float64)
@@ -91,7 +94,7 @@ class RayMeshIntersector:
 
         if multiple_hits or return_locations:
             # how much to offset ray to transport to the other side of it
-            ray_offset = ray_directions * 1e-8
+            ray_offset = ray_directions * _ray_offset_distance
 
             # grab the planes from triangles
             plane_origins = self._geometry.triangles[:, 0, :]
@@ -101,7 +104,7 @@ class RayMeshIntersector:
             # run the pyembree query
             query = self._scene.run(ray_origins[current],
                                     ray_directions[current])
-
+           
             # basically we need to reduce the rays to the ones that hit
             # something
             hit = query != -1
@@ -148,8 +151,7 @@ class RayMeshIntersector:
             result_locations.extend(new_origins)
 
             if multiple_hits:
-                # move the ray origin to the other side of the triangle for the
-                # next query
+                # move the ray origin to the other side of the triangle
                 ray_origins[current] = new_origins + ray_offset[current]
             else:
                 break

@@ -29,7 +29,8 @@ from . import nsphere
 from . import proximity
 
 from .io.export import export_mesh
-from .ray.ray_mesh import RayMeshIntersector, contains_points
+from .ray import ray_triangle
+from .ray import ray_util
 from .voxel import Voxel
 from .constants import log, _log_time, tol
 from .scene import Scene
@@ -44,6 +45,7 @@ class Trimesh(object):
                  vertex_normals=None,
                  metadata=None,
                  process=True,
+                 use_embree=True,
                  **kwargs):
         '''
         A Trimesh object contains a triangular 3D mesh.
@@ -59,6 +61,7 @@ class Trimesh(object):
         metadata:       dict, any metadata about the mesh
         process:        bool, if True basic mesh cleanup will be done on instantiation
         '''
+
         # self._data stores information about the mesh which CANNOT be regenerated.
         # in the base class all that is stored here is vertex and face information
         # any data put into the store is converted to a TrackedArray (np.ndarray subclass)
@@ -100,8 +103,14 @@ class Trimesh(object):
         # initializing is very inexpensive and object is convenient to have.
         # On first query expensive bookkeeping is done (creation of r-tree),
         # and is cached for subsequent queries
-        self.ray = RayMeshIntersector(self)
-
+        self.ray = ray_triangle.RayMeshIntersector(self)
+        if use_embree:
+            try: 
+                from .ray import ray_pyembree
+                self.ray = ray_pyembree.RayMeshIntersector(self)
+            except ImportError:
+                log.info('Embree not available, switching to CPU ray tracing')
+        
         # a quick way to get permuated versions of the current mesh
         self.permutate = permutate.Permutator(self)
 
@@ -1459,7 +1468,7 @@ class Trimesh(object):
         '''
         if not self.is_watertight:
             log.warning('Mesh is non- watertight for contained point query!')
-        contains = contains_points(self, points)
+        contains = ray_util.contains_points(self, points)
         return contains
 
     def copy(self):

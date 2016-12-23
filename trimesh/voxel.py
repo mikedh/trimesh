@@ -235,8 +235,8 @@ def mesh_to_run(mesh, pitch, size_max=1e5):
     ray_origins += [pitch * .5, pitch * .5, -pitch]
     ray_vectors = np.tile([0.0, 0.0, 1.0], (len(grid), 1))
 
-    hits = mesh.ray.intersects_location(ray_origins=ray_origins,
-                                        ray_directions=ray_vectors)
+    locations, index_ray = mesh.ray.intersects_location(ray_origins=ray_origins,
+                                                        ray_directions=ray_vectors)
     raw_shape = np.ceil(np.ptp(bounds / pitch, axis=0)).astype(int)
     grid_origin = bounds[0]
     grid_index = np.rint(
@@ -245,15 +245,9 @@ def mesh_to_run(mesh, pitch, size_max=1e5):
     run_z = deque()
     run_xy = deque()
 
-    for i, hit in enumerate(hits):
-        if len(hit) == 0:
-            continue
+    for group in grouping.group(index_ray):
 
-        z = hit[:, 2] - grid_origin[2]
-        # if a ray hits exactly on an edge, there will
-        # be a duplicate entry in hit (for both triangles)
-        z = grouping.unique_float(z)
-
+        z = locations[group][:,2] - grid_origin[2]
         index_z = np.sort(np.round(z / pitch).astype(int))
         # if a hit is on edge, it will be returned twice
         # this np.unique call returns sorted, unique indicies
@@ -265,7 +259,8 @@ def mesh_to_run(mesh, pitch, size_max=1e5):
         # we tile multiple XY entries if there is more than one pair of intersections
         # by doing this we ensure that both run_z and run_xy are (n,2)
         run_z.extend(index_z.reshape((-1, 2)))
-        run_xy.extend(np.tile(grid_index[i], (int(len(index_z) / 2), 1)))
+        run_xy.extend(np.tile(grid_index[index_ray[group[0]]], 
+                              (int(len(index_z) / 2), 1)))
 
     run = {'shape': raw_shape,
            'index_xy': np.array(run_xy),
