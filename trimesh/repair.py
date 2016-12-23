@@ -61,19 +61,14 @@ def fix_normals_direction(mesh):
 
     If the mesh is not watertight, this is meaningless.
     '''
-    # force face normals to be regenerated according to the right-hand rule
-    mesh.face_normals = None
-    # which direction should our test rays go
-    direction = mesh.face_normals[0]
+    direction = normals([mesh.triangles[0]])[0][0]
     # test point
     origin = mesh.triangles[0].mean(axis=0)
-    origin += direction * tol.merge
+    origin += mesh.face_normals[0] * 1e-2
     flipped = mesh.contains([origin])[0]
 
     if flipped:
         log.debug('Flipping face normals and winding')
-        # reverse the face normals
-        mesh.face_normals *= -1.0
         # since normals were regenerated, this means winding is backwards
         # if winding is incoherent this won't fix anything
         mesh.faces = np.fliplr(mesh.faces)

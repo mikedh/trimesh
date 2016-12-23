@@ -8,8 +8,8 @@ maintainer Dockerfiles
 
 add . /home/docker/config
 
-run apt-get update
-run apt-get install -y `cat /home/docker/config/apt.list`
+run bash /home/docker/config/apt.bash
+run bash /home/docker/config/conda.bash
 
 run pip3 install git+https://github.com/robotics/assimp_latest.git
 run pip3 install trimesh[all]

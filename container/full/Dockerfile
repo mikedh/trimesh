@@ -8,8 +8,8 @@ maintainer Dockerfiles
 # copy this container directory to the filesystem
 add . /home/docker/config
 
-run bash apt.bash
-run bash conda.bash
+run bash /home/docker/config/apt.bash
+run bash /home/docker/config/conda.bash
 
-run pip3 install git+https://github.com/robotics/assimp_latest.git
-run pip3 install trimesh[all]
+run pip install git+https://github.com/robotics/assimp_latest.git
+run pip install trimesh[all]
