@@ -88,11 +88,6 @@ class UtilTests(unittest.TestCase):
                 tree = g.trimesh.util.bounds_tree(bounds)
                 self.assertTrue(0 in tree.intersection(bounds[0]))
         
-if __name__ == '__main__':
-    g.trimesh.util.attach_to_log()
-    g.unittest.main()
-    
-
         
 class SceneTests(unittest.TestCase):
     def setUp(self):
@@ -112,10 +107,9 @@ class IOTest(unittest.TestCase):
         r = a.export(file_type='dae')
  
 class ContainsTest(unittest.TestCase):
-    def setUp(self):
-        self.sphere = g.get_mesh('unit_sphere.STL')
-
-    def test_equal(self):
+    def test_inside(self):
+        sphere = g.trimesh.primitives.Sphere(radius=1.0, subdivisions=4)
+        g.log.info('Testing contains function with sphere')
         samples = (np.random.random((1000,3))-.5)*5
         radius = np.linalg.norm(samples, axis=1)
 
@@ -123,7 +117,7 @@ class ContainsTest(unittest.TestCase):
         truth_in = radius < 1.0 - margin
         truth_out = radius > 1.0 + margin
 
-        contains = self.sphere.contains(samples)
+        contains = sphere.contains(samples)
         
         assert contains[truth_in].all()
         assert not contains[truth_out].any()
