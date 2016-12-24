@@ -113,18 +113,16 @@ class ContainsTest(unittest.TestCase):
         samples = (np.random.random((1000,3))-.5)*5
         radius = np.linalg.norm(samples, axis=1)
 
-        margin = .02
-        truth_in = radius < 1.0 - margin
-        truth_out = radius > 1.0 + margin
+        margin = .05
+        truth_in  = radius < (1.0 - margin)
+        truth_out = radius > (1.0 + margin)
 
         contains = sphere.contains(samples)
         
         if not contains[truth_in].all():
-            print(contains[truth_in])
             raise ValueError('contains test doesnt match truth!')
 
         if contains[truth_out].any():
-            print(contains[truth_out])
             raise ValueError('contains test doesnt match truth!')
    
 class MassTests(unittest.TestCase):
