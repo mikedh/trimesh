@@ -4,7 +4,7 @@ from collections import deque
 
 from .geometry import faces_to_edges
 from .grouping import group_rows
-from .triangles import normals
+from .triangles import normals, mass_properties
 from .util import is_sequence
 from .constants import log, tol
 
@@ -57,22 +57,21 @@ def fix_face_winding(mesh):
 
 def fix_normals_direction(mesh):
     '''
-    Check to see if a mesh has normals pointed outside the solid using ray tests.
+    Check to see if a mesh has normals pointed outside the solid.
 
     If the mesh is not watertight, this is meaningless.
     '''
-    direction = normals([mesh.triangles[0]])[0][0]
-    # test point
-    origin = mesh.triangles[0].mean(axis=0)
-    origin += direction * 1e-2
-    flipped = mesh.contains([origin])[0]
+    volume = mass_properties(mesh.triangles, 
+                             crosses=mesh.triangles_cross,
+                             skip_inertia=True)['volume']
+    flipped = volume < 0.0
 
     if flipped:
         log.debug('Flipping face normals and winding')
         # since normals were regenerated, this means winding is backwards
         # if winding is incoherent this won't fix anything
         mesh.faces = np.fliplr(mesh.faces)
-
+        mesh.face_normals = None
 
 def fix_normals(mesh):
     '''
