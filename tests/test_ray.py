@@ -1,3 +1,4 @@
+
 import generic as g
 
 class RayTests(g.unittest.TestCase):
@@ -20,10 +21,9 @@ class RayTests(g.unittest.TestCase):
                                                        ray_directions)
             hit_any     = mesh.ray.intersects_any(ray_origins, 
                                                   ray_directions)
-           
 
-            for i in range(len(ray_origins)):
-                self.assertTrue(len(hit_tri)  == g.np.sum(truth['count']))
+            self.assertTrue(len(hit_loc) == truth['count'])
+            
 
     def test_rps(self):
         dimension = (1000,3)

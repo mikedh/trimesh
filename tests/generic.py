@@ -57,8 +57,8 @@ def _load_data():
     data['2D_files']    = [os.path.join(dir_2D, f) for f in os.listdir(dir_2D)]
     return data
 
-def get_mesh(file_name):
-    mesh = trimesh.load(os.path.join(dir_models, file_name))
+def get_mesh(file_name, **kwargs):
+    mesh = trimesh.load(os.path.join(dir_models, file_name), **kwargs)
     return mesh
     
 def get_meshes(count=None):

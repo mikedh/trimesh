@@ -11,5 +11,7 @@ add . /home/docker/config
 run bash /home/docker/config/apt.bash
 run bash /home/docker/config/conda.bash
 
-run pip install git+https://github.com/robotics/assimp_latest.git
+env PATH /opt/conda/bin:$PATH
+
+#run pip install git+https://github.com/robotics/assimp_latest.git
 run pip install trimesh[all]
