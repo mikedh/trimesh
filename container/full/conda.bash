@@ -13,4 +13,8 @@ conda config --add channels ostrokach    # graph-tool
 conda config --add channels conda-forge  # rtree, shapely, pyembree
 conda config --add channels defaults     # stuff
 
+# cyassimp is a much faster binding for the assimp importers
+# they use non- standard labels, master vs main
+conda install -c menpo/label/master cyassimp
+
 conda install shapely rtree graph-tool pyembree pip 

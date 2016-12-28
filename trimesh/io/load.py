@@ -33,7 +33,7 @@ except:
 
 
 def mesh_formats():
-    return list(_mesh_loaders.keys())
+    return list(mesh_loaders.keys())
 
 
 def available_formats():
@@ -99,13 +99,13 @@ def load_mesh(file_obj, file_type=None, **kwargs):
      file_type, 
      metadata) = _parse_file_args(file_obj, file_type)
 
-    loaded = _mesh_loaders[file_type](file_obj,
+    loaded = mesh_loaders[file_type](file_obj,
                                       file_type)
     if is_file(file_obj):
         file_obj.close()
 
     log.debug('loaded mesh using %s',
-              _mesh_loaders[file_type].__name__)
+              mesh_loaders[file_type].__name__)
 
     meshes = collections.deque()
     for mesh_kwargs in make_sequence(loaded):
@@ -197,11 +197,11 @@ def _parse_file_args(file_obj, file_type):
     file_type = file_type.lower()
     return file_obj, file_type, metadata
 
-_mesh_loaders = {}
+mesh_loaders = {}
 # assimp has a lot of loaders, but they are all quite slow
 # so we load them first and replace them with native loaders if possible
-_mesh_loaders.update(_assimp_loaders)
-_mesh_loaders.update(_stl_loaders)
-_mesh_loaders.update(_misc_loaders)
-_mesh_loaders.update(_step_loaders)
-_mesh_loaders.update(_ply_loaders)
+mesh_loaders.update(_assimp_loaders)
+mesh_loaders.update(_stl_loaders)
+mesh_loaders.update(_misc_loaders)
+mesh_loaders.update(_step_loaders)
+mesh_loaders.update(_ply_loaders)

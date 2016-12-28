@@ -1,9 +1,10 @@
+import tempfile
 import numpy as np
 
 from ..constants import log
 
 
-def load_assimp(file_obj, file_type=None):
+def load_pyassimp(file_obj, file_type=None):
     '''
     Use the assimp library to load a mesh, from a file object and type,
     or filename (if file_obj is a string)
@@ -19,7 +20,7 @@ def load_assimp(file_obj, file_type=None):
     '''
 
     def LPMesh_to_Trimesh(lp):
-        colors = (np.reshape(lp.colors, (-1, 4))[:, 0:3] * 255).astype(np.int)
+        colors = (np.reshape(lp.colors, (-1, 4))[:, 0:3] * 255).astype(np.uint8)
         return {'vertices': lp.vertices,
                 'vertex_normals': lp.normals,
                 'faces': lp.faces,
@@ -32,25 +33,56 @@ def load_assimp(file_obj, file_type=None):
         file_obj = open(file_obj, 'rb')
 
     scene = pyassimp.load(file_obj, file_type=file_type)
-    meshes = list(map(LPMesh_to_Trimesh, scene.meshes))
+    meshes = [LPMesh_to_Trimesh(i) for i in scene.meshes]
     pyassimp.release(scene)
 
     if len(meshes) == 1:
         return meshes[0]
     return meshes
 
+def load_cyassimp(file_obj, file_type=None):
+    '''
+    Load a file using the cyassimp bindings.
+
+    The easiest way to install these is with conda:
+    conda install -c menpo/label/master cyassimp
+    '''
+
+    if hasattr(file_obj, 'read'):
+        # if it has a read attribute it is probably a file object
+        with tempfile.NamedTemporaryFile(suffix=str(file_type)) as file_temp:
+            file_temp.write(file_obj.read)
+            scene = cyassimp.AIImporter(file_temp.name)
+            scene.build_scene()
+    else:
+        scene = cyassimp.AIImporter(file_obj.encode('utf-8'))
+        scene.build_scene()
+
+    meshes = [{'vertices' : i.points,
+               'faces'    : i.trilist} for i in scene.meshes]
+
+    if len(meshes) == 1:
+        return meshes[0]
+    return meshes
+
+_assimp_formats = ['dae', 'blend', '3ds', 'ase', 'obj',
+                   'ifc', 'xgl', 'zgl', 'ply', 'lwo',
+                   'lxo', 'x', 'ac', 'ms3d', 'cob', 'scn']
 _assimp_loaders = {}
+
 try:
     import pyassimp
     if hasattr(pyassimp, 'available_formats'):
         _assimp_formats = [i.lower() for i in pyassimp.available_formats()]
-    else:
-        log.warning(
-            'Older version of assimp detected, using hardcoded format list')
-        _assimp_formats = ['dae', 'blend', '3ds', 'ase', 'obj',
-                           'ifc', 'xgl', 'zgl', 'ply', 'lwo',
-                           'lxo', 'x', 'ac', 'ms3d', 'cob', 'scn']
     _assimp_loaders.update(zip(_assimp_formats,
-                               [load_assimp] * len(_assimp_formats)))
-except:
+                               [load_pyassimp] * len(_assimp_formats)))
+except ImportError:
     log.warning('pyassimp unavailable, using only native loaders')
+
+    
+try:
+    import cyassimp
+    _assimp_loaders.update(zip(_assimp_formats,
+                               [load_cyassimp] * len(_assimp_formats)))
+except ImportError:
+    pass
