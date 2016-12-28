@@ -11,7 +11,7 @@ source activate docker-environment
 
 conda config --add channels ostrokach    # graph-tool
 conda config --add channels conda-forge  # rtree, shapely, pyembree
-conda config --add channels defaults     # stuff
+conda config --add channels defaults     # stuff, things
 
 # cyassimp is a much faster binding for the assimp importers
 # they use non- standard labels, master vs main
