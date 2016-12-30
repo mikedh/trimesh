@@ -32,8 +32,8 @@ class ExportTest(g.unittest.TestCase):
                                 mesh.metadata['file_name'])
                                 
                 if loaded.vertices is None:
-                    log.error('Export -> import for %s on %s gave None for vertices!',
-                              file_type,
+                    g.log.error('Export -> import for %s on %s gave None for vertices!',
+                                file_type,
                               mesh.metadata['file_name'])
                 self.assertTrue(loaded.faces.shape    == mesh.faces.shape)
                 self.assertTrue(loaded.vertices.shape == mesh.vertices.shape)
