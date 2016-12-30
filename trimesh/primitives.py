@@ -3,6 +3,7 @@ import pprint
 
 from . import util
 from . import creation
+from . import sample
 
 from .base import Trimesh
 from .constants import log
@@ -239,8 +240,26 @@ class Box(_Primitive):
 
         defaults = {'transform': np.eye(4),
                     'extents': np.ones(3)}
-        self.primitive = _PrimitiveAttributes(
-            self._data, defaults, self, kwargs)
+        self.primitive = _PrimitiveAttributes(self._data, 
+                                              defaults, 
+                                              self, kwargs)
+
+    def sample_volume(self, count):
+        '''
+        Return samples from inside the volume of the box.
+
+        Arguments
+        -------------
+        count: int, number of samples to return
+
+        Returns
+        ----------
+        samples: (count,3) float, points inside the volume
+        '''
+        samples = sample.volume_rectangular(extents=self.primitive.extents,
+                                            count=count,
+                                            transform=self.primitive.transform)
+        return samples
 
     @property
     def is_oriented(self):

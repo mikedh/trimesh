@@ -11,7 +11,7 @@ from .. import intersections
 
 # based on an internal tolerance of embree?
 # 1e-4 definetly doesn't work
-_ray_offset_distance = 5e-3
+_ray_offset_distance = .01
 
 class RayMeshIntersector:
 
@@ -100,11 +100,14 @@ class RayMeshIntersector:
             plane_origins = self._geometry.triangles[:, 0, :]
             plane_normals = self._geometry.face_normals
 
+        last_tri = np.ones(len(ray_origins), dtype=np.int32) * -1
+            
         while True:
             # run the pyembree query
             query = self._scene.run(ray_origins[current],
                                     ray_directions[current])
-           
+
+            
             # basically we need to reduce the rays to the ones that hit
             # something
             hit = query != -1

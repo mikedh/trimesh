@@ -65,6 +65,16 @@ def load_cyassimp(file_obj, file_type=None):
         return meshes[0]
     return meshes
 
+def load_assimp(file_obj, file_type=None):
+    try: 
+        return load_cyassimp(file_obj=file_obj,
+                             file_type=file_type)
+    except:
+        log.error('Cyassimp had error loading file, trying pyassimp',
+                  exc_info=True)
+        return load_pyassimp(file_obj=file_obj,
+                             file_type=file_type)
+
 _assimp_formats = ['dae', 'blend', '3ds', 'ase', 'obj',
                    'ifc', 'xgl', 'zgl', 'ply', 'lwo',
                    'lxo', 'x', 'ac', 'ms3d', 'cob', 'scn']
@@ -83,6 +93,6 @@ except ImportError:
 try:
     import cyassimp
     _assimp_loaders.update(zip(_assimp_formats,
-                               [load_cyassimp] * len(_assimp_formats)))
+                               [load_assimp] * len(_assimp_formats)))
 except ImportError:
     pass

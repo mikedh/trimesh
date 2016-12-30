@@ -3,6 +3,7 @@ Module which contains all the imports and data available to unit tests
 '''
 
 import unittest
+import itertools
 import inspect
 import logging
 import os

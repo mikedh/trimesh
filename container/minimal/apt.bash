@@ -1,2 +1,2 @@
 apt-get update
-apt-get install -y gnupg2 cmake git wget bzip2 g++
+apt-get install -y --no-install-recommends git wget bzip2 g++

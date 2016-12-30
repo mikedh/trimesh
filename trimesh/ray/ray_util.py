@@ -25,8 +25,7 @@ def contains_points(mesh, points):
     if len(locations) == 0:
         return np.zeros(len(points), dtype=np.bool)
 
-    hit_count = np.bincount(index_ray, minlength=len(points))
-    
+    hit_count = np.bincount(index_ray, minlength=len(points))    
     contains = np.mod(hit_count, 2) == 1
 
     return contains

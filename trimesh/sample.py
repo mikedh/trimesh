@@ -1,7 +1,7 @@
 import numpy as np
 
 from . import util
-
+from . import transformations
 
 def sample_surface(mesh, count):
     '''
@@ -60,7 +60,7 @@ def sample_surface(mesh, count):
     return samples
 
 
-def sample_volume(mesh, count):
+def volume_mesh(mesh, count):
     '''
     Use rejection sampling to produce points randomly distributed in the volume of a mesh.
 
@@ -79,6 +79,28 @@ def sample_volume(mesh, count):
     samples = points[contained][:count]
     return samples
 
+def volume_rectangular(extents, 
+                       count, 
+                       transform=None):
+    '''
+    Return random samples inside a rectangular volume.
+
+    Arguments
+    ----------
+    extents:   (3,) float, side lengths of rectangular solid
+    count:     int, number of points to return
+    transform: (4,4) float, transformation matrix
+
+    Returns
+    ---------
+    samples: (count, 3) float, points in volume
+    '''
+    samples = np.random.random((count, 3)) - .5
+    samples *= extents
+    if transform is not None:
+        samples = transformations.transform_points(samples,
+                                                   transform)
+    return samples
 
 def sample_surface_even(mesh, count):
     '''

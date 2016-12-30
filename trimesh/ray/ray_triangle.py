@@ -135,7 +135,12 @@ def ray_triangle_id(triangles,
     index_ray:      (h,) int,    index of ray that hit triangle
     locations:      (h,3) float, position of intersection in space
     '''
+    triangles = np.asanyarray(triangles, dtype=np.float64)
+    ray_origins = np.asanyarray(ray_origins, dtype=np.float64)
+    ray_directions = np.asanyarray(ray_directions, dtype=np.float64)
+    
 
+    
     # if we didn't get passed an r-tree for the bounds of each triangle create one here
     if tree is None:
         tree = triangles_mod.bounds_tree(triangles)
@@ -163,15 +168,15 @@ def ray_triangle_id(triangles,
 
     # find the intersection location of the rays with the planes
     location, valid = intersections.planes_lines(plane_origins=plane_origins,
-                                                         plane_normals=plane_normals,
-                                                         line_origins=line_origins,
-                                                         line_directions=line_directions)
+                                                 plane_normals=plane_normals,
+                                                 line_origins=line_origins,
+                                                 line_directions=line_directions)
     
     if (len(triangle_candidates) == 0 or 
         not valid.any()):
         return [], [], []
 
-    # find the barycentric coordinates of each plane intersection on the triangle candidates   
+    # find the barycentric coordinates of each plane intersection on the triangle candidates
     barycentric = triangles_mod.points_to_barycentric(triangle_candidates[valid],
                                                       location)
 

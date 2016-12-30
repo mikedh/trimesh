@@ -1468,7 +1468,7 @@ class Trimesh(object):
         '''
         if not self.is_watertight:
             log.warning('Mesh is non- watertight for contained point query!')
-        contains = ray_util.contains_points(self, points)
+        contains = self.nearest.contains(points)
         return contains
 
     def copy(self):
