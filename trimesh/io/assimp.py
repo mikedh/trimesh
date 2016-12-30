@@ -80,6 +80,7 @@ _assimp_formats = ['dae', 'blend', '3ds', 'ase', 'obj',
                    'lxo', 'x', 'ac', 'ms3d', 'cob', 'scn']
 _assimp_loaders = {}
 
+
 try:
     import pyassimp
     if hasattr(pyassimp, 'available_formats'):

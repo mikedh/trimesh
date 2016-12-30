@@ -1,6 +1,5 @@
 # a size unconstrained Ubuntu based image with all trimesh dependancies
 # includes X as graph-tool, blender, and openscad require it for install
-
 from ubuntu:16.04
 
 maintainer Dockerfiles
@@ -13,8 +12,9 @@ run bash /tmp/apt.bash
 copy conda.bash /tmp/
 run bash /tmp/conda.bash
 
-# add conda to path so we use their python
-env PATH /opt/conda/bin:$PATH
+# install pip packages (including trimesh)
+copy pip.bash /tmp/
+run bash /tmp/pip.bash
 
-# install trimesh from pypi
-run pip install trimesh[all]
+# add conda to path so we use their python
+env PATH /opt/conda/envs/docker-environment/bin:/opt/conda/bin:$PATH

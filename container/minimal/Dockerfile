@@ -3,18 +3,15 @@ from debian:jessie
 maintainer Dockerfiles
 
 # install APT packages
-copy apt.bash /tmp/
-run bash /tmp/apt.bash
+COPY apt.bash /tmp/
+RUN bash /tmp/apt.bash
 
 # install conda environment
-copy conda.bash /tmp/
-run bash /tmp/conda.bash
+COPY conda.bash /tmp/
+RUN bash /tmp/conda.bash
 
-# add conda to path so we use their python
-env PATH /opt/conda/bin:$PATH
+COPY pip.bash /tmp/
+RUN bash /tmp/pip.bash
 
-# make sure pip is up to date
-run pip install --upgrade pip
-
-# install trimesh from pypi
-run pip install trimesh[all]
+# add conda and our env to path
+ENV PATH /opt/conda/envs/docker-environment/bin:/opt/conda/bin:$PATH
