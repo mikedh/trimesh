@@ -1,3 +1,6 @@
+apt-get update
+apt-get install -y --no-install-recommends wget bzip2 #conda install needs wget and bzip2
+
 wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh  --no-check-certificate -O miniconda.sh
 bash miniconda.sh -b -p /opt/conda
 rm miniconda.sh
@@ -18,5 +21,12 @@ conda config --add channels defaults     # stuff, things
 # they use non- standard labels, master vs main
 conda install -c menpo/label/master cyassimp
 
+# install most trimesh requirements with built components 
 conda install shapely rtree graph-tool pyembree numpy scipy
 
+# remove archives
+conda clean --all -y
+
+apt-get remove --purge --auto-remove -y bzip2 wget
+apt-get clean
+rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*

@@ -109,7 +109,7 @@ class Trimesh(object):
                 from .ray import ray_pyembree
                 self.ray = ray_pyembree.RayMeshIntersector(self)
             except ImportError:
-                log.info('Embree not available, switching to CPU ray tracing')
+                pass
         
         # a quick way to get permuated versions of the current mesh
         self.permutate = permutate.Permutator(self)

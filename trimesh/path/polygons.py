@@ -378,12 +378,9 @@ def repair_invalid(polygon, scale=None):
     valid version of the polygon. If one can't be found, return None
 
     '''
-    # if the polygon is already valid, return immediately
-    if is_sequence(polygon):
-        pass
-    elif polygon.is_valid:
+    if hasattr(polygon, 'is_valid') and polygon.is_valid:
         return polygon
-
+    
     # basic repair involves buffering the polygon outwards
     # this will fix a subset of problems.
     basic = polygon.buffer(tol.zero)
@@ -392,7 +389,6 @@ def repair_invalid(polygon, scale=None):
         return None
 
     if basic.is_valid:
-        log.debug('Recovered invalid polygon through zero buffering')
         return basic
 
     if scale is None:

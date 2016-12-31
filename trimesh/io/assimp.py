@@ -75,11 +75,56 @@ def load_assimp(file_obj, file_type=None):
         return load_pyassimp(file_obj=file_obj,
                              file_type=file_type)
 
-_assimp_formats = ['dae', 'blend', '3ds', 'ase', 'obj',
-                   'ifc', 'xgl', 'zgl', 'ply', 'lwo',
-                   'lxo', 'x', 'ac', 'ms3d', 'cob', 'scn']
+_assimp_formats = [
+    '.fbx',
+    '.dae',
+    '.gltf', 
+    '.glb',
+    '.blend',
+    '.3ds',
+    '.ase',
+    '.obj',
+    '.ifc',
+    '.xgl',
+    '.zgl',
+    '.ply',
+    '.dxf',
+    '.lwo',
+    '.lws',
+    '.lxo',
+    '.stl',
+    '.x',
+    '.ac',
+    '.ms3d',
+    '.cob',
+    '.scn',
+    '.bvh',
+    '.csm',
+    '.xml',
+    '.irrmesh',
+    '.irr',
+    '.mdl',
+    '.md2',
+    '.md3',
+    '.pk3',
+    '.mdc',
+    '.md5*',
+    '.smd',
+    '.vta',
+    '.ogex',
+    '.3d',
+    '.b3d',
+    '.q3d',
+    '.q3s',
+    '.nff',
+    '.off',
+    '.raw',
+    '.ter',
+    '3dgs',
+    '.mdl',
+    '.hmp',
+    '.ndo']
 _assimp_loaders = {}
-
 
 try:
     import pyassimp
@@ -88,12 +133,11 @@ try:
     _assimp_loaders.update(zip(_assimp_formats,
                                [load_pyassimp] * len(_assimp_formats)))
 except ImportError:
-    log.warning('pyassimp unavailable, using only native loaders')
+    pass
 
-    
 try:
     import cyassimp
     _assimp_loaders.update(zip(_assimp_formats,
-                               [load_assimp] * len(_assimp_formats)))
+                               [load_cyassimp] * len(_assimp_formats)))
 except ImportError:
     pass

@@ -1,20 +1,23 @@
-# a size unconstrained Ubuntu based image with all trimesh dependancies
-# includes X as graph-tool, blender, and openscad require it for install
 from ubuntu:16.04
 
 maintainer Dockerfiles
 
-# install APT packages
-copy apt.bash /tmp/
-run bash /tmp/apt.bash
+# add conda and our env to path
+ENV PATH /opt/conda/envs/docker-environment/bin:/opt/conda/bin:$PATH
+
+# install apt stuff thats staying around
+COPY apt.bash /tmp/
+RUN bash /tmp/apt.bash
 
 # install conda environment
-copy conda.bash /tmp/
-run bash /tmp/conda.bash
+COPY conda.bash /tmp/
+RUN bash /tmp/conda.bash
 
-# install pip packages (including trimesh)
-copy pip.bash /tmp/
-run bash /tmp/pip.bash
+# install packages that pip is going to need to build
+COPY pip_built.bash /tmp/
+RUN bash /tmp/pip_built.bash
 
-# add conda to path so we use their python
-env PATH /opt/conda/envs/docker-environment/bin:/opt/conda/bin:$PATH
+# install straightforward pip packages including trimesh
+COPY pip.bash /tmp/
+RUN bash /tmp/pip.bash
+

@@ -34,8 +34,8 @@ class RayMeshIntersector:
     def intersects_id(self,
                       ray_origins,
                       ray_directions,
-                      multiple_hits=True,
-                      return_locations=False):
+                      return_locations=False,
+                      **kwargs):
         '''
         Find the intersections between the current mesh and a list of rays.
 
@@ -68,7 +68,8 @@ class RayMeshIntersector:
 
     def intersects_location(self,
                             ray_origins,
-                            ray_directions):
+                            ray_directions,
+                            **kwargs):
         '''
         Return unique cartesian locations where rays hit the mesh.
         If you are counting the number of hits a ray had, this method
@@ -94,7 +95,8 @@ class RayMeshIntersector:
 
     def intersects_any(self,
                        ray_origins,
-                       ray_directions):
+                       ray_directions,
+                        **kwargs):
         '''
         Find out if each ray hit any triangle on the mesh.
 

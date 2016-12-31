@@ -1,2 +1,5 @@
 apt-get update
-apt-get install -y gnupg2 blender openscad cmake git wget bzip2 g++
+apt-get install -y --no-install-recommends blender openscad 
+
+apt-get clean
+rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
