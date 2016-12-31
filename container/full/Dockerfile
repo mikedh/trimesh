@@ -1,4 +1,4 @@
-from ubuntu:16.04
+from debian:jessie
 
 maintainer Dockerfiles
 
