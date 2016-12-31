@@ -118,3 +118,9 @@ class Permutator:
 
     def tesselation(self):
         return tesselation(self._mesh)
+
+
+# copy the function docstrings to the helper object
+Permutator.noise.__doc__ = noise.__doc__
+Permutator.transform.__doc__ = transform.__doc__
+Permutator.tesselation.__doc__ = tesselation.__doc__
