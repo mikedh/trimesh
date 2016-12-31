@@ -120,7 +120,11 @@ class Permutator:
         return tesselation(self._mesh)
 
 
-# copy the function docstrings to the helper object
-Permutator.noise.__doc__ = noise.__doc__
-Permutator.transform.__doc__ = transform.__doc__
-Permutator.tesselation.__doc__ = tesselation.__doc__
+try:
+    # copy the function docstrings to the helper object
+    Permutator.noise.__doc__ = noise.__doc__
+    Permutator.transform.__doc__ = transform.__doc__
+    Permutator.tesselation.__doc__ = tesselation.__doc__
+except AttributeError:
+    # no docstrings in Python2
+    pass
