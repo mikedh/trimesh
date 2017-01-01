@@ -327,7 +327,7 @@ class Extrusion(_Primitive):
                    identity matrix this will be [0.0, 0.0, 1.0]
         '''
         direction = np.dot(self.primitive.transform[:3, :3],
-                           [0.0, 0.0, 1.0])
+                           [0.0, 0.0, np.sign(self.primitive.height)])
         return direction
 
     def slide(self, distance):

@@ -41,7 +41,18 @@ def validate_polygon(obj):
 def extrude_polygon(polygon,
                     height,
                     **kwargs):
-    # create a 2D triangulation of the shapely polygon
+    '''
+    Extrude a 2D shapely polygon into a 3D mesh
+
+    Arguments
+    ----------
+    polygon: shapely.geometry.Polygon object
+    height:  float, distance to extrude polygon along Z
+
+    Returns
+    ----------
+    mesh: Trimesh object of result
+    '''
     vertices, faces = triangulate_polygon(polygon, **kwargs)
     mesh = extrude_triangulation(vertices=vertices,
                                  faces=faces,
@@ -57,11 +68,35 @@ def extrude_triangulation(vertices,
     '''
     Turn a shapely.geometry Polygon object and a height (float)
     into a watertight Trimesh object.
+
+    Arguments
+    ----------
+    vertices: (n,2) float, 2D vertices
+    faces:    (m,3) int,   triangle indexes of vertices
+    height:   float, distance to extrude triangulation 
+
+    Returns
+    ---------
+    mesh: Trimesh object of result
     '''
+    vertices = np.asanyarray(vertices, dtype=np.float64)
+    faces    = np.asanyarray(faces, dtype=np.int)
+    height   = float(height)
+
+    if not util.is_shape(vertices, (-1,2)):
+        raise ValueError('Vertices must be (n,3)')
+    if not util.is_shape(faces, (-1,3)):
+        raise ValueError('Faces must be (n,3)')
+    if np.abs(height) < tol.zero:
+        raise ValueError('Height must be nonzero!')
+    
     # make sure triangulation winding is pointing up
     normal_test = normals(
         [util.three_dimensionalize(vertices[faces[0]])[1]])[0]
-    if np.dot(normal_test, [0, 0, 1]) < 0:
+
+    # make sure the triangulation is aligned with the sign of
+    # the height we've been passed
+    if np.dot(normal_test, [0, 0, np.sign(height)]) < 0:
         faces = np.fliplr(faces)
 
     # stack the (n,3) faces into (3*n, 2) edges
@@ -123,7 +158,10 @@ def triangulate_polygon(polygon, **kwargs):
     mesh_vertices: (n, 2) float array of 2D points
     mesh_faces:    (n, 3) int array of vertex indicies representing triangles
     '''
-
+    
+    if not polygon.is_valid:
+        raise ValueError('invalid shapely polygon passed!')
+    
     # do the import here, as sometimes this import can segfault python
     # which is not catchable with a try/except block
     import meshpy.triangle as triangle

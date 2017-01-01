@@ -111,7 +111,9 @@ class RayMeshIntersector:
         index_tri, index_ray = self.intersects_id(ray_origins,
                                                   ray_directions)
         hit_any = np.zeros(len(ray_origins), dtype=np.bool)
-        hit_any[np.intersect1d(index_ray, np.arange(len(ray_origins)))] = True
+        hit_idx = np.unique(index_ray)
+        if len(hit_idx) > 0:
+            hit_any[hit_idx] = True
         return hit_any
 
 
