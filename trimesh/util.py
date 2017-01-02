@@ -1257,10 +1257,17 @@ def convert_like(item, like):
     '''
     if isinstance(like, np.ndarray):
         return np.asanyarray(item, dtype=like.dtype)
-    if is_none(like):
+    
+    if isinstance(item, like.__class__) or is_none(like):
         return item
-    return like.__class__(item)
 
+    if (is_sequence(item) and
+        len(item) == 1 and
+        isinstance(item[0], like.__class__)):
+        return item[0]
+    
+    item = like.__class__(item)
+    return item
 
 def round_sigfig(value, sigfig=1):
     '''

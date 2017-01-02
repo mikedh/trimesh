@@ -108,8 +108,8 @@ class _PrimitiveAttributes(object):
             return super(_PrimitiveAttributes, self).__setattr__(key, value)
         elif key in self._defaults:
             if self._mutable:
-                self._data[key] = util.convert_like(
-                    value, self._defaults[key])
+                self._data[key] = util.convert_like(value,
+                                                    self._defaults[key])
             else:
                 raise ValueError(
                     'Primitive is configured as immutable! Cannot set attribute!')
@@ -308,7 +308,9 @@ class Extrusion(_Primitive):
         '''
         super(Extrusion, self).__init__(*args, **kwargs)
 
-        defaults = {'polygon': None,
+        from shapely.geometry import Point
+        
+        defaults = {'polygon': Point([0,0]).buffer(1.0),
                     'transform': np.eye(4),
                     'height': 1.0}
 
@@ -348,7 +350,7 @@ class Extrusion(_Primitive):
 
     def _create_mesh(self):
         log.debug('Creating mesh for extrude Primitive')
-        mesh = creation.extrude_polygon(self.primitive.polygon[0],
+        mesh = creation.extrude_polygon(self.primitive.polygon,
                                         self.primitive.height)
         mesh.apply_transform(self.primitive.transform)
         self._cache['vertices'] = mesh.vertices
