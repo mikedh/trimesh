@@ -32,16 +32,6 @@ log.addHandler(logging.NullHandler())
 # included here so util has only standard library imports
 _TOL_ZERO = 1e-12
 
-
-def wrap_as_stream(item):
-    if not _PY3:
-        return StringIO(item)
-    if isinstance(item, str):
-        return StringIO(item)
-    elif isinstance(item, bytes):
-        return BytesIO(item)
-    raise ValueError('Not a wrappable item!')
-
 def unitize(points, check_valid=False):
     '''
     Turn a list of vectors into a list of unit vectors.
@@ -1360,3 +1350,23 @@ def bounds_tree(bounds):
         for i, b in enumerate(bounds):
             tree.insert(i, b)
     return tree
+
+def wrap_as_stream(item):
+    '''
+    Wrap a string or bytes object as a file object
+
+    Arguments
+    ----------
+    item: str, bytes: item to be wrapped
+
+    Returns
+    ---------
+    wrapped: file-like object
+    '''
+    if not _PY3:
+        return StringIO(item)
+    if isinstance(item, str):
+        return StringIO(item)
+    elif isinstance(item, bytes):
+        return BytesIO(item)
+    raise ValueError('Not a wrappable item!')

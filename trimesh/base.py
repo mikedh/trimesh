@@ -1370,7 +1370,7 @@ class Trimesh(object):
         '''
         Return an MD5 of the rotation invarient identifier
         '''
-        return util.md5_array(self.identifier, digits=4)
+        return util.md5_array(self.identifier, digits=1)
 
     def export(self, file_obj=None, file_type='stl'):
         '''

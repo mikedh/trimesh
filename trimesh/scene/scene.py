@@ -175,13 +175,12 @@ class Scene:
         -----------
         duplicates: (m) sequence of keys to self.nodes that represent identical geometry
         '''
-        mesh_ids = {k: m.identifier for k, m in self.geometry.items()}
+        mesh_ids = {k: int(m.identifier_md5, 16) for k, m in self.geometry.items()}
+        node_ids = np.array([mesh_ids[v] for v in self.nodes.values()])
 
-        node_keys = np.array(list(self.nodes.keys()))
-        node_ids = [mesh_ids[v] for v in self.nodes.values()]
+        node_groups = trimesh.grouping.group(node_ids)
 
-        node_groups = group_rows(node_ids, digits=1)
-
+        node_keys = np.array(list(self.nodes.keys()))                                
         duplicates = [np.sort(node_keys[g]).tolist() for g in node_groups]
         return duplicates
 
