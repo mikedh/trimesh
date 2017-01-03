@@ -1,6 +1,6 @@
 import numpy as np
 
-from ..grouping import group_rows
+from .. import grouping
 from ..transformations import rotation_matrix, transform_points
 from .transforms import TransformForest
 
@@ -178,7 +178,7 @@ class Scene:
         mesh_ids = {k: int(m.identifier_md5, 16) for k, m in self.geometry.items()}
         node_ids = np.array([mesh_ids[v] for v in self.nodes.values()])
 
-        node_groups = trimesh.grouping.group(node_ids)
+        node_groups = grouping.group(node_ids)
 
         node_keys = np.array(list(self.nodes.keys()))                                
         duplicates = [np.sort(node_keys[g]).tolist() for g in node_groups]
