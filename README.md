@@ -167,10 +167,10 @@ Trimesh includes an optional pyglet- based viewer for debugging/inspecting. In t
 
 ## Containers
    
-If you want to deploy something in a container that uses trimesh, automated builds containing trimesh and its dependancies are available on docker hub. For an Ubuntu 16.04 based image:
+If you want to deploy something in a container that uses trimesh, automated builds containing trimesh and its dependancies are available on docker hub. For an image with all dependancies:
 
 `docker pull mikedh/trimesh`
 
-Or, for a smaller Debian Jessie based image with no boolean operations and slightly slower graph operations (as graph-tool requires X as of this writing):
+Or, for a much smaller image with no boolean operations and slightly slower graph operations (no graph-tool installed, trimesh will fall back to networkx):
 
 `docker pull mikedh/trimesh_minimal`

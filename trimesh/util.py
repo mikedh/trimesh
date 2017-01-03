@@ -22,13 +22,25 @@ from copy import deepcopy
 _PY3 = version_info.major >= 3
 if _PY3:
     basestring = str
-
+    from io import BytesIO, StringIO
+else:
+    from StringIO import StringIO
+    
 log = logging.getLogger('trimesh')
 log.addHandler(logging.NullHandler())
 
 # included here so util has only standard library imports
 _TOL_ZERO = 1e-12
 
+
+def wrap_as_stream(item):
+    if not _PY3:
+        return StringIO(item)
+    if isinstance(item, str):
+        return StringIO(item)
+    elif isinstance(item, bytes):
+        return BytesIO(item)
+    raise ValueError('Not a wrappable item!')
 
 def unitize(points, check_valid=False):
     '''

@@ -281,6 +281,19 @@ class Path3D(Path):
 
         If they are, return a Path2D and a transform which will
         transform the 2D representation back into 3 dimensions
+        
+        Arguments
+        -----------
+        to_2D: (4,4) float, transformation matrix to apply. 
+                     If not passed a plane will be fitted to vertices.
+        normal: (3,) float, normal of plane which is only used if to_2D is not specified
+        check:  bool, raise a ValueError if the points aren't coplanar after 
+                      being transformed
+                      
+        Returns
+        -----------
+        planar: Path2D object, current path transformed onto a plane
+        to_3D:  (4,4), transformation matrix to move planar back into 3D space
         '''
         if to_2D is None:
             C, N = plane_fit(self.vertices)
@@ -295,11 +308,11 @@ class Path3D(Path):
             log.error('points have z with deviation %f', np.std(flat[:, 2]))
             raise NameError('Points aren\'t planar!')
 
-        vector = Path2D(entities=deepcopy(self.entities),
+        planar = Path2D(entities=deepcopy(self.entities),
                         vertices=flat[:, 0:2])
         to_3D = np.linalg.inv(to_2D)
 
-        return vector, to_3D
+        return planar, to_3D
 
     def scene(self):
         '''

@@ -170,6 +170,19 @@ class HemisphereTests(unittest.TestCase):
     
         check = (abs(np.diff(resigned.reshape((-1,2,3)), axis=1).sum(axis=2)) < trimesh.constants.tol.zero).all()
         self.assertTrue(check)
+
+
+class WrapTests(unittest.TestCase):
+    def test_io_wrap(self):
+        test_b = g.np.random.random(1).tostring()
+        test_s = 'this is a test yo'
+
+        res_b = g.trimesh.util.wrap_as_stream(test_b).read()
+        res_s = g.trimesh.util.wrap_as_stream(test_s).read()
+
+        self.assertTrue(res_b == test_b)
+        self.assertTrue(res_s == test_s)
+                
         
 if __name__ == '__main__':
     trimesh.util.attach_to_log()
