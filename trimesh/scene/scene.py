@@ -92,7 +92,10 @@ class Scene:
         corners = deque()
         for instance, mesh_name in self.nodes.items():
             transform = self.transforms.get(instance)
-            corners.append(transform_points(self.geometry[mesh_name].bounds,
+            current_bounds = self.geometry[mesh_name].bounds
+            if current_bounds.shape == (2,2):
+                current_bounds = np.column_stack((current_bounds, [0,0]))
+            corners.append(transform_points(current_bounds,
                                             transform))
         corners = np.vstack(corners)
         bounds = np.array([corners.min(axis=0),
@@ -288,3 +291,22 @@ class Scene:
         else:
             from threading import Thread
             Thread(target=viewer, kwargs=kwargs).start()
+
+
+def split_scene(geometry):
+    '''
+    Given a possible sequence of geometries, decompose them into parts.
+
+    Arguments
+    ----------
+    geometry: splittable
+
+    Returns
+    ---------
+    scene: trimesh.Scene
+    '''
+    split = deque()
+    for i in util.make_sequence(geometry):
+        split.extend(i.split())
+    scene = Scene(split)
+    return scene

@@ -382,7 +382,7 @@ class Path2D(Path):
         path_3D: Path3D version of current path
         '''
         path_3D = Path3D(entities=deepcopy(self.entities),
-                         vertices=np.column_stack((self.vertices,
+                         vertices=np.column_stack((deepcopy(self.vertices),
                                                    np.zeros(len(self.vertices)))))
         return path_3D
 

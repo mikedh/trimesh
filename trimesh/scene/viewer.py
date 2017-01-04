@@ -70,7 +70,7 @@ class SceneViewer(pyglet.window.Window):
     def _update_meshes(self):
         for name, mesh in self.scene.geometry.items():
             if self.vertex_list_md5[name] != geometry_md5(mesh):
-                self._add_geometry(name, mesh)
+                self.add_geometry(name, mesh)
 
     def _add_mesh(self, name, mesh):
         if self._smooth and len(mesh.faces) < _SMOOTH_MAX_FACES:
@@ -101,6 +101,8 @@ class SceneViewer(pyglet.window.Window):
             return self._add_mesh(name, geometry)
         elif util.is_instance_named(geometry, 'Path3D'):
             return self._add_path(name, geometry)
+        elif util.is_instance_named(geometry, 'Path2D'):
+            return self._add_path(name, geometry.to_3D())
         elif util.is_instance_named(geometry, 'PointCloud'):
             return self._add_points(name, geometry)
         else:
@@ -331,6 +333,7 @@ def mesh_to_vertex_list(mesh, group=None):
 
 
 def path_to_vertex_list(path, group=None):
+    vertices = path.vertices
     lines = np.vstack([util.stack_lines(e.discrete(path.vertices))
                        for e in path.entities])
     index = np.arange(len(lines))
