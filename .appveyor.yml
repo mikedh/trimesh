@@ -23,7 +23,7 @@ install:
   - pip install .
 
   - appveyor DownloadFile http://mirror.cs.umn.edu/blender.org/release/Blender2.78/blender-2.78a-windows64.zip
-  - 7z x blender-2.78a-windows64.zip -o C:\blender -y
+  - 7z x blender-2.78a-windows64.zip "-oC:\blender" -y
   - PATH %PATH%;C:\blender
 
 
