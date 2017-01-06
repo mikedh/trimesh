@@ -8,8 +8,11 @@ import platform
 
 _search_path = os.environ['PATH']
 if platform.system() == 'Windows':
-    _search_path += 'C:\Program Files\Blender Foundation\Blender;'
-    _search_path += 'C:\Program Files (x86)\Blender Foundation\Blender;'
+    # split existing path by delimiter
+    _search_path = [i for i in search_path.split(';') if len(i) > 0]
+    _search_path.append('C:\Program Files\Blender Foundation\Blender')
+    _search_path.append('C:\Program Files (x86)\Blender Foundation\Blender')
+    _search_path = ';'.join(_search_path)
 
 _blender_executable = find_executable('blender', path=_search_path)
 _blender_template = get_resource('blender.py.template')

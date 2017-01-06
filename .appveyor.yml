@@ -22,5 +22,10 @@ install:
   - pip install nose2 networkx svg.path sympy msgpack-python
   - pip install .
 
+  - curl -fsS -o blender.zip http://mirror.cs.umn.edu/blender.org/release/Blender2.78/blender-2.78a-windows64.zip
+  - 7z x blender.zip -o C:\blender -y
+  - PATH %PATH%;C:\blender
+
+
 test_script:
   - nose2
