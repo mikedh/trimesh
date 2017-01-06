@@ -1,5 +1,6 @@
 from .generic import MeshScript
 from ..resources import get_resource
+from ..constants import log
 
 from distutils.spawn import find_executable
 
@@ -13,6 +14,8 @@ if platform.system() == 'Windows':
     _search_path.append('C:\Program Files\Blender Foundation\Blender')
     _search_path.append('C:\Program Files (x86)\Blender Foundation\Blender')
     _search_path = ';'.join(_search_path)
+    log.debug('searching for blender in: ', _search_path)
+
 
 _blender_executable = find_executable('blender', path=_search_path)
 _blender_template = get_resource('blender.py.template')
