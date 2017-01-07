@@ -49,7 +49,7 @@ def symbolic_barycentric(function):
                                           expr=expr,
                                           modules='numpy')
 
-        def __call__(self, mesh):
+        def __call__(self, mesh, *args):
             '''
             Quickly evaluate the surface integral across a mesh
 
@@ -65,13 +65,36 @@ def symbolic_barycentric(function):
             integrated *= 2 * mesh.area_faces
             return integrated
 
+    function, symbols = substitute_barycentric(function)
+            
+    b1, b2, x1, x2, x3, y1, y2, y3, z1, z2, z3  = symbols
+    # do the first integral for b1
+    integrated_1 = sp.integrate(function, b1)
+    integrated_1 = (integrated_1.subs({b1: 1 - b2}) -
+                    integrated_1.subs({b1: 0}))
+
+    integrated_2 = sp.integrate(integrated_1, b2)
+    integrated_2 = (integrated_2.subs({b2: 1}) -
+                    integrated_2.subs({b2: 0}))
+
+    lambdified = evaluator(expr=integrated_2,
+                           expr_args=[x1, y1, z1, x2, y2, z2, x3, y3, z3])
+
+    return lambdified, integrated_2
+
+
+def substitute_barycentric(function):
     if util.is_string(function):
         function = sympy_parse(function)
     # barycentric coordinates
-    b1, b2 = sp.symbols('b1 b2', real=True, positive=True)
+    b1, b2 = sp.symbols('b1 b2', 
+                        real = True, 
+                        positive = True)
     # vertices of the triangles
     x1, x2, x3, y1, y2, y3, z1, z2, z3 = sp.symbols('x1,x2,x3,y1,y2,y3,z1,z2,z3',
                                                     real=True)
+
+    
 
     # generate the substitution dictionary to convert from cartesian to barycentric
     # since the input could have been a sympy expresion or a string
@@ -88,16 +111,6 @@ def symbolic_barycentric(function):
     function = function.subs(substitutions)
     log.debug('converted function to barycentric: %s', str(function))
 
-    # do the first integral for b1
-    integrated_1 = sp.integrate(function, b1)
-    integrated_1 = (integrated_1.subs({b1: 1 - b2}) -
-                    integrated_1.subs({b1: 0}))
+    symbols = (b1, b2, x1, x2, x3, y1, y2, y3, z1, z2, z3)
 
-    integrated_2 = sp.integrate(integrated_1, b2)
-    integrated_2 = (integrated_2.subs({b2: 1}) -
-                    integrated_2.subs({b2: 0}))
-
-    lambdified = evaluator(expr=integrated_2,
-                           expr_args=[x1, y1, z1, x2, y2, z2, x3, y3, z3])
-
-    return lambdified, integrated_2
+    return function, symbols
