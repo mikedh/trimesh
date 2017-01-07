@@ -1,7 +1,5 @@
 from debian:jessie
 
-maintainer Dockerfiles
-
 # add conda and our env to path
 ENV PATH /opt/conda/envs/docker-environment/bin:/opt/conda/bin:$PATH
 

@@ -13,10 +13,6 @@ conda create -q -n docker-environment python=3.5
 source activate docker-environment
 
 # add channels
-# graph-tool installs 1.8gb worth of stuff
-# however it is really useful if you are calling
-# mesh.split() on a lot of large meshes
-#conda config --add channels ostrokach   # graph-tool
 conda config --add channels conda-forge  # rtree, shapely, pyembree
 conda config --add channels menpo        # cyassimp
 conda config --add channels defaults     # stuff, things
@@ -29,7 +25,7 @@ conda install nomkl
 conda install -c menpo/label/master cyassimp
 
 # install most trimesh requirements with built components 
-conda install shapely rtree  pyembree numpy scipy #graph-tool
+conda install shapely rtree  pyembree numpy scipy 
 
 # remove archives
 conda clean --all -y
