@@ -12,13 +12,11 @@ from scipy.spatial import cKDTree as KDTree
 from copy import deepcopy
 from collections import deque
 
-from .simplify import simplify_path, points_to_spline_entity
 from .polygons import polygons_enclosure_tree, medial_axis, polygon_hash, path_to_polygon, polygon_obb
 from .traversal import vertex_graph, closed_paths, discretize_path
 from .io.export import export_path
 from ..points import plane_fit
 from ..geometry import plane_transform
-from ..grouping import unique_rows
 from ..units import _set_units
 from ..util import decimal_to_digits
 from ..constants import log
@@ -28,7 +26,9 @@ from ..constants import tol_path as tol
 from .. import transformations
 
 from .. import util
+from .. import grouping
 
+from . import simplify
 
 class Path(object):
     '''
@@ -142,10 +142,18 @@ class Path(object):
         Merges vertices which are identical and replaces references
         '''
         digits = decimal_to_digits(tol.merge * self.scale, min_digits=1)
-        unique, inverse = unique_rows(self.vertices, digits=digits)
+        unique, inverse = grouping.unique_rows(self.vertices, digits=digits)
         self.vertices = self.vertices[unique]
         for entity in self.entities:
-            entity.points = inverse[entity.points]
+            # if we merged duplicate vertices, the entity may contain 
+            # multiple references to the same vertex
+            points_new = grouping.unique_ordered(inverse[entity.points])
+
+            # if we have a closed entity the unique_ordered removed the last vertex
+            # so add it back
+            if inverse[entity.points[0]] == inverse[entity.points[-1]]: 
+                points_new = np.append(points_new, points_new[0])
+            entity.points = points_new
 
     def replace_vertex_references(self, replacement_dict):
         for entity in self.entities:
@@ -166,7 +174,7 @@ class Path(object):
 
     def remove_duplicate_entities(self):
         entity_hashes = np.array([i.hash for i in self.entities])
-        unique, inverse = unique_rows(entity_hashes)
+        unique, inverse = grouping.unique_rows(entity_hashes)
         if len(unique) != len(self.entities):
             self.entities = np.array(self.entities)[unique]
 
@@ -217,7 +225,7 @@ class Path(object):
         for i in path_indexes:
             path = self.paths[i]
             discrete = self.discrete[i]
-            entity, vertices = points_to_spline_entity(discrete)
+            entity, vertices = simplify.points_to_spline_entity(discrete)
             entity.points += len(self.vertices) + len(new_vertices)
             new_vertices.extend(vertices)
             new_entities.append(entity)
@@ -478,13 +486,24 @@ class Path2D(Path):
         return np.setdiff1d(path_ids, [path_id])
 
     def simplify(self):
-        self._cache.clear()
-        simplify_path(self)
+        '''
+        Return a version of the current path with colinear segments 
+        merged, and circles entities replacing segmented circular paths.
+        
+        Returns
+        ---------
+        simplified: Path2D object
+        '''
+        return simplify.simplify_basic(self)
 
     def split(self):
         '''
         If the current Path2D consists of n 'root' curves,
         split them into a list of n Path2D objects
+        
+        Returns
+        ----------
+        split: (n,) list of Path2D objects
         '''
         if self.root is None or len(self.root) == 0:
             split = []

@@ -161,6 +161,20 @@ class Cylinder(_Primitive):
         self._cache['faces'] = mesh.faces
         self._cache['face_normals'] = mesh.face_normals
 
+class Capsule(Cylinder):
+    def _create_mesh(self):
+        log.info('Creating capsule mesh with r=%f, h=%f and %d sections',
+                 self.primitive.radius,
+                 self.primitive.height,
+                 self.primitive.sections)
+
+        mesh = creation.capsule(radius=self.primitive.radius,
+                                 height=self.primitive.height)
+        mesh.apply_transform(self.primitive.transform)
+
+        self._cache['vertices'] = mesh.vertices
+        self._cache['faces'] = mesh.faces
+        self._cache['face_normals'] = mesh.face_normals
 
 class Sphere(_Primitive):
 

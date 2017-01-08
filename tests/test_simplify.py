@@ -7,15 +7,18 @@ class SimplifyTest(g.unittest.TestCase):
 
     def polygon_simplify(self, polygon):
         path = g.trimesh.load_path(polygon)
+        md5_pre = g.deepcopy(path.md5())
+        
+        simplified = path.simplify()
 
-        path.simplify()
+        # make sure the simplify call didn't alter our original mesh
+        self.assertTrue(path.md5() == md5_pre)
+        
+        area_ratio = path.area / simplified.area
+        arc_count = len([i for i in simplified.entities if type(i).__name__ == 'Arc'])
 
-        area_ratio = path.area / polygon.area
-        arc_count = len([i for i in path.entities if type(i).__name__ == 'Arc'])
+        g.log.info('simplify area ratio was %f with %d arcs', area_ratio, arc_count)
 
-        g.log.info('Simplify error ratio was %f %d', area_ratio, arc_count)
-
-        self.assertTrue(arc_count > 0)
         self.assertTrue(abs(area_ratio - 1) < 1e-2)
 
     def test_simplify(self):

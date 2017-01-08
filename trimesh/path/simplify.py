@@ -11,7 +11,7 @@ from ..constants import log
 from ..constants import tol_path as tol
 
 
-def fit_circle_check(points, prior=None, scale=1.0, verbose=False):
+def fit_circle_check(points, scale, prior=None, final=False, verbose=False):
     '''
     Fit a circle, and reject the fit if:
     * the radius is larger than tol.radius_min*scale or tol.radius_max*scale
@@ -59,8 +59,6 @@ def fit_circle_check(points, prior=None, scale=1.0, verbose=False):
     vectors = np.diff(points, axis=0)
     segment = np.linalg.norm(vectors, axis=1)
 
-    # check segment length as a fraction of drawing scale
-    scaled = segment / scale
     # approximate angle in radians, segments are linear length
     # not arc length but this is close and avoids a cosine
     angle = segment / R
@@ -70,6 +68,13 @@ def fit_circle_check(points, prior=None, scale=1.0, verbose=False):
             log.debug('circle fit error: angle %s', str(angle))
         return None
 
+    if final and (angle > tol.seg_angle_min).sum() < 3:
+        log.debug('final: angle %s', str(angle))
+        return None
+        
+    # check segment length as a fraction of drawing scale
+    scaled = segment / scale
+    
     if (scaled > tol.seg_frac).any():
         if verbose:
             log.debug('circle fit error: segment %s', str(scaled))
@@ -91,7 +96,7 @@ def fit_circle_check(points, prior=None, scale=1.0, verbose=False):
     return (C, R)
 
 
-def is_circle(points, scale, verbose=True):
+def is_circle(points, scale, verbose=False):
     '''
     Given a set of points, quickly determine if they represent
     a circle or not.
@@ -139,8 +144,12 @@ def arc_march(points, scale):
         # do final checks on the points contained in current and append them
         # to the list of arcs if they pass
         points_id = np.array(points_id)
+        
+        if fit_circle_check(points[points_id], scale=scale, final=True) is None:
+            return
+        
         points_id = points_id[[0, int(len(points_id) / 2.0), -1]]
-
+        
         try:
             center_info = arc.arc_center(points[points_id])
             C, R, N, A = (center_info['center'],
@@ -196,8 +205,7 @@ def arc_march(points, scale):
         # if the fit is rejected, fit_circle_check will return None
         checked = fit_circle_check(points[current],
                                    prior=prior,
-                                   scale=scale,
-                                   verbose=True)
+                                   scale=scale)
         arc_ok = checked is not None
 
         # since we are going over the points twice, on the second pass we only
@@ -249,6 +257,7 @@ def merge_colinear(points, scale=None):
     ----------
     points: (n, d) set of points (where d is dimension)
     scale:  float, scale of drawing
+    
     Returns
     ----------
     merged: (j, d) set of points with colinear and duplicate
@@ -257,9 +266,9 @@ def merge_colinear(points, scale=None):
     points = np.array(points)
     if scale is None:
         scale = np.ptp(points, axis=0).max()
-
+        
     # the vector from one point to the next
-    direction = np.diff(points, axis=0)
+    direction = points[1:] - points[:-1]
     # the length of the direction vector
     direction_norm = np.linalg.norm(direction, axis=1)
     # make sure points don't have zero length
@@ -269,19 +278,27 @@ def merge_colinear(points, scale=None):
     points = np.vstack((points[0], points[1:][direction_ok]))
     direction = direction[direction_ok]
     direction_norm = direction_norm[direction_ok]
-
-    # change nonzero direction vectors to unit vectors
-    direction /= direction_norm.reshape((-1, 1))
-    # find the difference between subsequent direction vectors
-    direction_diff = np.linalg.norm(np.diff(direction, axis=0), axis=1)
-
-    # magnitude of direction difference between vectors times direction length
-    colinear = (direction_diff * direction_norm[1:]) < (tol.merge * scale)
-    colinear_index = np.nonzero(colinear)[0]
-
+    
+    # create a vector between every other point, then turn it perpendicular
+    # if we have points A B C D
+    # and direction vectors A-B, B-C, etc
+    # these will be perpendicular to the vectors A-C, B-D, etc
+    perpendicular = (points[2:] - points[:-2]).T[::-1].T
+    perpendicular /= np.linalg.norm(perpendicular, axis=1).reshape((-1,1))
+    
+    
+    # find the projection of each direction vector  
+    # onto the perpendicular vector
+    projection = np.abs(diagonal_dot(perpendicular, direction[:-1]))
+    
+    
+    projection_ratio = np.max((projection / direction_norm[1:],
+                               projection / direction_norm[:-1]), axis=0)
+  
     mask = np.ones(len(points), dtype=np.bool)
     # since we took diff, we need to offset by one
-    mask[colinear_index + 1] = False
+    mask[1:-1][projection_ratio < 1e-4*scale] = False
+    
     merged = points[mask]
     return merged
 
@@ -330,21 +347,56 @@ def points_to_spline_entity(points, smooth=.0005, count=None):
 
 
 def three_point(indices):
-    result = [indices[0],
-              indices[int(len(indices) / 2)],
-              indices[-1]]
-    return np.array(result)
+    '''
+    Given a long list of ordered indices, 
+    return the first, middle and last.
+    
+    Arguments
+    -----------
+    indices: (n,) array
+    
+    Returns
+    ----------
+    three: (3,) array
+    '''
+    three = [indices[0],
+             indices[int(len(indices) / 2)],
+             indices[-1]]
+    return np.array(three)
 
 
 def polygon_to_cleaned(polygon, scale):
+    '''
+    Return the exterior of a polygon with colinear segments merged
+    
+    Arguments
+    ----------
+    polygon: shapely.geometry.Polygon object
+    scale:   float, scale of polygon
+    
+    Returns
+    ---------
+    points: (n,2) float, points that make up exterior of polygon
+    '''
     buffered = polygon.buffer(0.0)
-    points = merge_colinear(buffered.exterior.coords)
+    points = merge_colinear(points=buffered.exterior.coords, scale=scale)
     return points
 
 
 def simplify_path(drawing):
     '''
-    Simplify a path containing only line sections into one with fit arcs and circles.
+    Merge colinear segments and fit circles and arcs.
+    
+    Arc march produces garbage occasionally, the output of 
+    this function needs to be looked at and checked manually.
+    
+    Arguments
+    -----------
+    drawing: Path2D object
+    
+    Returns
+    -----------
+    simplified: Path2D object
     '''
 
     if any([i.__class__.__name__ != 'Line' for i in drawing.entities]):
@@ -380,10 +432,52 @@ def simplify_path(drawing):
                 entities_new.append(entities.Line(points=line))
             vertices_new.extend(points)
 
-    drawing._cache.clear()
-    drawing.vertices = np.array(vertices_new)
-    drawing.entities = np.array(entities_new)
+    simplified = type(drawing)(entities = entities_new,
+                               vertices = vertices_new)
+    
+    return simplified
 
+    
+def simplify_basic(drawing):
+    '''
+    Merge colinear segments and fit circles.
+    
+    No intermediate arc substitution.
+    
+    Arguments
+    -----------
+    drawing: Path2D object
+    
+    Returns
+    -----------
+    simplified: Path2D with circles. 
+    '''
+
+    if any([i.__class__.__name__ != 'Line' for i in drawing.entities]):
+        log.debug('Path contains non- linear entities, skipping')
+        return
+
+    vertices_new = deque()
+    entities_new = deque()
+
+    for path_index in range(len(drawing.paths)):
+        points = polygon_to_cleaned(drawing.polygons_closed[path_index],
+                                    scale=drawing.scale)
+        circle = is_circle(points, scale=drawing.scale)
+
+        if circle is not None:
+            entities_new.append(entities.Arc(points=np.arange(3) + len(vertices_new),
+                                             closed=True))
+            vertices_new.extend(circle)
+        else:
+            line = np.arange(len(points)) + len(vertices_new)
+            entities_new.append(entities.Line(points=line))
+            vertices_new.extend(points)
+
+    simplified = type(drawing)(entities = entities_new,
+                               vertices = vertices_new)
+    
+    return simplified
 
 def pair_space(start, end):
     if start == end:

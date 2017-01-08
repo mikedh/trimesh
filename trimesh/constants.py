@@ -2,6 +2,7 @@ from time import time as time_function
 from logging import getLogger as _getLogger
 from logging import NullHandler as _NullHandler
 
+import numpy as np
 # numerical tolerances for meshes
 
 
@@ -73,16 +74,18 @@ class NumericalTolerancePath(object):
     def __init__(self, **kwargs):
         # default values
         self.zero = 1e-12
-        self.merge = 1e-5
+        self.merge = 2e-5
         self.planar = 1e-5
         self.buffer = .05
         self.seg_frac = .125
-        self.seg_angle = .8
+        self.seg_angle = np.radians(40)
+        self.seg_angle_min = np.radians(1)
+        self.seg_angle_frac = .5
         self.aspect_frac = .1
-        self.radius_frac = 1e-2
+        self.radius_frac = .07
         self.radius_min = 1e-4
         self.radius_max = 50
-        self.tangent = .017
+        self.tangent = np.radians(15)
 
         self.__dict__.update(kwargs)
 
