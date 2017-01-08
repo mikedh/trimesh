@@ -31,6 +31,7 @@ log.addHandler(logging.NullHandler())
 
 # included here so util has only standard library imports
 _TOL_ZERO = 1e-12
+_TOL_MERGE = 1e-8
 
 def unitize(points, check_valid=False):
     '''
@@ -257,9 +258,14 @@ def vector_to_spherical(cartesian):
     if not is_shape(cartesian, (-1, 3)):
         raise ValueError('Cartesian points must be (n,3)!')
 
-    x, y, z = unitize(cartesian).T
-    spherical = np.column_stack((np.arctan2(y, x),
-                                 np.arccos(z)))
+    
+    unit, valid = unitize(cartesian, check_valid=True)
+    unit[np.abs(unit) < _TOL_MERGE] = 0.0
+    
+    x, y, z = unit.T
+    spherical = np.zeros((len(cartesian), 2), dtype=np.float64)
+    spherical[valid] = np.column_stack((np.arctan2(y, x),
+                                        np.arccos(z)))
     return spherical
 
 

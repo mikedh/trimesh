@@ -34,6 +34,10 @@ class BooleanTest(g.unittest.TestCase):
         self.primitives.append(g.trimesh.primitives.Cylinder(radius=10,
                                                              height=1,
                                                              sections=40))
+
+        self.primitives.append(g.trimesh.primitives.Capsule())
+        self.primitives.append(g.trimesh.primitives.Capsule(radius=1.5,
+                                                            height=10))
         
     def test_primitives(self):
         for primitive in self.primitives:

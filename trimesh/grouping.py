@@ -343,9 +343,7 @@ def group_vectors(vectors,
     Group vectors based on an angle tolerance, with the option to
     include negative vectors.
 
-    This is very similar to a group_rows(stack_negative(rows))
-    The main difference is that max_angle can be much looser, as we
-    are doing actual distance queries.
+
     '''
     if include_negative:
         vectors = util.vector_hemisphere(vectors)
