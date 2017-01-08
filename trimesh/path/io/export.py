@@ -70,7 +70,8 @@ def export_svg(drawing):
         large-arc-flag: greater than 180 degrees
         sweep flag: direction (cw/ccw)
         '''
-        vertices = points[arc.points[::((reverse * -2) + 1)]]
+        arc_idx = arc.points[::((reverse * -2) + 1)]
+        vertices = points[arc_idx]
         vertex_start, vertex_mid, vertex_end = vertices
         center_info = arc_center(vertices)
         C, R, N, angle = (center_info['center'],
@@ -85,19 +86,25 @@ def export_svg(drawing):
         R_ex = format(R, res.export)
         x_ex = format(vertex_end[0], res.export)
         y_ex = format(vertex_end[1], res.export)
-        arc_str = 'A' + R_ex + ',' + R_ex + ' 0 '
+        arc_str  = move_to(arc_idx[0])
+        arc_str += 'A' + R_ex + ',' + R_ex + ' 0 '
         arc_str += large_flag + ',' + sweep_flag + ' '
         arc_str += x_ex + ',' + y_ex
         return arc_str
 
     def svg_line(line, reverse):
-        vertex_end = points[line.points[-(not reverse)]]
-        x_ex = format(vertex_end[0], res.export)
-        y_ex = format(vertex_end[1], res.export)
-        line_str = 'L' + x_ex + ',' + y_ex
-        return line_str
+        index = line.points
+        if reverse:
+            index = index [::-1]
+        current = move_to(index[0])
+        for index_end in index[1:]:
+            vertex_end = points[index_end]
+            x_ex = format(vertex_end[0], res.export)
+            y_ex = format(vertex_end[1], res.export)
+            current += 'L' + x_ex + ',' + y_ex
+        return current
 
-    def svg_moveto(vertex_id):
+    def move_to(vertex_id):
         x_ex = format(points[vertex_id][0], res.export)
         y_ex = format(points[vertex_id][1], res.export)
         move_str = 'M' + x_ex + ',' + y_ex
@@ -105,7 +112,7 @@ def export_svg(drawing):
 
     def convert_path(path, reverse=False):
         path = path[::(reverse * -2) + 1]
-        path_str = svg_moveto(drawing.entities[path[0]].end_points[-reverse])
+        path_str = ''
         for i, entity_id in enumerate(path):
             entity = drawing.entities[entity_id]
             e_type = entity.__class__.__name__
