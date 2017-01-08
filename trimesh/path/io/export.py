@@ -194,7 +194,6 @@ def export_dxf(path):
         return result
 
     def convert_generic(entity, vertices):
-        log.warning('No converter available! Exporting as polyline!')
         return convert_line(entity, vertices)
 
     templates = _templates_dxf
