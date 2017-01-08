@@ -86,7 +86,7 @@ def export_svg(drawing):
         R_ex = format(R, res.export)
         x_ex = format(vertex_end[0], res.export)
         y_ex = format(vertex_end[1], res.export)
-        arc_str  = move_to(arc_idx[0])
+        arc_str = move_to(arc_idx[0])
         arc_str += 'A' + R_ex + ',' + R_ex + ' 0 '
         arc_str += large_flag + ',' + sweep_flag + ' '
         arc_str += x_ex + ',' + y_ex
@@ -95,7 +95,7 @@ def export_svg(drawing):
     def svg_line(line, reverse):
         index = line.points
         if reverse:
-            index = index [::-1]
+            index = index[::-1]
         current = move_to(index[0])
         for index_end in index[1:]:
             vertex_end = points[index_end]

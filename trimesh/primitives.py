@@ -161,7 +161,9 @@ class Cylinder(_Primitive):
         self._cache['faces'] = mesh.faces
         self._cache['face_normals'] = mesh.face_normals
 
+
 class Capsule(Cylinder):
+
     def _create_mesh(self):
         log.info('Creating capsule mesh with r=%f, h=%f and %d sections',
                  self.primitive.radius,
@@ -169,12 +171,13 @@ class Capsule(Cylinder):
                  self.primitive.sections)
 
         mesh = creation.capsule(radius=self.primitive.radius,
-                                 height=self.primitive.height)
+                                height=self.primitive.height)
         mesh.apply_transform(self.primitive.transform)
 
         self._cache['vertices'] = mesh.vertices
         self._cache['faces'] = mesh.faces
         self._cache['face_normals'] = mesh.face_normals
+
 
 class Sphere(_Primitive):
 
@@ -254,8 +257,8 @@ class Box(_Primitive):
 
         defaults = {'transform': np.eye(4),
                     'extents': np.ones(3)}
-        self.primitive = _PrimitiveAttributes(self._data, 
-                                              defaults, 
+        self.primitive = _PrimitiveAttributes(self._data,
+                                              defaults,
                                               self, kwargs)
 
     def sample_volume(self, count):
@@ -323,8 +326,8 @@ class Extrusion(_Primitive):
         super(Extrusion, self).__init__(*args, **kwargs)
 
         from shapely.geometry import Point
-        
-        defaults = {'polygon': Point([0,0]).buffer(1.0),
+
+        defaults = {'polygon': Point([0, 0]).buffer(1.0),
                     'transform': np.eye(4),
                     'height': 1.0}
 

@@ -61,7 +61,7 @@ def fix_normals_direction(mesh):
 
     If the mesh is not watertight, this is meaningless.
     '''
-    volume = mass_properties(mesh.triangles, 
+    volume = mass_properties(mesh.triangles,
                              crosses=mesh.triangles_cross,
                              skip_inertia=True)['volume']
     flipped = volume < 0.0
@@ -72,6 +72,7 @@ def fix_normals_direction(mesh):
         # if winding is incoherent this won't fix anything
         mesh.faces = np.fliplr(mesh.faces)
         mesh.face_normals = None
+
 
 def fix_normals(mesh):
     '''

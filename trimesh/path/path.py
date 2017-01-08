@@ -30,6 +30,7 @@ from .. import grouping
 
 from . import simplify
 
+
 class Path(object):
     '''
     A Path object consists of two things:
@@ -145,13 +146,13 @@ class Path(object):
         unique, inverse = grouping.unique_rows(self.vertices, digits=digits)
         self.vertices = self.vertices[unique]
         for entity in self.entities:
-            # if we merged duplicate vertices, the entity may contain 
+            # if we merged duplicate vertices, the entity may contain
             # multiple references to the same vertex
             points_new = grouping.unique_ordered(inverse[entity.points])
 
             # if we have a closed entity the unique_ordered removed the last vertex
             # so add it back
-            if inverse[entity.points[0]] == inverse[entity.points[-1]]: 
+            if inverse[entity.points[0]] == inverse[entity.points[-1]]:
                 points_new = np.append(points_new, points_new[0])
             entity.points = points_new
 
@@ -289,7 +290,7 @@ class Path3D(Path):
 
         If they are, return a Path2D and a transform which will
         transform the 2D representation back into 3 dimensions
-        
+
         Arguments
         -----------
         to_2D: (4,4) float, transformation matrix to apply. 
@@ -297,7 +298,7 @@ class Path3D(Path):
         normal: (3,) float, normal of plane which is only used if to_2D is not specified
         check:  bool, raise a ValueError if the points aren't coplanar after 
                       being transformed
-                      
+
         Returns
         -----------
         planar: Path2D object, current path transformed onto a plane
@@ -373,7 +374,7 @@ class Path2D(Path):
         if len(self.root) == 1:
             matrix, bounds = polygon_obb(self.polygons_closed[self.root[0]])
             self.apply_transform(matrix)
-            
+
         else:
             raise ValueError('Not implemented for multibody geometry')
 
@@ -421,7 +422,7 @@ class Path2D(Path):
         '''
         perimeter = np.sum([i.length for i in self.polygons_closed])
         return perimeter
-    
+
     def extrude(self, height, **kwargs):
         '''
         Extrude the current 2D path into a 3D mesh.
@@ -497,7 +498,7 @@ class Path2D(Path):
         '''
         Return a version of the current path with colinear segments 
         merged, and circles entities replacing segmented circular paths.
-        
+
         Returns
         ---------
         simplified: Path2D object
@@ -508,7 +509,7 @@ class Path2D(Path):
         '''
         If the current Path2D consists of n 'root' curves,
         split them into a list of n Path2D objects
-        
+
         Returns
         ----------
         split: (n,) list of Path2D objects

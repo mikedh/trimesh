@@ -13,6 +13,7 @@ from .. import intersections
 # 1e-4 definetly doesn't work
 _ray_offset_distance = .01
 
+
 class RayMeshIntersector:
 
     def __init__(self, geometry):
@@ -52,7 +53,7 @@ class RayMeshIntersector:
                                          ray_directions=ray_directions,
                                          multiple_hits=multiple_hits,
                                          return_locations=True)
-        
+
         return locations, index_ray
 
     def intersects_id(self,
@@ -101,13 +102,12 @@ class RayMeshIntersector:
             plane_normals = self._geometry.face_normals
 
         last_tri = np.ones(len(ray_origins), dtype=np.int32) * -1
-            
+
         while True:
             # run the pyembree query
             query = self._scene.run(ray_origins[current],
                                     ray_directions[current])
 
-            
             # basically we need to reduce the rays to the ones that hit
             # something
             hit = query != -1
@@ -138,18 +138,18 @@ class RayMeshIntersector:
                 line_directions=ray_directions[current])
 
             if not valid.all():
-                # since a plane intersection was invalid we have to go back and 
-                # fix some stuff, we pop the ray index and triangle index, 
-                # apply the valid mask then append it right back to keep our 
+                # since a plane intersection was invalid we have to go back and
+                # fix some stuff, we pop the ray index and triangle index,
+                # apply the valid mask then append it right back to keep our
                 # indexes intact
                 result_ray_idx.append(result_ray_idx.pop()[valid])
                 result_triangle.append(result_triangle.pop()[valid])
 
-                # update the current rays to reflect that we couldn't find a 
+                # update the current rays to reflect that we couldn't find a
                 # new origin
                 current[current_index_hit[np.logical_not(valid)]] = False
 
-            # since we had to find the intersection point anyway we save it 
+            # since we had to find the intersection point anyway we save it
             # even if we're not going to return it
             result_locations.extend(new_origins)
 

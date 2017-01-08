@@ -20,7 +20,8 @@ def load_pyassimp(file_obj, file_type=None):
     '''
 
     def LPMesh_to_Trimesh(lp):
-        colors = (np.reshape(lp.colors, (-1, 4))[:, 0:3] * 255).astype(np.uint8)
+        colors = (np.reshape(lp.colors, (-1, 4))
+                  [:, 0:3] * 255).astype(np.uint8)
         return {'vertices': lp.vertices,
                 'vertex_normals': lp.normals,
                 'faces': lp.faces,
@@ -37,6 +38,7 @@ def load_pyassimp(file_obj, file_type=None):
     pyassimp.release(scene)
 
     return meshes
+
 
 def load_cyassimp(file_obj, file_type=None):
     '''
@@ -66,15 +68,15 @@ def load_cyassimp(file_obj, file_type=None):
         scene = cyassimp.AIImporter(file_obj.encode('utf-8'))
         scene.build_scene()
 
-    meshes = [{'vertices' : i.points,
-               'faces'    : i.trilist} for i in scene.meshes]
+    meshes = [{'vertices': i.points,
+               'faces': i.trilist} for i in scene.meshes]
 
     return meshes
 
 _assimp_formats = [
     'fbx',
     'dae',
-    'gltf', 
+    'gltf',
     'glb',
     'blend',
     '3ds',
@@ -124,7 +126,7 @@ _assimp_loaders = {}
 
 
 # try importing both assimp bindings
-# prefer cyassimp 
+# prefer cyassimp
 loader = None
 try:
     import pyassimp

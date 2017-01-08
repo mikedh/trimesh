@@ -93,8 +93,8 @@ class Scene:
         for instance, mesh_name in self.nodes.items():
             transform = self.transforms.get(instance)
             current_bounds = self.geometry[mesh_name].bounds
-            if current_bounds.shape == (2,2):
-                current_bounds = np.column_stack((current_bounds, [0,0]))
+            if current_bounds.shape == (2, 2):
+                current_bounds = np.column_stack((current_bounds, [0, 0]))
             corners.append(transform_points(current_bounds,
                                             transform))
         corners = np.vstack(corners)
@@ -147,11 +147,11 @@ class Scene:
             if not hasattr(geometry, 'triangles'):
                 continue
             transform = self.transforms.get(node)
-            triangles.append(transform_points(geometry.triangles.reshape((-1,3)),
+            triangles.append(transform_points(geometry.triangles.reshape((-1, 3)),
                                               transform))
             triangles_index.append(np.ones(len(geometry.triangles),
                                            dtype=np.int64) * index)
-        triangles = np.vstack(triangles).reshape((-1,3,3))
+        triangles = np.vstack(triangles).reshape((-1, 3, 3))
         self._cache['triangles_index'] = np.hstack(triangles_index)
         return triangles
 
@@ -166,7 +166,7 @@ class Scene:
         '''
         populate = self.triangles
         return self._cache['triangles_index']
-    
+
     def duplicate_nodes(self):
         '''
         Return a sequence of node keys of identical meshes.
@@ -178,12 +178,13 @@ class Scene:
         -----------
         duplicates: (m) sequence of keys to self.nodes that represent identical geometry
         '''
-        mesh_ids = {k: int(m.identifier_md5, 16) for k, m in self.geometry.items()}
+        mesh_ids = {k: int(m.identifier_md5, 16)
+                    for k, m in self.geometry.items()}
         node_ids = np.array([mesh_ids[v] for v in self.nodes.values()])
 
         node_groups = grouping.group(node_ids)
 
-        node_keys = np.array(list(self.nodes.keys()))                                
+        node_keys = np.array(list(self.nodes.keys()))
         duplicates = [np.sort(node_keys[g]).tolist() for g in node_groups]
         return duplicates
 

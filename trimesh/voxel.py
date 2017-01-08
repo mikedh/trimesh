@@ -247,7 +247,7 @@ def mesh_to_run(mesh, pitch, size_max=1e5):
 
     for group in grouping.group(index_ray):
 
-        z = locations[group][:,2] - grid_origin[2]
+        z = locations[group][:, 2] - grid_origin[2]
         index_z = np.sort(np.round(z / pitch).astype(int))
         # if a hit is on edge, it will be returned twice
         # this np.unique call returns sorted, unique indicies
@@ -259,7 +259,7 @@ def mesh_to_run(mesh, pitch, size_max=1e5):
         # we tile multiple XY entries if there is more than one pair of intersections
         # by doing this we ensure that both run_z and run_xy are (n,2)
         run_z.extend(index_z.reshape((-1, 2)))
-        run_xy.extend(np.tile(grid_index[index_ray[group[0]]], 
+        run_xy.extend(np.tile(grid_index[index_ray[group[0]]],
                               (int(len(index_z) / 2), 1)))
 
     run = {'shape': raw_shape,

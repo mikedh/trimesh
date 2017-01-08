@@ -380,7 +380,7 @@ def repair_invalid(polygon, scale=None):
     '''
     if hasattr(polygon, 'is_valid') and polygon.is_valid:
         return polygon
-    
+
     # basic repair involves buffering the polygon outwards
     # this will fix a subset of problems.
     basic = polygon.buffer(tol.zero)

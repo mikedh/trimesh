@@ -8,10 +8,10 @@ from ..grouping import unique_rows
 from ..intersections import plane_lines
 
 
-
 from .. import util
 from .. import intersections
 from .. import triangles as triangles_mod
+
 
 class RayMeshIntersector:
     '''
@@ -52,8 +52,8 @@ class RayMeshIntersector:
         index_ray:      (h,) int,    index of ray that hit triangle
         locations:      (h,3) float, (optional) position of intersection in space
         '''
-        (index_tri, 
-         index_ray, 
+        (index_tri,
+         index_ray,
          locations) = ray_triangle_id(triangles=self.mesh.triangles,
                                       ray_origins=ray_origins,
                                       ray_directions=ray_directions,
@@ -86,17 +86,17 @@ class RayMeshIntersector:
         locations: (n) sequence of (m,3) intersection points
         index_ray     (n) list of face ids
         '''
-        (index_tri, 
-         index_ray, 
+        (index_tri,
+         index_ray,
          locations) = self.intersects_id(ray_origins=ray_origins,
                                          ray_directions=ray_directions,
-                                         return_locations = True)
+                                         return_locations=True)
         return locations, index_ray
 
     def intersects_any(self,
                        ray_origins,
                        ray_directions,
-                        **kwargs):
+                       **kwargs):
         '''
         Find out if each ray hit any triangle on the mesh.
 
@@ -117,9 +117,9 @@ class RayMeshIntersector:
         return hit_any
 
 
-def ray_triangle_id(triangles, 
-                    ray_origins, 
-                    ray_directions, 
+def ray_triangle_id(triangles,
+                    ray_origins,
+                    ray_directions,
                     triangles_normal=None,
                     tree=None):
     '''
@@ -142,14 +142,14 @@ def ray_triangle_id(triangles,
     triangles = np.asanyarray(triangles, dtype=np.float64)
     ray_origins = np.asanyarray(ray_origins, dtype=np.float64)
     ray_directions = np.asanyarray(ray_directions, dtype=np.float64)
-    
 
-    
-    # if we didn't get passed an r-tree for the bounds of each triangle create one here
+    # if we didn't get passed an r-tree for the bounds of each triangle create
+    # one here
     if tree is None:
         tree = triangles_mod.bounds_tree(triangles)
 
-    # find the list of likely triangles and which ray they correspond to with rtree queries
+    # find the list of likely triangles and which ray they correspond to with
+    # rtree queries
     ray_candidates, ray_id = ray_triangle_candidates(ray_origins=ray_origins,
                                                      ray_directions=ray_directions,
                                                      tree=tree)
@@ -160,9 +160,9 @@ def ray_triangle_id(triangles,
     # (c,3) origins and vectors for the rays
     line_origins = ray_origins[ray_id]
     line_directions = ray_directions[ray_id]
-    
+
     # get the plane origins and normals from the triangle candidates
-    plane_origins = triangle_candidates[:,0,:]
+    plane_origins = triangle_candidates[:, 0, :]
     if triangles_normal is None:
         plane_normals, triangle_ok = triangles_mod.normals(triangle_candidates)
         if not triangle_ok.all():
@@ -175,29 +175,32 @@ def ray_triangle_id(triangles,
                                                  plane_normals=plane_normals,
                                                  line_origins=line_origins,
                                                  line_directions=line_directions)
-    
-    if (len(triangle_candidates) == 0 or 
-        not valid.any()):
+
+    if (len(triangle_candidates) == 0 or
+            not valid.any()):
         return [], [], []
 
-    # find the barycentric coordinates of each plane intersection on the triangle candidates
+    # find the barycentric coordinates of each plane intersection on the
+    # triangle candidates
     barycentric = triangles_mod.points_to_barycentric(triangle_candidates[valid],
                                                       location)
 
-    # the plane intersection is inside the triangle if all barycentric coordinates 
+    # the plane intersection is inside the triangle if all barycentric coordinates
     # are between 0.0 and 1.0
-    hit = np.logical_and((barycentric > -tol.zero).all(axis=1), 
-                         (barycentric < (1+tol.zero)).all(axis=1))
+    hit = np.logical_and((barycentric > -tol.zero).all(axis=1),
+                         (barycentric < (1 + tol.zero)).all(axis=1))
 
     # the result index of the triangle is a candidate with a valid plane intersection and
     # a triangle which contains the plane intersection point
     index_tri = ray_candidates[valid][hit]
-    # the ray index is a subset with a valid plane intersection and contained by a triangle
+    # the ray index is a subset with a valid plane intersection and contained
+    # by a triangle
     index_ray = ray_id[valid][hit]
     # locations are already valid plane intersections, just mask by hits
     location = location[hit]
-        
+
     return index_tri, index_ray, location
+
 
 def ray_triangle_candidates(ray_origins,
                             ray_directions,

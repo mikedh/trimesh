@@ -5,6 +5,7 @@ from .grouping import unique_value_in_row
 
 from . import util
 
+
 def mesh_plane(mesh,
                plane_normal,
                plane_origin):
@@ -197,7 +198,7 @@ def plane_lines(plane_origin,
 
     return intersection, valid
 
-        
+
 def planes_lines(plane_origins,
                  plane_normals,
                  line_origins,
@@ -222,7 +223,7 @@ def planes_lines(plane_origins,
     plane_normals = np.asanyarray(plane_normals, dtype=np.float64)
     line_origins = np.asanyarray(line_origins, dtype=np.float64)
     line_directions = np.asanyarray(line_directions, dtype=np.float64)
-    
+
     origin_vectors = plane_origins - line_origins
 
     projection_ori = util.diagonal_dot(origin_vectors, plane_normals)
@@ -233,8 +234,7 @@ def planes_lines(plane_origins,
     distance = np.divide(projection_ori[valid],
                          projection_dir[valid])
 
-    on_plane = line_directions[valid] * distance.reshape((-1,1))
+    on_plane = line_directions[valid] * distance.reshape((-1, 1))
     on_plane += line_origins[valid]
 
     return on_plane, valid
-    

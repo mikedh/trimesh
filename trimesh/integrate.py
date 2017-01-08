@@ -66,8 +66,8 @@ def symbolic_barycentric(function):
             return integrated
 
     function, symbols = substitute_barycentric(function)
-            
-    b1, b2, x1, x2, x3, y1, y2, y3, z1, z2, z3  = symbols
+
+    b1, b2, x1, x2, x3, y1, y2, y3, z1, z2, z3 = symbols
     # do the first integral for b1
     integrated_1 = sp.integrate(function, b1)
     integrated_1 = (integrated_1.subs({b1: 1 - b2}) -
@@ -87,14 +87,12 @@ def substitute_barycentric(function):
     if util.is_string(function):
         function = sympy_parse(function)
     # barycentric coordinates
-    b1, b2 = sp.symbols('b1 b2', 
-                        real = True, 
-                        positive = True)
+    b1, b2 = sp.symbols('b1 b2',
+                        real=True,
+                        positive=True)
     # vertices of the triangles
     x1, x2, x3, y1, y2, y3, z1, z2, z3 = sp.symbols('x1,x2,x3,y1,y2,y3,z1,z2,z3',
                                                     real=True)
-
-    
 
     # generate the substitution dictionary to convert from cartesian to barycentric
     # since the input could have been a sympy expresion or a string

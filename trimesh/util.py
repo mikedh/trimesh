@@ -25,13 +25,14 @@ if _PY3:
     from io import BytesIO, StringIO
 else:
     from StringIO import StringIO
-    
+
 log = logging.getLogger('trimesh')
 log.addHandler(logging.NullHandler())
 
 # included here so util has only standard library imports
 _TOL_ZERO = 1e-12
 _TOL_MERGE = 1e-8
+
 
 def unitize(points, check_valid=False):
     '''
@@ -258,10 +259,9 @@ def vector_to_spherical(cartesian):
     if not is_shape(cartesian, (-1, 3)):
         raise ValueError('Cartesian points must be (n,3)!')
 
-    
     unit, valid = unitize(cartesian, check_valid=True)
     unit[np.abs(unit) < _TOL_MERGE] = 0.0
-    
+
     x, y, z = unit.T
     spherical = np.zeros((len(cartesian), 2), dtype=np.float64)
     spherical[valid] = np.column_stack((np.arctan2(y, x),
@@ -956,7 +956,6 @@ def encoded_to_array(encoded):
 
     encoded = decode_keys(encoded)
 
-    
     dtype = np.dtype(encoded['dtype'])
     if 'base64' in encoded:
         array = np.fromstring(base64.b64decode(encoded['base64']),
@@ -1265,17 +1264,18 @@ def convert_like(item, like):
     '''
     if isinstance(like, np.ndarray):
         return np.asanyarray(item, dtype=like.dtype)
-    
+
     if isinstance(item, like.__class__) or is_none(like):
         return item
 
     if (is_sequence(item) and
         len(item) == 1 and
-        isinstance(item[0], like.__class__)):
+            isinstance(item[0], like.__class__)):
         return item[0]
-    
+
     item = like.__class__(item)
     return item
+
 
 def round_sigfig(value, sigfig=1):
     '''
@@ -1356,6 +1356,7 @@ def bounds_tree(bounds):
         for i, b in enumerate(bounds):
             tree.insert(i, b)
     return tree
+
 
 def wrap_as_stream(item):
     '''

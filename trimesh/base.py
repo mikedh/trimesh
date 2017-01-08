@@ -105,12 +105,12 @@ class Trimesh(object):
         # and is cached for subsequent queries
         self.ray = ray_triangle.RayMeshIntersector(self)
         if use_embree:
-            try: 
+            try:
                 from .ray import ray_pyembree
                 self.ray = ray_pyembree.RayMeshIntersector(self)
             except ImportError:
                 pass
-        
+
         # a quick way to get permuated versions of the current mesh
         self.permutate = permutate.Permutator(self)
 

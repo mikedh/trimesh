@@ -95,12 +95,12 @@ def load_mesh(file_obj, file_type=None, **kwargs):
 
     '''
     # turn a string into a file obj and type
-    (file_obj, 
-     file_type, 
+    (file_obj,
+     file_type,
      metadata) = _parse_file_args(file_obj, file_type)
 
     loaded = mesh_loaders[file_type](file_obj,
-                                      file_type)
+                                     file_type)
     if is_file(file_obj):
         file_obj.close()
 

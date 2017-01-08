@@ -3,6 +3,7 @@ import numpy as np
 from . import util
 from . import transformations
 
+
 def sample_surface(mesh, count):
     '''
     Sample the surface of a mesh, returning the specified number of points
@@ -79,8 +80,9 @@ def volume_mesh(mesh, count):
     samples = points[contained][:count]
     return samples
 
-def volume_rectangular(extents, 
-                       count, 
+
+def volume_rectangular(extents,
+                       count,
                        transform=None):
     '''
     Return random samples inside a rectangular volume.
@@ -101,6 +103,7 @@ def volume_rectangular(extents,
         samples = transformations.transform_points(samples,
                                                    transform)
     return samples
+
 
 def sample_surface_even(mesh, count):
     '''

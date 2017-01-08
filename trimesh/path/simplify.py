@@ -71,10 +71,10 @@ def fit_circle_check(points, scale, prior=None, final=False, verbose=False):
     if final and (angle > tol.seg_angle_min).sum() < 3:
         log.debug('final: angle %s', str(angle))
         return None
-        
+
     # check segment length as a fraction of drawing scale
     scaled = segment / scale
-    
+
     if (scaled > tol.seg_frac).any():
         if verbose:
             log.debug('circle fit error: segment %s', str(scaled))
@@ -144,12 +144,12 @@ def arc_march(points, scale):
         # do final checks on the points contained in current and append them
         # to the list of arcs if they pass
         points_id = np.array(points_id)
-        
+
         if fit_circle_check(points[points_id], scale=scale, final=True) is None:
             return
-        
+
         points_id = points_id[[0, int(len(points_id) / 2.0), -1]]
-        
+
         try:
             center_info = arc.arc_center(points[points_id])
             C, R, N, A = (center_info['center'],
@@ -257,7 +257,7 @@ def merge_colinear(points, scale=None):
     ----------
     points: (n, d) set of points (where d is dimension)
     scale:  float, scale of drawing
-    
+
     Returns
     ----------
     merged: (j, d) set of points with colinear and duplicate
@@ -266,7 +266,7 @@ def merge_colinear(points, scale=None):
     points = np.array(points)
     if scale is None:
         scale = np.ptp(points, axis=0).max()
-        
+
     # the vector from one point to the next
     direction = points[1:] - points[:-1]
     # the length of the direction vector
@@ -278,27 +278,25 @@ def merge_colinear(points, scale=None):
     points = np.vstack((points[0], points[1:][direction_ok]))
     direction = direction[direction_ok]
     direction_norm = direction_norm[direction_ok]
-    
+
     # create a vector between every other point, then turn it perpendicular
     # if we have points A B C D
     # and direction vectors A-B, B-C, etc
     # these will be perpendicular to the vectors A-C, B-D, etc
     perpendicular = (points[2:] - points[:-2]).T[::-1].T
-    perpendicular /= np.linalg.norm(perpendicular, axis=1).reshape((-1,1))
-    
-    
-    # find the projection of each direction vector  
+    perpendicular /= np.linalg.norm(perpendicular, axis=1).reshape((-1, 1))
+
+    # find the projection of each direction vector
     # onto the perpendicular vector
     projection = np.abs(diagonal_dot(perpendicular, direction[:-1]))
-    
-    
+
     projection_ratio = np.max((projection / direction_norm[1:],
                                projection / direction_norm[:-1]), axis=0)
-  
+
     mask = np.ones(len(points), dtype=np.bool)
     # since we took diff, we need to offset by one
-    mask[1:-1][projection_ratio < 1e-4*scale] = False
-    
+    mask[1:-1][projection_ratio < 1e-4 * scale] = False
+
     merged = points[mask]
     return merged
 
@@ -350,11 +348,11 @@ def three_point(indices):
     '''
     Given a long list of ordered indices, 
     return the first, middle and last.
-    
+
     Arguments
     -----------
     indices: (n,) array
-    
+
     Returns
     ----------
     three: (3,) array
@@ -368,12 +366,12 @@ def three_point(indices):
 def polygon_to_cleaned(polygon, scale):
     '''
     Return the exterior of a polygon with colinear segments merged
-    
+
     Arguments
     ----------
     polygon: shapely.geometry.Polygon object
     scale:   float, scale of polygon
-    
+
     Returns
     ---------
     points: (n,2) float, points that make up exterior of polygon
@@ -386,14 +384,14 @@ def polygon_to_cleaned(polygon, scale):
 def simplify_path(drawing):
     '''
     Merge colinear segments and fit circles and arcs.
-    
+
     Arc march produces garbage occasionally, the output of 
     this function needs to be looked at and checked manually.
-    
+
     Arguments
     -----------
     drawing: Path2D object
-    
+
     Returns
     -----------
     simplified: Path2D object
@@ -432,22 +430,22 @@ def simplify_path(drawing):
                 entities_new.append(entities.Line(points=line))
             vertices_new.extend(points)
 
-    simplified = type(drawing)(entities = entities_new,
-                               vertices = vertices_new)
-    
+    simplified = type(drawing)(entities=entities_new,
+                               vertices=vertices_new)
+
     return simplified
 
-    
+
 def simplify_basic(drawing):
     '''
     Merge colinear segments and fit circles.
-    
+
     No intermediate arc substitution.
-    
+
     Arguments
     -----------
     drawing: Path2D object
-    
+
     Returns
     -----------
     simplified: Path2D with circles. 
@@ -474,10 +472,11 @@ def simplify_basic(drawing):
             entities_new.append(entities.Line(points=line))
             vertices_new.extend(points)
 
-    simplified = type(drawing)(entities = entities_new,
-                               vertices = vertices_new)
-    
+    simplified = type(drawing)(entities=entities_new,
+                               vertices=vertices_new)
+
     return simplified
+
 
 def pair_space(start, end):
     if start == end:

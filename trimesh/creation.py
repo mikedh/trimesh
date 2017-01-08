@@ -80,16 +80,16 @@ def extrude_triangulation(vertices,
     mesh: Trimesh object of result
     '''
     vertices = np.asanyarray(vertices, dtype=np.float64)
-    faces    = np.asanyarray(faces, dtype=np.int)
-    height   = float(height)
+    faces = np.asanyarray(faces, dtype=np.int)
+    height = float(height)
 
-    if not util.is_shape(vertices, (-1,2)):
+    if not util.is_shape(vertices, (-1, 2)):
         raise ValueError('Vertices must be (n,3)')
-    if not util.is_shape(faces, (-1,3)):
+    if not util.is_shape(faces, (-1, 3)):
         raise ValueError('Faces must be (n,3)')
     if np.abs(height) < tol.zero:
         raise ValueError('Height must be nonzero!')
-    
+
     # make sure triangulation winding is pointing up
     normal_test = normals(
         [util.three_dimensionalize(vertices[faces[0]])[1]])[0]
@@ -158,10 +158,10 @@ def triangulate_polygon(polygon, **kwargs):
     mesh_vertices: (n, 2) float array of 2D points
     mesh_faces:    (n, 3) int array of vertex indicies representing triangles
     '''
-    
+
     if not polygon.is_valid:
         raise ValueError('invalid shapely polygon passed!')
-    
+
     # do the import here, as sometimes this import can segfault python
     # which is not catchable with a try/except block
     import meshpy.triangle as triangle
@@ -427,17 +427,17 @@ def capsule(height=1.0,
     # get a nicely meshed capsule
     theta = np.linspace(0, np.pi, count[0])
     center = np.clip(np.arctan(tol.merge / radius), tol.merge, np.inf)
-    offset = np.array([-center, center]) + (np.pi/2)
+    offset = np.array([-center, center]) + (np.pi / 2)
     theta = np.insert(theta,
-                      int(len(theta)/2),
+                      int(len(theta) / 2),
                       offset)
 
     capsule = uv_sphere(radius=radius,
                         count=count,
                         theta=theta)
-    
-    top = capsule.vertices[:,2] > tol.zero
-    capsule.vertices[top] += [0,0,height]
+
+    top = capsule.vertices[:, 2] > tol.zero
+    capsule.vertices[top] += [0, 0, height]
 
     return capsule
 
