@@ -414,6 +414,14 @@ class Path2D(Path):
         area = np.sum([i.area for i in self.polygons_full])
         return area
 
+    @util.cache_decorator
+    def perimeter(self):
+        '''
+        The total length of every entity.
+        '''
+        perimeter = np.sum([i.length for i in self.polygons_closed])
+        return perimeter
+    
     def extrude(self, height, **kwargs):
         '''
         Extrude the current 2D path into a 3D mesh.

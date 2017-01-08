@@ -10,13 +10,13 @@ class DXFTest(g.unittest.TestCase):
             p.vertices /= p.scale
             p.export(file_obj='temp.dxf')
             r = g.trimesh.load('temp.dxf')
-            ratio = abs(p.area - r.area) / p.area
+            ratio = abs(p.perimeter - r.perimeter) / p.perimeter
             if ratio > .01:
-                g.log.error('Area ratio on export wrong! %f %f $f',
-                            p.area,
-                            r.area,
+                g.log.error('perimeter ratio on export wrong! %f %f %f',
+                            p.perimeter,
+                            r.perimeter,
                             ratio)
-                raise ValueError('Area ratio too large')
+                raise ValueError('perimeter ratio too large')
             
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

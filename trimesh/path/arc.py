@@ -139,6 +139,6 @@ def arc_offset(points, distance):
 def angles_to_threepoint(angles, center, radius):
     if angles[1] < angles[0]:
         angles[1] += np.pi * 2
-    angles = [angles[0], np.mean(angles), angles[1]]
+    angles = np.array([angles[0], np.mean(angles), angles[1]], dtype=np.float64)
     planar = np.column_stack((np.cos(angles), np.sin(angles))) * radius
     return planar + center

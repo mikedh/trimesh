@@ -156,6 +156,7 @@ def export_dxf(path):
         interleaved = np.dstack((group.astype(str),
                                  three.astype(str))).reshape(-1)
         packed = '\n'.join(interleaved)
+
         return packed
 
     def entity_color_layer(entity):

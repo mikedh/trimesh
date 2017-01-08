@@ -74,7 +74,7 @@ class NumericalTolerancePath(object):
     def __init__(self, **kwargs):
         # default values
         self.zero = 1e-12
-        self.merge = 2e-5
+        self.merge = 1e-5
         self.planar = 1e-5
         self.buffer = .05
         self.seg_frac = .125
