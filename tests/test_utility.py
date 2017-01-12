@@ -185,9 +185,10 @@ class FileTests(unittest.TestCase):
 
     def test_file_hash(self):
         data = g.np.random.random(10).tostring()
-
+        path = g.os.path.join(g.dir_data, 'nestable.json')
+        
         for file_obj in  [g.trimesh.util.wrap_as_stream(data),
-                          open('data/nestable.json', 'rb')]:
+                          open(path, 'rb')]:
             start = file_obj.tell()
 
             hashed = g.trimesh.util.hash_file(file_obj)
