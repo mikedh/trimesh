@@ -101,8 +101,6 @@ class RayMeshIntersector:
             plane_origins = self._geometry.triangles[:, 0, :]
             plane_normals = self._geometry.face_normals
 
-        last_tri = np.ones(len(ray_origins), dtype=np.int32) * -1
-
         while True:
             # run the pyembree query
             query = self._scene.run(ray_origins[current],

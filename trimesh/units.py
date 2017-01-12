@@ -90,9 +90,8 @@ def _set_units(obj, desired, guess):
     if obj.units is None:
         if guess:
             obj.units = unit_guess(obj.scale)
-            log.warn(
-                'No units specified, guessing current units are %s',
-                obj.units)
+            log.warning('No units specified, guessing units are %s',
+                        obj.units)
         else:
             raise ValueError('No units specified and not allowed to guess!')
     log.info('Converting units from %s to %s', obj.units, desired)

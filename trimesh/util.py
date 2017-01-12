@@ -474,6 +474,35 @@ def decimal_to_digits(decimal, min_digits=None):
     return digits
 
 
+def hash_file(file_obj,
+              hash_function=hashlib.md5):
+    '''
+    Get the hash of an open file- like object.
+
+    Arguments
+    ---------
+    file_obj: file like object
+    hash_function: function to use to hash data
+
+    Returns
+    ---------
+    hashed: str, hex version of result
+    '''
+    # before we read the file data save the current position
+    # in the file (which is probably 0)
+    file_position = file_obj.tell()
+    # create an instance of the hash object
+    hasher = hash_function()
+    # read all data from the file into the hasher
+    hasher.update(file_obj.read())
+    # get a hex version of the result
+    hashed = hasher.hexdigest()
+    # return the file object to its original position
+    file_obj.seek(file_position)
+
+    return hashed
+
+
 def md5_object(obj):
     '''
     If an object is hashable, return the string of the MD5.

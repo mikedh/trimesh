@@ -172,7 +172,7 @@ class HemisphereTests(unittest.TestCase):
         self.assertTrue(check)
 
 
-class WrapTests(unittest.TestCase):
+class FileTests(unittest.TestCase):
     def test_io_wrap(self):
         test_b = g.np.random.random(1).tostring()
         test_s = 'this is a test yo'
@@ -182,8 +182,22 @@ class WrapTests(unittest.TestCase):
 
         self.assertTrue(res_b == test_b)
         self.assertTrue(res_s == test_s)
-                
-        
+
+    def test_file_hash(self):
+        data = g.np.random.random(10).tostring()
+
+        for file_obj in  [g.trimesh.util.wrap_as_stream(data),
+                          open('data/nestable.json', 'rb')]:
+            start = file_obj.tell()
+
+            hashed = g.trimesh.util.hash_file(file_obj)
+
+            self.assertTrue(file_obj.tell() == start)
+            self.assertTrue(hashed is not None)
+            self.assertTrue(len(hashed) > 5)
+
+            file_obj.close()
+            
 if __name__ == '__main__':
     trimesh.util.attach_to_log()
     unittest.main()

@@ -1,12 +1,10 @@
 import tempfile
 import numpy as np
 
-from ..constants import log
-
 
 def load_pyassimp(file_obj, file_type=None):
     '''
-    Use the assimp library to load a mesh, from a file object and type,
+    Use the pyassimp library to load a mesh, from a file object and type,
     or filename (if file_obj is a string)
 
     Arguments
@@ -46,7 +44,6 @@ def load_cyassimp(file_obj, file_type=None):
 
     The easiest way to install these is with conda:
     conda install -c menpo/label/master cyassimp
-
 
     Arguments
     ---------
@@ -125,8 +122,7 @@ _assimp_formats = [
 _assimp_loaders = {}
 
 
-# try importing both assimp bindings
-# prefer cyassimp
+# try importing both assimp bindings, but prefer cyassimp
 loader = None
 try:
     import pyassimp

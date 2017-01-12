@@ -5,8 +5,6 @@ import numpy as np
 
 from ..constants import tol
 from ..grouping import unique_rows
-from ..intersections import plane_lines
-
 
 from .. import util
 from .. import intersections
