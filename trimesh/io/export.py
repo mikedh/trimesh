@@ -5,7 +5,7 @@ from ..constants import log
 from .. import util
 
 from .stl import export_stl, export_stl_ascii
-from .ply import export_ply
+from .ply import _ply_exporters
 
 
 def export_mesh(mesh, file_obj, file_type=None):
@@ -26,10 +26,11 @@ def export_mesh(mesh, file_obj, file_type=None):
     if util.is_string(file_obj):
         if file_type is None:
             file_type = (str(file_obj).split('.')[-1]).lower()
+            print('none', file_type)
         if file_type in _mesh_exporters:
             file_obj = open(file_obj, 'wb')
     file_type = str(file_type).lower()
-
+    
     if not (file_type in _mesh_exporters):
         raise ValueError('%s exporter not available!', file_type)
 
@@ -39,7 +40,6 @@ def export_mesh(mesh, file_obj, file_type=None):
     if hasattr(file_obj, 'write'):
         file_obj.write(export)
         file_obj.flush()
-        file_obj.close()
     else:
         return export
 
@@ -56,8 +56,8 @@ def export_off(mesh):
     -----------
     export: str, string of OFF format output
     '''
-    faces_stacked = np.column_stack(
-        (np.ones(len(mesh.faces)) * 3, mesh.faces)).astype(np.int64)
+    faces_stacked = np.column_stack((np.ones(len(mesh.faces)) * 3,
+                                     mesh.faces)).astype(np.int64)
     # numpy arrays to string methods (array2string based ones anyway)
     # are a terrible clusterfuck, so we use our own method which is json dumps
     # based
@@ -128,8 +128,7 @@ def export_msgpack(mesh):
     export = msgpack.dumps(blob)
     return export
 
-_mesh_exporters = {'ply': export_ply,
-                   'stl': export_stl,
+_mesh_exporters = {'stl': export_stl,
                    'dict': export_dict,
                    'json': export_json,
                    'off': export_off,
@@ -138,3 +137,5 @@ _mesh_exporters = {'ply': export_ply,
                    'msgpack': export_msgpack,
                    'collada': export_collada,
                    'stl_ascii': export_stl_ascii}
+
+_mesh_exporters.update(_ply_exporters)

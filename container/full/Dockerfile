@@ -11,9 +11,9 @@ RUN bash /tmp/apt.bash
 COPY conda.bash /tmp/
 RUN bash /tmp/conda.bash
 
-# install packages that pip is going to need to build
-COPY pip_built.bash /tmp/
-RUN bash /tmp/pip_built.bash
+# install packages are going to need to build
+COPY built.bash /tmp/
+RUN bash /tmp/built.bash
 
 # install straightforward pip packages including trimesh
 COPY pip.bash /tmp/

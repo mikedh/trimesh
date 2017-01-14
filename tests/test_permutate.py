@@ -9,8 +9,8 @@ class PermutateTest(g.unittest.TestCase):
                                            mesh.face_adjacency))
             self.assertFalse(g.np.allclose(test.face_adjacency_edges, 
                                            mesh.face_adjacency_edges))
-            self.assertFalse(g.np.allclose(test.extents,
-                                           mesh.extents))
+            self.assertFalse(g.np.allclose(test.vertices,
+                                           mesh.vertices))
             self.assertFalse(test.md5() == mesh.md5())
 
         for mesh in g.get_meshes(5):

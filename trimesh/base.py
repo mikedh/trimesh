@@ -1372,7 +1372,7 @@ class Trimesh(object):
         '''
         return util.md5_array(self.identifier, digits=1)
 
-    def export(self, file_obj=None, file_type='stl'):
+    def export(self, file_obj=None, file_type=None):
         '''
         Export the current mesh to a file object.
         If file_obj is a filename, file will be written there.

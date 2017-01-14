@@ -1,7 +1,11 @@
 import numpy as np
 
+from distutils.spawn import find_executable
 from collections import OrderedDict
 from string import Template
+
+import tempfile
+import subprocess
 
 from ..util import is_shape, distance_to_end
 from ..resources import get_resource
@@ -293,5 +297,69 @@ def ply_binary(elements, file_obj):
     # is intact, read the data fields described by the header
     populate_data(file_obj, elements)
 
+def export_draco(mesh):
+    '''
+    Export a mesh using Google's Draco compressed format.
 
-_ply_loaders = {'ply': load_ply}
+    Only works if draco_encoder is in your PATH:
+    https://github.com/google/draco
+
+    Arguments
+    ----------
+    mesh: Trimesh object
+
+    Returns
+    ----------
+    data: str or bytes, data
+    '''
+    with tempfile.NamedTemporaryFile(suffix='.ply') as temp_ply:
+        temp_ply.write(export_ply(mesh))
+        temp_ply.flush()
+        with tempfile.NamedTemporaryFile(suffix='.drc') as encoded:
+            subprocess.check_output([draco_encoder,
+                                     '-i',
+                                     temp_ply.name,
+                                     '-o',
+                                     encoded.name])
+            encoded.seek(0)
+            data = encoded.read()
+    return data
+
+def load_draco(file_obj, file_type=None):
+    '''
+    Load a mesh from Google's Draco format.
+    
+    Arguments
+    ----------
+    file_obj: open file- like object
+    file_type: unused
+
+    Returns
+    ----------
+    kwargs: dict, kwargs to construct a Trimesh object
+    '''
+    
+    with tempfile.NamedTemporaryFile(suffix='.drc') as temp_drc:
+        temp_drc.write(file_obj.read())
+        temp_drc.flush()
+        
+        with tempfile.NamedTemporaryFile(suffix='.ply') as temp_ply:
+            subprocess.check_output([draco_decoder,
+                                     '-i',
+                                     temp_drc.name,
+                                     '-o',
+                                     temp_ply.name])
+            temp_ply.seek(0)
+            kwargs = load_ply(temp_ply)
+    return kwargs
+    
+_ply_loaders   = {'ply' : load_ply}
+_ply_exporters = {'ply' : export_ply}
+
+draco_encoder = find_executable('draco_encoder')
+draco_decoder = find_executable('draco_decoder')
+
+if draco_decoder is not None:
+    _ply_loaders['drc'] = load_draco
+if draco_encoder is not None:
+    _ply_exporters['drc'] = export_draco
