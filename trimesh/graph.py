@@ -1,7 +1,9 @@
 import numpy as np
 import networkx as nx
 
-from collections import deque
+import collections
+
+from . import util
 
 from .constants import log, tol
 from .grouping import group, group_rows, boolean_rows
@@ -14,6 +16,11 @@ try:
 except ImportError:
     _has_gt = False
     log.warning('graph-tool unavailable, some operations will be much slower')
+
+try:
+    from scipy import sparse
+except ImportError:
+    log.warning('no scipy')
 
 
 def face_adjacency(faces=None, mesh=None, return_edges=False):
@@ -98,7 +105,7 @@ def connected_edges(G, nodes):
     Given graph G and list of nodes, return the list of edges that
     are connected to nodes
     '''
-    nodes_in_G = deque()
+    nodes_in_G = collections.deque()
     for node in nodes:
         if not G.has_node(node):
             continue
@@ -166,7 +173,7 @@ def facets(mesh):
         return facets_nx()
 
 
-def split(mesh, only_watertight=True, adjacency=None):
+def split(mesh, only_watertight=True, adjacency=None, engine=None):
     '''
     Given a mesh, will split it up into a list of meshes based on face connectivity
     If only_watertight is true, it will only return meshes where each face has
@@ -178,6 +185,7 @@ def split(mesh, only_watertight=True, adjacency=None):
     only_watertight: if True, only return watertight components
     adjacency: (n,2) list of face adjacency to override using the plain
                adjacency calculated automatically.
+    engine: str, which engine to use. ('networkx', 'scipy', or 'graphtool')
 
     Returns
     ----------
@@ -196,7 +204,7 @@ def split(mesh, only_watertight=True, adjacency=None):
         result = mesh.submesh(components, only_watertight=only_watertight)
         return result
 
-    def split_gt():
+    def split_graphtool():
         g = GTGraph()
         if not only_watertight:
             # same as above, for single triangles with no adjacency
@@ -207,13 +215,54 @@ def split(mesh, only_watertight=True, adjacency=None):
         result = mesh.submesh(components, only_watertight=only_watertight)
         return result
 
+    def split_csgraph():
+        component_labels = connected_component_labels(
+            adjacency, count=len(mesh.faces))
+        components = group(component_labels)
+        result = mesh.submesh(components, only_watertight=only_watertight)
+        return result
+
     if adjacency is None:
         adjacency = mesh.face_adjacency
 
-    if _has_gt:
-        return split_gt()
-    else:
-        return split_nx()
+    engines = collections.OrderedDict((('graphtool', split_graphtool),
+                                       ('scipy',     split_csgraph),
+                                       ('networkx',  split_nx)))
+    if engine in engines:
+        return engines[engine]()
+
+    for function in engines.values():
+        try:
+            return function()
+        except NameError:
+            continue
+
+
+def connected_component_labels(edges, count):
+    '''
+    Label graph nodes from an edge list.
+
+    Arguments
+    ----------
+    edges: (n, 2) int, edges of a graph
+    count: int, the largest node in the graph. 
+
+    Returns
+    ---------
+    labels: (count,) int, component labels for each node
+    '''
+    edges = np.asanyarray(edges, dtype=np.int)
+    if not (len(edges) == 0 or
+            util.is_shape(edges, (-1, 2))):
+        raise ValueError('edges must be (n,2)!')
+
+    matrix = sparse.coo_matrix((np.ones(len(edges), dtype=np.bool),
+                                (edges[:, 0], edges[:, 1])),
+                               dtype=np.bool,
+                               shape=(count, count))
+    body_count, labels = sparse.csgraph.connected_components(matrix,
+                                                             directed=False)
+    return labels
 
 
 def smoothed(mesh, angle):

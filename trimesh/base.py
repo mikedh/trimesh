@@ -789,7 +789,7 @@ class Trimesh(object):
         self.apply_translation(self.bounds[0] * -1.0)
 
     @_log_time
-    def split(self, only_watertight=True, adjacency=None):
+    def split(self, only_watertight=True, adjacency=None, **kwargs):
         '''
         Returns a list of Trimesh objects, based on face connectivity.
         Splits into individual components, sometimes referred to as 'bodies'
@@ -805,7 +805,8 @@ class Trimesh(object):
         '''
         meshes = graph.split(self,
                              only_watertight=only_watertight,
-                             adjacency=adjacency)
+                             adjacency=adjacency,
+                             **kwargs)
         log.info('split found %i components', len(meshes))
         return meshes
 

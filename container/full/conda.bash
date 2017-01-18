@@ -17,6 +17,9 @@ conda config --add channels conda-forge  # rtree, shapely, pyembree
 conda config --add channels menpo        # cyassimp
 conda config --add channels defaults     # stuff, things
 
+# some trimesh ops are 2-3x slower with MKL
+conda install nomkl
+
 # cyassimp is a much faster binding for the assimp importers
 # they use non- standard labels, master vs main
 conda install -c menpo/label/master cyassimp

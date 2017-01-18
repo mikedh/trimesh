@@ -297,6 +297,7 @@ def ply_binary(elements, file_obj):
     # is intact, read the data fields described by the header
     populate_data(file_obj, elements)
 
+
 def export_draco(mesh):
     '''
     Export a mesh using Google's Draco compressed format.
@@ -325,10 +326,11 @@ def export_draco(mesh):
             data = encoded.read()
     return data
 
+
 def load_draco(file_obj, file_type=None):
     '''
     Load a mesh from Google's Draco format.
-    
+
     Arguments
     ----------
     file_obj: open file- like object
@@ -338,11 +340,11 @@ def load_draco(file_obj, file_type=None):
     ----------
     kwargs: dict, kwargs to construct a Trimesh object
     '''
-    
+
     with tempfile.NamedTemporaryFile(suffix='.drc') as temp_drc:
         temp_drc.write(file_obj.read())
         temp_drc.flush()
-        
+
         with tempfile.NamedTemporaryFile(suffix='.ply') as temp_ply:
             subprocess.check_output([draco_decoder,
                                      '-i',
@@ -352,9 +354,9 @@ def load_draco(file_obj, file_type=None):
             temp_ply.seek(0)
             kwargs = load_ply(temp_ply)
     return kwargs
-    
-_ply_loaders   = {'ply' : load_ply}
-_ply_exporters = {'ply' : export_ply}
+
+_ply_loaders = {'ply': load_ply}
+_ply_exporters = {'ply': export_ply}
 
 draco_encoder = find_executable('draco_encoder')
 draco_decoder = find_executable('draco_decoder')

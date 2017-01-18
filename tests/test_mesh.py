@@ -27,19 +27,24 @@ class MeshTests(g.unittest.TestCase):
 
             tic = [g.time.time()]
 
-            
+            engines = ['networkx', 'scipy']
             if has_gt:
-                g.trimesh.graph._has_gt = True 
-                split     = g.trimesh.graph.split(mesh)
+                engines.append('graphtool')
+
+            for engine in engines:
+                split = g.trimesh.graph.split(mesh, engine=engine)
                 tic.append(g.time.time())
-                facets    = g.trimesh.graph.facets(mesh)
-                tic.append(g.time.time())
+
+            tic_diff = g.np.diff(tic)
+            tic_min  = tic_diff.min()
+            tic_diff /= tic_min
+            g.log.info('split engines (scale %f sec):\n%s',
+                       tic_min,
+                       str(g.np.column_stack((engines, tic_diff))))
+                                                                   
                 
-            g.trimesh.graph._has_gt = False
-            split     = g.trimesh.graph.split(mesh) 
-            tic.append(g.time.time())
             facets    = g.trimesh.graph.facets(mesh)
-            tic.append(g.time.time())
+            
 
             facets, area = mesh.facets(return_area=True)
             self.assertTrue(len(facets) == len(area))
@@ -49,10 +54,6 @@ class MeshTests(g.unittest.TestCase):
             outline = mesh.outline(faces)
             smoothed = mesh.smoothed()
 
-            if has_gt:
-                times = g.np.diff(tic)
-                g.log.info('Graph-tool sped up split by %f and facets by %f', 
-                         (times[2] / times[0]), (times[3] / times[1]))
             g.trimesh.graph._has_gt = g.deepcopy(has_gt)
                 
             self.assertTrue(mesh.volume > 0.0)

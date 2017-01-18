@@ -51,22 +51,21 @@ class Scene:
         if util.is_sequence(geometry):
             return [self.add_geometry(i) for i in geometry]
 
-        if 'name' in geometry.metadata:
-            name_geometry = geometry.metadata['name']
-        else:
-            name_geometry = 'geometry_' + str(len(self.geometry))
+        # default values for transforms and name
+        transforms = np.eye(4).reshape((-1, 4, 4))
+        name = 'geometry_' + str(len(self.geometry))
 
-        self.geometry[name_geometry] = geometry
+        if hasattr(geometry, 'metadata'):
+            if 'name' in geometry.metadata:
+                name = geometry.metadata['name']
+            if 'transforms' in geometry.metadata:
+                transforms = np.asanyarray(geometry.metadata['transforms'])
+                transforms = transforms.reshape((-1, 4, 4))
 
-        if 'transforms' in geometry.metadata:
-            transforms = np.array(
-                geometry.metadata['transforms']).reshape((-1, 4, 4))
-        else:
-            transforms = np.eye(4).reshape((-1, 4, 4))
-
+        self.geometry[name] = geometry
         for i, transform in enumerate(transforms):
-            name_node = name_geometry + '_' + str(i)
-            self.nodes[name_node] = name_geometry
+            name_node = name + '_' + str(i)
+            self.nodes[name_node] = name
             self.flags[name_node] = {'visible': True}
             self.transforms.update(frame_to=name_node,
                                    matrix=transform)
@@ -307,7 +306,7 @@ def split_scene(geometry):
     scene: trimesh.Scene
     '''
     split = deque()
-    for i in util.make_sequence(geometry):
-        split.extend(i.split())
+    for g in util.make_sequence(geometry):
+        split.extend(g.split())
     scene = Scene(split)
     return scene
