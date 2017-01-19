@@ -30,9 +30,9 @@ except ImportError:
     _PY3 = True
 
 dir_current = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-dir_models  = os.path.join(dir_current, '../models')
-dir_2D      = os.path.join(dir_current, '../models/2D')
-dir_data    = os.path.join(dir_current, 'data')
+dir_models  = os.path.abspath(os.path.join(dir_current, '..', 'models'))
+dir_2D      = os.path.abspath(os.path.join(dir_current, '..', 'models/2D'))
+dir_data    = os.path.abspath(os.path.join(dir_current, 'data'))
 
 log = logging.getLogger('trimesh')
 log.addHandler(logging.NullHandler())
@@ -59,7 +59,9 @@ def _load_data():
     return data
 
 def get_mesh(file_name, **kwargs):
-    mesh = trimesh.load(os.path.join(dir_models, file_name), **kwargs)
+    location = os.path.join(dir_models, file_name)
+    log.info('loading mesh from: %s', location)
+    mesh = trimesh.load(location, **kwargs)
     return mesh
     
 def get_meshes(count=None):

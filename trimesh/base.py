@@ -954,7 +954,7 @@ class Trimesh(object):
         nondegenerate = triangles.nondegenerate(self.triangles)
         self.update_faces(nondegenerate)
 
-    def facets(self, return_area=False):
+    def facets(self, return_area=False, **kwargs):
         '''
         Return a list of face indices for coplanar adjacent faces.
 
@@ -972,7 +972,7 @@ class Trimesh(object):
         if cached is not None:
             return cached
 
-        facets = graph.facets(self)
+        facets = graph.facets(self, **kwargs)
         if return_area:
             area = np.array([self.area_faces[i].sum() for i in facets])
             result = (facets, area)

@@ -6,11 +6,6 @@ class MeshTests(g.unittest.TestCase):
     def test_meshes(self):
         self.meshes = g.get_meshes()
 
-        has_gt = g.deepcopy(g.trimesh.graph._has_gt)
-        
-        if not has_gt:
-            g.log.warning('No graph-tool to test!')
-
         g.log.info('Running tests on %d meshes', len(self.meshes))
         for mesh in self.meshes:
             g.log.info('Testing %s', mesh.metadata['file_name'])
@@ -21,40 +16,19 @@ class MeshTests(g.unittest.TestCase):
             self.assertTrue(len(mesh.edges_unique) > 0)
             self.assertTrue(len(mesh.edges_sorted) > 0)
             self.assertTrue(len(mesh.edges_face) > 0)
-            self.assertFalse(mesh.euler_number is None)
+            self.assertTrue(isinstance(mesh.euler_number, int))
 
             mesh.process()
 
-            tic = [g.time.time()]
-
-            engines = ['networkx', 'scipy']
-            if has_gt:
-                engines.append('graphtool')
-
-            for engine in engines:
-                split = g.trimesh.graph.split(mesh, engine=engine)
-                tic.append(g.time.time())
-
-            tic_diff = g.np.diff(tic)
-            tic_min  = tic_diff.min()
-            tic_diff /= tic_min
-            g.log.info('split engines (scale %f sec):\n%s',
-                       tic_min,
-                       str(g.np.column_stack((engines, tic_diff))))
-                                                                   
-                
-            facets    = g.trimesh.graph.facets(mesh)
-            
 
             facets, area = mesh.facets(return_area=True)
             self.assertTrue(len(facets) == len(area))
             if len(facets) == 0:
                 continue
+                
             faces = facets[g.np.argmax(area)]
             outline = mesh.outline(faces)
             smoothed = mesh.smoothed()
-
-            g.trimesh.graph._has_gt = g.deepcopy(has_gt)
                 
             self.assertTrue(mesh.volume > 0.0)
                 

@@ -1154,7 +1154,7 @@ def submesh(mesh,
         vertices.append(original_vertices[unique])
         visuals.extend(mesh.visual.subsets([faces_index]))
     # we use type(mesh) rather than importing Trimesh from base
-    # as this causes a circular import
+    # to avoid a circular import
     trimesh_type = type_named(mesh, 'Trimesh')
     if append:
         visuals = np.array(visuals)
