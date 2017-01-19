@@ -123,7 +123,7 @@ def facets(mesh, engine=None):
     ---------
     mesh:  Trimesh
     engine: str, which graph engine to use ('scipy', 'networkx', 'graphtool')
-    
+
     Returns
     ---------
     facets: list of groups of face indexes (mesh.faces) of parallel adjacent faces.
@@ -155,20 +155,20 @@ def facets(mesh, engine=None):
     radius_sq = center_sq[non_parallel] / normal_dot[non_parallel]
     parallel[non_parallel] = radius_sq > tol.facet_rsq
 
-    components = connected_components(face_idx[parallel], 
-                                      node_count=len(mesh.faces), 
+    components = connected_components(face_idx[parallel],
+                                      node_count=len(mesh.faces),
                                       min_len=2,
                                       engine=engine)
     return components
 
 
-def split(mesh, 
-          only_watertight=True, 
-          adjacency=None, 
+def split(mesh,
+          only_watertight=True,
+          adjacency=None,
           engine=None):
     '''
     Split a mesh into multiple meshes from face connectivity.
-    
+
     If only_watertight is true, it will only return watertight meshes
     and will attempt single triangle/quad repairs.
 
@@ -189,24 +189,27 @@ def split(mesh,
         adjacency = mesh.face_adjacency
 
     # if only watertight the shortest thing we can split has 3 triangles
-    if only_watertight: min_len = 3
-    else:               min_len = 1
-        
+    if only_watertight:
+        min_len = 3
+    else:
+        min_len = 1
+
     components = connected_components(edges=adjacency,
                                       node_count=len(mesh.faces),
                                       min_len=min_len,
                                       engine=engine)
-    meshes = mesh.submesh(components, 
+    meshes = mesh.submesh(components,
                           only_watertight=only_watertight)
-    return meshes  
-            
-def connected_components(edges, 
-                         node_count, 
-                         min_len=1, 
+    return meshes
+
+
+def connected_components(edges,
+                         node_count,
+                         min_len=1,
                          engine=None):
     '''
     Find groups of connected nodes from an edge list.
-    
+
     Arguments
     -----------
     edges:      (n,2) int, edges between nodes
@@ -215,7 +218,7 @@ def connected_components(edges,
     engine:     str, which graph engine to use.
                 ('networkx', 'scipy', or 'graphtool')
                 If None, will automatically choose fastest available.
-                
+
     Returns
     -----------
     components: (n,) sequence of lists, nodes which are connected
@@ -226,8 +229,9 @@ def connected_components(edges,
         # aren't discarded (as they aren't adjacent to anything)
         graph.add_nodes_from(np.arange(node_count))
         # newer versions of networkx return sets rather than lists
-        components = [list(i) for i in nx.connected_components(graph) if len(i) >= min_len]
-        
+        components = [list(i) for i in nx.connected_components(
+            graph) if len(i) >= min_len]
+
         return components
 
     def components_graphtool():
@@ -240,23 +244,23 @@ def connected_components(edges,
         return components
 
     def components_csgraph():
-        component_labels = connected_component_labels(edges, 
+        component_labels = connected_component_labels(edges,
                                                       node_count=node_count)
         components = grouping.group(component_labels, min_len=min_len)
         return components
-        
+
     # check input edges
     edges = np.asanyarray(edges, dtype=np.int)
     if not (len(edges) == 0 or
             util.is_shape(edges, (-1, 2))):
         raise ValueError('edges must be (n,2)!')
-     
+
     # scipy is usually the fastest by ~10% except sometimes on very large graphs
     # or very small graphs graph-tool outperforms it substantially
     engines = collections.OrderedDict((('graphtool', components_graphtool),
                                        ('scipy',     components_csgraph),
                                        ('networkx',  components_networkx)))
-                                       
+
     # if a graph engine has explictly been requested use it
     if engine in engines:
         return engines[engine]()
@@ -270,7 +274,8 @@ def connected_components(edges,
         except NameError:
             continue
     raise ImportError('No connected component engines available!')
-    
+
+
 def connected_component_labels(edges, node_count):
     '''
     Label graph nodes from an edge list, using scipy.sparse.csgraph
