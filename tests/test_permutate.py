@@ -1,13 +1,15 @@
 import generic as g
 
+
 class PermutateTest(g.unittest.TestCase):
+
     def test_permutate(self):
         def make_assertions(mesh, test):
-            self.assertFalse(g.np.allclose(test.faces, 
+            self.assertFalse(g.np.allclose(test.faces,
                                            mesh.faces))
-            self.assertFalse(g.np.allclose(test.face_adjacency, 
+            self.assertFalse(g.np.allclose(test.face_adjacency,
                                            mesh.face_adjacency))
-            self.assertFalse(g.np.allclose(test.face_adjacency_edges, 
+            self.assertFalse(g.np.allclose(test.face_adjacency_edges,
                                            mesh.face_adjacency_edges))
             self.assertFalse(g.np.allclose(test.vertices,
                                            mesh.vertices))
@@ -15,22 +17,23 @@ class PermutateTest(g.unittest.TestCase):
 
         for mesh in g.get_meshes(5):
             original = mesh.copy()
-            noise     = g.trimesh.permutate.noise(mesh)
-            noise_1   = g.trimesh.permutate.noise(mesh, magnitude=mesh.scale/50.0)
+            noise = g.trimesh.permutate.noise(mesh)
+            noise_1 = g.trimesh.permutate.noise(
+                mesh, magnitude=mesh.scale / 50.0)
             transform = g.trimesh.permutate.transform(mesh)
 
             make_assertions(mesh, noise)
             make_assertions(mesh, noise_1)
             make_assertions(mesh, transform)
-            
+
             # make sure permutate didn't alter the original mesh
             self.assertTrue(original.md5() == mesh.md5())
 
     def test_tesselation(self):
         for mesh in g.get_meshes(5):
             tess = g.trimesh.permutate.tesselation(mesh)
-            #print(tess.area-mesh.area)
-            self.assertTrue(abs(tess.area   - mesh.area)   < g.tol.merge)
+            # print(tess.area-mesh.area)
+            self.assertTrue(abs(tess.area - mesh.area) < g.tol.merge)
             volume_check = abs(tess.volume - mesh.volume) / mesh.scale
             self.assertTrue(volume_check < g.tol.merge)
             self.assertTrue(len(mesh.faces) < len(tess.faces))
@@ -38,16 +41,15 @@ class PermutateTest(g.unittest.TestCase):
                 self.assertTrue(tess.is_winding_consistent)
             if mesh.is_watertight:
                 self.assertTrue(tess.is_watertight)
-           
+
     def test_base(self):
         for mesh in g.get_meshes(1):
             tess = mesh.permutate.tesselation()
             noise = mesh.permutate.noise()
-            noise = mesh.permutate.noise(magnitude=mesh.scale/10)
+            noise = mesh.permutate.noise(magnitude=mesh.scale / 10)
             transform = mesh.permutate.transform()
-            
-            
+
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()
-    

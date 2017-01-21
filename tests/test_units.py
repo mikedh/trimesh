@@ -1,6 +1,8 @@
 import generic as g
 
+
 class UnitsTest(g.unittest.TestCase):
+
     def test_units(self):
 
         fake_units = 'blorbs'
@@ -9,12 +11,12 @@ class UnitsTest(g.unittest.TestCase):
         m = g.get_mesh('featuretype.STL')
 
         self.assertTrue(m.units is None)
-        
+
         with self.assertRaises(ValueError):
             m.units = fake_units
 
         self.assertTrue(m.units is None)
-        
+
         m.units = 'in'
         self.assertTrue(m.units == 'in')
 
@@ -32,4 +34,3 @@ class UnitsTest(g.unittest.TestCase):
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()
-    

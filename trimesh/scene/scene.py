@@ -1,13 +1,12 @@
 import numpy as np
-
-from .. import grouping
-from ..transformations import rotation_matrix, transform_points
-from .transforms import TransformForest
+import collections
 
 from .. import util
+from .. import grouping
+from ..transformations import rotation_matrix, transform_points
 
+from .transforms import TransformForest
 
-from collections import deque, OrderedDict
 
 
 class Scene:
@@ -28,7 +27,7 @@ class Scene:
         self._cache = util.Cache(id_function=self.md5)
 
         # mesh name : Trimesh object
-        self.geometry = OrderedDict()
+        self.geometry = collections.OrderedDict()
         self.flags = {}
         self.transforms = TransformForest(base_frame=base_frame)
 
@@ -88,15 +87,29 @@ class Scene:
         --------
         bounds: (2,3) float points for min, max corner
         '''
-        corners = deque()
+        # store the indexes for all 8 corners of a cube, 
+        # given an input of flattened min/max bounds
+        minx, miny, minz, maxx, maxy, maxz = np.arange(6)
+        corner_index = [minx, miny, minz, 
+                        maxx, miny, minz,
+                        maxx, maxy, minz,
+                        minx, maxy, minz,
+                        minx, miny, maxz, 
+                        maxx, miny, maxz,
+                        maxx, maxy, maxz,
+                        minx, maxy, maxz]
+
+        corners = collections.deque()
         for instance, mesh_name in self.nodes.items():
             transform = self.transforms.get(instance)
             current_bounds = self.geometry[mesh_name].bounds
+            # handle 2D bounds
             if current_bounds.shape == (2, 2):
                 current_bounds = np.column_stack((current_bounds, [0, 0]))
-            corners.append(transform_points(current_bounds,
+            current_corners = current_bounds.reshape(-1)[corner_index].reshape((-1,3))
+            corners.extend(transform_points(current_corners,
                                             transform))
-        corners = np.vstack(corners)
+        corners = np.array(corners)
         bounds = np.array([corners.min(axis=0),
                            corners.max(axis=0)])
         return bounds
@@ -137,8 +150,8 @@ class Scene:
         ----------
         triangles: (n,3,3) float, triangles in space
         '''
-        triangles = deque()
-        triangles_index = deque()
+        triangles = collections.deque()
+        triangles_index = collections.deque()
         for index, node_info in zip(range(len(self.nodes)),
                                     self.nodes.items()):
             node, geometry_name = node_info
@@ -148,10 +161,10 @@ class Scene:
             transform = self.transforms.get(node)
             triangles.append(transform_points(geometry.triangles.reshape((-1, 3)),
                                               transform))
-            triangles_index.append(np.ones(len(geometry.triangles),
+            triangles_index.extend(np.ones(len(geometry.triangles),
                                            dtype=np.int64) * index)
+        self._cache['triangles_index'] = np.array(triangles_index, dtype=np.int64)
         triangles = np.vstack(triangles).reshape((-1, 3, 3))
-        self._cache['triangles_index'] = np.hstack(triangles_index)
         return triangles
 
     @util.cache_decorator
@@ -211,7 +224,7 @@ class Scene:
         '''
         Append all meshes in scene to a list of meshes.
         '''
-        result = deque()
+        result = collections.deque()
         for node_id, mesh_id in self.nodes.items():
             transform = self.transforms.get(node_id)
             current = self.geometry[mesh_id].copy()
@@ -305,7 +318,7 @@ def split_scene(geometry):
     ---------
     scene: trimesh.Scene
     '''
-    split = deque()
+    split = collections.deque()
     for g in util.make_sequence(geometry):
         split.extend(g.split())
     scene = Scene(split)

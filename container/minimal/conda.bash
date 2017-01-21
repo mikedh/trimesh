@@ -25,7 +25,7 @@ conda install nomkl
 conda install -c menpo/label/master cyassimp
 
 # install most trimesh requirements with built components 
-conda install shapely rtree  pyembree numpy scipy 
+conda install shapely rtree pyembree numpy scipy 
 
 # remove archives
 conda clean --all -y
