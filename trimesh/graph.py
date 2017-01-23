@@ -32,8 +32,8 @@ def face_adjacency(faces=None, mesh=None, return_edges=False):
 
     Arguments
     ----------
-    faces: (n, d) int, set of faces referencing vertices by index
-    mesh:   Trimesh object, optional if passed will used cached edges
+    faces:        (n, d) int, set of faces referencing vertices by index
+    mesh:         Trimesh object, optional if passed will used cached edges
     return_edges: bool, return the edges shared by adjacent faces
 
     Returns
@@ -227,17 +227,18 @@ def connected_components(edges,
         graph = nx.from_edgelist(edges)
         # make sure every face has a node, so single triangles
         # aren't discarded (as they aren't adjacent to anything)
-        graph.add_nodes_from(np.arange(node_count))
+        if min_len <= 1:
+            graph.add_nodes_from(np.arange(node_count))
+        iterable = nx.connected_components(graph)
         # newer versions of networkx return sets rather than lists
-        components = [list(i) for i in nx.connected_components(
-            graph) if len(i) >= min_len]
-
+        components = [list(i) for i in iterable if len(i) >= min_len]
         return components
 
     def components_graphtool():
         g = GTGraph()
         # make sure all the nodes are in the graph
-        g.add_vertex(node_count)
+        if min_len <= 1:
+            g.add_vertex(node_count)
         g.add_edge_list(edges)
         component_labels = label_components(g, directed=False)[0].a
         components = grouping.group(component_labels, min_len=min_len)
@@ -255,8 +256,9 @@ def connected_components(edges,
             util.is_shape(edges, (-1, 2))):
         raise ValueError('edges must be (n,2)!')
 
-    # scipy is usually the fastest by ~10% except sometimes on very large graphs
-    # or very small graphs graph-tool outperforms it substantially
+    # graphtool is usually faster then scipy by ~10%, however on very 
+    # large or very small graphs graphtool outperforms scipy substantially
+    # networkx is pure python and is usually 5-10x slower
     engines = collections.OrderedDict((('graphtool', components_graphtool),
                                        ('scipy',     components_csgraph),
                                        ('networkx',  components_networkx)))
@@ -266,7 +268,7 @@ def connected_components(edges,
         return engines[engine]()
 
     # otherwise, go through our ordered list of graph engines
-    # until we get to one that has been installed
+    # until we get to one that has actually been installed
     for function in engines.values():
         try:
             return function()
