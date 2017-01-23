@@ -73,10 +73,12 @@ class Scene:
         '''
         MD5 of scene, which will change when meshes or transforms are changed
         '''
-        mesh_hash = util.md5_object(
-            np.sort([hash(i) for i in self.geometry.values()]))
-        result = mesh_hash + self.transforms.md5()
-        return result
+
+        data = [hash(i) for i in self.geometry.values()]
+        data.append(self.transforms.md5())
+        hashed = util.md5_object(np.sort(data))
+            
+        return hashed
 
     @util.cache_decorator
     def bounds(self):
