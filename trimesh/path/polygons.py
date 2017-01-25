@@ -90,7 +90,7 @@ def transform_polygon(polygon, transform, plot=False):
     return result
 
 
-def rasterize_polygon(polygon, pitch, angle=0, return_points=False):
+def rasterize_polygon(polygon, pitch):
     '''
     Given a shapely polygon, find the raster representation at a given angle
     relative to the oriented bounding box
@@ -99,27 +99,16 @@ def rasterize_polygon(polygon, pitch, angle=0, return_points=False):
     ----------
     polygon: shapely polygon
     pitch:   what is the edge length of a pixel
-    angle:   what angle to rotate the polygon before rasterization,
-             relative to the oriented bounding box
+    return_points: bool, return grid points or not
 
     Returns
     ----------
-    rasterized: (n,m) boolean array where filled areas are true
-    transform:  (3,3) transformation matrix to move polygon to be covered by
-                rasterized representation starting at (0,0)
-
+    offset:      (2,) float, where the origin of the raster array is located
+    grid:        (n,m) bool, where filled areas are True
+    grid_points: (p,2) float, points in space
     '''
 
-    rectangle, transform = polygon_obb(polygon)
-    transform = np.dot(transform, planar_matrix(origin=[0, 0], theta=angle))
-    vertices = transform_polygon(polygon, transform)
-
-    # after rotating, we want to move the polygon back to the first quadrant
-    transform[0:2, 2] -= np.min(vertices, axis=0)
-    vertices -= np.min(vertices, axis=0)
-
-    p = Polygon(vertices)
-    bounds = np.reshape(p.bounds, (2, 2))
+    bounds = np.reshape(polygon.bounds, (2, 2))
     offset = bounds[0]
     shape = np.ceil(np.ptp(bounds, axis=0) / pitch).astype(int)
     grid = np.zeros(shape, dtype=np.bool)
@@ -151,16 +140,15 @@ def rasterize_polygon(polygon, pitch, angle=0, return_points=False):
                 'Point': handler_null}
 
     x_extents = bounds[:, 0] + [-pitch, pitch]
-
     for y_index in range(grid.shape[1]):
         y = offset[1] + y_index * pitch
         test = LineString(np.column_stack((x_extents, [y, y])))
-        hits = p.intersection(test)
+        hits = polygon.intersection(test)
         handlers[hits.__class__.__name__](hits)
 
-    log.info('Rasterized polygon into %s grid', str(shape))
-    return grid, transform
-
+    grid_points = (np.transpose(np.nonzero(grid)).astype(np.float64) * pitch)  + offset
+    
+    return offset, grid, grid_points
 
 def plot_polygon(polygon, show=True):
     import matplotlib.pyplot as plt

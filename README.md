@@ -171,6 +171,6 @@ If you want to deploy something in a container that uses trimesh, automated buil
 
 `docker pull mikedh/trimesh`
 
-Or, for a much smaller image with no boolean operations and slightly slower graph operations (no graph-tool installed, trimesh will fall back to networkx):
+Or, for a much smaller image with no boolean operations and slightly slower graph operations (no graph-tool installed, trimesh will fall back to scipy or networkx):
 
 `docker pull mikedh/trimesh_minimal`
