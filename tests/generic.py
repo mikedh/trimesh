@@ -15,7 +15,7 @@ import trimesh
 
 from collections import deque
 from copy import deepcopy
-from trimesh.constants import tol
+from trimesh.constants import tol, tol_path
 from trimesh.base import Trimesh
 
 from shapely.geometry import Point, Polygon
@@ -88,5 +88,21 @@ def get_meshes(count=None):
         if len(meshes) >= count:
             break
     return list(meshes)
-
+    
+def get_2D(count=None):
+    ls = os.listdir(dir_2D)
+    if count is None:
+        count = len(ls)
+    paths = deque()
+    for file_name in ls:
+        location = os.path.join(dir_2D, file_name)
+        print(location)
+        try: paths.append(trimesh.load(location))
+        except: 
+            log.warning('skipping path load', exc_info = True)
+        if len(paths) >= count:
+            break
+    return list(paths)
+    
+    
 data = _load_data()
