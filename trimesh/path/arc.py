@@ -20,10 +20,12 @@ def arc_center(points):
 
     Returns
     ---------
-    center:       (d) point of the center of the arc
-    radius:       float, radius of the arc
-    plane_normal: (3) vector of the plane normal.
-    angle:        float, angle swept by the arc
+    result: dict, with keys:
+        'center':   (d,) float, cartesian center of the arc
+        'radius':   float, radius of the arc
+        'normal':   (3,) float, the plane normal.
+        'angle':    (2,) float, angle of start and end, in radians
+        'span' :    float, angle swept by the arc, in radians
     '''
     # it's a lot easier to treat 2D as 3D with a zero Z value
     is_2D, points = three_dimensionalize(points, return_2D=True)
