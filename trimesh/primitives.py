@@ -73,7 +73,9 @@ class _Primitive(Trimesh):
 
 
 class _PrimitiveAttributes(object):
-
+    '''
+    Hold the mutable data which defines a primitive.
+    '''
     def __init__(self, data, defaults, parent, kwargs):
         self._data = data
         self._defaults = defaults
@@ -143,8 +145,10 @@ class Cylinder(_Primitive):
                     'radius': 1.0,
                     'transform': np.eye(4),
                     'sections': 32}
-        self.primitive = _PrimitiveAttributes(
-            self._data, defaults, self, kwargs)
+        self.primitive = _PrimitiveAttributes(self._data, 
+                                              defaults, 
+                                              self, 
+                                              kwargs)
 
     def _create_mesh(self):
         log.info('Creating cylinder mesh with r=%f, h=%f and %d sections',
@@ -198,8 +202,10 @@ class Sphere(_Primitive):
                     'center': np.zeros(3, dtype=np.float64),
                     'subdivisions': 3}
 
-        self.primitive = _PrimitiveAttributes(
-            self._data, defaults, self, kwargs)
+        self.primitive = _PrimitiveAttributes(self._data, 
+                                              defaults, 
+                                              self, 
+                                              kwargs)
 
     @property
     def bounds(self):
@@ -259,7 +265,8 @@ class Box(_Primitive):
                     'extents': np.ones(3)}
         self.primitive = _PrimitiveAttributes(self._data,
                                               defaults,
-                                              self, kwargs)
+                                              self, 
+                                              kwargs)
 
     def sample_volume(self, count):
         '''
@@ -325,14 +332,17 @@ class Extrusion(_Primitive):
         '''
         super(Extrusion, self).__init__(*args, **kwargs)
 
+        # do the import here, so we fail early if Shapely isn't installed
         from shapely.geometry import Point
 
         defaults = {'polygon': Point([0, 0]).buffer(1.0),
                     'transform': np.eye(4),
                     'height': 1.0}
 
-        self.primitive = _PrimitiveAttributes(
-            self._data, defaults, self, kwargs)
+        self.primitive = _PrimitiveAttributes(self._data, 
+                                              defaults, 
+                                              self, 
+                                              kwargs)
 
     @property
     def extrude_direction(self):

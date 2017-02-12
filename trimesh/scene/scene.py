@@ -234,7 +234,7 @@ class Scene:
             result.append(current)
         return np.array(result)
 
-    def export(self, file_type='dict64'):
+    def export(self, file_type=None):
         '''
         Export a snapshot of the current scene.
 
@@ -254,12 +254,32 @@ class Scene:
                   'nodes': self.nodes,
                   'meshes': {},
                   'scene_cache': self._cache.cache}
+
+        if file_type is None:
+            file_type = {'Trimesh' : 'ply',
+                         'Path2D'  : 'dxf'}
+        
         # if the mesh has an export method use it, otherwise put the mesh
         # itself into the export object
         for node, mesh in self.geometry.items():
             if hasattr(mesh, 'export'):
-                export['meshes'][node] = mesh.export(file_type=file_type)
+                if isinstance(file_type, dict):
+                    # case where we have export types that are different
+                    # for different classes of objects. 
+                    for query_class, query_format in file_type.items():
+                        if util.is_instance_named(mesh, query_class):
+                            export_type = query_format
+                            break
+                else:
+                    # if file_type is not a dict, try to export everything in the
+                    # scene as that value (probably a single string, like 'ply')
+                    export_type = file_type
+                
+                export['meshes'][node] = {'bytes' : mesh.export(file_type=export_type),
+                                          'file_type' : export_type}
             else:
+                # case where mesh object doesn't have exporter
+                # might be that someone replaced the mesh with a URL
                 export['meshes'][node] = mesh
         return export
 
