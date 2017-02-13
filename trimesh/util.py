@@ -542,6 +542,7 @@ def md5_array(array, digits=5):
 
 
 def attach_to_log(log_level=logging.DEBUG,
+                  handler=None,
                   blacklist=['TerminalIPythonApp', 'PYREADLINE']):
     '''
     Attach a stream handler to all loggers.
@@ -562,15 +563,17 @@ def attach_to_log(log_level=logging.DEBUG,
         formatter = logging.Formatter(
             "[%(asctime)s] %(levelname)-7s (%(filename)s:%(lineno)3s) %(message)s",
             "%Y-%m-%d %H:%M:%S")
-    handler_stream = logging.StreamHandler()
-    handler_stream.setFormatter(formatter)
-    handler_stream.setLevel(log_level)
+
+    if handler is None:
+        handler = logging.StreamHandler()
+    handler.setFormatter(formatter)
+    handler.setLevel(log_level)
 
     for logger in logging.Logger.manager.loggerDict.values():
         if (logger.__class__.__name__ != 'Logger' or
                 logger.name in blacklist):
             continue
-        logger.addHandler(handler_stream)
+        logger.addHandler(handler)
         logger.setLevel(log_level)
     np.set_printoptions(precision=5, suppress=True)
 
