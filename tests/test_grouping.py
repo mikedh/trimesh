@@ -1,7 +1,7 @@
 import generic as g
 
 
-class RayTests(g.unittest.TestCase):
+class GroupTests(g.unittest.TestCase):
 
     def test_unique_rows(self):
         count = 100
