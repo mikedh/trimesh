@@ -33,7 +33,7 @@ def export_mesh(mesh, file_obj, file_type=None):
     if not (file_type in _mesh_exporters):
         raise ValueError('%s exporter not available!', file_type)
 
-    log.info('Exporting %d faces as %s', len(mesh.faces), file_type.upper())
+    log.debug('Exporting %d faces as %s', len(mesh.faces), file_type.upper())
     export = _mesh_exporters[file_type](mesh)
 
     if hasattr(file_obj, 'write'):

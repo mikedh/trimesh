@@ -1362,7 +1362,7 @@ class Trimesh(object):
         -----------
         identifier: (tol.id_len,) float
         '''
-        identifier = comparison.rotationally_invariant_identifier(self)
+        identifier = comparison.identifier_simple(self)
         return identifier
 
     @util.cache_decorator
@@ -1370,7 +1370,8 @@ class Trimesh(object):
         '''
         Return an MD5 of the rotation invarient identifier
         '''
-        return util.md5_array(self.identifier, digits=1)
+        hashed = comparison.identifier_hash(self.identifier)
+        return hashed
 
     def export(self, file_obj=None, file_type=None):
         '''

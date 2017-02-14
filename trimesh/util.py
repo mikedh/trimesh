@@ -1409,3 +1409,75 @@ def wrap_as_stream(item):
     elif isinstance(item, bytes):
         return BytesIO(item)
     raise ValueError('Not a wrappable item!')
+
+
+def histogram_peaks(data,
+                    bins=100,
+                    smoothing=.1,
+                    weights=None,
+                    plot=False,
+                    use_spline=True):
+    '''
+    A function to bin data, fit a spline to the histogram,
+    and return the peaks of that spline.
+
+    Arguments
+    -----------
+    data:       (n,) data
+    bins:       int, number of bins in histogram
+    smoothing:  float, fraction to smooth spline (out of 1.0)
+    weights:    (n,) float, weight for each data point
+    plot:       bool, if True plot the histogram and spline
+    use_spline: bool, if True fit a spline to the histogram
+    Returns
+    -----------
+    peaks: (m,) float, ordered list of peaks (largest are at the end).
+    '''
+    data = np.asanyarray(data).reshape(-1)
+
+    # (2,) float, start and end of histogram bins
+    # round to two signifigant figures
+    edges = [trimesh.util.round_sigfig(i,2) for i in np.percentile(data,
+                                                                   [.1,99.9])]
+                     
+    h,b =  np.histogram(data,
+                        weights=weights,
+                        bins=np.linspace(*edges, num=bins),
+                        range=edges,
+                        density=False)
+    
+    # set x to center of histogram bins
+    x = b[:-1] + (b[1]-b[0])/2.0
+
+    if not use_spline:
+        return x[h.argsort()]
+    norm = weights.sum()/bins
+    normalized = h / norm
+    
+    from scipy import interpolate
+    # create an order 4 spline representing the radii histogram
+    # note that scipy only supports root finding of order 3 splines
+    # and we want to find peaks using the derivate, so start with order 4
+    spline = interpolate.UnivariateSpline(x,
+                                          normalized,
+                                          k=4,
+                                          s=smoothing)
+    roots = spline.derivative().roots()
+    roots_value = spline(roots)
+    peaks = roots[roots_value.argsort()]
+
+    if plot:
+        import matplotlib.pyplot as plt
+
+        x_plt = np.linspace(x[1], x[-2], 500)
+        y_plt = spline(x_plt)
+
+        plt.hist(data, weights=weights/norm, bins=b)
+        plt.plot(x_plt, y_plt)
+
+        y_max = y_plt.max() * 1.2
+        for peak in peaks[-5:]:
+            plt.plot([peak, peak], [0,y_max])
+        plt.show()
+        
+    return peaks
