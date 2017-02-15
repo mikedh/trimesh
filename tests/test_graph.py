@@ -67,6 +67,7 @@ class GraphTest(g.unittest.TestCase):
                        str(g.np.column_stack((self.engines,
                                               tic_diff))))
 
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()

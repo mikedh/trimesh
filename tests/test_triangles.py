@@ -32,6 +32,7 @@ class TrianglesTest(g.unittest.TestCase):
         self.assertTrue((comparison < 1e-8).all())
         g.log.info('finished closest check on %d triangles', len(closest))
 
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()

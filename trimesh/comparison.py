@@ -5,7 +5,8 @@ from . import util
 from .constants import tol
 
 
-identifier_sigfig =  (4,2,1,5,2)
+identifier_sigfig = (4, 2, 1, 5, 2)
+
 
 def identifier_simple(mesh):
     '''
@@ -29,11 +30,11 @@ def identifier_simple(mesh):
     '''
     identifier = np.array([mesh.volume,
                            mesh.area,
-                           mesh.area/mesh.convex_hull_raw.area,
+                           mesh.area / mesh.convex_hull_raw.area,
                            mesh.euler_number,
                            0.0],
-                          dtype = np.float64)
-    
+                          dtype=np.float64)
+
     if mesh.is_watertight:
         origin = mesh.center_mass
     else:
@@ -63,4 +64,3 @@ def identifier_hash(identifier, sigfig=None):
     hashable = (as_int * (10 ** multiplier)).astype(np.int32)
     md5 = util.md5_object(hashable)
     return md5
-

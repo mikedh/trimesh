@@ -29,6 +29,7 @@ class NSphereTest(g.unittest.TestCase):
                 self.assertTrue(R > 0.0)
                 self.assertTrue(abs(R - R_check) < g.tol.merge)
 
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()

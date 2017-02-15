@@ -197,6 +197,7 @@ def _parse_file_args(file_obj, file_type):
     file_type = file_type.lower()
     return file_obj, file_type, metadata
 
+
 mesh_loaders = {}
 # assimp has a lot of loaders, but they are all quite slow
 # so we load them first and replace them with native loaders if possible

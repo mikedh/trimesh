@@ -127,6 +127,7 @@ def export_msgpack(mesh):
     export = msgpack.dumps(blob)
     return export
 
+
 _mesh_exporters = {'stl': export_stl,
                    'dict': export_dict,
                    'json': export_json,

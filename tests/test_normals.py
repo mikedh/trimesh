@@ -34,6 +34,7 @@ class NormalsTest(g.unittest.TestCase):
         mesh.face_normals = None
         self.assertTrue(mesh.face_normals.shape == mesh.faces.shape)
 
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()

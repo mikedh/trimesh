@@ -426,7 +426,7 @@ def blocks(data, min_len=2, max_len=np.inf, digits=None, only_nonzero=False):
         # by checking the first value of each block
         infl_ok = np.logical_and(infl_ok,
                                  data[infl[:-1]])
-      
+
     # inflate start/end indexes into full ranges of values
     blocks = [np.arange(infl[i], infl[i + 1])
               for i, ok in enumerate(infl_ok) if ok]

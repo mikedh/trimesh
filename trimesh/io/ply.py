@@ -355,6 +355,7 @@ def load_draco(file_obj, file_type=None):
             kwargs = load_ply(temp_ply)
     return kwargs
 
+
 _ply_loaders = {'ply': load_ply}
 _ply_exporters = {'ply': export_ply}
 

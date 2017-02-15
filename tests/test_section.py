@@ -50,6 +50,7 @@ class PlaneLine(g.unittest.TestCase):
         self.assertTrue(valid.all())
         self.assertTrue((g.np.abs(i[:, 2] - z) < g.tol.merge).all())
 
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()

@@ -50,6 +50,7 @@ class RayTests(g.unittest.TestCase):
         self.assertTrue(test_in.all())
         self.assertFalse(test_out.any())
 
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()

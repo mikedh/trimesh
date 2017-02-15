@@ -22,6 +22,7 @@ class GraphTests(unittest.TestCase):
         for i in range(5000):
             g.add_edge(random_chr(), random_chr())
 
+
 if __name__ == '__main__':
     trimesh.util.attach_to_log()
     unittest.main()

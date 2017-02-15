@@ -155,6 +155,7 @@ def load_dict(data, file_type=None):
         raise ValueError('%s object passed to dict loader!',
                          data.__class__.__name__)
 
+
 _misc_loaders = {'obj': load_wavefront,
                  'off': load_off,
                  'dict': load_dict,

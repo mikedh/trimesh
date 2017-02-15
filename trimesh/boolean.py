@@ -65,6 +65,7 @@ def boolean_automatic(meshes, operation):
         raise ValueError('No backends available for boolean operations!')
     return result
 
+
 _engines = {None: boolean_automatic,
             'auto': boolean_automatic,
             'scad': interfaces.scad.boolean,

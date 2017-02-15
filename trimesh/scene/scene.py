@@ -8,7 +8,6 @@ from ..transformations import rotation_matrix, transform_points
 from .transforms import TransformForest
 
 
-
 class Scene:
     '''
     A simple scene graph which can be rendered directly via pyglet/openGL,
@@ -77,7 +76,7 @@ class Scene:
         data = [hash(i) for i in self.geometry.values()]
         data.append(self.transforms.md5())
         hashed = util.md5_object(np.sort(data))
-            
+
         return hashed
 
     @util.cache_decorator
@@ -89,14 +88,14 @@ class Scene:
         --------
         bounds: (2,3) float points for min, max corner
         '''
-        # store the indexes for all 8 corners of a cube, 
+        # store the indexes for all 8 corners of a cube,
         # given an input of flattened min/max bounds
         minx, miny, minz, maxx, maxy, maxz = np.arange(6)
-        corner_index = [minx, miny, minz, 
+        corner_index = [minx, miny, minz,
                         maxx, miny, minz,
                         maxx, maxy, minz,
                         minx, maxy, minz,
-                        minx, miny, maxz, 
+                        minx, miny, maxz,
                         maxx, miny, maxz,
                         maxx, maxy, maxz,
                         minx, maxy, maxz]
@@ -108,7 +107,8 @@ class Scene:
             # handle 2D bounds
             if current_bounds.shape == (2, 2):
                 current_bounds = np.column_stack((current_bounds, [0, 0]))
-            current_corners = current_bounds.reshape(-1)[corner_index].reshape((-1,3))
+            current_corners = current_bounds.reshape(
+                -1)[corner_index].reshape((-1, 3))
             corners.extend(transform_points(current_corners,
                                             transform))
         corners = np.array(corners)
@@ -165,7 +165,8 @@ class Scene:
                                               transform))
             triangles_index.extend(np.ones(len(geometry.triangles),
                                            dtype=np.int64) * index)
-        self._cache['triangles_index'] = np.array(triangles_index, dtype=np.int64)
+        self._cache['triangles_index'] = np.array(
+            triangles_index, dtype=np.int64)
         triangles = np.vstack(triangles).reshape((-1, 3, 3))
         return triangles
 
@@ -256,27 +257,28 @@ class Scene:
                   'scene_cache': self._cache.cache}
 
         if file_type is None:
-            file_type = {'Trimesh' : 'ply',
-                         'Path2D'  : 'dxf'}
-        
+            file_type = {'Trimesh': 'ply',
+                         'Path2D': 'dxf'}
+
         # if the mesh has an export method use it, otherwise put the mesh
         # itself into the export object
         for node, mesh in self.geometry.items():
             if hasattr(mesh, 'export'):
                 if isinstance(file_type, dict):
                     # case where we have export types that are different
-                    # for different classes of objects. 
+                    # for different classes of objects.
                     for query_class, query_format in file_type.items():
                         if util.is_instance_named(mesh, query_class):
                             export_type = query_format
                             break
                 else:
                     # if file_type is not a dict, try to export everything in the
-                    # scene as that value (probably a single string, like 'ply')
+                    # scene as that value (probably a single string, like
+                    # 'ply')
                     export_type = file_type
-                
-                export['meshes'][node] = {'bytes' : mesh.export(file_type=export_type),
-                                          'file_type' : export_type}
+
+                export['meshes'][node] = {'bytes': mesh.export(file_type=export_type),
+                                          'file_type': export_type}
             else:
                 # case where mesh object doesn't have exporter
                 # might be that someone replaced the mesh with a URL

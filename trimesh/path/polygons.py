@@ -146,11 +146,12 @@ def rasterize_polygon(polygon, pitch):
         hits = polygon.intersection(test)
         handlers[hits.__class__.__name__](hits)
 
-    grid_points = ((np.transpose(np.nonzero(grid)).astype(np.float64) * pitch) + 
-                    offset + 
-                    (pitch / 2.0))
-    
+    grid_points = ((np.transpose(np.nonzero(grid)).astype(np.float64) * pitch) +
+                   offset +
+                   (pitch / 2.0))
+
     return offset, grid, grid_points
+
 
 def plot_polygon(polygon, show=True):
     import matplotlib.pyplot as plt

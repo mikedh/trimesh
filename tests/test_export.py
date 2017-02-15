@@ -44,6 +44,7 @@ class ExportTest(g.unittest.TestCase):
                 g.log.info(
                     'Mesh vertices/faces consistent after export->import')
 
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()

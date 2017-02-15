@@ -513,8 +513,8 @@ class Trimesh(object):
         inertia: (3,3) float, moment of inertia of the current mesh.
         '''
         inertia = np.array(self.mass_properties(skip_inertia=False)['inertia'])
-        return inertia        
-        
+        return inertia
+
     @util.cache_decorator
     def triangles(self):
         '''

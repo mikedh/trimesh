@@ -41,6 +41,7 @@ class NumericalResolutionMesh(object):
 
         self.__dict__.update(kwargs)
 
+
 tol = NumericalToleranceMesh()
 res = NumericalResolutionMesh()
 
@@ -108,6 +109,7 @@ class NumericalResolutionPath(object):
         self.max_sections = 10
         self.min_sections = 5
         self.export = '.5f'
+
 
 tol_path = NumericalTolerancePath()
 res_path = NumericalResolutionPath()

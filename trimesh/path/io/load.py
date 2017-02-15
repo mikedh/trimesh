@@ -50,5 +50,6 @@ def _create_path(entities, vertices, metadata=None, **kwargs):
 def path_formats():
     return list(_LOADERS.keys())
 
+
 _LOADERS = {'dxf': load_dxf,
             'svg': svg_to_path}

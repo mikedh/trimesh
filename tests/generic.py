@@ -29,7 +29,8 @@ except ImportError:
     from io import BytesIO
     _PY3 = True
 
-dir_current = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+dir_current = os.path.dirname(os.path.abspath(
+    inspect.getfile(inspect.currentframe())))
 dir_models = os.path.abspath(os.path.join(dir_current, '..', 'models'))
 dir_2D = os.path.abspath(os.path.join(dir_current, '..', 'models', '2D'))
 dir_data = os.path.abspath(os.path.join(dir_current, 'data'))
@@ -88,7 +89,8 @@ def get_meshes(count=None):
         if len(meshes) >= count:
             break
     return list(meshes)
-    
+
+
 def get_2D(count=None):
     ls = os.listdir(dir_2D)
     if count is None:
@@ -97,12 +99,13 @@ def get_2D(count=None):
     for file_name in ls:
         location = os.path.join(dir_2D, file_name)
         print(location)
-        try: paths.append(trimesh.load(location))
-        except: 
-            log.warning('skipping path load', exc_info = True)
+        try:
+            paths.append(trimesh.load(location))
+        except:
+            log.warning('skipping path load', exc_info=True)
         if len(paths) >= count:
             break
     return list(paths)
-    
-    
+
+
 data = _load_data()

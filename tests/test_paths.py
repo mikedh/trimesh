@@ -73,27 +73,27 @@ class ArcTests(g.unittest.TestCase):
         min_radius = .0001
         count = 1000
 
-        center_3D = (g.np.random.random((count,3)) - .5) * 50
-        center_2D = center_3D[:,0:2]
-        radii     = g.np.clip(g.np.random.random(count) * 100, min_angle, g.np.inf)
+        center_3D = (g.np.random.random((count, 3)) - .5) * 50
+        center_2D = center_3D[:, 0:2]
+        radii = g.np.clip(g.np.random.random(count) * 100, min_angle, g.np.inf)
 
-        angles = g.np.random.random((count,2)) * (g.np.pi - min_angle) + min_angle
+        angles = g.np.random.random((count, 2)) * \
+            (g.np.pi - min_angle) + min_angle
         angles = g.np.column_stack((g.np.zeros(count),
-                                  g.np.cumsum(angles, axis=1)))
+                                    g.np.cumsum(angles, axis=1)))
 
-        points_2D = g.np.column_stack((g.np.cos(angles[:,0]), g.np.sin(angles[:,0]),
-                                     g.np.cos(angles[:,1]), g.np.sin(angles[:,1]),
-                                     g.np.cos(angles[:,2]), g.np.sin(angles[:,2]))).reshape((-1,6))
-        points_2D *= radii.reshape((-1,1))
+        points_2D = g.np.column_stack((g.np.cos(angles[:, 0]), g.np.sin(angles[:, 0]),
+                                       g.np.cos(angles[:, 1]), g.np.sin(
+                                           angles[:, 1]),
+                                       g.np.cos(angles[:, 2]), g.np.sin(angles[:, 2]))).reshape((-1, 6))
+        points_2D *= radii.reshape((-1, 1))
 
-        points_2D +=  g.np.tile(center_2D, (1,3))
-        points_2D = points_2D.reshape((-1,3,2))
+        points_2D += g.np.tile(center_2D, (1, 3))
+        points_2D = points_2D.reshape((-1, 3, 2))
 
-
-        points_3D = g.np.column_stack((points_2D.reshape((-1,2)),
-                                     g.np.tile(center_3D[:,2].reshape((-1,1)),
-                                             (1,3)).reshape(-1))).reshape((-1,3,3))
-
+        points_3D = g.np.column_stack((points_2D.reshape((-1, 2)),
+                                       g.np.tile(center_3D[:, 2].reshape((-1, 1)),
+                                                 (1, 3)).reshape(-1))).reshape((-1, 3, 3))
 
         for center, radius, three in zip(center_2D,
                                          radii,
@@ -103,27 +103,20 @@ class ArcTests(g.unittest.TestCase):
             assert g.np.allclose(center, info['center'])
             assert g.np.allclose(radius, info['radius'])
 
-
-
         for center, radius, three in zip(center_3D,
                                          radii,
                                          points_3D):
             transform = g.trimesh.transformations.random_rotation_matrix()
-            center = g.trimesh.transformations.transform_points([center], transform)[0]
-            three = g.trimesh.transformations.transform_points(three, transform)
+            center = g.trimesh.transformations.transform_points([center], transform)[
+                0]
+            three = g.trimesh.transformations.transform_points(
+                three, transform)
 
             info = g.trimesh.path.arc.arc_center(three)
 
             assert g.np.allclose(center, info['center'])
             assert g.np.allclose(radius, info['radius'])
 
-
-
-        
-
-
-        
-        
 
 class PolygonsTest(g.unittest.TestCase):
 
@@ -140,6 +133,7 @@ class PolygonsTest(g.unittest.TestCase):
         contained = grid_radius <= (test_radius + pixel_diagonal)
 
         self.assertTrue(contained.all())
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

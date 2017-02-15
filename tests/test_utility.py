@@ -222,6 +222,7 @@ class FileTests(unittest.TestCase):
 
             file_obj.close()
 
+
 if __name__ == '__main__':
     trimesh.util.attach_to_log()
     unittest.main()

@@ -256,7 +256,7 @@ def connected_components(edges,
             util.is_shape(edges, (-1, 2))):
         raise ValueError('edges must be (n,2)!')
 
-    # graphtool is usually faster then scipy by ~10%, however on very 
+    # graphtool is usually faster then scipy by ~10%, however on very
     # large or very small graphs graphtool outperforms scipy substantially
     # networkx is pure python and is usually 5-10x slower
     engines = collections.OrderedDict((('graphtool', components_graphtool),

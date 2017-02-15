@@ -5,9 +5,9 @@ class GroupTests(g.unittest.TestCase):
 
     def test_unique_rows(self):
         count = 100
-        subset = int(count/10)
-        
-        data = g.np.arange(count*3).reshape((-1,3)).astype(g.np.float)
+        subset = int(count / 10)
+
+        data = g.np.arange(count * 3).reshape((-1, 3)).astype(g.np.float)
         data[:subset] = data[0]
 
         unique, inverse = g.trimesh.grouping.unique_rows(data)
@@ -19,7 +19,7 @@ class GroupTests(g.unittest.TestCase):
         blocks = g.trimesh.grouping.blocks
 
         count = 100
-        subset = int(count/10)
+        subset = int(count / 10)
         a = g.np.zeros(count, dtype=g.np.int)
 
         result = blocks(a, min_len=0, only_nonzero=False)
@@ -29,13 +29,13 @@ class GroupTests(g.unittest.TestCase):
         result = blocks(a, min_len=0, only_nonzero=True)
         assert len(result) == 0
 
-        result = blocks(a, min_len=count+1, only_nonzero=False)
+        result = blocks(a, min_len=count + 1, only_nonzero=False)
         assert len(result) == 0
 
-        result = blocks(a, max_len=count-1, only_nonzero=False)
+        result = blocks(a, max_len=count - 1, only_nonzero=False)
         assert len(result) == 0
 
-        result = blocks(a, max_len=count+1, only_nonzero=False)
+        result = blocks(a, max_len=count + 1, only_nonzero=False)
         assert len(result) == 1
         assert len(result[0]) == count
 
@@ -61,14 +61,13 @@ class GroupTests(g.unittest.TestCase):
         assert len(result) == 3
         assert sum(len(i) for i in result) == count
 
-
         a[2] = False
         result = blocks(a, min_len=1, only_nonzero=True)
         assert len(result) == 2
         assert set(result[0]) == set([1])
         assert all(a[i].all() for i in result)
-        
-        
+
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()

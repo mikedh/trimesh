@@ -6,6 +6,7 @@ import numpy as np
 class HeaderError(Exception):
     pass
 
+
 # define a numpy datatype for the data section of a binary STL file
 _stl_dtype = np.dtype([('normals', np.float32, (3)),
                        ('vertices', np.float32, (3, 3)),
@@ -203,6 +204,7 @@ def export_stl_ascii(mesh):
     export += 'endsolid'
 
     return export
+
 
 _stl_loaders = {'stl': load_stl,
                 'stl_ascii': load_stl}

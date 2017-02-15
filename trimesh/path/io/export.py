@@ -244,6 +244,7 @@ def _write_export(export, file_obj=None):
     out_file.close()
     return export
 
+
 _path_exporters = {'dxf': export_dxf,
                    'svg': export_svg,
                    'dict': export_dict}

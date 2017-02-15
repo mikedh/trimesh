@@ -17,6 +17,7 @@ class CreationTest(g.unittest.TestCase):
         self.assertTrue(sphere.is_watertight)
         self.assertTrue(sphere.is_winding_consistent)
 
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()

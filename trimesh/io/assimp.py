@@ -70,6 +70,7 @@ def load_cyassimp(file_obj, file_type=None):
 
     return meshes
 
+
 _assimp_formats = [
     'fbx',
     'dae',

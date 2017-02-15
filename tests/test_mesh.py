@@ -81,6 +81,7 @@ class MeshTests(g.unittest.TestCase):
         for mesh in g.get_meshes(5):
             mesh.fix_normals()
 
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()

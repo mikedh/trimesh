@@ -1309,9 +1309,6 @@ def convert_like(item, like):
     return item
 
 
-
-
-
 def bounds_tree(bounds):
     '''
     Given a set of axis aligned bounds, create an r-tree for broad- phase
@@ -1407,23 +1404,23 @@ def histogram_peaks(data,
 
     # (2,) float, start and end of histogram bins
     # round to two signifigant figures
-    edges = [trimesh.util.round_sigfig(i,2) for i in np.percentile(data,
-                                                                   [.1,99.9])]
-                     
-    h,b =  np.histogram(data,
+    edges = [trimesh.util.round_sigfig(i, 2) for i in np.percentile(data,
+                                                                    [.1, 99.9])]
+
+    h, b = np.histogram(data,
                         weights=weights,
                         bins=np.linspace(*edges, num=bins),
                         range=edges,
                         density=False)
-    
+
     # set x to center of histogram bins
-    x = b[:-1] + (b[1]-b[0])/2.0
+    x = b[:-1] + (b[1] - b[0]) / 2.0
 
     if not use_spline:
         return x[h.argsort()]
-    norm = weights.sum()/bins
+    norm = weights.sum() / bins
     normalized = h / norm
-    
+
     from scipy import interpolate
     # create an order 4 spline representing the radii histogram
     # note that scipy only supports root finding of order 3 splines
@@ -1442,16 +1439,17 @@ def histogram_peaks(data,
         x_plt = np.linspace(x[1], x[-2], 500)
         y_plt = spline(x_plt)
 
-        plt.hist(data, weights=weights/norm, bins=b)
+        plt.hist(data, weights=weights / norm, bins=b)
         plt.plot(x_plt, y_plt)
 
         y_max = y_plt.max() * 1.2
         for peak in peaks[-5:]:
-            plt.plot([peak, peak], [0,y_max])
+            plt.plot([peak, peak], [0, y_max])
         plt.show()
-        
+
     return peaks
-    
+
+
 def sigfig_round(values, sigfig=1):
     '''
     Round a single value to a specified number of signifigant figures.
@@ -1480,19 +1478,20 @@ def sigfig_round(values, sigfig=1):
     '''
     as_int, multiplier = sigfig_int(values, sigfig)
     rounded = as_int * (10 ** multiplier)
-    
+
     return rounded
-    
+
+
 def sigfig_int(values, sigfig):
     '''
     Convert a set of floating point values into integers with a specified number
     of signifigant figures and an exponent.
-    
+
     Arguments
     ------------
     values: (n,) float or int, array of values
     sigfig: (n,) int, number of signifigant figures to keep
-    
+
     Returns
     ------------
     as_int:      (n,) int, every value[i] has sigfig[i] digits
@@ -1507,10 +1506,10 @@ def sigfig_int(values, sigfig):
 
     exponent = np.zeros(len(values))
     nonzero = np.abs(values) > _TOL_ZERO
-    exponent[nonzero] = np.floor(np.log10(np.abs(values[nonzero])))    
+    exponent[nonzero] = np.floor(np.log10(np.abs(values[nonzero])))
 
     multiplier = exponent - sigfig + 1
 
     as_int = np.round(values / (10**multiplier)).astype(np.int32)
-    
+
     return as_int, multiplier
