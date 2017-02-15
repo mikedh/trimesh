@@ -1309,37 +1309,7 @@ def convert_like(item, like):
     return item
 
 
-def round_sigfig(value, sigfig=1):
-    '''
-    Round a single value to a specified number of signifigant figures.
 
-    Arguments
-    ----------
-    values: float, value to be rounded
-    sigfig: int, number of signifigant figures to reduce to
-
-
-    Returns
-    ----------
-    rounded: values, but rounded to the specified number of signifigant figures
-
-
-    Example
-    ----------
-    In [1]: trimesh.util.round_sigfig(-232453.00014045456, 1)
-    Out[1]: -200000.0
-
-    In [2]: trimesh.util.round_sigfig(.00014045456, 1)
-    Out[2]: 0.0001
-
-    In [3]: trimesh.util.round_sigfig(.00014045456, 4)
-    Out[3]: 0.0001405
-    '''
-    sigfig = int(sigfig)
-    value = float(value)
-    digits = int(np.floor(np.log10(np.abs(value))))
-    rounded = np.round(value, sigfig - digits - 1)
-    return rounded
 
 
 def bounds_tree(bounds):
@@ -1481,3 +1451,66 @@ def histogram_peaks(data,
         plt.show()
         
     return peaks
+    
+def sigfig_round(values, sigfig=1):
+    '''
+    Round a single value to a specified number of signifigant figures.
+
+    Arguments
+    ----------
+    values: float, value to be rounded
+    sigfig: int, number of signifigant figures to reduce to
+
+
+    Returns
+    ----------
+    rounded: values, but rounded to the specified number of signifigant figures
+
+
+    Example
+    ----------
+    In [1]: trimesh.util.round_sigfig(-232453.00014045456, 1)
+    Out[1]: -200000.0
+
+    In [2]: trimesh.util.round_sigfig(.00014045456, 1)
+    Out[2]: 0.0001
+
+    In [3]: trimesh.util.round_sigfig(.00014045456, 4)
+    Out[3]: 0.0001405
+    '''
+    as_int, multiplier = sigfig_int(values, sigfig)
+    rounded = as_int * (10 ** multiplier)
+    
+    return rounded
+    
+def sigfig_int(values, sigfig):
+    '''
+    Convert a set of floating point values into integers with a specified number
+    of signifigant figures and an exponent.
+    
+    Arguments
+    ------------
+    values: (n,) float or int, array of values
+    sigfig: (n,) int, number of signifigant figures to keep
+    
+    Returns
+    ------------
+    as_int:      (n,) int, every value[i] has sigfig[i] digits
+    multiplier:  (n, int), exponent, so as_int * 10 ** multiplier is 
+                 the same order of magnitude as the input
+    '''
+    values = np.asanyarray(values).reshape(-1)
+    sigfig = np.asanyarray(sigfig, dtype=np.int).reshape(-1)
+
+    if sigfig.shape != values.shape:
+        raise ValueError('sigfig must match identifier')
+
+    exponent = np.zeros(len(values))
+    nonzero = np.abs(values) > _TOL_ZERO
+    exponent[nonzero] = np.floor(np.log10(np.abs(values[nonzero])))    
+
+    multiplier = exponent - sigfig + 1
+
+    as_int = np.round(values / (10**multiplier)).astype(np.int32)
+    
+    return as_int, multiplier
