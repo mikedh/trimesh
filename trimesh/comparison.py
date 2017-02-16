@@ -6,11 +6,11 @@ from .constants import tol
 
 
 # how many signifigant figures to use for each field of the identifier
-identifier_sigfig = (5, # mesh volume, pretty stable
-                     3, # mesh area
-                     2, # ratio of original mesh volume to convex hull volume
-                     6, # euler number of mesh- topological integer
-                     2) # 99.99 percentile vertex radius
+identifier_sigfig = (5,  # mesh volume, pretty stable
+                     3,  # mesh area
+                     2,  # ratio of original mesh volume to convex hull volume
+                     6,  # euler number of mesh- topological integer
+                     2)  # 99.99 percentile vertex radius
 
 
 def identifier_simple(mesh):

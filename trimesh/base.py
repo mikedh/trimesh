@@ -46,7 +46,7 @@ class Trimesh(object):
                  metadata=None,
                  process=True,
                  use_embree=True,
-                 initial_cache = {},
+                 initial_cache={},
                  **kwargs):
         '''
         A Trimesh object contains a triangular 3D mesh.
@@ -75,7 +75,7 @@ class Trimesh(object):
         # the cache is cleared when self._data.crc() changes
         self._cache = util.Cache(id_function=self._data.crc)
         self._cache.update(initial_cache)
-        
+
         # check for None only to avoid warning messages in subclasses
         if vertices is not None:
             # (n, 3) float, set of vertices

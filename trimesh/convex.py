@@ -54,33 +54,33 @@ def convex_hull(obj):
     # calculate the returned normal of each face
     crosses = triangles.cross(vertices[faces])
     normals, valid = triangles.normals(crosses=crosses)
-        
+
     faces = faces[valid]
     crosses = crosses[valid]
     triangles_area = triangles.area(crosses=crosses, sum=False)
     triangles_center = vertices[faces].mean(axis=1)
-    
+
     # since the convex hull is convex, the vector from the centroid to a vertex
     # should have a positive dot product with that faces normal
     # if it doesn't it is probably backwards
     # note that this sometimes gets screwed up by precision issues
     centroid = np.average(triangles_center,
-                        weights=triangles_area,
-                        axis=0)
-    test_vector = vertices[faces[:,0]] - centroid
+                          weights=triangles_area,
+                          axis=0)
+    test_vector = vertices[faces[:, 0]] - centroid
     backwards = util.diagonal_dot(normals,
                                   test_vector) < 0.0
 
     # flip the winding and normals to be outward facing
-    faces[backwards]    = np.fliplr(faces[backwards])
+    faces[backwards] = np.fliplr(faces[backwards])
     normals[backwards] *= -1.0
-    
+
     # save the work we did to the cache so it doesn't have to be recomputed
-    initial_cache = {'triangles_cross' : crosses,
-                     'triangles_center' : triangles_center,
-                     'area_faces' : triangles_area,
-                     'centroid' : centroid}
-    
+    initial_cache = {'triangles_cross': crosses,
+                     'triangles_center': triangles_center,
+                     'area_faces': triangles_area,
+                     'centroid': centroid}
+
     convex = Trimesh(vertices=vertices,
                      faces=faces,
                      face_normals=normals,
@@ -92,7 +92,7 @@ def convex_hull(obj):
     # this call will exit early if the winding is consistent
     # and if not will (slowly) fix it by traversing the adjacency graph
     convex.fix_normals()
-    
+
     return convex
 
 
@@ -119,8 +119,8 @@ def is_convex(mesh, chunks=None):
     normals = mesh.face_normals[mesh.face_adjacency[:, 0]]
     origins = mesh.vertices[mesh.face_adjacency_edges[:, 0]]
 
-    triangles = (mesh.triangles_center[mesh.face_adjacency[:,1]] -
-                 mesh.triangles_center[mesh.face_adjacency[:,0]])
+    triangles = (mesh.triangles_center[mesh.face_adjacency[:, 1]] -
+                 mesh.triangles_center[mesh.face_adjacency[:, 0]])
 
     # in non- convex meshes, we don't necessarily have to compute all
     # dots of every face since we are looking for logical ALL
@@ -135,7 +135,7 @@ def is_convex(mesh, chunks=None):
         dots = util.diagonal_dot(chunk_tri, chunk_norm)
         # if all projections are negative, or 'behind' the triangle
         # the mesh is convex
-        if (dots > tol.merge*mesh.scale).any():
+        if (dots > tol.merge * mesh.scale).any():
             return False
     return True
 

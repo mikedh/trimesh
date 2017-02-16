@@ -17,8 +17,8 @@ class ExportTest(g.unittest.TestCase):
                 self.assertTrue(len(export) > 0)
 
                 if file_type in ['dae',     # collada, no native importers
-                                 'collada', # collada, no native importers
-                                 'msgpack', # kind of flaky, but usually works
+                                 'collada',  # collada, no native importers
+                                 'msgpack',  # kind of flaky, but usually works
                                  'drc']:    # DRC is not a lossless format
                     g.log.warning(
                         'Still no native loaders implemented for collada!')
