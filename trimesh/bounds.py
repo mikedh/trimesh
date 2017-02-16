@@ -105,14 +105,14 @@ def oriented_bounds(obj, angle_digits=2):
     # extract a set of convex hull vertices and normals from the input
     # we bother to do this to avoid recomputing the full convex hull if
     # possible
-    if hasattr(obj, 'convex_hull_raw'):
+    if hasattr(obj, 'convex_hull'):
         # if we have been passed a mesh, use its existing convex hull to pull from
         # cache rather than recomputing. This version of the cached convex hull has
         # normals pointing in arbitrary directions (straight from qhull)
         # using this avoids having to compute the expensive corrected normals
         # that mesh.convex_hull uses since normal directions don't matter here
-        vertices = obj.convex_hull_raw.vertices
-        hull_normals = obj.convex_hull_raw.face_normals
+        vertices = obj.convex_hull.vertices
+        hull_normals = obj.convex_hull.face_normals
     elif util.is_sequence(obj):
         points = np.asanyarray(obj)
         if util.is_shape(points, (-1, 2)):

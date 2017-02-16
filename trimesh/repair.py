@@ -16,7 +16,7 @@ def fix_face_winding(mesh):
     '''
 
     if mesh.is_winding_consistent:
-        log.info('mesh has consistent winding, exiting winding repair')
+        log.debug('consistent winding, exiting repair')
         return
 
     # we create the face adjacency graph:
@@ -141,23 +141,21 @@ def fill_holes(mesh):
     if len(mesh.faces) < 3:
         return False
 
-    edges = mesh.edges
-    edges_sorted = np.sort(edges, axis=1)
-
     # we know that in a watertight mesh, every edge will be included twice
     # thus, every edge which appears only once is part of the boundary of a
     # hole.
-    boundary_groups = group_rows(edges_sorted, require_count=1)
+    boundary_groups = group_rows(mesh.edges_sorted, require_count=1)
 
     if len(boundary_groups) < 3:
         watertight = len(boundary_groups) == 0
         return watertight
 
-    boundary_edges = edges[boundary_groups]
+    boundary_edges = mesh.edges[boundary_groups]
     index_as_dict = [{'index': i} for i in boundary_groups]
 
     # we create a graph of the boundary edges, and find cycles.
-    graph = nx.from_edgelist(np.column_stack((boundary_edges, index_as_dict)))
+    graph = nx.from_edgelist(np.column_stack((boundary_edges,
+                                              index_as_dict)))
     cycles = np.array(nx.cycle_basis(graph))
 
     new_faces = deque()
@@ -187,7 +185,7 @@ def fill_holes(mesh):
         # we compare the edge from the new face with
         # the boundary edge from the source mesh
         edge_test = face[0:2]
-        edge_boundary = edges[graph.get_edge_data(*edge_test)['index']]
+        edge_boundary = mesh.edges[graph.get_edge_data(*edge_test)['index']]
 
         # in a well construced mesh, the winding is such that adjacent triangles
         # have reversed edges to each other. Here we check to make sure the

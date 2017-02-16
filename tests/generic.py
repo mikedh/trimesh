@@ -71,11 +71,11 @@ def get_mesh(file_name, **kwargs):
 
 
 def get_meshes(count=None):
-    ls = os.listdir(dir_models)
+    file_names = np.random.permutation(os.listdir(dir_models))
     if count is None:
-        count = len(ls)
+        count = len(file_names)
     meshes = deque()
-    for file_name in ls:
+    for file_name in file_names:
         extension = os.path.splitext(file_name)[-1][1:].lower()
         if extension in trimesh.available_formats():
             loaded = get_mesh(file_name)

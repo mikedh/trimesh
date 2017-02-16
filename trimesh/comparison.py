@@ -5,7 +5,12 @@ from . import util
 from .constants import tol
 
 
-identifier_sigfig = (4, 2, 1, 5, 2)
+# how many signifigant figures to use for each field of the identifier
+identifier_sigfig = (5, # mesh volume, pretty stable
+                     3, # mesh area
+                     2, # ratio of original mesh volume to convex hull volume
+                     6, # euler number of mesh- topological integer
+                     2) # 99.99 percentile vertex radius
 
 
 def identifier_simple(mesh):
@@ -30,7 +35,7 @@ def identifier_simple(mesh):
     '''
     identifier = np.array([mesh.volume,
                            mesh.area,
-                           mesh.area / mesh.convex_hull_raw.area,
+                           mesh.volume / mesh.convex_hull.volume,
                            mesh.euler_number,
                            0.0],
                           dtype=np.float64)
@@ -61,6 +66,7 @@ def identifier_hash(identifier, sigfig=None):
     if sigfig is None:
         sigfig = identifier_sigfig
     as_int, multiplier = util.sigfig_int(identifier, sigfig)
+    multiplier += np.abs(multiplier.min())
     hashable = (as_int * (10 ** multiplier)).astype(np.int32)
     md5 = util.md5_object(hashable)
     return md5

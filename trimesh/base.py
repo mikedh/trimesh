@@ -46,6 +46,7 @@ class Trimesh(object):
                  metadata=None,
                  process=True,
                  use_embree=True,
+                 initial_cache = {},
                  **kwargs):
         '''
         A Trimesh object contains a triangular 3D mesh.
@@ -73,7 +74,8 @@ class Trimesh(object):
         # self._data, but may be slow to calculate. In order to maintain consistency
         # the cache is cleared when self._data.crc() changes
         self._cache = util.Cache(id_function=self._data.crc)
-
+        self._cache.update(initial_cache)
+        
         # check for None only to avoid warning messages in subclasses
         if vertices is not None:
             # (n, 3) float, set of vertices
@@ -1067,32 +1069,16 @@ class Trimesh(object):
         return path
 
     @util.cache_decorator
-    def convex_hull_raw(self):
-        '''
-        The raw convex hull from qhull which has inconsistent face winding
-        and face normals. This is exposed as fixing winding (as in mesh.convex_hull)
-        is quite expensive, and if normals or winding aren't required to be consistent
-        using this attribute will result in a signifigant speedup.
-
-        Returns
-        ---------
-        hull: Trimesh object, raw from qhull with backwards faces
-        '''
-        hull = convex.convex_hull(self, clean=False)
-        return hull
-
-    @util.cache_decorator
     def convex_hull(self):
         '''
         Get a new Trimesh object representing the convex hull of the
-        current mesh. Requires scipy >.12.
+        current mesh. 
 
         Returns
         --------
         convex: Trimesh object of convex hull of current mesh
         '''
-        hull = self.convex_hull_raw.copy()
-        hull.fix_normals()
+        hull = convex.convex_hull(self)
         return hull
 
     def sample(self, count):

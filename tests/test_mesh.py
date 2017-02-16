@@ -33,16 +33,9 @@ class MeshTests(g.unittest.TestCase):
 
             self.assertTrue(mesh.volume > 0.0)
 
-            section = mesh.section(
-                plane_normal=[0, 0, 1], plane_origin=mesh.centroid)
-            hull = mesh.convex_hull
-
-            volume_ok = hull.volume > 0.0
-            if not volume_ok:
-                g.log.error('zero hull volume for %s',
-                            mesh.metadata['file_name'])
-            self.assertTrue(volume_ok)
-
+            section = mesh.section(plane_normal=[0, 0, 1],
+                                   plane_origin=mesh.centroid)
+            
             sample = mesh.sample(1000)
             even_sample = g.trimesh.sample.sample_surface_even(mesh, 100)
             self.assertTrue(sample.shape == (1000, 3))

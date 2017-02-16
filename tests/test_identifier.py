@@ -25,14 +25,23 @@ class IdentifierTest(g.unittest.TestCase):
             ok = (result[0] == result[1:]).all()
 
             if not ok:
-                debug = [g.np.append(
-                    *g.trimesh.util.sigfig_int(a, g.trimesh.comparison.identifier_sigfig)) for a in idf]
-
+                debug = []
+                for a in idf:
+                    as_int, exp = g.trimesh.util.sigfig_int(a,
+                                                            g.trimesh.comparison.identifier_sigfig)
+                    debug.append(g.np.append(as_int, exp))
                 g.log.error('Hashes on %s differ after transform! diffs:\n %s\n',
                             mesh.metadata['file_name'],
-                            str(g.np.array(debug)))
-            self.assertTrue(ok)
+                            str(g.np.array(debug, dtype=g.np.int)))
+                self.assertTrue(False)
 
+            if md5[-1] == permutated.permutate.noise(mesh.scale/100.0).identifier_md5:
+                g.log.error('Hashes on %s didn\'t change after noise!',
+                            mesh.metadata['file_name'])
+                self.assertTrue(False)
+
+            
+            
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
