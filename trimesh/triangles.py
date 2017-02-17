@@ -260,11 +260,19 @@ def nondegenerate(triangles, areas=None):
     length_a = (a**2).sum(axis=1)**.5
     length_b = (b**2).sum(axis=1)**.5
 
-    height_a = (areas * 2) / length_a
-    height_b = (areas * 2) / length_b
+    nonzero_a = length_a > tol.merge
+    nonzero_b = length_b > tol.merge
+    
+    height_a = (areas[nonzero_a] * 2) / length_a[nonzero_a]
+    height_b = (areas[nonzero_b] * 2) / length_b[nonzero_b]
 
-    ok = np.logical_and(height_a > tol.merge,
-                        height_b > tol.merge)
+    check_a = np.zeros(len(triangles), dtype=np.bool)
+    check_b = np.zeros(len(triangles), dtype=np.bool)
+    check_a[nonzero_a] = height_a > tol.merge
+    check_b[nonzero_b] = height_b > tol.merge
+    
+    ok = np.logical_and(check_a, check_b)
+                        
     return ok
 
 
