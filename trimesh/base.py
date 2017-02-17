@@ -953,7 +953,8 @@ class Trimesh(object):
         Remove degenerate faces (faces without 3 unique vertex indices)
         from the current mesh.
         '''
-        nondegenerate = triangles.nondegenerate(self.triangles)
+        nondegenerate = triangles.nondegenerate(triangles=self.triangles,
+                                                areas=self.area_faces)
         self.update_faces(nondegenerate)
 
     def facets(self, return_area=False, **kwargs):

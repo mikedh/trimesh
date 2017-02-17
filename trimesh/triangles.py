@@ -19,7 +19,7 @@ def cross(triangles):
     return crosses
 
 
-def area(triangles=None, crosses=None, sum=True):
+def area(triangles=None, crosses=None, sum=False):
     '''
     Calculates the sum area of input triangles
 
@@ -231,10 +231,11 @@ def bounds_tree(triangles):
     return tree
 
 
-def nondegenerate(triangles):
+def nondegenerate(triangles, areas=None):
     '''
     Find all triangles which have nonzero area.
-    Degenerate triangles are divided into two cases:
+
+    Degenerate triangles can be when:
     1) Two of the three vertices are colocated
     2) All three vertices are unique but colinear
 
@@ -250,19 +251,20 @@ def nondegenerate(triangles):
     if not util.is_shape(triangles, (-1, 3, 3)):
         raise ValueError('Triangles must be (n,3,3)!')
 
-    a, valid_a = util.unitize(
-        triangles[:, 1] - triangles[:, 0], check_valid=True)
-    b, valid_b = util.unitize(
-        triangles[:, 2] - triangles[:, 0], check_valid=True)
+    if areas is None:
+        areas = area(triangles=triangles, sum=False)
+    
+    a = triangles[:, 1] - triangles[:, 0]
+    b = triangles[:, 2] - triangles[:, 0]
 
-    diff = np.zeros((len(triangles), 3))
-    diff[valid_a] = a
-    diff[valid_b] -= b
+    length_a = (a**2).sum(axis=1)**.5
+    length_b = (b**2).sum(axis=1)**.5
 
-    ok = (np.abs(diff) > tol.merge).any(axis=1)
-    ok[np.logical_not(valid_a)] = False
-    ok[np.logical_not(valid_b)] = False
+    height_a = (areas * 2) / length_a
+    height_b = (areas * 2) / length_b
 
+    ok = np.logical_and(height_a > tol.merge,
+                        height_b > tol.merge)
     return ok
 
 

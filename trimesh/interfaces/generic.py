@@ -18,18 +18,20 @@ class MeshScript:
         # windows has problems with multiple programs using open files so we close
         # them at the end of the enter call, and delete them ourselves at the
         # exit
-        self.mesh_pre = [NamedTemporaryFile(
-            suffix='.STL', mode='wb', delete=False) for i in self.meshes]
-        self.mesh_post = NamedTemporaryFile(
-            suffix='.STL', mode='rb', delete=False)
-        self.script_out = NamedTemporaryFile(mode='wb', delete=False)
+        self.mesh_pre = [NamedTemporaryFile(suffix='.STL',
+                                            mode='wb',
+                                            delete=False) for i in self.meshes]
+        self.mesh_post = NamedTemporaryFile(suffix='.STL',
+                                            mode='rb',
+                                            delete=False)
+        self.script_out = NamedTemporaryFile(mode='wb',
+                                             delete=False)
 
         # export the meshes to a temporary STL container
         for mesh, file_obj in zip(self.meshes, self.mesh_pre):
             mesh.export(file_type='stl', file_obj=file_obj.name)
 
-        self.replacement = {
-            'mesh_' + str(i): m.name for i, m in enumerate(self.mesh_pre)}
+        self.replacement = {'mesh_' + str(i): m.name for i, m in enumerate(self.mesh_pre)}
         self.replacement['mesh_pre'] = str([i.name for i in self.mesh_pre])
         self.replacement['mesh_post'] = self.mesh_post.name
         self.replacement['script'] = self.script_out.name
@@ -42,7 +44,6 @@ class MeshScript:
         self.mesh_post.close()
         for file_obj in self.mesh_pre:
             file_obj.close()
-
         return self
 
     def run(self, command):

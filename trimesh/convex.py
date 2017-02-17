@@ -96,7 +96,7 @@ def convex_hull(obj):
     return convex
 
 
-def is_convex(mesh, chunks=None):
+def is_convex(mesh):
     '''
     Test if a mesh is convex by projecting the vertices of
     a triangle onto the normal of its adjacent face.
@@ -109,35 +109,25 @@ def is_convex(mesh, chunks=None):
     ----------
     convex: bool, is the mesh convex or not
     '''
-    chunk_block = 5e4
-    if chunks is None:
-        chunks = int(np.clip(len(mesh.faces) / chunk_block, 1, 10))
-
-    # triangles from the second column of face adjacency
-    #triangles = mesh.triangles.copy()[mesh.face_adjacency[:, 1]]
     # normals and origins from the first column of face adjacency
     normals = mesh.face_normals[mesh.face_adjacency[:, 0]]
+    # one of the vertices on the shared edge
     origins = mesh.vertices[mesh.face_adjacency_edges[:, 0]]
 
-    triangles = (mesh.triangles_center[mesh.face_adjacency[:, 1]] -
-                 mesh.triangles_center[mesh.face_adjacency[:, 0]])
+    # faces from the second column of face adjacency
+    faces = mesh.faces[mesh.face_adjacency[:,1]]
+    shared = np.logical_or(faces == mesh.face_adjacency_edges[:,0].reshape((-1,1)),
+                           faces == mesh.face_adjacency_edges[:,1].reshape((-1,1)))
+    vertex_other = mesh.vertices[faces[np.logical_not(shared)]]
 
-    # in non- convex meshes, we don't necessarily have to compute all
-    # dots of every face since we are looking for logical ALL
-    for chunk_tri, chunk_norm in zip(np.array_split(triangles, chunks),
-                                     np.array_split(normals, chunks)):
-        # project vertices of adjacent triangle onto normal
-        # note that two of these are always going to be zero so we
-        # are doing more dot products than we really have to but finding
-        # the index of the the third vertex through graph op is way slower
-        # than doing extra dot products.
-        # there is probably a clever way to use the winding to get this forfree
-        dots = util.diagonal_dot(chunk_tri, chunk_norm)
-        # if all projections are negative, or 'behind' the triangle
-        # the mesh is convex
-        if (dots > tol.merge * mesh.scale).any():
-            return False
-    return True
+    vector_other = vertex_other - origins
+    length_other = (vector_other ** 2).sum(axis=1) ** .5
+        
+    dots = util.diagonal_dot(vector_other,
+                             normals)
+    check = dots #/ np.clip(length_other, 1.0, np.inf)
+    convex = (check < tol.merge).all()
+    return bool(convex)
 
 
 def planar_hull(points, normal, origin=None, input_convex=False):

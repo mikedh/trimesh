@@ -7,6 +7,7 @@ import itertools
 import inspect
 import logging
 import os
+import sys
 import json
 import time
 
@@ -74,6 +75,7 @@ def get_meshes(count=None):
     file_names = np.random.permutation(os.listdir(dir_models))
     if count is None:
         count = len(file_names)
+            
     meshes = deque()
     for file_name in file_names:
         extension = os.path.splitext(file_name)[-1][1:].lower()
