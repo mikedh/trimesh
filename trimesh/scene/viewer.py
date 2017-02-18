@@ -245,7 +245,7 @@ class SceneViewer(pyglet.window.Window):
             # if the flag isn't defined, this will be None
             # by checking False explicitly, it makes the default
             # behaviour to render meshes with no flag defined.
-            if self.node_flag(name_node, 'visible') == False:
+            if self.node_flag(name_node, 'visible') is False:
                 continue
 
             mesh = self.scene.geometry[name_mesh]

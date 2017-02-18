@@ -4,7 +4,7 @@ import generic as g
 class ConvexTest(g.unittest.TestCase):
 
     def test_convex(self):
-        for mesh in g.get_meshes():
+        for mesh in g.get_meshes(10):
             hulls = []
             for i in range(50):
                 permutated = mesh.permutate.transform()
@@ -31,6 +31,13 @@ class ConvexTest(g.unittest.TestCase):
                 raise ValueError('mesh %s reported non-watertight hull!',
                                   mesh.metadata['file_name'])
             '''
+
+    def test_primitives(self):
+        for prim in [g.trimesh.primitives.Sphere(),
+                     g.trimesh.primitives.Cylinder(),
+                     g.trimesh.primitives.Box()]:
+            self.assertTrue(prim.is_convex)
+                     
             
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

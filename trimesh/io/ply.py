@@ -90,7 +90,7 @@ def read_ply_header(file_obj):
               'float32': 'f4',
               'double': 'f8'}
 
-    if not 'ply' in str(file_obj.readline()):
+    if 'ply' not in str(file_obj.readline()):
         raise ValueError('This aint a ply file')
 
     encoding = file_obj.readline().decode('utf-8').strip().lower()

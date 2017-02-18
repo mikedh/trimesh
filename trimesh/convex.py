@@ -125,8 +125,7 @@ def is_convex(mesh):
         
     dots = util.diagonal_dot(vector_other,
                              normals)
-    check = dots #/ np.clip(length_other, 1.0, np.inf)
-    convex = (check < tol.merge).all()
+    convex = (dots < tol.merge).all()
     return bool(convex)
 
 

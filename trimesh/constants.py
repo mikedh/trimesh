@@ -37,7 +37,7 @@ class NumericalResolutionMesh(object):
     '''
 
     def __init__(self, **kwargs):
-        self.mesh = 5e-3
+        self.mesh = .01
 
         self.__dict__.update(kwargs)
 

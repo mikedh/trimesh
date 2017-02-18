@@ -1,10 +1,9 @@
 import numpy as np
 
 from .constants import log, tol
-from .grouping import unique_value_in_row
 
 from . import util
-
+from . import grouping
 
 def mesh_plane(mesh,
                plane_normal,
@@ -102,7 +101,7 @@ def mesh_plane(mesh,
 
     def handle_basic(signs, faces, vertices):
         # case where one vertex is on one side and two are on the other
-        unique_element = unique_value_in_row(signs, unique=[-1, 1])
+        unique_element = grouping.unique_value_in_row(signs, unique=[-1, 1])
         edges = np.column_stack((faces[unique_element],
                                  faces[np.roll(unique_element, 1, axis=1)],
                                  faces[unique_element],

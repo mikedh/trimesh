@@ -7,7 +7,6 @@ from .. import util
 
 from ..base import Trimesh
 from ..constants import _log_time, log
-from ..util import is_file, is_string, make_sequence, is_instance_named
 
 from .assimp import _assimp_loaders
 from .stl import _stl_loaders
@@ -55,28 +54,32 @@ def load(file_obj, file_type=None, **kwargs):
     '''
     # check to see if we're trying to load something that is already a Trimesh
     out_types = ('Trimesh', 'Path')
-    if any(is_instance_named(file_obj, t) for t in out_types):
+    if any(util.is_instance_named(file_obj, t) for t in out_types):
         log.info('Loaded called on %s object, returning input',
                  file_obj.__class__.__name__)
         return file_obj
 
-    file_obj, file_type, metadata = _parse_file_args(file_obj, file_type)
-
+    (file_obj,
+     file_type,
+     metadata) = _parse_file_args(file_obj, file_type)
+    
     if file_type in path_formats():
         loaded = load_path(file_obj, file_type, **kwargs)
-    elif file_type in mesh_formats():
+    elif file_type in mesh_loaders:
         loaded = load_mesh(file_obj, file_type, **kwargs)
+    elif file_type in compressed_loaders:
+        loaded = load_compressed(file_obj, file_type, **kwargs)
+        metadata = {}
     else:
         raise ValueError('File type: %s not supported', str(file_type))
 
     for i in util.make_sequence(loaded):
         # check to make sure loader actually loaded something
-        # assert any(is_instance_named(i, t) for t in out_types)
+        # assert any(util.is_instance_named(i, t) for t in out_types)
         i.metadata.update(metadata)
 
     return loaded
-
-
+    
 @_log_time
 def load_mesh(file_obj, file_type=None, **kwargs):
     '''
@@ -101,14 +104,14 @@ def load_mesh(file_obj, file_type=None, **kwargs):
 
     loaded = mesh_loaders[file_type](file_obj,
                                      file_type)
-    if is_file(file_obj):
+    if util.is_file(file_obj):
         file_obj.close()
 
     log.debug('loaded mesh using %s',
               mesh_loaders[file_type].__name__)
 
     meshes = collections.deque()
-    for mesh_kwargs in make_sequence(loaded):
+    for mesh_kwargs in util.make_sequence(loaded):
         mesh_kwargs.update(kwargs)
         mesh = Trimesh(**mesh_kwargs)
         mesh.metadata.update(metadata)
@@ -118,8 +121,42 @@ def load_mesh(file_obj, file_type=None, **kwargs):
         return meshes[0]
     return np.array(meshes)
 
+def load_compressed(file_obj, file_type=None):
+    '''
+    Given a compressed archive, load all the geometry that we can from it.
 
-def _parse_file_args(file_obj, file_type):
+    Arguments
+    ----------
+    file_obj: open file-like object
+    file_type: str, type of file
+
+    Returns
+    ----------
+    geometries: list of geometry objects
+    '''
+    # turn a string into a file obj and type
+    (file_obj,
+     file_type,
+     metadata) = _parse_file_args(file_obj, file_type)
+    
+    # a dict of 'name' : file-like object
+    files = util.decompress(file_obj=file_obj,
+                            file_type=file_type)
+    geometries = collections.deque()
+    for name, data in files.items():
+        compressed_type = util.split_extension(name).lower()
+        if not compressed_type in available_formats():
+            continue
+        metadata['file_path'] = name
+        metadata['file_name'] = os.path.basename(name)
+        geometry = load(file_obj=data,
+                        file_type=compressed_type,
+                        metadata=metadata)
+        geometries.append(geometry)
+    return np.array(geometries)
+
+
+def _parse_file_args(file_obj, file_type, **kwargs):
     '''
     Given a file_obj and a file_type, try to turn them into a file-like object
     and a lowercase string of file type
@@ -160,6 +197,10 @@ def _parse_file_args(file_obj, file_type):
     file_type: str, lower case of the type of file (eg 'stl', 'dae', etc)
     '''
     metadata = {}
+    if ('metadata' in kwargs and
+        isinstance(kwargs['metadata'], dict)):
+        metadata.update(kwargs['metadata'])
+    
 
     if util.is_file(file_obj) and file_type is None:
         raise ValueError(
@@ -167,13 +208,13 @@ def _parse_file_args(file_obj, file_type):
     if util.is_string(file_obj):
         try:
             exists = os.path.isfile(file_obj)
-        except:
+        except TypeError:
             exists = False
         if exists:
             metadata['file_path'] = file_obj
             metadata['file_name'] = os.path.basename(file_obj)
             # if file_obj is a path that exists use extension as file_type
-            file_type = (str(file_obj).split('.')[-1])
+            file_type = util.split_extension(file_obj, special=['tar.gz', 'tar.bz2'])
             file_obj = open(file_obj, 'rb')
         else:
             if file_type is not None:
@@ -189,15 +230,19 @@ def _parse_file_args(file_obj, file_type):
     if file_type is None:
         file_type = file_obj.__class__.__name__
 
-    if is_string(file_type) and '.' in file_type:
+    if util.is_string(file_type) and '.' in file_type:
         # if someone has passed the whole filename as the file_type
         # use the file extension as the file_type
+        metadata['file_path'] = file_type
         metadata['file_name'] = os.path.basename(file_type)
-        file_type = file_type.split('.')[-1]
+        file_type = util.split_extension(file_type)
     file_type = file_type.lower()
     return file_obj, file_type, metadata
 
 
+compressed_loaders = {'zip'     : load_compressed,
+                      'tar.bz2' : load_compressed,
+                      'tar.gz'  : load_compressed}
 mesh_loaders = {}
 # assimp has a lot of loaders, but they are all quite slow
 # so we load them first and replace them with native loaders if possible

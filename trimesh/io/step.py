@@ -44,6 +44,7 @@ def load_step(file_obj, file_type=None):
         with NamedTemporaryFile(suffix='.STEP') as in_file:
             if hasattr(file_obj, 'read'):
                 in_file.write(file_obj.read())
+                in_file.flush()
                 in_file.seek(0)
                 file_name = in_file.name
             else:

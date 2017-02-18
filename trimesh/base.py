@@ -905,9 +905,8 @@ class Trimesh(object):
         is_watertight: bool, is mesh watertight or not
         '''
 
-        watertight, reversed = graph.is_watertight(self.edges,
-                                                   return_winding=True)
-        self._cache['is_watertight'] = watertight
+        watertight, reversed = graph.is_watertight(edges=self.edges,
+                                                   edges_sorted=self.edges_sorted)
         self._cache['is_winding_consistent'] = reversed
         return watertight
 
