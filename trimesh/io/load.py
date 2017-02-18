@@ -36,8 +36,10 @@ def mesh_formats():
 
 
 def available_formats():
-    return np.append(mesh_formats(), path_formats())
-
+    formats = np.hstack((list(compressed_loaders.keys()),
+                         mesh_formats(),
+                         path_formats()))
+    return formats
 
 def load(file_obj, file_type=None, **kwargs):
     '''

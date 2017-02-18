@@ -49,14 +49,15 @@ def noise(mesh, magnitude=None):
     if magnitude is None:
         magnitude = mesh.scale / 100.0
 
-    # make sure we've re- ordered faces randomly
-    faces = np.random.permutation(mesh.faces)
-    vertices = mesh.vertices + \
-        ((np.random.random(mesh.vertices.shape) - .5) * magnitude)
+    random = (np.random.random(mesh.vertices.shape) - .5) * magnitude
+    vertices = mesh.vertices.copy() + random 
 
+    # make sure we've re- ordered faces randomly
+    triangles = np.random.permutation(vertices[mesh.faces].reshape((-1, 3)))
+    
     mesh_type = util.type_named(mesh, 'Trimesh')
-    permutated = mesh_type(vertices=vertices,
-                           faces=faces)
+    permutated = mesh_type(vertices=triangles,
+                           faces=np.arange(len(mesh.faces) * 3).reshape((-1, 3)))
     return permutated
 
 

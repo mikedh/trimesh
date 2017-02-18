@@ -4,26 +4,35 @@ import generic as g
 class PermutateTest(g.unittest.TestCase):
 
     def test_permutate(self):
+        def close(a,b):
+            if len(a) == len(b) == 0:
+                return False
+            if a.shape != b.shape:
+                return False
+            return g.np.allclose(a,b)
+        
         def make_assertions(mesh, test):
-            self.assertFalse(g.np.allclose(test.faces,
-                                           mesh.faces))
-            self.assertFalse(g.np.allclose(test.face_adjacency,
-                                           mesh.face_adjacency))
-            self.assertFalse(g.np.allclose(test.face_adjacency_edges,
-                                           mesh.face_adjacency_edges))
-            self.assertFalse(g.np.allclose(test.vertices,
-                                           mesh.vertices))
+            if close(test.face_adjacency,
+                     mesh.face_adjacency):
+                raise ValueError('face adjacency of %s the same after permutation!',
+                                 mesh.metadata['file_name'])
+
+            self.assertFalse(close(test.faces,
+                                   mesh.faces))
+            self.assertFalse(close(test.face_adjacency_edges,
+                                   mesh.face_adjacency_edges))
+            self.assertFalse(close(test.vertices,
+                                   mesh.vertices))
             self.assertFalse(test.md5() == mesh.md5())
 
-        for mesh in g.get_meshes(5):
+        for mesh in g.get_meshes():
             original = mesh.copy()
-            noise = g.trimesh.permutate.noise(mesh)
-            noise_1 = g.trimesh.permutate.noise(
-                mesh, magnitude=mesh.scale / 50.0)
+            
+            noise = g.trimesh.permutate.noise(mesh,
+                                              magnitude=mesh.scale / 50.0)
             transform = g.trimesh.permutate.transform(mesh)
 
             make_assertions(mesh, noise)
-            make_assertions(mesh, noise_1)
             make_assertions(mesh, transform)
 
             # make sure permutate didn't alter the original mesh
