@@ -253,7 +253,7 @@ class Scene:
         '''
         export = {'transforms': self.transforms.export(),
                   'nodes': self.nodes,
-                  'meshes': {},
+                  'geometry': {},
                   'scene_cache': self._cache.cache}
 
         if file_type is None:
@@ -262,13 +262,13 @@ class Scene:
 
         # if the mesh has an export method use it, otherwise put the mesh
         # itself into the export object
-        for node, mesh in self.geometry.items():
-            if hasattr(mesh, 'export'):
+        for node, geometry in self.geometry.items():
+            if hasattr(geometry, 'export'):
                 if isinstance(file_type, dict):
                     # case where we have export types that are different
                     # for different classes of objects.
                     for query_class, query_format in file_type.items():
-                        if util.is_instance_named(mesh, query_class):
+                        if util.is_instance_named(geometry, query_class):
                             export_type = query_format
                             break
                 else:
@@ -277,12 +277,12 @@ class Scene:
                     # 'ply')
                     export_type = file_type
 
-                export['meshes'][node] = {'bytes': mesh.export(file_type=export_type),
-                                          'file_type': export_type}
+                export['geometry'][node] = {'bytes': geometry.export(file_type=export_type),
+                                            'file_type': export_type}
             else:
                 # case where mesh object doesn't have exporter
                 # might be that someone replaced the mesh with a URL
-                export['meshes'][node] = mesh
+                export['geometry'][node] = geometry
         return export
 
     def save_image(self, file_obj, resolution=(1024, 768), **kwargs):
