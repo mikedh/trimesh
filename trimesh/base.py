@@ -1062,7 +1062,7 @@ class Trimesh(object):
         from .io.load import load_path
         lines = intersections.mesh_plane(mesh=self,
                                          plane_normal=plane_normal,
-                                         plane_origin=plane_origin)
+                                         plane_origin=plane_origin)[0]
         if len(lines) == 0:
             raise ValueError('Specified plane doesn\'t intersect mesh!')
         path = load_path(lines)
