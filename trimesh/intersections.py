@@ -143,6 +143,7 @@ def mesh_plane(mesh,
     lines = np.vstack([h(signs[c],
                          mesh.faces[c],
                          mesh.vertices) for c, h in zip(cases, handlers)])
+    face_index = [np.nonzero(c)[0] for c in cases]
 
     log.debug('mesh_cross_section found %i intersections', len(lines))
 

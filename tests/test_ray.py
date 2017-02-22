@@ -23,20 +23,24 @@ class RayTests(g.unittest.TestCase):
             self.assertTrue(broken == 0)
 
     def test_rps(self):
-        dimension = (10000, 3)
-        sphere = g.get_mesh('unit_sphere.STL', use_embree=False)
+        for use_embree in [True, False]:
+            dimension = (10000, 3)
+            sphere = g.get_mesh('unit_sphere.STL', 
+                                use_embree=use_embree) 
 
-        ray_origins = g.np.random.random(dimension)
-        ray_directions = g.np.tile([0, 0, 1], (dimension[0], 1))
-        ray_origins[:, 2] = -5
+            ray_origins = g.np.random.random(dimension)
+            ray_directions = g.np.tile([0, 0, 1], (dimension[0], 1))
+            ray_origins[:, 2] = -5
 
-        # force ray object to allocate tree before timing it
-        #tree = sphere.ray.tree
-        tic = g.time.time()
-        sphere.ray.intersects_id(ray_origins, ray_directions)
-        toc = g.time.time()
-        rps = dimension[0] / (toc - tic)
-        g.log.info('Measured %f rays/second', rps)
+            # force ray object to allocate tree before timing it
+            #tree = sphere.ray.tree
+            tic = g.time.time()
+            sphere.ray.intersects_id(ray_origins, ray_directions)
+            toc = g.time.time()
+            rps = dimension[0] / (toc - tic)
+            g.log.info('Measured %f rays/second with embree %d', 
+                       rps,
+                       use_embree)
 
     def test_contains(self):
         mesh = g.get_mesh('unit_cube.STL')
