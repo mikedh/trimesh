@@ -21,7 +21,7 @@ deploy:
 
 before_install:
 - sudo apt-get update
-- sudo apt-get install -y openscad blender
+- sudo apt-get install -y libgeos-dev libspatialindex-dev libopenscad blender
 
 install:
   # We do this conditionally because it saves us some downloading if the
@@ -36,13 +36,13 @@ install:
   - hash -r
   - conda config --set always_yes yes --set changeps1 no
   - conda config --add channels conda-forge  # rtree, shapely, pyembree
-  - conda config --add channels menpo        # cyassimp
   - conda update -q conda
-  # Useful for debugging any issues with conda
   - conda info -a
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy
   - source activate test-environment
-  - conda install rtree shapely pyembree
+  - if [[ "$TRAVIS_PYTHON_VERSION" != "3.3" ]]; then
+      conda install pyembree
+    fi
   - pip install .[all]
   - pip install nose2
 
