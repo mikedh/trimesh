@@ -41,7 +41,7 @@ install:
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy
   - source activate test-environment
   - if [[ "$TRAVIS_PYTHON_VERSION" != "3.3" ]]; then
-      conda install pyembree
+      conda install pyembree;
     fi
   - pip install .[all]
   - pip install nose2
