@@ -21,7 +21,7 @@ deploy:
 
 before_install:
 - sudo apt-get update
-- sudo apt-get install -y libgeos-dev libspatialindex-dev libopenscad blender
+- sudo apt-get install -y libgeos-dev libspatialindex-dev openscad blender
 
 install:
   # We do this conditionally because it saves us some downloading if the
