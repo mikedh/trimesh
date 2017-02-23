@@ -1060,12 +1060,15 @@ class Trimesh(object):
         '''
 
         from .io.load import load_path
-        lines = intersections.mesh_plane(mesh=self,
-                                         plane_normal=plane_normal,
-                                         plane_origin=plane_origin)
+        lines, face_index = intersections.mesh_plane(mesh=self,
+                                                     plane_normal=plane_normal,
+                                                     plane_origin=plane_origin,
+                                                     return_faces=True)
         if len(lines) == 0:
             raise ValueError('Specified plane doesn\'t intersect mesh!')
         path = load_path(lines)
+        path.metadata['face_index'] = face_index
+        
         return path
 
     @util.cache_decorator

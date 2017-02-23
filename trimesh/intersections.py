@@ -7,7 +7,8 @@ from . import grouping
 
 def mesh_plane(mesh,
                plane_normal,
-               plane_origin):
+               plane_origin,
+               return_faces=False):
     '''
     Find a the intersections between a mesh and a plane,
     returning a set of line segments on that plane.
@@ -17,10 +18,12 @@ def mesh_plane(mesh,
     mesh:          Trimesh object
     plane_normal:  (3,) float, plane normal
     plane_origin:  (3,) float, plane origin
+    return_faces:  bool, if True return face index line is from
 
     Returns
     ----------
-    (m, 2, 3) float, list of 3D line segments
+    lines:      (m, 2, 3) float, list of 3D line segments
+    face_index: (m,) int, index of mesh.faces for each line
     '''
 
     def triangle_cases(signs):
@@ -143,10 +146,11 @@ def mesh_plane(mesh,
     lines = np.vstack([h(signs[c],
                          mesh.faces[c],
                          mesh.vertices) for c, h in zip(cases, handlers)])
-    face_index = [np.nonzero(c)[0] for c in cases]
 
     log.debug('mesh_cross_section found %i intersections', len(lines))
-
+    if return_faces:
+        face_index = np.hstack([np.nonzero(c)[0] for c in cases])
+        return lines, face_index
     return lines
 
 
