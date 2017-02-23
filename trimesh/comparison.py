@@ -66,7 +66,8 @@ def identifier_hash(identifier, sigfig=None):
     if sigfig is None:
         sigfig = identifier_sigfig
     as_int, multiplier = util.sigfig_int(identifier, sigfig)
-    multiplier[multiplier < 0] += np.abs(multiplier.min())
-    hashable = (as_int * (10 ** multiplier)).astype(np.int32)
+    if (multiplier < 0).any():
+        multiplier += np.abs(multiplier.min())
+    hashable = (as_int * (10 ** multiplier)).astype(np.int64)
     md5 = util.md5_object(hashable)
     return md5

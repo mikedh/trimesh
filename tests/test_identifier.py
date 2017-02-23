@@ -28,8 +28,9 @@ class IdentifierTest(g.unittest.TestCase):
                 debug = []
                 for a in idf:
                     as_int, exp = g.trimesh.util.sigfig_int(a,
-                                                            g.trimesh.comparison.identifier_sigfig)
-                    debug.append(g.np.append(as_int, exp))
+                    g.trimesh.comparison.identifier_sigfig)
+                    
+                    debug.append(as_int * (10**exp))
                 g.log.error('Hashes on %s differ after transform! diffs:\n %s\n',
                             mesh.metadata['file_name'],
                             str(g.np.array(debug, dtype=g.np.int)))
