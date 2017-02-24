@@ -85,14 +85,25 @@ def bounds_to_size(bounds):
 
 def pack_rectangles(rectangles, sheet_size, shuffle=False):
     '''
-    Pack smaller rectangles onto a larger rectangle, using a binary space partition tree.
+    Pack smaller rectangles onto a larger rectangle, using a binary 
+    space partition tree.
 
-    Parameters
+    Arguments
     ----------
-    rectangles: (n,2) array of (width, height) pairs representing the smaller rectangles to be packed.
-    sheet_size: (2) array of (width, height) pair representing the sheet size the smaller rectangles will be packed onto.
-    shuffle: boolean, whether or not to shuffle the insert order of the smaller rectangles, as the final packing density depends on the order of which rectangles are inserted onto the larger sheet.
-    density_escape: float, at what density should the loop exit early and return. A value of zero will return immediately after a single rectangle is placed, and a value of >= 1.0 will always traverse the entire list of smaller rectangles.
+    rectangles: (n,2) array of (width, height) pairs 
+                 representing the smaller rectangles to be packed.
+    sheet_size: (2) array of (width, height) pair representing 
+                 the sheet size the smaller rectangles will be packed onto.
+    shuffle: boolean, whether or not to shuffle the insert order of the 
+                 smaller rectangles, as the final packing density depends on the 
+                 order of which rectangles are inserted onto the larger sheet.
+
+    Returns
+    ---------
+    density: float, effective density
+    offset: (m,2) float, offsets to packed location
+    inserted: (n,) bool, which of the original rectangles were packed
+    consumed_box: (2,) bounding box of resulting packing
     '''
     offset = np.zeros((len(rectangles), 2))
     inserted = np.zeros(len(rectangles), dtype=np.bool)
@@ -148,9 +159,11 @@ def multipack(polygons,
               plot=False,
               return_all=False):
     '''
-    Run multiple iterations of rectangle packing, by randomly permutating the insertion order
+    Run multiple iterations of rectangle packing, by randomly permutating the 
+    insertion order
 
-    If sheet size isn't specified, it creates a large sheet that can fit all of the polygons
+    If sheet size isn't specified, it creates a large sheet that can fit all 
+    of the polygons
     '''
     transforms_obb, rectangles = polygons_obb(polygons)
     rectangles += 2.0 * buffer_dist
