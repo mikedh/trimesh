@@ -25,7 +25,9 @@ class SectionTest(g.unittest.TestCase):
                 # intersect the mesh
                 assert z > (self.mesh.bounds[1][
                             2] - g.trimesh.constants.tol.merge)
+                continue
 
+            assert len(section.entities) == len(section.metadata['face_index'])
             planar, to_3D = section.to_planar()
             assert planar.is_closed
             assert (len(planar.polygons_full) > 0)

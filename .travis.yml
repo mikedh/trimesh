@@ -50,5 +50,5 @@ script:
 - cd tests
 - nose2
 - cd ../examples
-- for f in *.py; do python "$f" -nw; done
+- for f in *.ipynb; do python ../tests/notebook_run.py "$f"; done
 - cd ..
