@@ -581,6 +581,8 @@ class Path2D(Path):
                                       vertices=deepcopy(self.vertices))
                     split[i]._cache.update({'paths': np.array(new_paths),
                                             'polygons_closed': self.polygons_closed[connected],
+                                            'polygons_valid': self.polygons_valid[connected],
+                                            'discrete': self.discrete[connected],
                                             'root': new_root})
         [i._cache.id_set() for i in split]
         self._cache.id_set()
@@ -719,7 +721,7 @@ class Path2D(Path):
                 polygons[i] = candidate
                 valid[i] = True
                 discretized[i] = discrete
-            valid = np.array(valid, dtype=np.bool)
+            
             polygons = np.array(polygons)[valid]
             discretized = np.array(discretized)
 
