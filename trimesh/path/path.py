@@ -390,9 +390,11 @@ class Path2D(Path):
         -----------
         path_3D: Path3D version of current path
         '''
+        vertices_new = np.column_stack((deepcopy(self.vertices),
+                                        np.zeros(len(self.vertices))))
         path_3D = Path3D(entities=deepcopy(self.entities),
-                         vertices=np.column_stack((deepcopy(self.vertices),
-                                                   np.zeros(len(self.vertices)))))
+                         vertices=vertices_new,
+                         metadata=deepcopy(self.metadata))
         return path_3D
 
     @util.cache_decorator

@@ -1,5 +1,8 @@
 import generic as g
 
+# minimum number of faces to test
+# permutations on
+MIN_FACES = 25
 
 class PermutateTest(g.unittest.TestCase):
 
@@ -12,13 +15,15 @@ class PermutateTest(g.unittest.TestCase):
             return g.np.allclose(a,b)
         
         def make_assertions(mesh, test):
-            if close(test.face_adjacency,
-                     mesh.face_adjacency):
+            if (close(test.face_adjacency,
+                     mesh.face_adjacency) and
+                len(mesh.faces) > MIN_FACES):
                 raise ValueError('face adjacency of %s the same after permutation!',
                                  mesh.metadata['file_name'])
 
-            if close(test.face_adjacency_edges,
-                     mesh.face_adjacency_edges):
+            if (close(test.face_adjacency_edges,
+                      mesh.face_adjacency_edges) and
+                len(mesh.faces) > MIN_FACES):
                 raise ValueError('face adjacency edges of %s the same after permutation!',
                                  mesh.metadata['file_name'])
 
@@ -29,14 +34,21 @@ class PermutateTest(g.unittest.TestCase):
             self.assertFalse(test.md5() == mesh.md5())
 
         for mesh in g.get_meshes():
+            if len(mesh.faces) < MIN_FACES:
+                continue
+            # warp the mesh to be a unit cube
+            mesh.vertices /= mesh.extents
             original = mesh.copy()
-            
-            noise = g.trimesh.permutate.noise(mesh,
-                                              magnitude=mesh.scale / 50.0)
-            transform = g.trimesh.permutate.transform(mesh)
 
-            make_assertions(mesh, noise)
-            make_assertions(mesh, transform)
+            for i in range(5):
+                mesh = original.copy()
+                noise = g.trimesh.permutate.noise(mesh,
+                                                  magnitude=mesh.scale / 50.0)
+                transform = g.trimesh.permutate.transform(mesh)
+                tesselate = g.trimesh.permutate.tesselation(mesh)
+                make_assertions(mesh, noise)
+                make_assertions(mesh, transform)
+                make_assertions(mesh, tesselate)
 
             # make sure permutate didn't alter the original mesh
             self.assertTrue(original.md5() == mesh.md5())

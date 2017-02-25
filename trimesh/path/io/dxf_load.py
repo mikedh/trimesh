@@ -5,7 +5,7 @@ from ...constants import log
 from ...constants import tol_path as tol
 from ..entities import Line, Arc, BSpline
 from ..util import angles_to_threepoint, is_ccw
-from ...util import is_binary_file, multi_dict
+from ...util import is_binary_file, multi_dict, make_sequence
 
 # unit codes
 _DXF_UNITS = {1: 'inches',
@@ -59,34 +59,35 @@ def load_dxf(file_obj):
         '''
         # which keys should we extract from the entity data
         # DXF group code : our metadata key
-        candidates = {'8' : 'layer'}
+        candidates = {'8' : 'layers'}
         for k,v in candidates.items():
             # dict.get will return None if key is not present,
             # maintaining correct length of deque for values
             # so the indexes of a metadata entry correspond with
-            # an entity object. 
-            entity_metadata[v].append(e_data.get(k))
+            # an entity object.
+            e_value = make_sequence(e_data.get(k))
+            entity_metadata[v].extend(e_value)
         
     def convert_line(e):
         entities.append(Line(len(vertices) + np.arange(2)))
-        vertices.extend(np.array([[e['10'][0], e['20'][0]],
-                                  [e['11'][0], e['21'][0]]], dtype=np.float64))
+        vertices.extend(np.array([[e['10'], e['20']],
+                                  [e['11'], e['21']]], dtype=np.float64))
 
     def convert_circle(e):
-        R = float(e['40'][0])
-        C = np.array([e['10'][0],
-                      e['20'][0]]).astype(np.float64)
+        R = float(e['40'])
+        C = np.array([e['10'],
+                      e['20']]).astype(np.float64)
         points = angles_to_threepoint([0, np.pi], C[0:2], R)
         entities.append(Arc(points=(len(vertices) + np.arange(3)), 
                             closed=True))
         vertices.extend(points)
 
     def convert_arc(e):
-        R = float(e['40'][0])
-        C = np.array([e['10'][0],
-                      e['20'][0]], dtype=np.float64)
-        A = np.radians(np.array([e['50'][0],
-                                 e['51'][0]], dtype=np.float64))
+        R = float(e['40'])
+        C = np.array([e['10'],
+                      e['20']], dtype=np.float64)
+        A = np.radians(np.array([e['50'],
+                                 e['51']], dtype=np.float64))
         points = angles_to_threepoint(A, C[0:2], R)
         entities.append(Arc(len(vertices) + np.arange(3), 
                             closed=False))
@@ -150,11 +151,12 @@ def load_dxf(file_obj):
 
     # inflection = np.nonzero(np.logical_and(group_check[:-1],
     # group_check[:-1] == group_check[1:]))[0]
-    loaders = {'LINE': convert_line,
-               'LWPOLYLINE': convert_polyline,
-               'ARC': convert_arc,
-               'CIRCLE': convert_circle,
-               'SPLINE': convert_bspline}
+    loaders = {'LINE': (dict, convert_line),
+               'LWPOLYLINE': (multi_dict, convert_polyline),
+               'ARC': (dict, convert_arc),
+               'CIRCLE': (dict, convert_circle),
+               'SPLINE': (multi_dict, convert_bspline)}
+                    
     vertices = collections.deque()
     entities = collections.deque()
     entity_metadata = collections.defaultdict(collections.deque)
@@ -163,8 +165,9 @@ def load_dxf(file_obj):
         if len(chunk) > 2:
             entity_type = chunk[0][1]
             if entity_type in loaders:
-                entity_data = multi_dict(chunk)
-                loaders[entity_type](entity_data) #chunk)
+                chunker, loader = loaders[entity_type]
+                entity_data = chunker(chunk)
+                loader(entity_data)
                 update_metadata(entity_data)
             else:
                 log.debug('Entity type %s not supported', entity_type)

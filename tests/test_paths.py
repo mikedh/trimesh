@@ -11,7 +11,7 @@ class VectorTests(g.unittest.TestCase):
             # file_name should be populated, and if we have a DXF file
             # the layer field should be populated with layer names
             if d.metadata['file_name'][-3:] == 'dxf':
-                self.assertTrue(len(d.metadata['layer']) == len(d.entities))
+                self.assertTrue(len(d.metadata['layers']) == len(d.entities))
             
             for path in d.paths:
                 verts = d.discretize_path(path)
