@@ -7,10 +7,11 @@ A library designed to work with vector paths.
 import numpy as np
 import networkx as nx
 
+import collections
+
 from shapely.geometry import Polygon
 from scipy.spatial import cKDTree as KDTree
 from copy import deepcopy
-from collections import deque
 
 from .polygons import polygons_enclosure_tree, medial_axis, polygon_hash, path_to_polygon, polygon_obb
 from .traversal import vertex_graph, closed_paths, discretize_path
@@ -86,6 +87,13 @@ class Path(object):
 
     @util.cache_decorator
     def paths(self):
+        '''
+        Sequence of closed paths, encoded by entity index.
+
+        Returns
+        ---------
+        paths: (n,) sequence of (*,) int referencing self.entities 
+        '''
         paths = closed_paths(self.entities, self.vertices)
         return paths
 
@@ -180,7 +188,7 @@ class Path(object):
             self.entities = np.array(self.entities)[unique]
 
     def referenced_vertices(self):
-        referenced = deque()
+        referenced = collections.deque()
         for entity in self.entities:
             referenced.extend(entity.points)
         return np.array(referenced)
@@ -221,8 +229,8 @@ class Path(object):
         if path_indexes is None:
             path_indexes = np.arange(len(self.paths))
         entities_keep = np.ones(len(self.entities), dtype=np.bool)
-        new_vertices = deque()
-        new_entities = deque()
+        new_vertices = collections.deque()
+        new_entities = collections.deque()
         for i in path_indexes:
             path = self.paths[i]
             discrete = self.discrete[i]
@@ -318,7 +326,8 @@ class Path3D(Path):
             raise NameError('Points aren\'t planar!')
 
         planar = Path2D(entities=deepcopy(self.entities),
-                        vertices=flat[:, 0:2])
+                        vertices=flat[:, 0:2],
+                        metadata=deepcopy(self.metadata))
         to_3D = np.linalg.inv(to_2D)
 
         return planar, to_3D
@@ -399,20 +408,35 @@ class Path2D(Path):
 
     @util.cache_decorator
     def polygons_full(self):
-        result = [None] * len(self.root)
-        for index, root in enumerate(self.root):
-            hole_index = self.connected_paths(root, include_self=False)
-            holes = [
-                p.exterior.coords for p in self.polygons_closed[hole_index]]
-            shell = self.polygons_closed[root].exterior.coords
-            result[index] = Polygon(shell=shell,
-                                    holes=holes)
-        return result
+        '''
+        A list of shapely.geometry.Polygon objects with corresponding interiors
+        pulled by looking at which closed polygons enclose which other polygons.
 
+        Returns
+        ---------
+        full: list of shapely.geometry.Polygon objects
+        '''
+        full = [None] * len(self.enclosure_shell)
+        
+        for index, (shell, hole) in enumerate(self.enclosure_shell.items()):
+            if not self.polygons_valid[shell]:
+                continue
+            # mask indexes of holes by valid polygons
+            # this will silently discard invalid holes
+            hole_idx = hole[self.polygons_valid[hole]]
+            # closed curves which represent holes
+            hole_poly = self.polygons_closed[hole_idx]
+            # generate a new polygon with shell and holes
+            polygon = Polygon(shell=self.polygons_closed[shell].exterior.coords,
+                              holes=[p.exterior.coords for p in hole_poly])
+            full[index] = polygon
+        return full
+    
+            
     @util.cache_decorator
     def area(self):
         '''
-        Return the area of the polygons interior
+        Return the area of the polygons interior.
         '''
         area = np.sum([i.area for i in self.polygons_full])
         return area
@@ -420,7 +444,11 @@ class Path2D(Path):
     @util.cache_decorator
     def perimeter(self):
         '''
-        The total length of every entity.
+        The total length of every closed curve.
+
+        Returns
+        --------
+        perimeter: float, length of every boundary (inside and out)
         '''
         perimeter = np.sum([i.length for i in self.polygons_closed])
         return perimeter
@@ -487,11 +515,24 @@ class Path2D(Path):
                                value=medials)
 
     def connected_paths(self, path_id, include_self=False):
+        '''
+        Given an index of self.paths, find other paths which overlap with
+        that path.
+
+        Arguments
+        -----------
+        path_id:      int, index of self.paths
+        include_self: bool, should the result include path_id or not
+
+        Returns
+        -----------
+        path_ids: (n,) int, indexes of self.paths that overlap input path_id
+        '''
         if len(self.root) == 1:
             path_ids = np.arange(len(self.polygons_closed))
         else:
-            path_ids = list(nx.node_connected_component(
-                self.enclosure, path_id))
+            path_ids = list(nx.node_connected_component(self.enclosure,
+                                                        path_id))
         if include_self:
             return np.array(path_ids)
         return np.setdiff1d(path_ids, [path_id])
@@ -525,8 +566,8 @@ class Path2D(Path):
             for i, root in enumerate(self.root):
                 connected = self.connected_paths(root, include_self=True)
                 new_root = np.nonzero(connected == root)[0]
-                new_entities = deque()
-                new_paths = deque()
+                new_entities = collections.deque()
+                new_paths = collections.deque()
                 new_metadata = {'split_2D': i}
                 new_metadata.update(self.metadata)
 
@@ -546,6 +587,9 @@ class Path2D(Path):
         return np.array(split)
 
     def plot_discrete(self, show=False, transform=None, axes=None):
+        '''
+        Plot the closed curves of the path. 
+        '''
         import matplotlib.pyplot as plt
         plt.axes().set_aspect('equal', 'datalim')
 
@@ -566,6 +610,9 @@ class Path2D(Path):
             plt.show()
 
     def plot_entities(self, show=False):
+        '''
+        Plot the entities of the path, with no notion of topology
+        '''
         import matplotlib.pyplot as plt
         plt.axes().set_aspect('equal', 'datalim')
         eformat = {'Line0': {'color': 'g', 'linewidth': 1},
@@ -586,6 +633,13 @@ class Path2D(Path):
 
     @property
     def identifier(self):
+        '''
+        A unique identifier for the path.
+
+        Returns
+        ---------
+        identifier: (5,) float, unique identifier
+        '''
         if len(self.polygons_full) != 1:
             raise TypeError('Identifier only valid for single body')
         return polygon_hash(self.polygons_full[0])
@@ -593,23 +647,44 @@ class Path2D(Path):
     @util.cache_decorator
     def identifier_md5(self):
         '''
-        Return an MD5 of the rotation invarient identifier
+        Return an MD5 of the identifier
         '''
         return util.md5_array(self.identifier, digits=4)
 
     @property
     def polygons_valid(self):
+        '''
+        Returns
+        ----------
+        polygons_valid: (n,) bool, indexes of self.paths self.polygons_closed which are 
+                        valid polygons
+        '''
         exists = self.polygons_closed
         return self._cache.get('polygons_valid')
 
     @property
     def discrete(self):
+        '''
+        Returns
+        ---------
+        discrete: sequence of (n,2) float, correspond to self.paths
+        '''
         if not 'discrete' in self._cache:
             test = self.polygons_closed
         return self._cache['discrete']
 
     @property
     def polygons_closed(self):
+        '''
+        Cycles in the vertex graph, as shapely.geometry.Polygons.
+        These are polygon objects for every closed circuit, with no notion
+        of whether a polygon is a hole or an area. Every polygon in this
+        list will have an exterior, but NO interiors. 
+
+        Returns
+        ---------
+        polygons_closed: (n,) list of shapely.geometry.Polygon objects 
+        '''
         if 'polygons_closed' in self._cache:
             return self._cache.get('polygons_closed')
 
@@ -621,7 +696,7 @@ class Path2D(Path):
         with self._cache:
             discretized = [None] * len(self.paths)
             polygons = [None] * len(self.paths)
-            valid = [False] * len(self.paths)
+            valid = np.zeros(len(self.paths), dtype=np.bool)
             for i, path in enumerate(self.paths):
                 discrete = discretize_path(self.entities,
                                            self.vertices,
@@ -653,17 +728,25 @@ class Path2D(Path):
         self._cache.set('polygons_closed', polygons)
         return polygons
 
-    @property
+    @util.cache_decorator
     def root(self):
-        if 'root' in self._cache:
-            return self._cache.get('root')
-        with self._cache:
-            root, enclosure = polygons_enclosure_tree(self.polygons_closed)
+        '''
+        Which indexes of self.paths/self.polygons_closed are root curves.
+        Also known as 'shell' or 'exterior.
+
+        Returns
+        ---------
+        root: (n,) int, list of indexes
+        '''
+        root, enclosure = polygons_enclosure_tree(self.polygons_closed)
         self._cache.set('enclosure_directed', enclosure)
-        return self._cache.set('root', root)
+        return root
 
     @property
     def enclosure(self):
+        '''
+        Networkx Graph object of polygon enclosure.
+        '''
         if 'enclosure' in self._cache:
             return self._cache.get('enclosure')
         with self._cache:
@@ -672,6 +755,25 @@ class Path2D(Path):
 
     @util.cache_decorator
     def enclosure_directed(self):
+        '''
+        Networkx DiGraph of polygon enclosure
+        '''
         root, enclosure = polygons_enclosure_tree(self.polygons_closed)
         self._cache.set('root', root)
         return enclosure
+
+    @util.cache_decorator
+    def enclosure_shell(self):
+        '''
+        A dictionary of path indexes which are 'shell' paths, and values
+        of 'hole' paths. 
+
+        Returns
+        ----------
+        corresponding: dict, {index of self.paths for shell : [indexes for holes]}
+        '''
+        pairs = [(r,self.connected_paths(r,
+                                         include_self=False)) for r in self.root]
+        # OrderedDict to maintain corresponding order
+        corresponding = collections.OrderedDict(pairs)
+        return corresponding

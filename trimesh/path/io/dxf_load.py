@@ -171,7 +171,7 @@ def load_dxf(file_obj):
                 update_metadata(entity_data)
             else:
                 log.debug('Entity type %s not supported', entity_type)
-    metadata.update({k:list(v) for k,v in entity_metadata.items()})
+    metadata.update({k:np.array(v) for k,v in entity_metadata.items()})
     
     result = {'vertices': np.vstack(vertices).astype(np.float64),
               'entities': np.array(entities),

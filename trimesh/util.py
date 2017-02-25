@@ -295,7 +295,8 @@ def diagonal_dot(a, b):
     Same as np.diag(np.dot(a, b.T)) but without the monstrous
     intermediate matrix.
     '''
-    result = (np.array(a) * b).sum(axis=1)
+    result = (np.asanyarray(a) *
+              np.asanyarray(b)).sum(axis=1)
     return result
 
 
