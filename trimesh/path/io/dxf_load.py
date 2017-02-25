@@ -1,12 +1,11 @@
 import numpy as np
+import collections
 
 from ...constants import log
 from ...constants import tol_path as tol
 from ..entities import Line, Arc, BSpline
 from ..util import angles_to_threepoint, is_ccw
 from ...util import is_binary_file, multi_dict
-
-from collections import deque
 
 # unit codes
 _DXF_UNITS = {1: 'inches',
@@ -54,40 +53,53 @@ def load_dxf(file_obj):
     ----------
     result: dict, keys are  entities, vertices and metadata
     '''
-    def convert_line(e_data):
-        e = dict(e_data)
+    def update_metadata(e_data):
+        '''
+        Pull metadata based on group code
+        '''
+        # which keys should we extract from the entity data
+        # DXF group code : our metadata key
+        candidates = {'8' : 'layer'}
+        for k,v in candidates.items():
+            # dict.get will return None if key is not present,
+            # maintaining correct length of deque for values
+            # so the indexes of a metadata entry correspond with
+            # an entity object. 
+            entity_metadata[v].append(e_data.get(k))
+        
+    def convert_line(e):
         entities.append(Line(len(vertices) + np.arange(2)))
-        vertices.extend(np.array([[e['10'], e['20']],
-                                  [e['11'], e['21']]], dtype=np.float64))
+        vertices.extend(np.array([[e['10'][0], e['20'][0]],
+                                  [e['11'][0], e['21'][0]]], dtype=np.float64))
 
-    def convert_circle(e_data):
-        e = dict(e_data)
-        R = float(e['40'])
-        C = np.array([e['10'], e['20']]).astype(np.float64)
+    def convert_circle(e):
+        R = float(e['40'][0])
+        C = np.array([e['10'][0],
+                      e['20'][0]]).astype(np.float64)
         points = angles_to_threepoint([0, np.pi], C[0:2], R)
-        entities.append(
-            Arc(points=(len(vertices) + np.arange(3)), closed=True))
+        entities.append(Arc(points=(len(vertices) + np.arange(3)), 
+                            closed=True))
         vertices.extend(points)
 
-    def convert_arc(e_data):
-        e = dict(e_data)
-        R = float(e['40'])
-        C = np.array([e['10'], e['20']], dtype=np.float64)
-        A = np.radians(np.array([e['50'], e['51']], dtype=np.float64))
+    def convert_arc(e):
+        R = float(e['40'][0])
+        C = np.array([e['10'][0],
+                      e['20'][0]], dtype=np.float64)
+        A = np.radians(np.array([e['50'][0],
+                                 e['51'][0]], dtype=np.float64))
         points = angles_to_threepoint(A, C[0:2], R)
-        entities.append(Arc(len(vertices) + np.arange(3), closed=False))
+        entities.append(Arc(len(vertices) + np.arange(3), 
+                            closed=False))
         vertices.extend(points)
 
-    def convert_polyline(e_data):
-        e = multi_dict(e_data)
+    def convert_polyline(e):
         lines = np.column_stack((e['10'], e['20'])).astype(np.float64)
         entities.append(Line(np.arange(len(lines)) + len(vertices)))
         vertices.extend(lines)
 
-    def convert_bspline(e_data):
+    def convert_bspline(e):
         # in the DXF there are n points and n ordered fields
         # with the same group code
-        e = multi_dict(e_data)
         points = np.column_stack((e['10'], e['20'])).astype(np.float64)
         knots = np.array(e['40']).astype(np.float64)
         # check euclidean distance to see if closed
@@ -143,17 +155,21 @@ def load_dxf(file_obj):
                'ARC': convert_arc,
                'CIRCLE': convert_circle,
                'SPLINE': convert_bspline}
-    vertices = deque()
-    entities = deque()
+    vertices = collections.deque()
+    entities = collections.deque()
+    entity_metadata = collections.defaultdict(collections.deque)
 
     for chunk in np.array_split(entity_blob, inflection):
         if len(chunk) > 2:
             entity_type = chunk[0][1]
             if entity_type in loaders:
-                loaders[entity_type](chunk)
+                entity_data = multi_dict(chunk)
+                loaders[entity_type](entity_data) #chunk)
+                update_metadata(entity_data)
             else:
                 log.debug('Entity type %s not supported', entity_type)
-
+    metadata.update({k:list(v) for k,v in entity_metadata.items()})
+    
     result = {'vertices': np.vstack(vertices).astype(np.float64),
               'entities': np.array(entities),
               'metadata': metadata}

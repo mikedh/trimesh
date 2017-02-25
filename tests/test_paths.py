@@ -8,6 +8,11 @@ class VectorTests(g.unittest.TestCase):
 
             self.assertTrue(len(d.polygons_closed) == len(d.paths))
 
+            # file_name should be populated, and if we have a DXF file
+            # the layer field should be populated with layer names
+            if d.metadata['file_name'][-3:] == 'dxf':
+                self.assertTrue(len(d.metadata['layer']) == len(d.entities))
+            
             for path in d.paths:
                 verts = d.discretize_path(path)
                 dists = g.np.sum((g.np.diff(verts, axis=0))**2, axis=1)**.5
