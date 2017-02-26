@@ -40,12 +40,14 @@ class BooleanTest(g.unittest.TestCase):
         self.primitives.append(g.trimesh.primitives.Capsule(radius=1.5,
                                                             height=10))
 
+        
+        
     def test_primitives(self):
         for primitive in self.primitives:
-            self.assertTrue(g.trimesh.util.is_shape(
-                primitive.faces,    (-1, 3)))
-            self.assertTrue(g.trimesh.util.is_shape(
-                primitive.vertices, (-1, 3)))
+            self.assertTrue(g.trimesh.util.is_shape(primitive.faces,
+                                                    (-1, 3)))
+            self.assertTrue(g.trimesh.util.is_shape(primitive.vertices,
+                                                    (-1, 3)))
 
             self.assertTrue(primitive.volume > 0.0)
 
@@ -56,6 +58,8 @@ class BooleanTest(g.unittest.TestCase):
             self.assertTrue(
                 len([i for i in dir(primitive.primitive) if not '_' in i]) > 0)
 
+            if hasattr(primitive, 'direction'):
+                self.assertTrue(primitive.direction.shape == (3,))
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

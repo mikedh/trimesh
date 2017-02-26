@@ -55,7 +55,7 @@ if __name__ == '__main__':
     Load and run a notebook if a file name is passed
     '''
     file_name = sys.argv[-1]
-    if (file_name[-5:] == 'ipynb' and 
+    if (file_name.endswith('ipynb') and 
         os.path.exists(file_name)):
         script = load_notebook(open(file_name, 'r'))
         print('\nloaded {}:\n'.format(file_name))

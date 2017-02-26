@@ -3,10 +3,8 @@ import time
 
 import networkx as nx
 
-from ..transformations import quaternion_matrix, rotation_matrix
-
 from .. import util
-
+from .. import transformations
 
 class TransformForest:
 
@@ -58,7 +56,28 @@ class TransformForest:
             str(int(self._updated * 1000)).encode('utf-8'))
         return result
 
-    def export(self):
+    def to_flattened(self, world='world'):
+        '''
+        Export the 
+        '''
+        flat = {}
+        for node in self.nodes:
+            if node == world:
+                continue
+            flat[node] = self.get(node, world).tolist()
+        return flat
+    
+        
+    def to_edgelist(self):
+        '''
+        Export the current transforms as a list of edge tuples, with
+        each tuple having the format:
+        (node_a, node_b, {metadata})
+        
+        Returns
+        -------
+        edgelist: (n,) list of tuples
+        '''
         export = nx.to_edgelist(self.transforms)
         for e in export:
             e[2]['matrix'] = np.array(e[2]['matrix']).tolist()
@@ -68,6 +87,10 @@ class TransformForest:
         for edge in edgelist:
             self.transforms.add_edge(edge[0], edge[1], **edge[2])
 
+    @property
+    def nodes(self):
+        return self.transforms.nodes()
+    
     def get(self,
             frame_to,
             frame_from=None):
@@ -237,10 +260,10 @@ def kwargs_to_matrix(**kwargs):
         # a matrix takes precedence over other options
         matrix = kwargs['matrix']
     elif 'quaternion' in kwargs:
-        matrix = quaternion_matrix(kwargs['quaternion'])
+        matrix = transformations.quaternion_matrix(kwargs['quaternion'])
     elif ('axis' in kwargs) and ('angle' in kwargs):
-        matrix = rotation_matrix(kwargs['angle'],
-                                 kwargs['axis'])
+        matrix = transformations.rotation_matrix(kwargs['angle'],
+                                                 kwargs['axis'])
     else:
         raise ValueError('Couldn\'t update transform!')
 

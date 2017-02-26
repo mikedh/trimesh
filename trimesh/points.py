@@ -20,26 +20,9 @@ def major_axis(points):
     '''
     Returns an approximate vector representing the major axis of points
     '''
-    u, s, v = np.linalg.svd(points)
-    axis_guess = v[np.argmax(s)]
-    return axis_guess
-
-
-def surface_normal(points):
-    '''
-    Returns a normal estimate of a group of points using SVD
-
-    Arguments
-    ---------
-    points: (n,d) set of points
-
-    Returns
-    ---------
-    normal: (d) vector
-    '''
-    normal = np.linalg.svd(points)[2][-1]
-    return normal
-
+    U,S,V = np.linalg.svd(points)
+    axis = util.unitize(np.dot(S, V))
+    return axis
 
 def plane_fit(points, tolerance=None):
     '''

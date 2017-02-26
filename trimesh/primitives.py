@@ -151,6 +151,11 @@ class Cylinder(_Primitive):
                                               self,
                                               kwargs)
 
+    @property
+    def direction(self):
+        axis = np.dot(self.primitive.transform, [0,0,1,0])[:3]
+        return axis
+    
     def _create_mesh(self):
         log.info('Creating cylinder mesh with r=%f, h=%f and %d sections',
                  self.primitive.radius,
@@ -346,7 +351,7 @@ class Extrusion(_Primitive):
                                               kwargs)
 
     @property
-    def extrude_direction(self):
+    def direction(self):
         '''
         Based on the extrudes transform, what is the vector along
         which the polygon will be extruded
