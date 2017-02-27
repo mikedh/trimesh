@@ -16,7 +16,11 @@ class VectorTests(g.unittest.TestCase):
             for path in d.paths:
                 verts = d.discretize_path(path)
                 dists = g.np.sum((g.np.diff(verts, axis=0))**2, axis=1)**.5
-                self.assertTrue(g.np.all(dists > g.tol_path.zero))
+
+                if not g.np.all(dists > g.tol_path.zero):
+                    raise ValueError('{} had zero distance in discrete!',
+                                     d.metadata['file_name'])
+
                 circuit_dist = g.trimesh.util.euclidean(verts[0], verts[-1])
                 circuit_test = circuit_dist < g.tol_path.merge
                 if not circuit_test:

@@ -97,7 +97,7 @@ def load_dxf(file_obj):
         lines = np.column_stack((e['10'], e['20'])).astype(np.float64)
         entities.append(Line(np.arange(len(lines)) + len(vertices)))
         vertices.extend(lines)
-
+        
     def convert_bspline(e):
         # in the DXF there are n points and n ordered fields
         # with the same group code

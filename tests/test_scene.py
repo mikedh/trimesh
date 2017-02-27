@@ -1,21 +1,30 @@
-import trimesh
-import unittest
-import logging
-import numpy as np
-import networkx as nx
-
+import generic as g
 
 from trimesh.scene.transforms import EnforcedForest
 
-log = logging.getLogger('trimesh')
-log.addHandler(logging.NullHandler())
-
-
 def random_chr():
-    return chr(ord('a') + int(round(np.random.random() * 25)))
+    return chr(ord('a') + int(round(g.np.random.random() * 25)))
 
 
-class GraphTests(unittest.TestCase):
+class SceneTests(g.unittest.TestCase):
+    def test_scene(self):
+        for mesh in g.get_mesh('cycloidal.ply',
+                               'kinematic.tar.gz',
+                               'sphere.ply'):
+            scene_split = g.trimesh.scene.split_scene(mesh)
+            
+
+            scene_base = g.trimesh.Scene(mesh)
+            
+            for s in [scene_split, scene_base]:
+                self.assertTrue(len(s.geometry) > 0)
+                
+                flattened = s.transforms.to_flattened()
+                g.json.dumps(flattened)
+                edgelist = s.transforms.to_edgelist()
+                g.json.dumps(edgelist)
+            
+class GraphTests(g.unittest.TestCase):
 
     def test_forest(self):
         g = EnforcedForest(assert_forest=True)
@@ -24,5 +33,5 @@ class GraphTests(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    trimesh.util.attach_to_log()
-    unittest.main()
+    g.trimesh.util.attach_to_log()
+    g.unittest.main()

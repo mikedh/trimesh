@@ -251,7 +251,7 @@ class Scene:
                 transforms: edge list of transforms, eg:
                              ((u, v, {'matrix' : np.eye(4)}))
         '''
-        export = {'transforms': self.transforms.export(),
+        export = {'transforms': self.transforms.to_flattened(),
                   'nodes': self.nodes,
                   'geometry': {},
                   'scene_cache': self._cache.cache}

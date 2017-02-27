@@ -156,13 +156,7 @@ class Path(object):
         for entity in self.entities:
             # if we merged duplicate vertices, the entity may contain
             # multiple references to the same vertex
-            points_new = grouping.unique_ordered(inverse[entity.points])
-
-            # if we have a closed entity the unique_ordered removed the last vertex
-            # so add it back
-            if inverse[entity.points[0]] == inverse[entity.points[-1]]:
-                points_new = np.append(points_new, points_new[0])
-            entity.points = points_new
+            entity.points = grouping.merge_runs(inverse[entity.points])
 
     def replace_vertex_references(self, replacement_dict):
         for entity in self.entities:

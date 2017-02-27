@@ -84,7 +84,6 @@ _assimp_formats = [
     'xgl',
     'zgl',
     'ply',
-    'dxf',
     'lwo',
     'lws',
     'lxo',

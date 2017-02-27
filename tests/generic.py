@@ -13,6 +13,7 @@ import time
 
 import numpy as np
 import trimesh
+import collections
 
 from collections import deque
 from copy import deepcopy
@@ -64,12 +65,15 @@ def _load_data():
     return data
 
 
-def get_mesh(file_name, **kwargs):
-    location = os.path.join(dir_models, file_name)
-    log.info('loading mesh from: %s', location)
-    mesh = trimesh.load(location, **kwargs)
-    return mesh
-
+def get_mesh(file_name, *args, **kwargs):
+    meshes = collections.deque()
+    for name in np.append(file_name, args):
+        location = os.path.join(dir_models, name)
+        log.info('loading mesh from: %s', location)
+        meshes.append(trimesh.load(location, **kwargs))
+    if len(meshes) == 1:
+        return meshes[0]
+    return list(meshes)
 
 def get_meshes(count=None):
     file_names = np.random.permutation(os.listdir(dir_models))
@@ -78,16 +82,17 @@ def get_meshes(count=None):
             
     meshes = deque()
     for file_name in file_names:
-        extension = os.path.splitext(file_name)[-1][1:].lower()
+        extension = trimesh.util.split_extension(file_name).lower()
         if extension in trimesh.available_formats():
             loaded = get_mesh(file_name)
             if trimesh.util.is_instance_named(loaded, 'Trimesh'):
                 meshes.append(loaded)
             else:
-                log.error('file %s loaded garbage!', file_name)
+                log.error('file %s didn\'t load a Trimesh object!',
+                          file_name)
         else:
-            log.warning('%s has no loader, not running test on!', file_name)
-
+            log.warning('%s has no loader, not running test on!',
+                        file_name)
         if len(meshes) >= count:
             break
     return list(meshes)

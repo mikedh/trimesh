@@ -40,11 +40,15 @@ class ExportTest(g.unittest.TestCase):
                     g.log.error('Export -> import for %s on %s gave None for vertices!',
                                 file_type,
                                 mesh.metadata['file_name'])
-                self.assertTrue(loaded.faces.shape == mesh.faces.shape)
-                self.assertTrue(loaded.vertices.shape == mesh.vertices.shape)
-                g.log.info(
-                    'Mesh vertices/faces consistent after export->import')
 
+                if loaded.faces.shape != mesh.faces.shape:
+                    raise ValueError('Export -> import for {} on {} gave vertices {}->{}!'.format(
+                        file_type,
+                        mesh.metadata['file_name'],
+                        str(mesh.faces.shape),
+                        str(loaded.faces.shape)))
+                self.assertTrue(loaded.vertices.shape == mesh.vertices.shape)
+           
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

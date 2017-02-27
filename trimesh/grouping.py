@@ -137,7 +137,38 @@ def unique_ordered(data):
     result = data[order]
     return result
 
+def merge_runs(data, digits=None):
+    '''
+    Merge duplicate sequential values.
 
+    Arguments
+    -----------
+    data: (n,) float or int
+
+    Returns
+    --------
+    merged: (m,) float or int
+
+    Example
+    ---------
+    In [1]: a
+    Out[1]: 
+    array([-1, -1, -1,  0,  0,  1,  1,  2,  0,  
+            3,  3,  4,  4,  5,  5,  6,  6,  7,  
+            7,  8,  8,  9,  9,  9])
+
+    In [2]: trimesh.grouping.merge_runs(a)
+    Out[2]: array([-1,  0,  1,  2,  0,  3,  4,  5,  6,  7,  8,  9])
+    '''
+    data = np.asanyarray(data)
+    data_int = float_to_int(data, digits=digits)
+    mask = np.append(True, np.diff(data_int).astype(bool))
+
+    result = data[mask]
+    return result
+    
+
+    
 def unique_float(data,
                  return_index=False,
                  return_inverse=False,
