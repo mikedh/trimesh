@@ -118,6 +118,8 @@ class Entity(object):
         '''
         self.points = self.points[::direction]
 
+    def explode(self):
+        return [self]
 
 class Line(Entity):
     '''
@@ -132,6 +134,10 @@ class Line(Entity):
         valid = np.any((self.points - self.points[0]) != 0)
         return valid
 
+    def explode(self):
+        points = np.column_stack((self.points, 
+                                  self.points)).ravel()[1:-1].reshape((-1,2))
+        return [Line(i) for i in points]
 
 class Arc(Entity):
 

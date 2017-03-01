@@ -136,7 +136,7 @@ class Trimesh(object):
         # by merging vertices and removing zero- area and duplicate faces
         if (process and
             (vertices is not None) and
-                (faces is not None)):
+            (faces is not None)):
             self.process()
 
         # store all passed kwargs for debugging purposes

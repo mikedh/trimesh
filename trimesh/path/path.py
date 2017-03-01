@@ -13,9 +13,6 @@ from shapely.geometry import Polygon
 from scipy.spatial import cKDTree as KDTree
 from copy import deepcopy
 
-from .polygons import polygons_enclosure_tree, medial_axis, polygon_hash, path_to_polygon, polygon_obb
-from .traversal import vertex_graph, closed_paths, discretize_path
-from .io.export import export_path
 from ..points import plane_fit
 from ..geometry import plane_transform
 from ..units import _set_units
@@ -24,12 +21,17 @@ from ..constants import log
 from ..constants import tol_path as tol
 
 
-from .. import transformations
-
 from .. import util
 from .. import grouping
+from .. import transformations
 
 from . import simplify
+from . import entities
+from . import polygons
+
+from .traversal import vertex_graph, closed_paths, discretize_path
+from .io.export import export_path
+
 
 
 class Path(object):
@@ -122,6 +124,39 @@ class Path(object):
             return self.metadata['units']
         else:
             return None
+            
+
+    def explode(self):
+        '''
+        Turn every multi- segment entity into single segment entities.
+        '''
+        new_entities = collections.deque()
+        for entity in self.entities:
+            new_entities.extend(entity.explode())
+        self.entities = new_entities
+            
+        
+    def fill_gaps(self, max_distance=np.inf):
+        '''
+        Find vertexes with degree 1 and try to connect them to other
+        vertices of degree 1. 
+        
+        Arguments
+        ----------
+        max_distance: float, connect vertices up to this distance.
+                      Default is infinity, but something like path.scale/100
+                      may make more sense. 
+        ''' 
+
+        broken = [k for k,v in self.vertex_graph.degree().items() if v==1]
+        
+        distance, node = self.kdtree.query(self.vertices[broken], k=2)
+
+        ok = np.logical_and(distance[:,1] > tol.merge,
+                            distance[:,1] < max_distance)
+        new_lines = [entities.Line(i) for i in node[ok]]
+        self.entities = np.append(self.entities,
+                                  new_lines)
 
     @property
     def is_closed(self):
@@ -144,6 +179,9 @@ class Path(object):
                                                          transform)
 
     def rezero(self):
+        '''
+        Translate so that every vertex is positive.
+        '''
         self.vertices -= self.vertices.min(axis=0)
 
     def merge_vertices(self):
@@ -375,7 +413,7 @@ class Path2D(Path):
 
     def apply_obb(self):
         if len(self.root) == 1:
-            matrix, bounds = polygon_obb(self.polygons_closed[self.root[0]])
+            matrix, bounds = polygons.polygon_obb(self.polygons_closed[self.root[0]])
             self.apply_transform(matrix)
 
         else:
@@ -502,7 +540,7 @@ class Path2D(Path):
         if resolution is None:
             resolution = self.scale / 1000.0
 
-        medials = [medial_axis(i, resolution, clip)
+        medials = [polygons.medial_axis(i, resolution, clip)
                    for i in self.polygons_full]
         medials = np.sum(medials)
         return self._cache.set(key='medial',
@@ -638,7 +676,7 @@ class Path2D(Path):
         '''
         if len(self.polygons_full) != 1:
             raise TypeError('Identifier only valid for single body')
-        return polygon_hash(self.polygons_full[0])
+        return polygons.polygon_hash(self.polygons_full[0])
 
     @util.cache_decorator
     def identifier_md5(self):
@@ -652,8 +690,8 @@ class Path2D(Path):
         '''
         Returns
         ----------
-        polygons_valid: (n,) bool, indexes of self.paths self.polygons_closed which are 
-                        valid polygons
+        polygons_valid: (n,) bool, indexes of self.paths self.polygons_closed 
+                         which are valid polygons
         '''
         exists = self.polygons_closed
         return self._cache.get('polygons_valid')
@@ -669,7 +707,7 @@ class Path2D(Path):
             test = self.polygons_closed
         return self._cache['discrete']
 
-    @property
+    @util.cache_decorator
     def polygons_closed(self):
         '''
         Cycles in the vertex graph, as shapely.geometry.Polygons.
@@ -681,9 +719,6 @@ class Path2D(Path):
         ---------
         polygons_closed: (n,) list of shapely.geometry.Polygon objects 
         '''
-        if 'polygons_closed' in self._cache:
-            return self._cache.get('polygons_closed')
-
         def reverse_path(path):
             for entity in self.entities[path]:
                 entity.reverse()
@@ -691,14 +726,15 @@ class Path2D(Path):
 
         with self._cache:
             discretized = [None] * len(self.paths)
-            polygons = [None] * len(self.paths)
+            new_polygon = [None] * len(self.paths)
             valid = np.zeros(len(self.paths), dtype=np.bool)
             for i, path in enumerate(self.paths):
                 discrete = discretize_path(self.entities,
                                            self.vertices,
                                            path,
                                            scale=self.scale)
-                candidate = path_to_polygon(discrete, scale=self.scale)
+                candidate = polygons.path_to_polygon(discrete, 
+                                                     scale=self.scale)
                 if candidate is None:
                     continue
                 if type(candidate).__name__ == 'MultiPolygon':
@@ -712,17 +748,17 @@ class Path2D(Path):
                     self.paths[i] = reverse_path(path)
                     candidate = Polygon(
                         np.array(candidate.exterior.coords)[::-1])
-                polygons[i] = candidate
+                new_polygon[i] = candidate
                 valid[i] = True
                 discretized[i] = discrete
             
-            polygons = np.array(polygons)[valid]
+            new_polygon = np.array(new_polygon)[valid]
             discretized = np.array(discretized)
 
         self._cache.set('discrete', discretized)
         self._cache.set('polygons_valid', valid)
-        self._cache.set('polygons_closed', polygons)
-        return polygons
+        
+        return new_polygon
 
     @util.cache_decorator
     def root(self):
@@ -734,27 +770,24 @@ class Path2D(Path):
         ---------
         root: (n,) int, list of indexes
         '''
-        root, enclosure = polygons_enclosure_tree(self.polygons_closed)
-        self._cache.set('enclosure_directed', enclosure)
-        return root
+        populate = self.enclosure_directed
+        return self._cache['root']
 
-    @property
+    @util.cache_decorator
     def enclosure(self):
         '''
         Networkx Graph object of polygon enclosure.
         '''
-        if 'enclosure' in self._cache:
-            return self._cache.get('enclosure')
         with self._cache:
             undirected = self.enclosure_directed.to_undirected()
-        return self._cache.set('enclosure', undirected)
+        return undirected
 
     @util.cache_decorator
     def enclosure_directed(self):
         '''
         Networkx DiGraph of polygon enclosure
         '''
-        root, enclosure = polygons_enclosure_tree(self.polygons_closed)
+        root, enclosure = polygons.polygons_enclosure_tree(self.polygons_closed)
         self._cache.set('root', root)
         return enclosure
 
@@ -766,10 +799,10 @@ class Path2D(Path):
 
         Returns
         ----------
-        corresponding: dict, {index of self.paths for shell : [indexes for holes]}
+        corresponding: dict, {index of self.paths of shell : [indexes of holes]}
         '''
         pairs = [(r,self.connected_paths(r,
-                                         include_self=False)) for r in self.root]
+                  include_self=False)) for r in self.root]
         # OrderedDict to maintain corresponding order
         corresponding = collections.OrderedDict(pairs)
         return corresponding
