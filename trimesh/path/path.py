@@ -125,7 +125,6 @@ class Path(object):
         else:
             return None
             
-
     def explode(self):
         '''
         Turn every multi- segment entity into single segment entities.
@@ -133,8 +132,8 @@ class Path(object):
         new_entities = collections.deque()
         for entity in self.entities:
             new_entities.extend(entity.explode())
-        self.entities = new_entities
-            
+        self.entities = np.array(new_entities)
+
         
     def fill_gaps(self, max_distance=np.inf):
         '''
@@ -148,15 +147,17 @@ class Path(object):
                       may make more sense. 
         ''' 
 
-        broken = [k for k,v in self.vertex_graph.degree().items() if v==1]
+        broken = np.array([k for k,v in self.vertex_graph.degree().items() if v==1])
+        if len(broken) < 2:
+            return
         
-        distance, node = self.kdtree.query(self.vertices[broken], k=2)
+        distance, node = KDTree(self.vertices[broken]).query(self.vertices[broken],k=2)
+        edges = broken[node]
+        ok = np.logical_and(distance[:,1] < max_distance,
+                            [not self.vertex_graph.has_edge(*i) for i in edges])
 
-        ok = np.logical_and(distance[:,1] > tol.merge,
-                            distance[:,1] < max_distance)
-        new_lines = [entities.Line(i) for i in node[ok]]
         self.entities = np.append(self.entities,
-                                  new_lines)
+                                  [entities.Line(i) for i in edges[ok]])
 
     @property
     def is_closed(self):

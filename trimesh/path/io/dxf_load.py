@@ -95,6 +95,20 @@ def load_dxf(file_obj):
 
     def convert_polyline(e):
         lines = np.column_stack((e['10'], e['20'])).astype(np.float64)
+
+        # 70 is the closed flag for polylines
+        # if the closed flag is set, make sure we connect the end to the beginning
+        if ('70' in e and
+            int(e['70'][0]) == 1):
+            lines = np.vstack((lines, lines[:1]))
+
+        # 42 is the bulge flag for polylines
+        # "bulge" is autocad for "add a stupid arc using implicit flags
+        # in my otherwise normal polygon"
+        if '42' in e:
+            log.warning('polyline with bulge %s detected, ignoring!',
+                        e['42'])
+            
         entities.append(Line(np.arange(len(lines)) + len(vertices)))
         vertices.extend(lines)
         

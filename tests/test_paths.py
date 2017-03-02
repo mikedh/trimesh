@@ -57,6 +57,22 @@ class VectorTests(g.unittest.TestCase):
                 m = d.medial_axis()
 
 
+    def test_poly(self):
+        p = g.get_mesh('2D/LM2.dxf')
+        self.assertTrue(p.is_closed)
+        self.assertTrue(any(len(i.points) > 2 for i in p.entities if
+                            g.trimesh.util.is_instance_named(i, 'Line')))
+        p.explode()
+        self.assertTrue(all(len(i.points) == 2 for i in p.entities if
+                            g.trimesh.util.is_instance_named(i, 'Line')))
+        self.assertTrue(p.is_closed)
+        p.entities = p.entities[:-1]
+        self.assertFalse(p.is_closed)
+
+        p.fill_gaps()
+        self.assertTrue(p.is_closed)
+
+        
 class ArcTests(g.unittest.TestCase):
 
     def test_center(self):
