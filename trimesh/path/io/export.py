@@ -119,7 +119,8 @@ def export_svg(drawing):
             try:
                 path_str += converters[e_type](entity, reverse)
             except KeyError:
-                log.warn('%s entity not available for export!', e_type)
+                pass
+                #log.warn('%s entity not available for export!', e_type)
         path_str += 'Z'
         return path_str
 
@@ -209,7 +210,7 @@ def export_dxf(path):
         if name in conversions:
             entities_str += conversions[name](e, path.vertices)
         else:
-            log.warning('Entity type %s not exported!', name)
+            log.debug('Entity type %s not exported!', name)
 
     header = templates['header'].substitute({'BOUNDS_MIN': format_points([path.bounds[0]]),
                                              'BOUNDS_MAX': format_points([path.bounds[1]]),

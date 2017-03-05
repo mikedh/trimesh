@@ -64,7 +64,7 @@ class VectorTests(g.unittest.TestCase):
                             g.trimesh.util.is_instance_named(i, 'Line')))
 
         self.assertTrue(len(p.metadata['layers']) == len(p.entities))
-        self.assertTrue(len(np.unique(p.metadata['layers'])) > 1)
+        self.assertTrue(len(g.np.unique(p.metadata['layers'])) > 1)
         
         p.explode()
         self.assertTrue(all(len(i.points) == 2 for i in p.entities if
@@ -76,8 +76,6 @@ class VectorTests(g.unittest.TestCase):
         p.fill_gaps()
         self.assertTrue(p.is_closed)
 
-
-        
         
 class ArcTests(g.unittest.TestCase):
 
