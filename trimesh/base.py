@@ -112,8 +112,7 @@ class Trimesh(object):
                 from .ray import ray_pyembree
                 self.ray = ray_pyembree.RayMeshIntersector(self)
             except ImportError:
-                log.warning('pyembree import failed, falling back to slower raytracer',
-                            exc_info=True)
+                log.debug('pyembree import failed, falling back to slower raytracer')
 
         # a quick way to get permuated versions of the current mesh
         self.permutate = permutate.Permutator(self)
