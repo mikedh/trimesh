@@ -1,17 +1,17 @@
 import generic as g
 
-
+try:
+    import meshpy
+    has_meshpy = True
+except ImportError:
+    g.log.warning('No meshpy! Not testing extrude primitives!')
+    has_meshpy = False
+        
 class BooleanTest(g.unittest.TestCase):
 
     def setUp(self):
         self.primitives = []
 
-        try:
-            import meshpy
-            has_meshpy = True
-        except ImportError:
-            g.log.warning('No meshpy! Not testing extrude primitives!')
-            has_meshpy = False
 
         # do it with a flag in case there is more than one ImportError
         if has_meshpy:
@@ -62,6 +62,9 @@ class BooleanTest(g.unittest.TestCase):
                 self.assertTrue(primitive.direction.shape == (3,))
 
     def test_extrusion(self):
+        if not has_meshpy:
+            return
+        
         polygon = g.Point([0,0]).buffer(.5)
         e = g.trimesh.primitives.Extrusion(polygon=polygon,
             transform=g.trimesh.transformations.random_rotation_matrix())
