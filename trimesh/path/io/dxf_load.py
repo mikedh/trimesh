@@ -134,7 +134,8 @@ def load_dxf(file_obj):
     # a group code then the next line is the value
     # we are removing all whitespace then splitting with the
     # splitlines function which uses the universal newline method
-    raw = str(file_obj.read().decode('ascii').upper().replace(' ', ''))
+    raw = str(file_obj.read().decode('utf-8',
+                                     errors='ignore').upper().replace(' ', ''))
     # if this reshape fails, it means the DXF is malformed
     blob = np.array(str.splitlines(raw)).reshape((-1, 2))
 

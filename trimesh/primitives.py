@@ -1,5 +1,6 @@
 import numpy as np
 import pprint
+import copy
 
 from . import util
 from . import creation
@@ -61,13 +62,22 @@ class _Primitive(Trimesh):
 
     def copy(self):
         '''
-        Return a copy of the Primitive object as a trimesh.
+        Return a copy of the Primitive object.
+        '''
+        result = copy.deepcopy(self)
+        result._cache.clear()
+        return result
+
+    def to_mesh(self):
+        '''
+        Return a copy of the Primitive object as a Trimesh object.
         '''
         result = Trimesh(vertices=self.vertices.copy(),
                          faces=self.faces.copy(),
-                         face_normals=self.face_normals.copy())
+                         face_normals=self.face_normals.copy(),
+                         process=False)
         return result
-
+    
     def _create_mesh(self):
         raise ValueError('Primitive doesn\'t define mesh creation!')
 
@@ -77,8 +87,8 @@ class _PrimitiveAttributes(object):
     Hold the mutable data which defines a primitive.
     '''
 
-    def __init__(self, data, defaults, parent, kwargs):
-        self._data = data
+    def __init__(self, parent, defaults, kwargs):
+        self._data = parent._data
         self._defaults = defaults
         self._data.update(defaults)
         self._mutable = True
@@ -146,9 +156,8 @@ class Cylinder(_Primitive):
                     'radius': 1.0,
                     'transform': np.eye(4),
                     'sections': 32}
-        self.primitive = _PrimitiveAttributes(self._data,
+        self.primitive = _PrimitiveAttributes(self,
                                               defaults,
-                                              self,
                                               kwargs)
 
     @property
@@ -208,9 +217,8 @@ class Sphere(_Primitive):
                     'center': np.zeros(3, dtype=np.float64),
                     'subdivisions': 3}
 
-        self.primitive = _PrimitiveAttributes(self._data,
+        self.primitive = _PrimitiveAttributes(self,
                                               defaults,
-                                              self,
                                               kwargs)
 
     @property
@@ -269,9 +277,8 @@ class Box(_Primitive):
 
         defaults = {'transform': np.eye(4),
                     'extents': np.ones(3)}
-        self.primitive = _PrimitiveAttributes(self._data,
+        self.primitive = _PrimitiveAttributes(self,
                                               defaults,
-                                              self,
                                               kwargs)
 
     def sample_volume(self, count):
@@ -345,9 +352,8 @@ class Extrusion(_Primitive):
                     'transform': np.eye(4),
                     'height': 1.0}
 
-        self.primitive = _PrimitiveAttributes(self._data,
+        self.primitive = _PrimitiveAttributes(self,
                                               defaults,
-                                              self,
                                               kwargs)
 
     @property
@@ -381,6 +387,22 @@ class Extrusion(_Primitive):
                                translation.copy())
         self.primitive.transform = new_transform
 
+    def buffer(self, distance):
+        '''
+        Return a new Extrusion object which is expanded in profile and 
+        in height by a specified distance.
+
+        Returns
+        ----------
+        buffered: Extrusion object
+        '''
+        distance = float(distance)
+        buffered = Extrusion(transform=self.primitive.transform.copy(),
+                             polygon=self.primitive.polygon.buffer(distance),
+                             height=self.primitive.height + 2.0 * distance)
+        buffered.slide(-distance)
+        return buffered
+    
     def _create_mesh(self):
         log.debug('Creating mesh for extrude Primitive')
         mesh = creation.extrude_polygon(self.primitive.polygon,

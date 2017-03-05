@@ -45,6 +45,7 @@ class Trimesh(object):
                  vertex_normals=None,
                  metadata=None,
                  process=True,
+                 validate_faces=True,
                  use_embree=True,
                  initial_cache={},
                  **kwargs):
@@ -111,7 +112,8 @@ class Trimesh(object):
                 from .ray import ray_pyembree
                 self.ray = ray_pyembree.RayMeshIntersector(self)
             except ImportError:
-                pass
+                log.warning('pyembree import failed, falling back to slower raytracer',
+                            exc_info=True)
 
         # a quick way to get permuated versions of the current mesh
         self.permutate = permutate.Permutator(self)
@@ -130,7 +132,7 @@ class Trimesh(object):
         # number of values depending on the order which you look at faces and face normals,
         # but for some operations validation may want to be turned off during the operation
         # then reinitialized for the end of the operation.
-        self._validate = True
+        self._validate = bool(validate_faces)
 
         # process is a cleanup function which brings the mesh to a consistant state
         # by merging vertices and removing zero- area and duplicate faces
@@ -726,6 +728,7 @@ class Trimesh(object):
             return
         if len(mask) == 0 or self.is_empty:
             return
+
         if inverse is not None:
             self.faces = inverse[self.faces.reshape(-1)].reshape((-1, 3))
         self.visual.update_vertices(mask)
