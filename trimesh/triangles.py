@@ -233,7 +233,9 @@ def bounds_tree(triangles):
 
 def nondegenerate(triangles, areas=None):
     '''
-    Find all triangles which have nonzero area.
+    Find all triangles which have an oriented bounding box
+    where both of the two sides is larger than tol.merge and
+    both edge vectors are longer than tol.merge.
 
     Degenerate triangles can be when:
     1) Two of the three vertices are colocated
@@ -253,19 +255,28 @@ def nondegenerate(triangles, areas=None):
 
     if areas is None:
         areas = area(triangles=triangles, sum=False)
-    
+
+    # the edge vectors which define the triangle
     a = triangles[:, 1] - triangles[:, 0]
     b = triangles[:, 2] - triangles[:, 0]
 
+    # length of the edge vectors
     length_a = (a**2).sum(axis=1)**.5
     length_b = (b**2).sum(axis=1)**.5
 
+    # which edges are acceptable length
     nonzero_a = length_a > tol.merge
     nonzero_b = length_b > tol.merge
-    
+
+    # find the two heights of the triangle
+    # essentially this is the side length of an
+    # oriented bounding box, per triangle
     height_a = (areas[nonzero_a] * 2) / length_a[nonzero_a]
     height_b = (areas[nonzero_b] * 2) / length_b[nonzero_b]
 
+    # our triangles are OK if:
+    # * both edges are longer than tol.merge
+    # * both sides of OBB are longer than tol.merge
     check_a = np.zeros(len(triangles), dtype=np.bool)
     check_b = np.zeros(len(triangles), dtype=np.bool)
     check_a[nonzero_a] = height_a > tol.merge
