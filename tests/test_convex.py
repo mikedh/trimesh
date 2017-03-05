@@ -18,8 +18,7 @@ class ConvexTest(g.unittest.TestCase):
 
             if not all(i.is_winding_consistent for i in hulls):
                 raise ValueError('mesh %s reported bad winding on convex hull!',
-                                  mesh.metadata['file_name'])
-                
+                                 mesh.metadata['file_name'])
 
             '''
             # to do: make this pass
@@ -37,8 +36,8 @@ class ConvexTest(g.unittest.TestCase):
                      g.trimesh.primitives.Cylinder(),
                      g.trimesh.primitives.Box()]:
             self.assertTrue(prim.is_convex)
-                     
-            
+
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()

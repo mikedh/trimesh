@@ -5,6 +5,7 @@ from .constants import log, tol
 from . import util
 from . import grouping
 
+
 def mesh_plane(mesh,
                plane_normal,
                plane_origin,

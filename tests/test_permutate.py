@@ -4,26 +4,27 @@ import generic as g
 # permutations on
 MIN_FACES = 25
 
+
 class PermutateTest(g.unittest.TestCase):
 
     def test_permutate(self):
-        def close(a,b):
+        def close(a, b):
             if len(a) == len(b) == 0:
                 return False
             if a.shape != b.shape:
                 return False
-            return g.np.allclose(a,b)
-        
+            return g.np.allclose(a, b)
+
         def make_assertions(mesh, test):
             if (close(test.face_adjacency,
-                     mesh.face_adjacency) and
-                len(mesh.faces) > MIN_FACES):
+                      mesh.face_adjacency) and
+                    len(mesh.faces) > MIN_FACES):
                 raise ValueError('face adjacency of %s the same after permutation!',
                                  mesh.metadata['file_name'])
 
             if (close(test.face_adjacency_edges,
                       mesh.face_adjacency_edges) and
-                len(mesh.faces) > MIN_FACES):
+                    len(mesh.faces) > MIN_FACES):
                 raise ValueError('face adjacency edges of %s the same after permutation!',
                                  mesh.metadata['file_name'])
 

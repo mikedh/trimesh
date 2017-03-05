@@ -77,7 +77,7 @@ class _Primitive(Trimesh):
                          face_normals=self.face_normals.copy(),
                          process=False)
         return result
-    
+
     def _create_mesh(self):
         raise ValueError('Primitive doesn\'t define mesh creation!')
 
@@ -162,9 +162,9 @@ class Cylinder(_Primitive):
 
     @property
     def direction(self):
-        axis = np.dot(self.primitive.transform, [0,0,1,0])[:3]
+        axis = np.dot(self.primitive.transform, [0, 0, 1, 0])[:3]
         return axis
-    
+
     def _create_mesh(self):
         log.info('Creating cylinder mesh with r=%f, h=%f and %d sections',
                  self.primitive.radius,
@@ -402,7 +402,7 @@ class Extrusion(_Primitive):
                              height=self.primitive.height + 2.0 * distance)
         buffered.slide(-distance)
         return buffered
-    
+
     def _create_mesh(self):
         log.debug('Creating mesh for extrude Primitive')
         mesh = creation.extrude_polygon(self.primitive.polygon,

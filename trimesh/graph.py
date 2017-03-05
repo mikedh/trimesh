@@ -351,4 +351,3 @@ def is_watertight(edges, edges_sorted=None):
     opposing = edges[groups].reshape((-1, 4))[:, 1:3].T
     reversed = np.equal(*opposing).all()
     return watertight, reversed
-

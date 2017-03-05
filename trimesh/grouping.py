@@ -137,6 +137,7 @@ def unique_ordered(data):
     result = data[order]
     return result
 
+
 def merge_runs(data, digits=None):
     '''
     Merge duplicate sequential values.
@@ -166,9 +167,8 @@ def merge_runs(data, digits=None):
 
     result = data[mask]
     return result
-    
 
-    
+
 def unique_float(data,
                  return_index=False,
                  return_inverse=False,

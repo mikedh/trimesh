@@ -6,6 +6,7 @@ import networkx as nx
 from .. import util
 from .. import transformations
 
+
 class TransformForest:
 
     def __init__(self, base_frame='world'):
@@ -66,14 +67,13 @@ class TransformForest:
                 continue
             flat[node] = self.get(node, world).tolist()
         return flat
-    
-        
+
     def to_edgelist(self):
         '''
         Export the current transforms as a list of edge tuples, with
         each tuple having the format:
         (node_a, node_b, {metadata})
-        
+
         Returns
         -------
         edgelist: (n,) list of tuples
@@ -90,7 +90,7 @@ class TransformForest:
     @property
     def nodes(self):
         return self.transforms.nodes()
-    
+
     def get(self,
             frame_to,
             frame_from=None):

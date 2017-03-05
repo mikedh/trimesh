@@ -33,29 +33,29 @@ class TrianglesTest(g.unittest.TestCase):
         g.log.info('finished closest check on %d triangles', len(closest))
 
     def test_degenerate(self):
-        tri = [[[0,0,0],
-                [1,0,0],
-                [-.5,0,0]],
-               [[0,0,0],
-                [0,0,0],
-                [10,10,0]],
-               [[0,0,0],
-                [0,0,2],
-                [0,0,2.2]],
-               [[0,0,0],
-                [1,0,0],
-                [0,1,0]]]
+        tri = [[[0, 0, 0],
+                [1, 0, 0],
+                [-.5, 0, 0]],
+               [[0, 0, 0],
+                [0, 0, 0],
+                [10, 10, 0]],
+               [[0, 0, 0],
+                [0, 0, 2],
+                [0, 0, 2.2]],
+               [[0, 0, 0],
+                [1, 0, 0],
+                [0, 1, 0]]]
 
         tri_gt = [False,
                   False,
                   False,
                   True]
-        
+
         r = g.trimesh.triangles.nondegenerate(tri)
         self.assertTrue(len(r) == len(tri))
         self.assertTrue((r == tri_gt).all())
-                 
-                 
+
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()

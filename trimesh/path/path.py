@@ -33,7 +33,6 @@ from .traversal import vertex_graph, closed_paths, discretize_path
 from .io.export import export_path
 
 
-
 class Path(object):
     '''
     A Path object consists of two things:
@@ -124,7 +123,7 @@ class Path(object):
             return self.metadata['units']
         else:
             return None
-            
+
     def explode(self):
         '''
         Turn every multi- segment entity into single segment entities.
@@ -134,26 +133,27 @@ class Path(object):
             new_entities.extend(entity.explode())
         self.entities = np.array(new_entities)
 
-        
     def fill_gaps(self, max_distance=np.inf):
         '''
         Find vertexes with degree 1 and try to connect them to other
         vertices of degree 1. 
-        
+
         Arguments
         ----------
         max_distance: float, connect vertices up to this distance.
                       Default is infinity, but something like path.scale/100
                       may make more sense. 
-        ''' 
+        '''
 
-        broken = np.array([k for k,v in self.vertex_graph.degree().items() if v==1])
+        broken = np.array(
+            [k for k, v in self.vertex_graph.degree().items() if v == 1])
         if len(broken) < 2:
             return
-        
-        distance, node = KDTree(self.vertices[broken]).query(self.vertices[broken],k=2)
+
+        distance, node = KDTree(self.vertices[broken]).query(
+            self.vertices[broken], k=2)
         edges = broken[node]
-        ok = np.logical_and(distance[:,1] < max_distance,
+        ok = np.logical_and(distance[:, 1] < max_distance,
                             [not self.vertex_graph.has_edge(*i) for i in edges])
 
         self.entities = np.append(self.entities,
@@ -414,7 +414,8 @@ class Path2D(Path):
 
     def apply_obb(self):
         if len(self.root) == 1:
-            matrix, bounds = polygons.polygon_obb(self.polygons_closed[self.root[0]])
+            matrix, bounds = polygons.polygon_obb(
+                self.polygons_closed[self.root[0]])
             self.apply_transform(matrix)
 
         else:
@@ -450,7 +451,7 @@ class Path2D(Path):
         full: list of shapely.geometry.Polygon objects
         '''
         full = [None] * len(self.enclosure_shell)
-        
+
         for index, (shell, hole) in enumerate(self.enclosure_shell.items()):
             if not self.polygons_valid[shell]:
                 continue
@@ -464,8 +465,7 @@ class Path2D(Path):
                               holes=[p.exterior.coords for p in hole_poly])
             full[index] = polygon
         return full
-    
-            
+
     @util.cache_decorator
     def area(self):
         '''
@@ -734,7 +734,7 @@ class Path2D(Path):
                                            self.vertices,
                                            path,
                                            scale=self.scale)
-                candidate = polygons.path_to_polygon(discrete, 
+                candidate = polygons.path_to_polygon(discrete,
                                                      scale=self.scale)
                 if candidate is None:
                     continue
@@ -752,13 +752,13 @@ class Path2D(Path):
                 new_polygon[i] = candidate
                 valid[i] = True
                 discretized[i] = discrete
-            
+
             new_polygon = np.array(new_polygon)[valid]
             discretized = np.array(discretized)
 
         self._cache.set('discrete', discretized)
         self._cache.set('polygons_valid', valid)
-        
+
         return new_polygon
 
     @util.cache_decorator
@@ -788,7 +788,8 @@ class Path2D(Path):
         '''
         Networkx DiGraph of polygon enclosure
         '''
-        root, enclosure = polygons.polygons_enclosure_tree(self.polygons_closed)
+        root, enclosure = polygons.polygons_enclosure_tree(
+            self.polygons_closed)
         self._cache.set('root', root)
         return enclosure
 
@@ -802,8 +803,8 @@ class Path2D(Path):
         ----------
         corresponding: dict, {index of self.paths of shell : [indexes of holes]}
         '''
-        pairs = [(r,self.connected_paths(r,
-                  include_self=False)) for r in self.root]
+        pairs = [(r, self.connected_paths(r,
+                                          include_self=False)) for r in self.root]
         # OrderedDict to maintain corresponding order
         corresponding = collections.OrderedDict(pairs)
         return corresponding

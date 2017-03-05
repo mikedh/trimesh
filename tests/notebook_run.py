@@ -4,7 +4,7 @@ import json
 import numpy as np
 
 
-def load_notebook(file_obj, 
+def load_notebook(file_obj,
                   exclude=['%', 'show', 'plt']):
     '''
     Load an ipynb file into a cleaned and stripped string that can be exec'd
@@ -32,11 +32,12 @@ def load_notebook(file_obj,
     script = '\n'.join(lines) + '\n'
     return script
 
+
 def to_pass(line):
     '''
     Replace a line of code with a pass statement, with
     the correct number of leading spaces
-    
+
     Arguments
     ----------
     line: str, line of code
@@ -55,8 +56,8 @@ if __name__ == '__main__':
     Load and run a notebook if a file name is passed
     '''
     file_name = sys.argv[-1]
-    if (file_name.endswith('ipynb') and 
-        os.path.exists(file_name)):
+    if (file_name.endswith('ipynb') and
+            os.path.exists(file_name)):
         script = load_notebook(open(file_name, 'r'))
         print('\nloaded {}:\n'.format(file_name))
         print(script)

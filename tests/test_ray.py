@@ -25,8 +25,8 @@ class RayTests(g.unittest.TestCase):
     def test_rps(self):
         for use_embree in [True, False]:
             dimension = (10000, 3)
-            sphere = g.get_mesh('unit_sphere.STL', 
-                                use_embree=use_embree) 
+            sphere = g.get_mesh('unit_sphere.STL',
+                                use_embree=use_embree)
 
             ray_origins = g.np.random.random(dimension)
             ray_directions = g.np.tile([0, 0, 1], (dimension[0], 1))
@@ -38,7 +38,7 @@ class RayTests(g.unittest.TestCase):
             sphere.ray.intersects_id(ray_origins, ray_directions)
             toc = g.time.time()
             rps = dimension[0] / (toc - tic)
-            g.log.info('Measured %f rays/second with embree %d', 
+            g.log.info('Measured %f rays/second with embree %d',
                        rps,
                        use_embree)
 

@@ -12,7 +12,7 @@ class VectorTests(g.unittest.TestCase):
             # the layer field should be populated with layer names
             if d.metadata['file_name'][-3:] == 'dxf':
                 self.assertTrue(len(d.metadata['layers']) == len(d.entities))
-            
+
             for path in d.paths:
                 verts = d.discretize_path(path)
                 dists = g.np.sum((g.np.diff(verts, axis=0))**2, axis=1)**.5
@@ -56,7 +56,6 @@ class VectorTests(g.unittest.TestCase):
                            d.metadata['file_name'])
                 m = d.medial_axis()
 
-
     def test_poly(self):
         p = g.get_mesh('2D/LM2.dxf')
         self.assertTrue(p.is_closed)
@@ -65,7 +64,7 @@ class VectorTests(g.unittest.TestCase):
 
         self.assertTrue(len(p.metadata['layers']) == len(p.entities))
         self.assertTrue(len(g.np.unique(p.metadata['layers'])) > 1)
-        
+
         p.explode()
         self.assertTrue(all(len(i.points) == 2 for i in p.entities if
                             g.trimesh.util.is_instance_named(i, 'Line')))
@@ -76,7 +75,7 @@ class VectorTests(g.unittest.TestCase):
         p.fill_gaps()
         self.assertTrue(p.is_closed)
 
-        
+
 class ArcTests(g.unittest.TestCase):
 
     def test_center(self):
@@ -164,7 +163,6 @@ class PolygonsTest(g.unittest.TestCase):
         self.assertTrue(contained.all())
 
 
-        
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()

@@ -20,9 +20,10 @@ def major_axis(points):
     '''
     Returns an approximate vector representing the major axis of points
     '''
-    U,S,V = np.linalg.svd(points)
+    U, S, V = np.linalg.svd(points)
     axis = util.unitize(np.dot(S, V))
     return axis
+
 
 def plane_fit(points, tolerance=None):
     '''

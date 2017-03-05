@@ -1517,6 +1517,7 @@ def sigfig_int(values, sigfig):
 
     return as_int, multiplier
 
+
 def decompress(file_obj, file_type):
     '''
     Given an open file object and a file type, return all components
@@ -1526,7 +1527,7 @@ def decompress(file_obj, file_type):
     -----------
     file_obj: open file object
     file_type: str, file extension, 'zip', 'tar.gz', etc
-    
+
     Returns
     ---------
     decompressed: dict:
@@ -1536,22 +1537,25 @@ def decompress(file_obj, file_type):
     def is_zip():
         import zipfile
         archive = zipfile.ZipFile(file_obj)
-        result = {name : wrap_as_stream(archive.read(name)) for name in archive.namelist()}
+        result = {name: wrap_as_stream(archive.read(name))
+                  for name in archive.namelist()}
         return result
 
     def is_tar():
         import tarfile
         archive = tarfile.open(fileobj=file_obj, mode='r')
-        result = {name : archive.extractfile(name) for name in archive.getnames()}
+        result = {name: archive.extractfile(name)
+                  for name in archive.getnames()}
         return result
 
     file_type = str(file_type).lower()
-    
+
     if file_type[-3:] == 'zip':
         return is_zip()
     if 'tar' in file_type[-6:]:
         return is_tar()
     raise ValueError('Unsupported type passed!')
+
 
 def split_extension(file_name, special=['tar.bz2', 'tar.gz']):
     '''

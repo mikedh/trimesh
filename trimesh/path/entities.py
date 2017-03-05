@@ -121,6 +121,7 @@ class Entity(object):
     def explode(self):
         return [self]
 
+
 class Line(Entity):
     '''
     A line or poly-line entity
@@ -135,9 +136,10 @@ class Line(Entity):
         return valid
 
     def explode(self):
-        points = np.column_stack((self.points, 
-                                  self.points)).ravel()[1:-1].reshape((-1,2))
+        points = np.column_stack((self.points,
+                                  self.points)).ravel()[1:-1].reshape((-1, 2))
         return [Line(i) for i in points]
+
 
 class Arc(Entity):
 

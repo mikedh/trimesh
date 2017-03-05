@@ -31,7 +31,8 @@ class MeshScript:
         for mesh, file_obj in zip(self.meshes, self.mesh_pre):
             mesh.export(file_type='stl', file_obj=file_obj.name)
 
-        self.replacement = {'mesh_' + str(i): m.name for i, m in enumerate(self.mesh_pre)}
+        self.replacement = {
+            'mesh_' + str(i): m.name for i, m in enumerate(self.mesh_pre)}
         self.replacement['mesh_pre'] = str([i.name for i in self.mesh_pre])
         self.replacement['mesh_post'] = self.mesh_post.name
         self.replacement['script'] = self.script_out.name

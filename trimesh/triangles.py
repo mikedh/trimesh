@@ -281,9 +281,9 @@ def nondegenerate(triangles, areas=None):
     check_b = np.zeros(len(triangles), dtype=np.bool)
     check_a[nonzero_a] = height_a > tol.merge
     check_b[nonzero_b] = height_b > tol.merge
-    
+
     ok = np.logical_and(check_a, check_b)
-                        
+
     return ok
 
 

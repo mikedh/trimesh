@@ -75,11 +75,12 @@ def get_mesh(file_name, *args, **kwargs):
         return meshes[0]
     return list(meshes)
 
+
 def get_meshes(count=None):
     file_names = np.random.permutation(os.listdir(dir_models))
     if count is None:
         count = len(file_names)
-            
+
     meshes = deque()
     for file_name in file_names:
         extension = trimesh.util.split_extension(file_name).lower()

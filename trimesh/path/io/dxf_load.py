@@ -59,15 +59,15 @@ def load_dxf(file_obj):
         '''
         # which keys should we extract from the entity data
         # DXF group code : our metadata key
-        candidates = {'8' : 'layers'}
-        for k,v in candidates.items():
+        candidates = {'8': 'layers'}
+        for k, v in candidates.items():
             # dict.get will return None if key is not present,
             # maintaining correct length of deque for values
             # so the indexes of a metadata entry correspond with
             # an entity object.
             e_value = make_sequence(e_data.get(k))
             entity_metadata[v].extend(e_value)
-        
+
     def convert_line(e):
         entities.append(Line(len(vertices) + np.arange(2)))
         vertices.extend(np.array([[e['10'], e['20']],
@@ -78,7 +78,7 @@ def load_dxf(file_obj):
         C = np.array([e['10'],
                       e['20']]).astype(np.float64)
         points = angles_to_threepoint([0, np.pi], C[0:2], R)
-        entities.append(Arc(points=(len(vertices) + np.arange(3)), 
+        entities.append(Arc(points=(len(vertices) + np.arange(3)),
                             closed=True))
         vertices.extend(points)
 
@@ -89,7 +89,7 @@ def load_dxf(file_obj):
         A = np.radians(np.array([e['50'],
                                  e['51']], dtype=np.float64))
         points = angles_to_threepoint(A, C[0:2], R)
-        entities.append(Arc(len(vertices) + np.arange(3), 
+        entities.append(Arc(len(vertices) + np.arange(3),
                             closed=False))
         vertices.extend(points)
 
@@ -97,9 +97,10 @@ def load_dxf(file_obj):
         lines = np.column_stack((e['10'], e['20'])).astype(np.float64)
 
         # 70 is the closed flag for polylines
-        # if the closed flag is set, make sure we connect the end to the beginning
+        # if the closed flag is set, make sure we connect the end to the
+        # beginning
         if ('70' in e and
-            int(e['70'][0]) == 1):
+                int(e['70'][0]) == 1):
             lines = np.vstack((lines, lines[:1]))
 
         # 42 is the bulge flag for polylines
@@ -108,10 +109,10 @@ def load_dxf(file_obj):
         if '42' in e:
             log.warning('polyline with bulge %s detected, ignoring!',
                         e['42'])
-            
+
         entities.append(Line(np.arange(len(lines)) + len(vertices)))
         vertices.extend(lines)
-        
+
     def convert_bspline(e):
         # in the DXF there are n points and n ordered fields
         # with the same group code
@@ -171,7 +172,7 @@ def load_dxf(file_obj):
                'ARC': (dict, convert_arc),
                'CIRCLE': (dict, convert_circle),
                'SPLINE': (multi_dict, convert_bspline)}
-                    
+
     vertices = collections.deque()
     entities = collections.deque()
     entity_metadata = collections.defaultdict(collections.deque)
@@ -186,8 +187,8 @@ def load_dxf(file_obj):
                 update_metadata(entity_data)
             else:
                 log.debug('Entity type %s not supported', entity_type)
-    metadata.update({k:np.array(v) for k,v in entity_metadata.items()})
-    
+    metadata.update({k: np.array(v) for k, v in entity_metadata.items()})
+
     result = {'vertices': np.vstack(vertices).astype(np.float64),
               'entities': np.array(entities),
               'metadata': metadata}

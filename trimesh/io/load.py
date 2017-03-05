@@ -41,6 +41,7 @@ def available_formats():
                          path_formats()))
     return formats
 
+
 def load(file_obj, file_type=None, **kwargs):
     '''
     Load a mesh or vectorized path into a Trimesh, Path2D, or Path3D object.
@@ -64,7 +65,7 @@ def load(file_obj, file_type=None, **kwargs):
     (file_obj,
      file_type,
      metadata) = _parse_file_args(file_obj, file_type)
-    
+
     if file_type in path_formats():
         loaded = load_path(file_obj, file_type, **kwargs)
     elif file_type in mesh_loaders:
@@ -81,7 +82,8 @@ def load(file_obj, file_type=None, **kwargs):
         i.metadata.update(metadata)
 
     return loaded
-    
+
+
 @_log_time
 def load_mesh(file_obj, file_type=None, **kwargs):
     '''
@@ -123,6 +125,7 @@ def load_mesh(file_obj, file_type=None, **kwargs):
         return meshes[0]
     return np.array(meshes)
 
+
 def load_compressed(file_obj, file_type=None):
     '''
     Given a compressed archive, load all the geometry that we can from it.
@@ -140,7 +143,7 @@ def load_compressed(file_obj, file_type=None):
     (file_obj,
      file_type,
      metadata) = _parse_file_args(file_obj, file_type)
-    
+
     # a dict of 'name' : file-like object
     files = util.decompress(file_obj=file_obj,
                             file_type=file_type)
@@ -200,9 +203,8 @@ def _parse_file_args(file_obj, file_type, **kwargs):
     '''
     metadata = {}
     if ('metadata' in kwargs and
-        isinstance(kwargs['metadata'], dict)):
+            isinstance(kwargs['metadata'], dict)):
         metadata.update(kwargs['metadata'])
-    
 
     if util.is_file(file_obj) and file_type is None:
         raise ValueError(
@@ -216,7 +218,8 @@ def _parse_file_args(file_obj, file_type, **kwargs):
             metadata['file_path'] = file_obj
             metadata['file_name'] = os.path.basename(file_obj)
             # if file_obj is a path that exists use extension as file_type
-            file_type = util.split_extension(file_obj, special=['tar.gz', 'tar.bz2'])
+            file_type = util.split_extension(
+                file_obj, special=['tar.gz', 'tar.bz2'])
             file_obj = open(file_obj, 'rb')
         else:
             if file_type is not None:
@@ -242,9 +245,9 @@ def _parse_file_args(file_obj, file_type, **kwargs):
     return file_obj, file_type, metadata
 
 
-compressed_loaders = {'zip'     : load_compressed,
-                      'tar.bz2' : load_compressed,
-                      'tar.gz'  : load_compressed}
+compressed_loaders = {'zip': load_compressed,
+                      'tar.bz2': load_compressed,
+                      'tar.gz': load_compressed}
 mesh_loaders = {}
 # assimp has a lot of loaders, but they are all quite slow
 # so we load them first and replace them with native loaders if possible

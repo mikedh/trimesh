@@ -62,6 +62,14 @@ class Trimesh(object):
         vertex_normals: (n,3) float set of normal vectors for vertices
         metadata:       dict, any metadata about the mesh
         process:        bool, if True basic mesh cleanup will be done on instantiation
+        validate_faces: bool, if True, faces will not be returned until face normals
+                        are calculated and erronious faces removed
+        use_embree:     bool, if True try to use pyembree raytracer.
+                        If pyembree is not available it will automatically fall back to 
+                        a much slower rtree/numpy implementation
+        initial_cache:  dict, a way to pass things to the cache in case expensive things
+                        were calculated before creating the mesh object.
+        **kwargs:       stored in self._kwargs if needed later
         '''
 
         # self._data stores information about the mesh which CANNOT be regenerated.
@@ -112,7 +120,7 @@ class Trimesh(object):
                 from .ray import ray_pyembree
                 self.ray = ray_pyembree.RayMeshIntersector(self)
             except ImportError:
-                log.debug('pyembree import failed, falling back to slower raytracer')
+                log.debug('pyembree import failed, using slower raytracer')
 
         # a quick way to get permuated versions of the current mesh
         self.permutate = permutate.Permutator(self)
@@ -137,7 +145,7 @@ class Trimesh(object):
         # by merging vertices and removing zero- area and duplicate faces
         if (process and
             (vertices is not None) and
-            (faces is not None)):
+                (faces is not None)):
             self.process()
 
         # store all passed kwargs for debugging purposes
@@ -297,7 +305,8 @@ class Trimesh(object):
             tri_cached = self.vertices.view(np.ndarray)[faces]
             face_normals, valid = triangles.normals(tri_cached)
             if not valid.all():
-                log.warning('face normals detected and removed degenerate face!')
+                log.warning(
+                    'face normals detected and removed degenerate face!')
                 self.update_faces(valid)
             self._cache['face_normals'] = face_normals
 
@@ -1072,7 +1081,7 @@ class Trimesh(object):
             raise ValueError('Specified plane doesn\'t intersect mesh!')
         path = load_path(lines)
         path.metadata['face_index'] = face_index
-        
+
         return path
 
     @util.cache_decorator

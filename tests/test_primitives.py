@@ -6,12 +6,12 @@ try:
 except ImportError:
     g.log.warning('No meshpy! Not testing extrude primitives!')
     has_meshpy = False
-        
+
+
 class BooleanTest(g.unittest.TestCase):
 
     def setUp(self):
         self.primitives = []
-
 
         # do it with a flag in case there is more than one ImportError
         if has_meshpy:
@@ -40,8 +40,6 @@ class BooleanTest(g.unittest.TestCase):
         self.primitives.append(g.trimesh.primitives.Capsule(radius=1.5,
                                                             height=10))
 
-        
-        
     def test_primitives(self):
         for primitive in self.primitives:
             self.assertTrue(g.trimesh.util.is_shape(primitive.faces,
@@ -64,10 +62,10 @@ class BooleanTest(g.unittest.TestCase):
     def test_extrusion(self):
         if not has_meshpy:
             return
-        
-        polygon = g.Point([0,0]).buffer(.5)
+
+        polygon = g.Point([0, 0]).buffer(.5)
         e = g.trimesh.primitives.Extrusion(polygon=polygon,
-            transform=g.trimesh.transformations.random_rotation_matrix())
+                                           transform=g.trimesh.transformations.random_rotation_matrix())
 
         # will create an inflated version of the extrusion
         b = e.buffer(.1)
@@ -75,7 +73,7 @@ class BooleanTest(g.unittest.TestCase):
         self.assertTrue(b.volume > e.volume)
         self.assertTrue(b.contains(e.vertices).all())
 
-                
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()

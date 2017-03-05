@@ -95,7 +95,7 @@ def extrude_triangulation(vertices,
 
     # make sure the triangulation is aligned with the sign of
     # the height we've been passed
-    if np.dot(normal_test, 
+    if np.dot(normal_test,
               [0, 0, np.sign(height)]) < 0:
         faces = np.fliplr(faces)
 
@@ -114,9 +114,9 @@ def extrude_triangulation(vertices,
     # on the boundary of the 2D triangulation
     vertical = np.tile(boundary.reshape((-1, 2)), 2).reshape((-1, 2))
     vertical = np.column_stack((vertical,
-                                np.tile([0, height, 0, height], 
+                                np.tile([0, height, 0, height],
                                         len(boundary))))
-    vertical_faces = np.tile([3, 1, 2, 2, 1, 0], 
+    vertical_faces = np.tile([3, 1, 2, 2, 1, 0],
                              (len(boundary), 1))
     vertical_faces += np.arange(len(boundary)).reshape((-1, 1)) * 4
     vertical_faces = vertical_faces.reshape((-1, 3))
@@ -126,15 +126,15 @@ def extrude_triangulation(vertices,
 
     # a sequence of zero- indexed faces, which will then be appended
     # with offsets to create the final mesh
-    faces_seq = [faces[:, ::-1], 
-                 faces.copy(), 
+    faces_seq = [faces[:, ::-1],
+                 faces.copy(),
                  vertical_faces]
     vertices_seq = [vertices_3D,
-                    vertices_3D.copy() + [0.0, 0, height], 
+                    vertices_3D.copy() + [0.0, 0, height],
                     vertical]
 
-    mesh = Trimesh(*util.append_faces(vertices_seq, 
-                                      faces_seq), 
+    mesh = Trimesh(*util.append_faces(vertices_seq,
+                                      faces_seq),
                    process=True)
     return mesh
 
