@@ -99,7 +99,6 @@ def rasterize_polygon(polygon, pitch):
     ----------
     polygon: shapely polygon
     pitch:   what is the edge length of a pixel
-    return_points: bool, return grid points or not
 
     Returns
     ----------

@@ -875,6 +875,10 @@ def append_faces(vertices_seq, faces_seq):
     faces_seq     (n) sequence of (p,j) faces, zero indexed
                   and referencing their counterpoint vertices
 
+    Returns
+    ----------
+    vertices: (i, d) float, vertices
+    faces:    (j, 3) int, faces
     '''
     vertices_len = np.array([len(i) for i in vertices_seq])
     face_offset = np.append(0, np.cumsum(vertices_len)[:-1])

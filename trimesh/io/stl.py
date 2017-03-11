@@ -1,9 +1,7 @@
 import numpy as np
 
-# the exception raised if an STL file object doesn't match its header
-
-
 class HeaderError(Exception):
+    # the exception raised if an STL file object doesn't match its header
     pass
 
 

@@ -10,8 +10,10 @@ COLORS = {'red': [205, 59, 34, 255],
           'purple': [150, 111, 214, 255],
           'blue': [119, 158, 203, 255],
           'brown': [160, 85, 45, 255]}
+
 COLOR_DTYPE = np.dtype(np.uint8)
-DEFAULT_COLOR = np.array(COLORS['purple'], dtype=COLOR_DTYPE)
+DEFAULT_COLOR = np.array(COLORS['purple'],
+                         dtype=COLOR_DTYPE)
 
 
 class VisualAttributes(object):
@@ -21,7 +23,12 @@ class VisualAttributes(object):
     This is a bit of a dumpster fire and probably needs a re-write
     '''
 
-    def __init__(self, mesh=None, dtype=None, **kwargs):
+    def __init__(self,
+                 vertex_colors=None,
+                 face_colors=None,
+                 mesh=None,
+                 dtype=None,
+                 **kwargs):
         self.mesh = mesh
 
         self._validate = True
@@ -32,9 +39,12 @@ class VisualAttributes(object):
             dtype = COLOR_DTYPE
         self.dtype = dtype
 
-        colors = _kwargs_to_color(mesh, **kwargs)
-        self.vertex_colors, self.face_colors = colors
+        if face_colors is not None:
+            self.face_colors = face_colors
 
+        if vertex_colors is not None:
+            self.vertex_colors = vertex_colors
+       
     def choose(self):
         '''
         If both face and vertex colors are defined, choose one of them.
@@ -119,7 +129,7 @@ class VisualAttributes(object):
 
     @vertex_colors.setter
     def vertex_colors(self, values):
-        self._cache['vertex_colors'] = rgba(values, dtype=self.dtype)
+        self._data['vertex_colors'] = rgba(values, dtype=self.dtype)
 
     def update_faces(self, mask):
         stored = self._data['face_colors']
@@ -149,55 +159,7 @@ class VisualAttributes(object):
 
     def union(self, others):
         return visuals_union(np.append(self, others))
-
-
-def _kwargs_to_color(mesh, **kwargs):
-    '''
-    Given a set of keyword arguments, see if any reference color
-    in their name, and match the dimensions of the mesh.
-    '''
-
-    def pick_option(vf):
-        if any(i is None for i in vf):
-            return vf
-        result = [None, None]
-        signal = [i.ptp(axis=0).sum() for i in vf]
-        signal_max = np.argmax(signal)
-        result[signal_max] = vf[signal_max]
-        return result
-
-    def pick_color(sequence):
-        if len(sequence) == 0:
-            return None
-        elif len(sequence) == 1:
-            return sequence[0]
-        else:
-            signal = [i.ptp(axis=0).sum() for i in sequence]
-            signal_max = np.argmax(signal)
-            return sequence[signal_max]
-
-    if mesh is None:
-        result = [None, None]
-        if 'face_colors' in kwargs:
-            result[1] = np.asanyarray(kwargs['face_colors'])
-        if 'vertex_colors' in kwargs:
-            result[0] = np.asanyarray(kwargs['vertex_colors'])
-        return result
-
-    vertex = deque()
-    face = deque()
-
-    for key in kwargs.keys():
-        if not ('color' in key):
-            continue
-        value = np.asanyarray(kwargs[key])
-        if len(value) == len(mesh.vertices):
-            vertex.append(value)
-        elif len(value) == len(mesh.faces):
-            face.append(value)
-    return pick_option([pick_color(i) for i in [vertex, face]])
-
-
+ 
 def visuals_union(visuals, *args):
     '''
     Concatenate two or more VisualAttribute objects.
