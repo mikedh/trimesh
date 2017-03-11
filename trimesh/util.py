@@ -287,6 +287,23 @@ def spherical_to_vector(spherical):
                                cp))
     return vectors
 
+try: 
+    # prefer the faster numpy version
+    multi_dot = np.linalg.multi_dot
+except NameError: 
+    log.warning('np.linalg.multi_dot not available, falling back')
+    def multi_dot(arrays):
+        '''
+        Compute the dot product of two or more arrays in a single function call.
+
+        In most versions of numpy this is included, this slower function is 
+        provided for backwards compatibility with ancient versions of numpy.
+        '''
+        arrays = np.asanyarray(arrays)
+        result = arrays[0]
+        for i in arrays[1:]:
+            result = np.dot(result, i)
+        return result
 
 def diagonal_dot(a, b):
     '''

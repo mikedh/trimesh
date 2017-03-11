@@ -96,7 +96,7 @@ def xaml_load(file_obj, *args, **kwargs):
             current = current.getparent()
 
         # to get the final transform take the dot product of all matrices
-        transform = np.linalg.multi_dot(transforms)
+        transform = util.multi_dot(transforms)
 
         # iterate through the contained mesh geometry elements
         for g in geometry.iter(tag=ns + 'MeshGeometry3D'):
