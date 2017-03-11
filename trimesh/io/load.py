@@ -13,7 +13,7 @@ from .stl import _stl_loaders
 from .misc import _misc_loaders
 from .step import _step_loaders
 from .ply import _ply_loaders
-from .xml import _xml_loaders
+from .xml_based import _xml_loaders
 
 try:
     from ..path.io.load import load_path, path_formats
