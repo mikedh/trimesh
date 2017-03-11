@@ -44,7 +44,7 @@ class VisualAttributes(object):
 
         if vertex_colors is not None:
             self.vertex_colors = vertex_colors
-       
+
     def choose(self):
         '''
         If both face and vertex colors are defined, choose one of them.
@@ -159,7 +159,8 @@ class VisualAttributes(object):
 
     def union(self, others):
         return visuals_union(np.append(self, others))
- 
+
+
 def visuals_union(visuals, *args):
     '''
     Concatenate two or more VisualAttribute objects.
