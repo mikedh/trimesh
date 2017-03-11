@@ -290,7 +290,7 @@ def spherical_to_vector(spherical):
 try: 
     # prefer the faster numpy version
     multi_dot = np.linalg.multi_dot
-except NameError: 
+except AttributeError: 
     log.warning('np.linalg.multi_dot not available, falling back')
     def multi_dot(arrays):
         '''
