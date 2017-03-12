@@ -6,7 +6,8 @@ class IdentifierTest(g.unittest.TestCase):
     def test_identifier(self):
         count = 50
         for mesh in g.get_meshes(10):
-            if not mesh.is_watertight:
+            if not (mesh.is_watertight and
+                    mesh.is_winding_consistent):
                 g.log.warning('Mesh %s is not watertight!',
                               mesh.metadata['file_name'])
                 continue
@@ -28,7 +29,7 @@ class IdentifierTest(g.unittest.TestCase):
                 debug = []
                 for a in idf:
                     as_int, exp = g.trimesh.util.sigfig_int(a,
-                                                            g.trimesh.comparison.identifier_sigfig)
+                                  g.trimesh.comparison.identifier_sigfig)
 
                     debug.append(as_int * (10**exp))
                 g.log.error('Hashes on %s differ after transform! diffs:\n %s\n',
