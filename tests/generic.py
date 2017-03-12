@@ -76,21 +76,37 @@ def get_mesh(file_name, *args, **kwargs):
     return list(meshes)
 
 
-def get_meshes(count=None):
+def get_meshes(count=np.inf,
+               raise_error=False):
+    '''
+    Get a list of meshes to test with.
+
+    Arguments
+    ----------
+    count: int, approximate number of meshes you want
+    raise_error: bool, if True raise a ValueError if a mesh
+                 that should be loadable returns a non- Trimesh object.
+
+    Returns
+    ----------
+    meshes: list, of Trimesh objects
+    '''
+
+    # randomly order the directory so if tests are running on a small
+    # number of meshes for test speed we sample the whole test set eventually.
     file_names = np.random.permutation(os.listdir(dir_models))
-    if count is None:
-        count = len(file_names)
 
     meshes = deque()
     for file_name in file_names:
         extension = trimesh.util.split_extension(file_name).lower()
         if extension in trimesh.available_formats():
-            loaded = get_mesh(file_name)
-            if trimesh.util.is_instance_named(loaded, 'Trimesh'):
-                meshes.append(loaded)
-            else:
-                log.error('file %s didn\'t load a Trimesh object!',
-                          file_name)
+            loaded = trimesh.util.make_sequence(get_mesh(file_name))
+            for i in loaded:
+                if (raise_error and
+                        not trimesh.util.is_instance_named(i, 'Trimesh')):
+                    raise ValueError(
+                        '%s returned a non- Trimesh object!', file_name)
+                meshes.append(i)
         else:
             log.warning('%s has no loader, not running test on!',
                         file_name)

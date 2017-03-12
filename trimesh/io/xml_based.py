@@ -69,7 +69,7 @@ def xaml_load(file_obj, *args, **kwargs):
     # iterate through the element tree
     # the GeometryModel3D tag contains a material and geometry
     for geometry in root.iter(tag=ns + 'GeometryModel3D'):
-        
+
         # get the diffuse and specular colors specified in the material
         color_search = './/{ns}{color}Material/*/{ns}SolidColorBrush'
         diffuse = geometry.find(color_search.format(ns=ns,
@@ -84,19 +84,30 @@ def xaml_load(file_obj, *args, **kwargs):
         # to get the final transform of a component we'll have to traverse
         # all the way back to the root node and save transforms we find
         current = geometry
-        # start with an identity matrix so we can skip checking for empty later
-        transforms = collections.deque([np.eye(4)])
+        transforms = collections.deque()
         # when the root node is reached its parent will be None and we stop
         while current is not None:
+            # .find will only return elements that are direct children of the current
+            # as opposed to .iter, which will return any depth of child
             transform_element = current.find(ns + 'ModelVisual3D.Transform')
             if transform_element is not None:
                 # we are traversing the tree backwards, so append new
-                # transforms left
+                # transforms to the left of the deque
                 transforms.appendleft(element_to_transform(transform_element))
+            # we are going from the lowest level of the tree to the highest
+            # this avoids having to traverse any branches that don't have
+            # geometry
             current = current.getparent()
 
-        # to get the final transform take the dot product of all matrices
-        transform = util.multi_dot(transforms)
+        if len(transforms) == 0:
+            # no transforms in the tree mean an identity matrix
+            transform = np.eye(4)
+        elif len(transforms) == 1:
+            # one transform in the tree we can just use
+            transform = transforms.pop()
+        else:
+            # multiple transforms we apply all of them in order
+            transform = util.multi_dot(transforms)
 
         # iterate through the contained mesh geometry elements
         for g in geometry.iter(tag=ns + 'MeshGeometry3D'):

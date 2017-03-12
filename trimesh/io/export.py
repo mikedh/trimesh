@@ -55,15 +55,18 @@ def export_off(mesh):
     -----------
     export: str, string of OFF format output
     '''
+    # prepend a 3 (face count) to each face
     faces_stacked = np.column_stack((np.ones(len(mesh.faces)) * 3,
                                      mesh.faces)).astype(np.int64)
-    # numpy arrays to string methods (array2string based ones anyway)
-    # are a terrible clusterfuck, so we use our own method which is json dumps
-    # based
     export = 'OFF\n'
     export += str(len(mesh.vertices)) + ' ' + str(len(mesh.faces)) + ' 0\n'
-    export += util.array_to_string(mesh.vertices) + '\n'
-    export += util.array_to_string(faces_stacked)
+    export += util.array_to_string(mesh.vertices,
+                                   col_delim=' ',
+                                   row_delim='\n',
+                                   digits=8) + '\n'
+    export += util.array_to_string(faces_stacked,
+                                   col_delim=' ',
+                                   row_delim='\n')
     return export
 
 

@@ -6,10 +6,12 @@ from collections import deque
 class MeshTests(g.unittest.TestCase):
 
     def test_meshes(self):
-        self.meshes = g.get_meshes()
+        # make sure we can load everything we think we can
+        # while getting a list of meshes to run tests on
+        meshes = g.get_meshes(raise_error=True)
+        g.log.info('Running tests on %d meshes', len(meshes))
 
-        g.log.info('Running tests on %d meshes', len(self.meshes))
-        for mesh in self.meshes:
+        for mesh in meshes:
             g.log.info('Testing %s', mesh.metadata['file_name'])
             self.assertTrue(len(mesh.faces) > 0)
             self.assertTrue(len(mesh.vertices) > 0)
@@ -52,7 +54,7 @@ class MeshTests(g.unittest.TestCase):
 
             # some memory issues only show up when you copy the mesh a bunch
             # specifically, if you cache c- objects then deepcopy the mesh this
-            # generally segfaults somewhat randomly
+            # generally segfaults randomly
             copy_count = 200
             g.log.info('Attempting to copy mesh %d times', copy_count)
             for i in range(copy_count):
