@@ -145,12 +145,11 @@ class Trimesh(object):
         # then reinitialized for the end of the operation.
         self._validate = bool(validate_faces)
 
-
         # process is a cleanup function which brings the mesh to a consistant state
         # by merging vertices and removing zero- area and duplicate faces
         if (process and
             (vertices is not None) and
-            (faces is not None)):
+                (faces is not None)):
             self.process()
 
         # store all passed kwargs for debugging purposes

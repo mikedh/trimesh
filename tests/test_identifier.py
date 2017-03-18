@@ -29,7 +29,7 @@ class IdentifierTest(g.unittest.TestCase):
                 debug = []
                 for a in idf:
                     as_int, exp = g.trimesh.util.sigfig_int(a,
-                                  g.trimesh.comparison.identifier_sigfig)
+                                                            g.trimesh.comparison.identifier_sigfig)
 
                     debug.append(as_int * (10**exp))
                 g.log.error('Hashes on %s differ after transform! diffs:\n %s\n',

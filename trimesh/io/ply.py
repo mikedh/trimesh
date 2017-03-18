@@ -165,12 +165,12 @@ def elements_to_kwargs(elements):
     # with the most going on
     f_color, f_signal = element_colors(elements['face'])
     v_color, v_signal = element_colors(elements['vertex'])
-    colors = [{'face_colors'   : f_color},
-              {'vertex_colors' : v_color}]
+    colors = [{'face_colors': f_color},
+              {'vertex_colors': v_color}]
     colors_index = np.argmax([f_signal,
                               v_signal])
     result.update(colors[colors_index])
-    
+
     return result
 
 
@@ -196,7 +196,7 @@ def element_colors(element):
         colors = np.column_stack(candidate_colors)
         signal = colors.ptp(axis=0).sum()
         return colors, signal
-    
+
     return None, 0.0
 
 

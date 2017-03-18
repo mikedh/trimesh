@@ -767,7 +767,7 @@ class Cache:
     def __len__(self):
         self.verify()
         return len(self.cache)
-    
+
     def __enter__(self):
         self._lock += 1
 
@@ -966,7 +966,7 @@ def array_to_string(array,
         format_str *= array.shape[1]
         format_str += row_delim
         end_junk += len(row_delim)
-        
+
     # expand format string to whole array
     format_str *= len(array)
 

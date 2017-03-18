@@ -31,17 +31,17 @@ class VisualTest(g.unittest.TestCase):
         Test the probably too- magical color caching and storage system. 
         '''
         m = g.get_mesh('featuretype.STL')
-        test_color = [255,0,0,255]
-        test_color_2 = [0,255,0,255]
-        test_color_transparent = [25,33,0,146]
-        
+        test_color = [255, 0, 0, 255]
+        test_color_2 = [0, 255, 0, 255]
+        test_color_transparent = [25, 33, 0, 146]
+
         # there should be nothing in the cache or DataStore when starting
         assert len(m.visual._cache) == 0
         assert len(m.visual._data) == 0
         # no visuals have been defined so this should be None
         assert m.visual._mode is None
         assert not m.visual.defined
-        
+
         # this should cause colors to be generated into cache
         initial_id = id(m.visual.face_colors)
         assert m.visual.face_colors.shape[0] == len(m.faces)
@@ -51,7 +51,7 @@ class VisualTest(g.unittest.TestCase):
         assert len(m.visual._data) == 0
         assert not m.visual.defined
         assert not m.visual.transparency
-        
+
         # this should move the color from cache to data
         m.visual.face_colors[0] = test_color
         # the operation should have moved the colors into data but
@@ -65,7 +65,7 @@ class VisualTest(g.unittest.TestCase):
         assert m.visual._mode == 'face'
         assert m.visual.defined
         assert not m.visual.transparency
-        
+
         # set all face colors to test color
         m.visual.face_colors = test_color
         assert (m.visual.face_colors == test_color).all()
@@ -76,7 +76,7 @@ class VisualTest(g.unittest.TestCase):
         assert bool((m.visual.vertex_colors == test_color).all())
         assert m.visual.defined
         assert not m.visual.transparency
-        
+
         # this should move the color from cache to data
         m.visual.vertex_colors[0] = test_color_2
         assert (m.visual.vertex_colors[0] == test_color_2).all()
@@ -87,31 +87,34 @@ class VisualTest(g.unittest.TestCase):
 
         m.visual.vertex_colors[1] = test_color_transparent
         assert m.visual.transparency
-        
+
         test = (g.np.random.random((len(m.faces), 4)) * 255).astype(g.np.uint8)
         m.visual.face_colors = test
         assert bool((m.visual.face_colors == test).all())
         assert m.visual._mode == 'face'
 
-        test = (g.np.random.random((len(m.vertices), 4)) * 255).astype(g.np.uint8)
+        test = (g.np.random.random((len(m.vertices), 4))
+                * 255).astype(g.np.uint8)
         m.visual.vertex_colors = test
         assert bool((m.visual.vertex_colors == test).all())
         assert m.visual._mode == 'vertex'
 
-        test = (g.np.random.random(4)*255).astype(g.np.uint8)
+        test = (g.np.random.random(4) * 255).astype(g.np.uint8)
         m.visual.face_colors = test
         assert bool((m.visual.vertex_colors == test).all())
         assert m.visual._mode == 'face'
-        m.visual.vertex_colors[0] = (g.np.random.random(4)*255).astype(g.np.uint8)
+        m.visual.vertex_colors[0] = (
+            g.np.random.random(4) * 255).astype(g.np.uint8)
         assert m.visual._mode == 'vertex'
 
-        test = (g.np.random.random(4)*255).astype(g.np.uint8)
+        test = (g.np.random.random(4) * 255).astype(g.np.uint8)
         m.visual.vertex_colors = test
         assert bool((m.visual.face_colors == test).all())
         assert m.visual._mode == 'vertex'
-        m.visual.face_colors[0] = (g.np.random.random(4)*255).astype(g.np.uint8)
+        m.visual.face_colors[0] = (
+            g.np.random.random(4) * 255).astype(g.np.uint8)
         assert m.visual._mode == 'face'
-        
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
