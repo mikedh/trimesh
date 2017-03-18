@@ -30,7 +30,7 @@ from trimesh import util
 from trimesh import grouping
 
 
-class ColorVisuals:
+class ColorVisuals(object):
     '''
     Store color information about a mesh.
     '''
@@ -143,7 +143,12 @@ class ColorVisuals:
             if colors.crc() != self._cache[key_crc]:
                 # call the setter on the property using exec
                 # this avoids having to pass a setter to this function
-                exec('self.{key} = colors'.format(key=key_colors))
+                if name == 'face':
+                    self.face_colors = colors
+                elif name == 'vertex':
+                    self.vertex_colors = colors
+                else:
+                    raise ValueError('unsupported name!!!')
                 self._cache.verify()
 
     def crc(self):
@@ -196,7 +201,7 @@ class ColorVisuals:
 
         # if we set any color information, clear the others
         self._data.clear()
-        self._data['face_colors'] = to_rgba(colors)
+        self._data['face_colors'] = colors
         self._cache.verify()
 
     @property
@@ -286,8 +291,14 @@ class ColorVisuals:
             if colors.crc() != self._cache[key_crc]:
                 # call the setter on the property using exec
                 # this avoids having to pass a setter to this function
-                exec('self.{key} = colors'.format(key=key_colors))
+                if name == 'face':
+                    self.face_colors = colors
+                elif name == 'vertex':
+                    self.vertex_colors = colors
+                else:
+                    raise ValueError('unsupported name!!!')
                 self._cache.verify()
+                
         else:
             # colors have never been accessed
             if self._mode is None:
