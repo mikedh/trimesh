@@ -364,7 +364,7 @@ class ColorVisuals:
         return result
 
     def __add__(self, other):
-         '''
+        '''
         Concatenate two ColorVisuals objects into a single object.
 
         Arguments
@@ -587,3 +587,5 @@ def colors_to_materials(colors, count=None):
         raise ValueError('Colors not convertable!')
 
     return diffuse, index
+
+DEFAULT_COLOR = np.array([102, 102, 102, 255], dtype=np.uint8)
