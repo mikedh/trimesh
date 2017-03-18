@@ -43,6 +43,8 @@ class Trimesh(object):
                  faces=None,
                  face_normals=None,
                  vertex_normals=None,
+                 face_colors=None,
+                 vertex_colors=None,
                  metadata=None,
                  process=True,
                  validate_faces=True,
@@ -97,7 +99,9 @@ class Trimesh(object):
         if 'visual' in kwargs:
             self.visual = kwargs['visual']
         else:
-            self.visual = visual.VisualAttributes(**kwargs)
+            self.visual = visual.create_visual(face_colors=face_colors,
+                                               vertex_colors=vertex_colors,
+                                               **kwargs)
         self.visual.mesh = self
 
         # normals are accessed through setters/properties and are regenerated if the
@@ -120,7 +124,7 @@ class Trimesh(object):
                 from .ray import ray_pyembree
                 self.ray = ray_pyembree.RayMeshIntersector(self)
             except ImportError:
-                log.debug('pyembree import failed, using slower raytracer')
+                pass
 
         # a quick way to get permuated versions of the current mesh
         self.permutate = permutate.Permutator(self)
@@ -141,11 +145,12 @@ class Trimesh(object):
         # then reinitialized for the end of the operation.
         self._validate = bool(validate_faces)
 
+
         # process is a cleanup function which brings the mesh to a consistant state
         # by merging vertices and removing zero- area and duplicate faces
         if (process and
             (vertices is not None) and
-                (faces is not None)):
+            (faces is not None)):
             self.process()
 
         # store all passed kwargs for debugging purposes
@@ -167,6 +172,7 @@ class Trimesh(object):
         with self._cache:
             self.remove_infinite_values()
             self.merge_vertices()
+
             self.remove_duplicate_faces()
             self.remove_degenerate_faces()
         # since none of our process operations moved vertices or faces,

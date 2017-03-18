@@ -764,6 +764,10 @@ class Cache:
         self.verify()
         return key in self.cache
 
+    def __len__(self):
+        self.verify()
+        return len(self.cache)
+    
     def __enter__(self):
         self._lock += 1
 
@@ -813,6 +817,9 @@ class DataStore:
 
     def __setitem__(self, key, data):
         self.data[key] = tracked_array(data)
+
+    def __contains__(self, key):
+        return key in self.data
 
     def __len__(self):
         return len(self.data)
@@ -921,7 +928,8 @@ def array_to_string(array,
 
     Arguments
     ----------
-    array:     (n,) numbers, flat array to be converted
+    array:     (n,) or (n,d) float/int, array to be converted
+               If (n,) only column delimiter will be used
     col_delim: str, what string should separate values in a column
     row_delim: str, what string should separate values in a row
     digits:    int, how many digits should floating point numbers include
@@ -951,16 +959,16 @@ def array_to_string(array,
         raise ValueError('dtype %s not convertable!',
                          array.dtype.name)
 
+    # length of extra delimiters at the end
+    end_junk = len(col_delim)
     # if we have a 2D array add a row delimiter
     if len(array.shape) == 2:
         format_str *= array.shape[1]
         format_str += row_delim
-
+        end_junk += len(row_delim)
+        
     # expand format string to whole array
     format_str *= len(array)
-
-    # length of extra delimiters at the end
-    end_junk = len(col_delim) + len(row_delim)
 
     # run the format operation and remove the extra delimiters
     formatted = format_str.format(*array.reshape(-1))[:-end_junk]
@@ -1145,7 +1153,7 @@ def concatenate(a, b):
     new_normals = np.vstack((a.face_normals, b.face_normals))
     new_faces = np.vstack((a.faces, (b.faces + len(a.vertices))))
     new_vertices = np.vstack((a.vertices, b.vertices))
-    new_visual = a.visual.union(b.visual)
+    new_visual = a.visual.concatenate(b.visual)
     result = trimesh_type(vertices=new_vertices,
                           faces=new_faces,
                           face_normals=new_normals,
@@ -1219,7 +1227,7 @@ def submesh(mesh,
         normals.append(mesh.face_normals[faces_index])
         faces.append(mask[faces_current])
         vertices.append(original_vertices[unique])
-        visuals.extend(mesh.visual.subsets([faces_index]))
+        visuals.append(mesh.visual.face_subset(faces_index))
     # we use type(mesh) rather than importing Trimesh from base
     # to avoid a circular import
     trimesh_type = type_named(mesh, 'Trimesh')
@@ -1229,7 +1237,7 @@ def submesh(mesh,
         appended = trimesh_type(vertices=vertices,
                                 faces=faces,
                                 face_normals=np.vstack(normals),
-                                visual=visuals[0].union(visuals[1:]),
+                                visual=visuals[0].concatenate(visuals[1:]),
                                 process=False)
         return appended
     result = [trimesh_type(vertices=v,

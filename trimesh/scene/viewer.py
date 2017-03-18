@@ -306,7 +306,7 @@ def _view_transform(view):
 def geometry_md5(geometry):
     md5 = geometry.md5()
     if hasattr(geometry, 'visual'):
-        md5 += geometry.visual.md5()
+        md5 += str(geometry.visual.crc())
     return md5
 
 
@@ -315,8 +315,6 @@ def mesh_to_vertex_list(mesh, group=None):
     Convert a Trimesh object to arguments for an
     indexed vertex list constructor.
     '''
-    mesh.visual.choose()
-
     normals = mesh.vertex_normals.reshape(-1).tolist()
     faces = mesh.faces.reshape(-1).tolist()
     vertices = mesh.vertices.reshape(-1).tolist()

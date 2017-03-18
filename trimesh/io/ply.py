@@ -157,14 +157,20 @@ def elements_to_kwargs(elements):
     if not is_shape(faces, (-1, (3, 4))):
         raise ValueError('Faces weren\'t (n,(3|4))!')
 
-    face_colors = element_colors(elements['face'])
-    vertex_colors = element_colors(elements['vertex'])
-
     result = {'vertices': vertices,
               'faces': faces,
-              'face_colors': face_colors,
-              'vertex_colors': vertex_colors,
               'ply_data': elements}
+
+    # if both vertex and face color are defined, pick the one
+    # with the most going on
+    f_color, f_signal = element_colors(elements['face'])
+    v_color, v_signal = element_colors(elements['vertex'])
+    colors = [{'face_colors'   : f_color},
+              {'vertex_colors' : v_color}]
+    colors_index = np.argmax([f_signal,
+                              v_signal])
+    result.update(colors[colors_index])
+    
     return result
 
 
@@ -172,14 +178,26 @@ def element_colors(element):
     '''
     Given an element, try to extract RGBA color from its properties
     and return them as an (n,3|4) array.
+
+    Arguments
+    -------------
+    element: dict, containing color keys
+
+    Returns
+    ------------
+    colors: (n,(3|4) 
+    signal: float, estimate of range
     '''
     keys = ['red', 'green', 'blue', 'alpha']
     candidate_colors = [element['data'][i]
                         for i in keys if i in element['properties']]
 
     if len(candidate_colors) >= 3:
-        return np.column_stack(candidate_colors)
-    return None
+        colors = np.column_stack(candidate_colors)
+        signal = colors.ptp(axis=0).sum()
+        return colors, signal
+    
+    return None, 0.0
 
 
 def ply_ascii(elements, file_obj):

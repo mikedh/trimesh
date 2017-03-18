@@ -87,8 +87,8 @@ def xaml_load(file_obj, *args, **kwargs):
         transforms = collections.deque()
         # when the root node is reached its parent will be None and we stop
         while current is not None:
-            # .find will only return elements that are direct children of the current
-            # as opposed to .iter, which will return any depth of child
+            # element.find will only return elements that are direct children of the current
+            # as opposed to element.iter, which will return any depth of child
             transform_element = current.find(ns + 'ModelVisual3D.Transform')
             if transform_element is not None:
                 # we are traversing the tree backwards, so append new
