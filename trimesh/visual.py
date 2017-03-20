@@ -26,8 +26,8 @@ import numpy as np
 import colorsys
 import collections
 
-from trimesh import util
-from trimesh import grouping
+from . import util
+from . import grouping
 
 
 class ColorVisuals(object):

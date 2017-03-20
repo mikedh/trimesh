@@ -93,7 +93,29 @@ class UtilTests(unittest.TestCase):
                 tree = g.trimesh.util.bounds_tree(bounds)
                 self.assertTrue(0 in tree.intersection(bounds[0]))
 
-
+    def test_strips(self):
+        '''
+        Test our conversion of triangle strips to face indexes.
+        '''
+        # test 4- triangle strip
+        s = [g.np.arange(6)]
+        f = g.trimesh.util.triangle_strips_to_faces(s)
+        assert (f == g.np.array([[0, 1, 2],
+                               [3, 2, 1],
+                               [2, 3, 4],
+                               [5, 4, 3]])).all()
+        assert len(f) + 2  == len(s[0])   
+        
+        # test single triangle
+        s = [g.np.arange(3)]
+        f = g.trimesh.util.triangle_strips_to_faces(s)                   
+        assert (f == g.np.array([[0, 1, 2]])).all()              
+        assert len(f) + 2  == len(s[0])   
+        
+        s = [g.np.arange(100)]
+        f = g.trimesh.util.triangle_strips_to_faces(s)                     
+        assert len(f) + 2  == len(s[0]) 
+    
 class SceneTests(unittest.TestCase):
 
     def setUp(self):

@@ -45,8 +45,8 @@ def xaml_load(file_obj, *args, **kwargs):
         try:
             matrix = next(element.iter(
                 tag=ns + 'MatrixTransform3D')).attrib['Matrix']
-            matrix = np.array(
-                matrix.split(), dtype=np.float64).reshape((4, 4)).T
+            matrix = np.array(matrix.split(),
+                              dtype=np.float64).reshape((4, 4)).T
             return matrix
         except StopIteration:
             # this will be raised if the MatrixTransform3D isn't in the passed
@@ -87,8 +87,9 @@ def xaml_load(file_obj, *args, **kwargs):
         transforms = collections.deque()
         # when the root node is reached its parent will be None and we stop
         while current is not None:
-            # element.find will only return elements that are direct children of the current
-            # as opposed to element.iter, which will return any depth of child
+            # element.find will only return elements that are direct children
+            # of the current element as opposed to element.iter,
+            # which will return any depth of child
             transform_element = current.find(ns + 'ModelVisual3D.Transform')
             if transform_element is not None:
                 # we are traversing the tree backwards, so append new

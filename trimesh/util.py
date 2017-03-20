@@ -8,6 +8,7 @@ Other libraries may be included but they must be wrapped in try/except blocks
 '''
 
 import numpy as np
+import collections
 import logging
 import hashlib
 import base64
@@ -15,7 +16,6 @@ import time
 import json
 import zlib
 
-from collections import defaultdict, deque
 from sys import version_info
 from functools import wraps
 from copy import deepcopy
@@ -240,13 +240,11 @@ def vector_hemisphere(vectors):
     # all on-plane vectors with negative Y values
     signs[np.logical_and(zero[:, 2], neg[:, 1])] = -1.0
     # all on-plane vectors with zero Y values and negative X values
-    signs[
-        np.logical_and(
+    signs[np.logical_and(
             np.logical_and(
-                zero[
-                    :, 2], zero[
-                    :, 1]), neg[
-                        :, 0])] = -1.0
+                zero[:, 2], 
+                zero[:, 1]), 
+            neg[:, 0])] = -1.0
 
     oriented = vectors * signs.reshape((-1, 1))
     return oriented
@@ -420,7 +418,7 @@ def multi_dict(pairs):
     result: dict, with all values stored (rather than last with regular dict)
 
     '''
-    result = defaultdict(list)
+    result = collections.defaultdict(list)
     for k, v in pairs:
         result[k].append(v)
     return result
@@ -1097,7 +1095,7 @@ def type_bases(obj, depth=4):
     '''
     Return the bases of the object passed.
     '''
-    bases = deque([list(obj.__class__.__bases__)])
+    bases = collections.deque([list(obj.__class__.__bases__)])
     for i in range(depth):
         bases.append([i.__base__ for i in bases[-1] if i is not None])
     try:
@@ -1205,10 +1203,10 @@ def submesh(mesh,
     original_faces = mesh.faces.view(np.ndarray)
     original_vertices = mesh.vertices.view(np.ndarray)
 
-    faces = deque()
-    vertices = deque()
-    normals = deque()
-    visuals = deque()
+    faces = collections.deque()
+    vertices = collections.deque()
+    normals = collections.deque()
+    visuals = collections.deque()
 
     # for reindexing faces
     mask = np.arange(len(original_vertices))
@@ -1649,3 +1647,36 @@ def split_extension(file_name, special=['tar.bz2', 'tar.gz']):
             if file_name.endswith(end):
                 return end
     return file_name.split('.')[-1]
+    
+    
+def triangle_strips_to_faces(strips):
+    '''
+    Given a sequence of triangle strips, convert them to (n,3) faces.
+    
+    From the OpenGL programming guide:
+    Draws a series of triangles (three-sided polygons) using vertices 
+    v0, v1, v2, then v2, v1, v3  (note the order), then v2, v3, v4, 
+    and so on. The ordering is to ensure that the triangles are all 
+    drawn with the same orientation so that the strip can correctly form 
+    part of a surface.
+    
+    Arguments
+    ------------
+    strips: (n,) sequence of integer indices
+    
+    Returns
+    ------------
+    faces: (m,3) int, vertex indices representing triangles
+    '''
+    faces = collections.deque()
+    for s in strips:
+        s = np.asanyarray(s, dtype=np.int)
+        # each triangle is defined by one new vertex
+        tri = np.column_stack([np.roll(s, -i) for i in range(3)])[:-2]
+        # we need to flip ever other triangle
+        idx = (np.arange(len(tri)) % 2).astype(bool)
+        tri[idx] = np.fliplr(tri[idx])
+        faces.append(tri)
+    # stack into one (m,3) array
+    faces = np.vstack(faces)
+    return faces
