@@ -19,10 +19,26 @@ class SceneTests(g.unittest.TestCase):
             for s in [scene_split, scene_base]:
                 self.assertTrue(len(s.geometry) > 0)
 
-                flattened = s.transforms.to_flattened()
+                flattened = s.graph.to_flattened()
                 g.json.dumps(flattened)
-                edgelist = s.transforms.to_edgelist()
+                edgelist = s.graph.to_edgelist()
                 g.json.dumps(edgelist)
+
+                assert s.bounds.shape == (2,3)
+                assert s.centroid.shape  == (3,)
+                assert s.extents.shape  == (3,)
+                assert isinstance(s.scale, float)
+                assert g.trimesh.util.is_shape(s.triangles, (-1,3,3))
+                assert len(s.triangles) == len(s.triangles_node)
+
+                assert s.md5() is not None
+
+                assert len(s.duplicate_nodes()) > 0
+
+                s.dump()
+                
+                for export_format in ['dict', 'dict64']:
+                    e = g.json.dumps(s.export(export_format))
 
 
 class GraphTests(g.unittest.TestCase):

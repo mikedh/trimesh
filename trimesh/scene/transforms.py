@@ -12,8 +12,12 @@ class TransformForest:
     def __init__(self, base_frame='world'):
         self.transforms = EnforcedForest()
         self.base_frame = base_frame
+
         self._paths = {}
         self._updated = time.time()
+        
+        self._cache = util.Cache(id_function=self.md5)
+        
 
     def update(self,
                frame_to,
@@ -35,14 +39,21 @@ class TransformForest:
         axis:        (3) array
         angle:       float, radians
         translation: (3) array
+        
+        geometry: Geometry object name
         '''
         if frame_from is None:
             frame_from = self.base_frame
         matrix = kwargs_to_matrix(**kwargs)
+
         changed = self.transforms.add_edge(frame_from,
                                            frame_to,
                                            attr_dict={'matrix': matrix,
                                                       'time': time.time()})
+        if 'geometry' in kwargs:
+            nx.set_node_attributes(self.transforms,
+                                   name='geometry',
+                                   values={frame_to : kwargs['geometry']})
         if changed:
             self._paths = {}
         self._updated = time.time()
@@ -53,19 +64,18 @@ class TransformForest:
 
         Currently only hashing update time.
         '''
-        result = util.md5_object(
-            str(int(self._updated * 1000)).encode('utf-8'))
+        result = str(int(self._updated * 1000))
         return result
 
     def to_flattened(self, world='world'):
         '''
-        Export the 
+        Export the current transform graph as a flattened 
         '''
         flat = {}
-        for node in self.nodes:
-            if node == world:
-                continue
-            flat[node] = self.get(node, world).tolist()
+        for node in self.nodes_geometry:
+            transform, geometry = self.get(node, world)
+            flat[node] = {'transform' : transform.tolist(),
+                          'geometry'  : geometry}
         return flat
 
     def to_edgelist(self):
@@ -87,10 +97,14 @@ class TransformForest:
         for edge in edgelist:
             self.transforms.add_edge(edge[0], edge[1], **edge[2])
 
-    @property
+    @util.cache_decorator
     def nodes(self):
         return self.transforms.nodes()
-
+ 
+    @util.cache_decorator
+    def nodes_geometry(self):
+        return [i for i in self.nodes if 'geometry' in self.transforms.node[i]]
+    
     def get(self,
             frame_to,
             frame_from=None):
@@ -110,9 +124,18 @@ class TransformForest:
         ---------
         transform:  (4,4) homogenous transformation matrix
         '''
+        
+
 
         if frame_from is None:
             frame_from = self.base_frame
+
+        cache_key = str(frame_from) + ':' + str(frame_to)
+        cached = self._cache[cache_key]
+        if cached is not None: 
+            return cached
+        
+
         transform = np.eye(4)
         path = self._get_path(frame_from, frame_to)
 
@@ -123,7 +146,22 @@ class TransformForest:
             if direction < 0:
                 matrix = np.linalg.inv(matrix)
             transform = np.dot(transform, matrix)
-        return transform
+
+        geometry = None
+        if 'geometry' in self.transforms.node[frame_to]:
+            geometry=self.transforms.node[frame_to]['geometry']
+
+        self._cache[cache_key] = (transform, geometry)
+            
+        return transform, geometry
+
+    def show(self):
+        '''
+        Plot the graph layout of the scene.
+        '''
+        import matplotlib.pyplot as plt
+        nx.draw(self.transforms, with_labels=True)
+        plt.show()
 
     def __getitem__(self, key):
         return self.get(key)
@@ -137,6 +175,7 @@ class TransformForest:
     def clear(self):
         self.transforms = EnforcedForest()
         self._paths = {}
+        self._updated = time.time()
 
     def _get_path(self,
                   frame_from,

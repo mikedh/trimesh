@@ -222,7 +222,7 @@ class SceneViewer(pyglet.window.Window):
         gl.glLoadIdentity()
 
         # pull the new camera transform from the scene
-        transform_camera = self.scene.transforms['camera']
+        transform_camera, _junk = self.scene.graph['camera']
         # apply the camera transform to the matrix stack
         gl.glMultMatrixf(_gl_matrix(transform_camera))
 
@@ -233,22 +233,27 @@ class SceneViewer(pyglet.window.Window):
 
         # we want to render fully opaque objects first,
         # followed by objects which have transparency
-        items = deque(self.scene.nodes.items())
-        count_original = len(items)
+        node_names = deque(self.scene.graph.nodes_geometry)
+        count_original = len(node_names)
         count = -1
 
-        while len(items) > 0:
+        while len(node_names) > 0:
             count += 1
-            item = items.popleft()
-            name_node, name_mesh = item
-
+            current_node = node_names.popleft()
+            
             # if the flag isn't defined, this will be None
             # by checking False explicitly, it makes the default
             # behaviour to render meshes with no flag defined.
-            if self.node_flag(name_node, 'visible') is False:
-                continue
+            #if self.node_flag(name_node, 'visible') is False:
+            #    continue
 
-            mesh = self.scene.geometry[name_mesh]
+            transform, geometry_name = self.scene.graph[current_node]
+
+            if geometry_name is None:
+                continue
+            
+            mesh = self.scene.geometry[geometry_name]
+            
             if (hasattr(mesh, 'visual') and
                     mesh.visual.transparency):
                 # put the current item onto the back of the queue
@@ -256,15 +261,14 @@ class SceneViewer(pyglet.window.Window):
                     items.append(item)
                     continue
 
-            transform = self.scene.transforms[name_node]
             # add a new matrix to the model stack
             gl.glPushMatrix()
             # transform by the nodes transform
             gl.glMultMatrixf(_gl_matrix(transform))
             # get the mode of the current geometry
-            mode = self.vertex_list_mode[name_mesh]
+            mode = self.vertex_list_mode[geometry_name]
             # draw the mesh with its transform applied
-            self.vertex_list[name_mesh].draw(mode=mode)
+            self.vertex_list[geometry_name].draw(mode=mode)
             # pop the matrix stack as we drew what we needed to draw
             gl.glPopMatrix()
 

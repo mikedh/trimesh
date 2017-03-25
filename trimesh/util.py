@@ -698,7 +698,7 @@ class Cache:
             self._id_function = lambda: None
         else:
             self._id_function = id_function
-        self.id_current = None
+        self.id_current = self._id_function()
         self._lock = 0
         self.cache = {}
 

@@ -1,5 +1,6 @@
 import numpy as np
 import collections
+import copy
 
 from .. import util
 from .. import grouping
@@ -18,24 +19,25 @@ class Scene:
     '''
 
     def __init__(self,
-                 node=None,
+                 geometry=None,
                  base_frame='world'):
 
-        # instance name : mesh name
-        self.nodes = {}
-        self._cache = util.Cache(id_function=self.md5)
 
         # mesh name : Trimesh object
         self.geometry = collections.OrderedDict()
-        self.flags = {}
-        self.transforms = TransformForest(base_frame=base_frame)
 
-        if node is not None:
-            self.add_geometry(node)
+        # graph structure of instances
+        self.graph = TransformForest(base_frame=base_frame)
+
+        self._cache = util.Cache(id_function=self.md5)
+
+        if geometry is not None:
+            self.add_geometry(geometry)
             self.set_camera()
-        self._cache.id_set()
 
-    def add_geometry(self, geometry):
+    def add_geometry(self,
+                     geometry,
+                     node_name=None):
         '''
         Add a geometry to the scene.
 
@@ -45,37 +47,60 @@ class Scene:
         Arguments
         ----------
         geometry: Trimesh, Path3D, or list of same
+        node_name: 
+        Returns
+        ----------
+        node_name: str, name of node in self.graph
         '''
+
+        # if passed a sequence call add_geometry on all elements
         if util.is_sequence(geometry):
             return [self.add_geometry(i) for i in geometry]
 
+        
         # default values for transforms and name
         transforms = np.eye(4).reshape((-1, 4, 4))
-        name = 'geometry_' + str(len(self.geometry))
+        geometry_name = 'geometry_' + str(len(self.geometry))
 
+        # if object has metadata indicating different transforms or name
+        # use those values
         if hasattr(geometry, 'metadata'):
             if 'name' in geometry.metadata:
-                name = geometry.metadata['name']
+                geometry_name = geometry.metadata['name']
+                
             if 'transforms' in geometry.metadata:
                 transforms = np.asanyarray(geometry.metadata['transforms'])
                 transforms = transforms.reshape((-1, 4, 4))
 
-        self.geometry[name] = geometry
+        # save the geometry reference
+        self.geometry[geometry_name] = geometry
+        
         for i, transform in enumerate(transforms):
-            name_node = name + '_' + str(i)
-            self.nodes[name_node] = name
-            self.flags[name_node] = {'visible': True}
-            self.transforms.update(frame_to=name_node,
-                                   matrix=transform)
 
+            # if we haven't been passed a name to set in the graph
+            # use the geometry name plus an index
+            if node_name is None:
+                node_name = geometry_name + '_' + str(i)
+
+            self.graph.update(frame_to=node_name,
+                              matrix=transform,
+                              geometry=geometry_name,
+                              geometry_flags={'visible':True})
+
+        
+            
     def md5(self):
         '''
         MD5 of scene, which will change when meshes or transforms are changed
+
+        Returns
+        --------
+        hashed: str, MD5 hash of scene
         '''
 
-        data = [hash(i) for i in self.geometry.values()]
-        data.append(self.transforms.md5())
-        hashed = util.md5_object(np.sort(data))
+        # get the MD5 of geometry and graph
+        data = [i.md5() for i in self.geometry.values()]
+        hashed = util.md5_object(np.append(data, self.graph.md5()))
 
         return hashed
 
@@ -91,25 +116,35 @@ class Scene:
         # store the indexes for all 8 corners of a cube,
         # given an input of flattened min/max bounds
         minx, miny, minz, maxx, maxy, maxz = np.arange(6)
-        corner_index = [minx, miny, minz,
-                        maxx, miny, minz,
-                        maxx, maxy, minz,
-                        minx, maxy, minz,
-                        minx, miny, maxz,
-                        maxx, miny, maxz,
-                        maxx, maxy, maxz,
-                        minx, maxy, maxz]
-
+        corner_index = np.array([minx, miny, minz,
+                                 maxx, miny, minz,
+                                 maxx, maxy, minz,
+                                 minx, maxy, minz,
+                                 minx, miny, maxz,
+                                 maxx, miny, maxz,
+                                 maxx, maxy, maxz,
+                                 minx, maxy, maxz]).reshape((-1,3))
         corners = collections.deque()
-        for instance, mesh_name in self.nodes.items():
-            transform = self.transforms.get(instance)
-            current_bounds = self.geometry[mesh_name].bounds
+
+        for node_name in self.graph.nodes_geometry:
+            # access the transform and geometry name for every node
+            transform, geometry_name = self.graph[node_name]
+
+            # not all nodes have associated geometry
+            if geometry_name is None:
+                continue
+
+            # geometry objects have bounds properties, which are (2,3) or (2,2)
+            current_bounds = self.geometry[geometry_name].bounds.copy()
             # handle 2D bounds
             if current_bounds.shape == (2, 2):
-                current_bounds = np.column_stack((current_bounds, [0, 0]))
-            current_corners = current_bounds.reshape(
-                -1)[corner_index].reshape((-1, 3))
-            corners.extend(transform_points(current_corners,
+                current_bounds = np.column_stack((current_bounds,
+                                                  [0, 0]))
+
+            # find the 8 corner vertices of the axis aligned bounding box
+            current_corners = current_bounds.reshape(-1)[corner_index]
+            # transform those corners into where the geometry is located
+            corners.extend(transform_points(current_corners, 
                                             transform))
         corners = np.array(corners)
         bounds = np.array([corners.min(axis=0),
@@ -118,6 +153,13 @@ class Scene:
 
     @util.cache_decorator
     def extents(self):
+        '''
+        Return the axis aligned box size of the current scene.
+
+        Returns
+        ----------
+        extents: (3,) float, bounding box sides length
+        '''
         return np.diff(self.bounds, axis=0).reshape(-1)
 
     @util.cache_decorator
@@ -153,34 +195,35 @@ class Scene:
         triangles: (n,3,3) float, triangles in space
         '''
         triangles = collections.deque()
-        triangles_index = collections.deque()
-        for index, node_info in zip(range(len(self.nodes)),
-                                    self.nodes.items()):
-            node, geometry_name = node_info
+        triangles_node = collections.deque()
+        
+        for node_name in self.graph.nodes_geometry:
+
+            transform, geometry_name = self.graph[node_name]
+            
             geometry = self.geometry[geometry_name]
             if not hasattr(geometry, 'triangles'):
                 continue
-            transform = self.transforms.get(node)
-            triangles.append(transform_points(geometry.triangles.reshape((-1, 3)),
+            
+            triangles.append(transform_points(geometry.triangles.copy().reshape((-1, 3)),
                                               transform))
-            triangles_index.extend(np.ones(len(geometry.triangles),
-                                           dtype=np.int64) * index)
-        self._cache['triangles_index'] = np.array(
-            triangles_index, dtype=np.int64)
+            triangles_node.append(np.tile(node_name, len(geometry.triangles)))
+            
+        self._cache['triangles_node'] = np.hstack(triangles_node)
         triangles = np.vstack(triangles).reshape((-1, 3, 3))
         return triangles
 
     @util.cache_decorator
-    def triangles_index(self):
+    def triangles_node(self):
         '''
-        Which index of self.nodes.values() does each triangle come from.
+        Which node of self.graph does each triangle come from.
 
         Returns
         ---------
-        triangles_index: (len(self.triangles),) int, index of self.nodes.values()
+        triangles_index: (len(self.triangles),) node name for each triangle
         '''
         populate = self.triangles
-        return self._cache['triangles_index']
+        return self._cache['triangles_node']
 
     def duplicate_nodes(self):
         '''
@@ -193,17 +236,38 @@ class Scene:
         -----------
         duplicates: (m) sequence of keys to self.nodes that represent identical geometry
         '''
-        mesh_ids = {k: int(m.identifier_md5, 16)
-                    for k, m in self.geometry.items()}
-        node_ids = np.array([mesh_ids[v] for v in self.nodes.values()])
 
-        node_groups = grouping.group(node_ids)
+        # geometry name : md5 of mesh
+        mesh_hash = {k: int(m.identifier_md5, 16)
+                     for k, m in self.geometry.items()}
 
-        node_keys = np.array(list(self.nodes.keys()))
-        duplicates = [np.sort(node_keys[g]).tolist() for g in node_groups]
+        # the name of nodes in the scene graph with geometry
+        node_names = np.array(self.graph.nodes_geometry)
+        # the geometry names for each node in the same order
+        node_geom  = np.array([self.graph[i][1] for i in node_names])
+        # the mesh md5 for each node in the same order
+        node_hash  = np.array([mesh_hash[v] for v in node_geom])
+
+        # indexes of identical hashes
+        node_groups = grouping.group(node_hash)
+
+        # sequence of node names, where each sublist has identical geometry
+        duplicates = [np.sort(node_names[g]).tolist() for g in node_groups]
         return duplicates
 
     def set_camera(self, angles=None, distance=None, center=None):
+        '''
+        Add a transform to self.graph for 'camera'
+        
+        If arguments are not passed sane defaults will be figured out.
+
+        Arguments
+        -----------
+        angles:    (3,) float, initial euler angles in radians
+        distance:  float, distance away camera should be
+        center:    (3,) float, point camera should center on
+
+        '''
         if center is None:
             center = self.centroid
         if distance is None:
@@ -219,18 +283,20 @@ class Scene:
                            rotation_matrix(angles[1], [0, 1, 0], point=center))
         transform = np.dot(transform, translation)
 
-        self.transforms.update(frame_from='camera',
-                               frame_to=self.transforms.base_frame,
-                               matrix=transform)
+        self.graph.update(frame_from='camera',
+                          frame_to=self.graph.base_frame,
+                          matrix=transform)
 
     def dump(self):
         '''
         Append all meshes in scene to a list of meshes.
         '''
         result = collections.deque()
-        for node_id, mesh_id in self.nodes.items():
-            transform = self.transforms.get(node_id)
-            current = self.geometry[mesh_id].copy()
+
+        for node_name in self.graph.nodes_geometry:
+            transform, geometry_name = self.graph[node_name]
+            
+            current = self.geometry[geometry_name].copy()
             current.apply_transform(transform)
             result.append(current)
         return np.array(result)
@@ -251,18 +317,20 @@ class Scene:
                 transforms: edge list of transforms, eg:
                              ((u, v, {'matrix' : np.eye(4)}))
         '''
-        export = {'transforms': self.transforms.to_flattened(),
-                  'nodes': self.nodes,
+        export = {'graph': self.graph.to_flattened(),
                   'geometry': {},
-                  'scene_cache': self._cache.cache}
-
+                  'scene_cache' : {'bounds'   : self.bounds.tolist(),
+                                   'extents'  : self.extents.tolist(),
+                                   'centroid' : self.centroid.tolist(),
+                                   'scale'    : self.scale}}
+                  
         if file_type is None:
             file_type = {'Trimesh': 'ply',
                          'Path2D': 'dxf'}
 
         # if the mesh has an export method use it, otherwise put the mesh
         # itself into the export object
-        for node, geometry in self.geometry.items():
+        for geometry_name, geometry in self.geometry.items():
             if hasattr(geometry, 'export'):
                 if isinstance(file_type, dict):
                     # case where we have export types that are different
@@ -277,12 +345,12 @@ class Scene:
                     # 'ply')
                     export_type = file_type
 
-                export['geometry'][node] = {'bytes': geometry.export(file_type=export_type),
-                                            'file_type': export_type}
+                export['geometry'][geometry_name] = {'bytes': geometry.export(file_type=export_type),
+                                                     'file_type': export_type}
             else:
                 # case where mesh object doesn't have exporter
                 # might be that someone replaced the mesh with a URL
-                export['geometry'][node] = geometry
+                export['geometry'][geometry_name] = geometry
         return export
 
     def save_image(self, file_obj, resolution=(1024, 768), **kwargs):
@@ -292,28 +360,35 @@ class Scene:
                     resolution=resolution,
                     **kwargs)
 
-    def explode(self, vector=[0.0, 0.0, 1.0], origin=None):
+    def explode(self, vector=None, origin=None):
         '''
         Explode a scene around a point and vector.
         '''
         if origin is None:
             origin = self.centroid
-        centroids = np.array(
-            [self.geometry[i].centroid for i in self.nodes.values()])
+        if vector is None:
+            vector = self.scale/25.0
 
-        if np.shape(vector) == (3,):
-            vectors = np.tile(vector, (len(centroids), 1))
-            projected = np.dot(vector, (centroids - origin).T)
-            offsets = vectors * projected.reshape((-1, 1))
-        elif isinstance(vector, float):
-            offsets = (centroids - origin) * vector
-        else:
-            raise ValueError('Explode vector must by (3,) or float')
+        centroids = collections.deque()
+        for node_name in self.graph.nodes_geometry:
+            transform, geometry_name = self.graph[node_name]
 
-        for offset, node_key in zip(offsets, self.nodes.keys()):
-            current = self.transforms[node_key]
-            current[0:3, 3] += offset
-            self.transforms[node_key] = current
+            centroid = self.geometry[geometry_name].centroid
+            # transform centroid into nodes location
+            centroid = np.dot(transform,
+                              np.append(centroid, 1))[:3]
+
+            if (isinstance(vector, float) or 
+                isinstance(vector, int)):
+                offset = (centroid-origin) * vector
+            elif np.shape(vector) == (3,):
+                projected = np.dot(vector, (centroid - origin))
+                offset = vector * projected
+            else:
+                raise ValueError('vector wrong shape')
+
+            transform[0:3, 3] += offset
+            self.graph[node_name] = transform
 
     def show(self, block=True, **kwargs):
         # this imports pyglet, and will raise an ImportError

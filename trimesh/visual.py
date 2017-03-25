@@ -50,6 +50,7 @@ class ColorVisuals(object):
         face_ colors:  (n,3|4) or (3,) or (4,) uint8, colors per-face
         vertex_colors: (n,3|4) or (3,) or (4,) uint8, colors per-vertex
         '''
+        self.mesh = mesh
         self._data = util.DataStore()
         self._cache = util.Cache(id_function=self.crc)
 
@@ -61,7 +62,7 @@ class ColorVisuals(object):
                                                        dtype=np.uint8),
                          'material_shine': 77.0}
 
-        self.mesh = mesh
+
 
         if face_colors is not None:
             self.face_colors = face_colors
