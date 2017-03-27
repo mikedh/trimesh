@@ -266,3 +266,37 @@ def minimum_cylinder(obj, sample_count=15, angle_tol=.001):
               'radius': radius,
               'height': height}
     return result
+
+def corners(bounds):
+    '''
+    Given a pair of axis aligned bounds, return all 
+    8 corners of the bounding box.
+
+    Arguments
+    ----------
+    bounds: (2,3) or (2,2) float, axis aligned bounds
+
+    Returns
+    ----------
+    corners: (8,3) float, corner vertices of the cube
+    '''
+    
+    bounds = np.asanyarray(bounds, dtype=np.float64)
+
+    if util.is_shape(bounds, (2,2)):
+        bounds = np.column_stack((bounds, [0,0]))
+    elif not util.is_shape(bounds, (2,3)):
+        raise ValueError('bounds must be (2,2) or (2,3)!')
+    
+    minx, miny, minz, maxx, maxy, maxz = np.arange(6)
+    corner_index = np.array([minx, miny, minz,
+                             maxx, miny, minz,
+                             maxx, maxy, minz,
+                             minx, maxy, minz,
+                             minx, miny, maxz,
+                             maxx, miny, maxz,
+                             maxx, maxy, maxz,
+                             minx, maxy, maxz]).reshape((-1,3))
+
+    corners = bounds.reshape(-1)[corner_index]
+    return corners

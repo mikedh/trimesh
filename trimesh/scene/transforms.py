@@ -67,13 +67,19 @@ class TransformForest:
         result = str(int(self._updated * 1000))
         return result
 
-    def to_flattened(self, world='world'):
+    def to_flattened(self, base_frame=None):
         '''
         Export the current transform graph as a flattened 
         '''
+        if base_frame is None:
+            base_frame = self.base_frame
+            
         flat = {}
-        for node in self.nodes_geometry:
-            transform, geometry = self.get(node, world)
+        for node in self.nodes:
+            if node == base_frame:
+                continue
+            transform, geometry = self.get(frame_to=node,
+                                           frame_from=base_frame)
             flat[node] = {'transform' : transform.tolist(),
                           'geometry'  : geometry}
         return flat

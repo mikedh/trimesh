@@ -4,8 +4,9 @@ import copy
 
 from .. import util
 from .. import grouping
-from ..transformations import rotation_matrix, transform_points
 
+from ..bounds import corners as bounds_corners
+from ..transformations import rotation_matrix, transform_points
 from .transforms import TransformForest
 
 
@@ -113,17 +114,6 @@ class Scene:
         --------
         bounds: (2,3) float points for min, max corner
         '''
-        # store the indexes for all 8 corners of a cube,
-        # given an input of flattened min/max bounds
-        minx, miny, minz, maxx, maxy, maxz = np.arange(6)
-        corner_index = np.array([minx, miny, minz,
-                                 maxx, miny, minz,
-                                 maxx, maxy, minz,
-                                 minx, maxy, minz,
-                                 minx, miny, maxz,
-                                 maxx, miny, maxz,
-                                 maxx, maxy, maxz,
-                                 minx, maxy, maxz]).reshape((-1,3))
         corners = collections.deque()
 
         for node_name in self.graph.nodes_geometry:
@@ -136,13 +126,8 @@ class Scene:
 
             # geometry objects have bounds properties, which are (2,3) or (2,2)
             current_bounds = self.geometry[geometry_name].bounds.copy()
-            # handle 2D bounds
-            if current_bounds.shape == (2, 2):
-                current_bounds = np.column_stack((current_bounds,
-                                                  [0, 0]))
-
             # find the 8 corner vertices of the axis aligned bounding box
-            current_corners = current_bounds.reshape(-1)[corner_index]
+            current_corners = bounds_corners(current_bounds)
             # transform those corners into where the geometry is located
             corners.extend(transform_points(current_corners, 
                                             transform))
