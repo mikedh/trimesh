@@ -45,7 +45,7 @@ class Scene:
         If the mesh has multiple transforms defined in its metadata, they will
         all be copied into the TransformForest of the current scene automatically.
 
-        Arguments
+        Parameters
         ----------
         geometry: Trimesh, Path3D, or list of same
         node_name: 
@@ -246,7 +246,7 @@ class Scene:
         
         If arguments are not passed sane defaults will be figured out.
 
-        Arguments
+        Parameters
         -----------
         angles:    (3,) float, initial euler angles in radians
         distance:  float, distance away camera should be
@@ -290,7 +290,7 @@ class Scene:
         '''
         Export a snapshot of the current scene.
 
-        Arguments
+        Parameters
         ----------
         file_type: what encoding to use for meshes
                    ie: dict, dict64, stl
@@ -394,7 +394,7 @@ def split_scene(geometry):
     '''
     Given a possible sequence of geometries, decompose them into parts.
 
-    Arguments
+    Parameters
     ----------
     geometry: splittable
 

@@ -13,7 +13,7 @@ def line_line(origins, directions):
     line 1:    P(s) = p_0 + sU
     line 2:    Q(t) = q_0 + tV
 
-    Arguments
+    Parameters
     ---------
     origins:    (2,d) list of points on lines (d in [2,3])
     directions: (2,d) list of direction vectors

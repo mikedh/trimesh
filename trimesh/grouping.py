@@ -25,7 +25,7 @@ def replace_references(data, reference_dict):
     '''
     Replace elements in an array as per a dictionary of replacement values.
 
-    Arguments
+    Parameters
     ----------
     data:           numpy array
     reference_dict: dictionary of replacement value mapping, eg: {2:1, 3:1, 4:5}
@@ -42,7 +42,7 @@ def group(values, min_len=0, max_len=np.inf):
     '''
     Return the indices of values that are identical
 
-    Arguments
+    Parameters
     ----------
     values:     1D array
     min_len:    int, the shortest group allowed
@@ -73,7 +73,7 @@ def hashable_rows(data, digits=None):
     We turn our array into integers, based on the precision
     given by digits, and then put them in a hashable format.
 
-    Arguments
+    Parameters
     ---------
     data:    (n,m) input array
     digits:  how many digits to add to hash, if data is floating point
@@ -142,7 +142,7 @@ def merge_runs(data, digits=None):
     '''
     Merge duplicate sequential values.
 
-    Arguments
+    Parameters
     -----------
     data: (n,) float or int
 
@@ -200,7 +200,7 @@ def unique_rows(data, digits=None):
     first occurrence of a row that is duplicated:
     [[1,2], [3,4], [1,2]] will return [0,1]
 
-    Arguments
+    Parameters
     ---------
     data: (n,m) set of floating point data
     digits: how many digits to consider for the purposes of uniqueness
@@ -224,7 +224,7 @@ def unique_value_in_row(data, unique=None):
     row which only occurs once. If there are more than one value per
     row which occur once, the last one is returned.
 
-    Arguments
+    Parameters
     ----------
     data:   (n,d) int
     unique: (m) int, list of unique values contained in data.
@@ -273,7 +273,7 @@ def group_rows(data, require_count=None, digits=None):
     Returns index groups of duplicate rows, for example:
     [[1,2], [3,4], [1,2]] will return [[0,2], [1]]
 
-    Arguments
+    Parameters
     ----------
     data:          (n,m) array
     require_count: only returns groups of a specified length, eg:
@@ -347,7 +347,7 @@ def boolean_rows(a, b, operation=set.intersection):
     '''
     Find the rows in two arrays which occur in both rows.
 
-    Arguments
+    Parameters
     ---------
     a: (n,d) array
     b: (m,d) array
@@ -408,7 +408,7 @@ def clusters(points, radius):
     '''
     Find clusters of points which have neighbours closer than radius
 
-    Arguments
+    Parameters
     ---------
     points: (n, d) points (of dimension d)
     radius: max distance between points in a cluster
@@ -429,7 +429,7 @@ def blocks(data, min_len=2, max_len=np.inf, digits=None, only_nonzero=False):
     Given an array, find the indices of contiguous blocks
     of equal values.
 
-    Arguments
+    Parameters
     ---------
     data:    (n) array
     min_len: int, the minimum length group to be returned
@@ -469,7 +469,7 @@ def merge_intervals(intervals):
     Given a list of intervals, merge overlapping ranges into a single list
     of non- overlapping ranges
 
-    Arguments
+    Parameters
     -----------
     intervals: (n,2) list of [start, end] values for ranges
 

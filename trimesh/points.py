@@ -28,7 +28,7 @@ def major_axis(points):
 def plane_fit(points, tolerance=None):
     '''
     Given a set of points, find an origin and normal using least squares
-    Arguments
+    Parameters
     ---------
     points: (n,3)
     tolerance: how non-planar the result can be without raising an error
@@ -92,7 +92,7 @@ def project_to_plane(points,
     '''
     Projects a set of (n,3) points onto a plane.
 
-    Arguments
+    Parameters
     ---------
     points:           (n,3) array of points
     plane_normal:     (3) normal vector of plane
@@ -124,7 +124,7 @@ def absolute_orientation(points_A, points_B, return_error=False):
     Calculates the transform that best aligns points_A with points_B
     Uses Horn's method for the absolute orientation problem, in 3D with no scaling.
 
-    Arguments
+    Parameters
     ---------
     points_A:     (n,3) list of points
     points_B:     (n,3) list of points, T*points_A
@@ -225,7 +225,7 @@ def k_means(points, k, **kwargs):
     Find k centroids that attempt to minimize the k- means problem:
     https://en.wikipedia.org/wiki/Metric_k-center
 
-    Arguments
+    Parameters
     ----------
     points: (n, d) set of points
     k: int, number of centroids to compute

@@ -43,7 +43,7 @@ class ColorVisuals(object):
         '''
         Store color information about a mesh.
 
-        Arguments
+        Parameters
         ----------
         mesh:          Trimesh object that these visual properties 
                        are associated with
@@ -186,7 +186,7 @@ class ColorVisuals(object):
         This will apply these colors and delete any previously specified 
         color information.
 
-        Arguments
+        Parameters
         ------------
         colors: (len(mesh.faces), 3), set each face to the specified color
                 (len(mesh.faces), 4), set each face to the specified color
@@ -224,7 +224,7 @@ class ColorVisuals(object):
         This will apply these colors and delete any previously specified 
         color information.
 
-        Arguments
+        Parameters
         ------------
         colors: (len(mesh.vertices), 3), set each face to the specified color
                 (len(mesh.vertices), 4), set each face to the specified color
@@ -257,7 +257,7 @@ class ColorVisuals(object):
         created) we consider that now to be user data and the array is moved from 
         the cache to the DataStore.
 
-        Arguments
+        Parameters
         -----------
         name: str, 'face', or 'vertex'
 
@@ -346,7 +346,7 @@ class ColorVisuals(object):
         '''
         Given a mask of face indices, return a sliced version.
 
-        Arguments
+        Parameters
         ----------
         face_index: (n,) int, mask for faces
                     (n,) bool, mask for faces
@@ -362,7 +362,7 @@ class ColorVisuals(object):
         '''
         Concatenate two or more ColorVisuals objects into a single object.
 
-        Arguments
+        Parameters
         -----------
         other: ColorVisuals object
         *args: ColorVisuals objects
@@ -379,7 +379,7 @@ class ColorVisuals(object):
         '''
         Concatenate two ColorVisuals objects into a single object.
 
-        Arguments
+        Parameters
         -----------
         other: ColorVisuals object
 
@@ -394,7 +394,7 @@ class ColorVisuals(object):
         '''
         Mask the value contained in the DataStore at a specified key.
 
-        Arguments
+        Parameters
         -----------
         mask: (n,) int
               (n,) bool
@@ -409,7 +409,7 @@ def create_visual(**kwargs):
     '''
     Create Visuals object from keyword arguments.
 
-    Arguments
+    Parameters
     ----------
     face_colors:   (n,3|4) uint8, colors
     vertex_colors: (n,3|4) uint8, colors
@@ -426,7 +426,7 @@ def to_rgba(colors, dtype=np.uint8):
     '''
     Convert a single or multiple RGB colors to RGBA colors.
 
-    Arguments
+    Parameters
     ----------
     colors: (n,[3|4]) list of RGB or RGBA colors
 
@@ -469,7 +469,7 @@ def concatenate_visuals(visuals, *args):
     '''
     Concatenate multiple visual objects.
 
-    Arguments
+    Parameters
     ----------
     visuals: ColorVisuals object, or list of same
     *args:  ColorVisuals object, or list of same
@@ -507,7 +507,7 @@ def random_color(dtype=np.uint8):
     '''
     Return a random RGB color using datatype specified.
 
-    Arguments
+    Parameters
     ----------
     dtype: numpy dtype of result
 
@@ -529,7 +529,7 @@ def vertex_to_face_color(vertex_colors, faces):
     '''
     Convert a list of vertex colors to face colors. 
 
-    Arguments
+    Parameters
     ----------
     vertex_colors: (n,(3,4)),  colors
     faces:         (m,3) int, face indexes
@@ -547,7 +547,7 @@ def face_to_vertex_color(mesh, face_colors, dtype=np.uint8):
     '''
     Convert a list of face colors into a list of vertex colors.
 
-    Arguments
+    Parameters
     -----------
     mesh:        Trimesh object
     face_colors: (n, (3,4)) int, face colors
@@ -572,7 +572,7 @@ def colors_to_materials(colors, count=None):
     Convert a list of colors into a list of unique materials and material
     indexes. 
 
-    Arguments
+    Parameters
     -----------
     colors: (n,(3,4)) colors
     count:  int, number of entities to apply color to

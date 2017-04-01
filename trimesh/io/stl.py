@@ -19,7 +19,7 @@ def load_stl(file_obj, file_type=None):
     '''
     Load an STL file from a file object.
 
-    Arguments
+    Parameters
     ----------
     file_obj: open file- like object
     file_type: not used
@@ -52,7 +52,7 @@ def load_stl_binary(file_obj):
     '''
     Load a binary STL file from a file object.
 
-    Arguments
+    Parameters
     ----------
     file_obj: open file- like object
 
@@ -105,7 +105,7 @@ def load_stl_ascii(file_obj):
     '''
     Load an ASCII STL file from a file object.
 
-    Arguments
+    Parameters
     ----------
     file_obj: open file- like object
 
@@ -152,7 +152,7 @@ def export_stl(mesh):
     '''
     Convert a Trimesh object into a binary STL file.
 
-    Arguments
+    Parameters
     ---------
     mesh: Trimesh object
 
@@ -177,7 +177,7 @@ def export_stl_ascii(mesh):
     '''
     Convert a Trimesh object into an ASCII STL file.
 
-    Arguments
+    Parameters
     ---------
     mesh: Trimesh object
 

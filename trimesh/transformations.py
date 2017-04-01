@@ -1883,7 +1883,7 @@ def planar_matrix(offset, theta):
     '''
     2D homogeonous transformation matrix
 
-    Arguments
+    Parameters
     ----------
     offset: (2,) float, XY offset
     theta:  float, rotation around Z in radians
@@ -1914,7 +1914,7 @@ def planar_matrix_to_3D(matrix_2D):
     Given a 2D homogenous rotation matrix convert it to a 3D rotation
     matrix that is rotating around the Z axis
 
-    Arguments
+    Parameters
     ----------
     matrix_2D: (3,3) float, homogenous 2D rotation matrix
 
@@ -1941,7 +1941,7 @@ def spherical_matrix(theta, phi):
     Give a spherical coordinate vector, find the rotation that will
     transform a [0,0,1] vector to those coordinates
 
-    Arguments
+    Parameters
     -----------
     theta: float, rotation angle in radians
     phi:   float, rotation angle in radians
@@ -1964,7 +1964,7 @@ def transform_points(points, matrix, translate=True):
     If points is (n,2), matrix must be (3,3)
     if points is (n,3), matrix must be (4,4)
 
-    Arguments
+    Parameters
     ----------
     points: (n, d) list of points where d is 2 or 3
     matrix: (3,3) or (4,4) float rotation matrix

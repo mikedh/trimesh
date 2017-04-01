@@ -19,14 +19,14 @@ def nearby_faces(mesh, points):
     then returns all the faces that intersect the axis aligned bounding box
     centered at the queried point and extending to the nearest vertex.
 
-    Arguments
+    Parameters
     ----------
-    mesh: Trimesh object
-    points: (n,3) float, points in space
+    mesh : Trimesh object
+    points : (n,3) float , points in space
 
     Returns
     -----------
-    candidates: (points,) int, sequence of indexes for mesh.faces
+    candidates : (points,) int, sequence of indexes for mesh.faces
     '''
     points = np.asanyarray(points, dtype=np.float64)
     if not util.is_shape(points, (-1, 3)):
@@ -58,16 +58,16 @@ def closest_point_naive(mesh, points):
     Does this by constructing a very large intermediate array and
     comparing every point to every triangle.
 
-    Arguments
+    Parameters
     ----------
-    triangles: (n,3,3) float, triangles in space
-    points:    (m,3)   float, points in space
+    triangles : (n,3,3) float, triangles in space
+    points    : (m,3)   float, points in space
 
     Returns
     ----------
-    closest:     (m,3) float, closest point on triangles for each point
-    distance:    (m,)  float, distance
-    triangle_id: (m,)  int, index of triangle containing closest point
+    closest     : (m,3) float, closest point on triangles for each point
+    distance    : (m,)  float, distance
+    triangle_id : (m,)  int, index of triangle containing closest point
     '''
 
     # establish that input triangles and points are sane
@@ -99,16 +99,16 @@ def closest_point(mesh, points):
     '''
     Given a mesh and a list of points, find the closest point on any triangle.
 
-    Arguments
+    Parameters
     ----------
-    mesh:       Trimesh object
-    points:     (m,3)   float, points in space
+    mesh   : Trimesh object
+    points : (m,3)   float, points in space
 
     Returns
     ----------
-    closest:     (m,3) float, closest point on triangles for each point
-    distance:    (m,)  float, distance
-    triangle_id: (m,)  int, index of triangle containing closest point
+    closest     : (m,3) float, closest point on triangles for each point
+    distance    : (m,)  float, distance
+    triangle_id : (m,)  int, index of triangle containing closest point
     '''
 
     points = np.asanyarray(points, dtype=np.float64)
@@ -169,14 +169,14 @@ def signed_distance(mesh, points):
     * Points within tol.zero of the surface have POSITIVE distance
     * Points INSIDE the mesh will have POSITIVE distance
 
-    Arguments
+    Parameters
     -----------
-    mesh:   Trimesh object
-    points: (n,3) float, list of points in space
+    mesh   : Trimesh object
+    points : (n,3) float, list of points in space
 
     Returns
     ----------
-    signed_distance: (n,3) float, signed distance from point to mesh
+    signed_distance : (n,3) float, signed distance from point to mesh
     '''
     # find the closest point on the mesh to the queried points
     closest, distance, triangle_id = closest_point(mesh, points)
@@ -214,15 +214,15 @@ class ProximityQuery(object):
         Given list of points, for each point find the closest point 
         on any triangle of the mesh.
 
-        Arguments
+        Parameters
         ----------
-        points:    (m,3)   float, points in space
+        points : (m,3) float, points in space
 
         Returns
         ----------
-        closest:     (m,3) float, closest point on triangles for each point
-        distance:    (m,)  float, distance
-        triangle_id: (m,)  int, index of closest triangle for each point
+        closest     : (m,3) float, closest point on triangles for each point
+        distance    : (m,)  float, distance
+        triangle_id : (m,)  int, index of closest triangle for each point
         '''
         return closest_point(mesh=self._mesh,
                              points=points)
@@ -231,14 +231,14 @@ class ProximityQuery(object):
         '''
         Given a set of points, return the closest vertex index to each point
 
-        Arguments
+        Parameters
         ----------
-        points: (n,3) float, list of points in space
+        points : (n,3) float, list of points in space
 
         Returns
         ----------
-        distance: (n,) float, distance from source point to vertex
-        vertex_id: (n,) int, index of mesh.vertices which is closest
+        distance  : (n,) float, distance from source point to vertex
+        vertex_id : (n,) int, index of mesh.vertices which is closest
         '''
         tree = self._mesh.kdtree()
         return tree.query(points)
@@ -251,13 +251,13 @@ class ProximityQuery(object):
         * Points within tol.zero of the surface have POSITIVE distance
         * Points INSIDE the mesh will have POSITIVE distance
 
-        Arguments
+        Parameters
         -----------
-        points: (n,3) float, list of points in space
+        points : (n,3) float, list of points in space
 
         Returns
         ----------
-        signed_distance: (n,3) float, signed distance from point to mesh
+        signed_distance : (n,3) float, signed distance from point to mesh
         '''
         return signed_distance(self._mesh, points)
 
@@ -265,13 +265,13 @@ class ProximityQuery(object):
         '''
         Find if the current mesh contains points.
 
-        Arguments
+        Parameters
         -----------
-        points: (n,3) float, list of points in space
+        points : (n,3) float, list of points in space
 
         Returns
         ----------
-        contains: (n,) bool, True if a point is inside the mesh
+        contains : (n,) bool, True if a point is inside the mesh
         '''
 
         return self.signed_distance(points) >= 0

@@ -39,7 +39,7 @@ def unitize(points, check_valid=False):
     '''
     Turn a list of vectors into a list of unit vectors.
 
-    Arguments
+    Parameters
     ---------
     points:       (n,m) or (j) input array of vectors.
                   For 1D arrays, points is treated as a single vector
@@ -129,7 +129,7 @@ def is_shape(obj, shape):
     Note that if a list- like object is passed that is not a numpy
     array, this function will not convert it and will return False.
 
-    Arguments
+    Parameters
     ---------
     obj: np.ndarray to check the shape of
     shape: list or tuple of shape.
@@ -212,7 +212,7 @@ def vector_hemisphere(vectors):
     If the vector has a zero Z and Y value, vectors with a negative X value
     will be reversed
 
-    Arguments
+    Parameters
     ----------
     vectors: (n,3) float, set of vectors
 
@@ -321,7 +321,7 @@ def three_dimensionalize(points, return_2D=True):
     '''
     Given a set of (n,2) or (n,3) points, return them as (n,3) points
 
-    Arguments
+    Parameters
     ----------
     points:    (n, 2) or (n,3) points
     return_2D: boolean flag
@@ -357,7 +357,7 @@ def grid_arange_2D(bounds, step):
     '''
     Return a 2D grid with specified spacing
 
-    Arguments
+    Parameters
     ---------
     bounds: (2,2) list of [[minx, miny], [maxx, maxy]]
     step:   float, separation between points
@@ -377,7 +377,7 @@ def grid_linspace_2D(bounds, count):
     '''
     Return a count*count 2D grid
 
-    Arguments
+    Parameters
     ---------
     bounds: (2,2) list of [[minx, miny], [maxx, maxy]]
     count:  int, number of elements on a side
@@ -409,7 +409,7 @@ def multi_dict(pairs):
 
     Can be called like the regular dict(pairs) constructor
 
-    Arguments
+    Parameters
     ----------
     pairs: (n,2) array of key, value pairs
 
@@ -457,7 +457,7 @@ def distance_to_end(file_obj):
     '''
     For an open file object how far is it to the end
 
-    Arguments
+    Parameters
     ----------
     file_obj: open file- like object
 
@@ -477,7 +477,7 @@ def decimal_to_digits(decimal, min_digits=None):
     '''
     Return the number of digits to the first nonzero decimal.
 
-    Arguments
+    Parameters
     -----------
     decimal:    float
     min_digits: int, minumum number of digits to return
@@ -498,7 +498,7 @@ def hash_file(file_obj,
     '''
     Get the hash of an open file- like object.
 
-    Arguments
+    Parameters
     ---------
     file_obj: file like object
     hash_function: function to use to hash data
@@ -526,7 +526,7 @@ def md5_object(obj):
     '''
     If an object is hashable, return the string of the MD5.
 
-    Arguments
+    Parameters
     -----------
     obj: object
 
@@ -544,7 +544,7 @@ def md5_array(array, digits=5):
     '''
     Take the MD5 of an array when considering the specified number of digits.
 
-    Arguments
+    Parameters
     ---------
     array:  numpy array
     digits: int, number of digits to account for in the MD5
@@ -849,7 +849,7 @@ def stack_lines(indices):
     Stack a list of values that represent a polyline into
     individual line segments with duplicated consecutive values.
 
-    Arguments
+    Parameters
     ----------
     indices: sequence of items
 
@@ -893,7 +893,7 @@ def append_faces(vertices_seq, faces_seq):
     Given a sequence of zero- indexed faces and vertices,
     combine them into a single (n,3) list of faces and (m,3) vertices
 
-    Arguments
+    Parameters
     ---------
     vertices_seq: (n) sequence of (m,d) vertex arrays
     faces_seq     (n) sequence of (p,j) faces, zero indexed
@@ -924,7 +924,7 @@ def array_to_string(array,
     Convert a 1 or 2D array into a string with a specified number of digits
     and delimiter.
 
-    Arguments
+    Parameters
     ----------
     array:     (n,) or (n,d) float/int, array to be converted
                If (n,) only column delimiter will be used
@@ -978,7 +978,7 @@ def array_to_encoded(array, dtype=None, encoding='base64'):
     '''
     Export a numpy array to a compact serializable dictionary.
 
-    Arguments
+    Parameters
     ---------
     array: numpy array
     dtype: optional, what dtype should array be encoded with.
@@ -1016,7 +1016,7 @@ def decode_keys(store, encoding='utf-8'):
     '''
     If a dictionary has keys that are bytes encode them (utf-8 default)
 
-    Arguments
+    Parameters
     ---------
     store: dict
 
@@ -1038,7 +1038,7 @@ def encoded_to_array(encoded):
     '''
     Turn a dictionary with base64 encoded strings back into a numpy array.
 
-    Arguments
+    Parameters
     ----------
     encoded: dict with keys:
                  dtype: string of dtype
@@ -1075,7 +1075,7 @@ def is_instance_named(obj, name):
     Given an object, if it is a member of the class 'name',
     or a subclass of 'name', return True.
 
-    Arguments
+    Parameters
     ---------
     obj: instance of a class
     name: string
@@ -1111,7 +1111,7 @@ def type_named(obj, name):
     '''
     Similar to the type() builtin, but looks in class bases for named instance.
 
-    Arguments
+    Parameters
     ----------
     obj: object to look for class of
     name : str, name of class
@@ -1134,7 +1134,7 @@ def concatenate(a, b):
     '''
     Concatenate two meshes.
 
-    Arguments
+    Parameters
     ----------
     a: Trimesh object
     b: Trimesh object
@@ -1170,7 +1170,7 @@ def submesh(mesh,
     '''
     Return a subset of a mesh.
 
-    Arguments
+    Parameters
     ----------
     mesh: Trimesh object
     faces_sequence: sequence of face indices from mesh
@@ -1257,7 +1257,7 @@ def submesh(mesh,
 
 def zero_pad(data, count, right=True):
     '''
-    Arguments
+    Parameters
     --------
     data: (n) length 1D array
     count: int
@@ -1286,7 +1286,7 @@ def format_json(data, digits=6):
     The built in json library doesn't have a good way of setting the
     precision of floating point numbers.
 
-    Arguments
+    Parameters
     ----------
     data: (n,) float array
     digits: int, number of digits of floating point numbers to include
@@ -1322,7 +1322,7 @@ class Words:
         '''
         Create a random phrase using words containing only charecters.
 
-        Arguments
+        Parameters
         ----------
         length:    int, how many words in phrase
         delimiter: str, what to separate words with
@@ -1355,7 +1355,7 @@ def convert_like(item, like):
     '''
     Convert an item to have the dtype of another item
 
-    Arguments
+    Parameters
     ----------
     item: item to be converted
     like: object with target dtype. If None, item is returned unmodified
@@ -1384,7 +1384,7 @@ def bounds_tree(bounds):
     Given a set of axis aligned bounds, create an r-tree for broad- phase
     collision detection
 
-    Arguments
+    Parameters
     ---------
     bounds: (n, dimension*2) list of non- interleaved bounds
              for a 2D bounds tree:
@@ -1431,7 +1431,7 @@ def wrap_as_stream(item):
     '''
     Wrap a string or bytes object as a file object
 
-    Arguments
+    Parameters
     ----------
     item: str or bytes: item to be wrapped
 
@@ -1458,7 +1458,7 @@ def histogram_peaks(data,
     A function to bin data, fit a spline to the histogram,
     and return the peaks of that spline.
 
-    Arguments
+    Parameters
     -----------
     data:       (n,) data
     bins:       int, number of bins in histogram
@@ -1524,7 +1524,7 @@ def sigfig_round(values, sigfig=1):
     '''
     Round a single value to a specified number of signifigant figures.
 
-    Arguments
+    Parameters
     ----------
     values: float, value to be rounded
     sigfig: int, number of signifigant figures to reduce to
@@ -1557,7 +1557,7 @@ def sigfig_int(values, sigfig):
     Convert a set of floating point values into integers with a specified number
     of signifigant figures and an exponent.
 
-    Arguments
+    Parameters
     ------------
     values: (n,) float or int, array of values
     sigfig: (n,) int, number of signifigant figures to keep
@@ -1590,7 +1590,7 @@ def decompress(file_obj, file_type):
     Given an open file object and a file type, return all components
     of the archive as open file objects in a dict. 
 
-    Arguments
+    Parameters
     -----------
     file_obj: open file object
     file_type: str, file extension, 'zip', 'tar.gz', etc
@@ -1629,7 +1629,7 @@ def split_extension(file_name, special=['tar.bz2', 'tar.gz']):
     Find the file extension of a file name, including support for 
     special case multipart file extensions (like .tar.gz)
 
-    Arguments
+    Parameters
     ---------- 
     file_name: str, file name
     special:   list of str, multipart exensions
@@ -1660,7 +1660,7 @@ def triangle_strips_to_faces(strips):
     drawn with the same orientation so that the strip can correctly form 
     part of a surface.
     
-    Arguments
+    Parameters
     ------------
     strips: (n,) sequence of integer indices
     

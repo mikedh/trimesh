@@ -30,7 +30,7 @@ def face_adjacency(faces=None, mesh=None, return_edges=False):
     Each pair of faces in the list shares an edge, making them adjacent.
 
 
-    Arguments
+    Parameters
     ----------
     faces:        (n, d) int, set of faces referencing vertices by index
     mesh:         Trimesh object, optional if passed will used cached edges
@@ -86,7 +86,7 @@ def shared_edges(faces_a, faces_b):
     '''
     Given two sets of faces, find the edges which are in both sets.
 
-    Arguments
+    Parameters
     ---------
     faces_a: (n,3) int, set of faces
     faces_b: (m,3) int, set of faces
@@ -119,7 +119,7 @@ def facets(mesh, engine=None):
     '''
     Find the list of parallel adjacent faces.
 
-    Arguments
+    Parameters
     ---------
     mesh:  Trimesh
     engine: str, which graph engine to use ('scipy', 'networkx', 'graphtool')
@@ -172,7 +172,7 @@ def split(mesh,
     If only_watertight is true, it will only return watertight meshes
     and will attempt single triangle/quad repairs.
 
-    Arguments
+    Parameters
     ----------
     mesh: Trimesh
     only_watertight: if True, only return watertight components
@@ -210,7 +210,7 @@ def connected_components(edges,
     '''
     Find groups of connected nodes from an edge list.
 
-    Arguments
+    Parameters
     -----------
     edges:      (n,2) int, edges between nodes
     node_count: int, the largest node in the graph
@@ -282,7 +282,7 @@ def connected_component_labels(edges, node_count):
     '''
     Label graph nodes from an edge list, using scipy.sparse.csgraph
 
-    Arguments
+    Parameters
     ----------
     edges: (n, 2) int, edges of a graph
     node_count: int, the largest node in the graph. 
@@ -310,7 +310,7 @@ def smoothed(mesh, angle):
     Return a non- watertight version of the mesh which will
     render nicely with smooth shading.
 
-    Arguments
+    Parameters
     ---------
     mesh:  Trimesh object
     angle: float, angle in radians, adjacent faces which have normals
@@ -335,7 +335,7 @@ def smoothed(mesh, angle):
 
 def is_watertight(edges, edges_sorted=None):
     '''
-    Arguments
+    Parameters
     ---------
     edges: (n,2) int, set of vertex indices
 

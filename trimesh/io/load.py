@@ -47,7 +47,7 @@ def load(file_obj, file_type=None, **kwargs):
     '''
     Load a mesh or vectorized path into a Trimesh, Path2D, or Path3D object.
 
-    Arguments
+    Parameters
     ---------
     file_obj: a filename string or a file-like object
     file_type: str representing file type (eg: 'stl')
@@ -90,7 +90,7 @@ def load_mesh(file_obj, file_type=None, **kwargs):
     '''
     Load a mesh file into a Trimesh object
 
-    Arguments
+    Parameters
     ---------
     file_obj:  str or file-like object
     file_type: str representing file type (eg: 'stl')
@@ -131,7 +131,7 @@ def load_compressed(file_obj, file_type=None):
     '''
     Given a compressed archive, load all the geometry that we can from it.
 
-    Arguments
+    Parameters
     ----------
     file_obj: open file-like object
     file_type: str, type of file
@@ -167,7 +167,7 @@ def _parse_file_args(file_obj, file_type, **kwargs):
     Given a file_obj and a file_type, try to turn them into a file-like object
     and a lowercase string of file type
 
-    Arguments
+    Parameters
     -----------
     file_obj:  str: if string represents a file path, returns
                     -------------------------------------------

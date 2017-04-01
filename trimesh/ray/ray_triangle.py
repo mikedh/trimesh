@@ -37,7 +37,7 @@ class RayMeshIntersector:
         '''
         Find the intersections between the current mesh and a list of rays.
 
-        Arguments
+        Parameters
         ----------
         ray_origins:      (m,3) float, ray origin points
         ray_directions:   (m,3) float, ray direction vectors
@@ -74,7 +74,7 @@ class RayMeshIntersector:
         should be used as if only the triangle index is used on- edge hits
         will be counted twice.
 
-        Arguments
+        Parameters
         ---------
         rays: (n, 2, 3) array of ray origins and directions
         return_id: boolean flag, if True return triangle indexes
@@ -98,7 +98,7 @@ class RayMeshIntersector:
         '''
         Find out if each ray hit any triangle on the mesh.
 
-        Arguments
+        Parameters
         ---------
         ray_origins: (n
 
@@ -123,7 +123,7 @@ def ray_triangle_id(triangles,
     '''
     Find the intersections between a group of triangles and rays
 
-    Arguments
+    Parameters
     ----------
     triangles:        (n,3,3) float, triangles in space
     ray_origins:      (m,3) float, ray origin points
@@ -236,7 +236,7 @@ def ray_bounds(ray_origins,
     where the rays will be passing through, find the bounding boxes
     of the rays as they pass through the volume.
 
-    Arguments
+    Parameters
     ---------
     rays: (n,2,3) array of ray origins and directions
     bounds: (2,3) bounding box (min, max)

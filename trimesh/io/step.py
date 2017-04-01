@@ -30,7 +30,7 @@ def load_step(file_obj, file_type=None):
         unzip stpidx_author_linux_x86_64_16.0.zip
         sudo cp stpidx_author_linux_x86_64/bin/export_product_asm /usr/bin/
 
-    Arguments
+    Parameters
     ----------
     file_obj:  file like object containing step file
     file_type: unused

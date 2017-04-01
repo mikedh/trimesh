@@ -22,7 +22,7 @@ def oriented_bounds_2D(points):
     '''
     Find an oriented bounding box for a set of 2D points.
 
-    Arguments
+    Parameters
     ----------
     points: (n,2) float, 2D points
 
@@ -85,7 +85,7 @@ def oriented_bounds(obj, angle_digits=2):
     '''
     Find the oriented bounding box for a Trimesh
 
-    Arguments
+    Parameters
     ----------
     obj:       Trimesh object, (n,3) or (n,2) float set of points
     angle_tol: float, angle in radians that OBB can be away from minimum volume
@@ -184,7 +184,7 @@ def minimum_cylinder(obj, sample_count=15, angle_tol=.001):
     https://www.staff.uni-mainz.de/schoemer/publications/ALGO00.pdf
 
 
-    Arguments
+    Parameters
     ----------
     obj: Trimesh object OR
          (n,3) float, points in space
@@ -204,7 +204,7 @@ def minimum_cylinder(obj, sample_count=15, angle_tol=.001):
         Takes spherical coordinates and calculates the volume of a cylinder
         along that vector
 
-        Arguments
+        Parameters
         ---------
         spherical: (2,) float, theta and phi
         return_data: bool, flag for returned
@@ -272,7 +272,7 @@ def corners(bounds):
     Given a pair of axis aligned bounds, return all 
     8 corners of the bounding box.
 
-    Arguments
+    Parameters
     ----------
     bounds: (2,3) or (2,2) float, axis aligned bounds
 

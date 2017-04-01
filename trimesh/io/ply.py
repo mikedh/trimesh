@@ -15,7 +15,7 @@ def load_ply(file_obj, *args, **kwargs):
     '''
     Load a PLY file from an open file object.
 
-    Arguments
+    Parameters
     ---------
     file_obj: an open file- like object
 
@@ -42,7 +42,7 @@ def export_ply(mesh):
     '''
     Export a mesh in the PLY format.
 
-    Arguments
+    Parameters
     ----------
     mesh: Trimesh object
 
@@ -179,7 +179,7 @@ def element_colors(element):
     Given an element, try to extract RGBA color from its properties
     and return them as an (n,3|4) array.
 
-    Arguments
+    Parameters
     -------------
     element: dict, containing color keys
 
@@ -323,7 +323,7 @@ def export_draco(mesh):
     Only works if draco_encoder is in your PATH:
     https://github.com/google/draco
 
-    Arguments
+    Parameters
     ----------
     mesh: Trimesh object
 
@@ -349,7 +349,7 @@ def load_draco(file_obj, file_type=None):
     '''
     Load a mesh from Google's Draco format.
 
-    Arguments
+    Parameters
     ----------
     file_obj: open file- like object
     file_type: unused

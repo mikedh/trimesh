@@ -25,7 +25,7 @@ def identifier_simple(mesh):
     -euler number
     -average radius
 
-    Arguments
+    Parameters
     ----------
     mesh: Trimesh object
 
@@ -54,7 +54,7 @@ def identifier_hash(identifier, sigfig=None):
     '''
     Hash an identifier array to a specified number of signifigant figures.
 
-    Arguments
+    Parameters
     ----------
     identifier: (n,) float
     sigfig:     (n,) int

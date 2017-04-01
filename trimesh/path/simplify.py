@@ -20,7 +20,7 @@ def fit_circle_check(points, scale, prior=None, final=False, verbose=False):
     * the fit deviates by more than tol.radius_frac*radius
     * the segments on the ends deviate from tangent by more than tol.tangent
 
-    Arguments
+    Parameters
     ---------
     points:  (n, d) set of points which represent a path
     prior:   (center, radius) tuple for best guess, or None if unknown
@@ -132,7 +132,7 @@ def arc_march(points, scale):
     '''
     Split a path into line and arc segments, using least squares fit.
 
-    Arguments
+    Parameters
     ---------
     points: (n,d) points
 
@@ -253,7 +253,7 @@ def merge_colinear(points, scale=None):
     Given a set of points representing a path in space,
     merge points which are colinear.
 
-    Arguments
+    Parameters
     ----------
     points: (n, d) set of points (where d is dimension)
     scale:  float, scale of drawing
@@ -349,7 +349,7 @@ def three_point(indices):
     Given a long list of ordered indices, 
     return the first, middle and last.
 
-    Arguments
+    Parameters
     -----------
     indices: (n,) array
 
@@ -367,7 +367,7 @@ def polygon_to_cleaned(polygon, scale):
     '''
     Return the exterior of a polygon with colinear segments merged
 
-    Arguments
+    Parameters
     ----------
     polygon: shapely.geometry.Polygon object
     scale:   float, scale of polygon
@@ -388,7 +388,7 @@ def simplify_path(drawing):
     Arc march produces garbage occasionally, the output of 
     this function needs to be looked at and checked manually.
 
-    Arguments
+    Parameters
     -----------
     drawing: Path2D object
 
@@ -442,7 +442,7 @@ def simplify_basic(drawing):
 
     No intermediate arc substitution.
 
-    Arguments
+    Parameters
     -----------
     drawing: Path2D object
 

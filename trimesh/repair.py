@@ -107,7 +107,7 @@ def fill_holes(mesh):
     and if face colors exist the color of the last face will be assigned
     to the new triangles.
 
-    Arguments
+    Parameters
     ---------
     mesh: Trimesh object
     '''
@@ -118,7 +118,7 @@ def fill_holes(mesh):
         triangular faces.
         If unable to do so, return None
 
-        Arguments
+        Parameters
         ---------
         hole:     ordered loop of vertex indices
 

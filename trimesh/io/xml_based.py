@@ -11,7 +11,7 @@ def xaml_load(file_obj, *args, **kwargs):
     '''
     Load a 3D XAML file.
 
-    Arguments
+    Parameters
     ----------
     file_obj: open file object
 

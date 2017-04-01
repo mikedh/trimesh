@@ -43,7 +43,7 @@ def extrude_polygon(polygon,
     '''
     Extrude a 2D shapely polygon into a 3D mesh
 
-    Arguments
+    Parameters
     ----------
     polygon: shapely.geometry.Polygon object
     height:  float, distance to extrude polygon along Z
@@ -68,7 +68,7 @@ def extrude_triangulation(vertices,
     Turn a shapely.geometry Polygon object and a height (float)
     into a watertight Trimesh object.
 
-    Arguments
+    Parameters
     ----------
     vertices: (n,2) float, 2D vertices
     faces:    (m,3) int,   triangle indexes of vertices
@@ -143,7 +143,7 @@ def triangulate_polygon(polygon, **kwargs):
     '''
     Given a shapely polygon, create a triangulation using meshpy.triangle
 
-    Arguments
+    Parameters
     ---------
     polygon: Shapely.geometry.Polygon
     kwargs: passed directly to meshpy.triangle.build:
@@ -309,7 +309,7 @@ def icosphere(subdivisions=3, radius=1.0):
     '''
     Create an isophere centered at the origin.
 
-    Arguments
+    Parameters
     ----------
     subdivisions: int, how many times to subdivide the mesh.
                   Note that the number of faces will grow as function of
@@ -344,7 +344,7 @@ def uv_sphere(radius=1.0,
 
     Roughly one order of magnitude faster than an icosphere but slightly uglier.
 
-    Arguments
+    Parameters
     ----------
     radius: float, radius of sphere 
     count: (2,) int, number of lattitude and longitude lines
@@ -410,7 +410,7 @@ def capsule(height=1.0,
     '''
     Create a mesh of a capsule, or a cylinder with hemispheric ends. 
 
-    Arguments
+    Parameters
     ----------
     height: float, center to center distance of two spheres
     radius: float, radius of the cylinder and hemispheres
@@ -452,7 +452,7 @@ def cylinder(radius=1.0, height=1.0, sections=32):
     '''
     Create a mesh of a cylinder along Z centered at the origin.
 
-    Arguments
+    Parameters
     ----------
     radius: float, the radius of the cylinder
     height: float, the height of the cylinder
@@ -485,7 +485,7 @@ def random_soup(face_count=100):
     '''
     Return a random set of triangles as a Trimesh
 
-    Arguments
+    Parameters
     -----------
     face_count: int, number of faces in resultant mesh
 

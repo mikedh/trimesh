@@ -54,7 +54,7 @@ class Trimesh(object):
         '''
         A Trimesh object contains a triangular 3D mesh.
 
-        Arguments
+        Parameters
         ----------
         vertices:       (n,3) float set of vertex locations
         faces:          (m,3) int set of triangular faces (quad faces will be triangulated)
@@ -295,7 +295,7 @@ class Trimesh(object):
         called before returning faces or triangles to avoid inconsistant results
         depending on which order functions are called.
 
-        Arguments
+        Parameters
         ----------
         faces: (n,3) int, if None uses self.faces
                Available as an argument to avoid a circular reference in some functions
@@ -710,7 +710,7 @@ class Trimesh(object):
         '''
         Convert the units of the mesh into a specified unit.
 
-        Arguments
+        Parameters
         ----------
         desired: string, units to convert to (eg 'inches')
         guess:   boolean, if self.units are not defined should we
@@ -729,7 +729,7 @@ class Trimesh(object):
         '''
         Update vertices with a mask.
 
-        Arguments
+        Parameters
         ----------
         vertex_mask: (len(self.vertices)) boolean array of which
                      vertices to keep
@@ -760,7 +760,7 @@ class Trimesh(object):
         This function updates the set of faces with a validity mask,
         as well as keeping track of normals and colors.
 
-        Arguments
+        Parameters
         ---------
         valid: either (m) int, or (len(self.faces)) bool.
         '''
@@ -814,7 +814,7 @@ class Trimesh(object):
         Returns a list of Trimesh objects, based on face connectivity.
         Splits into individual components, sometimes referred to as 'bodies'
 
-        Arguments
+        Parameters
         ---------
         only_watertight: only meshes which are watertight are returned
         adjacency: if not None, override face adjacency with custom values (n,2)
@@ -978,7 +978,7 @@ class Trimesh(object):
         '''
         Return a list of face indices for coplanar adjacent faces.
 
-        Arguments
+        Parameters
         ---------
         return_area: boolean, if True return area of each group of faces
 
@@ -1026,7 +1026,7 @@ class Trimesh(object):
         Subdivide a mesh, with each subdivided face replaced with four
         smaller faces.
 
-        Arguments
+        Parameters
         ----------
         mesh: Trimesh object
         face_index: faces to subdivide.
@@ -1067,7 +1067,7 @@ class Trimesh(object):
         Returns a cross section of the current mesh and plane defined by
         origin and normal.
 
-        Arguments
+        Parameters
         ---------
         plane_normal: (3) vector for plane normal
         plane_origin: (3) vector for plane origin
@@ -1107,7 +1107,7 @@ class Trimesh(object):
         Return random samples distributed normally across the
         surface of the mesh
 
-        Arguments
+        Parameters
         ---------
         count: int, number of points to sample
 
@@ -1140,7 +1140,7 @@ class Trimesh(object):
         '''
         Translate the current mesh.
 
-        Arguments
+        Parameters
         ----------
         translation: (3,) float, translation in XYZ
         '''
@@ -1158,7 +1158,7 @@ class Trimesh(object):
         '''
         Scale the mesh equally on all axis.
 
-        Arguments
+        Parameters
         ----------
         scaling: float, scale factor
         '''
@@ -1176,7 +1176,7 @@ class Trimesh(object):
         Transform mesh by a homogenous transformation matrix.
         Also transforms normals to avoid having to recompute them.
 
-        Arguments
+        Parameters
         ----------
         matrix: (4,4) float, homogenous transformation matrix
         '''
@@ -1216,7 +1216,7 @@ class Trimesh(object):
         Return a Voxel object representing the current mesh
         discretized into voxels at the specified pitch
 
-        Arguments
+        Parameters
         ----------
         pitch: float, the edge length of a single voxel
 
@@ -1238,7 +1238,7 @@ class Trimesh(object):
         Note that this implies a non-watertight section,
         and the 'outline' of a watertight mesh is an empty path.
 
-        Arguments
+        Parameters
         ----------
         face_ids: (n) int, list of indices for self.faces to
                   compute the outline of.
@@ -1284,7 +1284,7 @@ class Trimesh(object):
         Assumes uniform density, and result is probably garbage if mesh
         isn't watertight.
 
-        Arguments
+        Parameters
         ----------
         density:      float, density of the solid
         skip_inertia: bool, skip inertia calculation or not
@@ -1326,7 +1326,7 @@ class Trimesh(object):
         '''
         Render the mesh in an opengl window. Requires pyglet.
 
-        Arguments
+        Parameters
         -----------
         block:  bool, open window in new thread, or block until window is closed
         smooth: bool, run smooth shading on mesh or not. Large meshes will be slow
@@ -1343,7 +1343,7 @@ class Trimesh(object):
         '''
         Return a subset of the mesh.
 
-        Arguments
+        Parameters
         ----------
         faces_sequence: sequence of face indices from mesh
         only_watertight: only return submeshes which are watertight.
@@ -1387,7 +1387,7 @@ class Trimesh(object):
 
         Supported formats are stl, off, ply, collada, json, dict, dict64, msgpack.
 
-        Arguments
+        Parameters
         ---------
         file_obj: open writeable file object
                   str, file name where to save the mesh
@@ -1417,7 +1417,7 @@ class Trimesh(object):
         '''
         Boolean union between this mesh and n other meshes
 
-        Arguments
+        Parameters
         ---------
         other: Trimesh, or list of Trimesh objects
 
@@ -1433,7 +1433,7 @@ class Trimesh(object):
         '''
         Boolean difference between this mesh and n other meshes
 
-        Arguments
+        Parameters
         ---------
         other: Trimesh, or list of Trimesh objects
 
@@ -1449,7 +1449,7 @@ class Trimesh(object):
         '''
         Boolean intersection between this mesh and n other meshes
 
-        Arguments
+        Parameters
         ---------
         other: Trimesh, or list of Trimesh objects
 
@@ -1466,7 +1466,7 @@ class Trimesh(object):
         Given a set of points, determine whether or not they are inside the mesh.
         This raises an error if called on a non- watertight mesh.
 
-        Arguments
+        Parameters
         ---------
         points: (n,3) set of points in space
 

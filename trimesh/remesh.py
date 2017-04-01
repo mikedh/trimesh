@@ -7,7 +7,7 @@ def subdivide(mesh, face_index=None):
     '''
     Subdivide a mesh into smaller triangles.
 
-    Arguments
+    Parameters
     ----------
     mesh: Trimesh object
     face_index: faces to subdivide.

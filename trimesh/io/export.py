@@ -12,7 +12,7 @@ def export_mesh(mesh, file_obj, file_type=None):
     '''
     Export a Trimesh object to a file- like object, or to a filename
 
-    Arguments
+    Parameters
     ---------
     file_obj: a filename string or a file-like object
     file_type: str representing file type (eg: 'stl')
@@ -47,7 +47,7 @@ def export_off(mesh):
     '''
     Export a mesh as an OFF file, a simple text format
 
-    Arguments
+    Parameters
     -----------
     mesh: Trimesh object
 

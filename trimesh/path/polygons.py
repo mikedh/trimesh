@@ -62,7 +62,7 @@ def polygon_obb(polygon):
 
     The OBB is always aligned with an edge of the convex hull of the polygon.
 
-    Arguments
+    Parameters
     -------------
     polygons: shapely.geometry.Polygon
 
@@ -95,7 +95,7 @@ def rasterize_polygon(polygon, pitch):
     Given a shapely polygon, find the raster representation at a given angle
     relative to the oriented bounding box
 
-    Arguments
+    Parameters
     ----------
     polygon: shapely polygon
     pitch:   what is the edge length of a pixel
@@ -218,7 +218,7 @@ def medial_axis(polygon, resolution=.01, clip=None):
     Given a shapely polygon, find the approximate medial axis based
     on a voronoi diagram of evenly spaced points on the boundary of the polygon.
 
-    Arguments
+    Parameters
     ----------
     polygon:    a shapely.geometry.Polygon
     resolution: target distance between each sample on the polygon boundary
@@ -276,7 +276,7 @@ class InversePolygon:
         '''
         Find the minimum distances from a point to the exterior and interiors
 
-        Arguments
+        Parameters
         ---------
         point: (2) list or shapely.geometry.Point
 
@@ -291,7 +291,7 @@ class InversePolygon:
         '''
         Find the minimum distance from a point to the boundary of the polygon.
 
-        Arguments
+        Parameters
         ---------
         point: (2) list or shapely.geometry.Point
 
@@ -307,7 +307,7 @@ def polygon_hash(polygon):
     '''
     An approximate hash of a a shapely Polygon object.
 
-    Arguments
+    Parameters
     ---------
     polygon: shapely.geometry.Polygon object
 
@@ -327,7 +327,7 @@ def random_polygon(segments=8, radius=1.0):
     '''
     Generate a random polygon with a maximum number of sides and approximate radius.
 
-    Arguments
+    Parameters
     ---------
     segments: int, the maximum number of sides the random polygon will have
     radius:   float, the approximate radius of the polygon desired

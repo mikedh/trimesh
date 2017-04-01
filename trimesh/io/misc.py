@@ -9,7 +9,7 @@ def load_off(file_obj, file_type=None):
     Load an OFF file into the kwargs for a Trimesh constructor
 
 
-    Arguments
+    Parameters
     ----------
     file_obj: file object containing an OFF file
     file_type: not used
@@ -47,7 +47,7 @@ def load_wavefront(file_obj, file_type=None):
     Discards texture normals and vertex color information.
 
 
-    Arguments
+    Parameters
     ----------
     file_obj: file object containing a wavefront file
     file_type: not used
@@ -80,7 +80,7 @@ def load_msgpack(blob, file_type=None):
     '''
     Load a dict packed with msgpack into kwargs for Trimesh constructor
 
-    Arguments
+    Parameters
     ----------
     blob: msgpack packed dict with keys for 'vertices' and 'faces'
     file_type: not used
@@ -104,7 +104,7 @@ def load_dict(data, file_type=None):
     Load multiple input types into kwargs for a Trimesh constructor.
     Tries to extract keys ['faces', 'vertices', 'face_normals', 'vertex_normals'].
 
-    Arguments
+    Parameters
     ----------
     data: accepts multiple forms
           -dict: has keys for vertices and faces as (n,3) numpy arrays

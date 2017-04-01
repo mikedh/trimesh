@@ -9,7 +9,7 @@ def transform(mesh, translation_scale=1000.0):
     Return a permutated variant of a mesh by randomly reording faces
     and rotatating + translating a mesh by a random matrix.
 
-    Arguments
+    Parameters
     ----------
     mesh:   Trimesh object (input will not be altered by this function)
 
@@ -36,7 +36,7 @@ def noise(mesh, magnitude=None):
     Add gaussian noise to every vertex of a mesh.
     Makes no effort to maintain topology or sanity.
 
-    Arguments
+    Parameters
     ----------
     mesh:      Trimesh object (will not be mutated)
     magnitude: float, what is the maximum distance per axis we can displace a vertex.
@@ -69,7 +69,7 @@ def tesselation(mesh):
     This produces a mesh with exactly the same surface area and volume
     but with different tesselation.
 
-    Arguments
+    Parameters
     ----------
     mesh: Trimesh object
 

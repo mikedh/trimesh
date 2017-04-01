@@ -6,7 +6,7 @@ from ..constants import tol_path as tol
 
 def discretize_bezier(points, count=None, scale=1.0):
     '''
-    Arguments
+    Parameters
     ----------
     points:  (o,d) list of points of the bezier. The first and last
              points should be the start and end of the curve.
@@ -53,7 +53,7 @@ def discretize_bspline(control, knots, count=None, scale=1.0):
     Given a B-Splines control points and knot vector, return
     a sampled version of the curve.
 
-    Arguments
+    Parameters
     ----------
     control:  (o,d) list of control points of the b- spline.
     knots:    (j) list of knots

@@ -14,7 +14,7 @@ def arc_center(points):
     This uses the fact that the intersection of the perpendicular
     bisectors of the segments between the control points is the center of the arc.
 
-    Arguments
+    Parameters
     ---------
     points: (3,d) list of points where (d in [2,3])
 
@@ -69,7 +69,7 @@ def discretize_arc(points, close=False, scale=1.0):
     '''
     Returns a version of a three point arc consisting of line segments
 
-    Arguments
+    Parameters
     ---------
     points: (n, d) points on the arc where d in [2,3]
     close:  boolean, if True close the arc (circle)

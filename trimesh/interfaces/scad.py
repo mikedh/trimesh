@@ -12,7 +12,7 @@ def interface_scad(meshes, script):
     CGAL is very stable if difficult to install/use, so this function provides a
     tempfile- happy solution for getting the basic CGAL CSG functionality.
 
-    Arguments
+    Parameters
     ---------
     meshes: list of Trimesh objects
     script: string of the script to send to scad.

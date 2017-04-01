@@ -7,7 +7,7 @@ def contains_points(mesh, points):
 
     If the point is on the surface of the mesh, behavior is undefined.
 
-    Arguments
+    Parameters
     ---------
     mesh: Trimesh object
     points: (n,3) points in space

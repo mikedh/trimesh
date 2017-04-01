@@ -11,7 +11,7 @@ def sample_surface(mesh, count):
     For individual triangle sampling uses this method:
     http://mathworld.wolfram.com/TrianglePointPicking.html
 
-    Arguments
+    Parameters
     ---------
     mesh: Trimesh object
     count: number of points to return
@@ -65,7 +65,7 @@ def volume_mesh(mesh, count):
     '''
     Use rejection sampling to produce points randomly distributed in the volume of a mesh.
 
-    Arguments
+    Parameters
     ----------
     mesh: Trimesh object
     count: int, number of samples desired
@@ -87,7 +87,7 @@ def volume_rectangular(extents,
     '''
     Return random samples inside a rectangular volume.
 
-    Arguments
+    Parameters
     ----------
     extents:   (3,) float, side lengths of rectangular solid
     count:     int, number of points to return
@@ -125,7 +125,7 @@ def sample_surface_sphere(count):
     Uses this method:
     http://mathworld.wolfram.com/SpherePointPicking.html
 
-    Arguments
+    Parameters
     ----------
     count: int, number of points to return
 

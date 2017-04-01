@@ -13,7 +13,7 @@ class Voxel:
         Create a voxel representation of a mesh through ray tests
         which are done immediatly on instantiation.
 
-        Arguments
+        Parameters
         ----------
         mesh:  Trimesh object
         pitch: float, how long should each edge of the voxel be
@@ -156,7 +156,7 @@ class Voxel:
         '''
         Convert a point to an index in the raw array.
 
-        Arguments
+        Parameters
         ----------
         point: (3,) float, point in space
 
@@ -175,7 +175,7 @@ class Voxel:
         '''
         Query a point to see if the voxel cell it lies in is filled or not.
 
-        Arguments
+        Parameters
         ----------
         point: (3,) float, point in space
 
@@ -203,7 +203,7 @@ def mesh_to_run(mesh, pitch, size_max=1e5):
     '''
     Compute a list of occupied voxels from a Trimesh using ray tests.
 
-    Arguments
+    Parameters
     -----------
     mesh:  Trimesh object
     pitch: float, how long should a voxel edge be
@@ -274,7 +274,7 @@ def run_to_raw(shape, index_xy, index_z, **kwargs):
     '''
     Convert a set of voxel runs to a 3D numpy array.
 
-    Arguments
+    Parameters
     ----------
     shape: (3,) int, shape of resulting matrix
     index_xy: (n,2) int, position (in counts) of voxels
@@ -294,7 +294,7 @@ def raw_to_points(raw, pitch, origin):
     '''
     Convert an (n,m,p) raw matrix into a set of points for each voxel center.
 
-    Arguments
+    Parameters
     -----------
     raw: (n,m,p) bool, voxel matrix
     pitch: float, what pitch was the voxel matrix computed with
@@ -312,7 +312,7 @@ def run_to_mesh(run):
     '''
     Convert information about voxel runs into a rough Trimesh for visualization.
 
-    Arguments
+    Parameters
     ------------
     run: dict with voxel run information
 

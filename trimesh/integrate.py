@@ -9,7 +9,7 @@ def symbolic_barycentric(function):
     '''
     Symbolically integrate a function(x,y,z) across a triangle or mesh.
 
-    Arguments
+    Parameters
     ----------
     function: string or sympy expression
               x, y, z will be replaced with a barycentric representation
@@ -53,7 +53,7 @@ def symbolic_barycentric(function):
             '''
             Quickly evaluate the surface integral across a mesh
 
-            Arguments
+            Parameters
             ----------
             mesh: Trimesh object
 

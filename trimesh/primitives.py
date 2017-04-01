@@ -143,7 +143,7 @@ class Cylinder(_Primitive):
         '''
         Create a Cylinder Primitive, a subclass of Trimesh.
 
-        Arguments
+        Parameters
         ----------
         radius: float, radius of cylinder
         height: float, height of cylinder
@@ -204,7 +204,7 @@ class Sphere(_Primitive):
         '''
         Create a Sphere Primitive, a subclass of Trimesh.
 
-        Arguments
+        Parameters
         ----------
         radius: float, radius of sphere
         center: (3,) float, center of sphere
@@ -268,7 +268,7 @@ class Box(_Primitive):
         '''
         Create a Box Primitive, a subclass of Trimesh
 
-        Arguments
+        Parameters
         ----------
         extents:   (3,)  float, size of box
         transform: (4,4) float, transformation matrix for box center
@@ -285,7 +285,7 @@ class Box(_Primitive):
         '''
         Return samples from inside the volume of the box.
 
-        Arguments
+        Parameters
         -------------
         count: int, number of samples to return
 
@@ -337,7 +337,7 @@ class Extrusion(_Primitive):
         '''
         Create an Extrusion Primitive, a subclass of Trimesh
 
-        Arguments
+        Parameters
         ----------
         polygon:   shapely.geometry.Polygon, polygon to extrude
         transform: (4,4) float, transform to apply after extrusion
@@ -376,7 +376,7 @@ class Extrusion(_Primitive):
         Alter the transform of the current extrusion to slide it along its
         extrude_direction vector
 
-        Arguments
+        Parameters
         -----------
         distance: float, distance along self.extrude_direction to move
         '''

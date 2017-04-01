@@ -28,7 +28,7 @@ def vertex_to_entity_path(vertex_path, graph, entities, vertices=None):
     '''
     Convert a path of vertex indices to a path of entity indices.
 
-    Arguments
+    Parameters
     ----------
     vertex_path: (n,) int, list of vertex indicies
     graph:       nx.Graph of the vertex connectivity
@@ -229,7 +229,7 @@ def resample_path(points, count=None, step=None, step_round=True):
     Result can have a specific distance (np.arange) by specifying step
 
 
-    Arguments
+    Parameters
     ----------
     points:   (n,d) sequence of points in space
     count:    number of points to sample to (aka np.linspace)

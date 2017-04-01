@@ -20,7 +20,7 @@ def minimum_nsphere(obj):
     but should be pretty fast due to using the scipy/qhull implementations
     of convex hulls and voronoi diagrams.
 
-    Arguments
+    Parameters
     ----------
     obj: Trimesh object OR
          (n,d) float, set of points
@@ -84,7 +84,7 @@ def fit_nsphere(points, prior=None):
     '''
     Fit an n-sphere to a set of points using least squares.
 
-    Arguments
+    Parameters
     ---------
     points: (n,d) set of points
     prior:  (d,) float, best guess for center of nsphere

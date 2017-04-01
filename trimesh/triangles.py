@@ -23,7 +23,7 @@ def area(triangles=None, crosses=None, sum=False):
     '''
     Calculates the sum area of input triangles
 
-    Arguments
+    Parameters
     ----------
     triangles: vertices of triangles (n,3,3)
     sum:       bool, return summed area or individual triangle area
@@ -102,7 +102,7 @@ def mass_properties(triangles, crosses=None, density=1.0, skip_inertia=False):
     Implemented from:
     http://www.geometrictools.com/Documentation/PolyhedralMassProperties.pdf
 
-    Arguments
+    Parameters
     ----------
     '''
     triangles = np.asanyarray(triangles, dtype=np.float64)
@@ -187,7 +187,7 @@ def windings_aligned(triangles, normals_compare):
     '''
     Given a set of triangles and a set of normals determine if the two are aligned
 
-    Arguments
+    Parameters
     ----------
     triangles: (n,3,3) set of vertex locations
     normals_compare: (n,3) set of normals
@@ -212,7 +212,7 @@ def bounds_tree(triangles):
     Given a set of triangles, create an r-tree for broad- phase
     collision detection
 
-    Arguments
+    Parameters
     ---------
     triangles: (n, 3, 3) list of vertices
 
@@ -241,7 +241,7 @@ def nondegenerate(triangles, areas=None):
     1) Two of the three vertices are colocated
     2) All three vertices are unique but colinear
 
-    Arguments
+    Parameters
     ----------
     triangles: (n, 3, 3) float, set of triangles
 
@@ -291,7 +291,7 @@ def barycentric_to_points(triangles, barycentric):
     '''
     Convert a set of barycentric coordinates on a list of triangles to cartesian points
 
-    Arguments
+    Parameters
     ----------
     triangles:         (n,3,3) float, set of triangles in space
     barycentric:       (n,2) float, barycentric coordinates
@@ -328,7 +328,7 @@ def points_to_barycentric(triangles, points, method='cramer'):
         https://www.cs.ubc.ca/~heidrich/Papers/JGT.05.pdf
 
 
-    Arguments
+    Parameters
     -----------
     triangles: (n,3,3) float, triangles in space
     points:    (n,3) float, point in space associated with a triangle
@@ -392,7 +392,7 @@ def closest_point(triangles, points):
     Return the closest point on the surface of each triangle for a
     list of corresponding points.
 
-    Arguments
+    Parameters
     ----------
     triangles: (n,3,3) float, triangles in space
     points:    (n,3)   float, points in space
@@ -460,7 +460,7 @@ def to_kwargs(triangles):
     '''
     Convert a list of triangles to the kwargs for the Trimesh constructor.
 
-    Arguments
+    Parameters
     ---------
     triangles: (n,3,3) float, triangles in space
 

@@ -101,7 +101,7 @@ def is_convex(mesh):
     Test if a mesh is convex by projecting the vertices of
     a triangle onto the normal of its adjacent face.
 
-    Arguments
+    Parameters
     ----------
     mesh: Trimesh object
 
@@ -133,7 +133,7 @@ def planar_hull(points, normal, origin=None, input_convex=False):
     '''
     Find the convex outline of a set of points projected to a plane.
 
-    Arguments
+    Parameters
     -----------
     points: (n,3) float, input points
     normal: (3) float vector, normal vector of plane
@@ -169,7 +169,7 @@ def hull_points(obj):
     '''
     Try to extract a convex set of points from multiple input formats.
 
-    Arguments
+    Parameters
     ---------
     obj: Trimesh object
          (n,d) points

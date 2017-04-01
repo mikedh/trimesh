@@ -138,7 +138,7 @@ class Path(object):
         Find vertexes with degree 1 and try to connect them to other
         vertices of degree 1. 
 
-        Arguments
+        Parameters
         ----------
         max_distance: float, connect vertices up to this distance.
                       Default is infinity, but something like path.scale/100
@@ -254,7 +254,7 @@ class Path(object):
         '''
         Convert paths into b-splines.
 
-        Arguments
+        Parameters
         -----------
         path_indexes: (n) int list of indexes for self.paths
         smooth:       float, how much the spline should smooth the curve
@@ -332,7 +332,7 @@ class Path3D(Path):
         If they are, return a Path2D and a transform which will
         transform the 2D representation back into 3 dimensions
 
-        Arguments
+        Parameters
         -----------
         to_2D: (4,4) float, transformation matrix to apply. 
                      If not passed a plane will be fitted to vertices.
@@ -490,7 +490,7 @@ class Path2D(Path):
         '''
         Extrude the current 2D path into a 3D mesh.
 
-        Arguments
+        Parameters
         ----------
         height: float, how far to extrude the profile
         kwargs: passed directly to meshpy.triangle.build:
@@ -522,7 +522,7 @@ class Path2D(Path):
         Find the approximate medial axis based
         on a voronoi diagram of evenly spaced points on the boundary of the polygon.
 
-        Arguments
+        Parameters
         ----------
         resolution: target distance between each sample on the polygon boundary
         clip:       [minimum number of samples, maximum number of samples]
@@ -552,7 +552,7 @@ class Path2D(Path):
         Given an index of self.paths, find other paths which overlap with
         that path.
 
-        Arguments
+        Parameters
         -----------
         path_id:      int, index of self.paths
         include_self: bool, should the result include path_id or not

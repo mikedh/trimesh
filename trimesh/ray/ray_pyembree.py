@@ -36,7 +36,7 @@ class RayMeshIntersector:
         '''
         Return the location of where a ray hits a surface.
 
-        Arguments
+        Parameters
         ----------
         ray_origins:    (n,3) float, origins of rays
         ray_directions: (n,3) float, direction (vector) of rays
@@ -65,7 +65,7 @@ class RayMeshIntersector:
         Find the triangles hit by a list of rays, including optionally 
         multiple hits along a single ray. 
 
-        Arguments
+        Parameters
         ----------
         ray_origins:      (n,3) float, origins of rays
         ray_directions:   (n,3) float, direction (vector) of rays
@@ -172,7 +172,7 @@ class RayMeshIntersector:
         Find the index of the first triangle a ray hits. 
 
 
-        Arguments
+        Parameters
         ----------
         ray_origins:    (n,3) float, origins of rays
         ray_directions: (n,3) float, direction (vector) of rays
@@ -195,7 +195,7 @@ class RayMeshIntersector:
         Check if a list of rays hits the surface.
 
 
-        Arguments
+        Parameters
         ----------
         ray_origins:    (n,3) float, origins of rays
         ray_directions: (n,3) float, direction (vector) of rays

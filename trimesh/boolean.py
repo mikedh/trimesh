@@ -5,7 +5,7 @@ def difference(meshes, engine=None):
     '''
     Compute the boolean difference between a mesh an n other meshes.
 
-    Arguments
+    Parameters
     ----------
     meshes: list of Trimesh object
     engine: string, which backend to use.
@@ -23,7 +23,7 @@ def union(meshes, engine=None):
     '''
     Compute the boolean union between a mesh an n other meshes.
 
-    Arguments
+    Parameters
     ----------
     meshes: list of Trimesh object
     engine: string, which backend to use.
@@ -41,7 +41,7 @@ def intersection(meshes, engine=None):
     '''
     Compute the boolean intersection between a mesh an n other meshes.
 
-    Arguments
+    Parameters
     ----------
     meshes: list of Trimesh object
     engine: string, which backend to use.

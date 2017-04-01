@@ -7,7 +7,7 @@ def load_pyassimp(file_obj, file_type=None):
     Use the pyassimp library to load a mesh, from a file object and type,
     or filename (if file_obj is a string)
 
-    Arguments
+    Parameters
     ---------
     file_obj: file object, or str of file path
     file_type: str, file extension (aka 'stl')
@@ -45,7 +45,7 @@ def load_cyassimp(file_obj, file_type=None):
     The easiest way to install these is with conda:
     conda install -c menpo/label/master cyassimp
 
-    Arguments
+    Parameters
     ---------
     file_obj: file object, or str
     file_type: str, file extension (aka 'stl')

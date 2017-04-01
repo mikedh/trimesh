@@ -26,7 +26,7 @@ class TransformForest:
         '''
         Update a transform in the tree.
 
-        Arguments
+        Parameters
         ---------
         frame_from: hashable object, usually a string (eg 'world').
                     If left as None it will be set to self.base_frame
@@ -120,7 +120,7 @@ class TransformForest:
 
         If the frames are not connected a NetworkXNoPath error will be raised.
 
-        Arguments
+        Parameters
         ---------
         frame_from: hashable object, usually a string (eg 'world').
                     If left as None it will be set to self.base_frame
@@ -190,7 +190,7 @@ class TransformForest:
         Find a path between two frames, either from cached paths or
         from the transform graph.
 
-        Arguments
+        Parameters
         ---------
         frame_from: a frame key, usually a string
                     example: 'world'

@@ -16,7 +16,7 @@ def plane_transform(origin, normal):
     Given the origin and normal of a plane, find the transform that will move
     that plane to be coplanar with the XY plane
 
-    Arguments
+    Parameters
     ----------
     origin: (3,) float, point in space
     normal: (3,) float, plane normal vector
@@ -35,7 +35,7 @@ def transform_around(matrix, point):
     Given a transformation matrix, apply its rotation component around a
     point in space.
 
-    Arguments
+    Parameters
     ----------
     matrix: (4,4) float, transformation matrix
     point:  (3,)  float, point in space
@@ -107,7 +107,7 @@ def vector_angle(pairs):
     '''
     Find the angles between vector pairs
 
-    Arguments
+    Parameters
     ----------
     pairs: (n,2,3) set of vector pairs
 
@@ -143,7 +143,7 @@ def mean_vertex_normals(vertex_count, faces, face_normals, **kwargs):
     '''
     Find vertex normals from the mean of the faces that contain that vertex.
 
-    Arguments
+    Parameters
     -----------
     vertex_count: int, the number of vertices faces refer to
     faces:        (n,3) int, list of vertex indices
@@ -250,7 +250,7 @@ def medial_axis(samples, contains):
     on a voronoi diagram and a containment function which can assess whether
     a point is inside or outside of the closed geometry.
 
-    Arguments
+    Parameters
     ----------
     samples:    (n,d) set of points on the boundary of the geometry
     contains:   function which takes (m,d) points and returns an (m) bool array

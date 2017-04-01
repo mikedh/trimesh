@@ -37,7 +37,7 @@ def unit_conversion(current, desired):
     '''
     Calculate the conversion from one set of units to another.
 
-    Arguments
+    Parameters
     ---------
     current: str, unit system values are in now (eg 'millimeters')
     desired: str, unit system we'd like values in (eg 'inches')
@@ -76,7 +76,7 @@ def _set_units(obj, desired, guess):
     '''
     Given an object that has units and vertices attributes convert units.
 
-    Arguments
+    Parameters
     ---------
     obj:     object with units and vertices (eg Path or Trimesh)
     desired: units desired (eg 'inches')

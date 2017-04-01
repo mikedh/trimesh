@@ -88,7 +88,7 @@ def pack_rectangles(rectangles, sheet_size, shuffle=False):
     Pack smaller rectangles onto a larger rectangle, using a binary 
     space partition tree.
 
-    Arguments
+    Parameters
     ----------
     rectangles: (n,2) array of (width, height) pairs 
                  representing the smaller rectangles to be packed.

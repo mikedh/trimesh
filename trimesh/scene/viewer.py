@@ -376,7 +376,7 @@ def _validate_colors(colors, count):
     '''
     Given a list of colors (or None) return a GL- acceptable list of colors
 
-    Arguments
+    Parameters
     ------------
     colors: (count, (3 or 4)) colors
 

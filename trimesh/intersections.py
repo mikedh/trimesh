@@ -14,7 +14,7 @@ def mesh_plane(mesh,
     Find a the intersections between a mesh and a plane,
     returning a set of line segments on that plane.
 
-    Arguments
+    Parameters
     ---------
     mesh:          Trimesh object
     plane_normal:  (3,) float, plane normal
@@ -45,7 +45,7 @@ def mesh_plane(mesh,
         20   : [0 1 1]    : No
         28   : [1 1 1]    : No
 
-        Arguments
+        Parameters
         ----------
         signs: (n,3) int, all values are -1,0, or 1
                Each row contains the dot product of all three vertices
@@ -162,7 +162,7 @@ def plane_lines(plane_origin,
     '''
     Calculate plane-line intersections
 
-    Arguments
+    Parameters
     ---------
     plane_origin:  plane origin, (3) list
     plane_normal:  plane direction (3) list
@@ -211,7 +211,7 @@ def planes_lines(plane_origins,
     '''
     Given one line per plane, find the intersection points
 
-    Arguments
+    Parameters
     -----------
     plane_origins:   (n,3) float, plane origins
     plane_normals:   (n,3) float, plane normals
