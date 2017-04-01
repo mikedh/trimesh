@@ -24,6 +24,9 @@ class SceneViewer(pyglet.window.Window):
 
         self.scene = scene
         self.scene._redraw = self._redraw
+        
+        if not ('camera' in scene.graph.nodes):
+            scene.set_camera()
 
         self.reset_view(flags=flags)
 

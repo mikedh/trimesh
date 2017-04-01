@@ -1,80 +1,64 @@
 # trimesh #
 [![Build Status](https://travis-ci.org/mikedh/trimesh.svg?branch=master)](https://travis-ci.org/mikedh/trimesh) [![Build status](https://ci.appveyor.com/api/projects/status/j8h3luwvst1tkghl?svg=true)](https://ci.appveyor.com/project/mikedh/trimesh)
 
-Python (2.7-3*) library for loading and using triangular meshes. The goal of the library is to provide a fully featured Trimesh object which allows for easy manipulation and analysis, in the style of the excellent Polygon object in the [Shapely library](http://toblerity.org/shapely/manual.html).
+Trimesh is a Python (2.7-3*) library for loading and using triangular meshes. The goal of the library is to provide a fully featured Trimesh object which allows for easy manipulation and analysis, in the style of the excellent Polygon object in the [Shapely library](http://toblerity.org/shapely/manual.html).
 
 The API is mostly stable, but this should not be relied on and is not guaranteed; install a specific version if you plan on deploying something using trimesh as a backend.
 
 ## Installation
 
-Once you have a python distribution and the system packages from the pre-install, the **recommended** way to install with most functionality is:
+The easiest and reccommended way to get the most functionality out of Trimesh is to install a [conda environoment](https://conda.io/miniconda.html), then:
+
 ```bash
-pip install trimesh[all]
+
+# cyassimp is a fast binding for the [assimp importers](http://www.assimp.org/main_features_formats.html)
+conda install -c menpo/label/master cyassimp
+
+# install modules for spatial indexing, polygon manipulation, and fast ray-mesh queries
+conda install -c conda-forge rtree shapely pyembree
+
+# install Trimesh and soft dependancies that are easy to install
+pip install trimesh[easy]
+
 ```
 
-Or, for only **minimal dependencies** (no ray queries, boolean operations, vector path handling, mesh creation, viewer, etc):
+Or, for only **minimal dependencies** (no ray queries, vector path handling, mesh creation, viewer, etc):
 
 ```bash
 pip install trimesh
 ```
 
-The minimum set of packages required to import `trimesh` are
-[numpy](http://www.numpy.org/), [scipy](http://www.scipy.org/) and [networkx](https://networkx.github.io/). 
-
-
-##### Ubuntu Pre-install
-Blender and openSCAD are backends used for boolean operations, libspatialindex and libgeos are the libraries used by RTree and Shapely respectivly, and cmake is included to build assimp if you want the latest version.
-
-```bash
-sudo apt-get install cmake openscad blender libspatialindex-dev libgeos-dev
-```
-
-##### Windows Pre-Install:
-The easiest way to get going on Windows is to install the [Anaconda Python distribution](https://www.continuum.io/downloads), followed by `shapely`, `rtree`, and `meshpy` from the [Unofficial Windows Binaries from Christoph Gohlke](http://www.lfd.uci.edu/~gohlke/pythonlibs/)
-
-##### Optional Dependencies
-
-To install the latest assimp for [additional import formats](http://www.assimp.org/main_features_formats.html) (python-pyassimp in Ubuntu 14.04 is very old):
-
-```bash
-sudo pip install git+https://github.com/robotics/assimp_latest.git
-```
-
-If you are using a lot of graph operations (specifically mesh.split) trimesh will automatically use [graph-tool](https://graph-tool.skewed.de/download) if it is installed, for a roughly 10x speedup over networkx on certain operations.
-
-
 ## Features
 
-* Import binary/ASCII STL, Wavefront OBJ, ASCII OFF, and binary PLY
-* Import additional mesh formats using assimp (if pyassimp installed)
-* Import STEP files as meshes (if STEPtools Inc. Author Tools installed)
+* Import binary/ASCII STL, Wavefront OBJ, ASCII OFF, binary/ASCII PLY, XAML, etc.
+* Import additional mesh formats using assimp (requires pyassimp or cyassimp)
 * Import and export 2D or 3D vector paths from/to DXF or SVG files
 * Export meshes as binary STL, binary PLY, ASCII OFF, COLLADA, dictionaries, JSON- serializable dictionaries (base64 encoded arrays), MSGPACK- serializable dictionaries (binary string arrays)
 * Preview meshes (requires pyglet)
-* Internal caching of computed values which are cleared when vertices or faces are changed (validated with a zlib.adler32 CRC)
-* Fast loading of binary files through importers written by defining custom numpy dtypes (on a 234,230 face mesh, 24.5x faster than assimp)
-* Calculate face adjacencies quickly (for the same 234,230 face mesh .248 s)
+* Internal caching of computed values (validated with a zlib.adler32 CRC on face/vertex data)
+* Fast loading of binary files through importers written by defining custom numpy dtypes
+* Calculate face adjacencies quickly (for 234,230 face mesh .248 s)
 * Calculate cross sections (.146 s)
-* Split mesh based on face connectivity using networkx (4.96 s) or graph-tool (.584 s)
+* Split mesh based on face connectivity using networkx, graph-tool, or scipy.sparse
 * Calculate mass properties, including volume, center of mass, and moment of inertia (.246 s)
-* Find planar facets, or coplanar groups of faces (.454 s)
-* Fix triangle winding to be consistent 
-* Fix normals to be oriented 'outwards' using ray tests
+* Find coplanar and adjacent groups of faces (.454 s)
+* Fix triangle winding and normals to be consistent 
 * Find convex hulls of meshes
-* Compute a rotation/translation/tessellation invariant identifier for meshes (from an FFT of the radius distribution)
-* Merge duplicate meshes from identifier
+* Compute a rotation/translation/tessellation invariant identifier for meshes
+* Determine duplicate meshes from identifier
 * Determine if a mesh is watertight
+* Determine if a mesh is convex
 * Repair single triangle and single quad holes
 * Uniformly sample the surface of a mesh
-* Ray-mesh queries
+* Ray-mesh queries including location, triangle id, etc.
 * Boolean operations on meshes (intersection, union, difference) using OpenSCAD or Blender as backend
 * Voxelize watertight meshes
 * Unit conversions
 * Subdivide faces of a mesh
-* Rapid computation of minimum volume oriented bounding box for a mesh
+* Minimum volume oriented bounding boxes for meshes
 * Minimum volume bounding sphere / n-spheres
 * Symbolic integration of function(x,y,z) over a triangle
-* Very quick (sympy-numpy lambda) evaluation of symbolic integral result over a mesh 
+* Quick (sympy-numpy lambda) evaluation of symbolic integral result over a mesh 
 * Calculate nearest point on mesh surface and signed distance
 * Determine if a point lies inside or outside of a mesh using signed distance
 * Create meshes with primitive objects (Extrude, Box, Sphere) which are subclasses of Trimesh
