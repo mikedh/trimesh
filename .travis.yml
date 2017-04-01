@@ -18,7 +18,9 @@ deploy:
   user: mikedh
   password:
     secure: HbsOtokNjlpRE98DpeeX1uPzMR3XWZbovtyPA2gS4eobkod7YyBXDgj30uOwcMvJMo4sX7Fi3X59qY43qHLiftTFhaMtN4+E1N0HaVVfmTi/Iv/L4qd4gMjCjg6M7N1wiCmYA+ceB8pAGOzLoo2K2uXixBfkeQjxUZjKTHfQYlM
-
+  on:
+      branch: master
+      
 before_install:
 - sudo apt-get update
 - sudo apt-get install -y libgeos-dev libspatialindex-dev openscad blender

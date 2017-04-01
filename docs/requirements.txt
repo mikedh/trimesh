@@ -1,1 +1,1 @@
-numpydoc
+numpydoc numpy scipy networkx
