@@ -63,8 +63,8 @@ author = 'Michael Dawson-Haggerty'
 # |version| and |release|, also used in various other places throughout the
 # built documents.
 
-# grab from trimesh
-from trimesh.version import __version__
+# grab from trimesh without installing
+exec(open('../trimesh/version.py').read())
 # The short X.Y version.
 version = __version__
 # The full version, including alpha/beta/rc tags.
