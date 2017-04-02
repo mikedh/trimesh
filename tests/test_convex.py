@@ -5,6 +5,8 @@ class ConvexTest(g.unittest.TestCase):
 
     def test_convex(self):
         for mesh in g.get_meshes(10):
+            if not mesh.is_watertight:
+                continue
             hulls = []
             for i in range(50):
                 permutated = mesh.permutate.transform()
