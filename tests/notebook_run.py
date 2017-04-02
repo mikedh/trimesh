@@ -14,13 +14,13 @@ def load_notebook(file_obj,
 
     Arguments
     ----------
-    file_obj: open file object
-    exclude:  list, strs which if a line contains the line will be replaced
-              by a pass statement. 
+    file_obj : open file object
+    exclude  :  list, strs which if a line contains the line will be replaced
+                by a pass statement. 
 
     Returns
     ----------
-    script: str, cleaned script which can be passed to exec
+    script : str, cleaned script which can be passed to exec
     '''
     raw = json.load(file_obj)
     lines = []
@@ -40,11 +40,11 @@ def to_pass(line):
 
     Arguments
     ----------
-    line: str, line of code
+    line : str, line of code
 
     Returns
     ----------
-    passed: str, line of code with same leading spaces, but pass statement
+    passed : str, line of code with same leading spaces, but pass statement
     '''
     spaces = np.nonzero([i != ' ' for i in line])[0][0]
     passed = (' ' * spaces) + 'pass'

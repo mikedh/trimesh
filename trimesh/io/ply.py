@@ -6,8 +6,10 @@ from string import Template
 
 import tempfile
 import subprocess
+import base64
 
-from ..util import is_shape, distance_to_end
+from .. import util
+
 from ..resources import get_resource
 
 
@@ -17,12 +19,12 @@ def load_ply(file_obj, *args, **kwargs):
 
     Parameters
     ---------
-    file_obj: an open file- like object
+    file_obj : an open file- like object
 
     Returns
     ---------
-    mesh_kwargs: dictionary of mesh info which can be passed to
-                 Trimesh constructor, eg: a = Trimesh(**mesh_kwargs)
+    mesh_kwargs : dictionary of mesh info which can be passed to
+                  Trimesh constructor, eg: a = Trimesh(**mesh_kwargs)
     '''
 
     # OrderedDict which is populated from the header
@@ -44,11 +46,11 @@ def export_ply(mesh):
 
     Parameters
     ----------
-    mesh: Trimesh object
+    mesh : Trimesh object
 
     Returns
     ----------
-    export: bytes of result
+    export : bytes of result
     '''
     dtype_face = np.dtype([('count', '<u1'),
                            ('index', '<i4', (3))])
@@ -133,10 +135,10 @@ def elements_to_kwargs(elements):
     arguments that a Trimesh object constructor will expect.
     '''
     vertices = np.column_stack([elements['vertex']['data'][i] for i in 'xyz'])
-    if not is_shape(vertices, (-1, 3)):
+    if not util.is_shape(vertices, (-1, 3)):
         raise ValueError('Vertices were not (n,3)!')
 
-    if is_shape(elements['face']['data'], (-1, (3, 4))):
+    if util.is_shape(elements['face']['data'], (-1, (3, 4))):
         faces = elements['face']['data']
     else:
         blob = elements['face']['data']
@@ -154,7 +156,7 @@ def elements_to_kwargs(elements):
                     break
         faces = elements['face']['data'][name]['f1']
 
-    if not is_shape(faces, (-1, (3, 4))):
+    if not util.is_shape(faces, (-1, (3, 4))):
         raise ValueError('Faces weren\'t (n,(3|4))!')
 
     result = {'vertices': vertices,
@@ -302,7 +304,7 @@ def ply_binary(elements, file_obj):
     populate_listsize(file_obj, elements)
 
     # how many bytes are left in the file
-    size_file = distance_to_end(file_obj)
+    size_file = util.distance_to_end(file_obj)
     # how many bytes should the data structure described by
     # the header take up
     size_elements = elements_size(elements)
@@ -314,8 +316,8 @@ def ply_binary(elements, file_obj):
     # with everything populated and a reasonable confidence the file
     # is intact, read the data fields described by the header
     populate_data(file_obj, elements)
-
-
+    
+    
 def export_draco(mesh):
     '''
     Export a mesh using Google's Draco compressed format.
@@ -325,11 +327,11 @@ def export_draco(mesh):
 
     Parameters
     ----------
-    mesh: Trimesh object
+    mesh : Trimesh object
 
     Returns
     ----------
-    data: str or bytes, data
+    data : str or bytes, data
     '''
     with tempfile.NamedTemporaryFile(suffix='.ply') as temp_ply:
         temp_ply.write(export_ply(mesh))
@@ -351,12 +353,12 @@ def load_draco(file_obj, file_type=None):
 
     Parameters
     ----------
-    file_obj: open file- like object
-    file_type: unused
+    file_obj  : open file- like object
+    file_type : unused
 
     Returns
     ----------
-    kwargs: dict, kwargs to construct a Trimesh object
+    kwargs : dict, kwargs to construct a Trimesh object
     '''
 
     with tempfile.NamedTemporaryFile(suffix='.drc') as temp_drc:

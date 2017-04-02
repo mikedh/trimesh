@@ -16,14 +16,14 @@ something using trimesh as a backend.
 Installation
 ------------
 
-The easiest and reccommended way to get the most functionality out of
+The easiest and recommended way to get the most functionality out of
 Trimesh is to install a `conda
-environoment <https://conda.io/miniconda.html>`__, then:
+environment <https://conda.io/miniconda.html>`__, then:
 
 .. code:: bash
 
 
-    # cyassimp is a fast binding for the [assimp importers](http://www.assimp.org/main_features_formats.html)
+    # cyassimp is a fast binding for the assimp importers
     conda install -c menpo/label/master cyassimp
 
     # install modules for spatial indexing, polygon manipulation, and fast ray-mesh queries
@@ -44,8 +44,9 @@ Features
 
 -  Import binary/ASCII STL, Wavefront OBJ, ASCII OFF, binary/ASCII PLY,
    XAML, etc.
--  Import additional mesh formats using assimp (requires pyassimp or
-   cyassimp)
+-  Import additional mesh formats using
+   `assimp <http://www.assimp.org/main_features_formats.html>`__
+   (requires pyassimp or cyassimp)
 -  Import and export 2D or 3D vector paths from/to DXF or SVG files
 -  Export meshes as binary STL, binary PLY, ASCII OFF, COLLADA,
    dictionaries, JSON- serializable dictionaries (base64 encoded
@@ -170,8 +171,8 @@ example <https://github.com/mikedh/trimesh/blob/master/examples/integrate.ipynb>
           mesh.bounding_cylinder.volume,
           mesh.bounding_sphere.volume)
 
-Optional Viewer
----------------
+Viewer
+------
 
 Trimesh includes an optional pyglet- based viewer for
 debugging/inspecting. In the mesh view window:
