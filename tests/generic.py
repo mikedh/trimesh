@@ -77,7 +77,8 @@ def get_mesh(file_name, *args, **kwargs):
 
 
 def get_meshes(count=np.inf,
-               raise_error=False):
+               raise_error=False,
+               only_watertight=True):
     '''
     Get a list of meshes to test with.
 
@@ -106,6 +107,8 @@ def get_meshes(count=np.inf,
                         not trimesh.util.is_instance_named(i, 'Trimesh')):
                     raise ValueError(
                         '%s returned a non- Trimesh object!', file_name)
+                if only_watertight and not i.is_watertight:
+                    continue
                 meshes.append(i)
         else:
             log.warning('%s has no loader, not running test on!',
