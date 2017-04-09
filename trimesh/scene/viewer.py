@@ -121,6 +121,13 @@ class SceneViewer(pyglet.window.Window):
                      'center': self.scene.centroid,
                      'scale': self.scene.scale,
                      'ball': Arcball()}
+                     
+        if (self.width is not None and 
+            self.height is not None):
+            self.view['ball'].place([self.width / 2.0, 
+                                     self.height / 2.0], 
+                                    (self.width + self.height) / 2.0)
+                                    
         if isinstance(flags, dict):
             for k, v in flags.items():
                 if k in self.view:
@@ -261,7 +268,7 @@ class SceneViewer(pyglet.window.Window):
                     mesh.visual.transparency):
                 # put the current item onto the back of the queue
                 if count < count_original:
-                    items.append(item)
+                    node_names.append(current_node)
                     continue
 
             # add a new matrix to the model stack
@@ -356,7 +363,6 @@ def points_to_vertex_list(points, colors, group=None):
     points = np.asanyarray(points)
 
     if not util.is_shape(points, (-1, 3)):
-        print(points)
         raise ValueError('Pointcloud must be (n,3)!')
 
     color_gl = _validate_colors(colors, len(points))
