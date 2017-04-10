@@ -264,7 +264,7 @@ def ply_binary(elements, file_obj):
                     if len(prior_data) == 0:
                         offset = 0
                     else:
-                        offset = np.dtype(prior_data).itemsize()
+                        offset = np.dtype(prior_data).itemsize
                     file_obj.seek(p_current + offset)
                     size = np.fromstring(file_obj.read(field_dtype.itemsize),
                                          dtype=field_dtype)[0]
