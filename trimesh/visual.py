@@ -62,8 +62,6 @@ class ColorVisuals(object):
                                                        dtype=np.uint8),
                          'material_shine': 77.0}
 
-
-
         if face_colors is not None:
             self.face_colors = face_colors
 
@@ -299,7 +297,7 @@ class ColorVisuals(object):
                 else:
                     raise ValueError('unsupported name!!!')
                 self._cache.verify()
-                
+
         else:
             # colors have never been accessed
             if self._mode is None:
@@ -599,5 +597,6 @@ def colors_to_materials(colors, count=None):
         raise ValueError('Colors not convertable!')
 
     return diffuse, index
+
 
 DEFAULT_COLOR = np.array([102, 102, 102, 255], dtype=np.uint8)

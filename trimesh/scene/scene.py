@@ -23,7 +23,6 @@ class Scene:
                  geometry=None,
                  base_frame='world'):
 
-
         # mesh name : Trimesh object
         self.geometry = collections.OrderedDict()
 
@@ -58,7 +57,6 @@ class Scene:
         if util.is_sequence(geometry):
             return [self.add_geometry(i) for i in geometry]
 
-        
         # default values for transforms and name
         transforms = np.eye(4).reshape((-1, 4, 4))
         geometry_name = 'geometry_' + str(len(self.geometry))
@@ -68,14 +66,14 @@ class Scene:
         if hasattr(geometry, 'metadata'):
             if 'name' in geometry.metadata:
                 geometry_name = geometry.metadata['name']
-                
+
             if 'transforms' in geometry.metadata:
                 transforms = np.asanyarray(geometry.metadata['transforms'])
                 transforms = transforms.reshape((-1, 4, 4))
 
         # save the geometry reference
         self.geometry[geometry_name] = geometry
-        
+
         for i, transform in enumerate(transforms):
 
             # if we haven't been passed a name to set in the graph
@@ -86,10 +84,8 @@ class Scene:
             self.graph.update(frame_to=node_name,
                               matrix=transform,
                               geometry=geometry_name,
-                              geometry_flags={'visible':True})
+                              geometry_flags={'visible': True})
 
-        
-            
     def md5(self):
         '''
         MD5 of scene, which will change when meshes or transforms are changed
@@ -129,7 +125,7 @@ class Scene:
             # find the 8 corner vertices of the axis aligned bounding box
             current_corners = bounds_corners(current_bounds)
             # transform those corners into where the geometry is located
-            corners.extend(transform_points(current_corners, 
+            corners.extend(transform_points(current_corners,
                                             transform))
         corners = np.array(corners)
         bounds = np.array([corners.min(axis=0),
@@ -181,19 +177,19 @@ class Scene:
         '''
         triangles = collections.deque()
         triangles_node = collections.deque()
-        
+
         for node_name in self.graph.nodes_geometry:
 
             transform, geometry_name = self.graph[node_name]
-            
+
             geometry = self.geometry[geometry_name]
             if not hasattr(geometry, 'triangles'):
                 continue
-            
+
             triangles.append(transform_points(geometry.triangles.copy().reshape((-1, 3)),
                                               transform))
             triangles_node.append(np.tile(node_name, len(geometry.triangles)))
-            
+
         self._cache['triangles_node'] = np.hstack(triangles_node)
         triangles = np.vstack(triangles).reshape((-1, 3, 3))
         return triangles
@@ -229,9 +225,9 @@ class Scene:
         # the name of nodes in the scene graph with geometry
         node_names = np.array(self.graph.nodes_geometry)
         # the geometry names for each node in the same order
-        node_geom  = np.array([self.graph[i][1] for i in node_names])
+        node_geom = np.array([self.graph[i][1] for i in node_names])
         # the mesh md5 for each node in the same order
-        node_hash  = np.array([mesh_hash[v] for v in node_geom])
+        node_hash = np.array([mesh_hash[v] for v in node_geom])
 
         # indexes of identical hashes
         node_groups = grouping.group(node_hash)
@@ -243,7 +239,7 @@ class Scene:
     def set_camera(self, angles=None, distance=None, center=None):
         '''
         Add a transform to self.graph for 'camera'
-        
+
         If arguments are not passed sane defaults will be figured out.
 
         Parameters
@@ -280,7 +276,7 @@ class Scene:
 
         for node_name in self.graph.nodes_geometry:
             transform, geometry_name = self.graph[node_name]
-            
+
             current = self.geometry[geometry_name].copy()
             current.apply_transform(transform)
             result.append(current)
@@ -304,11 +300,11 @@ class Scene:
         '''
         export = {'graph': self.graph.to_flattened(),
                   'geometry': {},
-                  'scene_cache' : {'bounds'   : self.bounds.tolist(),
-                                   'extents'  : self.extents.tolist(),
-                                   'centroid' : self.centroid.tolist(),
-                                   'scale'    : self.scale}}
-                  
+                  'scene_cache': {'bounds': self.bounds.tolist(),
+                                  'extents': self.extents.tolist(),
+                                  'centroid': self.centroid.tolist(),
+                                  'scale': self.scale}}
+
         if file_type is None:
             file_type = {'Trimesh': 'ply',
                          'Path2D': 'dxf'}
@@ -352,7 +348,7 @@ class Scene:
         if origin is None:
             origin = self.centroid
         if vector is None:
-            vector = self.scale/25.0
+            vector = self.scale / 25.0
 
         centroids = collections.deque()
         for node_name in self.graph.nodes_geometry:
@@ -363,9 +359,9 @@ class Scene:
             centroid = np.dot(transform,
                               np.append(centroid, 1))[:3]
 
-            if (isinstance(vector, float) or 
-                isinstance(vector, int)):
-                offset = (centroid-origin) * vector
+            if (isinstance(vector, float) or
+                    isinstance(vector, int)):
+                offset = (centroid - origin) * vector
             elif np.shape(vector) == (3,):
                 projected = np.dot(vector, (centroid - origin))
                 offset = vector * projected

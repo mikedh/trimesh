@@ -24,7 +24,7 @@ class SceneViewer(pyglet.window.Window):
 
         self.scene = scene
         self.scene._redraw = self._redraw
-        
+
         if not ('camera' in scene.graph.nodes):
             scene.set_camera()
 
@@ -121,13 +121,13 @@ class SceneViewer(pyglet.window.Window):
                      'center': self.scene.centroid,
                      'scale': self.scene.scale,
                      'ball': Arcball()}
-                     
-        if (self.width is not None and 
-            self.height is not None):
-            self.view['ball'].place([self.width / 2.0, 
-                                     self.height / 2.0], 
+
+        if (self.width is not None and
+                self.height is not None):
+            self.view['ball'].place([self.width / 2.0,
+                                     self.height / 2.0],
                                     (self.width + self.height) / 2.0)
-                                    
+
         if isinstance(flags, dict):
             for k, v in flags.items():
                 if k in self.view:
@@ -250,20 +250,20 @@ class SceneViewer(pyglet.window.Window):
         while len(node_names) > 0:
             count += 1
             current_node = node_names.popleft()
-            
+
             # if the flag isn't defined, this will be None
             # by checking False explicitly, it makes the default
             # behaviour to render meshes with no flag defined.
-            #if self.node_flag(name_node, 'visible') is False:
+            # if self.node_flag(name_node, 'visible') is False:
             #    continue
 
             transform, geometry_name = self.scene.graph[current_node]
 
             if geometry_name is None:
                 continue
-            
+
             mesh = self.scene.geometry[geometry_name]
-            
+
             if (hasattr(mesh, 'visual') and
                     mesh.visual.transparency):
                 # put the current item onto the back of the queue

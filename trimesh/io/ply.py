@@ -156,7 +156,7 @@ def elements_to_kwargs(elements):
     if not util.is_shape(vertices, (-1, 3)):
         raise ValueError('Vertices were not (n,3)!')
 
-    index_names  =['vertex_index',
+    index_names = ['vertex_index',
                    'vertex_indices']
     face_data = elements['face']['data']
     if util.is_shape(face_data, (-1, (3, 4))):
@@ -181,7 +181,7 @@ def elements_to_kwargs(elements):
         faces = elements['face']['data'][name]['f1']
     else:
         raise ValueError('Couldn\'t extract face data!')
-                    
+
     if not util.is_shape(faces, (-1, (3, 4))):
         raise ValueError('Faces weren\'t (n,(3|4))!')
 
@@ -240,7 +240,7 @@ def ply_ascii(elements, file_obj):
     file_obj: open file object, with current position at the start
               of the data section (past the header)
     '''
-    
+
     # list of strings, split by newlines and spaces
     blob = file_obj.read().decode('utf-8')
     # numpy array with string type
@@ -252,23 +252,23 @@ def ply_ascii(elements, file_obj):
         columns = collections.deque()
         # will store the total number of rows
         rows = 0
-        
+
         for name, dtype in values['properties'].items():
             if '$LIST' in dtype:
                 # if an element contains a list property handle it here
-                
+
                 # the first value is a count, followed by data
                 list_count = int(raw[position + rows])
 
                 # ignore the count and take the data
-                columns.append([rows + 1, 
+                columns.append([rows + 1,
                                 rows + 1 + list_count])
                 rows += list_count + 1
                 # change the datatype to just the dtype for data
                 values['properties'][name] = dtype.split('($LIST,)')[-1]
             else:
                 # a single column data field
-                columns.append([rows, rows+1])
+                columns.append([rows, rows + 1])
                 rows += 1
 
         # total flat count of values
@@ -276,8 +276,9 @@ def ply_ascii(elements, file_obj):
         # reshape the data into the specified rows
         data = raw[position:position + count].reshape((-1, rows))
 
-        # store columns we care about by name and convert to specified data type
-        elements[key]['data'] = {n: data[:,c[0]:c[1]].astype(dt) for n, dt, c in zip(
+        # store columns we care about by name and convert to specified data
+        # type
+        elements[key]['data'] = {n: data[:, c[0]:c[1]].astype(dt) for n, dt, c in zip(
             values['properties'].keys(),    # field name
             values['properties'].values(),  # data type of field
             columns)}                       # list of (start, end) column indexes
@@ -377,8 +378,8 @@ def ply_binary(elements, file_obj):
     # with everything populated and a reasonable confidence the file
     # is intact, read the data fields described by the header
     populate_data(file_obj, elements)
-    
-    
+
+
 def export_draco(mesh):
     '''
     Export a mesh using Google's Draco compressed format.

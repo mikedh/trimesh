@@ -15,9 +15,8 @@ class TransformForest:
 
         self._paths = {}
         self._updated = time.time()
-        
+
         self._cache = util.Cache(id_function=self.md5)
-        
 
     def update(self,
                frame_to,
@@ -39,7 +38,7 @@ class TransformForest:
         axis:        (3) array
         angle:       float, radians
         translation: (3) array
-        
+
         geometry: Geometry object name
         '''
         if frame_from is None:
@@ -53,7 +52,7 @@ class TransformForest:
         if 'geometry' in kwargs:
             nx.set_node_attributes(self.transforms,
                                    name='geometry',
-                                   values={frame_to : kwargs['geometry']})
+                                   values={frame_to: kwargs['geometry']})
         if changed:
             self._paths = {}
         self._updated = time.time()
@@ -73,15 +72,15 @@ class TransformForest:
         '''
         if base_frame is None:
             base_frame = self.base_frame
-            
+
         flat = {}
         for node in self.nodes:
             if node == base_frame:
                 continue
             transform, geometry = self.get(frame_to=node,
                                            frame_from=base_frame)
-            flat[node] = {'transform' : transform.tolist(),
-                          'geometry'  : geometry}
+            flat[node] = {'transform': transform.tolist(),
+                          'geometry': geometry}
         return flat
 
     def to_edgelist(self):
@@ -106,11 +105,11 @@ class TransformForest:
     @util.cache_decorator
     def nodes(self):
         return self.transforms.nodes()
- 
+
     @util.cache_decorator
     def nodes_geometry(self):
         return [i for i in self.nodes if 'geometry' in self.transforms.node[i]]
-    
+
     def get(self,
             frame_to,
             frame_from=None):
@@ -130,17 +129,14 @@ class TransformForest:
         ---------
         transform:  (4,4) homogenous transformation matrix
         '''
-        
-
 
         if frame_from is None:
             frame_from = self.base_frame
 
         cache_key = str(frame_from) + ':' + str(frame_to)
         cached = self._cache[cache_key]
-        if cached is not None: 
+        if cached is not None:
             return cached
-        
 
         transform = np.eye(4)
         path = self._get_path(frame_from, frame_to)
@@ -155,10 +151,10 @@ class TransformForest:
 
         geometry = None
         if 'geometry' in self.transforms.node[frame_to]:
-            geometry=self.transforms.node[frame_to]['geometry']
+            geometry = self.transforms.node[frame_to]['geometry']
 
         self._cache[cache_key] = (transform, geometry)
-            
+
         return transform, geometry
 
     def show(self):

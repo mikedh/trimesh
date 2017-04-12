@@ -151,7 +151,7 @@ class Trimesh(object):
             (vertices is not None) and
                 (faces is not None)):
             self.process()
-            
+
         # store all passed kwargs for debugging purposes
         self._kwargs = kwargs
 
