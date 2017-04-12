@@ -1,9 +1,9 @@
 import numpy as np
 
 from distutils.spawn import find_executable
-from collections import OrderedDict
 from string import Template
 
+import collections
 import tempfile
 import subprocess
 import base64
@@ -75,6 +75,15 @@ def read_ply_header(file_obj):
     '''
     Read the ASCII header of a PLY file, and leave the file object
     at the position of the start of data but past the data.
+
+    Parameters
+    -----------
+    file_obj: open file object, positioned at the start of the file
+
+    Returns
+    -----------
+    elements: OrderedDict object, with fields and data types populated
+    is_ascii: bool, whether the data is ASCII or binary
     '''
     # from ply specification, and additional dtypes found in the wild
     dtypes = {'char': 'i1',
@@ -99,7 +108,7 @@ def read_ply_header(file_obj):
     encoding_ascii = 'ascii' in encoding
 
     endian = ['<', '>'][int('big' in encoding)]
-    elements = OrderedDict()
+    elements = collections.OrderedDict()
 
     while True:
         line = file_obj.readline()
@@ -113,7 +122,7 @@ def read_ply_header(file_obj):
         if 'element' in line[0]:
             name, length = line[1:]
             elements[name] = {'length': int(length),
-                              'properties': OrderedDict()}
+                              'properties': collections.OrderedDict()}
         elif 'property' in line[0]:
             if len(line) == 3:
                 dtype, field = line[1:]
@@ -133,29 +142,46 @@ def elements_to_kwargs(elements):
     '''
     Given an elements data structure, extract the keyword
     arguments that a Trimesh object constructor will expect.
+
+    Parameters
+    ------------
+    elements: OrderedDict object, with fields and data loaded
+
+    Returns
+    -----------
+    kwargs: dict, with keys for Trimesh constructor.
+            eg: mesh = trimesh.Trimesh(**kwargs)
     '''
     vertices = np.column_stack([elements['vertex']['data'][i] for i in 'xyz'])
     if not util.is_shape(vertices, (-1, 3)):
         raise ValueError('Vertices were not (n,3)!')
 
-    if util.is_shape(elements['face']['data'], (-1, (3, 4))):
-        faces = elements['face']['data']
-    else:
+    index_names  =['vertex_index',
+                   'vertex_indices']
+    face_data = elements['face']['data']
+    if util.is_shape(face_data, (-1, (3, 4))):
+        faces = face_data
+    elif isinstance(face_data, dict):
+        for i in index_names:
+            if i in face_data:
+                faces = face_data[i]
+                break
+    elif isinstance(face_data, np.ndarray):
         blob = elements['face']['data']
         # some exporters set this name to 'vertex_index'
         # and some others use 'vertex_indices', but we really
         # don't care about the name unless there are multiple properties
-        # defined
         if len(blob.dtype.names) == 1:
             name = blob.dtype.names[0]
         elif len(blob.dtype.names) > 1:
             for i in blob.dtype.names:
-                if i in ['vertex_index',
-                         'vertex_indices']:
+                if i in index_names:
                     name = i
                     break
         faces = elements['face']['data'][name]['f1']
-
+    else:
+        raise ValueError('Couldn\'t extract face data!')
+                    
     if not util.is_shape(faces, (-1, (3, 4))):
         raise ValueError('Faces weren\'t (n,(3|4))!')
 
@@ -204,8 +230,17 @@ def element_colors(element):
 
 def ply_ascii(elements, file_obj):
     '''
-    Load data from an ASCII PLY file into the elements data structure.
+    Load data from an ASCII PLY file into an existing elements data structure.
+
+    Parameters
+    ------------
+    elements: OrderedDict object, populated from the file header. 
+              object will be modified to add data by this function.
+
+    file_obj: open file object, with current position at the start
+              of the data section (past the header)
     '''
+    
     # list of strings, split by newlines and spaces
     blob = file_obj.read().decode('utf-8')
     # numpy array with string type
@@ -213,24 +248,42 @@ def ply_ascii(elements, file_obj):
     position = 0
 
     for key, values in elements.items():
-        dtype_str = list(values['properties'].values())[0]
-        if '$LIST' in dtype_str:
-            # the first row is the number of data points following
-            rows = int(raw[position]) + 1
-            count = values['length'] * rows
-            # for index types the dtype_str contains the dtype of the count followed
-            # by the dtype of the values that follow
-            dtype = np.dtype(dtype_str.split('($LIST,)')[-1])
-            data = raw[position:position +
-                       count].reshape((-1, rows)).astype(dtype)[:, 1:]
-            elements[key]['data'] = data
-        else:
-            rows = len(values['properties'])
-            count = values['length'] * rows
-            data = raw[position:position +
-                       count].reshape((-1, rows)).astype(dtype_str)
-            elements[key]['data'] = {p: c for p, c in zip(
-                values['properties'].keys(), data.T)}
+        # will store (start, end) column index of data
+        columns = collections.deque()
+        # will store the total number of rows
+        rows = 0
+        
+        for name, dtype in values['properties'].items():
+            if '$LIST' in dtype:
+                # if an element contains a list property handle it here
+                
+                # the first value is a count, followed by data
+                list_count = int(raw[position + rows])
+
+                # ignore the count and take the data
+                columns.append([rows + 1, 
+                                rows + 1 + list_count])
+                rows += list_count + 1
+                # change the datatype to just the dtype for data
+                values['properties'][name] = dtype.split('($LIST,)')[-1]
+            else:
+                # a single column data field
+                columns.append([rows, rows+1])
+                rows += 1
+
+        # total flat count of values
+        count = values['length'] * rows
+        # reshape the data into the specified rows
+        data = raw[position:position + count].reshape((-1, rows))
+
+        # store columns we care about by name and convert to specified data type
+        elements[key]['data'] = {n: data[:,c[0]:c[1]].astype(dt) for n, dt, c in zip(
+            values['properties'].keys(),    # field name
+            values['properties'].values(),  # data type of field
+            columns)}                       # list of (start, end) column indexes
+
+        # move up our position in the file based on how many
+        # values we just read
         position += count
 
     if position != len(raw):
@@ -240,6 +293,14 @@ def ply_ascii(elements, file_obj):
 def ply_binary(elements, file_obj):
     '''
     Load the data from a binary PLY file into the elements data structure.
+
+    Parameters
+    ------------
+    elements: OrderedDict object, populated from the file header. 
+              object will be modified to add data by this function.
+
+    file_obj: open file object, with current position at the start
+              of the data section (past the header)
     '''
 
     def populate_listsize(file_obj, elements):
