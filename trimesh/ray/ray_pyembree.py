@@ -9,10 +9,11 @@ from pyembree.mesh_construction import TriangleMesh
 from .. import util
 from .. import intersections
 
-# based on an internal tolerance of embree?
-# 1e-4 definetly doesn't work
-_ray_offset_distance = .01
-
+# the factor of geometry.scale to offset a ray from a triangle
+# to reliably not hit its origin triangle
+_ray_offset_factor = 1e-5
+# for very small meshes, we want to clip our offset to a sane distance
+_ray_offset_floor  = 1e-8
 
 class RayMeshIntersector:
 
@@ -60,6 +61,7 @@ class RayMeshIntersector:
                       ray_origins,
                       ray_directions,
                       multiple_hits=True,
+                      max_hits=100,
                       return_locations=False):
         '''
         Find the triangles hit by a list of rays, including optionally 
@@ -95,13 +97,18 @@ class RayMeshIntersector:
 
         if multiple_hits or return_locations:
             # how much to offset ray to transport to the other side of it
-            ray_offset = ray_directions * _ray_offset_distance
+            offset_distance = self._geometry.scale * _ray_offset_factor
+            offset_distance = np.clip(_ray_offset_floor, 1.0, offset_distance)
+            ray_offset = ray_directions * offset_distance
 
             # grab the planes from triangles
             plane_origins = self._geometry.triangles[:, 0, :]
             plane_normals = self._geometry.face_normals
 
-        while True:
+        # use a for loop rather than a while to ensure this exits
+        # if a ray is offset from a triangle and then is reported hitting
+        # itself this could get stuck on that one triangle
+        for query_depth in range(max_hits):
             # run the pyembree query
             query = self._scene.run(ray_origins[current],
                                     ray_directions[current])
