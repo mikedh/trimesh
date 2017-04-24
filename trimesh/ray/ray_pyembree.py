@@ -11,7 +11,7 @@ from .. import intersections
 
 # the factor of geometry.scale to offset a ray from a triangle
 # to reliably not hit its origin triangle
-_ray_offset_factor = 1e-5
+_ray_offset_factor = 1e-4
 # for very small meshes, we want to clip our offset to a sane distance
 _ray_offset_floor  = 1e-8
 
@@ -98,7 +98,9 @@ class RayMeshIntersector:
         if multiple_hits or return_locations:
             # how much to offset ray to transport to the other side of it
             offset_distance = self._geometry.scale * _ray_offset_factor
-            offset_distance = np.clip(_ray_offset_floor, 1.0, offset_distance)
+            offset_distance = np.clip(offset_distance,
+                                      a_min=_ray_offset_floor,
+                                      a_max=1.0)
             ray_offset = ray_directions * offset_distance
 
             # grab the planes from triangles
