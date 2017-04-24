@@ -38,6 +38,7 @@ class MeshScript:
         self.replacement['script'] = self.script_out.name
 
         script_text = Template(self.script).substitute(self.replacement)
+        script_text = script_text.replace("\\", "\\\\")
         self.script_out.write(script_text.encode('utf-8'))
 
         # close all temporary files
