@@ -1,9 +1,11 @@
+import os
+import platform
+
 from ..io.stl import load_stl
 
 from string import Template
 from tempfile import NamedTemporaryFile
 from subprocess import check_call
-from os import remove
 
 
 class MeshScript:
@@ -38,6 +40,9 @@ class MeshScript:
         self.replacement['script'] = self.script_out.name
 
         script_text = Template(self.script).substitute(self.replacement)
+        if platform.system == 'Windows':
+            script_text = script_text.replace('\\', '\\\\')
+            
         self.script_out.write(script_text.encode('utf-8'))
 
         # close all temporary files
@@ -60,7 +65,7 @@ class MeshScript:
     def __exit__(self, *args, **kwargs):
         # delete all the temporary files by name
         # they are closed but their names are still available
-        remove(self.script_out.name)
+        os.remove(self.script_out.name)
         for file_obj in self.mesh_pre:
-            remove(file_obj.name)
-        remove(self.mesh_post.name)
+            os.remove(file_obj.name)
+        os.remove(self.mesh_post.name)

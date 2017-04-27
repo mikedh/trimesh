@@ -1,9 +1,23 @@
+import os
+import platform
+
 from .generic import MeshScript
+from ..constants import log
+
 from distutils.spawn import find_executable
 
-_scad_executable = find_executable('openscad')
+_search_path = os.environ['PATH']
+if platform.system() == 'Windows':
+    # split existing path by delimiter
+    _search_path = [i for i in _search_path.split(';') if len(i) > 0]
+    _search_path.append(os.path.normpath('C:\Program Files\OpenSCAD'))
+    _search_path.append(os.path.normpath('C:\Program Files (x86)\OpenSCAD'))
+    _search_path = ';'.join(_search_path)
+    log.debug('searching for scad in: ', _search_path)
+    
+    
+_scad_executable = os.path.normpath(find_executable('openscad', path=_search_path))
 exists = _scad_executable is not None
-
 
 def interface_scad(meshes, script):
     '''
