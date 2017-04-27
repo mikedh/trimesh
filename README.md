@@ -15,7 +15,7 @@ The easiest and recommended way to get the most functionality out of Trimesh is 
 conda install -c menpo/label/master cyassimp
 
 # install modules for spatial indexing, polygon manipulation, and fast ray-mesh queries
-conda install -c conda-forge rtree shapely pyembree
+conda install -c conda-forge rtree shapely embree
 
 # install Trimesh and soft dependancies that are easy to install
 pip install trimesh[easy]
