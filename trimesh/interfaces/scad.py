@@ -16,7 +16,7 @@ if platform.system() == 'Windows':
     log.debug('searching for scad in: ', _search_path)
     
     
-_scad_executable = os.path.normpath(find_executable('openscad', path=_search_path))
+_scad_executable = find_executable('openscad', path=_search_path)
 exists = _scad_executable is not None
 
 def interface_scad(meshes, script):
