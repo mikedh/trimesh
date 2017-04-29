@@ -74,7 +74,7 @@ def load_wavefront(file_obj, file_type=None):
     groups = np.zeros((faces.shape[0],1),dtype=int)
     for i in range(len(gid)):
         groups[np.nonzero(faceid > gid[i])] = i 
-l   oaded = {'vertices': data[vid].astype(float),
+    loaded = {'vertices': data[vid].astype(float),
           'vertex_normals': data[nid].astype(float),
           'faces': faces, 'groups': groups}
     return loaded
