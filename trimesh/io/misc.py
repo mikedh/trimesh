@@ -70,9 +70,13 @@ def load_wavefront(file_obj, file_type=None):
                       for i in data[fid].reshape(-1)])[:, 0].reshape((-1, 3))
     # wavefront has 1- indexed faces, as opposed to 0- indexed
     faces = faces.astype(int) - 1
-    loaded = {'vertices': data[vid].astype(float),
-              'vertex_normals': data[nid].astype(float),
-              'faces': faces}
+    faceid =  np.nonzero(data_str == 'f')[0]
+    groups = np.zeros((faces.shape[0],1),dtype=int)
+    for i in range(len(gid)):
+        groups[np.nonzero(faceid > gid[i])] = i 
+l   oaded = {'vertices': data[vid].astype(float),
+          'vertex_normals': data[nid].astype(float),
+          'faces': faces, 'groups': groups}
     return loaded
 
 
