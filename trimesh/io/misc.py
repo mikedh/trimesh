@@ -63,7 +63,8 @@ def load_wavefront(file_obj, file_type=None):
     vid = np.nonzero(data_str == 'v')[0].reshape((-1, 1)) + np.arange(3) + 1
     nid = np.nonzero(data_str == 'vn')[0].reshape((-1, 1)) + np.arange(3) + 1
     fid = np.nonzero(data_str == 'f')[0].reshape((-1, 1)) + np.arange(3) + 1
-
+    gid = np.nonzero(data_str == 'g')[0].reshape((-1,1)) + 1
+    
     # if we wanted to use the texture/vertex normals, we could slice this
     # differently.
     faces = np.array([i.split(b'/')
