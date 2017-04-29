@@ -802,6 +802,9 @@ class Trimesh(object):
             faces = self._cache['faces']
         self.faces = faces[mask]
         self.visual.update_faces(mask)
+        if not (self._data['groups'] is None):
+            groups = self._data['groups']
+            self.groups = groups[mask]
 
     def remove_infinite_values(self):
         '''
