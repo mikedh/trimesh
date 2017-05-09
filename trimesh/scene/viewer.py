@@ -298,7 +298,7 @@ class SceneViewer(pyglet.window.Window):
         This function is the last thing executed in the event loop,
         so if we want to close the window (self) here is the place to do it.
         '''
-        super(self.__class__, self).flip()
+        super(SceneViewer, self).flip()
 
         if self._img is not None:
             self.save_image(self._img)
