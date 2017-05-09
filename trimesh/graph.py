@@ -7,7 +7,6 @@ from . import util
 from . import grouping
 
 from .constants import log, tol
-from .grouping import group, group_rows, boolean_rows
 from .geometry import faces_to_edges
 
 try:
@@ -67,7 +66,7 @@ def face_adjacency(faces=None, mesh=None, return_edges=False):
     # every edge appears twice in a well constructed mesh
     # so for every row in edge_idx, edges[edge_idx[*][0]] == edges[edge_idx[*][1]]
     # in this call to group rows, we discard edges which don't occur twice
-    edge_groups = group_rows(edges, require_count=2)
+    edge_groups = grouping.group_rows(edges, require_count=2)
 
     if len(edge_groups) == 0:
         log.error('No adjacent faces detected! Did you merge vertices?')
@@ -97,7 +96,7 @@ def shared_edges(faces_a, faces_b):
     '''
     e_a = np.sort(faces_to_edges(faces_a), axis=1)
     e_b = np.sort(faces_to_edges(faces_b), axis=1)
-    shared = boolean_rows(e_a, e_b, operation=set.intersection)
+    shared = grouping.boolean_rows(e_a, e_b, operation=set.intersection)
     return shared
 
 
@@ -345,9 +344,30 @@ def is_watertight(edges, edges_sorted=None):
     '''
     if edges_sorted is None:
         edges_sorted = np.sort(edges, axis=1)
-    groups = group_rows(edges_sorted, require_count=2)
+    groups = grouping.group_rows(edges_sorted, require_count=2)
     watertight = (len(groups) * 2) == len(edges)
 
     opposing = edges[groups].reshape((-1, 4))[:, 1:3].T
     reversed = np.equal(*opposing).all()
     return watertight, reversed
+
+def graph_to_svg(graph):
+    '''
+    Turn a networkx graph into an SVG string, using graphviz dot.
+
+    Arguments
+    ----------
+    graph: networkx graph
+    
+    Returns
+    ---------
+    svg: string, pictoral layout in SVG format
+    '''
+    
+    import tempfile
+    import subprocess
+    with tempfile.NamedTemporaryFile() as dot_file:
+        nx.drawing.nx_agraph.write_dot(graph, dot_file.name)
+        svg = subprocess.check_output(['dot', dot_file.name, '-Tsvg'])
+    return svg
+    

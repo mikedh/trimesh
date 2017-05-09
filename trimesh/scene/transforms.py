@@ -165,6 +165,12 @@ class TransformForest:
         nx.draw(self.transforms, with_labels=True)
         plt.show()
 
+    def to_svg(self):
+        '''
+        '''
+        from ..graph import graph_to_svg
+        return graph_to_svg(self.transforms)
+        
     def __getitem__(self, key):
         return self.get(key)
 
