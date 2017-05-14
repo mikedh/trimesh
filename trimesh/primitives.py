@@ -173,9 +173,9 @@ class Cylinder(_Primitive):
 
         mesh = creation.cylinder(radius=self.primitive.radius,
                                  height=self.primitive.height,
-                                 sections=self.primitive.sections)
-        mesh.apply_transform(self.primitive.transform)
-
+                                 sections=self.primitive.sections,
+                                 transform=self.primitive.transform)
+        
         self._cache['vertices'] = mesh.vertices
         self._cache['faces'] = mesh.faces
         self._cache['face_normals'] = mesh.face_normals

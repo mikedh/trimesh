@@ -9,6 +9,7 @@ from .geometry import faces_to_edges
 from .grouping import group_rows, unique_rows
 
 from . import util
+from . import transformations
 
 import numpy as np
 
@@ -448,7 +449,7 @@ def capsule(height=1.0,
     return capsule
 
 
-def cylinder(radius=1.0, height=1.0, sections=32):
+def cylinder(radius=1.0, height=1.0, sections=32, transform=None):
     '''
     Create a mesh of a cylinder along Z centered at the origin.
 
@@ -462,21 +463,32 @@ def cylinder(radius=1.0, height=1.0, sections=32):
     ----------
     cylinder: Trimesh, resulting mesh
     '''
+    
+    # create a 2D pie out of wedges
     theta = np.linspace(0, np.pi * 2, sections)
-
-    vertices = np.column_stack((np.sin(theta), np.cos(theta))) * radius
+    vertices = np.column_stack((np.sin(theta), 
+                                np.cos(theta))) * radius
+    # the single vertex at the center of the circle
+    # we're overwriting the duplicated start/end vertex
     vertices[0] = [0, 0]
 
+    # whangle indexes into a triangulation of the pie wedges
     index = np.arange(1, len(vertices) + 1).reshape((-1, 1))
     index[-1] = 1
-
     faces = np.tile(index, (1, 2)).reshape(-1)[1:-1].reshape((-1, 2))
     faces = np.column_stack((np.zeros(len(faces), dtype=np.int), faces))
 
+    # extrude the 2D triangulation into a Trimesh object
     cylinder = extrude_triangulation(vertices=vertices,
                                      faces=faces,
                                      height=height)
+    # the extrusion was along +Z, so move the cylinder 
+    # center of mass back to the origin
     cylinder.vertices[:, 2] -= height * .5
+    if transform is not None:
+        # apply a transform here before any cache stuff is generated
+        # and would have to be dumped after the transform is applied
+        cylinder.apply_transform(transform)
 
     return cylinder
 

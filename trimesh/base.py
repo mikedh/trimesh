@@ -27,6 +27,7 @@ from . import units
 from . import permutate
 from . import nsphere
 from . import proximity
+from . import inertia
 
 from .io.export import export_mesh
 from .ray import ray_triangle
@@ -534,6 +535,20 @@ class Trimesh(object):
         inertia = np.array(self.mass_properties(skip_inertia=False)['inertia'])
         return inertia
 
+    @util.cache_decorator
+    def principal_inertia(self):
+        '''
+        Return the principal axis and principal components of inertia
+
+        Returns
+        ----------
+        components: (3,) float, principal components of inertia
+        vectors:    (3,3) float, 3 vectors pointing along the
+                                 principal axis of inertia
+        '''
+        components, vectors = inertia.principal_axis(self.moment_inertia)
+        return components, vectors
+    
     @util.cache_decorator
     def triangles(self):
         '''
@@ -1186,8 +1201,7 @@ class Trimesh(object):
             raise ValueError('Transformation matrix must be (4,4)!')
 
         if np.allclose(matrix, np.eye(4)):
-            log.debug(
-                'apply_tranform recieved identity matrix, returning without applying')
+            log.debug('apply_tranform recieved identity matrix')
             return
 
         new_normals = np.dot(matrix[0:3, 0:3], self.face_normals.T).T
