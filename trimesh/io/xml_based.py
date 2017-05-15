@@ -1,13 +1,15 @@
 import numpy as np
-import collections
+import networkx as nx
 
+import collections
+import json
 
 from .. import util
 from .. import visual
 from .. import transformations
 
 
-def xaml_load(file_obj, *args, **kwargs):
+def load_XAML(file_obj, *args, **kwargs):
     '''
     Load a 3D XAML file.
 
@@ -138,10 +140,252 @@ def xaml_load(file_obj, *args, **kwargs):
     result['vertex_normals'] = np.vstack(normals)
 
     return result
+    
+    
+def load_3DXML(file_obj, *args, **kwargs):
+    '''
+    Load a 3DXML scene into kwargs.
+    
+    Parameters
+    -----------
+    file_obj: open file object holding 3DXML file
+    
+    Returns
+    -----------
+    geometries: list of dict, kwargs for Trimesh constructor
+    graph_kwargs: list of dict, kwargs for Scene.graph.update
+    '''
+    archive = util.decompress(file_obj, file_type='zip')
+    
+    # a dictionary of file name : lxml etree
+    as_etree = {k:etree.XML(v.read()) for k,v in archive.items()}
+    # the file name of the root scene
+    root_file = as_etree['Manifest.xml'].find('{*}Root').text
+    # the etree of the scene layout
+    tree = as_etree[root_file]
+    # index of root element of directed acyclic graph
+    root_id = tree.find('{*}ProductStructure').attrib['root']
 
+    
+    # load the materials libary from the materials elements
+    colors = {}
+    material_tree = as_etree['CATMaterialRef.3dxml']
+    for MaterialDomain in material_tree.iter('{*}MaterialDomain'):
+        material_id = MaterialDomain.attrib['id']
+        material_file = MaterialDomain.attrib['associatedFile'].split('urn:3DXML:')[-1]
+        
+        rend = as_etree[material_file].find("{*}Feature[@Alias='RenderingFeature']")
+        diffuse = rend.find("{*}Attr[@Name='DiffuseColor']")
+        #specular = rend.find("{*}Attr[@Name='SpecularColor']")
+        #emissive = rend.find("{*}Attr[@Name='EmissiveColor']")
+        rgb = (np.array(json.loads(diffuse.attrib['Value'])) * 255).astype(np.uint8)
+        colors[material_id] = rgb
+
+    # copy indexes for instances of colors
+    for MaterialDomainInstance in material_tree.iter('{*}MaterialDomainInstance'):
+        instance = MaterialDomainInstance.find('{*}IsInstanceOf')
+        #colors[b.attrib['id']] = colors[instance.text]
+        for aggregate in MaterialDomainInstance.findall('{*}IsAggregatedBy'):
+            colors[aggregate.text] = colors[instance.text]
+
+
+    ### references which hold the 3DXML scene structure as a dict
+    # element id : {key : value}
+    references = collections.defaultdict(dict)
+
+    # the 3DXML can specify different visual properties for  occurences
+    view = tree.find('{*}DefaultView')
+    for ViewProp in view.iter('{*}DefaultViewProperty'):
+        color = ViewProp.find('{*}GraphicProperties/' +
+                              '{*}SurfaceAttributes/{*}Color')
+        if (color is None or 
+            'RGBAColorType' not in color.attrib.values()):
+            continue
+        rgba = np.array([color.attrib[i] for i in ['red',
+                                                   'green',
+                                                   'blue',
+                                                   'alpha']], dtype=np.float)
+        rgba = (rgba * 255).astype(np.uint8)
+        for occurence in ViewProp.findall('{*}OccurenceId/{*}id'):
+            reference_id = occurence.text.split('#')[-1]
+            references[reference_id]['color'] = rgba
+
+    ### geometries will hold meshes
+    geometries = dict()
+
+    # get geometry
+    for ReferenceRep in tree.iter(tag='{*}ReferenceRep'):
+        # the str of an int that represents this meshes unique ID
+        part_id = ReferenceRep.attrib['id']
+        # which part file in the archive contains the geometry we care about
+        part_file = ReferenceRep.attrib['associatedFile'].split(':')[-1]
+
+        # prepare to collect actual geometry data
+        mesh_faces    = collections.deque()
+        mesh_vertices = collections.deque()
+        mesh_colors   = collections.deque()
+        mesh_normals  = collections.deque()
+
+        # the geometry is stored in a Rep
+        for Rep in as_etree[part_file].iter('{*}Rep'):
+            faces = Rep.find('{*}Faces/{*}Face')
+            vertices = Rep.find('{*}VertexBuffer/{*}Positions')
+            
+            if (faces is None or
+                vertices is None):
+                continue
+            
+            # these are vertex normals
+            normals = Rep.find('{*}VertexBuffer/{*}Normals')
+            material = Rep.find('{*}SurfaceAttributes/' + 
+                                '{*}MaterialApplication/' +
+                                '{*}MaterialId')
+            
+            (material_file,
+             material_id) = material.attrib['id'].split('urn:3DXML:')[-1].split('#')
+
+            # triangle strips, sequence of arbitrary length lists of vertex indexes 
+            strips = [np.array(i.split(),
+                               dtype=np.int) for i in faces.attrib['strips'].split(',')]
+            
+            # convert strips to (m,3) int
+            mesh_faces.append(util.triangle_strips_to_faces(strips))
+            # convert vertices to (n,3) float
+            mesh_vertices.append(np.array(vertices.text.replace(',',
+                                                                ' ').split(), 
+                                          dtype=np.float64).reshape((-1,3)))
+            # convert VERTEX normals to (n,3) float
+            mesh_normals.append(np.array(normals.text.replace(',',
+                                                              ' ').split(), 
+                                         dtype=np.float64).reshape((-1,3)))
+            # store the material information as (m,3) uint8 FACE COLORS
+            mesh_colors.append(np.tile(colors[material_id],
+                                       (len(mesh_faces[-1]), 1)))
+            
+        # save each mesh as the kwargs for a trimesh.Trimesh constructor
+        # aka, a Trimesh object can be created with trimesh.Trimesh(**mesh)
+        # this avoids needing trimesh- specific imports in this IO function
+        mesh = dict()
+        (mesh['vertices'], 
+         mesh['faces']) = util.append_faces(mesh_vertices,
+                                            mesh_faces)
+        mesh['vertex_normals'] = np.vstack(mesh_normals)
+        mesh['face_colors']    = np.vstack(mesh_colors)
+        mesh['class']          = 'Trimesh'
+
+        geometries[part_id] = mesh
+        references[part_id]['geometry'] = part_id
+
+    # a Reference3D maps to a subassembly or assembly 
+    for Reference3D in tree.iter('{*}Reference3D'):
+        references[Reference3D.attrib['id']] = {'name' : Reference3D.attrib['name'],
+                                                'type' : 'Reference3D'}
+        
+    # a node that is the connectivity between a geometry and the Reference3D
+    for InstanceRep in tree.iter('{*}InstanceRep'):
+        current = InstanceRep.attrib['id']
+        instance = InstanceRep.find('{*}IsInstanceOf').text
+        aggregate = InstanceRep.find('{*}IsAggregatedBy').text
+ 
+        references[current].update({'aggregate' : aggregate,
+                                    'instance'  : instance,
+                                    'type'      : 'InstanceRep'})
+        
+    # an Instance3D maps basically to a part
+    for Instance3D in tree.iter('{*}Instance3D'):
+        matrix = np.eye(4)
+        relative = Instance3D.find('{*}RelativeMatrix')
+        if relative is not None: 
+            relative = np.array(relative.text.split(),
+                                dtype=np.float64)
+
+            # rotation component
+            matrix[:3,:3] = relative[:9].reshape((3,3)).T
+            # translation component
+            matrix[:3,3] = relative[9:]
+        
+        current = Instance3D.attrib['id']
+        name = Instance3D.attrib['name']
+        instance = Instance3D.find('{*}IsInstanceOf').text
+        aggregate = Instance3D.find('{*}IsAggregatedBy').text
+
+        references[current].update({'aggregate' : aggregate,
+                                    'instance'  : instance,
+                                    'matrix'    : matrix,
+                                    'name'      : name,
+                                    'type'      : 'Instance3D'})
+                                    
+    # turn references into directed graph for path finding
+    graph = nx.DiGraph()
+    for k,v in references.items():
+        # IsAggregatedBy points up to a parent
+        if 'aggregate' in v:
+           graph.add_edge(v['aggregate'], k)
+        # IsInstanceOf indicates a child
+        if 'instance' in v:
+            graph.add_edge(k, v['instance'])
+
+    # the 3DXML format is stored as a directed acyclic graph that needs all
+    # paths from the root to a geometry to generate the tree of the scene
+    paths = collections.deque()
+    for geometry_id in geometries.keys():
+        paths.extend(nx.all_simple_paths(graph,
+                                         source=root_id,
+                                         target=geometry_id))
+
+
+    # the name of the root frame
+    root_name = references[root_id]['name']
+
+    # create a list of kwargs to send to the scene.graph.update function
+    # start with a transform from the graphs base frame to our root name
+    graph_kwargs = collections.deque([{'frame_to' : root_name,
+                                       'matrix'   : np.eye(4)}])
+    
+    # loop through every simple path and generate transforms tree
+    for path_index, path in enumerate(paths):
+
+        # we need a unique node name for our geometry instance frame
+        # due to the nature of the DAG names specified by the file may not
+        # be unique, so we add an Instance3D name then append the path ids
+        node_name = ''
+        if 'name' in references[path[-3]]:
+            node_name = references[path[-3]]['name']
+        node_name += '#' + ':'.join(path)
+        
+        # kwargs for Scene().graph.update
+        current_kwargs = collections.deque()
+        # pull all transformations in the path
+        for ref_id in path:
+            if 'matrix' in references[ref_id]:
+                current_kwargs.append({'matrix'   : references[ref_id]['matrix'],
+                                       'frame_to' : (references[ref_id]['name'] + 
+                                                     '#' + 
+                                                     str(ref_id))})
+                
+        # if no transforms are defined put an identity matrix in
+        if len(current_kwargs) == 0:
+            current_kwargs.append({'matrix'   : np.eye(4),
+                                   'frame_to' : node_name})
+                
+        # all paths start from the root
+        current_kwargs[0]['frame_from'] = root_name
+        # the last element in the path is the geometry
+        current_kwargs[-1]['geometry']  = path[-1]
+        # the instance must be unique
+        current_kwargs[-1]['frame_to']  = node_name
+
+        # add the other side of the transform edge
+        for i in range(1, len(current_kwargs)):
+            current_kwargs[i]['frame_from'] = current_kwargs[i-1]['frame_to']
+
+        # add the transforms for this path to the overall list of edges
+        graph_kwargs.extend(current_kwargs)
+        
+    return geometries, graph_kwargs
 
 try:
     from lxml import etree
-    _xml_loaders = {'xaml': xaml_load}
+    _xml_loaders = {'xaml': load_XAML}
 except ImportError:
     _xml_loaders = {}
