@@ -1668,15 +1668,34 @@ def triangle_strips_to_faces(strips):
     ------------
     faces: (m,3) int, vertex indices representing triangles
     '''
-    faces = collections.deque()
-    for s in strips:
-        s = np.asanyarray(s, dtype=np.int)
-        # each triangle is defined by one new vertex
-        tri = np.column_stack([np.roll(s, -i) for i in range(3)])[:-2]
-        # we need to flip ever other triangle
-        idx = (np.arange(len(tri)) % 2).astype(bool)
-        tri[idx] = np.fliplr(tri[idx])
-        faces.append(tri)
-    # stack into one (m,3) array
-    faces = np.vstack(faces)
-    return faces
+    
+    # save the length of each list in the list of lists
+    lengths = np.array([len(i) for i in strips])
+    # looping through a list of lists is extremely slow
+    # combine all the sequences into a blob we can manipulate
+    blob = np.hstack(strips)
+    
+    # preallocate and slice the blob into rough triangles
+    tri = np.zeros((len(blob)-2, 3), dtype=np.int)
+    for i in range(3):
+        tri[:len(blob)-3,i] = blob[i:-3+i]
+    # the last triangle is left off from the slicing, add it back
+    tri[-1] = blob[-3:]
+
+    # remove the triangles which were implicit but not actually there
+    # because we combined everything into one big array for speed
+    length_index = np.cumsum(lengths)[:-1]
+    keep = np.ones(len(tri), dtype=np.bool)
+    keep[np.append(length_index-2, length_index-1)] = False
+    tri = tri[keep]
+    
+    # flip every other triangle so they generate correct normals/winding
+    length_index = np.append(0, np.cumsum(lengths-2))
+    flip = np.zeros(length_index[-1], dtype=np.bool)
+    for i in range(len(length_index)-1):
+        flip[length_index[i]+1:length_index[i+1]][::2] = True
+    tri[flip] = np.fliplr(tri[flip])
+    
+    return tri    
+    
+    
