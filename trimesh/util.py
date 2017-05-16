@@ -353,7 +353,7 @@ def three_dimensionalize(points, return_2D=True):
     return points
 
 
-def grid_arange_2D(bounds, step):
+def grid_arange(bounds, step):
     '''
     Return a 2D grid with specified spacing
 
@@ -367,13 +367,12 @@ def grid_arange_2D(bounds, step):
     grid: (n, 2) list of 2D points
     '''
     bounds = np.asanyarray(bounds)
-    x_grid = np.arange(*bounds[:, 0], step=step)
-    y_grid = np.arange(*bounds[:, 1], step=step)
-    grid = np.dstack(np.meshgrid(x_grid, y_grid)).reshape((-1, 2))
+    grid_elements = [np.arange(*b, step=step) for b in bounds.T]
+    grid = np.vstack(np.meshgrid(*grid_elements)).reshape(bounds.shape[1],-1).T
     return grid
 
 
-def grid_linspace_2D(bounds, count):
+def grid_linspace(bounds, count):
     '''
     Return a count*count 2D grid
 
@@ -387,9 +386,8 @@ def grid_linspace_2D(bounds, count):
     grid: (count**2, 2) list of 2D points
     '''
     bounds = np.asanyarray(bounds)
-    x_grid = np.linspace(*bounds[:, 0], num=count)
-    y_grid = np.linspace(*bounds[:, 1], num=count)
-    grid = np.dstack(np.meshgrid(x_grid, y_grid)).reshape((-1, 2))
+    grid_elements = [np.linspace(*b, num=count) for b in bounds.T]
+    grid = np.vstack(np.meshgrid(*grid_elements)).reshape(bounds.shape[1],-1).T
     return grid
 
 

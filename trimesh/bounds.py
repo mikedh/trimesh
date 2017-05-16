@@ -241,7 +241,7 @@ def minimum_cylinder(obj, sample_count=15, angle_tol=.001):
         raise ValueError('Input must be reducable to 3D points!')
 
     # sample a hemisphere so local hill climbing can do its thing
-    samples = util.grid_linspace_2D([[0, 0], [np.pi, np.pi]], sample_count)
+    samples = util.grid_linspace([[0, 0], [np.pi, np.pi]], sample_count)
     tic = [time.time()]
     # the best vector in (2,) spherical coordinates
     best = samples[np.argmin([volume_from_angles(i) for i in samples])]
