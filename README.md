@@ -17,7 +17,7 @@ conda install -c menpo/label/master cyassimp
 # install modules for spatial indexing, polygon manipulation, and fast ray-mesh queries
 conda install -c conda-forge rtree shapely
 
-# install Trimesh and soft dependancies that are easy to install
+# install Trimesh and soft dependencies that are easy to install
 pip install trimesh[easy]
 
 ```
@@ -151,7 +151,7 @@ Trimesh includes an optional pyglet- based viewer for debugging/inspecting. In t
 
 ## Containers
    
-If you want to deploy something in a container that uses trimesh, automated builds containing trimesh and its dependancies are available on docker hub. For an image with all dependancies:
+If you want to deploy something in a container that uses trimesh, automated builds containing trimesh and its dependencies are available on docker hub. For an image with all dependencies:
 
 `docker pull mikedh/trimesh`
 

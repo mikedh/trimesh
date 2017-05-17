@@ -383,7 +383,11 @@ def load_3DXML(file_obj, *args, **kwargs):
         # add the transforms for this path to the overall list of edges
         graph_kwargs.extend(current_kwargs)
 
-    return geometries, graph_kwargs
+    result = {'class'        : 'Scene',
+              'geometry'     : geometries,
+              'graph_kwargs' : graph_kwargs}
+              
+    return result
 
 
 try:

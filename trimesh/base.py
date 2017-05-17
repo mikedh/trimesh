@@ -463,13 +463,14 @@ class Trimesh(object):
     @util.cache_decorator
     def scale(self):
         '''
-        A metric for the overall scale of the mesh.
+        A metric for the overall scale of the mesh, the length of the longest
+        diagonal of the meshes axis aligned bounding box
 
         Returns
         ----------
-        scale: float, the mean of the bounding box edges rounded to one signifigant figure
+        scale: float, the longest diagonal of the meshes AABB
         '''
-        scale = self.extents.max()
+        scale = (self.extents ** 2).sum() ** .5
         return scale
 
     @util.cache_decorator

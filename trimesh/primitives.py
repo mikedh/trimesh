@@ -3,8 +3,9 @@ import pprint
 import copy
 
 from . import util
-from . import creation
 from . import sample
+from . import creation
+from . import transformations
 
 from .base import Trimesh
 from .constants import log
@@ -283,7 +284,7 @@ class Box(_Primitive):
 
     def sample_volume(self, count):
         '''
-        Return samples from inside the volume of the box.
+        Return random samples from inside the volume of the box.
 
         Parameters
         -------------
@@ -298,6 +299,41 @@ class Box(_Primitive):
                                             transform=self.primitive.transform)
         return samples
 
+    def sample_grid(self, count=None, step=None):
+        '''
+        Return a 3D grid which is contained by the box. 
+        Samples are either 'step' distance apart, or there are
+        'count' samples per box side.
+
+        Parameters
+        -----------
+        count: int   or (3,) int,   if specified samples are spaced with np.linspace
+        step:  float or (3,) float, if specified samples are spaced with np.arange
+
+        Returns
+        -----------
+        grid: (n,3) float, points inside the box
+        '''
+
+        if (count is not None and
+            step is not None):
+            raise ValueError('only step OR count can be specified!')
+
+        # create pre- transform bounds from extents
+        bounds = np.array([-self.primitive.extents,
+                            self.primitive.extents]) * .5
+            
+        if step is not None:
+            grid = util.grid_arange(bounds, step=step)
+        elif count is not None:
+            grid =  util.grid_linspace(bounds, count=count)
+        else:
+            raise ValueError('either count or step must be specified!')
+
+        transformed = transformations.transform_points(grid,
+                                                       matrix=self.primitive.transform)
+        return transformed
+    
     @property
     def is_oriented(self):
         '''

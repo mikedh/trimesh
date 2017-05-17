@@ -355,38 +355,53 @@ def three_dimensionalize(points, return_2D=True):
 
 def grid_arange(bounds, step):
     '''
-    Return a 2D grid with specified spacing
+    Return a grid from an (2,dimension) bounds with samples step distance apart.
 
     Parameters
     ---------
-    bounds: (2,2) list of [[minx, miny], [maxx, maxy]]
-    step:   float, separation between points
+    bounds: (2,dimension) list of [[min x, min y, etc], [max x, max y, etc]]
+    step:   float, or (dimension) floats, separation between points
 
     Returns
     -------
-    grid: (n, 2) list of 2D points
+    grid: (n, dimension), points inside the specified bounds
     '''
-    bounds = np.asanyarray(bounds)
-    grid_elements = [np.arange(*b, step=step) for b in bounds.T]
+    bounds = np.asanyarray(bounds, dtype=np.float64)
+    if len(bounds) != 2:
+        raise ValueError('bounds must be (2, dimension!')
+
+    # allow single float or per-dimension spacing
+    step = np.asanyarray(step, dtype=np.float64)
+    if step.shape == ():
+        step = np.tile(step, bounds.shape[1])
+        
+    grid_elements = [np.arange(*b, step=s) for b,s in zip(bounds.T, step)]
     grid = np.vstack(np.meshgrid(*grid_elements)).reshape(bounds.shape[1],-1).T
     return grid
 
 
 def grid_linspace(bounds, count):
     '''
-    Return a count*count 2D grid
+    Return a grid 
 
     Parameters
     ---------
-    bounds: (2,2) list of [[minx, miny], [maxx, maxy]]
-    count:  int, number of elements on a side
+    bounds: (2,dimension) list of [[min x, min y, etc], [max x, max y, etc]]
+    count:  int, or (dimension,) int, number of samples per side
 
     Returns
     -------
-    grid: (count**2, 2) list of 2D points
+    grid: (n, dimension) float, points in the specified bounds
     '''
-    bounds = np.asanyarray(bounds)
-    grid_elements = [np.linspace(*b, num=count) for b in bounds.T]
+    bounds = np.asanyarray(bounds, dtype=np.float64)
+    if len(bounds) != 2:
+        raise ValueError('bounds must be (2, dimension!')
+    
+    count = np.asanyarray(count, dtype=np.int)
+    if count.shape == ():
+        count = np.tile(count, bounds.shape[1])
+
+    grid_elements = [np.linspace(*b, num=c) for b,c in zip(bounds.T, count)]
     grid = np.vstack(np.meshgrid(*grid_elements)).reshape(bounds.shape[1],-1).T
     return grid
 

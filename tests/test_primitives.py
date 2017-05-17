@@ -73,6 +73,19 @@ class BooleanTest(g.unittest.TestCase):
         self.assertTrue(b.volume > e.volume)
         self.assertTrue(b.contains(e.vertices).all())
 
+    def test_sample(self):
+        transform = g.trimesh.transformations.random_rotation_matrix()
+        box = g.trimesh.primitives.Box(transform=transform,
+                                       extents=[20, 10, 100])
+        for kwargs in [{'step' : 8},
+                       {'step' : [10,.4,10]},
+                       {'count' : 8},
+                       {'count' : [10,3,5]}]:
+            grid = box.sample_grid(**kwargs)
+            assert g.trimesh.util.is_shape(grid, (-1,3))
+            assert box.contains(grid).all()
+        
+        
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
