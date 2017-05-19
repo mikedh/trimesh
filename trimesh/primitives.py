@@ -160,9 +160,24 @@ class Cylinder(_Primitive):
         self.primitive = _PrimitiveAttributes(self,
                                               defaults,
                                               kwargs)
-
+                                              
+    @util.cache_decorator                                            
+    def volume(self):
+        '''
+        The analytic volume of a the cylinder primitive
+        '''
+        volume = (np.pi * self.primitive.radius ** 2) * self.primitive.height
+        return volume
+        
     @property
     def direction(self):
+        '''
+        The direction of the cylinder's axis.
+        
+        Returns
+        --------
+        axis: (3,) float, vector along the cylinder axis
+        '''
         axis = np.dot(self.primitive.transform, [0, 0, 1, 0])[:3]
         return axis
 
@@ -182,8 +197,20 @@ class Cylinder(_Primitive):
         self._cache['face_normals'] = mesh.face_normals
 
 
-class Capsule(Cylinder):
+class Capsule(_Primitive):
 
+    @property
+    def direction(self):
+        '''
+        The direction of the capsule's axis.
+        
+        Returns
+        --------
+        axis: (3,) float, vector along the cylinder axis
+        '''
+        axis = np.dot(self.primitive.transform, [0, 0, 1, 0])[:3]
+        return axis
+        
     def _create_mesh(self):
         log.info('Creating capsule mesh with r=%f, h=%f and %d sections',
                  self.primitive.radius,

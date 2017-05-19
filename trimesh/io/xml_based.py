@@ -153,7 +153,7 @@ def load_3DXML(file_obj, *args, **kwargs):
     Returns
     -----------
     geometries: list of dict, kwargs for Trimesh constructor
-    graph_kwargs: list of dict, kwargs for Scene.graph.update
+    graph:      list of dict, kwargs for Scene.graph.update
     '''
     archive = util.decompress(file_obj, file_type='zip')
 
@@ -385,7 +385,7 @@ def load_3DXML(file_obj, *args, **kwargs):
 
     result = {'class'        : 'Scene',
               'geometry'     : geometries,
-              'graph_kwargs' : graph_kwargs}
+              'graph'        : graph_kwargs}
               
     return result
 

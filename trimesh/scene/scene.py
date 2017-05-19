@@ -298,7 +298,7 @@ class Scene:
                 transforms: edge list of transforms, eg:
                              ((u, v, {'matrix' : np.eye(4)}))
         '''
-        export = {'graph': self.graph.to_flattened(),
+        export = {'graph': self.graph.to_edgelist(),
                   'geometry': {},
                   'scene_cache': {'bounds': self.bounds.tolist(),
                                   'extents': self.extents.tolist(),
@@ -325,9 +325,9 @@ class Scene:
                     # scene as that value (probably a single string, like
                     # 'ply')
                     export_type = file_type
-
-                export['geometry'][geometry_name] = {'bytes': geometry.export(file_type=export_type),
-                                                     'file_type': export_type}
+                exported = {'data': geometry.export(file_type=export_type),
+                            'file_type': export_type}
+                export['geometry'][geometry_name] = exported
             else:
                 # case where mesh object doesn't have exporter
                 # might be that someone replaced the mesh with a URL
