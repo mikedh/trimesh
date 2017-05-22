@@ -1,11 +1,13 @@
 import numpy as np
 import collections
 import traceback
+import copy
 import os
 
 from .. import util
 
 from ..base import Trimesh
+from ..scene import Scene
 from ..constants import _log_time, log
 
 from .assimp import _assimp_loaders
@@ -73,6 +75,7 @@ def load(file_obj, file_type=None, **kwargs):
         loaded = load_mesh(file_obj, file_type, **kwargs)
     elif file_type in compressed_loaders:
         loaded = load_compressed(file_obj, file_type, **kwargs)
+        # metadata we got from filename will be garbage, so suppress it
         metadata = {}
     else:
         raise ValueError('File type: %s not supported', str(file_type))
@@ -107,25 +110,19 @@ def load_mesh(file_obj, file_type=None, **kwargs):
      file_type,
      metadata) = _parse_file_args(file_obj, file_type)
 
-    loaded = mesh_loaders[file_type](file_obj,
-                                     file_type)
+    # make sure we keep passed kwargs to loader
+    # but also make sure loader keys override passed keys
+    kwargs.update(mesh_loaders[file_type](file_obj,
+                                          file_type))
     if util.is_file(file_obj):
         file_obj.close()
 
     log.debug('loaded mesh using %s',
               mesh_loaders[file_type].__name__)
 
-    meshes = collections.deque()
-    for mesh_kwargs in util.make_sequence(loaded):
-        mesh_kwargs.update(kwargs)
-        mesh = Trimesh(**mesh_kwargs)
-        mesh.metadata.update(metadata)
-        meshes.append(mesh)
-
-    if len(meshes) == 1:
-        return meshes[0]
-    return np.array(meshes)
-
+    loaded = load_kwargs(kwargs)
+    loaded.metadata.update(metadata)
+    return loaded
 
 def load_compressed(file_obj, file_type=None):
     '''
@@ -161,7 +158,60 @@ def load_compressed(file_obj, file_type=None):
         geometries.append(geometry)
     return np.array(geometries)
 
+def load_kwargs(*args, **kwargs):
+    '''
+    Load geometry from a properly formatted dict or kwargs
 
+    '''
+    def handle_scene():
+        geometry = copy.deepcopy(kwargs['geometry'])
+        for k, v in geometry.items():
+            if isinstance(v, dict):
+                geometry[k] = load_kwargs(v)
+        scene = Scene()
+        scene.geometry.update(geometry)
+        
+        for k in kwargs['graph']:
+            if isinstance(k, dict):
+                scene.graph.update(**k)
+            elif util.is_sequence(k) and len(k) == 3:
+                scene.graph.update(k[1], k[0], **k[2])
+                
+        return scene
+        
+    def handle_trimesh_kwargs():
+        return Trimesh(**kwargs)
+        
+    def handle_trimesh_export():
+        data, file_type = kwargs['data'], kwargs['file_type']
+        if not isinstance(data, dict):
+            data = util.wrap_as_stream(data)
+        k = mesh_loaders[file_type](data, 
+                                    file_type = file_type)
+        return Trimesh(**k)    
+        
+    # if we've been passed a single dict instead of kwargs
+    # substitute the dict for kwargs
+    if (len(kwargs) == 0 and 
+        len(args) == 1 and 
+        isinstance(args[0], dict)):
+        kwargs = args[0]
+   
+    handlers = {handle_scene          : ('graph', 'geometry'),
+                handle_trimesh_kwargs : ('vertices', 'faces'),
+                handle_trimesh_export : ('file_type', 'data')}        
+                
+    handler = None
+    for k,v in handlers.items():
+        if all(i in kwargs for i in v):
+            handler = k
+            break
+    if handler is None:
+        raise ValueError('unable to determine type!')
+
+    return handler()
+    
+    
 def _parse_file_args(file_obj, file_type, **kwargs):
     '''
     Given a file_obj and a file_type, try to turn them into a file-like object

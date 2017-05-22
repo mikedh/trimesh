@@ -392,6 +392,8 @@ def load_3DXML(file_obj, *args, **kwargs):
 
 try:
     from lxml import etree
-    _xml_loaders = {'xaml': load_XAML}
+    _xml_loaders = {'xaml'  : load_XAML,
+                    '3dxml' : load_3DXML}
+    
 except ImportError:
     _xml_loaders = {}

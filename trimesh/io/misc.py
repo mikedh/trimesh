@@ -123,6 +123,8 @@ def load_dict(data, file_type=None):
     '''
     if data is None:
         raise ValueError('data passed to load_dict was None!')
+    if util.is_instance_named(data, 'Trimesh'):
+        return data
     if util.is_string(data):
         if not '{' in data:
             raise ValueError('Object is not a JSON encoded dictionary!')

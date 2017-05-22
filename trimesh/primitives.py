@@ -4,6 +4,7 @@ import copy
 
 from . import util
 from . import sample
+from . import inertia
 from . import creation
 from . import transformations
 
@@ -164,11 +165,31 @@ class Cylinder(_Primitive):
     @util.cache_decorator                                            
     def volume(self):
         '''
-        The analytic volume of a the cylinder primitive
+        The analytic volume of the cylinder primitive.
+
+        Returns
+        ---------
+        volume: float, volume of the cylinder
         '''
         volume = (np.pi * self.primitive.radius ** 2) * self.primitive.height
         return volume
-        
+
+    @util.cache_decorator                                            
+    def moment_inertia(self):
+        '''
+        The analytic inertia tensor of the cylinder primitive.
+
+        Returns
+        ----------
+        tensor: (3,3) float, 3D inertia tensor
+        '''
+
+        tensor = inertia.cylinder_inertia(mass = self.volume,
+                                          radius = self.primitive.radius,
+                                          height = self.primitive.height,
+                                          transform = self.primitive.transform)
+        return tensor
+    
     @property
     def direction(self):
         '''
@@ -198,6 +219,28 @@ class Cylinder(_Primitive):
 
 
 class Capsule(_Primitive):
+    
+    def __init__(self, *args, **kwargs):
+        '''
+        Create a Capsule Primitive, a subclass of Trimesh.
+
+        Parameters
+        ----------
+        radius: float, radius of cylinder
+        height: float, height of cylinder
+        transform: (4,4) float, transformation matrix
+        sections: int, number of facets in circle
+        '''
+        super(Capsule, self).__init__(*args, **kwargs)
+
+        defaults = {'height': 1.0,
+                    'radius': 1.0,
+                    'transform': np.eye(4),
+                    'sections': 32}
+        self.primitive = _PrimitiveAttributes(self,
+                                              defaults,
+                                              kwargs)
+                                              
 
     @property
     def direction(self):
@@ -270,7 +313,7 @@ class Sphere(_Primitive):
     @util.cache_decorator
     def volume(self):
         '''
-        Volume of the current sphere Primitive.
+        Volume of the current sphere primitive.
 
         Returns
         --------
@@ -279,6 +322,19 @@ class Sphere(_Primitive):
 
         volume = (4.0 * np.pi * (self.primitive.radius ** 3)) / 3.0
         return volume
+
+    @util.cache_decorator                                            
+    def moment_inertia(self):
+        '''
+        The analytic inertia tensor of the sphere primitive.
+
+        Returns
+        ----------
+        tensor: (3,3) float, 3D inertia tensor
+        '''
+        tensor = inertia.sphere_inertia(mass = self.volume,
+                                        radius = self.primitive.radius)
+        return tensor
 
     def _create_mesh(self):
         unit = creation.icosphere(subdivisions=self.primitive.subdivisions)

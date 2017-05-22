@@ -374,7 +374,7 @@ def grid_arange(bounds, step):
     step = np.asanyarray(step, dtype=np.float64)
     if step.shape == ():
         step = np.tile(step, bounds.shape[1])
-        
+    
     grid_elements = [np.arange(*b, step=s) for b,s in zip(bounds.T, step)]
     grid = np.vstack(np.meshgrid(*grid_elements)).reshape(bounds.shape[1],-1).T
     return grid
@@ -382,7 +382,7 @@ def grid_arange(bounds, step):
 
 def grid_linspace(bounds, count):
     '''
-    Return a grid 
+    Return a grid spaced inside a bounding box with edges spaced using np.linspace.
 
     Parameters
     ---------
@@ -400,7 +400,7 @@ def grid_linspace(bounds, count):
     count = np.asanyarray(count, dtype=np.int)
     if count.shape == ():
         count = np.tile(count, bounds.shape[1])
-
+  
     grid_elements = [np.linspace(*b, num=c) for b,c in zip(bounds.T, count)]
     grid = np.vstack(np.meshgrid(*grid_elements)).reshape(bounds.shape[1],-1).T
     return grid
@@ -1665,8 +1665,12 @@ def split_extension(file_name, special=['tar.bz2', 'tar.gz']):
 def triangle_strips_to_faces(strips):
     '''
     Given a sequence of triangle strips, convert them to (n,3) faces.
+    
+    Processes all strips at once using np.hstack and is signifigantly faster 
+    than loop- based methods.
 
-    From the OpenGL programming guide:
+    From the OpenGL programming guide describing a single triangle 
+    strip [v0, v1, v2, v3, v4]:
     Draws a series of triangles (three-sided polygons) using vertices 
     v0, v1, v2, then v2, v1, v3  (note the order), then v2, v3, v4, 
     and so on. The ordering is to ensure that the triangles are all 
@@ -1675,7 +1679,7 @@ def triangle_strips_to_faces(strips):
 
     Parameters
     ------------
-    strips: (n,) sequence of integer indices
+    strips: (n,) list of (m,) int vertetex indices
 
     Returns
     ------------

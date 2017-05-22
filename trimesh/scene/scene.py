@@ -21,7 +21,8 @@ class Scene:
 
     def __init__(self,
                  geometry=None,
-                 base_frame='world'):
+                 base_frame='world',
+                 metadata={}):
 
         # mesh name : Trimesh object
         self.geometry = collections.OrderedDict()
@@ -35,6 +36,9 @@ class Scene:
             self.add_geometry(geometry)
             self.set_camera()
 
+        self.metadata = {}
+        self.metadata.update(metadata)
+            
     def add_geometry(self,
                      geometry,
                      node_name=None):

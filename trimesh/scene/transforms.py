@@ -45,10 +45,16 @@ class TransformForest:
             frame_from = self.base_frame
         matrix = kwargs_to_matrix(**kwargs)
 
+        
+        attr= {'matrix': matrix,
+               'time': time.time()}
+
+        if 'geometry' in kwargs:
+            attr['geometry'] = kwargs['geometry']
+            
         changed = self.transforms.add_edge(frame_from,
                                            frame_to,
-                                           attr_dict={'matrix': matrix,
-                                                      'time': time.time()})
+                                           attr_dict=attr)
         if 'geometry' in kwargs:
             nx.set_node_attributes(self.transforms,
                                    name='geometry',

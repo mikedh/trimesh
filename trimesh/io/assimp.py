@@ -68,6 +68,8 @@ def load_cyassimp(file_obj, file_type=None):
     meshes = [{'vertices': i.points,
                'faces': i.trilist} for i in scene.meshes]
 
+    if len(meshes) == 1:
+        return meshes[0]
     return meshes
 
 

@@ -103,11 +103,12 @@ def get_meshes(count=np.inf,
         if extension in trimesh.available_formats():
             loaded = trimesh.util.make_sequence(get_mesh(file_name))
             for i in loaded:
-                if (raise_error and
-                        not trimesh.util.is_instance_named(i, 'Trimesh')):
-                    raise ValueError(
-                        '%s returned a non- Trimesh object!', file_name)
-                if only_watertight and not i.is_watertight:
+                is_mesh  = trimesh.util.is_instance_named(i, 'Trimesh')
+                is_scene = trimesh.util.is_instance_named(i, 'Scene')
+                if raise_error and not is_mesh and not is_scene:
+                    raise ValueError('%s returned a non- Trimesh object!', 
+                                     file_name)
+                if not is_mesh or (only_watertight and not i.is_watertight):
                     continue
                 meshes.append(i)
         else:

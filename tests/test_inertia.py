@@ -71,6 +71,24 @@ class InertiaTest(g.unittest.TestCase):
         assert tf_test.max() < 1e-6  
         
 
+    def test_primitives(self):
+        primitives = [g.trimesh.primitives.Cylinder(height=5),
+                      g.trimesh.primitives.Box(),
+                      g.trimesh.primitives.Sphere(radius=1.23)]
+        for p in primitives:
+            for i in range(100):
+                # check to make sure the analytic inertia tensors are relatively
+                # close to the meshed inertia tensor (order of magnitude and sign)
+                comparison = g.np.abs(p.moment_inertia - p.to_mesh().moment_inertia)
+                c_max = comparison.max() / g.np.abs(p.moment_inertia).max()
+                assert c_max < .1
+                
+                if hasattr(p.primitive, 'transform'):
+                    matrix = g.trimesh.transformations.random_rotation_matrix()
+                    p.primitive.transform = matrix
+                elif hasattr(p.primitive, 'center'):
+                    p.primitive.center = g.np.random.random(3)
+                    
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
-    g.unittest.main()
+    g.unittest.main() 

@@ -7,33 +7,6 @@ from trimesh import util
 negate_nondiagonal = (np.eye(3, dtype=np.float64) * 2) - 1
 
 
-def principal_axis(inertia):
-    '''
-    Find the principal components and principal axis 
-    of inertia from the inertia tensor.
-
-    Parameters
-    ------------
-    inertia: (3,3) float, inertia tensor
-
-    Returns
-    ------------
-    components: (3,) float, principal components of inertia
-    vectors:    (3,3) float, row vectors pointing along 
-                             the principal axes of inertia
-    '''
-    inertia = np.asanyarray(inertia, dtype=np.float64)
-    if inertia.shape != (3, 3):
-        raise ValueError('inertia tensor must be (3,3)!')
-
-    components, vectors = np.linalg.eig(inertia * negate_nondiagonal)
-
-    # eig returns them as column vectors, change them to row vectors
-    vectors = vectors.T
-
-    return components, vectors
-
-
 def cylinder_inertia(mass, radius, height, transform=None):
     '''
     Return the inertia tensor of a cylinder.
@@ -59,6 +32,50 @@ def cylinder_inertia(mass, radius, height, transform=None):
         inertia = transform_inertia(transform, inertia)
 
     return inertia
+    
+    
+def sphere_inertia(mass, radius):
+    '''
+    Return the inertia tensor of a sphere.
+
+    Parameters
+    ------------
+    mass:      float, mass of sphere
+    radius:    float, radius of sphere
+
+    Returns
+    ------------
+    inertia: (3,3) float, inertia tensor
+    '''
+    inertia = (2.0 / 5.0) * (radius ** 2) * mass * np.eye(3)
+    return inertia
+  
+    
+def principal_axis(inertia):
+    '''
+    Find the principal components and principal axis 
+    of inertia from the inertia tensor.
+
+    Parameters
+    ------------
+    inertia: (3,3) float, inertia tensor
+
+    Returns
+    ------------
+    components: (3,) float, principal components of inertia
+    vectors:    (3,3) float, row vectors pointing along 
+                             the principal axes of inertia
+    '''
+    inertia = np.asanyarray(inertia, dtype=np.float64)
+    if inertia.shape != (3, 3):
+        raise ValueError('inertia tensor must be (3,3)!')
+
+    components, vectors = np.linalg.eig(inertia * negate_nondiagonal)
+
+    # eig returns them as column vectors, change them to row vectors
+    vectors = vectors.T
+
+    return components, vectors
 
 
 def transform_inertia(transform, inertia_tensor):
