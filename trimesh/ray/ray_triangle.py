@@ -75,14 +75,14 @@ class RayMeshIntersector:
         will be counted twice.
 
         Parameters
-        ---------
-        rays: (n, 2, 3) array of ray origins and directions
-        return_id: boolean flag, if True return triangle indexes
+        ----------
+        ray_origins:      (m,3) float, ray origin points
+        ray_directions:   (m,3) float, ray direction vectors
 
         Returns
         ---------
         locations: (n) sequence of (m,3) intersection points
-        index_ray     (n) list of face ids
+        index_ray: (n) list of face ids
         '''
         (index_tri,
          index_ray,
@@ -99,8 +99,9 @@ class RayMeshIntersector:
         Find out if each ray hit any triangle on the mesh.
 
         Parameters
-        ---------
-        ray_origins: (n
+        ----------
+        ray_origins:      (m,3) float, ray origin points
+        ray_directions:   (m,3) float, ray direction vectors
 
         Returns
         ---------
@@ -209,6 +210,17 @@ def ray_triangle_candidates(ray_origins,
 
     Does this by creating a bounding box for the ray as it
     passes through the volume occupied by the tree
+
+    Parameters
+    ----------
+    ray_origins:      (m,3) float, ray origin points
+    ray_directions:   (m,3) float, ray direction vectors
+    tree:             rtree object, contains AABB of each triangle
+
+    Returns
+    ----------
+    ray_candidates: (n,) int, triangle indexes
+    ray_id:         (n,) int, corresponding ray index for a triangle candidate
     '''
     ray_bounding = ray_bounds(ray_origins=ray_origins,
                               ray_directions=ray_directions,
@@ -238,9 +250,10 @@ def ray_bounds(ray_origins,
 
     Parameters
     ---------
-    rays: (n,2,3) array of ray origins and directions
-    bounds: (2,3) bounding box (min, max)
-    buffer_dist: float, distance to pad zero width bounding boxes
+    ray_origins:      (m,3) float, ray origin points
+    ray_directions:   (m,3) float, ray direction vectors
+    bounds:           (2,3) bounding box (min, max)
+    buffer_dist:      float, distance to pad zero width bounding boxes
 
     Returns
     ---------

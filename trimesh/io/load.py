@@ -122,6 +122,7 @@ def load_mesh(file_obj, file_type=None, **kwargs):
 
     loaded = load_kwargs(kwargs)
     loaded.metadata.update(metadata)
+
     return loaded
 
 def load_compressed(file_obj, file_type=None):
