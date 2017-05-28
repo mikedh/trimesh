@@ -8,8 +8,7 @@ class VisualTest(g.unittest.TestCase):
 
         self.assertFalse(mesh.visual.defined)
 
-        facets = mesh.facets()
-        for facet in facets:
+        for facet in mesh.facets:
             mesh.visual.face_colors[facet] = g.trimesh.visual.random_color()
 
         self.assertTrue(mesh.visual.defined)

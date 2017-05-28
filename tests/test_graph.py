@@ -33,10 +33,11 @@ class GraphTest(g.unittest.TestCase):
             split = mult.split(only_watertight=True, engine=engine)
             self.assertTrue(len(split) >= 117)
 
-            facets = soup.facets(engine=engine)
+            # random triangles should have no facets
+            facets = g.trimesh.graph.facets(mesh=soup, engine=engine)
             self.assertTrue(len(facets) == 0)
 
-            facets = mult.facets(engine=engine)
+            facets = g.trimesh.graph.facets(mesh=mult, engine=engine)
             self.assertTrue(all(len(i) >= 2 for i in facets))
             self.assertTrue(len(facets) >= 8654)
 
@@ -55,7 +56,7 @@ class GraphTest(g.unittest.TestCase):
             tic = [g.time.time()]
             for engine in self.engines:
                 split = mesh.split(engine=engine, only_watertight=False)
-                facets = mesh.facets(engine=engine)
+                facets = g.trimesh.graph.facets(mesh=mesh, engine=engine)
                 tic.append(g.time.time())
 
             tic_diff = g.np.diff(tic)

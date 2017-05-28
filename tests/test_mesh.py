@@ -27,12 +27,11 @@ class MeshTests(g.unittest.TestCase):
             if not mesh.is_watertight:
                 continue
             
-            facets, area = mesh.facets(return_area=True)
-            self.assertTrue(len(facets) == len(area))
-            if len(facets) == 0:
+            self.assertTrue(len(mesh.facets) == len(mesh.facets_area))
+            if len(mesh.facets) == 0:
                 continue
 
-            faces = facets[g.np.argmax(area)]
+            faces = mesh.facets[mesh.facets_area.argmax()]
             outline = mesh.outline(faces)
             smoothed = mesh.smoothed()
 

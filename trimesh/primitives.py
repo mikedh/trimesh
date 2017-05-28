@@ -154,7 +154,7 @@ class Cylinder(_Primitive):
         '''
         super(Cylinder, self).__init__(*args, **kwargs)
 
-        defaults = {'height': 1.0,
+        defaults = {'height': 10.0,
                     'radius': 1.0,
                     'transform': np.eye(4),
                     'sections': 32}

@@ -6,32 +6,32 @@ Library for importing, exporting and doing simple operations on triangular meshe
 
 import numpy as np
 
-from copy import deepcopy
+import copy
 
-from . import triangles
-from . import grouping
-from . import geometry
+from . import util
+from . import units
 from . import graph
 from . import visual
 from . import sample
 from . import repair
-from . import comparison
-from . import boolean
-from . import intersections
-from . import transformations
-from . import util
 from . import convex
 from . import remesh
 from . import bounds
-from . import units
-from . import permutate
-from . import nsphere
-from . import proximity
 from . import inertia
+from . import nsphere
+from . import boolean
+from . import grouping
+from . import geometry
+from . import permutate
+from . import proximity
+from . import triangles
+from . import comparison
+from . import intersections
+from . import transformations
+
 
 from .io.export import export_mesh
 from .ray import ray_triangle
-from .ray import ray_util
 from .voxel import Voxel
 from .constants import log, _log_time, tol
 from .scene import Scene
@@ -537,18 +537,36 @@ class Trimesh(object):
         return inertia
 
     @util.cache_decorator
-    def principal_inertia(self):
+    def principal_inertia_components(self):
         '''
-        Return the principal axis and principal components of inertia
+        Return the principal components of inertia
+
+        Ordering corresponds to mesh.principal_inertia_vectors
 
         Returns
         ----------
         components: (3,) float, principal components of inertia
+        '''
+        components, vectors = inertia.principal_axis(self.moment_inertia)
+        self._cache['principal_inertia_vectors'] = vectors
+        
+        return components
+
+    @property
+    def principal_inertia_vectors(self):
+        '''
+        Return the principal axis of inertia.
+
+        Ordering corresponds to mesh.principal_inertia_components
+
+        Returns
+        ----------
         vectors:    (3,3) float, 3 vectors pointing along the
                                  principal axis of inertia
         '''
-        components, vectors = inertia.principal_axis(self.moment_inertia)
-        return components, vectors
+        populate = self.principal_inertia_components
+        return self._cache['principal_inertia_vectors']
+    
     
     @util.cache_decorator
     def triangles(self):
@@ -925,7 +943,6 @@ class Trimesh(object):
         consistent: bool, if winding is consistent or not
         '''
         # consistent winding check is populated into the cache by is_watertight
-        # query
         populate = self.is_watertight
         return self._cache['is_winding_consistent']
 
@@ -990,33 +1007,32 @@ class Trimesh(object):
                                                 areas=self.area_faces)
         self.update_faces(nondegenerate)
 
-    def facets(self, return_area=False, **kwargs):
+
+    @util.cache_decorator
+    def facets(self):
         '''
         Return a list of face indices for coplanar adjacent faces.
 
-        Parameters
+        Returns
         ---------
-        return_area: boolean, if True return area of each group of faces
+        facets: (n) sequence int, groups of indexes for self.faces
+        '''
+        facets = graph.facets(self)
+        return facets
+
+    @util.cache_decorator
+    def facets_area(self):
+        '''
+        Return an array containing the area of each facet.
 
         Returns
         ---------
-        facets: (n) sequence of face indices
-        area:   (n) float list of face group area (if return_area)
+        area:   (len(self.facets),) float, list of face group area
         '''
-        key = 'facets_' + str(int(return_area))
-        cached = self._cache[key]
-        if cached is not None:
-            return cached
-
-        facets = graph.facets(self, **kwargs)
-        if return_area:
-            area = np.array([self.area_faces[i].sum() for i in facets])
-            result = (facets, area)
-        else:
-            result = facets
-        self._cache[key] = result
-        return result
-
+        
+        areas = np.array([self.area_faces[i].sum() for i in self.facets])
+        return areas
+        
     @_log_time
     def fix_normals(self):
         '''
@@ -1510,9 +1526,9 @@ class Trimesh(object):
         copied = Trimesh()
 
         # copy vertex and face data
-        copied._data.data = deepcopy(self._data.data)
-        # copy
-        copied.visual._data.data = deepcopy(self.visual._data.data)
+        copied._data.data = copy.deepcopy(self._data.data)
+        # copy visual information
+        copied.visual._data.data = copy.deepcopy(self.visual._data.data)
 
         # make sure cache is set from here
         copied._cache.id_set()

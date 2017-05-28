@@ -44,9 +44,8 @@ class InertiaTest(g.unittest.TestCase):
         assert axis_test.max() < 1e-8
 
         # make sure Trimesh attribute is plumbed correctly
-        base = c.principal_inertia
-        assert g.np.allclose(base[0], components)
-        assert g.np.allclose(base[1], vectors)
+        assert g.np.allclose(c.principal_inertia_components, components)
+        assert g.np.allclose(c.principal_inertia_vectors,     vectors)
         
         
         # the other two axis of the cylinder should be identical

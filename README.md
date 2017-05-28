@@ -99,12 +99,10 @@ mesh.moment_inertia
 # since this example mesh is a single watertight body we get a list of one mesh
 mesh.split()
 
-# find groups of coplanar adjacent faces
-facets, facets_area = mesh.facets(return_area=True)
-
+# facets are groups of coplanar adjacent faces
 # set each facet to a random color
 # colors are 8 bit RGBA by default (n,4) np.uint8
-for facet in facets:
+for facet in mesh.facets:
     mesh.visual.face_colors[facet] = trimesh.visual.random_color()
 
 # preview mesh in an opengl window if you installed pyglet with pip
