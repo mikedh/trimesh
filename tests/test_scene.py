@@ -33,7 +33,7 @@ class SceneTests(g.unittest.TestCase):
 
                 assert s.md5() is not None
 
-                assert len(s.duplicate_nodes()) > 0
+                assert len(s.duplicate_nodes) > 0
 
                 r = s.dump()
                 

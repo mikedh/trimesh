@@ -210,6 +210,7 @@ class Scene:
         populate = self.triangles
         return self._cache['triangles_node']
 
+    @util.cache_decorator
     def duplicate_nodes(self):
         '''
         Return a sequence of node keys of identical meshes.
