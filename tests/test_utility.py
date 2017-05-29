@@ -138,19 +138,6 @@ class UtilTests(unittest.TestCase):
         assert len(f) + 2  == len(s[0]) 
         assert (f == strips_to_faces(s)).all()
         
-        
-class SceneTests(unittest.TestCase):
-
-    def setUp(self):
-        filename = os.path.join(g.dir_models, 'box.STL')
-        mesh = trimesh.load(filename)
-        split = mesh.split()
-        scene = trimesh.scene.Scene(split)
-        self.scene = scene
-
-    def test_scene(self):
-        duplicates = self.scene.duplicate_nodes()
-
 
 class IOTest(unittest.TestCase):
 
