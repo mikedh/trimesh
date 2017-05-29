@@ -38,7 +38,7 @@ class VisualTest(g.unittest.TestCase):
         assert len(m.visual._cache) == 0
         assert len(m.visual._data) == 0
         # no visuals have been defined so this should be None
-        assert m.visual._mode is None
+        assert m.visual.kind is None
         assert not m.visual.defined
 
         # this should cause colors to be generated into cache
@@ -61,7 +61,7 @@ class VisualTest(g.unittest.TestCase):
         # the rest of the colors should be unchanged
         assert (m.visual.face_colors[1] != test_color).any()
         assert len(m.visual._data) >= 1
-        assert m.visual._mode == 'face'
+        assert m.visual.kind == 'face'
         assert m.visual.defined
         assert not m.visual.transparency
 
@@ -71,7 +71,7 @@ class VisualTest(g.unittest.TestCase):
         #assert len(m.visual._cache) == 0
         # should be just material and face information
         assert len(m.visual._data.data) >= 1
-        assert m.visual._mode == 'face'
+        assert m.visual.kind == 'face'
         assert bool((m.visual.vertex_colors == test_color).all())
         assert m.visual.defined
         assert not m.visual.transparency
@@ -80,7 +80,7 @@ class VisualTest(g.unittest.TestCase):
         m.visual.vertex_colors[0] = test_color_2
         assert (m.visual.vertex_colors[0] == test_color_2).all()
         assert (m.visual.vertex_colors[1] != test_color_2).any()
-        assert m.visual._mode == 'vertex'
+        assert m.visual.kind == 'vertex'
         assert m.visual.defined
         assert not m.visual.transparency
 
@@ -90,29 +90,29 @@ class VisualTest(g.unittest.TestCase):
         test = (g.np.random.random((len(m.faces), 4)) * 255).astype(g.np.uint8)
         m.visual.face_colors = test
         assert bool((m.visual.face_colors == test).all())
-        assert m.visual._mode == 'face'
+        assert m.visual.kind == 'face'
 
         test = (g.np.random.random((len(m.vertices), 4))
                 * 255).astype(g.np.uint8)
         m.visual.vertex_colors = test
         assert bool((m.visual.vertex_colors == test).all())
-        assert m.visual._mode == 'vertex'
+        assert m.visual.kind == 'vertex'
 
         test = (g.np.random.random(4) * 255).astype(g.np.uint8)
         m.visual.face_colors = test
         assert bool((m.visual.vertex_colors == test).all())
-        assert m.visual._mode == 'face'
+        assert m.visual.kind == 'face'
         m.visual.vertex_colors[0] = (
             g.np.random.random(4) * 255).astype(g.np.uint8)
-        assert m.visual._mode == 'vertex'
+        assert m.visual.kind == 'vertex'
 
         test = (g.np.random.random(4) * 255).astype(g.np.uint8)
         m.visual.vertex_colors = test
         assert bool((m.visual.face_colors == test).all())
-        assert m.visual._mode == 'vertex'
+        assert m.visual.kind == 'vertex'
         m.visual.face_colors[0] = (
             g.np.random.random(4) * 255).astype(g.np.uint8)
-        assert m.visual._mode == 'face'
+        assert m.visual.kind == 'face'
 
 
 if __name__ == '__main__':

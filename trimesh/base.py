@@ -311,13 +311,15 @@ class Trimesh(object):
         if np.shape(self._cache.get('face_normals')) != np.shape(faces):
             log.debug('Generating face normals as shape was incorrect')
             tri_cached = self.vertices.view(np.ndarray)[faces]
-            face_normals, valid = triangles.normals(tri_cached)
+            tri_cross  = triangles.cross(tri_cached)
+            face_normals, valid = triangles.normals(triangles=tri_cached,
+                                                    crosses=tri_cross)
             if not valid.all():
-                log.warning(
-                    'face normals detected and removed degenerate face!')
-                self.update_faces(valid)
+                log.warning('normals detected and removed degenerate face!')
+                self.update_faces(valid)       
+            # cache the work we did
             self._cache['face_normals'] = face_normals
-
+                     
     @util.cache_decorator
     def vertex_normals(self):
         '''

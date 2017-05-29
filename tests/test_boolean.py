@@ -24,6 +24,8 @@ class BooleanTest(g.unittest.TestCase):
 
             g.log.info('Testing boolean ops with engine %s', engine)
             d = a.difference(b, engine=engine)
+            if not d.is_watertight:
+                d.show()
             self.assertTrue(d.is_watertight)
             self.assertTrue(self.is_zero(d.volume - self.truth['difference']))
 

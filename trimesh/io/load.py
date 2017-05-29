@@ -10,6 +10,7 @@ from ..base import Trimesh
 from ..scene import Scene
 from ..constants import _log_time, log
 
+from . import misc
 from .assimp import _assimp_loaders
 from .stl import _stl_loaders
 from .misc import _misc_loaders
@@ -186,8 +187,12 @@ def load_kwargs(*args, **kwargs):
         return scene
 
     def handle_trimesh_kwargs():
-        return Trimesh(**kwargs)
-
+        if (isinstance(kwargs['vertices'], dict) or
+            isinstance(kwargs['faces'], dict)):
+            return Trimesh(**misc.load_dict(kwargs))
+        else:
+            return Trimesh(**kwargs)
+        
     def handle_trimesh_export():
         data, file_type = kwargs['data'], kwargs['file_type']
         if not isinstance(data, dict):
