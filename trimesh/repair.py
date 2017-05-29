@@ -212,7 +212,7 @@ def fill_holes(mesh):
     # over tol.merge apart, but the normal calculation is screwed up
     # these could be fixed by merging the vertices in question here:
     # if not valid.all():
-    if mesh.visual.defined and mesh.visual._mode == 'face':
+    if mesh.visual.defined and mesh.visual.kind == 'face':
         # if face colors exist, assign the last face color to the new faces
         # note that this is a little cheesey, but it is very inexpensive and
         # is the right thing to do if the mesh is a single color.

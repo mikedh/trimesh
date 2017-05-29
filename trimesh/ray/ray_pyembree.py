@@ -13,7 +13,8 @@ from .. import intersections
 # to reliably not hit its origin triangle
 _ray_offset_factor = 1e-4
 # for very small meshes, we want to clip our offset to a sane distance
-_ray_offset_floor  = 1e-8
+_ray_offset_floor = 1e-8
+
 
 class RayMeshIntersector:
 

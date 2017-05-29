@@ -463,10 +463,10 @@ def cylinder(radius=1.0, height=1.0, sections=32, transform=None):
     ----------
     cylinder: Trimesh, resulting mesh
     '''
-    
+
     # create a 2D pie out of wedges
     theta = np.linspace(0, np.pi * 2, sections)
-    vertices = np.column_stack((np.sin(theta), 
+    vertices = np.column_stack((np.sin(theta),
                                 np.cos(theta))) * radius
     # the single vertex at the center of the circle
     # we're overwriting the duplicated start/end vertex
@@ -482,7 +482,7 @@ def cylinder(radius=1.0, height=1.0, sections=32, transform=None):
     cylinder = extrude_triangulation(vertices=vertices,
                                      faces=faces,
                                      height=height)
-    # the extrusion was along +Z, so move the cylinder 
+    # the extrusion was along +Z, so move the cylinder
     # center of mass back to the origin
     cylinder.vertices[:, 2] -= height * .5
     if transform is not None:

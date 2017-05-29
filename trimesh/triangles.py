@@ -3,7 +3,7 @@ import numpy as np
 from . import util
 
 from .points import point_plane_distance
-from .constants import tol
+from .constants import tol, log
 
 
 def cross(triangles):
@@ -35,6 +35,7 @@ def area(triangles=None, crosses=None, sum=False):
         else:   (n,) float, individual area of triangles
     '''
     if crosses is None:
+        log.warning('cross products not passed, will be expensively recomputed')
         crosses = cross(triangles)
     area = (np.sum(crosses**2, axis=1)**.5) * .5
     if sum:
@@ -50,6 +51,7 @@ def normals(triangles=None, crosses=None):
     returns:   normal vectors, (n,3)
     '''
     if crosses is None:
+        log.warning('cross products not passed, will be expensively recomputed')
         crosses = cross(triangles)
     normals, valid = util.unitize(crosses, check_valid=True)
     return normals, valid
@@ -110,6 +112,7 @@ def mass_properties(triangles, crosses=None, density=1.0, skip_inertia=False):
         raise ValueError('Triangles must be (n,3,3)!')
 
     if crosses is None:
+        log.warning('cross products not passed, will be expensively recomputed')
         crosses = cross(triangles)
     surface_area = np.sum(np.sum(crosses**2, axis=1)**.5) * .5
 
@@ -185,12 +188,12 @@ def mass_properties(triangles, crosses=None, density=1.0, skip_inertia=False):
 
 def windings_aligned(triangles, normals_compare):
     '''
-    Given a set of triangles and a set of normals determine if the two are aligned
+    Given a list of triangles and a list of normals determine if the two are aligned
 
     Parameters
     ----------
-    triangles: (n,3,3) set of vertex locations
-    normals_compare: (n,3) set of normals
+    triangles: (n,3,3) list of vertex locations
+    normals_compare: (n,3) list of normals
 
     Returns
     ----------
@@ -209,7 +212,7 @@ def windings_aligned(triangles, normals_compare):
 
 def bounds_tree(triangles):
     '''
-    Given a set of triangles, create an r-tree for broad- phase
+    Given a list of triangles, create an r-tree for broad- phase
     collision detection
 
     Parameters
@@ -241,9 +244,11 @@ def nondegenerate(triangles, areas=None):
     1) Two of the three vertices are colocated
     2) All three vertices are unique but colinear
 
+
     Parameters
     ----------
-    triangles: (n, 3, 3) float, set of triangles
+    triangles: (n, 3, 3) float, list of triangles
+
 
     Returns
     ----------
@@ -253,8 +258,34 @@ def nondegenerate(triangles, areas=None):
     if not util.is_shape(triangles, (-1, 3, 3)):
         raise ValueError('Triangles must be (n,3,3)!')
 
+    ok = (extents(triangles=triangles, areas=areas) > tol.merge).all(axis=1)
+
+    return ok
+
+
+def extents(triangles, areas=None):
+    '''
+    Return the 2D bounding box size of each triangle.
+
+    
+    Parameters
+    ----------
+    triangles: (n, 3, 3) float, list of triangles
+    areas:     (n,) float,      list of triangles area
+
+
+    Returns
+    ----------
+    box:       (n,2) float, the size of the 2D oriented bounding box.  
+    '''
+    triangles = np.asanyarray(triangles, dtype=np.float64)
+    if not util.is_shape(triangles, (-1, 3, 3)):
+        raise ValueError('Triangles must be (n,3,3)!')
+
     if areas is None:
-        areas = area(triangles=triangles, sum=False)
+        log.warning('areas not passed, will be expensively recomputed')
+        areas = area(triangles=triangles,
+                     sum=False)
 
     # the edge vectors which define the triangle
     a = triangles[:, 1] - triangles[:, 0]
@@ -271,30 +302,21 @@ def nondegenerate(triangles, areas=None):
     # find the two heights of the triangle
     # essentially this is the side length of an
     # oriented bounding box, per triangle
-    height_a = (areas[nonzero_a] * 2) / length_a[nonzero_a]
-    height_b = (areas[nonzero_b] * 2) / length_b[nonzero_b]
-
-    # our triangles are OK if:
-    # * both edges are longer than tol.merge
-    # * both sides of OBB are longer than tol.merge
-    check_a = np.zeros(len(triangles), dtype=np.bool)
-    check_b = np.zeros(len(triangles), dtype=np.bool)
-    check_a[nonzero_a] = height_a > tol.merge
-    check_b[nonzero_b] = height_b > tol.merge
-
-    ok = np.logical_and(check_a, check_b)
-
-    return ok
+    box = np.zeros((len(triangles), 2), dtype=np.float64)
+    box[:,0][nonzero_a] = (areas[nonzero_a] * 2) / length_a[nonzero_a]
+    box[:,1][nonzero_b] = (areas[nonzero_b] * 2) / length_b[nonzero_b]
+    
+    return box
 
 
 def barycentric_to_points(triangles, barycentric):
     '''
-    Convert a set of barycentric coordinates on a list of triangles to cartesian points
+    Convert a list of barycentric coordinates on a list of triangles to cartesian points
 
     Parameters
     ----------
-    triangles:         (n,3,3) float, set of triangles in space
-    barycentric:       (n,2) float, barycentric coordinates
+    triangles:   (n,3,3) float, list of triangles in space
+    barycentric: (n,2) float, barycentric coordinates
 
     Returns
     -----------

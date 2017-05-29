@@ -161,8 +161,8 @@ class Cylinder(_Primitive):
         self.primitive = _PrimitiveAttributes(self,
                                               defaults,
                                               kwargs)
-                                              
-    @util.cache_decorator                                            
+
+    @util.cache_decorator
     def volume(self):
         '''
         The analytic volume of the cylinder primitive.
@@ -174,7 +174,7 @@ class Cylinder(_Primitive):
         volume = (np.pi * self.primitive.radius ** 2) * self.primitive.height
         return volume
 
-    @util.cache_decorator                                            
+    @util.cache_decorator
     def moment_inertia(self):
         '''
         The analytic inertia tensor of the cylinder primitive.
@@ -184,17 +184,17 @@ class Cylinder(_Primitive):
         tensor: (3,3) float, 3D inertia tensor
         '''
 
-        tensor = inertia.cylinder_inertia(mass = self.volume,
-                                          radius = self.primitive.radius,
-                                          height = self.primitive.height,
-                                          transform = self.primitive.transform)
+        tensor = inertia.cylinder_inertia(mass=self.volume,
+                                          radius=self.primitive.radius,
+                                          height=self.primitive.height,
+                                          transform=self.primitive.transform)
         return tensor
-    
+
     @property
     def direction(self):
         '''
         The direction of the cylinder's axis.
-        
+
         Returns
         --------
         axis: (3,) float, vector along the cylinder axis
@@ -212,14 +212,14 @@ class Cylinder(_Primitive):
                                  height=self.primitive.height,
                                  sections=self.primitive.sections,
                                  transform=self.primitive.transform)
-        
+
         self._cache['vertices'] = mesh.vertices
         self._cache['faces'] = mesh.faces
         self._cache['face_normals'] = mesh.face_normals
 
 
 class Capsule(_Primitive):
-    
+
     def __init__(self, *args, **kwargs):
         '''
         Create a Capsule Primitive, a subclass of Trimesh.
@@ -240,20 +240,19 @@ class Capsule(_Primitive):
         self.primitive = _PrimitiveAttributes(self,
                                               defaults,
                                               kwargs)
-                                              
 
     @property
     def direction(self):
         '''
         The direction of the capsule's axis.
-        
+
         Returns
         --------
         axis: (3,) float, vector along the cylinder axis
         '''
         axis = np.dot(self.primitive.transform, [0, 0, 1, 0])[:3]
         return axis
-        
+
     def _create_mesh(self):
         log.info('Creating capsule mesh with r=%f, h=%f and %d sections',
                  self.primitive.radius,
@@ -323,7 +322,7 @@ class Sphere(_Primitive):
         volume = (4.0 * np.pi * (self.primitive.radius ** 3)) / 3.0
         return volume
 
-    @util.cache_decorator                                            
+    @util.cache_decorator
     def moment_inertia(self):
         '''
         The analytic inertia tensor of the sphere primitive.
@@ -332,8 +331,8 @@ class Sphere(_Primitive):
         ----------
         tensor: (3,3) float, 3D inertia tensor
         '''
-        tensor = inertia.sphere_inertia(mass = self.volume,
-                                        radius = self.primitive.radius)
+        tensor = inertia.sphere_inertia(mass=self.volume,
+                                        radius=self.primitive.radius)
         return tensor
 
     def _create_mesh(self):
@@ -399,24 +398,24 @@ class Box(_Primitive):
         '''
 
         if (count is not None and
-            step is not None):
+                step is not None):
             raise ValueError('only step OR count can be specified!')
 
         # create pre- transform bounds from extents
         bounds = np.array([-self.primitive.extents,
-                            self.primitive.extents]) * .5
-            
+                           self.primitive.extents]) * .5
+
         if step is not None:
             grid = util.grid_arange(bounds, step=step)
         elif count is not None:
-            grid =  util.grid_linspace(bounds, count=count)
+            grid = util.grid_linspace(bounds, count=count)
         else:
             raise ValueError('either count or step must be specified!')
 
         transformed = transformations.transform_points(grid,
                                                        matrix=self.primitive.transform)
         return transformed
-    
+
     @property
     def is_oriented(self):
         '''

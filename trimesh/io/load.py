@@ -69,7 +69,10 @@ def load(file_obj, file_type=None, **kwargs):
      file_type,
      metadata) = _parse_file_args(file_obj, file_type)
 
-    if file_type in path_formats():
+    if isinstance(file_obj, dict):
+        kwargs.update(file_obj)
+        loaded = load_kwargs(kwargs)
+    elif file_type in path_formats():
         loaded = load_path(file_obj, file_type, **kwargs)
     elif file_type in mesh_loaders:
         loaded = load_mesh(file_obj, file_type, **kwargs)
@@ -125,6 +128,7 @@ def load_mesh(file_obj, file_type=None, **kwargs):
 
     return loaded
 
+
 def load_compressed(file_obj, file_type=None):
     '''
     Given a compressed archive, load all the geometry that we can from it.
@@ -159,6 +163,7 @@ def load_compressed(file_obj, file_type=None):
         geometries.append(geometry)
     return np.array(geometries)
 
+
 def load_kwargs(*args, **kwargs):
     '''
     Load geometry from a properly formatted dict or kwargs
@@ -171,39 +176,39 @@ def load_kwargs(*args, **kwargs):
                 geometry[k] = load_kwargs(v)
         scene = Scene()
         scene.geometry.update(geometry)
-        
+
         for k in kwargs['graph']:
             if isinstance(k, dict):
                 scene.graph.update(**k)
             elif util.is_sequence(k) and len(k) == 3:
                 scene.graph.update(k[1], k[0], **k[2])
-                
+
         return scene
-        
+
     def handle_trimesh_kwargs():
         return Trimesh(**kwargs)
-        
+
     def handle_trimesh_export():
         data, file_type = kwargs['data'], kwargs['file_type']
         if not isinstance(data, dict):
             data = util.wrap_as_stream(data)
-        k = mesh_loaders[file_type](data, 
-                                    file_type = file_type)
-        return Trimesh(**k)    
-        
+        k = mesh_loaders[file_type](data,
+                                    file_type=file_type)
+        return Trimesh(**k)
+
     # if we've been passed a single dict instead of kwargs
     # substitute the dict for kwargs
-    if (len(kwargs) == 0 and 
-        len(args) == 1 and 
-        isinstance(args[0], dict)):
+    if (len(kwargs) == 0 and
+        len(args) == 1 and
+            isinstance(args[0], dict)):
         kwargs = args[0]
-   
-    handlers = {handle_scene          : ('graph', 'geometry'),
-                handle_trimesh_kwargs : ('vertices', 'faces'),
-                handle_trimesh_export : ('file_type', 'data')}        
-                
+
+    handlers = {handle_scene: ('graph', 'geometry'),
+                handle_trimesh_kwargs: ('vertices', 'faces'),
+                handle_trimesh_export: ('file_type', 'data')}
+
     handler = None
-    for k,v in handlers.items():
+    for k, v in handlers.items():
         if all(i in kwargs for i in v):
             handler = k
             break
@@ -211,8 +216,8 @@ def load_kwargs(*args, **kwargs):
         raise ValueError('unable to determine type!')
 
     return handler()
-    
-    
+
+
 def _parse_file_args(file_obj, file_type, **kwargs):
     '''
     Given a file_obj and a file_type, try to turn them into a file-like object

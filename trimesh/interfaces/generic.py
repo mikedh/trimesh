@@ -42,7 +42,7 @@ class MeshScript:
         script_text = Template(self.script).substitute(self.replacement)
         if platform.system() == 'Windows':
             script_text = script_text.replace('\\', '\\\\')
-            
+
         self.script_out.write(script_text.encode('utf-8'))
 
         # close all temporary files

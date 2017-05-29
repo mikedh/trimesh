@@ -115,6 +115,11 @@ def export_dict(mesh, encoding=None):
               'faces': encode(mesh.faces),
               'face_normals': encode(mesh.face_normals),
               'vertices': encode(mesh.vertices)}
+    if mesh.visual.kind == 'face':
+        export['face_colors'] = encode(mesh.visual.face_colors)
+    elif mesh.visual.kind == 'vertex':
+        export['vertex_colors'] = encode(mesh.visual.vertex_colors)
+        
     return export
 
 

@@ -35,11 +35,20 @@ class SceneTests(g.unittest.TestCase):
 
                 assert len(s.duplicate_nodes()) > 0
 
-                s.dump()
+                r = s.dump()
                 
                 for export_format in ['dict', 'dict64']:
+                    # try exporting the scene as a dict
+                    # then make sure json can serialize it
                     e = g.json.dumps(s.export(export_format))
 
+                    # reconstitute the dict into a scene
+                    r = g.trimesh.load(g.json.loads(e))
+
+                    # make sure the extents are similar before and after
+                    assert g.np.allclose(g.np.product(s.extents),
+                                         g.np.product(r.extents))
+                    
 
 class GraphTests(g.unittest.TestCase):
 

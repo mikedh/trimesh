@@ -273,10 +273,10 @@ def load_3DXML(file_obj, *args, **kwargs):
                                             mesh_faces)
         mesh['vertex_normals'] = np.vstack(mesh_normals)
         mesh['face_colors'] = np.vstack(mesh_colors)
-        
-        # as far as I can tell, all 3DXML files are exported as 
+
+        # as far as I can tell, all 3DXML files are exported as
         # implicit milimeters (it isn't specified in the file)
-        mesh['metadata'] = {'units' : 'mm'}
+        mesh['metadata'] = {'units': 'mm'}
         mesh['class'] = 'Trimesh'
 
         geometries[part_id] = mesh
@@ -387,25 +387,24 @@ def load_3DXML(file_obj, *args, **kwargs):
         # add the transforms for this path to the overall list of edges
         graph_kwargs.extend(current_kwargs)
 
-    result = {'class'        : 'Scene',
-              'geometry'     : geometries,
-              'graph'        : graph_kwargs}
-              
+    result = {'class': 'Scene',
+              'geometry': geometries,
+              'graph': graph_kwargs}
+
     return result
 
-    
 
 def print_element(element):
     '''
     Pretty- print an lxml.etree element
     '''
     print(etree.tostring(element, pretty_print=True).decode('utf-8'))
-    
+
 
 try:
     from lxml import etree
-    _xml_loaders = {'xaml'  : load_XAML,
-                    '3dxml' : load_3DXML}
-    
+    _xml_loaders = {'xaml': load_XAML,
+                    '3dxml': load_3DXML}
+
 except ImportError:
     _xml_loaders = {}

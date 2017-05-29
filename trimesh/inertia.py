@@ -32,8 +32,8 @@ def cylinder_inertia(mass, radius, height, transform=None):
         inertia = transform_inertia(transform, inertia)
 
     return inertia
-    
-    
+
+
 def sphere_inertia(mass, radius):
     '''
     Return the inertia tensor of a sphere.
@@ -49,8 +49,8 @@ def sphere_inertia(mass, radius):
     '''
     inertia = (2.0 / 5.0) * (radius ** 2) * mass * np.eye(3)
     return inertia
-  
-    
+
+
 def principal_axis(inertia):
     '''
     Find the principal components and principal axis 

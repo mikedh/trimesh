@@ -374,9 +374,10 @@ def grid_arange(bounds, step):
     step = np.asanyarray(step, dtype=np.float64)
     if step.shape == ():
         step = np.tile(step, bounds.shape[1])
-    
-    grid_elements = [np.arange(*b, step=s) for b,s in zip(bounds.T, step)]
-    grid = np.vstack(np.meshgrid(*grid_elements)).reshape(bounds.shape[1],-1).T
+
+    grid_elements = [np.arange(*b, step=s) for b, s in zip(bounds.T, step)]
+    grid = np.vstack(np.meshgrid(*grid_elements)
+                     ).reshape(bounds.shape[1], -1).T
     return grid
 
 
@@ -396,13 +397,14 @@ def grid_linspace(bounds, count):
     bounds = np.asanyarray(bounds, dtype=np.float64)
     if len(bounds) != 2:
         raise ValueError('bounds must be (2, dimension!')
-    
+
     count = np.asanyarray(count, dtype=np.int)
     if count.shape == ():
         count = np.tile(count, bounds.shape[1])
-  
-    grid_elements = [np.linspace(*b, num=c) for b,c in zip(bounds.T, count)]
-    grid = np.vstack(np.meshgrid(*grid_elements)).reshape(bounds.shape[1],-1).T
+
+    grid_elements = [np.linspace(*b, num=c) for b, c in zip(bounds.T, count)]
+    grid = np.vstack(np.meshgrid(*grid_elements)
+                     ).reshape(bounds.shape[1], -1).T
     return grid
 
 
@@ -655,7 +657,7 @@ class TrackedArray(np.ndarray):
         '''
 
         if self._modified_md5 or not hasattr(self, '_hashed_md5'):
-            self._hashed_md5 = md5_object(self)  # str(self.adler32()) #
+            self._hashed_md5 = md5_object(self)  
         self._modified_md5 = False
         return self._hashed_md5
 
@@ -788,7 +790,9 @@ class Cache:
 
 
 class DataStore:
-
+    '''
+    A class to store multiple numpy arrays and track them all for changes.
+    '''
     def __init__(self):
         self.data = {}
 
@@ -845,9 +849,10 @@ class DataStore:
             self[key] = value
 
     def md5(self):
-        md5 = ''
+        md5_appended = ''
         for key in np.sort(list(self.data.keys())):
-            md5 += self.data[key].md5()
+            md5_appended += self.data[key].md5()
+        md5 = md5_object(md5_appended.encode('utf-8'))
         return md5
 
     def crc(self):
@@ -1665,7 +1670,7 @@ def split_extension(file_name, special=['tar.bz2', 'tar.gz']):
 def triangle_strips_to_faces(strips):
     '''
     Given a sequence of triangle strips, convert them to (n,3) faces.
-    
+
     Processes all strips at once using np.hstack and is signifigantly faster 
     than loop- based methods.
 
@@ -1685,17 +1690,17 @@ def triangle_strips_to_faces(strips):
     ------------
     faces: (m,3) int, vertex indices representing triangles
     '''
-    
+
     # save the length of each list in the list of lists
     lengths = np.array([len(i) for i in strips])
     # looping through a list of lists is extremely slow
     # combine all the sequences into a blob we can manipulate
     blob = np.hstack(strips)
-    
+
     # preallocate and slice the blob into rough triangles
-    tri = np.zeros((len(blob)-2, 3), dtype=np.int)
+    tri = np.zeros((len(blob) - 2, 3), dtype=np.int)
     for i in range(3):
-        tri[:len(blob)-3,i] = blob[i:-3+i]
+        tri[:len(blob) - 3, i] = blob[i:-3 + i]
     # the last triangle is left off from the slicing, add it back
     tri[-1] = blob[-3:]
 
@@ -1703,16 +1708,14 @@ def triangle_strips_to_faces(strips):
     # because we combined everything into one big array for speed
     length_index = np.cumsum(lengths)[:-1]
     keep = np.ones(len(tri), dtype=np.bool)
-    keep[np.append(length_index-2, length_index-1)] = False
+    keep[np.append(length_index - 2, length_index - 1)] = False
     tri = tri[keep]
-    
+
     # flip every other triangle so they generate correct normals/winding
-    length_index = np.append(0, np.cumsum(lengths-2))
+    length_index = np.append(0, np.cumsum(lengths - 2))
     flip = np.zeros(length_index[-1], dtype=np.bool)
-    for i in range(len(length_index)-1):
-        flip[length_index[i]+1:length_index[i+1]][::2] = True
+    for i in range(len(length_index) - 1):
+        flip[length_index[i] + 1:length_index[i + 1]][::2] = True
     tri[flip] = np.fliplr(tri[flip])
-    
-    return tri    
-    
-    
+
+    return tri

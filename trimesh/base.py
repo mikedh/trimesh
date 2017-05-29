@@ -172,7 +172,6 @@ class Trimesh(object):
         with self._cache:
             self.remove_infinite_values()
             self.merge_vertices()
-
             self.remove_duplicate_faces()
             self.remove_degenerate_faces()
         # since none of our process operations moved vertices or faces,
@@ -181,18 +180,21 @@ class Trimesh(object):
         # being returned so there is no danger of inconsistent dimensions
         self._cache.clear(exclude=['face_normals',
                                    'vertex_normals'])
+        self.metadata['processed'] = True
+        
         return self
 
     def md5(self):
         '''
         An MD5 of the core geometry information for the mesh (faces and vertices).
+
         Generated from TrackedArray, which subclasses np.ndarray to monitor for
         changes and returns a correct, but lazily evaluated md5 (so it only has to
         recalculate the hash occasionally, rather than on every call)
 
         Returns
         ----------
-        md5: string, appended md5 hashes of numpy arrays for faces and vertices
+        md5: string, md5 of md5 hashes of everything in the DataStore
         '''
         md5 = self._data.md5()
         return md5
@@ -549,7 +551,7 @@ class Trimesh(object):
         '''
         components, vectors = inertia.principal_axis(self.moment_inertia)
         self._cache['principal_inertia_vectors'] = vectors
-        
+
         return components
 
     @property
@@ -566,8 +568,7 @@ class Trimesh(object):
         '''
         populate = self.principal_inertia_components
         return self._cache['principal_inertia_vectors']
-    
-    
+
     @util.cache_decorator
     def triangles(self):
         '''
@@ -1007,7 +1008,6 @@ class Trimesh(object):
                                                 areas=self.area_faces)
         self.update_faces(nondegenerate)
 
-
     @util.cache_decorator
     def facets(self):
         '''
@@ -1029,10 +1029,10 @@ class Trimesh(object):
         ---------
         area:   (len(self.facets),) float, list of face group area
         '''
-        
+
         areas = np.array([self.area_faces[i].sum() for i in self.facets])
         return areas
-        
+
     @_log_time
     def fix_normals(self):
         '''

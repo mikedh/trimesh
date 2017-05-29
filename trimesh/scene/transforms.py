@@ -45,13 +45,12 @@ class TransformForest:
             frame_from = self.base_frame
         matrix = kwargs_to_matrix(**kwargs)
 
-        
-        attr= {'matrix': matrix,
-               'time': time.time()}
+        attr = {'matrix': matrix,
+                'time': time.time()}
 
         if 'geometry' in kwargs:
             attr['geometry'] = kwargs['geometry']
-            
+
         changed = self.transforms.add_edge(frame_from,
                                            frame_to,
                                            attr_dict=attr)
@@ -176,7 +175,7 @@ class TransformForest:
         '''
         from ..graph import graph_to_svg
         return graph_to_svg(self.transforms)
-        
+
     def __getitem__(self, key):
         return self.get(key)
 

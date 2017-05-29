@@ -38,7 +38,7 @@ class Scene:
 
         self.metadata = {}
         self.metadata.update(metadata)
-            
+
     def add_geometry(self,
                      geometry,
                      node_name=None):

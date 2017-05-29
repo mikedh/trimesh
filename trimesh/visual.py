@@ -95,10 +95,10 @@ class ColorVisuals(object):
         ---------
         defined: bool, are colors defined or not.
         '''
-        return self._mode is not None
+        return self.kind is not None
 
     @property
-    def _mode(self):
+    def kind(self):
         '''
         What color mode has been set.
 
@@ -300,21 +300,21 @@ class ColorVisuals(object):
 
         else:
             # colors have never been accessed
-            if self._mode is None:
+            if self.kind is None:
                 # no colors are defined, so create a (count, 4) tiled copy of
                 # the default color
                 colors = np.tile(self.defaults['material_diffuse'],
                                  (count, 1))
-            elif (self._mode == 'vertex' and
+            elif (self.kind == 'vertex' and
                   name == 'face'):
                 colors = vertex_to_face_color(vertex_colors=self.vertex_colors,
                                               faces=self.mesh.faces)
-            elif (self._mode == 'face' and
+            elif (self.kind == 'face' and
                   name == 'vertex'):
                 colors = face_to_vertex_color(mesh=self.mesh,
                                               face_colors=self.face_colors)
             else:
-                raise ValueError('self._mode not accepted values!!')
+                raise ValueError('self.kind not accepted values!!')
 
         if (count is not None and
                 colors.shape != (count, 4)):
@@ -480,7 +480,7 @@ def concatenate_visuals(visuals, *args):
     visuals = np.append(visuals, args)
 
     # get the type of visuals (vertex or face) removing undefined
-    modes = {v._mode for v in visuals}.difference({None})
+    modes = {v.kind for v in visuals}.difference({None})
     if len(modes) == 0:
         # none of the visuals have anything defined
         return ColorVisuals()
