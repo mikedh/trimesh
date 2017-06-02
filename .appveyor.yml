@@ -21,6 +21,7 @@ install:
   - activate test-environment
   - conda install -c scitools shapely
   - conda install -c ioos rtree
+  - conda install -c conda-forge lxml
   - pip install nose2 networkx svg.path sympy msgpack-python
   - pip install .
 
