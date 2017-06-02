@@ -1,10 +1,7 @@
-ply
-format binary_little_endian 1.0
-comment github.com/mikedh/trimesh
-element vertex $vertex_count
-property float x
-property float y
-property float z
-element face $face_count
-property list uchar int vertex_indices
-end_header
+{
+    "face": "element face $face_count\nproperty list uchar int vertex_indices\n",
+    "vertex": "element vertex $vertex_count\nproperty float x\nproperty float y\nproperty float z\n",
+    "color": "property uchar red\nproperty uchar green\nproperty uchar blue\nproperty uchar alpha\n",
+    "intro": "ply\nformat binary_little_endian 1.0\ncomment github.com/mikedh/trimesh\n",
+    "outro": "end_header\n"
+}

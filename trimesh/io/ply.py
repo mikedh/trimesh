@@ -4,13 +4,30 @@ from distutils.spawn import find_executable
 from string import Template
 
 import collections
-import tempfile
 import subprocess
+import tempfile
 import base64
+import json
 
 from .. import util
 
 from ..resources import get_resource
+
+# from ply specification, and additional dtypes found in the wild
+ply_dtypes = {'char': 'i1',
+              'uchar': 'u1',
+              'short': 'i2',
+              'ushort': 'u2',
+              'int': 'i4',
+              'int16': 'i2',
+              'int32': 'i4',
+              'uint': 'u4',
+              'uint16': 'u2',
+              'uint32': 'u4',
+              'float': 'f4',
+              'float16': 'f2',
+              'float32': 'f4',
+              'double': 'f8'}
 
 
 def load_ply(file_obj, *args, **kwargs):
@@ -52,20 +69,45 @@ def export_ply(mesh):
     ----------
     export : bytes of result
     '''
-    dtype_face = np.dtype([('count', '<u1'),
-                           ('index', '<i4', (3))])
-    dtype_vertex = np.dtype([('vertex', '<f4', (3))])
+    dtype_face = [('count', '<u1'),
+                  ('index', '<i4', (3))]
+    dtype_vertex = [('vertex', '<f4', (3))]
 
-    faces = np.zeros(len(mesh.faces), dtype=dtype_face)
+    dtype_color = ('rgba',   '<u1', (4))
+
+    templates = json.loads(get_resource('ply.template'))
+
+    header = templates['intro']
+    header += templates['vertex']
+
+    if mesh.visual.kind == 'vertex':
+        dtype_vertex.append(dtype_color)
+        vertex = np.zeros(len(mesh.vertices), 
+                          dtype=dtype_vertex)
+        vertex['rgba'] = mesh.visual.vertex_colors
+        header += templates['color']
+    else:
+        vertex = np.zeros(len(mesh.vertices), 
+                          dtype=dtype_vertex)
+    vertex['vertex'] = mesh.vertices
+
+    header += templates['face']
+    if mesh.visual.kind == 'face':
+        header += templates['color']
+        dtype_face.append(dtype_color)
+        faces = np.zeros(len(mesh.faces), dtype=dtype_face)
+        faces['rgba'] = mesh.visual.face_colors
+    else:
+        faces = np.zeros(len(mesh.faces), dtype=dtype_face)
     faces['count'] = 3
     faces['index'] = mesh.faces
 
-    vertex = np.zeros(len(mesh.vertices), dtype=dtype_vertex)
-    vertex['vertex'] = mesh.vertices
+    header += templates['outro']
 
-    template = Template(get_resource('ply.template'))
-    export = template.substitute({'vertex_count': len(mesh.vertices),
-                                  'face_count': len(mesh.faces)}).encode('utf-8')
+    counts = {'vertex_count': len(mesh.vertices),
+              'face_count': len(mesh.faces)}
+
+    export = Template(header).substitute(counts).encode('utf-8')
     export += vertex.tostring()
     export += faces.tostring()
     return export
@@ -85,21 +127,6 @@ def read_ply_header(file_obj):
     elements: OrderedDict object, with fields and data types populated
     is_ascii: bool, whether the data is ASCII or binary
     '''
-    # from ply specification, and additional dtypes found in the wild
-    dtypes = {'char': 'i1',
-              'uchar': 'u1',
-              'short': 'i2',
-              'ushort': 'u2',
-              'int': 'i4',
-              'int16': 'i2',
-              'int32': 'i4',
-              'uint': 'u4',
-              'uint16': 'u2',
-              'uint32': 'u4',
-              'float': 'f4',
-              'float16': 'f2',
-              'float32': 'f4',
-              'double': 'f8'}
 
     if 'ply' not in str(file_obj.readline()):
         raise ValueError('This aint a ply file')
@@ -127,14 +154,14 @@ def read_ply_header(file_obj):
             if len(line) == 3:
                 dtype, field = line[1:]
                 elements[name]['properties'][
-                    str(field)] = endian + dtypes[dtype]
+                    str(field)] = endian + ply_dtypes[dtype]
             elif 'list' in line[1]:
                 dtype_count, dtype, field = line[2:]
                 elements[name]['properties'][str(field)] = (endian +
-                                                            dtypes[dtype_count] +
+                                                            ply_dtypes[dtype_count] +
                                                             ', ($LIST,)' +
                                                             endian +
-                                                            dtypes[dtype])
+                                                            ply_dtypes[dtype])
     return elements, encoding_ascii
 
 
