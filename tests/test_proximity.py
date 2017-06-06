@@ -18,8 +18,8 @@ class NearestTest(g.unittest.TestCase):
         triangles = sphere.triangles
 
         # do the check
-        closest, distance, tid = g.trimesh.proximity.closest_point_naive(
-            sphere, points)
+        closest, distance, tid = g.trimesh.proximity.closest_point_naive(sphere,
+                                                                         points)
 
         # the distance from a sphere of radius 1.0 to a sphere of radius 2.0
         # should be pretty darn close to 1.0
@@ -41,6 +41,9 @@ class NearestTest(g.unittest.TestCase):
             b = mesh.nearest.vertex(points)
             self.assertTrue(b is not None)
 
+            c = mesh.nearest.contains([mesh.center_mass])
+            assert len(c) == 1
+            
     def test_nearest_naive(self):
         funs = [g.trimesh.proximity.closest_point_naive,
                 g.trimesh.proximity.closest_point]

@@ -178,6 +178,9 @@ def signed_distance(mesh, points):
     ----------
     signed_distance : (n,3) float, signed distance from point to mesh
     '''
+    # make sure we have a numpy array
+    points = np.asanyarray(points, dtype=np.float64)
+    
     # find the closest point on the mesh to the queried points
     closest, distance, triangle_id = closest_point(mesh, points)
 

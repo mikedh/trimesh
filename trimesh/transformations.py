@@ -1989,3 +1989,30 @@ def transform_points(points, matrix, translate=True):
     stacked = np.column_stack((points, column))
     transformed = np.dot(matrix, stacked.T).T[:, :dimension]
     return transformed
+
+def is_rigid(matrix):
+    '''
+    Check to make sure a homogeonous transformation matrix is 
+    a rigid body transform.
+
+    Parameters
+    -----------
+    matrix: possibly a transformation matrix
+
+    Returns
+    -----------
+    check: bool, True if matrix is a valid (4,4) rigid body transform.
+    '''
+
+    matrix = np.asanyarray(matrix, dtype=np.float64)
+
+    if matrix.shape != (4,4):
+        return False
+
+    if not np.allclose(matrix[-1], [0,0,0,1]):
+        return False
+
+    check = np.dot(matrix[:3,:3],
+                   matrix[:3,:3].T)
+    
+    return np.allclose(check, np.eye(3))
