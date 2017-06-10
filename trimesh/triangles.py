@@ -64,7 +64,7 @@ def all_coplanar(triangles):
     triangles: vertices of triangles, (n,3,3)
     returns:   all_coplanar, bool
     '''
-    triangles = np.asanyarray(triangles, dtype=np.float32)
+    triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
         raise ValueError('Triangles must be (n,3,3)!')
 
@@ -83,7 +83,7 @@ def any_coplanar(triangles):
     of the following triangles, return True.
     Otherwise, return False.
     '''
-    triangles = np.asanyarray(triangles, dtype=np.float32)
+    triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
         raise ValueError('Triangles must be (n,3,3)!')
 
@@ -107,7 +107,7 @@ def mass_properties(triangles, crosses=None, density=1.0, skip_inertia=False):
     Parameters
     ----------
     '''
-    triangles = np.asanyarray(triangles, dtype=np.float32)
+    triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
         raise ValueError('Triangles must be (n,3,3)!')
 
@@ -199,7 +199,7 @@ def windings_aligned(triangles, normals_compare):
     ----------
     aligned: (n) bool list, are normals aligned with triangles
     '''
-    triangles = np.asanyarray(triangles, dtype=np.float32)
+    triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
         raise ValueError('Triangles must be (n,3,3)!')
 
@@ -223,7 +223,7 @@ def bounds_tree(triangles):
     ---------
     tree: Rtree object
     '''
-    triangles = np.asanyarray(triangles, dtype=np.float32)
+    triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
         raise ValueError('Triangles must be (n,3,3)!')
 
@@ -254,7 +254,7 @@ def nondegenerate(triangles, areas=None):
     ----------
     nondegenerate: (n,) bool array of triangles that have area
     '''
-    triangles = np.asanyarray(triangles, dtype=np.float32)
+    triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
         raise ValueError('Triangles must be (n,3,3)!')
 
@@ -278,7 +278,7 @@ def extents(triangles, areas=None):
     ----------
     box:       (n,2) float, the size of the 2D oriented bounding box.  
     '''
-    triangles = np.asanyarray(triangles, dtype=np.float32)
+    triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
         raise ValueError('Triangles must be (n,3,3)!')
 
@@ -302,7 +302,7 @@ def extents(triangles, areas=None):
     # find the two heights of the triangle
     # essentially this is the side length of an
     # oriented bounding box, per triangle
-    box = np.zeros((len(triangles), 2), dtype=np.float32)
+    box = np.zeros((len(triangles), 2), dtype=np.float64)
     box[:,0][nonzero_a] = (areas[nonzero_a] * 2) / length_a[nonzero_a]
     box[:,1][nonzero_b] = (areas[nonzero_b] * 2) / length_b[nonzero_b]
     
@@ -322,8 +322,8 @@ def barycentric_to_points(triangles, barycentric):
     -----------
     points: (m,3) float, points in space
     '''
-    barycentric = np.asanyarray(barycentric, dtype=np.float32)
-    triangles = np.asanyarray(triangles, dtype=np.float32)
+    barycentric = np.asanyarray(barycentric, dtype=np.float64)
+    triangles = np.asanyarray(triangles, dtype=np.float64)
 
     if not util.is_shape(triangles, (-1, 3, 3)):
         raise ValueError('Triangles must be (n,3,3)!')
@@ -368,7 +368,7 @@ def points_to_barycentric(triangles, points, method='cramer'):
         n = np.cross(edge_vectors[:, 0], edge_vectors[:, 1])
         denominator = util.diagonal_dot(n, n)
 
-        barycentric = np.zeros((len(triangles), 3), dtype=np.float32)
+        barycentric = np.zeros((len(triangles), 3), dtype=np.float64)
         barycentric[:, 2] = util.diagonal_dot(
             np.cross(edge_vectors[:, 0], w), n) / denominator
         barycentric[:, 1] = util.diagonal_dot(
@@ -385,7 +385,7 @@ def points_to_barycentric(triangles, points, method='cramer'):
 
         inverse_denominator = 1.0 / (dot00 * dot11 - dot01 * dot01)
 
-        barycentric = np.zeros((len(triangles), 3), dtype=np.float32)
+        barycentric = np.zeros((len(triangles), 3), dtype=np.float64)
         barycentric[:, 2] = (dot00 * dot12 - dot01 *
                              dot02) * inverse_denominator
         barycentric[:, 1] = (dot11 * dot02 - dot01 *
@@ -394,8 +394,8 @@ def points_to_barycentric(triangles, points, method='cramer'):
         return barycentric
 
     # establish that input triangles and points are sane
-    triangles = np.asanyarray(triangles, dtype=np.float32)
-    points = np.asanyarray(points, dtype=np.float32)
+    triangles = np.asanyarray(triangles, dtype=np.float64)
+    points = np.asanyarray(points, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
         raise ValueError('triangles shape incorrect')
     if not util.is_shape(points, (len(triangles), 3)):
@@ -425,8 +425,8 @@ def closest_point(triangles, points):
     '''
 
     # establish that input triangles and points are sane
-    triangles = np.asanyarray(triangles, dtype=np.float32)
-    points = np.asanyarray(points, dtype=np.float32)
+    triangles = np.asanyarray(triangles, dtype=np.float64)
+    points = np.asanyarray(points, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
         raise ValueError('triangles shape incorrect')
     if not util.is_shape(points, (len(triangles), 3)):
@@ -447,7 +447,7 @@ def closest_point(triangles, points):
     case_barycentric = positive_sum == 3
 
     # closest points to triangle
-    closest = np.zeros(points.shape, dtype=np.float32)
+    closest = np.zeros(points.shape, dtype=np.float64)
 
     # case where nearest point is a triangle vertex
     # just take that vertex
@@ -496,7 +496,7 @@ def to_kwargs(triangles):
     ---------
     mesh = trimesh.Trimesh(**trimesh.triangles.to_kwargs(triangles))
     '''
-    triangles = np.asanyarray(triangles, dtype=np.float32)
+    triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
         raise ValueError('Triangles must be (n,3,3)!')
 

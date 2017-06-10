@@ -268,7 +268,7 @@ class Trimesh(object):
     def face_normals(self, values):
         if values is None:
             return
-        self._cache['face_normals'] = np.asanyarray(values, dtype=np.float32)
+        self._cache['face_normals'] = np.asanyarray(values, dtype=np.float64)
 
     @property
     def vertices(self):
@@ -287,8 +287,8 @@ class Trimesh(object):
 
     @vertices.setter
     def vertices(self, values):
-        # make sure vertices are stored as a float32 for consistency
-        self._data['vertices'] = np.asanyarray(values, dtype=np.float32)
+        # make sure vertices are stored as a float64 for consistency
+        self._data['vertices'] = np.asanyarray(values, dtype=np.float64)
 
     def _validate_face_normals(self, faces=None):
         '''
@@ -346,7 +346,7 @@ class Trimesh(object):
     def vertex_normals(self, values):
         if values is None:
             return
-        values = np.asanyarray(values, dtype=np.float32)
+        values = np.asanyarray(values, dtype=np.float64)
         if values.shape == self.vertices.shape:
             self._cache['vertex_normals'] = values
 
@@ -1178,7 +1178,7 @@ class Trimesh(object):
         ----------
         translation: (3,) float, translation in XYZ
         '''
-        translation = np.asanyarray(translation, dtype=np.float32)
+        translation = np.asanyarray(translation, dtype=np.float64)
         if translation.shape != (3,):
             raise ValueError('Translation must be (3,)!')
 
