@@ -136,11 +136,10 @@ def load_dict(data, file_type=None):
     mesh_data = {'vertices': (-1, 3),
                  'faces': (-1, (3, 4)),
                  'face_normals': (-1, 3),
-                 'face_colors': (-1, (3,4)),
+                 'face_colors': (-1, (3, 4)),
                  'vertex_normals': (-1, 3),
-                 'vertex_colors': (-1, (3,4))}
-    
-                 
+                 'vertex_colors': (-1, (3, 4))}
+
     # now go through data structure and if anything is encoded as base64
     # pull it back into numpy arrays
     if util.is_dict(data):

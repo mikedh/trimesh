@@ -188,11 +188,11 @@ def load_kwargs(*args, **kwargs):
 
     def handle_trimesh_kwargs():
         if (isinstance(kwargs['vertices'], dict) or
-            isinstance(kwargs['faces'], dict)):
+                isinstance(kwargs['faces'], dict)):
             return Trimesh(**misc.load_dict(kwargs))
         else:
             return Trimesh(**kwargs)
-        
+
     def handle_trimesh_export():
         data, file_type = kwargs['data'], kwargs['file_type']
         if not isinstance(data, dict):

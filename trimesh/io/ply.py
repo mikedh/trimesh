@@ -82,12 +82,12 @@ def export_ply(mesh):
 
     if mesh.visual.kind == 'vertex':
         dtype_vertex.append(dtype_color)
-        vertex = np.zeros(len(mesh.vertices), 
+        vertex = np.zeros(len(mesh.vertices),
                           dtype=dtype_vertex)
         vertex['rgba'] = mesh.visual.vertex_colors
         header += templates['color']
     else:
-        vertex = np.zeros(len(mesh.vertices), 
+        vertex = np.zeros(len(mesh.vertices),
                           dtype=dtype_vertex)
     vertex['vertex'] = mesh.vertices
 
@@ -427,9 +427,10 @@ def export_draco(mesh):
         temp_ply.flush()
         with tempfile.NamedTemporaryFile(suffix='.drc') as encoded:
             subprocess.check_output([draco_encoder,
-                                     '-qp', # bits of quantization for position
+                                     '-qp',  # bits of quantization for position
                                      '30',  # since our tol.merge is 1e-8, 25 bits
-                                            # more has a machine epsilon smaller than that
+                                            # more has a machine epsilon
+                                            # smaller than that
                                      '-i',
                                      temp_ply.name,
                                      '-o',

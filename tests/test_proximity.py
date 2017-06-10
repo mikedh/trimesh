@@ -43,7 +43,7 @@ class NearestTest(g.unittest.TestCase):
 
             c = mesh.nearest.contains([mesh.center_mass])
             assert len(c) == 1
-            
+
     def test_nearest_naive(self):
         funs = [g.trimesh.proximity.closest_point_naive,
                 g.trimesh.proximity.closest_point]

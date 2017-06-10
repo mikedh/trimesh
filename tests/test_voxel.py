@@ -13,7 +13,6 @@ class VoxelTest(g.unittest.TestCase):
             for pitch in [.1, .1 - g.tol.merge]:
                 v = m.voxelized(pitch)
 
-                
                 self.assertTrue(len(v.raw.shape) == 3)
                 self.assertTrue(v.shape == v.raw.shape)
                 self.assertTrue(v.volume > 0.0)

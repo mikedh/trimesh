@@ -97,7 +97,7 @@ class UtilTests(unittest.TestCase):
         '''
         Test our conversion of triangle strips to face indexes.
         '''
-        
+
         def strips_to_faces(strips):
             '''
             A slow but straightfoward version of the function to test against
@@ -106,7 +106,8 @@ class UtilTests(unittest.TestCase):
             for s in strips:
                 s = g.np.asanyarray(s, dtype=g.np.int)
                 # each triangle is defined by one new vertex
-                tri = g.np.column_stack([g.np.roll(s, -i) for i in range(3)])[:-2]
+                tri = g.np.column_stack([g.np.roll(s, -i)
+                                         for i in range(3)])[:-2]
                 # we need to flip ever other triangle
                 idx = (g.np.arange(len(tri)) % 2).astype(bool)
                 tri[idx] = g.np.fliplr(tri[idx])
@@ -114,30 +115,29 @@ class UtilTests(unittest.TestCase):
             # stack into one (m,3) array
             faces = g.np.vstack(faces)
             return faces
-        
-        
+
         # test 4- triangle strip
         s = [g.np.arange(6)]
         f = g.trimesh.util.triangle_strips_to_faces(s)
         assert (f == g.np.array([[0, 1, 2],
-                               [3, 2, 1],
-                               [2, 3, 4],
-                               [5, 4, 3]])).all()
-        assert len(f) + 2  == len(s[0])   
+                                 [3, 2, 1],
+                                 [2, 3, 4],
+                                 [5, 4, 3]])).all()
+        assert len(f) + 2 == len(s[0])
         assert (f == strips_to_faces(s)).all()
-        
+
         # test single triangle
         s = [g.np.arange(3)]
-        f = g.trimesh.util.triangle_strips_to_faces(s)                   
-        assert (f == g.np.array([[0, 1, 2]])).all()              
-        assert len(f) + 2  == len(s[0])   
+        f = g.trimesh.util.triangle_strips_to_faces(s)
+        assert (f == g.np.array([[0, 1, 2]])).all()
+        assert len(f) + 2 == len(s[0])
         assert (f == strips_to_faces(s)).all()
-        
+
         s = [g.np.arange(100)]
-        f = g.trimesh.util.triangle_strips_to_faces(s)                     
-        assert len(f) + 2  == len(s[0]) 
+        f = g.trimesh.util.triangle_strips_to_faces(s)
+        assert len(f) + 2 == len(s[0])
         assert (f == strips_to_faces(s)).all()
-        
+
 
 class IOTest(unittest.TestCase):
 

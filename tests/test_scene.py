@@ -24,11 +24,11 @@ class SceneTests(g.unittest.TestCase):
                 edgelist = s.graph.to_edgelist()
                 g.json.dumps(edgelist)
 
-                assert s.bounds.shape == (2,3)
-                assert s.centroid.shape  == (3,)
-                assert s.extents.shape  == (3,)
+                assert s.bounds.shape == (2, 3)
+                assert s.centroid.shape == (3,)
+                assert s.extents.shape == (3,)
                 assert isinstance(s.scale, float)
-                assert g.trimesh.util.is_shape(s.triangles, (-1,3,3))
+                assert g.trimesh.util.is_shape(s.triangles, (-1, 3, 3))
                 assert len(s.triangles) == len(s.triangles_node)
 
                 assert s.md5() is not None
@@ -36,7 +36,7 @@ class SceneTests(g.unittest.TestCase):
                 assert len(s.duplicate_nodes) > 0
 
                 r = s.dump()
-                
+
                 for export_format in ['dict', 'dict64']:
                     # try exporting the scene as a dict
                     # then make sure json can serialize it
@@ -48,7 +48,7 @@ class SceneTests(g.unittest.TestCase):
                     # make sure the extents are similar before and after
                     assert g.np.allclose(g.np.product(s.extents),
                                          g.np.product(r.extents))
-                    
+
 
 class GraphTests(g.unittest.TestCase):
 

@@ -657,7 +657,7 @@ class TrackedArray(np.ndarray):
         '''
 
         if self._modified_md5 or not hasattr(self, '_hashed_md5'):
-            self._hashed_md5 = md5_object(self)  
+            self._hashed_md5 = md5_object(self)
         self._modified_md5 = False
         return self._hashed_md5
 
@@ -793,6 +793,7 @@ class DataStore:
     '''
     A class to store multiple numpy arrays and track them all for changes.
     '''
+
     def __init__(self):
         self.data = {}
 

@@ -24,7 +24,7 @@ class MeshTests(g.unittest.TestCase):
 
             if not mesh.is_watertight:
                 continue
-            
+
             self.assertTrue(len(mesh.facets) == len(mesh.facets_area))
             if len(mesh.facets) == 0:
                 continue

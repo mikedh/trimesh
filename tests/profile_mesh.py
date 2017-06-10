@@ -1,8 +1,6 @@
 import generic as g
 
 
-
-
 def typical_application():
     # make sure we can load everything we think we can
     # while getting a list of meshes to run tests on
@@ -63,16 +61,18 @@ def typical_application():
         assert g.np.allclose(copied.identifier,
                              mesh.identifier)
         assert isinstance(mesh.identifier_md5, str)
-        
+
 
 if __name__ == '__main__':
 
-    import cProfile, pstats, io
+    import cProfile
+    import pstats
+    import io
     pr = cProfile.Profile()
     pr.enable()
 
     typical_application()
-    
+
     pr.disable()
     s = io.StringIO()
     sortby = 'cumulative'

@@ -49,7 +49,6 @@ class ExportTest(g.unittest.TestCase):
                         str(loaded.faces.shape)))
                 self.assertTrue(loaded.vertices.shape == mesh.vertices.shape)
 
-
     def test_ply(self):
         m = g.get_mesh('machinist.XAML')
 
@@ -57,16 +56,13 @@ class ExportTest(g.unittest.TestCase):
         assert m.visual.face_colors.ptp(axis=0).max() > 0
 
         export = m.export(file_type='ply')
-        reconstructed = g.trimesh.load(g.trimesh.util.wrap_as_stream(export), 
+        reconstructed = g.trimesh.load(g.trimesh.util.wrap_as_stream(export),
                                        file_type='ply')
 
         assert reconstructed.visual.kind == 'face'
 
         assert g.np.allclose(reconstructed.visual.face_colors,
-                           m.visual.face_colors)
-
-
-
+                             m.visual.face_colors)
 
         m = g.get_mesh('reference.ply')
 
@@ -74,15 +70,13 @@ class ExportTest(g.unittest.TestCase):
         assert m.visual.vertex_colors.ptp(axis=0).max() > 0
 
         export = m.export(file_type='ply')
-        reconstructed = g.trimesh.load(g.trimesh.util.wrap_as_stream(export), 
+        reconstructed = g.trimesh.load(g.trimesh.util.wrap_as_stream(export),
                                        file_type='ply')
 
         assert reconstructed.visual.kind == 'vertex'
 
         assert g.np.allclose(reconstructed.visual.vertex_colors,
                              m.visual.vertex_colors)
-
-
 
 
 if __name__ == '__main__':

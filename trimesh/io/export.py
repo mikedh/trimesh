@@ -119,7 +119,7 @@ def export_dict(mesh, encoding=None):
         export['face_colors'] = encode(mesh.visual.face_colors)
     elif mesh.visual.kind == 'vertex':
         export['vertex_colors'] = encode(mesh.visual.vertex_colors)
-        
+
     return export
 
 

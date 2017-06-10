@@ -51,6 +51,7 @@ for i in inspect.stack():
         break
 '''
 
+
 def io_wrap(item):
     if isinstance(item, str):
         return StringIO(item)
@@ -113,10 +114,10 @@ def get_meshes(count=np.inf,
         if extension in trimesh.available_formats():
             loaded = trimesh.util.make_sequence(get_mesh(file_name))
             for i in loaded:
-                is_mesh  = trimesh.util.is_instance_named(i, 'Trimesh')
+                is_mesh = trimesh.util.is_instance_named(i, 'Trimesh')
                 is_scene = trimesh.util.is_instance_named(i, 'Scene')
                 if raise_error and not is_mesh and not is_scene:
-                    raise ValueError('%s returned a non- Trimesh object!', 
+                    raise ValueError('%s returned a non- Trimesh object!',
                                      file_name)
                 if not is_mesh or (only_watertight and not i.is_watertight):
                     continue

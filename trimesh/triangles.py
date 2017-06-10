@@ -267,7 +267,7 @@ def extents(triangles, areas=None):
     '''
     Return the 2D bounding box size of each triangle.
 
-    
+
     Parameters
     ----------
     triangles: (n, 3, 3) float, list of triangles
@@ -303,9 +303,9 @@ def extents(triangles, areas=None):
     # essentially this is the side length of an
     # oriented bounding box, per triangle
     box = np.zeros((len(triangles), 2), dtype=np.float64)
-    box[:,0][nonzero_a] = (areas[nonzero_a] * 2) / length_a[nonzero_a]
-    box[:,1][nonzero_b] = (areas[nonzero_b] * 2) / length_b[nonzero_b]
-    
+    box[:, 0][nonzero_a] = (areas[nonzero_a] * 2) / length_a[nonzero_a]
+    box[:, 1][nonzero_b] = (areas[nonzero_b] * 2) / length_b[nonzero_b]
+
     return box
 
 

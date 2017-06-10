@@ -1990,6 +1990,7 @@ def transform_points(points, matrix, translate=True):
     transformed = np.dot(matrix, stacked.T).T[:, :dimension]
     return transformed
 
+
 def is_rigid(matrix):
     '''
     Check to make sure a homogeonous transformation matrix is 
@@ -2006,13 +2007,13 @@ def is_rigid(matrix):
 
     matrix = np.asanyarray(matrix, dtype=np.float64)
 
-    if matrix.shape != (4,4):
+    if matrix.shape != (4, 4):
         return False
 
-    if not np.allclose(matrix[-1], [0,0,0,1]):
+    if not np.allclose(matrix[-1], [0, 0, 0, 1]):
         return False
 
-    check = np.dot(matrix[:3,:3],
-                   matrix[:3,:3].T)
-    
+    check = np.dot(matrix[:3, :3],
+                   matrix[:3, :3].T)
+
     return np.allclose(check, np.eye(3))
