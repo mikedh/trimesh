@@ -268,7 +268,7 @@ class Trimesh(object):
     def face_normals(self, values):
         if values is None:
             return
-        self._cache['face_normals'] = np.asanyarray(values, dtype=np.float64)
+        self._cache['face_normals'] = np.asanyarray(values, dtype=np.float32)
 
     @property
     def vertices(self):
@@ -287,8 +287,8 @@ class Trimesh(object):
 
     @vertices.setter
     def vertices(self, values):
-        # make sure vertices are stored as a float64 for consistency
-        self._data['vertices'] = np.asanyarray(values, dtype=np.float64)
+        # make sure vertices are stored as a float32 for consistency
+        self._data['vertices'] = np.asanyarray(values, dtype=np.float32)
 
     def _validate_face_normals(self, faces=None):
         '''
@@ -346,7 +346,7 @@ class Trimesh(object):
     def vertex_normals(self, values):
         if values is None:
             return
-        values = np.asanyarray(values, dtype=np.float64)
+        values = np.asanyarray(values, dtype=np.float32)
         if values.shape == self.vertices.shape:
             self._cache['vertex_normals'] = values
 
@@ -1178,7 +1178,7 @@ class Trimesh(object):
         ----------
         translation: (3,) float, translation in XYZ
         '''
-        translation = np.asanyarray(translation, dtype=np.float64)
+        translation = np.asanyarray(translation, dtype=np.float32)
         if translation.shape != (3,):
             raise ValueError('Translation must be (3,)!')
 
@@ -1226,7 +1226,8 @@ class Trimesh(object):
         new_normals = np.dot(matrix[0:3, 0:3], self.face_normals.T).T
         # easier than figuring out what the scale factor of the matrix is
         new_normals = util.unitize(new_normals)
-        new_vertices = transformations.transform_points(self.vertices, matrix)
+        new_vertices = transformations.transform_points(self.vertices,
+                                                        matrix)
         # check the first face against the first normal to see if winding is
         # correct
         aligned_pre = triangles.windings_aligned(self.vertices[self.faces[:1]],

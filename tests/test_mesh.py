@@ -1,7 +1,5 @@
 import generic as g
 
-from collections import deque
-
 
 class MeshTests(g.unittest.TestCase):
 
