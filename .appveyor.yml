@@ -25,7 +25,7 @@ install:
   - pip install nose2 networkx svg.path sympy msgpack-python
   - pip install .
   - appveyor DownloadFile http://mirror.cs.umn.edu/blender.org/release/Blender2.78/blender-2.78c-windows64.zip
-  - 7z x blender-2.78a-windows64.zip "-oC:\" -y
+  - 7z x blender-2.78c-windows64.zip "-oC:\" -y
 
 
 test_script:

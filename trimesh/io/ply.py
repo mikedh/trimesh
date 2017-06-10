@@ -427,6 +427,9 @@ def export_draco(mesh):
         temp_ply.flush()
         with tempfile.NamedTemporaryFile(suffix='.drc') as encoded:
             subprocess.check_output([draco_encoder,
+                                     '-qp', # bits of quantization for position
+                                     '30',  # since our tol.merge is 1e-8, 25 bits
+                                            # more has a machine epsilon smaller than that
                                      '-i',
                                      temp_ply.name,
                                      '-o',

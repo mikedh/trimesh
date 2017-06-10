@@ -315,8 +315,9 @@ class Trimesh(object):
             face_normals, valid = triangles.normals(triangles=tri_cached,
                                                     crosses=tri_cross)
             if not valid.all():
-                log.warning('normals detected and removed degenerate face!')
-                self.update_faces(valid)       
+                log.debug('normals detected and removed degenerate face!')
+                self.update_faces(valid)
+                
             # cache the work we did
             self._cache['face_normals'] = face_normals
                      
@@ -510,8 +511,7 @@ class Trimesh(object):
         '''
         if not self.is_watertight:
             log.warning('Center of mass requested for non- watertight mesh!')
-        center_mass = np.array(self.mass_properties(
-            skip_inertia=True)['center_mass'])
+        center_mass = np.array(self.mass_properties()['center_mass'])
         return center_mass
 
     @util.cache_decorator
@@ -524,7 +524,7 @@ class Trimesh(object):
         ---------
         volume: float, volume of the current mesh
         '''
-        volume = self.mass_properties(skip_inertia=True)['volume']
+        volume = self.mass_properties()['volume']
         return volume
 
     @util.cache_decorator
@@ -537,7 +537,7 @@ class Trimesh(object):
         ---------
         inertia: (3,3) float, moment of inertia of the current mesh.
         '''
-        inertia = np.array(self.mass_properties(skip_inertia=False)['inertia'])
+        inertia = np.array(self.mass_properties()['inertia'])
         return inertia
 
     @util.cache_decorator
