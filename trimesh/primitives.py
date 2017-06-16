@@ -102,15 +102,16 @@ class _PrimitiveAttributes(object):
         if 'mutable' in kwargs:
             self._mutable = bool(kwargs['mutable'])
 
-        self.__doc__ = (('Store the attributes of a {prim_name} object.\n\n' +
+        self.__doc__ = (('Store the attributes of a {name} object.\n\n' +
                          'When these values are changed, the mesh geometry will \n' +
                          'automatically be updated to reflect the new values.\n\n' +
-                         'Available properties and their default values are:\n {prim_defaults}\n\n' +
-                         'Example\n---------------\n' +
-                         'p = trimesh.primitives.{prim_name}()\n' +
-                         'p.primitive.radius = 10\n\n').format(prim_name=parent.__class__.__name__,
-                                                               prim_defaults=pprint.pformat(defaults, width=-1)[1:-1]))
-
+                         'Available properties and their default values are:\n {defaults}' +
+                         '\n\nExample\n---------------\n' +
+                         'p = trimesh.primitives.{name}()\n' +
+                         'p.primitive.radius = 10\n\n').format(name=parent.__class__.__name__,
+                                                               defaults=pprint.pformat(defaults,
+                                                                               width=-1)[1:-1]))
+        
     def __getattr__(self, key):
         if '_' in key:
             return super(_PrimitiveAttributes, self).__getattr__(key)
@@ -309,6 +310,21 @@ class Sphere(_Primitive):
 
         return self.bounding_box
 
+
+    @util.cache_decorator
+    def area(self):
+        '''
+        Surface area of the current sphere primitive.
+
+        Returns
+        --------
+        area: float, surface area of the sphere Primitive
+        '''
+
+        area = 4.0 * np.pi * (self.primitive.radius ** 2)
+        return area
+        
+    
     @util.cache_decorator
     def volume(self):
         '''
@@ -474,6 +490,37 @@ class Extrusion(_Primitive):
                                               defaults,
                                               kwargs)
 
+    @util.cache_decorator
+    def area(self):
+        '''
+        The surface area of the primitive extrusion.
+
+        Calculated from polygon and height to avoid mesh creation.
+
+        Returns
+        ----------
+        area: float, surface area of 3D extrusion
+        '''
+        # area of the sides of the extrusion
+        area = self.primitive.height * self.primitive.polygon.length
+        # area of the two caps of the extrusion
+        area += self.primitive.polygon.area * 2
+        return area
+    
+    @util.cache_decorator
+    def volume(self):
+        '''
+        The volume of the primitive extrusion.
+
+        Calculated from polygon and height to avoid mesh creation.
+
+        Returns
+        ----------
+        volume: float, volume of 3D extrusion
+        '''
+        volume = self.primitive.polygon.area * self.primitive.height
+        return volume
+    
     @property
     def direction(self):
         '''

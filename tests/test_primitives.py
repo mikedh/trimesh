@@ -48,7 +48,15 @@ class BooleanTest(g.unittest.TestCase):
                                                     (-1, 3)))
 
             self.assertTrue(primitive.volume > 0.0)
+            self.assertTrue(primitive.area   > 0.0)
 
+            ratio = [primitive.volume / primitive.to_mesh().volume,
+                     primitive.area   / primitive.to_mesh().area]
+
+            print(ratio)
+            
+            assert all(g.np.abs(i - 1) < 1e-2 for i in ratio)
+            
             self.assertTrue(primitive.is_winding_consistent)
             self.assertTrue(primitive.is_watertight)
 
