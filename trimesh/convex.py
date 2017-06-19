@@ -7,6 +7,7 @@ Library for importing and doing simple operations on triangular meshes.
 import numpy as np
 
 from .constants import tol, log
+
 from . import util
 from . import triangles
 
@@ -17,7 +18,7 @@ except ImportError:
     log.warning('Scipy import failed!')
 
 
-def convex_hull(obj):
+def convex_hull(obj, qhull_options='QbB Pp'):
     '''
     Get a new Trimesh object representing the convex hull of the
     current mesh, with proper normals and watertight. 
@@ -33,20 +34,23 @@ def convex_hull(obj):
     convex: Trimesh object of convex hull
     '''
     from .base import Trimesh
+    
     if isinstance(obj, Trimesh):
         points = obj.vertices.view(np.ndarray)
     else:
         points = np.asanyarray(obj, dtype=np.float64)
         if not util.is_shape(points, (-1, 3)):
             raise ValueError('Object must be Trimesh or (n,3) points!')
-    c = spatial.ConvexHull(points.reshape((-1, 3)),
-                           qhull_options='QbB Pp')
 
-    # get the vertices and faces from the hull object
-    # remove unreferenced vertices here
+    c = spatial.ConvexHull(points.reshape((-1, 3)),
+                           qhull_options=qhull_options)
+
+    # hull object doesn't remove unreferenced vertices
+    # create a mask to re- index faces for only referenced vertices
     vid = np.sort(c.vertices)
     mask = np.zeros(len(c.points), dtype=np.int64)
     mask[vid] = np.arange(len(vid))
+    # remove unreferenced vertices here
     faces = mask[c.simplices].copy()
     vertices = c.points[vid].copy()
 
@@ -55,13 +59,17 @@ def convex_hull(obj):
     crosses = triangles.cross(vertices[faces])
     normals, valid = triangles.normals(crosses=crosses)
 
+    # remove degenerate faces 
     faces = faces[valid]
     crosses = crosses[valid]
+    
+    # calcalate each triangles area and cartesian center point
     triangles_area = triangles.area(crosses=crosses, sum=False)
     triangles_center = vertices[faces].mean(axis=1)
 
-    # since the convex hull is convex, the vector from the centroid to a vertex
-    # should have a positive dot product with that faces normal
+    # since the convex hull is (very hopefully) convex, the vector from
+    # the centroid to the center of each face
+    # should have a positive dot product with the normal of that face 
     # if it doesn't it is probably backwards
     # note that this sometimes gets screwed up by precision issues
     centroid = np.average(triangles_center,
@@ -81,6 +89,7 @@ def convex_hull(obj):
                      'area_faces': triangles_area,
                      'centroid': centroid}
 
+    # create the Trimesh object for the convex hull
     convex = Trimesh(vertices=vertices,
                      faces=faces,
                      face_normals=normals,
@@ -93,6 +102,13 @@ def convex_hull(obj):
     # and if not will (slowly) fix it by traversing the adjacency graph
     convex.fix_normals()
 
+    # sometimes the QbB option will cause unrecoverable precision issues
+    # so try the hull again without it
+    # check for qhull_options is None to avoid infinite recursion
+    if (qhull_options is not None and
+        not convex.is_winding_consistent):
+        return convex_hull(convex, qhull_options=None)
+    
     return convex
 
 
