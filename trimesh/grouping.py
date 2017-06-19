@@ -65,6 +65,7 @@ def group(values, min_len=0, max_len=np.inf):
                              np.less_equal(dupe_len, max_len))
     groups = [order[i:(i + j)]
               for i, j in zip(dupe_idx[dupe_ok], dupe_len[dupe_ok])]
+    groups = np.array(groups)
     return groups
 
 

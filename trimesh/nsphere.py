@@ -2,7 +2,7 @@ import numpy as np
 
 from . import convex
 
-from .constants import log
+from .constants import log, tol
 
 try:
     from scipy import spatial
@@ -114,3 +114,20 @@ def fit_nsphere(points, prior=None):
     radius = radii.mean()
     error = radii.ptp()
     return center_result, radius, error
+
+
+def is_nsphere(points):
+    '''
+    Check if a list of points is an nsphere.
+
+    Parameters
+    -----------
+    points: (n,dimension) float, points in space
+
+    Returns
+    -----------
+    check: bool, True if input points are on an nsphere
+    '''
+    center, radius, error = fit_nsphere(points)
+    check = error < tol.merge
+    return check

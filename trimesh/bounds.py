@@ -3,12 +3,11 @@ import time
 
 from .constants import log
 
-from .nsphere import minimum_nsphere
-
 from . import util
 from . import convex
-from . import triangles
+from . import nsphere
 from . import grouping
+from . import triangles
 from . import transformations
 
 try:
@@ -81,7 +80,7 @@ def oriented_bounds_2D(points):
     return transform, rectangle
 
 
-def oriented_bounds(obj, angle_digits=2):
+def oriented_bounds(obj, angle_digits=1):
     '''
     Find the oriented bounding box for a Trimesh
 
@@ -136,8 +135,8 @@ def oriented_bounds(obj, angle_digits=2):
     # the unique_rows call on merge angles gets unique spherical directions to check
     # we get a substantial speedup in the transformation matrix creation
     # inside the loop by converting to angles ahead of time
-    spherical_unique = grouping.unique_rows(
-        spherical_coords, digits=angle_digits)[0]
+    spherical_unique = grouping.unique_rows(spherical_coords,
+                                            digits=angle_digits)[0]
 
     min_volume = np.inf
     tic = time.time()
@@ -223,7 +222,7 @@ def minimum_cylinder(obj, sample_count=15, angle_tol=.001):
         height = projected[:, 2].ptp()
         # in degenerate cases return as infinite volume
         try:
-            center_2D, radius = minimum_nsphere(projected[:, 0:2])
+            center_2D, radius = nsphere.minimum_nsphere(projected[:, 0:2])
         except:
             return np.inf
 
@@ -254,8 +253,11 @@ def minimum_cylinder(obj, sample_count=15, angle_tol=.001):
               (best[1] - step, best[1] + step)]
 
     # run the optimization
-    r = optimize.minimize(volume_from_angles, best,
-                          tol=angle_tol, method='SLSQP', bounds=bounds)
+    r = optimize.minimize(volume_from_angles,
+                          best,
+                          tol=angle_tol,
+                          method='SLSQP',
+                          bounds=bounds)
     tic.append(time.time())
 
     log.info('Performed search in %f and minimize in %f', *np.diff(tic))
