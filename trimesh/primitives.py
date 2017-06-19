@@ -108,10 +108,10 @@ class _PrimitiveAttributes(object):
                          'Available properties and their default values are:\n {defaults}' +
                          '\n\nExample\n---------------\n' +
                          'p = trimesh.primitives.{name}()\n' +
-                         'p.primitive.radius = 10\n\n').format(name=parent.__class__.__name__,
-                                                               defaults=pprint.pformat(defaults,
-                                                                               width=-1)[1:-1]))
-        
+                         'p.primitive.radius = 10\n' +
+                         '\n').format(name=parent.__class__.__name__,
+                                      defaults=pprint.pformat(defaults, width=-1)[1:-1]))
+
     def __getattr__(self, key):
         if '_' in key:
             return super(_PrimitiveAttributes, self).__getattr__(key)
@@ -310,7 +310,6 @@ class Sphere(_Primitive):
 
         return self.bounding_box
 
-
     @util.cache_decorator
     def area(self):
         '''
@@ -323,8 +322,7 @@ class Sphere(_Primitive):
 
         area = 4.0 * np.pi * (self.primitive.radius ** 2)
         return area
-        
-    
+
     @util.cache_decorator
     def volume(self):
         '''
@@ -506,7 +504,7 @@ class Extrusion(_Primitive):
         # area of the two caps of the extrusion
         area += self.primitive.polygon.area * 2
         return area
-    
+
     @util.cache_decorator
     def volume(self):
         '''
@@ -520,7 +518,7 @@ class Extrusion(_Primitive):
         '''
         volume = self.primitive.polygon.area * self.primitive.height
         return volume
-    
+
     @property
     def direction(self):
         '''

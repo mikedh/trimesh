@@ -34,7 +34,7 @@ def convex_hull(obj, qhull_options='QbB Pp'):
     convex: Trimesh object of convex hull
     '''
     from .base import Trimesh
-    
+
     if isinstance(obj, Trimesh):
         points = obj.vertices.view(np.ndarray)
     else:
@@ -59,17 +59,17 @@ def convex_hull(obj, qhull_options='QbB Pp'):
     crosses = triangles.cross(vertices[faces])
     normals, valid = triangles.normals(crosses=crosses)
 
-    # remove degenerate faces 
+    # remove degenerate faces
     faces = faces[valid]
     crosses = crosses[valid]
-    
+
     # calcalate each triangles area and cartesian center point
     triangles_area = triangles.area(crosses=crosses, sum=False)
     triangles_center = vertices[faces].mean(axis=1)
 
     # since the convex hull is (very hopefully) convex, the vector from
     # the centroid to the center of each face
-    # should have a positive dot product with the normal of that face 
+    # should have a positive dot product with the normal of that face
     # if it doesn't it is probably backwards
     # note that this sometimes gets screwed up by precision issues
     centroid = np.average(triangles_center,
@@ -106,9 +106,9 @@ def convex_hull(obj, qhull_options='QbB Pp'):
     # so try the hull again without it
     # check for qhull_options is None to avoid infinite recursion
     if (qhull_options is not None and
-        not convex.is_winding_consistent):
+            not convex.is_winding_consistent):
         return convex_hull(convex, qhull_options=None)
-    
+
     return convex
 
 
