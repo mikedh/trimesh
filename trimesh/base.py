@@ -1557,19 +1557,18 @@ class Trimesh(object):
         -----------
         r = mesh.eval_cached('np.dot(self.vertices, args[0])', [0,0,1])
         '''
-        
+
         statement = str(statement)
         key = 'cache_eval_' + statement
         key += '_'.join(str(i) for i in args)
 
         if key in self._cache:
             return self._cache[key]
-        
+
         result = eval(statement)
         self._cache[key] = result
         return result
-        
-    
+
     def __hash__(self):
         '''
         Return the MD5 hash of the mesh as an integer

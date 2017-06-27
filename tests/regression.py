@@ -132,7 +132,6 @@ if __name__ == '__main__':
 
     #baseline = establish_baseline()
 
-
     '''
     file_names = ['ballA.off',
                   'cycloidal.ply',
@@ -184,12 +183,9 @@ if __name__ == '__main__':
 
     p = Pool(2)
 
-
     tic = [time.time()]
     a = [establish_baseline() for i in range(4)]
     tic.append(time.time())
 
     b = list(p.imap_unordered(establish_baseline, range(4)))
     tic.append(time.time())
-    
-    
