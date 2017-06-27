@@ -1538,6 +1538,38 @@ class Trimesh(object):
 
         return copied
 
+    def eval_cached(self, statement, *args):
+        '''
+        Evaluate a statement and cache the result before returning. 
+
+        Statements are evaluated inside the Trimesh object, and 
+
+        Parameters
+        -----------
+        statement: str, statement of valid python code
+        *args:     available inside statement as args[0], etc
+
+        Returns
+        -----------
+        result: result of running eval on statement with args
+
+        Example
+        -----------
+        r = mesh.eval_cached('np.dot(self.vertices, args[0])', [0,0,1])
+        '''
+        
+        statement = str(statement)
+        key = 'cache_eval_' + statement
+        key += '_'.join(str(i) for i in args)
+
+        if key in self._cache:
+            return self._cache[key]
+        
+        result = eval(statement)
+        self._cache[key] = result
+        return result
+        
+    
     def __hash__(self):
         '''
         Return the MD5 hash of the mesh as an integer

@@ -68,7 +68,7 @@ def typical_application():
         assert isinstance(mesh.identifier_md5, str)
 
 
-def establish_baseline(counts=[390, 3820, 1710]):
+def establish_baseline(*args, counts=[390, 3820, 1710]):
     '''
     Try to establish a baseline of how fast a computer is so
     we can normalize our tests to be meaningful even on garbage CI VM's.
@@ -130,8 +130,10 @@ def machine_info():
 
 if __name__ == '__main__':
 
-    baseline = establish_baseline()
+    #baseline = establish_baseline()
 
+
+    '''
     file_names = ['ballA.off',
                   'cycloidal.ply',
                   'featuretype.STL',
@@ -176,3 +178,18 @@ if __name__ == '__main__':
     result['baseline'] = baseline.tolist()
     result['timestamp'] = time.time()
     result['timings'] = timings
+    '''
+
+    from multiprocessing import Pool
+
+    p = Pool(2)
+
+
+    tic = [time.time()]
+    a = [establish_baseline() for i in range(4)]
+    tic.append(time.time())
+
+    b = list(p.imap_unordered(establish_baseline, range(4)))
+    tic.append(time.time())
+    
+    
