@@ -25,24 +25,27 @@ class MeshTests(g.unittest.TestCase):
             if not mesh.is_watertight:
                 continue
 
-            self.assertTrue(len(mesh.facets) == len(mesh.facets_area))
-            if len(mesh.facets) == 0:
-                continue
+            assert len(mesh.facets) == len(mesh.facets_area)
+            assert len(mesh.facets) == len(mesh.facets_normal)
+            assert len(mesh.facets) == len(mesh.facets_boundary)
+            
+            if len(mesh.facets) != 0:
+                faces = mesh.facets[mesh.facets_area.argmax()]
+                outline = mesh.outline(faces)
 
-            faces = mesh.facets[mesh.facets_area.argmax()]
-            outline = mesh.outline(faces)
             smoothed = mesh.smoothed()
 
-            self.assertTrue(mesh.volume > 0.0)
+            assert mesh.volume > 0.0
 
             section = mesh.section(plane_normal=[0, 0, 1],
                                    plane_origin=mesh.centroid)
 
             sample = mesh.sample(1000)
             even_sample = g.trimesh.sample.sample_surface_even(mesh, 100)
-            self.assertTrue(sample.shape == (1000, 3))
+            assert sample.shape == (1000, 3)
             g.log.info('finished testing meshes')
 
+            
             # make sure vertex kdtree and triangles rtree exist
 
             t = mesh.kdtree()

@@ -327,6 +327,8 @@ def barycentric_to_points(triangles, barycentric):
 
     if not util.is_shape(triangles, (-1, 3, 3)):
         raise ValueError('Triangles must be (n,3,3)!')
+    if barycentric.shape == (2,):
+        barycentric = np.ones((len(triangles),2), dtype=np.float64) * barycentric
     if util.is_shape(barycentric, (len(triangles), 2)):
         barycentric = np.column_stack((barycentric,
                                        1.0 - barycentric.sum(axis=1)))

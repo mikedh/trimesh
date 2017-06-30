@@ -17,12 +17,16 @@ The easiest and recommended way to get the most functionality out of Trimesh is 
 ```bash
 
 # cyassimp is a fast binding for the assimp importers
+# note that it installs cleanly in Linux and Windows
+# but generally fails on OSX
 conda install -c menpo/label/master cyassimp
 
 # install modules for spatial indexing, polygon manipulation, and fast ray-mesh queries
+# these generally install cleanly on Linux, Windows, and OSX
 conda install -c conda-forge rtree shapely
 
 # install Trimesh and soft dependencies that are easy to install
+# these generally install cleanly on Linux, Windows, and OSX
 pip install trimesh[easy]
 
 ```

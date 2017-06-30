@@ -56,18 +56,34 @@ def transform_around(matrix, point):
 def align_vectors(vector_start, vector_end, return_angle=False):
     '''
     Returns the 4x4 transformation matrix which will rotate from
-    vector_start (3,) to vector_end (3,), ex:
+    vector_start to vector_end, eg:
 
     vector_end == np.dot(T, np.append(vector_start, 1))[0:3]
+
+
+    Parameters
+    -----------
+    vector_start: (3,) float, vector in space
+    vector_end:   (3,) float, vector in space
+    return_angle: bool, return angle between vectors or not
+
+    Returns
+    -----------
+    transform: (4,4) float, transformation matrix
+    angle:     float, angle in radians (only returned if flag set)
+    
     '''
-    vector_start = util.unitize(vector_start)
-    vector_end = util.unitize(vector_end)
-    cross = np.cross(vector_start, vector_end)
+    start  = np.asanyarray(vector_start, dtype=np.float64)
+    start /= np.linalg.norm(start)
+    end    = np.asanyarray(vector_end,   dtype=np.float64)
+    end   /= np.linalg.norm(end)
+    
+    cross = np.cross(start, end)
     # we clip the norm to 1, as otherwise floating point bs
     # can cause the arcsin to error
     norm = np.linalg.norm(cross)
     norm = np.clip(norm, -1.0, 1.0)
-    direction = np.sign(np.dot(vector_start, vector_end))
+    direction = np.sign(np.dot(start, end))
 
     if norm < tol.zero:
         # if the norm is zero, the vectors are the same
@@ -81,8 +97,7 @@ def align_vectors(vector_start, vector_end, return_angle=False):
         T = rotation_matrix(angle, cross)
 
     check = np.abs(np.dot(T[:3, :3], vector_start) - vector_end)
-    if (check > 1e-5).any():
-        raise ValueError('Vectors unaligned!')
+    assert (check < 1e-5).all()
 
     if return_angle:
         return T, angle
@@ -92,6 +107,14 @@ def align_vectors(vector_start, vector_end, return_angle=False):
 def faces_to_edges(faces, return_index=False):
     '''
     Given a list of faces (n,3), return a list of edges (n*3,2)
+
+    Parameters
+    -----------
+    faces: (n,3) int, vertex indices representing faces
+    
+    Returns
+    -----------
+    edges: (n*3, 2) int, vertex indices representing edges
     '''
     faces = np.asanyarray(faces)
     edges = np.column_stack((faces[:, (0, 1)],
@@ -132,6 +155,14 @@ def vector_angle(pairs):
 def triangulate_quads(quads):
     '''
     Given a set of quad faces, return them as triangle faces.
+    
+    Parameters
+    -----------
+    quads: (n,4) int, vertex indices of quad faces
+    
+    Returns
+    -----------
+    faces: (m,3) int, vertex indices of triangular faces
     '''
     quads = np.array(quads)
     faces = np.vstack((quads[:, [0, 1, 2]],

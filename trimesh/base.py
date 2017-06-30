@@ -1035,6 +1035,36 @@ class Trimesh(object):
         areas = np.array([self.area_faces[i].sum() for i in self.facets])
         return areas
 
+    @util.cache_decorator
+    def facets_normal(self):
+        '''
+        Return the normal of each facet
+
+        Returns
+        ---------
+        normals: (n,3) float, normal vector of each facet
+        '''
+        if len(self.facets) == 0:
+            return np.array([])
+        index_first = np.array([i[0] for i in self.facets])
+        normals = self.face_normals[index_first]
+        return normals
+
+    @util.cache_decorator
+    def facets_boundary(self):
+        '''
+        Return the edges which represent the boundary of each facet
+
+        Returns
+        ---------
+        edges_boundary: sequence of (n,2) int, indices of self.vertices
+        '''
+        edges = self.edges.reshape((-1,6))
+        edges_facet = [np.sort(edges[i].reshape((-1,2)), axis=1) for i in self.facets]
+        edges_boundary = np.array([i[grouping.group_rows(i,
+                                    require_count=1)] for i in edges_facet])
+        return edges_boundary
+    
     @_log_time
     def fix_normals(self):
         '''

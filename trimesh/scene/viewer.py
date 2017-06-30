@@ -28,10 +28,9 @@ class SceneViewer(pyglet.window.Window):
         if not ('camera' in scene.graph.nodes):
             scene.set_camera()
 
-        self.reset_view(flags=flags)
-
         visible = (save_image is None) or (platform.system() != 'Linux')
         width, height = resolution
+        self.reset_view(flags=flags)
 
         try:
             conf = gl.Config(sample_buffers=1,
@@ -113,7 +112,7 @@ class SceneViewer(pyglet.window.Window):
 
     def reset_view(self, flags=None):
         '''
-        Set view to base.
+        Set view to base view.
         '''
         self.view = {'wireframe': False,
                      'cull': True,
@@ -122,11 +121,12 @@ class SceneViewer(pyglet.window.Window):
                      'scale': self.scene.scale,
                      'ball': Arcball()}
 
-        if (self.width is not None and
-                self.height is not None):
+        try:
             self.view['ball'].place([self.width / 2.0,
                                      self.height / 2.0],
                                     (self.width + self.height) / 2.0)
+        except:
+            pass
 
         if isinstance(flags, dict):
             for k, v in flags.items():
