@@ -70,6 +70,30 @@ def export_off(mesh):
     return export
 
 
+def export_obj(mesh):
+    '''
+    Export a mesh as a Wavefront OBJ file
+
+    Parameters
+    -----------
+    mesh: Trimesh object
+
+    Returns
+    -----------
+    export: str, string of OBJ format output
+    '''
+    export = 'v '
+    export += util.array_to_string(mesh.vertices,
+                                   col_delim=' ',
+                                   row_delim='\nv ',
+                                   digits=8) + '\n'
+    export += 'f '
+    export += util.array_to_string(mesh.faces + 1,
+                                   col_delim=' ',
+                                   row_delim='\nf ')
+    return export
+
+
 def export_collada(mesh):
     '''
     Export a mesh as a COLLADA file.
@@ -140,6 +164,7 @@ _mesh_exporters = {'stl': export_stl,
                    'dict': export_dict,
                    'json': export_json,
                    'off': export_off,
+                   'obj': export_obj,
                    'dae': export_collada,
                    'dict64': export_dict64,
                    'msgpack': export_msgpack,
