@@ -56,7 +56,10 @@ def load_wavefront(file_obj, file_type=None):
     ----------
     loaded: dict with kwargs for Trimesh constructor (vertices, faces)
     '''
-    data = np.array(file_obj.read().split())
+    data = file_obj.read()
+    if hasattr(data, 'decode'):
+        data = data.decode('utf-8')
+    data = np.array(data.split())
     data_str = data.astype(str)
 
     # find the locations of keys, then find the proceeding values
@@ -66,7 +69,7 @@ def load_wavefront(file_obj, file_type=None):
 
     # if we wanted to use the texture/vertex normals, we could slice this
     # differently.
-    faces = np.array([i.split(b'/')
+    faces = np.array([i.split('/')
                       for i in data[fid].reshape(-1)])[:, 0].reshape((-1, 3))
     # wavefront has 1- indexed faces, as opposed to 0- indexed
     faces = faces.astype(int) - 1
