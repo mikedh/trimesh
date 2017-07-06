@@ -14,7 +14,6 @@ from . import misc
 from .assimp import _assimp_loaders
 from .stl import _stl_loaders
 from .misc import _misc_loaders
-from .step import _step_loaders
 from .ply import _ply_loaders
 from .xml_based import _xml_loaders
 
@@ -316,6 +315,5 @@ mesh_loaders = {}
 mesh_loaders.update(_assimp_loaders)
 mesh_loaders.update(_stl_loaders)
 mesh_loaders.update(_misc_loaders)
-mesh_loaders.update(_step_loaders)
 mesh_loaders.update(_ply_loaders)
 mesh_loaders.update(_xml_loaders)

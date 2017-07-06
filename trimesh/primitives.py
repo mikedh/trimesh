@@ -92,6 +92,7 @@ class _PrimitiveAttributes(object):
     def __init__(self, parent, defaults, kwargs):
         self._data = parent._data
         self._defaults = defaults
+        self._parent  = parent
         self._data.update(defaults)
         self._mutable = True
         for key, value in kwargs.items():
@@ -102,16 +103,26 @@ class _PrimitiveAttributes(object):
         if 'mutable' in kwargs:
             self._mutable = bool(kwargs['mutable'])
 
-        self.__doc__ = (('Store the attributes of a {name} object.\n\n' +
-                         'When these values are changed, the mesh geometry will \n' +
-                         'automatically be updated to reflect the new values.\n\n' +
-                         'Available properties and their default values are:\n {defaults}' +
-                         '\n\nExample\n---------------\n' +
-                         'p = trimesh.primitives.{name}()\n' +
-                         'p.primitive.radius = 10\n' +
-                         '\n').format(name=parent.__class__.__name__,
-                                      defaults=pprint.pformat(defaults, width=-1)[1:-1]))
+        
 
+    @property
+    def __doc__(self):
+        # this is generated dynamically as the format operation can be suprisingly
+        # slow and if generated in __init__ it is called a lot of times 
+        # when we didn't really need to generate it
+
+        doc = ('Store the attributes of a {name} object.\n\n' +
+               'When these values are changed, the mesh geometry will \n' +
+               'automatically be updated to reflect the new values.\n\n' +
+               'Available properties and their default values are:\n {defaults}' +
+               '\n\nExample\n---------------\n' +
+               'p = trimesh.primitives.{name}()\n' +
+               'p.primitive.radius = 10\n' +
+               '\n').format(name=self._parent.__class__.__name__,
+                            defaults=pprint.pformat(self._defaults, width=-1)[1:-1])
+        return doc
+
+        
     def __getattr__(self, key):
         if '_' in key:
             return super(_PrimitiveAttributes, self).__getattr__(key)

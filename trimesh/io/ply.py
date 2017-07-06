@@ -116,7 +116,7 @@ def export_ply(mesh):
 def read_ply_header(file_obj):
     '''
     Read the ASCII header of a PLY file, and leave the file object
-    at the position of the start of data but past the data.
+    at the position of the start of data but past the header.
 
     Parameters
     -----------
