@@ -1,5 +1,6 @@
 import pyglet
 import pyglet.gl as gl
+
 import numpy as np
 
 import platform

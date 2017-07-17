@@ -389,7 +389,7 @@ class Scene:
         else:
             from threading import Thread
             Thread(target=viewer, kwargs=kwargs).start()
-
+            
 
 def split_scene(geometry):
     '''

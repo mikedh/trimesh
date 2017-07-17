@@ -46,8 +46,9 @@ class RayMeshIntersector:
 
         Returns
         ---------
-        locations: (m,3) float, points where the ray intersects the surface
-        ray_index: (m,) int, index of which ray location is from
+        locations: (n) sequence of (m,3) intersection points
+        index_ray: (n,) int, list of ray index
+        index_tri: (n,) int, list of triangle (face) indexes
         '''
         (index_tri,
          index_ray,
@@ -55,8 +56,7 @@ class RayMeshIntersector:
                                          ray_directions=ray_directions,
                                          multiple_hits=multiple_hits,
                                          return_locations=True)
-
-        return locations, index_ray
+        return locations, index_ray, index_tri
 
     def intersects_id(self,
                       ray_origins,

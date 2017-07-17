@@ -3,7 +3,7 @@ import generic as g
 
 class RayTests(g.unittest.TestCase):
 
-    def test_rays(self):
+    def test_rays(self): 
         meshes = [g.get_mesh(**k) for k in g.data['ray_data']['load_kwargs']]
         rays = g.data['ray_data']['rays']
         names = [m.metadata['file_name'] for m in meshes]
@@ -34,12 +34,16 @@ class RayTests(g.unittest.TestCase):
 
             # force ray object to allocate tree before timing it
             #tree = sphere.ray.tree
-            tic = g.time.time()
+            tic = [g.time.time()]
             sphere.ray.intersects_id(ray_origins, ray_directions)
-            toc = g.time.time()
-            rps = dimension[0] / (toc - tic)
-            g.log.info('Measured %f rays/second with embree %d',
-                       rps,
+            tic.append(g.time.time())
+            sphere.ray.intersects_location(ray_origins, ray_directions)
+            tic.append(g.time.time())
+            
+            rps = dimension[0] / g.np.diff(tic)
+
+            g.log.info('Measured %s rays/second with embree %d',
+                       str(rps),
                        use_embree)
 
     def test_contains(self):

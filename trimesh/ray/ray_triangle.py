@@ -82,14 +82,15 @@ class RayMeshIntersector:
         Returns
         ---------
         locations: (n) sequence of (m,3) intersection points
-        index_ray: (n) list of face ids
+        index_ray: (n,) int, list of ray index
+        index_tri: (n,) int, list of triangle (face) indexes
         '''
         (index_tri,
          index_ray,
          locations) = self.intersects_id(ray_origins=ray_origins,
                                          ray_directions=ray_directions,
                                          return_locations=True)
-        return locations, index_ray
+        return locations, index_ray, index_tri
 
     def intersects_any(self,
                        ray_origins,
