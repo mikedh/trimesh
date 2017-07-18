@@ -235,8 +235,10 @@ def mesh_to_run(mesh, pitch, size_max=1e5):
     ray_origins += [pitch * .5, pitch * .5, -pitch]
     ray_vectors = np.tile([0.0, 0.0, 1.0], (len(grid), 1))
 
-    locations, index_ray = mesh.ray.intersects_location(ray_origins=ray_origins,
-                                                        ray_directions=ray_vectors)
+    (locations,
+     index_ray,
+     index_tri) = mesh.ray.intersects_location(ray_origins=ray_origins,
+                                               ray_directions=ray_vectors)
     raw_shape = np.ceil(np.ptp(bounds / pitch, axis=0)).astype(int)
     grid_origin = bounds[0]
     grid_index = np.rint(
