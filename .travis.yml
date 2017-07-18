@@ -42,10 +42,8 @@ install:
   - conda info -a
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy
   - source activate test-environment
-  - conda install rtree shapely
-  - conda install -c menpo/label/master cyassimp
   - if [[ "$TRAVIS_PYTHON_VERSION" != "3.3" ]]; then
-      conda install pyembree;
+      conda install pyembree rtree shapely;
     fi
   - pip install .[all]
   - pip install nose2
