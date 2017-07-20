@@ -57,8 +57,9 @@ if __name__ == '__main__':
     '''
     file_name = sys.argv[-1]
     if (file_name.endswith('ipynb') and
-            os.path.exists(file_name)):
-        script = load_notebook(open(file_name, 'r'))
+        os.path.exists(file_name)):
+        with open(file_name, 'r') as file_obj:
+            script = load_notebook(file_obj)
         print('\nloaded {}:\n'.format(file_name))
         print(script)
         exec(script)

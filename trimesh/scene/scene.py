@@ -403,6 +403,9 @@ def split_scene(geometry):
     ---------
     scene: trimesh.Scene
     '''
+    if util.is_instance_named(geometry, 'Scene'):
+        return geometry
+    
     split = collections.deque()
     for g in util.make_sequence(geometry):
         split.extend(g.split())

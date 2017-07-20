@@ -155,14 +155,19 @@ class SceneViewer(pyglet.window.Window):
         gl.glEnable(gl.GL_COLOR_MATERIAL)
         gl.glShadeModel(gl.GL_SMOOTH)
 
-        gl.glMaterialfv(gl.GL_FRONT, gl.GL_AMBIENT,
+        gl.glMaterialfv(gl.GL_FRONT,
+                        gl.GL_AMBIENT,
                         _gl_vector(0.192250, 0.192250, 0.192250))
-        gl.glMaterialfv(gl.GL_FRONT, gl.GL_DIFFUSE,
+        gl.glMaterialfv(gl.GL_FRONT,
+                        gl.GL_DIFFUSE,
                         _gl_vector(0.507540, 0.507540, 0.507540))
-        gl.glMaterialfv(gl.GL_FRONT, gl.GL_SPECULAR,
+        gl.glMaterialfv(gl.GL_FRONT,
+                        gl.GL_SPECULAR,
                         _gl_vector(.5082730, .5082730, .5082730))
 
-        gl.glMaterialf(gl.GL_FRONT, gl.GL_SHININESS, .4 * 128.0)
+        gl.glMaterialf(gl.GL_FRONT,
+                       gl.GL_SHININESS,
+                       .4 * 128.0)
 
         gl.glEnable(gl.GL_BLEND)
         gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
