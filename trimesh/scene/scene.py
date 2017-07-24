@@ -376,19 +376,11 @@ class Scene:
             transform[0:3, 3] += offset
             self.graph[node_name] = transform
 
-    def show(self, block=True, **kwargs):
+    def show(self, **kwargs):
         # this imports pyglet, and will raise an ImportError
         # if pyglet is not available
         from .viewer import SceneViewer
-
-        def viewer():
-            SceneViewer(self, **kwargs)
-
-        if block:
-            viewer()
-        else:
-            from threading import Thread
-            Thread(target=viewer, kwargs=kwargs).start()
+        SceneViewer(self, **kwargs)
             
 
 def split_scene(geometry):

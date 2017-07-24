@@ -1392,7 +1392,6 @@ class Trimesh(object):
 
         Parameters
         -----------
-        block:  bool, open window in new thread, or block until window is closed
         smooth: bool, run smooth shading on mesh or not. Large meshes will be slow
 
         Returns
