@@ -3,6 +3,7 @@ import collections
 import copy
 
 from .. import util
+from .. import units
 from .. import grouping
 
 from ..bounds import corners as bounds_corners
@@ -346,6 +347,29 @@ class Scene:
                     resolution=resolution,
                     **kwargs)
 
+    def convert_units(self, desired):
+        '''
+        If geometry has units defined, convert them to new units.
+
+        Parameters
+        ----------
+        units: str, target unit system. EG 'inches', 'mm', etc
+        '''
+        existing = np.array([i.units for i in self.geometry.values()])
+
+        if (existing[1] != existing[1:]).any():
+            # if all of our geometry doesn't have the same units already
+            # this function will only do some hot nonsense
+            raise ValueError('Models in scene have inconsistent units!')
+        
+        scale = units.unit_conversion(current=existing[1],
+                                      desired=desired)
+        self.graph.scale_transforms(scale)
+
+        for geometry in self.geometry.values():
+            geometry.convert_units(desired=desired)
+    
+        
     def explode(self, vector=None, origin=None):
         '''
         Explode a scene around a point and vector.
