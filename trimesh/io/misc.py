@@ -66,16 +66,21 @@ def load_wavefront(file_obj, file_type=None):
     vid = np.nonzero(data_str == 'v')[0].reshape((-1, 1)) + np.arange(3) + 1
     nid = np.nonzero(data_str == 'vn')[0].reshape((-1, 1)) + np.arange(3) + 1
     fid = np.nonzero(data_str == 'f')[0].reshape((-1, 1)) + np.arange(3) + 1
-
+    gid = np.nonzero(data_str == 'g')[0].reshape((-1,1)) + 1
+    
     # if we wanted to use the texture/vertex normals, we could slice this
     # differently.
     faces = np.array([i.split('/')
                       for i in data[fid].reshape(-1)])[:, 0].reshape((-1, 3))
     # wavefront has 1- indexed faces, as opposed to 0- indexed
     faces = faces.astype(int) - 1
+    faceid =  np.nonzero(data_str == 'f')[0]
+    groups = np.zeros((faces.shape[0],1),dtype=int)
+    for i in range(len(gid)):
+        groups[np.nonzero(faceid > gid[i])] = i 
     loaded = {'vertices': data[vid].astype(float),
-              'vertex_normals': data[nid].astype(float),
-              'faces': faces}
+          'vertex_normals': data[nid].astype(float),
+          'faces': faces, 'groups': groups}
     return loaded
 
 

@@ -45,6 +45,7 @@ class Trimesh(object):
                  face_normals=None,
                  vertex_normals=None,
                  face_colors=None,
+                 groups=None,
                  vertex_colors=None,
                  metadata=None,
                  process=True,
@@ -95,7 +96,10 @@ class Trimesh(object):
         if faces is not None:
             # (m, 3) int of triangle faces, references self.vertices
             self.faces = faces
-
+            
+        if groups is not None:
+            self.groups = groups
+            
         # hold visual information about the mesh (vertex and face colors)
         if 'visual' in kwargs:
             self.visual = kwargs['visual']
@@ -270,6 +274,21 @@ class Trimesh(object):
             return
         self._cache['face_normals'] = np.asanyarray(values, dtype=np.float64)
 
+    @property
+    def groups(self):
+        '''
+        The group id of the faces
+        '''
+        
+        return self._data['groups']
+        
+    @groups.setter
+    def groups(self, values):
+        if values is None:
+            values = []
+        values = np.asanyarray(values, dtype=np.int64)
+        self._data['groups'] = values
+                  
     @property
     def vertices(self):
         '''
@@ -820,6 +839,9 @@ class Trimesh(object):
             faces = self._cache['faces']
         self.faces = faces[mask]
         self.visual.update_faces(mask)
+        if not (self._data['groups'] is None):
+            groups = self._data['groups']
+            self.groups = groups[mask]
 
     def remove_infinite_values(self):
         '''
