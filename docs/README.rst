@@ -16,6 +16,11 @@ something using trimesh as a backend.
 Installation
 ------------
 
+The minimum set of packages required to import trimesh are
+`numpy <http://www.numpy.org/>`__, `scipy <http://www.scipy.org>`__ and
+`networkx <https://networkx.github.io>`__. Installing other packages
+mentioned adds functionality but is not required.
+
 The easiest and recommended way to get the most functionality out of
 Trimesh is to install a `conda
 environment <https://conda.io/miniconda.html>`__, then:
@@ -23,75 +28,23 @@ environment <https://conda.io/miniconda.html>`__, then:
 .. code:: bash
 
 
-    # cyassimp is a fast binding for the assimp importers
-    conda install -c menpo/label/master cyassimp
+    # install modules for spatial indexing and  polygon manipulation
+    # these generally install cleanly on Linux, Windows, and OSX
+    conda install -c conda-forge rtree shapely
 
-    # install modules for spatial indexing, polygon manipulation, and fast ray-mesh queries
-    conda install -c conda-forge rtree shapely pyembree
-
-    # install Trimesh and soft dependancies that are easy to install
+    # install Trimesh and soft dependencies that are easy to install
+    # these generally install cleanly on Linux, Windows, and OSX
     pip install trimesh[easy]
 
-Or, for only **minimal dependencies** (no ray queries, vector path
-handling, mesh creation, viewer, etc):
+Or, for the easiest install with only **minimal dependencies** (no ray
+queries, vector path handling, mesh creation, viewer, etc):
 
 .. code:: bash
 
     pip install trimesh
 
-Features
---------
-
--  Import binary/ASCII STL, Wavefront OBJ, ASCII OFF, binary/ASCII PLY,
-   XAML, etc.
--  Import additional mesh formats using
-   `assimp <http://www.assimp.org/main_features_formats.html>`__
-   (requires pyassimp or cyassimp)
--  Import and export 2D or 3D vector paths from/to DXF or SVG files
--  Export meshes as binary STL, binary PLY, ASCII OFF, COLLADA,
-   dictionaries, JSON- serializable dictionaries (base64 encoded
-   arrays), MSGPACK- serializable dictionaries (binary string arrays)
--  Preview meshes (requires pyglet)
--  Internal caching of computed values (validated with a zlib.adler32
-   CRC on face/vertex data)
--  Fast loading of binary files through importers written by defining
-   custom numpy dtypes
--  Calculate face adjacencies quickly (for 234,230 face mesh .248 s)
--  Calculate cross sections (.146 s)
--  Split mesh based on face connectivity using networkx, graph-tool, or
-   scipy.sparse
--  Calculate mass properties, including volume, center of mass, and
-   moment of inertia (.246 s)
--  Find coplanar and adjacent groups of faces (.454 s)
--  Fix triangle winding and normals to be consistent
--  Find convex hulls of meshes
--  Compute a rotation/translation/tessellation invariant identifier for
-   meshes
--  Determine duplicate meshes from identifier
--  Determine if a mesh is watertight
--  Determine if a mesh is convex
--  Repair single triangle and single quad holes
--  Uniformly sample the surface of a mesh
--  Ray-mesh queries including location, triangle id, etc.
--  Boolean operations on meshes (intersection, union, difference) using
-   OpenSCAD or Blender as backend
--  Voxelize watertight meshes
--  Unit conversions
--  Subdivide faces of a mesh
--  Minimum volume oriented bounding boxes for meshes
--  Minimum volume bounding sphere / n-spheres
--  Symbolic integration of function(x,y,z) over a triangle
--  Quick (sympy-numpy lambda) evaluation of symbolic integral result
-   over a mesh
--  Calculate nearest point on mesh surface and signed distance
--  Determine if a point lies inside or outside of a mesh using signed
-   distance
--  Create meshes with primitive objects (Extrude, Box, Sphere) which are
-   subclasses of Trimesh
--  Simple scene graph and transform tree which can be rendered (pyglet)
-   or exported.
--  Numerous utility functions, such as transforming points, unitizing
-   vectors, tracking arrays for changes, grouping rows, etc.
+Further information is available in the `advanced installation
+documentation <http://trimesh.readthedocs.io/en/latest/install.html>`__.
 
 Quick Start
 -----------
@@ -134,12 +87,10 @@ example <https://github.com/mikedh/trimesh/blob/master/examples/integrate.ipynb>
     # since this example mesh is a single watertight body we get a list of one mesh
     mesh.split()
 
-    # find groups of coplanar adjacent faces
-    facets, facets_area = mesh.facets(return_area=True)
-
+    # facets are groups of coplanar adjacent faces
     # set each facet to a random color
     # colors are 8 bit RGBA by default (n,4) np.uint8
-    for facet in facets:
+    for facet in mesh.facets:
         mesh.visual.face_colors[facet] = trimesh.visual.random_color()
 
     # preview mesh in an opengl window if you installed pyglet with pip
@@ -171,6 +122,60 @@ example <https://github.com/mikedh/trimesh/blob/master/examples/integrate.ipynb>
           mesh.bounding_cylinder.volume,
           mesh.bounding_sphere.volume)
 
+Features
+--------
+
+-  Import binary/ASCII STL, Wavefront OBJ, ASCII OFF, binary/ASCII PLY,
+   XAML, 3DXML, etc.
+-  Import additional mesh formats using
+   `assimp <http://www.assimp.org/main_features_formats.html>`__
+   (requires pyassimp or cyassimp)
+-  Import and export 2D or 3D vector paths from/to DXF or SVG files
+-  Export meshes as binary STL, binary PLY, ASCII OFF, COLLADA,
+   dictionaries, JSON- serializable dictionaries (base64 encoded
+   arrays), MSGPACK- serializable dictionaries (binary string arrays)
+-  Preview meshes (requires pyglet)
+-  Internal caching of computed values (validated with a zlib.adler32
+   CRC on face/vertex data)
+-  Fast loading of binary files through importers written by defining
+   custom numpy dtypes
+-  Calculate face adjacencies quickly (for 234,230 face mesh .248 s)
+-  Calculate cross sections (.146 s)
+-  Split mesh based on face connectivity using networkx, graph-tool, or
+   scipy.sparse
+-  Calculate mass properties, including volume, center of mass, moment
+   of inertia, and principal components of inertia
+-  Find coplanar and adjacent groups of faces (.454 s)
+-  Fix triangle winding and normals to be consistent
+-  Find convex hulls of meshes
+-  Compute a rotation/translation/tessellation invariant identifier for
+   meshes
+-  Determine duplicate meshes from identifier
+-  Determine if a mesh is watertight
+-  Determine if a mesh is convex
+-  Repair single triangle and single quad holes
+-  Uniformly sample the surface of a mesh
+-  Ray-mesh queries including location, triangle id, etc.
+-  Boolean operations on meshes (intersection, union, difference) using
+   OpenSCAD or Blender as backend
+-  Voxelize watertight meshes
+-  Unit conversions
+-  Subdivide faces of a mesh
+-  Minimum volume oriented bounding boxes for meshes
+-  Minimum volume bounding sphere / n-spheres
+-  Symbolic integration of function(x,y,z) over a triangle
+-  Quick (sympy-numpy lambda) evaluation of symbolic integral result
+   over a mesh
+-  Calculate nearest point on mesh surface and signed distance
+-  Determine if a point lies inside or outside of a mesh using signed
+   distance
+-  Create meshes with primitive objects (Extrude, Box, Sphere) which are
+   subclasses of Trimesh
+-  Simple scene graph and transform tree which can be rendered (pyglet)
+   or exported.
+-  Numerous utility functions, such as transforming points, unitizing
+   vectors, tracking arrays for changes, grouping rows, etc.
+
 Viewer
 ------
 
@@ -188,8 +193,8 @@ Containers
 ----------
 
 If you want to deploy something in a container that uses trimesh,
-automated builds containing trimesh and its dependancies are available
-on docker hub. For an image with all dependancies:
+automated builds containing trimesh and its dependencies are available
+on docker hub. For an image with all dependencies:
 
 ``docker pull mikedh/trimesh``
 

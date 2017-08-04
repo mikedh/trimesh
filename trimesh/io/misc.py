@@ -63,16 +63,19 @@ def load_wavefront(file_obj, file_type=None):
     data_str = data.astype(str)
 
     # find the locations of keys, then find the proceeding values
+    # indexes which contain vertex information
     vid = np.nonzero(data_str == 'v')[0].reshape((-1, 1)) + np.arange(3) + 1
+    # indexes which contain vertex normal information
     nid = np.nonzero(data_str == 'vn')[0].reshape((-1, 1)) + np.arange(3) + 1
+    # indexes which contain face information
     fid = np.nonzero(data_str == 'f')[0].reshape((-1, 1)) + np.arange(3) + 1
 
-    # if we wanted to use the texture/vertex normals, we could slice this
-    # differently.
-    faces = np.array([i.split('/')
-                      for i in data[fid].reshape(-1)])[:, 0].reshape((-1, 3))
+    # if we wanted to use the texture/vertex normals, we could slice differently
+    faces = np.reshape([i.split('/')[0]
+                        for i in data[fid].reshape(-1)], (-1, 3))
     # wavefront has 1- indexed faces, as opposed to 0- indexed
-    faces = faces.astype(int) - 1
+    faces = faces.astype(np.int) - 1
+    
     loaded = {'vertices': data[vid].astype(float),
               'vertex_normals': data[nid].astype(float),
               'faces': faces}
