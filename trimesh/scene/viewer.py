@@ -26,8 +26,8 @@ class SceneViewer(pyglet.window.Window):
         self.scene = scene
         self.scene._redraw = self._redraw
 
-        if not ('camera' in scene.graph.nodes):
-            scene.set_camera()
+        # always set the camera
+        scene.set_camera()
 
         visible = (save_image is None) or (platform.system() != 'Linux')
         width, height = resolution
