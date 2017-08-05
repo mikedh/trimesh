@@ -13,8 +13,8 @@ The API is mostly stable, but this should not be relied on and is not
 guaranteed; install a specific version if you plan on deploying
 something using trimesh as a backend.
 
-Installation
-------------
+Basic Installation
+------------------
 
 The minimum set of packages required to import trimesh are
 `numpy <http://www.numpy.org/>`__, `scipy <http://www.scipy.org>`__ and

@@ -5,7 +5,7 @@ Trimesh is a Python (2.7-3*) library for loading and using triangular meshes. Th
 
 The API is mostly stable, but this should not be relied on and is not guaranteed; install a specific version if you plan on deploying something using trimesh as a backend.
 
-## Installation
+## Basic Installation
 
 
 The minimum set of packages required to import trimesh are

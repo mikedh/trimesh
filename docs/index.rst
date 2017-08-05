@@ -7,11 +7,15 @@
    :maxdepth: 2
 
 .. include:: README.rst
-.. include:: INSTALL.rst
-	     
+
+Install
+==========
+.. toctree::
+   :maxdepth: 2
+	      
+   install
+
+
 Module Reference
 ==================
 * :ref:`modindex`
-
-
-
