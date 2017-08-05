@@ -178,7 +178,8 @@ def triangulate_polygon(polygon, **kwargs):
         Given a start index and length, create a series of (n, 2) edges which
         create a closed traversal.
 
-        Example:
+        Examples
+        ---------
         start, length = 0, 3
         returns:  [(0,1), (1,2), (2,0)]
         '''

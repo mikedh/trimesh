@@ -7,7 +7,8 @@
    :maxdepth: 2
 
 .. include:: README.rst
-	      
+.. include:: INSTALL.rst
+	     
 Module Reference
 ==================
 * :ref:`modindex`

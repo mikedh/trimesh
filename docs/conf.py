@@ -38,6 +38,8 @@ extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.viewcode',
               'numpydoc']
 
+extensions = []
+
 from recommonmark.parser import CommonMarkParser
 source_parsers = {'.md': CommonMarkParser}
 

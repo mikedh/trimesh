@@ -43,7 +43,7 @@ def face_adjacency(faces=None, mesh=None, return_edges=False):
          edges: (m,2) int, indexes of vertices which make up the
                  edges shared by the adjacent faces
 
-    Example
+    Examples
     ----------
     This is useful for lots of things, such as finding connected components:
 

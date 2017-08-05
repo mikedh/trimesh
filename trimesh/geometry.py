@@ -138,7 +138,7 @@ def vector_angle(pairs):
     ----------
     angles: (n,) float, angles between vectors
 
-    Example
+    Examples
     ----------
     angles = mesh.face_normals[mesh.face_adjacency]
     '''
@@ -227,7 +227,7 @@ def index_sparse(column_count, indices):
     sparse: scipy.sparse.coo_matrix of shape (column_count, len(faces))
             dtype is boolean
 
-    Example
+    Examples
      ----------
     In [1]: sparse = faces_sparse(len(mesh.vertices), mesh.faces)
 

@@ -686,7 +686,7 @@ class Trimesh(object):
         faces_unique_edges: self.faces.shape int, which indexes of self.edges_unique
                             construct self.faces
 
-        Example
+        Examples
         ---------
         In [0]: mesh.faces[0:2]
         Out[0]:
@@ -876,7 +876,7 @@ class Trimesh(object):
         ----------
         adjacency: (n,2) int, pairs of faces which share an edge
 
-        Example
+        Examples
         ---------
 
         In [1]: mesh = trimesh.load('models/featuretype.STL')
@@ -1582,7 +1582,7 @@ class Trimesh(object):
         -----------
         result: result of running eval on statement with args
 
-        Example
+        Examples
         -----------
         r = mesh.eval_cached('np.dot(self.vertices, args[0])', [0,0,1])
         '''

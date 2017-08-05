@@ -123,7 +123,7 @@ def unique_ordered(data):
     Returns the same as np.unique, but ordered as per the
     first occurance of the unique value in data.
 
-    Example
+    Examples
     ---------
     In [1]: a = [0, 3, 3, 4, 1, 3, 0, 3, 2, 1]
 
@@ -151,7 +151,7 @@ def merge_runs(data, digits=None):
     --------
     merged: (m,) float or int
 
-    Example
+    Examples
     ---------
     In [1]: a
     Out[1]: 
@@ -236,7 +236,7 @@ def unique_value_in_row(data, unique=None):
     result: (n,d) bool, with one or zero True values per row.
 
 
-    Example
+    Examples
     -------------------------------------
     In [0]: r = np.array([[-1,  1,  1],
                           [-1,  1, -1],
