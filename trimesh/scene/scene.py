@@ -364,12 +364,12 @@ class Scene:
         
         scale = units.unit_conversion(current=existing[1],
                                       desired=desired)
+        
         self.graph.scale_transforms(scale)
 
         for geometry in self.geometry.values():
             geometry.convert_units(desired=desired)
-    
-        
+            
     def explode(self, vector=None, origin=None):
         '''
         Explode a scene around a point and vector.

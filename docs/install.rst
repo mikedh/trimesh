@@ -1,11 +1,14 @@
 Advanced Installation
 =====================
 
-The minimum set of packages required to import ``trimesh`` are
+The minimal dependancies for ``trimesh`` are
 `numpy <http://www.numpy.org/>`__, `scipy <http://www.scipy.org/>`__ and
-`networkx <https://networkx.github.io/>`__. All other dependancies are 'soft', or trimesh will only fail if a function is called that requires something not installed. If you do the most basic pip install, it will only require those three packages:
+`networkx <https://networkx.github.io/>`__.
+
+All other dependancies are 'soft', or trimesh will only fail if a function is called that requires something not installed. If you do the most basic pip install, it will only require those three packages:
 
 .. code:: bash
+
    pip install trimesh
 
 	  
@@ -60,15 +63,14 @@ Blender and openSCAD are soft dependancies used for boolean operations with subp
 
 .. code:: bash
 
-    sudo apt-get install openscad blender
+   sudo apt-get install openscad blender
 
 Windows Notes
 ''''''''''''''''''''
 
 The easiest way to get going on Windows is to install the `Anaconda
-Python distribution <https://www.continuum.io/downloads>`__, followed by
-``shapely``, ``rtree``, and ``meshpy`` from the `Unofficial Windows
-Binaries from Christoph
-Gohlke <http://www.lfd.uci.edu/~gohlke/pythonlibs/>`__
+Python distribution <https://www.continuum.io/downloads>`__.
+
+Most requirements are available as above, but to get ``meshpy`` the easiest way is from the `Unofficial Windows Binaries from Christoph Gohlke <http://www.lfd.uci.edu/~gohlke/pythonlibs/>`__
 
 
