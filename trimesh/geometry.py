@@ -71,13 +71,13 @@ def align_vectors(vector_start, vector_end, return_angle=False):
     -----------
     transform: (4,4) float, transformation matrix
     angle:     float, angle in radians (only returned if flag set)
-    
+
     '''
-    start  = np.asanyarray(vector_start, dtype=np.float64)
+    start = np.asanyarray(vector_start, dtype=np.float64)
     start /= np.linalg.norm(start)
-    end    = np.asanyarray(vector_end,   dtype=np.float64)
-    end   /= np.linalg.norm(end)
-    
+    end = np.asanyarray(vector_end,   dtype=np.float64)
+    end /= np.linalg.norm(end)
+
     cross = np.cross(start, end)
     # we clip the norm to 1, as otherwise floating point bs
     # can cause the arcsin to error
@@ -111,7 +111,7 @@ def faces_to_edges(faces, return_index=False):
     Parameters
     -----------
     faces: (n,3) int, vertex indices representing faces
-    
+
     Returns
     -----------
     edges: (n*3, 2) int, vertex indices representing edges
@@ -155,11 +155,11 @@ def vector_angle(pairs):
 def triangulate_quads(quads):
     '''
     Given a set of quad faces, return them as triangle faces.
-    
+
     Parameters
     -----------
     quads: (n,4) int, vertex indices of quad faces
-    
+
     Returns
     -----------
     faces: (m,3) int, vertex indices of triangular faces

@@ -1059,12 +1059,13 @@ class Trimesh(object):
         ---------
         edges_boundary: sequence of (n,2) int, indices of self.vertices
         '''
-        edges = self.edges.reshape((-1,6))
-        edges_facet = [np.sort(edges[i].reshape((-1,2)), axis=1) for i in self.facets]
+        edges = self.edges.reshape((-1, 6))
+        edges_facet = [np.sort(edges[i].reshape((-1, 2)), axis=1)
+                       for i in self.facets]
         edges_boundary = np.array([i[grouping.group_rows(i,
-                                    require_count=1)] for i in edges_facet])
+                                                         require_count=1)] for i in edges_facet])
         return edges_boundary
-    
+
     @_log_time
     def fix_normals(self):
         '''

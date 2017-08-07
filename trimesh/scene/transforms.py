@@ -176,7 +176,6 @@ class TransformForest:
         from ..graph import graph_to_svg
         return graph_to_svg(self.transforms)
 
-
     def scale_transforms(self, scale):
         '''
         Scale all transforms.
@@ -186,12 +185,12 @@ class TransformForest:
         scale: float, factor to scale all transformations by
         '''
         scale = np.eye(4) * float(scale)
-        scale[3,3] = 1.0
-        
-        for a,b in self.transforms.edges():
+        scale[3, 3] = 1.0
+
+        for a, b in self.transforms.edges():
             matrix = self.transforms.edge[a][b]['matrix']
             self.transforms.edge[a][b]['matrix'] = np.dot(matrix, scale)
-    
+
     def __getitem__(self, key):
         return self.get(key)
 

@@ -92,7 +92,7 @@ class _PrimitiveAttributes(object):
     def __init__(self, parent, defaults, kwargs):
         self._data = parent._data
         self._defaults = defaults
-        self._parent  = parent
+        self._parent = parent
         self._data.update(defaults)
         self._mutable = True
         for key, value in kwargs.items():
@@ -103,12 +103,10 @@ class _PrimitiveAttributes(object):
         if 'mutable' in kwargs:
             self._mutable = bool(kwargs['mutable'])
 
-        
-
     @property
     def __doc__(self):
         # this is generated dynamically as the format operation can be suprisingly
-        # slow and if generated in __init__ it is called a lot of times 
+        # slow and if generated in __init__ it is called a lot of times
         # when we didn't really need to generate it
 
         doc = ('Store the attributes of a {name} object.\n\n' +
@@ -122,7 +120,6 @@ class _PrimitiveAttributes(object):
                             defaults=pprint.pformat(self._defaults, width=-1)[1:-1])
         return doc
 
-        
     def __getattr__(self, key):
         if '_' in key:
             return super(_PrimitiveAttributes, self).__getattr__(key)

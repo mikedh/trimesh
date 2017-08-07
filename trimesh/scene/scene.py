@@ -361,15 +361,15 @@ class Scene:
             # if all of our geometry doesn't have the same units already
             # this function will only do some hot nonsense
             raise ValueError('Models in scene have inconsistent units!')
-        
+
         scale = units.unit_conversion(current=existing[1],
                                       desired=desired)
-        
+
         self.graph.scale_transforms(scale)
 
         for geometry in self.geometry.values():
             geometry.convert_units(desired=desired)
-            
+
     def explode(self, vector=None, origin=None):
         '''
         Explode a scene around a point and vector.
@@ -405,7 +405,7 @@ class Scene:
         # if pyglet is not available
         from .viewer import SceneViewer
         SceneViewer(self, **kwargs)
-            
+
 
 def split_scene(geometry):
     '''
@@ -421,7 +421,7 @@ def split_scene(geometry):
     '''
     if util.is_instance_named(geometry, 'Scene'):
         return geometry
-    
+
     split = collections.deque()
     for g in util.make_sequence(geometry):
         split.extend(g.split())

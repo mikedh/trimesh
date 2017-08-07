@@ -70,12 +70,13 @@ def load_wavefront(file_obj, file_type=None):
     # indexes which contain face information
     fid = np.nonzero(data_str == 'f')[0].reshape((-1, 1)) + np.arange(3) + 1
 
-    # if we wanted to use the texture/vertex normals, we could slice differently
+    # if we wanted to use the texture/vertex normals, we could slice
+    # differently
     faces = np.reshape([i.split('/')[0]
                         for i in data[fid].reshape(-1)], (-1, 3))
     # wavefront has 1- indexed faces, as opposed to 0- indexed
     faces = faces.astype(np.int) - 1
-    
+
     loaded = {'vertices': data[vid].astype(float),
               'vertex_normals': data[nid].astype(float),
               'faces': faces}
