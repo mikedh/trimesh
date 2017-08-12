@@ -68,8 +68,12 @@ def load_wavefront(file_obj, file_type=None):
     # indexes which contain vertex normal information
     nid = np.nonzero(data_str == 'vn')[0].reshape((-1, 1)) + np.arange(3) + 1
     # indexes which contain face information
-    fid = np.nonzero(data_str == 'f')[0].reshape((-1, 1)) + np.arange(3) + 1
-
+    face_key = np.nonzero(data_str == 'f')[0]
+    fid = face_key.reshape((-1, 1)) + np.arange(3) + 1
+    # some varients of the format have face groups
+    gid = np.nonzero(data_str == 'g')[0].reshape((-1,1)) + 1
+        
+    
     # if we wanted to use the texture/vertex normals, we could slice
     # differently
     faces = np.reshape([i.split('/')[0]
@@ -80,6 +84,14 @@ def load_wavefront(file_obj, file_type=None):
     loaded = {'vertices': data[vid].astype(float),
               'vertex_normals': data[nid].astype(float),
               'faces': faces}
+
+    # if face groups have been defined add them to metadata
+    if len(gid) > 0:
+        groups = np.zeros(len(faces), dtype=int)
+        for i,g in enumerate(gid):
+            groups[np.nonzero(face_key > g)[0]] = i 
+        loaded['metadata'] = {'face_groups' : groups}
+        
     return loaded
 
 
