@@ -15,7 +15,7 @@ class PermutateTest(g.unittest.TestCase):
                 return False
             return g.np.allclose(a, b)
 
-        def make_assertions(mesh, test):
+        def make_assertions(mesh, test, rigid=False):
             if (close(test.face_adjacency,
                       mesh.face_adjacency) and
                     len(mesh.faces) > MIN_FACES):
@@ -34,6 +34,17 @@ class PermutateTest(g.unittest.TestCase):
                                    mesh.vertices))
             self.assertFalse(test.md5() == mesh.md5())
 
+            # rigid transforms don't change area or volume
+            if rigid:
+                assert g.np.allclose(mesh.area, test.area)
+
+                # volume is very dependent on meshes being watertight and sane
+                if (mesh.is_watertight and 
+                    test.is_watertight and
+                    mesh.is_winding_consistent and
+                    test.is_winding_consistent):                   
+                    assert  g.np.allclose(mesh.volume, test.volume, rtol=.05):
+                      
         for mesh in g.get_meshes():
             if len(mesh.faces) < MIN_FACES:
                 continue
@@ -45,11 +56,17 @@ class PermutateTest(g.unittest.TestCase):
                 mesh = original.copy()
                 noise = g.trimesh.permutate.noise(mesh,
                                                   magnitude=mesh.scale / 50.0)
+                # make sure that if we permutate vertices with no magnitude
+                # area and volume remain the same
+                no_noise = g.trimesh.permutate.noise(mesh, magnitude=0.0)
+
                 transform = g.trimesh.permutate.transform(mesh)
                 tesselate = g.trimesh.permutate.tesselation(mesh)
-                make_assertions(mesh, noise)
-                make_assertions(mesh, transform)
-                make_assertions(mesh, tesselate)
+                make_assertions(mesh, noise, rigid=False)
+                make_assertions(mesh, no_noise, rigid=True)
+                make_assertions(mesh, transform, rigid=True)
+                make_assertions(mesh, tesselate, rigid=True)
+
 
             # make sure permutate didn't alter the original mesh
             self.assertTrue(original.md5() == mesh.md5())

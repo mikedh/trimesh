@@ -1,6 +1,7 @@
 import numpy as np
 
 from . import transformations
+from . import triangles as triangles_module
 from . import util
 
 
@@ -25,8 +26,7 @@ def transform(mesh, translation_scale=1000.0):
     triangles = transformations.transform_points(triangles, matrix)
 
     mesh_type = util.type_named(mesh, 'Trimesh')
-    permutated = mesh_type(vertices=triangles,
-                           faces=np.arange(len(mesh.faces) * 3).reshape((-1, 3)))
+    permutated = mesh_type(**triangles_module.to_kwargs(triangles.reshape((-1,3,3))))
 
     return permutated
 
@@ -50,14 +50,14 @@ def noise(mesh, magnitude=None):
         magnitude = mesh.scale / 100.0
 
     random = (np.random.random(mesh.vertices.shape) - .5) * magnitude
-    vertices = mesh.vertices.copy() + random
+    vertices_noise = mesh.vertices.copy() + random
 
     # make sure we've re- ordered faces randomly
-    triangles = np.random.permutation(vertices[mesh.faces].reshape((-1, 3)))
+    triangles = np.random.permutation(vertices_noise[mesh.faces])
 
     mesh_type = util.type_named(mesh, 'Trimesh')
-    permutated = mesh_type(vertices=triangles,
-                           faces=np.arange(len(mesh.faces) * 3).reshape((-1, 3)))
+    permutated = mesh_type(**triangles_module.to_kwargs(triangles))
+
     return permutated
 
 
