@@ -43,7 +43,7 @@ class PermutateTest(g.unittest.TestCase):
                     test.is_watertight and
                     mesh.is_winding_consistent and
                     test.is_winding_consistent):                   
-                    assert  g.np.allclose(mesh.volume, test.volume, rtol=.05):
+                    assert  g.np.allclose(mesh.volume, test.volume, rtol=.05)
                       
         for mesh in g.get_meshes():
             if len(mesh.faces) < MIN_FACES:
