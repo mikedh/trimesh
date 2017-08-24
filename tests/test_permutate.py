@@ -2,7 +2,7 @@ import generic as g
 
 # minimum number of faces to test
 # permutations on
-MIN_FACES = 25
+MIN_FACES = 50
 
 
 class PermutateTest(g.unittest.TestCase):
@@ -19,6 +19,8 @@ class PermutateTest(g.unittest.TestCase):
             if (close(test.face_adjacency,
                       mesh.face_adjacency) and
                     len(mesh.faces) > MIN_FACES):
+                print(mesh.metadata)
+                mesh.show()
                 raise ValueError('face adjacency of %s the same after permutation!',
                                  mesh.metadata['file_name'])
 
@@ -62,6 +64,7 @@ class PermutateTest(g.unittest.TestCase):
 
                 transform = g.trimesh.permutate.transform(mesh)
                 tesselate = g.trimesh.permutate.tesselation(mesh)
+
                 make_assertions(mesh, noise, rigid=False)
                 make_assertions(mesh, no_noise, rigid=True)
                 make_assertions(mesh, transform, rigid=True)

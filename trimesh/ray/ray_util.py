@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def contains_points(mesh, points):
+def contains_points(intersector, points):
     '''
     Check if a mesh contains a set of points, using ray tests.
 
@@ -19,8 +19,10 @@ def contains_points(mesh, points):
     ray_origins = np.asanyarray(points)
     # rays are all going in arbitrary direction
     ray_directions = np.tile([0, 0, 1.0], (len(points), 1))
-    locations, index_ray = mesh.ray.intersects_location(
-        ray_origins, ray_directions)
+    (locations,
+     index_ray,
+     index_tri) = intersector.intersects_location(ray_origins,
+                                                  ray_directions)
 
     if len(locations) == 0:
         return np.zeros(len(points), dtype=np.bool)

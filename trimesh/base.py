@@ -1562,7 +1562,9 @@ class Trimesh(object):
         copied._data.data = copy.deepcopy(self._data.data)
         # copy visual information
         copied.visual._data.data = copy.deepcopy(self.visual._data.data)
-
+        # get metadata
+        copied.metadata = copy.deepcopy(self.metadata)
+        
         # make sure cache is set from here
         copied._cache.id_set()
 

@@ -166,7 +166,7 @@ def signed_distance(mesh, points):
     Find the signed distance from a mesh to a list of points.
 
     * Points OUTSIDE the mesh will have NEGATIVE distance
-    * Points within tol.zero of the surface have POSITIVE distance
+    * Points on the surface will have very small distances with arbitrary sign
     * Points INSIDE the mesh will have POSITIVE distance
 
     Parameters
@@ -197,6 +197,14 @@ def signed_distance(mesh, points):
     # sign of projection of vector onto normal
     sign = np.sign(util.diagonal_dot(normal, vector))
 
+    # if the sign of the projection is zero, it means that
+    # the point is coplanar with the nearest triangle
+    # this means the point is either on the surface, or
+    parallel = sign==0
+    if parallel.any():
+        inside = mesh.ray.contains_points(points[parallel])
+        sign[parallel] = (inside.astype(int) * 2) - 1
+    
     # apply sign to previously computed distance
     distance[nonzero] *= sign
 

@@ -3,6 +3,9 @@ A basic, slow implementation of ray- triangle queries.
 '''
 import numpy as np
 
+
+from .ray_util import contains_points
+
 from ..constants import tol
 from ..grouping import unique_rows
 
@@ -116,6 +119,23 @@ class RayMeshIntersector:
             hit_any[hit_idx] = True
         return hit_any
 
+    def contains_points(self, points):
+        '''
+        Check if a mesh contains a list of points, using ray tests.
+        
+        If the point is on the surface of the mesh, behavior is undefined.
+
+        Parameters
+        ---------
+        points: (n,3) points in space
+
+        Returns
+        ---------
+        contains: (n) boolean array, whether point is inside mesh or not
+        '''
+
+        return contains_points(self, points)
+    
 
 def ray_triangle_id(triangles,
                     ray_origins,

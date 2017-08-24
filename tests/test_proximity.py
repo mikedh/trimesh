@@ -127,6 +127,28 @@ class NearestTest(g.unittest.TestCase):
         return result, result_distance
 
 
+    def test_coplanar_signed_distance(self):
+        mesh = g.trimesh.primitives.Box()
+
+        # should be well outside the box but coplanar with a face
+        # so the signed distance should be negative
+        distance = mesh.nearest.signed_distance([mesh.bounds[0] + [100,0,0]])
+
+        assert distance[0] < 0.0
+    
+        # constructed so origin is inside but also coplanar with
+        # the nearest face
+        mesh = g.get_mesh('origin_inside.STL')
+
+        # origin should be inside, so distance should be positive
+        distance = mesh.nearest.signed_distance([[0,0,0]])
+
+        assert distance[0] > 0.0
+
+    
+
+    
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()

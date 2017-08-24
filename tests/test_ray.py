@@ -47,60 +47,19 @@ class RayTests(g.unittest.TestCase):
                        use_embree)
 
     def test_contains(self):
-        mesh = g.get_mesh('unit_cube.STL')
         scale = 1.5
+        for use_embree in [True, False]:
+            mesh = g.get_mesh('unit_cube.STL', use_embree=use_embree)
+            g.log.info('Contains test ray engine: ' + str(mesh.ray.__class__))
+            
+            test_on = mesh.ray.contains_points(mesh.vertices)
+            test_in = mesh.ray.contains_points(mesh.vertices * (1.0 / scale))
+            test_out = mesh.ray.contains_points(mesh.vertices * scale)
 
-        test_on = mesh.contains(mesh.vertices)
-        test_in = mesh.contains(mesh.vertices * (1.0 / scale))
-        test_out = mesh.contains(mesh.vertices * scale)
-
-        #assert test_on.all()
-        self.assertTrue(test_in.all())
-        self.assertFalse(test_out.any())
+            assert test_in.all()
+            assert not test_out.any()
 
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()
-
-    '''
-    # sandbox to generate ray_data
-    file_names = ['octagonal_pocket.ply',
-                  'featuretype.STL',
-                  'soup.stl',
-                  'ballA.off']
-
-
-    kwargs = [{'file_name' : f, 
-               'use_embree' : e} for f,e in g.itertools.product(file_names,
-                                                                [True, False])]
-    meshes = [g.get_mesh(**k) for k in kwargs]
-    names  = [i.metadata['file_name'] for i in meshes]
-    rays = dict()
-
-    # number or frays
-    rl = 300
-
-    # number of random vectors per origin
-    nr = 3
-
-    
-    for m,name in zip(meshes, names):
-        name = m.metadata['file_name']
-        origins = g.trimesh.sample.volume_rectangular(
-            extents=m.bounding_box.primitive.extents*3,
-            count=rl*2,
-            transform=m.bounding_box.primitive.transform)
-
-        origins = origins[m.nearest.signed_distance(origins) < -.05][:rl]
-        
-        directions = g.np.column_stack((m.centroid - origins,
-                                        g.np.random.random((len(origins),3*nr)))).reshape((-1,3))
-
-        directions = g.trimesh.unitize(directions)
-        
-        forigins = g.np.tile(origins, nr+1).reshape((-1,3))
-
-        rays[name] = {'ray_origins' : forigins.tolist(),
-                      'ray_directions' : directions.tolist()}
-    '''

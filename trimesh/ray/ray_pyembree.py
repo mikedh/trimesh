@@ -6,6 +6,8 @@ from copy import deepcopy
 from pyembree import rtcore_scene
 from pyembree.mesh_construction import TriangleMesh
 
+from .ray_util import contains_points
+
 from .. import util
 from .. import intersections
 
@@ -219,3 +221,19 @@ class RayMeshIntersector:
                                       ray_directions=ray_directions)
         hit = first != -1
         return hit
+
+    def contains_points(self, points):
+        '''
+        Check if a mesh contains a list of points, using ray tests.
+        
+        If the point is on the surface of the mesh, behavior is undefined.
+
+        Parameters
+        ---------
+        points: (n,3) points in space
+
+        Returns
+        ---------
+        contains: (n) boolean array, whether point is inside mesh or not
+        '''
+        return contains_points(self, points)
