@@ -91,7 +91,7 @@ class BooleanTest(g.unittest.TestCase):
                        {'count': [10, 3, 5]}]:
             grid = box.sample_grid(**kwargs)
             assert g.trimesh.util.is_shape(grid, (-1, 3))
-            assert box.contains(grid).all()
+            assert (box.nearest.signed_distance(grid) > -1e-6).all()
 
 
 if __name__ == '__main__':
