@@ -219,7 +219,11 @@ def ray_triangle_id(triangles,
     # locations are already valid plane intersections, just mask by hits
     location = location[hit]
 
-    return index_tri, index_ray, location
+    # only return points that are forward from the origin
+    vector = location - ray_origins[index_ray] 
+    forward = util.diagonal_dot(vector, ray_directions[index_ray]) > -1e-6
+    
+    return index_tri[forward], index_ray[forward], location[forward]
 
 
 def ray_triangle_candidates(ray_origins,

@@ -1,5 +1,6 @@
 import numpy as np
 
+from .. import grouping
 
 def contains_points(intersector, points):
     '''

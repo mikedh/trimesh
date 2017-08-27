@@ -53,8 +53,6 @@ class BooleanTest(g.unittest.TestCase):
             ratio = [primitive.volume / primitive.to_mesh().volume,
                      primitive.area / primitive.to_mesh().area]
 
-            print(ratio)
-
             assert all(g.np.abs(i - 1) < 1e-2 for i in ratio)
 
             self.assertTrue(primitive.is_winding_consistent)
@@ -78,9 +76,8 @@ class BooleanTest(g.unittest.TestCase):
         # will create an inflated version of the extrusion
         b = e.buffer(.1)
 
-        self.assertTrue(b.volume > e.volume)
-        self.assertTrue(b.contains(e.vertices).all())
-        assert (b.nearest.signed_distance(e.vertices) > -1e-6).all()
+        assert b.volume > e.volume
+        assert b.contains(e.vertices).all()
 
     def test_sample(self):
         transform = g.trimesh.transformations.random_rotation_matrix()
