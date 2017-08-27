@@ -80,6 +80,7 @@ class BooleanTest(g.unittest.TestCase):
 
         self.assertTrue(b.volume > e.volume)
         self.assertTrue(b.contains(e.vertices).all())
+        assert (b.nearest.signed_distance(e.vertices) > -1e-6).all()
 
     def test_sample(self):
         transform = g.trimesh.transformations.random_rotation_matrix()
