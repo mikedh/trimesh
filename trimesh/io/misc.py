@@ -1,8 +1,9 @@
 import numpy as np
 import json
+import re
 
 from .. import util
-
+from .. import geometry
 
 def load_off(file_obj, file_type=None):
     '''
@@ -42,7 +43,8 @@ def load_off(file_obj, file_type=None):
 
 def load_wavefront(file_obj, file_type=None):
     '''
-    Loads an ascii Wavefront OBJ file_obj into kwargs for the Trimesh constructor.
+    Loads an ascii Wavefront OBJ file_obj into kwargs 
+    for the Trimesh constructor.
 
     Discards texture normals and vertex color information.
 
@@ -56,30 +58,69 @@ def load_wavefront(file_obj, file_type=None):
     ----------
     loaded: dict with kwargs for Trimesh constructor (vertices, faces)
     '''
-    data = file_obj.read()
-    if hasattr(data, 'decode'):
-        data = data.decode('utf-8')
-    data = np.array(data.split())
-    data_str = data.astype(str)
+    text_original = file_obj.read()
+    if hasattr(text_original, 'decode'):
+        text_original = text_original.decode('utf-8')
+    # get rid of stupid newlines
+    text_original = text_original.replace('\r\n', '\n').replace('\r', '\n') + ' \n'
 
+    # for faces, remove the '/' notation in the raw text
+    # the regex does the following:
+    # find charecter '/' and then any non- whitespace charecter,
+    # up to a newline or space, then stop. Example:
+    # test = "f 233/233/233 12//12//12\nf 233/233/233 12//12//12 "
+    # In [0]: re.split('/\S*[ \n]', test)
+    # Out[0]: ['f 233', '12', 'f 233', '12', '']
+    # we then re-join it into a larger string so we 
+    # can split by just whitespace
+    # we add a space before every newline to make things easy on ourselves
+    text = ' '.join(re.split('/\S* ', 
+                             text_original.replace('\n', ' \n')))
+ 
+    # more impenetrable regexes
+    # this one to pulls faces from directly from the text
+    # - find the 'f' char
+    # - followed by one or more spaces
+    # - followed by one or more 0-9 digits
+    # - followed by one or more spaces
+    # - (repeat for exactly 3 integers for tris, 4 for quads)
+    # - followed by zero or more spaces
+    # - followed by exactly one newline
+    re_tris = 'f +\d+ +\d+ +\d+ *\n'
+    re_quad = 'f +\d+ +\d+ +\d+ +\d+ *\n'
+    
+    # find all triangular faces with a regex
+    face_tri = ' '.join(re.findall(re_tris, text)).replace('f', ' ').split()
+    # convert triangular faces into a numpy array
+    face_tri = np.array(face_tri, dtype=np.int64).reshape((-1,3))
+ 
+    # find all quad faces with a regex
+    face_quad = ' '.join(re.findall(re_quad, text)).replace('f', ' ').split()
+    # convert quad faces into a numpy array
+    face_quad = np.array(face_quad, dtype=np.int64).reshape((-1,4))
+
+    # stack the faces into a single (n,3) list
+    # triangulate any quad faces
+    # this thin wrapper for vstack will ignore empty lists
+    faces = util.vstack_empty((face_tri, 
+                               geometry.triangulate_quads(face_quad)))
+                        
+    # wavefront has 1- indexed faces, as opposed to 0- indexed
+    faces = faces.astype(np.int64) - 1
+    
+    # find the data with predictable lengths using numpy
+    data = np.array(text.split())
     # find the locations of keys, then find the proceeding values
     # indexes which contain vertex information
-    vid = np.nonzero(data_str == 'v')[0].reshape((-1, 1)) + np.arange(3) + 1
+    vid = np.nonzero(data == 'v')[0].reshape((-1, 1)) + np.arange(3) + 1
     # indexes which contain vertex normal information
-    nid = np.nonzero(data_str == 'vn')[0].reshape((-1, 1)) + np.arange(3) + 1
+    normal_key = np.nonzero(data == 'vn')[0]
+    nid = normal_key.reshape((-1, 1)) + np.arange(3) + 1
     # indexes which contain face information
-    face_key = np.nonzero(data_str == 'f')[0]
-    fid = face_key.reshape((-1, 1)) + np.arange(3) + 1
+    face_key = np.nonzero(data == 'f')[0]
     # some varients of the format have face groups
-    gid = np.nonzero(data_str == 'g')[0].reshape((-1,1)) + 1
+    gid = np.nonzero(data == 'g')[0].reshape((-1,1)) + 1
         
-    
-    # if we wanted to use the texture/vertex normals, we could slice
-    # differently
-    faces = np.reshape([i.split('/')[0]
-                        for i in data[fid].reshape(-1)], (-1, 3))
-    # wavefront has 1- indexed faces, as opposed to 0- indexed
-    faces = faces.astype(np.int) - 1
 
     loaded = {'vertices': data[vid].astype(float),
               'vertex_normals': data[nid].astype(float),
@@ -93,7 +134,6 @@ def load_wavefront(file_obj, file_type=None):
         loaded['metadata'] = {'face_groups' : groups}
         
     return loaded
-
 
 def load_msgpack(blob, file_type=None):
     '''

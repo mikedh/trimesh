@@ -185,25 +185,10 @@ def signed_distance(mesh, points):
     closest, distance, triangle_id = closest_point(mesh, points)
 
     # we only care about nonzero distances
-    nonzero = distance > tol.zero
+    nonzero = distance > tol.merge
 
-    # normal vector of triangle containing closest point
-    normal = mesh.face_normals[triangle_id[nonzero]]
-
-    # unit vector from source point to closest point on surface
-    vector = closest[nonzero] - points[nonzero]
-    vector /= distance[nonzero].reshape((-1, 1))
-
-    # sign of projection of vector onto normal
-    sign = np.sign(util.diagonal_dot(normal, vector))
-
-    # if the sign of the projection is zero, it means that
-    # the point is coplanar with the nearest triangle
-    # this means the point is either on the surface, or
-    parallel = sign==0
-    if parallel.any():
-        inside = mesh.ray.contains_points(points[parallel])
-        sign[parallel] = (inside.astype(int) * 2) - 1
+    inside = mesh.ray.contains_points(points[nonzero])
+    sign = (inside.astype(int) * 2) - 1
     
     # apply sign to previously computed distance
     distance[nonzero] *= sign

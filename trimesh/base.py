@@ -864,7 +864,6 @@ class Trimesh(object):
                              only_watertight=only_watertight,
                              adjacency=adjacency,
                              **kwargs)
-        log.info('split found %i components', len(meshes))
         return meshes
 
     @util.cache_decorator

@@ -1720,3 +1720,21 @@ def triangle_strips_to_faces(strips):
     tri[flip] = np.fliplr(tri[flip])
 
     return tri
+
+def vstack_empty(tup):
+    '''
+    A thin wrapper for numpy.vstack that ignores empty lists.
+    
+    Parameters
+    ------------
+    tup: tuple or list of arrays with the same number of columns
+    
+    Returns
+    ------------
+    stacked: (n,d) array, with same number of columns as 
+              constituent arrays.
+    '''
+    stackable = [i for i in tup if len(i) > 0]
+    if len(stackable) == 1:
+        return stackable[0]
+    return np.vstack(stackable)

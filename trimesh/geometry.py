@@ -164,7 +164,9 @@ def triangulate_quads(quads):
     -----------
     faces: (m,3) int, vertex indices of triangular faces
     '''
-    quads = np.array(quads)
+    if len(quads) == 0: 
+        return quads
+    quads = np.asanyarray(quads)
     faces = np.vstack((quads[:, [0, 1, 2]],
                        quads[:, [2, 3, 0]]))
     return faces

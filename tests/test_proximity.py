@@ -145,7 +145,9 @@ class NearestTest(g.unittest.TestCase):
 
         assert distance[0] > 0.0
 
-    
+    def test_edge_case(self):
+        mesh = g.get_mesh('20mm-xyz-cube.stl')
+        assert (mesh.nearest.signed_distance( [[-51,4.7,-20.6]]) < 0.0).all()
 
     
 
