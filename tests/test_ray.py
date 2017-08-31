@@ -59,6 +59,25 @@ class RayTests(g.unittest.TestCase):
             assert test_in.all()
             assert not test_out.any()
 
+    def test_on_vertex(self):
+        for use_embree in [True, False]:
+            m = g.trimesh.primitives.Box(use_embree=False)
+
+            origins = g.np.zeros_like(m.vertices)
+            vectors = m.vertices.copy()
+
+            assert m.ray.intersects_any(ray_origins=origins,
+                                        ray_directions=vectors).all()
+
+            (locations,
+             index_ray,
+             index_tri) = m.ray.intersects_location(ray_origins=origins,
+                                                    ray_directions=vectors)
+
+            hit_count = g.np.bincount(index_ray,
+                                      minlength=len(origins))
+
+            assert (hit_count == 1).all()
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
