@@ -157,8 +157,7 @@ def mass_properties(triangles, crosses=None, density=1.0, skip_inertia=False):
     result = {'density': density,
               'surface_area': surface_area,
               'volume': volume,
-              'mass': density * volume,
-              'center_mass': center_mass.tolist()}
+              'center_mass': center_mass}
 
     if skip_inertia:
         return result
@@ -181,7 +180,7 @@ def mass_properties(triangles, crosses=None, density=1.0, skip_inertia=False):
     inertia[1, 0] = inertia[0, 1]
     inertia *= density
 
-    result['inertia'] = inertia.tolist()
+    result['inertia'] = inertia
 
     return result
 

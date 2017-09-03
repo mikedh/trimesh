@@ -498,7 +498,7 @@ class Trimesh(object):
                               weights=self.area_faces)
         return centroid
 
-    @util.cache_decorator
+    @property
     def center_mass(self):
         '''
         The point in space which is the center of mass/volume.
@@ -511,10 +511,10 @@ class Trimesh(object):
         '''
         if not self.is_watertight:
             log.warning('Center of mass requested for non- watertight mesh!')
-        center_mass = np.array(self.mass_properties()['center_mass'])
+        center_mass = self.mass_properties['center_mass']
         return center_mass
 
-    @util.cache_decorator
+    @property
     def volume(self):
         '''
         Volume of the current mesh.
@@ -524,10 +524,10 @@ class Trimesh(object):
         ---------
         volume: float, volume of the current mesh
         '''
-        volume = self.mass_properties()['volume']
+        volume = self.mass_properties['volume']
         return volume
 
-    @util.cache_decorator
+    @property
     def moment_inertia(self):
         '''
         Return the moment of inertia matrix of the current mesh.
@@ -537,7 +537,7 @@ class Trimesh(object):
         ---------
         inertia: (3,3) float, moment of inertia of the current mesh.
         '''
-        inertia = np.array(self.mass_properties()['inertia'])
+        inertia = self.mass_properties['inertia']
         return inertia
 
     @util.cache_decorator
@@ -1341,39 +1341,28 @@ class Trimesh(object):
         area_faces = triangles.area(crosses=self.triangles_cross, sum=False)
         return area_faces
 
-    def mass_properties(self, density=1.0, skip_inertia=False):
+    @util.cache_decorator
+    def mass_properties(self):
         '''
         Returns the mass properties of the current mesh.
 
         Assumes uniform density, and result is probably garbage if mesh
         isn't watertight.
 
-        Parameters
-        ----------
-        density:      float, density of the solid
-        skip_inertia: bool, skip inertia calculation or not
-
         Returns
         ----------
         properties: dict, with keys:
-                    'volume'      : in global units^3
-                    'mass'        : From specified density
-                    'density'     : Included again for convenience (same as kwarg density)
-                    'inertia'     : Taken at the center of mass and aligned with global
-                                    coordinate system
-                    'center_mass' : Center of mass location, in global coordinate system
+          'volume'      : in global units^3
+          'mass'        : From specified density
+          'density'     : Included again for convenience (same as kwarg density)
+          'inertia'     : Taken at the center of mass and aligned with global
+                         coordinate system
+          'center_mass' : Center of mass location, in global coordinate system
         '''
-        key = 'mass_properties_'
-        key += str(int(skip_inertia)) + '_'
-        key += str(int(density * 1e5))
-        cached = self._cache[key]
-        if cached is not None:
-            return cached
         mass = triangles.mass_properties(triangles=self.triangles,
                                          crosses=self.triangles_cross,
-                                         density=density,
-                                         skip_inertia=skip_inertia)
-        self._cache[key] = mass
+                                         density=1.0,
+                                         skip_inertia=False)
         return mass
 
     def scene(self):
