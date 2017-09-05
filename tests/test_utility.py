@@ -179,19 +179,22 @@ class MassTests(unittest.TestCase):
 
     def test_mass(self):
         def check_parameter(a, b):
-            check = np.all(
-                np.less(np.abs(np.array(a) - np.array(b)), TOL_CHECK))
+            diff = np.abs(np.array(a) - np.array(b))
+            check = (diff < TOL_CHECK).all()
             return check
 
         for truth in self.truth:
-            calculated = self.meshes[truth['filename']].mass_properties(density=truth[
-                                                                        'density'])
+            mesh = self.meshes[truth['filename']]
+            calculated = trimesh.triangles.mass_properties(triangles=mesh.triangles,
+                                                           density=truth['density'],
+                                                           skip_inertia=False)
+            
             parameter_count = 0
             for parameter in calculated.keys():
                 if not (parameter in truth):
                     continue
-                parameter_ok = check_parameter(
-                    calculated[parameter], truth[parameter])
+                parameter_ok = check_parameter(calculated[parameter],
+                                               truth[parameter])
                 if not parameter_ok:
                     log.error('Parameter %s failed on file %s!',
                               parameter, truth['filename'])
