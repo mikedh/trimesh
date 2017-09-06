@@ -79,6 +79,17 @@ class MeshTests(g.unittest.TestCase):
         for mesh in g.get_meshes(5):
             mesh.fix_normals()
 
+    def test_vertex_neighbors(self):
+        m = g.trimesh.primitives.Box()
+        neighbors = m.vertex_neighbors
+        self.assertTrue(len(neighbors) == len(m.vertices))
+        elist = m.edges_unique.tolist()
+        
+        for v_i, neighs in enumerate(neighbors):
+          for n in neighs:
+            self.assertTrue( ([v_i,n] in elist or [n,v_i] in elist))
+
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

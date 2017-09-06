@@ -934,6 +934,61 @@ class Trimesh(object):
         return angles
 
     @util.cache_decorator
+    def vertex_adjacency_graph(self):
+        '''
+        Returns a networkx graph representing the vertices and their connections
+        in the mesh.
+
+        Parameters
+        ----------
+        mesh:         Trimesh object
+
+        Returns
+        ---------
+        graph: networkx.Graph(), graph representing vertices and edges between 
+                                 them,where vertices are networkx Nodes and edges 
+                                 are Edges.
+
+        Examples
+        ----------
+        This is useful for getting nearby vertices for a given vertex, 
+        potentially for some simple smoothing techniques.
+        
+        mesh = trimesh.primitives.Box()
+        graph = mesh.vertex_adjacency_graph
+        graph.neighbors(0)
+        > [1,2,3,4]
+        '''
+  
+        adjacency_g = graph.vertex_adjacency_graph(mesh=self)
+        return adjacency_g
+
+    @util.cache_decorator
+    def vertex_neighbors(self):
+        '''
+        The vertex neighbors of each vertex of the mesh, determined from
+        the cached vertex_adjacency_graph, if already existant.
+        
+        Returns
+        ----------
+        vertex_neighbors: (n,) int, where n == len(self.vertices)
+                         Represents each vertex's immediate neighbors along 
+                         the edge of a triangle.
+
+        Examples
+        ----------
+        This is useful for getting nearby vertices for a given vertex, 
+        potentially for some simple smoothing techniques.
+        
+        >>> mesh = trimesh.primitives.Box()
+        >>> mesh.vertex_neighbors[0]
+        [1,2,3,4]
+        '''
+        g = self.vertex_adjacency_graph
+        l = [g.neighbors(v_i) for v_i, _ in enumerate(self.vertices)]
+        return np.array(l)
+
+    @util.cache_decorator
     def is_winding_consistent(self):
         '''
         Does the mesh have consistent winding or not.

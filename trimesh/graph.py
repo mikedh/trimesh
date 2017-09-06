@@ -1,6 +1,5 @@
 import numpy as np
 import networkx as nx
-
 import collections
 
 from . import util
@@ -80,6 +79,35 @@ def face_adjacency(faces=None, mesh=None, return_edges=False):
         return face_adjacency, face_adjacency_edges
     return face_adjacency
 
+def vertex_adjacency_graph(mesh):
+    '''
+    Returns a networkx graph representing the vertices and their connections
+    in the mesh.
+
+    Parameters
+    ----------
+    mesh:         Trimesh object
+
+    Returns
+    ---------
+    graph: networkx.Graph(), graph representing vertices and edges between 
+                             them,where vertices are networkx Nodes and edges 
+                             are Edges.
+
+    Examples
+    ----------
+    This is useful for getting nearby vertices for a given vertex, 
+    potentially for some simple smoothing techniques.
+    
+
+    graph = mesh.vertex_adjacency_graph
+    graph.neighbors(0)
+    > [1,3,4]
+    '''
+
+    g = nx.Graph()
+    g.add_edges_from(mesh.edges_unique)
+    return g
 
 def shared_edges(faces_a, faces_b):
     '''

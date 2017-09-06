@@ -50,6 +50,14 @@ class GraphTest(g.unittest.TestCase):
             self.assertTrue(len(split) == 1)
             self.assertTrue(split[0].is_watertight)
             self.assertTrue(split[0].is_winding_consistent)
+    
+    def test_vertex_adjacency_graph(self):
+        f = g.trimesh.graph.vertex_adjacency_graph
+
+        # a mesh with a single watertight body
+        sing = g.get_mesh('featuretype.STL')
+        vert_adj_g = f(sing)
+        self.assertTrue(len(sing.vertices) == len(vert_adj_g))
 
     def test_engine_time(self):
         for mesh in g.get_meshes():
