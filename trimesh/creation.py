@@ -331,7 +331,7 @@ def icosphere(subdivisions=3, radius=1.0):
     ico = icosahedron()
     ico._validate = False
     for j in range(subdivisions):
-        ico.subdivide()
+        ico = ico.subdivide()
         refine_spherical()
     ico._validate = True
     return ico

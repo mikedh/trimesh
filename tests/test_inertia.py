@@ -79,8 +79,9 @@ class InertiaTest(g.unittest.TestCase):
                 # check to make sure the analytic inertia tensors are relatively
                 # close to the meshed inertia tensor (order of magnitude and
                 # sign)
+                b = p.to_mesh()
                 comparison = g.np.abs(
-                    p.moment_inertia - p.to_mesh().moment_inertia)
+                    p.moment_inertia - b.moment_inertia)
                 c_max = comparison.max() / g.np.abs(p.moment_inertia).max()
                 assert c_max < .1
 
