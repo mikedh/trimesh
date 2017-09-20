@@ -17,11 +17,11 @@ class SectionTest(g.unittest.TestCase):
             plane_origin = [0, 0, z]
             plane_normal = [0, 0, 1]
 
-            try:
-                section = self.mesh.section(plane_origin=plane_origin,
-                                            plane_normal=plane_normal)
-            except ValueError:
-                # section will raise a ValueError if the plane doesn't
+
+            section = self.mesh.section(plane_origin=plane_origin,
+                                        plane_normal=plane_normal)
+            if section is None:
+                # section will return None if the plane doesn't
                 # intersect the mesh
                 assert z > (self.mesh.bounds[1][
                             2] - g.trimesh.constants.tol.merge)
