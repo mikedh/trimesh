@@ -76,7 +76,15 @@ def load_wavefront(file_obj, file_type=None):
     # we add a space before every newline to make things easy on ourselves
     text = ' '.join(re.split('/\S* ', 
                              text_original.replace('\n', ' \n')))
- 
+
+    # remove all comments
+    # regex:
+    # # : comments start with pounds
+    # .*: zero or more of any charecter
+    # \n: up to a newline
+    text = re.sub('#.*\n', '\n', text)
+
+    
     # more impenetrable regexes
     # this one to pulls faces from directly from the text
     # - find the 'f' char

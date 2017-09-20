@@ -350,3 +350,36 @@ def run_to_mesh(run):
                     faces=faces,
                     process=False)
     return rough
+
+
+
+def multibox(centers, pitch):
+    '''
+    Return a Trimesh object with a box at every center.
+    
+    Doesn't do anything nice or fancy.
+
+    Parameters
+    -----------
+    centers: (n,3) float, center of boxes
+    pitch:   float, the edge length of a voxel
+
+    Returns
+    ---------
+    rough: Trimesh object representing inputs
+    '''
+    from . import primitives
+    from .base import Trimesh
+    
+    b = primitives.Box(extents=[pitch,pitch,pitch])
+    
+    v = np.tile(centers, (1,len(b.vertices))).reshape((-1,3))
+    v += np.tile(b.vertices, (len(centers),1))
+    
+    f = np.tile(b.faces, (len(centers),1))
+    f+= np.tile(np.arange(len(centers))*len(b.vertices),
+                (len(b.faces),1)).T.reshape((-1,1))
+    
+    rough = Trimesh(vertices=v, faces=f)
+
+    return rough

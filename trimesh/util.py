@@ -927,10 +927,11 @@ def append_faces(vertices_seq, faces_seq):
     face_offset = np.append(0, np.cumsum(vertices_len)[:-1])
 
     for offset, faces in zip(face_offset, faces_seq):
-        faces += offset
+        if len(faces) > 0:
+            faces += offset
 
-    vertices = np.vstack(vertices_seq)
-    faces = np.vstack(faces_seq)
+    vertices = vstack_empty(vertices_seq)
+    faces    = vstack_empty(faces_seq)
 
     return vertices, faces
 

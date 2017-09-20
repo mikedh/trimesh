@@ -1157,8 +1157,10 @@ class Trimesh(object):
                        and an additional postprocessing step will be required to
                        make resulting mesh watertight
         '''
-        remesh.subdivide(self, face_index=face_index)
-
+        vertices,faces = remesh.subdivide(vertices=self.vertices, 
+                                          faces=self.faces,
+                                          face_index=face_index)
+        return Trimesh(vertices=vertices, faces=faces)
     @_log_time
     def smoothed(self, angle=.4):
         '''
@@ -1202,7 +1204,7 @@ class Trimesh(object):
                                                      plane_origin=plane_origin,
                                                      return_faces=True)
         if len(lines) == 0:
-            raise ValueError('Specified plane doesn\'t intersect mesh!')
+            return None
         path = load_path(lines)
         path.metadata['face_index'] = face_index
 
