@@ -177,9 +177,6 @@ def ray_triangle_id(triangles,
     # get subsets which are corresponding rays and triangles
     # (c,3,3) triangle candidates
     triangle_candidates = triangles[ray_candidates]
-    # (c,3) origins and vectors for the rays
-    line_origins = ray_origins[ray_id]
-    line_directions = ray_directions[ray_id]
 
     # get the plane origins and normals from the triangle candidates
     plane_origins = triangle_candidates[:, 0, :]
@@ -191,10 +188,10 @@ def ray_triangle_id(triangles,
         plane_normals = triangles_normal[ray_candidates]
 
     # find the intersection location of the rays with the planes
-    location, valid = intersections.planes_lines(plane_origins=plane_origins,
-                                                 plane_normals=plane_normals,
-                                                 line_origins=line_origins,
-                                                 line_directions=line_directions)
+    location, valid = intersections.planes_rays(plane_origins=plane_origins,
+                                                plane_normals=plane_normals,
+                                                ray_origins=ray_origins[ray_id],
+                                                ray_directions=ray_directions[ray_id])
 
     if (len(triangle_candidates) == 0 or
             not valid.any()):
