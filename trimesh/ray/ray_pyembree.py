@@ -141,11 +141,11 @@ class RayMeshIntersector:
                 break
 
             # find the location of where the ray hit the triangle plane
-            new_origins, valid = intersections.planes_lines(
+            new_origins, valid = intersections.planes_rays(
                 plane_origins=plane_origins[hit_triangle],
                 plane_normals=plane_normals[hit_triangle],
-                line_origins=ray_origins[current],
-                line_directions=ray_directions[current])
+                ray_origins=ray_origins[current],
+                ray_directions=ray_directions[current])
 
             if not valid.all():
                 # since a plane intersection was invalid we have to go back and

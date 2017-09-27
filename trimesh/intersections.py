@@ -243,3 +243,44 @@ def planes_lines(plane_origins,
     on_plane += line_origins[valid]
 
     return on_plane, valid
+
+def planes_rays(plane_origins,
+                plane_normals,
+                ray_origins,
+                ray_directions):
+    '''
+    Given one ray per plane, find the intersection points
+
+    Parameters
+    -----------
+    plane_origins:  (n,3) float, plane origins
+    plane_normals:  (n,3) float, plane normals
+    ray_origins:    (n,3) float, ray origins
+    ray_directions: (n,3) float, ray directions
+
+    Returns
+    ----------
+    on_plane: (n,3) float, points on specified planes
+    valid:    (n,) bool, did plane intersect line or not
+    '''
+
+    plane_origins  = np.asanyarray(plane_origins, dtype=np.float64)
+    plane_normals  = np.asanyarray(plane_normals, dtype=np.float64)
+    ray_origins    = np.asanyarray(ray_origins, dtype=np.float64)
+    ray_directions = np.asanyarray(ray_directions, dtype=np.float64)
+
+    origin_vectors = plane_origins - ray_origins
+
+    projection_ori = util.diagonal_dot(origin_vectors, plane_normals)
+    projection_dir = util.diagonal_dot(ray_directions, plane_normals)
+
+    valid = np.logical_and(np.abs(projection_dir) > tol.merge,
+                           projection_ori * projection_dir > 0)
+
+    distance = np.divide(projection_ori[valid],
+                         projection_dir[valid])
+
+    on_plane = ray_directions[valid] * distance.reshape((-1, 1))
+    on_plane += ray_origins[valid]
+
+    return on_plane, valid
