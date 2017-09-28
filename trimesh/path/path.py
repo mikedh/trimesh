@@ -146,7 +146,7 @@ class Path(object):
         '''
 
         broken = np.array(
-            [k for k, v in self.vertex_graph.degree().items() if v == 1])
+            [k for k, v in dict(self.vertex_graph.degree()).items() if v == 1])
         if len(broken) < 2:
             return
 
@@ -161,8 +161,12 @@ class Path(object):
 
     @property
     def is_closed(self):
-        return all(i == 2 for i in self.vertex_graph.degree().values())
-
+        '''
+        Are all entities connected to other entities
+        '''
+        closed = all(i == 2 for i in dict(self.vertex_graph.degree()).values())
+        return closed
+    
     @util.cache_decorator
     def vertex_graph(self):
         graph, closed = vertex_graph(self.entities)
@@ -788,8 +792,7 @@ class Path2D(Path):
         '''
         Networkx DiGraph of polygon enclosure
         '''
-        root, enclosure = polygons.polygons_enclosure_tree(
-            self.polygons_closed)
+        root, enclosure = polygons.polygons_enclosure_tree(self.polygons_closed)
         self._cache.set('root', root)
         return enclosure
 

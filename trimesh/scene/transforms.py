@@ -53,7 +53,7 @@ class TransformForest:
 
         changed = self.transforms.add_edge(frame_from,
                                            frame_to,
-                                           attr_dict=attr)
+                                           **attr)
         if 'geometry' in kwargs:
             nx.set_node_attributes(self.transforms,
                                    name='geometry',
@@ -98,7 +98,8 @@ class TransformForest:
         -------
         edgelist: (n,) list of tuples
         '''
-        export = nx.to_edgelist(self.transforms)
+        # wrapped in a list for nx 2.0
+        export = list(nx.to_edgelist(self.transforms))
         for e in export:
             e[2]['matrix'] = np.array(e[2]['matrix']).tolist()
         return export
@@ -267,7 +268,7 @@ class EnforcedForest(nx.DiGraph):
                         'Multiple edge path exists between nodes!')
                 self.disconnect_path(path)
                 changed = True
-            except (nx.NetworkXError, nx.NetworkXNoPath):
+            except (nx.NetworkXError, nx.NetworkXNoPath, nx.NetworkXException):
                 pass
         self._undirected.add_edge(u, v)
         super(self.__class__, self).add_edge(u, v, *args, **kwargs)

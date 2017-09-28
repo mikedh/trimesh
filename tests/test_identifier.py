@@ -4,7 +4,7 @@ import generic as g
 class IdentifierTest(g.unittest.TestCase):
 
     def test_identifier(self):
-        count = 50
+        count = 25
         for mesh in g.get_meshes(10):
             if not (mesh.is_watertight and
                     mesh.is_winding_consistent):

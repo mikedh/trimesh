@@ -41,7 +41,7 @@ def polygons_enclosure_tree(polygons):
                 g.add_edge(i, j)
             elif polygons[j].contains(polygons[i]):
                 g.add_edge(j, i)
-    roots = [n for n, deg in list(g.in_degree().items()) if deg == 0]
+    roots = [n for n, deg in dict(g.in_degree()).items() if deg == 0]
     return roots, g
 
 

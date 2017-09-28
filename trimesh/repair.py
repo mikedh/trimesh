@@ -29,7 +29,9 @@ def fix_face_winding(mesh):
     # we are going to traverse the graph using BFS, so we have to start
     # a traversal for every connected component
     for graph in nx.connected_component_subgraphs(graph_all):
-        start = graph.nodes()[0]
+        # get the first node in the graph in a way that works on nx's
+        # new API and their old API
+        start = next(iter(graph.nodes()))
         # we traverse every pair of faces in the graph
         # we modify mesh.faces and mesh.face_normals in place
         for face_pair in nx.bfs_edges(graph, start):
