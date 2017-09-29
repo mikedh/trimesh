@@ -80,8 +80,8 @@ def closest_point_naive(mesh, points):
 
     # create a giant tiled array of each point tiled len(triangles) times
     points_tiled = np.tile(points, (1, len(triangles)))
-    on_triangle = np.array([closest_point_corresponding(triangles,
-                                                        i.reshape((-1, 3))) for i in points_tiled])
+    on_triangle = np.array([closest_point_corresponding(
+        triangles, i.reshape((-1, 3))) for i in points_tiled])
 
     # distance squared
     distance_2 = [((i - q)**2).sum(axis=1)
@@ -145,12 +145,11 @@ def closest_point(mesh, points):
     result_tid = np.zeros(len(points), dtype=np.int64)
     result_distance = np.zeros(len(points), dtype=np.float64)
 
-    for i, close_points, distance, candidate in zip(np.arange(len(points)),
-                                                    np.array_split(query_close,
-                                                                   query_group),
-                                                    np.array_split(distance_2,
-                                                                   query_group),
-                                                    candidates):
+    for i, close_points, distance, candidate in zip(
+        np.arange(
+            len(points)), np.array_split(
+            query_close, query_group), np.array_split(
+                distance_2, query_group), candidates):
         idx = distance.argmin()
         result_close[i] = close_points[idx]
         result_tid[i] = candidate[idx]
@@ -189,7 +188,7 @@ def signed_distance(mesh, points):
 
     inside = mesh.ray.contains_points(points[nonzero])
     sign = (inside.astype(int) * 2) - 1
-    
+
     # apply sign to previously computed distance
     distance[nonzero] *= sign
 
@@ -207,7 +206,7 @@ class ProximityQuery(object):
     @_log_time
     def on_surface(self, points):
         '''
-        Given list of points, for each point find the closest point 
+        Given list of points, for each point find the closest point
         on any triangle of the mesh.
 
         Parameters

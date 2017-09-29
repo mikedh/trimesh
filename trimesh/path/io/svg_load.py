@@ -8,7 +8,7 @@ from xml.dom.minidom import parseString as parse_xml
 
 try:
     from svg.path import parse_path
-except:
+except BaseException:
     log.warning('SVG path loading unavailable!')
 
 

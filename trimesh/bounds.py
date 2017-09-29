@@ -223,7 +223,7 @@ def minimum_cylinder(obj, sample_count=15, angle_tol=.001):
         # in degenerate cases return as infinite volume
         try:
             center_2D, radius = nsphere.minimum_nsphere(projected[:, 0:2])
-        except:
+        except BaseException:
             return np.inf
 
         volume = np.pi * height * (radius ** 2)
@@ -272,7 +272,7 @@ def minimum_cylinder(obj, sample_count=15, angle_tol=.001):
 
 def corners(bounds):
     '''
-    Given a pair of axis aligned bounds, return all 
+    Given a pair of axis aligned bounds, return all
     8 corners of the bounding box.
 
     Parameters
@@ -303,3 +303,31 @@ def corners(bounds):
 
     corners = bounds.reshape(-1)[corner_index]
     return corners
+
+
+def contains(bounds, points):
+    '''
+    Do an axis aligned bounding box check on a list of points.
+
+    Parameters
+    -----------
+    bounds: (2, dimension) float, axis aligned bounding box
+    points: (n, dimension) float, points in space
+
+    Returns
+    -----------
+    points_inside: (n,) bool, True if points are inside the AABB
+    '''
+    bounds = np.asanyarray(bounds, dtype=np.float64)
+    points = np.asanyarray(points)
+
+    if len(bounds) != 2:
+        raise ValueError('bounds must be (2,dimension)!')
+    if not util.is_shape(points, (-1, bounds.shape[1])):
+        raise ValueError('bounds shape must match points!')
+
+    points_inside = np.logical_and((points > bounds[0]).all(axis=1),
+                                   (points < bounds[1]).all(axis=1))
+    
+    return points_inside
+    

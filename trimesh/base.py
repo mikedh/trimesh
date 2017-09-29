@@ -68,7 +68,7 @@ class Trimesh(object):
         validate_faces: bool, if True, faces will not be returned until face normals
                         are calculated and erronious faces removed
         use_embree:     bool, if True try to use pyembree raytracer.
-                        If pyembree is not available it will automatically fall back to 
+                        If pyembree is not available it will automatically fall back to
                         a much slower rtree/numpy implementation
         initial_cache:  dict, a way to pass things to the cache in case expensive things
                         were calculated before creating the mesh object.
@@ -251,7 +251,7 @@ class Trimesh(object):
         Returns
         ----------
         sparse: scipy.sparse.coo_matrix with:
-                dtype: bool 
+                dtype: bool
                 shape: (len(self.vertices), len(self.faces))
         '''
         sparse = geometry.index_sparse(column_count=len(self.vertices),
@@ -362,9 +362,10 @@ class Trimesh(object):
         '''
         from . import primitives
         center = self.bounds.mean(axis=0)
-        aabb = primitives.Box(transform=transformations.translation_matrix(center),
-                              extents=self.extents,
-                              mutable=False)
+        aabb = primitives.Box(
+            transform=transformations.translation_matrix(center),
+            extents=self.extents,
+            mutable=False)
         return aabb
 
     @util.cache_decorator
@@ -786,7 +787,7 @@ class Trimesh(object):
         if util.is_shape(cached_normals, (-1, 3)):
             try:
                 self.vertex_normals = cached_normals[mask]
-            except:
+            except BaseException:
                 pass
         self.vertices = self.vertices[mask]
 
@@ -945,21 +946,21 @@ class Trimesh(object):
 
         Returns
         ---------
-        graph: networkx.Graph(), graph representing vertices and edges between 
-                                 them,where vertices are networkx Nodes and edges 
+        graph: networkx.Graph(), graph representing vertices and edges between
+                                 them,where vertices are networkx Nodes and edges
                                  are Edges.
 
         Examples
         ----------
-        This is useful for getting nearby vertices for a given vertex, 
+        This is useful for getting nearby vertices for a given vertex,
         potentially for some simple smoothing techniques.
-        
+
         mesh = trimesh.primitives.Box()
         graph = mesh.vertex_adjacency_graph
         graph.neighbors(0)
         > [1,2,3,4]
         '''
-  
+
         adjacency_g = graph.vertex_adjacency_graph(mesh=self)
         return adjacency_g
 
@@ -968,18 +969,18 @@ class Trimesh(object):
         '''
         The vertex neighbors of each vertex of the mesh, determined from
         the cached vertex_adjacency_graph, if already existant.
-        
+
         Returns
         ----------
         vertex_neighbors: (n,) int, where n == len(self.vertices)
-                         Represents each vertex's immediate neighbors along 
+                         Represents each vertex's immediate neighbors along
                          the edge of a triangle.
 
         Examples
         ----------
-        This is useful for getting nearby vertices for a given vertex, 
+        This is useful for getting nearby vertices for a given vertex,
         potentially for some simple smoothing techniques.
-        
+
         >>> mesh = trimesh.primitives.Box()
         >>> mesh.vertex_neighbors[0]
         [1,2,3,4]
@@ -1013,8 +1014,8 @@ class Trimesh(object):
         is_watertight: bool, is mesh watertight or not
         '''
 
-        watertight, reversed = graph.is_watertight(edges=self.edges,
-                                                   edges_sorted=self.edges_sorted)
+        watertight, reversed = graph.is_watertight(
+            edges=self.edges, edges_sorted=self.edges_sorted)
         self._cache['is_winding_consistent'] = reversed
         return watertight
 
@@ -1116,8 +1117,8 @@ class Trimesh(object):
         edges = self.edges.reshape((-1, 6))
         edges_facet = [np.sort(edges[i].reshape((-1, 2)), axis=1)
                        for i in self.facets]
-        edges_boundary = np.array([i[grouping.group_rows(i,
-                                                         require_count=1)] for i in edges_facet])
+        edges_boundary = np.array(
+            [i[grouping.group_rows(i, require_count=1)] for i in edges_facet])
         return edges_boundary
 
     @_log_time
@@ -1157,10 +1158,11 @@ class Trimesh(object):
                        and an additional postprocessing step will be required to
                        make resulting mesh watertight
         '''
-        vertices,faces = remesh.subdivide(vertices=self.vertices, 
-                                          faces=self.faces,
-                                          face_index=face_index)
+        vertices, faces = remesh.subdivide(vertices=self.vertices,
+                                           faces=self.faces,
+                                           face_index=face_index)
         return Trimesh(vertices=vertices, faces=faces)
+
     @_log_time
     def smoothed(self, angle=.4):
         '''
@@ -1214,7 +1216,7 @@ class Trimesh(object):
     def convex_hull(self):
         '''
         Get a new Trimesh object representing the convex hull of the
-        current mesh. 
+        current mesh.
 
         Returns
         --------
@@ -1609,7 +1611,7 @@ class Trimesh(object):
         copied.visual._data.data = copy.deepcopy(self.visual._data.data)
         # get metadata
         copied.metadata = copy.deepcopy(self.metadata)
-        
+
         # make sure cache is set from here
         copied._cache.id_set()
 
@@ -1617,9 +1619,9 @@ class Trimesh(object):
 
     def eval_cached(self, statement, *args):
         '''
-        Evaluate a statement and cache the result before returning. 
+        Evaluate a statement and cache the result before returning.
 
-        Statements are evaluated inside the Trimesh object, and 
+        Statements are evaluated inside the Trimesh object, and
 
         Parameters
         -----------

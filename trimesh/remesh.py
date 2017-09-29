@@ -5,6 +5,7 @@ import collections
 from . import util
 from . import grouping
 
+
 def subdivide(vertices, faces, face_index=None):
     '''
     Subdivide a mesh into smaller triangles.
@@ -31,7 +32,6 @@ def subdivide(vertices, faces, face_index=None):
         face_index = np.arange(len(faces))
     else:
         face_index = np.asanyarray(face_index)
-        
 
     # the (c,3) int set of vertex indices
     faces = faces[face_index]
@@ -59,14 +59,14 @@ def subdivide(vertices, faces, face_index=None):
     new_faces[face_index] = f[:len(face_index)]
 
     new_vertices = np.vstack((vertices, mid))
-    
+
     return new_vertices, new_faces
 
 
 def subdivide_to_size(vertices, faces, max_edge, max_iter=10):
     '''
     Subdivide a mesh until every edge is shorter than a specified length.
-    
+
     Will return a triangle soup, not a nicely structured mesh.
 
     Parameters
@@ -79,31 +79,32 @@ def subdivide_to_size(vertices, faces, max_edge, max_iter=10):
     Returns
     ------------
     vertices: (j,3) float, vertices in space
-    faces:    (q,3) int,   indices of vertices 
+    faces:    (q,3) int,   indices of vertices
     '''
     done_face = collections.deque()
     done_vert = collections.deque()
 
-    current_faces    = faces
+    current_faces = faces
     current_vertices = vertices
-      
+
     for i in range(max_iter):
         triangles = current_vertices[current_faces]
 
         # compute the length of every triangle edge
-        edge_lengths = (np.diff(triangles[:,[0,1,2,0]], axis=1)**2).sum(axis=2) ** .5
+        edge_lengths = (
+            np.diff(triangles[:, [0, 1, 2, 0]], axis=1)**2).sum(axis=2) ** .5
 
         too_long = (edge_lengths > max_edge).any(axis=1)
-        
-        #print(edge_lengths.max(), subdivide.sum(), subdivide.size)        
 
-        # clean up the faces a little bit so we don't carry a ton of unused vertices
-        unique,inverse = np.unique(current_faces[np.logical_not(too_long)],
-                                   return_inverse=True)
+        #print(edge_lengths.max(), subdivide.sum(), subdivide.size)
 
-        
+        # clean up the faces a little bit so we don't carry a ton of unused
+        # vertices
+        unique, inverse = np.unique(current_faces[np.logical_not(too_long)],
+                                    return_inverse=True)
+
         done_vert.append(current_vertices[unique])
-        done_face.append(inverse.reshape((-1,3)))
+        done_face.append(inverse.reshape((-1, 3)))
 
         if not too_long.any():
             break

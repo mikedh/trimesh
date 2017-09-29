@@ -94,8 +94,8 @@ class SceneViewer(pyglet.window.Window):
         self.vertex_list_mode[name] = gl.GL_LINES
 
     def _add_points(self, name, pointcloud):
-        self.vertex_list[name] = self.batch.add_indexed(*points_to_vertex_list(pointcloud.vertices,
-                                                                               pointcloud.vertices_color))
+        self.vertex_list[name] = self.batch.add_indexed(
+            *points_to_vertex_list(pointcloud.vertices, pointcloud.vertices_color))
         self.vertex_list_md5[name] = geometry_md5(pointcloud)
         self.vertex_list_mode[name] = gl.GL_POINTS
 
@@ -126,7 +126,7 @@ class SceneViewer(pyglet.window.Window):
             self.view['ball'].place([self.width / 2.0,
                                      self.height / 2.0],
                                     (self.width + self.height) / 2.0)
-        except:
+        except BaseException:
             pass
 
         if isinstance(flags, dict):

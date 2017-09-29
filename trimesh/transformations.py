@@ -1993,7 +1993,7 @@ def transform_points(points, matrix, translate=True):
 
 def is_rigid(matrix):
     '''
-    Check to make sure a homogeonous transformation matrix is 
+    Check to make sure a homogeonous transformation matrix is
     a rigid body transform.
 
     Parameters

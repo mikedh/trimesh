@@ -75,7 +75,7 @@ def align_vectors(vector_start, vector_end, return_angle=False):
     '''
     start = np.asanyarray(vector_start, dtype=np.float64)
     start /= np.linalg.norm(start)
-    end = np.asanyarray(vector_end,   dtype=np.float64)
+    end = np.asanyarray(vector_end, dtype=np.float64)
     end /= np.linalg.norm(end)
 
     cross = np.cross(start, end)
@@ -164,7 +164,7 @@ def triangulate_quads(quads):
     -----------
     faces: (m,3) int, vertex indices of triangular faces
     '''
-    if len(quads) == 0: 
+    if len(quads) == 0:
         return quads
     quads = np.asanyarray(quads)
     faces = np.vstack((quads[:, [0, 1, 2]],
@@ -209,7 +209,7 @@ def mean_vertex_normals(vertex_count, faces, face_normals, **kwargs):
 
     try:
         summed = summed_sparse()
-    except:
+    except BaseException:
         log.warning('Unable to generate sparse matrix! Falling back!',
                     exc_info=True)
         summed = summed_loop()

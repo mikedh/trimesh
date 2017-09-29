@@ -145,7 +145,10 @@ def arc_march(points, scale):
         # to the list of arcs if they pass
         points_id = np.array(points_id)
 
-        if fit_circle_check(points[points_id], scale=scale, final=True) is None:
+        if fit_circle_check(
+                points[points_id],
+                scale=scale,
+                final=True) is None:
             return
 
         points_id = points_id[[0, int(len(points_id) / 2.0), -1]]
@@ -346,7 +349,7 @@ def points_to_spline_entity(points, smooth=.0005, count=None):
 
 def three_point(indices):
     '''
-    Given a long list of ordered indices, 
+    Given a long list of ordered indices,
     return the first, middle and last.
 
     Parameters
@@ -385,7 +388,7 @@ def simplify_path(drawing):
     '''
     Merge colinear segments and fit circles and arcs.
 
-    Arc march produces garbage occasionally, the output of 
+    Arc march produces garbage occasionally, the output of
     this function needs to be looked at and checked manually.
 
     Parameters
@@ -410,15 +413,21 @@ def simplify_path(drawing):
         circle = is_circle(points, scale=drawing.scale)
 
         if circle is not None:
-            entities_new.append(entities.Arc(points=np.arange(3) + len(vertices_new),
-                                             closed=True))
+            entities_new.append(
+                entities.Arc(
+                    points=np.arange(3) +
+                    len(vertices_new),
+                    closed=True))
             vertices_new.extend(circle)
         else:
             arc_idx = arc_march(points, scale=drawing.scale)
             if len(arc_idx) > 0:
                 for arc in arc_idx:
-                    entities_new.append(entities.Arc(points=three_point(arc) + len(vertices_new),
-                                                     closed=False))
+                    entities_new.append(
+                        entities.Arc(
+                            points=three_point(arc) +
+                            len(vertices_new),
+                            closed=False))
                 line_idx = infill_lines(
                     arc_idx, len(points)) + len(vertices_new)
             else:
@@ -448,7 +457,7 @@ def simplify_basic(drawing):
 
     Returns
     -----------
-    simplified: Path2D with circles. 
+    simplified: Path2D with circles.
     '''
 
     if any([i.__class__.__name__ != 'Line' for i in drawing.entities]):
@@ -464,8 +473,11 @@ def simplify_basic(drawing):
         circle = is_circle(points, scale=drawing.scale)
 
         if circle is not None:
-            entities_new.append(entities.Arc(points=np.arange(3) + len(vertices_new),
-                                             closed=True))
+            entities_new.append(
+                entities.Arc(
+                    points=np.arange(3) +
+                    len(vertices_new),
+                    closed=True))
             vertices_new.extend(circle)
         else:
             line = np.arange(len(points)) + len(vertices_new)

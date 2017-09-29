@@ -52,7 +52,7 @@ class Scene:
         Parameters
         ----------
         geometry: Trimesh, Path3D, or list of same
-        node_name: 
+        node_name:
         Returns
         ----------
         node_name: str, name of node in self.graph
@@ -191,8 +191,10 @@ class Scene:
             if not hasattr(geometry, 'triangles'):
                 continue
 
-            triangles.append(transform_points(geometry.triangles.copy().reshape((-1, 3)),
-                                              transform))
+            triangles.append(
+                transform_points(
+                    geometry.triangles.copy().reshape(
+                        (-1, 3)), transform))
             triangles_node.append(np.tile(node_name, len(geometry.triangles)))
 
         self._cache['triangles_node'] = np.hstack(triangles_node)
@@ -370,7 +372,7 @@ class Scene:
         for geometry in self.geometry.values():
             geometry.vertices *= scale
             geometry.units = desired
-            
+
     def explode(self, vector=None, origin=None):
         '''
         Explode a scene around a point and vector.

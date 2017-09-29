@@ -26,7 +26,8 @@ def transform(mesh, translation_scale=1000.0):
     triangles = transformations.transform_points(triangles, matrix)
 
     mesh_type = util.type_named(mesh, 'Trimesh')
-    permutated = mesh_type(**triangles_module.to_kwargs(triangles.reshape((-1,3,3))))
+    permutated = mesh_type(
+        **triangles_module.to_kwargs(triangles.reshape((-1, 3, 3))))
 
     return permutated
 

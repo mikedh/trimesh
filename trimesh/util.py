@@ -1,8 +1,8 @@
 '''
 trimesh.util: utility functions
 
-Standalone functions which require only imports from numpy and the 
-standard library are included in this module. 
+Standalone functions which require only imports from numpy and the
+standard library are included in this module.
 
 Other libraries may be included but they must be wrapped in try/except blocks
 '''
@@ -295,7 +295,7 @@ except AttributeError:
     def multi_dot(arrays):
         '''
         Compute the dot product of two or more arrays in a single function call.
-        In most versions of numpy this is included, this slower function is 
+        In most versions of numpy this is included, this slower function is
         provided for backwards compatibility with ancient versions of numpy.
         '''
         arrays = np.asanyarray(arrays)
@@ -931,7 +931,7 @@ def append_faces(vertices_seq, faces_seq):
             faces += offset
 
     vertices = vstack_empty(vertices_seq)
-    faces    = vstack_empty(faces_seq)
+    faces = vstack_empty(faces_seq)
 
     return vertices, faces
 
@@ -1494,8 +1494,8 @@ def histogram_peaks(data,
 
     # (2,) float, start and end of histogram bins
     # round to two signifigant figures
-    edges = [trimesh.util.round_sigfig(i, 2) for i in np.percentile(data,
-                                                                    [.1, 99.9])]
+    edges = [trimesh.util.round_sigfig(i, 2)
+             for i in np.percentile(data, [.1, 99.9])]
 
     h, b = np.histogram(data,
                         weights=weights,
@@ -1585,7 +1585,7 @@ def sigfig_int(values, sigfig):
     Returns
     ------------
     as_int:      (n,) int, every value[i] has sigfig[i] digits
-    multiplier:  (n, int), exponent, so as_int * 10 ** multiplier is 
+    multiplier:  (n, int), exponent, so as_int * 10 ** multiplier is
                  the same order of magnitude as the input
     '''
     values = np.asanyarray(values).reshape(-1)
@@ -1608,7 +1608,7 @@ def sigfig_int(values, sigfig):
 def decompress(file_obj, file_type):
     '''
     Given an open file object and a file type, return all components
-    of the archive as open file objects in a dict. 
+    of the archive as open file objects in a dict.
 
     Parameters
     -----------
@@ -1646,11 +1646,11 @@ def decompress(file_obj, file_type):
 
 def split_extension(file_name, special=['tar.bz2', 'tar.gz']):
     '''
-    Find the file extension of a file name, including support for 
+    Find the file extension of a file name, including support for
     special case multipart file extensions (like .tar.gz)
 
     Parameters
-    ---------- 
+    ----------
     file_name: str, file name
     special:   list of str, multipart exensions
                eg: ['tar.bz2', 'tar.gz']
@@ -1673,15 +1673,15 @@ def triangle_strips_to_faces(strips):
     '''
     Given a sequence of triangle strips, convert them to (n,3) faces.
 
-    Processes all strips at once using np.hstack and is signifigantly faster 
+    Processes all strips at once using np.hstack and is signifigantly faster
     than loop- based methods.
 
-    From the OpenGL programming guide describing a single triangle 
+    From the OpenGL programming guide describing a single triangle
     strip [v0, v1, v2, v3, v4]:
-    Draws a series of triangles (three-sided polygons) using vertices 
-    v0, v1, v2, then v2, v1, v3  (note the order), then v2, v3, v4, 
-    and so on. The ordering is to ensure that the triangles are all 
-    drawn with the same orientation so that the strip can correctly form 
+    Draws a series of triangles (three-sided polygons) using vertices
+    v0, v1, v2, then v2, v1, v3  (note the order), then v2, v3, v4,
+    and so on. The ordering is to ensure that the triangles are all
+    drawn with the same orientation so that the strip can correctly form
     part of a surface.
 
     Parameters
@@ -1722,17 +1722,18 @@ def triangle_strips_to_faces(strips):
 
     return tri
 
+
 def vstack_empty(tup):
     '''
     A thin wrapper for numpy.vstack that ignores empty lists.
-    
+
     Parameters
     ------------
     tup: tuple or list of arrays with the same number of columns
-    
+
     Returns
     ------------
-    stacked: (n,d) array, with same number of columns as 
+    stacked: (n,d) array, with same number of columns as
               constituent arrays.
     '''
     stackable = [i for i in tup if len(i) > 0]

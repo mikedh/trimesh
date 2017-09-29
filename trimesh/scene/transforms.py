@@ -73,7 +73,7 @@ class TransformForest:
 
     def to_flattened(self, base_frame=None):
         '''
-        Export the current transform graph as a flattened 
+        Export the current transform graph as a flattened
         '''
         if base_frame is None:
             base_frame = self.base_frame
@@ -148,8 +148,8 @@ class TransformForest:
         path = self._get_path(frame_from, frame_to)
 
         for i in range(len(path) - 1):
-            data, direction = self.transforms.get_edge_data_direction(path[i],
-                                                                      path[i + 1])
+            data, direction = self.transforms.get_edge_data_direction(
+                path[i], path[i + 1])
             matrix = data['matrix']
             if direction < 0:
                 matrix = np.linalg.inv(matrix)
@@ -190,10 +190,9 @@ class TransformForest:
 
         for a, b in self.transforms.edges():
             matrix = self.transforms.edge[a][b]['matrix']
-            matrix[:3,3] *= scale
+            matrix[:3, 3] *= scale
             self.transforms.edge[a][b]['matrix'] = matrix
 
-        
     def __getitem__(self, key):
         return self.get(key)
 

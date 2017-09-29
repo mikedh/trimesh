@@ -109,15 +109,22 @@ class _PrimitiveAttributes(object):
         # slow and if generated in __init__ it is called a lot of times
         # when we didn't really need to generate it
 
-        doc = ('Store the attributes of a {name} object.\n\n' +
-               'When these values are changed, the mesh geometry will \n' +
-               'automatically be updated to reflect the new values.\n\n' +
-               'Available properties and their default values are:\n {defaults}' +
-               '\n\nExample\n---------------\n' +
-               'p = trimesh.primitives.{name}()\n' +
-               'p.primitive.radius = 10\n' +
-               '\n').format(name=self._parent.__class__.__name__,
-                            defaults=pprint.pformat(self._defaults, width=-1)[1:-1])
+        doc = (
+            'Store the attributes of a {name} object.\n\n' +
+            'When these values are changed, the mesh geometry will \n' +
+            'automatically be updated to reflect the new values.\n\n' +
+            'Available properties and their default values are:\n {defaults}' +
+            '\n\nExample\n---------------\n' +
+            'p = trimesh.primitives.{name}()\n' +
+            'p.primitive.radius = 10\n' +
+            '\n').format(
+            name=self._parent.__class__.__name__,
+            defaults=pprint.pformat(
+                self._defaults,
+                width=-
+                1)[
+                1:-
+                1])
         return doc
 
     def __getattr__(self, key):
@@ -405,7 +412,7 @@ class Box(_Primitive):
 
     def sample_grid(self, count=None, step=None):
         '''
-        Return a 3D grid which is contained by the box. 
+        Return a 3D grid which is contained by the box.
         Samples are either 'step' distance apart, or there are
         'count' samples per box side.
 
@@ -434,8 +441,8 @@ class Box(_Primitive):
         else:
             raise ValueError('either count or step must be specified!')
 
-        transformed = transformations.transform_points(grid,
-                                                       matrix=self.primitive.transform)
+        transformed = transformations.transform_points(
+            grid, matrix=self.primitive.transform)
         return transformed
 
     @property
@@ -560,7 +567,7 @@ class Extrusion(_Primitive):
 
     def buffer(self, distance):
         '''
-        Return a new Extrusion object which is expanded in profile and 
+        Return a new Extrusion object which is expanded in profile and
         in height by a specified distance.
 
         Returns

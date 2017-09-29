@@ -19,7 +19,7 @@ from .xml_based import _xml_loaders
 
 try:
     from ..path.io.load import load_path, path_formats
-except:
+except BaseException:
     _path_traceback = traceback.format_exc(4)
 
     def load_path(*args, **kwargs):
@@ -153,7 +153,7 @@ def load_compressed(file_obj, file_type=None):
     geometries = collections.deque()
     for name, data in files.items():
         compressed_type = util.split_extension(name).lower()
-        if not compressed_type in available_formats():
+        if compressed_type not in available_formats():
             continue
         metadata['file_path'] = name
         metadata['file_name'] = os.path.basename(name)

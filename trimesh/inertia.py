@@ -16,7 +16,7 @@ def cylinder_inertia(mass, radius, height, transform=None):
     mass:      float, mass of cylinder
     radius:    float, radius of cylinder
     height:    float, height of cylinder
-    transform: (4,4) float, transformation of cylinder 
+    transform: (4,4) float, transformation of cylinder
 
     Returns
     ------------
@@ -53,7 +53,7 @@ def sphere_inertia(mass, radius):
 
 def principal_axis(inertia):
     '''
-    Find the principal components and principal axis 
+    Find the principal components and principal axis
     of inertia from the inertia tensor.
 
     Parameters
@@ -63,7 +63,7 @@ def principal_axis(inertia):
     Returns
     ------------
     components: (3,) float, principal components of inertia
-    vectors:    (3,3) float, row vectors pointing along 
+    vectors:    (3,3) float, row vectors pointing along
                              the principal axes of inertia
     '''
     inertia = np.asanyarray(inertia, dtype=np.float64)
@@ -80,9 +80,9 @@ def principal_axis(inertia):
 
 def transform_inertia(transform, inertia_tensor):
     '''
-    Transform an inertia tensor to a new frame. 
+    Transform an inertia tensor to a new frame.
 
-    More details in OCW PDF: 
+    More details in OCW PDF:
     MIT16_07F09_Lec26.pdf
 
     Parameters

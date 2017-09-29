@@ -5,6 +5,7 @@ import re
 from .. import util
 from .. import geometry
 
+
 def load_off(file_obj, file_type=None):
     '''
     Load an OFF file into the kwargs for a Trimesh constructor
@@ -43,7 +44,7 @@ def load_off(file_obj, file_type=None):
 
 def load_wavefront(file_obj, file_type=None):
     '''
-    Loads an ascii Wavefront OBJ file_obj into kwargs 
+    Loads an ascii Wavefront OBJ file_obj into kwargs
     for the Trimesh constructor.
 
     Discards texture normals and vertex color information.
@@ -62,7 +63,9 @@ def load_wavefront(file_obj, file_type=None):
     if hasattr(text_original, 'decode'):
         text_original = text_original.decode('utf-8')
     # get rid of stupid newlines
-    text_original = text_original.replace('\r\n', '\n').replace('\r', '\n') + ' \n'
+    text_original = text_original.replace(
+        '\r\n', '\n').replace(
+        '\r', '\n') + ' \n'
 
     # for faces, remove the '/' notation in the raw text
     # the regex does the following:
@@ -71,10 +74,10 @@ def load_wavefront(file_obj, file_type=None):
     # test = "f 233/233/233 12//12//12\nf 233/233/233 12//12//12 "
     # In [0]: re.split('/\S*[ \n]', test)
     # Out[0]: ['f 233', '12', 'f 233', '12', '']
-    # we then re-join it into a larger string so we 
+    # we then re-join it into a larger string so we
     # can split by just whitespace
     # we add a space before every newline to make things easy on ourselves
-    text = ' '.join(re.split('/\S* ', 
+    text = ' '.join(re.split('/\S* ',
                              text_original.replace('\n', ' \n')))
 
     # remove all comments
@@ -84,7 +87,6 @@ def load_wavefront(file_obj, file_type=None):
     # \n: up to a newline
     text = re.sub('#.*\n', '\n', text)
 
-    
     # more impenetrable regexes
     # this one to pulls faces from directly from the text
     # - find the 'f' char
@@ -96,25 +98,25 @@ def load_wavefront(file_obj, file_type=None):
     # - followed by exactly one newline
     re_tris = 'f +\d+ +\d+ +\d+ *\n'
     re_quad = 'f +\d+ +\d+ +\d+ +\d+ *\n'
-    
+
     # find all triangular faces with a regex
     face_tri = ' '.join(re.findall(re_tris, text)).replace('f', ' ').split()
     # convert triangular faces into a numpy array
-    face_tri = np.array(face_tri, dtype=np.int64).reshape((-1,3))
- 
+    face_tri = np.array(face_tri, dtype=np.int64).reshape((-1, 3))
+
     # find all quad faces with a regex
     face_quad = ' '.join(re.findall(re_quad, text)).replace('f', ' ').split()
     # convert quad faces into a numpy array
-    face_quad = np.array(face_quad, dtype=np.int64).reshape((-1,4))
+    face_quad = np.array(face_quad, dtype=np.int64).reshape((-1, 4))
 
     # stack the faces into a single (n,3) list
     # triangulate any quad faces
     # this thin wrapper for vstack will ignore empty lists
-    faces = util.vstack_empty((face_tri, 
+    faces = util.vstack_empty((face_tri,
                                geometry.triangulate_quads(face_quad)))
     # wavefront has 1- indexed faces, as opposed to 0- indexed
     faces = faces.astype(np.int64) - 1
-    
+
     # find the data with predictable lengths using numpy
     data = np.array(text.split())
     # find the locations of keys, then find the proceeding values
@@ -123,8 +125,8 @@ def load_wavefront(file_obj, file_type=None):
     # indexes which contain vertex normal information
     nid = np.nonzero(data == 'vn')[0].reshape((-1, 1)) + np.arange(3) + 1
     # some varients of the format have face groups
-    gid = np.nonzero(data == 'g')[0].reshape((-1,1)) + 1
-        
+    gid = np.nonzero(data == 'g')[0].reshape((-1, 1)) + 1
+
     loaded = {'vertices': data[vid].astype(float),
               'vertex_normals': data[nid].astype(float),
               'faces': faces}
@@ -134,11 +136,12 @@ def load_wavefront(file_obj, file_type=None):
         # indexes which contain face information
         face_key = np.nonzero(data == 'f')[0]
         groups = np.zeros(len(faces), dtype=int)
-        for i,g in enumerate(gid):
-            groups[np.nonzero(face_key > g)[0]] = i 
-        loaded['metadata'] = {'face_groups' : groups}
-        
+        for i, g in enumerate(gid):
+            groups[np.nonzero(face_key > g)[0]] = i
+        loaded['metadata'] = {'face_groups': groups}
+
     return loaded
+
 
 def load_msgpack(blob, file_type=None):
     '''

@@ -117,14 +117,18 @@ def load_XAML(file_obj, *args, **kwargs):
             c_normals = np.array(g.attrib['Normals'].replace(',', ' ').split(),
                                  dtype=np.float64).reshape((-1, 3))
 
-            c_vertices = np.array(g.attrib['Positions'].replace(',', ' ').split(),
-                                  dtype=np.float64).reshape((-1, 3))
+            c_vertices = np.array(
+                g.attrib['Positions'].replace(
+                    ',', ' ').split(), dtype=np.float64).reshape(
+                (-1, 3))
             # bake in the transform as we're saving
             c_vertices = transformations.transform_points(c_vertices,
                                                           transform)
 
-            c_faces = np.array(g.attrib['TriangleIndices'].replace(',', ' ').split(),
-                               dtype=np.int64).reshape((-1, 3))
+            c_faces = np.array(
+                g.attrib['TriangleIndices'].replace(
+                    ',', ' ').split(), dtype=np.int64).reshape(
+                (-1, 3))
 
             # save data to a sequence
             vertices.append(c_vertices)
@@ -180,11 +184,16 @@ def load_3DXML(file_obj, *args, **kwargs):
         #specular = rend.find("{*}Attr[@Name='SpecularColor']")
         #emissive = rend.find("{*}Attr[@Name='EmissiveColor']")
         rgb = (
-            np.array(json.loads(diffuse.attrib['Value'])) * 255).astype(np.uint8)
+            np.array(
+                json.loads(
+                    diffuse.attrib['Value'])) *
+            255).astype(
+                np.uint8)
         colors[material_id] = rgb
 
     # copy indexes for instances of colors
-    for MaterialDomainInstance in material_tree.iter('{*}MaterialDomainInstance'):
+    for MaterialDomainInstance in material_tree.iter(
+            '{*}MaterialDomainInstance'):
         instance = MaterialDomainInstance.find('{*}IsInstanceOf')
         #colors[b.attrib['id']] = colors[instance.text]
         for aggregate in MaterialDomainInstance.findall('{*}IsAggregatedBy'):
@@ -242,13 +251,13 @@ def load_3DXML(file_obj, *args, **kwargs):
                                 '{*}MaterialApplication/' +
                                 '{*}MaterialId')
 
-            (material_file,
-             material_id) = material.attrib['id'].split('urn:3DXML:')[-1].split('#')
+            (material_file, material_id) = material.attrib['id'].split(
+                'urn:3DXML:')[-1].split('#')
 
             # triangle strips, sequence of arbitrary length lists of vertex
             # indexes
-            strips = [np.array(i.split(),
-                               dtype=np.int) for i in faces.attrib['strips'].split(',')]
+            strips = [np.array(i.split(), dtype=np.int)
+                      for i in faces.attrib['strips'].split(',')]
 
             # convert strips to (m,3) int
             mesh_faces.append(util.triangle_strips_to_faces(strips))
@@ -284,8 +293,8 @@ def load_3DXML(file_obj, *args, **kwargs):
 
     # a Reference3D maps to a subassembly or assembly
     for Reference3D in tree.iter('{*}Reference3D'):
-        references[Reference3D.attrib['id']] = {'name': Reference3D.attrib['name'],
-                                                'type': 'Reference3D'}
+        references[Reference3D.attrib['id']] = {
+            'name': Reference3D.attrib['name'], 'type': 'Reference3D'}
 
     # a node that is the connectivity between a geometry and the Reference3D
     for InstanceRep in tree.iter('{*}InstanceRep'):
