@@ -16,7 +16,7 @@ identifier_sigfig = (5,  # mesh volume, pretty stable
 def identifier_simple(mesh):
     '''
     Return a basic identifier for a mesh, consisting of properties
-    that are somewhat robust to transformation and noise. 
+    that are somewhat robust to transformation and noise.
 
     These include:
     -volume

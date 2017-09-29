@@ -53,7 +53,7 @@ class TransformForest:
 
         changed = self.transforms.add_edge(frame_from,
                                            frame_to,
-                                           attr_dict=attr)
+                                           **attr)
         if 'geometry' in kwargs:
             nx.set_node_attributes(self.transforms,
                                    name='geometry',
@@ -73,7 +73,7 @@ class TransformForest:
 
     def to_flattened(self, base_frame=None):
         '''
-        Export the current transform graph as a flattened 
+        Export the current transform graph as a flattened
         '''
         if base_frame is None:
             base_frame = self.base_frame
@@ -98,7 +98,8 @@ class TransformForest:
         -------
         edgelist: (n,) list of tuples
         '''
-        export = nx.to_edgelist(self.transforms)
+        # wrapped in a list for nx 2.0
+        export = list(nx.to_edgelist(self.transforms))
         for e in export:
             e[2]['matrix'] = np.array(e[2]['matrix']).tolist()
         return export
@@ -147,8 +148,8 @@ class TransformForest:
         path = self._get_path(frame_from, frame_to)
 
         for i in range(len(path) - 1):
-            data, direction = self.transforms.get_edge_data_direction(path[i],
-                                                                      path[i + 1])
+            data, direction = self.transforms.get_edge_data_direction(
+                path[i], path[i + 1])
             matrix = data['matrix']
             if direction < 0:
                 matrix = np.linalg.inv(matrix)
@@ -189,10 +190,9 @@ class TransformForest:
 
         for a, b in self.transforms.edges():
             matrix = self.transforms.edge[a][b]['matrix']
-            matrix[:3,3] *= scale
+            matrix[:3, 3] *= scale
             self.transforms.edge[a][b]['matrix'] = matrix
 
-        
     def __getitem__(self, key):
         return self.get(key)
 
@@ -267,7 +267,7 @@ class EnforcedForest(nx.DiGraph):
                         'Multiple edge path exists between nodes!')
                 self.disconnect_path(path)
                 changed = True
-            except (nx.NetworkXError, nx.NetworkXNoPath):
+            except (nx.NetworkXError, nx.NetworkXNoPath, nx.NetworkXException):
                 pass
         self._undirected.add_edge(u, v)
         super(self.__class__, self).add_edge(u, v, *args, **kwargs)

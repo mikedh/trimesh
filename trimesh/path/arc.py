@@ -111,7 +111,8 @@ def discretize_arc(points, close=False, scale=1.0):
         arc_ok = (arc_dist < tol.merge).all()
         if not arc_ok:
             log.warn(
-                'Failed to discretize arc (endpoint distance %s)', str(arc_dist))
+                'Failed to discretize arc (endpoint distance %s)',
+                str(arc_dist))
             log.warn('Failed arc points: %s', str(points))
             raise ValueError('Arc endpoints diverging!')
     discrete = discrete[:, 0:(3 - two_dimensional)]

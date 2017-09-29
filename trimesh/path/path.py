@@ -93,7 +93,7 @@ class Path(object):
 
         Returns
         ---------
-        paths: (n,) sequence of (*,) int referencing self.entities 
+        paths: (n,) sequence of (*,) int referencing self.entities
         '''
         paths = closed_paths(self.entities, self.vertices)
         return paths
@@ -136,32 +136,36 @@ class Path(object):
     def fill_gaps(self, max_distance=np.inf):
         '''
         Find vertexes with degree 1 and try to connect them to other
-        vertices of degree 1. 
+        vertices of degree 1.
 
         Parameters
         ----------
         max_distance: float, connect vertices up to this distance.
                       Default is infinity, but something like path.scale/100
-                      may make more sense. 
+                      may make more sense.
         '''
 
         broken = np.array(
-            [k for k, v in self.vertex_graph.degree().items() if v == 1])
+            [k for k, v in dict(self.vertex_graph.degree()).items() if v == 1])
         if len(broken) < 2:
             return
 
         distance, node = KDTree(self.vertices[broken]).query(
             self.vertices[broken], k=2)
         edges = broken[node]
-        ok = np.logical_and(distance[:, 1] < max_distance,
-                            [not self.vertex_graph.has_edge(*i) for i in edges])
+        ok = np.logical_and(distance[:, 1] < max_distance, [
+                            not self.vertex_graph.has_edge(*i) for i in edges])
 
         self.entities = np.append(self.entities,
                                   [entities.Line(i) for i in edges[ok]])
 
     @property
     def is_closed(self):
-        return all(i == 2 for i in self.vertex_graph.degree().values())
+        '''
+        Are all entities connected to other entities
+        '''
+        closed = all(i == 2 for i in dict(self.vertex_graph.degree()).values())
+        return closed
 
     @util.cache_decorator
     def vertex_graph(self):
@@ -334,10 +338,10 @@ class Path3D(Path):
 
         Parameters
         -----------
-        to_2D: (4,4) float, transformation matrix to apply. 
+        to_2D: (4,4) float, transformation matrix to apply.
                      If not passed a plane will be fitted to vertices.
         normal: (3,) float, normal of plane which is only used if to_2D is not specified
-        check:  bool, raise a ValueError if the points aren't coplanar after 
+        check:  bool, raise a ValueError if the points aren't coplanar after
                       being transformed
 
         Returns
@@ -461,8 +465,9 @@ class Path2D(Path):
             # closed curves which represent holes
             hole_poly = self.polygons_closed[hole_idx]
             # generate a new polygon with shell and holes
-            polygon = Polygon(shell=self.polygons_closed[shell].exterior.coords,
-                              holes=[p.exterior.coords for p in hole_poly])
+            polygon = Polygon(
+                shell=self.polygons_closed[shell].exterior.coords, holes=[
+                    p.exterior.coords for p in hole_poly])
             full[index] = polygon
         return full
 
@@ -572,7 +577,7 @@ class Path2D(Path):
 
     def simplify(self):
         '''
-        Return a version of the current path with colinear segments 
+        Return a version of the current path with colinear segments
         merged, and circles entities replacing segmented circular paths.
 
         Returns
@@ -610,20 +615,24 @@ class Path2D(Path):
                 new_entities = np.array(new_entities)
                 # prevents the copying from nuking our cache
                 with self._cache:
-                    split[i] = Path2D(entities=deepcopy(self.entities[new_entities]),
-                                      vertices=deepcopy(self.vertices))
-                    split[i]._cache.update({'paths': np.array(new_paths),
-                                            'polygons_closed': self.polygons_closed[connected],
-                                            'polygons_valid': self.polygons_valid[connected],
-                                            'discrete': self.discrete[connected],
-                                            'root': new_root})
+                    split[i] = Path2D(
+                        entities=deepcopy(
+                            self.entities[new_entities]), vertices=deepcopy(
+                            self.vertices))
+                    split[i]._cache.update(
+                        {
+                            'paths': np.array(new_paths),
+                            'polygons_closed': self.polygons_closed[connected],
+                            'polygons_valid': self.polygons_valid[connected],
+                            'discrete': self.discrete[connected],
+                            'root': new_root})
         [i._cache.id_set() for i in split]
         self._cache.id_set()
         return np.array(split)
 
     def plot_discrete(self, show=False, transform=None, axes=None):
         '''
-        Plot the closed curves of the path. 
+        Plot the closed curves of the path.
         '''
         import matplotlib.pyplot as plt
         plt.axes().set_aspect('equal', 'datalim')
@@ -691,7 +700,7 @@ class Path2D(Path):
         '''
         Returns
         ----------
-        polygons_valid: (n,) bool, indexes of self.paths self.polygons_closed 
+        polygons_valid: (n,) bool, indexes of self.paths self.polygons_closed
                          which are valid polygons
         '''
         exists = self.polygons_closed
@@ -704,7 +713,7 @@ class Path2D(Path):
         ---------
         discrete: sequence of (n,2) float, correspond to self.paths
         '''
-        if not 'discrete' in self._cache:
+        if 'discrete' not in self._cache:
             test = self.polygons_closed
         return self._cache['discrete']
 
@@ -714,11 +723,11 @@ class Path2D(Path):
         Cycles in the vertex graph, as shapely.geometry.Polygons.
         These are polygon objects for every closed circuit, with no notion
         of whether a polygon is a hole or an area. Every polygon in this
-        list will have an exterior, but NO interiors. 
+        list will have an exterior, but NO interiors.
 
         Returns
         ---------
-        polygons_closed: (n,) list of shapely.geometry.Polygon objects 
+        polygons_closed: (n,) list of shapely.geometry.Polygon objects
         '''
         def reverse_path(path):
             for entity in self.entities[path]:
@@ -797,14 +806,14 @@ class Path2D(Path):
     def enclosure_shell(self):
         '''
         A dictionary of path indexes which are 'shell' paths, and values
-        of 'hole' paths. 
+        of 'hole' paths.
 
         Returns
         ----------
         corresponding: dict, {index of self.paths of shell : [indexes of holes]}
         '''
-        pairs = [(r, self.connected_paths(r,
-                                          include_self=False)) for r in self.root]
+        pairs = [(r, self.connected_paths(r, include_self=False))
+                 for r in self.root]
         # OrderedDict to maintain corresponding order
         corresponding = collections.OrderedDict(pairs)
         return corresponding

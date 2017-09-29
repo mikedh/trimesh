@@ -31,8 +31,7 @@ class SectionTest(g.unittest.TestCase):
             planar, to_3D = section.to_planar()
             assert planar.is_closed
             assert (len(planar.polygons_full) > 0)
-
-
+                
 class PlaneLine(g.unittest.TestCase):
 
     def test_planes(self):

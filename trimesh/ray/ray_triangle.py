@@ -1,5 +1,5 @@
 '''
-A basic, slow implementation of ray- triangle queries. 
+A basic, slow implementation of ray- triangle queries.
 '''
 import numpy as np
 
@@ -122,7 +122,7 @@ class RayMeshIntersector:
     def contains_points(self, points):
         '''
         Check if a mesh contains a list of points, using ray tests.
-        
+
         If the point is on the surface of the mesh, behavior is undefined.
 
         Parameters
@@ -135,7 +135,7 @@ class RayMeshIntersector:
         '''
 
         return contains_points(self, points)
-    
+
 
 def ray_triangle_id(triangles,
                     ray_origins,
@@ -170,9 +170,8 @@ def ray_triangle_id(triangles,
 
     # find the list of likely triangles and which ray they correspond to with
     # rtree queries
-    ray_candidates, ray_id = ray_triangle_candidates(ray_origins=ray_origins,
-                                                     ray_directions=ray_directions,
-                                                     tree=tree)
+    ray_candidates, ray_id = ray_triangle_candidates(
+        ray_origins=ray_origins, ray_directions=ray_directions, tree=tree)
 
     # get subsets which are corresponding rays and triangles
     # (c,3,3) triangle candidates
@@ -202,8 +201,8 @@ def ray_triangle_id(triangles,
 
     # find the barycentric coordinates of each plane intersection on the
     # triangle candidates
-    barycentric = triangles_mod.points_to_barycentric(triangle_candidates[valid],
-                                                      location)
+    barycentric = triangles_mod.points_to_barycentric(
+        triangle_candidates[valid], location)
 
     # the plane intersection is inside the triangle if all barycentric coordinates
     # are between 0.0 and 1.0
@@ -220,9 +219,9 @@ def ray_triangle_id(triangles,
     location = location[hit]
 
     # only return points that are forward from the origin
-    vector = location - ray_origins[index_ray] 
+    vector = location - ray_origins[index_ray]
     forward = util.diagonal_dot(vector, ray_directions[index_ray]) > -1e-6
-    
+
     return index_tri[forward], index_ray[forward], location[forward]
 
 

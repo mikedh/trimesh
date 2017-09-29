@@ -73,7 +73,7 @@ def extrude_triangulation(vertices,
     ----------
     vertices: (n,2) float, 2D vertices
     faces:    (m,3) int,   triangle indexes of vertices
-    height:   float, distance to extrude triangulation 
+    height:   float, distance to extrude triangulation
 
     Returns
     ---------
@@ -223,7 +223,7 @@ def triangulate_polygon(polygon, **kwargs):
     for interior in polygon.interiors:
         try:
             start += add_boundary(interior, start)
-        except:
+        except BaseException:
             log.warn('invalid interior, continuing')
             continue
 
@@ -348,7 +348,7 @@ def uv_sphere(radius=1.0,
 
     Parameters
     ----------
-    radius: float, radius of sphere 
+    radius: float, radius of sphere
     count: (2,) int, number of lattitude and longitude lines
     theta: (n,) float, optional
     phi:   (n,) float, optional
@@ -410,7 +410,7 @@ def capsule(height=1.0,
             radius=1.0,
             count=[32, 32]):
     '''
-    Create a mesh of a capsule, or a cylinder with hemispheric ends. 
+    Create a mesh of a capsule, or a cylinder with hemispheric ends.
 
     Parameters
     ----------

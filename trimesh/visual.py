@@ -45,7 +45,7 @@ class ColorVisuals(object):
 
         Parameters
         ----------
-        mesh:          Trimesh object that these visual properties 
+        mesh:          Trimesh object that these visual properties
                        are associated with
         face_ colors:  (n,3|4) or (3,) or (4,) uint8, colors per-face
         vertex_colors: (n,3|4) or (3,) or (4,) uint8, colors per-vertex
@@ -121,7 +121,7 @@ class ColorVisuals(object):
         Verify the checksums of cached face and vertex color, to verify
         that a user hasn't altered them since they were generated from defaults.
 
-        If the colors have been altered since creation, move them into the DataStore 
+        If the colors have been altered since creation, move them into the DataStore
         at self._data since the user action has made them user data.
         '''
         if len(self._cache) == 0:
@@ -179,9 +179,9 @@ class ColorVisuals(object):
     @face_colors.setter
     def face_colors(self, values):
         '''
-        Set the colors for each face of a mesh. 
+        Set the colors for each face of a mesh.
 
-        This will apply these colors and delete any previously specified 
+        This will apply these colors and delete any previously specified
         color information.
 
         Parameters
@@ -219,7 +219,7 @@ class ColorVisuals(object):
         '''
         Set the colors for each vertex of a mesh
 
-        This will apply these colors and delete any previously specified 
+        This will apply these colors and delete any previously specified
         color information.
 
         Parameters
@@ -246,13 +246,13 @@ class ColorVisuals(object):
         A magical function which maintains the sanity of vertex and face colors.
 
         * If colors have been explicitly stored or changed, they are considered
-        user data, stored in self._data (DataStore), and are returned immediatly 
+        user data, stored in self._data (DataStore), and are returned immediatly
         when requested.
         * If colors have never been set, a (count,4) tiled copy of the default diffuse
         color will be stored in the cache
         ** the CRC on creation for these cached default colors will also be stored
-        ** if the cached color array is altered (different CRC than when it was 
-        created) we consider that now to be user data and the array is moved from 
+        ** if the cached color array is altered (different CRC than when it was
+        created) we consider that now to be user data and the array is moved from
         the cache to the DataStore.
 
         Parameters
@@ -368,7 +368,7 @@ class ColorVisuals(object):
         Returns
         -----------
         result: ColorVisuals object containing information from current
-                object and others in the order it was passed. 
+                object and others in the order it was passed.
         '''
         result = concatenate_visuals(self, other, *args)
         return result
@@ -525,7 +525,7 @@ def random_color(dtype=np.uint8):
 
 def vertex_to_face_color(vertex_colors, faces):
     '''
-    Convert a list of vertex colors to face colors. 
+    Convert a list of vertex colors to face colors.
 
     Parameters
     ----------
@@ -568,7 +568,7 @@ def face_to_vertex_color(mesh, face_colors, dtype=np.uint8):
 def colors_to_materials(colors, count=None):
     '''
     Convert a list of colors into a list of unique materials and material
-    indexes. 
+    indexes.
 
     Parameters
     -----------

@@ -21,8 +21,8 @@ _ray_offset_floor = 1e-8
 class RayMeshIntersector:
 
     def __init__(self, geometry):
-        self._geometry = geometry
-        self._cache = util.Cache(id_function=self._geometry.crc)
+        self.mesh = geometry
+        self._cache = util.Cache(id_function=self.mesh.crc)
 
     @util.cache_decorator
     def _scene(self):
@@ -30,7 +30,7 @@ class RayMeshIntersector:
         A cached version of the pyembree scene.
         '''
         scene = rtcore_scene.EmbreeScene()
-        mesh = TriangleMesh(scene, self._geometry.triangles)
+        mesh = TriangleMesh(scene, self.mesh.triangles)
         return scene
 
     def intersects_location(self,
@@ -67,8 +67,8 @@ class RayMeshIntersector:
                       max_hits=100,
                       return_locations=False):
         '''
-        Find the triangles hit by a list of rays, including optionally 
-        multiple hits along a single ray. 
+        Find the triangles hit by a list of rays, including optionally
+        multiple hits along a single ray.
 
         Parameters
         ----------
@@ -100,15 +100,15 @@ class RayMeshIntersector:
 
         if multiple_hits or return_locations:
             # how much to offset ray to transport to the other side of it
-            offset_distance = self._geometry.scale * _ray_offset_factor
+            offset_distance = self.mesh.scale * _ray_offset_factor
             offset_distance = np.clip(offset_distance,
                                       a_min=_ray_offset_floor,
                                       a_max=1.0)
             ray_offset = ray_directions * offset_distance
 
             # grab the planes from triangles
-            plane_origins = self._geometry.triangles[:, 0, :]
-            plane_normals = self._geometry.face_normals
+            plane_origins = self.mesh.triangles[:, 0, :]
+            plane_normals = self.mesh.face_normals
 
         # use a for loop rather than a while to ensure this exits
         # if a ray is offset from a triangle and then is reported hitting
@@ -181,7 +181,7 @@ class RayMeshIntersector:
                          ray_origins,
                          ray_directions):
         '''
-        Find the index of the first triangle a ray hits. 
+        Find the index of the first triangle a ray hits.
 
 
         Parameters
@@ -225,7 +225,7 @@ class RayMeshIntersector:
     def contains_points(self, points):
         '''
         Check if a mesh contains a list of points, using ray tests.
-        
+
         If the point is on the surface of the mesh, behavior is undefined.
 
         Parameters

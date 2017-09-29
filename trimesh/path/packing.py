@@ -85,17 +85,17 @@ def bounds_to_size(bounds):
 
 def pack_rectangles(rectangles, sheet_size, shuffle=False):
     '''
-    Pack smaller rectangles onto a larger rectangle, using a binary 
+    Pack smaller rectangles onto a larger rectangle, using a binary
     space partition tree.
 
     Parameters
     ----------
-    rectangles: (n,2) array of (width, height) pairs 
+    rectangles: (n,2) array of (width, height) pairs
                  representing the smaller rectangles to be packed.
-    sheet_size: (2) array of (width, height) pair representing 
+    sheet_size: (2) array of (width, height) pair representing
                  the sheet size the smaller rectangles will be packed onto.
-    shuffle: boolean, whether or not to shuffle the insert order of the 
-                 smaller rectangles, as the final packing density depends on the 
+    shuffle: boolean, whether or not to shuffle the insert order of the
+                 smaller rectangles, as the final packing density depends on the
                  order of which rectangles are inserted onto the larger sheet.
 
     Returns
@@ -159,10 +159,10 @@ def multipack(polygons,
               plot=False,
               return_all=False):
     '''
-    Run multiple iterations of rectangle packing, by randomly permutating the 
+    Run multiple iterations of rectangle packing, by randomly permutating the
     insertion order
 
-    If sheet size isn't specified, it creates a large sheet that can fit all 
+    If sheet size isn't specified, it creates a large sheet that can fit all
     of the polygons
     '''
     transforms_obb, rectangles = polygons_obb(polygons)
@@ -182,9 +182,8 @@ def multipack(polygons,
 
     log.info('Packing %d polygons', len(polygons))
     for i in range(iterations):
-        density, offset, inserted, sheet = pack_rectangles(rectangles,
-                                                           sheet_size=sheet_size,
-                                                           shuffle=(i != 0))
+        density, offset, inserted, sheet = pack_rectangles(
+            rectangles, sheet_size=sheet_size, shuffle=(i != 0))
         if density > overall_density:
             overall_density = density
             overall_offset = offset

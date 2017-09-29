@@ -72,8 +72,8 @@ def volume_mesh(mesh, count):
 
     Returns
     ----------
-    samples: (n,3) float, points in the volume of the mesh. 
-             (n <= count) as samples are produced by rejecting points 
+    samples: (n,3) float, points in the volume of the mesh.
+             (n <= count) as samples are produced by rejecting points
     '''
     points = (np.random.random((count, 3)) * mesh.extents) + mesh.bounds[0]
     contained = mesh.contains(points)

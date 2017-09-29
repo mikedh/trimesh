@@ -91,8 +91,8 @@ def substitute_barycentric(function):
                         real=True,
                         positive=True)
     # vertices of the triangles
-    x1, x2, x3, y1, y2, y3, z1, z2, z3 = sp.symbols('x1,x2,x3,y1,y2,y3,z1,z2,z3',
-                                                    real=True)
+    x1, x2, x3, y1, y2, y3, z1, z2, z3 = sp.symbols(
+        'x1,x2,x3,y1,y2,y3,z1,z2,z3', real=True)
 
     # generate the substitution dictionary to convert from cartesian to barycentric
     # since the input could have been a sympy expresion or a string

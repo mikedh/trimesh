@@ -79,6 +79,16 @@ class RayTests(g.unittest.TestCase):
 
             assert (hit_count == 1).all()
 
+    def test_on_edge(self):
+        for use_embree in [True, False]:
+            m = g.get_mesh('7_8ths_cube.stl')
+            
+            points = [[4.5, 0, -23], [4.5, 0, -2], [0,0,-1e-6], [0,0,-1]]
+            truth  = [False, True, True, True]
+            result = g.trimesh.ray.ray_util.contains_points(m.ray, points)
+            
+            assert (result==truth).all()
+            
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()

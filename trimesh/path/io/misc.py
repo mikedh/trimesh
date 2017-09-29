@@ -14,8 +14,8 @@ def dict_to_path(drawing_obj):
     vertices = np.array(drawing_obj['vertices'])
     entities = [None] * len(drawing_obj['entities'])
     for entity_index, entity in enumerate(drawing_obj['entities']):
-        entities[entity_index] = loaders[entity['type']](points=entity['points'],
-                                                         closed=entity['closed'])
+        entities[entity_index] = loaders[entity['type']](
+            points=entity['points'], closed=entity['closed'])
     return {'entities': entities,
             'vertices': vertices}
 

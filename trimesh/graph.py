@@ -79,6 +79,7 @@ def face_adjacency(faces=None, mesh=None, return_edges=False):
         return face_adjacency, face_adjacency_edges
     return face_adjacency
 
+
 def vertex_adjacency_graph(mesh):
     '''
     Returns a networkx graph representing the vertices and their connections
@@ -90,15 +91,15 @@ def vertex_adjacency_graph(mesh):
 
     Returns
     ---------
-    graph: networkx.Graph(), graph representing vertices and edges between 
-                             them,where vertices are networkx Nodes and edges 
+    graph: networkx.Graph(), graph representing vertices and edges between
+                             them,where vertices are networkx Nodes and edges
                              are Edges.
 
     Examples
     ----------
-    This is useful for getting nearby vertices for a given vertex, 
+    This is useful for getting nearby vertices for a given vertex,
     potentially for some simple smoothing techniques.
-    
+
 
     graph = mesh.vertex_adjacency_graph
     graph.neighbors(0)
@@ -108,6 +109,7 @@ def vertex_adjacency_graph(mesh):
     g = nx.Graph()
     g.add_edges_from(mesh.edges_unique)
     return g
+
 
 def shared_edges(faces_a, faces_b):
     '''
@@ -287,8 +289,8 @@ def connected_components(edges,
     # large or very small graphs graphtool outperforms scipy substantially
     # networkx is pure python and is usually 5-10x slower
     engines = collections.OrderedDict((('graphtool', components_graphtool),
-                                       ('scipy',     components_csgraph),
-                                       ('networkx',  components_networkx)))
+                                       ('scipy', components_csgraph),
+                                       ('networkx', components_networkx)))
 
     # if a graph engine has explictly been requested use it
     if engine in engines:
@@ -312,7 +314,7 @@ def connected_component_labels(edges, node_count):
     Parameters
     ----------
     edges: (n, 2) int, edges of a graph
-    node_count: int, the largest node in the graph. 
+    node_count: int, the largest node in the graph.
 
     Returns
     ---------

@@ -73,7 +73,7 @@ def export_ply(mesh):
                   ('index', '<i4', (3))]
     dtype_vertex = [('vertex', '<f4', (3))]
 
-    dtype_color = ('rgba',   '<u1', (4))
+    dtype_color = ('rgba', '<u1', (4))
 
     templates = json.loads(get_resource('ply.template'))
 
@@ -240,7 +240,7 @@ def element_colors(element):
 
     Returns
     ------------
-    colors: (n,(3|4) 
+    colors: (n,(3|4)
     signal: float, estimate of range
     '''
     keys = ['red', 'green', 'blue', 'alpha']
@@ -261,7 +261,7 @@ def ply_ascii(elements, file_obj):
 
     Parameters
     ------------
-    elements: OrderedDict object, populated from the file header. 
+    elements: OrderedDict object, populated from the file header.
               object will be modified to add data by this function.
 
     file_obj: open file object, with current position at the start
@@ -324,7 +324,7 @@ def ply_binary(elements, file_obj):
 
     Parameters
     ------------
-    elements: OrderedDict object, populated from the file header. 
+    elements: OrderedDict object, populated from the file header.
               object will be modified to add data by this function.
 
     file_obj: open file object, with current position at the start

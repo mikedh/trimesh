@@ -21,12 +21,12 @@ except ImportError:
 def convex_hull(obj, qhull_options='QbB Pp'):
     '''
     Get a new Trimesh object representing the convex hull of the
-    current mesh, with proper normals and watertight. 
+    current mesh, with proper normals and watertight.
     Requires scipy >.12.
 
     Argments
     --------
-    obj: Trimesh object OR 
+    obj: Trimesh object OR
          (n,3) float, cartesian points
 
     Returns
@@ -132,8 +132,8 @@ def is_convex(mesh):
 
     # faces from the second column of face adjacency
     faces = mesh.faces[mesh.face_adjacency[:, 1]]
-    shared = np.logical_or(faces == mesh.face_adjacency_edges[:, 0].reshape((-1, 1)),
-                           faces == mesh.face_adjacency_edges[:, 1].reshape((-1, 1)))
+    shared = np.logical_or(faces == mesh.face_adjacency_edges[:, 0].reshape(
+        (-1, 1)), faces == mesh.face_adjacency_edges[:, 1].reshape((-1, 1)))
     vertex_other = mesh.vertices[faces[np.logical_not(shared)]]
 
     vector_other = vertex_other - origins

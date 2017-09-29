@@ -173,12 +173,12 @@ def export_dxf(path):
         color, layer = entity_color_layer(line)
         is_poly = len(points) > 2
         line_type = ['LINE', 'LWPOLYLINE'][int(is_poly)]
-        result = templates['line'].substitute({'TYPE': line_type,
-                                               'POINTS': format_points(points,
-                                                                       increment=not is_poly),
-                                               'NAME': str(id(line))[:16],
-                                               'LAYER_NUMBER': layer,
-                                               'COLOR_NUMBER': color})
+        result = templates['line'].substitute(
+            {
+                'TYPE': line_type, 'POINTS': format_points(
+                    points, increment=not is_poly), 'NAME': str(
+                    id(line))[
+                    :16], 'LAYER_NUMBER': layer, 'COLOR_NUMBER': color})
         return result
 
     def convert_arc(arc, vertices):

@@ -92,8 +92,8 @@ class Entity(object):
         self.points = [0,1,2]
         returns:      [[0,1], [1,2]]
         '''
-        return np.column_stack((self.points,
-                                self.points)).reshape(-1)[1:-1].reshape((-1, 2))
+        return np.column_stack((self.points, self.points)
+                               ).reshape(-1)[1:-1].reshape((-1, 2))
 
     @property
     def end_points(self):
