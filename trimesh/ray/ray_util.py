@@ -26,12 +26,10 @@ def contains_points(intersector, points, check_direction=None):
     points = np.asanyarray(points, dtype=np.float64)
     if not util.is_shape(points, (-1,3)):
         raise ValueError('points must be (n,3)')
-
     
     # default ray direction is a random number, but we are not generating it
     # to be unique each time so the behavior of the function is easier to debug
     default_direction = np.array([ 0.4395064455,  0.617598629942,  0.652231566745])
-    default_direction = np.array([0,0,1.0])
     
     if check_direction is None:
         ray_directions = np.tile(default_direction, (len(points), 1))
