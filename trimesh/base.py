@@ -25,6 +25,7 @@ from . import geometry
 from . import permutate
 from . import proximity
 from . import triangles
+from . import poses
 from . import comparison
 from . import intersections
 from . import transformations
@@ -1140,6 +1141,45 @@ class Trimesh(object):
         watertight: bool, is the mesh watertight after the function completes
         '''
         return repair.fill_holes(self)
+
+    def compute_stable_poses(self, com=None, sigma=0.0, n_samples=1, threshold=0.0):
+        '''
+        Computes stable orientations of a mesh and their quasi-static probabilites.
+
+        This method samples the location of the center of mass from a multivariate
+        gaussian (mean at com, cov equal to identity times sigma) over n_samples.
+        For each sample, it computes the stable resting poses of the mesh on a
+        a planar workspace and evaulates the probabilities of landing in
+        each pose if the object is dropped onto the table randomly.
+
+        This method returns the 4x4 homogenous transform matrices that place
+        the shape against the planar surface with the z-axis pointing upwards
+        and a list of the probabilities for each pose.
+        The transforms and probabilties that are returned are sorted, with the
+        most probable pose first.
+
+        Parameters
+        ----------
+        mesh:      Trimesh object, the target mesh
+        com:       (3,) float,     the object center of mass (if None, this method
+                                assumes uniform density and watertightness and
+                                computes a center of mass explicitly)
+        sigma:     float,          the covariance for the multivariate gaussian used
+                                to sample center of mass locations
+        n_samples: int,            the number of samples of the center of mass loc
+        threshold: float,          the probability value at which to threshold
+                                returned stable poses
+
+        Returns
+        -------
+        transforms: list of (4,4) floats, the homogenous matrices that transform the
+                                        object to rest in a stable pose, with the
+                                        new z-axis pointing upwards from the table
+                                        and the object just touching the table.
+
+        probs:      list of floats,       a probability in (0, 1) for each pose
+        '''
+        return poses.compute_stable_poses(self, com, sigma, n_samples, threshold)
 
     def subdivide(self, face_index=None):
         '''
