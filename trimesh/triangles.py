@@ -144,17 +144,9 @@ def mass_properties(triangles, crosses=None, density=1.0, skip_inertia=False):
 
     for i in range(3):
         triangle_i = np.mod(i + 1, 3)
-        integral[i + 7] = crosses[:,
-                                  i] * ((triangles[:,
-                                                   0,
-                                                   triangle_i] * g0[:,
-                                                                    i]) + (triangles[:,
-                                                                                     1,
-                                                                                     triangle_i] * g1[:,
-                                                                                                      i]) + (triangles[:,
-                                                                                                                       2,
-                                                                                                                       triangle_i] * g2[:,
-                                                                                                                                        i]))
+        integral[i + 7] = crosses[:, i] * ((triangles[:, 0, triangle_i] * g0[:, i]) +
+                                           (triangles[:, 1, triangle_i] * g1[:, i]) +
+                                           (triangles[:, 2, triangle_i] * g2[:, i]))
 
     coefficents = 1.0 / np.array([6, 24, 24, 24, 60, 60, 60, 120, 120, 120])
     integrated = integral.sum(axis=1) * coefficents
@@ -283,7 +275,7 @@ def extents(triangles, areas=None):
 
     Returns
     ----------
-    box:       (n,2) float, the size of the 2D oriented bounding box.
+    box:       (n,2) float, the size of the 2D oriented bounding box.  
     '''
     triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
