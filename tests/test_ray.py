@@ -54,10 +54,18 @@ class RayTests(g.unittest.TestCase):
             
             test_on = mesh.ray.contains_points(mesh.vertices)
             test_in = mesh.ray.contains_points(mesh.vertices * (1.0 / scale))
-            test_out = mesh.ray.contains_points(mesh.vertices * scale)
-
             assert test_in.all()
+            
+            test_out = mesh.ray.contains_points(mesh.vertices * scale)
             assert not test_out.any()
+            
+            points_way_out = (g.np.random.random((30,3)) * 100) + 1.0 + mesh.bounds[1]
+            test_way_out = mesh.ray.contains_points(points_way_out)
+            assert not test_way_out.any()
+            
+            test_centroid = mesh.ray.contains_points([mesh.center_mass])
+            assert test_centroid.all()
+            
 
     def test_on_vertex(self):
         for use_embree in [True, False]:

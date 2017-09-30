@@ -40,10 +40,7 @@ class NearestTest(g.unittest.TestCase):
 
             b = mesh.nearest.vertex(points)
             self.assertTrue(b is not None)
-
-            c = mesh.nearest.contains([mesh.center_mass])
-            assert len(c) == 1
-
+            
     def test_nearest_naive(self):
         funs = [g.trimesh.proximity.closest_point_naive,
                 g.trimesh.proximity.closest_point]

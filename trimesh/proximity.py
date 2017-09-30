@@ -165,7 +165,7 @@ def signed_distance(mesh, points):
     Find the signed distance from a mesh to a list of points.
 
     * Points OUTSIDE the mesh will have NEGATIVE distance
-    * Points on the surface will have very small distances with arbitrary sign
+    * Points within tol.merge of the surface will have POSITIVE distance
     * Points INSIDE the mesh will have POSITIVE distance
 
     Parameters
@@ -243,7 +243,7 @@ class ProximityQuery(object):
         Find the signed distance from a mesh to a list of points.
 
         * Points OUTSIDE the mesh will have NEGATIVE distance
-        * Points on the surface will have very small distances with arbitrary sign
+        * Points within tol.merge of the surface will have POSITIVE distance
         * Points INSIDE the mesh will have POSITIVE distance
 
         Parameters
@@ -255,18 +255,3 @@ class ProximityQuery(object):
         signed_distance : (n,3) float, signed distance from point to mesh
         '''
         return signed_distance(self._mesh, points)
-
-    def contains(self, points):
-        '''
-        Find if the current mesh contains points.
-
-        Parameters
-        -----------
-        points : (n,3) float, list of points in space
-
-        Returns
-        ----------
-        contains : (n,) bool, True if a point is inside the mesh
-        '''
-
-        return self.signed_distance(points) >= 0
