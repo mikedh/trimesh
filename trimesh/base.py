@@ -20,6 +20,7 @@ from . import bounds
 from . import inertia
 from . import nsphere
 from . import boolean
+from . import decomposition
 from . import grouping
 from . import geometry
 from . import permutate

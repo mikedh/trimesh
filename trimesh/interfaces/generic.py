@@ -1,7 +1,6 @@
 import os
 import platform
-
-from ..io.stl import load_stl
+import subprocess
 
 from string import Template
 from tempfile import NamedTemporaryFile
@@ -12,18 +11,20 @@ class MeshScript:
 
     def __init__(self,
                  meshes,
-                 script):
+                 script,
+                 tmpfile_ext='stl'):
         self.meshes = meshes
         self.script = script
+        self.tmpfile_ext = tmpfile_ext
 
     def __enter__(self):
         # windows has problems with multiple programs using open files so we close
         # them at the end of the enter call, and delete them ourselves at the
         # exit
-        self.mesh_pre = [NamedTemporaryFile(suffix='.STL',
+        self.mesh_pre = [NamedTemporaryFile(suffix='.{}'.format(self.tmpfile_ext),
                                             mode='wb',
                                             delete=False) for i in self.meshes]
-        self.mesh_post = NamedTemporaryFile(suffix='.STL',
+        self.mesh_post = NamedTemporaryFile(suffix='.{}'.format(self.tmpfile_ext),
                                             mode='rb',
                                             delete=False)
         self.script_out = NamedTemporaryFile(mode='wb',
@@ -31,7 +32,7 @@ class MeshScript:
 
         # export the meshes to a temporary STL container
         for mesh, file_obj in zip(self.meshes, self.mesh_pre):
-            mesh.export(file_type='stl', file_obj=file_obj.name)
+            mesh.export(file_obj.name)
 
         self.replacement = {
             'mesh_' + str(i): m.name for i, m in enumerate(self.mesh_pre)}
@@ -55,11 +56,11 @@ class MeshScript:
     def run(self, command):
         command_run = Template(command).substitute(self.replacement).split()
         # run the binary
-        check_call(command_run)
+        check_call(command_run, stdout=open(os.devnull, 'w'), stderr=subprocess.STDOUT)
 
         # bring the binaries result back as a Trimesh object
-        with open(self.mesh_post.name, mode='rb') as file_obj:
-            mesh_result = load_stl(file_obj)
+        from ..io.load import load_mesh # hack to avoid circular import
+        mesh_result = load_mesh(self.mesh_post.name)
         return mesh_result
 
     def __exit__(self, *args, **kwargs):
