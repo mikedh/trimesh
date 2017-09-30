@@ -99,48 +99,62 @@ def load_wavefront(file_obj, file_type=None):
     re_tris = 'f +\d+ +\d+ +\d+ *\n'
     re_quad = 'f +\d+ +\d+ +\d+ +\d+ *\n'
 
-    # find all triangular faces with a regex
-    face_tri = ' '.join(re.findall(re_tris, text)).replace('f', ' ').split()
-    # convert triangular faces into a numpy array
-    face_tri = np.array(face_tri, dtype=np.int64).reshape((-1, 3))
+    # Split the file on object lines -- any line that begins with an 'o'
+    # indicates a new mesh.
+    re_obj = re.compile(r'^o.*\n', re.M)
+    object_strs = [x for x in re_obj.split(text) if x]
+    total_verts = 0
 
-    # find all quad faces with a regex
-    face_quad = ' '.join(re.findall(re_quad, text)).replace('f', ' ').split()
-    # convert quad faces into a numpy array
-    face_quad = np.array(face_quad, dtype=np.int64).reshape((-1, 4))
+    loaded_data = []
 
-    # stack the faces into a single (n,3) list
-    # triangulate any quad faces
-    # this thin wrapper for vstack will ignore empty lists
-    faces = util.vstack_empty((face_tri,
-                               geometry.triangulate_quads(face_quad)))
-    # wavefront has 1- indexed faces, as opposed to 0- indexed
-    faces = faces.astype(np.int64) - 1
+    for text in object_strs:
+        # find all triangular faces with a regex
+        face_tri = ' '.join(re.findall(re_tris, text)).replace('f', ' ').split()
+        # convert triangular faces into a numpy array
+        face_tri = np.array(face_tri, dtype=np.int64).reshape((-1, 3))
 
-    # find the data with predictable lengths using numpy
-    data = np.array(text.split())
-    # find the locations of keys, then find the proceeding values
-    # indexes which contain vertex information
-    vid = np.nonzero(data == 'v')[0].reshape((-1, 1)) + np.arange(3) + 1
-    # indexes which contain vertex normal information
-    nid = np.nonzero(data == 'vn')[0].reshape((-1, 1)) + np.arange(3) + 1
-    # some varients of the format have face groups
-    gid = np.nonzero(data == 'g')[0].reshape((-1, 1)) + 1
+        # find all quad faces with a regex
+        face_quad = ' '.join(re.findall(re_quad, text)).replace('f', ' ').split()
+        # convert quad faces into a numpy array
+        face_quad = np.array(face_quad, dtype=np.int64).reshape((-1, 4))
 
-    loaded = {'vertices': data[vid].astype(float),
-              'vertex_normals': data[nid].astype(float),
-              'faces': faces}
+        # stack the faces into a single (n,3) list
+        # triangulate any quad faces
+        # this thin wrapper for vstack will ignore empty lists
+        faces = util.vstack_empty((face_tri,
+                                geometry.triangulate_quads(face_quad)))
+        # wavefront has 1- indexed faces, as opposed to 0- indexed
+        # additionally, decrement by number of vertices used in prior objects
+        faces = faces.astype(np.int64) - 1 - total_verts
 
-    # if face groups have been defined add them to metadata
-    if len(gid) > 0:
-        # indexes which contain face information
-        face_key = np.nonzero(data == 'f')[0]
-        groups = np.zeros(len(faces), dtype=int)
-        for i, g in enumerate(gid):
-            groups[np.nonzero(face_key > g)[0]] = i
-        loaded['metadata'] = {'face_groups': groups}
+        # find the data with predictable lengths using numpy
+        data = np.array(text.split())
+        # find the locations of keys, then find the proceeding values
+        # indexes which contain vertex information
+        vid = np.nonzero(data == 'v')[0].reshape((-1, 1)) + np.arange(3) + 1
+        # indexes which contain vertex normal information
+        nid = np.nonzero(data == 'vn')[0].reshape((-1, 1)) + np.arange(3) + 1
+        # some varients of the format have face groups
+        gid = np.nonzero(data == 'g')[0].reshape((-1, 1)) + 1
 
-    return loaded
+        loaded = {'vertices': data[vid].astype(float),
+                  'vertex_normals': data[nid].astype(float),
+                  'faces': faces}
+
+        # if face groups have been defined add them to metadata
+        if len(gid) > 0:
+            # indexes which contain face information
+            face_key = np.nonzero(data == 'f')[0]
+            groups = np.zeros(len(faces), dtype=int)
+            for i, g in enumerate(gid):
+                groups[np.nonzero(face_key > g)[0]] = i
+            loaded['metadata'] = {'face_groups': groups}
+
+        total_verts += len(loaded['vertices'])
+
+        loaded_data.append(loaded)
+
+    return loaded_data
 
 
 def load_msgpack(blob, file_type=None):
