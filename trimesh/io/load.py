@@ -115,16 +115,24 @@ def load_mesh(file_obj, file_type=None, **kwargs):
 
     # make sure we keep passed kwargs to loader
     # but also make sure loader keys override passed keys
-    kwargs.update(mesh_loaders[file_type](file_obj,
-                                          file_type))
+    results = mesh_loaders[file_type](file_obj, file_type)
+
     if util.is_file(file_obj):
         file_obj.close()
 
     log.debug('loaded mesh using %s',
               mesh_loaders[file_type].__name__)
 
-    loaded = load_kwargs(kwargs)
-    loaded.metadata.update(metadata)
+    if not isinstance(results, list):
+        results = [results]
+
+    loaded = []
+    for result in results:
+        kwargs.update(result)
+        loaded.append(load_kwargs(kwargs))
+        loaded[-1].metadata.update(metadata)
+    if len(loaded) == 1:
+        loaded = loaded[0]
 
     return loaded
 

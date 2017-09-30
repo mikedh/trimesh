@@ -103,6 +103,7 @@ class Trimesh(object):
         else:
             self.visual = visual.create_visual(face_colors=face_colors,
                                                vertex_colors=vertex_colors,
+                                               mesh=self,
                                                **kwargs)
         self.visual.mesh = self
 
