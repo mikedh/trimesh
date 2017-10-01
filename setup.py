@@ -69,5 +69,6 @@ setup(name = 'trimesh',
                                        'svg.path',
                                        'meshpy',
                                        'sympy',
-                                       'msgpack-python']}
+                                       'msgpack-python',
+                                       'scikit-image']}
      )
