@@ -34,6 +34,8 @@ class VoxelTest(g.unittest.TestCase):
 
                 outside = m.bounds[1] + m.scale
                 self.assertFalse(v.is_filled(outside))
+                
+                self.assertTrue(v.marching_cubes_mesh.is_watertight)
 
             g.log.info('Mesh volume was %f, voxelized volume was %f',
                        m.volume,
