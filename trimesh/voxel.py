@@ -167,7 +167,7 @@ class Voxel:
         mc_mesh: Trimesh object representing the current voxel 
         object, as returned by marching cubes algorithm.
         '''
-        mesh = raw_to_marching_cubes_mesh(self.raw, self.pitch, self.origin)
+        mc_mesh = raw_to_marching_cubes_mesh(self.raw, self.pitch, self.origin)
         return mc_mesh
 
     def point_to_index(self, point):
