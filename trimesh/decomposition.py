@@ -7,12 +7,12 @@ def convex_decomposition(mesh, engine=None):
     Parameters
     ----------
     mesh:   Trimesh object
-    engine: string, which backend to use. Valid choice is vhacd.
+    engine: string, which backend to use. Valid choice is 'vhacd'.
 
     Returns
     -------
-    meshes: list of Trimesh objects, a set of nearly convex meshes
-                                     that approximate the original
+    mesh_args: list, list of **kwargs for Trimeshes that are nearly
+                     convex and approximate the original.
     '''
     result = _engines[engine](mesh)
     return result

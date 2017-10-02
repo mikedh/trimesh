@@ -15,7 +15,7 @@ class DecompositionTest(g.unittest.TestCase):
                 continue
 
             g.log.info('Testing convex decomposition with engine %s', engine)
-            meshes = g.trimesh.decomposition.convex_decomposition(mesh)
+            meshes = mesh.convex_decomposition(engine=engine)
             self.assertTrue(len(meshes) > 1)
             for m in meshes:
                 self.assertTrue(m.is_watertight)

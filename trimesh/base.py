@@ -1607,6 +1607,23 @@ class Trimesh(object):
         result = self.export(file_type='dict')
         return result
 
+    def convex_decomposition(self, engine=None):
+        '''
+        Compute an approximate convex decomposition of a mesh.
+
+        Parameters
+        ----------
+        mesh:   Trimesh object
+        engine: string, which backend to use. Valid choice is 'vhacd'.
+
+        Returns
+        -------
+        meshes: list of Trimesh objects, a set of nearly convex meshes
+                                         that approximate the original
+        '''
+        kwargs_list = decomposition.convex_decomposition(self, engine=engine)
+        return [Trimesh(process=True, **kwargs) for kwargs in kwargs_list]
+
     def union(self, other, engine=None):
         '''
         Boolean union between this mesh and n other meshes
