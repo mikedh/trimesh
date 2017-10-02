@@ -1746,4 +1746,6 @@ def vstack_empty(tup):
     stackable = [i for i in tup if len(i) > 0]
     if len(stackable) == 1:
         return stackable[0]
+    elif len(stackable) == 0:
+        return np.array([])
     return np.vstack(stackable)

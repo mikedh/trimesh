@@ -123,6 +123,12 @@ def load_wavefront(file_obj, file_type=None):
         # this thin wrapper for vstack will ignore empty lists
         faces = util.vstack_empty((face_tri,
                                 geometry.triangulate_quads(face_quad)))
+
+        # If we didn't load any faces, we snagged extra propertie
+        # around an object split -- for now, avoid dealing with them.
+        if len(faces) == 0:
+            continue
+
         # wavefront has 1- indexed faces, as opposed to 0- indexed
         # additionally, decrement by number of vertices used in prior objects
         faces = faces.astype(np.int64) - 1 - total_verts
