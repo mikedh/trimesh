@@ -64,7 +64,7 @@ class MeshScript:
         if not isinstance(mesh_results, list):
             mesh_results = [mesh_results]
         if len(mesh_results) == 1:
-            return mesh_result[0].to_dict()
+            return mesh_results[0].to_dict()
         return [m.to_dict() for m in mesh_results]
 
     def __exit__(self, *args, **kwargs):
