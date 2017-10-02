@@ -728,6 +728,13 @@ class Cache:
             return self.cache[key]
         return None
 
+    def delete(self, key):
+        '''
+        Remove a key from the cache.
+        '''
+        if key in self.cache:
+            self.cache.pop(key, None)
+
     def verify(self):
         '''
         Verify that the cached values are still for the same value of id_function,

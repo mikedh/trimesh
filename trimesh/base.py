@@ -149,6 +149,10 @@ class Trimesh(object):
         # then reinitialized for the end of the operation.
         self._validate = bool(validate_faces)
 
+        # Set the default center of mass and density
+        self._density = 1.0
+        self._center_mass = None
+
         # process is a cleanup function which brings the mesh to a consistant state
         # by merging vertices and removing zero- area and duplicate faces
         if (process and
@@ -507,7 +511,8 @@ class Trimesh(object):
         '''
         The point in space which is the center of mass/volume.
 
-        If the current mesh is not watertight, this is meaningless garbage.
+        If the current mesh is not watertight, this is meaningless garbage
+        unless it was explicitly set.
 
         Returns
         -----------
@@ -517,6 +522,28 @@ class Trimesh(object):
             log.warning('Center of mass requested for non- watertight mesh!')
         center_mass = self.mass_properties['center_mass']
         return center_mass
+
+    @center_mass.setter
+    def center_mass(self, cm):
+        self._center_mass = cm
+        self._cache.delete('mass_properties')
+
+    @property
+    def density(self):
+        '''
+        The density of the mesh.
+
+        Returns
+        -----------
+        density: float, the density of the mesh.
+        '''
+        density = self.mass_properties['density']
+        return density
+
+    @density.setter
+    def density(self, d):
+        self._density = d
+        self._cache.delete('mass_properties')
 
     @property
     def volume(self):
@@ -530,6 +557,19 @@ class Trimesh(object):
         '''
         volume = self.mass_properties['volume']
         return volume
+
+    @property
+    def mass(self):
+        '''
+        Mass of the current mesh.
+        If the current mesh isn't watertight this is garbage.
+
+        Returns
+        ---------
+        mass: float, mass of the current mesh
+        '''
+        mass = self.mass_properties['mass']
+        return mass
 
     @property
     def moment_inertia(self):
@@ -1462,7 +1502,8 @@ class Trimesh(object):
         '''
         mass = triangles.mass_properties(triangles=self.triangles,
                                          crosses=self.triangles_cross,
-                                         density=1.0,
+                                         density=self._density,
+                                         center_mass=self._center_mass,
                                          skip_inertia=False)
         return mass
 
