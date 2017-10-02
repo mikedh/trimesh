@@ -234,7 +234,7 @@ def _create_topple_graph(cvh_mesh, com):
     # Compute static probabilities of landing on each face
     for i, tri in enumerate(cvh_mesh.triangles):
         prob = _compute_static_prob(tri, com)
-        topple_graph.add_node(i, {'prob': prob})
+        topple_graph.add_node(i, prob=prob)
 
     # Compute COM projections onto planes of each triangle in cvh_mesh
     proj_dists = np.einsum('ij,ij->i', cvh_mesh.face_normals, com - cvh_mesh.triangles[:,0])
