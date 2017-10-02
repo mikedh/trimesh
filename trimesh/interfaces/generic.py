@@ -5,6 +5,7 @@ import subprocess
 from string import Template
 from tempfile import NamedTemporaryFile
 from subprocess import check_call
+from .. import io
 
 
 class MeshScript:
@@ -59,8 +60,7 @@ class MeshScript:
         check_call(command_run, stdout=open(os.devnull, 'w'), stderr=subprocess.STDOUT)
 
         # bring the binaries result back as a Trimesh object
-        from ..io.load import load_mesh # hack to avoid circular import
-        mesh_result = load_mesh(self.mesh_post.name)
+        mesh_result = io.load.load_mesh(self.mesh_post.name)
         return mesh_result
 
     def __exit__(self, *args, **kwargs):
