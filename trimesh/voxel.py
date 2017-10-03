@@ -353,16 +353,22 @@ def raw_to_marching_cubes_mesh(raw, pitch, origin):
                      'constant',constant_values=(1))
 
     #Run marching cubes.
-    v, f, norms, vals= measure.marching_cubes(volume=rev_raw,
-                                              level=.5, # it is a boolean voxel grid
-                                              spacing=(pitch,
-                                                       pitch,
-                                                       pitch))
+    meshed = measure.marching_cubes(volume=rev_raw,
+                                    level=.5, # it is a boolean voxel grid
+                                    spacing=(pitch,
+                                             pitch,
+                                             pitch))
+
+    # allow results from either marching cubes function in skimage
+    if len(meshed) == 2:
+        vertices, faces = meshed
+    elif len(meshed) == 4:
+        vertices, faces, normals, vals = meshed
     
     #Return to the origin, add in the pad_width
-    v = np.subtract(np.add(v, origin), pad_width)
-    mc_mesh = Trimesh(vertices=v, faces=f)
-    return mc_mesh
+    vertices = np.subtract(np.add(vertices, origin), pad_width)
+    mesh = Trimesh(vertices=vertices, faces=faces)
+    return mesh
 
 
 def run_to_mesh(run):
