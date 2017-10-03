@@ -39,6 +39,7 @@ The easiest way to get going on the most platforms is through Conda.
    # install most trimesh requirements with built components from conda-forge
    conda config --add channels conda-forge  # rtree, shapely, pyembree
    conda install shapely rtree graph-tool pyembree numpy scipy
+   conda install -c conda-forge scikit-image
 
    # graph-tool is only tested on Ubuntu and very unlikely to work elsewhere
    # it is used in connected components calculations, and is slighly faster in

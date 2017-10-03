@@ -3,7 +3,6 @@ import numpy as np
 from . import util
 from . import grouping
 
-from skimage import measure
 from collections import deque
 
 
@@ -343,7 +342,7 @@ def raw_to_marching_cubes_mesh(raw, pitch, origin):
     mc_mesh: Trimesh object representing inputs, as derived 
     by marching cubes algorithm.
     '''
-
+    from skimage import measure
     from .base import Trimesh
     
     rev_raw = np.logical_not(raw) #Takes set about 0.

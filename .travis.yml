@@ -45,6 +45,7 @@ install:
   - if [[ "$TRAVIS_PYTHON_VERSION" != "3.3" ]]; then
       conda install pyembree rtree shapely;
     fi
+  - conda install -c conda-forge scikit-image
   - pip install .[all]
   - pip install nose2
 

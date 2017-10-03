@@ -24,6 +24,9 @@ conda install nomkl
 # they use non- standard labels, master vs main
 conda install -c menpo/label/master cyassimp
 
+# scikit-image is used for marching cubes
+conda install -c conda-forge scikit-image
+
 # install most trimesh requirements with built components 
 conda install shapely rtree graph-tool pyembree numpy scipy
 

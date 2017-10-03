@@ -60,8 +60,7 @@ setup(name = 'trimesh',
                                        'rtree',
                                        'svg.path',
                                        'sympy',
-                                       'msgpack-python',
-                                       'scikit-image'],
+                                       'msgpack-python'],
                            'all'    : ['lxml',
                                        'pyglet',
                                        'Shapely',
@@ -69,6 +68,5 @@ setup(name = 'trimesh',
                                        'svg.path',
                                        'meshpy',
                                        'sympy',
-                                       'msgpack-python',
-                                       'scikit-image']}
+                                       'msgpack-python']}
      )
