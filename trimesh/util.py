@@ -728,6 +728,13 @@ class Cache:
             return self.cache[key]
         return None
 
+    def delete(self, key):
+        '''
+        Remove a key from the cache.
+        '''
+        if key in self.cache:
+            self.cache.pop(key, None)
+
     def verify(self):
         '''
         Verify that the cached values are still for the same value of id_function,
@@ -1739,4 +1746,6 @@ def vstack_empty(tup):
     stackable = [i for i in tup if len(i) > 0]
     if len(stackable) == 1:
         return stackable[0]
+    elif len(stackable) == 0:
+        return np.array([])
     return np.vstack(stackable)

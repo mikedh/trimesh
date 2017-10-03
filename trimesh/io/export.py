@@ -5,6 +5,7 @@ from ..constants import log
 from .. import util
 
 from .stl import export_stl, export_stl_ascii
+from .urdf import export_urdf
 from .ply import _ply_exporters
 
 

@@ -229,6 +229,14 @@ class ColorVisuals(object):
                 (3,) int, set the whole mesh this color
                 (4,) int, set the whole mesh this color
         '''
+        # Ensure the color shape is sane
+        if (self.mesh is not None and not
+                (values.shape == (len(self.mesh.vertices), 3) or
+                 values.shape == (len(self.mesh.vertices), 4) or
+                 values.shape == (3,) or
+                 values.shape == (4,))):
+            return
+
         colors = to_rgba(values)
         if (self.mesh is not None and
                 colors.shape == (4,)):

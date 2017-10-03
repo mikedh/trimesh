@@ -97,7 +97,7 @@ def any_coplanar(triangles):
     return any_coplanar
 
 
-def mass_properties(triangles, crosses=None, density=1.0, skip_inertia=False):
+def mass_properties(triangles, crosses=None, density=1.0, center_mass=None, skip_inertia=False):
     '''
     Calculate the mass properties of a group of triangles.
 
@@ -114,7 +114,6 @@ def mass_properties(triangles, crosses=None, density=1.0, skip_inertia=False):
     if crosses is None:
         log.warning('cross products not passed, will be expensively recomputed')
         crosses = cross(triangles)
-    surface_area = np.sum(np.sum(crosses**2, axis=1)**.5) * .5
 
     # these are the subexpressions of the integral
     f1 = triangles.sum(axis=1)
@@ -152,10 +151,14 @@ def mass_properties(triangles, crosses=None, density=1.0, skip_inertia=False):
     integrated = integral.sum(axis=1) * coefficents
 
     volume = integrated[0]
-    center_mass = integrated[1:4] / volume
+
+    if center_mass is None:
+        center_mass = integrated[1:4] / volume
+
+    mass = density * volume
 
     result = {'density': density,
-              'surface_area': surface_area,
+              'mass': mass,
               'volume': volume,
               'center_mass': center_mass}
 
