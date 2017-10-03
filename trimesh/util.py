@@ -1765,8 +1765,10 @@ def write_encoded(file_obj, stuff, encoding='utf-8'):
     binary_file  = 'b' in file_obj.mode
     string_stuff = isinstance(stuff, basestring)
     binary_stuff = isinstance(stuff, bytes)
-    
-    if binary_file and string_stuff:
+
+    if not _PY3:
+        file_obj.write(stuff)  
+    elif binary_file and string_stuff:
         file_obj.write(stuff.encode(encoding))
     elif not binary_file and binary_stuff:
         file_obj.write(stuff.decode(encoding))
