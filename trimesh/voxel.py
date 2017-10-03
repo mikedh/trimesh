@@ -153,7 +153,7 @@ class Voxel:
         return mesh
 
     @util.cache_decorator
-    def marching_cubes_mesh(self):
+    def marching_cubes(self):
         '''
         A marching cubes Trimesh representation of the voxels.
 
@@ -354,7 +354,7 @@ def raw_to_marching_cubes_mesh(raw, pitch, origin):
 
     #Run marching cubes.
     v, f, norms, vals= measure.marching_cubes(volume=rev_raw,
-                                              level=None,
+                                              level=.5, # it is a boolean voxel grid
                                               spacing=(pitch,
                                                        pitch,
                                                        pitch))
