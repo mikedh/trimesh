@@ -1749,3 +1749,28 @@ def vstack_empty(tup):
     elif len(stackable) == 0:
         return np.array([])
     return np.vstack(stackable)
+
+def write_encoded(file_obj, stuff, encoding='utf-8'):
+    '''
+    If a file is open in binary mode and a string is passed, encode and write
+    If a file is open in text   mode and bytes are passed, decode and write
+
+    Parameters
+    -----------
+    file_obj: file object,  with 'write' and 'mode'
+    stuff:    str or bytes, stuff to be written
+    encoding: str,          encoding of text
+
+    '''
+    binary_file  = 'b' in file_obj.mode
+    string_stuff = isinstance(stuff, basestring)
+    binary_stuff = isinstance(stuff, bytes)
+    
+    if binary_file and string_stuff:
+        file_obj.write(stuff.encode(encoding))
+    elif not binary_file and binary_stuff:
+        file_obj.write(stuff.decode(encoding))
+    else:
+        file_obj.write(stuff)
+    file_obj.flush()
+        

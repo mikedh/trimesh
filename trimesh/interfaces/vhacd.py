@@ -2,6 +2,7 @@ import os
 import platform
 
 from .generic import MeshScript
+from ..constants import log
 
 from distutils.spawn import find_executable
 
@@ -15,9 +16,13 @@ if platform.system() == 'Windows':
     log.debug('searching for vhacd in: ', _search_path)
 
 
-_vhacd_executable = find_executable('vhacd', path=_search_path)
-exists = _vhacd_executable is not None
+_vhacd_executable = None
+for _name in ['vhacd', 'testVHACD']:
+    _vhacd_executable = find_executable(_name, path=_search_path)
+    if _vhacd_executable is not None:
+        break
 
+exists = _vhacd_executable is not None
 
 def convex_decomposition(mesh):
     if not exists:

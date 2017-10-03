@@ -10,6 +10,7 @@ import copy
 
 from . import util
 from . import units
+from . import poses
 from . import graph
 from . import visual
 from . import sample
@@ -20,14 +21,13 @@ from . import bounds
 from . import inertia
 from . import nsphere
 from . import boolean
-from . import decomposition
 from . import grouping
 from . import geometry
 from . import permutate
 from . import proximity
 from . import triangles
-from . import poses
 from . import comparison
+from . import decomposition
 from . import intersections
 from . import transformations
 
@@ -157,7 +157,7 @@ class Trimesh(object):
         # by merging vertices and removing zero- area and duplicate faces
         if (process and
             (vertices is not None) and
-                (faces is not None)):
+            (faces is not None)):
             self.process()
 
         # store all passed kwargs for debugging purposes
@@ -541,8 +541,9 @@ class Trimesh(object):
         return density
 
     @density.setter
-    def density(self, d):
-        self._density = d
+    def density(self, value):
+        self._density = value
+        # force the mass properties to be recomputed with the new density
         self._cache.delete('mass_properties')
 
     @property
@@ -1184,7 +1185,11 @@ class Trimesh(object):
         '''
         return repair.fill_holes(self)
 
-    def compute_stable_poses(self, com=None, sigma=0.0, n_samples=1, threshold=0.0):
+    def compute_stable_poses(self,
+                             center_mass=None,
+                             sigma=0.0,
+                             n_samples=1,
+                             threshold=0.0):
         '''
         Computes stable orientations of a mesh and their quasi-static probabilites.
 
@@ -1202,15 +1207,15 @@ class Trimesh(object):
 
         Parameters
         ----------
-        mesh:      Trimesh object, the target mesh
-        com:       (3,) float,     the object center of mass (if None, this method
-                                assumes uniform density and watertightness and
-                                computes a center of mass explicitly)
-        sigma:     float,          the covariance for the multivariate gaussian used
-                                to sample center of mass locations
-        n_samples: int,            the number of samples of the center of mass loc
-        threshold: float,          the probability value at which to threshold
-                                returned stable poses
+        mesh:        Trimesh object, the target mesh
+        center_mass: (3,) float,     the object center of mass (if None, this method
+                                     assumes uniform density and watertightness and
+                                     computes a center of mass explicitly)
+        sigma:     float,            the covariance for the multivariate gaussian used
+                                     to sample center of mass locations
+        n_samples: int,             the number of samples of the center of mass loc
+        threshold: float,           the probability value at which to threshold
+                                      returned stable poses
 
         Returns
         -------
@@ -1221,7 +1226,11 @@ class Trimesh(object):
 
         probs:      list of floats,       a probability in (0, 1) for each pose
         '''
-        return poses.compute_stable_poses(self, com, sigma, n_samples, threshold)
+        return poses.compute_stable_poses(mesh=self,
+                                          center_mass=center_mass,
+                                          sigma=sigma,
+                                          n_samples=n_samples,
+                                          threshold=threshold)
 
     def subdivide(self, face_index=None):
         '''

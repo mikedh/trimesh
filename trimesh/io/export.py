@@ -38,12 +38,11 @@ def export_mesh(mesh, file_obj, file_type=None):
     export = _mesh_exporters[file_type](mesh)
 
     if hasattr(file_obj, 'write'):
-        file_obj.write(export)
-        file_obj.flush()
+        util.write_encoded(file_obj, export)
     else:
         return export
 
-
+    
 def export_off(mesh):
     '''
     Export a mesh as an OFF file, a simple text format

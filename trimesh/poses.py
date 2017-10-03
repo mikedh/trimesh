@@ -4,7 +4,7 @@ import numpy as np
 from .constants import tol
 from .triangles import points_to_barycentric
 
-def compute_stable_poses(mesh, com=None, sigma=0.0, n_samples=1, threshold=0.0):
+def compute_stable_poses(mesh, center_mass=None, sigma=0.0, n_samples=1, threshold=0.0):
     '''
     Computes stable orientations of a mesh and their quasi-static probabilites.
 
@@ -42,17 +42,17 @@ def compute_stable_poses(mesh, com=None, sigma=0.0, n_samples=1, threshold=0.0):
     probs:      list of floats,       a probability in (0, 1) for each pose
     '''
 
-    # Compute convex hull mesh
+    # save convex hull mesh to avoid a cache check
     cvh = mesh.convex_hull
 
-    if com is None:
-        com = mesh.center_mass
+    if center_mass is None:
+        center_mass = mesh.center_mass
 
     # Sample center of mass, rejecting points outside of conv hull
     sample_coms = []
     while len(sample_coms) < n_samples:
         remaining = n_samples - len(sample_coms)
-        coms = np.random.multivariate_normal(com, sigma * np.eye(3), remaining)
+        coms = np.random.multivariate_normal(center_mass, sigma * np.eye(3), remaining)
         for c in coms:
             dots = np.einsum('ij,ij->i', c - cvh.triangles_center, cvh.face_normals)
             if np.all(dots < 0):

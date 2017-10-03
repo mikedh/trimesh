@@ -1,4 +1,6 @@
 import numpy as np
+
+import collections
 import json
 import re
 
@@ -101,13 +103,21 @@ def load_wavefront(file_obj, file_type=None):
 
     # Split the file on object lines -- any line that begins with an 'o'
     # indicates a new mesh.
-    re_obj = re.compile(r'^o.*\n', re.M)
-    object_strs = [x for x in re_obj.split(text) if x]
-    total_verts = 0
+    # regex does:
+    # '^' : match the first charecter of each newline (with multiline flag)
+    # 'o' : match the charecter 'o'
+    # '.*': match zero or more of any charecter
+    # '\n': up to a newline
+    re_obj = '^o.*\n'
+    
+    count_vertices = 0
+    loaded_data = collections.deque()
 
-    loaded_data = []
-
-    for text in object_strs:
+    # loop through each sub- mesh
+    for text in re.split(re_obj, text, flags=re.MULTILINE):
+        if text is None:
+            continue
+        
         # find all triangular faces with a regex
         face_tri = ' '.join(re.findall(re_tris, text)).replace('f', ' ').split()
         # convert triangular faces into a numpy array
@@ -131,7 +141,7 @@ def load_wavefront(file_obj, file_type=None):
 
         # wavefront has 1- indexed faces, as opposed to 0- indexed
         # additionally, decrement by number of vertices used in prior objects
-        faces = faces.astype(np.int64) - 1 - total_verts
+        faces = faces.astype(np.int64) - 1 - count_vertices
 
         # find the data with predictable lengths using numpy
         data = np.array(text.split())
@@ -156,11 +166,11 @@ def load_wavefront(file_obj, file_type=None):
                 groups[np.nonzero(face_key > g)[0]] = i
             loaded['metadata'] = {'face_groups': groups}
 
-        total_verts += len(loaded['vertices'])
+        count_vertices += len(loaded['vertices'])
 
         loaded_data.append(loaded)
 
-    return loaded_data
+    return list(loaded_data)
 
 
 def load_msgpack(blob, file_type=None):
