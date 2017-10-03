@@ -353,10 +353,11 @@ def raw_to_marching_cubes_mesh(raw, pitch, origin):
                      'constant',constant_values=(1))
 
     #Run marching cubes.
-    v, f, norms, vals= measure.marching_cubes(rev_raw, 
-                                              spacing=(pitch,
-                                                       pitch,
-                                                       pitch))
+    v, f, norms, vals= measure.marching_cubes_lewiner(volume=rev_raw,
+                                                      level=None,
+                                                      spacing=(pitch,
+                                                               pitch,
+                                                               pitch))
     
     #Return to the origin, add in the pad_width
     v = np.subtract(np.add(v, origin), pad_width)
