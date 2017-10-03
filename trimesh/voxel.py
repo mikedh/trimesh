@@ -152,6 +152,23 @@ class Voxel:
         mesh = run_to_mesh(self.run)
         return mesh
 
+    @util.cache_decorator
+    def marching_cubes_mesh(self):
+        '''
+        A marching cubes Trimesh representation of the voxels.
+
+        No effort was made to clean or smooth the result in any way; 
+        it is merely the result of applying the scikit-image 
+        measure.marching_cubes function to self.raw.
+
+        Returns
+        ---------
+        mc_mesh: Trimesh object representing the current voxel 
+        object, as returned by marching cubes algorithm.
+        '''
+        mc_mesh = raw_to_marching_cubes_mesh(self.raw, self.pitch, self.origin)
+        return mc_mesh
+
     def point_to_index(self, point):
         '''
         Convert a point to an index in the raw array.
@@ -308,6 +325,43 @@ def raw_to_points(raw, pitch, origin):
     '''
     points = np.column_stack(np.nonzero(raw)) * pitch + origin
     return points
+
+
+def raw_to_marching_cubes_mesh(raw, pitch, origin):
+    '''
+    Convert an (n,m,p) raw matrix into a mesh, using marching_cubes.
+
+    Parameters
+    -----------
+    raw: (n,m,p) bool, voxel matrix
+    pitch: float, what pitch was the voxel matrix computed with
+    origin: (3,) float, what is the origin of the voxel matrix
+
+    Returns
+    ----------
+    mc_mesh: Trimesh object representing inputs, as derived 
+    by marching cubes algorithm.
+    '''
+    from skimage import measure
+    from .base import Trimesh
+    
+    rev_raw = np.logical_not(raw) #Takes set about 0.
+    #Add in padding so marching cubes can function properly with
+    # voxels on edge of AABB
+    pad_width = 1
+    rev_raw = np.pad(rev_raw,(pad_width),
+                     'constant',constant_values=(1))
+
+    #Run marching cubes.
+    v, f, norms, vals= measure.marching_cubes(rev_raw, 
+                                              spacing=(pitch,
+                                                       pitch,
+                                                       pitch))
+    
+    #Return to the origin, add in the pad_width
+    v = np.subtract(np.add(v, origin), pad_width)
+    mc_mesh = Trimesh(vertices=v, faces=f)
+    return mc_mesh
 
 
 def run_to_mesh(run):
