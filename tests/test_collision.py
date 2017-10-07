@@ -8,7 +8,7 @@ class CollisionTest(g.unittest.TestCase):
         try:
             g.trimesh.collision.CollisionManager()
         except ValueError:
-            g.log.warning('skipping collision tests, no FCL installed', engine)
+            g.log.warning('skipping collision tests, no FCL installed')
             return
 
         cube = g.get_mesh('unit_cube.STL')
