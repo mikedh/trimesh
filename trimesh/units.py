@@ -96,5 +96,6 @@ def _set_units(obj, desired, guess):
             raise ValueError('No units specified and not allowed to guess!')
     log.info('Converting units from %s to %s', obj.units, desired)
     conversion = unit_conversion(obj.units, desired)
-    obj.vertices *= conversion
+    
+    obj.apply_scale(conversion)
     obj.units = desired

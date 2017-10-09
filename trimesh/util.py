@@ -616,11 +616,11 @@ def tracked_array(array, dtype=None):
     '''
     Properly subclass a numpy ndarray to track changes.
     '''
-    result = np.ascontiguousarray(array).view(TrackedArray)
-    if dtype is None:
-        return result
-    return result.astype(dtype)
-
+    tracked = np.ascontiguousarray(array,
+                                   dtype=dtype).view(TrackedArray)
+    assert tracked.flags['C_CONTIGUOUS']
+    return tracked
+    
 
 class TrackedArray(np.ndarray):
     '''

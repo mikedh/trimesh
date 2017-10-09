@@ -1974,8 +1974,8 @@ def transform_points(points, matrix, translate=True):
     ----------
     transformed: (n,d) float, np array of points
     '''
-    points = np.asanyarray(points, dtype=np.float64)
-    matrix = np.asanyarray(matrix, dtype=np.float64)
+    points = np.asanyarray(points, order='C', dtype=np.float64)
+    matrix = np.asanyarray(matrix, order='C', dtype=np.float64)
     if (len(points.shape) != 2 or
             (points.shape[1] + 1 != matrix.shape[1])):
         raise ValueError('matrix dimension must match points!')
@@ -1988,8 +1988,8 @@ def transform_points(points, matrix, translate=True):
     column = np.zeros(len(points)) + int(bool(translate))
     stacked = np.column_stack((points, column))
     transformed = np.dot(matrix, stacked.T).T[:, :dimension]
+    transformed = np.ascontiguousarray(transformed)
     return transformed
-
 
 def is_rigid(matrix):
     '''

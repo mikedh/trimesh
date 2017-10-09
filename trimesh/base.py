@@ -275,7 +275,9 @@ class Trimesh(object):
     def face_normals(self, values):
         if values is None:
             return
-        self._cache['face_normals'] = np.asanyarray(values, dtype=np.float64)
+        self._cache['face_normals'] = np.asanyarray(values,
+                                                    order='C',
+                                                    dtype=np.float64)
 
     @property
     def vertices(self):
@@ -1395,7 +1397,7 @@ class Trimesh(object):
         matrix: (4,4) float, homogenous transformation matrix
         '''
 
-        matrix = np.asanyarray(matrix, dtype=np.float64)
+        matrix = np.asanyarray(matrix, order='C', dtype=np.float64)
         if matrix.shape != (4, 4):
             raise ValueError('Transformation matrix must be (4,4)!')
 
@@ -1403,13 +1405,16 @@ class Trimesh(object):
             log.debug('apply_tranform recieved identity matrix')
             return
 
+
+        new_vertices = transformations.transform_points(self.vertices,
+                                                        matrix)
+        
+        # force generation of face normals so we can check against them
         new_normals = np.dot(matrix[0:3, 0:3], self.face_normals.T).T
         # easier than figuring out what the scale factor of the matrix is
         new_normals = util.unitize(new_normals)
-        new_vertices = transformations.transform_points(self.vertices,
-                                                        matrix)
-        # check the first face against the first normal to see if winding is
-        # correct
+
+        # check the first face against the first normal to check winding
         aligned_pre = triangles.windings_aligned(self.vertices[self.faces[:1]],
                                                  self.face_normals[:1])[0]
         aligned_post = triangles.windings_aligned(new_vertices[self.faces[:1]],
