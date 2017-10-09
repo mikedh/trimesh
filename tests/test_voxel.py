@@ -13,30 +13,38 @@ class VoxelTest(g.unittest.TestCase):
             for pitch in [.1, .1 - g.tol.merge]:
                 v = m.voxelized(pitch)
 
-                self.assertTrue(len(v.raw.shape) == 3)
-                self.assertTrue(v.shape == v.raw.shape)
-                self.assertTrue(v.volume > 0.0)
+                assert len(v.matrix.shape) == 3
+                assert v.shape == v.matrix.shape
+                assert v.volume > 0.0
 
-                self.assertTrue(v.origin.shape == (3,))
-                self.assertTrue(isinstance(v.pitch, float))
-                self.assertTrue(g.np.isfinite(v.pitch))
+                assert v.origin.shape == (3,)
+                assert isinstance(v.pitch, float)
+                assert g.np.isfinite(v.pitch)
 
-                self.assertTrue(g.np.issubdtype(v.filled_count, int))
-                self.assertTrue(v.filled_count > 0)
+                assert g.np.issubdtype(v.filled_count, int)
+                assert v.filled_count > 0
 
-                self.assertTrue(isinstance(v.mesh, g.trimesh.Trimesh))
-                self.assertTrue(abs(v.mesh.volume - v.volume) < g.tol.merge)
+                assert isinstance(v.as_boxes, g.trimesh.Trimesh)
+                assert abs(v.as_boxes.volume - v.volume) < g.tol.merge
 
-                self.assertTrue(g.trimesh.util.is_shape(v.points, (-1, 3)))
+                assert g.trimesh.util.is_shape(v.points, (-1, 3))
 
+                
                 for p in v.points:
-                    self.assertTrue(v.is_filled(p))
+                    assert v.is_filled(p)
 
                 outside = m.bounds[1] + m.scale
-                self.assertFalse(v.is_filled(outside))
+                assert not v.is_filled(outside)
 
                 cubes = v.marching_cubes
-                self.assertTrue(cubes.is_watertight)
+                assert cubes.area > 0.0
+
+                
+                if (g.python_version == (3,3) or
+                    g.python_version == (3,4)):
+                    # python 3.3 and 3.4 only have the classic marching cubes
+                    # which doesn't guarantee a watertight result
+                    assert cubes.is_watertight
 
             g.log.info('Mesh volume was %f, voxelized volume was %f',
                        m.volume,

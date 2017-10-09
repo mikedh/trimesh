@@ -96,8 +96,6 @@ def subdivide_to_size(vertices, faces, max_edge, max_iter=10):
 
         too_long = (edge_lengths > max_edge).any(axis=1)
 
-        #print(edge_lengths.max(), subdivide.sum(), subdivide.size)
-
         # clean up the faces a little bit so we don't carry a ton of unused
         # vertices
         unique, inverse = np.unique(current_faces[np.logical_not(too_long)],

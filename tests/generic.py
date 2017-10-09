@@ -22,6 +22,9 @@ from trimesh.base import Trimesh
 
 from shapely.geometry import Point, Polygon
 
+
+python_version = (sys.version_info.major, sys.version_info.minor)
+
 # python 3
 try:
     from cStringIO import StringIO

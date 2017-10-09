@@ -1,78 +1,49 @@
 import numpy as np
 
 from . import util
+from . import remesh
 from . import grouping
 
 from collections import deque
 
 
-class Voxel:
+class Voxel(object):
 
-    def __init__(self, mesh, pitch, size_max=1e5):
+
+    def __init__(self, *args, **kwargs):
+        self._data  = util.DataStore()
+        self._cache = util.Cache(id_function=self._data.crc)
+        
+    @util.cache_decorator
+    def marching_cubes(self):
         '''
-        Create a voxel representation of a mesh through ray tests
-        which are done immediatly on instantiation.
+        A marching cubes Trimesh representation of the voxels.
 
-        Parameters
-        ----------
-        mesh:  Trimesh object
-        pitch: float, how long should each edge of the voxel be
-        '''
-        self._run = mesh_to_run(mesh, pitch, size_max=size_max)
-        self._cache = util.Cache(id_function=self._id)
-
-    def _id(self):
-        '''
-        Invalidate the cache if the current run object has been replaced.
-        Note that this is not monitoring self._run for changes through a DataStore
-        '''
-        return id(self._run)
-
-    @property
-    def run(self):
-        '''
-        A dictionary holding data describing 'runs' of voxels.
-
-        This is a fairly natural and somewhat compact way of representing the voxels,
-        as we generated the voxelization by doing ray tests along the Z axis.
-
-        Note that this representation makes a lot of sense for watertight meshes but for
-        things that look more like random noise it makes basically no sense whatsoever.
-
-        Returns
-        -----------
-        run: dictionary containing the following:
-             'index_xy' : (n,2) int, containing XY position in voxel counts
-             'index_z'  : (n,2) int, containing start and end of a voxel run, in Z
-             'pitch'    : float, pitch voxels were computed at
-             'origin'   : (3,) float, position in world space the voxel matrix origin is
-             'shape'    : (3,) int, shape of voxel matrix
-        '''
-        return self._run
-
-    @property
-    def pitch(self):
-        '''
-        The edge length of each voxel cube for the current object.
-
-        Returns
-        ----------
-        pitch: float, length of an edge on a  single voxel cube
-        '''
-        return self.run['pitch']
-
-    @property
-    def origin(self):
-        '''
-        What is the origin of the current voxel object.
+        No effort was made to clean or smooth the result in any way; 
+        it is merely the result of applying the scikit-image 
+        measure.marching_cubes function to self.matrix.
 
         Returns
         ---------
-        origin: (3,) float, where the minimum corner for the current voxel
-                 matrix originates.
+        meshed: Trimesh object representing the current voxel 
+                        object, as returned by marching cubes algorithm.
         '''
-        return self.run['origin']
+        meshed = matrix_to_marching_cubes(matrix=self.matrix, 
+                                          pitch=self.pitch, 
+                                          origin=self.origin)
+        return meshed
 
+    @property
+    def pitch(self):
+        # stored as TrackedArray with a single element
+        return self._data['pitch'][0]
+
+    @pitch.setter
+    def pitch(self, value):
+        self._data['pitch'] = value
+        
+
+    
     @property
     def shape(self):
         '''
@@ -82,7 +53,7 @@ class Voxel:
         ---------
         shape: (3,) int, what is the shape of the 3D matrix for these voxels
         '''
-        return tuple(self.run['shape'])
+        return self.matrix.shape
 
     @util.cache_decorator
     def filled_count(self):
@@ -93,23 +64,9 @@ class Voxel:
         --------
         filled: int, number of voxels that are occupied
         '''
-        if len(self.run['index_z']) > 0:
-            filled = np.abs(np.diff(self.run['index_z'], axis=1)).sum()
-        else:
-            filled = 0
+        return self.matrix.sum()
+    
         return filled
-
-    @util.cache_decorator
-    def raw(self):
-        '''
-        The voxels represented as a 3D matrix.
-
-        Returns
-        ---------
-        raw: self.shape np.bool, if a cell is True it is occupied
-        '''
-        return run_to_raw(**self.run)
-
     @util.cache_decorator
     def volume(self):
         '''
@@ -131,47 +88,14 @@ class Voxel:
         ----------
         points: (self.filled, 3) float, list of points
         '''
-        points = raw_to_points(raw=self.raw,
-                               pitch=self.pitch,
-                               origin=self.origin)
+        points = matrix_to_points(matrix=self.matrix,
+                                  pitch=self.pitch,
+                                  origin=self.origin)
         return points
-
-    @util.cache_decorator
-    def mesh(self):
-        '''
-        A rough Trimesh representation of the voxels.
-
-        No effort was made to clean or smooth the result in any way; it is merely
-        a set of columns for each Z run, although each column should essentially be
-        a separate body.
-
-        Returns
-        ---------
-        mesh: Trimesh object representing the current voxel object.
-        '''
-        mesh = run_to_mesh(self.run)
-        return mesh
-
-    @util.cache_decorator
-    def marching_cubes(self):
-        '''
-        A marching cubes Trimesh representation of the voxels.
-
-        No effort was made to clean or smooth the result in any way; 
-        it is merely the result of applying the scikit-image 
-        measure.marching_cubes function to self.raw.
-
-        Returns
-        ---------
-        mc_mesh: Trimesh object representing the current voxel 
-        object, as returned by marching cubes algorithm.
-        '''
-        mc_mesh = raw_to_marching_cubes_mesh(self.raw, self.pitch, self.origin)
-        return mc_mesh
 
     def point_to_index(self, point):
         '''
-        Convert a point to an index in the raw array.
+        Convert a point to an index in the matrix array.
 
         Parameters
         ----------
@@ -179,7 +103,7 @@ class Voxel:
 
         Returns
         ---------
-        index: (3,) int tuple, index in self.raw
+        index: (3,) int tuple, index in self.matrix
         '''
         point = np.asanyarray(point)
         if point.shape != (3,):
@@ -203,119 +127,150 @@ class Voxel:
         index = self.point_to_index(point)
         in_range = (np.array(index) < np.array(self.shape)).all()
         if in_range:
-            is_filled = self.raw[index]
+            is_filled = self.matrix[index]
         else:
             is_filled = False
         return is_filled
+
+
+    
+
+class VoxelMesh(Voxel):
+
+    def __init__(self, mesh, pitch, size_max=None):
+        '''
+        A voxel representation of a mesh that will track changes to 
+        the mesh.
+
+        At the moment the voxels are not filled in.
+
+        Parameters
+        ----------
+        mesh:      Trimesh object
+        pitch:     float, how long should each edge of the voxel be
+        size_max:  float, maximum size (in mb) of a data structure that
+                          may be created before raising an exception
+        '''
+        super(VoxelMesh, self).__init__()
+        
+        self._data['mesh']  = mesh
+        self._data['pitch'] = pitch
+
+
+    @util.cache_decorator
+    def matrix_surface(self):
+        '''
+        The voxels on the surface of the mesh as a 3D matrix.
+
+        Returns
+        ---------
+        matrix: self.shape np.bool, if a cell is True it is occupied
+        '''
+        matrix = sparse_to_matrix(self.sparse_surface)
+        return matrix
+
+
+    @property
+    def matrix(self):
+        '''
+        A matrix representation of the surface voxels. 
+
+        In the future this is planned to return a filled voxel matrix
+        if the source mesh is watertight, and a surface voxelization
+        otherwise.
+
+        Returns
+        ---------
+        matrix: self.shape np.bool, cell occupancy
+        '''
+        # once filled voxels are implemented 
+        #if self._data['mesh'].is_watertight:
+        #    return self.matrix_filled
+        
+        return self.matrix_surface
+    
+
+    @property
+    def origin(self):
+        populate = self.sparse_surface
+        return self._cache['origin']
+    
+    @util.cache_decorator
+    def sparse_surface(self):
+        voxels, origin = voxelize_subdivide(mesh=self._data['mesh'],
+                                            pitch=self._data['pitch'])
+        self._cache['origin'] = origin
+        return voxels
+
+    @util.cache_decorator
+    def as_boxes(self):
+        '''
+        A rough Trimesh representation of the voxels with a box for each filled voxel.
+
+        Returns
+        ---------
+        mesh: Trimesh object representing the current voxel object.
+        '''
+        centers = (self.sparse_surface * self.pitch).astype(np.float64) + self.origin
+        mesh = multibox(centers=centers, pitch=self.pitch)
+        return mesh
+
 
     def show(self):
         '''
         Convert the current set of voxels into a trimesh for visualization
         and show that via its built- in preview method.
         '''
-        self.mesh.show()
+        self.as_boxes.show()
 
-
-def mesh_to_run(mesh, pitch, size_max=1e5):
+        
+def voxelize_subdivide(mesh, pitch):
     '''
-    Compute a list of occupied voxels from a Trimesh using ray tests.
+    Voxelize a surface by subdividing a mesh until every edge is shorter
+    than half the pitch of the voxel grid.
 
     Parameters
     -----------
-    mesh:  Trimesh object
-    pitch: float, how long should a voxel edge be
-
+    mesh:     Trimesh object
+    pitch:    float, side length of a single voxel cube
+   
     Returns
     -----------
-    run: dictionary containing the following:
-         'index_xy' : (n,2) int, containing XY position in voxel counts
-         'index_z'  : (n,2) int, containing start and end of a voxel run, in Z
-         'pitch'    : float, pitch voxels were computed at
-         'origin'   : (3,) float, position in world space the voxel matrix origin is
-         'shape'    : (3,) int, shape of voxel matrix
-
+    voxels_sparse:   (n,3) int, (m,n,p) indexes of filled cells
+    origin_position: (3,) float, position of the voxel grid origin in space
     '''
-    bounds = mesh.bounds / pitch
-    bounds[0] = np.floor(bounds[0]) * pitch
-    bounds[1] = np.ceil(bounds[1]) * pitch
+    max_edge = pitch / 2.0
 
-    size = np.product(np.diff(bounds, axis=0))
+    # get the same mesh sudivided so every edge is shorter than half our pitch              
+    v, f = remesh.subdivide_to_size(mesh.vertices, mesh.faces, max_edge)
 
-    if size > size_max:
-        raise ValueError('Voxels would be larger than max size!')
+    # convert the vertices to their voxel grid position                                     
+    hit = (v / pitch)
+    # get a conservative-ish wrapping                                                       
+    hit = np.vstack((np.ceil(hit), np.floor(hit))).astype(int)
 
-    x_grid = np.arange(*bounds[:, 0], step=pitch)
-    y_grid = np.arange(*bounds[:, 1], step=pitch)
-    grid = np.dstack(np.meshgrid(x_grid, y_grid)).reshape((-1, 2))
+    # remove duplicates                                                                     
+    unique, inverse = grouping.unique_rows(hit)
 
-    ray_origins = np.column_stack((grid, np.tile(bounds[0][2], len(grid))))
-    ray_origins += [pitch * .5, pitch * .5, -pitch]
-    ray_vectors = np.tile([0.0, 0.0, 1.0], (len(grid), 1))
+    # get the voxel centers in model space                                                  
+    occupied_index = hit[unique]
+    
+    origin_index = occupied_index.min(axis=0)
+    origin_position = origin_index * pitch
+    
+    voxels_sparse = (occupied_index - origin_index)
 
-    (locations,
-     index_ray,
-     index_tri) = mesh.ray.intersects_location(ray_origins=ray_origins,
-                                               ray_directions=ray_vectors)
-    raw_shape = np.ceil(np.ptp(bounds / pitch, axis=0)).astype(int)
-    grid_origin = bounds[0]
-    grid_index = np.rint(
-        (grid / pitch) - (grid_origin[0:2] / pitch)).astype(int)
-
-    run_z = deque()
-    run_xy = deque()
-
-    for group in grouping.group(index_ray):
-
-        z = locations[group][:, 2] - grid_origin[2]
-        index_z = np.sort(np.round(z / pitch).astype(int))
-        # if a hit is on edge, it will be returned twice
-        # this np.unique call returns sorted, unique indicies
-
-        if np.mod(len(index_z), 2) != 0:
-            # this is likely the on-vertex case
-            index_z = index_z[[0, -1]]
-
-        # we tile multiple XY entries if there is more than one pair of intersections
-        # by doing this we ensure that both run_z and run_xy are (n,2)
-        run_z.extend(index_z.reshape((-1, 2)))
-        run_xy.extend(np.tile(grid_index[index_ray[group[0]]],
-                              (int(len(index_z) / 2), 1)))
-
-    run = {'shape': raw_shape,
-           'index_xy': np.array(run_xy),
-           'index_z': np.array(run_z),
-           'origin': grid_origin,
-           'pitch': pitch}
-    return run
+    return voxels_sparse, origin_position
+    
 
 
-def run_to_raw(shape, index_xy, index_z, **kwargs):
+def matrix_to_points(matrix, pitch, origin):
     '''
-    Convert a set of voxel runs to a 3D numpy array.
-
-    Parameters
-    ----------
-    shape: (3,) int, shape of resulting matrix
-    index_xy: (n,2) int, position (in counts) of voxels
-    index_z:  (n,2) int, start and end of each voxel run in Z
-
-    Returns
-    ----------
-    raw: (shape) bool numpy.ndarray
-    '''
-    raw = np.zeros(shape, dtype=np.bool)
-    for xy, z in zip(index_xy, index_z):
-        raw[xy[0], xy[1]][z[0]:z[1]] = True
-    return raw
-
-
-def raw_to_points(raw, pitch, origin):
-    '''
-    Convert an (n,m,p) raw matrix into a set of points for each voxel center.
+    Convert an (n,m,p) matrix into a set of points for each voxel center.
 
     Parameters
     -----------
-    raw: (n,m,p) bool, voxel matrix
+    matrix: (n,m,p) bool, voxel matrix
     pitch: float, what pitch was the voxel matrix computed with
     origin: (3,) float, what is the origin of the voxel matrix
 
@@ -323,44 +278,48 @@ def raw_to_points(raw, pitch, origin):
     ----------
     points: (q, 3) list of points
     '''
-    points = np.column_stack(np.nonzero(raw)) * pitch + origin
+    points = np.column_stack(np.nonzero(matrix)) * pitch + origin
     return points
 
 
-def raw_to_marching_cubes_mesh(raw, pitch, origin):
+def matrix_to_marching_cubes(matrix, pitch, origin):
     '''
-    Convert an (n,m,p) raw matrix into a mesh, using marching_cubes.
+    Convert an (n,m,p) matrix into a mesh, using marching_cubes.
 
     Parameters
     -----------
-    raw: (n,m,p) bool, voxel matrix
+    matrix: (n,m,p) bool, voxel matrix
     pitch: float, what pitch was the voxel matrix computed with
     origin: (3,) float, what is the origin of the voxel matrix
 
     Returns
     ----------
-    mc_mesh: Trimesh object representing inputs, as derived 
-    by marching cubes algorithm.
+    mesh: Trimesh object, generated by meshing voxels using
+                          the marching cubes algorithm in skimage
     '''
     from skimage import measure
     from .base import Trimesh
     
-    rev_raw = np.logical_not(raw) #Takes set about 0.
+    matrix = np.asanyarray(matrix, dtype=np.bool)
+    
+    rev_matrix = np.logical_not(matrix) #Takes set about 0.
     #Add in padding so marching cubes can function properly with
     # voxels on edge of AABB
     pad_width = 1
-    rev_raw = np.pad(rev_raw,(pad_width),
+    rev_matrix = np.pad(rev_matrix,(pad_width),
                      'constant',constant_values=(1))
 
     #Run marching cubes.
-    meshed = measure.marching_cubes(volume=rev_raw,
+    meshed = measure.marching_cubes(volume=rev_matrix,
                                     level=.5, # it is a boolean voxel grid
                                     spacing=(pitch,
                                              pitch,
                                              pitch))
 
     # allow results from either marching cubes function in skimage
+    # binaries available for python 3.3 and 3.4 appear to use the classic method
     if len(meshed) == 2:
+        log.warning('using older marching cubes algorithm, may not be watertight!')
         vertices, faces = meshed
     elif len(meshed) == 4:
         vertices, faces, normals, vals = meshed
@@ -370,49 +329,34 @@ def raw_to_marching_cubes_mesh(raw, pitch, origin):
     mesh = Trimesh(vertices=vertices, faces=faces)
     return mesh
 
-
-def run_to_mesh(run):
+def sparse_to_matrix(sparse):
     '''
-    Convert information about voxel runs into a rough Trimesh for visualization.
-
+    Take a sparse (n,3) list of integer indexes of filled cells, 
+    turn it into a dense (m,o,p) matrix.
+    
     Parameters
-    ------------
-    run: dict with voxel run information
-
+    -----------
+    sparse: (n,3) int, index of filled cells
+    
     Returns
     ------------
-    rough: Trimesh object representing the voxels described
+    dense: (m,o,p) bool, matrix of filled cells
     '''
-    from .creation import box
-    from .base import Trimesh
 
-    columns = len(run['index_xy'])
-
-    z_middle = run['index_z'].mean(axis=1) * run['pitch']
-    z_height = run['index_z'].ptp(axis=1) * run['pitch']
-
-    offsets = (run['index_xy'] * run['pitch'])
-    offsets = np.column_stack((offsets, z_middle)) + run['origin']
-
-    b = box()
-    vertices = np.tile(b.vertices, (columns, 1, 1))
-    vertices[:, :, 2] *= z_height.reshape((-1, 1))
-    vertices[:, :, 0:2] *= run['pitch']
-    vertices += offsets.reshape((-1, 1, 3))
-    vertices = vertices.reshape((-1, 3))
-
-    faces = np.tile(b.faces, (columns, 1, 1))
-    face_offset = (np.tile(np.arange(columns) * len(b.vertices),
-                           (3, 1)).T).reshape((-1, 1, 3))
-    faces += face_offset
-    faces = faces.reshape((-1, 3))
-
-    rough = Trimesh(vertices=vertices,
-                    faces=faces,
-                    process=False)
-    return rough
-
-
+    sparse = np.asanyarray(sparse, dtype=np.int)
+    if not util.is_shape(sparse, (-1,3)):
+        raise ValueError('sparse must be (n,3)!')
+    
+    shape = sparse.max(axis=0) + 1
+    matrix = np.zeros(np.product(shape), dtype=np.bool)
+    multiplier = np.array([np.product(shape[1:]), shape[2], 1])
+    
+    index = (sparse * multiplier).sum(axis=1)
+    matrix[index] = True
+    
+    dense = matrix.reshape(shape)
+    return dense
+    
 def multibox(centers, pitch):
     '''
     Return a Trimesh object with a box at every center.
@@ -421,7 +365,7 @@ def multibox(centers, pitch):
 
     Parameters
     -----------
-    centers: (n,3) float, center of boxes
+    centers: (n,3) float, center of boxes that are occupied
     pitch:   float, the edge length of a voxel
 
     Returns
@@ -443,3 +387,10 @@ def multibox(centers, pitch):
     rough = Trimesh(vertices=v, faces=f)
 
     return rough
+
+
+def sparse_surface_to_filled(sparse_surface):
+    '''
+    Take a sparse surface and fill in along Z.
+    '''
+    pass

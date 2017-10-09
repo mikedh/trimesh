@@ -12,6 +12,7 @@ from . import util
 from . import units
 from . import poses
 from . import graph
+from . import voxel
 from . import visual
 from . import sample
 from . import repair
@@ -34,7 +35,6 @@ from . import transformations
 
 from .io.export import export_mesh
 from .ray import ray_triangle
-from .voxel import Voxel
 from .constants import log, _log_time, tol
 from .scene import Scene
 
@@ -1438,7 +1438,7 @@ class Trimesh(object):
         ----------
         voxelized: Voxel object representing the current mesh
         '''
-        voxelized = Voxel(self, pitch)
+        voxelized = voxel.VoxelMesh(self, pitch)
         return voxelized
 
     def outline(self, face_ids=None):

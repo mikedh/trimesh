@@ -839,7 +839,10 @@ class DataStore:
             return None
 
     def __setitem__(self, key, data):
-        self.data[key] = tracked_array(data)
+        if hasattr(data, 'md5'):
+            self.data[key] = data
+        else:
+            self.data[key] = tracked_array(data)
 
     def __contains__(self, key):
         return key in self.data
