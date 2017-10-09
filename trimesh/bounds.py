@@ -328,6 +328,5 @@ def contains(bounds, points):
 
     points_inside = np.logical_and((points > bounds[0]).all(axis=1),
                                    (points < bounds[1]).all(axis=1))
-    
+
     return points_inside
-    

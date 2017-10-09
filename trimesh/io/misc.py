@@ -109,7 +109,7 @@ def load_wavefront(file_obj, file_type=None):
     # '.*': match zero or more of any charecter
     # '\n': up to a newline
     re_obj = '^o.*\n'
-    
+
     count_vertices = 0
     loaded_data = collections.deque()
 
@@ -117,14 +117,16 @@ def load_wavefront(file_obj, file_type=None):
     for text in re.split(re_obj, text, flags=re.MULTILINE):
         if text is None:
             continue
-        
+
         # find all triangular faces with a regex
-        face_tri = ' '.join(re.findall(re_tris, text)).replace('f', ' ').split()
+        face_tri = ' '.join(re.findall(re_tris, text)
+                            ).replace('f', ' ').split()
         # convert triangular faces into a numpy array
         face_tri = np.array(face_tri, dtype=np.int64).reshape((-1, 3))
 
         # find all quad faces with a regex
-        face_quad = ' '.join(re.findall(re_quad, text)).replace('f', ' ').split()
+        face_quad = ' '.join(re.findall(re_quad, text)
+                             ).replace('f', ' ').split()
         # convert quad faces into a numpy array
         face_quad = np.array(face_quad, dtype=np.int64).reshape((-1, 4))
 
@@ -132,7 +134,7 @@ def load_wavefront(file_obj, file_type=None):
         # triangulate any quad faces
         # this thin wrapper for vstack will ignore empty lists
         faces = util.vstack_empty((face_tri,
-                                geometry.triangulate_quads(face_quad)))
+                                   geometry.triangulate_quads(face_quad)))
 
         # If we didn't load any faces, we snagged extra propertie
         # around an object split -- for now, avoid dealing with them.

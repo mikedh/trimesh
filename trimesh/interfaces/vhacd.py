@@ -24,6 +24,7 @@ for _name in ['vhacd', 'testVHACD']:
 
 exists = _vhacd_executable is not None
 
+
 def convex_decomposition(mesh):
     if not exists:
         raise ValueError('No vhacd available!')
@@ -34,4 +35,3 @@ def convex_decomposition(mesh):
                     tmpfile_ext='obj') as vhacd:
         result = vhacd.run(_vhacd_executable + argstring)
     return result
-

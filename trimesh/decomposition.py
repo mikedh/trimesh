@@ -1,5 +1,6 @@
 from . import interfaces
 
+
 def convex_decomposition(mesh, engine=None):
     '''
     Compute an approximate convex decomposition of a mesh.
@@ -17,6 +18,7 @@ def convex_decomposition(mesh, engine=None):
     result = _engines[engine](mesh)
     return result
 
+
 def decomposition_automatic(mesh):
     if interfaces.vhacd.exists:
         result = interfaces.vhacd.convex_decomposition(mesh)
@@ -27,4 +29,3 @@ def decomposition_automatic(mesh):
 _engines = {None: decomposition_automatic,
             'auto': decomposition_automatic,
             'vhacd': interfaces.vhacd.convex_decomposition}
-

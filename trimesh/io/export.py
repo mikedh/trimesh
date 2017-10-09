@@ -42,7 +42,7 @@ def export_mesh(mesh, file_obj, file_type=None):
     else:
         return export
 
-    
+
 def export_off(mesh):
     '''
     Export a mesh as an OFF file, a simple text format

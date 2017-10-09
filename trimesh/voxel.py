@@ -9,11 +9,10 @@ from collections import deque
 
 class Voxel(object):
 
-
     def __init__(self, *args, **kwargs):
-        self._data  = util.DataStore()
+        self._data = util.DataStore()
         self._cache = util.Cache(id_function=self._data.crc)
-        
+
     @util.cache_decorator
     def marching_cubes(self):
         '''
@@ -28,8 +27,8 @@ class Voxel(object):
         meshed: Trimesh object representing the current voxel 
                         object, as returned by marching cubes algorithm.
         '''
-        meshed = matrix_to_marching_cubes(matrix=self.matrix, 
-                                          pitch=self.pitch, 
+        meshed = matrix_to_marching_cubes(matrix=self.matrix,
+                                          pitch=self.pitch,
                                           origin=self.origin)
         return meshed
 
@@ -41,9 +40,7 @@ class Voxel(object):
     @pitch.setter
     def pitch(self, value):
         self._data['pitch'] = value
-        
 
-    
     @property
     def shape(self):
         '''
@@ -65,8 +62,9 @@ class Voxel(object):
         filled: int, number of voxels that are occupied
         '''
         return self.matrix.sum()
-    
+
         return filled
+
     @util.cache_decorator
     def volume(self):
         '''
@@ -133,8 +131,6 @@ class Voxel(object):
         return is_filled
 
 
-    
-
 class VoxelMesh(Voxel):
 
     def __init__(self, mesh, pitch, size_max=None):
@@ -142,7 +138,8 @@ class VoxelMesh(Voxel):
         A voxel representation of a mesh that will track changes to 
         the mesh.
 
-        At the moment the voxels are not filled in.
+        At the moment the voxels are not filled in and only represent 
+        the surface.
 
         Parameters
         ----------
@@ -152,10 +149,9 @@ class VoxelMesh(Voxel):
                           may be created before raising an exception
         '''
         super(VoxelMesh, self).__init__()
-        
-        self._data['mesh']  = mesh
-        self._data['pitch'] = pitch
 
+        self._data['mesh'] = mesh
+        self._data['pitch'] = pitch
 
     @util.cache_decorator
     def matrix_surface(self):
@@ -168,7 +164,6 @@ class VoxelMesh(Voxel):
         '''
         matrix = sparse_to_matrix(self.sparse_surface)
         return matrix
-
 
     @property
     def matrix(self):
@@ -183,18 +178,17 @@ class VoxelMesh(Voxel):
         ---------
         matrix: self.shape np.bool, cell occupancy
         '''
-        # once filled voxels are implemented 
-        #if self._data['mesh'].is_watertight:
+        # once filled voxels are implemented
+        # if self._data['mesh'].is_watertight:
         #    return self.matrix_filled
-        
+
         return self.matrix_surface
-    
 
     @property
     def origin(self):
         populate = self.sparse_surface
         return self._cache['origin']
-    
+
     @util.cache_decorator
     def sparse_surface(self):
         voxels, origin = voxelize_subdivide(mesh=self._data['mesh'],
@@ -211,10 +205,10 @@ class VoxelMesh(Voxel):
         ---------
         mesh: Trimesh object representing the current voxel object.
         '''
-        centers = (self.sparse_surface * self.pitch).astype(np.float64) + self.origin
+        centers = (self.sparse_surface *
+                   self.pitch).astype(np.float64) + self.origin
         mesh = multibox(centers=centers, pitch=self.pitch)
         return mesh
-
 
     def show(self):
         '''
@@ -223,7 +217,7 @@ class VoxelMesh(Voxel):
         '''
         self.as_boxes.show()
 
-        
+
 def voxelize_subdivide(mesh, pitch):
     '''
     Voxelize a surface by subdividing a mesh until every edge is shorter
@@ -233,7 +227,7 @@ def voxelize_subdivide(mesh, pitch):
     -----------
     mesh:     Trimesh object
     pitch:    float, side length of a single voxel cube
-   
+
     Returns
     -----------
     voxels_sparse:   (n,3) int, (m,n,p) indexes of filled cells
@@ -241,27 +235,26 @@ def voxelize_subdivide(mesh, pitch):
     '''
     max_edge = pitch / 2.0
 
-    # get the same mesh sudivided so every edge is shorter than half our pitch              
+    # get the same mesh sudivided so every edge is shorter than half our pitch
     v, f = remesh.subdivide_to_size(mesh.vertices, mesh.faces, max_edge)
 
-    # convert the vertices to their voxel grid position                                     
+    # convert the vertices to their voxel grid position
     hit = (v / pitch)
-    # get a conservative-ish wrapping                                                       
+    # get a conservative-ish wrapping
     hit = np.vstack((np.ceil(hit), np.floor(hit))).astype(int)
 
-    # remove duplicates                                                                     
+    # remove duplicates
     unique, inverse = grouping.unique_rows(hit)
 
-    # get the voxel centers in model space                                                  
+    # get the voxel centers in model space
     occupied_index = hit[unique]
-    
+
     origin_index = occupied_index.min(axis=0)
     origin_position = origin_index * pitch
-    
+
     voxels_sparse = (occupied_index - origin_index)
 
     return voxels_sparse, origin_position
-    
 
 
 def matrix_to_points(matrix, pitch, origin):
@@ -299,64 +292,68 @@ def matrix_to_marching_cubes(matrix, pitch, origin):
     '''
     from skimage import measure
     from .base import Trimesh
-    
+
     matrix = np.asanyarray(matrix, dtype=np.bool)
-    
-    rev_matrix = np.logical_not(matrix) #Takes set about 0.
-    #Add in padding so marching cubes can function properly with
+
+    rev_matrix = np.logical_not(matrix)  # Takes set about 0.
+    # Add in padding so marching cubes can function properly with
     # voxels on edge of AABB
     pad_width = 1
-    rev_matrix = np.pad(rev_matrix,(pad_width),
-                     'constant',constant_values=(1))
+    rev_matrix = np.pad(rev_matrix, (pad_width),
+                        'constant', constant_values=(1))
 
-    #Run marching cubes.
+    # Run marching cubes.
     meshed = measure.marching_cubes(volume=rev_matrix,
-                                    level=.5, # it is a boolean voxel grid
+                                    level=.5,  # it is a boolean voxel grid
                                     spacing=(pitch,
                                              pitch,
                                              pitch))
 
     # allow results from either marching cubes function in skimage
-    # binaries available for python 3.3 and 3.4 appear to use the classic method
+    # binaries available for python 3.3 and 3.4 appear to use the classic
+    # method
     if len(meshed) == 2:
-        log.warning('using older marching cubes algorithm, may not be watertight!')
+        log.warning(
+            'using older marching cubes algorithm, may not be watertight!')
         vertices, faces = meshed
     elif len(meshed) == 4:
         vertices, faces, normals, vals = meshed
-    
-    #Return to the origin, add in the pad_width
+
+    # Return to the origin, add in the pad_width
     vertices = np.subtract(np.add(vertices, origin), pad_width)
     mesh = Trimesh(vertices=vertices, faces=faces)
     return mesh
+
 
 def sparse_to_matrix(sparse):
     '''
     Take a sparse (n,3) list of integer indexes of filled cells, 
     turn it into a dense (m,o,p) matrix.
-    
+
     Parameters
     -----------
     sparse: (n,3) int, index of filled cells
-    
+
     Returns
     ------------
     dense: (m,o,p) bool, matrix of filled cells
     '''
 
     sparse = np.asanyarray(sparse, dtype=np.int)
-    if not util.is_shape(sparse, (-1,3)):
+    if not util.is_shape(sparse, (-1, 3)):
         raise ValueError('sparse must be (n,3)!')
-    
+
     shape = sparse.max(axis=0) + 1
     matrix = np.zeros(np.product(shape), dtype=np.bool)
     multiplier = np.array([np.product(shape[1:]), shape[2], 1])
-    
+
     index = (sparse * multiplier).sum(axis=1)
     matrix[index] = True
-    
+
     dense = matrix.reshape(shape)
     return dense
-    
+
+
 def multibox(centers, pitch):
     '''
     Return a Trimesh object with a box at every center.

@@ -4,6 +4,7 @@ import numpy as np
 from .constants import tol
 from .triangles import points_to_barycentric
 
+
 def compute_stable_poses(mesh, center_mass=None, sigma=0.0, n_samples=1, threshold=0.0):
     '''
     Computes stable orientations of a mesh and their quasi-static probabilites.
@@ -52,13 +53,15 @@ def compute_stable_poses(mesh, center_mass=None, sigma=0.0, n_samples=1, thresho
     sample_coms = []
     while len(sample_coms) < n_samples:
         remaining = n_samples - len(sample_coms)
-        coms = np.random.multivariate_normal(center_mass, sigma * np.eye(3), remaining)
+        coms = np.random.multivariate_normal(
+            center_mass, sigma * np.eye(3), remaining)
         for c in coms:
-            dots = np.einsum('ij,ij->i', c - cvh.triangles_center, cvh.face_normals)
+            dots = np.einsum(
+                'ij,ij->i', c - cvh.triangles_center, cvh.face_normals)
             if np.all(dots < 0):
                 sample_coms.append(c)
 
-    norms_to_probs = {} # Map from normal to probabilities
+    norms_to_probs = {}  # Map from normal to probabilities
 
     # For each sample, compute the stable poses
     for sample_com in sample_coms:
@@ -90,8 +93,8 @@ def compute_stable_poses(mesh, center_mass=None, sigma=0.0, n_samples=1, thresho
                     norms_to_probs[key]['prob'] += 1.0 / n_samples * prob
                 else:
                     norms_to_probs[key] = {
-                        'prob' : 1.0 / n_samples * prob,
-                        'normal' : normal
+                        'prob': 1.0 / n_samples * prob,
+                        'normal': normal
                     }
 
     transforms = []
@@ -112,13 +115,13 @@ def compute_stable_poses(mesh, center_mass=None, sigma=0.0, n_samples=1, thresho
                 x = x / np.linalg.norm(x)
             y = np.cross(z, x)
             y = y / np.linalg.norm(y)
-            tf[:3,:3] = np.array([x, y, z])
+            tf[:3, :3] = np.array([x, y, z])
 
             # Compute the necessary translation for this stable pose
             m = cvh.copy()
             m.apply_transform(tf)
             z = -m.bounds[0][2]
-            tf[:3,3] = np.array([0,0,z])
+            tf[:3, 3] = np.array([0, 0, z])
 
             transforms.append(tf)
             probs.append(prob)
@@ -129,6 +132,7 @@ def compute_stable_poses(mesh, center_mass=None, sigma=0.0, n_samples=1, thresho
     inds = np.argsort(-probs)
 
     return transforms[inds], probs[inds]
+
 
 def _orient3dfast(plane, pd):
     '''
@@ -157,9 +161,10 @@ def _orient3dfast(plane, pd):
     bdz = pb[2] - pd[2]
     cdz = pc[2] - pd[2]
 
-    return (  adx * (bdy * cdz - bdz * cdy)
+    return (adx * (bdy * cdz - bdz * cdy)
             + bdx * (cdy * adz - cdz * ady)
             + cdx * (ady * bdz - adz * bdy))
+
 
 def _compute_static_prob(tri, com):
     '''
@@ -187,11 +192,12 @@ def _compute_static_prob(tri, com):
     # Prevents weirdness with arctan
     try:
         return 1.0 / np.pi * np.arctan(np.sqrt(
-            np.tan(s/2) * np.tan((s-a)/2) * np.tan((s-b)/2) * np.tan((s-c)/2)))
+            np.tan(s / 2) * np.tan((s - a) / 2) * np.tan((s - b) / 2) * np.tan((s - c) / 2)))
     except:
         s = s + 1e-8
         return 1.0 / np.pi * np.arctan(np.sqrt(
-            np.tan(s/2) * np.tan((s-a)/2) * np.tan((s-b)/2) * np.tan((s-c)/2)))
+            np.tan(s / 2) * np.tan((s - a) / 2) * np.tan((s - b) / 2) * np.tan((s - c) / 2)))
+
 
 def _create_topple_graph(cvh_mesh, com):
     '''
@@ -237,7 +243,8 @@ def _create_topple_graph(cvh_mesh, com):
         topple_graph.add_node(i, prob=prob)
 
     # Compute COM projections onto planes of each triangle in cvh_mesh
-    proj_dists = np.einsum('ij,ij->i', cvh_mesh.face_normals, com - cvh_mesh.triangles[:,0])
+    proj_dists = np.einsum('ij,ij->i', cvh_mesh.face_normals,
+                           com - cvh_mesh.triangles[:, 0])
     proj_coms = com - np.einsum('i,ij->ij', proj_dists, cvh_mesh.face_normals)
     barys = points_to_barycentric(cvh_mesh.triangles, proj_coms)
     unstable_face_indices = np.where(np.any(barys < 0, axis=1))[0]
@@ -250,7 +257,7 @@ def _create_topple_graph(cvh_mesh, com):
 
         for tfi in adj_graph[fi]:
             v1, v2 = adj_graph[fi][tfi]['verts']
-            if np.dot(np.cross(v1-centroid, v2-centroid), norm) < 0:
+            if np.dot(np.cross(v1 - centroid, v2 - centroid), norm) < 0:
                 tmp = v2
                 v2 = v1
                 v1 = tmp

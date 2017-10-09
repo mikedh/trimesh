@@ -1753,6 +1753,7 @@ def vstack_empty(tup):
         return np.array([])
     return np.vstack(stackable)
 
+
 def write_encoded(file_obj, stuff, encoding='utf-8'):
     '''
     If a file is open in binary mode and a string is passed, encode and write
@@ -1765,12 +1766,12 @@ def write_encoded(file_obj, stuff, encoding='utf-8'):
     encoding: str,          encoding of text
 
     '''
-    binary_file  = 'b' in file_obj.mode
+    binary_file = 'b' in file_obj.mode
     string_stuff = isinstance(stuff, basestring)
     binary_stuff = isinstance(stuff, bytes)
 
     if not _PY3:
-        file_obj.write(stuff)  
+        file_obj.write(stuff)
     elif binary_file and string_stuff:
         file_obj.write(stuff.encode(encoding))
     elif not binary_file and binary_stuff:
@@ -1778,4 +1779,3 @@ def write_encoded(file_obj, stuff, encoding='utf-8'):
     else:
         file_obj.write(stuff)
     file_obj.flush()
-        

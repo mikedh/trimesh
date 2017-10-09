@@ -6,6 +6,7 @@ from ..decomposition import convex_decomposition
 from .. import io
 from ..version import __version__ as trimesh_version
 
+
 def export_urdf(mesh, directory):
     '''
     Convert a Trimesh object into a URDF package for physics simulation.
@@ -71,7 +72,7 @@ def export_urdf(mesh, directory):
         et.SubElement(inertial, 'origin', xyz="0 0 0", rpy="0 0 0")
         et.SubElement(inertial, 'mass', value='{:.2E}'.format(piece.mass))
         et.SubElement(inertial, 'inertia', ixx=I[0][0], ixy=I[0][1], ixz=I[0][2],
-                                           iyy=I[1][1], iyz=I[1][2], izz=I[2][2])
+                      iyy=I[1][1], iyz=I[1][2], izz=I[2][2])
         # Visual Information
         visual = et.SubElement(link, 'visual')
         et.SubElement(visual, 'origin', xyz="0 0 0", rpy="0 0 0")
@@ -119,4 +120,3 @@ def export_urdf(mesh, directory):
 
     tree = et.ElementTree(root)
     tree.write(os.path.join(fullpath, 'model.config'))
-
