@@ -666,7 +666,16 @@ class TrackedArray(np.ndarray):
         Return a zlib adler32 checksum of the current data.
         '''
         if self._modified_crc or not hasattr(self, '_hashed_crc'):
-            self._hashed_crc = zlib.adler32(self) & 0xffffffff
+            if self.flags['C_CONTIGUOUS']:
+                self._hashed_crc = zlib.adler32(self) & 0xffffffff
+            else:
+                # the case where we have sliced our nice
+                # contiguous array into a non- contiguous block
+                # for example (note slice *after* track operation):
+                # t = util.tracked_array(np.random.random(10))[::-1]
+                contiguous = np.ascontiguousarray(self)
+                self._hashed_crc = zlib.adler32(contiguous) & 0xffffffff
+                
         self._modified_crc = False
         return self._hashed_crc
 

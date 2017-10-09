@@ -38,7 +38,8 @@ def convex_hull(obj, qhull_options='QbB Pp'):
     if isinstance(obj, Trimesh):
         points = obj.vertices.view(np.ndarray)
     else:
-        points = np.asanyarray(obj, dtype=np.float64)
+        # will remove subclassing
+        points = np.asarray(obj, dtype=np.float64)
         if not util.is_shape(points, (-1, 3)):
             raise ValueError('Object must be Trimesh or (n,3) points!')
 
@@ -106,7 +107,7 @@ def convex_hull(obj, qhull_options='QbB Pp'):
     # so try the hull again without it
     # check for qhull_options is None to avoid infinite recursion
     if (qhull_options is not None and
-            not convex.is_winding_consistent):
+        not convex.is_winding_consistent):
         return convex_hull(convex, qhull_options=None)
 
     return convex
