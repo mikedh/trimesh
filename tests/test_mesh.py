@@ -67,7 +67,11 @@ class MeshTests(g.unittest.TestCase):
                                           mesh.identifier))
 
     def test_fill_holes(self):
-        for mesh in g.get_meshes(5):
+        for mesh_name in ['unit_cube.STL',
+                          'machinist.XAML',
+                          'round.stl',
+                          'quadknot.obj']:
+            mesh = g.get_mesh(mesh_name)
             if not mesh.is_watertight:
                 continue
             mesh.faces = mesh.faces[1:-1]

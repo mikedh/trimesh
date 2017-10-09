@@ -4,6 +4,8 @@ from . import util
 from . import remesh
 from . import grouping
 
+from .constants import log
+
 from collections import deque
 
 
@@ -313,8 +315,7 @@ def matrix_to_marching_cubes(matrix, pitch, origin):
     # binaries available for python 3.3 and 3.4 appear to use the classic
     # method
     if len(meshed) == 2:
-        log.warning(
-            'using older marching cubes algorithm, may not be watertight!')
+        log.warning('using old marching cubes, may not be watertight!')
         vertices, faces = meshed
     elif len(meshed) == 4:
         vertices, faces, normals, vals = meshed
