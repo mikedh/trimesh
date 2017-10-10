@@ -53,11 +53,13 @@ def compute_stable_poses(mesh, center_mass=None, sigma=0.0, n_samples=1, thresho
     sample_coms = []
     while len(sample_coms) < n_samples:
         remaining = n_samples - len(sample_coms)
-        coms = np.random.multivariate_normal(
-            center_mass, sigma * np.eye(3), remaining)
+        coms = np.random.multivariate_normal(center_mass, 
+                                             sigma * np.eye(3), 
+                                             remaining)
         for c in coms:
-            dots = np.einsum(
-                'ij,ij->i', c - cvh.triangles_center, cvh.face_normals)
+            dots = np.einsum('ij,ij->i', 
+                             c - cvh.triangles_center, 
+                             cvh.face_normals)
             if np.all(dots < 0):
                 sample_coms.append(c)
 
@@ -76,7 +78,7 @@ def compute_stable_poses(mesh, center_mass=None, sigma=0.0, n_samples=1, thresho
             for node in nodes:
                 if dg.out_degree(node) == 0:
                     continue
-                successor = dg.successors(node)[0]
+                successor = next(iter(dg.successors(node)))
                 dg.node[successor]['prob'] += dg.node[node]['prob']
                 dg.node[node]['prob'] = 0.0
                 new_nodes.append(successor)
