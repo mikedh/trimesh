@@ -26,8 +26,9 @@ class SceneViewer(pyglet.window.Window):
         self.scene = scene
         self.scene._redraw = self._redraw
 
-        # always set the camera
-        scene.set_camera()
+        if 'camera' not in scene.graph:
+            # if the camera hasn't been set, set it now
+            scene.set_camera()
 
         visible = (save_image is None) or (platform.system() != 'Linux')
         width, height = resolution
@@ -239,6 +240,7 @@ class SceneViewer(pyglet.window.Window):
 
         # pull the new camera transform from the scene
         transform_camera, _junk = self.scene.graph['camera']
+        
         # apply the camera transform to the matrix stack
         gl.glMultMatrixf(_gl_matrix(transform_camera))
 

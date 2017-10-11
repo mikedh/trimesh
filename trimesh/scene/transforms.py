@@ -193,6 +193,9 @@ class TransformForest:
             matrix[:3, 3] *= scale
             self.transforms.edge[a][b]['matrix'] = matrix
 
+    def __contains__(self, key):
+        return key in self.transforms.node
+
     def __getitem__(self, key):
         return self.get(key)
 
