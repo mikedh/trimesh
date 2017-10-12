@@ -27,6 +27,7 @@ from . import geometry
 from . import permutate
 from . import proximity
 from . import triangles
+from . import collision
 from . import comparison
 from . import decomposition
 from . import intersections
