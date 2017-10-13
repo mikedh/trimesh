@@ -636,6 +636,7 @@ class Trimesh(object):
         triangles.flags.writeable = False
         return triangles
 
+    @util.cache_decorator
     def triangles_tree(self):
         '''
         An R-tree containing each face of the mesh.
@@ -1089,6 +1090,7 @@ class Trimesh(object):
         is_convex = convex.is_convex(self)
         return is_convex
 
+    @util.cache_decorator
     def kdtree(self):
         '''
         Return a scipy.spatial.cKDTree of the vertices of the mesh.

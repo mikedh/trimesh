@@ -50,6 +50,43 @@ class SceneTests(g.unittest.TestCase):
                                          g.np.product(r.extents))
 
 
+    def test_scaling(self):
+        '''
+        Test the scaling of scenes including unit conversion.
+        '''
+        scene = g.get_mesh('cycloidal.3DXML')
+
+        md5 = scene.md5()
+        extents = scene.bounding_box_oriented.primitive.extents.copy()
+
+        factor = 10.0
+        scaled = scene.scaled(factor)
+
+        # the oriented bounding box should scale exactly with the scaling factor
+        assert g.np.allclose(scaled.bounding_box_oriented.primitive.extents/extents, 
+                             factor)
+
+        # we shouldn't have modified the original scene
+        assert scene.md5() == md5
+        assert scaled.md5() != md5
+
+        # 3DXML comes in as mm
+        assert all(m.units == 'mm' for m in scene.geometry.values())
+
+        converted = scene.convert_units('in')
+
+        assert g.np.allclose(converted.bounding_box_oriented.primitive.extents/extents, 
+                             1.0/25.4)
+        
+        assert all(m.units == 'in' for m in converted.geometry.values())
+        
+        # we shouldn't have modified the original scene
+        assert scene.md5() == md5
+        assert converted.md5() != md5
+
+        populate = scene.bounding_box
+
+
 class GraphTests(g.unittest.TestCase):
 
     def test_forest(self):

@@ -110,11 +110,13 @@ class TransformForest:
 
     @util.cache_decorator
     def nodes(self):
-        return self.transforms.nodes()
+        return np.array(self.transforms.nodes())
 
     @util.cache_decorator
     def nodes_geometry(self):
-        return [i for i in self.nodes if 'geometry' in self.transforms.node[i]]
+        nodes = [i for i in self.nodes if 'geometry' in self.transforms.node[i]]
+        return np.array(nodes)
+
 
     def get(self,
             frame_to,
@@ -176,22 +178,6 @@ class TransformForest:
         '''
         from ..graph import graph_to_svg
         return graph_to_svg(self.transforms)
-
-    def scale_transforms(self, scale):
-        '''
-        Scale all transforms.
-
-        Parameters
-        -----------
-        scale: float, factor to scale all transformations by
-        '''
-
-        scale = float(scale)
-
-        for a, b in self.transforms.edges():
-            matrix = self.transforms.edge[a][b]['matrix']
-            matrix[:3, 3] *= scale
-            self.transforms.edge[a][b]['matrix'] = matrix
 
     def __contains__(self, key):
         return key in self.transforms.node

@@ -4,10 +4,12 @@ import copy
 
 from .. import util
 from .. import units
+from .. import convex
 from .. import grouping
+from .. import transformations
 
-from ..bounds import corners as bounds_corners
-from ..transformations import rotation_matrix, transform_points
+from .. import bounds as bounds_module
+
 from .transforms import TransformForest
 
 
@@ -128,10 +130,10 @@ class Scene:
             # geometry objects have bounds properties, which are (2,3) or (2,2)
             current_bounds = self.geometry[geometry_name].bounds.copy()
             # find the 8 corner vertices of the axis aligned bounding box
-            current_corners = bounds_corners(current_bounds)
+            current_corners = bounds_module.corners(current_bounds)
             # transform those corners into where the geometry is located
-            corners.extend(transform_points(current_corners,
-                                            transform))
+            corners.extend(transformations.transform_points(current_corners,
+                                                            transform))
         corners = np.array(corners)
         bounds = np.array([corners.min(axis=0),
                            corners.max(axis=0)])
@@ -191,10 +193,9 @@ class Scene:
             if not hasattr(geometry, 'triangles'):
                 continue
 
-            triangles.append(
-                transform_points(
-                    geometry.triangles.copy().reshape(
-                        (-1, 3)), transform))
+            triangles.append(transformations.transform_points(
+                geometry.triangles.copy().reshape((-1, 3)), 
+                transform))
             triangles_node.append(np.tile(node_name, len(geometry.triangles)))
 
         self._cache['triangles_node'] = np.hstack(triangles_node)
@@ -223,7 +224,8 @@ class Scene:
 
         Returns
         -----------
-        duplicates: (m) sequence of keys to self.nodes that represent identical geometry
+        duplicates: (m) sequence of keys to self.nodes that represent 
+                     identical geometry
         '''
 
         # geometry name : md5 of mesh
@@ -268,8 +270,12 @@ class Scene:
         translation[0:3, 3] = center
         translation[2][3] += distance * 1.5
 
-        transform = np.dot(rotation_matrix(angles[0], [1, 0, 0], point=center),
-                           rotation_matrix(angles[1], [0, 1, 0], point=center))
+        transform = np.dot(transformations.rotation_matrix(angles[0], 
+                                                           [1, 0, 0], 
+                                                           point=center),
+                           transformations.rotation_matrix(angles[1], 
+                                                           [0, 1, 0], 
+                                                           point=center))
         transform = np.dot(transform, translation)
 
         self.graph.update(frame_from='camera',
@@ -279,6 +285,11 @@ class Scene:
     def dump(self):
         '''
         Append all meshes in scene to a list of meshes.
+
+        Returns
+        ----------
+        dumped: (n,) list, of Trimesh objects transformed to their 
+                           location the scene.graph
         '''
         result = collections.deque()
 
@@ -289,6 +300,54 @@ class Scene:
             current.apply_transform(transform)
             result.append(current)
         return np.array(result)
+
+    @util.cache_decorator
+    def convex_hull(self):
+        '''
+        The convex hull of the whole scene
+
+        Returns
+        ---------
+        hull: Trimesh object, convex hull of all meshes in scene
+        '''
+        points = util.vstack_empty([m.vertices for m in self.dump()])
+        hull = convex.convex_hull(points)
+        return hull
+
+    @util.cache_decorator
+    def bounding_box(self):
+        '''
+        An axis aligned bounding box for the current scene.
+
+        Returns
+        ----------
+        aabb: trimesh.primitives.Box object with transform and extents defined
+              to represent the axis aligned bounding box of the scene
+        '''
+        from .. import primitives
+        center = self.bounds.mean(axis=0)
+        aabb = primitives.Box(transform=transformations.translation_matrix(center),
+                              extents=self.extents,
+                              mutable=False)
+        return aabb
+
+    @util.cache_decorator
+    def bounding_box_oriented(self):
+        '''
+        An oriented bounding box for the current mesh.
+
+        Returns
+        ---------
+        obb: trimesh.primitives.Box object with transform and extents defined
+             to represent the minimum volume oriented bounding box of the mesh
+        '''
+        from .. import primitives
+        to_origin, extents = bounds_module.oriented_bounds(self)
+        obb = primitives.Box(transform=np.linalg.inv(to_origin),
+                             extents=extents,
+                             mutable=False)
+        return obb
+
 
     def export(self, file_type=None):
         '''
@@ -343,6 +402,14 @@ class Scene:
         return export
 
     def save_image(self, file_obj, resolution=(1024, 768), **kwargs):
+        '''
+        Save a rendered image to a file object.
+
+        Parameters
+        -----------
+        file_obj: file- like object, where to save result
+        resultion: (2,) int, resolution to render image at
+        '''
         from .viewer import SceneViewer
         SceneViewer(self,
                     save_image=file_obj,
@@ -352,6 +419,8 @@ class Scene:
     def convert_units(self, desired):
         '''
         If geometry has units defined, convert them to new units.
+
+        Returns a new scene with geometries and transforms scaled.
 
         Parameters
         ----------
@@ -366,16 +435,21 @@ class Scene:
 
         scale = units.unit_conversion(current=existing[1],
                                       desired=desired)
+        result = self.scaled(scale=scale)
 
-        self.graph.scale_transforms(scale)
-
-        for geometry in self.geometry.values():
-            geometry.vertices *= scale
+        for geometry in result.geometry.values():
             geometry.units = desired
+            
+        return result
 
     def explode(self, vector=None, origin=None):
         '''
         Explode a scene around a point and vector.
+
+        Parameters
+        -----------
+        vector: (3,) float, or float, explode in a direction or spherically
+        origin: (3,) float, point to explode around
         '''
         if origin is None:
             origin = self.centroid
@@ -403,7 +477,67 @@ class Scene:
             transform[0:3, 3] += offset
             self.graph[node_name] = transform
 
+    def scaled(self, scale):
+        '''
+        Return a copy of the current scene, with meshes and scene graph
+        transforms scaled to the requested factor.
+
+        Parameters
+        -----------
+        scale: float, factor to scale meshes and transforms by
+        '''
+        scale = float(scale)
+        scale_matrix = np.eye(4) * scale
+
+        transforms = np.array([self.graph[i][0] for i in self.graph.nodes_geometry])    
+        geometries = np.array([self.graph[i][1] for i in self.graph.nodes_geometry])
+
+        result = self.copy()
+        result.graph.clear()
+
+        for group in grouping.group(geometries):
+            geometry = geometries[group[0]]
+
+            original = transforms[group[0]]
+            new_geom = np.dot(scale_matrix, original)
+            inv_geom = np.linalg.inv(new_geom)
+
+            result.geometry[geometry].apply_transform(new_geom)
+        
+        
+            for node, t in zip(self.graph.nodes_geometry[group],
+                               transforms[group]):
+                transform = util.multi_dot([scale_matrix,
+                                            t,
+                                            np.linalg.inv(new_geom)])
+                transform[:3,3] *= scale
+                
+                result.graph.update(frame_to=node,
+                                    matrix=transform,
+                                    geometry=geometry)
+        return result
+
+
+
+    def copy(self):
+        '''
+        Return a deep copy of the current scene
+        
+        Returns
+        ----------
+        copied: trimesh.Scene, copy of the current scene
+        '''
+        copied = copy.deepcopy(self)
+        return copied
+
     def show(self, **kwargs):
+        '''
+        Open a pyglet window to preview the current scene
+
+        Parameters
+        -----------
+        smooth: bool, turn on or off automatic smooth shading
+        '''
         # this imports pyglet, and will raise an ImportError
         # if pyglet is not available
         from .viewer import SceneViewer

@@ -55,7 +55,13 @@ def group(values, min_len=0, max_len=np.inf):
     groups: sequence of indices to form groups
             IE [0,1,0,1] returns [[0,2], [1,3]]
     '''
-    values = np.asanyarray(values)
+    values = np.asarray(values)
+
+    # convert unicode arrays to ints by hashing
+    if values.dtype.kind == 'U':
+        values = np.array([int(util.md5_object(i.tostring()), 16)
+                           for i in values])
+
     order = values.argsort()
     values = values[order]
     dupe = np.greater(np.abs(np.diff(values)), tol.zero)

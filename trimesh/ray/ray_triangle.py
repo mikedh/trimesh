@@ -24,14 +24,6 @@ class RayMeshIntersector:
         self.mesh = mesh
         self._cache = util.Cache(self.mesh.crc)
 
-    @property
-    def tree(self):
-        if 'tree' in self._cache:
-            return self._cache.get('tree')
-        else:
-            return self._cache.set('tree',
-                                   self.mesh.triangles_tree())
-
     def intersects_id(self,
                       ray_origins,
                       ray_directions,
@@ -58,7 +50,7 @@ class RayMeshIntersector:
          locations) = ray_triangle_id(triangles=self.mesh.triangles,
                                       ray_origins=ray_origins,
                                       ray_directions=ray_directions,
-                                      tree=self.tree,
+                                      tree=self.mesh.triangles_tree,
                                       triangles_normal=self.mesh.face_normals)
         if return_locations:
             unique = unique_rows(np.column_stack((locations, index_ray)))[0]
