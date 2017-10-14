@@ -22,7 +22,8 @@ class MeshTests(g.unittest.TestCase):
 
             mesh.process()
 
-            if not mesh.is_watertight:
+            if not (mesh.is_watertight and 
+                    mesh.is_winding_consistent):
                 continue
 
             assert len(mesh.facets) == len(mesh.facets_area)
@@ -68,8 +69,12 @@ class MeshTests(g.unittest.TestCase):
                     g.np.degrees(i), 
                     [0,1,1]))
             g.log.info('Multiple copies done')
-            self.assertTrue(g.np.allclose(copied.identifier,
-                                          mesh.identifier))
+            
+
+            if not g.np.allclose(copied.identifier,
+                                 mesh.identifier):
+                raise ValueError('copied identifier changed!')
+
 
     def test_fill_holes(self):
         for mesh_name in ['unit_cube.STL',

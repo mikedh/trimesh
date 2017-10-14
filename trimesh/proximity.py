@@ -33,9 +33,9 @@ def nearby_faces(mesh, points):
         raise ValueError('points must be (n,3)!')
 
     # an r-tree containing the axis aligned bounding box for every triangle
-    rtree = mesh.triangles_tree()
+    rtree = mesh.triangles_tree
     # a kd-tree containing every vertex of the mesh
-    kdtree = mesh.kdtree()
+    kdtree = mesh.kdtree
 
     # find the distance to each vertex to create an axis aligned bounding box
     distance_vertex = np.abs(points - mesh.vertices[kdtree.query(points)[1]])
@@ -235,7 +235,7 @@ class ProximityQuery(object):
         distance  : (n,) float, distance from source point to vertex
         vertex_id : (n,) int, index of mesh.vertices which is closest
         '''
-        tree = self._mesh.kdtree()
+        tree = self._mesh.kdtree
         return tree.query(points)
 
     def signed_distance(self, points):
