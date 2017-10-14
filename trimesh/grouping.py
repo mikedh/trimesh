@@ -58,7 +58,7 @@ def group(values, min_len=0, max_len=np.inf):
     values = np.asarray(values)
 
     # convert unicode arrays to ints by hashing
-    if values.dtype.kind == 'U':
+    if values.dtype.kind in 'US':
         values = np.array([int(util.md5_object(i.tostring()), 16)
                            for i in values])
 
