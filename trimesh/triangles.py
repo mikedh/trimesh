@@ -35,7 +35,7 @@ def area(triangles=None, crosses=None, sum=False):
         else:   (n,) float, individual area of triangles
     '''
     if crosses is None:
-        log.warning('cross products not passed, will be expensively recomputed')
+        #log.warning('cross products not passed to area, will be expensively recomputed')
         crosses = cross(triangles)
     area = (np.sum(crosses**2, axis=1)**.5) * .5
     if sum:
@@ -51,7 +51,7 @@ def normals(triangles=None, crosses=None):
     returns:   normal vectors, (n,3)
     '''
     if crosses is None:
-        log.warning('cross products not passed, will be expensively recomputed')
+        #log.warning('cross products not passed to normals, will be expensively recomputed')
         crosses = cross(triangles)
     normals, valid = util.unitize(crosses, check_valid=True)
     return normals, valid
@@ -112,7 +112,7 @@ def mass_properties(triangles, crosses=None, density=1.0, center_mass=None, skip
         raise ValueError('Triangles must be (n,3,3)!')
 
     if crosses is None:
-        log.warning('cross products not passed, will be expensively recomputed')
+        #log.warning('cross products not passed to mass, will be expensively recomputed')
         crosses = cross(triangles)
 
     # these are the subexpressions of the integral
@@ -285,7 +285,7 @@ def extents(triangles, areas=None):
         raise ValueError('Triangles must be (n,3,3)!')
 
     if areas is None:
-        log.warning('areas not passed, will be expensively recomputed')
+        #log.warning('areas not passed, will be expensively recomputed')
         areas = area(triangles=triangles,
                      sum=False)
 

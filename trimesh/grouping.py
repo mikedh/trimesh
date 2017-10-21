@@ -66,10 +66,12 @@ def group(values, min_len=0, max_len=np.inf):
         # for floats in a sorted array, neighbors are not duplicates
         # if the difference between them is greater than approximate zero
         nondupe = np.greater(np.abs(np.diff(values)), tol.zero)
-    elif values.dtype.kind in 'iUS':
+    else:
         # for ints and strings we can check exact non- equality
+        # for all other types this will only work if they defined
+        # an __eq__
         nondupe = values[1:] != values[:-1]
-        
+  
     dupe_idx = np.append(0, np.nonzero(nondupe)[0] + 1)
     dupe_len = np.diff(np.hstack((dupe_idx, len(values))))
     dupe_ok = np.logical_and(np.greater_equal(dupe_len, min_len),
