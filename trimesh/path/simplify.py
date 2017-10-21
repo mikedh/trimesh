@@ -127,6 +127,9 @@ def is_circle(points, scale, verbose=False):
     control = arc.angles_to_threepoint([0, np.pi * .5], *CR)
     return control
 
+def polygon_is_circle(polygon, scale=None):
+    pass
+
 
 def arc_march(points, scale):
     '''

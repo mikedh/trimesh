@@ -159,7 +159,8 @@ class Scene:
         -----------
         scale: float, the mean of the bounding box edge lengths
         '''
-        return self.extents.mean()
+        scale = (self.extents ** 2).sum() ** .5
+        return scale
 
     @util.cache_decorator
     def centroid(self):

@@ -771,7 +771,6 @@ class Cache:
         '''
         Update the cache with a set of key, value pairs without checking id_function.
         '''
-        # self.verify()
         self.cache.update(items)
         self.id_set()
 

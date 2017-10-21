@@ -60,7 +60,8 @@ setup(name = 'trimesh',
                                        'rtree',
                                        'svg.path',
                                        'sympy',
-                                       'msgpack-python'],
+                                       'msgpack-python',
+                                       'colorlog'],
                            'all'    : ['lxml',
                                        'pyglet',
                                        'Shapely',
@@ -68,5 +69,6 @@ setup(name = 'trimesh',
                                        'svg.path',
                                        'meshpy',
                                        'sympy',
-                                       'msgpack-python']}
-     )
+                                       'msgpack-python',
+                                       'colorlog']}
+  )

@@ -7,9 +7,9 @@ import numpy as np
 from .ray_util import contains_points
 
 from ..constants import tol
-from ..grouping import unique_rows
 
 from .. import util
+from .. import grouping
 from .. import intersections
 from .. import triangles as triangles_mod
 
@@ -28,6 +28,7 @@ class RayMeshIntersector:
                       ray_origins,
                       ray_directions,
                       return_locations=False,
+                      multiple_hits=True,
                       **kwargs):
         '''
         Find the intersections between the current mesh and a list of rays.
@@ -51,9 +52,10 @@ class RayMeshIntersector:
                                       ray_origins=ray_origins,
                                       ray_directions=ray_directions,
                                       tree=self.mesh.triangles_tree,
+                                      multiple_hits = multiple_hits,
                                       triangles_normal=self.mesh.face_normals)
         if return_locations:
-            unique = unique_rows(np.column_stack((locations, index_ray)))[0]
+            unique = grouping.unique_rows(np.column_stack((locations, index_ray)))[0]
             if len(unique) == 0:
                 return [], [], []
             return index_tri[unique], index_ray[unique], locations[unique]
@@ -133,7 +135,8 @@ def ray_triangle_id(triangles,
                     ray_origins,
                     ray_directions,
                     triangles_normal=None,
-                    tree=None):
+                    tree=None,
+                    multiple_hits=True):
     '''
     Find the intersections between a group of triangles and rays
 
@@ -193,8 +196,8 @@ def ray_triangle_id(triangles,
 
     # find the barycentric coordinates of each plane intersection on the
     # triangle candidates
-    barycentric = triangles_mod.points_to_barycentric(
-        triangle_candidates[valid], location)
+    barycentric = triangles_mod.points_to_barycentric(triangle_candidates[valid],
+                                                      location)
 
     # the plane intersection is inside the triangle if all barycentric coordinates
     # are between 0.0 and 1.0
@@ -211,11 +214,28 @@ def ray_triangle_id(triangles,
     location = location[hit]
 
     # only return points that are forward from the origin
-    vector = location - ray_origins[index_ray]
-    forward = util.diagonal_dot(vector, ray_directions[index_ray]) > -1e-6
+    vector   = location - ray_origins[index_ray]
+    distance = util.diagonal_dot(vector, ray_directions[index_ray])
+    forward  = distance > -1e-6
 
-    return index_tri[forward], index_ray[forward], location[forward]
+    index_tri = index_tri[forward]
+    index_ray = index_ray[forward]
+    location  = location[forward]
+    distance  = distance[forward]
+    
+    if multiple_hits:
+        return index_tri, index_ray, location
 
+    # since we are not returning multiple hits, we need to
+    # figure out which hit is first
+    first = np.zeros(len(index_ray), dtype=np.bool)
+    groups = grouping.group(index_ray)
+    for group in groups:
+        index = group[distance[group].argmin()]
+        first[index] = True
+        
+    return index_tri[first], index_ray[first], location[first]
+    
 
 def ray_triangle_candidates(ray_origins,
                             ray_directions,

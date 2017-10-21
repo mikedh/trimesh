@@ -57,21 +57,28 @@ def group(values, min_len=0, max_len=np.inf):
     '''
     values = np.asarray(values)
 
-    # convert unicode arrays to ints by hashing
-    if values.dtype.kind in 'US':
-        values = np.array([int(util.md5_object(i.tostring()), 16)
-                           for i in values])
-
+    # save the sorted order and then apply it
     order = values.argsort()
     values = values[order]
-    dupe = np.greater(np.abs(np.diff(values)), tol.zero)
-    dupe_idx = np.append(0, np.nonzero(dupe)[0] + 1)
+    
+    # find the indexes which are duplicates
+    if values.dtype.kind == 'f':
+        # for floats in a sorted array, neighbors are not duplicates
+        # if the difference between them is greater than approximate zero
+        nondupe = np.greater(np.abs(np.diff(values)), tol.zero)
+    elif values.dtype.kind in 'iUS':
+        # for ints and strings we can check exact non- equality
+        nondupe = values[1:] != values[:-1]
+        
+    dupe_idx = np.append(0, np.nonzero(nondupe)[0] + 1)
     dupe_len = np.diff(np.hstack((dupe_idx, len(values))))
     dupe_ok = np.logical_and(np.greater_equal(dupe_len, min_len),
                              np.less_equal(dupe_len, max_len))
     groups = [order[i:(i + j)]
-              for i, j in zip(dupe_idx[dupe_ok], dupe_len[dupe_ok])]
+              for i, j in zip(dupe_idx[dupe_ok], 
+                              dupe_len[dupe_ok])]
     groups = np.array(groups)
+    
     return groups
 
 
