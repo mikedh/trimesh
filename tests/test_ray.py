@@ -96,6 +96,41 @@ class RayTests(g.unittest.TestCase):
             result = g.trimesh.ray.ray_util.contains_points(m.ray, points)
             
             assert (result==truth).all()
+
+    def test_multiple_hits(self):
+        '''
+        '''
+        # Set camera focal length (in pixels)
+        f = g.np.array([1000., 1000.])
+        h, w = 256, 256
+
+        # Set up a list of ray directions - one for each pixel in our (256, 256) output image.
+        ray_directions = g.trimesh.util.grid_arange([[-h/2, -w/2],[h/2,w/2]],
+                                                    step=2.0)
+        ray_directions = g.np.column_stack((ray_directions,
+                                            g.np.ones(len(ray_directions)) * f[0]))
+
+        # Initialize the camera origin to be somewhere behind the cube.
+        cam_t = g.np.array([0, 0, -15.])
+        # Duplicate to ensure we have an camera_origin per ray direction
+        ray_origins = g.np.tile(cam_t, (ray_directions.shape[0], 1)) 
+
+        for use_embree in [True, False]:
+            # Generate a 1 x 1 x 1 cube using the trimesh box primitive
+            cube_mesh = g.trimesh.primitives.Box(extents = [2, 2, 2],
+                                                 use_embree=use_embree)
+                                               
+            # Perform 256 * 256 raycasts, one for each pixel on the image plane. We only want the 'first' hit.
+            index_triangles, index_ray = cube_mesh.ray.intersects_id(ray_origins = ray_origins,
+                                                                     ray_directions = ray_directions,
+                                                                     multiple_hits = False)
+            assert len(g.np.unique(index_triangles)) == 2
+
+            index_triangles, index_ray = cube_mesh.ray.intersects_id(ray_origins = ray_origins,
+                                                                     ray_directions = ray_directions,
+                                                                     multiple_hits = True)
+            assert len(g.np.unique(index_triangles)) > 2
+
             
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
