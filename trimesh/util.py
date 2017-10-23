@@ -844,7 +844,7 @@ class DataStore:
         try:
             return self.data[key]
         except KeyError:
-            return None
+            return np.array([])
 
     def __setitem__(self, key, data):
         if hasattr(data, 'md5'):

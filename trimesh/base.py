@@ -176,6 +176,9 @@ class Trimesh(object):
         On an 234213 face mesh this function executes in .0005s
         with a late 2014 i7.
         '''
+        if self.is_empty:
+            return self
+
         # avoid clearing the cache during operations
         with self._cache:
             self.remove_infinite_values()
@@ -294,7 +297,7 @@ class Trimesh(object):
         vertices: (n,3) float representing points in cartesian space
         '''
         return self._data['vertices']
-
+  
     @vertices.setter
     def vertices(self, values):
         # make sure vertices are stored as a float64 for consistency
@@ -1048,6 +1051,8 @@ class Trimesh(object):
         --------
         consistent: bool, if winding is consistent or not
         '''
+        if self.is_empty:
+            return False
         # consistent winding check is populated into the cache by is_watertight
         populate = self.is_watertight
         return self._cache['is_winding_consistent']
@@ -1061,9 +1066,10 @@ class Trimesh(object):
         ----------
         is_watertight: bool, is mesh watertight or not
         '''
-
-        watertight, reversed = graph.is_watertight(
-            edges=self.edges, edges_sorted=self.edges_sorted)
+        if self.is_empty: 
+            return False
+        watertight, reversed = graph.is_watertight(edges=self.edges, 
+                                                   edges_sorted=self.edges_sorted)
         self._cache['is_winding_consistent'] = reversed
         return watertight
 
@@ -1087,6 +1093,9 @@ class Trimesh(object):
         ----------
         is_convex: bool, is mesh convex or not
         '''
+        if self.is_empty:
+            return False
+
         is_convex = convex.is_convex(self)
         return is_convex
 

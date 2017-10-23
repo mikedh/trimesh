@@ -63,8 +63,12 @@ def load_stl_binary(file_obj):
               faces:        (m,3) int, indexes of vertices
               face_normals: (m,3) float, normal vector of each face
     '''
+    header_length = _stl_dtype_header.itemsize #84
+    header_data = file_obj.read(header_length)
+    if len(header_data) < header_length:
+        raise HeaderError('Binary STL file not long enough to contain header!')
 
-    header = np.fromstring(file_obj.read(84), dtype=_stl_dtype_header)
+    header = np.fromstring(header_data, dtype=_stl_dtype_header)
 
     # now we check the length from the header versus the length of the file
     # data_start should always be position 84, but hard coding that felt ugly

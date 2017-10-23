@@ -39,6 +39,9 @@ class LoaderTest(g.unittest.TestCase):
             assert mesh.is_watertight
             assert mesh.is_winding_consistent
 
+    def test_stl(self):
+        model = g.get_mesh('empty.stl')
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()
