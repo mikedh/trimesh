@@ -835,12 +835,12 @@ class Trimesh(object):
             self.faces = inverse[self.faces.reshape(-1)].reshape((-1, 3))
         self.visual.update_vertices(mask)
         cached_normals = self._cache.get('vertex_normals')
+        self.vertices = self.vertices[mask]
         if util.is_shape(cached_normals, (-1, 3)):
             try:
                 self.vertex_normals = cached_normals[mask]
             except BaseException:
                 pass
-        self.vertices = self.vertices[mask]
 
     def update_faces(self, mask):
         '''
