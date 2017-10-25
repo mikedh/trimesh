@@ -67,7 +67,7 @@ def faces_to_path(mesh, face_ids=None):
     Given a mesh and face indices, find the outline edges and
     turn them into a Path3D.
 
-    Arguments
+    Parameters
     ---------
     mesh:  Trimesh object
     facet: (n) list of indices of mesh.faces

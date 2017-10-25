@@ -16,7 +16,7 @@ def export_path(path, file_type, file_obj=None):
     '''
     Export a Path object to a file- like object, or to a filename
 
-    Arguments
+    Parameters
     ---------
     file_obj:  a filename string or a file-like object
     file_type: str representing file type (eg: 'svg')
@@ -137,7 +137,7 @@ def export_dxf(path):
     '''
     Export a 2D path object to a DXF file
 
-    Arguments
+    Parameters
     ----------
     path: trimesh.path.path.Path2D
 
@@ -226,7 +226,7 @@ def _write_export(export, file_obj=None):
     Write a string to a file.
     If file_obj isn't specified, return the string
 
-    Arguments
+    Parameters
     ---------
     export: a string of the export data
     file_obj: a file-like object or a filename

@@ -20,7 +20,7 @@ def symbolic_barycentric(function):
     evaluator: numpy lambda function of result which takes a mesh
     expr:      sympy expression of result
 
-    Example
+    Examples
     -----------
 
     In [1]: function = '1'

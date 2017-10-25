@@ -206,14 +206,14 @@ class TransformForest:
         Parameters
         ---------
         frame_from: a frame key, usually a string
-                    example: 'world'
+                    eg, 'world'
         frame_to:   a frame key, usually a string
-                    example: 'mesh_0'
+                    eg, 'mesh_0'
 
         Returns
         ----------
         path: (n) list of frame keys
-              example: ['mesh_finger', 'mesh_hand', 'world']
+              eg, ['mesh_finger', 'mesh_hand', 'world']
         '''
         key = (frame_from, frame_to)
         if not (key in self._paths):
@@ -224,7 +224,10 @@ class TransformForest:
 
 
 class EnforcedForest(nx.DiGraph):
-
+    '''
+    A subclass of networkx.DiGraph that will raise an error if an
+    edge is added which would make the DiGraph not a forest or tree.
+    '''
     def __init__(self, *args, **kwargs):
         self.flags = {'strict': False,
                       'assert_forest': False}

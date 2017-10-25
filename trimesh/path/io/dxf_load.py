@@ -45,7 +45,7 @@ def load_dxf(file_obj):
     '''
     Load a DXF file to a dictionary containing vertices and entities.
 
-    Arguments
+    Parameters
     ----------
     file_obj: file or file- like object (has object.read method)
 

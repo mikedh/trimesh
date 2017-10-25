@@ -497,7 +497,7 @@ def to_kwargs(triangles):
                    'vertices' : (n,3) float
                    'faces'    : (m,3) int
 
-    Example
+    Examples
     ---------
     mesh = trimesh.Trimesh(**trimesh.triangles.to_kwargs(triangles))
     '''

@@ -54,7 +54,8 @@ class Scene:
         Parameters
         ----------
         geometry: Trimesh, Path3D, or list of same
-        node_name:
+        node_name: name in the scene graph
+
         Returns
         ----------
         node_name: str, name of node in self.graph

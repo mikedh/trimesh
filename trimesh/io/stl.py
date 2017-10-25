@@ -63,7 +63,9 @@ def load_stl_binary(file_obj):
               faces:        (m,3) int, indexes of vertices
               face_normals: (m,3) float, normal vector of each face
     '''
-    header_length = _stl_dtype_header.itemsize #84
+    # the header is always 84 bytes long, we just reference the dtype.itemsize
+    # to be explicit about where that magical number comes from
+    header_length = _stl_dtype_header.itemsize 
     header_data = file_obj.read(header_length)
     if len(header_data) < header_length:
         raise HeaderError('Binary STL file not long enough to contain header!')
@@ -84,14 +86,14 @@ def load_stl_binary(file_obj):
     # the binary format has a rigidly defined structure, and if the length
     # of the file doesn't match the header, the loaded version is almost
     # certainly going to be garbage.
-    data_ok = (
-        data_end - data_start) == (header['face_count'] * _stl_dtype.itemsize)
+    len_data = data_end - data_start
+    len_expected = header['face_count'] * _stl_dtype.itemsize
 
     # this check is to see if this really is a binary STL file.
     # if we don't do this and try to load a file that isn't structured properly
     # we will be producing garbage or crashing hard
     # so it's much better to raise an exception here.
-    if not data_ok:
+    if len_data != len_expected:
         raise HeaderError('Binary STL has incorrect length in header!')
 
     # all of our vertices will be loaded in order due to the STL format,

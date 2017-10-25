@@ -3,10 +3,11 @@ trimesh
 
 |Build Status| |Build status|
 
-Trimesh is a Python (2.7-3\*) library for loading and using triangular
-meshes. The goal of the library is to provide a fully featured Trimesh
-object which allows for easy manipulation and analysis, in the style of
-the excellent Polygon object in the `Shapely
+Trimesh is a Python (2.7-3\*) library for loading and using `triangular
+meshes <https://en.wikipedia.org/wiki/Triangle_mesh>`__. The goal of the
+library is to provide a fully featured Trimesh object which allows for
+easy manipulation and analysis, in the style of the excellent Polygon
+object in the `Shapely
 library <http://toblerity.org/shapely/manual.html>`__.
 
 The API is mostly stable, but this should not be relied on and is not
@@ -27,17 +28,20 @@ environment <https://conda.io/miniconda.html>`__, then:
 
 .. code:: bash
 
-
     # install modules for spatial indexing and  polygon manipulation
     # these generally install cleanly on Linux, Windows, and OSX
     conda install -c conda-forge rtree shapely
+
+    # install pyembree for fast ray queries
+    # Linux and OSX only
+    conda install -c conda-forge pyembree
 
     # install Trimesh and soft dependencies that are easy to install
     # these generally install cleanly on Linux, Windows, and OSX
     pip install trimesh[easy]
 
-Or, for the easiest install with only **minimal dependencies** (no ray
-queries, vector path handling, mesh creation, viewer, etc):
+Or, for the easiest install with only **minimal dependencies** (slower
+ray queries, no vector path handling, mesh creation, viewer, etc):
 
 .. code:: bash
 

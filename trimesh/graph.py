@@ -386,7 +386,7 @@ def graph_to_svg(graph):
     '''
     Turn a networkx graph into an SVG string, using graphviz dot.
 
-    Arguments
+    Parameters
     ----------
     graph: networkx graph
 

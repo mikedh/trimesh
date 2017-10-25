@@ -24,7 +24,7 @@ def convex_hull(obj, qhull_options='QbB Pp'):
     current mesh, with proper normals and watertight.
     Requires scipy >.12.
 
-    Argments
+    Arguments
     --------
     obj: Trimesh object OR
          (n,3) float, cartesian points

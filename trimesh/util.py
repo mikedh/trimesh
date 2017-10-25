@@ -1573,7 +1573,7 @@ def sigfig_round(values, sigfig=1):
     rounded: values, but rounded to the specified number of signifigant figures
 
 
-    Example
+    Examples
     ----------
     In [1]: trimesh.util.round_sigfig(-232453.00014045456, 1)
     Out[1]: -200000.0
