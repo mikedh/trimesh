@@ -17,7 +17,7 @@ except ImportError:
     log.warning('graph-tool unavailable, some operations will be much slower')
 
 try:
-    from scipy import sparse
+    from scipy.sparse import csgraph, coo_matrix
 except ImportError:
     log.warning('no scipy')
 
@@ -325,12 +325,12 @@ def connected_component_labels(edges, node_count):
             util.is_shape(edges, (-1, 2))):
         raise ValueError('edges must be (n,2)!')
 
-    matrix = sparse.coo_matrix((np.ones(len(edges), dtype=np.bool),
-                                (edges[:, 0], edges[:, 1])),
-                               dtype=np.bool,
-                               shape=(node_count, node_count))
-    body_count, labels = sparse.csgraph.connected_components(matrix,
-                                                             directed=False)
+    matrix = coo_matrix((np.ones(len(edges), dtype=np.bool),
+                         (edges[:, 0], edges[:, 1])),
+                        dtype=np.bool,
+                        shape=(node_count, node_count))
+    body_count, labels = csgraph.connected_components(matrix,
+                                                      directed=False)
     return labels
 
 

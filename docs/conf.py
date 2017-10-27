@@ -33,9 +33,6 @@
 # ones.
 extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.autosummary',
-              #'sphinx.ext.coverage',
-              #'sphinx.ext.imgmath',
-              #'sphinx.ext.viewcode',
               'numpydoc']
 
 from recommonmark.parser import CommonMarkParser
@@ -46,9 +43,6 @@ templates_path = ['_templates']
 
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
-#
-
-
 source_suffix = ['.rst', '.md']
 #source_suffix = '.rst'
 
@@ -161,7 +155,7 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
     (master_doc, 'trimesh', 'trimesh Documentation',
-     author, 'trimesh', 'One line description of project.',
+     author, 'trimesh', 'Python library to load and use triangular meshes.',
      'Miscellaneous'),
 ]
 

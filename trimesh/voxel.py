@@ -301,15 +301,24 @@ def matrix_to_marching_cubes(matrix, pitch, origin):
     # Add in padding so marching cubes can function properly with
     # voxels on edge of AABB
     pad_width = 1
-    rev_matrix = np.pad(rev_matrix, (pad_width),
-                        'constant', constant_values=(1))
+    rev_matrix = np.pad(rev_matrix,
+                        pad_width=(pad_width),
+                        mode='constant',
+                        constant_values=(1))
 
+
+    # pick between old and new API
+    if hasattr(measure, 'marching_cubes_lewiner'):
+        func = measure.marching_cubes_lewiner
+    else:
+        func = measure.marching_cubes
+    
     # Run marching cubes.
-    meshed = measure.marching_cubes(volume=rev_matrix,
-                                    level=.5,  # it is a boolean voxel grid
-                                    spacing=(pitch,
-                                             pitch,
-                                             pitch))
+    meshed = func(volume=rev_matrix,
+                  level=.5,  # it is a boolean voxel grid
+                  spacing=(pitch,
+                           pitch,
+                           pitch))
 
     # allow results from either marching cubes function in skimage
     # binaries available for python 3.3 and 3.4 appear to use the classic
