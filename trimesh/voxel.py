@@ -135,7 +135,7 @@ class Voxel(object):
 
 class VoxelMesh(Voxel):
 
-    def __init__(self, mesh, pitch, size_max=None):
+    def __init__(self, mesh, pitch, max_iter=10, size_max=None):
         '''
         A voxel representation of a mesh that will track changes to 
         the mesh.
@@ -154,7 +154,8 @@ class VoxelMesh(Voxel):
 
         self._data['mesh'] = mesh
         self._data['pitch'] = pitch
-
+        self._data['max_iter'] = max_iter
+        
     @util.cache_decorator
     def matrix_surface(self):
         '''
@@ -194,7 +195,8 @@ class VoxelMesh(Voxel):
     @util.cache_decorator
     def sparse_surface(self):
         voxels, origin = voxelize_subdivide(mesh=self._data['mesh'],
-                                            pitch=self._data['pitch'])
+                                            pitch=self._data['pitch'],
+                                            max_iter=self._data['max_iter'][0])
         self._cache['origin'] = origin
         return voxels
 
@@ -220,7 +222,7 @@ class VoxelMesh(Voxel):
         self.as_boxes.show()
 
 
-def voxelize_subdivide(mesh, pitch):
+def voxelize_subdivide(mesh, pitch, max_iter=10):
     '''
     Voxelize a surface by subdividing a mesh until every edge is shorter
     than half the pitch of the voxel grid.
@@ -238,7 +240,10 @@ def voxelize_subdivide(mesh, pitch):
     max_edge = pitch / 2.0
 
     # get the same mesh sudivided so every edge is shorter than half our pitch
-    v, f = remesh.subdivide_to_size(mesh.vertices, mesh.faces, max_edge)
+    v, f = remesh.subdivide_to_size(mesh.vertices,
+                                    mesh.faces,
+                                    max_edge=max_edge,
+                                    max_iter=max_iter)
 
     # convert the vertices to their voxel grid position
     hit = (v / pitch)
