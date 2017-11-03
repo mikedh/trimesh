@@ -985,6 +985,39 @@ class Trimesh(object):
         angles = geometry.vector_angle(pairs)
         return angles
 
+
+    @util.cache_decorator
+    def face_adjacency_projections(self):
+        '''
+        The projection of the non- shared vertex of a triangle onto
+        its adjacent face
+        
+        Returns
+        ----------
+        projections: (len(self.face_adjacency),) float, dot product of vertex
+                     onto plane of adjacent triangle.
+        '''
+        projections = convex.adjacency_projections(self)
+        return projections
+
+    @util.cache_decorator
+    def face_adjacency_convex(self):
+        '''
+        Return faces which are adjacent and locally convex.
+
+        What this means is that given faces A and B, the one vertex
+        in B that is not shared with A, projected onto the plane of A
+        has a NEGATIVE projection.
+
+        Returns
+        ----------
+        are_convex: (len(self.face_adjacency),) bool, face pairs that are
+                    locally convex.
+        '''
+        are_convex = self.face_adjacency_projections < tol.merge
+        return are_convex
+
+
     @util.cache_decorator
     def vertex_adjacency_graph(self):
         '''
@@ -1098,6 +1131,7 @@ class Trimesh(object):
 
         is_convex = convex.is_convex(self)
         return is_convex
+
 
     @util.cache_decorator
     def kdtree(self):

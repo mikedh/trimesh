@@ -40,6 +40,12 @@ class ConvexTest(g.unittest.TestCase):
             self.assertTrue(prim.is_convex)
 
 
+    def test_projections(self):
+        for m in g.get_meshes(4):
+            assert (len(m.face_adjacency_projections) ==
+                    (len(m.face_adjacency)))
+
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()

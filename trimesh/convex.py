@@ -113,7 +113,7 @@ def convex_hull(obj, qhull_options='QbB Pp'):
     return convex
 
 
-def is_convex(mesh):
+def adjacency_projections(mesh):
     '''
     Test if a mesh is convex by projecting the vertices of
     a triangle onto the normal of its adjacent face.
@@ -124,7 +124,7 @@ def is_convex(mesh):
 
     Returns
     ----------
-    convex: bool, is the mesh convex or not
+    projection: distance of projection of adjacent vertex onto plane
     '''
     # normals and origins from the first column of face adjacency
     normals = mesh.face_normals[mesh.face_adjacency[:, 0]]
@@ -133,8 +133,8 @@ def is_convex(mesh):
 
     # faces from the second column of face adjacency
     faces = mesh.faces[mesh.face_adjacency[:, 1]]
-    shared = np.logical_or(faces == mesh.face_adjacency_edges[:, 0].reshape(
-        (-1, 1)), faces == mesh.face_adjacency_edges[:, 1].reshape((-1, 1)))
+    shared = np.logical_or(faces == mesh.face_adjacency_edges[:, 0].reshape((-1, 1)), 
+                           faces == mesh.face_adjacency_edges[:, 1].reshape((-1, 1)))
     vertex_other = mesh.vertices[faces[np.logical_not(shared)]]
 
     vector_other = vertex_other - origins
@@ -142,7 +142,10 @@ def is_convex(mesh):
 
     dots = util.diagonal_dot(vector_other,
                              normals)
-    convex = (dots < tol.merge).all()
+    return dots
+
+def is_convex(mesh):
+    convex = (mesh.face_adjacency_projections < tol.merge).all()
     return bool(convex)
 
 
