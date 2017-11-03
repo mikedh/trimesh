@@ -52,10 +52,11 @@ class RayMeshIntersector:
                                       ray_origins=ray_origins,
                                       ray_directions=ray_directions,
                                       tree=self.mesh.triangles_tree,
-                                      multiple_hits = multiple_hits,
+                                      multiple_hits=multiple_hits,
                                       triangles_normal=self.mesh.face_normals)
         if return_locations:
-            unique = grouping.unique_rows(np.column_stack((locations, index_ray)))[0]
+            unique = grouping.unique_rows(
+                np.column_stack((locations, index_ray)))[0]
             if len(unique) == 0:
                 return [], [], []
             return index_tri[unique], index_ray[unique], locations[unique]
@@ -214,15 +215,15 @@ def ray_triangle_id(triangles,
     location = location[hit]
 
     # only return points that are forward from the origin
-    vector   = location - ray_origins[index_ray]
+    vector = location - ray_origins[index_ray]
     distance = util.diagonal_dot(vector, ray_directions[index_ray])
-    forward  = distance > -1e-6
+    forward = distance > -1e-6
 
     index_tri = index_tri[forward]
     index_ray = index_ray[forward]
-    location  = location[forward]
-    distance  = distance[forward]
-    
+    location = location[forward]
+    distance = distance[forward]
+
     if multiple_hits:
         return index_tri, index_ray, location
 
@@ -233,9 +234,9 @@ def ray_triangle_id(triangles,
     for group in groups:
         index = group[distance[group].argmin()]
         first[index] = True
-        
+
     return index_tri[first], index_ray[first], location[first]
-    
+
 
 def ray_triangle_candidates(ray_origins,
                             ray_directions,

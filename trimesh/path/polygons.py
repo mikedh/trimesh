@@ -392,4 +392,3 @@ def repair_invalid(polygon, scale=None):
 
     log.warn('Unable to recover polygon! Returning None!')
     return None
-

@@ -26,6 +26,7 @@ def decomposition_automatic(mesh):
         raise ValueError('No backends available for convex decomposition!')
     return result
 
+
 _engines = {None: decomposition_automatic,
             'auto': decomposition_automatic,
             'vhacd': interfaces.vhacd.convex_decomposition}

@@ -620,7 +620,7 @@ def tracked_array(array, dtype=None):
                                    dtype=dtype).view(TrackedArray)
     assert tracked.flags['C_CONTIGUOUS']
     return tracked
-    
+
 
 class TrackedArray(np.ndarray):
     '''
@@ -675,7 +675,7 @@ class TrackedArray(np.ndarray):
                 # t = util.tracked_array(np.random.random(10))[::-1]
                 contiguous = np.ascontiguousarray(self)
                 self._hashed_crc = zlib.adler32(contiguous) & 0xffffffff
-                
+
         self._modified_crc = False
         return self._hashed_crc
 

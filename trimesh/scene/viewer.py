@@ -240,7 +240,7 @@ class SceneViewer(pyglet.window.Window):
 
         # pull the new camera transform from the scene
         transform_camera, _junk = self.scene.graph['camera']
-        
+
         # apply the camera transform to the matrix stack
         gl.glMultMatrixf(_gl_matrix(transform_camera))
 

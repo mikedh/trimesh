@@ -4,10 +4,11 @@ from .constants import tol, log
 
 _fcl_exists = True
 try:
-    import fcl # pip install python-fcl
+    import fcl  # pip install python-fcl
 except:
     log.warning('No FCL -- collision checking will not work')
     _fcl_exists = False
+
 
 class CollisionManager(object):
     '''
@@ -43,7 +44,7 @@ class CollisionManager(object):
         b.beginModel(len(mesh.vertices), len(mesh.faces))
         b.addSubModel(mesh.vertices, mesh.faces)
         b.endModel()
-        t = fcl.Transform(transform[:3,:3], transform[:3,3])
+        t = fcl.Transform(transform[:3, :3], transform[:3, 3])
         o = fcl.CollisionObject(b, t)
 
         # Add collision object to set
@@ -79,8 +80,8 @@ class CollisionManager(object):
         '''
         if name in self._objs:
             o = self._objs[name]
-            o.setRotation(transform[:3,:3])
-            o.setTranslation(transform[:3,3])
+            o.setRotation(transform[:3, :3])
+            o.setTranslation(transform[:3, 3])
             self._manager.update(o)
         else:
             raise ValueError('{} not in collision manager!'.format(name))
@@ -106,7 +107,7 @@ class CollisionManager(object):
         b.beginModel(len(mesh.vertices), len(mesh.faces))
         b.addSubModel(mesh.vertices, mesh.faces)
         b.endModel()
-        t = fcl.Transform(transform[:3,:3], transform[:3,3])
+        t = fcl.Transform(transform[:3, :3], transform[:3, 3])
         o = fcl.CollisionObject(b, t)
 
         # Collide with manager's objects
@@ -141,5 +142,6 @@ class CollisionManager(object):
                             and False otherwise
         '''
         cdata = fcl.CollisionData()
-        self._manager.collide(other_manager._manager, cdata, fcl.defaultCollisionCallback)
+        self._manager.collide(other_manager._manager,
+                              cdata, fcl.defaultCollisionCallback)
         return cdata.result.is_collision

@@ -65,7 +65,7 @@ def load_stl_binary(file_obj):
     '''
     # the header is always 84 bytes long, we just reference the dtype.itemsize
     # to be explicit about where that magical number comes from
-    header_length = _stl_dtype_header.itemsize 
+    header_length = _stl_dtype_header.itemsize
     header_data = file_obj.read(header_length)
     if len(header_data) < header_length:
         raise HeaderError('Binary STL file not long enough to contain header!')

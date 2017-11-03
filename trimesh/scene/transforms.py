@@ -117,7 +117,6 @@ class TransformForest:
         nodes = [i for i in self.nodes if 'geometry' in self.transforms.node[i]]
         return np.array(nodes)
 
-
     def get(self,
             frame_to,
             frame_from=None):
@@ -228,6 +227,7 @@ class EnforcedForest(nx.DiGraph):
     A subclass of networkx.DiGraph that will raise an error if an
     edge is added which would make the DiGraph not a forest or tree.
     '''
+
     def __init__(self, *args, **kwargs):
         self.flags = {'strict': False,
                       'assert_forest': False}

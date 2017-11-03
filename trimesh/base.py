@@ -297,7 +297,7 @@ class Trimesh(object):
         vertices: (n,3) float representing points in cartesian space
         '''
         return self._data['vertices']
-  
+
     @vertices.setter
     def vertices(self, values):
         # make sure vertices are stored as a float64 for consistency
@@ -985,13 +985,12 @@ class Trimesh(object):
         angles = geometry.vector_angle(pairs)
         return angles
 
-
     @util.cache_decorator
     def face_adjacency_projections(self):
         '''
         The projection of the non- shared vertex of a triangle onto
         its adjacent face
-        
+
         Returns
         ----------
         projections: (len(self.face_adjacency),) float, dot product of vertex
@@ -1016,7 +1015,6 @@ class Trimesh(object):
         '''
         are_convex = self.face_adjacency_projections < tol.merge
         return are_convex
-
 
     @util.cache_decorator
     def vertex_adjacency_graph(self):
@@ -1099,9 +1097,9 @@ class Trimesh(object):
         ----------
         is_watertight: bool, is mesh watertight or not
         '''
-        if self.is_empty: 
+        if self.is_empty:
             return False
-        watertight, reversed = graph.is_watertight(edges=self.edges, 
+        watertight, reversed = graph.is_watertight(edges=self.edges,
                                                    edges_sorted=self.edges_sorted)
         self._cache['is_winding_consistent'] = reversed
         return watertight
@@ -1131,7 +1129,6 @@ class Trimesh(object):
 
         is_convex = convex.is_convex(self)
         return is_convex
-
 
     @util.cache_decorator
     def kdtree(self):
@@ -1451,10 +1448,9 @@ class Trimesh(object):
             log.debug('apply_tranform recieved identity matrix')
             return
 
-
         new_vertices = transformations.transform_points(self.vertices,
                                                         matrix)
-        
+
         # force generation of face normals so we can check against them
         new_normals = np.dot(matrix[0:3, 0:3], self.face_normals.T).T
         # easier than figuring out what the scale factor of the matrix is

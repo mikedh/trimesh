@@ -1991,6 +1991,7 @@ def transform_points(points, matrix, translate=True):
     transformed = np.ascontiguousarray(transformed)
     return transformed
 
+
 def is_rigid(matrix):
     '''
     Check to make sure a homogeonous transformation matrix is

@@ -196,7 +196,7 @@ class Scene:
                 continue
 
             triangles.append(transformations.transform_points(
-                geometry.triangles.copy().reshape((-1, 3)), 
+                geometry.triangles.copy().reshape((-1, 3)),
                 transform))
             triangles_node.append(np.tile(node_name, len(geometry.triangles)))
 
@@ -272,11 +272,11 @@ class Scene:
         translation[0:3, 3] = center
         translation[2][3] += distance * 1.5
 
-        transform = np.dot(transformations.rotation_matrix(angles[0], 
-                                                           [1, 0, 0], 
+        transform = np.dot(transformations.rotation_matrix(angles[0],
+                                                           [1, 0, 0],
                                                            point=center),
-                           transformations.rotation_matrix(angles[1], 
-                                                           [0, 1, 0], 
+                           transformations.rotation_matrix(angles[1],
+                                                           [0, 1, 0],
                                                            point=center))
         transform = np.dot(transform, translation)
 
@@ -349,7 +349,6 @@ class Scene:
                              extents=extents,
                              mutable=False)
         return obb
-
 
     def export(self, file_type=None):
         '''
@@ -441,7 +440,7 @@ class Scene:
 
         for geometry in result.geometry.values():
             geometry.units = desired
-            
+
         return result
 
     def explode(self, vector=None, origin=None):
@@ -491,8 +490,10 @@ class Scene:
         scale = float(scale)
         scale_matrix = np.eye(4) * scale
 
-        transforms = np.array([self.graph[i][0] for i in self.graph.nodes_geometry])    
-        geometries = np.array([self.graph[i][1] for i in self.graph.nodes_geometry])
+        transforms = np.array([self.graph[i][0]
+                               for i in self.graph.nodes_geometry])
+        geometries = np.array([self.graph[i][1]
+                               for i in self.graph.nodes_geometry])
 
         result = self.copy()
         result.graph.clear()
@@ -505,26 +506,23 @@ class Scene:
             inv_geom = np.linalg.inv(new_geom)
 
             result.geometry[geometry].apply_transform(new_geom)
-        
-        
+
             for node, t in zip(self.graph.nodes_geometry[group],
                                transforms[group]):
                 transform = util.multi_dot([scale_matrix,
                                             t,
                                             np.linalg.inv(new_geom)])
-                transform[:3,3] *= scale
-                
+                transform[:3, 3] *= scale
+
                 result.graph.update(frame_to=node,
                                     matrix=transform,
                                     geometry=geometry)
         return result
 
-
-
     def copy(self):
         '''
         Return a deep copy of the current scene
-        
+
         Returns
         ----------
         copied: trimesh.Scene, copy of the current scene

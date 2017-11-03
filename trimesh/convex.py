@@ -107,7 +107,7 @@ def convex_hull(obj, qhull_options='QbB Pp'):
     # so try the hull again without it
     # check for qhull_options is None to avoid infinite recursion
     if (qhull_options is not None and
-        not convex.is_winding_consistent):
+            not convex.is_winding_consistent):
         return convex_hull(convex, qhull_options=None)
 
     return convex
@@ -133,7 +133,7 @@ def adjacency_projections(mesh):
 
     # faces from the second column of face adjacency
     faces = mesh.faces[mesh.face_adjacency[:, 1]]
-    shared = np.logical_or(faces == mesh.face_adjacency_edges[:, 0].reshape((-1, 1)), 
+    shared = np.logical_or(faces == mesh.face_adjacency_edges[:, 0].reshape((-1, 1)),
                            faces == mesh.face_adjacency_edges[:, 1].reshape((-1, 1)))
     vertex_other = mesh.vertices[faces[np.logical_not(shared)]]
 
@@ -143,6 +143,7 @@ def adjacency_projections(mesh):
     dots = util.diagonal_dot(vector_other,
                              normals)
     return dots
+
 
 def is_convex(mesh):
     convex = (mesh.face_adjacency_projections < tol.merge).all()

@@ -155,7 +155,7 @@ class VoxelMesh(Voxel):
         self._data['mesh'] = mesh
         self._data['pitch'] = pitch
         self._data['max_iter'] = max_iter
-        
+
     @util.cache_decorator
     def matrix_surface(self):
         '''
@@ -311,13 +311,12 @@ def matrix_to_marching_cubes(matrix, pitch, origin):
                         mode='constant',
                         constant_values=(1))
 
-
     # pick between old and new API
     if hasattr(measure, 'marching_cubes_lewiner'):
         func = measure.marching_cubes_lewiner
     else:
         func = measure.marching_cubes
-    
+
     # Run marching cubes.
     meshed = func(volume=rev_matrix,
                   level=.5,  # it is a boolean voxel grid
