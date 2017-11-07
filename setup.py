@@ -70,5 +70,6 @@ setup(name = 'trimesh',
                                        'meshpy',
                                        'sympy',
                                        'msgpack-python',
+                                       'python-fcl',
                                        'colorlog']}
   )
