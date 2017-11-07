@@ -27,19 +27,24 @@ class CollisionTest(g.unittest.TestCase):
         ret = m.in_collision_single(cube)
         self.assertTrue(ret == True)
 
-        ret = m.in_collision_single(cube, tf1)
+        ret, names = m.in_collision_single(cube, tf1, return_names=True)
         self.assertTrue(ret == True)
+        self.assertTrue('cube1' in names)
 
-        ret = m.in_collision_single(cube, tf2)
+        ret, names = m.in_collision_single(cube, tf2, return_names=True)
         self.assertTrue(ret == False)
+        self.assertTrue(len(names) == 0)
 
         # Test internal collision checking and object addition/removal/modification
         ret = m.in_collision_internal()
         self.assertTrue(ret == False)
 
         m.add_object('cube2', cube, tf1)
-        ret = m.in_collision_internal()
+        ret, names = m.in_collision_internal(return_names=True)
         self.assertTrue(ret == True)
+        self.assertTrue(('cube1', 'cube2') in names)
+        self.assertTrue(('cube0', 'cube1') not in names)
+        self.assertTrue(('cube2', 'cube1') not in names)
 
         m.set_transform('cube2', tf2)
         ret = m.in_collision_internal()
@@ -64,10 +69,15 @@ class CollisionTest(g.unittest.TestCase):
         ret = m.in_collision_other(n)
         self.assertTrue(ret == False)
 
-        n.add_object('cube1', cube, tf1)
+        n.add_object('cube3', cube, tf1)
 
         ret = m.in_collision_other(n)
         self.assertTrue(ret == True)
+
+        ret, names = m.in_collision_other(n, return_names=True)
+        self.assertTrue(ret == True)
+        self.assertTrue(('cube1', 'cube3') in names)
+        self.assertTrue(('cube3', 'cube1') not in names)
 
 
 if __name__ == '__main__':
