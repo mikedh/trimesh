@@ -4,6 +4,7 @@
 # You can set these variables from the command line.
 SPHINXOPTS    =
 SPHINXBUILD   = sphinx-build
+SPHINXAPIDOC  = sphinx-apidoc
 SPHINXPROJ    = trimesh
 SOURCEDIR     = .
 BUILDDIR      = _build
@@ -23,5 +24,6 @@ help:
 	# convert the markdown readme to RST
 	$(PANDOC) --from=markdown --to=rst --output=README.rst ../README.md
         #cp ../README.md .
+	@$(SPHINXAPIDOC) -o . ../trimesh
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
