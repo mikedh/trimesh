@@ -43,7 +43,8 @@ install:
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy
   - source activate test-environment
   - conda install -c conda-forge scikit-image
-  - if [[ "$TRAVIS_PYTHON_VERSION" != "3.3" && "$TRAVIS_PYTHON_VERSION" != "3.4" ]]; then conda install pyembree rtree shapely && pip install .[all]; else pip install .[easy]; fi
+  - if [[ "$TRAVIS_PYTHON_VERSION" != "3.3" && "$TRAVIS_PYTHON_VERSION" != "3.4" ]]; then conda install pyembree rtree shapely && pip install python-fcl; fi
+  - pip install .[easy]
   - pip install nose2
 
 script: 
