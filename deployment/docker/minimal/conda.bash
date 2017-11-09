@@ -9,7 +9,7 @@ export PATH="/opt/conda/bin:$PATH"
 conda config --set always_yes yes --set changeps1 no
 conda update -q conda
 
-conda create -q -n docker-environment python=3.5
+conda create -q -n docker-environment python=3.6
 source activate docker-environment
 
 # add channels

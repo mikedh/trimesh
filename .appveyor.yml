@@ -1,4 +1,5 @@
 build: false
+image: Previous Visual Studio 2015
 
 environment:
   matrix:
@@ -7,6 +8,8 @@ environment:
     - PYTHON_VERSION: 3.4
       MINICONDA: C:\Miniconda3
     - PYTHON_VERSION: 3.5
+      MINICONDA: C:\Miniconda3
+    - PYTHON_VERSION: 3.6
       MINICONDA: C:\Miniconda3
 
 init:
