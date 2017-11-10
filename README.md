@@ -46,8 +46,11 @@ Here is an example of loading a mesh from file and colorizing its faces. Here is
 import numpy as np
 import trimesh
 
+# attach to logger so trimesh messages will be printed to console
+trimesh.util.attach_to_log()
+
 # load a file by name or from a buffer
-mesh = trimesh.load_mesh('../models/featuretype.STL')
+mesh = trimesh.load('../models/featuretype.STL')
 
 # is the current mesh watertight?
 mesh.is_watertight
