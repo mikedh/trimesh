@@ -1407,12 +1407,10 @@ class Trimesh(object):
         if translation.shape != (3,):
             raise ValueError('Translation must be (3,)!')
 
-        with self._cache:
-            self.vertices += translation
-        # we are doing a simple translation so normals are preserved
-        self._cache.clear(exclude=['face_normals',
-                                   'vertex_normals'])
-
+        matrix = np.eye(4)
+        matrix[:3,3] = translation
+        self.apply_transform(matrix)
+        
     def apply_scale(self, scaling):
         '''
         Scale the mesh equally on all axis.

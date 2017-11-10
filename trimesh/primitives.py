@@ -80,6 +80,28 @@ class _Primitive(Trimesh):
                          process=False)
         return result
 
+    def apply_transform(self, matrix):
+        '''
+        Apply a transform to the current primitive (sets self.transform)
+
+        Parameters
+        -----------
+        matrix: (4,4) float, homogenous transformation
+        '''
+        matrix = np.asanyarray(matrix, order='C', dtype=np.float64)
+        if matrix.shape != (4, 4):
+            raise ValueError('Transformation matrix must be (4,4)!')
+    
+        if np.allclose(matrix, np.eye(4)):
+            log.debug('apply_tranform recieved identity matrix')
+            return
+                                                            
+        new_transform = np.dot(self.primitive.transform, matrix)
+
+        self.primitive.transform = new_transform
+
+        
+    
     def _create_mesh(self):
         raise ValueError('Primitive doesn\'t define mesh creation!')
 
@@ -121,10 +143,7 @@ class _PrimitiveAttributes(object):
             name=self._parent.__class__.__name__,
             defaults=pprint.pformat(
                 self._defaults,
-                width=-
-                1)[
-                1:-
-                1])
+                width=-1)[1:-1])
         return doc
 
     def __getattr__(self, key):
@@ -132,6 +151,7 @@ class _PrimitiveAttributes(object):
             return super(_PrimitiveAttributes, self).__getattr__(key)
         elif key in self._defaults:
             return util.convert_like(self._data[key], self._defaults[key])
+        print(self._defaults.keys())
         return super(_PrimitiveAttributes, self).__getattr__(key)
 
     def __setattr__(self, key, value):
@@ -307,6 +327,22 @@ class Sphere(_Primitive):
                                               defaults,
                                               kwargs)
 
+    def apply_transform(self, matrix):
+        '''
+        Apply a transform to the sphere primitive
+
+        Parameters
+        ------------
+        matrix: (4,4) float, homogenous transformation
+        '''
+        matrix = np.asanyarray(matrix, dtype=np.float64)
+        if matrix.shape != (4,4):
+            raise ValueError('shape must be 4,4')
+
+        center = np.dot(matrix,
+                        np.append(self.primitive.center, 1.0))[:3]
+        self.primitive.center = center
+        
     @property
     def bounds(self):
         # no docstring so will inherit Trimesh docstring

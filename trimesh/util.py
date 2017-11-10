@@ -638,11 +638,10 @@ class TrackedArray(np.ndarray):
         This flag will be set on every change, as well as during copies
         and certain types of slicing.
         '''
-        self._modified_md5 = True
-        self._modified_crc = True
+        self._modified = True
         if isinstance(obj, type(self)):
-            obj._modified_md5 = True
-            obj._modified_crc = True
+            obj._modified = True
+            
 
     def md5(self):
         '''
@@ -656,16 +655,16 @@ class TrackedArray(np.ndarray):
         negatives which would return an incorrect hash.
         '''
 
-        if self._modified_md5 or not hasattr(self, '_hashed_md5'):
+        if self._modified or not hasattr(self, '_hashed_md5'):
             self._hashed_md5 = md5_object(self)
-        self._modified_md5 = False
+        self._modified = False
         return self._hashed_md5
 
     def crc(self):
         '''
         Return a zlib adler32 checksum of the current data.
         '''
-        if self._modified_crc or not hasattr(self, '_hashed_crc'):
+        if self._modified or not hasattr(self, '_hashed_crc'):
             if self.flags['C_CONTIGUOUS']:
                 self._hashed_crc = zlib.adler32(self) & 0xffffffff
             else:
@@ -676,7 +675,7 @@ class TrackedArray(np.ndarray):
                 contiguous = np.ascontiguousarray(self)
                 self._hashed_crc = zlib.adler32(contiguous) & 0xffffffff
 
-        self._modified_crc = False
+        self._modified = False
         return self._hashed_crc
 
     def __hash__(self):
@@ -685,14 +684,58 @@ class TrackedArray(np.ndarray):
         '''
         return int(self.md5(), 16)
 
+    def __iadd__(self, other):
+        self._modified = True
+        return super(self.__class__, self).__iadd__(other)
+        
+    def __isub__(self, other):
+        self._modified = True
+        return super(self.__class__, self).__isub__(other)
+        
+    def __imul__(self, other):
+        self._modified = True
+        return super(self.__class__, self).__imul__(other)
+
+    def __ipow__(self, other):
+        self._modified = True
+        return super(self.__class__, self).__ipow__(other)
+
+    def __imod__(self, other):
+        self._modified = True
+        return super(self.__class__, self).__imod__(other)
+
+    def __ifloordiv__(self, other):
+        self._modified = True
+        return super(self.__class__, self).__ifloordiv__(other)
+
+    def __ilshift__(self, other):
+        self._modified = True
+        print('lshift')
+        return super(self.__class__, self).__ilshift__(other)
+
+    def __irshift__(self, other):
+        self._modified = True
+        print('rshift')
+        return super(self.__class__, self).__irshift__(other)
+    
+    def __iand__(self, other):
+        self._modified = True
+        return super(self.__class__, self).__iand__(other)
+    
+    def __ixor__(self, other):
+        self._modified = True
+        return super(self.__class__, self).__ixor__(other)
+    
+    def __ior__(self, other):
+        self._modified = True
+        return super(self.__class__, self).__ior__(other)
+    
     def __setitem__(self, i, y):
-        self._modified_md5 = True
-        self._modified_crc = True
+        self._modified = True
         super(self.__class__, self).__setitem__(i, y)
 
     def __setslice__(self, i, j, y):
-        self._modified_md5 = True
-        self._modified_crc = True
+        self._modified = True
         super(self.__class__, self).__setslice__(i, j, y)
 
 

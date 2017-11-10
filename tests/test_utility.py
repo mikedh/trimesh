@@ -85,6 +85,31 @@ class UtilTests(unittest.TestCase):
         modified.append(int(a.md5(), 16))
         self.assertTrue((np.diff(modified) == 0).all())
 
+        a = trimesh.util.tracked_array([0,0,4])
+        pre_crc = a.crc()
+        a += 10
+        assert a.crc() != pre_crc
+
+        a = trimesh.util.tracked_array([.125,115.32444,4], dtype=np.float64)
+        modified = deque()
+        modified.append(a.crc())
+        a += [10,0,0]
+        modified.append(a.crc())
+        a *= 10
+        # __idiv__ is weird, and not working
+        #modified.append(a.crc())
+        #a /= 2.0
+        modified.append(a.crc())
+        a -= 1.0
+        modified.append(a.crc())
+        a //= 2
+        modified.append(a.crc())
+        print(modified, np.diff(modified))
+        assert (np.diff(modified) != 0).all()
+        
+        
+        
+        
     def test_bounds_tree(self):
         for attempt in range(3):
             for dimension in [2, 3]:
