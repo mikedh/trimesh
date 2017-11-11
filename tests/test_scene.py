@@ -10,10 +10,12 @@ def random_chr():
 class SceneTests(g.unittest.TestCase):
     def test_scene(self):
         for mesh in g.get_mesh('cycloidal.ply',
-                               'kinematic.tar.gz',
                                'sphere.ply'):
+            if mesh.units is None:
+                mesh.units = 'in'
+            
             scene_split = g.trimesh.scene.split_scene(mesh)
-
+            scene_split.convert_units('in')
             scene_base = g.trimesh.Scene(mesh)
 
             for s in [scene_split, scene_base]:

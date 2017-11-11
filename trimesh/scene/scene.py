@@ -429,12 +429,12 @@ class Scene:
         '''
         existing = np.array([i.units for i in self.geometry.values()])
 
-        if (existing[0] != existing[1:]).any():
+        if (len(existing) > 1) and (existing[0] != existing[1:]).any():
             # if all of our geometry doesn't have the same units already
             # this function will only do some hot nonsense
             raise ValueError('Models in scene have inconsistent units!')
 
-        scale = units.unit_conversion(current=existing[1],
+        scale = units.unit_conversion(current=existing[0],
                                       desired=desired)
         result = self.scaled(scale=scale)
 
