@@ -151,7 +151,6 @@ class _PrimitiveAttributes(object):
             return super(_PrimitiveAttributes, self).__getattr__(key)
         elif key in self._defaults:
             return util.convert_like(self._data[key], self._defaults[key])
-        print(self._defaults.keys())
         return super(_PrimitiveAttributes, self).__getattr__(key)
 
     def __setattr__(self, key, value):

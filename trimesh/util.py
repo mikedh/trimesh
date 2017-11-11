@@ -710,12 +710,10 @@ class TrackedArray(np.ndarray):
 
     def __ilshift__(self, other):
         self._modified = True
-        print('lshift')
         return super(self.__class__, self).__ilshift__(other)
 
     def __irshift__(self, other):
         self._modified = True
-        print('rshift')
         return super(self.__class__, self).__irshift__(other)
     
     def __iand__(self, other):
