@@ -1,2 +1,5 @@
 numpydoc
+numpy
+scipy
+networkx
 recommonmark
