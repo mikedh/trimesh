@@ -22,7 +22,6 @@ install:
   - pip install numpy scipy
   - conda install -c scitools shapely
   - conda install -c ioos rtree
-  - conda install -c conda-forge lxml scikit-image
   - pip install nose2
   - pip install .[easy]
   - appveyor DownloadFile http://mirror.cs.umn.edu/blender.org/release/Blender2.78/blender-2.78c-windows64.zip
