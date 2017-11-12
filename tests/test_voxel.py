@@ -1,6 +1,7 @@
 import generic as g
 
 
+
 class VoxelTest(g.unittest.TestCase):
 
     def test_voxel(self):
@@ -36,16 +37,19 @@ class VoxelTest(g.unittest.TestCase):
                 outside = m.bounds[1] + m.scale
                 assert not v.is_filled(outside)
 
-                cubes = v.marching_cubes
-                assert cubes.area > 0.0
-
+                try:
+                    cubes = v.marching_cubes
+                    assert cubes.area > 0.0
                 
-                if (g.python_version == (3,3) or
-                    g.python_version == (3,4)):
-                    # python 3.3 and 3.4 only have the classic marching cubes
-                    # which doesn't guarantee a watertight result
-                    assert cubes.is_watertight
+                    if (g.python_version == (3,3) or
+                        g.python_version == (3,4)):
+                        # python 3.3 and 3.4 only have the classic marching cubes
+                        # which doesn't guarantee a watertight result
+                        assert cubes.is_watertight
+                except ImportError:
+                    g.log.info('no skimage, skipping marching cubes test')
 
+                    
             g.log.info('Mesh volume was %f, voxelized volume was %f',
                        m.volume,
                        v.volume)
