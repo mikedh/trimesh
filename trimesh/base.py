@@ -1105,6 +1105,24 @@ class Trimesh(object):
         return watertight
 
     @util.cache_decorator
+    def is_volume(self):
+        '''
+        Check if a mesh has all the properties required to represent
+        a valid volume, rather than just a surface.
+
+        These properties include being watertight, having consistent winding,
+        and outward facing normals.
+
+        Returns
+        ---------
+        valid: bool, does the mesh represent a volume
+        '''
+        valid = (self.is_watertight and
+                 self.is_winding_consistent and
+                 self.volume > 0)
+        return valid
+    
+    @util.cache_decorator
     def is_empty(self):
         '''
         Does the current mesh have data defined.

@@ -17,13 +17,14 @@ install:
   - "set PATH=%MINICONDA%;%MINICONDA%\\Scripts;C:\\blender-2.78a-windows64;%PATH%"
   - conda config --set always_yes yes --set changeps1 no
   - conda info -a
-  - "conda create -q -n test-environment numpy scipy"
+  - "conda create -q -n test-environment python=%PYTHON_VERSION%"
   - activate test-environment
+  - conda install numpy scipy nomkl
   - conda install -c scitools shapely
   - conda install -c ioos rtree
   - conda install -c conda-forge lxml scikit-image
-  - pip install nose2 networkx svg.path sympy msgpack-python
-  - pip install .
+  - pip install nose2
+  - pip install .[easy]
   - appveyor DownloadFile http://mirror.cs.umn.edu/blender.org/release/Blender2.78/blender-2.78c-windows64.zip
   - 7z x blender-2.78c-windows64.zip "-oC:\" -y
 

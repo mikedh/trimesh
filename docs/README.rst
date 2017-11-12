@@ -3,11 +3,11 @@ trimesh
 
 |Build Status| |Build status|
 
-Trimesh is a Python (2.7-3\*) library for loading and using `triangular
-meshes <https://en.wikipedia.org/wiki/Triangle_mesh>`__. The goal of the
-library is to provide a fully featured Trimesh object which allows for
-easy manipulation and analysis, in the style of the excellent Polygon
-object in the `Shapely
+Trimesh is a Python (2.7- 3.3+) library for loading and using
+`triangular meshes <https://en.wikipedia.org/wiki/Triangle_mesh>`__. The
+goal of the library is to provide a fully featured Trimesh object which
+allows for easy manipulation and analysis, in the style of the excellent
+Polygon object in the `Shapely
 library <http://toblerity.org/shapely/manual.html>`__.
 
 The API is mostly stable, but this should not be relied on and is not
@@ -66,8 +66,11 @@ example <https://github.com/mikedh/trimesh/blob/master/examples/integrate.ipynb>
     import numpy as np
     import trimesh
 
+    # attach to logger so trimesh messages will be printed to console
+    trimesh.util.attach_to_log()
+
     # load a file by name or from a buffer
-    mesh = trimesh.load_mesh('../models/featuretype.STL')
+    mesh = trimesh.load('../models/featuretype.STL')
 
     # is the current mesh watertight?
     mesh.is_watertight
