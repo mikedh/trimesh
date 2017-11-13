@@ -11,6 +11,7 @@ from ...constants import res_path as res
 _templates_dxf = {k: Template(v) for k, v in json.loads(
     get_resource('dxf.json.template')).items()}
 
+_template_svg = Template(get_resource('svg.xml.template'))
 
 def export_path(path, file_type, file_obj=None):
     '''
@@ -130,7 +131,18 @@ def export_svg(drawing):
     for path_index, path in enumerate(drawing.paths):
         reverse = not (path_index in drawing.root)
         path_str += convert_path(path, reverse)
-    return path_str
+
+    subs = {'PATH_STRING' : path_str,
+            'MIN_X' : drawing.bounds[0][0],
+            'MIN_Y' : drawing.bounds[0][0],
+            'WIDTH' : drawing.extents[0],
+            'HEIGHT' : drawing.extents[1],
+            'STROKE' : drawing.extents.max()/100.0}
+            
+
+    result = _template_svg.substitute(subs)
+
+    return result
 
 
 def export_dxf(path):
