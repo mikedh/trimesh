@@ -366,6 +366,12 @@ class Scene:
                 transforms: edge list of transforms, eg:
                              ((u, v, {'matrix' : np.eye(4)}))
         '''
+
+        if file_type == 'gltf':
+            from ..io.gltf import export_gltf
+            return export_gltf(self)
+        
+        
         export = {'graph': self.graph.to_edgelist(),
                   'geometry': {},
                   'scene_cache': {'bounds': self.bounds.tolist(),

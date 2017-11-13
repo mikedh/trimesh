@@ -39,6 +39,8 @@ class SceneTests(g.unittest.TestCase):
 
                 r = s.dump()
 
+                gltf = s.export(file_type='gltf')
+                
                 for export_format in ['dict', 'dict64']:
                     # try exporting the scene as a dict
                     # then make sure json can serialize it
