@@ -82,10 +82,21 @@ def export_obj(mesh):
     -----------
     export: str, string of OBJ format output
     '''
+
     export = 'v '
     export += util.array_to_string(mesh.vertices,
                                    col_delim=' ',
                                    row_delim='\nv ',
+                                   digits=8) + '\n'
+    export += 'vn '
+    export += util.array_to_string(mesh.vertex_normals,
+                                   col_delim=' ',
+                                   row_delim='\nvn ',
+                                   digits=8) + '\n'
+    export += 'vt '
+    export += util.array_to_string(mesh.vertex_texture,
+                                   col_delim=' ',
+                                   row_delim='\nvt ',
                                    digits=8) + '\n'
     export += 'f '
     export += util.array_to_string(mesh.faces + 1,

@@ -47,6 +47,7 @@ class Trimesh(object):
                  faces=None,
                  face_normals=None,
                  vertex_normals=None,
+                 vertex_texture=None,
                  face_colors=None,
                  vertex_colors=None,
                  metadata=None,
@@ -66,6 +67,7 @@ class Trimesh(object):
                         serves as a speedup as otherwise they will be computed with
                         crossproducts
         vertex_normals: (n,3) float set of normal vectors for vertices
+        vertex_texture: (n,2) float set of vectors for vertices texture
         metadata:       dict, any metadata about the mesh
         process:        bool, if True basic mesh cleanup will be done on instantiation
         validate_faces: bool, if True, faces will not be returned until face normals
@@ -118,6 +120,10 @@ class Trimesh(object):
         # (n, 3) float of vertex normals, can be created from face normals
         if vertex_normals is not None:
             self.vertex_normals = vertex_normals
+
+        # (n, 2) float of vertex texture
+        if vertex_texture is not None:
+            self.vertex_texture = vertex_texture
 
         # create a ray-mesh query object for the current mesh
         # initializing is very inexpensive and object is convenient to have.
