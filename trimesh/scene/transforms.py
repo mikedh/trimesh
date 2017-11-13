@@ -88,6 +88,29 @@ class TransformForest:
                           'geometry': geometry}
         return flat
 
+    def to_gltf(self):
+        '''
+        Export a list of transforms as the 'nodes' section of a GLTF dict.
+        
+        Will flatten tree.
+
+        Returns
+        --------
+        gltf: dict, with keys:
+                  'nodes': list of dicts
+        '''
+        gltf = {}
+        for node in self.nodes:
+            if node == base_frame:
+                continue
+            transform, geometry = self.get(frame_to=node,
+                                           frame_from=base_frame)
+            gltf[node] = {'matrix'   : transform.reshape(-1).tolist(),
+                          'geometry' : geometry,
+                          'name'     : node}
+        return gltf
+
+    
     def to_edgelist(self):
         '''
         Export the current transforms as a list of edge tuples, with

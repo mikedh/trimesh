@@ -52,7 +52,7 @@ def export_svg(drawing):
     rendering libraries
     '''
     points = drawing.vertices.view(np.ndarray)
-
+    
     def circle_to_svgpath(center, radius, reverse):
         radius_str = format(radius, res.export)
         path_str = '  M' + format(center[0] - radius, res.export) + ','
@@ -134,10 +134,10 @@ def export_svg(drawing):
 
     subs = {'PATH_STRING' : path_str,
             'MIN_X' : drawing.bounds[0][0],
-            'MIN_Y' : drawing.bounds[0][0],
+            'MIN_Y' : drawing.bounds[0][1],
             'WIDTH' : drawing.extents[0],
             'HEIGHT' : drawing.extents[1],
-            'STROKE' : drawing.extents.max()/100.0}
+            'STROKE' : drawing.extents.max()/200.0}
             
 
     result = _template_svg.substitute(subs)

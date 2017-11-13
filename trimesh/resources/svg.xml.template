@@ -2,5 +2,5 @@
      xmlns="http://www.w3.org/2000/svg">
 
   <path d="$PATH_STRING"
-        fill="none" stroke="black" stroke-width="$STROKE" />
+        fill="none" stroke="black" stroke-width="$STROKE" stroke-linejoin="round" stroke-linecap="round" />
 </svg>
