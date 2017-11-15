@@ -40,6 +40,14 @@ class SceneTests(g.unittest.TestCase):
                 r = s.dump()
 
                 gltf = s.export(file_type='gltf')
+                assert isinstance(gltf, dict)
+                assert len(gltf) > 0
+                assert len(gltf['model.gltf']) > 0
+
+                glb = s.export(file_type='glb')
+                assert len(glb) > 0
+                assert isinstance(glb, bytes)
+                
                 
                 for export_format in ['dict', 'dict64']:
                     # try exporting the scene as a dict

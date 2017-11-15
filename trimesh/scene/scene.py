@@ -10,6 +10,7 @@ from .. import transformations
 
 from .. import bounds as bounds_module
 
+from ..io import gltf        
 from .transforms import TransformForest
 
 
@@ -368,9 +369,9 @@ class Scene:
         '''
 
         if file_type == 'gltf':
-            from ..io.gltf import export_gltf
-            return export_gltf(self)
-        
+            return gltf.export_gltf(self)
+        elif file_type == 'glb':
+            return gltf.export_glb(self)
         
         export = {'graph': self.graph.to_edgelist(),
                   'geometry': {},
