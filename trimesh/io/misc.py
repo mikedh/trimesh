@@ -49,8 +49,6 @@ def load_wavefront(file_obj, file_type=None):
     Loads an ascii Wavefront OBJ file_obj into kwargs
     for the Trimesh constructor.
 
-    Discards texture normals and vertex color information.
-
 
     Parameters
     ----------
@@ -152,11 +150,14 @@ def load_wavefront(file_obj, file_type=None):
         vid = np.nonzero(data == 'v')[0].reshape((-1, 1)) + np.arange(3) + 1
         # indexes which contain vertex normal information
         nid = np.nonzero(data == 'vn')[0].reshape((-1, 1)) + np.arange(3) + 1
+        # indexes which contain vertex texture information
+        tid = np.nonzero(data == 'vt')[0].reshape((-1, 1)) + np.arange(2) + 1
         # some varients of the format have face groups
         gid = np.nonzero(data == 'g')[0].reshape((-1, 1)) + 1
 
         loaded = {'vertices': data[vid].astype(float),
                   'vertex_normals': data[nid].astype(float),
+                  'vertex_texture': data[tid].astype(float),
                   'faces': faces}
 
         # if face groups have been defined add them to metadata
