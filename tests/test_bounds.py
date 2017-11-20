@@ -14,7 +14,7 @@ class BoundsTest(g.unittest.TestCase):
         '''
         for m in self.meshes:
             g.log.info('Testing OBB of %s', m.metadata['file_name'])
-            for i in range(10):
+            for i in range(6):
                 # on the first run through don't transform the points to see
                 # if we succeed in the meshes original orientation
                 mat = g.np.eye(4)
@@ -37,8 +37,11 @@ class BoundsTest(g.unittest.TestCase):
 
                 m.apply_transform(mat)
                 m.apply_obb()
+
                 assert g.np.allclose(m.bounding_box.volume,
-                                     m.bounding_box_oriented.volume)
+                                     m.bounding_box_oriented.volume,
+                                     rtol=1e-3,
+                                     atol=1e-3)
 
 
             c = m.bounding_cylinder
@@ -50,7 +53,7 @@ class BoundsTest(g.unittest.TestCase):
         Test OBB functions with raw points as input
         '''
         for dimension in [3, 2]:
-            for i in range(100):
+            for i in range(25):
                 points = g.np.random.random((10, dimension))
                 to_origin, extents = g.trimesh.bounds.oriented_bounds(points)
 
