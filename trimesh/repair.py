@@ -93,7 +93,7 @@ def broken_faces(mesh, color=None):
     of the mesh. If color is set, change the color of the broken faces.
     '''
     adjacency = nx.from_edgelist(mesh.face_adjacency)
-    broken = [k for k, v in adjacency.degree().iteritems() if v != 3]
+    broken = [k for k, v in dict(adjacency.degree()).items() if v != 3]
     broken = np.array(broken)
     if color is not None:
         if not is_sequence(color):

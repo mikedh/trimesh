@@ -76,23 +76,6 @@ class MeshTests(g.unittest.TestCase):
                 raise ValueError('copied identifier changed!')
 
 
-    def test_fill_holes(self):
-        for mesh_name in ['unit_cube.STL',
-                          'machinist.XAML',
-                          'round.stl',
-                          'quadknot.obj']:
-            mesh = g.get_mesh(mesh_name)
-            if not mesh.is_watertight:
-                continue
-            mesh.faces = mesh.faces[1:-1]
-            self.assertFalse(mesh.is_watertight)
-            mesh.fill_holes()
-            self.assertTrue(mesh.is_watertight)
-
-    def test_fix_normals(self):
-        for mesh in g.get_meshes(5):
-            mesh.fix_normals()
-
     def test_vertex_neighbors(self):
         m = g.trimesh.primitives.Box()
         neighbors = m.vertex_neighbors
