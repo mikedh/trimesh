@@ -1,6 +1,7 @@
 import os
 
 import lxml.etree as et
+import numpy as np
 
 from ..decomposition import convex_decomposition
 from .. import io
@@ -20,7 +21,7 @@ def export_urdf(mesh, directory):
 
     Returns
     ---------
-    export: bytes, representing the URDF file
+    mesh: The decomposed mesh
     '''
 
     # Extract the save directory and the file name
@@ -120,3 +121,5 @@ def export_urdf(mesh, directory):
 
     tree = et.ElementTree(root)
     tree.write(os.path.join(fullpath, 'model.config'))
+
+    return np.sum(convex_pieces)
