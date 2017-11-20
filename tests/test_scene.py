@@ -63,7 +63,7 @@ class SceneTests(g.unittest.TestCase):
 
 
                 s.rezero()
-                assert (np.abs(s.centroid) < 1e-3).all()
+                assert (g.np.abs(s.centroid) < 1e-3).all()
 
 
     def test_scaling(self):
