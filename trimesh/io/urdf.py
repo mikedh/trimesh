@@ -1,6 +1,6 @@
 import os
 
-import xml.etree.cElementTree as et
+import lxml.etree as et
 
 from ..decomposition import convex_decomposition
 from .. import io
@@ -100,7 +100,7 @@ def export_urdf(mesh, directory):
     # Write URDF file
     tree = et.ElementTree(root)
     urdf_filename = '{}.urdf'.format(name)
-    tree.write(os.path.join(fullpath, urdf_filename))
+    tree.write(os.path.join(fullpath, urdf_filename), pretty_print=True)
 
     # Write Gazebo config file
     root = et.Element('model')
