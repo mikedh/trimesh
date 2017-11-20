@@ -162,7 +162,16 @@ def load_3DXML(file_obj, *args, **kwargs):
     archive = util.decompress(file_obj, file_type='zip')
 
     # a dictionary of file name : lxml etree
-    as_etree = {k: etree.XML(v.read()) for k, v in archive.items()}
+    as_etree = {}
+    for k,v in archive.items():
+        # wrap in try statement, as sometimes 3DXML 
+        # contains non- xml files, like JPG previews
+        try:
+            as_etree[k] = etree.XML(v.read())
+        except etree.XMLSyntaxError:
+            # move the file object back to the file start
+            v.seek(0)
+        
     # the file name of the root scene
     root_file = as_etree['Manifest.xml'].find('{*}Root').text
     # the etree of the scene layout
@@ -394,7 +403,8 @@ def load_3DXML(file_obj, *args, **kwargs):
             current_kwargs[i]['frame_from'] = current_kwargs[i - 1]['frame_to']
 
         # add the transforms for this path to the overall list of edges
-        graph_kwargs.extend(current_kwargs)
+        graph_kwargs.append(current_kwargs)
+    graph_kwargs = np.hstack(graph_kwargs)
 
     result = {'class': 'Scene',
               'geometry': geometries,
