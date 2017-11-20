@@ -1446,6 +1446,18 @@ class Trimesh(object):
         # apply_transform will work nicely even on negative scales
         self.apply_transform(matrix)
 
+    def apply_obb(self):
+        '''
+        Apply the oriented bounding box transform to the current mesh.
+
+        This will result in a mesh with an AABB centered at the origin and the
+        same dimensions as the OBB.
+        '''
+        matrix = self.bounding_box_oriented.primitive.transform
+        matrix = np.linalg.inv(matrix)
+        self.apply_transform(matrix)
+        
+
     def apply_transform(self, matrix):
         '''
         Transform mesh by a homogenous transformation matrix.

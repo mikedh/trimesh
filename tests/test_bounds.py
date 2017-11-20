@@ -17,6 +17,7 @@ class BoundsTest(g.unittest.TestCase):
             for i in range(10):
                 # on the first run through don't transform the points to see
                 # if we succeed in the meshes original orientation
+                mat = g.np.eye(4)
                 if i > 0:
                     mat = g.trimesh.transformations.random_rotation_matrix()
                     mat[0:3, 3] = (g.np.random.random(3) - .5) * 100
@@ -33,6 +34,12 @@ class BoundsTest(g.unittest.TestCase):
                     g.log.error('bounds test failed %s',
                                 str(test))
                 self.assertTrue(test_ok)
+
+                m.apply_transform(mat)
+                m.apply_obb()
+                assert g.np.allclose(m.bounding_box.volume,
+                                     m.bounding_box_oriented.volume)
+
 
             c = m.bounding_cylinder
             s = m.bounding_sphere
