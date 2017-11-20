@@ -69,7 +69,7 @@ class TransformForest:
 
         Currently only hashing update time.
         '''
-        result = str(int(self._updated * 1000))
+        result = str(int(self._updated * 1000)) + str(self.base_frame)
         return result
 
     def to_flattened(self, base_frame=None):

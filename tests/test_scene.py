@@ -62,6 +62,10 @@ class SceneTests(g.unittest.TestCase):
                                          g.np.product(r.extents))
 
 
+                s.rezero()
+                assert g.np.allclose(s.centroid, 0.0)
+
+
     def test_scaling(self):
         '''
         Test the scaling of scenes including unit conversion.

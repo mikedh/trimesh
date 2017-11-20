@@ -285,6 +285,30 @@ class Scene:
                           frame_to=self.graph.base_frame,
                           matrix=transform)
 
+
+    def rezero(self):
+        '''
+        Move the current scene so that the AABB of the whole scene is centered at the origin.
+
+        Does this by changing the base frame to a new, offset base frame.
+        '''
+        if np.allclose(self.centroid, 0.0):
+            # early exit since what we want already exists
+            return
+
+        # the transformation to move the overall scene to the AABB centroid
+        matrix = np.eye(4)
+        matrix[:3,3] = -self.centroid
+
+        # we are going to change the base frame
+        new_base = str(self.graph.base_frame) + '_I'
+        self.graph.update(frame_from=new_base, 
+                          frame_to=self.graph.base_frame, 
+                          matrix=matrix)
+        self.graph.base_frame = new_base
+
+
+
     def dump(self):
         '''
         Append all meshes in scene to a list of meshes.
