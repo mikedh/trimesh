@@ -8,7 +8,7 @@ from .. import io
 from ..version import __version__ as trimesh_version
 
 
-def export_urdf(mesh, directory, **kwargs):
+def export_urdf(mesh, directory, scale=1.0, **kwargs):
     '''
     Convert a Trimesh object into a URDF package for physics simulation.
     This breaks the mesh into convex pieces and writes them to the same
@@ -62,7 +62,7 @@ def export_urdf(mesh, directory, **kwargs):
         piece.density = effective_density * mesh.density
 
         link_name = 'link_{}'.format(piece_name)
-        geom_name = 'package://{}/{}'.format(name, piece_filename)
+        geom_name = '{}'.format(piece_filename)
         I = [['{:.2E}'.format(y) for y in x] for x in piece.moment_inertia]
 
         # Write the link out to the XML Tree
@@ -78,7 +78,7 @@ def export_urdf(mesh, directory, **kwargs):
         visual = et.SubElement(link, 'visual')
         et.SubElement(visual, 'origin', xyz="0 0 0", rpy="0 0 0")
         geometry = et.SubElement(visual, 'geometry')
-        et.SubElement(geometry, 'mesh', filename=geom_name)
+        et.SubElement(geometry, 'mesh', filename=geom_name, scale="{:.4E}".format(scale))
         material = et.SubElement(visual, 'material', name='')
         et.SubElement(material, 'color', rgba="0.75 0.75 0.75 1")
 
@@ -86,7 +86,7 @@ def export_urdf(mesh, directory, **kwargs):
         collision = et.SubElement(link, 'collision')
         et.SubElement(collision, 'origin', xyz="0 0 0", rpy="0 0 0")
         geometry = et.SubElement(collision, 'geometry')
-        et.SubElement(geometry, 'mesh', filename=geom_name)
+        et.SubElement(geometry, 'mesh', filename=geom_name, scale="{:.4E}".format(scale))
 
         # Create rigid joint to previous link
         if prev_link_name is not None:
