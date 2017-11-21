@@ -1119,7 +1119,7 @@ class Trimesh(object):
         '''
         valid = bool(self.is_watertight and
                      self.is_winding_consistent and
-                     self.volume > 0))
+                     self.volume > 0)
         return valid
 
     @util.cache_decorator
