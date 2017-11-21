@@ -265,17 +265,18 @@ class Scene:
         if center is None:
             center = self.centroid
         if distance is None:
-            # magic number is equal to: np.tan(np.radians(60.0 / 2.0))
-            # which is for a 60.0 degree FOV
-            distance = (self.extents.max() / 2) / 0.57735026918962573
+            # for a 60.0 degree horizontal FOV
+            distance = (self.extents.max() / 2) / np.tan(np.radians(60.0) / 2.0)
 
         if angles is None:
             angles = np.zeros(3)
 
         translation = np.eye(4)
         translation[0:3, 3] = center
-        # offset by a distance set by the model size and FOV angle
-        translation[2][3] += distance * 1.05
+        # offset by a distance set by the model size
+        # the FOV is set for the Y axis, we multiply by a lightly
+        # padded aspect ratio to make sure the model is in view initially
+        translation[2][3] += distance * 1.35
 
         transform = np.dot(transformations.rotation_matrix(angles[0],
                                                            [1, 0, 0],
@@ -292,7 +293,8 @@ class Scene:
 
     def rezero(self):
         '''
-        Move the current scene so that the AABB of the whole scene is centered at the origin.
+        Move the current scene so that the AABB of the whole scene is centered 
+        at the origin.
 
         Does this by changing the base frame to a new, offset base frame.
         '''
