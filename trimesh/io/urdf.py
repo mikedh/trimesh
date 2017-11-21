@@ -8,7 +8,7 @@ from .. import io
 from ..version import __version__ as trimesh_version
 
 
-def export_urdf(mesh, directory):
+def export_urdf(mesh, directory, **kwargs):
     '''
     Convert a Trimesh object into a URDF package for physics simulation.
     This breaks the mesh into convex pieces and writes them to the same
@@ -39,7 +39,7 @@ def export_urdf(mesh, directory):
         raise ValueError('URDF path must be a directory!')
 
     # Perform a convex decomposition
-    convex_pieces = convex_decomposition(mesh)
+    convex_pieces = convex_decomposition(mesh, **kwargs)
 
     # Get the effective density of the mesh
     effective_density = mesh.volume / sum([m.volume for m in convex_pieces])
