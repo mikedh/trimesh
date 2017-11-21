@@ -265,13 +265,17 @@ class Scene:
         if center is None:
             center = self.centroid
         if distance is None:
-            distance = self.extents.max()
+            # magic number is equal to: np.tan(np.radians(60.0 / 2.0))
+            # which is for a 60.0 degree FOV
+            distance = (self.extents.max() / 2) / 0.57735026918962573
+
         if angles is None:
             angles = np.zeros(3)
 
         translation = np.eye(4)
         translation[0:3, 3] = center
-        translation[2][3] += distance * 1.5
+        # offset by a distance set by the model size and FOV angle
+        translation[2][3] += distance * 1.05
 
         transform = np.dot(transformations.rotation_matrix(angles[0],
                                                            [1, 0, 0],
@@ -443,10 +447,15 @@ class Scene:
         resultion: (2,) int, resolution to render image at
         '''
         from .viewer import SceneViewer
-        SceneViewer(self,
-                    save_image=file_obj,
-                    resolution=resolution,
-                    **kwargs)
+        try:
+            SceneViewer(self,
+                        save_image=file_obj,
+                        resolution=resolution,
+                        **kwargs)
+        except RuntimeError:
+            # newer versions of pyglet raise an error, but are nice enough
+            # to do it after saving the file so whatever
+            pass
 
     def convert_units(self, desired):
         '''
