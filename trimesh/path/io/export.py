@@ -13,6 +13,7 @@ _templates_dxf = {k: Template(v) for k, v in json.loads(
 
 _template_svg = Template(get_resource('svg.xml.template'))
 
+
 def export_path(path, file_type, file_obj=None):
     '''
     Export a Path object to a file- like object, or to a filename
@@ -52,7 +53,7 @@ def export_svg(drawing):
     rendering libraries
     '''
     points = drawing.vertices.view(np.ndarray)
-    
+
     def circle_to_svgpath(center, radius, reverse):
         radius_str = format(radius, res.export)
         path_str = '  M' + format(center[0] - radius, res.export) + ','
@@ -132,13 +133,12 @@ def export_svg(drawing):
         reverse = not (path_index in drawing.root)
         path_str += convert_path(path, reverse)
 
-    subs = {'PATH_STRING' : path_str,
-            'MIN_X' : drawing.bounds[0][0],
-            'MIN_Y' : drawing.bounds[0][1],
-            'WIDTH' : drawing.extents[0],
-            'HEIGHT' : drawing.extents[1],
-            'STROKE' : drawing.extents.max()/200.0}
-            
+    subs = {'PATH_STRING': path_str,
+            'MIN_X': drawing.bounds[0][0],
+            'MIN_Y': drawing.bounds[0][1],
+            'WIDTH': drawing.extents[0],
+            'HEIGHT': drawing.extents[1],
+            'STROKE': drawing.extents.max() / 200.0}
 
     result = _template_svg.substitute(subs)
 

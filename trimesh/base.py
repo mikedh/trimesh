@@ -1121,7 +1121,7 @@ class Trimesh(object):
                  self.is_winding_consistent and
                  self.volume > 0)
         return valid
-    
+
     @util.cache_decorator
     def is_empty(self):
         '''
@@ -1426,9 +1426,9 @@ class Trimesh(object):
             raise ValueError('Translation must be (3,)!')
 
         matrix = np.eye(4)
-        matrix[:3,3] = translation
+        matrix[:3, 3] = translation
         self.apply_transform(matrix)
-        
+
     def apply_scale(self, scaling):
         '''
         Scale the mesh equally on all axis.
@@ -1456,7 +1456,6 @@ class Trimesh(object):
         matrix = self.bounding_box_oriented.primitive.transform
         matrix = np.linalg.inv(matrix)
         self.apply_transform(matrix)
-        
 
     def apply_transform(self, matrix):
         '''

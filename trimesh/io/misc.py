@@ -161,7 +161,7 @@ def load_wavefront(file_obj, file_type=None):
         loaded = {'vertices': data[vid].astype(float),
                   'vertex_normals': data[nid].astype(float),
                   'faces': faces,
-                  'metadata' : {}}
+                  'metadata': {}}
 
         # if face groups have been defined add them to metadata
         if len(gid) > 0:
@@ -171,7 +171,7 @@ def load_wavefront(file_obj, file_type=None):
             for i, g in enumerate(gid):
                 groups[np.nonzero(face_key > g)[0]] = i
             loaded['metadata']['face_groups'] = groups
-        
+
         if len(tid) > 0:
             loaded['metadata']['vertex_texture'] = data[tid].astype(float)
 

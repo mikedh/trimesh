@@ -119,7 +119,8 @@ class CollisionManager(object):
         # Collide with manager's objects
         cdata = fcl.CollisionData()
         if return_names:
-            cdata = fcl.CollisionData(request=fcl.CollisionRequest(num_max_contacts=100000, enable_contact=True))
+            cdata = fcl.CollisionData(request=fcl.CollisionRequest(
+                num_max_contacts=100000, enable_contact=True))
 
         self._manager.collide(o, cdata, fcl.defaultCollisionCallback)
 
@@ -158,7 +159,8 @@ class CollisionManager(object):
         '''
         cdata = fcl.CollisionData()
         if return_names:
-            cdata = fcl.CollisionData(request=fcl.CollisionRequest(num_max_contacts=100000, enable_contact=True))
+            cdata = fcl.CollisionData(request=fcl.CollisionRequest(
+                num_max_contacts=100000, enable_contact=True))
 
         self._manager.collide(cdata, fcl.defaultCollisionCallback)
 
@@ -167,7 +169,8 @@ class CollisionManager(object):
         if return_names:
             objs_in_collision = set()
             for contact in cdata.result.contacts:
-                name1, name2 = self._extract_name(contact.o1), self._extract_name(contact.o2)
+                name1, name2 = self._extract_name(
+                    contact.o1), self._extract_name(contact.o2)
                 names = tuple(sorted((name1, name2)))
                 objs_in_collision.add(names)
             return result, objs_in_collision
@@ -195,7 +198,8 @@ class CollisionManager(object):
         '''
         cdata = fcl.CollisionData()
         if return_names:
-            cdata = fcl.CollisionData(request=fcl.CollisionRequest(num_max_contacts=100000, enable_contact=True))
+            cdata = fcl.CollisionData(request=fcl.CollisionRequest(
+                num_max_contacts=100000, enable_contact=True))
         self._manager.collide(other_manager._manager,
                               cdata, fcl.defaultCollisionCallback)
         result = cdata.result.is_collision
@@ -203,9 +207,11 @@ class CollisionManager(object):
         if return_names:
             objs_in_collision = set()
             for contact in cdata.result.contacts:
-                name1, name2 = self._extract_name(contact.o1), other_manager._extract_name(contact.o2)
+                name1, name2 = self._extract_name(
+                    contact.o1), other_manager._extract_name(contact.o2)
                 if name1 is None:
-                    name1, name2 = self._extract_name(contact.o2), other_manager._extract_name(contact.o1)
+                    name1, name2 = self._extract_name(
+                        contact.o2), other_manager._extract_name(contact.o1)
                 objs_in_collision.add((name1, name2))
             return result, objs_in_collision
         else:

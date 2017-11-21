@@ -10,7 +10,7 @@ from .. import transformations
 
 from .. import bounds as bounds_module
 
-from ..io import gltf        
+from ..io import gltf
 from .transforms import TransformForest
 
 
@@ -266,7 +266,8 @@ class Scene:
             center = self.centroid
         if distance is None:
             # for a 60.0 degree horizontal FOV
-            distance = (self.extents.max() / 2) / np.tan(np.radians(60.0) / 2.0)
+            distance = (self.extents.max() / 2) / \
+                np.tan(np.radians(60.0) / 2.0)
 
         if angles is None:
             angles = np.zeros(3)
@@ -290,7 +291,6 @@ class Scene:
                           frame_to=self.graph.base_frame,
                           matrix=transform)
 
-
     def rezero(self):
         '''
         Move the current scene so that the AABB of the whole scene is centered 
@@ -304,16 +304,14 @@ class Scene:
 
         # the transformation to move the overall scene to the AABB centroid
         matrix = np.eye(4)
-        matrix[:3,3] = -self.centroid
+        matrix[:3, 3] = -self.centroid
 
         # we are going to change the base frame
         new_base = str(self.graph.base_frame) + '_I'
-        self.graph.update(frame_from=new_base, 
-                          frame_to=self.graph.base_frame, 
+        self.graph.update(frame_from=new_base,
+                          frame_to=self.graph.base_frame,
                           matrix=matrix)
         self.graph.base_frame = new_base
-
-
 
     def dump(self):
         '''
@@ -402,7 +400,7 @@ class Scene:
             return gltf.export_gltf(self)
         elif file_type == 'glb':
             return gltf.export_glb(self)
-        
+
         export = {'graph': self.graph.to_edgelist(),
                   'geometry': {},
                   'scene_cache': {'bounds': self.bounds.tolist(),

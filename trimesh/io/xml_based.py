@@ -163,15 +163,15 @@ def load_3DXML(file_obj, *args, **kwargs):
 
     # a dictionary of file name : lxml etree
     as_etree = {}
-    for k,v in archive.items():
-        # wrap in try statement, as sometimes 3DXML 
+    for k, v in archive.items():
+        # wrap in try statement, as sometimes 3DXML
         # contains non- xml files, like JPG previews
         try:
             as_etree[k] = etree.XML(v.read())
         except etree.XMLSyntaxError:
             # move the file object back to the file start
             v.seek(0)
-        
+
     # the file name of the root scene
     root_file = as_etree['Manifest.xml'].find('{*}Root').text
     # the etree of the scene layout

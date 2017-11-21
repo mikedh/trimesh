@@ -641,7 +641,6 @@ class TrackedArray(np.ndarray):
         self._modified = True
         if isinstance(obj, type(self)):
             obj._modified = True
-            
 
     def md5(self):
         '''
@@ -687,11 +686,11 @@ class TrackedArray(np.ndarray):
     def __iadd__(self, other):
         self._modified = True
         return super(self.__class__, self).__iadd__(other)
-        
+
     def __isub__(self, other):
         self._modified = True
         return super(self.__class__, self).__isub__(other)
-        
+
     def __imul__(self, other):
         self._modified = True
         return super(self.__class__, self).__imul__(other)
@@ -715,19 +714,19 @@ class TrackedArray(np.ndarray):
     def __irshift__(self, other):
         self._modified = True
         return super(self.__class__, self).__irshift__(other)
-    
+
     def __iand__(self, other):
         self._modified = True
         return super(self.__class__, self).__iand__(other)
-    
+
     def __ixor__(self, other):
         self._modified = True
         return super(self.__class__, self).__ixor__(other)
-    
+
     def __ior__(self, other):
         self._modified = True
         return super(self.__class__, self).__ior__(other)
-    
+
     def __setitem__(self, i, y):
         self._modified = True
         super(self.__class__, self).__setitem__(i, y)
