@@ -8,7 +8,7 @@ from .. import io
 from ..version import __version__ as trimesh_version
 
 
-def export_urdf(mesh, directory, scale=1.0, **kwargs):
+def export_urdf(mesh, directory, scale=1.0, color=[0.75, 0.75, 0.75], **kwargs):
     '''
     Convert a Trimesh object into a URDF package for physics simulation.
     This breaks the mesh into convex pieces and writes them to the same
@@ -80,7 +80,7 @@ def export_urdf(mesh, directory, scale=1.0, **kwargs):
         geometry = et.SubElement(visual, 'geometry')
         et.SubElement(geometry, 'mesh', filename=geom_name, scale="{:.4E}".format(scale))
         material = et.SubElement(visual, 'material', name='')
-        et.SubElement(material, 'color', rgba="0.75 0.75 0.75 1")
+        et.SubElement(material, 'color', rgba="{:.2E} {:.2E} {:.2E} 1".format(color[0], color[1], color[2]))
 
         # Collision Information
         collision = et.SubElement(link, 'collision')
