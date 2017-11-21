@@ -65,6 +65,10 @@ class SceneTests(g.unittest.TestCase):
                 s.rezero()
                 assert (g.np.abs(s.centroid) < 1e-3).all()
 
+                # make sure explode doesn't crash
+                s.explode()
+                
+
 
     def test_scaling(self):
         '''
