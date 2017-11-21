@@ -1086,7 +1086,7 @@ class Trimesh(object):
             return False
         # consistent winding check is populated into the cache by is_watertight
         populate = self.is_watertight
-        return self._cache['is_winding_consistent']
+        return bool(self._cache['is_winding_consistent'])
 
     @util.cache_decorator
     def is_watertight(self):
@@ -1099,10 +1099,10 @@ class Trimesh(object):
         '''
         if self.is_empty:
             return False
-        watertight, reversed = graph.is_watertight(edges=self.edges,
-                                                   edges_sorted=self.edges_sorted)
-        self._cache['is_winding_consistent'] = reversed
-        return watertight
+        watertight, is_reversed = graph.is_watertight(edges=self.edges,
+                                                      edges_sorted=self.edges_sorted)
+        self._cache['is_winding_consistent'] = is_reversed
+        return bool(watertight)
 
     @util.cache_decorator
     def is_volume(self):
@@ -1117,9 +1117,9 @@ class Trimesh(object):
         ---------
         valid: bool, does the mesh represent a volume
         '''
-        valid = (self.is_watertight and
-                 self.is_winding_consistent and
-                 self.volume > 0)
+        valid = bool(self.is_watertight and
+                     self.is_winding_consistent and
+                     self.volume > 0))
         return valid
 
     @util.cache_decorator
@@ -1131,7 +1131,7 @@ class Trimesh(object):
         --------
         empty: if True, no data exists in the mesh.
         '''
-        return self._data.is_empty()
+        return bool(self._data.is_empty())
 
     @util.cache_decorator
     def is_convex(self):
@@ -1145,7 +1145,7 @@ class Trimesh(object):
         if self.is_empty:
             return False
 
-        is_convex = convex.is_convex(self)
+        is_convex = bool(convex.is_convex(self))
         return is_convex
 
     @util.cache_decorator

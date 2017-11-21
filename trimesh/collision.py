@@ -119,8 +119,8 @@ class CollisionManager(object):
         # Collide with manager's objects
         cdata = fcl.CollisionData()
         if return_names:
-            cdata = fcl.CollisionData(request=fcl.CollisionRequest(
-                num_max_contacts=100000, enable_contact=True))
+            cdata = fcl.CollisionData(request=fcl.CollisionRequest(num_max_contacts=100000, 
+                                                                   enable_contact=True))
 
         self._manager.collide(o, cdata, fcl.defaultCollisionCallback)
 
@@ -198,10 +198,11 @@ class CollisionManager(object):
         '''
         cdata = fcl.CollisionData()
         if return_names:
-            cdata = fcl.CollisionData(request=fcl.CollisionRequest(
-                num_max_contacts=100000, enable_contact=True))
+            cdata = fcl.CollisionData(request=fcl.CollisionRequest(num_max_contacts=100000, 
+                                                                   enable_contact=True))
         self._manager.collide(other_manager._manager,
-                              cdata, fcl.defaultCollisionCallback)
+                              cdata, 
+                              fcl.defaultCollisionCallback)
         result = cdata.result.is_collision
 
         if return_names:
@@ -218,9 +219,10 @@ class CollisionManager(object):
             return result
 
     def _extract_name(self, geom):
-        """Retrieve the name of an object from the manager by its collision geometry,
+        '''
+        Retrieve the name of an object from the manager by its collision geometry,
         or return None if not found.
-        """
+        '''
         for obj_name in self._objs:
             if self._objs[obj_name]['geom'] == geom:
                 return obj_name
