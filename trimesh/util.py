@@ -655,9 +655,18 @@ class TrackedArray(np.ndarray):
         '''
 
         if self._modified or not hasattr(self, '_hashed_md5'):
-            self._hashed_md5 = md5_object(self)
+            if self.flags['C_CONTIGUOUS']:
+                self._hashed_md5 = md5_object(self)
+            else:
+                # the case where we have sliced our nice
+                # contiguous array into a non- contiguous block
+                # for example (note slice *after* track operation):
+                # t = util.tracked_array(np.random.random(10))[::-1]
+                contiguous = np.ascontiguousarray(self)
+                self._hashed_md5 = md5_object(contiguous)
         self._modified = False
         return self._hashed_md5
+
 
     def crc(self):
         '''

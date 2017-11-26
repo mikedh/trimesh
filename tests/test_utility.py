@@ -104,10 +104,17 @@ class UtilTests(unittest.TestCase):
         modified.append(a.crc())
         a //= 2
         modified.append(a.crc())
-        print(modified, np.diff(modified))
         assert (np.diff(modified) != 0).all()
         
-        
+    def test_contiguous(self):
+        a = g.np.random.random((100,3))
+        t = g.trimesh.util.tracked_array(a)
+
+        # hashing will fail on non- contiguous arrays
+        # make sure our utility function has handled this properly
+        # for both MD5 and CRC
+        t[::-1].md5()
+        t[::-1].crc()
         
         
     def test_bounds_tree(self):
