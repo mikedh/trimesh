@@ -96,8 +96,9 @@ def align_vectors(vector_start, vector_end, return_angle=False):
             angle = np.pi - angle
         T = rotation_matrix(angle, cross)
 
-    check = np.abs(np.dot(T[:3, :3], vector_start) - vector_end)
-    assert (check < 1e-5).all()
+    check = np.abs(np.dot(T[:3, :3], start) - end)
+    if not (check < 1e-5).all():
+        raise ValueError('aligning vectors failed!')
 
     if return_angle:
         return T, angle
