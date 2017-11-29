@@ -472,6 +472,7 @@ def simplify_basic(drawing):
     entities_new = deque()
 
     for path_index in range(len(drawing.paths)):
+
         points = polygon_to_cleaned(drawing.polygons_closed[path_index],
                                     scale=drawing.scale)
         circle = is_circle(points, scale=drawing.scale)

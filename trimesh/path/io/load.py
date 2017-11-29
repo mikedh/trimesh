@@ -2,7 +2,7 @@ import numpy as np
 import os
 
 from .dxf_load import load_dxf
-from .svg_load import svg_to_path
+from .svg_io import svg_to_path
 from .misc import lines_to_path, polygon_to_path, dict_to_path
 from ..path import Path, Path2D, Path3D
 from ...util import is_sequence, is_file, is_string, is_instance_named
@@ -10,7 +10,27 @@ from ...util import is_sequence, is_file, is_string, is_instance_named
 
 def load_path(obj, file_type=None):
     '''
-    Utility function which can be passed a filename, file object, or list of lines
+    Utility function which can be passed a filename, 
+    file object, or list of lines
+
+    Parameters
+    -----------
+    obj: one of the following:
+         - Path, Path2D, or Path3D objects
+         - open file object
+         - file name
+         - shapely Polygon
+         - dict with kwargs for Path constructor
+         - (n,2,(2|3) float, lines in space
+
+    file_type: str, type of file is required if file 
+               object passed. Currently supported:
+               - 'dxf' 
+               - 'svg'
+
+    Returns
+    ---------
+    path: Path2D or Path3D object
     '''
 
     if isinstance(obj, Path):

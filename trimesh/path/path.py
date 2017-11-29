@@ -99,6 +99,19 @@ class Path(object):
         return paths
 
     @util.cache_decorator
+    def dangling(self):
+        '''
+        List of entities that aren't included in a closed path
+
+        Returns
+        ----------
+        dangling: (n,) int, index of self.entities
+        '''
+        dangling = np.setdiff1d(np.arange(len(self.entities)),
+                                np.hstack(self.paths))
+        return dangling
+    
+    @util.cache_decorator
     def kdtree(self):
         kdtree = KDTree(self.vertices.view(np.ndarray))
         return kdtree
@@ -480,16 +493,18 @@ class Path2D(Path):
         return area
 
     @util.cache_decorator
-    def perimeter(self):
+    def length(self):
         '''
-        The total length of every closed curve.
+        The total discretized length of every closed curve.
+
+        Includes exteriors and interiors.
 
         Returns
         --------
         perimeter: float, length of every boundary (inside and out)
         '''
-        perimeter = np.sum([i.length for i in self.polygons_closed])
-        return perimeter
+        length = np.sum([i.length for i in self.polygons_closed])
+        return length
 
     def extrude(self, height, **kwargs):
         '''

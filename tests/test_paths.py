@@ -5,7 +5,6 @@ class VectorTests(g.unittest.TestCase):
 
     def test_discrete(self):
         for d in g.get_2D():
-
             self.assertTrue(len(d.polygons_closed) == len(d.paths))
 
             # file_name should be populated, and if we have a DXF file
@@ -163,6 +162,25 @@ class PolygonsTest(g.unittest.TestCase):
         self.assertTrue(contained.all())
 
 
+
+class ExportTest(g.unittest.TestCase):
+    def test_svg(self):
+        for d in g.get_2D():
+            # export as svg string
+            exported = d.export('svg')
+            # load the exported SVG
+            stream = g.trimesh.util.wrap_as_stream(exported)
+            loaded = g.trimesh.load(stream, file_type='svg')
+
+            # we only have line and arc primitives as SVG export and import
+            if all(i.__class__.__name__ in ['Line',
+                                            'Arc'] for i in d.entities):
+                # perimeter should stay the same-ish on export/inport
+                assert g.np.allclose(d.length,
+                                     loaded.length,
+                                     rtol=.01)
+            
+        
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()

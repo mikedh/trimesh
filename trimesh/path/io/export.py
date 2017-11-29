@@ -2,6 +2,8 @@ import numpy as np
 import json
 from string import Template
 
+from . import svg_io
+    
 from ..arc import arc_center
 from ...resources import get_resource
 from ...util import three_dimensionalize
@@ -43,106 +45,6 @@ def export_dict(path):
     export_object = {'entities': export_entities,
                      'vertices': path.vertices.tolist()}
     return export_object
-
-
-def export_svg(drawing):
-    '''
-    Will turn a path drawing into an SVG path string.
-
-    'holes' will be in reverse order, so they can be rendered as holes by
-    rendering libraries
-    '''
-    points = drawing.vertices.view(np.ndarray)
-
-    def circle_to_svgpath(center, radius, reverse):
-        radius_str = format(radius, res.export)
-        path_str = '  M' + format(center[0] - radius, res.export) + ','
-        path_str += format(center[1], res.export)
-        path_str += 'a' + radius_str + ',' + radius_str
-        path_str += ',0,1,' + str(int(reverse)) + ','
-        path_str += format(2 * radius, res.export) + ',0'
-        path_str += 'a' + radius_str + ',' + radius_str
-        path_str += ',0,1,' + str(int(reverse)) + ','
-        path_str += format(-2 * radius, res.export) + ',0Z  '
-        return path_str
-
-    def svg_arc(arc, reverse):
-        '''
-        arc string: (rx ry x-axis-rotation large-arc-flag sweep-flag x y)+
-        large-arc-flag: greater than 180 degrees
-        sweep flag: direction (cw/ccw)
-        '''
-        arc_idx = arc.points[::((reverse * -2) + 1)]
-        vertices = points[arc_idx]
-        vertex_start, vertex_mid, vertex_end = vertices
-        center_info = arc_center(vertices)
-        C, R, N, angle = (center_info['center'],
-                          center_info['radius'],
-                          center_info['normal'],
-                          center_info['span'])
-        if arc.closed:
-            return circle_to_svgpath(C, R, reverse)
-        large_flag = str(int(angle > np.pi))
-        sweep_flag = str(int(np.cross(vertex_mid - vertex_start,
-                                      vertex_end - vertex_start) > 0))
-        R_ex = format(R, res.export)
-        x_ex = format(vertex_end[0], res.export)
-        y_ex = format(vertex_end[1], res.export)
-        arc_str = move_to(arc_idx[0])
-        arc_str += 'A' + R_ex + ',' + R_ex + ' 0 '
-        arc_str += large_flag + ',' + sweep_flag + ' '
-        arc_str += x_ex + ',' + y_ex
-        return arc_str
-
-    def svg_line(line, reverse):
-        index = line.points
-        if reverse:
-            index = index[::-1]
-        current = move_to(index[0])
-        for index_end in index[1:]:
-            vertex_end = points[index_end]
-            x_ex = format(vertex_end[0], res.export)
-            y_ex = format(vertex_end[1], res.export)
-            current += 'L' + x_ex + ',' + y_ex
-        return current
-
-    def move_to(vertex_id):
-        x_ex = format(points[vertex_id][0], res.export)
-        y_ex = format(points[vertex_id][1], res.export)
-        move_str = 'M' + x_ex + ',' + y_ex
-        return move_str
-
-    def convert_path(path, reverse=False):
-        path = path[::(reverse * -2) + 1]
-        path_str = ''
-        for i, entity_id in enumerate(path):
-            entity = drawing.entities[entity_id]
-            e_type = entity.__class__.__name__
-            try:
-                path_str += converters[e_type](entity, reverse)
-            except KeyError:
-                pass
-                #log.warn('%s entity not available for export!', e_type)
-        path_str += 'Z'
-        return path_str
-
-    converters = {'Line': svg_line,
-                  'Arc': svg_arc}
-    path_str = ''
-    for path_index, path in enumerate(drawing.paths):
-        reverse = not (path_index in drawing.root)
-        path_str += convert_path(path, reverse)
-
-    subs = {'PATH_STRING': path_str,
-            'MIN_X': drawing.bounds[0][0],
-            'MIN_Y': drawing.bounds[0][1],
-            'WIDTH': drawing.extents[0],
-            'HEIGHT': drawing.extents[1],
-            'STROKE': drawing.extents.max() / 200.0}
-
-    result = _template_svg.substitute(subs)
-
-    return result
 
 
 def export_dxf(path):
@@ -259,5 +161,5 @@ def _write_export(export, file_obj=None):
 
 
 _path_exporters = {'dxf': export_dxf,
-                   'svg': export_svg,
+                   'svg': svg_io.export_svg,
                    'dict': export_dict}
