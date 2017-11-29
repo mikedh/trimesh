@@ -111,7 +111,9 @@ def export_svg(drawing, **kwargs):
         raise ValueError('drawing must be Path2D object!')
     
     points = drawing.vertices.view(np.ndarray)
-
+    # svg origin is in top left
+    points[:,1] *= -1.0
+    
     def circle_to_svgpath(center, radius, reverse):
         radius_str = format(radius, res.export)
         path_str = ' M' + format(center[0] - radius, res.export) + ','
@@ -207,10 +209,11 @@ def export_svg(drawing, **kwargs):
         stroke_width = float(kwargs['stroke_width'])
     else:
         stroke_width = drawing.extents.max() / 800.0
+
         
     subs = {'PATH_STRING': path_str,
-            'MIN_X': drawing.bounds[0][0],
-            'MIN_Y': drawing.bounds[0][1],
+            'MIN_X': points[:,0].min(),
+            'MIN_Y': points[:,1].min(),
             'WIDTH': drawing.extents[0],
             'HEIGHT': drawing.extents[1],
             'STROKE': stroke_width}
