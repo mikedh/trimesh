@@ -94,13 +94,14 @@ def svg_to_path(file_obj, file_type=None):
     return loaded
 
 
-def export_svg(drawing, **kwargs):
+def export_svg(drawing, return_path=False, **kwargs):
     '''
     Export a Path2D object into an SVG file.
 
     Parameters
     -----------
     drawing: Path2D object
+    return_path: bool, if True return only path string
 
     Returns
     -----------
@@ -110,9 +111,7 @@ def export_svg(drawing, **kwargs):
     if not util.is_instance_named(drawing, 'Path2D'):
         raise ValueError('drawing must be Path2D object!')
     
-    points = drawing.vertices.view(np.ndarray)
-    # svg origin is in top left
-    points[:,1] *= -1.0
+    points = drawing.vertices.view(np.ndarray).copy()
     
     def circle_to_svgpath(center, radius, reverse):
         radius_str = format(radius, res.export)
@@ -218,6 +217,8 @@ def export_svg(drawing, **kwargs):
             'HEIGHT': drawing.extents[1],
             'STROKE': stroke_width}
 
+    if return_path:
+        return path_str
+    
     result = _template_svg.substitute(subs)
-
     return result
