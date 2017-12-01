@@ -159,12 +159,12 @@ def load_compressed(file_obj, file_type=None):
     files = util.decompress(file_obj=file_obj,
                             file_type=file_type)
     geometries = collections.deque()
+    archive_name = metadata['file_path']
     for name, data in files.items():
         compressed_type = util.split_extension(name).lower()
         if compressed_type not in available_formats():
             continue
-        metadata['file_path'] = name
-        metadata['file_name'] = os.path.basename(name)
+        metadata['file_name'] = archive_name + '/' + os.path.basename(name)
         geometry = load(file_obj=data,
                         file_type=compressed_type,
                         metadata=metadata)
@@ -287,8 +287,8 @@ def _parse_file_args(file_obj, file_type, **kwargs):
             metadata['file_path'] = file_obj
             metadata['file_name'] = os.path.basename(file_obj)
             # if file_obj is a path that exists use extension as file_type
-            file_type = util.split_extension(
-                file_obj, special=['tar.gz', 'tar.bz2'])
+            file_type = util.split_extension(file_obj,
+                                             special=['tar.gz', 'tar.bz2'])
             file_obj = open(file_obj, 'rb')
         else:
             if file_type is not None:
@@ -307,7 +307,8 @@ def _parse_file_args(file_obj, file_type, **kwargs):
     if util.is_string(file_type) and '.' in file_type:
         # if someone has passed the whole filename as the file_type
         # use the file extension as the file_type
-        metadata['file_path'] = file_type
+        if 'file_path' not in metadata:
+            metadata['file_path'] = file_type
         metadata['file_name'] = os.path.basename(file_type)
         file_type = util.split_extension(file_type)
     file_type = file_type.lower()

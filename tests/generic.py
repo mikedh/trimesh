@@ -106,10 +106,8 @@ def get_meshes(count=np.inf,
     ----------
     meshes: list, of Trimesh objects
     '''
-
-    # randomly order the directory so if tests are running on a small
-    # number of meshes for test speed we sample the whole test set eventually.
-    file_names = np.random.permutation(os.listdir(dir_models))
+    # use deterministic file name order
+    file_names = np.sort(os.listdir(dir_models))
 
     meshes = deque()
     for file_name in file_names:

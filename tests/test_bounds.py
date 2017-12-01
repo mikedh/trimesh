@@ -6,7 +6,7 @@ class BoundsTest(g.unittest.TestCase):
     def setUp(self):
         meshes = [g.get_mesh(i) for i in ['large_block.STL',
                                           'featuretype.STL']]
-        self.meshes = g.np.append(meshes, g.get_meshes(3))
+        self.meshes = g.np.append(meshes, g.get_meshes(5))
 
     def test_obb_mesh(self):
         '''
@@ -17,11 +17,11 @@ class BoundsTest(g.unittest.TestCase):
             for i in range(6):
                 # on the first run through don't transform the points to see
                 # if we succeed in the meshes original orientation
-                mat = g.np.eye(4)
+                matrix = g.np.eye(4)
                 if i > 0:
-                    mat = g.trimesh.transformations.random_rotation_matrix()
-                    mat[0:3, 3] = (g.np.random.random(3) - .5) * 100
-                    m.apply_transform(mat)
+                    matrix = g.trimesh.transformations.random_rotation_matrix()
+                    matrix[0:3, 3] = (g.np.random.random(3) - .5) * 100
+                    m.apply_transform(matrix)
 
                 box_ext = m.bounding_box_oriented.primitive.extents.copy()
                 box_t = m.bounding_box_oriented.primitive.transform.copy()
@@ -35,15 +35,20 @@ class BoundsTest(g.unittest.TestCase):
                                 str(test))
                 self.assertTrue(test_ok)
 
-                m.apply_transform(mat)
+                m.apply_transform(matrix)
                 m.apply_obb()
 
-                assert g.np.allclose(m.bounding_box.volume,
-                                     m.bounding_box_oriented.volume,
-                                     rtol=1e-3,
-                                     atol=1e-3)
-
-
+                # after applying the obb, the extents of the AABB
+                # should be the same as the OBB
+                close = g.np.allclose(m.bounding_box.extents,
+                                      m.bounding_box_oriented.extents,
+                                      rtol=1e-3,
+                                      atol=1e-3)
+                if not close:
+                    raise ValueError('OBB extents incorrect:\n{}\n{}'.format(
+                        str(m.bounding_box.extents),
+                        str(m.bounding_box_oriented.extents)))
+                
             c = m.bounding_cylinder
             s = m.bounding_sphere
             p = m.bounding_primitive
