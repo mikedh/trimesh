@@ -457,7 +457,7 @@ class Scene:
             # to do it after saving the file so whatever
             pass
 
-    def convert_units(self, desired):
+    def convert_units(self, desired, guess=False):
         '''
         If geometry has units defined, convert them to new units.
 
@@ -474,7 +474,14 @@ class Scene:
             # this function will only do some hot nonsense
             raise ValueError('Models in scene have inconsistent units!')
 
-        scale = units.unit_conversion(current=existing[0],
+        current = existing[0]
+        if current is None:
+            if guess:
+                current = units.unit_guess(self.scale)
+            else:
+                raise ValueError('units not defined and not allowed to guess!')
+
+        scale = units.unit_conversion(current=current,
                                       desired=desired)
         result = self.scaled(scale=scale)
 
