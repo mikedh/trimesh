@@ -12,6 +12,7 @@ COPY conda.bash /tmp/
 RUN bash /tmp/conda.bash
 
 # install packages are going to need to build
+COPY draco.bash /tmp/
 COPY built.bash /tmp/
 RUN bash /tmp/built.bash
 

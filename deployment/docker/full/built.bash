@@ -8,7 +8,7 @@ PACKAGES_BUILD="git ca-certificates build-essential g++ gcc cmake"
 apt-get -y --no-install-recommends -t jessie-backports install $PACKAGES_BUILD
 
 # install draco, google's mesh compression utility
-bash draco.bash
+bash /tmp/draco.bash
 
 # install and build meshpy
 source activate docker-environment

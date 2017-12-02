@@ -1,6 +1,3 @@
-apt-get update
-apt-get install -y --no-install-recommends wget bzip2 #conda install needs wget and bzip2
-
 wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh  --no-check-certificate -O miniconda.sh
 bash miniconda.sh -b -p /opt/conda
 rm miniconda.sh
@@ -9,7 +6,7 @@ export PATH="/opt/conda/bin:$PATH"
 conda config --set always_yes yes --set changeps1 no
 conda update -q conda
 
-conda create -q -n docker-environment python=3.6
+conda create -q -n docker-environment python=3.5
 source activate docker-environment
 
 # add channels
@@ -29,7 +26,3 @@ conda install shapely rtree pyembree numpy scipy
 
 # remove archives
 conda clean --all -y
-
-apt-get remove --purge --auto-remove -y bzip2 wget
-apt-get clean
-rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
