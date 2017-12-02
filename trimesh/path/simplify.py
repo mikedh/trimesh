@@ -411,7 +411,10 @@ def simplify_path(drawing):
     vertices_new = deque()
     entities_new = deque()
 
-    for path_index in range(len(drawing.paths)):
+    for path_index, valid in zip(range(len(drawing.paths)),
+                                 drawing.polygons_valid):
+        if not valid:
+            continue
         points = polygon_to_cleaned(drawing.polygons_closed[path_index],
                                     scale=drawing.scale)
         circle = is_circle(points, scale=drawing.scale)
@@ -471,8 +474,10 @@ def simplify_basic(drawing):
     vertices_new = deque()
     entities_new = deque()
 
-    for path_index in range(len(drawing.paths)):
-
+    for path_index, valid in zip(range(len(drawing.paths)),
+                                 drawing.polygons_valid):
+        if not valid:
+            continue
         points = polygon_to_cleaned(drawing.polygons_closed[path_index],
                                     scale=drawing.scale)
         circle = is_circle(points, scale=drawing.scale)
