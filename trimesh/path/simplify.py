@@ -128,133 +128,6 @@ def is_circle(points, scale, verbose=False):
     return control
 
 
-def polygon_is_circle(polygon, scale=None):
-    pass
-
-
-def arc_march(points, scale):
-    '''
-    Split a path into line and arc segments, using least squares fit.
-
-    Parameters
-    ---------
-    points: (n,d) points
-
-    Returns:
-    arcs:  (b) sequence of points indices that could be replaced with an arc
-    '''
-
-    def finalize_arc(points_id):
-        # do final checks on the points contained in current and append them
-        # to the list of arcs if they pass
-        points_id = np.array(points_id)
-
-        if fit_circle_check(
-                points[points_id],
-                scale=scale,
-                final=True) is None:
-            return
-
-        points_id = points_id[[0, int(len(points_id) / 2.0), -1]]
-
-        try:
-            center_info = arc.arc_center(points[points_id])
-            C, R, N, A = (center_info['center'],
-                          center_info['radius'],
-                          center_info['normal'],
-                          center_info['span'])
-        except ValueError:
-            log.warning('Skipping candidate arc!', exc_info=True)
-            return
-
-        span = scale * (A / R)
-        if span > 1.5:
-            arcs.append(points_id)
-        else:
-            log.debug('Arc failed span test: %f', span)
-
-    points = np.asanyarray(points)
-    closed = np.linalg.norm(points[0] - points[-1]) < tol.merge
-    count = len(points)
-    scale = float(scale)
-    # if scale is None:
-    #    scale = np.ptp(points, axis=0).max()
-
-    arcs = deque()
-    current = deque()
-    prior = None
-
-    # how many times to go through points
-    # if the points are closed go through them up to twice
-    attempts = count + count * int(closed)
-
-    for index in range(attempts):
-        # have we already traversed these points
-        looped = index >= count
-        # make sure we stay in range
-        i = index % count
-
-        # if we looped over, it means that these points are closed
-        # and if they are closed it means points[0] == points[-1]
-        # thus, once we go over them the second time we want to skip index
-        # zero to avoid processing a duplicate point.
-        if looped and i == 0:
-            continue
-
-        # add an index to the current set of candidates
-        current.append(i)
-        # if the current number of candidates is less than three they can't be
-        # an arc
-        if (len(current) < 3):
-            continue
-
-        # fit a circle to the points, and reject the fit if tolerances aren't met
-        # if the fit is rejected, fit_circle_check will return None
-        checked = fit_circle_check(points[current],
-                                   prior=prior,
-                                   scale=scale)
-        arc_ok = checked is not None
-
-        # since we are going over the points twice, on the second pass we only
-        # want to go until an arc fit fails
-        ending = looped and (not arc_ok)
-        ending = ending or (index >= attempts - 1)
-
-        if ending and prior is not None:
-            # we could be stopping for a bad fit,
-            # or we could have just ran out of indexes.
-            # if its a bad fit, remove the last point added.
-            if not arc_ok:
-                current.pop()
-            # if we are stopping and have gotten an acceptable fit add the arc
-            finalize_arc(current)
-        elif arc_ok:
-            # if we aren't ending and the fit looks good
-            # just update the prior with the fit
-            prior = checked[0]
-        elif prior is None:
-            # we haven't seen an acceptable fit
-            # so remove an index from the left
-            current.popleft()
-        else:
-            # the arc isn't ok, and we have a fit so remove
-            # the latest point then add the arc
-            current.pop()
-            finalize_arc(current)
-            # reset the candidates
-            current = deque([i - 1, i])
-            prior = None
-
-        if ending:
-            break
-
-    if looped and len(arcs) > 0 and arcs[0][0] == 0:
-        arcs.popleft()
-
-    arcs = np.array(arcs)
-    return arcs
-
-
 def merge_colinear(points, scale=None):
     '''
     Given a set of points representing a path in space,
@@ -309,6 +182,20 @@ def merge_colinear(points, scale=None):
 
 
 def resample_spline(points, smooth=.001, count=None, degree=3):
+    '''
+    Resample a path in space, smoothing along a b-spline.
+    
+    Parameters
+    -----------
+    points: (n, dimension) float, points in space
+    smooth: float, smoothing amount
+    count:  number of samples in output
+    degree: int, degree of spline polynomial
+
+    Returns
+    ---------
+    resampled: (count, dimension) float, points in space
+    '''
     from scipy.interpolate import splprep, splev
     if count is None:
         count = len(points)
@@ -328,8 +215,22 @@ def resample_spline(points, smooth=.001, count=None, degree=3):
 
 
 def points_to_spline_entity(points, smooth=.0005, count=None):
-    from scipy.interpolate import splprep
+    '''
+    Create a spline entity from a curve in space
 
+    Parameters
+    -----------
+    points: (n, dimension) float, points in space
+    smooth: float, smoothing amount
+    count:  int, number of samples in result
+
+    Returns
+    ---------
+    entity: entities.BSpline object with points indexed at zero
+    control: (m, dimension) float, new vertices for entity
+    '''
+    
+    from scipy.interpolate import splprep
     if count is None:
         count = len(points)
     points = np.asanyarray(points)
@@ -370,93 +271,9 @@ def three_point(indices):
     return np.array(three)
 
 
-def polygon_to_cleaned(polygon, scale):
-    '''
-    Return the exterior of a polygon with colinear segments merged
-
-    Parameters
-    ----------
-    polygon: shapely.geometry.Polygon object
-    scale:   float, scale of polygon
-
-    Returns
-    ---------
-    points: (n,2) float, points that make up exterior of polygon
-    '''
-    buffered = polygon.buffer(0.0)
-    points = merge_colinear(points=buffered.exterior.coords, scale=scale)
-    return points
-
-
-def simplify_path(drawing):
-    '''
-    Merge colinear segments and fit circles and arcs.
-
-    Arc march produces garbage occasionally, the output of
-    this function needs to be looked at and checked manually.
-
-    Parameters
-    -----------
-    drawing: Path2D object
-
-    Returns
-    -----------
-    simplified: Path2D object
-    '''
-
-    if any([i.__class__.__name__ != 'Line' for i in drawing.entities]):
-        log.debug('Path contains non- linear entities, skipping')
-        return
-
-    vertices_new = deque()
-    entities_new = deque()
-
-    for path_index, valid in zip(range(len(drawing.paths)),
-                                 drawing.polygons_valid):
-        if not valid:
-            continue
-        points = polygon_to_cleaned(drawing.polygons_closed[path_index],
-                                    scale=drawing.scale)
-        circle = is_circle(points, scale=drawing.scale)
-
-        if circle is not None:
-            entities_new.append(
-                entities.Arc(
-                    points=np.arange(3) +
-                    len(vertices_new),
-                    closed=True))
-            vertices_new.extend(circle)
-        else:
-            arc_idx = arc_march(points, scale=drawing.scale)
-            if len(arc_idx) > 0:
-                for arc in arc_idx:
-                    entities_new.append(
-                        entities.Arc(
-                            points=three_point(arc) +
-                            len(vertices_new),
-                            closed=False))
-                line_idx = infill_lines(
-                    arc_idx, len(points)) + len(vertices_new)
-            else:
-                line_idx = pair_space(0, len(points) - 1) + len(vertices_new)
-                line_idx = [np.mod(np.arange(len(points) + 1),
-                                   len(points)) + len(vertices_new)]
-
-            for line in line_idx:
-                entities_new.append(entities.Line(points=line))
-            vertices_new.extend(points)
-
-    simplified = type(drawing)(entities=entities_new,
-                               vertices=vertices_new)
-
-    return simplified
-
-
 def simplify_basic(drawing):
     '''
     Merge colinear segments and fit circles.
-
-    No intermediate arc substitution.
 
     Parameters
     -----------
@@ -474,20 +291,22 @@ def simplify_basic(drawing):
     vertices_new = deque()
     entities_new = deque()
 
-    for path_index, valid in zip(range(len(drawing.paths)),
-                                 drawing.polygons_valid):
-        if not valid:
-            continue
-        points = polygon_to_cleaned(drawing.polygons_closed[path_index],
-                                    scale=drawing.scale)
-        circle = is_circle(points, scale=drawing.scale)
+    for polygon in drawing.polygons_closed:
+        # clean up things like self intersections
+        buffered = polygon.buffer(0.0)
+        # get the exterior as an (n,2) array
+        points = merge_colinear(np.array(buffered.exterior.coords),
+                                scale=drawing.scale)
+        # check to see if the closed entity represents a circle
+        circle = is_circle(points, 
+                           scale=drawing.scale)
 
+        
         if circle is not None:
             entities_new.append(
-                entities.Arc(
-                    points=np.arange(3) +
-                    len(vertices_new),
-                    closed=True))
+                entities.Arc(points=np.arange(3) +
+                             len(vertices_new),
+                             closed=True))
             vertices_new.extend(circle)
         else:
             line = np.arange(len(points)) + len(vertices_new)
@@ -499,28 +318,3 @@ def simplify_basic(drawing):
 
     return simplified
 
-
-def pair_space(start, end):
-    if start == end:
-        return []
-    idx = np.arange(start, end + 1)
-    idx = np.column_stack((idx, idx)).reshape(-1)[1:-1].reshape(-1, 2)
-    return idx
-
-
-def infill_lines(idxs, idx_max):
-    if len(idxs) == 0:
-        return np.array([])
-    ends = np.array([i[[0, -1]] for i in idxs])
-    ends = np.roll(ends.reshape(-1), -1).reshape(-1, 2)
-
-    if np.greater(*ends[-1]):
-        ends[-1][1] += idx_max
-
-    infill = np.diff(ends, axis=1).reshape(-1) > 0
-    aranges = ends[infill]
-    if len(aranges) == 0:
-        return np.array([])
-    result = np.vstack([pair_space(*i) for i in aranges])
-    result %= idx_max
-    return result
