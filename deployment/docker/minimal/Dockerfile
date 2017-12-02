@@ -4,6 +4,10 @@ from debian:jessie
 ENV PATH /opt/conda/envs/docker-environment/bin:/opt/conda/bin:$PATH
 
 # install conda environment
+COPY apt.bash /tmp/
+RUN bash /tmp/apt.bash
+
+# install conda environment
 COPY conda.bash /tmp/
 RUN bash /tmp/conda.bash
 
