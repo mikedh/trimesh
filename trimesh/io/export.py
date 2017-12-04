@@ -24,10 +24,15 @@ def export_mesh(mesh, file_obj, file_type=None):
           depending on the file format.
 
     '''
+    # if we opened a file object in this function
+    # we will want to close it when we're done
+    was_opened = False
+
     if util.is_string(file_obj):
         if file_type is None:
             file_type = (str(file_obj).split('.')[-1]).lower()
         if file_type in _mesh_exporters:
+            was_opened = True
             file_obj = open(file_obj, 'wb')
     file_type = str(file_type).lower()
 
@@ -38,9 +43,14 @@ def export_mesh(mesh, file_obj, file_type=None):
     export = _mesh_exporters[file_type](mesh)
 
     if hasattr(file_obj, 'write'):
-        util.write_encoded(file_obj, export)
+        result = util.write_encoded(file_obj, export)        
     else:
-        return export
+        result = export
+
+    if was_opened:
+        file_obj.close()
+
+    return result
 
 
 def export_off(mesh):

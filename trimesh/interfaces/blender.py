@@ -1,3 +1,5 @@
+from .. import util
+
 from .generic import MeshScript
 from ..resources import get_resource
 from ..constants import log
@@ -37,6 +39,8 @@ def boolean(meshes, operation='difference'):
         result = blend.run(_blender_executable +
                            ' --background --python $script')
 
-    # blender returns actively incorrect face normals
-    result['face_normals'] = None
+    for m in util.make_sequence(result):
+        # blender returns actively incorrect face normals
+        m.face_normals = None
+        
     return result

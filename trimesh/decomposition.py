@@ -1,7 +1,7 @@
 from . import interfaces
 
 
-def convex_decomposition(mesh, engine=None):
+def convex_decomposition(mesh, engine=None, **kwargs):
     '''
     Compute an approximate convex decomposition of a mesh.
 
@@ -15,13 +15,13 @@ def convex_decomposition(mesh, engine=None):
     mesh_args: list, list of **kwargs for Trimeshes that are nearly
                      convex and approximate the original.
     '''
-    result = _engines[engine](mesh)
+    result = _engines[engine](mesh, **kwargs)
     return result
 
 
-def decomposition_automatic(mesh):
+def decomposition_automatic(mesh, **kwargs):
     if interfaces.vhacd.exists:
-        result = interfaces.vhacd.convex_decomposition(mesh)
+        result = interfaces.vhacd.convex_decomposition(mesh, **kwargs)
     else:
         raise ValueError('No backends available for convex decomposition!')
     return result
