@@ -1,13 +1,14 @@
 import os
 
-import xml.etree.cElementTree as et
+import lxml.etree as et
+import numpy as np
 
 from ..decomposition import convex_decomposition
 from .. import io
 from ..version import __version__ as trimesh_version
 
 
-def export_urdf(mesh, directory):
+def export_urdf(mesh, directory, scale=1.0, color=[0.75, 0.75, 0.75], **kwargs):
     '''
     Convert a Trimesh object into a URDF package for physics simulation.
     This breaks the mesh into convex pieces and writes them to the same
@@ -20,7 +21,7 @@ def export_urdf(mesh, directory):
 
     Returns
     ---------
-    export: bytes, representing the URDF file
+    mesh: The decomposed mesh
     '''
 
     # Extract the save directory and the file name
@@ -38,7 +39,7 @@ def export_urdf(mesh, directory):
         raise ValueError('URDF path must be a directory!')
 
     # Perform a convex decomposition
-    convex_pieces = convex_decomposition(mesh)
+    convex_pieces = convex_decomposition(mesh, **kwargs)
 
     # Get the effective density of the mesh
     effective_density = mesh.volume / sum([m.volume for m in convex_pieces])
@@ -61,7 +62,7 @@ def export_urdf(mesh, directory):
         piece.density = effective_density * mesh.density
 
         link_name = 'link_{}'.format(piece_name)
-        geom_name = 'package://{}/{}'.format(name, piece_filename)
+        geom_name = '{}'.format(piece_filename)
         I = [['{:.2E}'.format(y) for y in x] for x in piece.moment_inertia]
 
         # Write the link out to the XML Tree
@@ -77,15 +78,15 @@ def export_urdf(mesh, directory):
         visual = et.SubElement(link, 'visual')
         et.SubElement(visual, 'origin', xyz="0 0 0", rpy="0 0 0")
         geometry = et.SubElement(visual, 'geometry')
-        et.SubElement(geometry, 'mesh', filename=geom_name)
+        et.SubElement(geometry, 'mesh', filename=geom_name, scale="{:.4E}".format(scale))
         material = et.SubElement(visual, 'material', name='')
-        et.SubElement(material, 'color', rgba="0.75 0.75 0.75 1")
+        et.SubElement(material, 'color', rgba="{:.2E} {:.2E} {:.2E} 1".format(color[0], color[1], color[2]))
 
         # Collision Information
         collision = et.SubElement(link, 'collision')
         et.SubElement(collision, 'origin', xyz="0 0 0", rpy="0 0 0")
         geometry = et.SubElement(collision, 'geometry')
-        et.SubElement(geometry, 'mesh', filename=geom_name)
+        et.SubElement(geometry, 'mesh', filename=geom_name, scale="{:.4E}".format(scale))
 
         # Create rigid joint to previous link
         if prev_link_name is not None:
@@ -100,7 +101,7 @@ def export_urdf(mesh, directory):
     # Write URDF file
     tree = et.ElementTree(root)
     urdf_filename = '{}.urdf'.format(name)
-    tree.write(os.path.join(fullpath, urdf_filename))
+    tree.write(os.path.join(fullpath, urdf_filename), pretty_print=True)
 
     # Write Gazebo config file
     root = et.Element('model')
@@ -120,3 +121,5 @@ def export_urdf(mesh, directory):
 
     tree = et.ElementTree(root)
     tree.write(os.path.join(fullpath, 'model.config'))
+
+    return np.sum(convex_pieces)

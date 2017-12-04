@@ -64,10 +64,8 @@ class MeshScript:
         mesh_results = io.load.load_mesh(self.mesh_post.name)
         if not isinstance(mesh_results, list):
             mesh_results = [mesh_results]
-        if len(mesh_results) == 1:
-            return mesh_results[0].to_dict()
-        return [m.to_dict() for m in mesh_results]
-
+        return mesh_results
+        
     def __exit__(self, *args, **kwargs):
         # delete all the temporary files by name
         # they are closed but their names are still available

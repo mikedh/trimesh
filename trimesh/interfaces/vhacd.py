@@ -25,11 +25,16 @@ for _name in ['vhacd', 'testVHACD']:
 exists = _vhacd_executable is not None
 
 
-def convex_decomposition(mesh):
+def convex_decomposition(mesh, **kwargs):
     if not exists:
         raise ValueError('No vhacd available!')
 
     argstring = ' --input $mesh_0 --output $mesh_post --log $script'
+
+    # Clobber in extra arguments from the input dictionary
+    for key in kwargs.keys():
+        argstring += ' --%s %s' % (str(key), str(kwargs[key]))
+
     with MeshScript(meshes=[mesh],
                     script='',
                     tmpfile_ext='obj') as vhacd:
