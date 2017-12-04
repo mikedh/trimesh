@@ -5,8 +5,9 @@ import subprocess
 from string import Template
 from tempfile import NamedTemporaryFile
 from subprocess import check_call
-from .. import io
 
+from .. import io
+from .. import util
 
 class MeshScript:
 
@@ -57,15 +58,15 @@ class MeshScript:
     def run(self, command):
         command_run = Template(command).substitute(self.replacement).split()
         # run the binary
-        check_call(command_run, stdout=open(
-            os.devnull, 'w'), stderr=subprocess.STDOUT)
+        check_call(command_run,
+                   stdout=open(os.devnull, 'w'),
+                   stderr=subprocess.STDOUT)
 
         # bring the binaries result back as a set of Trimesh kwargs
         mesh_results = io.load.load_mesh(self.mesh_post.name)
-        if not isinstance(mesh_results, list):
-            mesh_results = [mesh_results]
+
         return mesh_results
-        
+
     def __exit__(self, *args, **kwargs):
         # delete all the temporary files by name
         # they are closed but their names are still available

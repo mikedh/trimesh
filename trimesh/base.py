@@ -1692,22 +1692,54 @@ class Trimesh(object):
         result = self.export(file_type='dict')
         return result
 
-    def convex_decomposition(self, engine=None, **kwargs):
+    def convex_decomposition(self, engine=None, maxhulls=20, **kwargs):
         '''
         Compute an approximate convex decomposition of a mesh.
 
+        testVHACD Parameters which can be passed as kwargs:
+
+        Name                                        Default
+        -----------------------------------------------------
+        input                                       
+        resolution                                  100000
+        max. concavity                              0.001
+        plane down-sampling                         4
+        convex-hull down-sampling                   4
+        alpha                                       0.05
+        beta                                        0.05
+        maxhulls                                    10
+        pca                                         0
+        mode                                        0
+        max. vertices per convex-hull               64
+        min. volume to add vertices to convex-hulls 0.0001
+        convex-hull approximation                   1
+        OpenCL acceleration                         1
+        OpenCL platform ID                          0
+        OpenCL device ID                            0
+        output                                      output.wrl
+        log                                         log.txt
+
+
         Parameters
         ----------
-        mesh:   Trimesh object
-        engine: string, which backend to use. Valid choice is 'vhacd'.
+        mesh:      Trimesh object
+        maxhulls:  int, maximum number of convex hulls to return
+        engine:    string, which backend to use. Valid choice is 'vhacd'.
+        **kwargs:  testVHACD keyword arguments
 
         Returns
         -------
         meshes: list of Trimesh objects, a set of nearly convex meshes
                                          that approximate the original
         '''
-        kwargs_list = decomposition.convex_decomposition(self, engine=engine, **kwargs)
-        return [Trimesh(process=True, **kwargs) for kwargs in kwargs_list]
+        result = decomposition.convex_decomposition(self,
+                                                    engine=engine,
+                                                    maxhulls=maxhulls,
+                                                    **kwargs)
+
+        #@return [Trimesh(process=True, **kwargs) for kwargs in kwargs_list]
+        return result
+    
 
     def union(self, other, engine=None):
         '''
@@ -1721,10 +1753,10 @@ class Trimesh(object):
         ---------
         union: Trimesh, union of self and other Trimesh objects
         '''
-        return Trimesh(process=True,
-                       **boolean.union(meshes=np.append(self, other),
-                                       engine=engine))
-
+        result = boolean.union(meshes=np.append(self, other),
+                               engine=engine)
+        return result
+    
     def difference(self, other, engine=None):
         '''
         Boolean difference between this mesh and n other meshes
@@ -1737,10 +1769,10 @@ class Trimesh(object):
         ---------
         difference: Trimesh, difference between self and other Trimesh objects
         '''
-        return Trimesh(process=True,
-                       **boolean.difference(meshes=np.append(self, other),
-                                            engine=engine))
-
+        result = boolean.difference(meshes=np.append(self, other),
+                                    engine=engine)
+        return result
+    
     def intersection(self, other, engine=None):
         '''
         Boolean intersection between this mesh and n other meshes
@@ -1753,9 +1785,9 @@ class Trimesh(object):
         ---------
         intersection: Trimesh of the volume contained by all passed meshes
         '''
-        return Trimesh(process=True,
-                       **boolean.intersection(meshes=np.append(self, other),
-                                              engine=engine))
+        result = boolean.intersection(meshes=np.append(self, other),
+                                      engine=engine)
+        return result
 
     def contains(self, points):
         '''
