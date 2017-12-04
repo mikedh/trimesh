@@ -146,7 +146,7 @@ def adjacency_projections(mesh):
 
 
 def is_convex(mesh):
-    convex = (mesh.face_adjacency_projections < tol.merge).all()
+    convex = (mesh.face_adjacency_projections < tol.planar).all()
     return bool(convex)
 
 
