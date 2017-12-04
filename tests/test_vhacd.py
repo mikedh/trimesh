@@ -4,6 +4,8 @@ import generic as g
 class VHACDTest(g.unittest.TestCase):
 
     def test_vhacd(self):
+        g.log.info('testing convex decomposition using vhacd')
+
         mesh = g.get_mesh('bunny.ply')
 
         # run a convex decomposition using vhacd
