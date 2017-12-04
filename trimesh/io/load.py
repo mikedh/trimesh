@@ -272,7 +272,7 @@ def _parse_file_args(file_obj, file_type, **kwargs):
     '''
     metadata = {}
     if ('metadata' in kwargs and
-            isinstance(kwargs['metadata'], dict)):
+        isinstance(kwargs['metadata'], dict)):
         metadata.update(kwargs['metadata'])
 
     if util.is_file(file_obj) and file_type is None:

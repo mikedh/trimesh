@@ -17,6 +17,8 @@ from .scene.scene import Scene
 from .util import unitize
 from .transformations import transform_points
 
+from .constants import tol
+
 from .io.load import load_mesh, load_path, load, available_formats
 
 from . import transformations

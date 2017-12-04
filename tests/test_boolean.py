@@ -24,18 +24,19 @@ class BooleanTest(g.unittest.TestCase):
 
             g.log.info('Testing boolean ops with engine %s', engine)
             d = a.difference(b, engine=engine)
-            if not d.is_watertight:
+            if not d.is_volume:
                 d.show()
-            self.assertTrue(d.is_watertight)
-            self.assertTrue(self.is_zero(d.volume - self.truth['difference']))
+            self.assertTrue(d.is_volume)
+            self.assertTrue(self.is_zero(d.volume - 
+                                         self.truth['difference']))
 
             i = a.intersection(b, engine=engine)
-            self.assertTrue(i.is_watertight)
-            self.assertTrue(self.is_zero(
-                i.volume - self.truth['intersection']))
+            self.assertTrue(i.is_volume)
+            self.assertTrue(self.is_zero(i.volume - 
+                                         self.truth['intersection']))
 
             u = a.union(b, engine=engine)
-            self.assertTrue(u.is_watertight)
+            self.assertTrue(u.is_volume)
             self.assertTrue(self.is_zero(u.volume - self.truth['union']))
 
             g.log.info('booleans succeeded with %s', engine)
