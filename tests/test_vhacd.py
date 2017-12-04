@@ -4,6 +4,10 @@ import generic as g
 class VHACDTest(g.unittest.TestCase):
 
     def test_vhacd(self):
+        if not g.trimesh.interfaces.vhacd.exists:
+            g.log.warning('not testing convex decomposition (no vhacd)!')
+            return 
+
         g.log.info('testing convex decomposition using vhacd')
 
         mesh = g.get_mesh('bunny.ply')
