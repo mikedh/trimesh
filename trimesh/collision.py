@@ -119,7 +119,7 @@ class CollisionManager(object):
         # Collide with manager's objects
         cdata = fcl.CollisionData()
         if return_names:
-            cdata = fcl.CollisionData(request=fcl.CollisionRequest(num_max_contacts=100000, 
+            cdata = fcl.CollisionData(request=fcl.CollisionRequest(num_max_contacts=100000,
                                                                    enable_contact=True))
 
         self._manager.collide(o, cdata, fcl.defaultCollisionCallback)
@@ -198,10 +198,10 @@ class CollisionManager(object):
         '''
         cdata = fcl.CollisionData()
         if return_names:
-            cdata = fcl.CollisionData(request=fcl.CollisionRequest(num_max_contacts=100000, 
+            cdata = fcl.CollisionData(request=fcl.CollisionRequest(num_max_contacts=100000,
                                                                    enable_contact=True))
         self._manager.collide(other_manager._manager,
-                              cdata, 
+                              cdata,
                               fcl.defaultCollisionCallback)
         result = cdata.result.is_collision
 

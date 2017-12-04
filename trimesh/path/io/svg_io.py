@@ -88,7 +88,7 @@ def svg_to_path(file_obj, file_type=None):
         starting = True
         for svg_entity in parse_path(svg_string):
             loaders[svg_entity.__class__.__name__](svg_entity)
-            
+
     loaded = {'entities': np.array(entities),
               'vertices': np.array(vertices)}
     return loaded
@@ -110,9 +110,9 @@ def export_svg(drawing, return_path=False, **kwargs):
     '''
     if not util.is_instance_named(drawing, 'Path2D'):
         raise ValueError('drawing must be Path2D object!')
-    
+
     points = drawing.vertices.view(np.ndarray).copy()
-    
+
     def circle_to_svgpath(center, radius, reverse):
         radius_str = format(radius, res.export)
         path_str = ' M' + format(center[0] - radius, res.export) + ','
@@ -148,7 +148,7 @@ def export_svg(drawing, return_path=False, **kwargs):
         R_ex = format(R, res.export)
         x_ex = format(vertex_end[0], res.export)
         y_ex = format(vertex_end[1], res.export)
-        
+
         arc_str = move_to(arc_idx[0])
         arc_str += 'A{},{} 0 {},{} {},{}'.format(R_ex,
                                                  R_ex,
@@ -203,22 +203,21 @@ def export_svg(drawing, return_path=False, **kwargs):
     path_str += convert_path(drawing.dangling,
                              reverse=False,
                              close=False)
-        
+
     if 'stroke_width' in kwargs:
         stroke_width = float(kwargs['stroke_width'])
     else:
         stroke_width = drawing.extents.max() / 800.0
 
-        
     subs = {'PATH_STRING': path_str,
-            'MIN_X': points[:,0].min(),
-            'MIN_Y': points[:,1].min(),
+            'MIN_X': points[:, 0].min(),
+            'MIN_Y': points[:, 1].min(),
             'WIDTH': drawing.extents[0],
             'HEIGHT': drawing.extents[1],
             'STROKE': stroke_width}
 
     if return_path:
         return path_str
-    
+
     result = _template_svg.substitute(subs)
     return result

@@ -110,7 +110,7 @@ class Path(object):
         dangling = np.setdiff1d(np.arange(len(self.entities)),
                                 np.hstack(self.paths))
         return dangling
-    
+
     @util.cache_decorator
     def kdtree(self):
         kdtree = KDTree(self.vertices.view(np.ndarray))

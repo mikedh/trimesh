@@ -667,7 +667,6 @@ class TrackedArray(np.ndarray):
         self._modified = False
         return self._hashed_md5
 
-
     def crc(self):
         '''
         Return a zlib adler32 checksum of the current data.

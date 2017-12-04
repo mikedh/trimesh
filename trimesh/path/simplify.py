@@ -184,7 +184,7 @@ def merge_colinear(points, scale=None):
 def resample_spline(points, smooth=.001, count=None, degree=3):
     '''
     Resample a path in space, smoothing along a b-spline.
-    
+
     Parameters
     -----------
     points: (n, dimension) float, points in space
@@ -229,7 +229,7 @@ def points_to_spline_entity(points, smooth=.0005, count=None):
     entity: entities.BSpline object with points indexed at zero
     control: (m, dimension) float, new vertices for entity
     '''
-    
+
     from scipy.interpolate import splprep
     if count is None:
         count = len(points)
@@ -298,10 +298,9 @@ def simplify_basic(drawing):
         points = merge_colinear(np.array(buffered.exterior.coords),
                                 scale=drawing.scale)
         # check to see if the closed entity represents a circle
-        circle = is_circle(points, 
+        circle = is_circle(points,
                            scale=drawing.scale)
 
-        
         if circle is not None:
             entities_new.append(
                 entities.Arc(points=np.arange(3) +
@@ -317,4 +316,3 @@ def simplify_basic(drawing):
                                vertices=vertices_new)
 
     return simplified
-

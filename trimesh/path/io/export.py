@@ -3,7 +3,7 @@ import json
 from string import Template
 
 from . import svg_io
-    
+
 from ..arc import arc_center
 from ...resources import get_resource
 from ...util import three_dimensionalize
