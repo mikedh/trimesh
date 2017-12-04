@@ -58,9 +58,11 @@ class MeshScript:
     def run(self, command):
         command_run = Template(command).substitute(self.replacement).split()
         # run the binary
-        check_call(command_run,
-                   stdout=open(os.devnull, 'w'),
-                   stderr=subprocess.STDOUT)
+        # avoid resourcewarnings with null
+        with open(os.devnull, 'w') as devnull:
+            check_call(command_run,
+                       stdout=devnull,
+                       stderr=subprocess.STDOUT)
 
         # bring the binaries result back as a set of Trimesh kwargs
         mesh_results = io.load.load_mesh(self.mesh_post.name)
