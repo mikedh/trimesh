@@ -31,9 +31,10 @@ def convex_decomposition(mesh, **kwargs):
 
     argstring = ' --input $mesh_0 --output $mesh_post --log $script'
 
-    # Clobber in extra arguments from the input dictionary
-    for key in kwargs.keys():
-        argstring += ' --%s %s' % (str(key), str(kwargs[key]))
+    # pass through extra arguments from the input dictionary
+    for key, value in kwargs.items():
+        argstring += ' --{} {}'.format(str(key), 
+                                       str(value))
 
     with MeshScript(meshes=[mesh],
                     script='',
