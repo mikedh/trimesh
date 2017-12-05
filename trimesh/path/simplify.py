@@ -284,14 +284,16 @@ def simplify_basic(drawing):
     simplified: Path2D with circles.
     '''
 
-    if any([i.__class__.__name__ != 'Line' for i in drawing.entities]):
+    if any(i.__class__.__name__ != 'Line' for i in drawing.entities):
         log.debug('Path contains non- linear entities, skipping')
-        return
+        return drawing
 
     vertices_new = deque()
     entities_new = deque()
 
-    for polygon in drawing.polygons_closed:
+    for path, polygon in zip(drawing.paths[drawing.path_valid],
+                             drawing.polygons_closed):
+
         # clean up things like self intersections
         buffered = polygon.buffer(0.0)
         # get the exterior as an (n,2) array

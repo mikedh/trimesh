@@ -470,11 +470,11 @@ class Path2D(Path):
         full = [None] * len(self.enclosure_shell)
 
         for index, (shell, hole) in enumerate(self.enclosure_shell.items()):
-            if not self.polygons_valid[shell]:
+            if not self.path_valid[shell]:
                 continue
             # mask indexes of holes by valid polygons
             # this will silently discard invalid holes
-            hole_idx = hole[self.polygons_valid[hole]]
+            hole_idx = hole[self.path_valid[hole]]
             # closed curves which represent holes
             hole_poly = self.polygons_closed[hole_idx]
             # generate a new polygon with shell and holes
@@ -638,7 +638,7 @@ class Path2D(Path):
                         {
                             'paths': np.array(new_paths),
                             'polygons_closed': self.polygons_closed[connected],
-                            'polygons_valid': self.polygons_valid[connected],
+                            'path_valid': self.path_valid[connected],
                             'discrete': self.discrete[connected],
                             'root': new_root})
         [i._cache.id_set() for i in split]
@@ -711,15 +711,15 @@ class Path2D(Path):
         return util.md5_array(self.identifier, digits=4)
 
     @property
-    def polygons_valid(self):
+    def path_valid(self):
         '''
         Returns
         ----------
-        polygons_valid: (n,) bool, indexes of self.paths self.polygons_closed
+        path_valid: (n,) bool, indexes of self.paths self.polygons_closed
                          which are valid polygons
         '''
         exists = self.polygons_closed
-        return self._cache.get('polygons_valid')
+        return self._cache.get('path_valid')
 
     @property
     def discrete(self):
@@ -781,7 +781,7 @@ class Path2D(Path):
             discretized = np.array(discretized)
 
         self._cache.set('discrete', discretized)
-        self._cache.set('polygons_valid', valid)
+        self._cache.set('path_valid', valid)
 
         return new_polygon
 
