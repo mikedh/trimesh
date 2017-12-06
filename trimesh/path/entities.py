@@ -135,6 +135,18 @@ class Entity(object):
         return bounds
 
 
+    def length(self, vertices):
+        '''
+        Return the total length of the entity.
+        
+        Returns
+        ---------
+        length: float, total length of entity
+        '''
+        length = ((np.diff(self.discrete(vertices),
+                            axis=0)**2).sum(axis=1)**.5).sum()
+        return length
+        
     def explode(self):
         '''
         Split the entity into multiple entities.
@@ -259,7 +271,7 @@ class Arc(Entity):
             bounds = np.array([discrete.min(axis=0),
                                discrete.max(axis=0)])
         return bounds
-
+    
 
 class Curve(Entity):
 

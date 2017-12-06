@@ -19,6 +19,7 @@ class DXFTest(g.unittest.TestCase):
                             p.length,
                             r.length,
                             ratio)
+                
                 raise ValueError('perimeter ratio too large ({}) on {}'.format(ratio,
                                                                 p.metadata['file_name']))
 

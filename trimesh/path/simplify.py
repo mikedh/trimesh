@@ -312,10 +312,9 @@ def simplify_basic(drawing):
         if circle is not None:
             # the points are circular enough for our high standards
             # so replace them with a closed Arc entity
-            arc = entities.Arc(points=np.arange(3) +
-                               len(vertices_new),
-                               closed=True)
-            entities_new.append(arc)
+            entities_new.append(entities.Arc(points=np.arange(3) +
+                                             len(vertices_new),
+                                             closed=True))
             vertices_new.extend(circle)
         else:
             # save this path as a closed Line entity

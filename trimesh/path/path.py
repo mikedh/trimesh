@@ -556,15 +556,13 @@ class Path2D(Path):
     @util.cache_decorator
     def length(self):
         '''
-        The total discretized length of every closed curve.
-
-        Includes exteriors and interiors.
+        The total discretized length of every entity.
 
         Returns
         --------
-        perimeter: float, length of every boundary (inside and out)
+        length: float, summed length of every entity
         '''
-        length = np.sum([i.length for i in self.polygons_closed])
+        length = sum(i.length(self.vertices) for i in self.entities)
         return length
 
     def extrude(self, height, **kwargs):
