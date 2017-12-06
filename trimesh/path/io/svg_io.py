@@ -34,6 +34,24 @@ def svg_to_path(file_obj, file_type=None):
     -----------
     loaded: dict with kwargs for Path2D constructor
     '''
+    # first, we grab all of the path strings from the xml file
+    xml = parse_xml(file_obj.read())
+    paths = [p.attributes['d'].value for p in xml.getElementsByTagName('path')]
+
+    return _svg_path_convert(paths)
+
+def _svg_path_convert(paths):
+    '''
+    Convert an SVG path string into a Path2D object
+
+    Parameters
+    -------------
+    paths: list of strings
+
+    Returns
+    -------------
+    drawing: loaded, dict with kwargs for Path2D constructor
+    '''
     def complex_to_float(values):
         return np.array([[i.real, i.imag] for i in values])
 
@@ -73,10 +91,6 @@ def svg_to_path(file_obj, file_type=None):
         entities.append(entities_mod.Bezier(np.arange(4) + len(vertices)))
         vertices.extend(points)
 
-    # first, we grab all of the path strings from the xml file
-    xml = parse_xml(file_obj.read())
-    paths = [p.attributes['d'].value for p in xml.getElementsByTagName('path')]
-
     entities = deque()
     vertices = deque()
     loaders = {'Arc': load_arc,
@@ -88,7 +102,6 @@ def svg_to_path(file_obj, file_type=None):
         starting = True
         for svg_entity in parse_path(svg_string):
             loaders[svg_entity.__class__.__name__](svg_entity)
-
     loaded = {'entities': np.array(entities),
               'vertices': np.array(vertices)}
     return loaded
@@ -115,14 +128,14 @@ def export_svg(drawing, return_path=False, **kwargs):
 
     def circle_to_svgpath(center, radius, reverse):
         radius_str = format(radius, res.export)
-        path_str = ' M' + format(center[0] - radius, res.export) + ','
+        path_str = ' M ' + format(center[0] - radius, res.export) + ','
         path_str += format(center[1], res.export)
-        path_str += 'a' + radius_str + ',' + radius_str
+        path_str += ' a ' + radius_str + ',' + radius_str
         path_str += ',0,1,' + str(int(reverse)) + ','
         path_str += format(2 * radius, res.export) + ',0'
-        path_str += 'a' + radius_str + ',' + radius_str
+        path_str += ' a ' + radius_str + ',' + radius_str
         path_str += ',0,1,' + str(int(reverse)) + ','
-        path_str += format(-2 * radius, res.export) + ',0Z'
+        path_str += format(-2 * radius, res.export) + ',0 Z'
         return path_str
 
     def svg_arc(arc, reverse):
@@ -150,12 +163,12 @@ def export_svg(drawing, return_path=False, **kwargs):
         y_ex = format(vertex_end[1], res.export)
 
         arc_str = move_to(arc_idx[0])
-        arc_str += 'A{},{} 0 {},{} {},{}'.format(R_ex,
-                                                 R_ex,
-                                                 large_flag,
-                                                 sweep_flag,
-                                                 x_ex,
-                                                 y_ex)
+        arc_str += 'A {},{} 0 {}, {} {},{}'.format(R_ex,
+                                                   R_ex,
+                                                   large_flag,
+                                                   sweep_flag,
+                                                   x_ex,
+                                                   y_ex)
         return arc_str
 
     def svg_line(line, reverse):
@@ -167,27 +180,27 @@ def export_svg(drawing, return_path=False, **kwargs):
             vertex_end = points[index_end]
             x_ex = format(vertex_end[0], res.export)
             y_ex = format(vertex_end[1], res.export)
-            current += 'L' + x_ex + ',' + y_ex
+            current += ' L ' + x_ex + ',' + y_ex
         return current
 
     def move_to(vertex_id):
         x_ex = format(points[vertex_id][0], res.export)
         y_ex = format(points[vertex_id][1], res.export)
-        move_str = 'M' + x_ex + ',' + y_ex
+        move_str = ' M ' + x_ex + ',' + y_ex
         return move_str
 
     def convert_path(path, reverse=False, close=True):
         path = path[::(reverse * -2) + 1]
-        converted = ''
+        converted = []
         for i, entity_id in enumerate(path):
             entity = drawing.entities[entity_id]
             e_type = entity.__class__.__name__
             try:
-                converted += converters[e_type](entity, reverse)
+                converted.append(converters[e_type](entity, reverse))
             except KeyError:
                 log.debug('%s entity not available for export!', e_type)
         # remove leading and trailing whitespace
-        converted = converted.strip()
+        converted = ' '.join(converted) + ' ' 
         return converted
 
     converters = {'Line': svg_line,
@@ -198,26 +211,25 @@ def export_svg(drawing, return_path=False, **kwargs):
         path_str += convert_path(path,
                                  reverse=reverse,
                                  close=True)
-
     # entities which haven't been included in a closed path
     path_str += convert_path(drawing.dangling,
                              reverse=False,
                              close=False)
+    path_str = path_str.strip()
+    if return_path:
+        return path_str
 
+
+    # format as XML
     if 'stroke_width' in kwargs:
         stroke_width = float(kwargs['stroke_width'])
     else:
         stroke_width = drawing.extents.max() / 800.0
-
     subs = {'PATH_STRING': path_str,
             'MIN_X': points[:, 0].min(),
             'MIN_Y': points[:, 1].min(),
             'WIDTH': drawing.extents[0],
             'HEIGHT': drawing.extents[1],
             'STROKE': stroke_width}
-
-    if return_path:
-        return path_str
-
     result = _template_svg.substitute(subs)
     return result

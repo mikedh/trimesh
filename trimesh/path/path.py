@@ -82,6 +82,15 @@ class Path(object):
         self._vertices = util.tracked_array(values)
 
     def md5(self):
+        '''
+        What is an MD5 hash of the current vertex and entity arrangment.
+        
+        Not robust between loads; use self.identifier_md5 for that
+
+        Returns
+        ------------
+        md5: str, MD5 of current paths
+        '''
         result = self.vertices.md5()
         result += str(len(self.entities))
         return result
@@ -113,18 +122,45 @@ class Path(object):
 
     @util.cache_decorator
     def kdtree(self):
+        '''
+        A KDTree object holding the vertices of the path.
+
+        Returns
+        ----------
+        kdtree: scipy.spatial.cKDTree object holding self.vertices
+        '''
+
         kdtree = KDTree(self.vertices.view(np.ndarray))
         return kdtree
 
     @property
     def scale(self):
+        '''
+        What is a representitive number that reflects the magnitude
+        of the world holding the paths, for numerical comparisons.
+
+        Returns
+        ----------
+        scale: float, approximate size of the world holding this path
+        '''
         scale = self.extents.max()
         return scale
 
     @util.cache_decorator
     def bounds(self):
-        return np.vstack((np.min(self.vertices, axis=0),
-                          np.max(self.vertices, axis=0)))
+        '''
+        Return the axis aligned bounding box of the current path.
+
+        Returns
+        ----------
+        bounds: (2, dimension) float, (min, max) coordinates
+        '''
+        points = np.array([e.bounds(self.vertices) for e in self.entities])
+        points = points.reshape((-1, self.vertices.shape[1]))
+
+        bounds = np.array([points.min(axis=0), points.max(axis=0)])
+
+        return bounds
 
     @property
     def extents(self):
@@ -132,14 +168,37 @@ class Path(object):
 
     @property
     def units(self):
+        '''
+        If there are units defined in self.metadata return them.
+
+        Returns
+        -----------
+        units: str, current unit system
+        '''
         if 'units' in self.metadata:
             return self.metadata['units']
         else:
             return None
 
+    @units.setter
+    def units(self, units):
+        self.metadata['units'] = units
+
+    def convert_units(self, desired, guess=False):
+        '''
+        Convert the units of the current drawing in place.
+        
+        Parameters
+        -----------
+        desired: str, unit system to convert to
+        guess:   bool, if True will attempt to guess units
+        '''
+        _set_units(self, desired, guess)
+
+
     def explode(self):
         '''
-        Turn every multi- segment entity into single segment entities.
+        Turn every multi- segment entity into single segment entities, in- place
         '''
         new_entities = collections.deque()
         for entity in self.entities:
@@ -149,7 +208,7 @@ class Path(object):
     def fill_gaps(self, max_distance=np.inf):
         '''
         Find vertexes with degree 1 and try to connect them to other
-        vertices of degree 1.
+        vertices of degree 1, in place.
 
         Parameters
         ----------
@@ -175,22 +234,24 @@ class Path(object):
     @property
     def is_closed(self):
         '''
-        Are all entities connected to other entities
+        Are all entities connected to other entities.
+
+        Returns
+        -----------
+        closed: every entity is connected at its ends
         '''
         closed = all(i == 2 for i in dict(self.vertex_graph.degree()).values())
         return closed
 
     @util.cache_decorator
     def vertex_graph(self):
+        '''
+        Return a networkx.Graph object for the entity connectiviy
+        
+        graph: networkx.Graph object, holding vertex indexes
+        '''
         graph, closed = vertex_graph(self.entities)
         return graph
-
-    @units.setter
-    def units(self, units):
-        self.metadata['units'] = units
-
-    def convert_units(self, desired, guess=False):
-        _set_units(self, desired, guess)
 
     def apply_transform(self, transform):
         self.vertices = transformations.transform_points(self.vertices,
@@ -198,13 +259,13 @@ class Path(object):
 
     def rezero(self):
         '''
-        Translate so that every vertex is positive.
+        Translate so that every vertex is positive in-place.
         '''
         self.vertices -= self.vertices.min(axis=0)
 
     def merge_vertices(self):
         '''
-        Merges vertices which are identical and replaces references
+        Merges vertices which are identical and replaces references in place.
         '''
         digits = decimal_to_digits(tol.merge * self.scale, min_digits=1)
         unique, inverse = grouping.unique_rows(self.vertices, digits=digits)

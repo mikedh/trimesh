@@ -114,11 +114,31 @@ class Entity(object):
 
     def reverse(self, direction=-1):
         '''
-        Reverse the current entity.
+        Reverse the current entity in place.
         '''
         self.points = self.points[::direction]
 
+    def bounds(self, vertices):
+        '''
+        Return the AABB of the current entity.
+
+        Parameters
+        -----------
+        vertices: (n,dimension) float, vertices in space
+
+        Returns
+        -----------
+        bounds: (2, dimension) float, (min, max) coordinate of AABB
+        '''        
+        bounds = np.array([vertices[self.points].min(axis=0),
+                           vertices[self.points].max(axis=0)])
+        return bounds
+
+
     def explode(self):
+        '''
+        Split the entity into multiple entities.
+        '''
         return [self]
 
 
@@ -128,7 +148,20 @@ class Line(Entity):
     '''
 
     def discrete(self, vertices, scale=1.0):
-        return vertices[self.points]
+        '''
+        Discretize into a world- space path.
+
+        Parameters
+        ------------
+        vertices: (n, dimension) float, points in space
+        scale:    float, size of overall scene for numerical comparisons
+
+        Returns
+        -------------
+        discrete: (m, dimension) float, linear path in space
+        '''
+        discrete = vertices[self.points]
+        return discrete
 
     @property
     def is_valid(self):
@@ -136,15 +169,30 @@ class Line(Entity):
         return valid
 
     def explode(self):
+        '''
+        If the current Line entity consists of multiple lines, break it
+        up into n Line entities.
+
+        Returns
+        ----------
+        exploded: (n,) Line entities
+        '''
         points = np.column_stack((self.points,
                                   self.points)).ravel()[1:-1].reshape((-1, 2))
-        return [Line(i) for i in points]
-
+        exploded = [Line(i) for i in points]
+        return exploded
 
 class Arc(Entity):
 
     @property
     def closed(self):
+        '''
+        A boolean flag for whether the arc is closed (a circle) or not.
+        
+        Returns
+        ----------
+        closed: bool, if true arc will be a closed circle in space
+        '''
         if hasattr(self, '_closed'):
             return self._closed
         return False
@@ -154,12 +202,63 @@ class Arc(Entity):
         self._closed = bool(value)
 
     def discrete(self, vertices, scale=1.0):
-        return discretize_arc(vertices[self.points],
-                              close=self.closed,
-                              scale=scale)
+        '''
+        Discretize the arc entity into line sections.
+
+        Parameters
+        ------------
+        vertices: (n, dimension) float, points in space
+        scale:    float, size of overall scene for numerical comparisons
+
+        Returns
+        -------------
+        discrete: (m, dimension) float, linear path in space
+        '''
+        discrete = discretize_arc(vertices[self.points],
+                                  close=self.closed,
+                                  scale=scale)
+        return discrete
 
     def center(self, vertices):
+        '''
+        Return the center information about the arc entitiy.
+
+        Parameters
+        -------------
+        vertices: (n,dimension) float, vertices in space
+
+        Returns
+        -------------
+        info: dict, with keys:
+                            'radius'
+                            'center'
+        '''
         return arc_center(vertices[self.points])
+
+    def bounds(self, vertices):
+        '''
+        Return the AABB of the arc entity.
+
+        Parameters
+        -----------
+        vertices: (n,dimension) float, vertices in space
+
+        Returns
+        -----------
+        bounds: (2, dimension) float, (min, max) coordinate of AABB
+        '''        
+        if self.closed:
+            # if we have a closed arc, we can return the actual bounds
+            info = self.center(vertices)
+            bounds = np.array([info['center'] - info['radius'],
+                               info['center'] + info['radius']])
+        else:
+            # since the AABB of a partial arc is hard, approximate
+            # the bounds by just looking at the discrete values
+            discrete = self.discrete(vertices)
+            bounds = np.array([discrete.min(axis=0),
+                               discrete.max(axis=0)])
+        return bounds
 
 
 class Curve(Entity):

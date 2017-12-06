@@ -623,6 +623,29 @@ class Trimesh(object):
         return self._cache['principal_inertia_vectors']
 
     @util.cache_decorator
+    def principal_inertia_transform(self):
+        '''
+        A transform which moves the current mesh so the principal
+        inertia vectors are on the X,Y, and Z axis, and the centroid is
+        at the origin.
+
+        Returns 
+        ----------
+        tranform: (4,4) float, homogenous transformation matrix
+        '''
+        order = np.argsort(self.principal_inertia_components)[1:][::-1]
+        vectors = self.principal_inertia_vectors[order]
+        vectors = np.vstack((vectors, np.cross(*vectors)))
+
+        transform = np.eye(4)
+        transform[:3,:3] = vectors
+        transform = geometry.transform_around(transform, self.centroid)
+        transform[:3,3]  -= self.centroid
+
+        return transform
+                
+        
+    @util.cache_decorator
     def triangles(self):
         '''
         Actual triangles of the mesh (points, not indexes)

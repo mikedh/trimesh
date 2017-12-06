@@ -334,7 +334,8 @@ def simplify_basic(drawing):
     # therefore all closed paths are now represented by a single entity 
     cache.cache.update({'paths' : np.arange(len(entities_new)).reshape((-1,1)),
                         'polygons_closed' : drawing.polygons_closed[drawing.path_valid],
-                        'path_valid' : np.ones(len(entities_new), dtype=np.bool)})
+                        'path_valid' : np.ones(len(entities_new), dtype=np.bool),
+                        'dangling'   : np.array([])})
     simplified._cache = cache
     # set the cache ID so it won't dump when a value is requested
     simplified._cache.id_set()
