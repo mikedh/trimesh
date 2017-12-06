@@ -132,6 +132,9 @@ def get_meshes(count=np.inf,
 
 
 def get_2D(count=None):
+    '''
+    Get Path2D objects to test with.
+    '''
     ls = os.listdir(dir_2D)
     if count is None:
         count = len(ls)

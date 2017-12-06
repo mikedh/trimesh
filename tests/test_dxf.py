@@ -4,7 +4,7 @@ import generic as g
 class DXFTest(g.unittest.TestCase):
 
     def setUp(self):
-        self.drawings = [g.trimesh.load_path(i) for i in g.data['2D_files']]
+        self.drawings = g.get_2D()
         self.single = g.np.hstack([i.split() for i in self.drawings])
 
     def test_dxf(self):
@@ -13,13 +13,14 @@ class DXFTest(g.unittest.TestCase):
             p.export(file_obj='temp.dxf')
             r = g.trimesh.load('temp.dxf')
             ratio = abs(p.length - r.length) / p.length
-            if ratio > .01:
+            if ratio > .01:                
                 g.log.error('perimeter ratio on export %s wrong! %f %f %f',
                             p.metadata['file_name'],
                             p.length,
                             r.length,
                             ratio)
-                raise ValueError('perimeter ratio too large')
+                raise ValueError('perimeter ratio too large ({}) on {}'.format(ratio,
+                                                                p.metadata['file_name']))
 
 
 if __name__ == '__main__':

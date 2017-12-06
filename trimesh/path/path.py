@@ -7,11 +7,11 @@ A library designed to work with vector paths.
 import numpy as np
 import networkx as nx
 
+import copy
 import collections
 
 from shapely.geometry import Polygon
 from scipy.spatial import cKDTree as KDTree
-from copy import deepcopy
 
 from ..points import plane_fit
 from ..geometry import plane_transform
@@ -365,7 +365,7 @@ class Path(object):
         return export_dict
 
     def copy(self):
-        return deepcopy(self)
+        return copy.deepcopy(self)
 
     def show(self):
         if self.is_closed:
@@ -374,13 +374,13 @@ class Path(object):
             self.plot_entities(show=True)
 
     def __add__(self, other):
-        new_entities = deepcopy(other.entities)
+        new_entities = copy.deepcopy(other.entities)
         for entity in new_entities:
             entity.points += len(self.vertices)
-        new_entities = np.append(deepcopy(self.entities), new_entities)
+        new_entities = np.append(copy.deepcopy(self.entities), new_entities)
 
         new_vertices = np.vstack((self.vertices, other.vertices))
-        new_meta = deepcopy(self.metadata)
+        new_meta = copy.deepcopy(self.metadata)
         new_meta.update(other.metadata)
 
         new_path = self.__class__(entities=new_entities,
@@ -436,9 +436,9 @@ class Path3D(Path):
             log.error('points have z with deviation %f', np.std(flat[:, 2]))
             raise NameError('Points aren\'t planar!')
 
-        planar = Path2D(entities=deepcopy(self.entities),
+        planar = Path2D(entities=copy.deepcopy(self.entities),
                         vertices=flat[:, 0:2],
-                        metadata=deepcopy(self.metadata))
+                        metadata=copy.deepcopy(self.metadata))
         to_3D = np.linalg.inv(to_2D)
 
         return planar, to_3D
@@ -511,11 +511,11 @@ class Path2D(Path):
         -----------
         path_3D: Path3D version of current path
         '''
-        vertices_new = np.column_stack((deepcopy(self.vertices),
+        vertices_new = np.column_stack((copy.deepcopy(self.vertices),
                                         np.zeros(len(self.vertices))))
-        path_3D = Path3D(entities=deepcopy(self.entities),
+        path_3D = Path3D(entities=copy.deepcopy(self.entities),
                          vertices=vertices_new,
-                         metadata=deepcopy(self.metadata))
+                         metadata=copy.deepcopy(self.metadata))
         return path_3D
 
     @util.cache_decorator
@@ -674,7 +674,7 @@ class Path2D(Path):
         if self.root is None or len(self.root) == 0:
             split = []
         elif len(self.root) == 1:
-            split = [deepcopy(self)]
+            split = [copy.deepcopy(self)]
         else:
             split = [None] * len(self.root)
             for i, root in enumerate(self.root):
@@ -682,19 +682,18 @@ class Path2D(Path):
                 new_root = np.nonzero(connected == root)[0]
                 new_entities = collections.deque()
                 new_paths = collections.deque()
-                new_metadata = {'split_2D': i}
-                new_metadata.update(self.metadata)
-
+                new_metadata = copy.deepcopy(self.metadata)
+                new_metadata['split_2D'] = i
+                
                 for path in self.paths[connected]:
                     new_paths.append(np.arange(len(path)) + len(new_entities))
                     new_entities.extend(path)
                 new_entities = np.array(new_entities)
                 # prevents the copying from nuking our cache
                 with self._cache:
-                    split[i] = Path2D(
-                        entities=deepcopy(
-                            self.entities[new_entities]), vertices=deepcopy(
-                            self.vertices))
+                    split[i] = Path2D(entities=copy.deepcopy(self.entities[new_entities]),
+                                      vertices=copy.deepcopy(self.vertices),
+                                      metadata=new_metadata)
                     split[i]._cache.update(
                         {
                             'paths': np.array(new_paths),

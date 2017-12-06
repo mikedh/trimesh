@@ -13,12 +13,12 @@ import logging
 import hashlib
 import base64
 import time
+import copy
 import json
 import zlib
 
 from sys import version_info
 from functools import wraps
-from copy import deepcopy
 
 _PY3 = version_info.major >= 3
 if _PY3:
@@ -1328,7 +1328,7 @@ def submesh(mesh,
                            faces=f,
                            face_normals=n,
                            visual=c,
-                           metadata=mesh.metadata,
+                           metadata=copy.deepcopy(mesh.metadata),
                            process=False) for v, f, n, c in zip(vertices,
                                                                 faces,
                                                                 normals,
@@ -1480,7 +1480,7 @@ def bounds_tree(bounds):
     ---------
     tree: Rtree object
     '''
-    bounds = np.asanyarray(deepcopy(bounds), dtype=np.float64)
+    bounds = np.asanyarray(copy.deepcopy(bounds), dtype=np.float64)
     if len(bounds.shape) != 2:
         raise ValueError('Bounds must be (n,dimension*2)!')
 
