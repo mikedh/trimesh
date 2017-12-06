@@ -14,9 +14,10 @@ class DXFTest(g.unittest.TestCase):
             r = g.trimesh.load('temp.dxf')
             ratio = abs(p.length - r.length) / p.length
             if ratio > .01:
-                g.log.error('perimeter ratio on export wrong! %f %f %f',
-                            p.perimeter,
-                            r.perimeter,
+                g.log.error('perimeter ratio on export %s wrong! %f %f %f',
+                            p.metadata['file_name'],
+                            p.length,
+                            r.length,
                             ratio)
                 raise ValueError('perimeter ratio too large')
 
