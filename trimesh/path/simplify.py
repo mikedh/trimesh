@@ -1,6 +1,7 @@
 import numpy as np
 
-from collections import deque
+import copy
+import collections
 
 from . import arc
 from . import entities
@@ -288,15 +289,20 @@ def simplify_basic(drawing):
         log.debug('Path contains non- linear entities, skipping')
         return drawing
 
-    vertices_new = deque()
-    entities_new = deque()
+    # we are going to do a bookkeeping to avoid having
+    # to recompute literally everything when simplification is ran
+    cache = copy.deepcopy(drawing._cache)
 
-    for path, polygon in zip(drawing.paths[drawing.path_valid],
-                             drawing.polygons_closed):
+    # store new values
+    vertices_new = collections.deque()
+    entities_new = collections.deque()
 
+    for polygon in drawing.polygons_closed:
+        
         # clean up things like self intersections
         buffered = polygon.buffer(0.0)
         # get the exterior as an (n,2) array
+        # since we generated these from the closed 
         points = merge_colinear(np.array(buffered.exterior.coords),
                                 scale=drawing.scale)
         # check to see if the closed entity represents a circle
@@ -304,17 +310,33 @@ def simplify_basic(drawing):
                            scale=drawing.scale)
 
         if circle is not None:
-            entities_new.append(
-                entities.Arc(points=np.arange(3) +
-                             len(vertices_new),
-                             closed=True))
+            # the points are circular enough for our high standards
+            # so replace them with a closed Arc entity
+            arc = entities.Arc(points=np.arange(3) +
+                               len(vertices_new),
+                               closed=True)
+            entities_new.append(arc)
             vertices_new.extend(circle)
         else:
-            line = np.arange(len(points)) + len(vertices_new)
-            entities_new.append(entities.Line(points=line))
+            # save this path as a closed Line entity
+            # we cleaned up colinear points so it will still
+            # be simpler than the source data
+            indexes = np.arange(len(points)) + len(vertices_new)
+            entities_new.append(entities.Line(points=indexes))
             vertices_new.extend(points)
 
+    # create the new drawing object
     simplified = type(drawing)(entities=entities_new,
                                vertices=vertices_new)
 
+    # we have changed every path to a single closed entity
+    # either a closed arc, or a closed line
+    # therefore all closed paths are now represented by a single entity 
+    cache.cache.update({'paths' : np.arange(len(entities_new)).reshape((-1,1)),
+                        'polygons_closed' : drawing.polygons_closed[drawing.path_valid],
+                        'path_valid' : np.ones(len(entities_new), dtype=np.bool)})
+    simplified._cache = cache
+    # set the cache ID so it won't dump when a value is requested
+    simplified._cache.id_set()
+    
     return simplified
