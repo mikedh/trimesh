@@ -4,7 +4,7 @@ from . import util
 from . import transformations
 
 
-def sample_surface(mesh, count):
+def sample_surface(mesh, count, return_ids=False):
     '''
     Sample the surface of a mesh, returning the specified number of points
 
@@ -15,10 +15,12 @@ def sample_surface(mesh, count):
     ---------
     mesh: Trimesh object
     count: number of points to return
+    return_ids: if True, returns face_index in addition to samples
 
     Returns
     ---------
     samples: (count,3) points in space on the surface of mesh
+    face_index: (count,) indices of faces for each sampled point
 
     '''
 
@@ -58,7 +60,10 @@ def sample_surface(mesh, count):
     # (n,3) points in space on the triangle
     samples = sample_vector + tri_origins
 
-    return samples
+    if return_ids:
+        return samples, face_index
+    else:
+        return samples
 
 
 def volume_mesh(mesh, count):
@@ -105,7 +110,7 @@ def volume_rectangular(extents,
     return samples
 
 
-def sample_surface_even(mesh, count):
+def sample_surface_even(mesh, count, return_ids=False):
     '''
     Sample the surface of a mesh, returning samples which are
     approximately evenly spaced.
@@ -113,9 +118,13 @@ def sample_surface_even(mesh, count):
     from .points import remove_close
 
     radius = np.sqrt(mesh.area / (2 * count))
-    samples = sample_surface(mesh, count * 5)
-    result = remove_close(samples, radius)
-    return result
+
+    samples, ids = sample_surface(mesh, count * 5, return_ids=True)
+    result, mask = remove_close(samples, radius, return_mask=True)
+    if return_ids:
+        return result, ids[mask]
+    else:
+        return result
 
 
 def sample_surface_sphere(count):

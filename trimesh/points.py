@@ -183,7 +183,7 @@ def absolute_orientation(points_A, points_B, return_error=False):
     return M
 
 
-def remove_close(points, radius):
+def remove_close(points, radius, return_mask=False):
     '''
     Given an (n, m) set of points where n=(2|3) return a list of points
     where no point is closer than radius
@@ -199,7 +199,11 @@ def remove_close(points, radius):
         neighbors = tree.query_ball_point(points[i], r=radius)
         consumed[neighbors] = True
         unique[i] = True
-    return points[unique]
+
+    if return_mask:
+        return points[unique], unique
+    else:
+        return points[unique]
 
 
 def remove_close_set(points_fixed, points_reduce, radius):
