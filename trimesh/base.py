@@ -524,7 +524,7 @@ class Trimesh(object):
         -----------
         center_mass: (3,) float array, volumetric center of mass of the mesh
         '''
-        if not self.is_watertight:
+        if not self.is_watertight and self._center_mass is None:
             log.warning('Center of mass requested for non- watertight mesh!')
         center_mass = self.mass_properties['center_mass']
         return center_mass
@@ -1550,6 +1550,9 @@ class Trimesh(object):
         new_vertices = transformations.transform_points(self.vertices,
                                                         matrix)
 
+        if self._center_mass is not None:
+            self._center_mass = transformations.transform_points(self._center_mass, matrix)
+
         # force generation of face normals so we can check against them
         new_normals = np.dot(matrix[0:3, 0:3], self.face_normals.T).T
         # easier than figuring out what the scale factor of the matrix is
@@ -1899,6 +1902,9 @@ class Trimesh(object):
         copied.visual._data.data = copy.deepcopy(self.visual._data.data)
         # get metadata
         copied.metadata = copy.deepcopy(self.metadata)
+        # copy com and density
+        copied._center_mass = self._center_mass
+        copied._density = self._density
 
         # make sure cache is set from here
         copied._cache.id_set()
