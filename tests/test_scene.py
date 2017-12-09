@@ -106,6 +106,12 @@ class SceneTests(g.unittest.TestCase):
 
         populate = scene.bounding_box
 
+    def test_3DXML(self):
+        s = g.get_mesh('rod.3DXML')
+
+        assert len(s.geometry) == 3
+        assert len(s.graph.nodes_geometry) == 29
+        
 
 class GraphTests(g.unittest.TestCase):
 

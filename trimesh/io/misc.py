@@ -119,16 +119,20 @@ def load_wavefront(file_obj, file_type=None):
             continue
 
         # find all triangular faces with a regex
-        face_tri = ' '.join(re.findall(re_tris, text)
-                            ).replace('f', ' ').split()
+        face_tri = ' '.join(re.findall(re_tris, 
+                                       text)).replace('f', 
+                                                      ' ').split()
         # convert triangular faces into a numpy array
-        face_tri = np.array(face_tri, dtype=np.int64).reshape((-1, 3))
+        face_tri = np.array(face_tri, 
+                            dtype=np.int64).reshape((-1, 3))
 
         # find all quad faces with a regex
-        face_quad = ' '.join(re.findall(re_quad, text)
-                             ).replace('f', ' ').split()
+        face_quad = ' '.join(re.findall(re_quad, 
+                                        text)).replace('f', 
+                                                       ' ').split()
         # convert quad faces into a numpy array
-        face_quad = np.array(face_quad, dtype=np.int64).reshape((-1, 4))
+        face_quad = np.array(face_quad, 
+                             dtype=np.int64).reshape((-1, 4))
 
         # stack the faces into a single (n,3) list
         # triangulate any quad faces

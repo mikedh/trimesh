@@ -16,6 +16,7 @@ try:
 except ImportError:
     log.warning('Scipy import failed!')
 
+from shapely.geometry import MultiPoint
 
 def oriented_bounds_2D(points):
     '''

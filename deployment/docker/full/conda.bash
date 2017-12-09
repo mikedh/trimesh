@@ -1,4 +1,4 @@
-wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh  --no-check-certificate -O miniconda.sh
+wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh  --no-check-certificate --quiet -O miniconda.sh
 bash miniconda.sh -b -p /opt/conda
 rm miniconda.sh
 

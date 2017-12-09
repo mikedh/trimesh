@@ -302,8 +302,8 @@ def load_3DXML(file_obj, *args, **kwargs):
 
     # a Reference3D maps to a subassembly or assembly
     for Reference3D in tree.iter('{*}Reference3D'):
-        references[Reference3D.attrib['id']] = {
-            'name': Reference3D.attrib['name'], 'type': 'Reference3D'}
+        references[Reference3D.attrib['id']] = {'name': Reference3D.attrib['name'],
+                                                'type': 'Reference3D'}
 
     # a node that is the connectivity between a geometry and the Reference3D
     for InstanceRep in tree.iter('{*}InstanceRep'):
@@ -349,6 +349,7 @@ def load_3DXML(file_obj, *args, **kwargs):
         if 'instance' in v:
             graph.add_edge(k, v['instance'])
 
+            
     # the 3DXML format is stored as a directed acyclic graph that needs all
     # paths from the root to a geometry to generate the tree of the scene
     paths = collections.deque()
@@ -359,55 +360,54 @@ def load_3DXML(file_obj, *args, **kwargs):
 
     # the name of the root frame
     root_name = references[root_id]['name']
-
     # create a list of kwargs to send to the scene.graph.update function
     # start with a transform from the graphs base frame to our root name
     graph_kwargs = collections.deque([{'frame_to': root_name,
                                        'matrix': np.eye(4)}])
-
+    
+    # we are going to collect prettier geometry names as we traverse paths
+    geom_names = {}
     # loop through every simple path and generate transforms tree
+    # note that we are flattening the transform tree here
     for path_index, path in enumerate(paths):
-
+        name = ''
+        if 'name' in references[path[-3]]:
+            name = references[path[-3]]['name']
+            geom_names[path[-1]] = name
         # we need a unique node name for our geometry instance frame
         # due to the nature of the DAG names specified by the file may not
         # be unique, so we add an Instance3D name then append the path ids
-        node_name = ''
-        if 'name' in references[path[-3]]:
-            node_name = references[path[-3]]['name']
-        node_name += '#' + ':'.join(path)
+        node_name = name + '#' + ':'.join(path)
 
-        # kwargs for Scene().graph.update
-        current_kwargs = collections.deque()
         # pull all transformations in the path
-        for ref_id in path:
-            if 'matrix' in references[ref_id]:
-                current_kwargs.append({'matrix': references[ref_id]['matrix'],
-                                       'frame_to': (references[ref_id]['name'] +
-                                                    '#' +
-                                                    str(ref_id))})
+        matrices = [references[i]['matrix'] for i in path if 'matrix' in references[i]]
+        if len(matrices) == 0:
+            matrix = np.eye(4)
+        elif len(matrices) == 1:
+            matrix = matrices[0]
+        else:
+            matrix = util.multi_dot(matrices)
+                                
+        graph_kwargs.append({'matrix': matrix,
+                             'frame_from' : root_name,
+                             'frame_to': node_name,
+                             'geometry' : path[-1]})
 
-        # if no transforms are defined put an identity matrix in
-        if len(current_kwargs) == 0:
-            current_kwargs.append({'matrix': np.eye(4),
-                                   'frame_to': node_name})
+    # remap geometry names from id numbers to the name string
+    # we extracted from the 3DXML tree
+    geom_final = {}
+    for key, value in geometries.items():
+        if key in geom_names:
+            geom_final[geom_names[key]] = value
+    # change geometry names in graph kwargs in place
+    for kwarg in graph_kwargs:
+        if 'geometry' not in kwarg:
+            continue
+        kwarg['geometry'] = geom_names[kwarg['geometry']]
 
-        # all paths start from the root
-        current_kwargs[0]['frame_from'] = root_name
-        # the last element in the path is the geometry
-        current_kwargs[-1]['geometry'] = path[-1]
-        # the instance must be unique
-        current_kwargs[-1]['frame_to'] = node_name
-
-        # add the other side of the transform edge
-        for i in range(1, len(current_kwargs)):
-            current_kwargs[i]['frame_from'] = current_kwargs[i - 1]['frame_to']
-
-        # add the transforms for this path to the overall list of edges
-        graph_kwargs.append(current_kwargs)
-    graph_kwargs = np.hstack(graph_kwargs)
-
+    # create the kwargs for load_kwargs
     result = {'class': 'Scene',
-              'geometry': geometries,
+              'geometry': geom_final,
               'graph': graph_kwargs}
 
     return result

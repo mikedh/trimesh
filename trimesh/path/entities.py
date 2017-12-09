@@ -10,7 +10,8 @@ import numpy as np
 
 from .arc import discretize_arc, arc_center
 from .curve import discretize_bezier, discretize_bspline
-from ..util import replace_references
+
+from .. import util
 
 _HASH_LENGTH = 5
 
@@ -61,7 +62,7 @@ class Entity(object):
         Given a replacement dictionary, change points to reflect the dictionary.
         eg, if replacement = {0:107}, self.points = [0,1902] becomes [107, 1902]
         '''
-        self.points = replace_references(self.points, replacement)
+        self.points = util.replace_references(self.points, replacement)
 
     @property
     def closed(self):
@@ -259,8 +260,10 @@ class Arc(Entity):
         -----------
         bounds: (2, dimension) float, (min, max) coordinate of AABB
         '''        
-        if self.closed:
-            # if we have a closed arc, we can return the actual bounds
+        if util.is_shape(vertices, (-1,2)) and self.closed:
+            # if we have a closed arc (a circle), we can return the actual bounds
+            # this only works in two dimensions, otherwise this would return the
+            # AABB of an sphere
             info = self.center(vertices)
             bounds = np.array([info['center'] - info['radius'],
                                info['center'] + info['radius']])

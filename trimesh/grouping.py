@@ -55,11 +55,11 @@ def group(values, min_len=0, max_len=np.inf):
     groups: sequence of indices to form groups
             IE [0,1,0,1] returns [[0,2], [1,3]]
     '''
-    values = np.asarray(values)
+    original = np.asanyarray(values)
 
     # save the sorted order and then apply it
-    order = values.argsort()
-    values = values[order]
+    order = original.argsort()
+    values = original[order]
 
     # find the indexes which are duplicates
     if values.dtype.kind == 'f':
