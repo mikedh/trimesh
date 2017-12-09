@@ -40,6 +40,7 @@ def svg_to_path(file_obj, file_type=None):
 
     return _svg_path_convert(paths)
 
+
 def _svg_path_convert(paths):
     '''
     Convert an SVG path string into a Path2D object
@@ -200,7 +201,7 @@ def export_svg(drawing, return_path=False, **kwargs):
             except KeyError:
                 log.debug('%s entity not available for export!', e_type)
         # remove leading and trailing whitespace
-        converted = ' '.join(converted) + ' ' 
+        converted = ' '.join(converted) + ' '
         return converted
 
     converters = {'Line': svg_line,
@@ -218,7 +219,6 @@ def export_svg(drawing, return_path=False, **kwargs):
     path_str = path_str.strip()
     if return_path:
         return path_str
-
 
     # format as XML
     if 'stroke_width' in kwargs:

@@ -33,7 +33,7 @@ def convex_decomposition(mesh, **kwargs):
 
     # pass through extra arguments from the input dictionary
     for key, value in kwargs.items():
-        argstring += ' --{} {}'.format(str(key), 
+        argstring += ' --{} {}'.format(str(key),
                                        str(value))
 
     with MeshScript(meshes=[mesh],

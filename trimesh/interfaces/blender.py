@@ -42,5 +42,5 @@ def boolean(meshes, operation='difference'):
     for m in util.make_sequence(result):
         # blender returns actively incorrect face normals
         m.face_normals = None
-        
+
     return result

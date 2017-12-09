@@ -84,7 +84,7 @@ class Path(object):
     def md5(self):
         '''
         What is an MD5 hash of the current vertex and entity arrangment.
-        
+
         Not robust between loads; use self.identifier_md5 for that
 
         Returns
@@ -187,14 +187,13 @@ class Path(object):
     def convert_units(self, desired, guess=False):
         '''
         Convert the units of the current drawing in place.
-        
+
         Parameters
         -----------
         desired: str, unit system to convert to
         guess:   bool, if True will attempt to guess units
         '''
         _set_units(self, desired, guess)
-
 
     def explode(self):
         '''
@@ -247,7 +246,7 @@ class Path(object):
     def vertex_graph(self):
         '''
         Return a networkx.Graph object for the entity connectiviy
-        
+
         graph: networkx.Graph object, holding vertex indexes
         '''
         graph, closed = vertex_graph(self.entities)
@@ -682,7 +681,7 @@ class Path2D(Path):
                 new_paths = collections.deque()
                 new_metadata = copy.deepcopy(self.metadata)
                 new_metadata['split_2D'] = i
-                
+
                 for path in self.paths[connected]:
                     new_paths.append(np.arange(len(path)) + len(new_entities))
                     new_entities.extend(path)

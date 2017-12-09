@@ -43,7 +43,7 @@ def export_mesh(mesh, file_obj, file_type=None):
     export = _mesh_exporters[file_type](mesh)
 
     if hasattr(file_obj, 'write'):
-        result = util.write_encoded(file_obj, export)        
+        result = util.write_encoded(file_obj, export)
     else:
         result = export
 

@@ -250,10 +250,10 @@ def resample_path(points, count=None, step=None, step_round=True):
     sampler = PathSample(points)
     if step is not None and step_round:
         if step >= sampler.length:
-            return points[[0,-1]]
-        
+            return points[[0, -1]]
+
         count = int(np.ceil(sampler.length / step))
-        
+
     if count is not None:
         samples = np.linspace(0, sampler.length, count)
     elif step is not None:

@@ -349,7 +349,6 @@ def load_3DXML(file_obj, *args, **kwargs):
         if 'instance' in v:
             graph.add_edge(k, v['instance'])
 
-            
     # the 3DXML format is stored as a directed acyclic graph that needs all
     # paths from the root to a geometry to generate the tree of the scene
     paths = collections.deque()
@@ -364,7 +363,7 @@ def load_3DXML(file_obj, *args, **kwargs):
     # start with a transform from the graphs base frame to our root name
     graph_kwargs = collections.deque([{'frame_to': root_name,
                                        'matrix': np.eye(4)}])
-    
+
     # we are going to collect prettier geometry names as we traverse paths
     geom_names = {}
     # loop through every simple path and generate transforms tree
@@ -380,18 +379,19 @@ def load_3DXML(file_obj, *args, **kwargs):
         node_name = name + '#' + ':'.join(path)
 
         # pull all transformations in the path
-        matrices = [references[i]['matrix'] for i in path if 'matrix' in references[i]]
+        matrices = [references[i]['matrix']
+                    for i in path if 'matrix' in references[i]]
         if len(matrices) == 0:
             matrix = np.eye(4)
         elif len(matrices) == 1:
             matrix = matrices[0]
         else:
             matrix = util.multi_dot(matrices)
-                                
+
         graph_kwargs.append({'matrix': matrix,
-                             'frame_from' : root_name,
+                             'frame_from': root_name,
                              'frame_to': node_name,
-                             'geometry' : path[-1]})
+                             'geometry': path[-1]})
 
     # remap geometry names from id numbers to the name string
     # we extracted from the 3DXML tree

@@ -130,24 +130,23 @@ class Entity(object):
         Returns
         -----------
         bounds: (2, dimension) float, (min, max) coordinate of AABB
-        '''        
+        '''
         bounds = np.array([vertices[self.points].min(axis=0),
                            vertices[self.points].max(axis=0)])
         return bounds
 
-
     def length(self, vertices):
         '''
         Return the total length of the entity.
-        
+
         Returns
         ---------
         length: float, total length of entity
         '''
         length = ((np.diff(self.discrete(vertices),
-                            axis=0)**2).sum(axis=1)**.5).sum()
+                           axis=0)**2).sum(axis=1)**.5).sum()
         return length
-        
+
     def explode(self):
         '''
         Split the entity into multiple entities.
@@ -195,13 +194,14 @@ class Line(Entity):
         exploded = [Line(i) for i in points]
         return exploded
 
+
 class Arc(Entity):
 
     @property
     def closed(self):
         '''
         A boolean flag for whether the arc is closed (a circle) or not.
-        
+
         Returns
         ----------
         closed: bool, if true arc will be a closed circle in space
@@ -259,8 +259,8 @@ class Arc(Entity):
         Returns
         -----------
         bounds: (2, dimension) float, (min, max) coordinate of AABB
-        '''        
-        if util.is_shape(vertices, (-1,2)) and self.closed:
+        '''
+        if util.is_shape(vertices, (-1, 2)) and self.closed:
             # if we have a closed arc (a circle), we can return the actual bounds
             # this only works in two dimensions, otherwise this would return the
             # AABB of an sphere
@@ -274,7 +274,7 @@ class Arc(Entity):
             bounds = np.array([discrete.min(axis=0),
                                discrete.max(axis=0)])
         return bounds
-    
+
 
 class Curve(Entity):
 

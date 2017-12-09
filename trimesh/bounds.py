@@ -18,6 +18,7 @@ except ImportError:
 
 from shapely.geometry import MultiPoint
 
+
 def oriented_bounds_2D(points):
     '''
     Find an oriented bounding box for a set of 2D points.

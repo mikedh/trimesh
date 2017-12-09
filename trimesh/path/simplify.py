@@ -298,11 +298,11 @@ def simplify_basic(drawing):
     entities_new = collections.deque()
 
     for polygon in drawing.polygons_closed:
-        
+
         # clean up things like self intersections
         buffered = polygon.buffer(0.0)
         # get the exterior as an (n,2) array
-        # since we generated these from the closed 
+        # since we generated these from the closed
         points = merge_colinear(np.array(buffered.exterior.coords),
                                 scale=drawing.scale)
         # check to see if the closed entity represents a circle
@@ -330,13 +330,13 @@ def simplify_basic(drawing):
 
     # we have changed every path to a single closed entity
     # either a closed arc, or a closed line
-    # therefore all closed paths are now represented by a single entity 
-    cache.cache.update({'paths' : np.arange(len(entities_new)).reshape((-1,1)),
-                        'polygons_closed' : drawing.polygons_closed[drawing.path_valid],
-                        'path_valid' : np.ones(len(entities_new), dtype=np.bool),
-                        'dangling'   : np.array([])})
+    # therefore all closed paths are now represented by a single entity
+    cache.cache.update({'paths': np.arange(len(entities_new)).reshape((-1, 1)),
+                        'polygons_closed': drawing.polygons_closed[drawing.path_valid],
+                        'path_valid': np.ones(len(entities_new), dtype=np.bool),
+                        'dangling': np.array([])})
     simplified._cache = cache
     # set the cache ID so it won't dump when a value is requested
     simplified._cache.id_set()
-    
+
     return simplified

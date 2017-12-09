@@ -78,15 +78,18 @@ def export_urdf(mesh, directory, scale=1.0, color=[0.75, 0.75, 0.75], **kwargs):
         visual = et.SubElement(link, 'visual')
         et.SubElement(visual, 'origin', xyz="0 0 0", rpy="0 0 0")
         geometry = et.SubElement(visual, 'geometry')
-        et.SubElement(geometry, 'mesh', filename=geom_name, scale="{:.4E}".format(scale))
+        et.SubElement(geometry, 'mesh', filename=geom_name,
+                      scale="{:.4E}".format(scale))
         material = et.SubElement(visual, 'material', name='')
-        et.SubElement(material, 'color', rgba="{:.2E} {:.2E} {:.2E} 1".format(color[0], color[1], color[2]))
+        et.SubElement(material, 'color', rgba="{:.2E} {:.2E} {:.2E} 1".format(
+            color[0], color[1], color[2]))
 
         # Collision Information
         collision = et.SubElement(link, 'collision')
         et.SubElement(collision, 'origin', xyz="0 0 0", rpy="0 0 0")
         geometry = et.SubElement(collision, 'geometry')
-        et.SubElement(geometry, 'mesh', filename=geom_name, scale="{:.4E}".format(scale))
+        et.SubElement(geometry, 'mesh', filename=geom_name,
+                      scale="{:.4E}".format(scale))
 
         # Create rigid joint to previous link
         if prev_link_name is not None:

@@ -638,13 +638,12 @@ class Trimesh(object):
         vectors = np.vstack((vectors, np.cross(*vectors)))
 
         transform = np.eye(4)
-        transform[:3,:3] = vectors
+        transform[:3, :3] = vectors
         transform = geometry.transform_around(transform, self.centroid)
-        transform[:3,3]  -= self.centroid
+        transform[:3, 3] -= self.centroid
 
         return transform
-                
-        
+
     @util.cache_decorator
     def triangles(self):
         '''
@@ -1762,7 +1761,6 @@ class Trimesh(object):
 
         #@return [Trimesh(process=True, **kwargs) for kwargs in kwargs_list]
         return result
-    
 
     def union(self, other, engine=None):
         '''
@@ -1779,7 +1777,7 @@ class Trimesh(object):
         result = boolean.union(meshes=np.append(self, other),
                                engine=engine)
         return result
-    
+
     def difference(self, other, engine=None):
         '''
         Boolean difference between this mesh and n other meshes
@@ -1795,7 +1793,7 @@ class Trimesh(object):
         result = boolean.difference(meshes=np.append(self, other),
                                     engine=engine)
         return result
-    
+
     def intersection(self, other, engine=None):
         '''
         Boolean intersection between this mesh and n other meshes
