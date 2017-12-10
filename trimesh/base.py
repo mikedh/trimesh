@@ -1474,11 +1474,17 @@ class Trimesh(object):
 
         This will result in a mesh with an AABB centered at the origin and the
         same dimensions as the OBB.
+   
+        Returns
+        ----------
+        matrix: (4,4) float, transformation matrix that was applied
+                             to mesh to move it into OBB frame.
         '''
         matrix = self.bounding_box_oriented.primitive.transform
         matrix = np.linalg.inv(matrix)
         self.apply_transform(matrix)
-
+        return matrix
+    
     def apply_transform(self, matrix):
         '''
         Transform mesh by a homogenous transformation matrix.

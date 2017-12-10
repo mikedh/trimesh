@@ -253,12 +253,20 @@ class Path(object):
         return graph
 
     def apply_transform(self, transform):
+        '''
+        Apply a transformation matrix to the current path in- place
+
+        Parameters
+        -----------
+        transform: (dimension + 1, dimension + 1) float, homogenous
+                   transformation matrix
+        '''
         self.vertices = transformations.transform_points(self.vertices,
                                                          transform)
 
     def rezero(self):
         '''
-        Translate so that every vertex is positive in-place.
+        Translate so that every vertex is positive, in-place.
         '''
         self.vertices -= self.vertices.min(axis=0)
 
@@ -494,7 +502,7 @@ class Path2D(Path):
             matrix, bounds = polygons.polygon_obb(
                 self.polygons_closed[self.root[0]])
             self.apply_transform(matrix)
-
+            return matrix
         else:
             raise ValueError('Not implemented for multibody geometry')
 
