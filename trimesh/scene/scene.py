@@ -468,8 +468,7 @@ class Scene:
         units: str, target unit system. EG 'inches', 'mm', etc
         '''
         existing = np.array([i.units for i in self.geometry.values()])
-
-        if (existing[0] != existing).any():
+        if np.any(existing[0] != existing):
             # if all of our geometry doesn't have the same units already
             # this function will only do some hot nonsense
             raise ValueError('Models in scene have inconsistent units!')
