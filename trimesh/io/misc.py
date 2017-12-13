@@ -43,14 +43,15 @@ def load_off(file_obj, file_type=None):
     return {'vertices': vertices,
             'faces': faces}
 
-
 def load_wavefront(file_obj, file_type=None):
     '''
     Loads an ascii Wavefront OBJ file_obj into kwargs
     for the Trimesh constructor.
 
-    Discards texture normals and vertex color information.
+    Vertices with the same position but different normals or uvs are split
+    into multiple vertices.
 
+    Colors are discarded.
 
     Parameters
     ----------
@@ -61,129 +62,83 @@ def load_wavefront(file_obj, file_type=None):
     ----------
     loaded: dict with kwargs for Trimesh constructor (vertices, faces)
     '''
-    text_original = file_obj.read()
-    if hasattr(text_original, 'decode'):
-        text_original = text_original.decode('utf-8')
-    # get rid of stupid newlines
-    text_original = text_original.replace(
-        '\r\n', '\n').replace(
-        '\r', '\n') + ' \n'
 
-    # for faces, remove the '/' notation in the raw text
-    # the regex does the following:
-    # find charecter '/' and then any non- whitespace charecter,
-    # up to a newline or space, then stop. Example:
-    # test = "f 233/233/233 12//12//12\nf 233/233/233 12//12//12 "
-    # In [0]: re.split('/\S*[ \n]', test)
-    # Out[0]: ['f 233', '12', 'f 233', '12', '']
-    # we then re-join it into a larger string so we
-    # can split by just whitespace
-    # we add a space before every newline to make things easy on ourselves
-    text = ' '.join(re.split('/\S* ',
-                             text_original.replace('\n', ' \n')))
+    # mike's mystery text massaging
+    text = file_obj.read()
+    if hasattr(text, 'decode'):
+        text = text.decode('utf-8')
+    text = text.replace('\r\n', '\n').replace('\r', '\n') + ' \n'
 
-    # remove all comments
-    # regex:
-    # # : comments start with pounds
-    # .*: zero or more of any charecter
-    # \n: up to a newline
-    text = re.sub('#.*\n', '\n', text)
+    meshes = []
+    def _append_mesh(out_v, out_vt, out_vn, out_f, g_list):
+        if len(out_f) > 0:
+            loaded = {'vertices': np.array(out_v),
+                      'vertex_normals': np.array(out_vn),
+                      'faces': np.array(out_f, dtype=np.int64).reshape((-1,3)),
+                      'metadata': {}}
+            if len(out_vt) > 0:
+                loaded['metadata']['vertex_texture'] = np.array(out_vt)
+            if len(g_list) > 0:
+                # build face groups information
+                face_groups = np.zeros(len(out_f)//3, dtype=int)
+                for idx, start_f in g_list:
+                    face_groups[start_f:] = idx
+                loaded['metadata']['face_groups'] = face_groups
 
-    # more impenetrable regexes
-    # this one to pulls faces from directly from the text
-    # - find the 'f' char
-    # - followed by one or more spaces
-    # - followed by one or more 0-9 digits
-    # - followed by one or more spaces
-    # - (repeat for exactly 3 integers for tris, 4 for quads)
-    # - followed by zero or more spaces
-    # - followed by exactly one newline
-    re_tris = 'f +\d+ +\d+ +\d+ *\n'
-    re_quad = 'f +\d+ +\d+ +\d+ +\d+ *\n'
+            meshes.append(loaded)
 
-    # Split the file on object lines -- any line that begins with an 'o'
-    # indicates a new mesh.
-    # regex does:
-    # '^' : match the first charecter of each newline (with multiline flag)
-    # 'o' : match the charecter 'o'
-    # '.*': match zero or more of any charecter
-    # '\n': up to a newline
-    re_obj = '^o.*\n'
+    attribs = {'v': [], 'vt': [], 'vn': []}
+    remap_table = {}
+    next_idx = 0
 
-    count_vertices = 0
-    loaded_data = collections.deque()
+    out_v = []
+    out_vn = []
+    out_vt = []
+    out_f = []
+    g_list = []
+    g_idx = 0
 
-    # loop through each sub- mesh
-    for text in re.split(re_obj, text, flags=re.MULTILINE):
-        if text is None:
+    for line in text.split("\n"):
+        gps = line.strip().split()
+        if len(gps) < 2:
             continue
+        if gps[0] in attribs: # v, vt, or vn
+            # only parse 3 values-- colors shoved into vertices are ignored
+            attribs[gps[0]].append([float(x) for x in gps[1:4]])
+        elif gps[0] == 'f':
+            ft = gps[1:]
+            if len(ft) == 4:
+                # hasty triangulation of quad
+                ft = [ft[0], ft[1], ft[2], ft[2], ft[3], ft[0]]
+            for f in ft:
+                if not f in remap_table:
+                    remap_table[f] = next_idx
+                    next_idx += 1
+                    gf = f.split('/')
+                    out_v.append(attribs['v'][int(gf[0])-1])
+                    if len(gf) > 1 and gf[1] != '':
+                        out_vt.append(attribs['vt'][int(gf[1])-1])
+                    if len(gf) > 2:
+                        out_vn.append(attribs['vn'][int(gf[2])-1])
+                out_f.append(remap_table[f])
+        elif gps[0] == 'o':
+            _append_mesh(out_v, out_vt, out_vn, out_f, g_list)
+            out_v = []
+            out_vn = []
+            out_f = []
+            remap_table = {}
+            next_idx = 0
+            g_list = []
+            g_idx = 0
+        elif gps[0] == 'g':
+            g_idx += 1
+            g_list.append((g_idx, len(out_f) // 3))
+            pass
+            
+    if next_idx > 0:
+        _append_mesh(out_v, out_vt, out_vn, out_f, g_list)
 
-        # find all triangular faces with a regex
-        face_tri = ' '.join(re.findall(re_tris,
-                                       text)).replace('f',
-                                                      ' ').split()
-        # convert triangular faces into a numpy array
-        face_tri = np.array(face_tri,
-                            dtype=np.int64).reshape((-1, 3))
-
-        # find all quad faces with a regex
-        face_quad = ' '.join(re.findall(re_quad,
-                                        text)).replace('f',
-                                                       ' ').split()
-        # convert quad faces into a numpy array
-        face_quad = np.array(face_quad,
-                             dtype=np.int64).reshape((-1, 4))
-
-        # stack the faces into a single (n,3) list
-        # triangulate any quad faces
-        # this thin wrapper for vstack will ignore empty lists
-        faces = util.vstack_empty((face_tri,
-                                   geometry.triangulate_quads(face_quad)))
-
-        # If we didn't load any faces, we snagged extra propertie
-        # around an object split -- for now, avoid dealing with them.
-        if len(faces) == 0:
-            continue
-
-        # wavefront has 1- indexed faces, as opposed to 0- indexed
-        # additionally, decrement by number of vertices used in prior objects
-        faces = faces.astype(np.int64) - 1 - count_vertices
-
-        # find the data with predictable lengths using numpy
-        data = np.array(text.split())
-        # find the locations of keys, then find the proceeding values
-        # indexes which contain vertex information
-        vid = np.nonzero(data == 'v')[0].reshape((-1, 1)) + np.arange(3) + 1
-        # indexes which contain vertex normal information
-        nid = np.nonzero(data == 'vn')[0].reshape((-1, 1)) + np.arange(3) + 1
-        # some varients of the format have face groups
-        gid = np.nonzero(data == 'g')[0].reshape((-1, 1)) + 1
-
-        # indexes which contain vertex texture information
-        tid = np.nonzero(data == 'vt')[0].reshape((-1, 1)) + np.arange(2) + 1
-
-        loaded = {'vertices': data[vid].astype(float),
-                  'vertex_normals': data[nid].astype(float),
-                  'faces': faces,
-                  'metadata': {}}
-
-        # if face groups have been defined add them to metadata
-        if len(gid) > 0:
-            # indexes which contain face information
-            face_key = np.nonzero(data == 'f')[0]
-            groups = np.zeros(len(faces), dtype=int)
-            for i, g in enumerate(gid):
-                groups[np.nonzero(face_key > g)[0]] = i
-            loaded['metadata']['face_groups'] = groups
-
-        if len(tid) > 0:
-            loaded['metadata']['vertex_texture'] = data[tid].astype(float)
-
-        count_vertices += len(loaded['vertices'])
-
-        loaded_data.append(loaded)
-
-    return list(loaded_data)
+    return meshes
 
 
 def load_msgpack(blob, file_type=None):
