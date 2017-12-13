@@ -266,8 +266,8 @@ class Scene:
             center = self.centroid
         if distance is None:
             # for a 60.0 degree horizontal FOV
-            distance = (self.extents.max() / 2) / \
-                np.tan(np.radians(60.0) / 2.0)
+            distance = ((self.extents.max() / 2) / 
+                        np.tan(np.radians(60.0) / 2.0))
 
         if angles is None:
             angles = np.zeros(3)
@@ -502,7 +502,9 @@ class Scene:
             origin = self.centroid
         if vector is None:
             vector = self.scale / 25.0
-
+        vector = np.asanyarray(vector)
+        origin = np.asanyarray(origin)
+    
         centroids = collections.deque()
         for node_name in self.graph.nodes_geometry:
             transform, geometry_name = self.graph[node_name]

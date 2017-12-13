@@ -263,6 +263,19 @@ class Path(object):
         '''
         self.vertices = transformations.transform_points(self.vertices,
                                                          transform)
+    def apply_scale(self, scale):
+        '''
+        Apply a transformation matrix to the current path in- place
+
+        Parameters
+        -----------
+        transform: (dimension + 1, dimension + 1) float, homogenous
+                   transformation matrix
+        '''
+        dimension = self.vertices.shape[1]
+        matrix = np.eye(dimension+1)
+        matrix[:dimension,:dimension] *= float(scale)
+        self.apply_transform(matrix)
 
     def rezero(self):
         '''

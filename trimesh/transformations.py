@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # transformations.py
 
-# Copyright (c) 2006-2015, Christoph Gohlke
-# Copyright (c) 2006-2015, The Regents of the University of California
+# Copyright (c) 2006-2017, Christoph Gohlke
+# Copyright (c) 2006-2017, The Regents of the University of California
 # Produced at the Laboratory for Fluorescence Dynamics
 # All rights reserved.
 #
@@ -44,12 +44,12 @@ functions to decompose transformation matrices.
 :Organization:
   Laboratory for Fluorescence Dynamics, University of California, Irvine
 
-:Version: 2015.03.19
+:Version: 2017.02.17
 
 Requirements
 ------------
 * `CPython 2.7 or 3.4 <http://www.python.org>`_
-* `numpy 1.9 <http://www.numpy.org>`_
+* `numpy 1.9 <http://www.np.org>`_
 * `Transformations.c 2015.03.19 <http://www.lfd.uci.edu/~gohlke/>`_
   (recommended for speedup of some functions)
 
@@ -76,9 +76,9 @@ with other graphics systems, e.g. with OpenGL's glMultMatrixd(). See also [16].
 Calculations are carried out with np.float64 precision.
 
 Vector, point, quaternion, and matrix function arguments are expected to be
-"array like", i.e. tuple, list, or np arrays.
+"array like", i.e. tuple, list, or numpy arrays.
 
-Return types are np arrays unless specified otherwise.
+Return types are numpy arrays unless specified otherwise.
 
 Angles are in radians unless specified otherwise.
 
@@ -105,7 +105,7 @@ Other Python packages and modules for 3D transformations and quaternions:
 * `Transforms3d <https://pypi.python.org/pypi/transforms3d>`_
    includes most code of this module.
 * `Blender.mathutils <http://www.blender.org/api/blender_python_api>`_
-* `np-dtypes <https://github.com/np/np-dtypes>`_
+* `numpy-dtypes <https://github.com/numpy/numpy-dtypes>`_
 
 References
 ----------
@@ -199,7 +199,7 @@ import math
 
 import numpy as np
 
-__version__ = '2015.03.19'
+__version__ = '2017.02.17'
 __docformat__ = 'restructuredtext en'
 __all__ = ()
 
@@ -1312,6 +1312,13 @@ def quaternion_from_matrix(matrix, isprecise=False):
     >>> q = quaternion_from_matrix(R)
     >>> is_same_transform(R, quaternion_matrix(q))
     True
+    >>> is_same_quaternion(quaternion_from_matrix(R, isprecise=False),
+    ...                    quaternion_from_matrix(R, isprecise=True))
+    True
+    >>> R = euler_matrix(0.0, 0.0, np.pi/2.0)
+    >>> is_same_quaternion(quaternion_from_matrix(R, isprecise=False),
+    ...                    quaternion_from_matrix(R, isprecise=True))
+    True
 
     """
     M = np.array(matrix, dtype=np.float64, copy=False)[:4, :4]
@@ -1324,16 +1331,17 @@ def quaternion_from_matrix(matrix, isprecise=False):
             q[2] = M[0, 2] - M[2, 0]
             q[1] = M[2, 1] - M[1, 2]
         else:
-            i, j, k = 1, 2, 3
+            i, j, k = 0, 1, 2
             if M[1, 1] > M[0, 0]:
-                i, j, k = 2, 3, 1
+                i, j, k = 1, 2, 0
             if M[2, 2] > M[i, i]:
-                i, j, k = 3, 1, 2
+                i, j, k = 2, 0, 1
             t = M[i, i] - (M[j, j] + M[k, k]) + M[3, 3]
             q[i] = t
             q[j] = M[i, j] + M[j, i]
             q[k] = M[k, i] + M[i, k]
             q[3] = M[k, j] - M[j, k]
+            q = q[[3, 0, 1, 2]]
         q *= 0.5 / math.sqrt(t * M[3, 3])
     else:
         m00 = M[0, 0]
@@ -1877,6 +1885,13 @@ def is_same_transform(matrix0, matrix1):
     matrix1 = np.array(matrix1, dtype=np.float64, copy=True)
     matrix1 /= matrix1[3, 3]
     return np.allclose(matrix0, matrix1)
+
+
+def is_same_quaternion(q0, q1):
+    """Return True if two quaternions are equal."""
+    q0 = np.array(q0)
+    q1 = np.array(q1)
+    return np.allclose(q0, q1) or np.allclose(q0, -q1)
 
 
 def planar_matrix(offset, theta):
