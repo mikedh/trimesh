@@ -502,8 +502,9 @@ class Scene:
             origin = self.centroid
         if vector is None:
             vector = self.scale / 25.0
-        vector = np.asanyarray(vector)
-        origin = np.asanyarray(origin)
+            
+        vector = np.asanyarray(vector, dtype=np.float64)
+        origin = np.asanyarray(origin, dtype=np.float64)
     
         centroids = collections.deque()
         for node_name in self.graph.nodes_geometry:
@@ -514,14 +515,14 @@ class Scene:
             centroid = np.dot(transform,
                               np.append(centroid, 1))[:3]
 
-            if (isinstance(vector, float) or
-                    isinstance(vector, int)):
+            if vector.shape == ():
+                # case where our vector is a single number
                 offset = (centroid - origin) * vector
             elif np.shape(vector) == (3,):
                 projected = np.dot(vector, (centroid - origin))
                 offset = vector * projected
             else:
-                raise ValueError('vector wrong shape')
+                raise ValueError('explode vector wrong shape!')
 
             transform[0:3, 3] += offset
             self.graph[node_name] = transform
