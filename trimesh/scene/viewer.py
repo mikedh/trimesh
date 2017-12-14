@@ -39,6 +39,8 @@ class SceneViewer(pyglet.window.Window):
         self.reset_view(flags=flags)
 
         try:
+            # try enabling antialiasing
+            # if you have a graphics card this will probably work
             conf = gl.Config(sample_buffers=1,
                              samples=4,
                              depth_size=16,
@@ -301,9 +303,12 @@ class SceneViewer(pyglet.window.Window):
             return self.scene.flags[node][flag]
         return None
 
-    def save_image(self, filename):
+    def save_image(self, file_obj):
         colorbuffer = pyglet.image.get_buffer_manager().get_color_buffer()
-        colorbuffer.save(filename)
+        if hasattr(file_obj, 'write'):
+            colorbuffer.save(file=file_obj)
+        else:
+            colorbuffer.save(filename=file_obj)
 
     def flip(self):
         '''
