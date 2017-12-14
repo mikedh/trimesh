@@ -682,10 +682,10 @@ def shear_matrix(angle, direction, point, normal):
 def shear_from_matrix(matrix):
     """Return shear angle, direction and plane from shear matrix.
 
-    >>> angle = (random.random() - 0.5) * 4*math.pi
-    >>> direct = np.random.random(3) - 0.5
-    >>> point = np.random.random(3) - 0.5
-    >>> normal = np.cross(direct, np.random.random(3))
+    >>> angle  = np.pi / 2.0
+    >>> direct = [0.0, 1.0, 0.0]
+    >>> point  = [0.0, 0.0, 0.0]
+    >>> normal = np.cross(direct, np.roll(direct,1))
     >>> S0 = shear_matrix(angle, direct, point, normal)
     >>> angle, direct, point, normal = shear_from_matrix(S0)
     >>> S1 = shear_matrix(angle, direct, point, normal)
@@ -697,6 +697,7 @@ def shear_from_matrix(matrix):
     M33 = M[:3, :3]
     # normal: cross independent eigenvectors corresponding to the eigenvalue 1
     w, V = np.linalg.eig(M33)
+
     i = np.where(abs(np.real(w) - 1.0) < 1e-4)[0]
     if len(i) < 2:
         raise ValueError("no two linear independent eigenvectors found %s" % w)
@@ -716,6 +717,7 @@ def shear_from_matrix(matrix):
     angle = math.atan(angle)
     # point: eigenvector corresponding to eigenvalue 1
     w, V = np.linalg.eig(M)
+    
     i = np.where(abs(np.real(w) - 1.0) < 1e-8)[0]
     if not len(i):
         raise ValueError("no eigenvector corresponding to eigenvalue 1")
