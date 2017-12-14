@@ -21,6 +21,7 @@ class SceneViewer(pyglet.window.Window):
                  smooth=True,
                  save_image=None,
                  flags=None,
+                 visible=None,
                  resolution=(640, 480)):
 
         self.scene = scene
@@ -30,7 +31,10 @@ class SceneViewer(pyglet.window.Window):
             # if the camera hasn't been set, set it now
             scene.set_camera()
 
-        visible = (save_image is None) or (platform.system() != 'Linux')
+        if visible is None:
+            visible = ((save_image is None) or
+                       (platform.system() != 'Linux'))
+            
         width, height = resolution
         self.reset_view(flags=flags)
 

@@ -1,3 +1,7 @@
+'''
+This module provides GLTF 2.0 exports 
+'''
+
 import json
 
 import numpy as np
