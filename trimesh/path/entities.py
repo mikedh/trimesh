@@ -49,6 +49,7 @@ class Entity(object):
         hash[0:points_count] = np.sort(self.points)[-points_count:]
         return hash
 
+
     def to_dict(self):
         '''
         Returns a dictionary with all of the information about the entity.

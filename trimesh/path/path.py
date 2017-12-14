@@ -91,9 +91,11 @@ class Path(object):
         ------------
         md5: str, MD5 of current paths
         '''
-        result = self.vertices.md5()
-        result += str(len(self.entities))
-        return result
+        target = [e.points for e in self.entities]
+        target.append(int(self.vertices.md5()[:10], 16))
+        target = np.hstack(target).astype(np.int32)
+        hashed = util.md5_object(target.tostring())
+        return hashed
 
     @util.cache_decorator
     def paths(self):
@@ -155,9 +157,12 @@ class Path(object):
         ----------
         bounds: (2, dimension) float, (min, max) coordinates
         '''
+        # get the bounds of each entity
+        # some entities (mostly Arc) have bounds that differ from their vertices
         points = np.array([e.bounds(self.vertices) for e in self.entities])
         points = points.reshape((-1, self.vertices.shape[1]))
 
+        # get the max and min of all bounds
         bounds = np.array([points.min(axis=0), points.max(axis=0)])
 
         return bounds
@@ -261,8 +266,18 @@ class Path(object):
         transform: (dimension + 1, dimension + 1) float, homogenous
                    transformation matrix
         '''
+        dimension = self.vertices.shape[1]
+        transform = np.asanyarray(transform, dtype=np.float64)
+        if transform.shape != (dimension+1, dimension+1):
+            raise ValueError('transform is incorrect shape!')
+        elif np.allclose(transform, np.eye(dimension + 1)):
+            return
+
         self.vertices = transformations.transform_points(self.vertices,
                                                          transform)
+        # explictly clear the cache
+        self._cache.clear()
+
     def apply_scale(self, scale):
         '''
         Apply a transformation matrix to the current path in- place
@@ -279,9 +294,18 @@ class Path(object):
 
     def rezero(self):
         '''
-        Translate so that every vertex is positive, in-place.
+        Translate so that every vertex is positive in the current mesh is positive.
+
+        Returns
+        -----------
+        matrix: (dimension + 1, dimension + 1) float, homogenous transformation 
+                 that was applied to the current Path object.
         '''
-        self.vertices -= self.vertices.min(axis=0)
+        dimension = self.vertices.shape[1]
+        matrix = np.eye(dimension + 1)
+        matrix[:dimension,dimension] = -self.vertices.min(axis=0)
+        self.apply_transform(matrix)
+        return matrix
 
     def merge_vertices(self):
         '''
@@ -301,7 +325,7 @@ class Path(object):
 
     def remove_entities(self, entity_ids):
         '''
-        Remove entities by their index.
+        Remove entities by index.
         '''
         if len(entity_ids) == 0:
             return
@@ -397,9 +421,10 @@ class Path(object):
         new_entities = copy.deepcopy(other.entities)
         for entity in new_entities:
             entity.points += len(self.vertices)
-        new_entities = np.append(copy.deepcopy(self.entities), new_entities)
-
-        new_vertices = np.vstack((self.vertices, other.vertices))
+        new_entities = np.append(copy.deepcopy(self.entities), 
+                                 new_entities)
+        new_vertices = np.vstack((self.vertices, 
+                                  other.vertices))
         new_meta = copy.deepcopy(self.metadata)
         new_meta.update(other.metadata)
 
@@ -512,9 +537,9 @@ class Path2D(Path):
 
     def apply_obb(self):
         if len(self.root) == 1:
-            matrix, bounds = polygons.polygon_obb(
-                self.polygons_closed[self.root[0]])
+            matrix, bounds = polygons.polygon_obb(self.polygons_closed[self.root[0]])
             self.apply_transform(matrix)
+
             return matrix
         else:
             raise ValueError('Not implemented for multibody geometry')
