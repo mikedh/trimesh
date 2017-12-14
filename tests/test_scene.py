@@ -111,6 +111,17 @@ class SceneTests(g.unittest.TestCase):
 
         assert len(s.geometry) == 3
         assert len(s.graph.nodes_geometry) == 29
+
+    def test_empty(self):
+        m = g.get_mesh('bunny.ply')
+
+        # not watertight so will result in empty scene
+        s = g.trimesh.scene.split_scene(m)
+        assert len(s.geometry) == 0
+        
+        s = s.convert_units('inches')
+        n = s.duplicate_nodes
+        assert len(n) == 0
         
 
 class GraphTests(g.unittest.TestCase):

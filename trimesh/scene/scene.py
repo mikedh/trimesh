@@ -36,9 +36,8 @@ class Scene:
 
         self._cache = util.Cache(id_function=self.md5)
 
-        if geometry is not None:
-            self.add_geometry(geometry)
-            self.set_camera()
+        self.add_geometry(geometry)
+        self.set_camera()
 
         self.metadata = {}
         self.metadata.update(metadata)
@@ -61,7 +60,8 @@ class Scene:
         ----------
         node_name: str, name of node in self.graph
         '''
-
+        if geometry is None:
+            return
         # if passed a sequence call add_geometry on all elements
         if util.is_sequence(geometry):
             return [self.add_geometry(i) for i in geometry]
@@ -230,7 +230,10 @@ class Scene:
         duplicates: (m) sequence of keys to self.nodes that represent 
                      identical geometry
         '''
-
+        # if there is no geometry we can have no duplicate nodes
+        if len(self.geometry) == 0:
+            return []
+        
         # geometry name : md5 of mesh
         mesh_hash = {k: int(m.identifier_md5, 16)
                      for k, m in self.geometry.items()}
@@ -262,6 +265,9 @@ class Scene:
         center:    (3,) float, point camera should center on
 
         '''
+        if len(self.geometry) == 0:
+            return
+        
         if center is None:
             center = self.centroid
         if distance is None:
@@ -467,6 +473,10 @@ class Scene:
         ----------
         units: str, target unit system. EG 'inches', 'mm', etc
         '''
+        # if there is no geometry do nothing
+        if len(self.geometry) == 0:
+            return self
+        
         existing = np.array([i.units for i in self.geometry.values()])
         if np.any(existing[0] != existing):
             # if all of our geometry doesn't have the same units already
@@ -480,6 +490,10 @@ class Scene:
             else:
                 raise ValueError('units not defined and not allowed to guess!')
 
+        # exit early if our current units are the same as desired units
+        if current == desired:
+            return self
+            
         scale = units.unit_conversion(current=current,
                                       desired=desired)
         result = self.scaled(scale=scale)
