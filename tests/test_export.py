@@ -79,6 +79,17 @@ class ExportTest(g.unittest.TestCase):
                              m.visual.vertex_colors)
 
 
+    def test_dict(self):
+        mesh = g.get_mesh('machinist.XAML')
+        assert mesh.visual.kind == 'face'
+        mesh.visual.vertex_colors = mesh.visual.vertex_colors
+        assert mesh.visual.kind == 'vertex'
+
+        as_dict = mesh.to_dict()
+        back = g.trimesh.Trimesh(**as_dict)
+
+        
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()

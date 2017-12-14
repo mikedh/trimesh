@@ -229,6 +229,8 @@ class ColorVisuals(object):
                 (3,) int, set the whole mesh this color
                 (4,) int, set the whole mesh this color
         '''
+        # make sure passed values are numpy array
+        values = np.asanyarray(values)
         # Ensure the color shape is sane
         if (self.mesh is not None and not
                 (values.shape == (len(self.mesh.vertices), 3) or
