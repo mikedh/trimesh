@@ -62,6 +62,7 @@ class Scene:
         '''
         if geometry is None:
             return
+        
         # if passed a sequence call add_geometry on all elements
         if util.is_sequence(geometry):
             return [self.add_geometry(i) for i in geometry]
@@ -110,6 +111,19 @@ class Scene:
 
         return hashed
 
+    @property
+    def is_empty(self):
+        '''
+        Does the scene have anything in it.
+
+        Returns
+        ----------
+        is_empty: bool, True if nothing is in the scene
+        '''
+        
+        is_empty = len(self.geometry) == 0
+        return is_empty
+    
     @util.cache_decorator
     def bounds(self):
         '''
@@ -304,7 +318,7 @@ class Scene:
 
         Does this by changing the base frame to a new, offset base frame.
         '''
-        if np.allclose(self.centroid, 0.0):
+        if self.is_empty or np.allclose(self.centroid, 0.0):
             # early exit since what we want already exists
             return
 
