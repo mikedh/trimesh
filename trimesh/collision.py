@@ -36,6 +36,7 @@ class CollisionManager(object):
         mesh:      Trimesh object, the geometry of the collision object
         transform: (4,4) float, homogenous transform matrix for the object
         '''
+#        print("adding object {}".format(name))
         if transform is None:
             transform = np.eye(4)
 
@@ -56,6 +57,7 @@ class CollisionManager(object):
         }
         self._manager.registerObject(o)
         self._manager.update()
+        return o
 
     def remove_object(self, name):
         '''
