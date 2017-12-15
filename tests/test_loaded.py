@@ -50,6 +50,13 @@ class LoaderTest(g.unittest.TestCase):
         assert g.trimesh.util.is_shape(meshes[1].faces, (4,3))
         assert g.trimesh.util.is_shape(meshes[1].vertices, (9,3))
 
+    def test_obj_compressed(self):
+        mesh = g.get_mesh('cube_compressed.obj', process=False)
+
+        assert g.np.allclose(g.np.abs(mesh.vertex_normals).sum(axis=1),
+                             1.0)
+
+
     def test_stl(self):
         model = g.get_mesh('empty.stl')
 
