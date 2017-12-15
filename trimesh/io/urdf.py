@@ -41,7 +41,9 @@ def export_urdf(mesh, directory, scale=1.0, color=[
 
     # Perform a convex decomposition
     convex_pieces = convex_decomposition(mesh, **kwargs)
-
+    if not isinstance(convex_pieces, list):
+        convex_pieces = [convex_pieces]
+    
     # Get the effective density of the mesh
     effective_density = mesh.volume / sum([m.volume for m in convex_pieces])
 
