@@ -15,8 +15,16 @@ if platform.system() == 'Windows':
     _search_path = ';'.join(_search_path)
     log.debug('searching for scad in: ', _search_path)
 
+if platform.system() == 'Darwin':
+    _search_path = [i for i in _search_path.split(':') if len(i) > 0]
+    _search_path.append('/Applications/OpenSCAD.app/Contents/MacOS')
+    _search_path = ':'.join(_search_path)
+    log.debug('searching for scad in: ', _search_path)
+    log.warning('searching for scad in: ', _search_path)
 
 _scad_executable = find_executable('openscad', path=_search_path)
+if not _scad_executable:
+    _scad_executable = find_executable('OpenSCAD', path=_search_path)
 exists = _scad_executable is not None
 
 

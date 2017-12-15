@@ -125,7 +125,7 @@ example <https://github.com/mikedh/trimesh/blob/master/examples/integrate.ipynb>
     # available, and will be the minimum volume version of each
     # except in certain degenerate cases, where they will be no worse
     # than a least squares fit version of the primitive.
-    print(mesh.bounding_box_oriented.volume, 
+    print(mesh.bounding_box_oriented.volume,
           mesh.bounding_cylinder.volume,
           mesh.bounding_sphere.volume)
 
@@ -192,9 +192,9 @@ debugging/inspecting. In the mesh view window:
 -  dragging rotates the view
 -  ctl + drag pans
 -  mouse wheel zooms
--  'z' returns to the base view
--  'w' toggles wireframe mode
--  'c' toggles backface culling
+-  ‘z’ returns to the base view
+-  ‘w’ toggles wireframe mode
+-  ‘c’ toggles backface culling
 
 Containers
 ----------
