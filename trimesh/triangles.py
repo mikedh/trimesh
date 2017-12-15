@@ -97,7 +97,8 @@ def any_coplanar(triangles):
     return any_coplanar
 
 
-def mass_properties(triangles, crosses=None, density=1.0, center_mass=None, skip_inertia=False):
+def mass_properties(triangles, crosses=None, density=1.0,
+                    center_mass=None, skip_inertia=False):
     '''
     Calculate the mass properties of a group of triangles.
 
@@ -278,7 +279,7 @@ def extents(triangles, areas=None):
 
     Returns
     ----------
-    box:       (n,2) float, the size of the 2D oriented bounding box.  
+    box:       (n,2) float, the size of the 2D oriented bounding box.
     '''
     triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):

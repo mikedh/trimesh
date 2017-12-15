@@ -34,7 +34,7 @@ class SceneViewer(pyglet.window.Window):
         if visible is None:
             visible = ((save_image is None) or
                        (platform.system() != 'Linux'))
-            
+
         width, height = resolution
         self.reset_view(flags=flags)
 

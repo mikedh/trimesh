@@ -717,7 +717,7 @@ def shear_from_matrix(matrix):
     angle = math.atan(angle)
     # point: eigenvector corresponding to eigenvalue 1
     w, V = np.linalg.eig(M)
-    
+
     i = np.where(abs(np.real(w) - 1.0) < 1e-8)[0]
     if not len(i):
         raise ValueError("no eigenvector corresponding to eigenvalue 1")

@@ -26,7 +26,6 @@ if platform.system() == 'Darwin':
     log.warning('searching for blender in: ', _search_path)
 
 
-
 _blender_executable = find_executable('blender', path=_search_path)
 _blender_template = get_resource('blender.py.template')
 

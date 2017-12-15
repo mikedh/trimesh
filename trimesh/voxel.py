@@ -20,13 +20,13 @@ class Voxel(object):
         '''
         A marching cubes Trimesh representation of the voxels.
 
-        No effort was made to clean or smooth the result in any way; 
-        it is merely the result of applying the scikit-image 
+        No effort was made to clean or smooth the result in any way;
+        it is merely the result of applying the scikit-image
         measure.marching_cubes function to self.matrix.
 
         Returns
         ---------
-        meshed: Trimesh object representing the current voxel 
+        meshed: Trimesh object representing the current voxel
                         object, as returned by marching cubes algorithm.
         '''
         meshed = matrix_to_marching_cubes(matrix=self.matrix,
@@ -137,10 +137,10 @@ class VoxelMesh(Voxel):
 
     def __init__(self, mesh, pitch, max_iter=10, size_max=None):
         '''
-        A voxel representation of a mesh that will track changes to 
+        A voxel representation of a mesh that will track changes to
         the mesh.
 
-        At the moment the voxels are not filled in and only represent 
+        At the moment the voxels are not filled in and only represent
         the surface.
 
         Parameters
@@ -171,7 +171,7 @@ class VoxelMesh(Voxel):
     @property
     def matrix(self):
         '''
-        A matrix representation of the surface voxels. 
+        A matrix representation of the surface voxels.
 
         In the future this is planned to return a filled voxel matrix
         if the source mesh is watertight, and a surface voxelization
@@ -341,7 +341,7 @@ def matrix_to_marching_cubes(matrix, pitch, origin):
 
 def sparse_to_matrix(sparse):
     '''
-    Take a sparse (n,3) list of integer indexes of filled cells, 
+    Take a sparse (n,3) list of integer indexes of filled cells,
     turn it into a dense (m,o,p) matrix.
 
     Parameters

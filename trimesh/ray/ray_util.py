@@ -40,7 +40,7 @@ def contains_points(intersector, points, check_direction=None):
     # default ray direction is random, but we are not generating it
     # uniquely each time so the behavior of this function is easier to debug
     default_direction = np.array(
-        [0.4395064455,  0.617598629942,  0.652231566745])
+        [0.4395064455, 0.617598629942, 0.652231566745])
 
     if check_direction is None:
         # if no check direction is specifed use the default
@@ -67,7 +67,7 @@ def contains_points(intersector, points, check_direction=None):
     bi_hits = np.bincount(index_ray,
                           minlength=len(ray_directions) * 2).reshape((2, -1))
     # a point is probably inside if it hits a surface an odd number of times
-    bi_contains = np.mod(bi_hits,  2) == 1
+    bi_contains = np.mod(bi_hits, 2) == 1
 
     # if the mod of the hit count is the same in both
     # directions, we can save that result and move on

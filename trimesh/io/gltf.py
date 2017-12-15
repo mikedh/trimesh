@@ -1,5 +1,5 @@
 '''
-This module provides GLTF 2.0 exports 
+This module provides GLTF 2.0 exports
 '''
 
 import json
@@ -10,7 +10,7 @@ import numpy as np
 def export_gltf(scene):
     '''
     Export a scene object as a GLTF directory.
-    
+
     This has the advantage of putting each mesh into a separate file (buffer)
     as opposed to one large file, but means multiple files need to be tracked.
 

@@ -10,7 +10,7 @@ from ...util import is_sequence, is_file, is_string, is_instance_named
 
 def load_path(obj, file_type=None):
     '''
-    Utility function which can be passed a filename, 
+    Utility function which can be passed a filename,
     file object, or list of lines
 
     Parameters
@@ -23,9 +23,9 @@ def load_path(obj, file_type=None):
          - dict with kwargs for Path constructor
          - (n,2,(2|3) float, lines in space
 
-    file_type: str, type of file is required if file 
+    file_type: str, type of file is required if file
                object passed. Currently supported:
-               - 'dxf' 
+               - 'dxf'
                - 'svg'
 
     Returns

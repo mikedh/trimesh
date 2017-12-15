@@ -43,6 +43,7 @@ def load_off(file_obj, file_type=None):
     return {'vertices': vertices,
             'faces': faces}
 
+
 def load_wavefront(file_obj, file_type=None):
     '''
     Loads an ascii Wavefront OBJ file_obj into kwargs
@@ -70,26 +71,26 @@ def load_wavefront(file_obj, file_type=None):
     text = text.replace('\r\n', '\n').replace('\r', '\n') + ' \n'
 
     meshes = []
+
     def append_mesh():
         # append kwargs for a Trimesh constructor to our list of meshes
         if len(current['f']) > 0:
             loaded = {'vertices': np.array(current['v']),
                       'vertex_normals': np.array(current['vn']),
-                      'faces': np.array(current['f'], dtype=np.int64).reshape((-1,3)),
+                      'faces': np.array(current['f'], dtype=np.int64).reshape((-1, 3)),
                       'metadata': {}}
             if len(current['vt']) > 0:
                 loaded['metadata']['vertex_texture'] = np.array(current['vt'])
             if len(current['g']) > 0:
                 # build face groups information
-                face_groups = np.zeros(len(current['f'])//3, dtype=int)
+                face_groups = np.zeros(len(current['f']) // 3, dtype=int)
                 for idx, start_f in current['g']:
                     face_groups[start_f:] = idx
                 loaded['metadata']['face_groups'] = face_groups
             meshes.append(loaded)
 
-
-    attribs = {k : [] for k in ['v', 'vt', 'vn']}
-    current = {k : [] for k in ['v', 'vt', 'vn', 'f', 'g']}
+    attribs = {k: [] for k in ['v', 'vt', 'vn']}
+    current = {k: [] for k in ['v', 'vt', 'vn', 'f', 'g']}
     remap_table = {}
     next_idx = 0
     group_idx = 0
@@ -98,7 +99,7 @@ def load_wavefront(file_obj, file_type=None):
         line_split = line.strip().split()
         if len(line_split) < 2:
             continue
-        if line_split[0] in attribs: 
+        if line_split[0] in attribs:
             # v, vt, or vn
             # vertex, vertex texture, or vertex normal
             # only parse 3 values-- colors shoved into vertices are ignored
@@ -111,7 +112,7 @@ def load_wavefront(file_obj, file_type=None):
                 ft = [ft[0], ft[1], ft[2], ft[2], ft[3], ft[0]]
             for f in ft:
                 # loop through each vertex reference of a face
-                # we are reshaping later into (n,3) 
+                # we are reshaping later into (n,3)
                 if not f in remap_table:
                     remap_table[f] = next_idx
                     next_idx += 1
@@ -119,11 +120,13 @@ def load_wavefront(file_obj, file_type=None):
                     # you are allowed to leave a value blank, which .split
                     # will handle by nicely maintaining the index
                     f_split = f.split('/')
-                    current['v'].append(attribs['v'][int(f_split[0])-1])
+                    current['v'].append(attribs['v'][int(f_split[0]) - 1])
                     if len(f_split) > 1 and f_split[1] != '':
-                        current['vt'].append(attribs['vt'][int(f_split[1])-1])
+                        current['vt'].append(
+                            attribs['vt'][int(f_split[1]) - 1])
                     if len(f_split) > 2:
-                        current['vn'].append(attribs['vn'][int(f_split[2])-1])
+                        current['vn'].append(
+                            attribs['vn'][int(f_split[2]) - 1])
                 current['f'].append(remap_table[f])
         elif line_split[0] == 'o':
             # defining a new object

@@ -62,7 +62,7 @@ class Scene:
         '''
         if geometry is None:
             return
-        
+
         # if passed a sequence call add_geometry on all elements
         if util.is_sequence(geometry):
             return [self.add_geometry(i) for i in geometry]
@@ -120,10 +120,10 @@ class Scene:
         ----------
         is_empty: bool, True if nothing is in the scene
         '''
-        
+
         is_empty = len(self.geometry) == 0
         return is_empty
-    
+
     @util.cache_decorator
     def bounds(self):
         '''
@@ -241,13 +241,13 @@ class Scene:
 
         Returns
         -----------
-        duplicates: (m) sequence of keys to self.nodes that represent 
+        duplicates: (m) sequence of keys to self.nodes that represent
                      identical geometry
         '''
         # if there is no geometry we can have no duplicate nodes
         if len(self.geometry) == 0:
             return []
-        
+
         # geometry name : md5 of mesh
         mesh_hash = {k: int(m.identifier_md5, 16)
                      for k, m in self.geometry.items()}
@@ -281,12 +281,12 @@ class Scene:
         '''
         if len(self.geometry) == 0:
             return
-        
+
         if center is None:
             center = self.centroid
         if distance is None:
             # for a 60.0 degree horizontal FOV
-            distance = ((self.extents.max() / 2) / 
+            distance = ((self.extents.max() / 2) /
                         np.tan(np.radians(60.0) / 2.0))
 
         if angles is None:
@@ -313,7 +313,7 @@ class Scene:
 
     def rezero(self):
         '''
-        Move the current scene so that the AABB of the whole scene is centered 
+        Move the current scene so that the AABB of the whole scene is centered
         at the origin.
 
         Does this by changing the base frame to a new, offset base frame.
@@ -339,7 +339,7 @@ class Scene:
 
         Returns
         ----------
-        dumped: (n,) list, of Trimesh objects transformed to their 
+        dumped: (n,) list, of Trimesh objects transformed to their
                            location the scene.graph
         '''
         result = collections.deque()
@@ -490,7 +490,7 @@ class Scene:
         # if there is no geometry do nothing
         if len(self.geometry) == 0:
             return self
-        
+
         existing = np.array([i.units for i in self.geometry.values()])
         if np.any(existing[0] != existing):
             # if all of our geometry doesn't have the same units already
@@ -507,7 +507,7 @@ class Scene:
         # exit early if our current units are the same as desired units
         if current == desired:
             return self
-            
+
         scale = units.unit_conversion(current=current,
                                       desired=desired)
         result = self.scaled(scale=scale)
@@ -530,10 +530,10 @@ class Scene:
             origin = self.centroid
         if vector is None:
             vector = self.scale / 25.0
-            
+
         vector = np.asanyarray(vector, dtype=np.float64)
         origin = np.asanyarray(origin, dtype=np.float64)
-    
+
         centroids = collections.deque()
         for node_name in self.graph.nodes_geometry:
             transform, geometry_name = self.graph[node_name]

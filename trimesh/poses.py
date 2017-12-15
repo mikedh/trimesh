@@ -5,7 +5,8 @@ from .constants import tol
 from .triangles import points_to_barycentric
 
 
-def compute_stable_poses(mesh, center_mass=None, sigma=0.0, n_samples=1, threshold=0.0):
+def compute_stable_poses(mesh, center_mass=None,
+                         sigma=0.0, n_samples=1, threshold=0.0):
     '''
     Computes stable orientations of a mesh and their quasi-static probabilites.
 
@@ -195,7 +196,7 @@ def _compute_static_prob(tri, com):
     try:
         return 1.0 / np.pi * np.arctan(np.sqrt(
             np.tan(s / 2) * np.tan((s - a) / 2) * np.tan((s - b) / 2) * np.tan((s - c) / 2)))
-    except:
+    except BaseException:
         s = s + 1e-8
         return 1.0 / np.pi * np.arctan(np.sqrt(
             np.tan(s / 2) * np.tan((s - a) / 2) * np.tan((s - b) / 2) * np.tan((s - c) / 2)))
@@ -265,7 +266,8 @@ def _create_topple_graph(cvh_mesh, com):
                 v1 = tmp
             plane1 = [centroid, v1, v1 + norm]
             plane2 = [centroid, v2 + norm, v2]
-            if _orient3dfast(plane1, proj_com) >= 0 and _orient3dfast(plane2, proj_com) >= 0:
+            if _orient3dfast(plane1, proj_com) >= 0 and _orient3dfast(
+                    plane2, proj_com) >= 0:
                 break
 
         topple_graph.add_edge(fi, tfi)

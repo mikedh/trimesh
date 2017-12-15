@@ -629,7 +629,7 @@ class Trimesh(object):
         inertia vectors are on the X,Y, and Z axis, and the centroid is
         at the origin.
 
-        Returns 
+        Returns
         ----------
         tranform: (4,4) float, homogenous transformation matrix
         '''
@@ -1474,7 +1474,7 @@ class Trimesh(object):
 
         This will result in a mesh with an AABB centered at the origin and the
         same dimensions as the OBB.
-   
+
         Returns
         ----------
         matrix: (4,4) float, transformation matrix that was applied
@@ -1484,7 +1484,7 @@ class Trimesh(object):
         matrix = np.linalg.inv(matrix)
         self.apply_transform(matrix)
         return matrix
-    
+
     def apply_transform(self, matrix):
         '''
         Transform mesh by a homogenous transformation matrix.
@@ -1728,7 +1728,7 @@ class Trimesh(object):
 
         Name                                        Default
         -----------------------------------------------------
-        input                                       
+        input
         resolution                                  100000
         max. concavity                              0.001
         plane down-sampling                         4
