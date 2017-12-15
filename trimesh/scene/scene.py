@@ -457,25 +457,24 @@ class Scene:
                 export['geometry'][geometry_name] = geometry
         return export
 
-    def save_image(self, file_obj, resolution=(1024, 768), **kwargs):
+    def save_image(self, resolution=(1024, 768), **kwargs):
         '''
-        Save a rendered image to a file object.
+        Get a PNG image of a scene.
 
         Parameters
         -----------
-        file_obj: file- like object, where to save result
-        resultion: (2,) int, resolution to render image at
+        resultion: (2,) int, resolution to render image
+        **kwargs:  passed to SceneViewer constructor
+
+        Returns
+        -----------
+        png: bytes, render of scene in PNG form
         '''
-        from .viewer import SceneViewer
-        try:
-            SceneViewer(self,
-                        save_image=file_obj,
-                        resolution=resolution,
-                        **kwargs)
-        except RuntimeError:
-            # newer versions of pyglet raise an error, but are nice enough
-            # to do it after saving the file so whatever
-            pass
+        from .viewer import render_scene
+        png = render_scene(scene=self,
+                           resolution=resolution,
+                           **kwargs)
+        return png
 
     def convert_units(self, desired, guess=False):
         '''

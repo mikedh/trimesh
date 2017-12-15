@@ -3,9 +3,9 @@ import pyglet.gl as gl
 
 import numpy as np
 
+import tempfile
 import platform
-
-from collections import deque
+import collections
 
 from .. import util
 from ..transformations import Arcball
@@ -19,10 +19,11 @@ class SceneViewer(pyglet.window.Window):
     def __init__(self,
                  scene,
                  smooth=True,
-                 save_image=None,
                  flags=None,
-                 visible=None,
-                 resolution=(640, 480)):
+                 visible=True,
+                 resolution=(640, 480),
+                 start_loop=True,
+                 **kwargs):
 
         self.scene = scene
         self.scene._redraw = self._redraw
@@ -30,10 +31,6 @@ class SceneViewer(pyglet.window.Window):
         if 'camera' not in scene.graph:
             # if the camera hasn't been set, set it now
             scene.set_camera()
-
-        if visible is None:
-            visible = ((save_image is None) or
-                       (platform.system() != 'Linux'))
 
         width, height = resolution
         self.reset_view(flags=flags)
@@ -59,7 +56,6 @@ class SceneViewer(pyglet.window.Window):
                                               height=height)
 
         self.batch = pyglet.graphics.Batch()
-        self._img = save_image
         self._smooth = smooth
 
         self.vertex_list = {}
@@ -72,7 +68,9 @@ class SceneViewer(pyglet.window.Window):
         self.init_gl()
         self.set_size(*resolution)
         self.update_flags()
-        pyglet.app.run()
+
+        if start_loop:
+            pyglet.app.run()
 
     def _redraw(self):
         self.on_draw()
@@ -257,7 +255,7 @@ class SceneViewer(pyglet.window.Window):
 
         # we want to render fully opaque objects first,
         # followed by objects which have transparency
-        node_names = deque(self.scene.graph.nodes_geometry)
+        node_names = collections.deque(self.scene.graph.nodes_geometry)
         count_original = len(node_names)
         count = -1
 
@@ -296,6 +294,7 @@ class SceneViewer(pyglet.window.Window):
             # pop the matrix stack as we drew what we needed to draw
             gl.glPopMatrix()
 
+
     def node_flag(self, node, flag):
         if (hasattr(self.scene, 'flags') and
             node in self.scene.flags and
@@ -304,23 +303,18 @@ class SceneViewer(pyglet.window.Window):
         return None
 
     def save_image(self, file_obj):
+        '''
+        Save the current color buffer to a file object, in PNG format.
+        
+        Parameters
+        -------------
+        file_obj: file name, or file- like object
+        '''
         colorbuffer = pyglet.image.get_buffer_manager().get_color_buffer()
         if hasattr(file_obj, 'write'):
             colorbuffer.save(file=file_obj)
         else:
             colorbuffer.save(filename=file_obj)
-
-    def flip(self):
-        '''
-        This function is the last thing executed in the event loop,
-        so if we want to close the window (self) here is the place to do it.
-        '''
-        super(SceneViewer, self).flip()
-
-        if self._img is not None:
-            self.save_image(self._img)
-            self.close()
-
 
 def _view_transform(view):
     '''
@@ -446,3 +440,42 @@ def _gl_vector(array, *args):
         array = np.append(array, args)
     vector = (gl.GLfloat * len(array))(*array)
     return vector
+
+def render_scene(scene, resolution=(1080,1080), visible=False, **kwargs):
+    '''
+    Render a preview of a scene to a PNG.
+
+    Parameters
+    ------------
+    scene:      trimesh.Scene object
+    resolution: (2,) int, resolution in pixels
+    kwargs:     passed to SceneViewer
+
+    Returns
+    ---------
+    render: bytes, image in PNG format
+    '''
+    window = SceneViewer(scene,
+                         start_loop=False,
+                         visible=visible,
+                         resolution=resolution,
+                         **kwargs)
+
+    if visible is None:
+        visible = platform.system() != 'Linux'
+
+    # need to run loop twice to display anything
+    for i in range(2):
+        pyglet.clock.tick()
+        window.switch_to()
+        window.dispatch_events()
+        window.dispatch_event('on_draw')
+        window.flip()
+
+    with tempfile.TemporaryFile() as file_obj:
+        window.save_image(file_obj)
+        file_obj.seek(0)
+        render = file_obj.read()
+    window.close()
+
+    return render
