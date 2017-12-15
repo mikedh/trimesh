@@ -131,10 +131,8 @@ def load_wavefront(file_obj, file_type=None):
         elif line_split[0] == 'o':
             # defining a new object
             append_mesh()
-            current['v'] = []
-            current['vn'] = []
-            current['f'] = []
-            current['g'] = []
+            # reset current to empty lists
+            current = {k: [] for k in current.keys()}
             remap_table = {}
             next_idx = 0
             group_idx = 0
