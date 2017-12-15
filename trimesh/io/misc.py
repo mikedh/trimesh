@@ -63,80 +63,86 @@ def load_wavefront(file_obj, file_type=None):
     loaded: dict with kwargs for Trimesh constructor (vertices, faces)
     '''
 
-    # mike's mystery text massaging
+    # make sure text is UTF-8 with only \n newlines
     text = file_obj.read()
     if hasattr(text, 'decode'):
         text = text.decode('utf-8')
     text = text.replace('\r\n', '\n').replace('\r', '\n') + ' \n'
 
     meshes = []
-    def _append_mesh(out_v, out_vt, out_vn, out_f, g_list):
-        if len(out_f) > 0:
-            loaded = {'vertices': np.array(out_v),
-                      'vertex_normals': np.array(out_vn),
-                      'faces': np.array(out_f, dtype=np.int64).reshape((-1,3)),
+    def append_mesh():
+        # append kwargs for a Trimesh constructor to our list of meshes
+        if len(current['f']) > 0:
+            loaded = {'vertices': np.array(current['v']),
+                      'vertex_normals': np.array(current['vn']),
+                      'faces': np.array(current['f'], dtype=np.int64).reshape((-1,3)),
                       'metadata': {}}
-            if len(out_vt) > 0:
-                loaded['metadata']['vertex_texture'] = np.array(out_vt)
-            if len(g_list) > 0:
+            if len(current['vt']) > 0:
+                loaded['metadata']['vertex_texture'] = np.array(current['vt'])
+            if len(current['g']) > 0:
                 # build face groups information
-                face_groups = np.zeros(len(out_f)//3, dtype=int)
-                for idx, start_f in g_list:
+                face_groups = np.zeros(len(current['f'])//3, dtype=int)
+                for idx, start_f in current['g']:
                     face_groups[start_f:] = idx
                 loaded['metadata']['face_groups'] = face_groups
-
             meshes.append(loaded)
 
-    attribs = {'v': [], 'vt': [], 'vn': []}
+
+    attribs = {k : [] for k in ['v', 'vt', 'vn']}
+    current = {k : [] for k in ['v', 'vt', 'vn', 'f', 'g']}
     remap_table = {}
     next_idx = 0
-
-    out_v = []
-    out_vn = []
-    out_vt = []
-    out_f = []
-    g_list = []
-    g_idx = 0
+    group_idx = 0
 
     for line in text.split("\n"):
-        gps = line.strip().split()
-        if len(gps) < 2:
+        line_split = line.strip().split()
+        if len(line_split) < 2:
             continue
-        if gps[0] in attribs: # v, vt, or vn
+        if line_split[0] in attribs: 
+            # v, vt, or vn
+            # vertex, vertex texture, or vertex normal
             # only parse 3 values-- colors shoved into vertices are ignored
-            attribs[gps[0]].append([float(x) for x in gps[1:4]])
-        elif gps[0] == 'f':
-            ft = gps[1:]
+            attribs[line_split[0]].append([float(x) for x in line_split[1:4]])
+        elif line_split[0] == 'f':
+            # a face
+            ft = line_split[1:]
             if len(ft) == 4:
                 # hasty triangulation of quad
                 ft = [ft[0], ft[1], ft[2], ft[2], ft[3], ft[0]]
             for f in ft:
+                # loop through each vertex reference of a face
+                # we are reshaping later into (n,3) 
                 if not f in remap_table:
                     remap_table[f] = next_idx
                     next_idx += 1
-                    gf = f.split('/')
-                    out_v.append(attribs['v'][int(gf[0])-1])
-                    if len(gf) > 1 and gf[1] != '':
-                        out_vt.append(attribs['vt'][int(gf[1])-1])
-                    if len(gf) > 2:
-                        out_vn.append(attribs['vn'][int(gf[2])-1])
-                out_f.append(remap_table[f])
-        elif gps[0] == 'o':
-            _append_mesh(out_v, out_vt, out_vn, out_f, g_list)
-            out_v = []
-            out_vn = []
-            out_f = []
+                    # faces are "vertex index"/"vertex texture"/"vertex normal"
+                    # you are allowed to leave a value blank, which .split
+                    # will handle by nicely maintaining the index
+                    f_split = f.split('/')
+                    current['v'].append(attribs['v'][int(f_split[0])-1])
+                    if len(f_split) > 1 and f_split[1] != '':
+                        current['vt'].append(attribs['vt'][int(f_split[1])-1])
+                    if len(f_split) > 2:
+                        current['vn'].append(attribs['vn'][int(f_split[2])-1])
+                current['f'].append(remap_table[f])
+        elif line_split[0] == 'o':
+            # defining a new object
+            append_mesh()
+            current['v'] = []
+            current['vn'] = []
+            current['f'] = []
+            current['g'] = []
             remap_table = {}
             next_idx = 0
-            g_list = []
-            g_idx = 0
-        elif gps[0] == 'g':
-            g_idx += 1
-            g_list.append((g_idx, len(out_f) // 3))
-            pass
-            
+            group_idx = 0
+
+        elif line_split[0] == 'g':
+            # defining a new group
+            group_idx += 1
+            current['g'].append((group_idx, len(current['f']) // 3))
+
     if next_idx > 0:
-        _append_mesh(out_v, out_vt, out_vn, out_f, g_list)
+        append_mesh()
 
     return meshes
 
