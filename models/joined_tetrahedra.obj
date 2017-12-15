@@ -1,0 +1,32 @@
+# joined_tetrahedra.obj
+#
+# mit license, I guess
+#
+# this file is meant to have a number of obj parser edge cases
+
+v 1 0 0
+v -0.5  0.8660254 0 
+v -0.5 -0.8660254 0
+v 0 0 1
+v 0 0 -1
+
+vn 1 0 0
+vn -0.5  0.8660254 0 
+vn -0.5 -0.8660254 0
+
+# every combination of position*normal appears:
+# when converted to indexed geometry there should be 15 vertices
+
+f 4//1 1//1 2//1
+f 4//2 2//2 3//2
+f 4//3 3//3 1//3
+f 3//3 2//2 1//1 
+
+# the tetrahedron at the top and the one at the bottom share vertices,
+# and each has 9 unique vertices when indexed
+
+o bottom
+f 5//2 2//2 1//2 
+f 5//3 3//3 2//3 
+f 5//1 1//1 3//1 
+f 3//3 1//1 2//2

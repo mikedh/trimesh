@@ -39,6 +39,17 @@ class LoaderTest(g.unittest.TestCase):
             assert mesh.is_watertight
             assert mesh.is_winding_consistent
 
+    def test_obj_split_attributes(self):
+        # test a wavefront file where pos/uv/norm have different indices
+        # and where multiple objects share vertices
+        # Note 'process=False' to avoid merging vertices
+        meshes = g.get_mesh('joined_tetrahedra.obj', process=False)
+        self.assertTrue(len(meshes) == 2)
+        assert g.trimesh.util.is_shape(meshes[0].faces, (4,3))
+        assert g.trimesh.util.is_shape(meshes[0].vertices, (9,3))
+        assert g.trimesh.util.is_shape(meshes[1].faces, (4,3))
+        assert g.trimesh.util.is_shape(meshes[1].vertices, (9,3))
+
     def test_stl(self):
         model = g.get_mesh('empty.stl')
 
