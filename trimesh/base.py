@@ -1671,7 +1671,6 @@ class Trimesh(object):
             mass['mass'] = -mass['mass']
         if mass['volume'] < 0:
             mass['volume'] = -mass['volume']            
-        
         return mass
 
     def scene(self):
