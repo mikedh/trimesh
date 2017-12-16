@@ -524,8 +524,6 @@ class Trimesh(object):
         -----------
         center_mass: (3,) float array, volumetric center of mass of the mesh
         '''
-        if not self.is_watertight and len(self._data['center_mass']) != 3:
-            log.warning('Center of mass requested for non- watertight mesh!')
         center_mass = self.mass_properties['center_mass']
         return center_mass
 
@@ -1667,6 +1665,13 @@ class Trimesh(object):
                                          density=density,
                                          center_mass=center_mass,
                                          skip_inertia=False)
+        if np.linalg.det(mass['inertia']) < 0:
+            mass['inertia'] = -mass['inertia']
+        if mass['mass'] < 0:
+            mass['mass'] = -mass['mass']
+        if mass['volume'] < 0:
+            mass['volume'] = -mass['volume']            
+        
         return mass
 
     def scene(self):
