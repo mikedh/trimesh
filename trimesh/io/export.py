@@ -92,15 +92,41 @@ def export_obj(mesh):
     -----------
     export: str, string of OBJ format output
     '''
+    face_formats = ['{0}', '{0}//{0}', '{0}/{0}', '{0}/{0}/{0}']
+    face_type = 0
+
     export = 'v '
     export += util.array_to_string(mesh.vertices,
                                    col_delim=' ',
                                    row_delim='\nv ',
                                    digits=8) + '\n'
-    export += 'f '
-    export += util.array_to_string(mesh.faces + 1,
-                                   col_delim=' ',
-                                   row_delim='\nf ')
+    if mesh.vertex_normals.shape[0] == mesh.vertices.shape[0]:
+        face_type += 1
+        export += 'vn '
+        export += util.array_to_string(mesh.vertex_normals,
+                                       col_delim=' ',
+                                       row_delim='\nvn ',
+                                       digits=8) + '\n'
+    else:
+        log.warning('Mesh has inconsistent number of vertex normals. '
+                    'Exporting without vertex normals.')
+
+    if 'vertex_texture' in mesh.metadata:
+        if mesh.metadata['vertex_texture'].shape[0] == mesh.vertices.shape[0]:
+            face_type += 2
+            export += 'vt '
+            export += util.array_to_string(mesh.metadata['vertex_texture'],
+                                           col_delim=' ',
+                                           row_delim='\nvt ',
+                                           digits=8) + '\n'            
+        else:
+            log.warning('Mesh has inconsistent number of uv coordinates. '
+                        'Exporting without texture coordinates.')
+
+    ff = face_formats[face_type]
+    export += "\n".join("f " + " ".join(ff.format(idx) for idx in row) 
+                        for row in mesh.faces + 1)
+
     return export
 
 
