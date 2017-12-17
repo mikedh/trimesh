@@ -133,7 +133,7 @@ def vector_angle(pairs):
 
     Parameters
     ----------
-    pairs: (n,2,3) set of vector pairs
+    pairs: (n,2,3) set of unit vector pairs
 
     Returns
     ----------
@@ -144,7 +144,9 @@ def vector_angle(pairs):
     angles = mesh.face_normals[mesh.face_adjacency]
     '''
     pairs = np.asanyarray(pairs)
-    if not util.is_shape(pairs, (-1, 2, 3)):
+    if len(pairs) == 0:
+        return np.array([])
+    elif not util.is_shape(pairs, (-1, 2, 3)):
         raise ValueError('pairs must be (n,2,3)!')
     dots = util.diagonal_dot(pairs[:, 0], pairs[:, 1])
     # clip for floating point error

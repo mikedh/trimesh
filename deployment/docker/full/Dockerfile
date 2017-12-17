@@ -1,7 +1,7 @@
 from debian:jessie
 
 # add conda and our env to path
-ENV PATH /opt/conda/envs/docker-environment/bin:/opt/conda/bin:$PATH
+ENV PATH /opt/conda/envs/docker-environment/bin:$PATH
 
 # install apt stuff thats staying around
 COPY apt.bash /tmp/
@@ -19,4 +19,5 @@ RUN bash /tmp/built.bash
 # install straightforward pip packages including trimesh
 COPY pip.bash /tmp/
 RUN bash /tmp/pip.bash
+
 

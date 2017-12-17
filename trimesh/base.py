@@ -1028,7 +1028,7 @@ class Trimesh(object):
 
         What this means is that given faces A and B, the one vertex
         in B that is not shared with A, projected onto the plane of A
-        has a NEGATIVE projection.
+        has a projection that is zero or negative.
 
         Returns
         ----------
@@ -1037,6 +1037,36 @@ class Trimesh(object):
         '''
         are_convex = self.face_adjacency_projections < tol.merge
         return are_convex
+
+    @util.cache_decorator
+    def face_adjacency_unshared(self):
+        '''
+        Return the vertex index of the two vertices not in the shared
+        edge between two adjacent faces
+
+        Parameters
+        ----------
+        mesh: Trimesh object
+
+        Returns
+        -----------
+        vid_unshared: (len(mesh.face_adjacency), 2) int, indexes of mesh.vertices
+        '''
+        vid_unshared = graph.face_adjacency_unshared(self)
+        return vid_unshared
+
+    @util.cache_decorator
+    def face_adjacency_radius(self):
+        '''
+        The approximate radius of a cylinder that fits inside adjacent faces.
+
+        Returns
+        ------------
+        radii: (len(self.face_adjacency),) float, approximate radius formed
+        '''
+        radii, span = graph.face_adjacency_radius(mesh=self)
+        self._cache['face_adjacency_span'] = span
+        return radii
 
     @util.cache_decorator
     def vertex_adjacency_graph(self):

@@ -132,10 +132,9 @@ def adjacency_projections(mesh):
     origins = mesh.vertices[mesh.face_adjacency_edges[:, 0]]
 
     # faces from the second column of face adjacency
-    faces = mesh.faces[mesh.face_adjacency[:, 1]]
-    shared = np.logical_or(faces == mesh.face_adjacency_edges[:, 0].reshape((-1, 1)),
-                           faces == mesh.face_adjacency_edges[:, 1].reshape((-1, 1)))
-    vertex_other = mesh.vertices[faces[np.logical_not(shared)]]
+    vid_other = mesh.face_adjacency_unshared[:,1]
+    
+    vertex_other = mesh.vertices[vid_other]
 
     vector_other = vertex_other - origins
     length_other = (vector_other ** 2).sum(axis=1) ** .5

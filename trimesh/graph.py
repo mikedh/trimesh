@@ -79,6 +79,82 @@ def face_adjacency(faces=None, mesh=None, return_edges=False):
         return face_adjacency, face_adjacency_edges
     return face_adjacency
 
+def face_adjacency_unshared(mesh):
+    '''
+    Return the vertex index of the two vertices not in the shared
+    edge between two adjacent faces
+
+    Parameters
+    ----------
+    mesh: Trimesh object
+
+    Returns
+    -----------
+    vid_unshared: (len(mesh.face_adjacency), 2) int, indexes of mesh.vertices
+    '''
+    
+    # the non- shared vertex index is the same shape as face_adjacnecy
+    # just holding vertex indices rather than face indices
+    vid_unshared = np.zeros_like(mesh.face_adjacency, dtype=np.int64)
+    # loop through both columns of face adjacency
+    for i, adjacency in enumerate(mesh.face_adjacency.T):
+        # faces from the current column of face adjacency
+        faces = mesh.faces[adjacency]
+        shared = np.logical_or(faces == mesh.face_adjacency_edges[:, 0].reshape((-1,
+                                                                                 1)),
+                               faces == mesh.face_adjacency_edges[:, 1].reshape((-1,
+                                                                                 1)))
+        vid_unshared[:,i] = faces[np.logical_not(shared)]
+    return vid_unshared
+
+def face_adjacency_radius(mesh):
+    '''
+    Compute an approximate radius between adjacent faces.
+
+    Parameters
+    --------------
+    mesh: Trimesh object
+
+    Returns
+    -------------
+    radii: (n,) float, approximate radius between faces.
+           Parallel faces will have a value of np.inf
+    '''
+
+    # solve for the radius of the adjacent faces
+    #         distance
+    # R = ------------------
+    #     2 * sin(theta / 2)
+    nonzero = mesh.face_adjacency_angles > np.radians(.01)
+    denominator = np.abs(2.0 *
+                  np.sin(mesh.face_adjacency_angles[nonzero] / 1.0))
+    
+    # consider the distance between the non- shared vertices of the
+    # face adjacency pair as the key distance
+    point_pairs = mesh.vertices[mesh.face_adjacency_unshared]
+    vectors = np.diff(point_pairs,
+                      axis=1).reshape((-1,3))
+
+    # the vertex indices of the shared edge for the adjacency pairx
+    edges = mesh.face_adjacency_edges
+    # unit vector along shared the edge
+    edges_vec = util.unitize(np.diff(mesh.vertices[edges],
+                                     axis=1).reshape((-1,3)))
+
+    # the vector of the perpendicular projection to the shared edge
+    # from the vector
+    perp = np.subtract(vectors,
+                       (util.diagonal_dot(vectors,
+                        edges_vec).reshape((-1,1))*edges_vec))
+    # the length of the perpendicular projection
+    span = np.linalg.norm(perp, axis=1)
+
+    # complete the values for non- infinite radii
+    radii = np.ones(len(mesh.face_adjacency)) * np.inf
+    radii[nonzero] = span[nonzero] / denominator
+
+    return radii, span
+
 
 def vertex_adjacency_graph(mesh):
     '''
@@ -157,34 +233,22 @@ def facets(mesh, engine=None):
     ---------
     facets: list of groups of face indexes (mesh.faces) of parallel adjacent faces.
     '''
+    # what is the radius of a circle that passes through the perpendicular
+    # projection of the vector between the two non- shared vertices
+    # onto the shared edge, with the face normal from the two adjacent faces
+    radii = mesh.face_adjacency_radius
+    # what is the span perpendicular to the shared edge
+    span  = mesh._cache['face_adjacency_span']
+    # a very arbitrary formula for declaring two adjacent faces
+    # parallel in a way that is hopefully (and anecdotally) robust
+    # to numeric error
+    # a common failure mode is two faces that are very narrow with a slight
+    # angle between them, so here we divide by the perpendicular span
+    # to penalize very narrow faces, and then square it just for fun
+    parallel = (radii / span) ** 2 > tol.facet_threshold
 
-    # (n,2) list of adjacent face indices
-    face_idx = mesh.face_adjacency
-
-    # test adjacent faces for angle
-    normal_pairs = mesh.face_normals[[face_idx]]
-    normal_dot = (np.sum(normal_pairs[:, 0, :]
-                         * normal_pairs[:, 1, :], axis=1) - 1)**2
-
-    # if normals are actually equal, they are parallel with a high degree of
-    # confidence
-    parallel = normal_dot < tol.zero
-    non_parallel = np.logical_not(parallel)
-
-    # saying that two faces are *not* parallel is susceptible to error
-    # so we add a radius check which computes the distance between face
-    # centroids and divides it by the dot product of the normals
-    # this means that small angles between big faces will have a large
-    # radius which we can filter out easily.
-    # if you don't do this, floating point error on tiny faces can push
-    # the normals past a pure angle threshold even though the actual
-    # deviation across the face is extremely small.
-    center_sq = np.sum(np.diff(mesh.triangles_center[face_idx],
-                               axis=1).reshape((-1, 3)) ** 2, axis=1)
-    radius_sq = center_sq[non_parallel] / normal_dot[non_parallel]
-    parallel[non_parallel] = radius_sq > tol.facet_rsq
-
-    components = connected_components(face_idx[parallel],
+    # run connected components on the parallel faces to group them
+    components = connected_components(mesh.face_adjacency[parallel],
                                       node_count=len(mesh.faces),
                                       min_len=2,
                                       engine=engine)

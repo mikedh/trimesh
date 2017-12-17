@@ -10,6 +10,18 @@ class GraphTest(g.unittest.TestCase):
         else:
             g.log.warning('No graph-tool to test!')
 
+    def test_soup(self):
+        # a soup of random triangles, with no adjacent pairs
+        soup = g.get_mesh('soup.stl')
+
+        assert len(soup.face_adjacency) == 0
+        assert len(soup.face_adjacency_radius) == 0
+        assert len(soup.face_adjacency_edges) == 0
+        assert len(soup.face_adjacency_convex) == 0
+        assert len(soup.face_adjacency_unshared) == 0
+        assert len(soup.face_adjacency_angles) == 0
+        assert len(soup.facets) == 0
+            
     def test_components(self):
         # a soup of random triangles, with no adjacent pairs
         soup = g.get_mesh('soup.stl')

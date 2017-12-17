@@ -14,8 +14,9 @@ class NumericalToleranceMesh(object):
                as SolidWorks uses, according to their documentation.
     tol.planar: the maximum distance from a plane a point can be and
                 still be considered to be on the plane
-    tol.facet_rsq: the minimum radius squared that an arc drawn from the
-                   center of a face to the center of an adjacent face can
+    tol.facet_min_radius: the minimum radius that an arc drawn from the
+                   non-shared vertices of an adjacency pair with the 
+                   same swept angle as the adjacency pair 
                    be to consider the two faces coplanar. This method is more
                    robust than considering just normal angles as it is tolerant
                    of numerical error on very small faces.
@@ -25,7 +26,7 @@ class NumericalToleranceMesh(object):
         self.zero = 1e-12
         self.merge = 1e-8
         self.planar = 1e-5
-        self.facet_rsq = 1e8
+        self.facet_threshold = 10000
         self.fit = 1e-2
         self.id_len = 6
         self.__dict__.update(kwargs)
@@ -132,8 +133,6 @@ def _log_time(method):
     return timed
 
 # exceptions
-
-
 class MeshError(Exception):
     pass
 
