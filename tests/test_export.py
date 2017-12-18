@@ -32,7 +32,7 @@ class ExportTest(g.unittest.TestCase):
                 if (not g.trimesh.util.is_shape(loaded._data['faces'],    (-1, 3)) or
                     not g.trimesh.util.is_shape(loaded._data['vertices'], (-1, 3)) or
                         loaded.faces.shape != mesh.faces.shape):
-                    g.log.error('Export -> inport for %s on %s wrong shape!',
+                    g.log.error('Export -> import for %s on %s wrong shape!',
                                 file_type,
                                 mesh.metadata['file_name'])
 
@@ -48,6 +48,16 @@ class ExportTest(g.unittest.TestCase):
                         str(mesh.faces.shape),
                         str(loaded.faces.shape)))
                 self.assertTrue(loaded.vertices.shape == mesh.vertices.shape)
+
+    def test_obj(self):
+        m = g.get_mesh('textured_tetrahedron.obj', process=False)
+        export = m.export(file_type='obj')
+        reconstructed = g.trimesh.load(g.trimesh.util.wrap_as_stream(export),
+                                       file_type='obj', process=False)
+        # test that we get at least the same number of normals and texcoords out;
+        # the loader may reorder vertices, so we shouldn't check direct equality
+        assert m.vertex_normals.shape == reconstructed.vertex_normals.shape
+        assert m.metadata['vertex_texture'].shape == reconstructed.metadata['vertex_texture'].shape
 
     def test_ply(self):
         m = g.get_mesh('machinist.XAML')
