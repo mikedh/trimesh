@@ -1069,6 +1069,20 @@ class Trimesh(object):
         return radii
 
     @util.cache_decorator
+    def face_adjacency_span(self):
+        '''
+        The approximate perpendicular projection of the non- shared
+        vertices in a pair of adjacent faces onto the shared edge of 
+        the two faces.
+
+        Returns
+        ------------
+        radii: (len(self.face_adjacency),) float, approximate radius formed
+        '''
+        populate = self.face_adjacency_radius
+        return self._cache['face_adjacency_span']
+
+    @util.cache_decorator
     def vertex_adjacency_graph(self):
         '''
         Returns a networkx graph representing the vertices and their connections

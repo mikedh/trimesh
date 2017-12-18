@@ -195,14 +195,17 @@ def unique_float(data,
 
     If digits isn't specified, the libray default TOL_MERGE will be used.
     '''
-
+    data = np.asanyarray(data)
     as_int = float_to_int(data, digits)
     _junk, unique, inverse = np.unique(as_int,
                                        return_index=True,
                                        return_inverse=True)
+
     if (not return_index) and (not return_inverse):
         return data[unique]
+
     result = [data[unique]]
+
     if return_index:
         result.append(unique)
     if return_inverse:

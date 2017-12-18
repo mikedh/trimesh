@@ -22,7 +22,9 @@ except ImportError:
     log.warning('no scipy')
 
 
-def face_adjacency(faces=None, mesh=None, return_edges=False):
+def face_adjacency(faces=None, 
+                   mesh=None, 
+                   return_edges=False):
     '''
     Returns an (n,2) list of face indices.
     Each pair of faces in the list shares an edge, making them adjacent.
@@ -74,6 +76,10 @@ def face_adjacency(faces=None, mesh=None, return_edges=False):
     # so for every row in face_idx, self.faces[face_idx[*][0]] and
     # self.faces[face_idx[*][1]] will share an edge
     face_adjacency = edges_face[edge_groups]
+
+    # sort pairs so we can search for indexes with ordered pairs
+    face_adjacency.sort(axis=1)
+
     if return_edges:
         face_adjacency_edges = edges[edge_groups[:, 0]]
         return face_adjacency, face_adjacency_edges
@@ -238,7 +244,7 @@ def facets(mesh, engine=None):
     # onto the shared edge, with the face normal from the two adjacent faces
     radii = mesh.face_adjacency_radius
     # what is the span perpendicular to the shared edge
-    span  = mesh._cache['face_adjacency_span']
+    span  = mesh.face_adjacency_span
     # a very arbitrary formula for declaring two adjacent faces
     # parallel in a way that is hopefully (and anecdotally) robust
     # to numeric error
