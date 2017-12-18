@@ -132,8 +132,8 @@ def adjacency_projections(mesh):
     origins = mesh.vertices[mesh.face_adjacency_edges[:, 0]]
 
     # faces from the second column of face adjacency
-    vid_other = mesh.face_adjacency_unshared[:,1]
-    
+    vid_other = mesh.face_adjacency_unshared[:, 1]
+
     vertex_other = mesh.vertices[vid_other]
 
     vector_other = vertex_other - origins

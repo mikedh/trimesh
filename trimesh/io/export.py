@@ -116,32 +116,32 @@ def export_obj(mesh, include_normals=True, include_texture=True):
                                        row_delim='\nvn ',
                                        digits=8) + '\n'
 
-    if (include_texture and 
+    if (include_texture and
         'vertex_texture' in mesh.metadata and
-        len(mesh.metadata['vertex_texture']) == len(mesh.vertices)):
+            len(mesh.metadata['vertex_texture']) == len(mesh.vertices)):
         # if vertex texture exists and is the right shape export here
         face_type.append('vt')
         export += 'vt '
         export += util.array_to_string(mesh.metadata['vertex_texture'],
                                        col_delim=' ',
                                        row_delim='\nvt ',
-                                       digits=8) + '\n'            
+                                       digits=8) + '\n'
 
     # the format for a single vertex reference of a face
     face_format = face_formats[tuple(face_type)]
-    # how many times is each index included 
+    # how many times is each index included
     count = face_format.count('{}')
     # shape the output array so we can do a single format operation
-    shaped = np.tile(mesh.faces.reshape((-1,1)) + 1, 
-                     (1,count)).reshape(-1)
+    shaped = np.tile(mesh.faces.reshape((-1, 1)) + 1,
+                     (1, count)).reshape(-1)
 
-    # create a single large format string 
-    formatter  = '\nf ' + ' '.join(face_format for i in range(3))
+    # create a single large format string
+    formatter = '\nf ' + ' '.join(face_format for i in range(3))
     formatter *= len(mesh.faces)
     # truncate the leading newline and run the format operation
     faces = formatter[1:].format(*shaped)
 
-    # add the exported faces to the 
+    # add the exported faces to the
     export += faces
 
     return export

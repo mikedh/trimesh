@@ -1072,7 +1072,7 @@ class Trimesh(object):
     def face_adjacency_span(self):
         '''
         The approximate perpendicular projection of the non- shared
-        vertices in a pair of adjacent faces onto the shared edge of 
+        vertices in a pair of adjacent faces onto the shared edge of
         the two faces.
 
         Returns

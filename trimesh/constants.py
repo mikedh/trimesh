@@ -15,8 +15,8 @@ class NumericalToleranceMesh(object):
     tol.planar: the maximum distance from a plane a point can be and
                 still be considered to be on the plane
     tol.facet_min_radius: the minimum radius that an arc drawn from the
-                   non-shared vertices of an adjacency pair with the 
-                   same swept angle as the adjacency pair 
+                   non-shared vertices of an adjacency pair with the
+                   same swept angle as the adjacency pair
                    be to consider the two faces coplanar. This method is more
                    robust than considering just normal angles as it is tolerant
                    of numerical error on very small faces.
@@ -133,6 +133,8 @@ def _log_time(method):
     return timed
 
 # exceptions
+
+
 class MeshError(Exception):
     pass
 

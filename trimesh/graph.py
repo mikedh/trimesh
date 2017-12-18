@@ -22,8 +22,8 @@ except ImportError:
     log.warning('no scipy')
 
 
-def face_adjacency(faces=None, 
-                   mesh=None, 
+def face_adjacency(faces=None,
+                   mesh=None,
                    return_edges=False):
     '''
     Returns an (n,2) list of face indices.
@@ -85,6 +85,7 @@ def face_adjacency(faces=None,
         return face_adjacency, face_adjacency_edges
     return face_adjacency
 
+
 def face_adjacency_unshared(mesh):
     '''
     Return the vertex index of the two vertices not in the shared
@@ -98,7 +99,7 @@ def face_adjacency_unshared(mesh):
     -----------
     vid_unshared: (len(mesh.face_adjacency), 2) int, indexes of mesh.vertices
     '''
-    
+
     # the non- shared vertex index is the same shape as face_adjacnecy
     # just holding vertex indices rather than face indices
     vid_unshared = np.zeros_like(mesh.face_adjacency, dtype=np.int64)
@@ -110,8 +111,9 @@ def face_adjacency_unshared(mesh):
                                                                                  1)),
                                faces == mesh.face_adjacency_edges[:, 1].reshape((-1,
                                                                                  1)))
-        vid_unshared[:,i] = faces[np.logical_not(shared)]
+        vid_unshared[:, i] = faces[np.logical_not(shared)]
     return vid_unshared
+
 
 def face_adjacency_radius(mesh):
     '''
@@ -133,25 +135,25 @@ def face_adjacency_radius(mesh):
     #     2 * sin(theta / 2)
     nonzero = mesh.face_adjacency_angles > np.radians(.01)
     denominator = np.abs(2.0 *
-                  np.sin(mesh.face_adjacency_angles[nonzero] / 1.0))
-    
+                         np.sin(mesh.face_adjacency_angles[nonzero] / 1.0))
+
     # consider the distance between the non- shared vertices of the
     # face adjacency pair as the key distance
     point_pairs = mesh.vertices[mesh.face_adjacency_unshared]
     vectors = np.diff(point_pairs,
-                      axis=1).reshape((-1,3))
+                      axis=1).reshape((-1, 3))
 
     # the vertex indices of the shared edge for the adjacency pairx
     edges = mesh.face_adjacency_edges
     # unit vector along shared the edge
     edges_vec = util.unitize(np.diff(mesh.vertices[edges],
-                                     axis=1).reshape((-1,3)))
+                                     axis=1).reshape((-1, 3)))
 
     # the vector of the perpendicular projection to the shared edge
     # from the vector
     perp = np.subtract(vectors,
                        (util.diagonal_dot(vectors,
-                        edges_vec).reshape((-1,1))*edges_vec))
+                                          edges_vec).reshape((-1, 1)) * edges_vec))
     # the length of the perpendicular projection
     span = np.linalg.norm(perp, axis=1)
 
@@ -244,7 +246,7 @@ def facets(mesh, engine=None):
     # onto the shared edge, with the face normal from the two adjacent faces
     radii = mesh.face_adjacency_radius
     # what is the span perpendicular to the shared edge
-    span  = mesh.face_adjacency_span
+    span = mesh.face_adjacency_span
     # a very arbitrary formula for declaring two adjacent faces
     # parallel in a way that is hopefully (and anecdotally) robust
     # to numeric error
