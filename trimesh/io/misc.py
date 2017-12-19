@@ -4,6 +4,7 @@ import json
 
 from .. import util
 
+
 def load_off(file_obj, file_type=None):
     '''
     Load an OFF file into the kwargs for a Trimesh constructor

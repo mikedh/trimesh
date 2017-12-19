@@ -1001,6 +1001,7 @@ def append_faces(vertices_seq, faces_seq):
 
     return vertices, faces
 
+
 def array_to_string(array,
                     col_delim=' ',
                     row_delim='\n',
@@ -1042,8 +1043,8 @@ def array_to_string(array,
         format_str = value_format + col_delim
     elif array.dtype.kind == 'f':
         # add the digits formatting to floats
-        format_str = value_format.replace('{}', 
-                        '{:.' + str(digits) + 'f}') + col_delim
+        format_str = value_format.replace('{}',
+                                          '{:.' + str(digits) + 'f}') + col_delim
     else:
         raise ValueError('dtype %s not convertable!',
                          array.dtype.name)
@@ -1059,11 +1060,11 @@ def array_to_string(array,
 
     # expand format string to whole array
     format_str *= len(array)
-    
+
     # if an array is repeated in the value format
     # do the shaping here so we don't need to specify indexes
-    shaped = np.tile(array.reshape((-1,1)), 
-                     (1,repeats)).reshape(-1)
+    shaped = np.tile(array.reshape((-1, 1)),
+                     (1, repeats)).reshape(-1)
 
     # run the format operation and remove the extra delimiters
     formatted = format_str.format(*shaped)[:-end_junk]

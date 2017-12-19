@@ -2,6 +2,7 @@ import numpy as np
 
 from .. import util
 
+
 def load_wavefront(file_obj, **kwargs):
     '''
     Loads an ascii Wavefront OBJ file_obj into kwargs
@@ -33,11 +34,11 @@ def load_wavefront(file_obj, **kwargs):
     def append_mesh():
         # append kwargs for a Trimesh constructor to our list of meshes
         if len(current['f']) > 0:
-            loaded = {'vertices': np.array(current['v'], 
+            loaded = {'vertices': np.array(current['v'],
                                            dtype=np.float64),
-                      'vertex_normals': np.array(current['vn'], 
+                      'vertex_normals': np.array(current['vn'],
                                                  dtype=np.float64),
-                      'faces': np.array(current['f'], 
+                      'faces': np.array(current['f'],
                                         dtype=np.int64).reshape((-1, 3)),
                       'metadata': {}}
             if len(current['vt']) > 0:
@@ -160,14 +161,14 @@ def export_wavefront(mesh, include_normals=True, include_texture=True):
     # the format for a single vertex reference of a face
     face_format = face_formats[tuple(face_type)]
     faces = 'f ' + util.array_to_string(mesh.faces + 1,
-                                     col_delim=' ',
-                                     row_delim='\nf ',
-                                     value_format=face_format)
+                                        col_delim=' ',
+                                        row_delim='\nf ',
+                                        value_format=face_format)
     # add the exported faces to the export
     export += faces
 
     return export
 
 
-_obj_loaders = {'obj' : load_wavefront}
-_obj_exporters = {'obj' : export_wavefront}
+_obj_loaders = {'obj': load_wavefront}
+_obj_exporters = {'obj': export_wavefront}
