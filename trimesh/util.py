@@ -1001,11 +1001,11 @@ def append_faces(vertices_seq, faces_seq):
 
     return vertices, faces
 
-
 def array_to_string(array,
                     col_delim=' ',
                     row_delim='\n',
-                    digits=8):
+                    digits=8,
+                    value_format='{}'):
     '''
     Convert a 1 or 2D array into a string with a specified number of digits
     and delimiter.
@@ -1027,18 +1027,23 @@ def array_to_string(array,
     digits = int(digits)
     row_delim = str(row_delim)
     col_delim = str(col_delim)
+    value_format = str(value_format)
 
     # abort for non- flat arrays
     if len(array.shape) > 2:
-        raise ValueError('conversion only works on 1D/2D arrays, not %s!',
+        raise ValueError('conversion only works on 1D/2D arrays not %s!',
                          str(array.shape))
 
-    # integer types don't need a specified precision
+    # allow a value to be repeated in a value format
+    repeats = value_format.count('{}')
+
     if array.dtype.kind == 'i':
-        format_str = '{}' + col_delim
-    # for floats use the number of digits we were passed
+        # integer types don't need a specified precision
+        format_str = value_format + col_delim
     elif array.dtype.kind == 'f':
-        format_str = '{:.' + str(digits) + 'f}' + col_delim
+        # add the digits formatting to floats
+        format_str = value_format.replace('{}', 
+                        '{:.' + str(digits) + 'f}') + col_delim
     else:
         raise ValueError('dtype %s not convertable!',
                          array.dtype.name)
@@ -1048,14 +1053,20 @@ def array_to_string(array,
     # if we have a 2D array add a row delimiter
     if len(array.shape) == 2:
         format_str *= array.shape[1]
-        format_str += row_delim
-        end_junk += len(row_delim)
+        # cut off the last column delimeter and add a row delimiter
+        format_str = format_str[:-len(col_delim)] + row_delim
+        end_junk = len(row_delim)
 
     # expand format string to whole array
     format_str *= len(array)
+    
+    # if an array is repeated in the value format
+    # do the shaping here so we don't need to specify indexes
+    shaped = np.tile(array.reshape((-1,1)), 
+                     (1,repeats)).reshape(-1)
 
     # run the format operation and remove the extra delimiters
-    formatted = format_str.format(*array.reshape(-1))[:-end_junk]
+    formatted = format_str.format(*shaped)[:-end_junk]
 
     return formatted
 

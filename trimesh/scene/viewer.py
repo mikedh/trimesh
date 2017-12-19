@@ -141,8 +141,11 @@ class SceneViewer(pyglet.window.Window):
         self.update_flags()
 
     def init_gl(self):
-        gl.glClearColor(.93, .93, 1, 1)
-
+        gl.glClearColor(.97,.97,.97, 1.0)
+        max_depth = (np.abs(self.scene.bounds).max(axis=1) ** 2).sum() ** .5
+        max_depth = np.clip(max_depth, 500.00, np.inf)
+        gl.glDepthRange(0.0, max_depth)
+        
         gl.glEnable(gl.GL_DEPTH_TEST)
         gl.glEnable(gl.GL_CULL_FACE)
         gl.glEnable(gl.GL_LIGHTING)

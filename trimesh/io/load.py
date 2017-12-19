@@ -16,6 +16,7 @@ from .stl import _stl_loaders
 from .misc import _misc_loaders
 from .ply import _ply_loaders
 from .xml_based import _xml_loaders
+from .wavefront import _obj_loaders
 
 try:
     from ..path.io.load import load_path, path_formats
@@ -73,11 +74,17 @@ def load(file_obj, file_type=None, **kwargs):
         kwargs.update(file_obj)
         loaded = load_kwargs(kwargs)
     elif file_type in path_formats():
-        loaded = load_path(file_obj, file_type, **kwargs)
+        loaded = load_path(file_obj,
+                           file_type=file_type,
+                           **kwargs)
     elif file_type in mesh_loaders:
-        loaded = load_mesh(file_obj, file_type, **kwargs)
+        loaded = load_mesh(file_obj,
+                           file_type=file_type,
+                           **kwargs)
     elif file_type in compressed_loaders:
-        loaded = load_compressed(file_obj, file_type, **kwargs)
+        loaded = load_compressed(file_obj,
+                                 file_type=file_type,
+                                 **kwargs)
         # metadata we got from filename will be garbage, so suppress it
         metadata = {}
     else:
@@ -115,7 +122,8 @@ def load_mesh(file_obj, file_type=None, **kwargs):
 
     # make sure we keep passed kwargs to loader
     # but also make sure loader keys override passed keys
-    results = mesh_loaders[file_type](file_obj, file_type)
+    results = mesh_loaders[file_type](file_obj,
+                                      file_type=file_type)
 
     if util.is_file(file_obj):
         file_obj.close()
@@ -326,3 +334,4 @@ mesh_loaders.update(_stl_loaders)
 mesh_loaders.update(_misc_loaders)
 mesh_loaders.update(_ply_loaders)
 mesh_loaders.update(_xml_loaders)
+mesh_loaders.update(_obj_loaders)
