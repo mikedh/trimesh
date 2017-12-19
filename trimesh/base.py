@@ -151,8 +151,8 @@ class Trimesh(object):
         self._validate = bool(validate_faces)
 
         # Set the default center of mass and density
-        self.density = 1.0
-        self.center_mass = None
+        self._density = 1.0
+        self._center_mass = None
 
         # process is a cleanup function which brings the mesh to a consistant state
         # by merging vertices and removing zero- area and duplicate faces
@@ -529,7 +529,8 @@ class Trimesh(object):
 
     @center_mass.setter
     def center_mass(self, cm):
-        self._data['center_mass'] = cm
+        self._center_mass = cm
+        self._cache.delete('mass_properties')
 
     @property
     def density(self):
@@ -545,7 +546,8 @@ class Trimesh(object):
 
     @density.setter
     def density(self, value):
-        self._data['density'] = value
+        self._density = float(value)
+        self._cache.delete('mass_properties')
 
     @property
     def volume(self):
@@ -1545,8 +1547,8 @@ class Trimesh(object):
         new_vertices = transformations.transform_points(self.vertices,
                                                         matrix)
 
-        if len(self._data['center_mass']) == 3:
-            self._data['center_mass'] = transformations.transform_points([self._data['center_mass']], matrix)
+        if self._center_mass is not None:
+            self._center_mass = transformations.transform_points(np.array([self._center_mass,]), matrix)[0]
 
         # force generation of face normals so we can check against them
         new_normals = np.dot(matrix[0:3, 0:3], self.face_normals.T).T
@@ -1655,15 +1657,10 @@ class Trimesh(object):
                          coordinate system
           'center_mass' : Center of mass location, in global coordinate system
         '''
-        density = self._data['density'][0] # Tracked Array for density
-        center_mass = None
-        if len(self._data['center_mass']) == 3:
-            center_mass = self._data['center_mass']
-
         mass = triangles.mass_properties(triangles=self.triangles,
                                          crosses=self.triangles_cross,
-                                         density=density,
-                                         center_mass=center_mass,
+                                         density=self._density,
+                                         center_mass=self._center_mass,
                                          skip_inertia=False)
         if np.linalg.det(mass['inertia']) < 0:
             mass['inertia'] = -mass['inertia']
@@ -1908,6 +1905,10 @@ class Trimesh(object):
         copied.visual._data.data = copy.deepcopy(self.visual._data.data)
         # get metadata
         copied.metadata = copy.deepcopy(self.metadata)
+        # get center_mass and density
+        if self._center_mass is not None:
+            copied.center_mass = self.center_mass
+        copied._density = self._density
 
         # make sure cache is set from here
         copied._cache.id_set()
