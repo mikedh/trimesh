@@ -3,15 +3,14 @@ import os
 
 from .dxf_load import load_dxf
 from .svg_io import svg_to_path
-from .misc import lines_to_path, polygon_to_path, dict_to_path
 from ..path import Path, Path2D, Path3D
-from ...util import is_sequence, is_file, is_string, is_instance_named
 
+from . import misc
+from ... import util
 
 def load_path(obj, file_type=None):
     '''
-    Utility function which can be passed a filename,
-    file object, or list of lines
+    Load a file to a Path object.
 
     Parameters
     -----------
@@ -19,9 +18,10 @@ def load_path(obj, file_type=None):
          - Path, Path2D, or Path3D objects
          - open file object
          - file name
-         - shapely Polygon
+         - shapely.geometry.Polygon
+         - shapely.geometry.MultiLineString
          - dict with kwargs for Path constructor
-         - (n,2,(2|3) float, lines in space
+         - (n,2,(2|3)) float, line segments
 
     file_type: str, type of file is required if file
                object passed. Currently supported:
@@ -35,20 +35,21 @@ def load_path(obj, file_type=None):
 
     if isinstance(obj, Path):
         return obj
-    elif is_file(obj):
+    elif util.is_file(obj):
         loaded = _LOADERS[file_type](obj)
         obj.close()
-    elif is_string(obj):
-        file_obj = open(obj, 'rb')
-        file_type = os.path.splitext(obj)[-1][1:].lower()
-        loaded = _LOADERS[file_type](file_obj)
-        file_obj.close()
-    elif is_instance_named(obj, 'Polygon'):
-        loaded = polygon_to_path(obj)
-    elif is_instance_named(obj, 'dict'):
-        loaded = dict_to_path(obj)
-    elif is_sequence(obj):
-        loaded = lines_to_path(obj)
+    elif util.is_string(obj):
+        with open(obj, 'rb') as file_obj:
+            file_type = os.path.splitext(obj)[-1][1:].lower()
+            loaded = _LOADERS[file_type](file_obj)
+    elif util.is_instance_named(obj, 'Polygon'):
+        loaded = misc.polygon_to_path(obj)
+    elif util.is_instance_named(obj, 'MultiLineString'):
+        loaded = misc.linestrings_to_path(obj)
+    elif util.is_instance_named(obj, 'dict'):
+        loaded = misc.dict_to_path(obj)
+    elif util.is_sequence(obj):
+        loaded = misc.lines_to_path(obj)
     else:
         raise ValueError('Not a supported object type!')
     path = _create_path(**loaded)

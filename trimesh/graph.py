@@ -305,8 +305,9 @@ def split(mesh,
 
 
 def connected_components(edges,
-                         node_count,
                          min_len=1,
+                         nodes=None,
+                         node_count=None,
                          engine=None):
     '''
     Find groups of connected nodes from an edge list.
@@ -346,16 +347,27 @@ def connected_components(edges,
         return components
 
     def components_csgraph():
-        component_labels = connected_component_labels(edges,
-                                                      node_count=node_count)
-        components = grouping.group(component_labels, min_len=min_len)
+        labels, contained = connected_component_labels(edges,
+                                                       nodes=nodes)
+        components = grouping.group(labels[contained], min_len=min_len)
+        # we have to reindex the groups since we removed nodes that
+        # weren't actually included
+        index = np.arange(len(labels), dtype=np.int64)[contained]
+        components = np.array([index[c] for c in components])
+
         return components
 
     # check input edges
-    edges = np.asanyarray(edges, dtype=np.int)
+    edges = np.asanyarray(edges, dtype=np.int64)
     if not (len(edges) == 0 or
             util.is_shape(edges, (-1, 2))):
         raise ValueError('edges must be (n,2)!')
+        
+    if node_count is not None:
+        nodes = np.arange(node_count)
+    elif nodes is None:     
+        nodes = np.unique(edges)
+    node_count = len(nodes)
 
     # graphtool is usually faster then scipy by ~10%, however on very
     # large or very small graphs graphtool outperforms scipy substantially
@@ -379,7 +391,7 @@ def connected_components(edges,
     raise ImportError('No connected component engines available!')
 
 
-def connected_component_labels(edges, node_count):
+def connected_component_labels(edges, nodes):
     '''
     Label graph nodes from an edge list, using scipy.sparse.csgraph
 
@@ -391,19 +403,28 @@ def connected_component_labels(edges, node_count):
     Returns
     ---------
     labels: (node_count,) int, component labels for each node
+    contained: (node_count,) bool, if a labeled node was in the input set
     '''
-    edges = np.asanyarray(edges, dtype=np.int)
+    edges = np.asanyarray(edges, dtype=np.int64)
+    nodes = np.asanyarray(nodes, dtype=np.int64)
+    node_count = nodes.max() + 1
+
     if not (len(edges) == 0 or
             util.is_shape(edges, (-1, 2))):
         raise ValueError('edges must be (n,2)!')
-
+    
     matrix = coo_matrix((np.ones(len(edges), dtype=np.bool),
                          (edges[:, 0], edges[:, 1])),
                         dtype=np.bool,
                         shape=(node_count, node_count))
     body_count, labels = csgraph.connected_components(matrix,
                                                       directed=False)
-    return labels
+
+    # labels will include nodes that aren't in the graph 
+    contained = np.zeros(len(labels), dtype=np.bool)
+    contained[nodes] = True
+
+    return labels, contained
 
 
 def smoothed(mesh, angle):
