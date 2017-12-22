@@ -137,14 +137,30 @@ def arctan2_points(points):
 
 def discretize_path(entities, vertices, path, scale=1.0):
     '''
+    Turn a list of entity indices into a path of connected points.
+
+    Parameters
+    -----------
+    entities: list of entity objects
+    vertices: (n, dimension) float, vertices referenced by entities
+    path:     (m,) int, indexes of entities
+    scale:    float, overall scale of drawing
+
+    Returns
+    -----------
+    discrete: 
     Return a (n, dimension) list of vertices.
     Samples arcs/curves to be line segments
     '''
+    vertices = np.asanyarray(vertices)
+    path = np.asanyarray(path)
     path_len = len(path)
     if path_len == 0:
-        raise NameError('Cannot discretize empty path!')
+        raise ValueError('Cannot discretize empty path!')
     if path_len == 1:
         return np.array(entities[path[0]].discrete(vertices))
+
+    # actually run through path appending each entity
     discrete = deque()
     for i, entity_id in enumerate(path):
         last = (i == (path_len - 1))
@@ -153,6 +169,10 @@ def discretize_path(entities, vertices, path, scale=1.0):
         discrete.extend(current[:slice])
     discrete = np.array(discrete)
 
+    # for 2D discrete curves make sure they are counterclockwise
+    if vertices.shape[1] == 2 and not is_ccw(discrete):
+        discrete = discrete[::-1]
+        
     return discrete
 
 

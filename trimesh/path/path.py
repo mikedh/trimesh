@@ -20,7 +20,6 @@ from ..util import decimal_to_digits
 from ..constants import log
 from ..constants import tol_path as tol
 
-
 from .. import util
 from .. import grouping
 from .. import transformations
@@ -28,17 +27,19 @@ from .. import transformations
 from . import simplify
 from . import entities
 from . import polygons
+from . import traversal
 
-from .traversal import vertex_graph, closed_paths, discretize_path
 from .io.export import export_path
 
 
 class Path(object):
     '''
-    A Path object consists of two things:
+    A Path object consists of:
+
     vertices: (n,[2|3]) coordinates, stored in self.vertices
-    entities: geometric primitives (lines, arcs, and circles)
-              that reference indices in self.vertices
+
+    entities: geometric primitives (aka Lines, Arcs, etc.)
+              that reference indexes in self.vertices
     '''
 
     def __init__(self,
@@ -47,12 +48,16 @@ class Path(object):
                  metadata=None,
                  process=True):
         '''
-        entities:
-            Objects which contain things like keypoints, as
-            references to self.vertices
-        vertices:
-            (n, (2|3)) list of vertices
+        Instantiate a path object.
+
+        Parameters
+        -----------
+        entities: list of Entity objects
+        vertices: (n, dimension) float, vertices referenced by entities
+        metadata: dict, any metadata about the path
+        process:  bool, if True run simple cleanup operations
         '''
+        
         self.entities = np.array(entities)
         self.vertices = vertices
         self.metadata = dict()
@@ -106,7 +111,7 @@ class Path(object):
         ---------
         paths: (n,) sequence of (*,) int referencing self.entities
         '''
-        paths = closed_paths(self.entities, self.vertices)
+        paths = traversal.closed_paths(self.entities, self.vertices)
         return paths
 
     @util.cache_decorator
@@ -170,6 +175,13 @@ class Path(object):
 
     @property
     def extents(self):
+        '''
+        The size of the axis aligned bounding box
+
+        Returns
+        ---------
+        extents: (dimension,) float, edge length of AABB
+        '''
         return np.diff(self.bounds, axis=0)[0]
 
     @property
@@ -255,7 +267,7 @@ class Path(object):
 
         graph: networkx.Graph object, holding vertex indexes
         '''
-        graph, closed = vertex_graph(self.entities)
+        graph, closed = traversal.vertex_graph(self.entities)
         return graph
 
     def apply_transform(self, transform):
@@ -327,6 +339,10 @@ class Path(object):
     def remove_entities(self, entity_ids):
         '''
         Remove entities by index.
+
+        Parameters
+        -----------
+        entity_ids: (n,) int, indexes of self.entities to remove
         '''
         if len(entity_ids) == 0:
             return
@@ -364,13 +380,33 @@ class Path(object):
 
     def discretize_path(self, path):
         '''
-        Return a (n, dimension) list of vertices.
-        Samples arcs/curves to be line segments
+        Given a list of entities, return a list of connected points.
+
+        Parameters
+        -----------
+        path: (n,) int, indexes of self.entities
+
+        Returns
+        -----------
+        discrete: (m, dimension)
         '''
-        discrete = discretize_path(self.entities,
-                                   self.vertices,
-                                   path,
-                                   scale=self.scale)
+        discrete = traversal.discretize_path(self.entities,
+                                             self.vertices,
+                                             path,
+                                             scale=self.scale)
+        return discrete
+
+    @util.cache_decorator
+    def discrete(self):
+        '''
+        A sequence of connected vertices in space, corresponding to 
+        self.paths.
+
+        Returns
+        ---------
+        discrete: (len(self.paths),) sequence of (m*, dimension) float
+        '''
+        discrete = np.array([self.discretize_path(i) for i in self.paths])
         return discrete
 
     def paths_to_splines(self, path_indexes=None, smooth=.0002):
@@ -410,6 +446,13 @@ class Path(object):
         return export_dict
 
     def copy(self):
+        '''
+        Get a copy of the current mesh
+
+        Returns
+        ---------
+        copied: Path object, copy of self
+        '''
         return copy.deepcopy(self)
 
     def show(self):
@@ -443,11 +486,6 @@ class Path3D(Path):
                 self.remove_unreferenced_vertices,
                 self.generate_closed_paths,
                 self.generate_discrete]
-
-    @util.cache_decorator
-    def discrete(self):
-        discrete = list(map(self.discretize_path, self.paths))
-        return discrete
 
     def to_planar(self, to_2D=None, normal=None, check=True):
         '''
@@ -575,21 +613,15 @@ class Path2D(Path):
         ---------
         full: list of shapely.geometry.Polygon objects
         '''
-        full = [None] * len(self.enclosure_shell)
-
-        for index, (shell, hole) in enumerate(self.enclosure_shell.items()):
-            if not self.path_valid[shell]:
-                continue
-            # mask indexes of holes by valid polygons
-            # this will silently discard invalid holes
-            hole_idx = hole[self.path_valid[hole]]
-            # closed curves which represent holes
-            hole_poly = self.polygons_closed[hole_idx]
+        full = [None] * len(self.enclosure_shell)        
+        for i, (shell, hole) in enumerate(self.enclosure_shell.items()):
+            hole_poly = self.polygons_closed[hole]
             # generate a new polygon with shell and holes
+            shell_poly = self.polygons_closed[shell]
             polygon = Polygon(
-                shell=self.polygons_closed[shell].exterior.coords, holes=[
-                    p.exterior.coords for p in hole_poly])
-            full[index] = polygon
+                shell=shell_poly.exterior.coords,
+                holes=[p.exterior.coords for p in hole_poly])
+            full[i] = polygon
         return full
 
     @util.cache_decorator
@@ -724,28 +756,31 @@ class Path2D(Path):
             split = [None] * len(self.root)
             for i, root in enumerate(self.root):
                 connected = self.connected_paths(root, include_self=True)
+                
                 new_root = np.nonzero(connected == root)[0]
                 new_entities = collections.deque()
                 new_paths = collections.deque()
                 new_metadata = copy.deepcopy(self.metadata)
                 new_metadata['split_2D'] = i
 
-                for path in self.paths[connected]:
+                for path in self.paths[self.path_valid][connected]:
                     new_paths.append(np.arange(len(path)) + len(new_entities))
                     new_entities.extend(path)
                 new_entities = np.array(new_entities)
+
+                assert len(new_paths) == len(connected)
+                
                 # prevents the copying from nuking our cache
                 with self._cache:
                     split[i] = Path2D(entities=copy.deepcopy(self.entities[new_entities]),
                                       vertices=copy.deepcopy(self.vertices),
                                       metadata=new_metadata)
                     split[i]._cache.update(
-                        {
-                            'paths': np.array(new_paths),
-                            'polygons_closed': self.polygons_closed[connected],
-                            'path_valid': self.path_valid[connected],
-                            'discrete': self.discrete[connected],
-                            'root': new_root})
+                        {'paths': np.array(new_paths),
+                         'polygons_closed': self.polygons_closed[connected],
+                         'path_valid': np.ones(len(new_paths), dtype=np.bool),
+                         'discrete': self.discrete[self.path_valid][connected],
+                         'root': new_root})
         [i._cache.id_set() for i in split]
         self._cache.id_set()
         return np.array(split)
@@ -825,18 +860,7 @@ class Path2D(Path):
         '''
         exists = self.polygons_closed
         return self._cache.get('path_valid')
-
-    @property
-    def discrete(self):
-        '''
-        Returns
-        ---------
-        discrete: sequence of (n,2) float, correspond to self.paths
-        '''
-        if 'discrete' not in self._cache:
-            test = self.polygons_closed
-        return self._cache['discrete']
-
+    
     @util.cache_decorator
     def polygons_closed(self):
         '''
@@ -849,46 +873,11 @@ class Path2D(Path):
         ---------
         polygons_closed: (n,) list of shapely.geometry.Polygon objects
         '''
-        def reverse_path(path):
-            for entity in self.entities[path]:
-                entity.reverse()
-            return path[::-1]
 
-        with self._cache:
-            discretized = [None] * len(self.paths)
-            new_polygon = [None] * len(self.paths)
-            valid = np.zeros(len(self.paths), dtype=np.bool)
-            for i, path in enumerate(self.paths):
-                discrete = discretize_path(self.entities,
-                                           self.vertices,
-                                           path,
-                                           scale=self.scale)
-                candidate = polygons.path_to_polygon(discrete,
-                                                     scale=self.scale)
-                if candidate is None:
-                    continue
-                if type(candidate).__name__ == 'MultiPolygon':
-                    area_ok = np.array([i.area for i in candidate]) > tol.zero
-                    if area_ok.sum() == 1:
-                        candidate = candidate[np.nonzero(area_ok)[0][0]]
-                    else:
-                        continue
-                if not candidate.exterior.is_ccw:
-                    log.debug('Clockwise polygon detected, correcting!')
-                    self.paths[i] = reverse_path(path)
-                    candidate = Polygon(
-                        np.array(candidate.exterior.coords)[::-1])
-                new_polygon[i] = candidate
-                valid[i] = True
-                discretized[i] = discrete
-
-            new_polygon = np.array(new_polygon)[valid]
-            discretized = np.array(discretized)
-
-        self._cache.set('discrete', discretized)
+        polys, valid = polygons.paths_to_polygons(self.discrete)
         self._cache.set('path_valid', valid)
 
-        return new_polygon
+        return polys
 
     @util.cache_decorator
     def root(self):
@@ -917,8 +906,7 @@ class Path2D(Path):
         '''
         Networkx DiGraph of polygon enclosure
         '''
-        root, enclosure = polygons.polygons_enclosure_tree(
-            self.polygons_closed)
+        root, enclosure = polygons.polygons_enclosure_tree(self.polygons_closed)
         self._cache.set('root', root)
         return enclosure
 

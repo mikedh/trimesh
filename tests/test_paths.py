@@ -151,8 +151,10 @@ class PolygonsTest(g.unittest.TestCase):
         test_radius = 1.0
         test_pitch = test_radius / 10.0
         polygon = g.Point([0, 0]).buffer(test_radius)
-        offset, grid, grid_points = g.trimesh.path.polygons.rasterize_polygon(polygon=polygon,
-                                                                              pitch=test_pitch)
+        (offset,
+         grid,
+         grid_points) = g.trimesh.path.polygons.rasterize_polygon(polygon=polygon,
+                                                                  pitch=test_pitch)
         self.assertTrue(g.trimesh.util.is_shape(grid_points, (-1, 2)))
 
         grid_radius = (grid_points ** 2).sum(axis=1) ** .5
@@ -162,7 +164,30 @@ class PolygonsTest(g.unittest.TestCase):
         self.assertTrue(contained.all())
 
 
+class SplitTest(g.unittest.TestCase):
+    def test_split(self):
+        for fn in ['2D/ChuteHolderPrint.DXF',
+                   '2D/tray-easy1.dxf',
+                   '2D/sliding-base.dxf',
+                   '2D/wrench.dxf',
+                   '2D/spline_1.dxf']:
+            p = g.get_mesh(fn)
 
+            # split by connected
+            split = p.split()
+
+            # make sure split parts have same area as source 
+            assert g.np.isclose(p.area, sum(i.area for i in split))
+            # make sure concatenation doesn't break that
+            assert g.np.isclose(p.area, g.np.sum(split).area)
+
+            # check that cache didn't screw things up
+            for s in split:
+                assert len(s.root) == 1
+                assert len(s.path_valid) == len(s.paths)
+                assert len(s.paths) == len(s.discrete)
+                assert s.path_valid.sum() == len(s.polygons_closed)
+        
 class ExportTest(g.unittest.TestCase):
     def test_svg(self):
         for d in g.get_2D():

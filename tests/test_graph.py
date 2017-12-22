@@ -124,7 +124,6 @@ def check_engines(edges, nodes):
             assert len(diff) == 0
         results.append(sorted(g.trimesh.util.md5_object(g.np.sort(i)) for i in c))
     assert all(i == results[0] for i in results)
-
         
         
 if __name__ == '__main__':

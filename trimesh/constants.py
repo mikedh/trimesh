@@ -26,7 +26,7 @@ class NumericalToleranceMesh(object):
         self.zero = 1e-12
         self.merge = 1e-8
         self.planar = 1e-5
-        self.facet_threshold = 10000
+        self.facet_threshold = 5000
         self.fit = 1e-2
         self.id_len = 6
         self.__dict__.update(kwargs)

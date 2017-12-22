@@ -335,7 +335,7 @@ def connected_components(edges,
             graph.add_nodes_from(nodes)
         iterable = nx.connected_components(graph)
         # newer versions of networkx return sets rather than lists
-        components = np.array([np.array(list(i)) for i in iterable if len(i) >= min_len])
+        components = np.array([np.array(list(i), dtype=np.int64) for i in iterable if len(i) >= min_len])
         return components
 
     def components_graphtool():

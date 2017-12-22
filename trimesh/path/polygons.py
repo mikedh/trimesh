@@ -354,19 +354,57 @@ def polygon_scale(polygon):
     return scale
 
 
-def path_to_polygon(path, scale=None):
-    try:
-        polygon = Polygon(path)
-    except ValueError:
-        return None
-    return repair_invalid(polygon, scale)
+def paths_to_polygons(paths, scale=None):
+    '''
+    Given a sequence of connected points turn them into
+    valid shapely Polygon objects.
+
+    Parameters
+    -----------
+    paths: (n,) sequence, of (m,2) float, closed paths
+    scale: float, scale of drawing
+
+    Returns
+    -----------
+    polys: (p,) list of shapely.geometry.Polygons
+    valid: (n,) bool, whether input path was valid:
+                        valid.sum() == p
+    '''
+    polygons = []
+    valid = np.zeros(len(paths), dtype=np.bool)
+    for i, path in enumerate (paths):
+        if len(path) < 4:
+            # since the first and last vertices are identical in
+            # a closed loop a 4 vertex path is the minimum for
+            # non-zero area
+            continue
+        try:
+            polygons.append(repair_invalid(Polygon(path), scale))
+            valid[i] = True
+        except ValueError:
+            # raised if a polygon is unrecoverable
+            continue
+    polygons = np.array(polygons)
+    return polygons, valid
 
 
 def repair_invalid(polygon, scale=None):
     '''
     Given a shapely.geometry.Polygon, attempt to return a
-    valid version of the polygon. If one can't be found, return None
+    valid version of the polygon.
 
+    Parameters
+    -----------
+    polygon: shapely.geometry.Polygon object
+    scale:   float, or None
+
+    Returns
+    ----------
+    repaired: shapely.geometry.Polygon object
+
+    Raises
+    ----------
+    ValueError: if polygon can't be repaired
     '''
     if hasattr(polygon, 'is_valid') and polygon.is_valid:
         return polygon
@@ -376,8 +414,8 @@ def repair_invalid(polygon, scale=None):
     basic = polygon.buffer(tol.zero)
 
     if basic.area < tol.zero:
-        return None
-
+        raise ValueError('zero area polygon')
+    
     if basic.is_valid:
         return basic
 
@@ -391,5 +429,5 @@ def repair_invalid(polygon, scale=None):
         log.debug('Recovered invalid polygon through double buffering')
         return unbuffered
 
-    log.warn('Unable to recover polygon! Returning None!')
-    return None
+    raise ValueError('Unable to recover polygon!')
+    
