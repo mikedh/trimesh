@@ -186,6 +186,9 @@ def signed_distance(mesh, points):
     # we only care about nonzero distances
     nonzero = distance > tol.merge
 
+    if not nonzero.any():
+        return distance
+
     inside = mesh.ray.contains_points(points[nonzero])
     sign = (inside.astype(int) * 2) - 1
 

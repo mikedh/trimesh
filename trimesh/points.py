@@ -183,10 +183,20 @@ def absolute_orientation(points_A, points_B, return_error=False):
     return M
 
 
-def remove_close(points, radius, return_mask=False):
+def remove_close(points, radius):
     '''
     Given an (n, m) set of points where n=(2|3) return a list of points
-    where no point is closer than radius
+    where no point is closer than radius.
+
+    Parameters
+    ------------
+    points: (n, dimension) float, points in space
+    radius: float, minimum radius between result points
+
+    Returns
+    ------------
+    culled: (m, dimension) float, points in space
+    mask:   (n,) bool, which points from the original set were returned
     '''
     from scipy.spatial import cKDTree as KDTree
 
@@ -200,11 +210,8 @@ def remove_close(points, radius, return_mask=False):
         consumed[neighbors] = True
         unique[i] = True
 
-    if return_mask:
-        return points[unique], unique
-    else:
-        return points[unique]
-
+    return points[unique], unique
+    
 
 def remove_close_set(points_fixed, points_reduce, radius):
     '''

@@ -4,7 +4,7 @@ from . import util
 from . import transformations
 
 
-def sample_surface(mesh, count, return_ids=False):
+def sample_surface(mesh, count):
     '''
     Sample the surface of a mesh, returning the specified number of points
 
@@ -15,13 +15,11 @@ def sample_surface(mesh, count, return_ids=False):
     ---------
     mesh: Trimesh object
     count: number of points to return
-    return_ids: if True, returns face_index in addition to samples
 
     Returns
     ---------
     samples: (count,3) points in space on the surface of mesh
     face_index: (count,) indices of faces for each sampled point
-
     '''
 
     # len(mesh.faces) float array of the areas of each face of the mesh
@@ -60,15 +58,13 @@ def sample_surface(mesh, count, return_ids=False):
     # (n,3) points in space on the triangle
     samples = sample_vector + tri_origins
 
-    if return_ids:
-        return samples, face_index
-    else:
-        return samples
-
+    return samples, face_index
+    
 
 def volume_mesh(mesh, count):
     '''
-    Use rejection sampling to produce points randomly distributed in the volume of a mesh.
+    Use rejection sampling to produce points randomly distributed in 
+    the volume of a mesh.
 
     Parameters
     ----------
@@ -110,22 +106,31 @@ def volume_rectangular(extents,
     return samples
 
 
-def sample_surface_even(mesh, count, return_ids=False):
+def sample_surface_even(mesh, count):
     '''
     Sample the surface of a mesh, returning samples which are
     approximately evenly spaced.
+
+
+    Parameters
+    ---------
+    mesh: Trimesh object
+    count: number of points to return
+
+    Returns
+    ---------
+    samples: (count,3) points in space on the surface of mesh
+    face_index: (count,) indices of faces for each sampled point
     '''
     from .points import remove_close
 
     radius = np.sqrt(mesh.area / (2 * count))
 
-    samples, ids = sample_surface(mesh, count * 5, return_ids=True)
-    result, mask = remove_close(samples, radius, return_mask=True)
-    if return_ids:
-        return result, ids[mask]
-    else:
-        return result
+    samples, ids = sample_surface(mesh, count * 5)
+    result, mask = remove_close(samples, radius)
 
+    return result, ids[mask]
+    
 
 def sample_surface_sphere(count):
     '''

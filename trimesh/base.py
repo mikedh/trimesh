@@ -1472,7 +1472,7 @@ class Trimesh(object):
         hull = convex.convex_hull(self)
         return hull
 
-    def sample(self, count):
+    def sample(self, count, return_index=False):
         '''
         Return random samples distributed normally across the
         surface of the mesh
@@ -1480,12 +1480,18 @@ class Trimesh(object):
         Parameters
         ---------
         count: int, number of points to sample
+        return_index: bool, if True will also return face index
 
         Returns
         ---------
-        samples: (count, 3) float, points on surface of mesh
+        samples:    (count, 3) float, points on surface of mesh
+        face_index: (count,) int, index of self.faces
         '''
-        return sample.sample_surface(self, count)
+        samples, index = sample.sample_surface(self, count)
+        if return_index:
+            return samples, index
+        return samples
+
 
     def remove_unreferenced_vertices(self):
         '''
