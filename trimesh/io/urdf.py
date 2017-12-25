@@ -1,4 +1,6 @@
+import logging
 import os
+import subprocess
 
 import lxml.etree as et
 import numpy as np
@@ -40,8 +42,13 @@ def export_urdf(mesh, directory, scale=1.0, color=[
         raise ValueError('URDF path must be a directory!')
 
     # Perform a convex decomposition
-    convex_pieces = convex_decomposition(mesh, **kwargs)
-
+    try:
+        convex_pieces = convex_decomposition(mesh, **kwargs)
+        if not isinstance(convex_pieces, list):
+            convex_pieces = [convex_pieces]
+    except subprocess.CalledProcessError:
+        convex_pieces = [mesh]
+            
     # Get the effective density of the mesh
     effective_density = mesh.volume / sum([m.volume for m in convex_pieces])
 

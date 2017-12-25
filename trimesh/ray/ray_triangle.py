@@ -87,7 +87,8 @@ class RayMeshIntersector:
          index_ray,
          locations) = self.intersects_id(ray_origins=ray_origins,
                                          ray_directions=ray_directions,
-                                         return_locations=True)
+                                         return_locations=True,
+                                         **kwargs)
         return locations, index_ray, index_tri
 
     def intersects_any(self,
@@ -229,6 +230,9 @@ def ray_triangle_id(triangles,
 
     # since we are not returning multiple hits, we need to
     # figure out which hit is first
+    if len(index_ray) == 0:
+        return index_tri, index_ray, location
+
     first = np.zeros(len(index_ray), dtype=np.bool)
     groups = grouping.group(index_ray)
     for group in groups:

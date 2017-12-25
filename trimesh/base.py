@@ -524,8 +524,6 @@ class Trimesh(object):
         -----------
         center_mass: (3,) float array, volumetric center of mass of the mesh
         '''
-        if not self.is_watertight:
-            log.warning('Center of mass requested for non- watertight mesh!')
         center_mass = self.mass_properties['center_mass']
         return center_mass
 
@@ -548,8 +546,7 @@ class Trimesh(object):
 
     @density.setter
     def density(self, value):
-        self._density = value
-        # force the mass properties to be recomputed with the new density
+        self._density = float(value)
         self._cache.delete('mass_properties')
 
     @property
@@ -1580,6 +1577,9 @@ class Trimesh(object):
         new_vertices = transformations.transform_points(self.vertices,
                                                         matrix)
 
+        if self._center_mass is not None:
+            self._center_mass = transformations.transform_points(np.array([self._center_mass,]), matrix)[0]
+
         # force generation of face normals so we can check against them
         new_normals = np.dot(matrix[0:3, 0:3], self.face_normals.T).T
         # easier than figuring out what the scale factor of the matrix is
@@ -1692,6 +1692,12 @@ class Trimesh(object):
                                          density=self._density,
                                          center_mass=self._center_mass,
                                          skip_inertia=False)
+        if np.linalg.det(mass['inertia']) < 0:
+            mass['inertia'] = -mass['inertia']
+        if mass['mass'] < 0:
+            mass['mass'] = -mass['mass']
+        if mass['volume'] < 0:
+            mass['volume'] = -mass['volume']            
         return mass
 
     def scene(self):
@@ -1929,6 +1935,10 @@ class Trimesh(object):
         copied.visual._data.data = copy.deepcopy(self.visual._data.data)
         # get metadata
         copied.metadata = copy.deepcopy(self.metadata)
+        # get center_mass and density
+        if self._center_mass is not None:
+            copied.center_mass = self.center_mass
+        copied._density = self._density
 
         # make sure cache is set from here
         copied._cache.id_set()
