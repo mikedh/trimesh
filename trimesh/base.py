@@ -51,7 +51,7 @@ class Trimesh(object):
                  vertex_colors=None,
                  metadata=None,
                  process=True,
-                 validate_faces=True,
+                 validate=True,
                  use_embree=True,
                  initial_cache={},
                  **kwargs):
@@ -61,14 +61,13 @@ class Trimesh(object):
         Parameters
         ----------
         vertices:       (n,3) float set of vertex locations
-        faces:          (m,3) int set of triangular faces (quad faces will be triangulated)
-        face_normals:   (m,3) float set of normal vectors for faces. Passing these only
-                        serves as a speedup as otherwise they will be computed with
-                        crossproducts
+        faces:          (m,3) int set of triangular faces
+                              (quad faces will be triangulated)
+        face_normals:   (m,3) float set of normal vectors for faces.
         vertex_normals: (n,3) float set of normal vectors for vertices
         metadata:       dict, any metadata about the mesh
-        process:        bool, if True basic mesh cleanup will be done on instantiation
-        validate_faces: bool, if True, faces will not be returned until face normals
+        process:        bool, if True basic mesh clean up will be done initally
+        validate:       bool, if True, faces will not be returned until face normals
                         are calculated and erronious faces removed
         use_embree:     bool, if True try to use pyembree raytracer.
                         If pyembree is not available it will automatically fall back to
@@ -148,7 +147,7 @@ class Trimesh(object):
         # number of values depending on the order which you look at faces and face normals,
         # but for some operations validation may want to be turned off during the operation
         # then reinitialized for the end of the operation.
-        self._validate = bool(validate_faces)
+        self._validate = bool(validate)
 
         # Set the default center of mass and density
         self._density = 1.0
@@ -1492,7 +1491,6 @@ class Trimesh(object):
             return samples, index
         return samples
 
-
     def remove_unreferenced_vertices(self):
         '''
         Remove all vertices in the current mesh which are not referenced by a face.
@@ -1584,7 +1582,8 @@ class Trimesh(object):
                                                         matrix)
 
         if self._center_mass is not None:
-            self._center_mass = transformations.transform_points(np.array([self._center_mass,]), matrix)[0]
+            self._center_mass = transformations.transform_points(
+                np.array([self._center_mass, ]), matrix)[0]
 
         # force generation of face normals so we can check against them
         new_normals = np.dot(matrix[0:3, 0:3], self.face_normals.T).T
@@ -1698,13 +1697,29 @@ class Trimesh(object):
                                          density=self._density,
                                          center_mass=self._center_mass,
                                          skip_inertia=False)
-        if np.linalg.det(mass['inertia']) < 0:
+
+        # enable magical clean- up mode
+        if (self._validate and
+            self.is_watertight and
+            self.is_winding_consistent and
+            np.linalg.det(mass['inertia']) < 0.0 and
+            mass['mass'] < 0.0 and
+                mass['volume'] < 0.0):
+
             mass['inertia'] = -mass['inertia']
-        if mass['mass'] < 0:
             mass['mass'] = -mass['mass']
-        if mass['volume'] < 0:
-            mass['volume'] = -mass['volume']            
+            mass['volume'] = -mass['volume']
+            self.invert()
         return mass
+
+    def invert(self):
+        '''
+        Invert the mesh in- place by reversing the winding of every face
+        and negating face normals, without dumping the cache.
+        '''
+        with self._cache:
+            self.face_normals *= -1.0
+            self.faces = np.ascontiguousarray(np.fliplr(self.faces))
 
     def scene(self):
         '''

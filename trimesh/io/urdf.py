@@ -48,7 +48,7 @@ def export_urdf(mesh, directory, scale=1.0, color=[
             convex_pieces = [convex_pieces]
     except subprocess.CalledProcessError:
         convex_pieces = [mesh]
-            
+
     # Get the effective density of the mesh
     effective_density = mesh.volume / sum([m.volume for m in convex_pieces])
 

@@ -59,11 +59,11 @@ def sample_surface(mesh, count):
     samples = sample_vector + tri_origins
 
     return samples, face_index
-    
+
 
 def volume_mesh(mesh, count):
     '''
-    Use rejection sampling to produce points randomly distributed in 
+    Use rejection sampling to produce points randomly distributed in
     the volume of a mesh.
 
     Parameters
@@ -130,7 +130,7 @@ def sample_surface_even(mesh, count):
     result, mask = remove_close(samples, radius)
 
     return result, ids[mask]
-    
+
 
 def sample_surface_sphere(count):
     '''

@@ -211,7 +211,7 @@ def remove_close(points, radius):
         unique[i] = True
 
     return points[unique], unique
-    
+
 
 def remove_close_set(points_fixed, points_reduce, radius):
     '''
