@@ -11,9 +11,10 @@ from collections import deque
 
 from shapely import ops
 
+
 def dict_to_path(drawing_obj):
     '''
-    
+
     '''
     loaders = {'Arc': Arc, 'Line': Line}
     vertices = np.array(drawing_obj['vertices'])
@@ -49,7 +50,7 @@ def lines_to_path(lines):
                   'vertices': lines}
         return result
 
-    elif util.is_shape(lines, (-1,2,2)):
+    elif util.is_shape(lines, (-1, 2, 2)):
         # case where we have 2D lines
         # linemerge will quickly clean up the lines
         linestrings = ops.linemerge(lines)
@@ -90,6 +91,7 @@ def polygon_to_path(polygon):
     return {'entities': np.array(entities),
             'vertices': np.array(vertices)}
 
+
 def linestrings_to_path(multi):
     '''
     Load shapely LineString objects into a trimesh.path.Path2D object
@@ -104,7 +106,7 @@ def linestrings_to_path(multi):
     '''
     entities = deque()
     vertices = deque()
-    
+
     if not util.is_sequence(multi):
         multi = [multi]
 
@@ -117,7 +119,7 @@ def linestrings_to_path(multi):
 
     return {'entities': np.array(entities),
             'vertices': np.array(vertices)}
-    
+
 
 def faces_to_path(mesh, face_ids=None):
     '''

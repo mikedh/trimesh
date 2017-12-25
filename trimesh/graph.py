@@ -335,7 +335,8 @@ def connected_components(edges,
             graph.add_nodes_from(nodes)
         iterable = nx.connected_components(graph)
         # newer versions of networkx return sets rather than lists
-        components = np.array([np.array(list(i), dtype=np.int64) for i in iterable if len(i) >= min_len])
+        components = np.array([np.array(list(i), dtype=np.int64)
+                               for i in iterable if len(i) >= min_len])
         return components
 
     def components_graphtool():
@@ -347,19 +348,19 @@ def connected_components(edges,
         g.add_vertex(node_count)
         # add the edge list
         g.add_edge_list(edges)
-        
+
         labels = np.array(label_components(g, directed=False)[0].a,
                           dtype=np.int64)[:node_count]
-        
+
         # we have to remove results that contain nodes outside
         # of the specified node set and reindex
         contained = np.zeros(node_count, dtype=np.bool)
         contained[nodes] = True
         index = np.arange(node_count, dtype=np.int64)[contained]
-        
+
         components = grouping.group(labels[contained], min_len=min_len)
         components = np.array([index[c] for c in components])
-        
+
         return components
 
     def components_csgraph():
@@ -375,7 +376,7 @@ def connected_components(edges,
         contained = np.zeros(node_count, dtype=np.bool)
         contained[nodes] = True
         index = np.arange(node_count, dtype=np.int64)[contained]
-    
+
         components = grouping.group(labels[contained], min_len=min_len)
         components = np.array([index[c] for c in components])
 
@@ -384,7 +385,7 @@ def connected_components(edges,
     # check input edges
     edges = np.asanyarray(edges, dtype=np.int64)
     # if no nodes were specified just use unique
-    if nodes is None:     
+    if nodes is None:
         nodes = np.unique(edges)
 
     # exit early if we have no nodes
@@ -392,20 +393,20 @@ def connected_components(edges,
         return np.array([])
     elif len(edges) == 0:
         if min_len <= 1:
-            return np.reshape(nodes, (-1,1))
+            return np.reshape(nodes, (-1, 1))
         else:
             return np.array([])
-    
+
     if not util.is_shape(edges, (-1, 2)):
         raise ValueError('edges must be (n,2)!')
 
-
     # find the maximum index referenced in either nodes or edges
     counts = [0]
-    if len(edges) > 0: counts.append(edges.max())
-    if len(nodes) > 0: counts.append(nodes.max())
+    if len(edges) > 0:
+        counts.append(edges.max())
+    if len(nodes) > 0:
+        counts.append(nodes.max())
     node_count = np.max(counts) + 1
-
 
     # remove edges that don't have both nodes in the node set
     mask = np.zeros(node_count, dtype=np.bool)
@@ -413,7 +414,6 @@ def connected_components(edges,
     edges_ok = mask[edges].all(axis=1)
     edges = edges[edges_ok]
 
-    
     # graphtool is usually faster then scipy by ~10%, however on very
     # large or very small graphs graphtool outperforms scipy substantially
     # networkx is pure python and is usually 5-10x slower
@@ -455,7 +455,7 @@ def connected_component_labels(edges, node_count):
     if not (len(edges) == 0 or
             util.is_shape(edges, (-1, 2))):
         raise ValueError('edges must be (n,2)!')
-    
+
     matrix = coo_matrix((np.ones(len(edges), dtype=np.bool),
                          (edges[:, 0], edges[:, 1])),
                         dtype=np.bool,
@@ -464,7 +464,7 @@ def connected_component_labels(edges, node_count):
                                                       directed=False)
 
     assert len(labels) == node_count
-    
+
     return labels
 
 

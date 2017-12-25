@@ -261,7 +261,10 @@ def nondegenerate(triangles, areas=None):
     if not util.is_shape(triangles, (-1, 3, 3)):
         raise ValueError('Triangles must be (n,3,3)!')
 
-    ok = (extents(triangles=triangles, areas=areas) > tol.merge).all(axis=1)
+    # if both edges of the triangles OBB are longer than tol.merge
+    # we declare them to be nondegenerate
+    ok = (extents(triangles=triangles,
+                  areas=areas) > tol.merge).all(axis=1)
 
     return ok
 
@@ -314,7 +317,8 @@ def extents(triangles, areas=None):
 
 def barycentric_to_points(triangles, barycentric):
     '''
-    Convert a list of barycentric coordinates on a list of triangles to cartesian points
+    Convert a list of barycentric coordinates on a list of triangles
+    to cartesian points.
 
     Parameters
     ----------

@@ -57,7 +57,7 @@ class Path(object):
         metadata: dict, any metadata about the path
         process:  bool, if True run simple cleanup operations
         '''
-        
+
         self.entities = np.array(entities)
         self.vertices = vertices
         self.metadata = dict()
@@ -399,7 +399,7 @@ class Path(object):
     @util.cache_decorator
     def discrete(self):
         '''
-        A sequence of connected vertices in space, corresponding to 
+        A sequence of connected vertices in space, corresponding to
         self.paths.
 
         Returns
@@ -613,7 +613,7 @@ class Path2D(Path):
         ---------
         full: list of shapely.geometry.Polygon objects
         '''
-        full = [None] * len(self.enclosure_shell)        
+        full = [None] * len(self.enclosure_shell)
         for i, (shell, hole) in enumerate(self.enclosure_shell.items()):
             hole_poly = self.polygons_closed[hole]
             # generate a new polygon with shell and holes
@@ -756,7 +756,7 @@ class Path2D(Path):
             split = [None] * len(self.root)
             for i, root in enumerate(self.root):
                 connected = self.connected_paths(root, include_self=True)
-                
+
                 new_root = np.nonzero(connected == root)[0]
                 new_entities = collections.deque()
                 new_paths = collections.deque()
@@ -769,7 +769,7 @@ class Path2D(Path):
                 new_entities = np.array(new_entities)
 
                 assert len(new_paths) == len(connected)
-                
+
                 # prevents the copying from nuking our cache
                 with self._cache:
                     split[i] = Path2D(entities=copy.deepcopy(self.entities[new_entities]),
@@ -860,7 +860,7 @@ class Path2D(Path):
         '''
         exists = self.polygons_closed
         return self._cache.get('path_valid')
-    
+
     @util.cache_decorator
     def polygons_closed(self):
         '''
@@ -906,7 +906,8 @@ class Path2D(Path):
         '''
         Networkx DiGraph of polygon enclosure
         '''
-        root, enclosure = polygons.polygons_enclosure_tree(self.polygons_closed)
+        root, enclosure = polygons.polygons_enclosure_tree(
+            self.polygons_closed)
         self._cache.set('root', root)
         return enclosure
 

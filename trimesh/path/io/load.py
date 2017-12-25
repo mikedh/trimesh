@@ -8,6 +8,7 @@ from ..path import Path, Path2D, Path3D
 from . import misc
 from ... import util
 
+
 def load_path(obj, file_type=None):
     '''
     Load a file to a Path object.

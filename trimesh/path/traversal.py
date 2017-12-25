@@ -148,7 +148,7 @@ def discretize_path(entities, vertices, path, scale=1.0):
 
     Returns
     -----------
-    discrete: 
+    discrete:
     Return a (n, dimension) list of vertices.
     Samples arcs/curves to be line segments
     '''
@@ -172,7 +172,7 @@ def discretize_path(entities, vertices, path, scale=1.0):
     # for 2D discrete curves make sure they are counterclockwise
     if vertices.shape[1] == 2 and not is_ccw(discrete):
         discrete = discrete[::-1]
-        
+
     return discrete
 
 

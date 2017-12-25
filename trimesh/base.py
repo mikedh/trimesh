@@ -1294,13 +1294,43 @@ class Trimesh(object):
             [i[grouping.group_rows(i, require_count=1)] for i in edges_facet])
         return edges_boundary
 
+    @util.cache_decorator
+    def facets_on_hull(self):
+        '''
+        Find which facets of the mesh are on the convex hull.
+
+        Returns
+        ---------
+        on_hull: (len(mesh.facets),) bool, is facet on convex hull
+        '''
+        # the index of the largest face in each facet to test
+        face_id = [f[self.area_faces[f].argmax()] for f in self.facets]
+
+        # test the triangle center and 3 vertices
+        # if all 4 coplanar points are on the convex hull
+        # it is a very strong indication that the whole planar
+        # facet region is on the convex hull
+        test = np.zeros((len(face_id), 4, 3), dtype=np.float64)
+        test[:, :3, :] = self.triangles[face_id]
+        test[:, 3, :] = self.triangles_center[face_id]
+
+        # distance between the hull surface and our four test points
+        distance = self.convex_hull.nearest.on_surface(
+            test.reshape((-1, 3)))[1]
+
+        # threshold the distance and check all points
+        ok = (distance < tol.merge).reshape((-1, 4)).all(axis=1)
+
+        return ok
+
     @_log_time
     def fix_normals(self):
         '''
         Find and fix problems with self.face_normals and self.faces winding direction.
 
         For face normals ensure that vectors are consistently pointed outwards,
-        and that self.faces is wound in the correct direction for all connected components.
+        and that self.faces is wound in the correct direction for all
+        connected components.
         '''
         repair.fix_normals(self)
 

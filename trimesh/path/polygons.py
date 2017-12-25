@@ -45,7 +45,6 @@ def polygons_enclosure_tree(polygons):
     return roots, g
 
 
-
 def polygons_obb(polygons):
     '''
     Find the OBBs for a list of shapely.geometry.Polygons
@@ -372,7 +371,7 @@ def paths_to_polygons(paths, scale=None):
     '''
     polygons = []
     valid = np.zeros(len(paths), dtype=np.bool)
-    for i, path in enumerate (paths):
+    for i, path in enumerate(paths):
         if len(path) < 4:
             # since the first and last vertices are identical in
             # a closed loop a 4 vertex path is the minimum for
@@ -415,7 +414,7 @@ def repair_invalid(polygon, scale=None):
 
     if basic.area < tol.zero:
         raise ValueError('zero area polygon')
-    
+
     if basic.is_valid:
         return basic
 
@@ -430,4 +429,3 @@ def repair_invalid(polygon, scale=None):
         return unbuffered
 
     raise ValueError('Unable to recover polygon!')
-    
