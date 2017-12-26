@@ -882,7 +882,6 @@ class Trimesh(object):
         cached_normals = self._cache.get('face_normals')
         if util.is_shape(cached_normals, (-1, 3)):
             self.face_normals = cached_normals[mask]
-            # except: pass
         faces = self._data['faces']
         # if Trimesh has been subclassed and faces have been moved from data
         # to cache, get faces from cache.
@@ -905,6 +904,10 @@ class Trimesh(object):
     def remove_duplicate_faces(self):
         '''
         On the current mesh remove any faces which are duplicates.
+
+        Alters
+        ----------
+        self.faces: removes duplicates
         '''
         unique, inverse = grouping.unique_rows(np.sort(self.faces, axis=1))
         self.update_faces(unique)
@@ -912,6 +915,10 @@ class Trimesh(object):
     def rezero(self):
         '''
         Translate the mesh so that all vertex vertices are positive.
+
+        Alters
+        ----------
+        self.vertices: Translated to first octant (all values > 0)
         '''
         self.apply_translation(self.bounds[0] * -1.0)
 
@@ -1153,7 +1160,8 @@ class Trimesh(object):
     @util.cache_decorator
     def is_watertight(self):
         '''
-        Check if a mesh is watertight by making sure every edge is used by two faces.
+        Check if a mesh is watertight by making sure every edge is included in
+        two faces.
 
         Returns
         ----------
@@ -1162,7 +1170,7 @@ class Trimesh(object):
         if self.is_empty:
             return False
         watertight, is_reversed = graph.is_watertight(edges=self.edges,
-                                                      edges_sorted=self.edges_sorted)
+                                            edges_sorted=self.edges_sorted)
         self._cache['is_winding_consistent'] = is_reversed
         return bool(watertight)
 
@@ -1493,7 +1501,8 @@ class Trimesh(object):
 
     def remove_unreferenced_vertices(self):
         '''
-        Remove all vertices in the current mesh which are not referenced by a face.
+        Remove all vertices in the current mesh which are not referenced by 
+        a face.
         '''
         unique, inverse = np.unique(self.faces.reshape(-1),
                                     return_inverse=True)
@@ -1563,7 +1572,10 @@ class Trimesh(object):
     def apply_transform(self, matrix):
         '''
         Transform mesh by a homogenous transformation matrix.
-        Also transforms normals to avoid having to recompute them.
+        
+        Also does bookkeeping to avoid recomputing things, this function
+        should be used rather than directly modifying self.vertices
+        if possible
 
         Parameters
         ----------
@@ -1698,30 +1710,44 @@ class Trimesh(object):
                                          center_mass=self._center_mass,
                                          skip_inertia=False)
 
-        # enable magical clean- up mode
+        # if magical clean- up mode is enabled
+        # and mesh is watertight/wound correctly but with negative
+        # volume it means that every triangle is probably facing 
+        # inwards, so we invert it in- place without dumping cache
         if (self._validate and
             self.is_watertight and
             self.is_winding_consistent and
             np.linalg.det(mass['inertia']) < 0.0 and
             mass['mass'] < 0.0 and
-                mass['volume'] < 0.0):
+            mass['volume'] < 0.0):
 
+            # negate mass properties so we don't need to recalculate
             mass['inertia'] = -mass['inertia']
             mass['mass'] = -mass['mass']
             mass['volume'] = -mass['volume']
+            # invert the faces and normals of the mesh
             self.invert()
         return mass
 
     def invert(self):
         '''
         Invert the mesh in- place by reversing the winding of every face
-        and negating face normals, without dumping the cache.
+        and negating normals without dumping the cache.
+
+        Alters
+        ---------
+        self.faces:          columns reversed
+        self.face_normals:   negated if defined
+        self.vertex_normals: negated if defined
         '''
         with self._cache:
-            self.face_normals *= -1.0
-            self.faces = np.ascontiguousarray(np.fliplr(self.faces))
+            if 'face_normals' in self._cache:
+                self.face_normals *= -1.0
+            if 'vertex_normals' in self._cache:
+                self.vertex_normals *= -1.0
+            self.faces = np.fliplr(self.faces)
 
-    def scene(self):
+    def scene(self, **kwargs):
         '''
         Get a Scene object containing the current mesh.
 
@@ -1729,7 +1755,7 @@ class Trimesh(object):
         ---------
         trimesh.scene.scene.Scene object, containing the current mesh
         '''
-        return Scene(self)
+        return Scene(self, **kwargs)
 
     def show(self, **kwargs):
         '''
@@ -1737,7 +1763,8 @@ class Trimesh(object):
 
         Parameters
         -----------
-        smooth: bool, run smooth shading on mesh or not. Large meshes will be slow
+        smooth: bool, run smooth shading on mesh or not. 
+                      Large meshes will be slow
 
         Returns
         -----------
@@ -1755,7 +1782,7 @@ class Trimesh(object):
         ----------
         faces_sequence: sequence of face indices from mesh
         only_watertight: only return submeshes which are watertight.
-        append: return a single mesh which has the faces specified appended.
+        append: return a single mesh which has the faces appended.
                  if this flag is set, only_watertight is ignored
 
         Returns
@@ -1783,7 +1810,11 @@ class Trimesh(object):
     @util.cache_decorator
     def identifier_md5(self):
         '''
-        Return an MD5 of the rotation invarient identifier
+        An MD5 of the rotation invarient identifier vector
+        
+        Returns
+        ---------
+        hashed: str, MD5 hash of the identifier vector
         '''
         hashed = comparison.identifier_hash(self.identifier)
         return hashed
@@ -1793,7 +1824,8 @@ class Trimesh(object):
         Export the current mesh to a file object.
         If file_obj is a filename, file will be written there.
 
-        Supported formats are stl, off, ply, collada, json, dict, dict64, msgpack.
+        Supported formats are stl, off, ply, collada, json, dict, glb,
+        dict64, msgpack.
 
         Parameters
         ---------
@@ -1829,7 +1861,6 @@ class Trimesh(object):
 
         Name                                        Default
         -----------------------------------------------------
-        input
         resolution                                  100000
         max. concavity                              0.001
         plane down-sampling                         4
@@ -1865,8 +1896,6 @@ class Trimesh(object):
                                                     engine=engine,
                                                     maxhulls=maxhulls,
                                                     **kwargs)
-
-        #@return [Trimesh(process=True, **kwargs) for kwargs in kwargs_list]
         return result
 
     def union(self, other, engine=None):
@@ -1987,7 +2016,7 @@ class Trimesh(object):
         '''
 
         statement = str(statement)
-        key = 'cache_eval_' + statement
+        key = 'eval_cached_' + statement
         key += '_'.join(str(i) for i in args)
 
         if key in self._cache:
@@ -1999,14 +2028,26 @@ class Trimesh(object):
 
     def __hash__(self):
         '''
-        Return the MD5 hash of the mesh as an integer
+        Return the MD5 hash of the mesh as an integer.
+
+        Returns
+        ----------
+        hashed: int, MD5 of mesh data
         '''
         hashed = int(self.md5(), 16)
         return hashed
 
     def __add__(self, other):
         '''
-        Concatenate the mesh with another mesh
+        Concatenate the mesh with another mesh.
+
+        Parameters
+        ------------
+        other: Trimesh object, to combine with self
+
+        Returns
+        ----------
+        concat: Trimesh object of combined result
         '''
-        result = util.concatenate(self, other)
-        return result
+        concat = util.concatenate(self, other)
+        return concat
