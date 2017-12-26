@@ -51,7 +51,7 @@ class Trimesh(object):
                  vertex_colors=None,
                  metadata=None,
                  process=True,
-                 validate_faces=True,
+                 validate=True,
                  use_embree=True,
                  initial_cache={},
                  **kwargs):
@@ -61,14 +61,13 @@ class Trimesh(object):
         Parameters
         ----------
         vertices:       (n,3) float set of vertex locations
-        faces:          (m,3) int set of triangular faces (quad faces will be triangulated)
-        face_normals:   (m,3) float set of normal vectors for faces. Passing these only
-                        serves as a speedup as otherwise they will be computed with
-                        crossproducts
+        faces:          (m,3) int set of triangular faces
+                              (quad faces will be triangulated)
+        face_normals:   (m,3) float set of normal vectors for faces.
         vertex_normals: (n,3) float set of normal vectors for vertices
         metadata:       dict, any metadata about the mesh
-        process:        bool, if True basic mesh cleanup will be done on instantiation
-        validate_faces: bool, if True, faces will not be returned until face normals
+        process:        bool, if True basic mesh clean up will be done initally
+        validate:       bool, if True, faces will not be returned until face normals
                         are calculated and erronious faces removed
         use_embree:     bool, if True try to use pyembree raytracer.
                         If pyembree is not available it will automatically fall back to
@@ -148,7 +147,7 @@ class Trimesh(object):
         # number of values depending on the order which you look at faces and face normals,
         # but for some operations validation may want to be turned off during the operation
         # then reinitialized for the end of the operation.
-        self._validate = bool(validate_faces)
+        self._validate = bool(validate)
 
         # Set the default center of mass and density
         self._density = 1.0
@@ -524,8 +523,6 @@ class Trimesh(object):
         -----------
         center_mass: (3,) float array, volumetric center of mass of the mesh
         '''
-        if not self.is_watertight:
-            log.warning('Center of mass requested for non- watertight mesh!')
         center_mass = self.mass_properties['center_mass']
         return center_mass
 
@@ -548,8 +545,7 @@ class Trimesh(object):
 
     @density.setter
     def density(self, value):
-        self._density = value
-        # force the mass properties to be recomputed with the new density
+        self._density = float(value)
         self._cache.delete('mass_properties')
 
     @property
@@ -886,7 +882,6 @@ class Trimesh(object):
         cached_normals = self._cache.get('face_normals')
         if util.is_shape(cached_normals, (-1, 3)):
             self.face_normals = cached_normals[mask]
-            # except: pass
         faces = self._data['faces']
         # if Trimesh has been subclassed and faces have been moved from data
         # to cache, get faces from cache.
@@ -909,6 +904,10 @@ class Trimesh(object):
     def remove_duplicate_faces(self):
         '''
         On the current mesh remove any faces which are duplicates.
+
+        Alters
+        ----------
+        self.faces: removes duplicates
         '''
         unique, inverse = grouping.unique_rows(np.sort(self.faces, axis=1))
         self.update_faces(unique)
@@ -916,6 +915,10 @@ class Trimesh(object):
     def rezero(self):
         '''
         Translate the mesh so that all vertex vertices are positive.
+
+        Alters
+        ----------
+        self.vertices: Translated to first octant (all values > 0)
         '''
         self.apply_translation(self.bounds[0] * -1.0)
 
@@ -1157,7 +1160,8 @@ class Trimesh(object):
     @util.cache_decorator
     def is_watertight(self):
         '''
-        Check if a mesh is watertight by making sure every edge is used by two faces.
+        Check if a mesh is watertight by making sure every edge is included in
+        two faces.
 
         Returns
         ----------
@@ -1166,7 +1170,7 @@ class Trimesh(object):
         if self.is_empty:
             return False
         watertight, is_reversed = graph.is_watertight(edges=self.edges,
-                                                      edges_sorted=self.edges_sorted)
+                                            edges_sorted=self.edges_sorted)
         self._cache['is_winding_consistent'] = is_reversed
         return bool(watertight)
 
@@ -1475,7 +1479,7 @@ class Trimesh(object):
         hull = convex.convex_hull(self)
         return hull
 
-    def sample(self, count):
+    def sample(self, count, return_index=False):
         '''
         Return random samples distributed normally across the
         surface of the mesh
@@ -1483,16 +1487,22 @@ class Trimesh(object):
         Parameters
         ---------
         count: int, number of points to sample
+        return_index: bool, if True will also return face index
 
         Returns
         ---------
-        samples: (count, 3) float, points on surface of mesh
+        samples:    (count, 3) float, points on surface of mesh
+        face_index: (count,) int, index of self.faces
         '''
-        return sample.sample_surface(self, count)
+        samples, index = sample.sample_surface(self, count)
+        if return_index:
+            return samples, index
+        return samples
 
     def remove_unreferenced_vertices(self):
         '''
-        Remove all vertices in the current mesh which are not referenced by a face.
+        Remove all vertices in the current mesh which are not referenced by 
+        a face.
         '''
         unique, inverse = np.unique(self.faces.reshape(-1),
                                     return_inverse=True)
@@ -1562,7 +1572,10 @@ class Trimesh(object):
     def apply_transform(self, matrix):
         '''
         Transform mesh by a homogenous transformation matrix.
-        Also transforms normals to avoid having to recompute them.
+        
+        Also does bookkeeping to avoid recomputing things, this function
+        should be used rather than directly modifying self.vertices
+        if possible
 
         Parameters
         ----------
@@ -1579,6 +1592,10 @@ class Trimesh(object):
 
         new_vertices = transformations.transform_points(self.vertices,
                                                         matrix)
+
+        if self._center_mass is not None:
+            self._center_mass = transformations.transform_points(
+                np.array([self._center_mass, ]), matrix)[0]
 
         # force generation of face normals so we can check against them
         new_normals = np.dot(matrix[0:3, 0:3], self.face_normals.T).T
@@ -1692,9 +1709,45 @@ class Trimesh(object):
                                          density=self._density,
                                          center_mass=self._center_mass,
                                          skip_inertia=False)
+
+        # if magical clean- up mode is enabled
+        # and mesh is watertight/wound correctly but with negative
+        # volume it means that every triangle is probably facing 
+        # inwards, so we invert it in- place without dumping cache
+        if (self._validate and
+            self.is_watertight and
+            self.is_winding_consistent and
+            np.linalg.det(mass['inertia']) < 0.0 and
+            mass['mass'] < 0.0 and
+            mass['volume'] < 0.0):
+
+            # negate mass properties so we don't need to recalculate
+            mass['inertia'] = -mass['inertia']
+            mass['mass'] = -mass['mass']
+            mass['volume'] = -mass['volume']
+            # invert the faces and normals of the mesh
+            self.invert()
         return mass
 
-    def scene(self):
+    def invert(self):
+        '''
+        Invert the mesh in- place by reversing the winding of every face
+        and negating normals without dumping the cache.
+
+        Alters
+        ---------
+        self.faces:          columns reversed
+        self.face_normals:   negated if defined
+        self.vertex_normals: negated if defined
+        '''
+        with self._cache:
+            if 'face_normals' in self._cache:
+                self.face_normals *= -1.0
+            if 'vertex_normals' in self._cache:
+                self.vertex_normals *= -1.0
+            self.faces = np.fliplr(self.faces)
+
+    def scene(self, **kwargs):
         '''
         Get a Scene object containing the current mesh.
 
@@ -1702,7 +1755,7 @@ class Trimesh(object):
         ---------
         trimesh.scene.scene.Scene object, containing the current mesh
         '''
-        return Scene(self)
+        return Scene(self, **kwargs)
 
     def show(self, **kwargs):
         '''
@@ -1710,7 +1763,8 @@ class Trimesh(object):
 
         Parameters
         -----------
-        smooth: bool, run smooth shading on mesh or not. Large meshes will be slow
+        smooth: bool, run smooth shading on mesh or not. 
+                      Large meshes will be slow
 
         Returns
         -----------
@@ -1728,7 +1782,7 @@ class Trimesh(object):
         ----------
         faces_sequence: sequence of face indices from mesh
         only_watertight: only return submeshes which are watertight.
-        append: return a single mesh which has the faces specified appended.
+        append: return a single mesh which has the faces appended.
                  if this flag is set, only_watertight is ignored
 
         Returns
@@ -1756,7 +1810,11 @@ class Trimesh(object):
     @util.cache_decorator
     def identifier_md5(self):
         '''
-        Return an MD5 of the rotation invarient identifier
+        An MD5 of the rotation invarient identifier vector
+        
+        Returns
+        ---------
+        hashed: str, MD5 hash of the identifier vector
         '''
         hashed = comparison.identifier_hash(self.identifier)
         return hashed
@@ -1766,7 +1824,8 @@ class Trimesh(object):
         Export the current mesh to a file object.
         If file_obj is a filename, file will be written there.
 
-        Supported formats are stl, off, ply, collada, json, dict, dict64, msgpack.
+        Supported formats are stl, off, ply, collada, json, dict, glb,
+        dict64, msgpack.
 
         Parameters
         ---------
@@ -1802,7 +1861,6 @@ class Trimesh(object):
 
         Name                                        Default
         -----------------------------------------------------
-        input
         resolution                                  100000
         max. concavity                              0.001
         plane down-sampling                         4
@@ -1838,8 +1896,6 @@ class Trimesh(object):
                                                     engine=engine,
                                                     maxhulls=maxhulls,
                                                     **kwargs)
-
-        #@return [Trimesh(process=True, **kwargs) for kwargs in kwargs_list]
         return result
 
     def union(self, other, engine=None):
@@ -1929,6 +1985,10 @@ class Trimesh(object):
         copied.visual._data.data = copy.deepcopy(self.visual._data.data)
         # get metadata
         copied.metadata = copy.deepcopy(self.metadata)
+        # get center_mass and density
+        if self._center_mass is not None:
+            copied.center_mass = self.center_mass
+        copied._density = self._density
 
         # make sure cache is set from here
         copied._cache.id_set()
@@ -1956,7 +2016,7 @@ class Trimesh(object):
         '''
 
         statement = str(statement)
-        key = 'cache_eval_' + statement
+        key = 'eval_cached_' + statement
         key += '_'.join(str(i) for i in args)
 
         if key in self._cache:
@@ -1968,14 +2028,26 @@ class Trimesh(object):
 
     def __hash__(self):
         '''
-        Return the MD5 hash of the mesh as an integer
+        Return the MD5 hash of the mesh as an integer.
+
+        Returns
+        ----------
+        hashed: int, MD5 of mesh data
         '''
         hashed = int(self.md5(), 16)
         return hashed
 
     def __add__(self, other):
         '''
-        Concatenate the mesh with another mesh
+        Concatenate the mesh with another mesh.
+
+        Parameters
+        ------------
+        other: Trimesh object, to combine with self
+
+        Returns
+        ----------
+        concat: Trimesh object of combined result
         '''
-        result = util.concatenate(self, other)
-        return result
+        concat = util.concatenate(self, other)
+        return concat
