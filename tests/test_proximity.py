@@ -40,7 +40,7 @@ class NearestTest(g.unittest.TestCase):
 
             b = mesh.nearest.vertex(points)
             self.assertTrue(b is not None)
-            
+
     def test_nearest_naive(self):
         funs = [g.trimesh.proximity.closest_point_naive,
                 g.trimesh.proximity.closest_point]
@@ -56,11 +56,13 @@ class NearestTest(g.unittest.TestCase):
             tic.append(g.time.time())
 
         self.assertTrue(g.np.ptp(data_points, axis=0).max() < g.tol.merge)
-        self.assertTrue(g.np.ptp(data_dist,   axis=0).max() < g.tol.merge)
+        self.assertTrue(g.np.ptp(data_dist, axis=0).max() < g.tol.merge)
 
         log_msg = '\n'.join("{}: {}s".format(i, j) for i, j in zip([i.__name__ for i in funs],
                                                                    g.np.diff(tic)))
-        g.log.info('Compared the following nearest point functions:\n' + log_msg)
+        g.log.info(
+            'Compared the following nearest point functions:\n' +
+            log_msg)
 
     def check_nearest_point_function(self, fun):
         def plot_tri(tri, color='g'):
@@ -107,7 +109,7 @@ class NearestTest(g.unittest.TestCase):
         distance_test = g.np.abs(distance_shapely - distance_ours)
 
         '''
-        # plot test to debug failures 
+        # plot test to debug failures
         import matplotlib.pyplot as plt
         plottable = g.np.column_stack((result[:,0:2], query[:,0:2])).reshape((-1,2,2))
         plot_tri(triangle, color='g')
@@ -123,30 +125,28 @@ class NearestTest(g.unittest.TestCase):
 
         return result, result_distance
 
-
     def test_coplanar_signed_distance(self):
         mesh = g.trimesh.primitives.Box()
 
         # should be well outside the box but coplanar with a face
         # so the signed distance should be negative
-        distance = mesh.nearest.signed_distance([mesh.bounds[0] + [100,0,0]])
+        distance = mesh.nearest.signed_distance([mesh.bounds[0] + [100, 0, 0]])
 
         assert distance[0] < 0.0
-    
+
         # constructed so origin is inside but also coplanar with
         # the nearest face
         mesh = g.get_mesh('origin_inside.STL')
 
         # origin should be inside, so distance should be positive
-        distance = mesh.nearest.signed_distance([[0,0,0]])
+        distance = mesh.nearest.signed_distance([[0, 0, 0]])
 
         assert distance[0] > 0.0
 
     def test_edge_case(self):
         mesh = g.get_mesh('20mm-xyz-cube.stl')
-        assert (mesh.nearest.signed_distance( [[-51,4.7,-20.6]]) < 0.0).all()
+        assert (mesh.nearest.signed_distance([[-51, 4.7, -20.6]]) < 0.0).all()
 
-    
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

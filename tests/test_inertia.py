@@ -4,14 +4,14 @@ import generic as g
 class InertiaTest(g.unittest.TestCase):
 
     def test_inertia(self):
-        t0 = g.np.array([[-0.419575686853, -0.898655215203, -0.127965023308,  0.],
-                         [0.712589964872, -0.413418145015,  0.566834172697,  0.],
-                         [-0.562291548012,  0.146643245877,  0.813832890385,  0.],
-                         [0.,  0.,  0.,  1.]])
-        t1 = g.np.array([[0.343159553585,  0.624765521319, -0.701362648103,  0.],
-                         [0.509982849005, -0.750986657709, -0.419447891476,  0.],
-                         [-0.788770571525, -0.213745370274, -0.57632794673,  0.],
-                         [0.,  0.,  0.,  1.]])
+        t0 = g.np.array([[-0.419575686853, -0.898655215203, -0.127965023308, 0.],
+                         [0.712589964872, -0.413418145015, 0.566834172697, 0.],
+                         [-0.562291548012, 0.146643245877, 0.813832890385, 0.],
+                         [0., 0., 0., 1.]])
+        t1 = g.np.array([[0.343159553585, 0.624765521319, -0.701362648103, 0.],
+                         [0.509982849005, -0.750986657709, -0.419447891476, 0.],
+                         [-0.788770571525, -0.213745370274, -0.57632794673, 0.],
+                         [0., 0., 0., 1.]])
 
         # make sure our transformations are actually still transformations
         assert g.np.abs(g.np.dot(t0, t0.T) - g.np.eye(4)).max() < 1e-10
@@ -45,7 +45,7 @@ class InertiaTest(g.unittest.TestCase):
 
         # make sure Trimesh attribute is plumbed correctly
         assert g.np.allclose(c.principal_inertia_components, components)
-        assert g.np.allclose(c.principal_inertia_vectors,     vectors)
+        assert g.np.allclose(c.principal_inertia_vectors, vectors)
 
         # the other two axis of the cylinder should be identical
         assert g.np.abs(g.np.diff(g.np.sort(components)[-2:])).max() < 1e-8

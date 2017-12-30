@@ -39,12 +39,12 @@ class PermutateTest(g.unittest.TestCase):
                 assert g.np.allclose(mesh.area, test.area)
 
                 # volume is very dependent on meshes being watertight and sane
-                if (mesh.is_watertight and 
+                if (mesh.is_watertight and
                     test.is_watertight and
                     mesh.is_winding_consistent and
-                    test.is_winding_consistent):                   
-                    assert  g.np.allclose(mesh.volume, test.volume, rtol=.05)
-                      
+                        test.is_winding_consistent):
+                    assert g.np.allclose(mesh.volume, test.volume, rtol=.05)
+
         for mesh in g.get_meshes():
             if len(mesh.faces) < MIN_FACES:
                 continue
@@ -67,7 +67,6 @@ class PermutateTest(g.unittest.TestCase):
                 make_assertions(mesh, no_noise, rigid=True)
                 make_assertions(mesh, transform, rigid=True)
                 make_assertions(mesh, tesselate, rigid=True)
-
 
             # make sure permutate didn't alter the original mesh
             self.assertTrue(original.md5() == mesh.md5())

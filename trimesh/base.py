@@ -1170,7 +1170,7 @@ class Trimesh(object):
         if self.is_empty:
             return False
         watertight, is_reversed = graph.is_watertight(edges=self.edges,
-                                            edges_sorted=self.edges_sorted)
+                                                      edges_sorted=self.edges_sorted)
         self._cache['is_winding_consistent'] = is_reversed
         return bool(watertight)
 
@@ -1501,7 +1501,7 @@ class Trimesh(object):
 
     def remove_unreferenced_vertices(self):
         '''
-        Remove all vertices in the current mesh which are not referenced by 
+        Remove all vertices in the current mesh which are not referenced by
         a face.
         '''
         unique, inverse = np.unique(self.faces.reshape(-1),
@@ -1572,7 +1572,7 @@ class Trimesh(object):
     def apply_transform(self, matrix):
         '''
         Transform mesh by a homogenous transformation matrix.
-        
+
         Also does bookkeeping to avoid recomputing things, this function
         should be used rather than directly modifying self.vertices
         if possible
@@ -1712,14 +1712,14 @@ class Trimesh(object):
 
         # if magical clean- up mode is enabled
         # and mesh is watertight/wound correctly but with negative
-        # volume it means that every triangle is probably facing 
+        # volume it means that every triangle is probably facing
         # inwards, so we invert it in- place without dumping cache
         if (self._validate and
             self.is_watertight and
             self.is_winding_consistent and
             np.linalg.det(mass['inertia']) < 0.0 and
             mass['mass'] < 0.0 and
-            mass['volume'] < 0.0):
+                mass['volume'] < 0.0):
 
             # negate mass properties so we don't need to recalculate
             mass['inertia'] = -mass['inertia']
@@ -1763,7 +1763,7 @@ class Trimesh(object):
 
         Parameters
         -----------
-        smooth: bool, run smooth shading on mesh or not. 
+        smooth: bool, run smooth shading on mesh or not.
                       Large meshes will be slow
 
         Returns
@@ -1811,7 +1811,7 @@ class Trimesh(object):
     def identifier_md5(self):
         '''
         An MD5 of the rotation invarient identifier vector
-        
+
         Returns
         ---------
         hashed: str, MD5 hash of the identifier vector

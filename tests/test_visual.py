@@ -27,7 +27,7 @@ class VisualTest(g.unittest.TestCase):
 
     def test_data_model(self):
         '''
-        Test the probably too- magical color caching and storage system. 
+        Test the probably too- magical color caching and storage system.
         '''
         m = g.get_mesh('featuretype.STL')
         test_color = [255, 0, 0, 255]

@@ -3,7 +3,6 @@ import generic as g
 
 class DecompositionTest(g.unittest.TestCase):
 
-
     def test_convex_decomposition(self):
         mesh = g.get_mesh('quadknot.obj')
 
@@ -11,7 +10,8 @@ class DecompositionTest(g.unittest.TestCase):
 
         for engine, exists in engines:
             if not exists:
-                g.log.warning('skipping convex decomposition engine %s', engine)
+                g.log.warning(
+                    'skipping convex decomposition engine %s', engine)
                 continue
 
             g.log.info('Testing convex decomposition with engine %s', engine)
@@ -26,4 +26,3 @@ class DecompositionTest(g.unittest.TestCase):
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()
-

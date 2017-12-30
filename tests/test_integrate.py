@@ -15,7 +15,7 @@ class IntegrateTest(g.unittest.TestCase):
         functions = [x**2 + y**2, x + y + z]
 
         for f in functions:
-            integrator,   expr = symbolic_barycentric(f)
+            integrator, expr = symbolic_barycentric(f)
             integrator_p, expr_p = symbolic_barycentric(str(f))
 
             g.log.debug('expression %s was integrated to %s',

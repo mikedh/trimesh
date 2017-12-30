@@ -14,10 +14,10 @@ class CollisionTest(g.unittest.TestCase):
         cube = g.get_mesh('unit_cube.STL')
 
         tf1 = g.np.eye(4)
-        tf1[:3,3] = g.np.array([5, 0, 0])
+        tf1[:3, 3] = g.np.array([5, 0, 0])
 
         tf2 = g.np.eye(4)
-        tf2[:3,3] = g.np.array([-5, 0, 0])
+        tf2[:3, 3] = g.np.array([-5, 0, 0])
 
         # Test one-to-many collision checking
         m = g.trimesh.collision.CollisionManager()
@@ -35,7 +35,8 @@ class CollisionTest(g.unittest.TestCase):
         self.assertTrue(ret == False)
         self.assertTrue(len(names) == 0)
 
-        # Test internal collision checking and object addition/removal/modification
+        # Test internal collision checking and object
+        # addition/removal/modification
         ret = m.in_collision_internal()
         self.assertTrue(ret == False)
 
@@ -83,4 +84,3 @@ class CollisionTest(g.unittest.TestCase):
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()
-

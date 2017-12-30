@@ -37,7 +37,8 @@ class IdentifierTest(g.unittest.TestCase):
                             str(g.np.array(debug, dtype=g.np.int)))
                 self.assertTrue(False)
 
-            if md5[-1] == permutated.permutate.noise(mesh.scale / 100.0).identifier_md5:
+            if md5[-1] == permutated.permutate.noise(
+                    mesh.scale / 100.0).identifier_md5:
                 g.log.error('Hashes on %s didn\'t change after noise!',
                             mesh.metadata['file_name'])
                 self.assertTrue(False)

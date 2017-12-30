@@ -13,7 +13,7 @@ class SceneTests(g.unittest.TestCase):
                                'sphere.ply'):
             if mesh.units is None:
                 mesh.units = 'in'
-            
+
             scene_split = g.trimesh.scene.split_scene(mesh)
             scene_split.convert_units('in')
             scene_base = g.trimesh.Scene(mesh)
@@ -47,8 +47,7 @@ class SceneTests(g.unittest.TestCase):
                 glb = s.export(file_type='glb')
                 assert len(glb) > 0
                 assert isinstance(glb, bytes)
-                
-                
+
                 for export_format in ['dict', 'dict64']:
                     # try exporting the scene as a dict
                     # then make sure json can serialize it
@@ -61,14 +60,11 @@ class SceneTests(g.unittest.TestCase):
                     assert g.np.allclose(g.np.product(s.extents),
                                          g.np.product(r.extents))
 
-
                 s.rezero()
                 assert (g.np.abs(s.centroid) < 1e-3).all()
 
                 # make sure explode doesn't crash
                 s.explode()
-                
-
 
     def test_scaling(self):
         '''
@@ -82,8 +78,9 @@ class SceneTests(g.unittest.TestCase):
         factor = 10.0
         scaled = scene.scaled(factor)
 
-        # the oriented bounding box should scale exactly with the scaling factor
-        assert g.np.allclose(scaled.bounding_box_oriented.primitive.extents/extents, 
+        # the oriented bounding box should scale exactly with the scaling
+        # factor
+        assert g.np.allclose(scaled.bounding_box_oriented.primitive.extents / extents,
                              factor)
 
         # we shouldn't have modified the original scene
@@ -95,11 +92,11 @@ class SceneTests(g.unittest.TestCase):
 
         converted = scene.convert_units('in')
 
-        assert g.np.allclose(converted.bounding_box_oriented.primitive.extents/extents, 
-                             1.0/25.4)
-        
+        assert g.np.allclose(converted.bounding_box_oriented.primitive.extents / extents,
+                             1.0 / 25.4)
+
         assert all(m.units == 'in' for m in converted.geometry.values())
-        
+
         # we shouldn't have modified the original scene
         assert scene.md5() == md5
         assert converted.md5() != md5
@@ -118,11 +115,11 @@ class SceneTests(g.unittest.TestCase):
         # not watertight so will result in empty scene
         s = g.trimesh.scene.split_scene(m)
         assert len(s.geometry) == 0
-        
+
         s = s.convert_units('inches')
         n = s.duplicate_nodes
         assert len(n) == 0
-        
+
 
 class GraphTests(g.unittest.TestCase):
 

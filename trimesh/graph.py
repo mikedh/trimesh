@@ -108,8 +108,8 @@ def face_adjacency_unshared(mesh):
         # faces from the current column of face adjacency
         faces = mesh.faces[adjacency]
         shared = np.logical_or(
-            faces == mesh.face_adjacency_edges[:, 0].reshape((-1,1)),
-            faces == mesh.face_adjacency_edges[:, 1].reshape((-1,1)))
+            faces == mesh.face_adjacency_edges[:, 0].reshape((-1, 1)),
+            faces == mesh.face_adjacency_edges[:, 1].reshape((-1, 1)))
         vid_unshared[:, i] = faces[np.logical_not(shared)]
     return vid_unshared
 
@@ -126,7 +126,7 @@ def face_adjacency_radius(mesh):
     -------------
     radii: (n,) float, approximate radius between faces.
            Parallel faces will have a value of np.inf
-    span:  (n,) float, perpendicular projection distance of two 
+    span:  (n,) float, perpendicular projection distance of two
            unshared vertices onto the shared edge
     '''
 
@@ -154,7 +154,7 @@ def face_adjacency_radius(mesh):
     # from the vector
     perp = np.subtract(vectors,
                        (util.diagonal_dot(vectors,
-                        edges_vec).reshape((-1, 1)) * edges_vec))
+                                          edges_vec).reshape((-1, 1)) * edges_vec))
     # the length of the perpendicular projection
     span = np.linalg.norm(perp, axis=1)
 

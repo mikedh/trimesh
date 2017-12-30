@@ -176,7 +176,7 @@ class SplitTest(g.unittest.TestCase):
             # split by connected
             split = p.split()
 
-            # make sure split parts have same area as source 
+            # make sure split parts have same area as source
             assert g.np.isclose(p.area, sum(i.area for i in split))
             # make sure concatenation doesn't break that
             assert g.np.isclose(p.area, g.np.sum(split).area)
@@ -187,7 +187,8 @@ class SplitTest(g.unittest.TestCase):
                 assert len(s.path_valid) == len(s.paths)
                 assert len(s.paths) == len(s.discrete)
                 assert s.path_valid.sum() == len(s.polygons_closed)
-        
+
+
 class ExportTest(g.unittest.TestCase):
     def test_svg(self):
         for d in g.get_2D():
@@ -204,8 +205,8 @@ class ExportTest(g.unittest.TestCase):
                 assert g.np.allclose(d.length,
                                      loaded.length,
                                      rtol=.01)
-            
-        
+
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()

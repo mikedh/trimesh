@@ -68,9 +68,9 @@ class GroupTests(g.unittest.TestCase):
         assert all(a[i].all() for i in result)
 
     def test_runs(self):
-        a = g.np.array([-1, -1, -1,  0,  0,  1,  1,  2,
-                        0,  3,  3,  4,  4,  5,  5,  6,
-                        6,  7,  7,  8,  8,  9,  9,  9],
+        a = g.np.array([-1, -1, -1, 0, 0, 1, 1, 2,
+                        0, 3, 3, 4, 4, 5, 5, 6,
+                        6, 7, 7, 8, 8, 9, 9, 9],
                        dtype=g.np.int)
         r = g.trimesh.grouping.merge_runs(a)
         u = g.trimesh.grouping.unique_ordered(a)

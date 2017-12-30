@@ -144,7 +144,7 @@ def get_2D(count=None):
         print(location)
         try:
             paths.append(trimesh.load(location))
-        except:
+        except BaseException:
             log.warning('skipping path load', exc_info=True)
         if len(paths) >= count:
             break

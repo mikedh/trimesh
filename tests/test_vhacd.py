@@ -6,7 +6,7 @@ class VHACDTest(g.unittest.TestCase):
     def test_vhacd(self):
         if not g.trimesh.interfaces.vhacd.exists:
             g.log.warning('not testing convex decomposition (no vhacd)!')
-            return 
+            return
 
         g.log.info('testing convex decomposition using vhacd')
 
@@ -25,8 +25,6 @@ class VHACDTest(g.unittest.TestCase):
         # make sure every result is actually a volume
         # ie watertight, consistent winding, positive nonzero volume
         assert all(i.is_volume for i in decomposed)
-
-
 
 
 if __name__ == '__main__':

@@ -9,14 +9,14 @@ def load_notebook(file_obj,
     '''
     Load an ipynb file into a cleaned and stripped string that can be exec'd
 
-    The motivation for this is to check ipynb examples with CI so they don't 
+    The motivation for this is to check ipynb examples with CI so they don't
     get silently broken and confusing.
 
     Arguments
     ----------
     file_obj : open file object
     exclude  :  list, strs which if a line contains the line will be replaced
-                by a pass statement. 
+                by a pass statement.
 
     Returns
     ----------
@@ -24,7 +24,8 @@ def load_notebook(file_obj,
     '''
     raw = json.load(file_obj)
     lines = []
-    for line in np.hstack([i['source'] for i in raw['cells'] if 'source' in i]):
+    for line in np.hstack([i['source']
+                           for i in raw['cells'] if 'source' in i]):
         if any(i in line for i in exclude):
             lines.append(to_pass(line))
         else:
@@ -57,7 +58,7 @@ if __name__ == '__main__':
     '''
     file_name = sys.argv[-1]
     if (file_name.endswith('ipynb') and
-        os.path.exists(file_name)):
+            os.path.exists(file_name)):
         with open(file_name, 'r') as file_obj:
             script = load_notebook(file_obj)
         print('\nloaded {}:\n'.format(file_name))

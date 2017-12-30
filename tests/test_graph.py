@@ -21,7 +21,7 @@ class GraphTest(g.unittest.TestCase):
         assert len(soup.face_adjacency_unshared) == 0
         assert len(soup.face_adjacency_angles) == 0
         assert len(soup.facets) == 0
-            
+
     def test_components(self):
         # a soup of random triangles, with no adjacent pairs
         soup = g.get_mesh('soup.stl')
@@ -62,7 +62,7 @@ class GraphTest(g.unittest.TestCase):
             self.assertTrue(len(split) == 1)
             self.assertTrue(split[0].is_watertight)
             self.assertTrue(split[0].is_winding_consistent)
-    
+
     def test_vertex_adjacency_graph(self):
         f = g.trimesh.graph.vertex_adjacency_graph
 
@@ -93,39 +93,41 @@ class GraphTest(g.unittest.TestCase):
         assert len(mesh.faces) == len(mesh.smoothed().faces)
 
     def test_engines(self):
-        edges = g.np.arange(10).reshape((-1,2))
-        for i in range(0,20):
+        edges = g.np.arange(10).reshape((-1, 2))
+        for i in range(0, 20):
             check_engines(nodes=g.np.arange(i),
                           edges=edges)
-        edges = g.np.column_stack((g.np.arange(1,11),
-                                   g.np.arange(0,10)))
-        for i in range(0,20):
+        edges = g.np.column_stack((g.np.arange(1, 11),
+                                   g.np.arange(0, 10)))
+        for i in range(0, 20):
             check_engines(nodes=g.np.arange(i),
                           edges=edges)
-
 
 
 def check_engines(edges, nodes):
     '''
-    Make sure connected component graph engines are 
+    Make sure connected component graph engines are
     returning the exact same values
     '''
     results = []
     engines = [None, 'scipy', 'networkx']
-   
+
     for engine in engines:
-        c = g.trimesh.graph.connected_components(edges, 
-                                               nodes=nodes,
-                                               engine=engine)
+        c = g.trimesh.graph.connected_components(edges,
+                                                 nodes=nodes,
+                                                 engine=engine)
         if len(c) > 0:
             # check to see if every resulting component was in the
             # set of nodes
             diff = g.np.setdiff1d(g.np.hstack(c), nodes)
             assert len(diff) == 0
-        results.append(sorted(g.trimesh.util.md5_object(g.np.sort(i)) for i in c))
+        results.append(
+            sorted(
+                g.trimesh.util.md5_object(
+                    g.np.sort(i)) for i in c))
     assert all(i == results[0] for i in results)
-        
-        
+
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()

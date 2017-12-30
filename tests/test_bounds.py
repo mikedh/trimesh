@@ -45,14 +45,14 @@ class BoundsTest(g.unittest.TestCase):
                                       rtol=1e-3,
                                       atol=1e-3)
                 if not close:
-                    m.visual.face_colors = [200,0,0,100]
-                    (m + m.bounding_box_oriented).show()
-                    from IPython import embed
-                    embed()
+                    #m.visual.face_colors = [200, 0, 0, 100]
+                    #(m + m.bounding_box_oriented).show()
+                    #from IPython import embed
+                    #embed()
                     raise ValueError('OBB extents incorrect:\n{}\n{}'.format(
                         str(m.bounding_box.extents),
                         str(m.bounding_box_oriented.extents)))
-                
+
             c = m.bounding_cylinder
             s = m.bounding_sphere
             p = m.bounding_primitive
@@ -69,7 +69,7 @@ class BoundsTest(g.unittest.TestCase):
                 self.assertTrue(g.trimesh.util.is_shape(
                     to_origin, (dimension + 1, dimension + 1)))
                 self.assertTrue(g.trimesh.util.is_shape(
-                    extents,   (dimension,)))
+                    extents, (dimension,)))
 
                 transformed = g.trimesh.transform_points(points, to_origin)
 
@@ -86,14 +86,13 @@ class BoundsTest(g.unittest.TestCase):
                 self.assertTrue(g.np.allclose(extents_tf,
                                               extents))
 
-
     def test_cylinder(self):
         '''
         '''
         height = 10.0
         radius = 1.0
-        sphere = g.trimesh.util.grid_linspace([[0,0],
-                                               [g.np.pi*2, g.np.pi*2]],
+        sphere = g.trimesh.util.grid_linspace([[0, 0],
+                                               [g.np.pi * 2, g.np.pi * 2]],
                                               5)
         for s in sphere:
             T = g.trimesh.transformations.spherical_matrix(*s)
@@ -101,7 +100,7 @@ class BoundsTest(g.unittest.TestCase):
                                             height=height,
                                             transform=T)
             assert g.np.isclose(radius,
-                                p.bounding_cylinder.primitive.radius, 
+                                p.bounding_cylinder.primitive.radius,
                                 rtol=.01)
             assert g.np.isclose(height,
                                 p.bounding_cylinder.primitive.height,

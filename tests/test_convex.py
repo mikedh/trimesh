@@ -39,7 +39,6 @@ class ConvexTest(g.unittest.TestCase):
                      g.trimesh.primitives.Box()]:
             self.assertTrue(prim.is_convex)
 
-
     def test_projections(self):
         for m in g.get_meshes(4):
             assert (len(m.face_adjacency_projections) ==

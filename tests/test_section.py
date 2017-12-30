@@ -17,7 +17,6 @@ class SectionTest(g.unittest.TestCase):
             plane_origin = [0, 0, z]
             plane_normal = [0, 0, 1]
 
-
             section = self.mesh.section(plane_origin=plane_origin,
                                         plane_normal=plane_normal)
             if section is None:
@@ -31,7 +30,8 @@ class SectionTest(g.unittest.TestCase):
             planar, to_3D = section.to_planar()
             assert planar.is_closed
             assert (len(planar.polygons_full) > 0)
-                
+
+
 class PlaneLine(g.unittest.TestCase):
 
     def test_planes(self):

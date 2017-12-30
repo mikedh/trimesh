@@ -15,7 +15,7 @@ class RepairTests(g.unittest.TestCase):
             assert not mesh.is_watertight
             assert not mesh.is_volume
 
-            g.trimesh.repair.broken_faces(mesh, color=[255,0,0,255])
+            g.trimesh.repair.broken_faces(mesh, color=[255, 0, 0, 255])
 
             mesh.fill_holes()
             # should be a superset of the last two

@@ -22,14 +22,14 @@ class MeshTests(g.unittest.TestCase):
 
             mesh.process()
 
-            if not (mesh.is_watertight and 
+            if not (mesh.is_watertight and
                     mesh.is_winding_consistent):
                 continue
 
             assert len(mesh.facets) == len(mesh.facets_area)
             assert len(mesh.facets) == len(mesh.facets_normal)
             assert len(mesh.facets) == len(mesh.facets_boundary)
-            
+
             if len(mesh.facets) != 0:
                 faces = mesh.facets[mesh.facets_area.argmax()]
                 outline = mesh.outline(faces)
@@ -46,7 +46,6 @@ class MeshTests(g.unittest.TestCase):
             assert sample.shape == (1000, 3)
             g.log.info('finished testing meshes')
 
-            
             # make sure vertex kdtree and triangles rtree exist
 
             t = mesh.kdtree
@@ -66,26 +65,23 @@ class MeshTests(g.unittest.TestCase):
                 #t = copied.triangles_tree
                 c = copied.kdtree
                 copied.apply_transform(g.trimesh.transformations.rotation_matrix(
-                    g.np.degrees(i), 
-                    [0,1,1]))
+                    g.np.degrees(i),
+                    [0, 1, 1]))
             g.log.info('Multiple copies done')
-            
 
             if not g.np.allclose(copied.identifier,
                                  mesh.identifier):
                 raise ValueError('copied identifier changed!')
-
 
     def test_vertex_neighbors(self):
         m = g.trimesh.primitives.Box()
         neighbors = m.vertex_neighbors
         self.assertTrue(len(neighbors) == len(m.vertices))
         elist = m.edges_unique.tolist()
-        
-        for v_i, neighs in enumerate(neighbors):
-          for n in neighs:
-            self.assertTrue( ([v_i,n] in elist or [n,v_i] in elist))
 
+        for v_i, neighs in enumerate(neighbors):
+            for n in neighs:
+                self.assertTrue(([v_i, n] in elist or [n, v_i] in elist))
 
 
 if __name__ == '__main__':

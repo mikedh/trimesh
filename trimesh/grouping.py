@@ -398,8 +398,8 @@ def group_vectors(vectors,
     -----------
     vectors: (n,3) float, vectors in space
     angle:   float, angle in radians to group by
-    include_negative: bool, if True consider for example 
-                      [0,0,1] and [0,0,-1] the same 
+    include_negative: bool, if True consider for example
+                      [0,0,1] and [0,0,-1] the same
 
     Returns
     ------------
@@ -408,7 +408,7 @@ def group_vectors(vectors,
     '''
 
     vectors = np.asanyarray(vectors, dtype=np.float64)
-    angle   = float(angle)
+    angle = float(angle)
 
     if include_negative:
         vectors = util.vector_hemisphere(vectors)
@@ -455,7 +455,7 @@ def clusters(points, radius):
     from . import graph
 
     tree = KDTree(points)
-    pairs = tree.query_pairs(radius)    
+    pairs = tree.query_pairs(radius)
     groups = graph.connected_components(pairs)
 
     return groups

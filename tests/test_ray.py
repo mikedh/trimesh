@@ -3,7 +3,7 @@ import generic as g
 
 class RayTests(g.unittest.TestCase):
 
-    def test_rays(self): 
+    def test_rays(self):
         meshes = [g.get_mesh(**k) for k in g.data['ray_data']['load_kwargs']]
         rays = g.data['ray_data']['rays']
         names = [m.metadata['file_name'] for m in meshes]
@@ -18,7 +18,8 @@ class RayTests(g.unittest.TestCase):
             hit_id.append(m.ray.intersects_id(**rays[name]))
         hit_any = g.np.array(hit_any, dtype=g.np.int)
 
-        for i in g.trimesh.grouping.group(g.np.unique(names, return_inverse=True)[1]):
+        for i in g.trimesh.grouping.group(
+                g.np.unique(names, return_inverse=True)[1]):
             broken = hit_any[i].astype(g.np.int).ptp(axis=0).sum()
             self.assertTrue(broken == 0)
 
@@ -39,7 +40,7 @@ class RayTests(g.unittest.TestCase):
             tic.append(g.time.time())
             sphere.ray.intersects_location(ray_origins, ray_directions)
             tic.append(g.time.time())
-            
+
             rps = dimension[0] / g.np.diff(tic)
 
             g.log.info('Measured %s rays/second with embree %d',
@@ -51,21 +52,22 @@ class RayTests(g.unittest.TestCase):
         for use_embree in [True, False]:
             mesh = g.get_mesh('unit_cube.STL', use_embree=use_embree)
             g.log.info('Contains test ray engine: ' + str(mesh.ray.__class__))
-            
+
             test_on = mesh.ray.contains_points(mesh.vertices)
             test_in = mesh.ray.contains_points(mesh.vertices * (1.0 / scale))
             assert test_in.all()
-            
+
             test_out = mesh.ray.contains_points(mesh.vertices * scale)
             assert not test_out.any()
-            
-            points_way_out = (g.np.random.random((30,3)) * 100) + 1.0 + mesh.bounds[1]
+
+            points_way_out = (
+                g.np.random.random(
+                    (30, 3)) * 100) + 1.0 + mesh.bounds[1]
             test_way_out = mesh.ray.contains_points(points_way_out)
             assert not test_way_out.any()
-            
+
             test_centroid = mesh.ray.contains_points([mesh.center_mass])
             assert test_centroid.all()
-            
 
     def test_on_vertex(self):
         for use_embree in [True, False]:
@@ -90,12 +92,12 @@ class RayTests(g.unittest.TestCase):
     def test_on_edge(self):
         for use_embree in [True, False]:
             m = g.get_mesh('7_8ths_cube.stl')
-            
-            points = [[4.5, 0, -23], [4.5, 0, -2], [0,0,-1e-6], [0,0,-1]]
-            truth  = [False, True, True, True]
+
+            points = [[4.5, 0, -23], [4.5, 0, -2], [0, 0, -1e-6], [0, 0, -1]]
+            truth = [False, True, True, True]
             result = g.trimesh.ray.ray_util.contains_points(m.ray, points)
-            
-            assert (result==truth).all()
+
+            assert (result == truth).all()
 
     def test_multiple_hits(self):
         '''
@@ -104,8 +106,9 @@ class RayTests(g.unittest.TestCase):
         f = g.np.array([1000., 1000.])
         h, w = 256, 256
 
-        # Set up a list of ray directions - one for each pixel in our (256, 256) output image.
-        ray_directions = g.trimesh.util.grid_arange([[-h/2, -w/2],[h/2,w/2]],
+        # Set up a list of ray directions - one for each pixel in our (256,
+        # 256) output image.
+        ray_directions = g.trimesh.util.grid_arange([[-h / 2, -w / 2], [h / 2, w / 2]],
                                                     step=2.0)
         ray_directions = g.np.column_stack((ray_directions,
                                             g.np.ones(len(ray_directions)) * f[0]))
@@ -113,25 +116,26 @@ class RayTests(g.unittest.TestCase):
         # Initialize the camera origin to be somewhere behind the cube.
         cam_t = g.np.array([0, 0, -15.])
         # Duplicate to ensure we have an camera_origin per ray direction
-        ray_origins = g.np.tile(cam_t, (ray_directions.shape[0], 1)) 
+        ray_origins = g.np.tile(cam_t, (ray_directions.shape[0], 1))
 
         for use_embree in [True, False]:
             # Generate a 1 x 1 x 1 cube using the trimesh box primitive
-            cube_mesh = g.trimesh.primitives.Box(extents = [2, 2, 2],
+            cube_mesh = g.trimesh.primitives.Box(extents=[2, 2, 2],
                                                  use_embree=use_embree)
-                                               
-            # Perform 256 * 256 raycasts, one for each pixel on the image plane. We only want the 'first' hit.
-            index_triangles, index_ray = cube_mesh.ray.intersects_id(ray_origins = ray_origins,
-                                                                     ray_directions = ray_directions,
-                                                                     multiple_hits = False)
+
+            # Perform 256 * 256 raycasts, one for each pixel on the image
+            # plane. We only want the 'first' hit.
+            index_triangles, index_ray = cube_mesh.ray.intersects_id(ray_origins=ray_origins,
+                                                                     ray_directions=ray_directions,
+                                                                     multiple_hits=False)
             assert len(g.np.unique(index_triangles)) == 2
 
-            index_triangles, index_ray = cube_mesh.ray.intersects_id(ray_origins = ray_origins,
-                                                                     ray_directions = ray_directions,
-                                                                     multiple_hits = True)
+            index_triangles, index_ray = cube_mesh.ray.intersects_id(ray_origins=ray_origins,
+                                                                     ray_directions=ray_directions,
+                                                                     multiple_hits=True)
             assert len(g.np.unique(index_triangles)) > 2
 
-            
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()

@@ -15,7 +15,7 @@ class BooleanTest(g.unittest.TestCase):
         a, b = self.a, self.b
 
         engines = [('blender', g.trimesh.interfaces.blender.exists),
-                   ('scad',    g.trimesh.interfaces.scad.exists)]
+                   ('scad', g.trimesh.interfaces.scad.exists)]
 
         for engine, exists in engines:
             if not exists:
@@ -27,12 +27,12 @@ class BooleanTest(g.unittest.TestCase):
             if not d.is_volume:
                 d.show()
             self.assertTrue(d.is_volume)
-            self.assertTrue(self.is_zero(d.volume - 
+            self.assertTrue(self.is_zero(d.volume -
                                          self.truth['difference']))
 
             i = a.intersection(b, engine=engine)
             self.assertTrue(i.is_volume)
-            self.assertTrue(self.is_zero(i.volume - 
+            self.assertTrue(self.is_zero(i.volume -
                                          self.truth['intersection']))
 
             u = a.union(b, engine=engine)

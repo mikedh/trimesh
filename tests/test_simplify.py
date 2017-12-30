@@ -21,10 +21,11 @@ class SimplifyTest(g.unittest.TestCase):
             # the simplified version shouldn't have lost area
             assert g.np.allclose(path.area,
                                  simplified.area,
-                                 rtol=1e-3 )
+                                 rtol=1e-3)
 
             # see if we fit as many arcs as existed in the original drawing
-            new_count = sum(int(type(i).__name__ == 'Arc') for i in simplified.entities)
+            new_count = sum(int(type(i).__name__ == 'Arc')
+                            for i in simplified.entities)
             if new_count != arc_count:
                 print(new_count, arc_count)
 
@@ -41,7 +42,6 @@ class SimplifyTest(g.unittest.TestCase):
         # make sure the simplify call didn't alter our original mesh
         assert path.md5() == md5_pre
 
-            
     def test_simplify(self):
         for file_name in ['2D/cycloidal.dxf',
                           '2D/125_cycloidal.DXF',
@@ -58,8 +58,9 @@ class SimplifyTest(g.unittest.TestCase):
                 # we split so there should be only one polygon per drawing now
                 assert len(drawing.polygons_full) == 1
                 polygon = drawing.polygons_full[0]
-                arc_count = sum(int(type(i).__name__ == 'Arc') for i in drawing.entities)
-                
+                arc_count = sum(int(type(i).__name__ == 'Arc')
+                                for i in drawing.entities)
+
                 self.polygon_simplify(polygon=polygon,
                                       arc_count=arc_count)
 

@@ -74,7 +74,7 @@ def establish_baseline(*args, counts=[390, 3820, 1710]):
     we can normalize our tests to be meaningful even on garbage CI VM's.
 
     Runs a simple dot product, cross product, and list comprehension
-    with some multiplication and conditionals. 
+    with some multiplication and conditionals.
 
     Counts have been tuned to each be approximatly 1.0 on a mid-2014 i7.
 

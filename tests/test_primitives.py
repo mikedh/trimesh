@@ -65,22 +65,22 @@ class BooleanTest(g.unittest.TestCase):
             if hasattr(primitive, 'direction'):
                 self.assertTrue(primitive.direction.shape == (3,))
 
-                
             centroid = primitive.centroid.copy()
-            translation = [0,0,5]
+            translation = [0, 0, 5]
             primitive.apply_translation(translation)
-                
+
             if not g.np.allclose(primitive.centroid - centroid, translation):
-                raise ValueError('failed on {}'.format(primitive.__class__.__name__))
-            
-            
+                raise ValueError(
+                    'failed on {}'.format(
+                        primitive.__class__.__name__))
+
     def test_extrusion(self):
         if not has_meshpy:
             return
 
         polygon = g.Point([0, 0]).buffer(.5)
         e = g.trimesh.primitives.Extrusion(polygon=polygon,
-                        transform=g.trimesh.transformations.random_rotation_matrix())
+                                           transform=g.trimesh.transformations.random_rotation_matrix())
 
         # will create an inflated version of the extrusion
         b = e.buffer(.1)

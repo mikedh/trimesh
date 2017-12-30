@@ -174,10 +174,10 @@ def oriented_bounds(obj, angle_digits=1):
 
 def minimum_cylinder(obj, sample_count=10, angle_tol=.001):
     '''
-    Find the approximate minimum volume cylinder which contains a mesh or 
+    Find the approximate minimum volume cylinder which contains a mesh or
     list of points.
 
-    Samples a hemisphere then uses scipy.optimize to pick the 
+    Samples a hemisphere then uses scipy.optimize to pick the
     final orientation of the cylinder.
 
     A nice discussion about better ways to implement this is here:
@@ -196,7 +196,7 @@ def minimum_cylinder(obj, sample_count=10, angle_tol=.001):
     result: dict, with keys:
                 'radius'    : float, radius of cylinder
                 'height'    : float, height of cylinder
-                'transform' : (4,4) float, transform from the origin 
+                'transform' : (4,4) float, transform from the origin
                                to centered cylinder
     '''
 
@@ -222,7 +222,7 @@ def minimum_cylinder(obj, sample_count=10, angle_tol=.001):
         to_2D = transformations.spherical_matrix(*spherical, axes='rxyz')
         projected = transformations.transform_points(hull, matrix=to_2D)
         height = projected[:, 2].ptp()
-        
+
         try:
             center_2D, radius = nsphere.minimum_nsphere(projected[:, 0:2])
         except BaseException:
@@ -247,7 +247,7 @@ def minimum_cylinder(obj, sample_count=10, angle_tol=.001):
     # add the principal inertia vectors if we have a mesh
     if hasattr(obj, 'principal_inertia_vectors'):
         samples = np.vstack((samples,
-                    util.vector_to_spherical(obj.principal_inertia_vectors)))
+                             util.vector_to_spherical(obj.principal_inertia_vectors)))
     tic = [time.time()]
     # the projected volume at each sample
     volumes = np.array([volume_from_angles(i) for i in samples])
