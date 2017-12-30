@@ -172,12 +172,13 @@ def oriented_bounds(obj, angle_digits=1):
     return to_origin, min_extents
 
 
-def minimum_cylinder(obj, sample_count=15, angle_tol=.001):
+def minimum_cylinder(obj, sample_count=10, angle_tol=.001):
     '''
-    Find the approximate minimum volume cylinder which contains a mesh or set of points.
+    Find the approximate minimum volume cylinder which contains a mesh or 
+    list of points.
 
-    Samples a hemisphere in 12 degree increments and then uses scipy.optimize
-    to pick the final orientation of the cylinder.
+    Samples a hemisphere then uses scipy.optimize to pick the 
+    final orientation of the cylinder.
 
     A nice discussion about better ways to implement this is here:
     https://www.staff.uni-mainz.de/schoemer/publications/ALGO00.pdf
@@ -195,7 +196,8 @@ def minimum_cylinder(obj, sample_count=15, angle_tol=.001):
     result: dict, with keys:
                 'radius'    : float, radius of cylinder
                 'height'    : float, height of cylinder
-                'transform' : (4,4) float, transform from the origin to centered cylinder
+                'transform' : (4,4) float, transform from the origin 
+                               to centered cylinder
     '''
 
     def volume_from_angles(spherical, return_data=False):
@@ -217,13 +219,14 @@ def minimum_cylinder(obj, sample_count=15, angle_tol=.001):
         else:
             volume (float)
         '''
-        to_2D = transformations.spherical_matrix(*spherical)
-        projected = transformations.transform_points(hull, to_2D)
+        to_2D = transformations.spherical_matrix(*spherical, axes='rxyz')
+        projected = transformations.transform_points(hull, matrix=to_2D)
         height = projected[:, 2].ptp()
-        # in degenerate cases return as infinite volume
+        
         try:
             center_2D, radius = nsphere.minimum_nsphere(projected[:, 0:2])
         except BaseException:
+            # in degenerate cases return as infinite volume
             return np.inf
 
         volume = np.pi * height * (radius ** 2)
@@ -241,9 +244,15 @@ def minimum_cylinder(obj, sample_count=15, angle_tol=.001):
 
     # sample a hemisphere so local hill climbing can do its thing
     samples = util.grid_linspace([[0, 0], [np.pi, np.pi]], sample_count)
+    # add the principal inertia vectors if we have a mesh
+    if hasattr(obj, 'principal_inertia_vectors'):
+        samples = np.vstack((samples,
+                    util.vector_to_spherical(obj.principal_inertia_vectors)))
     tic = [time.time()]
+    # the projected volume at each sample
+    volumes = np.array([volume_from_angles(i) for i in samples])
     # the best vector in (2,) spherical coordinates
-    best = samples[np.argmin([volume_from_angles(i) for i in samples])]
+    best = samples[volumes.argmin()]
     tic.append(time.time())
 
     # since we already explored the global space, set the bounds to be
@@ -251,15 +260,14 @@ def minimum_cylinder(obj, sample_count=15, angle_tol=.001):
     step = 2 * np.pi / sample_count
     bounds = [(best[0] - step, best[0] + step),
               (best[1] - step, best[1] + step)]
-
     # run the optimization
     r = optimize.minimize(volume_from_angles,
                           best,
                           tol=angle_tol,
                           method='SLSQP',
                           bounds=bounds)
-    tic.append(time.time())
 
+    tic.append(time.time())
     log.info('Performed search in %f and minimize in %f', *np.diff(tic))
 
     # actually chunk the information about the cylinder

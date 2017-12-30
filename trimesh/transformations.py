@@ -1953,7 +1953,7 @@ def planar_matrix_to_3D(matrix_2D):
     return matrix_3D
 
 
-def spherical_matrix(theta, phi):
+def spherical_matrix(theta, phi, axes='sxyz'):
     '''
     Give a spherical coordinate vector, find the rotation that will
     transform a [0,0,1] vector to those coordinates
@@ -1971,7 +1971,7 @@ def spherical_matrix(theta, phi):
                 np.dot(matrix, [0,0,1,0])
 
     '''
-    result = euler_matrix(0.0, phi, theta)
+    result = euler_matrix(0.0, phi, theta, axes=axes)
     return result
 
 
