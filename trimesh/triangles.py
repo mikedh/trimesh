@@ -35,7 +35,6 @@ def area(triangles=None, crosses=None, sum=False):
         else:   (n,) float, individual area of triangles
     '''
     if crosses is None:
-        #log.warning('cross products not passed to area, will be expensively recomputed')
         crosses = cross(triangles)
     area = (np.sum(crosses**2, axis=1)**.5) * .5
     if sum:
@@ -51,7 +50,6 @@ def normals(triangles=None, crosses=None):
     returns:   normal vectors, (n,3)
     '''
     if crosses is None:
-        #log.warning('cross products not passed to normals, will be expensively recomputed')
         crosses = cross(triangles)
     normals, valid = util.unitize(crosses, check_valid=True)
     return normals, valid
@@ -97,8 +95,11 @@ def any_coplanar(triangles):
     return any_coplanar
 
 
-def mass_properties(triangles, crosses=None, density=1.0,
-                    center_mass=None, skip_inertia=False):
+def mass_properties(triangles,
+                    crosses=None,
+                    density=1.0,
+                    center_mass=None,
+                    skip_inertia=False):
     '''
     Calculate the mass properties of a group of triangles.
 
@@ -107,41 +108,47 @@ def mass_properties(triangles, crosses=None, density=1.0,
 
     Parameters
     ----------
+    triangles:    (n,3,3) float, triangles in space
+    crosses:      (n,) float, cross products of triangles
+    density:      float, optional override for density
+    center_mass:  (3,) float, optional override for center mass
+    skip_inertia: bool, if True will not return moments matrix
+
+    Returns
+    ---------
+    info: dict, mass properties
     '''
     triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
         raise ValueError('Triangles must be (n,3,3)!')
 
     if crosses is None:
-        #log.warning('cross products not passed to mass, will be expensively recomputed')
         crosses = cross(triangles)
 
     # these are the subexpressions of the integral
     f1 = triangles.sum(axis=1)
 
-    # triangles[:,0,:] will give rows like [[x0, y0, z0], ...] (the first vertex of every triangle)
-    # triangles[:,:,0] will give rows like [[x0, x1, x2], ...] (the x
-    # coordinates of every triangle)
+    # for the the first vertex of every triangle:
+    # triangles[:,0,:] will give rows like [[x0, y0, z0], ...] 
+
+    # for the x coordinates of every triangle
+    # triangles[:,:,0] will give rows like [[x0, x1, x2], ...] 
     f2 = (triangles[:, 0, :]**2 +
           triangles[:, 1, :]**2 +
           triangles[:, 0, :] * triangles[:, 1, :] +
           triangles[:, 2, :] * f1)
-
     f3 = ((triangles[:, 0, :]**3) +
           (triangles[:, 0, :]**2) * (triangles[:, 1, :]) +
           (triangles[:, 0, :]) * (triangles[:, 1, :]**2) +
           (triangles[:, 1, :]**3) +
           (triangles[:, 2, :] * f2))
-
     g0 = (f2 + (triangles[:, 0, :] + f1) * triangles[:, 0, :])
     g1 = (f2 + (triangles[:, 1, :] + f1) * triangles[:, 1, :])
     g2 = (f2 + (triangles[:, 2, :] + f1) * triangles[:, 2, :])
-
     integral = np.zeros((10, len(f1)))
     integral[0] = crosses[:, 0] * f1[:, 0]
     integral[1:4] = (crosses * f2).T
     integral[4:7] = (crosses * f3).T
-
     for i in range(3):
         triangle_i = np.mod(i + 1, 3)
         integral[i + 7] = crosses[:, i] * ((triangles[:, 0, triangle_i] * g0[:, i]) +
@@ -183,7 +190,6 @@ def mass_properties(triangles, crosses=None, density=1.0,
     inertia[2, 1] = inertia[1, 2]
     inertia[1, 0] = inertia[0, 1]
     inertia *= density
-
     result['inertia'] = inertia
 
     return result
@@ -191,7 +197,8 @@ def mass_properties(triangles, crosses=None, density=1.0,
 
 def windings_aligned(triangles, normals_compare):
     '''
-    Given a list of triangles and a list of normals determine if the two are aligned
+    Given a list of triangles and a list of normals determine if the 
+    two are aligned
 
     Parameters
     ----------

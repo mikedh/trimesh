@@ -46,7 +46,7 @@ def nearby_faces(mesh, points):
                               points + distance_vertex))
 
     # faces that intersect axis aligned bounding box
-    candidates = [list(rtree.intersection(b)) for b in bounds]
+    candidates = [list(rtree.intersection(b)) for b in bounds]        
 
     return candidates
 

@@ -151,10 +151,9 @@ def face_adjacency_radius(mesh):
                                      axis=1).reshape((-1, 3)))
 
     # the vector of the perpendicular projection to the shared edge
-    # from the vector
     perp = np.subtract(vectors,
                        (util.diagonal_dot(vectors,
-                                          edges_vec).reshape((-1, 1)) * edges_vec))
+                        edges_vec).reshape((-1, 1)) * edges_vec))
     # the length of the perpendicular projection
     span = np.linalg.norm(perp, axis=1)
 
@@ -219,6 +218,7 @@ def connected_edges(G, nodes):
     '''
     Given graph G and list of nodes, return the list of edges that
     are connected to nodes
+
     '''
     nodes_in_G = collections.deque()
     for node in nodes:
@@ -451,16 +451,7 @@ def connected_component_labels(edges, node_count):
     labels: (node_count,) int, component labels for each node
     contained: (node_count,) bool, if a labeled node was in the input set
     '''
-    edges = np.asanyarray(edges, dtype=np.int64)
-
-    if not (len(edges) == 0 or
-            util.is_shape(edges, (-1, 2))):
-        raise ValueError('edges must be (n,2)!')
-
-    matrix = coo_matrix((np.ones(len(edges), dtype=np.bool),
-                         (edges[:, 0], edges[:, 1])),
-                        dtype=np.bool,
-                        shape=(node_count, node_count))
+    matrix = edges_to_coo(edges, ndoe_count)
     body_count, labels = csgraph.connected_components(matrix,
                                                       directed=False)
 
@@ -469,6 +460,90 @@ def connected_component_labels(edges, node_count):
     return labels
 
 
+def dfs_traversals(edges):
+    '''
+    Given an edge list, generate a sequence of ordered
+    depth first search traversals, using scipy.csgraph routines.
+
+    Parameters
+    ------------
+    edges: (n,2) int, undirected edges of a graph
+
+    Returns
+    -----------
+    traversals: (m,) sequence of (p,) int, 
+                ordered DFS traversals of the graph.
+    '''
+    edges = np.asanyarray(edges, dtype=np.int64)
+    if not util.is_shape(edges, (-1,2)):
+        raise ValueError('edges are not (n,2)!')
+
+    # make sure edges are sorted so we can query
+    # an ordered pair later
+    edges.sort(axis=1)
+
+    # set of nodes to make sure we get every node
+    nodes = set(edges.reshape(-1))
+    # coo_matrix for csgraph routines
+    graph = edges_to_coo(edges)
+    
+    # we're going to make a sequence of traversals
+    traversals = []
+    while len(nodes) > 0:
+        # starting at any node
+        start = nodes.pop()
+        # get an (n,) ordered traversal
+        ordered = csgraph.depth_first_order(graph,
+                                            i_start=start,
+                                            return_predecessors=False,
+                                            directed=False)
+        # even if the traversal is closed there won't be an
+        # indication from the DFS, so add the first node
+        # to the end of the path
+        if np.sort(ordered[[0,-1]]) in edges:
+            ordered = np.append(ordered, ordered[0])
+        # add the traversal to our result
+        traversals.append(ordered)
+        # remove the nodes we've consumed
+        nodes.difference_update(ordered)
+        
+    return traversals
+
+
+def edges_to_coo(edges, count=None):
+    '''
+    Given an edge list, return a boolean scipy.sparse.coo_matrix
+    representing the edges in matrix form.
+
+    Parameters
+    ------------
+    edges: (n,2) int, edges of a graph
+    node_count: int, the number of nodes. 
+                defaults to edges.max() + 1
+
+    Returns
+    ------------
+    matrix: (count, count) bool, scipy.sparse.coo_matrix
+    '''
+    edges = np.asanyarray(edges, dtype=np.int64)
+    if not util.is_shape(edges, (-1,2)):
+        raise ValueError('edges are not (n,2)!')
+
+    if count is None: count = edges.max() + 1
+    else:             count = int(node_count)
+    
+    if not (len(edges) == 0 or
+            util.is_shape(edges, (-1, 2))):
+        raise ValueError('edges must be (n,2)!')
+
+    matrix = coo_matrix((np.ones(len(edges), dtype=np.bool),
+                         (edges[:, 0], edges[:, 1])),
+                        dtype=np.bool,
+                        shape=(count, count))
+
+    return matrix
+
+    
 def smoothed(mesh, angle):
     '''
     Return a non- watertight version of the mesh which will

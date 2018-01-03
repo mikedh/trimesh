@@ -6,6 +6,7 @@ from rtree import Rtree
 from collections import deque
 
 from .. import bounds
+from .. import graph
 
 from ..geometry import medial_axis as _medial_axis
 from ..constants import tol_path as tol
@@ -15,19 +16,29 @@ from ..util import is_sequence
 from .traversal import resample_path
 
 
-def polygons_enclosure_tree(polygons):
+def enclosure_tree(polygons):
     '''
     Given a list of shapely polygons, which are the root (aka outermost)
     polygons, and which represent the holes which penetrate the root
     curve. We do this by creating an R-tree for rough collision detection,
     and then do polygon queries for a final result
+
+    Parameters
+    -----------
+    polygons: (n,) list of shapely.geometry.Polygon objects
+
+    Returns
+    -----------
+    roots: (m,) int, index of polygons which are root
+    contains:  networkx.DiGraph, edges indicate a polygon 
+               contained by another polygon
     '''
     tree = Rtree()
     for i, polygon in enumerate(polygons):
         tree.insert(i, polygon.bounds)
     count = len(polygons)
-    g = nx.DiGraph()
-    g.add_nodes_from(np.arange(count))
+    contains = nx.DiGraph()
+    contains.add_nodes_from(np.arange(count))
     for i in range(count):
         if polygons[i] is None:
             continue
@@ -38,12 +49,49 @@ def polygons_enclosure_tree(polygons):
             # we then do a more accurate polygon in polygon test to generate
             # the enclosure tree information
             if polygons[i].contains(polygons[j]):
-                g.add_edge(i, j)
+                contains.add_edge(i, j)
             elif polygons[j].contains(polygons[i]):
-                g.add_edge(j, i)
-    roots = [n for n, deg in dict(g.in_degree()).items() if deg == 0]
-    return roots, g
+                contains.add_edge(j, i)
+    roots = [n for n, deg in dict(contains.in_degree()).items() if deg == 0]
+    return roots, contains
 
+
+def edges_to_polygons(edges, vertices):
+    '''
+    Given an edge list of indices and associated vertices
+    representing lines, generate a list of polygons.
+
+    Parameters
+    -----------
+    edges: (n,2) int, indexes of vertices which represent lines
+    vertices: (m,2) float, vertex positions
+
+    Returns
+    ----------
+    polygons: (p,) list of shapely.geometry.Polygon objects
+    '''
+    # sequence of ordered traversals
+    dfs = graph.dfs_traversals(edges)
+    # create closed polygon objects
+    polygons = [Polygon(vertices[i]) for i in dfs]
+
+    # if there is only one polygon, just return it
+    if len(polygons) == 1:
+        return polygons
+    
+    # find which polygons contain which other polygons
+    roots, tree = enclosure_tree(polygons)
+
+    # generate list of polygons with proper interiors
+    complete = []
+    for root in roots:
+        interior = list(tree[root].keys())
+        shell = polygons[root].exterior.coords
+        holes = [polygons[i].exterior.coords for i in interior] 
+        complete.append(Polygon(shell=shell,
+                                holes=holes))
+    return complete
+    
 
 def polygons_obb(polygons):
     '''

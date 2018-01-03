@@ -906,8 +906,7 @@ class Path2D(Path):
         '''
         Networkx DiGraph of polygon enclosure
         '''
-        root, enclosure = polygons.polygons_enclosure_tree(
-            self.polygons_closed)
+        root, enclosure = polygons.enclosure_tree(self.polygons_closed)
         self._cache.set('root', root)
         return enclosure
 
