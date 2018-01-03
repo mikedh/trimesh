@@ -153,7 +153,7 @@ def face_adjacency_radius(mesh):
     # the vector of the perpendicular projection to the shared edge
     perp = np.subtract(vectors,
                        (util.diagonal_dot(vectors,
-                        edges_vec).reshape((-1, 1)) * edges_vec))
+                                          edges_vec).reshape((-1, 1)) * edges_vec))
     # the length of the perpendicular projection
     span = np.linalg.norm(perp, axis=1)
 
@@ -437,7 +437,7 @@ def connected_components(edges,
     raise ImportError('No connected component engines available!')
 
 
-def connected_component_labels(edges, node_count):
+def connected_component_labels(edges, node_count=None):
     '''
     Label graph nodes from an edge list, using scipy.sparse.csgraph
 
@@ -449,9 +449,8 @@ def connected_component_labels(edges, node_count):
     Returns
     ---------
     labels: (node_count,) int, component labels for each node
-    contained: (node_count,) bool, if a labeled node was in the input set
     '''
-    matrix = edges_to_coo(edges, ndoe_count)
+    matrix = edges_to_coo(edges, node_count)
     body_count, labels = csgraph.connected_components(matrix,
                                                       directed=False)
 
@@ -471,11 +470,11 @@ def dfs_traversals(edges):
 
     Returns
     -----------
-    traversals: (m,) sequence of (p,) int, 
+    traversals: (m,) sequence of (p,) int,
                 ordered DFS traversals of the graph.
     '''
     edges = np.asanyarray(edges, dtype=np.int64)
-    if not util.is_shape(edges, (-1,2)):
+    if not util.is_shape(edges, (-1, 2)):
         raise ValueError('edges are not (n,2)!')
 
     # make sure edges are sorted so we can query
@@ -486,7 +485,7 @@ def dfs_traversals(edges):
     nodes = set(edges.reshape(-1))
     # coo_matrix for csgraph routines
     graph = edges_to_coo(edges)
-    
+
     # we're going to make a sequence of traversals
     traversals = []
     while len(nodes) > 0:
@@ -500,13 +499,13 @@ def dfs_traversals(edges):
         # even if the traversal is closed there won't be an
         # indication from the DFS, so add the first node
         # to the end of the path
-        if np.sort(ordered[[0,-1]]) in edges:
+        if np.sort(ordered[[0, -1]]) in edges:
             ordered = np.append(ordered, ordered[0])
         # add the traversal to our result
         traversals.append(ordered)
         # remove the nodes we've consumed
         nodes.difference_update(ordered)
-        
+
     return traversals
 
 
@@ -518,7 +517,7 @@ def edges_to_coo(edges, count=None):
     Parameters
     ------------
     edges: (n,2) int, edges of a graph
-    node_count: int, the number of nodes. 
+    node_count: int, the number of nodes.
                 defaults to edges.max() + 1
 
     Returns
@@ -526,24 +525,23 @@ def edges_to_coo(edges, count=None):
     matrix: (count, count) bool, scipy.sparse.coo_matrix
     '''
     edges = np.asanyarray(edges, dtype=np.int64)
-    if not util.is_shape(edges, (-1,2)):
-        raise ValueError('edges are not (n,2)!')
-
-    if count is None: count = edges.max() + 1
-    else:             count = int(node_count)
-    
     if not (len(edges) == 0 or
             util.is_shape(edges, (-1, 2))):
         raise ValueError('edges must be (n,2)!')
+
+    if count is None:
+        count = edges.max() + 1
+    else:
+        count = int(count)
 
     matrix = coo_matrix((np.ones(len(edges), dtype=np.bool),
                          (edges[:, 0], edges[:, 1])),
                         dtype=np.bool,
                         shape=(count, count))
-
+    
     return matrix
 
-    
+
 def smoothed(mesh, angle):
     '''
     Return a non- watertight version of the mesh which will

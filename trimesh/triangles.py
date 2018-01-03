@@ -129,10 +129,10 @@ def mass_properties(triangles,
     f1 = triangles.sum(axis=1)
 
     # for the the first vertex of every triangle:
-    # triangles[:,0,:] will give rows like [[x0, y0, z0], ...] 
+    # triangles[:,0,:] will give rows like [[x0, y0, z0], ...]
 
     # for the x coordinates of every triangle
-    # triangles[:,:,0] will give rows like [[x0, x1, x2], ...] 
+    # triangles[:,:,0] will give rows like [[x0, x1, x2], ...]
     f2 = (triangles[:, 0, :]**2 +
           triangles[:, 1, :]**2 +
           triangles[:, 0, :] * triangles[:, 1, :] +
@@ -197,7 +197,7 @@ def mass_properties(triangles,
 
 def windings_aligned(triangles, normals_compare):
     '''
-    Given a list of triangles and a list of normals determine if the 
+    Given a list of triangles and a list of normals determine if the
     two are aligned
 
     Parameters

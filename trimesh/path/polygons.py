@@ -30,7 +30,7 @@ def enclosure_tree(polygons):
     Returns
     -----------
     roots: (m,) int, index of polygons which are root
-    contains:  networkx.DiGraph, edges indicate a polygon 
+    contains:  networkx.DiGraph, edges indicate a polygon
                contained by another polygon
     '''
     tree = Rtree()
@@ -78,7 +78,7 @@ def edges_to_polygons(edges, vertices):
     # if there is only one polygon, just return it
     if len(polygons) == 1:
         return polygons
-    
+
     # find which polygons contain which other polygons
     roots, tree = enclosure_tree(polygons)
 
@@ -87,11 +87,11 @@ def edges_to_polygons(edges, vertices):
     for root in roots:
         interior = list(tree[root].keys())
         shell = polygons[root].exterior.coords
-        holes = [polygons[i].exterior.coords for i in interior] 
+        holes = [polygons[i].exterior.coords for i in interior]
         complete.append(Polygon(shell=shell,
                                 holes=holes))
     return complete
-    
+
 
 def polygons_obb(polygons):
     '''
