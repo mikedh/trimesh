@@ -189,6 +189,7 @@ class SplitTest(g.unittest.TestCase):
                 assert s.path_valid.sum() == len(s.polygons_closed)
 
 
+                
 class ExportTest(g.unittest.TestCase):
     def test_svg(self):
         for d in g.get_2D():
@@ -197,18 +198,14 @@ class ExportTest(g.unittest.TestCase):
             # load the exported SVG
             stream = g.trimesh.util.wrap_as_stream(exported)
             loaded = g.trimesh.load(stream, file_type='svg')
-
-            # SVG will export circles as two non- closed arcs
-            assert len(loaded.entities) >= len(d.entities)
             
             # we only have line and arc primitives as SVG export and import
             if all(i.__class__.__name__ in ['Line',
                                             'Arc'] for i in d.entities):
                 # perimeter should stay the same-ish on export/inport
-                assert g.np.allclose(d.length,
+                assert g.np.isclose(d.length,
                                      loaded.length,
                                      rtol=.01)
-
 
 
 
