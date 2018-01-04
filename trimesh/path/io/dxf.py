@@ -1,11 +1,23 @@
 import numpy as np
 import collections
 
+import numpy as np
+import json
+
+from string import Template
+from ...resources import get_resource
+from ...util import three_dimensionalize
+
 from ...constants import log
 from ...constants import tol_path as tol
 from ..entities import Line, Arc, BSpline
 from ..util import angles_to_threepoint, is_ccw
 from ...util import is_binary_file, multi_dict, make_sequence
+
+
+_templates_dxf = {k: Template(v) for k, v in json.loads(
+    get_resource('dxf.json.template')).items()}
+
 
 # unit codes
 _DXF_UNITS = {1: 'inches',
@@ -135,8 +147,10 @@ def load_dxf(file_obj):
     # a group code then the next line is the value
     # we are removing all whitespace then splitting with the
     # splitlines function which uses the universal newline method
-    raw = str(file_obj.read().decode('utf-8',
-                                     errors='ignore').upper().replace(' ', ''))
+    raw = file_obj.read()
+    if hasattr(raw, 'decode'):
+        raw = raw.decode('utf-8', errors='ignore')
+    raw = raw.upper().replace(' ', '')
     # if this reshape fails, it means the DXF is malformed
     blob = np.array(str.splitlines(raw)).reshape((-1, 2))
 
@@ -194,3 +208,152 @@ def load_dxf(file_obj):
               'metadata': metadata}
 
     return result
+
+
+
+def export_dxf(path):
+    '''
+    Export a 2D path object to a DXF file
+
+    Parameters
+    ----------
+    path: trimesh.path.path.Path2D
+
+    Returns
+    ----------
+    export: str, path formatted as a DXF file
+    '''
+
+    def format_points(points, increment=True):
+        '''
+        Format points into DXF- style point string.
+
+        Parameters
+        -----------
+        points: (n,2) or (n,3) float, points in space
+        increment: bool, if True increment group code per point
+                   Example:
+                       [[X0, Y0, Z0], [X1, Y1, Z1]]
+                   Result, new lines replaced with spaces:
+                     True  -> 10 X0 20 Y0 30 Z0 11 X1 21 Y1 31 Z1
+                     False -> 10 X0 20 Y0 30 Z0 10 X1 20 Y1 30 Z1
+
+        Returns
+        -----------
+        packed: str, points formatted with group code
+        '''
+        points = np.asanyarray(points)
+        three = three_dimensionalize(points, return_2D=False)
+        if increment:
+            group = np.tile(np.arange(len(three)).reshape((-1, 1)), (1, 3))
+        else:
+            group = np.zeros((len(three), 3), dtype=np.int)
+        group += [10, 20, 30]
+        interleaved = np.dstack((group.astype(str),
+                                 three.astype(str))).reshape(-1)
+        packed = '\n'.join(interleaved)
+
+        return packed
+
+    def entity_info(entity):
+        '''
+        Pull layer, color, and name information about an entity
+
+        Parameters
+        -----------
+        entity: entity object
+
+        Returns
+        ----------
+        name:  str, name of entity
+        color: int, color code
+        layer: int, layer code
+        '''
+        color, layer = 0, 0
+        if hasattr(entity, 'color'):
+            color = int(entity.color)
+        if hasattr(entity, 'layer'):
+            layer = int(entity.layer)
+        name = str(id(entity))[:16]
+        return name, color, layer
+
+    def convert_line(line, vertices):
+        points = line.discrete(vertices)
+        name, color, layer = entity_info(line)
+        is_poly = len(points) > 2
+        line_type = ['LINE', 'LWPOLYLINE'][int(is_poly)]
+        result = templates['line'].substitute({
+            'TYPE': line_type, 
+            'POINTS': format_points(points, increment=not is_poly), 
+            'NAME': name,
+            'LAYER_NUMBER': layer, 
+            'COLOR_NUMBER': color})
+        return result
+
+    def convert_arc(arc, vertices):
+        info = arc.center(vertices)
+        name, color, layer = entity_info(arc)
+        angles = np.degrees(info['angles'])
+        arc_type = ['ARC', 'CIRCLE'][int(arc.closed)]
+        result = templates['arc'].substitute({
+            'TYPE': arc_type,
+            'CENTER_POINT': format_points([info['center']]),
+            'ANGLE_MIN': angles[0],
+            'ANGLE_MAX': angles[1],
+            'RADIUS': info['radius'],
+            'LAYER_NUMBER': layer,
+            'COLOR_NUMBER': color})
+        return result
+
+    def convert_bspline(spline, vertices):
+        # points formatted with group code
+        points = format_points(vertices[spline.points],
+                               increment=False)
+
+        # (n,) float knots, formatted with group code
+        knots = '40\n' + '\n40\n'.join(spline.knots.reshape(-1).astype(str))
+        
+        # pull entity info
+        name, color, layer = entity_info(spline)
+        
+        # format into string template
+        result = templates['bspline'].substitute({
+            'TYPE': 'SPLINE',
+            'POINTS': points,
+            'KNOTS' : knots,
+            'NAME': name,
+            'LAYER_NUMBER': layer, 
+            'COLOR_NUMBER': color})
+
+        return result
+
+    def convert_generic(entity, vertices):
+        '''
+        For entities we don't know how to handle, return their
+        discrete form as a polyline
+        '''
+        return convert_line(entity, vertices)
+
+    templates = _templates_dxf
+    np.set_printoptions(precision=12)
+    conversions = {'Line': convert_line,
+                   'Arc': convert_arc,
+                   'Bezier': convert_generic,
+                   'BSpline': convert_bspline}
+    entities_str = ''
+    for e in path.entities:
+        name = type(e).__name__
+        if name in conversions:
+            entities_str += conversions[name](e, path.vertices)
+        else:
+            log.debug('Entity type %s not exported!', name)
+
+    header = templates['header'].substitute(
+        {'BOUNDS_MIN': format_points([path.bounds[0]]),
+         'BOUNDS_MAX': format_points([path.bounds[1]]),
+         'UNITS_CODE': '1'})
+    entities = templates['entities'].substitute({'ENTITIES': entities_str})
+    footer = templates['footer'].substitute()
+    export = '\n'.join([header, entities, footer])
+    return export
+

@@ -1,7 +1,7 @@
 import numpy as np
 import os
 
-from .dxf_load import load_dxf
+from .dxf import load_dxf
 from .svg_io import svg_to_path
 from ..path import Path, Path2D, Path3D
 
