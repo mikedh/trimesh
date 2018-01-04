@@ -140,9 +140,6 @@ def load_dxf(file_obj):
                                 closed=closed))
         vertices.extend(points)
 
-    if is_binary_file(file_obj):
-        raise ValueError("Binary DXF is unsupported!")
-
     # in a DXF file, lines come in pairs,
     # a group code then the next line is the value
     # we are removing all whitespace then splitting with the
