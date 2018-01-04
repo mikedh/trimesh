@@ -150,7 +150,7 @@ def load_dxf(file_obj):
     raw = file_obj.read()
     if hasattr(raw, 'decode'):
         raw = raw.decode('utf-8', errors='ignore')
-    raw = raw.upper().replace(' ', '')
+    raw = str(raw).upper().replace(' ', '')
     # if this reshape fails, it means the DXF is malformed
     blob = np.array(str.splitlines(raw)).reshape((-1, 2))
 
