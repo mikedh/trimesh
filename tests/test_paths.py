@@ -93,9 +93,9 @@ class ArcTests(g.unittest.TestCase):
             C, res_center) < g.tol_path.zero)
 
     def test_center_random(self):
-        '''
-        Test that arc centers work on well formed random points in 2D and 3D
-        '''
+ 
+        #Test that arc centers work on well formed random points in 2D and 3D
+ 
         min_angle = g.np.radians(2)
         min_radius = .0001
         count = 1000
@@ -198,6 +198,9 @@ class ExportTest(g.unittest.TestCase):
             stream = g.trimesh.util.wrap_as_stream(exported)
             loaded = g.trimesh.load(stream, file_type='svg')
 
+            # SVG will export circles as two non- closed arcs
+            assert len(loaded.entities) >= len(d.entities)
+            
             # we only have line and arc primitives as SVG export and import
             if all(i.__class__.__name__ in ['Line',
                                             'Arc'] for i in d.entities):

@@ -159,30 +159,15 @@ def export_svg(drawing, return_path=False, **kwargs):
         large_flag = str(int(angle > np.pi))
         sweep_flag = str(int(np.cross(vertex_mid - vertex_start,
                                       vertex_end - vertex_start) > 0.0))
-        R_ex = format(R, res.export)
-        x_ex = format(vertex_end[0], res.export)
-        y_ex = format(vertex_end[1], res.export)
 
         arc_str = move_to(arc_idx[0])
-        arc_str += 'A {},{} 0 {}, {} {},{}'.format(R_ex,
-                                                   R_ex,
+        arc_str += 'A {},{} 0 {}, {} {},{}'.format(R,
+                                                   R,
                                                    large_flag,
                                                    sweep_flag,
-                                                   x_ex,
-                                                   y_ex)
+                                                   vertex_end[0],
+                                                   vertex_end[1])
         return arc_str
-
-    def svg_line(line, reverse):
-        index = line.points
-        if reverse:
-            index = index[::-1]
-        current = move_to(index[0])
-        for index_end in index[1:]:
-            vertex_end = points[index_end]
-            x_ex = format(vertex_end[0], res.export)
-            y_ex = format(vertex_end[1], res.export)
-            current += ' L ' + x_ex + ',' + y_ex
-        return current
 
     def move_to(vertex_id):
         x_ex = format(points[vertex_id][0], res.export)
@@ -190,22 +175,37 @@ def export_svg(drawing, return_path=False, **kwargs):
         move_str = ' M ' + x_ex + ',' + y_ex
         return move_str
 
+    def svg_discrete(entity, reverse):
+        '''
+        Use an entities discrete representation to export a 
+        curve as a polyline
+        '''
+        discrete = entity.discrete(points)
+        if reverse:
+            discrete = discrete[::-1]
+        template = ' M {},{} '+ (' L {},{}' * (len(discrete) - 1))
+        result = template.format(*discrete.reshape(-1))
+        return result
+        
     def convert_path(path, reverse=False, close=True):
         path = path[::(reverse * -2) + 1]
         converted = []
         for i, entity_id in enumerate(path):
             entity = drawing.entities[entity_id]
-            e_type = entity.__class__.__name__
-            try:
-                converted.append(converters[e_type](entity, reverse))
-            except KeyError:
-                log.debug('%s entity not available for export!', e_type)
+            etype = entity.__class__.__name__
+            if etype in converters:
+                converted.append(converters[etype](entity, reverse))
+            else:
+                converted.append(svg_discrete(entity, reverse))
+                
         # remove leading and trailing whitespace
         converted = ' '.join(converted) + ' '
         return converted
 
-    converters = {'Line': svg_line,
-                  'Arc': svg_arc}
+    # only converters where we want to do something
+    # other than export a curve as a polyline
+    converters = {'Arc': svg_arc}
+    
     path_str = ''
     for path_index, path in enumerate(drawing.paths):
         reverse = not (path_index in drawing.root)
@@ -217,6 +217,7 @@ def export_svg(drawing, return_path=False, **kwargs):
                              reverse=False,
                              close=False)
     path_str = path_str.strip()
+
     if return_path:
         return path_str
 
