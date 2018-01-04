@@ -210,7 +210,6 @@ def load_dxf(file_obj):
     return result
 
 
-
 def export_dxf(path):
     '''
     Export a 2D path object to a DXF file
@@ -283,10 +282,10 @@ def export_dxf(path):
         is_poly = len(points) > 2
         line_type = ['LINE', 'LWPOLYLINE'][int(is_poly)]
         result = templates['line'].substitute({
-            'TYPE': line_type, 
-            'POINTS': format_points(points, increment=not is_poly), 
+            'TYPE': line_type,
+            'POINTS': format_points(points, increment=not is_poly),
             'NAME': name,
-            'LAYER_NUMBER': layer, 
+            'LAYER_NUMBER': layer,
             'COLOR_NUMBER': color})
         return result
 
@@ -312,17 +311,17 @@ def export_dxf(path):
 
         # (n,) float knots, formatted with group code
         knots = '40\n' + '\n40\n'.join(spline.knots.reshape(-1).astype(str))
-        
+
         # pull entity info
         name, color, layer = entity_info(spline)
-        
+
         # format into string template
         result = templates['bspline'].substitute({
             'TYPE': 'SPLINE',
             'POINTS': points,
-            'KNOTS' : knots,
+            'KNOTS': knots,
             'NAME': name,
-            'LAYER_NUMBER': layer, 
+            'LAYER_NUMBER': layer,
             'COLOR_NUMBER': color})
 
         return result
@@ -356,4 +355,3 @@ def export_dxf(path):
     footer = templates['footer'].substitute()
     export = '\n'.join([header, entities, footer])
     return export
-

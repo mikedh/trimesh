@@ -538,7 +538,7 @@ def edges_to_coo(edges, count=None):
                          (edges[:, 0], edges[:, 1])),
                         dtype=np.bool,
                         shape=(count, count))
-    
+
     return matrix
 
 
