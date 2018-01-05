@@ -5,14 +5,19 @@ import numpy as np
 import json
 
 from string import Template
+
+from ..arc import to_threepoint
+from ..entities import Line, Arc, BSpline
+from ..util import is_ccw
+
+
 from ...resources import get_resource
 from ...util import three_dimensionalize
-
 from ...constants import log
 from ...constants import tol_path as tol
-from ..entities import Line, Arc, BSpline
-from ..util import angles_to_threepoint, is_ccw
 from ...util import is_binary_file, multi_dict, make_sequence
+
+
 
 
 _templates_dxf = {k: Template(v) for k, v in json.loads(
@@ -65,33 +70,36 @@ def load_dxf(file_obj):
     ----------
     result: dict, keys are  entities, vertices and metadata
     '''
-    def update_metadata(e_data):
+    def info(e):
         '''
         Pull metadata based on group code
         '''
         # which keys should we extract from the entity data
         # DXF group code : our metadata key
-        candidates = {'8': 'layers'}
-        for k, v in candidates.items():
-            # dict.get will return None if key is not present,
-            # maintaining correct length of deque for values
-            # so the indexes of a metadata entry correspond with
-            # an entity object.
-            e_value = make_sequence(e_data.get(k))
-            entity_metadata[v].extend(e_value)
+        cand = {'8': 'layer'}
+        
+        # replace group codes with names and only 
+        # take info from the entity dict if it is in cand
+        rename = {cand[k]: v[0] for k, v in e.items() if k in cand}
+
+        return rename
 
     def convert_line(e):
-        entities.append(Line(len(vertices) + np.arange(2)))
+        entities.append(Line(points=len(vertices) + np.arange(2),
+                             **info(e)))
         vertices.extend(np.array([[e['10'], e['20']],
-                                  [e['11'], e['21']]], dtype=np.float64))
+                                  [e['11'], e['21']]], 
+                                 dtype=np.float64))
 
     def convert_circle(e):
         R = float(e['40'])
         C = np.array([e['10'],
                       e['20']]).astype(np.float64)
-        points = angles_to_threepoint([0, np.pi], C[0:2], R)
+        points = to_threepoint(center=C[0:2], 
+                               radius=R)
         entities.append(Arc(points=(len(vertices) + np.arange(3)),
-                            closed=True))
+                            closed=True,
+                            **info(e)))
         vertices.extend(points)
 
     def convert_arc(e):
@@ -100,9 +108,12 @@ def load_dxf(file_obj):
                       e['20']], dtype=np.float64)
         A = np.radians(np.array([e['50'],
                                  e['51']], dtype=np.float64))
-        points = angles_to_threepoint(A, C[0:2], R)
-        entities.append(Arc(len(vertices) + np.arange(3),
-                            closed=False))
+        points = to_threepoint(center=C[0:2], 
+                               radius=R,
+                               angles=A)
+        entities.append(Arc(points=len(vertices) + np.arange(3),
+                            closed=False,
+                            **info(e)))
         vertices.extend(points)
 
     def convert_polyline(e):
@@ -122,7 +133,8 @@ def load_dxf(file_obj):
             log.warning('polyline with bulge %s detected, ignoring!',
                         e['42'])
 
-        entities.append(Line(np.arange(len(lines)) + len(vertices)))
+        entities.append(Line(points=np.arange(len(lines)) + len(vertices),
+                             **info(e)))
         vertices.extend(lines)
 
     def convert_bspline(e):
@@ -137,7 +149,8 @@ def load_dxf(file_obj):
             points = points[::-1]
         entities.append(BSpline(points=np.arange(len(points)) + len(vertices),
                                 knots=knots,
-                                closed=closed))
+                                closed=closed,
+                                **info(e)))
         vertices.extend(points)
 
     # in a DXF file, lines come in pairs,
@@ -186,7 +199,6 @@ def load_dxf(file_obj):
 
     vertices = collections.deque()
     entities = collections.deque()
-    entity_metadata = collections.defaultdict(collections.deque)
 
     for chunk in np.array_split(entity_blob, inflection):
         if len(chunk) > 2:
@@ -195,10 +207,8 @@ def load_dxf(file_obj):
                 chunker, loader = loaders[entity_type]
                 entity_data = chunker(chunk)
                 loader(entity_data)
-                update_metadata(entity_data)
             else:
                 log.debug('Entity type %s not supported', entity_type)
-    metadata.update({k: np.array(v) for k, v in entity_metadata.items()})
 
     result = {'vertices': np.vstack(vertices).astype(np.float64),
               'entities': np.array(entities),
@@ -269,7 +279,7 @@ def export_dxf(path):
         if hasattr(entity, 'color'):
             color = int(entity.color)
         if hasattr(entity, 'layer'):
-            layer = int(entity.layer)
+            layer = str(entity.layer)
         name = str(id(entity))[:16]
         return name, color, layer
 

@@ -27,7 +27,9 @@ from .. import transformations
 from . import simplify
 from . import entities
 from . import polygons
+from . import creation
 from . import traversal
+
 
 from .io.export import export_path
 
@@ -305,14 +307,27 @@ class Path(object):
         matrix[:dimension, :dimension] *= float(scale)
         self.apply_transform(matrix)
 
+    def apply_layer(self, name):
+        '''
+        Apply a layer name to every entity in the path.
+        
+        Parameters
+        ------------
+        name: str to apply to each entity
+        '''
+        for e in self.entities:
+            e.layer = name
+
     def rezero(self):
         '''
-        Translate so that every vertex is positive in the current mesh is positive.
+        Translate so that every vertex is positive in the current 
+        mesh is positive.
 
         Returns
         -----------
-        matrix: (dimension + 1, dimension + 1) float, homogenous transformation
-                 that was applied to the current Path object.
+        matrix: (dimension + 1, dimension + 1) float, 
+                    homogenous transformation
+                    that was applied to the current Path object.
         '''
         dimension = self.vertices.shape[1]
         matrix = np.eye(dimension + 1)
@@ -326,6 +341,7 @@ class Path(object):
         '''
         digits = decimal_to_digits(tol.merge * self.scale, min_digits=1)
         unique, inverse = grouping.unique_rows(self.vertices, digits=digits)
+
         self.vertices = self.vertices[unique]
         for entity in self.entities:
             # if we merged duplicate vertices, the entity may contain
@@ -462,20 +478,35 @@ class Path(object):
             self.plot_entities(show=True)
 
     def __add__(self, other):
+        '''
+        Concatenate two Path objects by appending vertices and
+        reindexing point references.
+
+        Parameters
+        -----------
+        other: Path object
+        
+        Returns
+        -----------
+        concat: Path object, appended from self and other 
+        '''
+
         new_entities = copy.deepcopy(other.entities)
         for entity in new_entities:
             entity.points += len(self.vertices)
         new_entities = np.append(copy.deepcopy(self.entities),
                                  new_entities)
+
         new_vertices = np.vstack((self.vertices,
                                   other.vertices))
+
         new_meta = copy.deepcopy(self.metadata)
         new_meta.update(other.metadata)
 
-        new_path = self.__class__(entities=new_entities,
-                                  vertices=new_vertices,
-                                  metadata=new_meta)
-        return new_path
+        concat = self.__class__(entities=new_entities,
+                                vertices=new_vertices,
+                                metadata=new_meta)
+        return concat
 
 
 class Path3D(Path):
@@ -546,6 +577,13 @@ class Path3D(Path):
         self.scene().show()
 
     def plot_discrete(self, show=False):
+        '''
+        Plot the discrete closed curves.
+
+        Parameters
+        ------------
+        show: 
+        '''
         import matplotlib.pyplot as plt
         from mpl_toolkits.mplot3d import Axes3D
         fig = plt.figure()
@@ -575,11 +613,14 @@ class Path2D(Path):
                 self.remove_unreferenced_vertices]
 
     def apply_obb(self):
+        '''
+        Transform the current path so that its OBB is axis aligned
+        and OBB center is at the origin.
+        '''
         if len(self.root) == 1:
             matrix, bounds = polygons.polygon_obb(
                 self.polygons_closed[self.root[0]])
             self.apply_transform(matrix)
-
             return matrix
         else:
             raise ValueError('Not implemented for multibody geometry')
@@ -824,9 +865,10 @@ class Path2D(Path):
         for entity in self.entities:
             discrete = entity.discrete(self.vertices)
             e_key = entity.__class__.__name__ + str(int(entity.closed))
-            plt.plot(discrete[:, 0],
-                     discrete[:, 1],
-                     **eformat[e_key])
+            fmt = eformat[e_key]
+            if hasattr(entity, 'color'):
+                fmt['color'] = entity.color
+            plt.plot(*discrete.T, **fmt)
         if show:
             plt.show()
 

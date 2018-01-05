@@ -94,7 +94,10 @@ def fit_circle_check(points, scale, prior=None, final=False, verbose=False):
                       np.degrees(tangent))
         return None
 
-    return (C, R)
+    result = {'center' : C,
+              'radius' : R}
+
+    return result
 
 
 def is_circle(points, scale, verbose=False):
@@ -125,7 +128,7 @@ def is_circle(points, scale, verbose=False):
         return None
 
     # return the circle as three control points
-    control = arc.angles_to_threepoint([0, np.pi * .5], *CR)
+    control = arc.to_threepoint(**CR)
     return control
 
 

@@ -139,10 +139,46 @@ def arc_offset(points, distance):
     return new_points[:, 0:(3 - two_dimensional)]
 
 
-def angles_to_threepoint(angles, center, radius):
+def to_threepoint(center, radius, angles=None):
+    '''
+    For 2D arcs, given a center and radius convert them to three
+    points on the arc.
+
+    Parameters
+    -----------
+    center: (2,) float, center point on the plane
+    radius: float, radius of arc
+    angles: (2,) float, angles in radians to make the arc
+                 if not specified, will default to (0.0, pi)
+
+    Returns
+    ----------
+    three: (3,2) float, arc control points
+    '''
+    # if no angles provided assume we want a half circle
+    if angles is None:
+        angles = [0.0, np.pi]
+    # force angles to float64
+    angles = np.asanyarray(angles, dtype=np.float64)
+    if angles.shape != (2,):
+        raise ValueError('angles must be (2,)!')
+    # provide the wrap around
     if angles[1] < angles[0]:
         angles[1] += np.pi * 2
-    angles = np.array([angles[0], np.mean(angles),
-                       angles[1]], dtype=np.float64)
-    planar = np.column_stack((np.cos(angles), np.sin(angles))) * radius
-    return planar + center
+
+    center = np.asanyarray(center, dtype=np.float64)
+    if center.shape != (2,):
+        raise ValueError('only valid on 2D arcs!')
+
+    # turn the angles of [start, end]
+    # into [start, middle, end]
+    angles = np.array([angles[0],
+                       angles.mean(),
+                       angles[1]], 
+                      dtype=np.float64)
+    # turn angles into (3,2) points
+    three = np.column_stack((np.cos(angles), 
+                             np.sin(angles))) * radius
+    three += center
+
+    return three

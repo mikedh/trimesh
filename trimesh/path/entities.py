@@ -20,10 +20,15 @@ class Entity(object):
 
     def __init__(self,
                  points,
-                 closed=None):
+                 closed=None,
+                 layer=None,
+                 **kwargs):
+
         self.points = np.asanyarray(points)
         if closed is not None:
             self.closed = closed
+        self.layer = layer
+        self.kwargs = kwargs
 
     @property
     def _class_id(self):
@@ -298,9 +303,15 @@ class Bezier(Curve):
 
 class BSpline(Curve):
 
-    def __init__(self, points, knots, closed=None):
+    def __init__(self, points, 
+                 knots, 
+                 closed=None, 
+                 layer=None,
+                 **kwargs):
         self.points = points
         self.knots = knots
+        self.layer = layer
+        self.kwargs = kwargs
 
     def discrete(self, vertices, count=None, scale=1.0):
         result = discretize_bspline(control=vertices[self.points],
