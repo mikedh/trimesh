@@ -141,11 +141,13 @@ def get_2D(count=None):
     paths = deque()
     for file_name in ls:
         location = os.path.join(dir_2D, file_name)
-        print(location)
         try:
             paths.append(trimesh.load(location))
-        except BaseException:
-            log.warning('skipping path load', exc_info=True)
+        except BaseException as E:
+            log.error('failed on: {}'.format(file_name),
+                      exc_info=True)
+            raise E
+        
         if len(paths) >= count:
             break
     return list(paths)

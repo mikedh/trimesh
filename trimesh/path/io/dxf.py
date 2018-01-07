@@ -10,13 +10,13 @@ from ..arc import to_threepoint
 from ..entities import Line, Arc, BSpline
 from ..util import is_ccw
 
+from ... import util
 
 from ...resources import get_resource
 from ...util import three_dimensionalize
 from ...constants import log
 from ...constants import tol_path as tol
 from ...util import is_binary_file, multi_dict, make_sequence
-
 
 
 
@@ -45,7 +45,8 @@ _DXF_UNITS = {1: 'inches',
               18: 'AU',
               19: 'light years',
               20: 'parsecs'}
-
+# backwards, for reference
+_UNITS_TO_DXF = {v: k for k,v in _DXF_UNITS.items()}
 
 def get_key(blob, field, code):
     try:
@@ -177,20 +178,17 @@ def load_dxf(file_obj):
 
     # store metadata pulled from the header of the DXF
     metadata = dict()
-    units = get_key(header_blob, '$INSUNITS', '70')
-    if units in _DXF_UNITS:
-        metadata['units'] = _DXF_UNITS[units]
-    else:
-        log.warning('DXF doesn\'t have units specified!')
+    for key in ['$INSUNITS', '$LUNITS']:
+        units = get_key(header_blob, key, '70')
+        if units in _DXF_UNITS:
+            metadata['units'] = _DXF_UNITS[units]
+    if 'units' not in metadata:
+       log.warning('DXF doesn\'t have units specified!')
 
     # find the start points of entities
-    # group_check = np.logical_or(entity_blob[:,0] == '0',
-    #                            entity_blob[:,0] == '5')
     group_check = entity_blob[:, 0] == '0'
     inflection = np.nonzero(group_check)[0]
 
-    # inflection = np.nonzero(np.logical_and(group_check[:-1],
-    # group_check[:-1] == group_check[1:]))[0]
     loaders = {'LINE': (dict, convert_line),
                'LWPOLYLINE': (multi_dict, convert_polyline),
                'ARC': (dict, convert_arc),
@@ -210,7 +208,7 @@ def load_dxf(file_obj):
             else:
                 log.debug('Entity type %s not supported', entity_type)
 
-    result = {'vertices': np.vstack(vertices).astype(np.float64),
+    result = {'vertices': util.vstack_empty(vertices).astype(np.float64),
               'entities': np.array(entities),
               'metadata': metadata}
 
@@ -229,7 +227,6 @@ def export_dxf(path):
     ----------
     export: str, path formatted as a DXF file
     '''
-
     def format_points(points, increment=True):
         '''
         Format points into DXF- style point string.
@@ -248,16 +245,16 @@ def export_dxf(path):
         -----------
         packed: str, points formatted with group code
         '''
-        points = np.asanyarray(points)
+        points = np.asanyarray(points, dtype=np.float64)
         three = three_dimensionalize(points, return_2D=False)
         if increment:
-            group = np.tile(np.arange(len(three)).reshape((-1, 1)), (1, 3))
+            group = np.tile(np.arange(len(three), dtype=np.int).reshape((-1, 1)), (1, 3))
         else:
             group = np.zeros((len(three), 3), dtype=np.int)
         group += [10, 20, 30]
-        interleaved = np.dstack((group.astype(str),
-                                 three.astype(str))).reshape(-1)
-        packed = '\n'.join(interleaved)
+
+        packed = '\n'.join('{:d}\n{:.12f}'.format(g,v) for g,v in zip(group.reshape(-1),
+                                                                      three.reshape(-1)))
 
         return packed
 
@@ -271,44 +268,56 @@ def export_dxf(path):
 
         Returns
         ----------
-        name:  str, name of entity
-        color: int, color code
-        layer: int, layer code
+        subs: dict, with keys 'COLOR', 'LAYER', 'NAME'
         '''
-        color, layer = 0, 0
+        subs = {'COLOR' : 255,
+                'LAYER' : 0,
+                'NAME'  : str(id(entity))[:16]}
+
         if hasattr(entity, 'color'):
-            color = int(entity.color)
+            # all colors must be integers between 0-255
+            color = str(entity.color)
+            if str.isnumeric(color):
+                subs['COLOR'] = int(color) % 256
+                
         if hasattr(entity, 'layer'):
-            layer = str(entity.layer)
-        name = str(id(entity))[:16]
-        return name, color, layer
+            subs['LAYER'] = str(entity.layer)
+            
+        return subs
 
     def convert_line(line, vertices):
         points = line.discrete(vertices)
-        name, color, layer = entity_info(line)
-        is_poly = len(points) > 2
-        line_type = ['LINE', 'LWPOLYLINE'][int(is_poly)]
-        result = templates['line'].substitute({
-            'TYPE': line_type,
-            'POINTS': format_points(points, increment=not is_poly),
-            'NAME': name,
-            'LAYER_NUMBER': layer,
-            'COLOR_NUMBER': color})
+        is_polyline = len(points) > 2
+        
+        subs = entity_info(line)
+        subs['POINTS'] = format_points(points, increment=not is_polyline)
+        subs['TYPE']   = ['LINE', 'LWPOLYLINE'][int(is_polyline)]
+        
+        result = templates['line'].substitute(subs)
         return result
 
     def convert_arc(arc, vertices):
         info = arc.center(vertices)
-        name, color, layer = entity_info(arc)
-        angles = np.degrees(info['angles'])
-        arc_type = ['ARC', 'CIRCLE'][int(arc.closed)]
-        result = templates['arc'].substitute({
-            'TYPE': arc_type,
-            'CENTER_POINT': format_points([info['center']]),
-            'ANGLE_MIN': angles[0],
-            'ANGLE_MAX': angles[1],
-            'RADIUS': info['radius'],
-            'LAYER_NUMBER': layer,
-            'COLOR_NUMBER': color})
+        subs = entity_info(arc)
+        
+        center = info['center']
+        if len(center) == 2:
+            center = np.append(center, 0.0)
+        data = '10\n{:.12f}\n20\n{:.12f}\n30\n{:.12f}'.format(*center)
+        data += '\n40\n{:.12f}'.format(info['radius'])
+
+        if arc.closed:
+            subs['TYPE'] = 'CIRCLE'
+        else:
+            subs['TYPE'] = 'ARC'
+            # an arc is the same as a circle, with an added start
+            # and end angle field
+            data += '\n100\nAcDbArc'
+            data += '\n50\n{:.12f}\n51\n{:.12f}'.format(*np.degrees(info['angles']))
+        subs['DATA'] = data
+        
+        result = templates['arc'].substitute(subs)
+        
         return result
 
     def convert_bspline(spline, vertices):
@@ -317,19 +326,40 @@ def export_dxf(path):
                                increment=False)
 
         # (n,) float knots, formatted with group code
-        knots = '40\n' + '\n40\n'.join(spline.knots.reshape(-1).astype(str))
+        #knots = '40\n' + '\n40\n'.join(spline.knots.reshape(-1).astype(str))
 
-        # pull entity info
-        name, color, layer = entity_info(spline)
+    
+        knots = ('40\n{:.12f}\n' * len(spline.knots)).format(*spline.knots)[:-1]
+        
+        
+        # bit coded 
+        flags = {'closed': 1,
+                 'periodic' : 2,
+                 'rational' : 4,
+                 'planar'   : 8,
+                 'linear'   : 16}
+                 
+        flag = flags['planar']
+        if spline.closed:
+            flag = flag | flags['closed']
 
+        normal = [0.0,0.0,1.0]
+        n_code = [210,220,230]
+        n_str = '\n'.join('{:d}\n{:.12f}'.format(i, j) for i, j in zip(n_code,
+                                                                       normal))
+
+        subs = entity_info(spline)
+        subs.update({'TYPE': 'SPLINE',
+                     'POINTS': points,
+                     'KNOTS': knots,
+                     'NORMAL' : n_str,
+                     'DEGREE' : 3,
+                     'FLAG'   : flag,
+                     'FCOUNT' : 0,
+                     'KCOUNT' : len(spline.knots),
+                     'PCOUNT' : len(spline.points)})
         # format into string template
-        result = templates['bspline'].substitute({
-            'TYPE': 'SPLINE',
-            'POINTS': points,
-            'KNOTS': knots,
-            'NAME': name,
-            'LAYER_NUMBER': layer,
-            'COLOR_NUMBER': color})
+        result = templates['bspline'].substitute(subs)
 
         return result
 
@@ -354,10 +384,13 @@ def export_dxf(path):
         else:
             log.debug('Entity type %s not exported!', name)
 
-    header = templates['header'].substitute(
-        {'BOUNDS_MIN': format_points([path.bounds[0]]),
-         'BOUNDS_MAX': format_points([path.bounds[1]]),
-         'UNITS_CODE': '1'})
+    hsub = {'BOUNDS_MIN': format_points([path.bounds[0]]),
+            'BOUNDS_MAX': format_points([path.bounds[1]]),
+            'LUNITS'    : '1'}
+    if path.units in _UNITS_TO_DXF:
+        hsub['LUNITS'] = _UNITS_TO_DXF[path.units]
+    
+    header = templates['header'].substitute(hsub)
     entities = templates['entities'].substitute({'ENTITIES': entities_str})
     footer = templates['footer'].substitute()
     export = '\n'.join([header, entities, footer])

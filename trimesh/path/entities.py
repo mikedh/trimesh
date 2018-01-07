@@ -297,8 +297,10 @@ class Curve(Entity):
 
 class Bezier(Curve):
 
-    def discrete(self, vertices, scale=1.0):
-        return discretize_bezier(vertices[self.points], scale=scale)
+    def discrete(self, vertices, scale=1.0, count=None):
+        return discretize_bezier(vertices[self.points], 
+                                 count=count, 
+                                 scale=scale)
 
 
 class BSpline(Curve):

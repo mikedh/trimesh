@@ -425,7 +425,7 @@ class Path(object):
         discrete = np.array([self.discretize_path(i) for i in self.paths])
         return discrete
 
-    def paths_to_splines(self, path_indexes=None, smooth=.0002):
+    def simplify_spline(self, path_indexes=None, smooth=.0002):
         '''
         Convert paths into b-splines.
 

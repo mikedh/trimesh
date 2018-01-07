@@ -8,7 +8,7 @@ The API is mostly stable, but this should not be relied on and is not guaranteed
 ## Basic Installation
 
 
-The minimum set of packages required to import trimesh are
+The minimal requirements for trimesh are
 [numpy](http://www.numpy.org/), [scipy](http://www.scipy.org) and
 [networkx](https://networkx.github.io). Installing other packages mentioned adds functionality but is not required.
 

@@ -575,40 +575,57 @@ def md5_array(array, digits=5):
     return md5
 
 
-def attach_to_log(log_level=logging.DEBUG,
+def attach_to_log(level=logging.DEBUG,
                   handler=None,
+                  loggers=None,
+                  colors=True,
                   blacklist=['TerminalIPythonApp', 'PYREADLINE']):
     '''
     Attach a stream handler to all loggers.
+
+    Parameters
+    ------------
+    level:     logging level
+    handler:   log handler object
+    loggers:   list of str, name of loggers to attach to
+                 if None, will try to attach to all available
+    colors:    bool, if True try to use colorlog formatter
+    blacklist: list of str, names of loggers NOT to attach to
     '''
-    try:
-        from colorlog import ColoredFormatter
-        formatter = ColoredFormatter(
-            ("%(log_color)s%(levelname)-8s%(reset)s " +
-             "%(filename)17s:%(lineno)-4s  %(blue)4s%(message)s"),
-            datefmt=None,
-            reset=True,
-            log_colors={'DEBUG': 'cyan',
-                        'INFO': 'green',
-                        'WARNING': 'yellow',
-                        'ERROR': 'red',
-                        'CRITICAL': 'red'})
-    except ImportError:
-        formatter = logging.Formatter(
-            "[%(asctime)s] %(levelname)-7s (%(filename)s:%(lineno)3s) %(message)s",
-            "%Y-%m-%d %H:%M:%S")
+    formatter = logging.Formatter(
+        "[%(asctime)s] %(levelname)-7s (%(filename)s:%(lineno)3s) %(message)s",
+        "%Y-%m-%d %H:%M:%S")
+    if colors:
+        try:
+            from colorlog import ColoredFormatter
+            formatter = ColoredFormatter(
+                ("%(log_color)s%(levelname)-8s%(reset)s " +
+                 "%(filename)17s:%(lineno)-4s  %(blue)4s%(message)s"),
+                datefmt=None,
+                reset=True,
+                log_colors={'DEBUG': 'cyan',
+                            'INFO': 'green',
+                            'WARNING': 'yellow',
+                            'ERROR': 'red',
+                            'CRITICAL': 'red'})
+        except ImportError:
+            pass
 
     if handler is None:
         handler = logging.StreamHandler()
     handler.setFormatter(formatter)
-    handler.setLevel(log_level)
+    handler.setLevel(level)
 
-    for logger in logging.Logger.manager.loggerDict.values():
+    # all available loggers
+    if loggers is None:
+        loggers = logging.Logger.manager.loggerDict.values()
+
+    for logger in loggers:
         if (logger.__class__.__name__ != 'Logger' or
-                logger.name in blacklist):
+            logger.name in blacklist):
             continue
         logger.addHandler(handler)
-        logger.setLevel(log_level)
+        logger.setLevel(level)
     np.set_printoptions(precision=5, suppress=True)
 
 
