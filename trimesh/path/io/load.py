@@ -59,16 +59,16 @@ def load_path(obj, file_type=None):
 
 def _create_path(entities, vertices, metadata=None, **kwargs):
     vertices = np.asanyarray(vertices)
-    
+
     if len(vertices.shape) != 2:
         path_type = Path
     else:
         path_type = [Path2D, Path3D][int(vertices.shape[1] == 3)]
-        
+
     return path_type(entities=entities,
-                   vertices=vertices,
-                   metadata=metadata,
-                   **kwargs)
+                     vertices=vertices,
+                     metadata=metadata,
+                     **kwargs)
 
 
 def path_formats():

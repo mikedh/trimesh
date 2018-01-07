@@ -19,7 +19,6 @@ from ...constants import tol_path as tol
 from ...util import is_binary_file, multi_dict, make_sequence
 
 
-
 _templates_dxf = {k: Template(v) for k, v in json.loads(
     get_resource('dxf.json.template')).items()}
 
@@ -46,7 +45,8 @@ _DXF_UNITS = {1: 'inches',
               19: 'light years',
               20: 'parsecs'}
 # backwards, for reference
-_UNITS_TO_DXF = {v: k for k,v in _DXF_UNITS.items()}
+_UNITS_TO_DXF = {v: k for k, v in _DXF_UNITS.items()}
+
 
 def get_key(blob, field, code):
     try:
@@ -78,8 +78,8 @@ def load_dxf(file_obj):
         # which keys should we extract from the entity data
         # DXF group code : our metadata key
         cand = {'8': 'layer'}
-        
-        # replace group codes with names and only 
+
+        # replace group codes with names and only
         # take info from the entity dict if it is in cand
         rename = {cand[k]: v[0] for k, v in e.items() if k in cand}
 
@@ -89,14 +89,14 @@ def load_dxf(file_obj):
         entities.append(Line(points=len(vertices) + np.arange(2),
                              **info(e)))
         vertices.extend(np.array([[e['10'], e['20']],
-                                  [e['11'], e['21']]], 
+                                  [e['11'], e['21']]],
                                  dtype=np.float64))
 
     def convert_circle(e):
         R = float(e['40'])
         C = np.array([e['10'],
                       e['20']]).astype(np.float64)
-        points = to_threepoint(center=C[0:2], 
+        points = to_threepoint(center=C[0:2],
                                radius=R)
         entities.append(Arc(points=(len(vertices) + np.arange(3)),
                             closed=True,
@@ -109,7 +109,7 @@ def load_dxf(file_obj):
                       e['20']], dtype=np.float64)
         A = np.radians(np.array([e['50'],
                                  e['51']], dtype=np.float64))
-        points = to_threepoint(center=C[0:2], 
+        points = to_threepoint(center=C[0:2],
                                radius=R,
                                angles=A)
         entities.append(Arc(points=len(vertices) + np.arange(3),
@@ -183,7 +183,7 @@ def load_dxf(file_obj):
         if units in _DXF_UNITS:
             metadata['units'] = _DXF_UNITS[units]
     if 'units' not in metadata:
-       log.warning('DXF doesn\'t have units specified!')
+        log.warning('DXF doesn\'t have units specified!')
 
     # find the start points of entities
     group_check = entity_blob[:, 0] == '0'
@@ -248,13 +248,16 @@ def export_dxf(path):
         points = np.asanyarray(points, dtype=np.float64)
         three = three_dimensionalize(points, return_2D=False)
         if increment:
-            group = np.tile(np.arange(len(three), dtype=np.int).reshape((-1, 1)), (1, 3))
+            group = np.tile(
+                np.arange(
+                    len(three), dtype=np.int).reshape(
+                    (-1, 1)), (1, 3))
         else:
             group = np.zeros((len(three), 3), dtype=np.int)
         group += [10, 20, 30]
 
-        packed = '\n'.join('{:d}\n{:.12f}'.format(g,v) for g,v in zip(group.reshape(-1),
-                                                                      three.reshape(-1)))
+        packed = '\n'.join('{:d}\n{:.12f}'.format(g, v) for g, v in zip(group.reshape(-1),
+                                                                        three.reshape(-1)))
 
         return packed
 
@@ -270,36 +273,36 @@ def export_dxf(path):
         ----------
         subs: dict, with keys 'COLOR', 'LAYER', 'NAME'
         '''
-        subs = {'COLOR' : 255,
-                'LAYER' : 0,
-                'NAME'  : str(id(entity))[:16]}
+        subs = {'COLOR': 255,
+                'LAYER': 0,
+                'NAME': str(id(entity))[:16]}
 
         if hasattr(entity, 'color'):
             # all colors must be integers between 0-255
             color = str(entity.color)
             if str.isnumeric(color):
                 subs['COLOR'] = int(color) % 256
-                
+
         if hasattr(entity, 'layer'):
             subs['LAYER'] = str(entity.layer)
-            
+
         return subs
 
     def convert_line(line, vertices):
         points = line.discrete(vertices)
         is_polyline = len(points) > 2
-        
+
         subs = entity_info(line)
         subs['POINTS'] = format_points(points, increment=not is_polyline)
-        subs['TYPE']   = ['LINE', 'LWPOLYLINE'][int(is_polyline)]
-        
+        subs['TYPE'] = ['LINE', 'LWPOLYLINE'][int(is_polyline)]
+
         result = templates['line'].substitute(subs)
         return result
 
     def convert_arc(arc, vertices):
         info = arc.center(vertices)
         subs = entity_info(arc)
-        
+
         center = info['center']
         if len(center) == 2:
             center = np.append(center, 0.0)
@@ -313,11 +316,12 @@ def export_dxf(path):
             # an arc is the same as a circle, with an added start
             # and end angle field
             data += '\n100\nAcDbArc'
-            data += '\n50\n{:.12f}\n51\n{:.12f}'.format(*np.degrees(info['angles']))
+            data += '\n50\n{:.12f}\n51\n{:.12f}'.format(
+                *np.degrees(info['angles']))
         subs['DATA'] = data
-        
+
         result = templates['arc'].substitute(subs)
-        
+
         return result
 
     def convert_bspline(spline, vertices):
@@ -328,23 +332,22 @@ def export_dxf(path):
         # (n,) float knots, formatted with group code
         #knots = '40\n' + '\n40\n'.join(spline.knots.reshape(-1).astype(str))
 
-    
-        knots = ('40\n{:.12f}\n' * len(spline.knots)).format(*spline.knots)[:-1]
-        
-        
-        # bit coded 
+        knots = ('40\n{:.12f}\n' * len(spline.knots)
+                 ).format(*spline.knots)[:-1]
+
+        # bit coded
         flags = {'closed': 1,
-                 'periodic' : 2,
-                 'rational' : 4,
-                 'planar'   : 8,
-                 'linear'   : 16}
-                 
+                 'periodic': 2,
+                 'rational': 4,
+                 'planar': 8,
+                 'linear': 16}
+
         flag = flags['planar']
         if spline.closed:
             flag = flag | flags['closed']
 
-        normal = [0.0,0.0,1.0]
-        n_code = [210,220,230]
+        normal = [0.0, 0.0, 1.0]
+        n_code = [210, 220, 230]
         n_str = '\n'.join('{:d}\n{:.12f}'.format(i, j) for i, j in zip(n_code,
                                                                        normal))
 
@@ -352,12 +355,12 @@ def export_dxf(path):
         subs.update({'TYPE': 'SPLINE',
                      'POINTS': points,
                      'KNOTS': knots,
-                     'NORMAL' : n_str,
-                     'DEGREE' : 3,
-                     'FLAG'   : flag,
-                     'FCOUNT' : 0,
-                     'KCOUNT' : len(spline.knots),
-                     'PCOUNT' : len(spline.points)})
+                     'NORMAL': n_str,
+                     'DEGREE': 3,
+                     'FLAG': flag,
+                     'FCOUNT': 0,
+                     'KCOUNT': len(spline.knots),
+                     'PCOUNT': len(spline.points)})
         # format into string template
         result = templates['bspline'].substitute(subs)
 
@@ -386,10 +389,10 @@ def export_dxf(path):
 
     hsub = {'BOUNDS_MIN': format_points([path.bounds[0]]),
             'BOUNDS_MAX': format_points([path.bounds[1]]),
-            'LUNITS'    : '1'}
+            'LUNITS': '1'}
     if path.units in _UNITS_TO_DXF:
         hsub['LUNITS'] = _UNITS_TO_DXF[path.units]
-    
+
     header = templates['header'].substitute(hsub)
     entities = templates['entities'].substitute({'ENTITIES': entities_str})
     footer = templates['footer'].substitute()

@@ -10,8 +10,8 @@ class VectorTests(g.unittest.TestCase):
             # file_name should be populated, and if we have a DXF file
             # the layer field should be populated with layer names
             if d.metadata['file_name'][-3:] == 'dxf':
-                self.assertTrue(len(d.metadata['layers']) == len(d.entities))
-
+                assert len(d.layers) == len(d.entities)
+                
             for path in d.paths:
                 verts = d.discretize_path(path)
                 dists = g.np.sum((g.np.diff(verts, axis=0))**2, axis=1)**.5
@@ -61,8 +61,8 @@ class VectorTests(g.unittest.TestCase):
         self.assertTrue(any(len(i.points) > 2 for i in p.entities if
                             g.trimesh.util.is_instance_named(i, 'Line')))
 
-        self.assertTrue(len(p.metadata['layers']) == len(p.entities))
-        self.assertTrue(len(g.np.unique(p.metadata['layers'])) > 1)
+        assert len(p.layers) == len(p.entities)
+        assert len(g.np.unique(p.layers)) > 1
 
         p.explode()
         self.assertTrue(all(len(i.points) == 2 for i in p.entities if

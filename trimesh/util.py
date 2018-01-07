@@ -579,7 +579,10 @@ def attach_to_log(level=logging.DEBUG,
                   handler=None,
                   loggers=None,
                   colors=True,
-                  blacklist=['TerminalIPythonApp', 'PYREADLINE']):
+                  blacklist=['TerminalIPythonApp',
+                             'PYREADLINE',
+                             'shapely.geos',
+                             'shapely.speedups._speedups']):
     '''
     Attach a stream handler to all loggers.
 
@@ -587,7 +590,7 @@ def attach_to_log(level=logging.DEBUG,
     ------------
     level:     logging level
     handler:   log handler object
-    loggers:   list of str, name of loggers to attach to
+    loggers:   list of loggers to attach to
                  if None, will try to attach to all available
     colors:    bool, if True try to use colorlog formatter
     blacklist: list of str, names of loggers NOT to attach to
@@ -611,12 +614,15 @@ def attach_to_log(level=logging.DEBUG,
         except ImportError:
             pass
 
+    # if no handler was passed, use a StreamHandler
     if handler is None:
         handler = logging.StreamHandler()
+
+    # add the formatters and set the level
     handler.setFormatter(formatter)
     handler.setLevel(level)
 
-    # all available loggers
+    # if nothing passed, use all available loggers
     if loggers is None:
         loggers = logging.Logger.manager.loggerDict.values()
 
@@ -626,7 +632,7 @@ def attach_to_log(level=logging.DEBUG,
             continue
         logger.addHandler(handler)
         logger.setLevel(level)
-    np.set_printoptions(precision=5, suppress=True)
+    np.set_printoptions(precision=6, suppress=True)
 
 
 def tracked_array(array, dtype=None):

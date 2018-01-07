@@ -94,8 +94,8 @@ def fit_circle_check(points, scale, prior=None, final=False, verbose=False):
                       np.degrees(tangent))
         return None
 
-    result = {'center' : C,
-              'radius' : R}
+    result = {'center': C,
+              'radius': R}
 
     return result
 

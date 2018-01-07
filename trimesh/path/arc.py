@@ -174,10 +174,10 @@ def to_threepoint(center, radius, angles=None):
     # into [start, middle, end]
     angles = np.array([angles[0],
                        angles.mean(),
-                       angles[1]], 
+                       angles[1]],
                       dtype=np.float64)
     # turn angles into (3,2) points
-    three = np.column_stack((np.cos(angles), 
+    three = np.column_stack((np.cos(angles),
                              np.sin(angles))) * radius
     three += center
 

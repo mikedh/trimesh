@@ -88,6 +88,21 @@ class Path(object):
     def vertices(self, values):
         self._vertices = util.tracked_array(values)
 
+    @property
+    def layers(self):
+        '''
+        If entities have a layer defined, return it.
+
+        Returns
+        ---------
+        layers: (len(entities), ) list of str
+        '''
+        layer = [None] * len(self.entities)
+        for i, e in enumerate(self.entities):
+            if hasattr(e, 'layer'):
+                layer[i] = str(e.layer)
+        return layer
+        
     def md5(self):
         '''
         What is an MD5 hash of the current vertex and entity arrangment.
@@ -310,7 +325,7 @@ class Path(object):
     def apply_layer(self, name):
         '''
         Apply a layer name to every entity in the path.
-        
+
         Parameters
         ------------
         name: str to apply to each entity
@@ -320,12 +335,12 @@ class Path(object):
 
     def rezero(self):
         '''
-        Translate so that every vertex is positive in the current 
+        Translate so that every vertex is positive in the current
         mesh is positive.
 
         Returns
         -----------
-        matrix: (dimension + 1, dimension + 1) float, 
+        matrix: (dimension + 1, dimension + 1) float,
                     homogenous transformation
                     that was applied to the current Path object.
         '''
@@ -485,10 +500,10 @@ class Path(object):
         Parameters
         -----------
         other: Path object
-        
+
         Returns
         -----------
-        concat: Path object, appended from self and other 
+        concat: Path object, appended from self and other
         '''
 
         new_entities = copy.deepcopy(other.entities)
@@ -582,7 +597,7 @@ class Path3D(Path):
 
         Parameters
         ------------
-        show: 
+        show:
         '''
         import matplotlib.pyplot as plt
         from mpl_toolkits.mplot3d import Axes3D

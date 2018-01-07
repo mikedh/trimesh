@@ -177,16 +177,16 @@ def export_svg(drawing, return_path=False, **kwargs):
 
     def svg_discrete(entity, reverse):
         '''
-        Use an entities discrete representation to export a 
+        Use an entities discrete representation to export a
         curve as a polyline
         '''
         discrete = entity.discrete(points)
         if reverse:
             discrete = discrete[::-1]
-        template = ' M {},{} '+ (' L {},{}' * (len(discrete) - 1))
+        template = ' M {},{} ' + (' L {},{}' * (len(discrete) - 1))
         result = template.format(*discrete.reshape(-1))
         return result
-        
+
     def convert_path(path, reverse=False, close=True):
         path = path[::(reverse * -2) + 1]
         converted = []
@@ -197,7 +197,7 @@ def export_svg(drawing, return_path=False, **kwargs):
                 converted.append(converters[etype](entity, reverse))
             else:
                 converted.append(svg_discrete(entity, reverse))
-                
+
         # remove leading and trailing whitespace
         converted = ' '.join(converted) + ' '
         return converted
@@ -205,7 +205,7 @@ def export_svg(drawing, return_path=False, **kwargs):
     # only converters where we want to do something
     # other than export a curve as a polyline
     converters = {'Arc': svg_arc}
-    
+
     path_str = ''
     for path_index, path in enumerate(drawing.paths):
         reverse = not (path_index in drawing.root)

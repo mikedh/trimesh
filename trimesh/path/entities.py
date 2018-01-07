@@ -298,16 +298,16 @@ class Curve(Entity):
 class Bezier(Curve):
 
     def discrete(self, vertices, scale=1.0, count=None):
-        return discretize_bezier(vertices[self.points], 
-                                 count=count, 
+        return discretize_bezier(vertices[self.points],
+                                 count=count,
                                  scale=scale)
 
 
 class BSpline(Curve):
 
-    def __init__(self, points, 
-                 knots, 
-                 closed=None, 
+    def __init__(self, points,
+                 knots,
+                 closed=None,
                  layer=None,
                  **kwargs):
         self.points = points
