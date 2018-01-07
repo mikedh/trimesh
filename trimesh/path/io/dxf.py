@@ -77,13 +77,14 @@ def load_dxf(file_obj):
         '''
         # which keys should we extract from the entity data
         # DXF group code : our metadata key
-        cand = {'8': 'layer'}
+        get = {'8': 'layer'}
 
         # replace group codes with names and only
         # take info from the entity dict if it is in cand
-        rename = {cand[k]: v[0] for k, v in e.items() if k in cand}
+        renamed = {get[k]: util.make_sequence(v)[0] for k,
+                   v in e.items() if k in get}
 
-        return rename
+        return renamed
 
     def convert_line(e):
         entities.append(Line(points=len(vertices) + np.arange(2),

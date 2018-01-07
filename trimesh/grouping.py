@@ -22,23 +22,6 @@ def merge_vertices_hash(mesh):
     mesh.update_vertices(unique, inverse)
 
 
-def replace_references(data, reference_dict):
-    '''
-    Replace elements in an array as per a dictionary of replacement values.
-
-    Parameters
-    ----------
-    data:           numpy array
-    reference_dict: dictionary of replacement value mapping, eg: {2:1, 3:1, 4:5}
-    '''
-    shape = np.shape(data)
-    view = np.array(data).view().reshape((-1))
-    for i, value in enumerate(view):
-        if value in reference_dict:
-            view[i] = reference_dict[value]
-    return view.reshape(shape)
-
-
 def group(values, min_len=0, max_len=np.inf):
     '''
     Return the indices of values that are identical

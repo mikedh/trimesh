@@ -74,6 +74,9 @@ class Path(object):
             self.merge_vertices()
 
     def process(self):
+        '''
+        Apply basic cleaning functions to the Path object, in- place.
+        '''
         log.debug('Processing drawing')
         with self._cache:
             for func in self._process_functions():
@@ -139,7 +142,7 @@ class Path(object):
         Returns
         ----------
         dangling: (n,) int, index of self.entities
-        '''
+OB        '''
         dangling = np.setdiff1d(np.arange(len(self.entities)),
                                 np.hstack(self.paths))
         return dangling
@@ -298,9 +301,11 @@ class Path(object):
         '''
         dimension = self.vertices.shape[1]
         transform = np.asanyarray(transform, dtype=np.float64)
+        
         if transform.shape != (dimension + 1, dimension + 1):
             raise ValueError('transform is incorrect shape!')
         elif np.allclose(transform, np.eye(dimension + 1)):
+            # if we've been passed an identity matrix do nothing
             return
 
         self.vertices = transformations.transform_points(self.vertices,
@@ -352,7 +357,12 @@ class Path(object):
 
     def merge_vertices(self):
         '''
-        Merges vertices which are identical and replaces references in place.
+        Merges vertices which are identical and replace references.
+
+        Alters
+        -----------
+        self.entities: entity.points re- referenced
+        self.vertices: duplicates removed
         '''
         digits = decimal_to_digits(tol.merge * self.scale, min_digits=1)
         unique, inverse = grouping.unique_rows(self.vertices, digits=digits)
@@ -363,9 +373,20 @@ class Path(object):
             # multiple references to the same vertex
             entity.points = grouping.merge_runs(inverse[entity.points])
 
-    def replace_vertex_references(self, replacement_dict):
+    def replace_vertex_references(self, mask):
+        '''
+        Replace the vertex index references in every entity.
+
+        Parameters
+        ------------
+        mask: (len(self.vertices), ) int, contains new vertex indexes
+
+        Alters
+        ------------
+        entity.points in self.entities: replaced by mask[entity.points]
+        '''
         for entity in self.entities:
-            entity.rereference(replacement_dict)
+            entity.points = mask[entity.points]
 
     def remove_entities(self, entity_ids):
         '''
@@ -381,34 +402,61 @@ class Path(object):
         self.entities = np.array(self.entities)[kept]
 
     def remove_invalid(self):
+        '''
+        Remove entities which declare themselves invalid
+
+        Alters
+        ----------
+        self.entities: shortened
+        '''
         valid = np.array([i.is_valid for i in self.entities], dtype=np.bool)
         self.entities = self.entities[valid]
 
     def remove_duplicate_entities(self):
+        '''
+        Remove entities that are duplicated
+
+        Alters
+        -------
+        self.entities: length same or shorter
+        '''
         entity_hashes = np.array([i.hash for i in self.entities])
         unique, inverse = grouping.unique_rows(entity_hashes)
         if len(unique) != len(self.entities):
             self.entities = np.array(self.entities)[unique]
 
+    @property
     def referenced_vertices(self):
-        referenced = collections.deque()
-        for entity in self.entities:
-            referenced.extend(entity.points)
-        return np.array(referenced)
+        '''
+        Which vertices are referenced by an entity.
+
+        Returns
+        -----------
+        referenced_vertices: (n,) int, indexes of self.vertices
+        '''
+        referenced = np.hstack([e.points for e in self.entities])
+        referenced = np.unique(referenced.astype(np.int64))
+
+        return referenced
 
     def remove_unreferenced_vertices(self):
         '''
-        Removes all vertices which aren't used by an entity
-        Reindexes vertices from zero, and replaces references
-        '''
-        referenced = self.referenced_vertices()
-        unique_ref = np.int_(np.unique(referenced))
-        replacement_dict = dict()
-        replacement_dict.update(np.column_stack((unique_ref,
-                                                 np.arange(len(unique_ref)))))
-        self.replace_vertex_references(replacement_dict)
-        self.vertices = self.vertices[[unique_ref]]
+        Removes all vertices which aren't used by an entity.
 
+        Alters
+        ---------
+        self.vertices: reordered and shortened
+        self.entities: entity.points references updated
+        '''
+
+        unique = self.referenced_vertices
+
+        mask = np.ones(len(self.vertices), dtype=np.int64) * -1
+        mask[unique] = np.arange(len(unique), dtype=np.int64)
+
+        self.replace_vertex_references(mask=mask)
+        self.vertices = self.vertices[unique]
+        
     def discretize_path(self, path):
         '''
         Given a list of entities, return a list of connected points.
@@ -439,33 +487,6 @@ class Path(object):
         '''
         discrete = np.array([self.discretize_path(i) for i in self.paths])
         return discrete
-
-    def simplify_spline(self, path_indexes=None, smooth=.0002):
-        '''
-        Convert paths into b-splines.
-
-        Parameters
-        -----------
-        path_indexes: (n) int list of indexes for self.paths
-        smooth:       float, how much the spline should smooth the curve
-        '''
-        if path_indexes is None:
-            path_indexes = np.arange(len(self.paths))
-        entities_keep = np.ones(len(self.entities), dtype=np.bool)
-        new_vertices = collections.deque()
-        new_entities = collections.deque()
-        for i in path_indexes:
-            path = self.paths[i]
-            discrete = self.discrete[i]
-            entity, vertices = simplify.points_to_spline_entity(discrete)
-            entity.points += len(self.vertices) + len(new_vertices)
-            new_vertices.extend(vertices)
-            new_entities.append(entity)
-            entities_keep[path] = False
-        self.entities = np.append(self.entities[entities_keep],
-                                  new_entities)
-        self.vertices = np.vstack((self.vertices,
-                                   np.array(new_vertices)))
 
     def export(self, file_obj=None, file_type='dict'):
         return export_path(self,
@@ -697,7 +718,7 @@ class Path2D(Path):
         --------
         length: float, summed length of every entity
         '''
-        length = sum(i.length(self.vertices) for i in self.entities)
+        length = float(sum(i.length(self.vertices) for i in self.entities))
         return length
 
     def extrude(self, height, **kwargs):
@@ -795,6 +816,34 @@ class Path2D(Path):
         '''
         return simplify.simplify_basic(self)
 
+    def simplify_spline(self, path_indexes=None, smooth=.0002):
+        '''
+        Convert paths into b-splines.
+
+        Parameters
+        -----------
+        path_indexes: (n) int list of indexes for self.paths
+        smooth:       float, how much the spline should smooth the curve
+        '''
+        if path_indexes is None:
+            path_indexes = np.arange(len(self.paths))
+        entities_keep = np.ones(len(self.entities), dtype=np.bool)
+        new_vertices = collections.deque()
+        new_entities = collections.deque()
+        for i in path_indexes:
+            path = self.paths[i]
+            discrete = self.discrete[i]
+            entity, vertices = simplify.points_to_spline_entity(discrete)
+            entity.points += len(self.vertices) + len(new_vertices)
+            new_vertices.extend(vertices)
+            new_entities.append(entity)
+            entities_keep[path] = False
+        self.entities = np.append(self.entities[entities_keep],
+                                  new_entities)
+        self.vertices = np.vstack((self.vertices,
+                                   np.array(new_vertices)))
+
+    
     def split(self):
         '''
         If the current Path2D consists of n 'root' curves,

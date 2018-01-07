@@ -62,13 +62,6 @@ class Entity(object):
                 'points': self.points.tolist(),
                 'closed': self.closed}
 
-    def rereference(self, replacement):
-        '''
-        Given a replacement dictionary, change points to reflect the dictionary.
-        eg, if replacement = {0:107}, self.points = [0,1902] becomes [107, 1902]
-        '''
-        self.points = util.replace_references(self.points, replacement)
-
     @property
     def closed(self):
         '''

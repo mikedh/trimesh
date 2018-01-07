@@ -111,9 +111,10 @@ def is_sequence(obj):
            hasattr(obj, "__getitem__") or
            hasattr(obj, "__iter__"))
 
-    seq = seq and not isinstance(obj, dict)
-    seq = seq and not isinstance(obj, set)
-
+    seq = seq and all(not isinstance(obj, i) for i in (dict,
+                                                       set,
+                                                       basestring))
+    
     # numpy sometimes returns objects that are single float64 values
     # but sure look like sequences, so we check the shape
     if hasattr(obj, 'shape'):
@@ -408,15 +409,6 @@ def grid_linspace(bounds, count):
     return grid
 
 
-def replace_references(data, reference_dict):
-    # Replace references in place
-    view = np.array(data).view().reshape((-1))
-    for i, value in enumerate(view):
-        if value in reference_dict:
-            view[i] = reference_dict[value]
-    return view
-
-
 def multi_dict(pairs):
     '''
     Given a set of key value pairs, create a dictionary.
@@ -638,6 +630,18 @@ def attach_to_log(level=logging.DEBUG,
 def tracked_array(array, dtype=None):
     '''
     Properly subclass a numpy ndarray to track changes.
+
+    Avoids some pitfalls of subclassing by forcing contiguous 
+    arrays, and does a view into a TrackedArray.
+
+    Parameters
+    ------------
+    array: array- like object to be turned into a TrackedArray
+    dtype: which dtype to use for the array
+
+    Returns
+    ------------
+    tracked: TrackedArray, of input array data
     '''
     tracked = np.ascontiguousarray(array,
                                    dtype=dtype).view(TrackedArray)
