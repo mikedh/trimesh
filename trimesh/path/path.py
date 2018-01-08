@@ -142,7 +142,7 @@ class Path(object):
         Returns
         ----------
         dangling: (n,) int, index of self.entities
-OB        '''
+        '''
         dangling = np.setdiff1d(np.arange(len(self.entities)),
                                 np.hstack(self.paths))
         return dangling

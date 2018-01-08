@@ -1896,7 +1896,7 @@ def is_same_quaternion(q0, q1):
     return np.allclose(q0, q1) or np.allclose(q0, -q1)
 
 
-def planar_matrix(offset, theta):
+def planar_matrix(offset=[0.0, 0.0], theta=0.0):
     '''
     2D homogeonous transformation matrix
 
