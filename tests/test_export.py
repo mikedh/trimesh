@@ -98,6 +98,22 @@ class ExportTest(g.unittest.TestCase):
         as_dict = mesh.to_dict()
         back = g.trimesh.Trimesh(**as_dict)
 
+    def test_scene(self):
+        # get a multi- mesh scene with a transform tree
+        source = g.get_mesh('cycloidal.3DXML')
+        # export the file as a binary GLTF file, GLB
+        export = source.export(file_type='glb')
+
+        # re- load the file as a trimesh.Scene object again
+        loaded = g.trimesh.load(
+            file_obj=g.trimesh.util.wrap_as_stream(export),
+            file_type='glb')
+
+        # the scene should be identical after export-> import cycle
+        assert g.np.allclose(loaded.extents / source.extents,
+                             1.0)
+
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
