@@ -240,7 +240,8 @@ def facets(mesh, engine=None):
 
     Returns
     ---------
-    facets: list of groups of face indexes (mesh.faces) of parallel adjacent faces.
+    facets: list of groups of face indexes (mesh.faces) of parallel 
+                  adjacent faces.
     '''
     # what is the radius of a circle that passes through the perpendicular
     # projection of the vector between the two non- shared vertices

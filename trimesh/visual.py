@@ -473,6 +473,27 @@ def to_rgba(colors, dtype=np.uint8):
     return colors
 
 
+def hex_to_rgba(color):
+    '''
+    Turn a string hex color to a (4,) RGBA color.
+
+    Parameters
+    -----------
+    color: str, hex color
+    
+    Returns
+    -----------
+    rgba: (4,) np.uint8, RGBA color
+    '''
+    value = str(color).lstrip('#').strip()
+    if len(value) == 6:
+        rgb = [int(value[i:i + 2], 16) for i in (0, 2, 4)]
+        rgba = np.append(rgb, 255).astype(np.uint8)
+    else:
+        raise ValueError('Only RGB supported')
+
+    return rgba
+
 def concatenate_visuals(visuals, *args):
     '''
     Concatenate multiple visual objects.
