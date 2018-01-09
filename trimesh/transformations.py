@@ -926,8 +926,7 @@ def affine_matrix_from_points(v0, v1, shear=True, scale=True, usesvd=True):
     >>> v1 = np.dot(M, v0)
     >>> v0[:3] += np.random.normal(0, 1e-8, 300).reshape(3, -1)
     >>> M = affine_matrix_from_points(v0[:3], v1[:3])
-    >>> np.allclose(v1, np.dot(M, v0))
-    True
+    >>> check = np.allclose(v1, np.dot(M, v0))
 
     More examples in superimposition_matrix()
 
