@@ -234,7 +234,8 @@ def load_glb(file_obj, **passed):
     # np.uint32 causes an error in read, so we convert to native int
     # for the length passed to read, for the JSON header
     json_data = file_obj.read(int(chunk_length))
-
+    # convert to text
+    json_data = json.data.decode('utf-8')
     # load the json header to native dict
     j = json.loads(json_data)
 
@@ -326,7 +327,7 @@ def load_glb(file_obj, **passed):
         child = nodes[edge[1]]
         # add edges of children to be processed
         if 'children' in child:
-            queue.extend([[edge[0], i] for i in child['children']])
+            queue.extend([[edge[1], i] for i in child['children']])
 
         # kwargs to be passed to scene.graph.update
         kwargs = {'frame_from': names[edge[0]],

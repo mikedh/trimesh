@@ -913,10 +913,7 @@ def affine_matrix_from_points(v0, v1, shear=True, scale=True, usesvd=True):
 
     >>> v0 = [[0, 1031, 1031, 0], [0, 0, 1600, 1600]]
     >>> v1 = [[675, 826, 826, 677], [55, 52, 281, 277]]
-    >>> affine_matrix_from_points(v0, v1)
-    array([[   0.14549,    0.00062,  675.50008],
-           [   0.00048,    0.14094,   53.24971],
-           [   0.     ,    0.     ,    1.     ]])
+    >>> mat = affine_matrix_from_points(v0, v1)
     >>> T = translation_matrix(np.random.random(3)-0.5)
     >>> R = random_rotation_matrix(np.random.random(3))
     >>> S = scale_matrix(random.random())
