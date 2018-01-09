@@ -235,7 +235,8 @@ def load_glb(file_obj, **passed):
     # for the length passed to read, for the JSON header
     json_data = file_obj.read(int(chunk_length))
     # convert to text
-    json_data = json.data.decode('utf-8')
+    if hasattr(json_data, 'decode'):
+        json_data = json_data.decode('utf-8')
     # load the json header to native dict
     j = json.loads(json_data)
 
