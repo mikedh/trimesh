@@ -101,6 +101,8 @@ class ExportTest(g.unittest.TestCase):
     def test_scene(self):
         # get a multi- mesh scene with a transform tree
         source = g.get_mesh('cycloidal.3DXML')
+        # add a transform to zero scene before exporting
+        source.rezero()
         # export the file as a binary GLTF file, GLB
         export = source.export(file_type='glb')
 

@@ -91,9 +91,8 @@ class TransformForest:
 
     def to_gltf(self, mesh_index):
         '''
-        Export a list of transforms as the 'nodes' section of a GLTF dict.
-
-        Will flatten tree.
+        Export a transforms as the 'nodes' section of a GLTF dict.
+        Flattens tree.
 
         Returns
         --------
@@ -101,23 +100,21 @@ class TransformForest:
                   'nodes': list of dicts
         '''
         gltf = collections.deque()
-
-        for node in self.nodes:
+        for node in self.nodes_geometry:
             if node == self.base_frame:
                 continue
             transform, geometry = self.get(frame_to=node,
                                            frame_from=self.base_frame)
             if geometry is None:
                 continue
-
             gltf.append({'matrix': transform.T.reshape(-1).tolist(),
                          'mesh': mesh_index[geometry],
                          'name': node})
-
         # we have flattened tree, so all nodes will be child of world
         gltf.appendleft({'name': self.base_frame,
                          'children': list(range(1, 1 + len(gltf)))})
         result = {'nodes': list(gltf)}
+
         return result
 
     def to_edgelist(self):

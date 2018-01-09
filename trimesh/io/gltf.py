@@ -344,7 +344,8 @@ def load_glb(file_obj, **passed):
     # kwargs to be loaded
     result = {'class': 'Scene',
               'geometry': meshes,
-              'graph': graph}
+              'graph': graph,
+              'base_frame': names[root]}
 
     return result
 

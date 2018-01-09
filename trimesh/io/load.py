@@ -187,18 +187,27 @@ def load_kwargs(*args, **kwargs):
 
     '''
     def handle_scene():
-        geometry = copy.deepcopy(kwargs['geometry'])
-        for k, v in geometry.items():
-            if isinstance(v, dict):
-                geometry[k] = load_kwargs(v)
+        '''
+        Load a scene from our kwargs:
+        
+        class:      Scene
+        geometry:   dict, name: Trimesh kwargs
+        graph:      list of dict, kwargs for scene.graph.update
+        base_frame: str, base frame of graph
+        '''
         scene = Scene()
-        scene.geometry.update(geometry)
+        scene.geometry.update({k: load_kwargs(v) for 
+                               k,v in kwargs['geometry'].items()})
 
+        
         for k in kwargs['graph']:
             if isinstance(k, dict):
                 scene.graph.update(**k)
             elif util.is_sequence(k) and len(k) == 3:
                 scene.graph.update(k[1], k[0], **k[2])
+
+        if 'base_frame' in kwargs:
+            scene.graph.base_frame = kwargs['base_frame']
 
         return scene
 
