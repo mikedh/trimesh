@@ -246,7 +246,7 @@ def load_glb(file_obj, **passed):
         chunk_head = file_obj.read(8)
         if len(chunk_head) != 8:
             break
-        chunk_length, chunk_type = np.fromstring(chunk_head, 
+        chunk_length, chunk_type = np.fromstring(chunk_head,
                                                  dtype=np.uint32)
         if chunk_type != _magic['bin']:
             raise ValueError('not binary GLTF!')
@@ -254,7 +254,7 @@ def load_glb(file_obj, **passed):
         if len(chunk_data) != chunk_length:
             raise ValueError('chunk was not expected length!')
         buffers.append(chunk_data)
-        
+
     # split buffer data into buffer views
     views = []
     for view in j['bufferViews']:
@@ -269,31 +269,31 @@ def load_glb(file_obj, **passed):
         data = views[a['bufferView']]
         dtype = _types[a['componentType']]
         shape = _shapes[a['type']]
-        array = np.fromstring(data, 
+        array = np.fromstring(data,
                               dtype=dtype).reshape(shape)
         assert len(array) == a['count']
         access.append(array)
 
     # load data from accessors into Trimesh objects
     meshes = collections.OrderedDict()
-    for m in j['meshes']:        
+    for m in j['meshes']:
         kwargs = collections.defaultdict(list)
         for p in m['primitives']:
             if p['mode'] != 4:
                 raise ValueError('only GL_TRIANGLES meshes supported!')
-            kwargs['faces'].append(access[p['indices']].reshape((-1,3)))
+            kwargs['faces'].append(access[p['indices']].reshape((-1, 3)))
             kwargs['vertices'].append(access[p['attributes']['POSITION']])
         for key, value in kwargs.items():
             kwargs[key] = np.vstack(value)
         meshes[m['name']] = kwargs
-        
+
     # the index of the node which is the root of the tree
     root = j['scenes'][j['scene']]['nodes']
 
     if len(root) != 1:
         raise ValueError('multiple scene roots')
     root = root[0]
-    
+
     # make it easier to reference nodes
     nodes = j['nodes']
 
@@ -309,14 +309,14 @@ def load_glb(file_obj, **passed):
     # visited, kwargs for scene.graph.update
     graph = collections.deque()
     # unvisited, pairs of indexes for nodes
-    queue = collections.deque([root, c] for c in 
+    queue = collections.deque([root, c] for c in
                               nodes[root]['children'])
-    
+
     # meshes are listed by index rather than name
     # replace the index with a nicer name
     mesh_names = list(meshes.keys())
 
-    # go through the nodes tree to populate 
+    # go through the nodes tree to populate
     # kwargs for scene graph loader
     while len(queue) > 0:
         # (int, int) pair of node indexes
@@ -330,18 +330,18 @@ def load_glb(file_obj, **passed):
 
         # kwargs to be passed to scene.graph.update
         kwargs = {'frame_from': names[edge[0]],
-                  'frame_to':   names[edge[1]]}
+                  'frame_to': names[edge[1]]}
 
         # grab matrix from child
-        # parent -> child relationships have matrix stored in child 
+        # parent -> child relationships have matrix stored in child
         # for the transform from parent to child
         if 'matrix' in child:
-            kwargs['matrix'] = np.array(child['matrix']).reshape((4,4)).T
+            kwargs['matrix'] = np.array(child['matrix']).reshape((4, 4)).T
         if 'mesh' in child:
             kwargs['geometry'] = mesh_names[child['mesh']]
         graph.append(kwargs)
 
-    #kwargs to be loaded
+    # kwargs to be loaded
     result = {'class': 'Scene',
               'geometry': meshes,
               'graph': graph}

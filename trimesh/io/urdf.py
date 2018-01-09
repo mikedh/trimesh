@@ -10,15 +10,15 @@ from .. import io
 from ..version import __version__ as trimesh_version
 
 
-def export_urdf(mesh, 
-                directory, 
-                scale=1.0, 
-                color=[0.75, 0.75, 0.75], 
+def export_urdf(mesh,
+                directory,
+                scale=1.0,
+                color=[0.75, 0.75, 0.75],
                 **kwargs):
     '''
     Convert a Trimesh object into a URDF package for physics simulation.
     This breaks the mesh into convex pieces and writes them to the same
-    directory as the .urdf file. 
+    directory as the .urdf file.
 
     Parameters
     ---------

@@ -114,7 +114,7 @@ def is_sequence(obj):
     seq = seq and all(not isinstance(obj, i) for i in (dict,
                                                        set,
                                                        basestring))
-    
+
     # numpy sometimes returns objects that are single float64 values
     # but sure look like sequences, so we check the shape
     if hasattr(obj, 'shape'):
@@ -620,7 +620,7 @@ def attach_to_log(level=logging.DEBUG,
 
     for logger in loggers:
         if (logger.__class__.__name__ != 'Logger' or
-            logger.name in blacklist):
+                logger.name in blacklist):
             continue
         logger.addHandler(handler)
         logger.setLevel(level)
@@ -631,7 +631,7 @@ def tracked_array(array, dtype=None):
     '''
     Properly subclass a numpy ndarray to track changes.
 
-    Avoids some pitfalls of subclassing by forcing contiguous 
+    Avoids some pitfalls of subclassing by forcing contiguous
     arrays, and does a view into a TrackedArray.
 
     Parameters

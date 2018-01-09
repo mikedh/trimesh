@@ -105,7 +105,7 @@ class Path(object):
             if hasattr(e, 'layer'):
                 layer[i] = str(e.layer)
         return layer
-        
+
     def md5(self):
         '''
         What is an MD5 hash of the current vertex and entity arrangment.
@@ -301,7 +301,7 @@ class Path(object):
         '''
         dimension = self.vertices.shape[1]
         transform = np.asanyarray(transform, dtype=np.float64)
-        
+
         if transform.shape != (dimension + 1, dimension + 1):
             raise ValueError('transform is incorrect shape!')
         elif np.allclose(transform, np.eye(dimension + 1)):
@@ -456,7 +456,7 @@ class Path(object):
 
         self.replace_vertex_references(mask=mask)
         self.vertices = self.vertices[unique]
-        
+
     def discretize_path(self, path):
         '''
         Given a list of entities, return a list of connected points.
@@ -843,7 +843,6 @@ class Path2D(Path):
         self.vertices = np.vstack((self.vertices,
                                    np.array(new_vertices)))
 
-    
     def split(self):
         '''
         If the current Path2D consists of n 'root' curves,

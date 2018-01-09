@@ -480,7 +480,7 @@ def hex_to_rgba(color):
     Parameters
     -----------
     color: str, hex color
-    
+
     Returns
     -----------
     rgba: (4,) np.uint8, RGBA color
@@ -493,6 +493,7 @@ def hex_to_rgba(color):
         raise ValueError('Only RGB supported')
 
     return rgba
+
 
 def concatenate_visuals(visuals, *args):
     '''
