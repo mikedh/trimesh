@@ -22,7 +22,7 @@ class TransformTest(g.unittest.TestCase):
 
         # search for interactive sessions in docstrings and verify they work
         results = doctest.testmod(trimesh.transformations,
-                                  verbose=False,
+                                  verbose=True,
                                   raise_on_error=True)
         g.log.info('transformations {}'.format(str(results)))
 
