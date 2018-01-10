@@ -617,17 +617,21 @@ def clip_matrix(left, right, bottom, top, near, far, perspective=False):
     >>> frustum[3] += frustum[2]
     >>> frustum[5] += frustum[4]
     >>> M = clip_matrix(perspective=False, *frustum)
-    >>> np.dot(M, [frustum[0], frustum[2], frustum[4], 1])
-    array([-1., -1., -1.,  1.])
-    >>> np.dot(M, [frustum[1], frustum[3], frustum[5], 1])
-    array([ 1.,  1.,  1.,  1.])
+    >>> a = np.dot(M, [frustum[0], frustum[2], frustum[4], 1])
+    >>> np.allclose(a, [-1., -1., -1.,  1.])
+    True
+    >>> b = np.dot(M, [frustum[1], frustum[3], frustum[5], 1])
+    >>> np.allclose(b, [ 1.,  1.,  1.,  1.])
+    True
     >>> M = clip_matrix(perspective=True, *frustum)
     >>> v = np.dot(M, [frustum[0], frustum[2], frustum[4], 1])
-    >>> v / v[3]
-    array([-1., -1., -1.,  1.])
+    >>> c = v / v[3]
+    >>> np.allclose(c, [-1., -1., -1.,  1.])
+    True
     >>> v = np.dot(M, [frustum[1], frustum[3], frustum[4], 1])
-    >>> v / v[3]
-    array([ 1.,  1., -1.,  1.])
+    >>> d = v / v[3]
+    >>> np.allclose(d, [ 1.,  1., -1.,  1.])
+    True
 
     """
     if left >= right or bottom >= top or near >= far:
