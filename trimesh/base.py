@@ -77,18 +77,27 @@ class Trimesh(object):
         **kwargs:       stored in self._kwargs if needed later
         '''
 
-        # self._data stores information about the mesh which CANNOT be regenerated.
-        # in the base class all that is stored here is vertex and face information
-        # any data put into the store is converted to a TrackedArray (np.ndarray subclass)
-        # which provides an md5() method which can be used to detect changes in
-        # the array.
+        # self._data stores information about the mesh which
+        # CANNOT be regenerated.
+        # in the base class all that is stored here is vertex and
+        # face information
+        # any data put into the store is converted to a TrackedArray
+        # which is a subclass of np.ndarray that provides md5 and crc
+        # methods which can be used to detect changes in the array.
         self._data = util.DataStore()
 
-        # self._cache stores information about the mesh which CAN be regenerated from
-        # self._data, but may be slow to calculate. In order to maintain consistency
+        # self._cache stores information about the mesh which CAN be
+        # regenerated from self._data, but may be slow to calculate.
+        # In order to maintain consistency
         # the cache is cleared when self._data.crc() changes
         self._cache = util.Cache(id_function=self._data.crc)
         self._cache.update(initial_cache)
+
+        # on returning faces or face normals, validate faces to ensure nonzero
+        # normals and matching shape. Not validating can mean that you
+        # get different number of values depending on the order which you
+        # look at faces and face normals
+        self._validate = bool(validate)
 
         # check for None only to avoid warning messages in subclasses
         if vertices is not None:
@@ -108,9 +117,9 @@ class Trimesh(object):
                                                **kwargs)
         self.visual.mesh = self
 
-        # normals are accessed through setters/properties and are regenerated if the
-        # dimensions are inconsistant, but can be set by the constructor to save
-        # the substantial number of cross products required to generate them
+        # normals are accessed through setters/properties and are regenerated
+        # if dimensions are inconsistant, but can be set by the constructor
+        # to avoid a substantial number of cross products
         if face_normals is not None:
             self.face_normals = face_normals
 
@@ -123,6 +132,9 @@ class Trimesh(object):
         # On first query expensive bookkeeping is done (creation of r-tree),
         # and is cached for subsequent queries
         self.ray = ray_triangle.RayMeshIntersector(self)
+        # embree is a much, much faster raytracer written by Intel
+        # if you have pyembree installed you should use it
+        # although both raytracers were designed to have a common API
         if use_embree:
             try:
                 from .ray import ray_pyembree
@@ -142,18 +154,11 @@ class Trimesh(object):
         if isinstance(metadata, dict):
             self.metadata.update(metadata)
 
-        # on returning faces or face normals, validate faces to ensure nonzero
-        # normals and matching shape. Not validating can mean that you get different
-        # number of values depending on the order which you look at faces and face normals,
-        # but for some operations validation may want to be turned off during the operation
-        # then reinitialized for the end of the operation.
-        self._validate = bool(validate)
-
         # Set the default center of mass and density
         self._density = 1.0
         self._center_mass = None
 
-        # process is a cleanup function which brings the mesh to a consistant state
+        # process is a cleanup function which cleans up the mesh
         # by merging vertices and removing zero- area and duplicate faces
         if (process and
             (vertices is not None) and
@@ -196,11 +201,12 @@ class Trimesh(object):
 
     def md5(self):
         '''
-        An MD5 of the core geometry information for the mesh (faces and vertices).
+        An MD5 of the core geometry information for the mesh,
+        faces and vertices.
 
         Generated from TrackedArray, which subclasses np.ndarray to monitor for
-        changes and returns a correct, but lazily evaluated md5 (so it only has to
-        recalculate the hash occasionally, rather than on every call)
+        changes and returns a correct, but lazily evaluated md5 so it only has to
+        recalculate the hash occasionally, rather than on every call.
 
         Returns
         ----------
@@ -228,9 +234,9 @@ class Trimesh(object):
         '''
         The faces of the mesh.
 
-        This is regarded as core information which cannot be regenerated from cache,
-        and as such is stored in self._data, which tracks the array for changes
-        and clears cached values of the mesh if this is altered.
+        This is regarded as core information which cannot be regenerated from
+        cache, and as such is stored in self._data which tracks the array for
+        changes and clears cached values of the mesh if this is altered.
 
         Returns
         ----------

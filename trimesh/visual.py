@@ -366,6 +366,33 @@ class ColorVisuals(object):
         result = ColorVisuals(face_colors=self.face_colors[face_index])
         return result
 
+    @property
+    def main_color(self):
+        '''
+        What is the most commonly occuring color.
+
+        Returns
+        ------------
+        color: (4,) uint8, most common color
+        '''
+        if self.kind is None:
+            return DEFAULT_COLOR
+        elif self.kind == 'face':
+            colors = self.face_colors
+        elif self.kind == 'vertex':
+            colors = self.vertex_colors
+        else:
+            raise ValueError('color kind incorrect!')
+
+        # find the unique colors
+        unique, inverse = grouping.unique_rows(colors)
+        # the most commonly occuring color, or mode
+        # this will be an index of inverse, not colors
+        mode_index = np.bincount(inverse).argmax()
+        color = colors[unique[mode_index]]
+
+        return color
+
     def concatenate(self, other, *args):
         '''
         Concatenate two or more ColorVisuals objects into a single object.

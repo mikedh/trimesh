@@ -24,9 +24,6 @@ install:
   - conda install -c ioos rtree
   - pip install nose2
   - pip install .[easy]
-  - appveyor DownloadFile https://www.blender.org/download/Blender2.79/blender-2.79-windows64.zip/
-  - 7z x blender-2.79-windows64.zip "-oC:\" -y
-
 
 test_script:
   - nose2

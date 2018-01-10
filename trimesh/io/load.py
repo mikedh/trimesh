@@ -189,17 +189,16 @@ def load_kwargs(*args, **kwargs):
     def handle_scene():
         '''
         Load a scene from our kwargs:
-        
+
         class:      Scene
         geometry:   dict, name: Trimesh kwargs
         graph:      list of dict, kwargs for scene.graph.update
         base_frame: str, base frame of graph
         '''
         scene = Scene()
-        scene.geometry.update({k: load_kwargs(v) for 
-                               k,v in kwargs['geometry'].items()})
+        scene.geometry.update({k: load_kwargs(v) for
+                               k, v in kwargs['geometry'].items()})
 
-        
         for k in kwargs['graph']:
             if isinstance(k, dict):
                 scene.graph.update(**k)

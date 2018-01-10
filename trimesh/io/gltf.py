@@ -46,7 +46,7 @@ def export_gltf(scene):
     export: dict, {file name : file data}
     '''
 
-    tree, buffer_items = _gltf_structure(scene)
+    tree, buffer_items = _create_gltf_structure(scene)
 
     buffers = []
     views = []
@@ -90,7 +90,7 @@ def export_glb(scene):
     exported: bytes, exported result
     '''
 
-    tree, buffer_items = _gltf_structure(scene)
+    tree, buffer_items = _create_gltf_structure(scene)
 
     # A bufferView is a slice of a file
     views = []
@@ -141,58 +141,6 @@ def export_glb(scene):
     return exported
 
 
-def _gltf_structure(scene):
-    # we are defining a single scene, and will be setting the
-    # world node to the 0th index
-    tree = {'scene': 0,
-            'scenes': [{'nodes': [0]}],
-            "asset": {"version": "2.0",
-                      "generator": "github.com/mikedh/trimesh"},
-            'accessors': [],
-            'meshes': []}
-
-    # GLTF references meshes by index, so store them here
-    mesh_index = {name: i for i, name in enumerate(scene.geometry.keys())}
-    # grab the flattened scene graph in GLTF's format
-    nodes = scene.graph.to_gltf(mesh_index=mesh_index)
-    tree.update(nodes)
-
-    buffer_items = []
-    for name, mesh in scene.geometry.items():
-        # meshes reference accessor indexes
-        tree['meshes'].append({"name": name,
-                               "primitives": [
-                                   {"attributes": {"POSITION": len(tree['accessors']) + 1},
-                                    "indices": len(tree['accessors']),
-                                    "mode": 4}]})  # mode 4 is GL_TRIANGLES
-
-        # accessors refer to data locations
-        # mesh faces are stored as flat list of integers
-        tree['accessors'].append({"bufferView": len(buffer_items),
-                                  "componentType": 5125,
-                                  "count": len(mesh.faces) * 3,
-                                  "max": [int(mesh.faces.max())],
-                                  "min": [0],
-                                  "type": "SCALAR"})
-
-        # the vertex accessor
-        tree['accessors'].append({"bufferView": len(buffer_items) + 1,
-                                  "componentType": 5126,
-                                  "count": len(mesh.vertices),
-                                  "type": "VEC3",
-                                  "max": mesh.vertices.max(axis=0).tolist(),
-                                  "min": mesh.vertices.min(axis=0).tolist()})
-
-        # convert to the correct dtypes
-        # 5126 is a float32
-        # 5125 is an unsigned 32 bit integer
-        # add faces, then vertices
-        buffer_items.append(mesh.faces.astype(np.uint32).tostring())
-        buffer_items.append(mesh.vertices.astype(np.float32).tostring())
-
-    return tree, buffer_items
-
-
 def load_glb(file_obj, **passed):
     '''
     Load a GLTF file in the binary GLB format into a trimesh.Scene.
@@ -206,7 +154,7 @@ def load_glb(file_obj, **passed):
 
     Returns
     ------------
-    scene: trimesh.Scene object, containing data from GLB file
+    kwargs: dict, kwargs to instantiate a trimesh.Scene
     '''
 
     # save the start position of the file for referencing
@@ -238,7 +186,7 @@ def load_glb(file_obj, **passed):
     if hasattr(json_data, 'decode'):
         json_data = json_data.decode('utf-8')
     # load the json header to native dict
-    j = json.loads(json_data)
+    header = json.loads(json_data)
 
     # read the binary data referred to by GLTF as 'buffers'
     buffers = []
@@ -247,27 +195,139 @@ def load_glb(file_obj, **passed):
         # we now read the chunk header, which is 8 bytes
         chunk_head = file_obj.read(8)
         if len(chunk_head) != 8:
+            # double check to make sure we didn't
+            # read the whole file
             break
+
         chunk_length, chunk_type = np.fromstring(chunk_head,
                                                  dtype=np.uint32)
+        # make sure we have the right data type
         if chunk_type != _magic['bin']:
             raise ValueError('not binary GLTF!')
+        # read the chunk
         chunk_data = file_obj.read(int(chunk_length))
         if len(chunk_data) != chunk_length:
             raise ValueError('chunk was not expected length!')
         buffers.append(chunk_data)
 
+    # turn the layout header and data into kwargs
+    # that can be used to instantiate a trimesh.Scene object
+    kwargs = _read_buffers(header=header,
+                           buffers=buffers)
+    return kwargs
+
+
+def _mesh_to_material(mesh, metallic=.02, rough=.1):
+    '''
+    Create a simple GLTF material for a mesh using the most
+    commonly occuring color in that mesh.
+
+    Parameters
+    ------------
+    mesh: Trimesh object
+
+    Returns
+    ------------
+    material: dict, in GLTF material format
+    '''
+    # just get the most commonly occuring color
+    color = mesh.visual.main_color
+    # convert uint color to 0-1.0 float color
+    color = color.astype(float) / (2 ** (8 * color.dtype.itemsize))
+
+    material = {'pbrMetallicRoughness':
+                {'baseColorFactor': color.tolist(),
+                 'metallicFactor': metallic,
+                 'roughnessFactor': rough}}
+    return material
+
+
+def _create_gltf_structure(scene):
+    '''
+    Generate a GLTF header
+    '''
+    # we are defining a single scene, and will be setting the
+    # world node to the 0th index
+    tree = {'scene': 0,
+            'scenes': [{'nodes': [0]}],
+            "asset": {"version": "2.0",
+                      "generator": "github.com/mikedh/trimesh"},
+            'accessors': [],
+            'meshes': [],
+            'materials': []}
+
+    # GLTF references meshes by index, so store them here
+    mesh_index = {name: i for i, name in enumerate(scene.geometry.keys())}
+    # grab the flattened scene graph in GLTF's format
+    nodes = scene.graph.to_gltf(mesh_index=mesh_index)
+    tree.update(nodes)
+
+    buffer_items = []
+    for name, mesh in scene.geometry.items():
+        # meshes reference accessor indexes
+        tree['meshes'].append({"name": name,
+                               "primitives": [
+                                   {"attributes":
+                                    {"POSITION": len(tree['accessors']) + 1},
+                                    "indices": len(tree['accessors']),
+                                    "mode": 4,  # mode 4 is GL_TRIANGLES
+                                    'material': len(tree['materials'])}]})
+
+        tree['materials'].append(_mesh_to_material(mesh))
+
+        # accessors refer to data locations
+        # mesh faces are stored as flat list of integers
+        tree['accessors'].append({"bufferView": len(buffer_items),
+                                  "componentType": 5125,
+                                  "count": len(mesh.faces) * 3,
+                                  "max": [int(mesh.faces.max())],
+                                  "min": [0],
+                                  "type": "SCALAR"})
+
+        # the vertex accessor
+        tree['accessors'].append({"bufferView": len(buffer_items) + 1,
+                                  "componentType": 5126,
+                                  "count": len(mesh.vertices),
+                                  "type": "VEC3",
+                                  "max": mesh.vertices.max(axis=0).tolist(),
+                                  "min": mesh.vertices.min(axis=0).tolist()})
+
+        # convert to the correct dtypes
+        # 5126 is a float32
+        # 5125 is an unsigned 32 bit integer
+        # add faces, then vertices
+        buffer_items.append(mesh.faces.astype(np.uint32).tostring())
+        buffer_items.append(mesh.vertices.astype(np.float32).tostring())
+
+    return tree, buffer_items
+
+
+def _read_buffers(header, buffers):
+    '''
+    Given a list of binary data and a layout, return the
+    kwargs to create a scene object.
+
+    Parameters
+    -----------
+    header:  dict, with GLTF keys
+    buffers: list, of bytes
+
+    Returns
+    -----------
+    kwargs: can be passed to load_kwargs for a trimesh.Scene
+    '''
     # split buffer data into buffer views
     views = []
-    for view in j['bufferViews']:
+    for view in header['bufferViews']:
         start = view['byteOffset']
         end = start + view['byteLength']
         views.append(buffers[view['buffer']][start:end])
         assert len(views[-1]) == view['byteLength']
 
     # load data from buffers and bufferviews into numpy arrays
+    # using the layout described by accessors
     access = []
-    for a in j['accessors']:
+    for a in header['accessors']:
         data = views[a['bufferView']]
         dtype = _types[a['componentType']]
         shape = _shapes[a['type']]
@@ -276,31 +336,46 @@ def load_glb(file_obj, **passed):
         assert len(array) == a['count']
         access.append(array)
 
+    # turn materials into a simple list of colors if populated
+    colors = []
+    if 'materials' in header:
+        for mat in header['materials']:
+            # get the base color of the material
+            color = np.array(mat['pbrMetallicRoughness']['baseColorFactor'],
+                             dtype=np.float)
+            # convert float 0-1 colors to uint8 colors and append
+            colors.append((color * 255).astype(np.uint8))
+
     # load data from accessors into Trimesh objects
     meshes = collections.OrderedDict()
-    for m in j['meshes']:
+    for m in header['meshes']:
+        color = None
         kwargs = collections.defaultdict(list)
         for p in m['primitives']:
             if p['mode'] != 4:
                 raise ValueError('only GL_TRIANGLES meshes supported!')
             kwargs['faces'].append(access[p['indices']].reshape((-1, 3)))
             kwargs['vertices'].append(access[p['attributes']['POSITION']])
+            if 'material' in p:
+                color = colors[p['material']]
         for key, value in kwargs.items():
             kwargs[key] = np.vstack(value)
+        kwargs['face_colors'] = color
         meshes[m['name']] = kwargs
 
     # the index of the node which is the root of the tree
-    root = j['scenes'][j['scene']]['nodes']
+    root = header['scenes'][header['scene']]['nodes']
 
     if len(root) != 1:
         raise ValueError('multiple scene roots')
     root = root[0]
 
     # make it easier to reference nodes
-    nodes = j['nodes']
+    nodes = header['nodes']
 
     # nodes are referenced by index
     # save their string names if they have one
+    # node index (int) : name (str)
     names = {}
     for i, n in enumerate(nodes):
         if 'name' in n:
@@ -310,7 +385,7 @@ def load_glb(file_obj, **passed):
 
     # visited, kwargs for scene.graph.update
     graph = collections.deque()
-    # unvisited, pairs of indexes for nodes
+    # unvisited, pairs of node indexes
     queue = collections.deque([root, c] for c in
                               nodes[root]['children'])
 
