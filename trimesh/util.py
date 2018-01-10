@@ -624,7 +624,7 @@ def attach_to_log(level=logging.DEBUG,
             continue
         logger.addHandler(handler)
         logger.setLevel(level)
-    np.set_printoptions(precision=6, suppress=True)
+    np.set_printoptions(precision=5, suppress=True)
 
 
 def tracked_array(array, dtype=None):
