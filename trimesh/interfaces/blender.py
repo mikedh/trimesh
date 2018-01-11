@@ -16,14 +16,14 @@ if platform.system() == 'Windows':
     _search_path.append('C:\Program Files\Blender Foundation\Blender')
     _search_path.append('C:\Program Files (x86)\Blender Foundation\Blender')
     _search_path = ';'.join(_search_path)
-    log.debug('searching for blender in: ', _search_path)
+    log.debug('searching for blender in: %s', _search_path)
 
 if platform.system() == 'Darwin':
     _search_path = [i for i in _search_path.split(':') if len(i) > 0]
     _search_path.append('/Applications/blender.app/Contents/MacOS')
     _search_path = ':'.join(_search_path)
-    log.debug('searching for blender in: ', _search_path)
-    log.warning('searching for blender in: ', _search_path)
+    log.debug('searching for blender in: %s', _search_path)
+    log.warning('searching for blender in: %s', _search_path)
 
 
 _blender_executable = find_executable('blender', path=_search_path)
