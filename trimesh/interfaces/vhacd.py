@@ -13,7 +13,7 @@ if platform.system() == 'Windows':
     _search_path.append('C:\Program Files')
     _search_path.append('C:\Program Files (x86)')
     _search_path = ';'.join(_search_path)
-    log.debug('searching for vhacd in: ', _search_path)
+    log.debug('searching for vhacd in: %s', _search_path)
 
 
 _vhacd_executable = None
