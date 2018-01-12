@@ -218,6 +218,114 @@ class CollisionManager(object):
         else:
             return result
 
+    def min_distance_single(self, mesh, transform=None, return_name=False):
+        '''
+        Get the minimum distance between a single object and any object in the manager.
+
+        Parameters
+        ----------
+        mesh:          Trimesh object, the geometry of the collision object
+        transform:    (4,4) float,     homogenous transform matrix for the object
+        return_names : bool,           If true, the name of the closest object is returned.
+
+        Returns
+        -------
+        distance: float, Min distance between mesh and any object in the manager
+        name: str,  The name of the object in the manager that was closest
+        '''
+        if transform is None:
+            transform = np.eye(4)
+
+        # Create FCL data
+        b = fcl.BVHModel()
+        b.beginModel(len(mesh.vertices), len(mesh.faces))
+        b.addSubModel(mesh.vertices, mesh.faces)
+        b.endModel()
+        t = fcl.Transform(transform[:3, :3], transform[:3, 3])
+        o = fcl.CollisionObject(b, t)
+
+        # Collide with manager's objects
+        ddata = fcl.DistanceData()
+
+        self._manager.distance(o, ddata, fcl.defaultDistanceCallback)
+
+        distance = ddata.result.min_distance
+
+        # If we want to return the objects that were collision, collect them.
+        if return_name:
+            cg = ddata.result.o1
+            if cg == b:
+                cg = ddata.result.o2
+            name = self._extract_name(cg)
+
+            return distance, name
+        else:
+            return distance
+
+    def min_distance_internal(self, return_names=False):
+        '''
+        Get the minimum distance between any pair of objects in the manager.
+
+        Parameters
+        ----------
+        return_names : bool
+            If true, a 2-tuple is returned containing the names of the closest objects.
+
+        Returns
+        -------
+        distance: float, Min distance between any two managed objects
+        names: (2,) str, The names of the closest objects
+        '''
+        ddata = fcl.DistanceData()
+
+        self._manager.distance(ddata, fcl.defaultDistanceCallback)
+
+        distance = ddata.result.min_distance
+
+        if return_names:
+            names = tuple(sorted((self._extract_name(ddata.result.o1),
+                                  self._extract_name(ddata.result.o2))))
+
+            return distance, names
+        else:
+            return distance
+
+    def min_distance_other(self, other_manager, return_names=False):
+        '''
+        Get the minimum distance between any pair of objects, one in each manager.
+
+        Parameters
+        ----------
+        other_manager: CollisionManager, another collision manager object
+        return_names:  bool,             If true, a 2-tuple is returned containing
+                                         the names of the closest objects.
+
+        Returns
+        -------
+        distance: float,     The min distance between a pair of objects,
+                             one from each manager.
+        names: 2-tup of str, A 2-tuple containing two names (first from this manager,
+                             second from the other_manager) indicating
+                             the two closest objects.
+        '''
+        ddata = fcl.DistanceData()
+
+        self._manager.distance(other_manager._manager,
+                               ddata,
+                               fcl.defaultDistanceCallback)
+
+        distance = ddata.result.min_distance
+
+        if return_names:
+            name1, name2 = (self._extract_name(ddata.result.o1),
+                            other_manager._extract_name(ddata.result.o2))
+            if name1 is None:
+                name1, name2 = (self._extract_name(ddata.result.o2),
+                                other_manager._extract_name(ddata.result.o1))
+            return distance, (name1, name2)
+        else:
+            return distance
+
     def _extract_name(self, geom):
         '''
         Retrieve the name of an object from the manager by its collision geometry,
