@@ -289,6 +289,40 @@ class FileTests(unittest.TestCase):
             file_obj.close()
 
 
+class FileTests(unittest.TestCase):
+
+    def test_io_wrap(self):
+        test_b = g.np.random.random(1).tostring()
+        test_s = 'this is a test yo'
+
+        res_b = g.trimesh.util.wrap_as_stream(test_b).read()
+        res_s = g.trimesh.util.wrap_as_stream(test_s).read()
+
+        self.assertTrue(res_b == test_b)
+        self.assertTrue(res_s == test_s)
+
+class CompressTests(unittest.TestCase):
+    def test_compress(self):
+        
+        source = {'hey': 'sup',
+                  'naa': '2002211'}
+
+        # will return bytes
+        c = g.trimesh.util.compress(source)
+        
+        # wrap bytes as file- like object
+        f = g.trimesh.util.wrap_as_stream(c)
+        # try to decompress file- like object
+        d = g.trimesh.util.decompress(f, file_type='zip')
+
+        # make sure compressed- decompressed items
+        # are the same after a cycle
+        for key, value in source.items():
+            result = d[key].read().decode('utf-8')
+            assert result == value
+        
+
+
 if __name__ == '__main__':
     trimesh.util.attach_to_log()
     unittest.main()

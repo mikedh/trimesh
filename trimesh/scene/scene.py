@@ -232,6 +232,19 @@ class Scene:
         return self._cache['triangles_node']
 
     @util.cache_decorator
+    def geometry_identifiers(self):
+        '''
+        Look up geometries by identifier MD5
+
+        Returns
+        ---------
+        identifiers: dict, identifier md5: key in self.geometry
+        '''
+        identifiers = {mesh.identifier_md5: name
+                       for name, mesh in self.geometry.items()}
+        return identifiers
+
+    @util.cache_decorator
     def duplicate_nodes(self):
         '''
         Return a sequence of node keys of identical meshes.

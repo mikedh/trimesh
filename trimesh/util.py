@@ -11,6 +11,7 @@ import numpy as np
 import collections
 import logging
 import hashlib
+import zipfile
 import base64
 import time
 import copy
@@ -20,8 +21,8 @@ import zlib
 from sys import version_info
 from functools import wraps
 
-_PY3 = version_info.major >= 3
-if _PY3:
+PY3 = version_info.major >= 3
+if PY3:
     basestring = str
     from io import BytesIO, StringIO
 else:
@@ -1564,7 +1565,7 @@ def wrap_as_stream(item):
     ---------
     wrapped: file-like object
     '''
-    if not _PY3:
+    if not PY3:
         return StringIO(item)
     if isinstance(item, str):
         return StringIO(item)
@@ -1727,7 +1728,6 @@ def decompress(file_obj, file_type):
     '''
 
     def is_zip():
-        import zipfile
         archive = zipfile.ZipFile(file_obj)
         result = {name: wrap_as_stream(archive.read(name))
                   for name in archive.namelist()}
@@ -1741,12 +1741,41 @@ def decompress(file_obj, file_type):
         return result
 
     file_type = str(file_type).lower()
+    if isinstance(file_obj, bytes):
+        file_obj = wrap_as_stream(file_obj)
+
 
     if file_type[-3:] == 'zip':
         return is_zip()
     if 'tar' in file_type[-6:]:
         return is_tar()
     raise ValueError('Unsupported type passed!')
+
+def compress(info):
+    '''
+    Compress data stored in a dict. 
+
+    Parameters
+    -----------
+    info: dict, {name in archive: bytes or file-like object}
+
+    Returns
+    -----------
+    compressed: bytes
+    '''
+    if PY3:
+        file_obj = BytesIO()
+    else:
+        file_obj = StringIO()
+
+    with zipfile.ZipFile(file_obj, 'w') as zipper:
+        for name, data in info.items():
+            if hasattr(data, 'read'):
+                data = data.read()
+            zipper.writestr(name, data)
+    file_obj.seek(0)
+    compressed = file_obj.read()
+    return compressed
 
 
 def split_extension(file_name, special=['tar.bz2', 'tar.gz']):
@@ -1791,7 +1820,7 @@ def triangle_strips_to_faces(strips):
 
     Parameters
     ------------
-    strips: (n,) list of (m,) int vertetex indices
+    strips: (n,) list of (m,) int vertex indices
 
     Returns
     ------------
@@ -1865,7 +1894,7 @@ def write_encoded(file_obj, stuff, encoding='utf-8'):
     string_stuff = isinstance(stuff, basestring)
     binary_stuff = isinstance(stuff, bytes)
 
-    if not _PY3:
+    if not PY3:
         file_obj.write(stuff)
     elif binary_file and string_stuff:
         file_obj.write(stuff.encode(encoding))
