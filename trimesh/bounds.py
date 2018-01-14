@@ -17,7 +17,7 @@ except ImportError:
     log.warning('Scipy import failed!')
 
 
-def oriented_bounds_2D(points):
+def oriented_bounds_2D(points, qhull_options='QbB'):
     '''
     Find an oriented bounding box for a set of 2D points.
 
@@ -27,16 +27,19 @@ def oriented_bounds_2D(points):
 
     Returns
     ----------
-    transform: (3,3) float, homogenous 2D transformation matrix to move the input set of
-               points so that the axis aligned bounding box is CENTERED AT THE ORIGIN
-    rectangle: (2,) float, size of extents once input points are transformed by transform
+    transform: (3,3) float, homogenous 2D transformation matrix to move the 
+                input points so that the axis aligned bounding box 
+                is CENTERED AT THE ORIGIN
+    rectangle: (2,) float, size of extents once input points are transformed 
+                by transform
     '''
     # make sure input is a numpy array
     points = np.asanyarray(points)
     # create a convex hull object of our points
     # 'QbB' is a qhull option which has it scale the input to unit box
     # to avoid precision issues with very large/small meshes
-    convex = spatial.ConvexHull(points, qhull_options='QbB')
+    convex = spatial.ConvexHull(points, 
+                                qhull_options=qhull_options)
 
     # (n,2,3) line segments
     hull_edges = convex.points[convex.simplices]

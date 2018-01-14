@@ -565,7 +565,8 @@ class Path3D(Path):
         -----------
         to_2D: (4,4) float, transformation matrix to apply.
                      If not passed a plane will be fitted to vertices.
-        normal: (3,) float, normal of plane which is only used if to_2D is not specified
+        normal: (3,) float, normal of plane which is only used if to_2D 
+                      is not specified
         check:  bool, raise a ValueError if the points aren't coplanar after
                       being transformed
 

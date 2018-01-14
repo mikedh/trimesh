@@ -45,6 +45,7 @@ class CollisionManager(object):
         b.beginModel(len(mesh.vertices), len(mesh.faces))
         b.addSubModel(mesh.vertices, mesh.faces)
         b.endModel()
+        
         t = fcl.Transform(transform[:3, :3], transform[:3, 3])
         o = fcl.CollisionObject(b, t)
 
@@ -74,7 +75,8 @@ class CollisionManager(object):
 
     def set_transform(self, name, transform):
         '''
-        Set the transform for one of the manager's objects. This replaces the prior transform.
+        Set the transform for one of the manager's objects. 
+        This replaces the prior transform.
 
         Parameters
         ----------
