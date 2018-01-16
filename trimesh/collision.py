@@ -1,5 +1,6 @@
 import numpy as np
 
+import copy
 from .constants import tol, log
 
 _fcl_exists = True
@@ -22,12 +23,46 @@ class CollisionManager(object):
         if not _fcl_exists:
             raise ValueError('No FCL Available!')
         self._objs = {}
+
+        # cache BVH objects
+        # {mesh.md5(): fcl.BVHModel object}
+        self._bvh = {}
+
         self._manager = fcl.DynamicAABBTreeCollisionManager()
         self._manager.setup()
 
-    def add_object(self, name, mesh, transform=None):
+    def _get_BVH(self, mesh):
+        '''
+        Creating a BVH is fairly expensive so if we are being passed the 
+        same mesh a bunch of times with different transforms, 
+        store the BVH so we can re- use it.
+
+        Note that mesh.md5 is NOT rotation/translation invarient so any
+        changes at all to the mesh will cause cached values to no longer
+        be used, which is what we want in this instance
+
+        Parameters
+        -------------
+        mesh: Trimesh object
+
+        Returns
+        --------------
+        bvh: fcl.BVHModel object
+        '''
+        MD5 = mesh.md5()
+        if MD5 not in self._bvh:
+            self._bvh[MD5] = mesh_to_BVH(mesh)
+        bvh = self._bvh[MD5]
+
+        return bvh
+
+    def add_object(self, 
+                   name, 
+                   mesh, 
+                   transform=None):
         '''
         Add an object to the collision manager.
+        
         If an object with the given name is already in the manager, replace it.
 
         Parameters
@@ -37,23 +72,24 @@ class CollisionManager(object):
         transform: (4,4) float, homogenous transform matrix for the object
         '''
 
+        # if no transform passed, assume identity transform
         if transform is None:
             transform = np.eye(4)
-
-        # Create FCL data
-        b = fcl.BVHModel()
-        b.beginModel(len(mesh.vertices), len(mesh.faces))
-        b.addSubModel(mesh.vertices, mesh.faces)
-        b.endModel()
-        
+        transform = np.asanyarray(transform, dtype=np.float32)
+        if transform.shape != (4,4):
+            raise ValueError('transform must be (4,4)!')
+            
+        # create or recall from cache BVH
+        bvh = self._get_BVH(mesh)
+        # create the FCL transform from (4,4) matrix
         t = fcl.Transform(transform[:3, :3], transform[:3, 3])
-        o = fcl.CollisionObject(b, t)
+        o = fcl.CollisionObject(bvh, t)
 
         # Add collision object to set
         if name in self._objs:
             self._manager.unregisterObject(self._objs[name])
         self._objs[name] = {'obj': o,
-                            'geom': b}
+                            'geom': bvh}
         self._manager.registerObject(o)
         self._manager.update()
         return o
@@ -97,40 +133,39 @@ class CollisionManager(object):
 
         Parameters
         ----------
-        mesh:          Trimesh object, the geometry of the collision object
-        transform:    (4,4) float,     homogenous transform matrix for the object
-        return_names : bool,           If true, a set is returned containing the names
-                                       of all objects in collision with the provided object
+        mesh:         Trimesh object, the geometry of the collision object
+        transform:    (4,4) float,    homogenous transform matrix
+        return_names: bool,           If true, a set is returned containing the names
+                                      of all objects in collision with the object
 
         Returns
         -------
         is_collision: bool, True if a collision occurs and False otherwise
-        names: set of str,  The set of names of objects that collided with the provided one
+        names: set of str,  The set of names of objects that collided with the 
+                            provided one
         '''
         if transform is None:
             transform = np.eye(4)
 
         # Create FCL data
-        b = fcl.BVHModel()
-        b.beginModel(len(mesh.vertices), len(mesh.faces))
-        b.addSubModel(mesh.vertices, mesh.faces)
-        b.endModel()
+        b = self._get_BVH(mesh)
         t = fcl.Transform(transform[:3, :3], transform[:3, 3])
         o = fcl.CollisionObject(b, t)
 
         # Collide with manager's objects
         cdata = fcl.CollisionData()
         if return_names:
-            cdata = fcl.CollisionData(request=fcl.CollisionRequest(num_max_contacts=100000,
-                                                                   enable_contact=True))
+            cdata = fcl.CollisionData(request=fcl.CollisionRequest(
+                num_max_contacts=100000,
+                enable_contact=True))
 
         self._manager.collide(o, cdata, fcl.defaultCollisionCallback)
-
         result = cdata.result.is_collision
 
         # If we want to return the objects that were collision, collect them.
         if return_names:
             objs_in_collision = set()
+          
             for contact in cdata.result.contacts:
                 cg = contact.o1
                 if cg == b:
@@ -222,13 +257,14 @@ class CollisionManager(object):
 
     def min_distance_single(self, mesh, transform=None, return_name=False):
         '''
-        Get the minimum distance between a single object and any object in the manager.
+        Get the minimum distance between a single object and any object in the 
+        manager.
 
         Parameters
         ----------
         mesh:          Trimesh object, the geometry of the collision object
         transform:    (4,4) float,     homogenous transform matrix for the object
-        return_names : bool,           If true, the name of the closest object is returned.
+        return_names : bool,           If true, return name of the closest object
 
         Returns
         -------
@@ -239,18 +275,14 @@ class CollisionManager(object):
             transform = np.eye(4)
 
         # Create FCL data
-        b = fcl.BVHModel()
-        b.beginModel(len(mesh.vertices), len(mesh.faces))
-        b.addSubModel(mesh.vertices, mesh.faces)
-        b.endModel()
+        b = self._get_BVH(mesh)
+
         t = fcl.Transform(transform[:3, :3], transform[:3, 3])
         o = fcl.CollisionObject(b, t)
 
         # Collide with manager's objects
         ddata = fcl.DistanceData()
-
         self._manager.distance(o, ddata, fcl.defaultDistanceCallback)
-
         distance = ddata.result.min_distance
 
         # If we want to return the objects that were collision, collect them.
@@ -330,10 +362,53 @@ class CollisionManager(object):
 
     def _extract_name(self, geom):
         '''
-        Retrieve the name of an object from the manager by its collision geometry,
-        or return None if not found.
+        Retrieve the name of an object from the manager by its 
+        CollisionObject, or return None if not found.
         '''
-        for obj_name in self._objs:
+        for obj_name in self._objs.keys():
             if self._objs[obj_name]['geom'] == geom:
                 return obj_name
         return None
+
+
+def mesh_to_BVH(mesh):
+    '''
+    Create a BVHModel object from a Trimesh object
+    
+    Parameters
+    -----------
+    mesh: Trimesh object
+
+    Returns
+    ------------
+    bvh: fcl.BVHModel object
+    '''
+    bvh = fcl.BVHModel()
+    bvh.beginModel(len(mesh.vertices), len(mesh.faces))
+    bvh.addSubModel(mesh.vertices, mesh.faces)
+    bvh.endModel()
+    return bvh
+
+
+def scene_to_collision(scene):
+    '''
+    Create collision objects from a trimesh.Scene object.
+
+    Parameters
+    ------------
+    scene: trimesh.Scene object
+
+    Returns
+    ------------
+    manager: CollisionManager object
+    objects: {node name: CollisionObject}
+    '''
+    manager = CollisionManager()
+    objects = {}
+    for node in scene.graph.nodes_geometry:
+        T, geometry = scene.graph[node]
+        objects[node] = manager.add_object(name=node,
+                                           mesh=scene.geometry[geometry],
+                                           transform=T)
+    return manager, objects
+        

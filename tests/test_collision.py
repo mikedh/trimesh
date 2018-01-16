@@ -29,6 +29,9 @@ class CollisionTest(g.unittest.TestCase):
 
         ret, names = m.in_collision_single(cube, tf1, return_names=True)
         self.assertTrue(ret == True)
+        
+        if 'cube1' not in names:
+            print('\n\n', m._objs.keys(), names)
         self.assertTrue('cube1' in names)
 
         ret, names = m.in_collision_single(cube, tf2, return_names=True)
@@ -162,6 +165,13 @@ class CollisionTest(g.unittest.TestCase):
         self.assertTrue(g.np.isclose(dist, 1.0))
         self.assertTrue(names == ('cube0', 'cube4'))
 
+
+    def test_scene(self):
+        scene = g.get_mesh('cycloidal.3DXML')
+        
+        manager, objects = g.trimesh.collision.scene_to_collision(scene)
+
+        assert manager.in_collision_internal()
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
