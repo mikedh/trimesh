@@ -2,7 +2,6 @@ import logging
 import os
 import subprocess
 
-import lxml.etree as et
 import numpy as np
 
 from ..decomposition import convex_decomposition
@@ -29,6 +28,8 @@ def export_urdf(mesh,
     ---------
     mesh: The decomposed mesh
     '''
+
+    import lxml.etree as et
 
     # Extract the save directory and the file name
     fullpath = os.path.abspath(directory)
