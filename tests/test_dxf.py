@@ -35,6 +35,7 @@ class DXFTest(g.unittest.TestCase):
 
 
     def test_spline(self):
+        if not g.has_path: return
         d = g.get_mesh('2D/cycloidal.dxf')
         
         assert len(d.entities) == 1

@@ -4,7 +4,7 @@ import generic as g
 class SimplifyTest(g.unittest.TestCase):
 
     def polygon_simplify(self, polygon, arc_count):
-
+        if not g.has_path: return
         # loading the polygon will make all arcs discrete
         path = g.trimesh.load_path(polygon)
 
@@ -43,6 +43,7 @@ class SimplifyTest(g.unittest.TestCase):
         assert path.md5() == md5_pre
 
     def test_simplify(self):
+        if not g.has_path: return
         for file_name in ['2D/cycloidal.dxf',
                           '2D/125_cycloidal.DXF',
                           '2D/spline_1.dxf']:

@@ -441,11 +441,12 @@ class Trimesh(object):
     @util.cache_decorator
     def bounding_primitive(self):
         '''
-        The minimum volume primitive (box, sphere, or cylinder) that bounds the mesh.
+        The minimum volume primitive (box, sphere, or cylinder) that 
+        bounds the mesh.
 
         Returns
         ---------
-        bounding_primitive: trimesh.primitives.Sphere or
+        bounding_primitive: trimesh.primitives.Sphere
                             trimesh.primitives.Box
                             trimesh.primitives.Cylinder
         '''

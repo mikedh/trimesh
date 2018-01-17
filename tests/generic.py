@@ -20,8 +20,11 @@ from copy import deepcopy
 from trimesh.constants import tol, tol_path
 from trimesh.base import Trimesh
 
-from shapely.geometry import Point, Polygon
-
+try:
+    from shapely.geometry import Point, Polygon
+    has_path = True
+except ImportError:
+    has_path = False
 
 python_version = (sys.version_info.major, sys.version_info.minor)
 
@@ -135,6 +138,9 @@ def get_2D(count=None):
     '''
     Get Path2D objects to test with.
     '''
+    if not has_path:
+        return []
+
     ls = os.listdir(dir_2D)
     if count is None:
         count = len(ls)

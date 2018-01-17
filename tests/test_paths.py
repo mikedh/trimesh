@@ -56,6 +56,8 @@ class VectorTests(g.unittest.TestCase):
                 m = d.medial_axis()
 
     def test_poly(self):
+        if not g.has_path: return
+
         p = g.get_mesh('2D/LM2.dxf')
         self.assertTrue(p.is_closed)
         self.assertTrue(any(len(i.points) > 2 for i in p.entities if
@@ -148,6 +150,7 @@ class ArcTests(g.unittest.TestCase):
 class PolygonsTest(g.unittest.TestCase):
 
     def test_rasterize(self):
+        if not g.has_path: return
         test_radius = 1.0
         test_pitch = test_radius / 10.0
         polygon = g.Point([0, 0]).buffer(test_radius)
@@ -166,6 +169,8 @@ class PolygonsTest(g.unittest.TestCase):
 
 class SplitTest(g.unittest.TestCase):
     def test_split(self):
+        if not g.has_path: return
+
         for fn in ['2D/ChuteHolderPrint.DXF',
                    '2D/tray-easy1.dxf',
                    '2D/sliding-base.dxf',
