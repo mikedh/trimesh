@@ -445,7 +445,7 @@ def _gl_vector(array, *args):
     return vector
 
 
-def render_scene(scene, resolution=(1080, 1080), visible=False, **kwargs):
+def render_scene(scene, resolution=(1080, 1080), visible=True, **kwargs):
     '''
     Render a preview of a scene to a PNG.
 
