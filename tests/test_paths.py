@@ -192,6 +192,25 @@ class SplitTest(g.unittest.TestCase):
                 assert s.path_valid.sum() == len(s.polygons_closed)
 
 
+class ExportTest(g.unittest.TestCase):
+
+    def test_svg(self):
+        for d in g.get_2D():
+            # export as svg string
+            exported = d.export('svg')
+            # load the exported SVG
+            stream = g.trimesh.util.wrap_as_stream(exported)
+            loaded = g.trimesh.load(stream, file_type='svg')
+
+            # we only have line and arc primitives as SVG export and import
+            if all(i.__class__.__name__ in ['Line',
+                                            'Arc'] for i in d.entities):
+                # perimeter should stay the same-ish on export/inport
+                assert g.np.isclose(d.length,
+                                    loaded.length,
+                                    rtol=.01)
+
+
 class SectionTest(g.unittest.TestCase):
 
     def test_section(self):
@@ -200,7 +219,7 @@ class SectionTest(g.unittest.TestCase):
         # check the CCW correctness with a normal in both directions
         for sign in [1.0, -1.0]:
             # get a cross section of the tube
-            section = mesh.section(plane_origin=[0.0, 0.0, 0.0],
+            section = mesh.section(plane_origin=mesh.center_mass,
                                    plane_normal=[0.0, sign, 0.0])
 
             # Path3D -> Path2D
@@ -219,24 +238,6 @@ class SectionTest(g.unittest.TestCase):
             assert not g.trimesh.path.util.is_ccw(
                 polygon.interiors[0].coords)
 
-
-class ExportTest(g.unittest.TestCase):
-
-    def test_svg(self):
-        for d in g.get_2D():
-            # export as svg string
-            exported = d.export('svg')
-            # load the exported SVG
-            stream = g.trimesh.util.wrap_as_stream(exported)
-            loaded = g.trimesh.load(stream, file_type='svg')
-
-            # we only have line and arc primitives as SVG export and import
-            if all(i.__class__.__name__ in ['Line',
-                                            'Arc'] for i in d.entities):
-                # perimeter should stay the same-ish on export/inport
-                assert g.np.isclose(d.length,
-                                    loaded.length,
-                                    rtol=.01)
 
 
 if __name__ == '__main__':
