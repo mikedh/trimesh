@@ -197,25 +197,27 @@ class SectionTest(g.unittest.TestCase):
     def test_section(self):
         mesh = g.get_mesh('tube.obj')
 
-        # get a cross section of the tube
-        section = mesh.section(plane_origin=[0.0, 0.0, 0.0],
-                               plane_normal=[0.0, 1.0, 0.0])
+        # check the CCW correctness with a normal in both directions
+        for sign in [1.0, -1.0]:
+            # get a cross section of the tube
+            section = mesh.section(plane_origin=[0.0, 0.0, 0.0],
+                                   plane_normal=[0.0, sign, 0.0])
 
-        # Path3D -> Path2D
-        planar, T = section.to_planar()
+            # Path3D -> Path2D
+            planar, T = section.to_planar()
 
-        # tube should have one closed polygon
-        assert len(planar.polygons_full) == 1
-        polygon = planar.polygons_full[0]
-        # closed polygon should have one interior
-        assert len(polygon.interiors) == 1
+            # tube should have one closed polygon
+            assert len(planar.polygons_full) == 1
+            polygon = planar.polygons_full[0]
+            # closed polygon should have one interior
+            assert len(polygon.interiors) == 1
 
-        # the exterior SHOULD be counterclockwise
-        assert g.trimesh.path.util.is_ccw(
-            polygon.exterior.coords)
-        # the interior should NOT be counterclockwise
-        assert not g.trimesh.path.util.is_ccw(
-            polygon.interiors[0].coords)
+            # the exterior SHOULD be counterclockwise
+            assert g.trimesh.path.util.is_ccw(
+                polygon.exterior.coords)
+            # the interior should NOT be counterclockwise
+            assert not g.trimesh.path.util.is_ccw(
+                polygon.interiors[0].coords)
 
 
 class ExportTest(g.unittest.TestCase):
