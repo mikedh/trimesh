@@ -297,16 +297,20 @@ def _parse_file_args(file_obj, file_type, **kwargs):
             'File type must be specified when passing file objects!')
     if util.is_string(file_obj):
         try:
-            exists = os.path.isfile(file_obj)
-        except TypeError:
+            # os.path.isfile will return False incorrectly
+            # if we don't give it an absolute path
+            file_path = os.path.expanduser(file_obj)
+            file_path = os.path.abspath(file_path)
+            exists = os.path.isfile(file_path)
+        except:
             exists = False
         if exists:
-            metadata['file_path'] = file_obj
+            metadata['file_path'] = file_path
             metadata['file_name'] = os.path.basename(file_obj)
             # if file_obj is a path that exists use extension as file_type
-            file_type = util.split_extension(file_obj,
+            file_type = util.split_extension(file_path,
                                              special=['tar.gz', 'tar.bz2'])
-            file_obj = open(file_obj, 'rb')
+            file_obj = open(file_path, 'rb')
         else:
             if file_type is not None:
                 return file_obj, file_type, metadata

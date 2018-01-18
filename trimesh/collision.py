@@ -1,6 +1,7 @@
 import numpy as np
 
-import copy
+import collections
+
 from .constants import tol, log
 
 _fcl_exists = True
@@ -22,39 +23,17 @@ class CollisionManager(object):
         '''
         if not _fcl_exists:
             raise ValueError('No FCL Available!')
+        # {name: {geom:, obj}}
         self._objs = {}
-
+        # {id(bvh) : str, name}
+        # unpopulated values will return None
+        self._names = collections.defaultdict(lambda: None)
+        
         # cache BVH objects
         # {mesh.md5(): fcl.BVHModel object}
         self._bvh = {}
-
         self._manager = fcl.DynamicAABBTreeCollisionManager()
         self._manager.setup()
-
-    def _get_BVH(self, mesh):
-        '''
-        Creating a BVH is fairly expensive so if we are being passed the 
-        same mesh a bunch of times with different transforms, 
-        store the BVH so we can re- use it.
-
-        Note that mesh.md5 is NOT rotation/translation invarient so any
-        changes at all to the mesh will cause cached values to no longer
-        be used, which is what we want in this instance
-
-        Parameters
-        -------------
-        mesh: Trimesh object
-
-        Returns
-        --------------
-        bvh: fcl.BVHModel object
-        '''
-        MD5 = mesh.md5()
-        if MD5 not in self._bvh:
-            self._bvh[MD5] = mesh_to_BVH(mesh)
-        bvh = self._bvh[MD5]
-
-        return bvh
 
     def add_object(self, 
                    name, 
@@ -90,6 +69,9 @@ class CollisionManager(object):
             self._manager.unregisterObject(self._objs[name])
         self._objs[name] = {'obj': o,
                             'geom': bvh}
+        # store the name of the geometry  
+        self._names[id(bvh)] = name
+
         self._manager.registerObject(o)
         self._manager.update()
         return o
@@ -105,7 +87,10 @@ class CollisionManager(object):
         if name in self._objs:
             self._manager.unregisterObject(self._objs[name]['obj'])
             self._manager.update(self._objs[name]['obj'])
-            del self._objs[name]
+            # remove objects from _objs
+            geom_id = id(self._objs.pop(name)['geom'])
+            # remove names
+            self._names.pop(geom_id)
         else:
             raise ValueError('{} not in collision manager!'.format(name))
 
@@ -206,8 +191,8 @@ class CollisionManager(object):
         if return_names:
             objs_in_collision = set()
             for contact in cdata.result.contacts:
-                name1, name2 = self._extract_name(
-                    contact.o1), self._extract_name(contact.o2)
+                name1, name2 = (self._extract_name(contact.o1), 
+                                self._extract_name(contact.o2))
                 names = tuple(sorted((name1, name2)))
                 objs_in_collision.add(names)
             return result, objs_in_collision
@@ -235,8 +220,9 @@ class CollisionManager(object):
         '''
         cdata = fcl.CollisionData()
         if return_names:
-            cdata = fcl.CollisionData(request=fcl.CollisionRequest(num_max_contacts=100000,
-                                                                   enable_contact=True))
+            cdata = fcl.CollisionData(request=fcl.CollisionRequest(
+                num_max_contacts=100000,
+                enable_contact=True))
         self._manager.collide(other_manager._manager,
                               cdata,
                               fcl.defaultCollisionCallback)
@@ -245,11 +231,11 @@ class CollisionManager(object):
         if return_names:
             objs_in_collision = set()
             for contact in cdata.result.contacts:
-                name1, name2 = self._extract_name(
-                    contact.o1), other_manager._extract_name(contact.o2)
+                name1, name2 = (self._extract_name(contact.o1), 
+                                other_manager._extract_name(contact.o2))
                 if name1 is None:
-                    name1, name2 = self._extract_name(
-                        contact.o2), other_manager._extract_name(contact.o1)
+                    name1, name2 = (self._extract_name(contact.o2), 
+                                    other_manager._extract_name(contact.o1))
                 objs_in_collision.add((name1, name2))
             return result, objs_in_collision
         else:
@@ -360,15 +346,31 @@ class CollisionManager(object):
         else:
             return distance
 
+    def _get_BVH(self, mesh):
+        '''
+        Get a BVH for a mesh.
+
+        Parameters
+        -------------
+        mesh: Trimesh object
+
+        Returns
+        --------------
+        bvh: fcl.BVHModel object
+        '''
+        bvh = mesh_to_BVH(mesh)
+        return bvh
+
     def _extract_name(self, geom):
         '''
         Retrieve the name of an object from the manager by its 
         CollisionObject, or return None if not found.
+
+        Parameters
+        -----------
+        geom: CollisionObject, BVHModel
         '''
-        for obj_name in self._objs.keys():
-            if self._objs[obj_name]['geom'] == geom:
-                return obj_name
-        return None
+        return self._names[id(geom)]
 
 
 def mesh_to_BVH(mesh):
@@ -384,8 +386,10 @@ def mesh_to_BVH(mesh):
     bvh: fcl.BVHModel object
     '''
     bvh = fcl.BVHModel()
-    bvh.beginModel(len(mesh.vertices), len(mesh.faces))
-    bvh.addSubModel(mesh.vertices, mesh.faces)
+    bvh.beginModel(num_tris_=len(mesh.faces),
+                   num_vertices_=len(mesh.vertices))
+    bvh.addSubModel(verts=mesh.vertices, 
+                    triangles=mesh.faces)
     bvh.endModel()
     return bvh
 
