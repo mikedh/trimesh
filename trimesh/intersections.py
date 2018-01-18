@@ -106,10 +106,13 @@ def mesh_plane(mesh,
     def handle_basic(signs, faces, vertices):
         # case where one vertex is on one side and two are on the other
         unique_element = grouping.unique_value_in_row(signs, unique=[-1, 1])
-        edges = np.column_stack((faces[unique_element],
-                                 faces[np.roll(unique_element, 1, axis=1)],
-                                 faces[unique_element],
-                                 faces[np.roll(unique_element, 2, axis=1)])).reshape((-1, 2))
+        edges = np.column_stack(
+            (faces[unique_element], faces[
+                np.roll(
+                    unique_element, 1, axis=1)], faces[unique_element], faces[
+                np.roll(
+                    unique_element, 2, axis=1)])).reshape(
+                        (-1, 2))
         intersections, valid = plane_lines(plane_origin,
                                            plane_normal,
                                            vertices[edges.T],

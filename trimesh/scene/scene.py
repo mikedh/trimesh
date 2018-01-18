@@ -390,9 +390,10 @@ class Scene:
         '''
         from .. import primitives
         center = self.bounds.mean(axis=0)
-        aabb = primitives.Box(transform=transformations.translation_matrix(center),
-                              extents=self.extents,
-                              mutable=False)
+        aabb = primitives.Box(
+            transform=transformations.translation_matrix(center),
+            extents=self.extents,
+            mutable=False)
         return aabb
 
     @util.cache_decorator

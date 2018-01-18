@@ -48,9 +48,7 @@ install:
   - pip install nose2
 
 script: 
-- cd tests
-- nose2
-- cd ..
+- python -c "import trimesh"
 - pip install .[easy]
 - conda install -c conda-forge scikit-image
 - if [[ "$TRAVIS_PYTHON_VERSION" != "3.3" && "$TRAVIS_PYTHON_VERSION" != "3.4" ]]; then conda install pyembree rtree shapely && pip install python-fcl; fi

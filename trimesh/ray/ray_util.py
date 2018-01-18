@@ -53,10 +53,10 @@ def contains_points(intersector, points, check_direction=None):
                                  (inside_aabb.sum(), 1))
 
     # cast a ray both forwards and backwards
-    index_ray = intersector.intersects_location(np.vstack((points[inside_aabb],
-                                                           points[inside_aabb])),
-                                                np.vstack((ray_directions,
-                                                           -ray_directions)))[1]
+    index_ray = intersector.intersects_location(
+        np.vstack(
+            (points[inside_aabb], points[inside_aabb])), np.vstack(
+            (ray_directions, -ray_directions)))[1]
 
     # if we hit nothing in either direction just return with no hits
     if len(index_ray) == 0:
@@ -112,7 +112,8 @@ def contains_points(intersector, points, check_direction=None):
         contains[mask] = contains_points(intersector,
                                          points[inside_aabb][broken],
                                          check_direction=new_direction)
-        constants.log.debug('detected %d broken contains test, attempted to fix',
-                            broken.sum())
+        constants.log.debug(
+            'detected %d broken contains test, attempted to fix',
+            broken.sum())
 
     return contains

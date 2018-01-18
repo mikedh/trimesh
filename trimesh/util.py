@@ -1071,8 +1071,8 @@ def array_to_string(array,
         format_str = value_format + col_delim
     elif array.dtype.kind == 'f':
         # add the digits formatting to floats
-        format_str = value_format.replace('{}',
-                                          '{:.' + str(digits) + 'f}') + col_delim
+        format_str = value_format.replace(
+            '{}', '{:.' + str(digits) + 'f}') + col_delim
     else:
         raise ValueError('dtype %s not convertable!',
                          array.dtype.name)
@@ -1744,16 +1744,16 @@ def decompress(file_obj, file_type):
     if isinstance(file_obj, bytes):
         file_obj = wrap_as_stream(file_obj)
 
-
     if file_type[-3:] == 'zip':
         return is_zip()
     if 'tar' in file_type[-6:]:
         return is_tar()
     raise ValueError('Unsupported type passed!')
 
+
 def compress(info):
     '''
-    Compress data stored in a dict. 
+    Compress data stored in a dict.
 
     Parameters
     -----------
@@ -1771,7 +1771,11 @@ def compress(info):
     with zipfile.ZipFile(file_obj, 'w') as zipper:
         for name, data in info.items():
             if hasattr(data, 'read'):
+                # if we were passed a file object, read it
                 data = data.read()
+            if hasattr(data, 'encode'):
+                # if we were passed a string encode it as bytes
+                data = data.encode('utf-8')
             zipper.writestr(name, data)
     file_obj.seek(0)
     compressed = file_obj.read()

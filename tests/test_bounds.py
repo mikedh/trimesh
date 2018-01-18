@@ -48,7 +48,7 @@ class BoundsTest(g.unittest.TestCase):
                     #m.visual.face_colors = [200, 0, 0, 100]
                     #(m + m.bounding_box_oriented).show()
                     #from IPython import embed
-                    #embed()
+                    # embed()
                     raise ValueError('OBB extents incorrect:\n{}\n{}'.format(
                         str(m.bounding_box.extents),
                         str(m.bounding_box_oriented.extents)))

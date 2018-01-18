@@ -58,7 +58,8 @@ class ExportTest(g.unittest.TestCase):
         # the loader may reorder vertices, so we shouldn't check direct
         # equality
         assert m.vertex_normals.shape == reconstructed.vertex_normals.shape
-        assert m.metadata['vertex_texture'].shape == reconstructed.metadata['vertex_texture'].shape
+        assert m.metadata['vertex_texture'].shape == reconstructed.metadata[
+            'vertex_texture'].shape
 
     def test_ply(self):
         m = g.get_mesh('machinist.XAML')
@@ -114,7 +115,6 @@ class ExportTest(g.unittest.TestCase):
         # the scene should be identical after export-> import cycle
         assert g.np.allclose(loaded.extents / source.extents,
                              1.0)
-
 
 
 if __name__ == '__main__':

@@ -8,6 +8,7 @@ def random_chr():
 
 
 class SceneTests(g.unittest.TestCase):
+
     def test_scene(self):
         for mesh in g.get_mesh('cycloidal.ply',
                                'sphere.ply'):

@@ -565,7 +565,7 @@ class Path3D(Path):
         -----------
         to_2D: (4,4) float, transformation matrix to apply.
                      If not passed a plane will be fitted to vertices.
-        normal: (3,) float, normal of plane which is only used if to_2D 
+        normal: (3,) float, normal of plane which is only used if to_2D
                       is not specified
         check:  bool, raise a ValueError if the points aren't coplanar after
                       being transformed
@@ -684,30 +684,38 @@ class Path2D(Path):
     @util.cache_decorator
     def polygons_full(self):
         '''
-        A list of shapely.geometry.Polygon objects with corresponding interiors
-        pulled by looking at which closed polygons enclose which other polygons.
+        A list of shapely.geometry.Polygon objects with interiors created
+        by checking which closed polygons enclose which other polygons.
 
         Returns
         ---------
         full: list of shapely.geometry.Polygon objects
         '''
         full = [None] * len(self.enclosure_shell)
-        for i, (shell, hole) in enumerate(self.enclosure_shell.items()):
-            hole_poly = self.polygons_closed[hole]
-            # generate a new polygon with shell and holes
-            shell_poly = self.polygons_closed[shell]
-            polygon = Polygon(
-                shell=shell_poly.exterior.coords,
-                holes=[p.exterior.coords for p in hole_poly])
-            full[i] = polygon
+        for i, (shell_index,
+                holes_index) in enumerate(self.enclosure_shell.items()):
+            # a list of multiple Polygon objects
+            holes_poly = self.polygons_closed[holes_index]
+            # all polygons_closed are CCW, so for interiors reverse them
+            holes = [np.array(p.exterior.coords)[::-1] for p in holes_poly]
+            # a single Polygon object
+            shell = self.polygons_closed[shell_index].exterior.coords
+            # create a polygon with interiors
+            full[i] = Polygon(shell=shell,
+                              holes=holes)
+
         return full
 
     @util.cache_decorator
     def area(self):
         '''
         Return the area of the polygons interior.
+
+        Returns
+        ---------
+        area: float, total area of polygons minus interiors
         '''
-        area = np.sum([i.area for i in self.polygons_full])
+        area = sum(i.area for i in self.polygons_full)
         return area
 
     @util.cache_decorator
@@ -877,9 +885,10 @@ class Path2D(Path):
 
                 # prevents the copying from nuking our cache
                 with self._cache:
-                    split[i] = Path2D(entities=copy.deepcopy(self.entities[new_entities]),
-                                      vertices=copy.deepcopy(self.vertices),
-                                      metadata=new_metadata)
+                    split[i] = Path2D(
+                        entities=copy.deepcopy(
+                            self.entities[new_entities]), vertices=copy.deepcopy(
+                            self.vertices), metadata=new_metadata)
                     split[i]._cache.update(
                         {'paths': np.array(new_paths),
                          'polygons_closed': self.polygons_closed[connected],

@@ -217,7 +217,8 @@ class MassTests(unittest.TestCase):
         for truth in self.truth:
             mesh = self.meshes[truth['filename']]
             calculated = trimesh.triangles.mass_properties(triangles=mesh.triangles,
-                                                           density=truth['density'],
+                                                           density=truth[
+                                                               'density'],
                                                            skip_inertia=False)
 
             parameter_count = 0
@@ -301,15 +302,17 @@ class FileTests(unittest.TestCase):
         self.assertTrue(res_b == test_b)
         self.assertTrue(res_s == test_s)
 
+
 class CompressTests(unittest.TestCase):
+
     def test_compress(self):
-        
+
         source = {'hey': 'sup',
                   'naa': '2002211'}
 
         # will return bytes
         c = g.trimesh.util.compress(source)
-        
+
         # wrap bytes as file- like object
         f = g.trimesh.util.wrap_as_stream(c)
         # try to decompress file- like object
@@ -320,7 +323,6 @@ class CompressTests(unittest.TestCase):
         for key, value in source.items():
             result = d[key].read().decode('utf-8')
             assert result == value
-        
 
 
 if __name__ == '__main__':

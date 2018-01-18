@@ -198,8 +198,8 @@ def ray_triangle_id(triangles,
 
     # find the barycentric coordinates of each plane intersection on the
     # triangle candidates
-    barycentric = triangles_mod.points_to_barycentric(triangle_candidates[valid],
-                                                      location)
+    barycentric = triangles_mod.points_to_barycentric(
+        triangle_candidates[valid], location)
 
     # the plane intersection is inside the triangle if all barycentric coordinates
     # are between 0.0 and 1.0

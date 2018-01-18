@@ -24,12 +24,17 @@ class MeshScript:
         # windows has problems with multiple programs using open files so we close
         # them at the end of the enter call, and delete them ourselves at the
         # exit
-        self.mesh_pre = [NamedTemporaryFile(suffix='.{}'.format(self.tmpfile_ext),
-                                            mode='wb',
-                                            delete=False) for i in self.meshes]
-        self.mesh_post = NamedTemporaryFile(suffix='.{}'.format(self.tmpfile_ext),
-                                            mode='rb',
-                                            delete=False)
+        self.mesh_pre = [
+            NamedTemporaryFile(
+                suffix='.{}'.format(
+                    self.tmpfile_ext),
+                mode='wb',
+                delete=False) for i in self.meshes]
+        self.mesh_post = NamedTemporaryFile(
+            suffix='.{}'.format(
+                self.tmpfile_ext),
+            mode='rb',
+            delete=False)
         self.script_out = NamedTemporaryFile(mode='wb',
                                              delete=False)
 

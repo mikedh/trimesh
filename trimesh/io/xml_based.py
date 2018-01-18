@@ -302,8 +302,10 @@ def load_3DXML(file_obj, *args, **kwargs):
 
     # a Reference3D maps to a subassembly or assembly
     for Reference3D in tree.iter('{*}Reference3D'):
-        references[Reference3D.attrib['id']] = {'name': Reference3D.attrib['name'],
-                                                'type': 'Reference3D'}
+        references[
+            Reference3D.attrib['id']] = {
+            'name': Reference3D.attrib['name'],
+            'type': 'Reference3D'}
 
     # a node that is the connectivity between a geometry and the Reference3D
     for InstanceRep in tree.iter('{*}InstanceRep'):

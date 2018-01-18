@@ -249,16 +249,16 @@ def export_dxf(path):
         points = np.asanyarray(points, dtype=np.float64)
         three = three_dimensionalize(points, return_2D=False)
         if increment:
-            group = np.tile(
-                np.arange(
-                    len(three), dtype=np.int).reshape(
-                    (-1, 1)), (1, 3))
+            group = np.tile(np.arange(len(three),
+                                      dtype=np.int).reshape((-1, 1)),
+                            (1, 3))
         else:
             group = np.zeros((len(three), 3), dtype=np.int)
         group += [10, 20, 30]
 
-        packed = '\n'.join('{:d}\n{:.12f}'.format(g, v) for g, v in zip(group.reshape(-1),
-                                                                        three.reshape(-1)))
+        packed = '\n'.join('{:d}\n{:.12f}'.format(g, v)
+                           for g, v in zip(group.reshape(-1),
+                                           three.reshape(-1)))
 
         return packed
 

@@ -151,9 +151,10 @@ def face_adjacency_radius(mesh):
                                      axis=1).reshape((-1, 3)))
 
     # the vector of the perpendicular projection to the shared edge
-    perp = np.subtract(vectors,
-                       (util.diagonal_dot(vectors,
-                                          edges_vec).reshape((-1, 1)) * edges_vec))
+    perp = np.subtract(
+        vectors, (util.diagonal_dot(
+            vectors, edges_vec).reshape(
+            (-1, 1)) * edges_vec))
     # the length of the perpendicular projection
     span = np.linalg.norm(perp, axis=1)
 

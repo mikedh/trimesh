@@ -194,12 +194,12 @@ def _compute_static_prob(tri, com):
 
     # Prevents weirdness with arctan
     try:
-        return 1.0 / np.pi * np.arctan(np.sqrt(
-            np.tan(s / 2) * np.tan((s - a) / 2) * np.tan((s - b) / 2) * np.tan((s - c) / 2)))
+        return 1.0 / np.pi * np.arctan(np.sqrt(np.tan(s / 2) * np.tan(
+            (s - a) / 2) * np.tan((s - b) / 2) * np.tan((s - c) / 2)))
     except BaseException:
         s = s + 1e-8
-        return 1.0 / np.pi * np.arctan(np.sqrt(
-            np.tan(s / 2) * np.tan((s - a) / 2) * np.tan((s - b) / 2) * np.tan((s - c) / 2)))
+        return 1.0 / np.pi * np.arctan(np.sqrt(np.tan(s / 2) * np.tan(
+            (s - a) / 2) * np.tan((s - b) / 2) * np.tan((s - c) / 2)))
 
 
 def _create_topple_graph(cvh_mesh, com):

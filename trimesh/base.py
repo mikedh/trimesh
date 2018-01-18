@@ -441,7 +441,7 @@ class Trimesh(object):
     @util.cache_decorator
     def bounding_primitive(self):
         '''
-        The minimum volume primitive (box, sphere, or cylinder) that 
+        The minimum volume primitive (box, sphere, or cylinder) that
         bounds the mesh.
 
         Returns
@@ -1176,8 +1176,8 @@ class Trimesh(object):
         '''
         if self.is_empty:
             return False
-        watertight, is_reversed = graph.is_watertight(edges=self.edges,
-                                                      edges_sorted=self.edges_sorted)
+        watertight, is_reversed = graph.is_watertight(
+            edges=self.edges, edges_sorted=self.edges_sorted)
         self._cache['is_winding_consistent'] = is_reversed
         return bool(watertight)
 

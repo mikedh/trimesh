@@ -157,11 +157,13 @@ def read_ply_header(file_obj):
                     str(field)] = endian + ply_dtypes[dtype]
             elif 'list' in line[1]:
                 dtype_count, dtype, field = line[2:]
-                elements[name]['properties'][str(field)] = (endian +
-                                                            ply_dtypes[dtype_count] +
-                                                            ', ($LIST,)' +
-                                                            endian +
-                                                            ply_dtypes[dtype])
+                elements[name]['properties'][
+                    str(field)] = (
+                    endian +
+                    ply_dtypes[dtype_count] +
+                    ', ($LIST,)' +
+                    endian +
+                    ply_dtypes[dtype])
     return elements, encoding_ascii
 
 

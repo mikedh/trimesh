@@ -27,10 +27,10 @@ def oriented_bounds_2D(points, qhull_options='QbB'):
 
     Returns
     ----------
-    transform: (3,3) float, homogenous 2D transformation matrix to move the 
-                input points so that the axis aligned bounding box 
+    transform: (3,3) float, homogenous 2D transformation matrix to move the
+                input points so that the axis aligned bounding box
                 is CENTERED AT THE ORIGIN
-    rectangle: (2,) float, size of extents once input points are transformed 
+    rectangle: (2,) float, size of extents once input points are transformed
                 by transform
     '''
     # make sure input is a numpy array
@@ -38,7 +38,7 @@ def oriented_bounds_2D(points, qhull_options='QbB'):
     # create a convex hull object of our points
     # 'QbB' is a qhull option which has it scale the input to unit box
     # to avoid precision issues with very large/small meshes
-    convex = spatial.ConvexHull(points, 
+    convex = spatial.ConvexHull(points,
                                 qhull_options=qhull_options)
 
     # (n,2,3) line segments
@@ -249,8 +249,9 @@ def minimum_cylinder(obj, sample_count=10, angle_tol=.001):
     samples = util.grid_linspace([[0, 0], [np.pi, np.pi]], sample_count)
     # add the principal inertia vectors if we have a mesh
     if hasattr(obj, 'principal_inertia_vectors'):
-        samples = np.vstack((samples,
-                             util.vector_to_spherical(obj.principal_inertia_vectors)))
+        samples = np.vstack(
+            (samples, util.vector_to_spherical(
+                obj.principal_inertia_vectors)))
     tic = [time.time()]
     # the projected volume at each sample
     volumes = np.array([volume_from_angles(i) for i in samples])

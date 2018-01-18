@@ -45,7 +45,7 @@ class CollisionManager(object):
         b.beginModel(len(mesh.vertices), len(mesh.faces))
         b.addSubModel(mesh.vertices, mesh.faces)
         b.endModel()
-        
+
         t = fcl.Transform(transform[:3, :3], transform[:3, 3])
         o = fcl.CollisionObject(b, t)
 
@@ -75,7 +75,7 @@ class CollisionManager(object):
 
     def set_transform(self, name, transform):
         '''
-        Set the transform for one of the manager's objects. 
+        Set the transform for one of the manager's objects.
         This replaces the prior transform.
 
         Parameters
@@ -121,8 +121,10 @@ class CollisionManager(object):
         # Collide with manager's objects
         cdata = fcl.CollisionData()
         if return_names:
-            cdata = fcl.CollisionData(request=fcl.CollisionRequest(num_max_contacts=100000,
-                                                                   enable_contact=True))
+            cdata = fcl.CollisionData(
+                request=fcl.CollisionRequest(
+                    num_max_contacts=100000,
+                    enable_contact=True))
 
         self._manager.collide(o, cdata, fcl.defaultCollisionCallback)
 
@@ -200,8 +202,10 @@ class CollisionManager(object):
         '''
         cdata = fcl.CollisionData()
         if return_names:
-            cdata = fcl.CollisionData(request=fcl.CollisionRequest(num_max_contacts=100000,
-                                                                   enable_contact=True))
+            cdata = fcl.CollisionData(
+                request=fcl.CollisionRequest(
+                    num_max_contacts=100000,
+                    enable_contact=True))
         self._manager.collide(other_manager._manager,
                               cdata,
                               fcl.defaultCollisionCallback)

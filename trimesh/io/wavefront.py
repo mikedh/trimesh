@@ -42,8 +42,8 @@ def load_wavefront(file_obj, **kwargs):
                                         dtype=np.int64).reshape((-1, 3)),
                       'metadata': {}}
             if len(current['vt']) > 0:
-                loaded['metadata']['vertex_texture'] = np.array(current['vt'],
-                                                                dtype=np.float64)
+                loaded['metadata']['vertex_texture'] = np.array(
+                    current['vt'], dtype=np.float64)
             if len(current['g']) > 0:
                 # build face groups information
                 face_groups = np.zeros(len(current['f']) // 3, dtype=int)
@@ -76,7 +76,7 @@ def load_wavefront(file_obj, **kwargs):
             for f in ft:
                 # loop through each vertex reference of a face
                 # we are reshaping later into (n,3)
-                if not f in remap_table:
+                if f not in remap_table:
                     remap_table[f] = next_idx
                     next_idx += 1
                     # faces are "vertex index"/"vertex texture"/"vertex normal"

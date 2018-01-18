@@ -108,20 +108,8 @@ class NearestTest(g.unittest.TestCase):
         # how far was our distance from the one shapely gave
         distance_test = g.np.abs(distance_shapely - distance_ours)
 
-        '''
-        # plot test to debug failures
-        import matplotlib.pyplot as plt
-        plottable = g.np.column_stack((result[:,0:2], query[:,0:2])).reshape((-1,2,2))
-        plot_tri(triangle, color='g')
-        for i in plottable:
-            plt.plot(*i.T, color='b')
-        plt.scatter(*result[:,0:2].T, color='k')
-        plt.scatter(*result[broken][:,0:2].T, color='r')
-        plt.show()
-        '''
-
-        self.assertFalse(broken.any())
-        self.assertTrue(distance_test.max() < g.trimesh.constants.tol.merge)
+        assert not broken.any()
+        assert distance_test.max() < g.trimesh.constants.tol.merge
 
         return result, result_distance
 

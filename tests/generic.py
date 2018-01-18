@@ -153,7 +153,7 @@ def get_2D(count=None):
             log.error('failed on: {}'.format(file_name),
                       exc_info=True)
             raise E
-        
+
         if len(paths) >= count:
             break
     return list(paths)
