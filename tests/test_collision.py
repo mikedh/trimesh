@@ -167,6 +167,10 @@ class CollisionTest(g.unittest.TestCase):
 
 
     def test_scene(self):
+        try:
+            import fcl
+        except ImportError:
+            return
         scene = g.get_mesh('cycloidal.3DXML')
         
         manager, objects = g.trimesh.collision.scene_to_collision(scene)
