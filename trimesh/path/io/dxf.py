@@ -228,13 +228,16 @@ def export_dxf(path):
     ----------
     export: str, path formatted as a DXF file
     '''
-    def format_points(points, increment=True):
+    def format_points(points, 
+                      as_2D=False, 
+                      increment=True):
         '''
         Format points into DXF- style point string.
 
         Parameters
         -----------
-        points: (n,2) or (n,3) float, points in space
+        points:    (n,2) or (n,3) float, points in space
+        as_2D:     bool, if True only output 2 points per vertex
         increment: bool, if True increment group code per point
                    Example:
                        [[X0, Y0, Z0], [X1, Y1, Z1]]
@@ -255,6 +258,10 @@ def export_dxf(path):
         else:
             group = np.zeros((len(three), 3), dtype=np.int)
         group += [10, 20, 30]
+        
+        if as_2D:
+            group = group[:,:2]
+            three = three[:,:2]
 
         packed = '\n'.join('{:d}\n{:.12f}'.format(g, v)
                            for g, v in zip(group.reshape(-1),
@@ -274,7 +281,7 @@ def export_dxf(path):
         ----------
         subs: dict, with keys 'COLOR', 'LAYER', 'NAME'
         '''
-        subs = {'COLOR': 255,
+        subs = {'COLOR': 255, # default is ByLayer
                 'LAYER': 0,
                 'NAME': str(id(entity))[:16]}
 
@@ -291,12 +298,16 @@ def export_dxf(path):
 
     def convert_line(line, vertices):
         points = line.discrete(vertices)
-        is_polyline = len(points) > 2
 
         subs = entity_info(line)
-        subs['POINTS'] = format_points(points, increment=not is_polyline)
-        subs['TYPE'] = ['LINE', 'LWPOLYLINE'][int(is_polyline)]
-
+        subs['POINTS'] = format_points(points, 
+                                       as_2D=True,
+                                       increment=False)
+        subs['TYPE'] = 'LWPOLYLINE'
+        subs['VCOUNT'] = len(points)
+        # 1 is closed
+        # 0 is default
+        subs['FLAG'] = 0
         result = templates['line'].substitute(subs)
         return result
 
