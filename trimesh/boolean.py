@@ -2,7 +2,7 @@ from . import interfaces
 
 
 def difference(meshes, engine=None):
-    '''
+    """
     Compute the boolean difference between a mesh an n other meshes.
 
     Parameters
@@ -14,13 +14,13 @@ def difference(meshes, engine=None):
     Returns
     ----------
     difference: a - (other meshes), **kwargs for a Trimesh
-    '''
+    """
     result = _engines[engine](meshes, operation='difference')
     return result
 
 
 def union(meshes, engine=None):
-    '''
+    """
     Compute the boolean union between a mesh an n other meshes.
 
     Parameters
@@ -32,13 +32,13 @@ def union(meshes, engine=None):
     Returns
     ----------
     union: a + (other meshes), **kwargs for a Trimesh
-    '''
+    """
     result = _engines[engine](meshes, operation='union')
     return result
 
 
 def intersection(meshes, engine=None):
-    '''
+    """
     Compute the boolean intersection between a mesh an n other meshes.
 
     Parameters
@@ -51,7 +51,7 @@ def intersection(meshes, engine=None):
     ----------
     intersection: **kwargs for a Trimesh object of the
                     volume that is contained by all meshes
-    '''
+    """
     result = _engines[engine](meshes, operation='intersection')
     return result
 

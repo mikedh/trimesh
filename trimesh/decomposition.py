@@ -2,7 +2,7 @@ from . import interfaces
 
 
 def convex_decomposition(mesh, engine=None, **kwargs):
-    '''
+    """
     Compute an approximate convex decomposition of a mesh.
 
     Parameters
@@ -14,7 +14,7 @@ def convex_decomposition(mesh, engine=None, **kwargs):
     -------
     mesh_args: list, list of **kwargs for Trimeshes that are nearly
                      convex and approximate the original.
-    '''
+    """
     result = _engines[engine](mesh, **kwargs)
     return result
 

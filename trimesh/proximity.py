@@ -1,3 +1,9 @@
+"""
+proximity.py
+---------------
+
+Query mesh- point proximity.
+"""
 import numpy as np
 
 from . import util
@@ -9,7 +15,7 @@ from collections import deque
 
 
 def nearby_faces(mesh, points):
-    '''
+    """
     For each point find nearby faces relativly quickly.
 
     The closest point on the mesh to the queried point is guaranteed to be
@@ -27,7 +33,7 @@ def nearby_faces(mesh, points):
     Returns
     -----------
     candidates : (points,) int, sequence of indexes for mesh.faces
-    '''
+    """
     points = np.asanyarray(points, dtype=np.float64)
     if not util.is_shape(points, (-1, 3)):
         raise ValueError('points must be (n,3)!')
@@ -52,7 +58,7 @@ def nearby_faces(mesh, points):
 
 
 def closest_point_naive(mesh, points):
-    '''
+    """
     Given a mesh and a list of points, find the closest point on any triangle.
 
     Does this by constructing a very large intermediate array and
@@ -68,7 +74,7 @@ def closest_point_naive(mesh, points):
     closest     : (m,3) float, closest point on triangles for each point
     distance    : (m,)  float, distance
     triangle_id : (m,)  int, index of triangle containing closest point
-    '''
+    """
 
     # establish that input triangles and points are sane
     triangles = mesh.triangles.view(np.ndarray)
@@ -96,7 +102,7 @@ def closest_point_naive(mesh, points):
 
 
 def closest_point(mesh, points):
-    '''
+    """
     Given a mesh and a list of points, find the closest point on any triangle.
 
     Parameters
@@ -109,7 +115,7 @@ def closest_point(mesh, points):
     closest     : (m,3) float, closest point on triangles for each point
     distance    : (m,)  float, distance
     triangle_id : (m,)  int, index of triangle containing closest point
-    '''
+    """
 
     points = np.asanyarray(points, dtype=np.float64)
     if not util.is_shape(points, (-1, 3)):
@@ -161,7 +167,7 @@ def closest_point(mesh, points):
 
 
 def signed_distance(mesh, points):
-    '''
+    """
     Find the signed distance from a mesh to a list of points.
 
     * Points OUTSIDE the mesh will have NEGATIVE distance
@@ -176,7 +182,7 @@ def signed_distance(mesh, points):
     Returns
     ----------
     signed_distance : (n,3) float, signed distance from point to mesh
-    '''
+    """
     # make sure we have a numpy array
     points = np.asanyarray(points, dtype=np.float64)
 
@@ -199,16 +205,16 @@ def signed_distance(mesh, points):
 
 
 class ProximityQuery(object):
-    '''
+    """
     Proximity queries for the current mesh.
-    '''
+    """
 
     def __init__(self, mesh):
         self._mesh = mesh
 
     @_log_time
     def on_surface(self, points):
-        '''
+        """
         Given list of points, for each point find the closest point
         on any triangle of the mesh.
 
@@ -221,12 +227,12 @@ class ProximityQuery(object):
         closest     : (m,3) float, closest point on triangles for each point
         distance    : (m,)  float, distance
         triangle_id : (m,)  int, index of closest triangle for each point
-        '''
+        """
         return closest_point(mesh=self._mesh,
                              points=points)
 
     def vertex(self, points):
-        '''
+        """
         Given a set of points, return the closest vertex index to each point
 
         Parameters
@@ -237,12 +243,12 @@ class ProximityQuery(object):
         ----------
         distance  : (n,) float, distance from source point to vertex
         vertex_id : (n,) int, index of mesh.vertices which is closest
-        '''
+        """
         tree = self._mesh.kdtree
         return tree.query(points)
 
     def signed_distance(self, points):
-        '''
+        """
         Find the signed distance from a mesh to a list of points.
 
         * Points OUTSIDE the mesh will have NEGATIVE distance
@@ -256,5 +262,5 @@ class ProximityQuery(object):
         Returns
         ----------
         signed_distance : (n,3) float, signed distance from point to mesh
-        '''
+        """
         return signed_distance(self._mesh, points)

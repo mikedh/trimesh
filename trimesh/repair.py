@@ -1,3 +1,10 @@
+"""
+repair.py
+-------------
+
+Fill holes and fix winding and normals of meshes.
+"""
+
 import numpy as np
 import networkx as nx
 from collections import deque
@@ -10,10 +17,10 @@ from .constants import log, tol
 
 
 def fix_face_winding(mesh):
-    '''
+    """
     Traverse and change mesh faces in-place to make sure winding is coherent,
     or that edges on adjacent faces are in opposite directions
-    '''
+    """
 
     if mesh.is_winding_consistent:
         log.debug('consistent winding, exiting repair')
@@ -58,11 +65,11 @@ def fix_face_winding(mesh):
 
 
 def fix_normals_direction(mesh):
-    '''
+    """
     Check to see if a mesh has normals pointed outside the solid.
 
     If the mesh is not watertight, this is meaningless.
-    '''
+    """
     volume = mass_properties(mesh.triangles,
                              crosses=mesh.triangles_cross,
                              skip_inertia=True)['volume']
@@ -77,21 +84,21 @@ def fix_normals_direction(mesh):
 
 
 def fix_normals(mesh):
-    '''
+    """
     Fix the winding and direction of a mesh face and face normals in-place
 
     Really only meaningful on watertight meshes, but will orient all
     faces and winding in a uniform way for non-watertight face patches as well.
-    '''
+    """
     fix_face_winding(mesh)
     fix_normals_direction(mesh)
 
 
 def broken_faces(mesh, color=None):
-    '''
+    """
     Return the index of faces in the mesh which break the watertight status
     of the mesh. If color is set, change the color of the broken faces.
-    '''
+    """
     adjacency = nx.from_edgelist(mesh.face_adjacency)
     broken = [k for k, v in dict(adjacency.degree()).items() if v != 3]
     broken = np.array(broken)
@@ -103,7 +110,7 @@ def broken_faces(mesh, color=None):
 
 
 def fill_holes(mesh):
-    '''
+    """
     Fill single- triangle holes on triangular meshes by adding new triangles
     to fill the holes. New triangles will have proper winding and normals,
     and if face colors exist the color of the last face will be assigned
@@ -112,10 +119,10 @@ def fill_holes(mesh):
     Parameters
     ---------
     mesh: Trimesh object
-    '''
+    """
 
     def hole_to_faces(hole):
-        '''
+        """
         Given a loop of vertex indices  representing a hole, turn it into
         triangular faces.
         If unable to do so, return None
@@ -128,7 +135,7 @@ def fill_holes(mesh):
         ---------
         (n, 3) new faces
         (m, 3) new vertices
-        '''
+        """
         hole = np.asanyarray(hole)
         # the case where the hole is just a single missing triangle
         if len(hole) == 3:

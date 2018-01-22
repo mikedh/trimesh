@@ -13,7 +13,7 @@ from ..constants import tol_path as tol
 
 
 def fit_circle_check(points, scale, prior=None, final=False, verbose=False):
-    '''
+    """
     Fit a circle, and reject the fit if:
     * the radius is larger than tol.radius_min*scale or tol.radius_max*scale
     * any segment spans more than tol.seg_angle
@@ -36,7 +36,7 @@ def fit_circle_check(points, scale, prior=None, final=False, verbose=False):
         (center, radius) tuple
     else:
         None
-    '''
+    """
     # an arc needs at least three points
     if len(points) < 3:
         return None
@@ -101,10 +101,10 @@ def fit_circle_check(points, scale, prior=None, final=False, verbose=False):
 
 
 def is_circle(points, scale, verbose=False):
-    '''
+    """
     Given a set of points, quickly determine if they represent
     a circle or not.
-    '''
+    """
 
     # make sure input is a numpy array
     points = np.asanyarray(points)
@@ -133,7 +133,7 @@ def is_circle(points, scale, verbose=False):
 
 
 def merge_colinear(points, scale=None):
-    '''
+    """
     Given a set of points representing a path in space,
     merge points which are colinear.
 
@@ -146,7 +146,7 @@ def merge_colinear(points, scale=None):
     ----------
     merged: (j, d) set of points with colinear and duplicate
              points merged, where (j < n)
-    '''
+    """
     points = np.array(points)
     if scale is None:
         scale = np.ptp(points, axis=0).max()
@@ -186,7 +186,7 @@ def merge_colinear(points, scale=None):
 
 
 def resample_spline(points, smooth=.001, count=None, degree=3):
-    '''
+    """
     Resample a path in space, smoothing along a b-spline.
 
     Parameters
@@ -199,7 +199,7 @@ def resample_spline(points, smooth=.001, count=None, degree=3):
     Returns
     ---------
     resampled: (count, dimension) float, points in space
-    '''
+    """
     from scipy.interpolate import splprep, splev
     if count is None:
         count = len(points)
@@ -219,7 +219,7 @@ def resample_spline(points, smooth=.001, count=None, degree=3):
 
 
 def points_to_spline_entity(points, smooth=.0005, count=None):
-    '''
+    """
     Create a spline entity from a curve in space
 
     Parameters
@@ -232,7 +232,7 @@ def points_to_spline_entity(points, smooth=.0005, count=None):
     ---------
     entity: entities.BSpline object with points indexed at zero
     control: (m, dimension) float, new vertices for entity
-    '''
+    """
 
     from scipy.interpolate import splprep
     if count is None:
@@ -257,7 +257,7 @@ def points_to_spline_entity(points, smooth=.0005, count=None):
 
 
 def three_point(indices):
-    '''
+    """
     Given a long list of ordered indices,
     return the first, middle and last.
 
@@ -268,7 +268,7 @@ def three_point(indices):
     Returns
     ----------
     three: (3,) array
-    '''
+    """
     three = [indices[0],
              indices[int(len(indices) / 2)],
              indices[-1]]
@@ -276,7 +276,7 @@ def three_point(indices):
 
 
 def simplify_basic(drawing):
-    '''
+    """
     Merge colinear segments and fit circles.
 
     Parameters
@@ -286,7 +286,7 @@ def simplify_basic(drawing):
     Returns
     -----------
     simplified: Path2D with circles.
-    '''
+    """
 
     if any(i.__class__.__name__ != 'Line' for i in drawing.entities):
         log.debug('Path contains non- linear entities, skipping')

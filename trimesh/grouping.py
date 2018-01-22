@@ -1,3 +1,10 @@
+"""
+grouping.py
+-------------
+
+Functions for grouping values and rows. 
+"""
+
 import numpy as np
 import networkx as nx
 
@@ -14,16 +21,16 @@ except ImportError:
 
 
 def merge_vertices_hash(mesh):
-    '''
+    """
     Removes duplicate vertices, based on integer hashes.
     This is roughly 20x faster than querying a KD tree in a loop
-    '''
+    """
     unique, inverse = unique_rows(mesh.vertices)
     mesh.update_vertices(unique, inverse)
 
 
 def group(values, min_len=0, max_len=np.inf):
-    '''
+    """
     Return the indices of values that are identical
 
     Parameters
@@ -38,7 +45,7 @@ def group(values, min_len=0, max_len=np.inf):
     ----------
     groups: sequence of indices to form groups
             IE [0,1,0,1] returns [[0,2], [1,3]]
-    '''
+    """
     original = np.asanyarray(values)
 
     # save the sorted order and then apply it
@@ -69,7 +76,7 @@ def group(values, min_len=0, max_len=np.inf):
 
 
 def hashable_rows(data, digits=None):
-    '''
+    """
     We turn our array into integers, based on the precision
     given by digits, and then put them in a hashable format.
 
@@ -83,7 +90,7 @@ def hashable_rows(data, digits=None):
     ---------
     hashable:  (n) length array of custom data which can be sorted
                 or used as hash keys
-    '''
+    """
     as_int = float_to_int(data, digits)
     dtype = np.dtype((np.void, as_int.dtype.itemsize * as_int.shape[1]))
     hashable = np.ascontiguousarray(as_int).view(dtype).reshape(-1)
@@ -91,9 +98,9 @@ def hashable_rows(data, digits=None):
 
 
 def float_to_int(data, digits=None, dtype_out=np.int32):
-    '''
+    """
     Given a numpy array of data represent it as integers.
-    '''
+    """
     data = np.asanyarray(data)
 
     if data.size == 0:
@@ -118,7 +125,7 @@ def float_to_int(data, digits=None, dtype_out=np.int32):
 
 
 def unique_ordered(data):
-    '''
+    """
     Returns the same as np.unique, but ordered as per the
     first occurance of the unique value in data.
 
@@ -131,7 +138,7 @@ def unique_ordered(data):
 
     In [3]: trimesh.grouping.unique_ordered(a)
     Out[3]: array([0, 3, 4, 1, 2])
-    '''
+    """
     data = np.asanyarray(data)
     order = np.sort(np.unique(data, return_index=True)[1])
     result = data[order]
@@ -139,7 +146,7 @@ def unique_ordered(data):
 
 
 def merge_runs(data, digits=None):
-    '''
+    """
     Merge duplicate sequential values.
 
     Parameters
@@ -160,7 +167,7 @@ def merge_runs(data, digits=None):
 
     In [2]: trimesh.grouping.merge_runs(a)
     Out[2]: array([-1,  0,  1,  2,  0,  3,  4,  5,  6,  7,  8,  9])
-    '''
+    """
     data = np.asanyarray(data)
     data_int = float_to_int(data, digits=digits)
     mask = np.append(True, np.diff(data_int).astype(bool))
@@ -173,12 +180,12 @@ def unique_float(data,
                  return_index=False,
                  return_inverse=False,
                  digits=None):
-    '''
+    """
     Identical to the numpy.unique command, except evaluates floating point
     numbers, using a specified number of digits.
 
     If digits isn't specified, the libray default TOL_MERGE will be used.
-    '''
+    """
     data = np.asanyarray(data)
     as_int = float_to_int(data, digits)
     _junk, unique, inverse = np.unique(as_int,
@@ -198,7 +205,7 @@ def unique_float(data,
 
 
 def unique_rows(data, digits=None):
-    '''
+    """
     Returns indices of unique rows. It will return the
     first occurrence of a row that is duplicated:
     [[1,2], [3,4], [1,2]] will return [0,1]
@@ -213,7 +220,7 @@ def unique_rows(data, digits=None):
     unique:  (j) array, index in data which is a unique row
     inverse: (n) length array to reconstruct original
                  example: unique[inverse] == data
-    '''
+    """
     hashes = hashable_rows(data, digits=digits)
     garbage, unique, inverse = np.unique(hashes,
                                          return_index=True,
@@ -222,7 +229,7 @@ def unique_rows(data, digits=None):
 
 
 def unique_value_in_row(data, unique=None):
-    '''
+    """
     For a 2D array of integers find the position of a value in each
     row which only occurs once. If there are more than one value per
     row which occur once, the last one is returned.
@@ -259,7 +266,7 @@ def unique_value_in_row(data, unique=None):
 
     In [3]: r[unique_value_in_row(r)]
     Out[3]: array([-1,  1, -1,  1,  1], dtype=int8)
-    '''
+    """
     if unique is None:
         unique = np.unique(data)
     data = np.asanyarray(data)
@@ -272,7 +279,7 @@ def unique_value_in_row(data, unique=None):
 
 
 def group_rows(data, require_count=None, digits=None):
-    '''
+    """
     Returns index groups of duplicate rows, for example:
     [[1,2], [3,4], [1,2]] will return [[0,2], [1]]
 
@@ -296,14 +303,14 @@ def group_rows(data, require_count=None, digits=None):
     groups:        List or sequence of indices from data indicating identical rows.
                    If require_count != None, shape will be (j, require_count)
                    If require_count is None, shape will be irregular (AKA a sequence)
-    '''
+    """
 
     def group_dict():
-        '''
+        """
         Simple hash table based grouping.
         The loop and appends make this rather slow on very large arrays,
         but it works on irregular groups.
-        '''
+        """
         observed = dict()
         hashable = hashable_rows(data, digits=digits)
         for index, key in enumerate(hashable):
@@ -347,7 +354,7 @@ def group_rows(data, require_count=None, digits=None):
 
 
 def boolean_rows(a, b, operation=set.intersection):
-    '''
+    """
     Find the rows in two arrays which occur in both rows.
 
     Parameters
@@ -362,7 +369,7 @@ def boolean_rows(a, b, operation=set.intersection):
     Returns
     --------
     shared: (p, d) array containing rows in both a and b
-    '''
+    """
     a = float_to_int(a)
     b = float_to_int(b)
     shared = operation({tuple(i) for i in a}, {tuple(j) for j in b})
@@ -373,7 +380,7 @@ def boolean_rows(a, b, operation=set.intersection):
 def group_vectors(vectors,
                   angle=1e-4,
                   include_negative=False):
-    '''
+    """
     Group vectors based on an angle tolerance, with the option to
     include negative vectors.
 
@@ -388,7 +395,7 @@ def group_vectors(vectors,
     ------------
     new_vectors: (m,3) float, vectors in space
     groups:      (m,) sequence of indicies in source vectors
-    '''
+    """
 
     vectors = np.asanyarray(vectors, dtype=np.float64)
     angle = float(angle)
@@ -422,7 +429,7 @@ def group_distance(values, distance):
 
 
 def clusters(points, radius):
-    '''
+    """
     Find clusters of points which have neighbours closer than radius
 
     Parameters
@@ -434,7 +441,7 @@ def clusters(points, radius):
     ----------
     groups: (m) sequence of indices for points
 
-    '''
+    """
     from . import graph
 
     tree = KDTree(points)
@@ -445,7 +452,7 @@ def clusters(points, radius):
 
 
 def blocks(data, min_len=2, max_len=np.inf, digits=None, only_nonzero=False):
-    '''
+    """
     Given an array, find the indices of contiguous blocks
     of equal values.
 
@@ -460,7 +467,7 @@ def blocks(data, min_len=2, max_len=np.inf, digits=None, only_nonzero=False):
     Returns
     ---------
     blocks: (m) sequence of indices referencing data
-    '''
+    """
     data = float_to_int(data, digits=digits)
 
     # find the inflection points, or locations where the array turns
@@ -485,7 +492,7 @@ def blocks(data, min_len=2, max_len=np.inf, digits=None, only_nonzero=False):
 
 
 def merge_intervals(intervals):
-    '''
+    """
     Given a list of intervals, merge overlapping ranges into a single list
     of non- overlapping ranges
 
@@ -496,7 +503,7 @@ def merge_intervals(intervals):
     Returns
     -----------
     merged: (m,2) list of [start, end] values of ranges with no overlaps
-    '''
+    """
     def merge_generator(intervals):
         intervals.sort(axis=1)
         intervals = intervals[np.lexsort(intervals.T[::-1])]

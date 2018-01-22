@@ -1,3 +1,10 @@
+"""
+remesh.py
+-------------
+
+Deal with re- triangulation of existing meshes.
+"""
+
 import numpy as np
 
 import collections
@@ -7,7 +14,7 @@ from . import grouping
 
 
 def subdivide(vertices, faces, face_index=None):
-    '''
+    """
     Subdivide a mesh into smaller triangles.
 
     Parameters
@@ -27,7 +34,7 @@ def subdivide(vertices, faces, face_index=None):
     ----------
     new_vertices: (n,3) float, vertices
     new_faces:    (n,3) int,   remeshed faces
-    '''
+    """
     if face_index is None:
         face_index = np.arange(len(faces))
     else:
@@ -64,7 +71,7 @@ def subdivide(vertices, faces, face_index=None):
 
 
 def subdivide_to_size(vertices, faces, max_edge, max_iter=10):
-    '''
+    """
     Subdivide a mesh until every edge is shorter than a specified length.
 
     Will return a triangle soup, not a nicely structured mesh.
@@ -80,7 +87,7 @@ def subdivide_to_size(vertices, faces, max_edge, max_iter=10):
     ------------
     vertices: (j,3) float, vertices in space
     faces:    (q,3) int,   indices of vertices
-    '''
+    """
     done_face = collections.deque()
     done_vert = collections.deque()
 

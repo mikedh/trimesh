@@ -1,3 +1,10 @@
+"""
+integrate.py
+--------------
+
+Utilities for integrating functions over meshes surfaces.
+"""
+
 import sympy as sp
 from sympy.parsing.sympy_parser import parse_expr as sympy_parse
 
@@ -6,7 +13,7 @@ from . import util
 
 
 def symbolic_barycentric(function):
-    '''
+    """
     Symbolically integrate a function(x,y,z) across a triangle or mesh.
 
     Parameters
@@ -40,7 +47,7 @@ def symbolic_barycentric(function):
 
     In [7]: result.sum()
     Out[7]: 34.641016151377542
-    '''
+    """
 
     class evaluator:
 
@@ -50,7 +57,7 @@ def symbolic_barycentric(function):
                                           modules='numpy')
 
         def __call__(self, mesh, *args):
-            '''
+            """
             Quickly evaluate the surface integral across a mesh
 
             Parameters
@@ -60,7 +67,7 @@ def symbolic_barycentric(function):
             Returns
             ----------
             integrated: (len(faces),) float, integral evaluated for each face
-            '''
+            """
             integrated = self.lambdified(*mesh.triangles.reshape((-1, 9)).T)
             integrated *= 2 * mesh.area_faces
             return integrated

@@ -1,3 +1,13 @@
+"""
+inertia.py
+-------------
+
+Functions for dealing with inertia tensors.
+
+Results validated against known geometries and for internal
+consistancy.
+"""
+
 import numpy as np
 
 from trimesh import util
@@ -8,7 +18,7 @@ negate_nondiagonal = (np.eye(3, dtype=np.float64) * 2) - 1
 
 
 def cylinder_inertia(mass, radius, height, transform=None):
-    '''
+    """
     Return the inertia tensor of a cylinder.
 
     Parameters
@@ -21,7 +31,7 @@ def cylinder_inertia(mass, radius, height, transform=None):
     Returns
     ------------
     inertia: (3,3) float, inertia tensor
-    '''
+    """
     h2, r2 = height ** 2, radius ** 2
     diagonal = np.array([((mass * h2) / 12) + ((mass * r2) / 4),
                          ((mass * h2) / 12) + ((mass * r2) / 4),
@@ -35,7 +45,7 @@ def cylinder_inertia(mass, radius, height, transform=None):
 
 
 def sphere_inertia(mass, radius):
-    '''
+    """
     Return the inertia tensor of a sphere.
 
     Parameters
@@ -46,13 +56,13 @@ def sphere_inertia(mass, radius):
     Returns
     ------------
     inertia: (3,3) float, inertia tensor
-    '''
+    """
     inertia = (2.0 / 5.0) * (radius ** 2) * mass * np.eye(3)
     return inertia
 
 
 def principal_axis(inertia):
-    '''
+    """
     Find the principal components and principal axis
     of inertia from the inertia tensor.
 
@@ -65,7 +75,7 @@ def principal_axis(inertia):
     components: (3,) float, principal components of inertia
     vectors:    (3,3) float, row vectors pointing along
                              the principal axes of inertia
-    '''
+    """
     inertia = np.asanyarray(inertia, dtype=np.float64)
     if inertia.shape != (3, 3):
         raise ValueError('inertia tensor must be (3,3)!')
@@ -79,7 +89,7 @@ def principal_axis(inertia):
 
 
 def transform_inertia(transform, inertia_tensor):
-    '''
+    """
     Transform an inertia tensor to a new frame.
 
     More details in OCW PDF:
@@ -93,7 +103,7 @@ def transform_inertia(transform, inertia_tensor):
     Returns
     ------------
     transformed: (3,3) float, inertia tensor in new frame
-    '''
+    """
     transform = np.asanyarray(transform, dtype=np.float64)
     if transform.shape == (4, 4):
         rotation = transform[:3, :3]

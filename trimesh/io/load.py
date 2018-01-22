@@ -25,10 +25,10 @@ except BaseException:
     _path_traceback = traceback.format_exc(4)
 
     def load_path(*args, **kwargs):
-        '''
+        """
         Dummy load path function that will raise an exception on use.
         Import of path failed, probably because a dependency is not installed.
-        '''
+        """
         print(_path_traceback)
         raise ImportError('No path functionality available!')
 
@@ -48,7 +48,7 @@ def available_formats():
 
 
 def load(file_obj, file_type=None, **kwargs):
-    '''
+    """
     Load a mesh or vectorized path into a Trimesh, Path2D, or Path3D object.
 
     Parameters
@@ -59,7 +59,7 @@ def load(file_obj, file_type=None, **kwargs):
     Returns
     ---------
     geometry: Trimesh, Path2D, Path3D, or list of same.
-    '''
+    """
     # check to see if we're trying to load something that is already a Trimesh
     out_types = ('Trimesh', 'Path')
     if any(util.is_instance_named(file_obj, t) for t in out_types):
@@ -101,7 +101,7 @@ def load(file_obj, file_type=None, **kwargs):
 
 @_log_time
 def load_mesh(file_obj, file_type=None, **kwargs):
-    '''
+    """
     Load a mesh file into a Trimesh object
 
     Parameters
@@ -115,7 +115,7 @@ def load_mesh(file_obj, file_type=None, **kwargs):
     mesh: Trimesh object, or a list of Trimesh objects
           depending on the file format.
 
-    '''
+    """
     # turn a string into a file obj and type
     (file_obj,
      file_type,
@@ -147,7 +147,7 @@ def load_mesh(file_obj, file_type=None, **kwargs):
 
 
 def load_compressed(file_obj, file_type=None):
-    '''
+    """
     Given a compressed archive, load all the geometry that we can from it.
 
     Parameters
@@ -158,7 +158,7 @@ def load_compressed(file_obj, file_type=None):
     Returns
     ----------
     geometries: list of geometry objects
-    '''
+    """
     # turn a string into a file obj and type
     (file_obj,
      file_type,
@@ -182,19 +182,19 @@ def load_compressed(file_obj, file_type=None):
 
 
 def load_kwargs(*args, **kwargs):
-    '''
+    """
     Load geometry from a properly formatted dict or kwargs
 
-    '''
+    """
     def handle_scene():
-        '''
+        """
         Load a scene from our kwargs:
 
         class:      Scene
         geometry:   dict, name: Trimesh kwargs
         graph:      list of dict, kwargs for scene.graph.update
         base_frame: str, base frame of graph
-        '''
+        """
         scene = Scene()
         scene.geometry.update({k: load_kwargs(v) for
                                k, v in kwargs['geometry'].items()})
@@ -248,7 +248,7 @@ def load_kwargs(*args, **kwargs):
 
 
 def _parse_file_args(file_obj, file_type, **kwargs):
-    '''
+    """
     Given a file_obj and a file_type, try to turn them into a file-like object
     and a lowercase string of file type
 
@@ -286,7 +286,7 @@ def _parse_file_args(file_obj, file_type, **kwargs):
     -----------
     file_obj:  loadable object
     file_type: str, lower case of the type of file (eg 'stl', 'dae', etc)
-    '''
+    """
     metadata = {}
     if ('metadata' in kwargs and
             isinstance(kwargs['metadata'], dict)):

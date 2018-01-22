@@ -1,3 +1,10 @@
+"""
+permutate.py
+-------------
+
+Randomly deform meshes in different ways.
+"""
+
 import numpy as np
 
 from . import transformations
@@ -6,7 +13,7 @@ from . import util
 
 
 def transform(mesh, translation_scale=1000.0):
-    '''
+    """
     Return a permutated variant of a mesh by randomly reording faces
     and rotatating + translating a mesh by a random matrix.
 
@@ -18,7 +25,7 @@ def transform(mesh, translation_scale=1000.0):
     ----------
     permutated: Trimesh object, same faces as input mesh but
                 rotated and reordered.
-    '''
+    """
     matrix = transformations.random_rotation_matrix()
     matrix[0:3, 3] = np.random.random(3) * translation_scale
 
@@ -33,7 +40,7 @@ def transform(mesh, translation_scale=1000.0):
 
 
 def noise(mesh, magnitude=None):
-    '''
+    """
     Add gaussian noise to every vertex of a mesh.
     Makes no effort to maintain topology or sanity.
 
@@ -46,7 +53,7 @@ def noise(mesh, magnitude=None):
     Returns
     ----------
     permutated: Trimesh object, input mesh with noise applied
-    '''
+    """
     if magnitude is None:
         magnitude = mesh.scale / 100.0
 
@@ -63,7 +70,7 @@ def noise(mesh, magnitude=None):
 
 
 def tesselation(mesh):
-    '''
+    """
     Subdivide each face of a mesh into three faces with the new vertex
     randomly placed inside the old face.
 
@@ -77,7 +84,7 @@ def tesselation(mesh):
     Returns
     ----------
     permutated: Trimesh object with remeshed facets
-    '''
+    """
     # create random barycentric coordinates for each face
     # pad all coordinates by a small amount to bias new vertex towards center
     barycentric = np.random.random(mesh.faces.shape) + .05
@@ -107,9 +114,9 @@ def tesselation(mesh):
 class Permutator:
 
     def __init__(self, mesh):
-        '''
+        """
         A convienence object to get permutated versions of a mesh.
-        '''
+        """
         self._mesh = mesh
 
     def transform(self):

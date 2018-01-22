@@ -1,6 +1,9 @@
-'''
+"""
+creation.py
+--------------
+
 Create meshes from primitives, or with operations.
-'''
+"""
 
 from .base import Trimesh
 from .constants import log, tol
@@ -41,7 +44,7 @@ def validate_polygon(obj):
 def extrude_polygon(polygon,
                     height,
                     **kwargs):
-    '''
+    """
     Extrude a 2D shapely polygon into a 3D mesh
 
     Parameters
@@ -52,7 +55,7 @@ def extrude_polygon(polygon,
     Returns
     ----------
     mesh: Trimesh object of result
-    '''
+    """
     vertices, faces = triangulate_polygon(polygon, **kwargs)
     mesh = extrude_triangulation(vertices=vertices,
                                  faces=faces,
@@ -65,7 +68,7 @@ def extrude_triangulation(vertices,
                           faces,
                           height,
                           **kwargs):
-    '''
+    """
     Turn a shapely.geometry Polygon object and a height (float)
     into a watertight Trimesh object.
 
@@ -78,7 +81,7 @@ def extrude_triangulation(vertices,
     Returns
     ---------
     mesh: Trimesh object of result
-    '''
+    """
     vertices = np.asanyarray(vertices, dtype=np.float64)
     faces = np.asanyarray(faces, dtype=np.int)
     height = float(height)
@@ -141,7 +144,7 @@ def extrude_triangulation(vertices,
 
 
 def triangulate_polygon(polygon, **kwargs):
-    '''
+    """
     Given a shapely polygon, create a triangulation using meshpy.triangle
 
     Parameters
@@ -164,7 +167,7 @@ def triangulate_polygon(polygon, **kwargs):
     --------
     mesh_vertices: (n, 2) float array of 2D points
     mesh_faces:    (n, 3) int array of vertex indicies representing triangles
-    '''
+    """
 
     if not polygon.is_valid:
         raise ValueError('invalid shapely polygon passed!')
@@ -174,7 +177,7 @@ def triangulate_polygon(polygon, **kwargs):
     import meshpy.triangle as triangle
 
     def round_trip(start, length):
-        '''
+        """
         Given a start index and length, create a series of (n, 2) edges which
         create a closed traversal.
 
@@ -182,7 +185,7 @@ def triangulate_polygon(polygon, **kwargs):
         ---------
         start, length = 0, 3
         returns:  [(0,1), (1,2), (2,0)]
-        '''
+        """
         tiled = np.tile(np.arange(start, start + length).reshape((-1, 1)), 2)
         tiled = tiled.reshape(-1)[1:-1].reshape((-1, 2))
         tiled = np.vstack((tiled, [tiled[-1][-1], tiled[0][0]]))
@@ -254,9 +257,9 @@ def triangulate_polygon(polygon, **kwargs):
 
 
 def box(extents=None, transform=None):
-    '''
+    """
     Return a unit cube, centered at the origin with edges of length 1.0
-    '''
+    """
     vertices = [0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1,
                 1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1]
     vertices = np.array(vertices,
@@ -292,10 +295,10 @@ def box(extents=None, transform=None):
 
 
 def icosahedron():
-    '''
+    """
     Create an icosahedron, a 20 faced polyhedron.
 
-    '''
+    """
     t = (1.0 + 5.0**.5) / 2.0
     vertices = [-1, t, 0, 1, t, 0, -1, -t, 0, 1, -t, 0, 0, -1, t, 0, 1, t,
                 0, -1, -t, 0, 1, -t, t, 0, -1, t, 0, 1, -t, 0, -1, -t, 0, 1]
@@ -313,7 +316,7 @@ def icosahedron():
 
 
 def icosphere(subdivisions=3, radius=1.0):
-    '''
+    """
     Create an isophere centered at the origin.
 
     Parameters
@@ -326,7 +329,7 @@ def icosphere(subdivisions=3, radius=1.0):
     Returns
     ---------
     ico: trimesh.Trimesh object of sphere
-    '''
+    """
     def refine_spherical():
         vectors = ico.vertices
         scalar = (vectors ** 2).sum(axis=1)**.5
@@ -346,7 +349,7 @@ def uv_sphere(radius=1.0,
               count=[32, 32],
               theta=None,
               phi=None):
-    '''
+    """
     Create a UV sphere (latitude + longitude) centered at the origin.
 
     Roughly one order of magnitude faster than an icosphere but slightly uglier.
@@ -361,7 +364,7 @@ def uv_sphere(radius=1.0,
     Returns
     ----------
     mesh: Trimesh object of UV sphere with specified parameters
-    '''
+    """
 
     count = np.array(count, dtype=np.int)
     count += np.mod(count, 2)
@@ -414,7 +417,7 @@ def uv_sphere(radius=1.0,
 def capsule(height=1.0,
             radius=1.0,
             count=[32, 32]):
-    '''
+    """
     Create a mesh of a capsule, or a cylinder with hemispheric ends.
 
     Parameters
@@ -429,7 +432,7 @@ def capsule(height=1.0,
              - cylinder axis is along Z
              - one hemisphere is centered at the origin
              - other hemisphere is centered along the Z axis at specified height
-    '''
+    """
     height = float(height)
     radius = float(radius)
     count = np.array(count, dtype=np.int)
@@ -456,7 +459,7 @@ def capsule(height=1.0,
 
 
 def cylinder(radius=1.0, height=1.0, sections=32, transform=None):
-    '''
+    """
     Create a mesh of a cylinder along Z centered at the origin.
 
     Parameters
@@ -468,7 +471,7 @@ def cylinder(radius=1.0, height=1.0, sections=32, transform=None):
     Returns
     ----------
     cylinder: Trimesh, resulting mesh
-    '''
+    """
 
     # create a 2D pie out of wedges
     theta = np.linspace(0, np.pi * 2, sections)
@@ -500,7 +503,7 @@ def cylinder(radius=1.0, height=1.0, sections=32, transform=None):
 
 
 def random_soup(face_count=100):
-    '''
+    """
     Return a random set of triangles as a Trimesh
 
     Parameters
@@ -510,7 +513,7 @@ def random_soup(face_count=100):
     Returns
     -----------
     soup: Trimesh object with face_count random faces
-    '''
+    """
     vertices = np.random.random((face_count * 3, 3)) - 0.5
     faces = np.arange(face_count * 3).reshape((-1, 3))
     soup = Trimesh(vertices=vertices, faces=faces)

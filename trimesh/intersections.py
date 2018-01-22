@@ -1,3 +1,9 @@
+"""
+intersections.py
+------------------
+
+Primarily mesh-plane intersections (slicing).
+"""
 import numpy as np
 
 from .constants import log, tol
@@ -10,7 +16,7 @@ def mesh_plane(mesh,
                plane_normal,
                plane_origin,
                return_faces=False):
-    '''
+    """
     Find a the intersections between a mesh and a plane,
     returning a set of line segments on that plane.
 
@@ -25,10 +31,10 @@ def mesh_plane(mesh,
     ----------
     lines:      (m, 2, 3) float, list of 3D line segments
     face_index: (m,) int, index of mesh.faces for each line
-    '''
+    """
 
     def triangle_cases(signs):
-        '''
+        """
         Figure out which faces correspond to which intersection case from
         the signs of the dot product of each vertex.
         Does this by bitbang each row of signs into an 8 bit integer.
@@ -56,7 +62,7 @@ def mesh_plane(mesh,
         basic:      (n,) bool, which faces are in the basic intersection case
         one_vertex: (n,) bool, which faces are in the one vertex case
         one_edge:   (n,) bool, which faces are in the one edge case
-        '''
+        """
 
         signs_sorted = np.sort(signs, axis=1)
         coded = np.zeros(len(signs_sorted), dtype=np.int8) + 14
@@ -162,7 +168,7 @@ def plane_lines(plane_origin,
                 plane_normal,
                 endpoints,
                 line_segments=True):
-    '''
+    """
     Calculate plane-line intersections
 
     Parameters
@@ -179,7 +185,7 @@ def plane_lines(plane_origin,
     intersections: (m, 3) list of cartesian intersection points
     valid        : (n, 3) list of booleans indicating whether a valid
                    intersection occurred
-    '''
+    """
     endpoints = np.asanyarray(endpoints)
     plane_origin = np.asanyarray(plane_origin).reshape(3)
     line_dir = util.unitize(endpoints[1] - endpoints[0])
@@ -211,7 +217,7 @@ def planes_lines(plane_origins,
                  plane_normals,
                  line_origins,
                  line_directions):
-    '''
+    """
     Given one line per plane, find the intersection points
 
     Parameters
@@ -225,7 +231,7 @@ def planes_lines(plane_origins,
     ----------
     on_plane: (n,3) float, points on specified planes
     valid:    (n,) bool, did plane intersect line or not
-    '''
+    """
 
     plane_origins = np.asanyarray(plane_origins, dtype=np.float64)
     plane_normals = np.asanyarray(plane_normals, dtype=np.float64)

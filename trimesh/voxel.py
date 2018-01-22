@@ -1,3 +1,9 @@
+"""
+voxel.py
+-----------
+
+Convert meshes to a simple voxel data structure and back again.
+"""
 import numpy as np
 
 from . import util
@@ -17,7 +23,7 @@ class Voxel(object):
 
     @util.cache_decorator
     def marching_cubes(self):
-        '''
+        """
         A marching cubes Trimesh representation of the voxels.
 
         No effort was made to clean or smooth the result in any way;
@@ -28,7 +34,7 @@ class Voxel(object):
         ---------
         meshed: Trimesh object representing the current voxel
                         object, as returned by marching cubes algorithm.
-        '''
+        """
         meshed = matrix_to_marching_cubes(matrix=self.matrix,
                                           pitch=self.pitch,
                                           origin=self.origin)
@@ -45,56 +51,56 @@ class Voxel(object):
 
     @property
     def shape(self):
-        '''
+        """
         The shape of the matrix for the current voxel object.
 
         Returns
         ---------
         shape: (3,) int, what is the shape of the 3D matrix for these voxels
-        '''
+        """
         return self.matrix.shape
 
     @util.cache_decorator
     def filled_count(self):
-        '''
+        """
         Return the number of voxels that are occupied.
 
         Returns
         --------
         filled: int, number of voxels that are occupied
-        '''
+        """
         return self.matrix.sum()
 
         return filled
 
     @util.cache_decorator
     def volume(self):
-        '''
+        """
         What is the volume of the filled cells in the current voxel object.
 
         Returns
         ---------
         volume: float, volume of filled cells
-        '''
+        """
         volume = self.filled_count * (self.pitch**3)
         return volume
 
     @util.cache_decorator
     def points(self):
-        '''
+        """
         The center of each filled cell as a list of points.
 
         Returns
         ----------
         points: (self.filled, 3) float, list of points
-        '''
+        """
         points = matrix_to_points(matrix=self.matrix,
                                   pitch=self.pitch,
                                   origin=self.origin)
         return points
 
     def point_to_index(self, point):
-        '''
+        """
         Convert a point to an index in the matrix array.
 
         Parameters
@@ -104,7 +110,7 @@ class Voxel(object):
         Returns
         ---------
         index: (3,) int tuple, index in self.matrix
-        '''
+        """
         point = np.asanyarray(point)
         if point.shape != (3,):
             raise ValueError('to_index requires a single point')
@@ -113,7 +119,7 @@ class Voxel(object):
         return index
 
     def is_filled(self, point):
-        '''
+        """
         Query a point to see if the voxel cell it lies in is filled or not.
 
         Parameters
@@ -123,7 +129,7 @@ class Voxel(object):
         Returns
         ---------
         is_filled: bool, is cell occupied or not
-        '''
+        """
         index = self.point_to_index(point)
         in_range = (np.array(index) < np.array(self.shape)).all()
         if in_range:
@@ -136,7 +142,7 @@ class Voxel(object):
 class VoxelMesh(Voxel):
 
     def __init__(self, mesh, pitch, max_iter=10, size_max=None):
-        '''
+        """
         A voxel representation of a mesh that will track changes to
         the mesh.
 
@@ -149,7 +155,7 @@ class VoxelMesh(Voxel):
         pitch:     float, how long should each edge of the voxel be
         size_max:  float, maximum size (in mb) of a data structure that
                           may be created before raising an exception
-        '''
+        """
         super(VoxelMesh, self).__init__()
 
         self._data['mesh'] = mesh
@@ -158,19 +164,19 @@ class VoxelMesh(Voxel):
 
     @util.cache_decorator
     def matrix_surface(self):
-        '''
+        """
         The voxels on the surface of the mesh as a 3D matrix.
 
         Returns
         ---------
         matrix: self.shape np.bool, if a cell is True it is occupied
-        '''
+        """
         matrix = sparse_to_matrix(self.sparse_surface)
         return matrix
 
     @property
     def matrix(self):
-        '''
+        """
         A matrix representation of the surface voxels.
 
         In the future this is planned to return a filled voxel matrix
@@ -180,7 +186,7 @@ class VoxelMesh(Voxel):
         Returns
         ---------
         matrix: self.shape np.bool, cell occupancy
-        '''
+        """
         # once filled voxels are implemented
         # if self._data['mesh'].is_watertight:
         #    return self.matrix_filled
@@ -202,28 +208,28 @@ class VoxelMesh(Voxel):
 
     @util.cache_decorator
     def as_boxes(self):
-        '''
+        """
         A rough Trimesh representation of the voxels with a box for each filled voxel.
 
         Returns
         ---------
         mesh: Trimesh object representing the current voxel object.
-        '''
+        """
         centers = (self.sparse_surface *
                    self.pitch).astype(np.float64) + self.origin
         mesh = multibox(centers=centers, pitch=self.pitch)
         return mesh
 
     def show(self):
-        '''
+        """
         Convert the current set of voxels into a trimesh for visualization
         and show that via its built- in preview method.
-        '''
+        """
         self.as_boxes.show()
 
 
 def voxelize_subdivide(mesh, pitch, max_iter=10):
-    '''
+    """
     Voxelize a surface by subdividing a mesh until every edge is shorter
     than half the pitch of the voxel grid.
 
@@ -236,7 +242,7 @@ def voxelize_subdivide(mesh, pitch, max_iter=10):
     -----------
     voxels_sparse:   (n,3) int, (m,n,p) indexes of filled cells
     origin_position: (3,) float, position of the voxel grid origin in space
-    '''
+    """
     max_edge = pitch / 2.0
 
     # get the same mesh sudivided so every edge is shorter than half our pitch
@@ -265,7 +271,7 @@ def voxelize_subdivide(mesh, pitch, max_iter=10):
 
 
 def matrix_to_points(matrix, pitch, origin):
-    '''
+    """
     Convert an (n,m,p) matrix into a set of points for each voxel center.
 
     Parameters
@@ -277,13 +283,13 @@ def matrix_to_points(matrix, pitch, origin):
     Returns
     ----------
     points: (q, 3) list of points
-    '''
+    """
     points = np.column_stack(np.nonzero(matrix)) * pitch + origin
     return points
 
 
 def matrix_to_marching_cubes(matrix, pitch, origin):
-    '''
+    """
     Convert an (n,m,p) matrix into a mesh, using marching_cubes.
 
     Parameters
@@ -296,7 +302,7 @@ def matrix_to_marching_cubes(matrix, pitch, origin):
     ----------
     mesh: Trimesh object, generated by meshing voxels using
                           the marching cubes algorithm in skimage
-    '''
+    """
     from skimage import measure
     from .base import Trimesh
 
@@ -340,7 +346,7 @@ def matrix_to_marching_cubes(matrix, pitch, origin):
 
 
 def sparse_to_matrix(sparse):
-    '''
+    """
     Take a sparse (n,3) list of integer indexes of filled cells,
     turn it into a dense (m,o,p) matrix.
 
@@ -351,7 +357,7 @@ def sparse_to_matrix(sparse):
     Returns
     ------------
     dense: (m,o,p) bool, matrix of filled cells
-    '''
+    """
 
     sparse = np.asanyarray(sparse, dtype=np.int)
     if not util.is_shape(sparse, (-1, 3)):
@@ -369,7 +375,7 @@ def sparse_to_matrix(sparse):
 
 
 def multibox(centers, pitch):
-    '''
+    """
     Return a Trimesh object with a box at every center.
 
     Doesn't do anything nice or fancy.
@@ -382,7 +388,7 @@ def multibox(centers, pitch):
     Returns
     ---------
     rough: Trimesh object representing inputs
-    '''
+    """
     from . import primitives
     from .base import Trimesh
 
@@ -401,7 +407,7 @@ def multibox(centers, pitch):
 
 
 def sparse_surface_to_filled(sparse_surface):
-    '''
+    """
     Take a sparse surface and fill in along Z.
-    '''
+    """
     pass

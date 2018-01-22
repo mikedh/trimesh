@@ -1,3 +1,9 @@
+"""
+sample.py
+------------
+
+Randomly sample surface and volume of meshes.
+"""
 import numpy as np
 
 from . import util
@@ -5,7 +11,7 @@ from . import transformations
 
 
 def sample_surface(mesh, count):
-    '''
+    """
     Sample the surface of a mesh, returning the specified number of points
 
     For individual triangle sampling uses this method:
@@ -20,7 +26,7 @@ def sample_surface(mesh, count):
     ---------
     samples: (count,3) points in space on the surface of mesh
     face_index: (count,) indices of faces for each sampled point
-    '''
+    """
 
     # len(mesh.faces) float array of the areas of each face of the mesh
     area = mesh.area_faces
@@ -62,7 +68,7 @@ def sample_surface(mesh, count):
 
 
 def volume_mesh(mesh, count):
-    '''
+    """
     Use rejection sampling to produce points randomly distributed in
     the volume of a mesh.
 
@@ -75,7 +81,7 @@ def volume_mesh(mesh, count):
     ----------
     samples: (n,3) float, points in the volume of the mesh.
              (n <= count) as samples are produced by rejecting points
-    '''
+    """
     points = (np.random.random((count, 3)) * mesh.extents) + mesh.bounds[0]
     contained = mesh.contains(points)
     samples = points[contained][:count]
@@ -85,7 +91,7 @@ def volume_mesh(mesh, count):
 def volume_rectangular(extents,
                        count,
                        transform=None):
-    '''
+    """
     Return random samples inside a rectangular volume.
 
     Parameters
@@ -97,7 +103,7 @@ def volume_rectangular(extents,
     Returns
     ---------
     samples: (count, 3) float, points in volume
-    '''
+    """
     samples = np.random.random((count, 3)) - .5
     samples *= extents
     if transform is not None:
@@ -107,7 +113,7 @@ def volume_rectangular(extents,
 
 
 def sample_surface_even(mesh, count):
-    '''
+    """
     Sample the surface of a mesh, returning samples which are
     approximately evenly spaced.
 
@@ -121,7 +127,7 @@ def sample_surface_even(mesh, count):
     ---------
     samples: (count,3) points in space on the surface of mesh
     face_index: (count,) indices of faces for each sampled point
-    '''
+    """
     from .points import remove_close
 
     radius = np.sqrt(mesh.area / (2 * count))
@@ -133,7 +139,7 @@ def sample_surface_even(mesh, count):
 
 
 def sample_surface_sphere(count):
-    '''
+    """
     Correctly pick random points on the surface of a unit sphere
 
     Uses this method:
@@ -146,7 +152,7 @@ def sample_surface_sphere(count):
     Returns
     ----------
     points: (count,3) float, list of random points on a unit sphere
-    '''
+    """
 
     u, v = np.random.random((2, count))
 

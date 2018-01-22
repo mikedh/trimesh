@@ -5,7 +5,7 @@ from ..constants import tol_path as tol
 
 
 def line_line(origins, directions):
-    '''
+    """
     Find the intersection between two lines.
     Uses terminology from:
     http://geomalgorithms.com/a05-_intersect-1.html
@@ -25,7 +25,7 @@ def line_line(origins, directions):
                   In 3D, false if lines are not coplanar
     intersection: if intersects: (d) length point of intersection
                   else:          None
-    '''
+    """
 
     is_2D, origins = three_dimensionalize(origins)
     is_2D, directions = three_dimensionalize(directions)

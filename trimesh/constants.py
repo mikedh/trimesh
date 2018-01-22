@@ -7,7 +7,7 @@ import numpy as np
 
 
 class NumericalToleranceMesh(object):
-    '''
+    """
     tol.zero: consider floating point numbers less than this zero
     tol.merge: when merging vertices, consider vertices closer than this
                to be the same vertex. Here we use the same value (1e-8)
@@ -20,7 +20,7 @@ class NumericalToleranceMesh(object):
                    be to consider the two faces coplanar. This method is more
                    robust than considering just normal angles as it is tolerant
                    of numerical error on very small faces.
-    '''
+    """
 
     def __init__(self, **kwargs):
         self.zero = 1e-12
@@ -33,9 +33,9 @@ class NumericalToleranceMesh(object):
 
 
 class NumericalResolutionMesh(object):
-    '''
+    """
     res.mesh: when meshing solids, what distance to use
-    '''
+    """
 
     def __init__(self, **kwargs):
         self.mesh = .01
@@ -50,7 +50,7 @@ res = NumericalResolutionMesh()
 
 
 class NumericalTolerancePath(object):
-    '''
+    """
     tol.zero: consider floating point numbers less than this zero
     tol.merge: when merging vertices, consider vertices closer than this
                to be the same vertex
@@ -71,7 +71,7 @@ class NumericalTolerancePath(object):
                     radius multiplied by document scale for an acceptable fit
     tol.tangent: when simplifying line segments to curves, what is the maximum
                  angle the end sections can deviate from tangent that is acceptable.
-    '''
+    """
 
     def __init__(self, **kwargs):
         # default values
@@ -93,7 +93,7 @@ class NumericalTolerancePath(object):
 
 
 class NumericalResolutionPath(object):
-    '''
+    """
     res.seg_frac: when discretizing curves, what percentage of the drawing
                   scale should we aim to make a single segment
     res.seg_angle: when discretizing curves, what angle should a section span
@@ -102,7 +102,7 @@ class NumericalResolutionPath(object):
     res.min_sections: when discretizing splines, what is the minimum number
                       of segments per control point
     res.export: format string to use when exporting floating point vertices
-    '''
+    """
 
     def __init__(self, **kwargs):
         self.seg_frac = .05

@@ -1,3 +1,13 @@
+"""
+graph.py
+-------------
+
+Deal with graph operations. Primarily deal with graphs in (n,2) 
+edge list form, and abstract the backend graph library being used.
+
+Currently uses networkx, scipy.sparse.csgraph, or graph_tool backends.
+"""
+
 import numpy as np
 import networkx as nx
 import collections
@@ -25,7 +35,7 @@ except ImportError:
 def face_adjacency(faces=None,
                    mesh=None,
                    return_edges=False):
-    '''
+    """
     Returns an (n,2) list of face indices.
     Each pair of faces in the list shares an edge, making them adjacent.
 
@@ -51,7 +61,7 @@ def face_adjacency(faces=None,
     graph = nx.Graph()
     graph.add_edges_from(mesh.face_adjacency)
     groups = nx.connected_components(graph_connected)
-    '''
+    """
 
     if mesh is None:
         # first generate the list of edges for the current faces
@@ -87,7 +97,7 @@ def face_adjacency(faces=None,
 
 
 def face_adjacency_unshared(mesh):
-    '''
+    """
     Return the vertex index of the two vertices not in the shared
     edge between two adjacent faces
 
@@ -98,7 +108,7 @@ def face_adjacency_unshared(mesh):
     Returns
     -----------
     vid_unshared: (len(mesh.face_adjacency), 2) int, indexes of mesh.vertices
-    '''
+    """
 
     # the non- shared vertex index is the same shape as face_adjacnecy
     # just holding vertex indices rather than face indices
@@ -115,7 +125,7 @@ def face_adjacency_unshared(mesh):
 
 
 def face_adjacency_radius(mesh):
-    '''
+    """
     Compute an approximate radius between adjacent faces.
 
     Parameters
@@ -128,7 +138,7 @@ def face_adjacency_radius(mesh):
            Parallel faces will have a value of np.inf
     span:  (n,) float, perpendicular projection distance of two
            unshared vertices onto the shared edge
-    '''
+    """
 
     # solve for the radius of the adjacent faces
     #         distance
@@ -166,7 +176,7 @@ def face_adjacency_radius(mesh):
 
 
 def vertex_adjacency_graph(mesh):
-    '''
+    """
     Returns a networkx graph representing the vertices and their connections
     in the mesh.
 
@@ -189,7 +199,7 @@ def vertex_adjacency_graph(mesh):
     graph = mesh.vertex_adjacency_graph
     graph.neighbors(0)
     > [1,3,4]
-    '''
+    """
 
     g = nx.Graph()
     g.add_edges_from(mesh.edges_unique)
@@ -197,7 +207,7 @@ def vertex_adjacency_graph(mesh):
 
 
 def shared_edges(faces_a, faces_b):
-    '''
+    """
     Given two sets of faces, find the edges which are in both sets.
 
     Parameters
@@ -208,7 +218,7 @@ def shared_edges(faces_a, faces_b):
     Returns
     ---------
     shared: (p, 2) int, set of edges
-    '''
+    """
     e_a = np.sort(faces_to_edges(faces_a), axis=1)
     e_b = np.sort(faces_to_edges(faces_b), axis=1)
     shared = grouping.boolean_rows(e_a, e_b, operation=set.intersection)
@@ -216,11 +226,11 @@ def shared_edges(faces_a, faces_b):
 
 
 def connected_edges(G, nodes):
-    '''
+    """
     Given graph G and list of nodes, return the list of edges that
     are connected to nodes
 
-    '''
+    """
     nodes_in_G = collections.deque()
     for node in nodes:
         if not G.has_node(node):
@@ -231,7 +241,7 @@ def connected_edges(G, nodes):
 
 
 def facets(mesh, engine=None):
-    '''
+    """
     Find the list of parallel adjacent faces.
 
     Parameters
@@ -243,7 +253,7 @@ def facets(mesh, engine=None):
     ---------
     facets: list of groups of face indexes (mesh.faces) of parallel
                   adjacent faces.
-    '''
+    """
     # what is the radius of a circle that passes through the perpendicular
     # projection of the vector between the two non- shared vertices
     # onto the shared edge, with the face normal from the two adjacent faces
@@ -270,7 +280,7 @@ def split(mesh,
           only_watertight=True,
           adjacency=None,
           engine=None):
-    '''
+    """
     Split a mesh into multiple meshes from face connectivity.
 
     If only_watertight is true, it will only return watertight meshes
@@ -287,7 +297,7 @@ def split(mesh,
     Returns
     ----------
     meshes: list of Trimesh objects
-    '''
+    """
 
     if adjacency is None:
         adjacency = mesh.face_adjacency
@@ -311,7 +321,7 @@ def connected_components(edges,
                          min_len=1,
                          nodes=None,
                          engine=None):
-    '''
+    """
     Find groups of connected nodes from an edge list.
 
     Parameters
@@ -326,11 +336,11 @@ def connected_components(edges,
     Returns
     -----------
     components: (n,) sequence of lists, nodes which are connected
-    '''
+    """
     def components_networkx():
-        '''
+        """
         Find connected components using networkx
-        '''
+        """
         graph = nx.from_edgelist(edges)
         # make sure every face has a node, so single triangles
         # aren't discarded (as they aren't adjacent to anything)
@@ -343,9 +353,9 @@ def connected_components(edges,
         return components
 
     def components_graphtool():
-        '''
+        """
         Find connected components using graphtool
-        '''
+        """
         g = GTGraph()
         # make sure all the nodes are in the graph
         g.add_vertex(node_count)
@@ -367,9 +377,9 @@ def connected_components(edges,
         return components
 
     def components_csgraph():
-        '''
+        """
         Find connected components using scipy.sparse.csgraph
-        '''
+        """
         # label each node
         labels = connected_component_labels(edges,
                                             node_count=node_count)
@@ -440,7 +450,7 @@ def connected_components(edges,
 
 
 def connected_component_labels(edges, node_count=None):
-    '''
+    """
     Label graph nodes from an edge list, using scipy.sparse.csgraph
 
     Parameters
@@ -451,7 +461,7 @@ def connected_component_labels(edges, node_count=None):
     Returns
     ---------
     labels: (node_count,) int, component labels for each node
-    '''
+    """
     matrix = edges_to_coo(edges, node_count)
     body_count, labels = csgraph.connected_components(matrix,
                                                       directed=False)
@@ -462,7 +472,7 @@ def connected_component_labels(edges, node_count=None):
 
 
 def dfs_traversals(edges):
-    '''
+    """
     Given an edge list, generate a sequence of ordered
     depth first search traversals, using scipy.csgraph routines.
 
@@ -474,7 +484,7 @@ def dfs_traversals(edges):
     -----------
     traversals: (m,) sequence of (p,) int,
                 ordered DFS traversals of the graph.
-    '''
+    """
     edges = np.asanyarray(edges, dtype=np.int64)
     if not util.is_shape(edges, (-1, 2)):
         raise ValueError('edges are not (n,2)!')
@@ -512,7 +522,7 @@ def dfs_traversals(edges):
 
 
 def edges_to_coo(edges, count=None):
-    '''
+    """
     Given an edge list, return a boolean scipy.sparse.coo_matrix
     representing the edges in matrix form.
 
@@ -525,7 +535,7 @@ def edges_to_coo(edges, count=None):
     Returns
     ------------
     matrix: (count, count) bool, scipy.sparse.coo_matrix
-    '''
+    """
     edges = np.asanyarray(edges, dtype=np.int64)
     if not (len(edges) == 0 or
             util.is_shape(edges, (-1, 2))):
@@ -545,7 +555,7 @@ def edges_to_coo(edges, count=None):
 
 
 def smoothed(mesh, angle):
-    '''
+    """
     Return a non- watertight version of the mesh which will
     render nicely with smooth shading.
 
@@ -558,7 +568,7 @@ def smoothed(mesh, angle):
     Returns
     ---------
     smooth: Trimesh object
-    '''
+    """
     if len(mesh.face_adjacency) == 0:
         return mesh
     angle_ok = mesh.face_adjacency_angles <= angle
@@ -573,7 +583,7 @@ def smoothed(mesh, angle):
 
 
 def is_watertight(edges, edges_sorted=None):
-    '''
+    """
     Parameters
     ---------
     edges: (n,2) int, set of vertex indices
@@ -581,7 +591,7 @@ def is_watertight(edges, edges_sorted=None):
     Returns
     ---------
     watertight: boolean, whether every edge is contained by two faces
-    '''
+    """
     if edges_sorted is None:
         edges_sorted = np.sort(edges, axis=1)
     groups = grouping.group_rows(edges_sorted, require_count=2)
@@ -593,7 +603,7 @@ def is_watertight(edges, edges_sorted=None):
 
 
 def graph_to_svg(graph):
-    '''
+    """
     Turn a networkx graph into an SVG string, using graphviz dot.
 
     Parameters
@@ -603,7 +613,7 @@ def graph_to_svg(graph):
     Returns
     ---------
     svg: string, pictoral layout in SVG format
-    '''
+    """
 
     import tempfile
     import subprocess

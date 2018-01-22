@@ -1,8 +1,8 @@
-'''
+"""
 trimesh.py
 
 Library for importing and doing simple operations on triangular meshes.
-'''
+"""
 
 import numpy as np
 
@@ -19,7 +19,7 @@ except ImportError:
 
 
 def convex_hull(obj, qhull_options='QbB Pp'):
-    '''
+    """
     Get a new Trimesh object representing the convex hull of the
     current mesh, with proper normals and watertight.
     Requires scipy >.12.
@@ -32,7 +32,7 @@ def convex_hull(obj, qhull_options='QbB Pp'):
     Returns
     --------
     convex: Trimesh object of convex hull
-    '''
+    """
     from .base import Trimesh
 
     if isinstance(obj, Trimesh):
@@ -114,7 +114,7 @@ def convex_hull(obj, qhull_options='QbB Pp'):
 
 
 def adjacency_projections(mesh):
-    '''
+    """
     Test if a mesh is convex by projecting the vertices of
     a triangle onto the normal of its adjacent face.
 
@@ -125,7 +125,7 @@ def adjacency_projections(mesh):
     Returns
     ----------
     projection: distance of projection of adjacent vertex onto plane
-    '''
+    """
     # normals and origins from the first column of face adjacency
     normals = mesh.face_normals[mesh.face_adjacency[:, 0]]
     # one of the vertices on the shared edge
@@ -150,7 +150,7 @@ def is_convex(mesh):
 
 
 def planar_hull(points, normal, origin=None, input_convex=False):
-    '''
+    """
     Find the convex outline of a set of points projected to a plane.
 
     Parameters
@@ -165,7 +165,7 @@ def planar_hull(points, normal, origin=None, input_convex=False):
     -----------
     hull_lines: (n,2,2) set of unordered line segments
     T:          (4,4) float, transformation matrix
-    '''
+    """
     from .points import project_to_plane
 
     if origin is None:
@@ -186,7 +186,7 @@ def planar_hull(points, normal, origin=None, input_convex=False):
 
 
 def hull_points(obj):
-    '''
+    """
     Try to extract a convex set of points from multiple input formats.
 
     Parameters
@@ -198,7 +198,7 @@ def hull_points(obj):
     Returns
     --------
     points: (o,d) convex set of points
-    '''
+    """
     if hasattr(obj, 'convex_hull'):
         points = obj.convex_hull.vertices
     elif util.is_sequence(obj):

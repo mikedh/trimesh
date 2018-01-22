@@ -1,3 +1,9 @@
+"""
+units.py
+--------------
+
+Deal with physical unit systems.
+"""
 from .constants import log
 
 # conversions to inches

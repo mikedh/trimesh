@@ -18,7 +18,7 @@ except ImportError:
 
 
 def oriented_bounds_2D(points, qhull_options='QbB'):
-    '''
+    """
     Find an oriented bounding box for a set of 2D points.
 
     Parameters
@@ -32,7 +32,7 @@ def oriented_bounds_2D(points, qhull_options='QbB'):
                 is CENTERED AT THE ORIGIN
     rectangle: (2,) float, size of extents once input points are transformed
                 by transform
-    '''
+    """
     # make sure input is a numpy array
     points = np.asanyarray(points)
     # create a convex hull object of our points
@@ -84,7 +84,7 @@ def oriented_bounds_2D(points, qhull_options='QbB'):
 
 
 def oriented_bounds(obj, angle_digits=1):
-    '''
+    """
     Find the oriented bounding box for a Trimesh
 
     Parameters
@@ -102,7 +102,7 @@ def oriented_bounds(obj, angle_digits=1):
     to_origin: (4,4) float, transformation matrix which will move the center of the
                bounding box of the input mesh to the origin.
     extents: (3,) float, the extents of the mesh once transformed with to_origin
-    '''
+    """
 
     # extract a set of convex hull vertices and normals from the input
     # we bother to do this to avoid recomputing the full convex hull if
@@ -176,7 +176,7 @@ def oriented_bounds(obj, angle_digits=1):
 
 
 def minimum_cylinder(obj, sample_count=10, angle_tol=.001):
-    '''
+    """
     Find the approximate minimum volume cylinder which contains a mesh or
     list of points.
 
@@ -201,10 +201,10 @@ def minimum_cylinder(obj, sample_count=10, angle_tol=.001):
                 'height'    : float, height of cylinder
                 'transform' : (4,4) float, transform from the origin
                                to centered cylinder
-    '''
+    """
 
     def volume_from_angles(spherical, return_data=False):
-        '''
+        """
         Takes spherical coordinates and calculates the volume of a cylinder
         along that vector
 
@@ -221,7 +221,7 @@ def minimum_cylinder(obj, sample_count=10, angle_tol=.001):
             height (float)
         else:
             volume (float)
-        '''
+        """
         to_2D = transformations.spherical_matrix(*spherical, axes='rxyz')
         projected = transformations.transform_points(hull, matrix=to_2D)
         height = projected[:, 2].ptp()
@@ -283,7 +283,7 @@ def minimum_cylinder(obj, sample_count=10, angle_tol=.001):
 
 
 def corners(bounds):
-    '''
+    """
     Given a pair of axis aligned bounds, return all
     8 corners of the bounding box.
 
@@ -294,7 +294,7 @@ def corners(bounds):
     Returns
     ----------
     corners: (8,3) float, corner vertices of the cube
-    '''
+    """
 
     bounds = np.asanyarray(bounds, dtype=np.float64)
 
@@ -318,7 +318,7 @@ def corners(bounds):
 
 
 def contains(bounds, points):
-    '''
+    """
     Do an axis aligned bounding box check on a list of points.
 
     Parameters
@@ -329,7 +329,7 @@ def contains(bounds, points):
     Returns
     -----------
     points_inside: (n,) bool, True if points are inside the AABB
-    '''
+    """
     bounds = np.asanyarray(bounds, dtype=np.float64)
     points = np.asanyarray(points)
 

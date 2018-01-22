@@ -1,3 +1,10 @@
+"""
+nsphere.py
+--------------
+
+Functions for fitting and minimizing nspheres (circles, spheres, 
+hyperspheres, etc.)
+"""
 import numpy as np
 
 from . import convex
@@ -12,7 +19,7 @@ except ImportError:
 
 
 def minimum_nsphere(obj):
-    '''
+    """
     Compute the minimum n- sphere for a mesh or a set of points.
 
     Uses the fact that the minimum n- sphere will be centered at one of
@@ -29,7 +36,7 @@ def minimum_nsphere(obj):
     ----------
     center: (d) float, center of n- sphere
     radius: float, radius of n-sphere
-    '''
+    """
     # reduce the input points or mesh to the vertices of the convex hull
     # since we are computing the furthest site voronoi diagram this reduces
     # the input complexity substantially and returns the same value
@@ -81,7 +88,7 @@ def minimum_nsphere(obj):
 
 
 def fit_nsphere(points, prior=None):
-    '''
+    """
     Fit an n-sphere to a set of points using least squares.
 
     Parameters
@@ -94,7 +101,7 @@ def fit_nsphere(points, prior=None):
     center: (d), location of center
     radius: float, mean radius across circle
     error:  float, peak to peak value of deviation from mean radius
-    '''
+    """
 
     def residuals(center):
         radii_sq = ((points - center)**2).sum(axis=1)
@@ -117,7 +124,7 @@ def fit_nsphere(points, prior=None):
 
 
 def is_nsphere(points):
-    '''
+    """
     Check if a list of points is an nsphere.
 
     Parameters
@@ -127,7 +134,7 @@ def is_nsphere(points):
     Returns
     -----------
     check: bool, True if input points are on an nsphere
-    '''
+    """
     center, radius, error = fit_nsphere(points)
     check = error < tol.merge
     return check

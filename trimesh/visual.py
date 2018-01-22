@@ -1,5 +1,8 @@
-'''
-A data structure to hold visual information about meshes.
+"""
+visual.py
+-------------
+
+Hold and deal with visual information about meshes.
 
 There are lots of ways to encode visual information, and the goal of this
 architecture is to make it possible to define one, and then transparently
@@ -19,7 +22,7 @@ Rules
    a value should transparently change the mode. Color modes are:
      * vertex colors
      * face colors
-'''
+"""
 
 import numpy as np
 
@@ -31,16 +34,16 @@ from . import grouping
 
 
 class ColorVisuals(object):
-    '''
+    """
     Store color information about a mesh.
-    '''
+    """
 
     def __init__(self,
                  mesh=None,
                  face_colors=None,
                  vertex_colors=None,
                  **kwargs):
-        '''
+        """
         Store color information about a mesh.
 
         Parameters
@@ -49,7 +52,7 @@ class ColorVisuals(object):
                        are associated with
         face_ colors:  (n,3|4) or (3,) or (4,) uint8, colors per-face
         vertex_colors: (n,3|4) or (3,) or (4,) uint8, colors per-vertex
-        '''
+        """
         self.mesh = mesh
         self._data = util.DataStore()
         self._cache = util.Cache(id_function=self.crc)
@@ -70,13 +73,13 @@ class ColorVisuals(object):
 
     @property
     def transparency(self):
-        '''
+        """
         Does the current object contain any transparency.
 
         Returns
         ----------
         transparency: bool, does the current visual object contain transparency
-        '''
+        """
         if 'vertex_colors' in self._data:
             a_min = self._data['vertex_colors'][:, 3].min()
         elif 'face_colors' in self._data:
@@ -88,24 +91,24 @@ class ColorVisuals(object):
 
     @property
     def defined(self):
-        '''
+        """
         Are any colors defined for the current mesh.
 
         Returns
         ---------
         defined: bool, are colors defined or not.
-        '''
+        """
         return self.kind is not None
 
     @property
     def kind(self):
-        '''
+        """
         What color mode has been set.
 
         Returns
         ----------
         mode: 'face', 'vertex', or None
-        '''
+        """
         self._verify_crc()
         if 'vertex_colors' in self._data:
             mode = 'vertex'
@@ -117,13 +120,13 @@ class ColorVisuals(object):
         return mode
 
     def _verify_crc(self):
-        '''
+        """
         Verify the checksums of cached face and vertex color, to verify
         that a user hasn't altered them since they were generated from defaults.
 
         If the colors have been altered since creation, move them into the DataStore
         at self._data since the user action has made them user data.
-        '''
+        """
         if len(self._cache) == 0:
             return
 
@@ -151,13 +154,13 @@ class ColorVisuals(object):
                 self._cache.verify()
 
     def crc(self):
-        '''
+        """
         A checksum for the current visual object and its parent mesh.
 
         Returns
         ----------
         crc: int, checksum of data in visual object and its parent mesh
-        '''
+        """
         result = self._data.crc()
         if hasattr(self.mesh, 'crc'):
             result += self.mesh.crc()
@@ -165,7 +168,7 @@ class ColorVisuals(object):
 
     @property
     def face_colors(self):
-        '''
+        """
         Colors defined for each face of a mesh.
 
         If no colors are defined, defaults are returned.
@@ -173,12 +176,12 @@ class ColorVisuals(object):
         Returns
         ----------
         colors: (len(mesh.faces), 4) uint8, RGBA color for each face
-        '''
+        """
         return self._get_colors(name='face')
 
     @face_colors.setter
     def face_colors(self, values):
-        '''
+        """
         Set the colors for each face of a mesh.
 
         This will apply these colors and delete any previously specified
@@ -190,7 +193,7 @@ class ColorVisuals(object):
                 (len(mesh.faces), 4), set each face to the specified color
                 (3,) int, set the whole mesh this color
                 (4,) int, set the whole mesh this color
-        '''
+        """
         colors = to_rgba(values)
 
         if (self.mesh is not None and
@@ -205,18 +208,18 @@ class ColorVisuals(object):
 
     @property
     def vertex_colors(self):
-        '''
+        """
         Return the colors for each vertex of a mesh
 
         Returns
         ------------
         colors: (len(mesh.vertices), 4) uint8, color for each vertex of mesh.
-        '''
+        """
         return self._get_colors(name='vertex')
 
     @vertex_colors.setter
     def vertex_colors(self, values):
-        '''
+        """
         Set the colors for each vertex of a mesh
 
         This will apply these colors and delete any previously specified
@@ -228,7 +231,7 @@ class ColorVisuals(object):
                 (len(mesh.vertices), 4), set each face to the specified color
                 (3,) int, set the whole mesh this color
                 (4,) int, set the whole mesh this color
-        '''
+        """
         # make sure passed values are numpy array
         values = np.asanyarray(values)
         # Ensure the color shape is sane
@@ -252,7 +255,7 @@ class ColorVisuals(object):
 
     def _get_colors(self,
                     name):
-        '''
+        """
         A magical function which maintains the sanity of vertex and face colors.
 
         * If colors have been explicitly stored or changed, they are considered
@@ -272,7 +275,7 @@ class ColorVisuals(object):
         Returns
         -----------
         colors: (count, 4) uint8, RGBA colors
-        '''
+        """
 
         try:
             counts = {'face': len(self.mesh.faces),
@@ -339,19 +342,19 @@ class ColorVisuals(object):
         return colors
 
     def update_vertices(self, mask):
-        '''
+        """
         Apply a mask to remove or duplicate vertex properties.
-        '''
+        """
         self._update_key(mask, 'vertex_colors')
 
     def update_faces(self, mask):
-        '''
+        """
         Apply a mask to remove or duplicate face properties
-        '''
+        """
         self._update_key(mask, 'face_colors')
 
     def face_subset(self, face_index):
-        '''
+        """
         Given a mask of face indices, return a sliced version.
 
         Parameters
@@ -362,19 +365,19 @@ class ColorVisuals(object):
         Returns
         ----------
         visual: ColorVisuals object containing information about a subset of faces.
-        '''
+        """
         result = ColorVisuals(face_colors=self.face_colors[face_index])
         return result
 
     @property
     def main_color(self):
-        '''
+        """
         What is the most commonly occuring color.
 
         Returns
         ------------
         color: (4,) uint8, most common color
-        '''
+        """
         if self.kind is None:
             return DEFAULT_COLOR
         elif self.kind == 'face':
@@ -394,7 +397,7 @@ class ColorVisuals(object):
         return color
 
     def concatenate(self, other, *args):
-        '''
+        """
         Concatenate two or more ColorVisuals objects into a single object.
 
         Parameters
@@ -406,12 +409,12 @@ class ColorVisuals(object):
         -----------
         result: ColorVisuals object containing information from current
                 object and others in the order it was passed.
-        '''
+        """
         result = concatenate_visuals(self, other, *args)
         return result
 
     def __add__(self, other):
-        '''
+        """
         Concatenate two ColorVisuals objects into a single object.
 
         Parameters
@@ -422,11 +425,11 @@ class ColorVisuals(object):
         -----------
         result: ColorVisuals object containing information from current
                 object and other in the order (self, other)
-        '''
+        """
         return self.concatenate(other)
 
     def _update_key(self, mask, key):
-        '''
+        """
         Mask the value contained in the DataStore at a specified key.
 
         Parameters
@@ -434,14 +437,14 @@ class ColorVisuals(object):
         mask: (n,) int
               (n,) bool
         key: hashable object, in self._data
-        '''
+        """
         mask = np.asanyarray(mask)
         if key in self._data:
             self._data[key] = self._data[key][mask]
 
 
 def create_visual(**kwargs):
-    '''
+    """
     Create Visuals object from keyword arguments.
 
     Parameters
@@ -453,12 +456,12 @@ def create_visual(**kwargs):
     Returns
     ----------
     visuals: ColorVisuals object.
-    '''
+    """
     return ColorVisuals(**kwargs)
 
 
 def to_rgba(colors, dtype=np.uint8):
-    '''
+    """
     Convert a single or multiple RGB colors to RGBA colors.
 
     Parameters
@@ -469,7 +472,7 @@ def to_rgba(colors, dtype=np.uint8):
     ----------
     colors: (n,4) list of RGBA colors
             (4,)  single RGBA color
-    '''
+    """
     if not util.is_sequence(colors):
         return
     # colors as numpy array
@@ -501,7 +504,7 @@ def to_rgba(colors, dtype=np.uint8):
 
 
 def hex_to_rgba(color):
-    '''
+    """
     Turn a string hex color to a (4,) RGBA color.
 
     Parameters
@@ -511,7 +514,7 @@ def hex_to_rgba(color):
     Returns
     -----------
     rgba: (4,) np.uint8, RGBA color
-    '''
+    """
     value = str(color).lstrip('#').strip()
     if len(value) == 6:
         rgb = [int(value[i:i + 2], 16) for i in (0, 2, 4)]
@@ -523,7 +526,7 @@ def hex_to_rgba(color):
 
 
 def concatenate_visuals(visuals, *args):
-    '''
+    """
     Concatenate multiple visual objects.
 
     Parameters
@@ -534,7 +537,7 @@ def concatenate_visuals(visuals, *args):
     Returns
     ----------
     concat: ColorVisuals object
-    '''
+    """
     # get a flat list of ColorVisuals objects
     visuals = np.append(visuals, args)
 
@@ -561,7 +564,7 @@ def concatenate_visuals(visuals, *args):
 
 
 def random_color(dtype=np.uint8):
-    '''
+    """
     Return a random RGB color using datatype specified.
 
     Parameters
@@ -571,7 +574,7 @@ def random_color(dtype=np.uint8):
     Returns
     ----------
     color: (4,) dtype, random color that looks OK
-    '''
+    """
     hue = np.random.random() + .61803
     hue %= 1.0
     color = np.array(colorsys.hsv_to_rgb(hue, .99, .99))
@@ -583,7 +586,7 @@ def random_color(dtype=np.uint8):
 
 
 def vertex_to_face_color(vertex_colors, faces):
-    '''
+    """
     Convert a list of vertex colors to face colors.
 
     Parameters
@@ -594,14 +597,14 @@ def vertex_to_face_color(vertex_colors, faces):
     Returns
     -----------
     face_colors: (m,4) colors
-    '''
+    """
     vertex_colors = to_rgba(vertex_colors)
     face_colors = vertex_colors[faces].mean(axis=1)
     return face_colors.astype(np.uint8)
 
 
 def face_to_vertex_color(mesh, face_colors, dtype=np.uint8):
-    '''
+    """
     Convert a list of face colors into a list of vertex colors.
 
     Parameters
@@ -613,7 +616,7 @@ def face_to_vertex_color(mesh, face_colors, dtype=np.uint8):
     Returns
     -----------
     vertex_colors: (m,4) dtype, colors for each vertex
-    '''
+    """
 
     rgba = to_rgba(face_colors)
 
@@ -625,7 +628,7 @@ def face_to_vertex_color(mesh, face_colors, dtype=np.uint8):
 
 
 def colors_to_materials(colors, count=None):
-    '''
+    """
     Convert a list of colors into a list of unique materials and material
     indexes.
 
@@ -638,7 +641,7 @@ def colors_to_materials(colors, count=None):
     -----------
     diffuse: (m,4) int, colors
     index:   (count,) int, index of each color
-    '''
+    """
 
     # convert RGB to RGBA
     rgba = to_rgba(colors)

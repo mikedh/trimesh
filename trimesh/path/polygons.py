@@ -17,7 +17,7 @@ from .traversal import resample_path
 
 
 def enclosure_tree(polygons):
-    '''
+    """
     Given a list of shapely polygons, which are the root (aka outermost)
     polygons, and which represent the holes which penetrate the root
     curve. We do this by creating an R-tree for rough collision detection,
@@ -32,7 +32,7 @@ def enclosure_tree(polygons):
     roots: (m,) int, index of polygons which are root
     contains:  networkx.DiGraph, edges indicate a polygon
                contained by another polygon
-    '''
+    """
     tree = Rtree()
     for i, polygon in enumerate(polygons):
         tree.insert(i, polygon.bounds)
@@ -57,7 +57,7 @@ def enclosure_tree(polygons):
 
 
 def edges_to_polygons(edges, vertices):
-    '''
+    """
     Given an edge list of indices and associated vertices
     representing lines, generate a list of polygons.
 
@@ -69,7 +69,7 @@ def edges_to_polygons(edges, vertices):
     Returns
     ----------
     polygons: (p,) list of shapely.geometry.Polygon objects
-    '''
+    """
     # sequence of ordered traversals
     dfs = graph.dfs_traversals(edges)
     # create closed polygon objects
@@ -94,9 +94,9 @@ def edges_to_polygons(edges, vertices):
 
 
 def polygons_obb(polygons):
-    '''
+    """
     Find the OBBs for a list of shapely.geometry.Polygons
-    '''
+    """
     rectangles = [None] * len(polygons)
     transforms = [None] * len(polygons)
     for i, p in enumerate(polygons):
@@ -105,7 +105,7 @@ def polygons_obb(polygons):
 
 
 def polygon_obb(polygon):
-    '''
+    """
     Find the oriented bounding box of a Shapely polygon.
 
     The OBB is always aligned with an edge of the convex hull of the polygon.
@@ -120,7 +120,7 @@ def polygon_obb(polygon):
                which will move input polygon from its original position
                to the first quadrant where the AABB is the OBB
     extents:   (2,) float, extents of transformed polygon
-    '''
+    """
     points = np.asanyarray(polygon.exterior.coords)
     return bounds.oriented_bounds_2D(points)
 
@@ -139,7 +139,7 @@ def transform_polygon(polygon, transform, plot=False):
 
 
 def rasterize_polygon(polygon, pitch):
-    '''
+    """
     Given a shapely polygon, find the raster representation at a given angle
     relative to the oriented bounding box
 
@@ -153,7 +153,7 @@ def rasterize_polygon(polygon, pitch):
     offset:      (2,) float, where the origin of the raster array is located
     grid:        (n,m) bool, where filled areas are True
     grid_points: (p,2) float, points in space
-    '''
+    """
 
     bounds = np.reshape(polygon.bounds, (2, 2))
     offset = bounds[0]
@@ -217,13 +217,13 @@ def plot_polygon(polygon, show=True):
 
 
 def plot_raster(raster, pitch, offset=[0, 0]):
-    '''
+    """
     Plot a raster representation.
 
     raster: (n,m) array of booleans, representing filled/empty area
     pitch:  the edge length of a box from raster, in cartesian space
     offset: offset in cartesian space to the lower left corner of the raster grid
-    '''
+    """
     import matplotlib.pyplot as plt
     plt.axes().set_aspect('equal', 'datalim')
     filled = (np.column_stack(np.nonzero(raster)) * pitch) + offset
@@ -261,7 +261,7 @@ def stack_boundaries(boundaries):
 
 
 def medial_axis(polygon, resolution=.01, clip=None):
-    '''
+    """
     Given a shapely polygon, find the approximate medial axis based
     on a voronoi diagram of evenly spaced points on the boundary of the polygon.
 
@@ -278,7 +278,7 @@ def medial_axis(polygon, resolution=.01, clip=None):
     Returns
     ----------
     lines:     (n,2,2) set of line segments
-    '''
+    """
     def contains(points):
         return np.array([polygon.contains(Point(i)) for i in points])
 
@@ -292,12 +292,12 @@ def medial_axis(polygon, resolution=.01, clip=None):
 
 
 class InversePolygon:
-    '''
+    """
     Create an inverse polygon.
 
     The primary use case is that given a point inside a polygon,
     you want to find the minimum distance to the boundary of the polygon.
-    '''
+    """
 
     def __init__(self, polygon):
         _DIST_BUFFER = .05
@@ -320,7 +320,7 @@ class InversePolygon:
         self._polygons = np.append(exterior, interiors)
 
     def distances(self, point):
-        '''
+        """
         Find the minimum distances from a point to the exterior and interiors
 
         Parameters
@@ -330,12 +330,12 @@ class InversePolygon:
         Returns
         ---------
         distances: (n) list of floats
-        '''
+        """
         distances = [i.distance(Point(point)) for i in self._polygons]
         return distances
 
     def distance(self, point):
-        '''
+        """
         Find the minimum distance from a point to the boundary of the polygon.
 
         Parameters
@@ -345,13 +345,13 @@ class InversePolygon:
         Returns
         ---------
         distance: float
-        '''
+        """
         distance = np.min(self.distances(point))
         return distance
 
 
 def polygon_hash(polygon):
-    '''
+    """
     An approximate hash of a a shapely Polygon object.
 
     Parameters
@@ -361,7 +361,7 @@ def polygon_hash(polygon):
     Returns
     ---------
     hash: (5) length list of hash representing input polygon
-    '''
+    """
     result = [len(polygon.interiors),
               polygon.convex_hull.area,
               polygon.convex_hull.length,
@@ -371,7 +371,7 @@ def polygon_hash(polygon):
 
 
 def random_polygon(segments=8, radius=1.0):
-    '''
+    """
     Generate a random polygon with a maximum number of sides and approximate radius.
 
     Parameters
@@ -382,7 +382,7 @@ def random_polygon(segments=8, radius=1.0):
     Returns
     ---------
     polygon: shapely.geometry.Polygon object with random exterior, and no interiors.
-    '''
+    """
     angles = np.sort(np.cumsum(np.random.random(
         segments) * np.pi * 2) % (np.pi * 2))
     radii = np.random.random(segments) * radius
@@ -402,7 +402,7 @@ def polygon_scale(polygon):
 
 
 def paths_to_polygons(paths, scale=None):
-    '''
+    """
     Given a sequence of connected points turn them into
     valid shapely Polygon objects.
 
@@ -416,7 +416,7 @@ def paths_to_polygons(paths, scale=None):
     polys: (p,) list of shapely.geometry.Polygons
     valid: (n,) bool, whether input path was valid:
                         valid.sum() == p
-    '''
+    """
     polygons = []
     valid = np.zeros(len(paths), dtype=np.bool)
     for i, path in enumerate(paths):
@@ -436,7 +436,7 @@ def paths_to_polygons(paths, scale=None):
 
 
 def repair_invalid(polygon, scale=None):
-    '''
+    """
     Given a shapely.geometry.Polygon, attempt to return a
     valid version of the polygon.
 
@@ -452,7 +452,7 @@ def repair_invalid(polygon, scale=None):
     Raises
     ----------
     ValueError: if polygon can't be repaired
-    '''
+    """
     if hasattr(polygon, 'is_valid') and polygon.is_valid:
         return polygon
 

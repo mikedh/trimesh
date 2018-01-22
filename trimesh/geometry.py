@@ -12,7 +12,7 @@ except ImportError:
 
 
 def plane_transform(origin, normal):
-    '''
+    """
     Given the origin and normal of a plane, find the transform that will move
     that plane to be coplanar with the XY plane
 
@@ -24,14 +24,14 @@ def plane_transform(origin, normal):
     Returns
     ---------
     transform: (4,4) float, transformation matrix
-    '''
+    """
     transform = align_vectors(normal, [0, 0, 1])
     transform[0:3, 3] = -np.dot(transform, np.append(origin, 1))[0:3]
     return transform
 
 
 def transform_around(matrix, point):
-    '''
+    """
     Given a transformation matrix, apply its rotation component around a
     point in space.
 
@@ -43,7 +43,7 @@ def transform_around(matrix, point):
     Returns
     ---------
     result: (4,4) transformation matrix
-    '''
+    """
     point = np.array(point)
     translate = np.eye(4)
     translate[0:3, 3] = -point
@@ -54,7 +54,7 @@ def transform_around(matrix, point):
 
 
 def align_vectors(vector_start, vector_end, return_angle=False):
-    '''
+    """
     Returns the 4x4 transformation matrix which will rotate from
     vector_start to vector_end, eg:
 
@@ -72,7 +72,7 @@ def align_vectors(vector_start, vector_end, return_angle=False):
     transform: (4,4) float, transformation matrix
     angle:     float, angle in radians (only returned if flag set)
 
-    '''
+    """
     start = np.asanyarray(vector_start, dtype=np.float64)
     start /= np.linalg.norm(start)
     end = np.asanyarray(vector_end, dtype=np.float64)
@@ -106,7 +106,7 @@ def align_vectors(vector_start, vector_end, return_angle=False):
 
 
 def faces_to_edges(faces, return_index=False):
-    '''
+    """
     Given a list of faces (n,3), return a list of edges (n*3,2)
 
     Parameters
@@ -116,7 +116,7 @@ def faces_to_edges(faces, return_index=False):
     Returns
     -----------
     edges: (n*3, 2) int, vertex indices representing edges
-    '''
+    """
     faces = np.asanyarray(faces)
     edges = np.column_stack((faces[:, (0, 1)],
                              faces[:, (1, 2)],
@@ -128,7 +128,7 @@ def faces_to_edges(faces, return_index=False):
 
 
 def vector_angle(pairs):
-    '''
+    """
     Find the angles between vector pairs
 
     Parameters
@@ -142,7 +142,7 @@ def vector_angle(pairs):
     Examples
     ----------
     angles = mesh.face_normals[mesh.face_adjacency]
-    '''
+    """
     pairs = np.asanyarray(pairs)
     if len(pairs) == 0:
         return np.array([])
@@ -156,7 +156,7 @@ def vector_angle(pairs):
 
 
 def triangulate_quads(quads):
-    '''
+    """
     Given a set of quad faces, return them as triangle faces.
 
     Parameters
@@ -166,7 +166,7 @@ def triangulate_quads(quads):
     Returns
     -----------
     faces: (m,3) int, vertex indices of triangular faces
-    '''
+    """
     if len(quads) == 0:
         return quads
     quads = np.asanyarray(quads)
@@ -176,7 +176,7 @@ def triangulate_quads(quads):
 
 
 def mean_vertex_normals(vertex_count, faces, face_normals, **kwargs):
-    '''
+    """
     Find vertex normals from the mean of the faces that contain that vertex.
 
     Parameters
@@ -189,7 +189,7 @@ def mean_vertex_normals(vertex_count, faces, face_normals, **kwargs):
     -----------
     vertex_normals: (vertex_count, 3) float normals for every vertex
                     Uncontained vertices will be zero.
-    '''
+    """
     def summed_sparse():
         # use a sparse matrix of which face contains each vertex to
         # figure out the summed normal at each vertex
@@ -224,7 +224,7 @@ def mean_vertex_normals(vertex_count, faces, face_normals, **kwargs):
 
 
 def index_sparse(column_count, indices):
-    '''
+    """
     Return a sparse matrix for which vertices are contained in which faces.
 
     Returns
@@ -264,7 +264,7 @@ def index_sparse(column_count, indices):
 
     In [7]: dense.sum(axis=0)
     Out[7]: array([3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3])
-    '''
+    """
     indices = np.asanyarray(indices)
     column_count = int(column_count)
 
@@ -281,7 +281,7 @@ def index_sparse(column_count, indices):
 
 
 def medial_axis(samples, contains):
-    '''
+    """
     Given a set of samples on a boundary, find the approximate medial axis based
     on a voronoi diagram and a containment function which can assess whether
     a point is inside or outside of the closed geometry.
@@ -294,7 +294,7 @@ def medial_axis(samples, contains):
     Returns
     ----------
     lines:     (n,2,2) set of line segments
-    '''
+    """
 
     from scipy.spatial import Voronoi
     from .path.io.load import load_path

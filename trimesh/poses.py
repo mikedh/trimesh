@@ -1,3 +1,9 @@
+"""
+poses.py
+-----------
+
+Find stable orientations of meshes.
+"""
 import networkx as nx
 import numpy as np
 
@@ -7,7 +13,7 @@ from .triangles import points_to_barycentric
 
 def compute_stable_poses(mesh, center_mass=None,
                          sigma=0.0, n_samples=1, threshold=0.0):
-    '''
+    """
     Computes stable orientations of a mesh and their quasi-static probabilites.
 
     This method samples the location of the center of mass from a multivariate
@@ -42,7 +48,7 @@ def compute_stable_poses(mesh, center_mass=None,
                                      and the object just touching the table.
 
     probs:      list of floats,       a probability in (0, 1) for each pose
-    '''
+    """
 
     # save convex hull mesh to avoid a cache check
     cvh = mesh.convex_hull
@@ -138,7 +144,7 @@ def compute_stable_poses(mesh, center_mass=None,
 
 
 def _orient3dfast(plane, pd):
-    '''
+    """
     Performs a fast 3D orientation test.
 
     Parameters
@@ -152,7 +158,7 @@ def _orient3dfast(plane, pd):
                    the given three points, if less than zero then pd is below
                    the given plane, and if equal to zero then pd is on the
                    given plane.
-    '''
+    """
     pa, pb, pc = plane
     adx = pa[0] - pd[0]
     bdx = pb[0] - pd[0]
@@ -170,7 +176,7 @@ def _orient3dfast(plane, pd):
 
 
 def _compute_static_prob(tri, com):
-    '''
+    """
     For an object with the given center of mass, compute
     the probability that the given tri would be the first to hit the
     ground if the object were dropped with a pose chosen uniformly at random.
@@ -183,7 +189,7 @@ def _compute_static_prob(tri, com):
     Returns
     -------
     prob: float, the probability in [0,1] for the given triangle
-    '''
+    """
     sv = [(v - com) / np.linalg.norm(v - com) for v in tri]
 
     # Use L'Huilier's Formula to compute spherical area
@@ -203,7 +209,7 @@ def _compute_static_prob(tri, com):
 
 
 def _create_topple_graph(cvh_mesh, com):
-    '''
+    """
     Constructs a toppling digraph for the given convex hull mesh and
     center of mass.
 
@@ -225,7 +231,7 @@ def _create_topple_graph(cvh_mesh, com):
     -------
     graph: networkx.DiGraph(), graph representing static probabilities and toppling
                                order for the convex hull
-    '''
+    """
     adj_graph = nx.Graph()
     topple_graph = nx.DiGraph()
 

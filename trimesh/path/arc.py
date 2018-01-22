@@ -8,7 +8,7 @@ from .intersections import line_line
 
 
 def arc_center(points):
-    '''
+    """
     Given three points of an arc, find the center, radius, normal, and angle.
 
     This uses the fact that the intersection of the perpendicular
@@ -26,7 +26,7 @@ def arc_center(points):
         'normal':   (3,) float, the plane normal.
         'angle':    (2,) float, angle of start and end, in radians
         'span' :    float, angle swept by the arc, in radians
-    '''
+    """
     # it's a lot easier to treat 2D as 3D with a zero Z value
     is_2D, points = three_dimensionalize(points, return_2D=True)
 
@@ -66,7 +66,7 @@ def arc_center(points):
 
 
 def discretize_arc(points, close=False, scale=1.0):
-    '''
+    """
     Returns a version of a three point arc consisting of line segments
 
     Parameters
@@ -79,7 +79,7 @@ def discretize_arc(points, close=False, scale=1.0):
     discrete: (m, d)
     points: either (3,3) or (3,2) of points for arc going from
             points[0] to points[2], going through control point points[1]
-    '''
+    """
     two_dimensional, points = three_dimensionalize(points, return_2D=True)
     center_info = arc_center(points)
     center, R, N, angle = (center_info['center'],
@@ -121,9 +121,9 @@ def discretize_arc(points, close=False, scale=1.0):
 
 
 def arc_tangents(points):
-    '''
+    """
     returns tangent vectors for points
-    '''
+    """
     two_dimensional, points = three_dimensionalize(points, return_2D=True)
     center, R, N, angle = arc_center(points)
     vectors = points - center
@@ -140,7 +140,7 @@ def arc_offset(points, distance):
 
 
 def to_threepoint(center, radius, angles=None):
-    '''
+    """
     For 2D arcs, given a center and radius convert them to three
     points on the arc.
 
@@ -154,7 +154,7 @@ def to_threepoint(center, radius, angles=None):
     Returns
     ----------
     three: (3,2) float, arc control points
-    '''
+    """
     # if no angles provided assume we want a half circle
     if angles is None:
         angles = [0.0, np.pi]

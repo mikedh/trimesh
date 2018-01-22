@@ -1,3 +1,12 @@
+"""
+primitives.py
+----------------
+
+Subclasses of Trimesh objects that are parameterized as primitives.
+
+Useful because you can move boxes and spheres around, and then use
+trimesh operations on them at any point.
+"""
 import numpy as np
 import pprint
 import copy
@@ -13,10 +22,10 @@ from .constants import log
 
 
 class _Primitive(Trimesh):
-    '''
+    """
     Geometric _Primitives which are a subclass of Trimesh.
     Mesh is generated lazily when vertices or faces are requested.
-    '''
+    """
 
     def __init__(self, *args, **kwargs):
         super(_Primitive, self).__init__(*args, **kwargs)
@@ -63,17 +72,17 @@ class _Primitive(Trimesh):
             log.warning('Primitive face normals are immutable! Not setting!')
 
     def copy(self):
-        '''
+        """
         Return a copy of the Primitive object.
-        '''
+        """
         result = copy.deepcopy(self)
         result._cache.clear()
         return result
 
     def to_mesh(self):
-        '''
+        """
         Return a copy of the Primitive object as a Trimesh object.
-        '''
+        """
         result = Trimesh(vertices=self.vertices.copy(),
                          faces=self.faces.copy(),
                          face_normals=self.face_normals.copy(),
@@ -81,13 +90,13 @@ class _Primitive(Trimesh):
         return result
 
     def apply_transform(self, matrix):
-        '''
+        """
         Apply a transform to the current primitive (sets self.transform)
 
         Parameters
         -----------
         matrix: (4,4) float, homogenous transformation
-        '''
+        """
         matrix = np.asanyarray(matrix, order='C', dtype=np.float64)
         if matrix.shape != (4, 4):
             raise ValueError('Transformation matrix must be (4,4)!')
@@ -105,9 +114,9 @@ class _Primitive(Trimesh):
 
 
 class _PrimitiveAttributes(object):
-    '''
+    """
     Hold the mutable data which defines a primitive.
-    '''
+    """
 
     def __init__(self, parent, defaults, kwargs):
         self._data = parent._data
@@ -175,7 +184,7 @@ class _PrimitiveAttributes(object):
 class Cylinder(_Primitive):
 
     def __init__(self, *args, **kwargs):
-        '''
+        """
         Create a Cylinder Primitive, a subclass of Trimesh.
 
         Parameters
@@ -184,7 +193,7 @@ class Cylinder(_Primitive):
         height: float, height of cylinder
         transform: (4,4) float, transformation matrix
         sections: int, number of facets in circle
-        '''
+        """
         super(Cylinder, self).__init__(*args, **kwargs)
 
         defaults = {'height': 10.0,
@@ -197,25 +206,25 @@ class Cylinder(_Primitive):
 
     @util.cache_decorator
     def volume(self):
-        '''
+        """
         The analytic volume of the cylinder primitive.
 
         Returns
         ---------
         volume: float, volume of the cylinder
-        '''
+        """
         volume = (np.pi * self.primitive.radius ** 2) * self.primitive.height
         return volume
 
     @util.cache_decorator
     def moment_inertia(self):
-        '''
+        """
         The analytic inertia tensor of the cylinder primitive.
 
         Returns
         ----------
         tensor: (3,3) float, 3D inertia tensor
-        '''
+        """
 
         tensor = inertia.cylinder_inertia(mass=self.volume,
                                           radius=self.primitive.radius,
@@ -225,13 +234,13 @@ class Cylinder(_Primitive):
 
     @property
     def direction(self):
-        '''
+        """
         The direction of the cylinder's axis.
 
         Returns
         --------
         axis: (3,) float, vector along the cylinder axis
-        '''
+        """
         axis = np.dot(self.primitive.transform, [0, 0, 1, 0])[:3]
         return axis
 
@@ -254,7 +263,7 @@ class Cylinder(_Primitive):
 class Capsule(_Primitive):
 
     def __init__(self, *args, **kwargs):
-        '''
+        """
         Create a Capsule Primitive, a subclass of Trimesh.
 
         Parameters
@@ -263,7 +272,7 @@ class Capsule(_Primitive):
         height: float, height of cylinder
         transform: (4,4) float, transformation matrix
         sections: int, number of facets in circle
-        '''
+        """
         super(Capsule, self).__init__(*args, **kwargs)
 
         defaults = {'height': 1.0,
@@ -276,13 +285,13 @@ class Capsule(_Primitive):
 
     @property
     def direction(self):
-        '''
+        """
         The direction of the capsule's axis.
 
         Returns
         --------
         axis: (3,) float, vector along the cylinder axis
-        '''
+        """
         axis = np.dot(self.primitive.transform, [0, 0, 1, 0])[:3]
         return axis
 
@@ -304,7 +313,7 @@ class Capsule(_Primitive):
 class Sphere(_Primitive):
 
     def __init__(self, *args, **kwargs):
-        '''
+        """
         Create a Sphere Primitive, a subclass of Trimesh.
 
         Parameters
@@ -312,7 +321,7 @@ class Sphere(_Primitive):
         radius: float, radius of sphere
         center: (3,) float, center of sphere
         subdivisions: int, number of subdivisions for icosphere. Default is 3
-        '''
+        """
 
         super(Sphere, self).__init__(*args, **kwargs)
 
@@ -325,13 +334,13 @@ class Sphere(_Primitive):
                                               kwargs)
 
     def apply_transform(self, matrix):
-        '''
+        """
         Apply a transform to the sphere primitive
 
         Parameters
         ------------
         matrix: (4,4) float, homogenous transformation
-        '''
+        """
         matrix = np.asanyarray(matrix, dtype=np.float64)
         if matrix.shape != (4, 4):
             raise ValueError('shape must be 4,4')
@@ -360,39 +369,39 @@ class Sphere(_Primitive):
 
     @util.cache_decorator
     def area(self):
-        '''
+        """
         Surface area of the current sphere primitive.
 
         Returns
         --------
         area: float, surface area of the sphere Primitive
-        '''
+        """
 
         area = 4.0 * np.pi * (self.primitive.radius ** 2)
         return area
 
     @util.cache_decorator
     def volume(self):
-        '''
+        """
         Volume of the current sphere primitive.
 
         Returns
         --------
         volume: float, volume of the sphere Primitive
-        '''
+        """
 
         volume = (4.0 * np.pi * (self.primitive.radius ** 3)) / 3.0
         return volume
 
     @util.cache_decorator
     def moment_inertia(self):
-        '''
+        """
         The analytic inertia tensor of the sphere primitive.
 
         Returns
         ----------
         tensor: (3,3) float, 3D inertia tensor
-        '''
+        """
         tensor = inertia.sphere_inertia(mass=self.volume,
                                         radius=self.primitive.radius)
         return tensor
@@ -410,14 +419,14 @@ class Sphere(_Primitive):
 class Box(_Primitive):
 
     def __init__(self, *args, **kwargs):
-        '''
+        """
         Create a Box Primitive, a subclass of Trimesh
 
         Parameters
         ----------
         extents:   (3,)  float, size of box
         transform: (4,4) float, transformation matrix for box center
-        '''
+        """
         super(Box, self).__init__(*args, **kwargs)
 
         defaults = {'transform': np.eye(4),
@@ -427,7 +436,7 @@ class Box(_Primitive):
                                               kwargs)
 
     def sample_volume(self, count):
-        '''
+        """
         Return random samples from inside the volume of the box.
 
         Parameters
@@ -437,14 +446,14 @@ class Box(_Primitive):
         Returns
         ----------
         samples: (count,3) float, points inside the volume
-        '''
+        """
         samples = sample.volume_rectangular(extents=self.primitive.extents,
                                             count=count,
                                             transform=self.primitive.transform)
         return samples
 
     def sample_grid(self, count=None, step=None):
-        '''
+        """
         Return a 3D grid which is contained by the box.
         Samples are either 'step' distance apart, or there are
         'count' samples per box side.
@@ -457,7 +466,7 @@ class Box(_Primitive):
         Returns
         -----------
         grid: (n,3) float, points inside the box
-        '''
+        """
 
         if (count is not None and
                 step is not None):
@@ -480,9 +489,9 @@ class Box(_Primitive):
 
     @property
     def is_oriented(self):
-        '''
+        """
         Returns whether or not the current box is rotated at all.
-        '''
+        """
         if util.is_shape(self.primitive.transform, (4, 4)):
             return not np.allclose(self.primitive.transform[
                                    0:3, 0:3], np.eye(3))
@@ -491,13 +500,13 @@ class Box(_Primitive):
 
     @util.cache_decorator
     def volume(self):
-        '''
+        """
         Volume of the box Primitive.
 
         Returns
         --------
         volume: float, volume of box
-        '''
+        """
         volume = float(np.product(self.primitive.extents))
         return volume
 
@@ -514,7 +523,7 @@ class Box(_Primitive):
 class Extrusion(_Primitive):
 
     def __init__(self, *args, **kwargs):
-        '''
+        """
         Create an Extrusion Primitive, a subclass of Trimesh
 
         Parameters
@@ -522,7 +531,7 @@ class Extrusion(_Primitive):
         polygon:   shapely.geometry.Polygon, polygon to extrude
         transform: (4,4) float, transform to apply after extrusion
         height:    float, height to extrude polygon by
-        '''
+        """
         super(Extrusion, self).__init__(*args, **kwargs)
 
         # do the import here, so we fail early if Shapely isn't installed
@@ -538,7 +547,7 @@ class Extrusion(_Primitive):
 
     @util.cache_decorator
     def area(self):
-        '''
+        """
         The surface area of the primitive extrusion.
 
         Calculated from polygon and height to avoid mesh creation.
@@ -546,7 +555,7 @@ class Extrusion(_Primitive):
         Returns
         ----------
         area: float, surface area of 3D extrusion
-        '''
+        """
         # area of the sides of the extrusion
         area = self.primitive.height * self.primitive.polygon.length
         # area of the two caps of the extrusion
@@ -555,7 +564,7 @@ class Extrusion(_Primitive):
 
     @util.cache_decorator
     def volume(self):
-        '''
+        """
         The volume of the primitive extrusion.
 
         Calculated from polygon and height to avoid mesh creation.
@@ -563,13 +572,13 @@ class Extrusion(_Primitive):
         Returns
         ----------
         volume: float, volume of 3D extrusion
-        '''
+        """
         volume = self.primitive.polygon.area * self.primitive.height
         return volume
 
     @property
     def direction(self):
-        '''
+        """
         Based on the extrudes transform, what is the vector along
         which the polygon will be extruded
 
@@ -577,20 +586,20 @@ class Extrusion(_Primitive):
         ---------
         direction: (3,) float vector. If self.primitive.transform is an
                    identity matrix this will be [0.0, 0.0, 1.0]
-        '''
+        """
         direction = np.dot(self.primitive.transform[:3, :3],
                            [0.0, 0.0, np.sign(self.primitive.height)])
         return direction
 
     def slide(self, distance):
-        '''
+        """
         Alter the transform of the current extrusion to slide it along its
         extrude_direction vector
 
         Parameters
         -----------
         distance: float, distance along self.extrude_direction to move
-        '''
+        """
         distance = float(distance)
         translation = np.eye(4)
         translation[2, 3] = distance
@@ -599,14 +608,14 @@ class Extrusion(_Primitive):
         self.primitive.transform = new_transform
 
     def buffer(self, distance):
-        '''
+        """
         Return a new Extrusion object which is expanded in profile and
         in height by a specified distance.
 
         Returns
         ----------
         buffered: Extrusion object
-        '''
+        """
         distance = float(distance)
         buffered = Extrusion(transform=self.primitive.transform.copy(),
                              polygon=self.primitive.polygon.buffer(distance),

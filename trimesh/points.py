@@ -1,6 +1,9 @@
-'''
-Functions dealing with (n,d) points
-'''
+"""
+points.py
+-------------
+
+Functions dealing with (n,d) points.
+"""
 import numpy as np
 
 from .constants import log, tol
@@ -10,24 +13,49 @@ from . import transformations
 from . import util
 
 
-def point_plane_distance(points, plane_normal, plane_origin=[0, 0, 0]):
-    w = np.array(points) - plane_origin
+def point_plane_distance(points, 
+                         plane_normal, 
+                         plane_origin=[0.0, 0.0, 0.0]):
+    """
+    The minimum perpendicular distance of a point to a plane.
+
+    Parameters
+    -----------
+    points:       (n, 3) float, points in space
+    plane_normal: (3,) float, normal vector
+    plane_origin: (3,) float, plane origin in space
+
+    Returns
+    ------------
+    distances:     (n,) float, distance from point to plane
+    """
+    points = np.asanyarray(points, dtype=np.float64)
+    w = points - plane_origin
     distances = np.dot(plane_normal, w.T) / np.linalg.norm(plane_normal)
     return distances
 
 
 def major_axis(points):
-    '''
+    """
     Returns an approximate vector representing the major axis of points
-    '''
+
+    Parameters
+    -------------
+    points: (n, dimension) float, points in space
+
+    Returns
+    -------------
+    axis: (dimension,) float, vector along approximate major axis
+    """
     U, S, V = np.linalg.svd(points)
     axis = util.unitize(np.dot(S, V))
     return axis
 
 
 def plane_fit(points, tolerance=None):
-    '''
+    """
     Given a set of points, find an origin and normal using least squares
+
     Parameters
     ---------
     points: (n,3)
@@ -37,7 +65,7 @@ def plane_fit(points, tolerance=None):
     ---------
     C: (3) point on the plane
     N: (3) normal vector
-    '''
+    """
 
     C = points[0]
     x = points - C
@@ -55,13 +83,21 @@ def plane_fit(points, tolerance=None):
 def radial_sort(points,
                 origin=None,
                 normal=None):
-    '''
+    """
     Sorts a set of points radially (by angle) around an origin/normal.
     If origin/normal aren't specified, it sorts around centroid
     and the approximate plane the points lie in.
 
-    points: (n,3) set of points
-    '''
+    Parameters
+    --------------
+    points: (n,3) float, points in space
+    origin: (3,)  float, origin to sort around
+    normal: (3,)  float, vector to sort around
+
+    Returns
+    --------------
+    ordered: (n,3) flot, re- ordered points in space
+    """
     # if origin and normal aren't specified, generate one at the centroid
     if origin is None:
         origin = np.average(points, axis=0)
@@ -89,7 +125,7 @@ def project_to_plane(points,
                      transform=None,
                      return_transform=False,
                      return_planar=True):
-    '''
+    """
     Projects a set of (n,3) points onto a plane.
 
     Parameters
@@ -102,7 +138,7 @@ def project_to_plane(points,
                       onto a plane
     return_planar:    bool, if True, returns (n,2) points. If False, returns
                       (n,3), where the Z column consists of zeros
-    '''
+    """
 
     if np.all(np.abs(plane_normal) < tol.zero):
         raise NameError('Normal must be nonzero!')
@@ -120,7 +156,7 @@ def project_to_plane(points,
 
 
 def absolute_orientation(points_A, points_B, return_error=False):
-    '''
+    """
     Calculates the transform that best aligns points_A with points_B
     Uses Horn's method for the absolute orientation problem, in 3D with no scaling.
 
@@ -137,7 +173,7 @@ def absolute_orientation(points_A, points_B, return_error=False):
     M:    (4,4) transformation matrix for the transform that best aligns
            points_A to points_B
     error: float, list of maximum euclidean distance
-    '''
+    """
 
     points_A = np.array(points_A)
     points_B = np.array(points_B)
@@ -184,7 +220,7 @@ def absolute_orientation(points_A, points_B, return_error=False):
 
 
 def remove_close(points, radius):
-    '''
+    """
     Given an (n, m) set of points where n=(2|3) return a list of points
     where no point is closer than radius.
 
@@ -197,7 +233,7 @@ def remove_close(points, radius):
     ------------
     culled: (m, dimension) float, points in space
     mask:   (n,) bool, which points from the original set were returned
-    '''
+    """
     from scipy.spatial import cKDTree as KDTree
 
     tree = KDTree(points)
@@ -214,11 +250,11 @@ def remove_close(points, radius):
 
 
 def remove_close_set(points_fixed, points_reduce, radius):
-    '''
+    """
     Given two sets of points and a radius, return a set of points
     that is the subset of points_reduce where no point is within
     radius of any point in points_fixed
-    '''
+    """
     from scipy.spatial import cKDTree as KDTree
 
     tree_fixed = KDTree(points_fixed)
@@ -232,7 +268,7 @@ def remove_close_set(points_fixed, points_reduce, radius):
 
 
 def k_means(points, k, **kwargs):
-    '''
+    """
     Find k centroids that attempt to minimize the k- means problem:
     https://en.wikipedia.org/wiki/Metric_k-center
 
@@ -246,7 +282,7 @@ def k_means(points, k, **kwargs):
     ----------
     centroids: (k, d) set of points
     labels: (n) set of indexes for which points belong to which centroid
-    '''
+    """
     from scipy.cluster.vq import kmeans
     from scipy.spatial import cKDTree
 
@@ -261,9 +297,9 @@ def k_means(points, k, **kwargs):
 
 
 def plot_points(points, show=True):
-    '''
+    """
     Plot an (n,3) list of points using matplotlib
-    '''
+    """
     import matplotlib.pyplot as plt
     from mpl_toolkits.mplot3d import Axes3D
 
@@ -283,10 +319,10 @@ def plot_points(points, show=True):
 
 
 class PointCloud(object):
-    '''
+    """
     Hold a 3D set of points in an object which can be visualized
     in a scene.
-    '''
+    """
 
     def __init__(self, *args, **kwargs):
         self._data = util.DataStore()

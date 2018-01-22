@@ -14,7 +14,7 @@ identifier_sigfig = (5,  # mesh volume, pretty stable
 
 
 def identifier_simple(mesh):
-    '''
+    """
     Return a basic identifier for a mesh, consisting of properties
     that are somewhat robust to transformation and noise.
 
@@ -32,7 +32,7 @@ def identifier_simple(mesh):
     Returns
     ----------
     identifier: (5,) float, properties of mesh
-    '''
+    """
     identifier = np.array([mesh.volume,
                            mesh.area,
                            mesh.volume / mesh.convex_hull.volume,
@@ -51,7 +51,7 @@ def identifier_simple(mesh):
 
 
 def identifier_hash(identifier, sigfig=None):
-    '''
+    """
     Hash an identifier array to a specified number of signifigant figures.
 
     Parameters
@@ -62,7 +62,7 @@ def identifier_hash(identifier, sigfig=None):
     Returns
     ----------
     md5: str, MD5 hash of identifier
-    '''
+    """
     if sigfig is None:
         sigfig = identifier_sigfig
     as_int, multiplier = util.sigfig_int(identifier, sigfig)
