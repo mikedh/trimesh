@@ -1255,7 +1255,7 @@ def type_named(obj, name):
             return base
     raise ValueError('Unable to extract class of name ' + name)
 
-
+    
 def concatenate(a, b):
     '''
     Concatenate two meshes.

@@ -19,6 +19,7 @@ from ..units import _set_units
 from ..util import decimal_to_digits
 from ..constants import log
 from ..constants import tol_path as tol
+from .util import concatenate
 
 from .. import util
 from .. import grouping
@@ -526,22 +527,7 @@ class Path(object):
         -----------
         concat: Path object, appended from self and other
         '''
-
-        new_entities = copy.deepcopy(other.entities)
-        for entity in new_entities:
-            entity.points += len(self.vertices)
-        new_entities = np.append(copy.deepcopy(self.entities),
-                                 new_entities)
-
-        new_vertices = np.vstack((self.vertices,
-                                  other.vertices))
-
-        new_meta = copy.deepcopy(self.metadata)
-        new_meta.update(other.metadata)
-
-        concat = self.__class__(entities=new_entities,
-                                vertices=new_vertices,
-                                metadata=new_meta)
+        concat = concatenate([self, other])
         return concat
 
 
