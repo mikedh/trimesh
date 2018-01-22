@@ -130,60 +130,88 @@ def pack_rectangles(rectangles, sheet_size, shuffle=False):
     return density, offset[inserted], inserted, consumed_box
 
 
-def pack_paths(paths, show=False):
-    paths_full = deque()
+def pack_paths(paths, sheet_size=None):
+    """
+    Pack a list of Path2D objects into a rectangle.
+
+    Parameters
+    ------------
+    paths: (n,) list, of Path2D objects
+
+    Returns
+    ------------
+    packed: Path2D object
+    """    
+    multi = []
     for path in paths:
         if 'quantity' in path.metadata:
-            paths_full.extend([path.copy()
-                               for i in range(path.metadata['quantity'])])
+            count = path.metadata['quantity']
         else:
-            paths_full.append(path.copy())
+            count = 1
+        for i in range(path.metadata['quantity']):
+            multi.append(path.copy())
 
-    polygons = [i.polygons_closed[i.root[0]] for i in paths_full]
-    inserted, transforms = multipack(np.array(polygons))
-    for path, transform in zip(paths_full, transforms):
+    polygons = [i.polygons_closed[i.root[0]] for i in multi]
+    inserted, transforms = multipack(polygons=polygons,
+                                     sheet_size=sheet_size)
+
+    for path, transform in zip(multi, transforms):
         path.apply_transform(transform)
-        if show:
-            path.plot_discrete(show=False)
-    if show:
-        import matplotlib.pyplot as plt
-        plt.show()
-    return paths_full
+    packed = sum(multi)
+
+    return packed
 
 
 def multipack(polygons,
               sheet_size=None,
               iterations=50,
-              density_escape=.985,
-              buffer_dist=0.09,
-              plot=False,
-              return_all=False):
-    '''
-    Run multiple iterations of rectangle packing, by randomly permutating the
-    insertion order
+              density_escape=.95,
+              spacing=0.125):
+    """
+    Pack polygons into a rectangle.
 
-    If sheet size isn't specified, it creates a large sheet that can fit all
-    of the polygons
-    '''
+    Parameters
+    ------------
+    polygons:   (n,) list, of shapely.geometry.Polygon objects
+    sheet_size: (2,) float, size of sheet
+    iterations: int, number of times to run the loop
+    density_escape: float, when to exit early
+    spacing:        float, how big a gap to leave between polygons
+  
+    Returns
+    -------------
+    overall_inserted:  (n,) bool, was polygon inserted
+    transforms_packed: (m, 3, 3) float, transformations
+    """
+
+    # find the oriented bounding box of the polygons
     transforms_obb, rectangles = polygons_obb(polygons)
-    rectangles += 2.0 * buffer_dist
-    polygon_area = np.array([p.area for p in polygons])
+    # pad all sides of the rectangle
+    rectangles += 2.0 * spacing
 
+    # move the OBB transform so the polygon is centered
+    # in the padded rectangle
     for i, r in enumerate(rectangles):
         transforms_obb[i][0:2, 2] += r * .5
 
     tic = time_function()
     overall_density = 0
 
+    # if no sheet size specified, make a large one 
     if sheet_size is None:
         max_dim = np.max(rectangles, axis=0)
         sum_dim = np.sum(rectangles, axis=0)
         sheet_size = [sum_dim[0], max_dim[1] * 2]
 
-    log.info('Packing %d polygons', len(polygons))
+    log.debug('packing %d polygons', len(polygons))
+    # run packing for a number of iterations, shuffling insertion order
     for i in range(iterations):
-        density, offset, inserted, sheet = pack_rectangles(
-            rectangles, sheet_size=sheet_size, shuffle=(i != 0))
+        (density, 
+         offset, 
+         inserted, 
+         sheet) = pack_rectangles(rectangles, 
+                                  sheet_size=sheet_size, 
+                                  shuffle=(i != 0))
         if density > overall_density:
             overall_density = density
             overall_offset = offset
@@ -193,30 +221,15 @@ def multipack(polygons,
                 break
 
     toc = time_function()
-    log.info('Packing finished %i iterations in %f seconds', i + 1, toc - tic)
-    log.info('%i/%i parts were packed successfully',
-             np.sum(overall_inserted), len(polygons))
-    log.info('Final rectangular density is %f.', overall_density)
+    log.debug('packing finished %i iterations in %f seconds', 
+              i + 1, 
+              toc - tic)
+    log.debug('%i/%i parts were packed successfully',
+             np.sum(overall_inserted), 
+              len(polygons))
+    log.debug('final rectangular density is %f.', overall_density)
 
-    polygon_density = np.sum(
-        polygon_area[overall_inserted]) / np.product(overall_sheet)
-    log.info('Final polygonal density is %f.', polygon_density)
-
-    transforms_obb = transforms_obb[overall_inserted]
-    transforms_packed = transforms_obb.copy()
-    transforms_packed.reshape(-1, 9)[:, [2, 5]] += overall_offset + buffer_dist
-
-    if plot:
-        transform_polygon(np.array(polygons)[overall_inserted],
-                          transforms_packed,
-                          plot=True)
-    rectangles -= 2.0 * buffer_dist
-
-    if return_all:
-        return (overall_inserted,
-                transforms_packed,
-                transforms_obb,
-                overall_sheet,
-                rectangles[overall_inserted])
+    transforms_packed = transforms_obb[overall_inserted]
+    transforms_packed.reshape(-1, 9)[:, [2, 5]] += overall_offset + spacing
 
     return overall_inserted, transforms_packed
