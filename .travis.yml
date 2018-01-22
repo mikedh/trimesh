@@ -56,4 +56,4 @@ script:
 - nose2
 - cd ../examples
 - for f in *.ipynb; do python ../tests/notebook_run.py "$f"; done
-
+- cd ..
