@@ -8,11 +8,11 @@ class PackingTest(g.unittest.TestCase):
         self.nestable = [Polygon(i) for i in g.data['nestable']]
 
     def test_obb(self):
-        from trimesh.path import packing as packing
+        from trimesh.path import packing
         inserted, transforms = packing.multipack(self.nestable)
 
     def test_paths(self):
-        from trimesh.path import packing as packing
+        from trimesh.path import packing
         paths = [g.trimesh.load_path(i) for i in self.nestable]
         r = packing.pack_paths(paths)
 

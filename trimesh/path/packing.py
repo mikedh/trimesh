@@ -148,16 +148,18 @@ def pack_paths(paths, sheet_size=None):
             count = path.metadata['quantity']
         else:
             count = 1
-        for i in range(path.metadata['quantity']):
+        for i in range(count):
             multi.append(path.copy())
-
+    
     polygons = [i.polygons_closed[i.root[0]] for i in multi]
     inserted, transforms = multipack(polygons=polygons,
                                      sheet_size=sheet_size)
 
+    
     for path, transform in zip(multi, transforms):
         path.apply_transform(transform)
-    packed = sum(multi)
+
+    packed = np.sum(multi)
 
     return packed
 
