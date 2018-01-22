@@ -2,7 +2,7 @@
 graph.py
 -------------
 
-Deal with graph operations. Primarily deal with graphs in (n,2) 
+Deal with graph operations. Primarily deal with graphs in (n,2)
 edge list form, and abstract the backend graph library being used.
 
 Currently uses networkx, scipy.sparse.csgraph, or graph_tool backends.

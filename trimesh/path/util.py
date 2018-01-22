@@ -67,4 +67,3 @@ def concatenate(paths):
                         entities=entities,
                         vertices=np.vstack(vertices))
     return concat
-

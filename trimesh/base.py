@@ -71,9 +71,9 @@ class Trimesh(object):
         validate:       bool, if True, faces will not be returned until face normals
                         are calculated and erronious faces removed
         use_embree:     bool, if True try to use pyembree raytracer.
-                        If pyembree is not available it will automatically fall 
+                        If pyembree is not available it will automatically fall
                         back to a much slower rtree/numpy implementation
-        initial_cache:  dict, a way to pass things to the cache in case expensive 
+        initial_cache:  dict, a way to pass things to the cache in case expensive
                         things were calculated before creating the mesh object.
         **kwargs:       stored in self._kwargs if needed later
         """
@@ -162,8 +162,8 @@ class Trimesh(object):
         # process is a cleanup function which cleans up the mesh
         # by merging vertices and removing zero- area and duplicate faces
         if (process and
-            vertices is not None and 
-            faces is not None):
+            vertices is not None and
+                faces is not None):
             self.process()
 
         # store all passed kwargs for debugging purposes
@@ -327,7 +327,7 @@ class Trimesh(object):
         Parameters
         ----------
         faces: (n,3) int, if None uses self.faces
-                          Available as an argument to avoid a circular 
+                          Available as an argument to avoid a circular
                           reference in some functions
         """
         if not self._validate:
@@ -354,7 +354,7 @@ class Trimesh(object):
         The vertex normals of the mesh. If the normals were loaded, we check to
         make sure we have the same number of vertex normals and vertices before
         returning them. If there are no vertex normals defined, or a shape mismatch
-        we calculate the vertex normals from the mean normals of the faces the 
+        we calculate the vertex normals from the mean normals of the faces the
         vertex is used in.
 
         Returns

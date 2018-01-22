@@ -194,7 +194,7 @@ def pack_paths(paths, sheet_size=None):
             multi.append(path.copy())
     # just pack using the root polygon
     polygons = [i.polygons_closed[i.root[0]] for i in multi]
-    
+
     # pack the polygons using rectangular bin packing
     inserted, transforms = multipack(polygons=polygons,
                                      sheet_size=sheet_size)
@@ -202,11 +202,12 @@ def pack_paths(paths, sheet_size=None):
     # apply the pack transforms to the individual path instances
     for path, transform in zip(multi, transforms):
         path.apply_transform(transform)
-    
+
     # append all packed paths into a single Path object
     packed = concatenate(multi)
 
     return packed
+
 
 def multipack(polygons,
               sheet_size=None,

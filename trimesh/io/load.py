@@ -302,7 +302,7 @@ def _parse_file_args(file_obj, file_type, **kwargs):
             file_path = os.path.expanduser(file_obj)
             file_path = os.path.abspath(file_path)
             exists = os.path.isfile(file_path)
-        except:
+        except BaseException:
             exists = False
 
         if exists:

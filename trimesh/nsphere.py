@@ -2,7 +2,7 @@
 nsphere.py
 --------------
 
-Functions for fitting and minimizing nspheres (circles, spheres, 
+Functions for fitting and minimizing nspheres (circles, spheres,
 hyperspheres, etc.)
 """
 import numpy as np

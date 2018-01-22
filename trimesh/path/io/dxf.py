@@ -228,8 +228,8 @@ def export_dxf(path):
     ----------
     export: str, path formatted as a DXF file
     '''
-    def format_points(points, 
-                      as_2D=False, 
+    def format_points(points,
+                      as_2D=False,
                       increment=True):
         '''
         Format points into DXF- style point string.
@@ -258,10 +258,10 @@ def export_dxf(path):
         else:
             group = np.zeros((len(three), 3), dtype=np.int)
         group += [10, 20, 30]
-        
+
         if as_2D:
-            group = group[:,:2]
-            three = three[:,:2]
+            group = group[:, :2]
+            three = three[:, :2]
 
         packed = '\n'.join('{:d}\n{:.12f}'.format(g, v)
                            for g, v in zip(group.reshape(-1),
@@ -281,7 +281,7 @@ def export_dxf(path):
         ----------
         subs: dict, with keys 'COLOR', 'LAYER', 'NAME'
         '''
-        subs = {'COLOR': 255, # default is ByLayer
+        subs = {'COLOR': 255,  # default is ByLayer
                 'LAYER': 0,
                 'NAME': str(id(entity))[:16]}
 
@@ -300,7 +300,7 @@ def export_dxf(path):
         points = line.discrete(vertices)
 
         subs = entity_info(line)
-        subs['POINTS'] = format_points(points, 
+        subs['POINTS'] = format_points(points,
                                        as_2D=True,
                                        increment=False)
         subs['TYPE'] = 'LWPOLYLINE'

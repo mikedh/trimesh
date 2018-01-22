@@ -86,14 +86,14 @@ def euclidean(a, b):
     ------------
     a: (n,) float, vector A
     b: (n,) float, vector B
-    
+
     Returns
     ------------
     distance: float, euclidean distance between A and B
     """
     a = np.asanyarray(a, dtype=np.float64)
     b = np.asanyarray(b, dtype=np.float64)
-    distance =  np.sum((a - b) ** 2) ** .5
+    distance = np.sum((a - b) ** 2) ** .5
     return distance
 
 
@@ -104,7 +104,7 @@ def is_file(obj):
     Parameters
     ------------
     obj: object to be checked
-    
+
     Returns
     -----------
     is_file: bool, True if object is a file
@@ -119,7 +119,7 @@ def is_string(obj):
     Parameters
     ------------
     obj: object to be checked
-    
+
     Returns
     ------------
     is_string: bool, True if obj is a string
@@ -134,7 +134,7 @@ def is_dict(obj):
 def is_none(obj):
     """
     Check to see if an object is None or not.
-    
+
     Handles the case of np.array(None) as well.
 
     Parameters
@@ -1322,7 +1322,7 @@ def type_named(obj, name):
             return base
     raise ValueError('Unable to extract class of name ' + name)
 
-    
+
 def concatenate(a, b):
     """
     Concatenate two meshes.

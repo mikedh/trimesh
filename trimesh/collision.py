@@ -28,20 +28,20 @@ class CollisionManager(object):
         # {id(bvh) : str, name}
         # unpopulated values will return None
         self._names = collections.defaultdict(lambda: None)
-        
+
         # cache BVH objects
         # {mesh.md5(): fcl.BVHModel object}
         self._bvh = {}
         self._manager = fcl.DynamicAABBTreeCollisionManager()
         self._manager.setup()
 
-    def add_object(self, 
-                   name, 
-                   mesh, 
+    def add_object(self,
+                   name,
+                   mesh,
                    transform=None):
         """
         Add an object to the collision manager.
-        
+
         If an object with the given name is already in the manager, replace it.
 
         Parameters
@@ -55,9 +55,9 @@ class CollisionManager(object):
         if transform is None:
             transform = np.eye(4)
         transform = np.asanyarray(transform, dtype=np.float32)
-        if transform.shape != (4,4):
+        if transform.shape != (4, 4):
             raise ValueError('transform must be (4,4)!')
-            
+
         # create or recall from cache BVH
         bvh = self._get_BVH(mesh)
         # create the FCL transform from (4,4) matrix
@@ -69,7 +69,7 @@ class CollisionManager(object):
             self._manager.unregisterObject(self._objs[name])
         self._objs[name] = {'obj': o,
                             'geom': bvh}
-        # store the name of the geometry  
+        # store the name of the geometry
         self._names[id(bvh)] = name
 
         self._manager.registerObject(o)
@@ -96,7 +96,7 @@ class CollisionManager(object):
 
     def set_transform(self, name, transform):
         """
-        Set the transform for one of the manager's objects. 
+        Set the transform for one of the manager's objects.
         This replaces the prior transform.
 
         Parameters
@@ -126,7 +126,7 @@ class CollisionManager(object):
         Returns
         -------
         is_collision: bool, True if a collision occurs and False otherwise
-        names: set of str,  The set of names of objects that collided with the 
+        names: set of str,  The set of names of objects that collided with the
                             provided one
         """
         if transform is None:
@@ -150,7 +150,7 @@ class CollisionManager(object):
         # If we want to return the objects that were collision, collect them.
         if return_names:
             objs_in_collision = set()
-          
+
             for contact in cdata.result.contacts:
                 cg = contact.o1
                 if cg == b:
@@ -191,7 +191,7 @@ class CollisionManager(object):
         if return_names:
             objs_in_collision = set()
             for contact in cdata.result.contacts:
-                name1, name2 = (self._extract_name(contact.o1), 
+                name1, name2 = (self._extract_name(contact.o1),
                                 self._extract_name(contact.o2))
                 names = tuple(sorted((name1, name2)))
                 objs_in_collision.add(names)
@@ -231,10 +231,10 @@ class CollisionManager(object):
         if return_names:
             objs_in_collision = set()
             for contact in cdata.result.contacts:
-                name1, name2 = (self._extract_name(contact.o1), 
+                name1, name2 = (self._extract_name(contact.o1),
                                 other_manager._extract_name(contact.o2))
                 if name1 is None:
-                    name1, name2 = (self._extract_name(contact.o2), 
+                    name1, name2 = (self._extract_name(contact.o2),
                                     other_manager._extract_name(contact.o1))
                 objs_in_collision.add((name1, name2))
             return result, objs_in_collision
@@ -243,7 +243,7 @@ class CollisionManager(object):
 
     def min_distance_single(self, mesh, transform=None, return_name=False):
         """
-        Get the minimum distance between a single object and any object in the 
+        Get the minimum distance between a single object and any object in the
         manager.
 
         Parameters
@@ -363,7 +363,7 @@ class CollisionManager(object):
 
     def _extract_name(self, geom):
         """
-        Retrieve the name of an object from the manager by its 
+        Retrieve the name of an object from the manager by its
         CollisionObject, or return None if not found.
 
         Parameters
@@ -376,7 +376,7 @@ class CollisionManager(object):
 def mesh_to_BVH(mesh):
     """
     Create a BVHModel object from a Trimesh object
-    
+
     Parameters
     -----------
     mesh: Trimesh object
@@ -388,7 +388,7 @@ def mesh_to_BVH(mesh):
     bvh = fcl.BVHModel()
     bvh.beginModel(num_tris_=len(mesh.faces),
                    num_vertices_=len(mesh.vertices))
-    bvh.addSubModel(verts=mesh.vertices, 
+    bvh.addSubModel(verts=mesh.vertices,
                     triangles=mesh.faces)
     bvh.endModel()
     return bvh
@@ -415,4 +415,3 @@ def scene_to_collision(scene):
                                            mesh=scene.geometry[geometry],
                                            transform=T)
     return manager, objects
-        

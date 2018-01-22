@@ -13,8 +13,8 @@ from . import transformations
 from . import util
 
 
-def point_plane_distance(points, 
-                         plane_normal, 
+def point_plane_distance(points,
+                         plane_normal,
                          plane_origin=[0.0, 0.0, 0.0]):
     """
     The minimum perpendicular distance of a point to a plane.

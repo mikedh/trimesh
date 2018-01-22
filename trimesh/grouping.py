@@ -2,7 +2,7 @@
 grouping.py
 -------------
 
-Functions for grouping values and rows. 
+Functions for grouping values and rows.
 """
 
 import numpy as np

@@ -2,7 +2,7 @@
 entities.py
 --------------
 
-Basic geometric primitives which only store references to 
+Basic geometric primitives which only store references to
 vertex indices rather than vertices themselves.
 """
 
@@ -77,17 +77,17 @@ class Entity(object):
     def nodes(self):
         """
         Returns an (n,2) list of nodes, or vertices on the path.
-        Note that this generic class function assumes that all of the 
-        reference points are on the path which is true for lines and 
+        Note that this generic class function assumes that all of the
+        reference points are on the path which is true for lines and
         three point arcs.
-        
+
         If you were to define another class where that wasn't the case
         (for example, the control points of a bezier curve),
-        you would need to implement an entity- specific version of this 
+        you would need to implement an entity- specific version of this
         function.
 
-        The purpose of having a list of nodes is so that they can then be 
-        added as edges to a graph so we can use functions to check 
+        The purpose of having a list of nodes is so that they can then be
+        added as edges to a graph so we can use functions to check
         connectivity, extract paths, etc.
 
         The slicing on this function is essentially just tiling points
@@ -96,7 +96,7 @@ class Entity(object):
         self.points = [0,1,2]
         returns:      [[0,1], [1,2]]
         """
-        return np.column_stack((self.points, 
+        return np.column_stack((self.points,
                                 self.points)).reshape(
                                     -1)[1:-1].reshape((-1, 2))
 
@@ -162,9 +162,10 @@ class Entity(object):
 
     def copy(self):
         """
-        Return a copy of the current entity. 
+        Return a copy of the current entity.
         """
         return copy.deepcopy(self)
+
 
 class Line(Entity):
     """
