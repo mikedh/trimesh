@@ -121,7 +121,12 @@ def polygon_obb(polygon):
                to the first quadrant where the AABB is the OBB
     extents:   (2,) float, extents of transformed polygon
     """
-    points = np.asanyarray(polygon.exterior.coords)
+    if hasattr(polygon, 'exterior'):
+        points = np.asanyarray(polygon.exterior.coords)
+    elif isinstance(polygon, np.ndarray):
+        points = polygon
+    else:
+        raise ValueError('polygon or points must be provided')
     return bounds.oriented_bounds_2D(points)
 
 

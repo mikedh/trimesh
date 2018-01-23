@@ -144,8 +144,12 @@ class Path(object):
         ----------
         dangling: (n,) int, index of self.entities
         """
+        if len(self.paths) == 0:
+            return np.arange(len(self.entities))
+        else:
+            included = np.hstack(self.paths)
         dangling = np.setdiff1d(np.arange(len(self.entities)),
-                                np.hstack(self.paths))
+                                included)
         return dangling
 
     @util.cache_decorator
@@ -668,6 +672,23 @@ class Path2D(Path):
         return path_3D
 
     @util.cache_decorator
+    def polygons_closed(self):
+        """
+        Cycles in the vertex graph, as shapely.geometry.Polygons.
+        These are polygon objects for every closed circuit, with no notion
+        of whether a polygon is a hole or an area. Every polygon in this
+        list will have an exterior, but NO interiors.
+
+        Returns
+        ---------
+        polygons_closed: (n,) list of shapely.geometry.Polygon objects
+        """
+
+        polys, valid = polygons.paths_to_polygons(self.discrete)
+        self._cache.set('path_valid', valid)
+        return polys
+
+    @util.cache_decorator
     def polygons_full(self):
         """
         A list of shapely.geometry.Polygon objects with interiors created
@@ -691,7 +712,7 @@ class Path2D(Path):
                               holes=holes)
 
         return full
-
+    
     @util.cache_decorator
     def area(self):
         """
@@ -961,24 +982,6 @@ class Path2D(Path):
         """
         exists = self.polygons_closed
         return self._cache.get('path_valid')
-
-    @util.cache_decorator
-    def polygons_closed(self):
-        """
-        Cycles in the vertex graph, as shapely.geometry.Polygons.
-        These are polygon objects for every closed circuit, with no notion
-        of whether a polygon is a hole or an area. Every polygon in this
-        list will have an exterior, but NO interiors.
-
-        Returns
-        ---------
-        polygons_closed: (n,) list of shapely.geometry.Polygon objects
-        """
-
-        polys, valid = polygons.paths_to_polygons(self.discrete)
-        self._cache.set('path_valid', valid)
-
-        return polys
 
     @util.cache_decorator
     def root(self):

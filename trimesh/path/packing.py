@@ -192,11 +192,12 @@ def pack_paths(paths, sheet_size=None):
             count = 1
         for i in range(count):
             multi.append(path.copy())
-    # just pack using the root polygon
-    polygons = [i.polygons_closed[i.root[0]] for i in multi]
+            
+    # just pack using the vertices, which will be hulled
+    points = [i.vertices for i in multi]
 
     # pack the polygons using rectangular bin packing
-    inserted, transforms = multipack(polygons=polygons,
+    inserted, transforms = multipack(polygons=points,
                                      sheet_size=sheet_size)
 
     # apply the pack transforms to the individual path instances

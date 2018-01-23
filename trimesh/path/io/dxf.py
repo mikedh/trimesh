@@ -122,10 +122,8 @@ def load_dxf(file_obj):
         lines = np.column_stack((e['10'], e['20'])).astype(np.float64)
 
         # 70 is the closed flag for polylines
-        # if the closed flag is set, make sure we connect the end to the
-        # beginning
-        if ('70' in e and
-                int(e['70'][0]) == 1):
+        # if the closed flag is set make sure to close
+        if ('70' in e and int(e['70'][0]) == 1):
             lines = np.vstack((lines, lines[:1]))
 
         # 42 is the bulge flag for polylines
@@ -306,8 +304,9 @@ def export_dxf(path):
         subs['TYPE'] = 'LWPOLYLINE'
         subs['VCOUNT'] = len(points)
         # 1 is closed
-        # 0 is default
-        subs['FLAG'] = 0
+        # 0 is default (open)
+        subs['FLAG'] = int(bool(line.closed))
+        
         result = templates['line'].substitute(subs)
         return result
 
