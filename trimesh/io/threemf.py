@@ -79,11 +79,13 @@ def load_3MF(file_obj,
     for item in build.iter('{*}item'):
         # the index of the geometry this item instantiates
         geometry = item.attrib['objectid']
-        # wangle their transform format
-        values = np.array(item.attrib['transform'].split(),
-                          dtype=np.float64).reshape((4, 3)).T
         transform = np.eye(4, dtype=np.float64)
-        transform[:3, :4] = values
+        if 'transform' in item.attrib:
+            # wangle their transform format
+            values = np.array(item.attrib['transform'].split(),
+                              dtype=np.float64).reshape((4, 3)).T
+            transform[:3, :4] = values
+
         transforms.append(transform)
         geometries.append(geometry)
     transforms = np.array(transforms, dtype=np.float64)
