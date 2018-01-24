@@ -23,7 +23,7 @@ class TransformForest:
                frame_to,
                frame_from=None,
                **kwargs):
-        '''
+        """
         Update a transform in the tree.
 
         Parameters
@@ -41,7 +41,7 @@ class TransformForest:
         translation: (3) array
 
         geometry: Geometry object name
-        '''
+        """
         if frame_from is None:
             frame_from = self.base_frame
         matrix = kwargs_to_matrix(**kwargs)
@@ -64,18 +64,18 @@ class TransformForest:
         self._updated = time.time()
 
     def md5(self):
-        '''
+        """
         MD5 of transforms.
 
         Currently only hashing update time.
-        '''
+        """
         result = str(int(self._updated * 1000)) + str(self.base_frame)
         return result
 
     def to_flattened(self, base_frame=None):
-        '''
+        """
         Export the current transform graph as a flattened
-        '''
+        """
         if base_frame is None:
             base_frame = self.base_frame
 
@@ -90,7 +90,7 @@ class TransformForest:
         return flat
 
     def to_gltf(self, mesh_index):
-        '''
+        """
         Export a transforms as the 'nodes' section of a GLTF dict.
         Flattens tree.
 
@@ -98,7 +98,7 @@ class TransformForest:
         --------
         gltf: dict, with keys:
                   'nodes': list of dicts
-        '''
+        """
         gltf = collections.deque()
         for node in self.nodes_geometry:
             if node == self.base_frame:
@@ -118,7 +118,7 @@ class TransformForest:
         return result
 
     def to_edgelist(self):
-        '''
+        """
         Export the current transforms as a list of edge tuples, with
         each tuple having the format:
         (node_a, node_b, {metadata})
@@ -126,7 +126,7 @@ class TransformForest:
         Returns
         -------
         edgelist: (n,) list of tuples
-        '''
+        """
         # wrapped in a list for nx 2.0
         export = list(nx.to_edgelist(self.transforms))
         for e in export:
@@ -139,17 +139,40 @@ class TransformForest:
 
     @util.cache_decorator
     def nodes(self):
-        return np.array(self.transforms.nodes())
+        """
+        A list of every node in the graph.
+
+        Returns
+        -------------
+        nodes: (n,) array, of node names
+        """
+        nodes = np.array(list(self.transforms.nodes()))
+        return nodes
 
     @util.cache_decorator
     def nodes_geometry(self):
-        nodes = [i for i in self.nodes if 'geometry' in self.transforms.node[i]]
-        return np.array(nodes)
+        """
+        The nodes in the scene graph with geometry attached.
+
+        Returns
+        ------------
+        nodes_geometry: (m,) array, of node names
+        """
+        nodes = self.transforms.nodes()
+        if len(nodes) == 0:
+            return np.array([])
+
+        nodes_geometry = []
+        for n in nodes:
+            if (n in self.transforms.node and 
+                'geometry' in self.transforms.node[n]):
+                nodes_geometry.append(n)
+        return np.array(nodes_geometry)
 
     def get(self,
             frame_to,
             frame_from=None):
-        '''
+        """
         Get the transform from one frame to another, assuming they are connected
         in the transform tree.
 
@@ -164,7 +187,7 @@ class TransformForest:
         Returns
         ---------
         transform:  (4,4) homogenous transformation matrix
-        '''
+        """
 
         if frame_from is None:
             frame_from = self.base_frame
@@ -194,16 +217,16 @@ class TransformForest:
         return transform, geometry
 
     def show(self):
-        '''
+        """
         Plot the graph layout of the scene.
-        '''
+        """
         import matplotlib.pyplot as plt
         nx.draw(self.transforms, with_labels=True)
         plt.show()
 
     def to_svg(self):
-        '''
-        '''
+        """
+        """
         from ..graph import graph_to_svg
         return graph_to_svg(self.transforms)
 
@@ -227,7 +250,7 @@ class TransformForest:
     def _get_path(self,
                   frame_from,
                   frame_to):
-        '''
+        """
         Find a path between two frames, either from cached paths or
         from the transform graph.
 
@@ -242,7 +265,7 @@ class TransformForest:
         ----------
         path: (n) list of frame keys
               eg, ['mesh_finger', 'mesh_hand', 'world']
-        '''
+        """
         key = (frame_from, frame_to)
         if not (key in self._paths):
             path = self.transforms.shortest_path_undirected(frame_from,
@@ -252,10 +275,10 @@ class TransformForest:
 
 
 class EnforcedForest(nx.DiGraph):
-    '''
+    """
     A subclass of networkx.DiGraph that will raise an error if an
     edge is added which would make the DiGraph not a forest or tree.
-    '''
+    """
 
     def __init__(self, *args, **kwargs):
         self.flags = {'strict': False,
@@ -335,16 +358,16 @@ class EnforcedForest(nx.DiGraph):
 
 
 def path_to_edges(path):
-    '''
+    """
     Turn an (n) path into a (2(n-1)) set of edges
-    '''
+    """
     return np.column_stack((path, path)).reshape(-1)[1:-1].reshape((-1, 2))
 
 
 def kwargs_to_matrix(**kwargs):
-    '''
+    """
     Turn a set of keyword arguments into a transformation matrix.
-    '''
+    """
     matrix = np.eye(4)
     if 'matrix' in kwargs:
         # a matrix takes precedence over other options
