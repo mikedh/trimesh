@@ -9,11 +9,22 @@ def load_3MF(file_obj,
              **kwargs):
     """
     Load a 3MF formatted file into a Trimesh scene.
+    
+    3MF files can only have one body per mesh, so multibody parts
+    are exported as multiple meshes.
+
+    This looks quite dumb on things like ball bearings, where each
+    ball is an element in the scene, rather than as a single mesh
+    with the races and multiple balls. 
+    
+    If the combine_bodies option is set, the loader will combine 
+    mesh groups with the same name and transform into a single mesh.
 
     Parameters
     ------------
     file_obj:       file object
-    combine_bodies: bool,
+    combine_bodies: bool, whether to combine bodies with the
+                    same name or not. 
 
     Returns
     ------------
