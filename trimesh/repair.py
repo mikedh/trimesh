@@ -61,7 +61,7 @@ def fix_face_winding(mesh):
                 faces[face_pair[1]] = faces[face_pair[1]][::-1]
     if flipped > 0:
         mesh.faces = faces
-    log.info('Flipped %d/%d edges', flipped, len(mesh.faces) * 3)
+    log.debug('flipped %d/%d edges', flipped, len(mesh.faces) * 3)
 
 
 def fix_normals_direction(mesh):

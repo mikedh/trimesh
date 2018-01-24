@@ -306,7 +306,7 @@ def export_dxf(path):
         # 1 is closed
         # 0 is default (open)
         subs['FLAG'] = int(bool(line.closed))
-        
+
         result = templates['line'].substitute(subs)
         return result
 

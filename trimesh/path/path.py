@@ -712,7 +712,7 @@ class Path2D(Path):
                               holes=holes)
 
         return full
-    
+
     @util.cache_decorator
     def area(self):
         """

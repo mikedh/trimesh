@@ -140,11 +140,11 @@ def load_stl_ascii(file_obj):
     # this offset is to be added to a fixed set of indices that is tiled
     offset = face_len * np.arange(face_count).reshape((-1, 1))
     normal_index = np.tile([2, 3, 4], (face_count, 1)) + offset
-    vertex_index = np.tile(
-        [8, 9, 10, 12, 13, 14, 16, 17, 18], (face_count, 1)) + offset
+    vertex_index = np.tile([8, 9, 10,
+                            12, 13, 14,
+                            16, 17, 18], (face_count, 1)) + offset
 
-    # faces are groups of three sequential vertices, as vertices are not
-    # references
+    # faces are groups of three sequential vertices
     faces = np.arange(face_count * 3).reshape((-1, 3))
     face_normals = blob[normal_index].astype(np.float64)
     vertices = blob[vertex_index.reshape((-1, 3))].astype(np.float64)

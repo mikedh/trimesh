@@ -16,8 +16,10 @@ from .stl import _stl_loaders
 from .misc import _misc_loaders
 from .gltf import _gltf_loaders
 from .assimp import _assimp_loaders
+from .threemf import _three_loaders
 from .wavefront import _obj_loaders
 from .xml_based import _xml_loaders
+
 
 try:
     from ..path.io.load import load_path, path_formats
@@ -350,3 +352,4 @@ mesh_loaders.update(_ply_loaders)
 mesh_loaders.update(_xml_loaders)
 mesh_loaders.update(_obj_loaders)
 mesh_loaders.update(_gltf_loaders)
+mesh_loaders.update(_three_loaders)

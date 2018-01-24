@@ -1974,3 +1974,34 @@ def write_encoded(file_obj, stuff, encoding='utf-8'):
     else:
         file_obj.write(stuff)
     file_obj.flush()
+
+
+def unique_id(length=12):
+    """
+    Generate a decent looking alphanumeric unique identifier.
+
+    First 16 bits are time- incrementing, followed by randomness.
+
+    Follows the advice in:
+    https://eager.io/blog/how-long-does-an-id-need-to-be/
+
+    Parameters
+    ------------
+    length: int, length of resuling identifier
+
+    Returns
+    ------------
+    unique: str, unique alphanumeric identifier
+    """
+    # head the identifier with 16 bits of time information
+    # this provides locality and reduces collision chances
+    head = np.array(time.time() % 2**16, dtype=np.uint16).tostring()
+    # get random bytes
+    random = np.random.random(int(np.ceil(length / 10))).tostring()
+    # encode the time header and random information as base64
+    # replace + and / with spaces
+    unique = base64.b64encode(head + random,
+                              b'  ').decode('utf-8')
+    # remove spaces and cut to length
+    unique = unique.replace(' ', '')[:length]
+    return unique

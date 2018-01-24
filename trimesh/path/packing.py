@@ -192,7 +192,7 @@ def pack_paths(paths, sheet_size=None):
             count = 1
         for i in range(count):
             multi.append(path.copy())
-            
+
     # just pack using the vertices, which will be hulled
     points = [i.vertices for i in multi]
 
