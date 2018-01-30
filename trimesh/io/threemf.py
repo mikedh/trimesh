@@ -97,7 +97,8 @@ def load_3MF(file_obj,
     for gid in v_seq.keys():
         name = id_name[gid]
         meshes[name] = {'vertices': v_seq[gid],
-                        'faces': f_seq[gid]}
+                        'faces': f_seq[gid],
+                        'metadata': metadata.copy()}
 
     # turn the item / component representation into
     # a MultiDiGraph to compound our pain

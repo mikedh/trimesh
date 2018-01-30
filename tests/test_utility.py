@@ -170,6 +170,20 @@ class UtilTests(unittest.TestCase):
         assert (f == strips_to_faces(s)).all()
 
 
+    def test_pairwise(self):
+        # check to make sure both itertools and numpy
+        # methods return the same result
+        pa = np.array(list(g.trimesh.util.pairwise(range(5))))
+        pb = g.trimesh.util.pairwise(np.arange(5))
+
+        # make sure results are the same from both methods
+        assert (pa == pb).all()
+        # make sure we have 4 pairs for 5 values
+        assert len(pa) == 4
+        # make sure all pairs are length 2
+        assert all(len(i) == 2 for i in pa)
+
+
 class IOTest(unittest.TestCase):
 
     def test_dae(self):

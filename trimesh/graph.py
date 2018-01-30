@@ -704,7 +704,7 @@ def multigraph_collect(G, traversal, attrib=None):
     """
 
     collected = []
-    for u, v in nx.utils.misc.pairwise(traversal):
+    for u, v in util.pairwise(traversal):
         attribs = G[u[0]][v[0]][v[1]]
         if attrib is None:
             collected.append(attribs)

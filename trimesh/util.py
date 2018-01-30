@@ -353,6 +353,41 @@ def spherical_to_vector(spherical):
                                cp))
     return vectors
 
+def pairwise(iterable):
+    """
+    For an iterable, group values into pairs.
+
+    Parameters
+    -----------
+    iterable: flat list
+    
+    Returns
+    -----------
+    pairs: (n,) seq of (2,) pairs of items
+
+    Example
+    -----------
+    In [1]: data
+    Out[1]: [0, 1, 2, 3, 4, 5, 6]
+
+    In [2]: list(trimesh.util.pairwise(data))
+    Out[2]: [(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6)]
+
+    """
+    # looping through a giant numpy array would be dumb
+    # so special case ndarrays and use numpy operations
+    if isinstance(iterable, np.ndarray):
+        iterable = iterable.reshape(-1)
+        stacked = np.column_stack((iterable, iterable))
+        pairs = stacked.reshape(-1)[1:-1].reshape((-1,2))
+        return pairs
+
+    # if we have a normal iterable use itertools
+    import itertools
+    a, b = itertools.tee(iterable)
+    # pop the first element of the second item
+    popped = next(b)
+    return zip(a,b)
 
 try:
     # prefer the faster numpy version
