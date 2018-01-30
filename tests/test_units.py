@@ -9,22 +9,12 @@ class UnitsTest(g.unittest.TestCase):
         self.assertFalse(g.trimesh.units.validate(fake_units))
 
         m = g.get_mesh('featuretype.STL')
-
-        self.assertTrue(m.units is None)
-
-        with self.assertRaises(ValueError):
-            m.units = fake_units
-
         self.assertTrue(m.units is None)
 
         m.units = 'in'
         self.assertTrue(m.units == 'in')
 
         extents_pre = m.extents
-        with self.assertRaises(ValueError):
-            m.convert_units(fake_units)
-        self.assertTrue(m.units == 'in')
-
         m.convert_units('mm')
         scale = g.np.divide(m.extents, extents_pre)
         self.assertTrue(g.np.allclose(scale, 25.4))

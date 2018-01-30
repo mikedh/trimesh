@@ -825,8 +825,6 @@ class Trimesh(object):
     @units.setter
     def units(self, value):
         value = str(value).lower()
-        if not units.validate(value):
-            raise ValueError(value + ' are not a valid unit!')
         self.metadata['units'] = value
 
     def convert_units(self, desired, guess=False):

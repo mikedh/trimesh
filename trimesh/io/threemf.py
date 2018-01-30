@@ -113,7 +113,7 @@ def load_3MF(file_obj,
     # flatten the scene structure and simplify to
     # a single unique node per instance
     graph_args = []
-    for path in graph.multigraph_paths(G=g, 
+    for path in graph.multigraph_paths(G=g,
                                        source='world'):
         transforms = graph.multigraph_collect(G=g,
                                               traversal=path,

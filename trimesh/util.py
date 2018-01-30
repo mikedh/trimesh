@@ -353,6 +353,7 @@ def spherical_to_vector(spherical):
                                cp))
     return vectors
 
+
 def pairwise(iterable):
     """
     For an iterable, group values into pairs.
@@ -360,7 +361,7 @@ def pairwise(iterable):
     Parameters
     -----------
     iterable: flat list
-    
+
     Returns
     -----------
     pairs: (n,) seq of (2,) pairs of items
@@ -379,7 +380,7 @@ def pairwise(iterable):
     if isinstance(iterable, np.ndarray):
         iterable = iterable.reshape(-1)
         stacked = np.column_stack((iterable, iterable))
-        pairs = stacked.reshape(-1)[1:-1].reshape((-1,2))
+        pairs = stacked.reshape(-1)[1:-1].reshape((-1, 2))
         return pairs
 
     # if we have a normal iterable use itertools
@@ -387,7 +388,8 @@ def pairwise(iterable):
     a, b = itertools.tee(iterable)
     # pop the first element of the second item
     popped = next(b)
-    return zip(a,b)
+    return zip(a, b)
+
 
 try:
     # prefer the faster numpy version

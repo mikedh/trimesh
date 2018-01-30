@@ -10,6 +10,7 @@ from .constants import log
 
 import collections
 
+
 def _generate_conversions():
     """
     Generate conversions for unit systems.
@@ -46,7 +47,7 @@ def _generate_conversions():
     # add non- plural version of units to conversions
     # eg, millimeters -> millimeter
     for key in to_inch.keys():
-        if key[-2:] == 'es'  and key != 'miles':
+        if key[-2:] == 'es' and key != 'miles':
             synonyms[key].append(key[:-2])
         elif key[-1] == 's':
             synonyms[key].append(key[:-1])
@@ -56,9 +57,13 @@ def _generate_conversions():
         value = to_inch[key]
         for new_key in new_keys:
             to_inch[new_key] = value
+
+    # convert back to regular dictionary
+    to_inch = dict(to_inch)
     return to_inch
 
 _TO_INCHES = _generate_conversions()
+
 
 def unit_conversion(current, desired):
     """
