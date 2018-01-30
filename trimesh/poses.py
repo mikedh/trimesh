@@ -80,7 +80,8 @@ def compute_stable_poses(mesh, center_mass=None,
 
         # Propogate probabilites to sink nodes with a breadth-first traversal
         nodes = [n for n in dg.nodes() if dg.in_degree(n) == 0]
-        while len(nodes) > 0:
+        n_iters = 0
+        while len(nodes) > 0 and n_iters <= len(mesh.faces):
             new_nodes = []
             for node in nodes:
                 if dg.out_degree(node) == 0:
@@ -90,6 +91,7 @@ def compute_stable_poses(mesh, center_mass=None,
                 dg.node[node]['prob'] = 0.0
                 new_nodes.append(successor)
             nodes = new_nodes
+            n_iters += 1
 
         # Collect stable poses
         poses = []
