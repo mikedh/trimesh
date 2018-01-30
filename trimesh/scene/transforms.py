@@ -164,8 +164,8 @@ class TransformForest:
 
         nodes_geometry = []
         for n in nodes:
-            if (n in self.transforms.node and 
-                'geometry' in self.transforms.node[n]):
+            if (n in self.transforms.node and
+                    'geometry' in self.transforms.node[n]):
                 nodes_geometry.append(n)
         return np.array(nodes_geometry)
 

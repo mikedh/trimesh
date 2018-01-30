@@ -68,7 +68,7 @@ def load_3MF(file_obj,
             mesh_index = c.attrib['objectid']
             transform = _attrib_to_transform(c.attrib)
             components[index].append((mesh_index, transform))
-                
+
     # load information about the scene graph
     # each instance is a single geometry
     build_items = []
@@ -79,7 +79,7 @@ def load_3MF(file_obj,
         transform = _attrib_to_transform(item.attrib)
         # the index of the geometry this item instantiates
         build_items.append((item.attrib['objectid'], transform))
-    
+
     metadata = {}
     if 'unit' in tree.attrib:
         metadata['units'] = tree.attrib['unit']
@@ -105,12 +105,12 @@ def load_3MF(file_obj,
             g.add_edge(start, gid, matrix=tf)
 
     # turn the graph into kwargs for a scene graph
-    # flatten the scene structure and simplify to 
+    # flatten the scene structure and simplify to
     # a single unique node per instance
     graph_args = []
     for path in graph.multigraph_paths(g, source='world'):
-        transforms = graph.multigraph_collect(g, 
-                                              traversal=path, 
+        transforms = graph.multigraph_collect(g,
+                                              traversal=path,
                                               attrib='matrix')
         if len(transforms) == 1:
             transform = transforms[0]
@@ -144,7 +144,7 @@ def _attrib_to_transform(attrib):
     ------------
     transform: (4, 4) float, homogeonous transformation
     """
-    
+
     transform = np.eye(4, dtype=np.float64)
     if 'transform' in attrib:
         # wangle their transform format

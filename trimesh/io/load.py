@@ -313,7 +313,7 @@ def _parse_file_args(file_obj, file_type, **kwargs):
             # if file_obj is a path that exists use extension as file_type
             if file_type is None:
                 file_type = util.split_extension(file_path,
-                                special=['tar.gz', 'tar.bz2'])
+                                                 special=['tar.gz', 'tar.bz2'])
             file_obj = open(file_path, 'rb')
         else:
             if file_type is not None:

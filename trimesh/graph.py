@@ -623,11 +623,10 @@ def graph_to_svg(graph):
     return svg
 
 
-
 def multigraph_paths(G, source, cutoff=None):
     """
     For a networkx MultiDiGraph, find all paths from a source node
-    to leaf nodes. This function returns edge instance numbers 
+    to leaf nodes. This function returns edge instance numbers
     in addition to nodes, unlike networkx.all_simple_paths.
 
     Parameters
@@ -635,7 +634,7 @@ def multigraph_paths(G, source, cutoff=None):
     G: networkx.MultiDiGraph
     source: str, node to start off
     cutoff: int, number of nodes to visit
-                 if None, will 
+                 if None, will
 
     Returns
     ----------
@@ -665,7 +664,7 @@ def multigraph_paths(G, source, cutoff=None):
             # if there is nothing on the queue, we are done
             if len(queue) == 0:
                 break
-            # otherwise continue traversing with the next path 
+            # otherwise continue traversing with the next path
             # on the queue
             current = queue.pop()
         else:
@@ -682,7 +681,7 @@ def multigraph_paths(G, source, cutoff=None):
                     else:
                         # this child has multiple instances
                         # so we will need to traverse them multiple times
-                        # we appended a node to current, so only take the 
+                        # we appended a node to current, so only take the
                         # first n-1 visits
                         queue.append(current[:-1] + [(node, instance)])
     return traversals
@@ -697,7 +696,7 @@ def multigraph_collect(G, traversal, attrib=None):
     -------------
     G:          networkx.MultiDiGraph
     traversal:  (n) list of (node, instance) tuples
-    attrib:     attribute name to collect. If none, will return all
+    attrib:     dict key, name to collect. If None, will return all
 
     Returns
     -------------
@@ -705,7 +704,7 @@ def multigraph_collect(G, traversal, attrib=None):
     """
 
     collected = []
-    for u,v in nx.utils.misc.pairwise(traversal):
+    for u, v in nx.utils.misc.pairwise(traversal):
         attribs = G[u[0]][v[0]][v[1]]
         if attrib is None:
             collected.append(attribs)
