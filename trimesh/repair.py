@@ -30,12 +30,14 @@ def fix_face_winding(mesh):
     # every node in g is an index of mesh.faces
     # every edge in g represents two faces which are connected
     graph_all = nx.from_edgelist(mesh.face_adjacency)
-    flipped = 0
     faces = mesh.faces.view(np.ndarray).copy()
+    flipped = 0
 
     # we are going to traverse the graph using BFS, so we have to start
     # a traversal for every connected component
-    for graph in nx.connected_component_subgraphs(graph_all):
+    for components in nx.connected_components(graph_all):
+        # get a subgraph for this component
+        graph = graph_all.subgraph(components)
         # get the first node in the graph in a way that works on nx's
         # new API and their old API
         start = next(iter(graph.nodes()))
