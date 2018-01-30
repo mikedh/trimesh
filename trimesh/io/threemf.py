@@ -39,7 +39,11 @@ def load_3MF(file_obj,
     for obj in tree.iter('{*}object'):
         # not required, so use a get call which will return None
         # if the tag isn't populated
-        name = str(obj.get('name'))
+        if 'name' in obj.attrib:
+            name = obj.attrib['name']
+        else:
+            name = str(obj.attrib['index'])
+
         # id is mandatory
         index = obj.attrib['id']
         # store the name by index
