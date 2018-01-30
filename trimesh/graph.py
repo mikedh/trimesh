@@ -641,7 +641,7 @@ def multigraph_paths(G, source, cutoff=None):
     traversals: (n,) list of [(node, edge instance index), ] paths
     """
     if cutoff is None:
-        cutoff = (len(G.edges) * len(G.nodes)) + 1
+        cutoff = (len(G.edges()) * len(G.nodes())) + 1
 
     # the path starts at the node specified
     current = [(source, 0)]
