@@ -1,30 +1,21 @@
 import numpy as np
+import networkx as nx
+
+import collections
 
 from .. import util
+from .. import graph
 from .. import grouping
 
 
 def load_3MF(file_obj,
-             combine_bodies=True,
              **kwargs):
     """
     Load a 3MF formatted file into a Trimesh scene.
-    
-    3MF files can only have one body per mesh, so multibody parts
-    are exported as multiple meshes.
-
-    This looks quite dumb on things like ball bearings, where each
-    ball is an element in the scene, rather than as a single mesh
-    with the races and multiple balls. 
-    
-    If the combine_bodies option is set, the loader will combine 
-    mesh groups with the same name and transform into a single mesh.
 
     Parameters
     ------------
     file_obj:       file object
-    combine_bodies: bool, whether to combine bodies with the
-                    same name or not. 
 
     Returns
     ------------
@@ -41,8 +32,10 @@ def load_3MF(file_obj,
     v_seq = {}
     # { mesh id: (n,3) int faces}
     f_seq = {}
+    # components are objects that contain other objects
+    # {id : [other ids]}
+    components = collections.defaultdict(list)
 
-    # load information about vertices and faces
     for obj in tree.iter('{*}object'):
         # not required, so use a get call which will return None
         # if the tag isn't populated
@@ -52,6 +45,7 @@ def load_3MF(file_obj,
         # store the name by index
         id_name[index] = name
 
+        # if the object has actual geometry data, store it
         for mesh in obj.iter('{*}mesh'):
             vertices = mesh.find('{*}vertices')
             vertices = np.array([[i.attrib['x'],
@@ -69,103 +63,96 @@ def load_3MF(file_obj,
                              dtype=np.int64)
             f_seq[index] = faces
 
+        # components are references to other geometries
+        for c in obj.iter('{*}component'):
+            mesh_index = c.attrib['objectid']
+            transform = _attrib_to_transform(c.attrib)
+            components[index].append((mesh_index, transform))
+                
     # load information about the scene graph
     # each instance is a single geometry
-    geometries = []
-    # and a single (4,4) homogenous transform
-    transforms = []
+    build_items = []
     # scene graph information stored here, aka "build" the scene
     build = tree.find('{*}build')
     for item in build.iter('{*}item'):
+        # get a transform from the item's attributes
+        transform = _attrib_to_transform(item.attrib)
         # the index of the geometry this item instantiates
-        geometry = item.attrib['objectid']
-        transform = np.eye(4, dtype=np.float64)
-        if 'transform' in item.attrib:
-            # wangle their transform format
-            values = np.array(item.attrib['transform'].split(),
-                              dtype=np.float64).reshape((4, 3)).T
-            transform[:3, :4] = values
-
-        transforms.append(transform)
-        geometries.append(geometry)
-    transforms = np.array(transforms, dtype=np.float64)
-
-    # 3MF files can only have one body per object
-    # multibody parts are exported as one mesh per body
-    # which looks super dumb on things like ball bearings
-    # where each ball is returned as a single mesh rather
-    # than the races and multiple balls
-    if combine_bodies:
-        # group objects that have the same name and transform
-        name_hash = np.array([hash(g) for g in geometries],
-                             dtype=np.float64)
-        # stack name and transform
-        check = np.column_stack((transforms.reshape((-1, 16)),
-                                 name_hash))
-        # groups indexing transforms and geometries
-        groups = grouping.group_rows(check, digits=4)
-        # hash geometry groups
-        geometry_hash = [hash(''.join(sorted(geometries[i] for i in g))) for
-                         g in groups]
-        # find the groups of bodies with the same name and transform
-        (junk,
-         unique,
-         inverse) = np.unique(geometry_hash,
-                              return_index=True,
-                              return_inverse=True)
-        # {mesh name : dict with vertices and faces}
-        meshes = {}
-        # { unique geometry ID : mesh name }
-        meshes_name = {}
-        for g in unique:
-            group = groups[g]
-            # what is the geometry ID for the group
-            gid = [geometries[i] for i in group]
-            # they should all share the same name
-            name = id_name[gid[0]]
-            # if the mesh has already been included by name
-            # append a unique id
-            if name in meshes:
-                name += util.unique_id()
-            # append the group into a single mesh
-            v, f = util.append_faces([v_seq[i] for i in gid],
-                                     [f_seq[i] for i in gid])
-            meshes_name[g] = name
-            meshes[name] = {'vertices': v,
-                            'faces': f}
-        # create a graph with our combined meshes
-        graph = []
-        for i, group in zip(inverse, groups):
-            name = meshes_name[unique[i]]
-            graph.append({'frame_from': 'world',
-                          'frame_to': util.unique_id(),
-                          'geometry': name,
-                          'matrix': transforms[group[0]]})
-
+        build_items.append((item.attrib['objectid'], transform))
+    
+    metadata = {}
+    if 'unit' in tree.attrib:
+        metadata['units'] = tree.attrib['unit']
     else:
-        # we are not combining bodies so our scene will
-        # have one mesh per 3MF object
-        graph = []
-        for gid, transform in zip(geometries, transforms):
-            # refer to mesh by given name and geometry ID
-            # as names may be duplicated but geometry ID's aren't
-            mesh_name = id_name[gid] + '-' + gid
-            graph.append({'frame_from': 'world',
-                          'frame_to': util.unique_id(),
-                          'geometry': mesh_name,
-                          'matrix': transform})
-        # one mesh per geometry ID
-        meshes = {}
-        for gid, mesh_name in id_name.items():
-            mesh_name += '-' + gid
-            meshes[mesh_name] = {'vertices': v_seq[gid],
-                                 'faces': f_seq[gid]}
+        # the default units, defined by the specification
+        metadata['units'] = 'millimeters'
+
+    # have one mesh per 3MF object
+    # one mesh per geometry ID
+    meshes = {}
+    for gid in v_seq.keys():
+        name = id_name[gid]
+        meshes[name] = {'vertices': v_seq[gid],
+                        'faces': f_seq[gid]}
+
+    # turn the item / component representation into
+    # a MultiDiGraph to compound our pain
+    g = nx.MultiDiGraph()
+    for gid, tf in build_items:
+        g.add_edge('world', gid, matrix=tf)
+    for start, group in components.items():
+        for i, (gid, tf) in enumerate(group):
+            g.add_edge(start, gid, matrix=tf)
+
+    # turn the graph into kwargs for a scene graph
+    # flatten the scene structure and simplify to 
+    # a single unique node per instance
+    graph_args = []
+    for path in graph.multigraph_paths(g, source='world'):
+        transforms = graph.multigraph_collect(g, 
+                                              traversal=path, 
+                                              attrib='matrix')
+        if len(transforms) == 1:
+            transform = transforms[0]
+        else:
+            transform = util.multi_dot(transforms)
+        name = id_name[path[-1][0]] + util.unique_id()
+        geom = id_name[path[-1][0]]
+        graph_args.append({'frame_from': 'world',
+                           'frame_to': name,
+                           'matrix': transform,
+                           'geometry': geom})
+
     # construct the kwargs to load the scene
     kwargs = {'base_frame': 'world',
-              'graph': graph,
-              'geometry': meshes}
+              'graph': graph_args,
+              'geometry': meshes,
+              'metadata': metadata}
 
     return kwargs
+
+
+def _attrib_to_transform(attrib):
+    """
+    Extract a homogenous transform from a dictionary.
+
+    Parameters
+    ------------
+    attrib: dict, optionally containing 'transform'
+
+    Returns
+    ------------
+    transform: (4, 4) float, homogeonous transformation
+    """
+    
+    transform = np.eye(4, dtype=np.float64)
+    if 'transform' in attrib:
+        # wangle their transform format
+        values = np.array(
+            attrib['transform'].split(),
+            dtype=np.float64).reshape((4, 3)).T
+        transform[:3, :4] = values
+    return transform
 
 
 # do import here to keep lxml a soft dependancy

@@ -621,3 +621,94 @@ def graph_to_svg(graph):
         nx.drawing.nx_agraph.write_dot(graph, dot_file.name)
         svg = subprocess.check_output(['dot', dot_file.name, '-Tsvg'])
     return svg
+
+
+
+def multigraph_paths(G, source, cutoff=None):
+    """
+    For a networkx MultiDiGraph, find all paths from a source node
+    to leaf nodes. This function returns edge instance numbers 
+    in addition to nodes, unlike networkx.all_simple_paths.
+
+    Parameters
+    ---------------
+    G: networkx.MultiDiGraph
+    source: str, node to start off
+    cutoff: int, number of nodes to visit
+                 if None, will 
+
+    Returns
+    ----------
+    traversals: (n,) list of [(node, edge instance index), ] paths
+    """
+    if cutoff is None:
+        cutoff = (len(G.edges) * len(G.nodes)) + 1
+
+    # the path starts at the node specified
+    current = [(source, 0)]
+    # traversals we need to go back and do
+    queue = []
+    # completed paths
+    traversals = []
+
+    for i in range(cutoff):
+        # paths are stored as (node, instance) so
+        # get the node of the last place visited
+        current_node = current[-1][0]
+        # get all the children of the current node
+        child = G[current_node]
+
+        if len(child) == 0:
+            # we have no children, so we are at the end of this path
+            # save the path as a completed traversal
+            traversals.append(current)
+            # if there is nothing on the queue, we are done
+            if len(queue) == 0:
+                break
+            # otherwise continue traversing with the next path 
+            # on the queue
+            current = queue.pop()
+        else:
+            # oh no, we have multiple edges from current -> child
+            start = True
+            # iterate through child nodes and edge instances
+            for node in child.keys():
+                for instance in child[node].keys():
+                    if start:
+                        # if this is the first edge, keep it on the
+                        # current traversal and save the others for later
+                        current.append((node, instance))
+                        start = False
+                    else:
+                        # this child has multiple instances
+                        # so we will need to traverse them multiple times
+                        # we appended a node to current, so only take the 
+                        # first n-1 visits
+                        queue.append(current[:-1] + [(node, instance)])
+    return traversals
+
+
+def multigraph_collect(G, traversal, attrib=None):
+    """
+    Given a MultiDiGraph traversal, collect attributes along that
+    path.
+
+    Parameters
+    -------------
+    G:          networkx.MultiDiGraph
+    traversal:  (n) list of (node, instance) tuples
+    attrib:     attribute name to collect. If none, will return all
+
+    Returns
+    -------------
+    collected: (len(traversal) - 1) list of attributes
+    """
+
+    collected = []
+    for u,v in nx.utils.misc.pairwise(traversal):
+        attribs = G[u[0]][v[0]][v[1]]
+        if attrib is None:
+            collected.append(attribs)
+        else:
+            collected.append(attribs[attrib])
+    return collected

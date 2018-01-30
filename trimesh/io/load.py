@@ -200,15 +200,15 @@ def load_kwargs(*args, **kwargs):
         scene = Scene()
         scene.geometry.update({k: load_kwargs(v) for
                                k, v in kwargs['geometry'].items()})
-
         for k in kwargs['graph']:
             if isinstance(k, dict):
                 scene.graph.update(**k)
             elif util.is_sequence(k) and len(k) == 3:
                 scene.graph.update(k[1], k[0], **k[2])
-
         if 'base_frame' in kwargs:
             scene.graph.base_frame = kwargs['base_frame']
+        if 'metadata' in kwargs:
+            scene.metadata.update(kwargs['metadata'])
 
         return scene
 
@@ -311,8 +311,9 @@ def _parse_file_args(file_obj, file_type, **kwargs):
             metadata['file_path'] = file_path
             metadata['file_name'] = os.path.basename(file_obj)
             # if file_obj is a path that exists use extension as file_type
-            file_type = util.split_extension(file_path,
-                                             special=['tar.gz', 'tar.bz2'])
+            if file_type is None:
+                file_type = util.split_extension(file_path,
+                                special=['tar.gz', 'tar.bz2'])
             file_obj = open(file_path, 'rb')
         else:
             if file_type is not None:
