@@ -62,6 +62,7 @@ def _generate_conversions():
     to_inch = dict(to_inch)
     return to_inch
 
+
 _TO_INCHES = _generate_conversions()
 
 

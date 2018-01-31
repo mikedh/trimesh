@@ -11,6 +11,7 @@ except BaseException:
     log.warning('No FCL -- collision checking will not work')
     _fcl_exists = False
 
+
 class ContactData(object):
     """
     Data structure for holding information about a collision contact.
@@ -27,8 +28,8 @@ class ContactData(object):
         """
         self.names = set(names)
         self._inds = {
-            names[0] : contact.b1,
-            names[1] : contact.b2
+            names[0]: contact.b1,
+            names[1]: contact.b2
         }
         self._point = result.pos
 
@@ -75,12 +76,12 @@ class DistanceData(object):
         """
         self.names = set(names)
         self._inds = {
-            names[0] : result.b1,
-            names[1] : result.b2
+            names[0]: result.b1,
+            names[1]: result.b2
         }
         self._points = {
-            names[0] : result.nearest_points[0],
-            names[1] : result.nearest_points[1]
+            names[0]: result.nearest_points[0],
+            names[1]: result.nearest_points[1]
         }
         self._distance = result.min_distance
 
@@ -155,7 +156,8 @@ class CollisionManager(object):
         """
         Add an object to the collision manager.
 
-        If an object with the given name is already in the manager, replace it.
+        If an object with the given name is already in the manager, 
+        replace it.
 
         Parameters
         ----------
@@ -225,9 +227,11 @@ class CollisionManager(object):
         else:
             raise ValueError('{} not in collision manager!'.format(name))
 
-    def in_collision_single(self, mesh, transform=None, return_names=False, return_data=False):
+    def in_collision_single(self, mesh, transform=None,
+                            return_names=False, return_data=False):
         """
-        Check a single object for collisions against all objects in the manager.
+        Check a single object for collisions against all objects in the 
+        manager.
 
         Parameters
         ----------
@@ -339,7 +343,8 @@ class CollisionManager(object):
         else:
             return result
 
-    def in_collision_other(self, other_manager, return_names=False, return_data=False):
+    def in_collision_other(self, other_manager,
+                           return_names=False, return_data=False):
         """
         Check if any object from this manager collides with any object from another manager.
 
@@ -374,7 +379,7 @@ class CollisionManager(object):
         if return_names or return_data:
             for contact in cdata.result.contacts:
                 reverse = False
-                names = (self._extract_name(contact.o1), 
+                names = (self._extract_name(contact.o1),
                          other_manager._extract_name(contact.o2))
                 if names[0] is None:
                     names = (self._extract_name(contact.o2),
@@ -397,7 +402,8 @@ class CollisionManager(object):
         else:
             return result
 
-    def min_distance_single(self, mesh, transform=None, return_name=False, return_data=False):
+    def min_distance_single(self, mesh, transform=None,
+                            return_name=False, return_data=False):
         """
         Get the minimum distance between a single object and any object in the
         manager.
@@ -502,7 +508,8 @@ class CollisionManager(object):
         else:
             return distance
 
-    def min_distance_other(self, other_manager, return_names=False, return_data=False):
+    def min_distance_other(self, other_manager,
+                           return_names=False, return_data=False):
         """
         Get the minimum distance between any pair of objects, one in each manager.
 
