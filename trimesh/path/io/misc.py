@@ -1,21 +1,30 @@
 import numpy as np
 
-from ..entities import Line, Arc
-
+from ... import graph
 from ... import util
+
+from ..entities import Line, Arc
 
 from ...geometry import faces_to_edges
 from ...grouping import group_rows
 
 from collections import deque
-
 from shapely import ops
 
 
 def dict_to_path(drawing_obj):
-    '''
+    """
+    Turn a pure dict into a dict containing entity objects that
+    can be sent directly to a Path constructor.
 
-    '''
+    Parameters
+    -----------
+    as_dict: dict, with keys ['vertices', 'entities']
+
+    Returns
+    ------------
+    kwargs: dict, with keys ['vertices', 'entities']
+    """
     loaders = {'Arc': Arc, 'Line': Line}
     vertices = np.array(drawing_obj['vertices'])
     entities = [None] * len(drawing_obj['entities'])
@@ -27,7 +36,7 @@ def dict_to_path(drawing_obj):
 
 
 def lines_to_path(lines):
-    '''
+    """
     Turn line segments into a Path2D or Path3D object.
 
     Parameters
@@ -40,7 +49,7 @@ def lines_to_path(lines):
     Returns
     -----------
     kwargs: dict, kwarg for Path constructor
-    '''
+    """
     lines = np.asanyarray(lines, dtype=np.float64)
 
     if util.is_shape(lines, (-1, (2, 3))):
@@ -68,7 +77,7 @@ def lines_to_path(lines):
 
 
 def polygon_to_path(polygon):
-    '''
+    """
     Load shapely Polygon objects into a trimesh.path.Path2D object
 
     Parameters
@@ -78,7 +87,7 @@ def polygon_to_path(polygon):
     Returns
     -------------
     kwargs: dict, keyword arguments for Path2D constructor
-    '''
+    """
     entities = deque([Line(points=np.arange(len(polygon.exterior.coords)))])
     vertices = deque(np.array(polygon.exterior.coords))
 
@@ -93,7 +102,7 @@ def polygon_to_path(polygon):
 
 
 def linestrings_to_path(multi):
-    '''
+    """
     Load shapely LineString objects into a trimesh.path.Path2D object
 
     Parameters
@@ -103,7 +112,7 @@ def linestrings_to_path(multi):
     Returns
     -------------
     kwargs: dict, keyword arguments for Path2D constructor
-    '''
+    """
     entities = deque()
     vertices = deque()
 
@@ -122,25 +131,52 @@ def linestrings_to_path(multi):
 
 
 def faces_to_path(mesh, face_ids=None):
-    '''
+    """
     Given a mesh and face indices find the outline edges and
     turn them into a Path3D.
 
     Parameters
     ---------
-    mesh:  Trimesh object
-    facet: (n) list of indices of mesh.faces
+    mesh:      Trimesh object
+    face_ids: (n) list of indices of mesh.faces
 
     Returns
     ---------
     kwargs: dict, kwargs for Path3D constructor
-    '''
+    """
     if face_ids is None:
-        faces = mesh.faces
+        edges = mesh.edges_sorted
     else:
-        faces = mesh.faces[face_ids]
+        # take advantage of edge ordering to index as single row
+        edges = mesh.edges_sorted.reshape(
+            (-1, 6))[face_ids].reshape((-1, 2))
 
-    edges = np.sort(faces_to_edges(faces), axis=1)
+    # an edge which occurs onely once is on the boundary
     unique_edges = group_rows(edges, require_count=1)
-    segments = mesh.vertices[edges[unique_edges]]
-    return lines_to_path(segments)
+
+    # generate path traversals from the edges
+    kwargs = edges_to_path(edges=edges[unique_edges],
+                           vertices=mesh.vertices)
+    return kwargs
+
+
+def edges_to_path(edges, vertices):
+    """
+    Given an edge list of indices and associated vertices
+    representing lines, generate kwargs for a Path object.
+
+    Parameters
+    -----------
+    edges:    (n,2)       int, vertex index of lines
+    vertices: (m,(2,3)) float, vertex positions
+
+    Returns
+    ----------
+    kwargs: dict, kwargs for Path constructor
+    """
+    # sequence of ordered traversals
+    dfs = graph.dfs_traversals(edges)
+
+    kwargs = {'entities': [Line(d) for d in dfs],
+              'vertices': vertices}
+    return kwargs

@@ -16,7 +16,8 @@ id_sigfig = np.array([5,  # area
                       10,  # euler number
                       5,  # area/volume ratio
                       2,  # convex/mesh area ratio
-                      2])  # convex area/volume ratio
+                      2,  # convex area/volume ratio
+                      3])  # max radius squared / area
 
 
 def identifier_simple(mesh):
@@ -32,9 +33,10 @@ def identifier_simple(mesh):
     ----------
     identifier: (5,) float, identifying values of the mesh
     """
+
     # pre-allocate identifier so indexes of values can't move around
     # like they might if we used hstack or something else
-    identifier = np.zeros(5, dtype=np.float64)
+    identifier = np.zeros(6, dtype=np.float64)
 
     # start with properties that are valid regardless of watertightness
     # note that we're going to try to make all parameters relative
@@ -50,14 +52,21 @@ def identifier_simple(mesh):
         # 1.0 for cubes, different values for other things
         identifier[2] = (((mesh.area / 6.0) ** (1.0 / 2.0)) /
                          (mesh.volume ** (1.0 / 3.0)))
+        center = mesh.center_mass
+
     else:
         # if we don't have a watertight mesh add information about the
         # convex hull, which is slow to compute and unreliable
         # just what we're looking for in a hash but hey
         identifier[3] = mesh.area / mesh.convex_hull.area
         # cube side length ratio for the hull
-        identifier[4] = (((mesh.convex_hull.area /6.0) ** (1.0 / 2.0)) /
+        identifier[4] = (((mesh.convex_hull.area / 6.0) ** (1.0 / 2.0)) /
                          (mesh.convex_hull.volume ** (1.0 / 3.0)))
+        center = mesh.centroid
+
+    # peak radius squared over surface area
+    radii = ((mesh.vertices - center) ** 2).sum(axis=1)
+    identifier[5] = radii.max() / mesh.area
 
     return identifier
 

@@ -156,7 +156,7 @@ class CollisionManager(object):
         """
         Add an object to the collision manager.
 
-        If an object with the given name is already in the manager, 
+        If an object with the given name is already in the manager,
         replace it.
 
         Parameters
@@ -230,7 +230,7 @@ class CollisionManager(object):
     def in_collision_single(self, mesh, transform=None,
                             return_names=False, return_data=False):
         """
-        Check a single object for collisions against all objects in the 
+        Check a single object for collisions against all objects in the
         manager.
 
         Parameters

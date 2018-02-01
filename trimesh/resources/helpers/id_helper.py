@@ -185,9 +185,13 @@ if __name__ == '__main__':
         result.append({'mean': mean.tolist(),
                        'percent': percent.tolist()})
 
-        print('\n{}/{}'.format(i, len(meshes) - 1))
-        print(np.min(running, axis=0))
-        print(np.mean(running, axis=0))
+        print('\n\n{}/{}'.format(i, len(meshes) - 1))
+        print('mean', mean)
+        print('percent', percent)
+        print('oom', mean / percent)
+        print('curun', running[-1])
+        print('minrun', np.min(running, axis=0))
+        print('meanrun', np.mean(running, axis=0))
 
         # every loop dump everything
         # thrash- ey for sure but intermediate results are great

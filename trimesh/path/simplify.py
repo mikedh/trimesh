@@ -104,6 +104,17 @@ def is_circle(points, scale, verbose=False):
     """
     Given a set of points, quickly determine if they represent
     a circle or not.
+
+    Parameters
+    -------------
+    points: (n,2) float, points in space
+    scale:  float, scale of overall drawing
+    verbose: bool, print all fit messages or not
+
+    Returns
+    -------------
+    control: (3,2) float, points in space, OR
+              None, if not a circle
     """
 
     # make sure input is a numpy array
