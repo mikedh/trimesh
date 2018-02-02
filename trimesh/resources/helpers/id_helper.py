@@ -155,14 +155,14 @@ def data_stats(data):
 if __name__ == '__main__':
     trimesh.util.attach_to_log(level=logging.INFO)
 
-    meshes = get_meshes(cutoff=20)
+    meshes = get_meshes()
 
     print('loaded meshes!')
 
     # we want the whole thing to last less than
     hours = 5
     cutoff = (hours * 3600) / len(meshes)
-    cutoff = 10
+    cutoff = 30
     result = []
     running = []
 

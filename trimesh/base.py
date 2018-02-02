@@ -657,6 +657,95 @@ class Trimesh(object):
         return transform
 
     @util.cache_decorator
+    def symmetry(self):
+        """
+        Check whether a mesh has rotational symmetry.
+
+        Returns
+        -----------
+        symmetry: None         No rotational symmetry
+                  'radial'     Symmetric around an axis
+                  'spherical'  Symmetric around a point
+        """
+        # if not a volume this is meaningless
+        if not self.is_volume:
+            return None
+
+        # the sorted order of the principal components of inertia (3,) float
+        order = self.principal_inertia_components.argsort()
+
+        # we are checking if a geometry has radial symmetry
+        # if 2 of the PCI are equal, it is a revolved 2D profile
+        # if 3 of the PCI (all of them) are equal it is a sphere
+        # thus we take the diff of the sorted PCI, scale it as a ratio
+        # of the largest PCI, and then scale to the tolerance we care about
+        # if tol is 1e-3, that means that 2 components are identical if they
+        # are within .1% of the maximum PCI.
+        diff = np.abs(np.diff(self.principal_inertia_components[order]))
+        diff /= np.abs(self.principal_inertia_components).max()
+        # diffs that are within tol of zero
+        diff_zero = (diff / 1e-3).astype(int) == 0
+
+        if diff_zero.all():
+            # this is the case where all 3 PCI are identical
+            # this means that the geometry is symmetric about a point
+            # examples of this are a sphere, icosahedron, etc
+            self._cache['symmetry_axis'] = self.principal_inertia_vectors[0]
+            self._cache['symmetry_section'] = self.principal_inertia_vectors[1:]
+            return 'spherical'
+        
+        elif diff_zero.any():
+            # this is the case for 2/3 PCI are identical
+            # this means the geometry is symmetric about an axis
+            # probably a revolved 2D profile
+            
+            # we know that only 1/2 of the diff values are True
+            # if the first diff is 0, it means if we take the first element
+            # in the ordered PCI we will have one of the non- revolve axis (section axis)
+            # if the second diff is 0, we take the last element of
+            # the ordered PCI for the section axis
+            # if we wanted the revolve axis we would just switch [0,-1] to [-1,0]
+            
+            # since two vectors are the same, we know the middle
+            # one is one of those two
+            section_index = order[np.array([[0, 1],
+                                            [1, -1]])[diff_zero]].flatten()
+            self._cache['symmetry_section'] = self.principal_inertia_vectors[section_index]
+            
+            # we know the rotation axis is the sole unique value
+            # and is either first or last of the sorted values
+            axis_index = order[np.array([-1, 0])[diff_zero]][0]
+            self._cache['symmetry_axis'] = self.principal_inertia_vectors[axis_index]
+            return 'radial'
+        return None
+
+    @property
+    def symmetry_axis(self):
+        """
+        If a mesh has rotational symmetry, return the axis.
+
+        Returns
+        ------------
+        axis: (3,) float, axis around which a 2D profile 
+                          was revolved to generate this mesh
+        """
+        if self.symmetry is not None:
+            return self._cache['symmetry_axis']
+
+    @property
+    def symmetry_section(self):
+        """
+        If a mesh has rotational symmetry, return the two
+        vectors which make up a section coordinate frame.
+
+        Returns
+        ----------
+        section: (2, 3) float, vectors to take a section along
+        """
+        if self.symmetry is not None:
+            return self._cache['symmetry_section']
+        
+    @util.cache_decorator
     def triangles(self):
         """
         Actual triangles of the mesh (points, not indexes)

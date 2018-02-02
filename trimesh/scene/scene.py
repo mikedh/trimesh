@@ -518,12 +518,13 @@ class Scene:
                 raise ValueError('units not defined and not allowed to guess!')
 
         # exit early if our current units are the same as desired units
-        if current == desired:
-            return self
 
         scale = units.unit_conversion(current=current,
                                       desired=desired)
-        result = self.scaled(scale=scale)
+        if np.isclose(scale, 1.0):
+            result = self.copy()
+        else:
+            result = self.scaled(scale=scale)
 
         for geometry in result.geometry.values():
             geometry.units = desired

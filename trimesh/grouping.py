@@ -370,8 +370,9 @@ def boolean_rows(a, b, operation=set.intersection):
     --------
     shared: (p, d) array containing rows in both a and b
     """
-    a = float_to_int(a)
-    b = float_to_int(b)
+    a = np.asanyarray(a)
+    b = np.asanyarray(b)
+
     shared = operation({tuple(i) for i in a}, {tuple(j) for j in b})
     shared = np.array(list(shared))
     return shared

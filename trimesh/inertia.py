@@ -80,7 +80,7 @@ def principal_axis(inertia):
     if inertia.shape != (3, 3):
         raise ValueError('inertia tensor must be (3,3)!')
 
-    components, vectors = np.linalg.eig(inertia * negate_nondiagonal)
+    components, vectors = np.linalg.eigh(inertia * negate_nondiagonal)
 
     # eig returns them as column vectors, change them to row vectors
     vectors = vectors.T
