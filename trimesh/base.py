@@ -693,25 +693,26 @@ class Trimesh(object):
             self._cache['symmetry_axis'] = self.principal_inertia_vectors[0]
             self._cache['symmetry_section'] = self.principal_inertia_vectors[1:]
             return 'spherical'
-        
+
         elif diff_zero.any():
             # this is the case for 2/3 PCI are identical
             # this means the geometry is symmetric about an axis
             # probably a revolved 2D profile
-            
+
             # we know that only 1/2 of the diff values are True
             # if the first diff is 0, it means if we take the first element
-            # in the ordered PCI we will have one of the non- revolve axis (section axis)
+            # in the ordered PCI we will have one of the non- revolve axis
             # if the second diff is 0, we take the last element of
             # the ordered PCI for the section axis
-            # if we wanted the revolve axis we would just switch [0,-1] to [-1,0]
-            
+            # if we wanted the revolve axis we would just switch [0,-1] to
+            # [-1,0]
+
             # since two vectors are the same, we know the middle
             # one is one of those two
             section_index = order[np.array([[0, 1],
                                             [1, -1]])[diff_zero]].flatten()
             self._cache['symmetry_section'] = self.principal_inertia_vectors[section_index]
-            
+
             # we know the rotation axis is the sole unique value
             # and is either first or last of the sorted values
             axis_index = order[np.array([-1, 0])[diff_zero]][0]
@@ -726,7 +727,7 @@ class Trimesh(object):
 
         Returns
         ------------
-        axis: (3,) float, axis around which a 2D profile 
+        axis: (3,) float, axis around which a 2D profile
                           was revolved to generate this mesh
         """
         if self.symmetry is not None:
@@ -744,7 +745,7 @@ class Trimesh(object):
         """
         if self.symmetry is not None:
             return self._cache['symmetry_section']
-        
+
     @util.cache_decorator
     def triangles(self):
         """

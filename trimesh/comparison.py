@@ -13,11 +13,11 @@ from .constants import tol
 
 # how many signifigant figures to use for each field of the identifier
 id_sigfig = np.array([5,  # area
-                      10, # euler number
+                      10,  # euler number
                       5,  # area/volume ratio
                       2,  # convex/mesh area ratio
                       2,  # convex area/volume ratio
-                      3]) # max radius squared / area
+                      3])  # max radius squared / area
 
 
 def identifier_simple(mesh):
@@ -67,8 +67,7 @@ def identifier_simple(mesh):
             # section radius
             R2 = (np.dot(vertices, mesh.symmetry_section.T)**2).sum(axis=1).max()
             # area of a cylinder primitive
-            area = 2 * np.pi * (R2**.5) * h
-            area += 2 * np.pi * R2
+            area = (2 * np.pi * (R2**.5) * h) + (2 * np.pi * R2)
             # replace area in this case with area ratio
             identifier[0] = mesh.area / area
         elif mesh.symmetry == 'spherical':
@@ -85,9 +84,9 @@ def identifier_simple(mesh):
         identifier[4] = (((mesh.convex_hull.area / 6.0) ** (1.0 / 2.0)) /
                          (mesh.convex_hull.volume ** (1.0 / 3.0)))
         vertices = mesh.vertices - mesh.centroid
-        
-    # add in max radius^2 to area ratio    
-    R2 = (vertices ** 2).sum(axis=1).max()    
+
+    # add in max radius^2 to area ratio
+    R2 = (vertices ** 2).sum(axis=1).max()
     identifier[5] = R2 / mesh.area
 
     return identifier

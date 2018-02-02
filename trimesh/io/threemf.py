@@ -7,6 +7,8 @@ from .. import util
 from .. import graph
 from .. import grouping
 
+from ..constants import log
+
 
 def load_3MF(file_obj,
              **kwargs):
@@ -37,15 +39,14 @@ def load_3MF(file_obj,
     components = collections.defaultdict(list)
 
     for obj in tree.iter('{*}object'):
+        # id is mandatory
+        index = obj.attrib['id']
         # not required, so use a get call which will return None
         # if the tag isn't populated
         if 'name' in obj.attrib:
             name = obj.attrib['name']
         else:
-            name = str(obj.attrib['index'])
-
-        # id is mandatory
-        index = obj.attrib['id']
+            name = str(index)
         # store the name by index
         id_name[index] = name
 
@@ -115,15 +116,24 @@ def load_3MF(file_obj,
     graph_args = []
     for path in graph.multigraph_paths(G=g,
                                        source='world'):
+        # collect all the transform on the path
         transforms = graph.multigraph_collect(G=g,
                                               traversal=path,
                                               attrib='matrix')
+        # combine them into a single transform
         if len(transforms) == 1:
             transform = transforms[0]
         else:
             transform = util.multi_dot(transforms)
-        name = id_name[path[-1][0]] + util.unique_id()
-        geom = id_name[path[-1][0]]
+
+        # the last element of the path should be the geometry
+        last = path[-1][0]
+        # if someone included an undefined component, skip ot
+        if last not in id_name:
+            log.debug('id {} included but not defined!'.format(last))
+            continue
+        name = id_name[last] + util.unique_id()
+        geom = id_name[last]
         graph_args.append({'frame_from': 'world',
                            'frame_to': name,
                            'matrix': transform,
