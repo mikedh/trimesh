@@ -221,7 +221,7 @@ def shared_edges(faces_a, faces_b):
     """
     e_a = np.sort(faces_to_edges(faces_a), axis=1)
     e_b = np.sort(faces_to_edges(faces_b), axis=1)
-    shared = grouping.boolean_rows(e_a, e_b, operation=set.intersection)
+    shared = grouping.boolean_rows(e_a, e_b, operation=np.intersect1d)
     return shared
 
 

@@ -353,7 +353,7 @@ def group_rows(data, require_count=None, digits=None):
         return group_slice()
 
 
-def boolean_rows(a, b, operation=set.intersection):
+def boolean_rows(a, b, operation=np.intersect1d):
     """
     Find the rows in two arrays which occur in both rows.
 
@@ -373,8 +373,10 @@ def boolean_rows(a, b, operation=set.intersection):
     a = np.asanyarray(a)
     b = np.asanyarray(b)
 
-    shared = operation({tuple(i) for i in a}, {tuple(j) for j in b})
-    shared = np.array(list(shared))
+    av = a.view([('', a.dtype)] * a.shape[1]).ravel()
+    bv = b.view([('', b.dtype)] * b.shape[1]).ravel()
+    shared = operation(av, bv).view(a.dtype).reshape(-1, a.shape[1])
+ 
     return shared
 
 

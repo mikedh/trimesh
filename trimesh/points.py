@@ -334,6 +334,9 @@ class PointCloud(object):
         if 'vertices' in kwargs:
             self.vertices = kwargs['vertices']
 
+        if 'color' in kwargs:
+            self.colors = kwargs['color']
+
     def md5(self):
         return self._data.md5()
 
@@ -362,12 +365,15 @@ class PointCloud(object):
         self._data['vertices'] = data
 
     @property
-    def vertices_color(self):
-        return self._data['vertices_color']
+    def colors(self):
+        return self._data['colors']
 
-    @vertices_color.setter
-    def vertices_color(self, data):
-        self._data['vertices_color'] = data
+    @colors.setter
+    def colors(self, data):
+        data = np.asanyarray(data)
+        if data.shape == (4,):
+            data = np.tile(data, (len(self.vertices), 1))
+        self._data['colors'] = data
 
     def scene(self):
         from .scene.scene import Scene
