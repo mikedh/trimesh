@@ -65,7 +65,7 @@ def unitize(points, check_valid=False):
         length[np.isnan(length)] = 0.0
 
     if check_valid:
-        valid = np.greater(length, _TOL_ZERO)
+        valid = np.not_equal(length, 0.0)
         if axis == 1:
             unit_vectors = (points[valid].T / length[valid]).T
         elif len(points.shape) == 1 and valid:

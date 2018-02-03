@@ -253,32 +253,26 @@ def bounds_tree(triangles):
 
 def nondegenerate(triangles, areas=None):
     """
-    Find all triangles which have an oriented bounding box
-    where both of the two sides is larger than tol.merge and
-    both edge vectors are longer than tol.merge.
-
-    Degenerate triangles can be when:
-    1) Two of the three vertices are colocated
-    2) All three vertices are unique but colinear
-
+    Return a mask that identifies triangles without three collinear vertices.
 
     Parameters
     ----------
     triangles: (n, 3, 3) float, list of triangles
 
-
     Returns
     ----------
-    nondegenerate: (n,) bool array of triangles that have area
+    nondegenerate: (n,) bool array where True indicates a nondegenerate tri.
     """
     triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
         raise ValueError('Triangles must be (n,3,3)!')
 
-    # if both edges of the triangles OBB are longer than tol.merge
-    # we declare them to be nondegenerate
-    ok = (extents(triangles=triangles,
-                  areas=areas) > tol.merge).all(axis=1)
+    # Minimum angle threshold
+    a, a_valid = util.unitize(triangles[:, 1] - triangles[:, 0], check_valid=True)
+    b, b_valid = util.unitize(triangles[:, 2] - triangles[:, 1], check_valid=True)
+    ok = np.logical_and(a_valid, b_valid)
+    dots = np.abs(np.einsum('ij,ij->i', a[ok], b[ok]))
+    ok[ok] = (1.0 - dots > tol.zero)
 
     return ok
 
