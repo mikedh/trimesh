@@ -328,7 +328,7 @@ class Trimesh(object):
                 # invalid normals set them to an arbitrary unit vector
                 # we could set them to a 0 magnitude vector but the odds
                 # of that screwing up a calculation seem high
-                shaped = np.zeros((len(faces), 3), dtype=np.float64)
+                shaped = np.zeros((len(valid), 3), dtype=np.float64)
                 # the arbitary vector we were talking about
                 shaped += [1.0, 0.0, 0.0]
                 # for valid normals set them to the actual value
@@ -1653,8 +1653,8 @@ class Trimesh(object):
 
     def remove_unreferenced_vertices(self):
         """
-        Remove all vertices in the current mesh which are not referenced by
-        a face.
+        Remove all vertices in the current mesh which are not referenced
+        by a face.
         """
         unique, inverse = np.unique(self.faces.reshape(-1),
                                     return_inverse=True)
@@ -1663,13 +1663,16 @@ class Trimesh(object):
 
     def unmerge_vertices(self):
         """
-        Removes all face references so that every face contains three unique
-        vertex indices and no faces are adjacent.
+        Removes all face references so that every face contains three 
+        unique vertex indices and no faces are adjacent.
         """
-        with self._cache:
-            self.update_vertices(mask=self.faces.reshape(-1))
-            self.faces = np.arange(len(self.vertices)).reshape((-1, 3))
-        self._cache.clear(exclude='face_normals')
+        vertices = self.vertices[self.faces].reshape((-1,3))
+        faces = np.arange(len(vertices), 
+                          dtype=np.int64).reshape((-1,3))
+
+        self.faces = faces
+        self.vertices = vertices
+        self._cache.clear(exclude=['face_normals'])
 
     def apply_translation(self, translation):
         """
