@@ -101,14 +101,14 @@ class SceneViewer(pyglet.window.Window):
     def _add_points(self, name, pointcloud):
         """
         Add a PointCloud object to the scene.
-        
+
         Parameters
         ------------
         name:       str, name of geometry
         pointcloud: trimesh.points.PointCloud object
         """
         self.vertex_list[name] = self.batch.add_indexed(
-            *points_to_vertex_list(pointcloud.vertices, 
+            *points_to_vertex_list(pointcloud.vertices,
                                    pointcloud.colors))
         self.vertex_list_md5[name] = geometry_md5(pointcloud)
         self.vertex_list_mode[name] = gl.GL_POINTS

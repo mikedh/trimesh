@@ -376,7 +376,7 @@ def boolean_rows(a, b, operation=np.intersect1d):
     av = a.view([('', a.dtype)] * a.shape[1]).ravel()
     bv = b.view([('', b.dtype)] * b.shape[1]).ravel()
     shared = operation(av, bv).view(a.dtype).reshape(-1, a.shape[1])
- 
+
     return shared
 
 

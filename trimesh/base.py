@@ -52,7 +52,7 @@ class Trimesh(object):
                  vertex_colors=None,
                  metadata=None,
                  process=True,
-                 validate=True,
+                 validate=False,
                  use_embree=True,
                  initial_cache={},
                  **kwargs):
@@ -62,19 +62,30 @@ class Trimesh(object):
         Parameters
         ----------
         vertices:       (n,3) float set of vertex locations
+
         faces:          (m,3) int set of triangular faces
                               (quad faces will be triangulated)
+
         face_normals:   (m,3) float set of normal vectors for faces.
+
         vertex_normals: (n,3) float set of normal vectors for vertices
+
         metadata:       dict, any metadata about the mesh
-        process:        bool, if True basic mesh clean up will be done initally
-        validate:       bool, if True, faces will not be returned until face normals
-                        are calculated and erronious faces removed
+
+        process:        bool, if True, Nan and Inf values will be removed
+                        immediatly and vertices will be merged
+
+        validate:       bool, if True, degenerate and duplicate faces will be
+                        removed immediatly, and some functions will alter
+                        the mesh to ensure consistent results.
+
         use_embree:     bool, if True try to use pyembree raytracer.
                         If pyembree is not available it will automatically fall
                         back to a much slower rtree/numpy implementation
+
         initial_cache:  dict, a way to pass things to the cache in case expensive
                         things were calculated before creating the mesh object.
+
         **kwargs:       stored in self._kwargs if needed later
         """
 
@@ -94,10 +105,8 @@ class Trimesh(object):
         self._cache = util.Cache(id_function=self._data.crc)
         self._cache.update(initial_cache)
 
-        # on returning faces or face normals, validate faces to ensure nonzero
-        # normals and matching shape. Not validating can mean that you
-        # get different number of values depending on the order which you
-        # look at faces and face normals
+        # if validate we are allowed to alter the mesh silently
+        # to ensure valid results
         self._validate = bool(validate)
 
         # check for None only to avoid warning messages in subclasses
@@ -116,6 +125,7 @@ class Trimesh(object):
                                                vertex_colors=vertex_colors,
                                                mesh=self,
                                                **kwargs)
+        # add a back reference to this mesh for its visual property object
         self.visual.mesh = self
 
         # normals are accessed through setters/properties and are regenerated
@@ -159,28 +169,37 @@ class Trimesh(object):
         self._density = 1.0
         self._center_mass = None
 
-        # process is a cleanup function which cleans up the mesh
-        # by merging vertices and removing zero- area and duplicate faces
-        if (process and
-            vertices is not None and
-                faces is not None):
-            self.process()
+        # process will remove NaN and Inf values and merge vertices
+        # if validate, will remove degenerate and duplicate faces
+        if process or validate:
+            self.process(clean=validate)
 
         # store all passed kwargs for debugging purposes
         self._kwargs = kwargs
 
-    def process(self):
+    def process(self, clean=False):
         """
-        Convenience function to remove garbage and make mesh sane.
+        Do the bare minimum processing to make a mesh useful.
 
         Does this by:
-            1) merging duplicate vertices
-            2) removing duplicate faces
-            3) removing zero- area faces
+            1) removing NaN and Inf values
+            2) merging duplicate vertices
+        If clean:
+            3) remove degenerate triangles, defined as a triangle
+               with one edge of their rectangular 2D oriented bounding
+               box as less than tol.merge, which is 1e-8 by default
+            4) remove duplicated triangles
 
-        On an 234213 face mesh this function executes in .0005s
-        with a late 2014 i7.
+
+        Parameters
+        --------------
+        clean: bool, if True remove faces
+
+        Returns
+        ------------
+        self: Trimesh object
         """
+        # if there are no vertices or faces exit early
         if self.is_empty:
             return self
 
@@ -188,8 +207,11 @@ class Trimesh(object):
         with self._cache:
             self.remove_infinite_values()
             self.merge_vertices()
-            self.remove_duplicate_faces()
-            self.remove_degenerate_faces()
+            # if we're cleaning remove duplicate
+            # and degenerate faces
+            if clean:
+                self.remove_duplicate_faces()
+                self.remove_degenerate_faces()
         # since none of our process operations moved vertices or faces,
         # we can keep face and vertex normals in the cache without recomputing
         # if faces or vertices have been removed, normals are validated before
@@ -197,7 +219,6 @@ class Trimesh(object):
         self._cache.clear(exclude=['face_normals',
                                    'vertex_normals'])
         self.metadata['processed'] = True
-
         return self
 
     def md5(self):
@@ -243,18 +264,21 @@ class Trimesh(object):
         ----------
         faces: (n,3) int, representing triangles which reference self.vertices
         """
-        # we validate face normals as the validation process may remove
-        # zero- area faces. If we didn't do this check here, the shape of
-        # self.faces and self.face_normals could differ depending on the
-        # order they were queried in
-        self._validate_face_normals()
         return self._data['faces']
 
     @faces.setter
     def faces(self, values):
+        """
+        Set the vertex indexes that make up triangular faces.
+
+        Parameters
+        --------------
+        values: (n, 3) int, indexes of self.vertices
+        """
         if values is None:
             values = []
         values = np.asanyarray(values, dtype=np.int64)
+        # automatically triangulate quad faces
         if util.is_shape(values, (-1, 4)):
             log.info('Triangulating quad faces')
             values = geometry.triangulate_quads(values)
@@ -280,21 +304,52 @@ class Trimesh(object):
         """
         Return the unit normal vector for each face.
 
+        If a face is degenerate and a normal can't be generated
+        an arbitrary unit vector will be returned for that face.
+
         Returns
         -----------
         normals: (len(self.faces), 3) float64, normal vectors
         """
-        self._validate_face_normals()
-        cached = self._cache['face_normals']
-        return cached
+        # if the shape of the cached normals is incorrect, generate normals
+        if (np.shape(self._cache['face_normals']) !=
+                np.shape(self._data['faces'])):
+
+            log.debug('generating face normals as shape was incorrect')
+            # use cached triangle cross products
+            face_normals, valid = triangles.normals(
+                crosses=self.triangles_cross)
+            if valid.all():
+                # every face has a valid normal so we can just go home
+                self._cache['face_normals'] = face_normals
+            else:
+                # some face are degenerate and we don't want to change shapes
+                # so generate face normals of the correct shape and for
+                # invalid normals set them to an arbitrary unit vector
+                # we could set them to a 0 magnitude vector but the odds
+                # of that screwing up a calculation seem high
+                shaped = np.zeros((len(faces), 3), dtype=np.float64)
+                # the arbitary vector we were talking about
+                shaped += [1.0, 0.0, 0.0]
+                # for valid normals set them to the actual value
+                shaped[valid] = face_normals
+                self._cache['face_normals'] = shaped
+        return self._cache['face_normals']
 
     @face_normals.setter
     def face_normals(self, values):
-        if values is None:
-            return
-        self._cache['face_normals'] = np.asanyarray(values,
-                                                    order='C',
-                                                    dtype=np.float64)
+        """
+        Assign values to face normals
+
+        Parameters
+        -------------
+        values: (len(self.faces), 3) float, unit face normals
+        """
+        if values is not None:
+            # make sure face normals are C- contiguous float
+            self._cache['face_normals'] = np.asanyarray(values,
+                                                        order='C',
+                                                        dtype=np.float64)
 
     @property
     def vertices(self):
@@ -313,40 +368,16 @@ class Trimesh(object):
 
     @vertices.setter
     def vertices(self, values):
-        # make sure vertices are stored as a float64 for consistency
-        self._data['vertices'] = np.asanyarray(values, dtype=np.float64)
-
-    def _validate_face_normals(self, faces=None):
         """
-        Make sure face normals are of correct shape.
-
-        This function also removes faces which are zero area, and so must be
-        called before returning faces or triangles to avoid inconsistant results
-        depending on which order functions are called.
+        Assign vertex values to the mesh.
 
         Parameters
-        ----------
-        faces: (n,3) int, if None uses self.faces
-                          Available as an argument to avoid a circular
-                          reference in some functions
+        --------------
+        values: (n, 3) float, points in space
         """
-        if not self._validate:
-            return
-        # pull faces directly from DataStore to avoid infinite recursion
-        if faces is None:
-            faces = self._data['faces']
-        if np.shape(self._cache.get('face_normals')) != np.shape(faces):
-            log.debug('Generating face normals as shape was incorrect')
-            tri_cached = self.vertices.view(np.ndarray)[faces]
-            tri_cross = triangles.cross(tri_cached)
-            face_normals, valid = triangles.normals(triangles=tri_cached,
-                                                    crosses=tri_cross)
-            if not valid.all():
-                log.debug('normals detected and removed degenerate face!')
-                self.update_faces(valid)
-
-            # cache the work we did
-            self._cache['face_normals'] = face_normals
+        self._data['vertices'] = np.asanyarray(values,
+                                               order='C',
+                                               dtype=np.float64)
 
     @util.cache_decorator
     def vertex_normals(self):
@@ -362,6 +393,7 @@ class Trimesh(object):
         vertex_normals: (n,3) float, where n == len(self.vertices)
                          Represents the surface normal at each vertex.
         """
+        # make sure we have faces_sparse
         assert hasattr(self.faces_sparse, 'dot')
         vertex_normals = geometry.mean_vertex_normals(len(self.vertices),
                                                       self.faces,
@@ -371,11 +403,19 @@ class Trimesh(object):
 
     @vertex_normals.setter
     def vertex_normals(self, values):
-        if values is None:
-            return
-        values = np.asanyarray(values, dtype=np.float64)
-        if values.shape == self.vertices.shape:
-            self._cache['vertex_normals'] = values
+        """
+        Assign values to vertex normals
+
+        Parameters
+        -------------
+        values: (len(self.vertices), 3) float, unit normal vectors
+        """
+        if values is not None:
+            values = np.asanyarray(values,
+                                   order='C',
+                                   dtype=np.float64)
+            if values.shape == self.vertices.shape:
+                self._cache['vertex_normals'] = values
 
     @util.cache_decorator
     def bounding_box(self):
@@ -389,10 +429,10 @@ class Trimesh(object):
         """
         from . import primitives
         center = self.bounds.mean(axis=0)
-        aabb = primitives.Box(
-            transform=transformations.translation_matrix(center),
-            extents=self.extents,
-            mutable=False)
+        transform = transformations.translation_matrix(center)
+        aabb = primitives.Box(transform=transform,
+                              extents=self.extents,
+                              mutable=False)
         return aabb
 
     @util.cache_decorator
@@ -497,12 +537,12 @@ class Trimesh(object):
     @util.cache_decorator
     def scale(self):
         """
-        A metric for the overall scale of the mesh, the length of the longest
-        diagonal of the meshes axis aligned bounding box
+        A metric for the overall scale of the mesh, the length of the
+        diagonal of the axis aligned bounding box of the mesh.
 
         Returns
         ----------
-        scale: float, the longest diagonal of the meshes AABB
+        scale: float, the diagonal of the meshes AABB
         """
         scale = (self.extents ** 2).sum() ** .5
         return scale
@@ -513,7 +553,8 @@ class Trimesh(object):
         The point in space which is the average of the triangle centroids
         weighted by the area of each triangle.
 
-        This will be valid even for non- watertight meshes, unlike self.center_mass
+        This will be valid even for non- watertight meshes,
+        unlike self.center_mass
 
         Returns
         ----------
@@ -999,9 +1040,17 @@ class Trimesh(object):
         Ensure that every vertex and face consists of finite numbers.
 
         This will remove vertices or faces containing np.nan and np.inf
+
+        Alters
+        ----------
+        self.faces:    masked to remove np.inf/np.nan
+        self.vertices: masked to remove np.inf/np.nan
         """
+        # (len(self.faces),) bool, mask for faces
         faces = np.isfinite(self.faces).all(axis=1)
+        # (len(self.vertices),) bool, mask for vertices
         vertices = np.isfinite(self.vertices).all(axis=1)
+        # apply the masks
         self.update_faces(faces)
         self.update_vertices(vertices)
 
