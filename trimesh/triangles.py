@@ -52,12 +52,25 @@ def normals(triangles=None, crosses=None):
     """
     Calculates the normals of input triangles
 
-    triangles: vertices of triangles, (n,3,3)
-    returns:   normal vectors, (n,3)
+    Parameters
+    ------------
+    triangles: (n, 3, 3) float, vertex positions 
+    crosses:   (n, 3) float, cross products of edge vectors
+
+    Returns
+    ------------
+    normals: (m, 3) float, normal vectors
+    valid:   (n,) bool, which normals were above threshold
     """
     if crosses is None:
         crosses = cross(triangles)
-    normals, valid = util.unitize(crosses, check_valid=True)
+
+    # unitize the cross product vectors
+    # a if both edges are tol.merge, that means the
+    # minimum acceptable cross product norm is tol.merge **2
+    normals, valid = util.unitize(crosses,
+                                  check_valid=True,
+                                  threshold=(tol.merge ** 2))
     return normals, valid
 
 
@@ -251,12 +264,11 @@ def bounds_tree(triangles):
     return tree
 
 
-def nondegenerate(triangles, areas=None):
+def nondegenerate(triangles, areas=None, height=None):
     """
     Find all triangles which have an oriented bounding box
-    where both of the two sides is larger than tol.merge and
-    both edge vectors are longer than tol.merge.
-
+    where both of the two sides is larger than a specified height.
+    
     Degenerate triangles can be when:
     1) Two of the three vertices are colocated
     2) All three vertices are unique but colinear
@@ -265,8 +277,8 @@ def nondegenerate(triangles, areas=None):
     Parameters
     ----------
     triangles: (n, 3, 3) float, list of triangles
-
-
+    height:    float, minimum edge of a triangle to be kept
+ 
     Returns
     ----------
     nondegenerate: (n,) bool array of triangles that have area
@@ -275,10 +287,13 @@ def nondegenerate(triangles, areas=None):
     if not util.is_shape(triangles, (-1, 3, 3)):
         raise ValueError('Triangles must be (n,3,3)!')
 
+    if height is None:
+        height = tol.merge
+    
     # if both edges of the triangles OBB are longer than tol.merge
     # we declare them to be nondegenerate
     ok = (extents(triangles=triangles,
-                  areas=areas) > tol.merge).all(axis=1)
+                  areas=areas) > height).all(axis=1)
 
     return ok
 

@@ -172,28 +172,23 @@ class Trimesh(object):
         # process will remove NaN and Inf values and merge vertices
         # if validate, will remove degenerate and duplicate faces
         if process or validate:
-            self.process(clean=validate)
+            self.process()
 
         # store all passed kwargs for debugging purposes
         self._kwargs = kwargs
 
-    def process(self, clean=False):
+    def process(self):
         """
         Do the bare minimum processing to make a mesh useful.
 
         Does this by:
             1) removing NaN and Inf values
             2) merging duplicate vertices
-        If clean:
+        If self._validate:
             3) remove degenerate triangles, defined as a triangle
                with one edge of their rectangular 2D oriented bounding
                box as less than tol.merge, which is 1e-8 by default
             4) remove duplicated triangles
-
-
-        Parameters
-        --------------
-        clean: bool, if True remove faces
 
         Returns
         ------------
@@ -209,7 +204,7 @@ class Trimesh(object):
             self.merge_vertices()
             # if we're cleaning remove duplicate
             # and degenerate faces
-            if clean:
+            if self._validate:
                 self.remove_duplicate_faces()
                 self.remove_degenerate_faces()
         # since none of our process operations moved vertices or faces,
@@ -317,8 +312,10 @@ class Trimesh(object):
 
             log.debug('generating face normals as shape was incorrect')
             # use cached triangle cross products
-            face_normals, valid = triangles.normals(
-                crosses=self.triangles_cross)
+            face_normals, valid = triangles.normals(crosses=self.triangles_cross)
+            # store valid mask
+            self._cache['face_normals_valid'] = valid
+
             if valid.all():
                 # every face has a valid normal so we can just go home
                 self._cache['face_normals'] = face_normals
@@ -1386,14 +1383,31 @@ class Trimesh(object):
         tree = KDTree(self.vertices.view(np.ndarray))
         return tree
 
-    def remove_degenerate_faces(self):
+    def remove_degenerate_faces(self, height=None):
         """
         Remove degenerate faces (faces without 3 unique vertex indices)
         from the current mesh.
+
+        If a height is specified, it will remove any face with a 2D oriented
+        bounding box with one edge shorter than that height. 
+
+        If not specified, it will remove any face with a zero normal.
+
+        Parameters
+        ------------
+        height: float, if specified removes faces with an oriented bounding
+                box shorter than this on one side.
         """
-        nondegenerate = triangles.nondegenerate(triangles=self.triangles,
-                                                areas=self.area_faces)
-        self.update_faces(nondegenerate)
+        if min_edge is None:
+            # populate valid mask
+            normals = self.face_normals
+            if 'face_normals_valid' in self._cache:
+                self.update_faces(self._cache['face_normals_valid'])
+        else:
+            nondegenerate = triangles.nondegenerate(triangles,
+                                                    areas=self.area_faces,
+                                                    height=height)
+            self.update_faces(nondegenerate)
 
     @util.cache_decorator
     def facets(self):

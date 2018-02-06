@@ -35,11 +35,11 @@ log = logging.getLogger('trimesh')
 log.addHandler(logging.NullHandler())
 
 # included here so util has only standard library imports
-_TOL_ZERO = 1e-12
-_TOL_MERGE = 1e-8
+TOL_ZERO = 1e-12
+TOL_MERGE = 1e-8
 
 
-def unitize(points, check_valid=False):
+def unitize(points, check_valid=False, threshold=None):
     """
     Turn a list of vectors into a list of unit vectors.
 
@@ -48,7 +48,11 @@ def unitize(points, check_valid=False):
     points:       (n,m) or (j) input array of vectors.
                   For 1D arrays, points is treated as a single vector
                   For 2D arrays, each row is treated as a vector
+
     check_valid:  boolean, if True enables valid output and checking
+    
+    threshold:    float, cutoff to be considered zero. 
+
 
     Returns
     ---------
@@ -65,7 +69,13 @@ def unitize(points, check_valid=False):
         length[np.isnan(length)] = 0.0
 
     if check_valid:
-        valid = np.greater(length, _TOL_ZERO)
+        if threshold is None:
+            threshold = TOL_ZERO
+        # make sure lengths are greater than zero
+        valid = np.logical_not(np.isclose(length,
+                                          0.0,
+                                          rtol=0.0,
+                                          atol=threshold))
         if axis == 1:
             unit_vectors = (points[valid].T / length[valid]).T
         elif len(points.shape) == 1 and valid:
@@ -294,8 +304,8 @@ def vector_hemisphere(vectors):
     if not is_shape(vectors, (-1, 3)):
         raise ValueError('Vectors must be (n,3)!')
 
-    neg = vectors < -_TOL_ZERO
-    zero = np.logical_not(np.logical_or(neg, vectors > _TOL_ZERO))
+    neg = vectors < -TOL_ZERO
+    zero = np.logical_not(np.logical_or(neg, vectors > TOL_ZERO))
 
     # move all                          negative Z to positive
     # then for zero Z vectors, move all negative Y to positive
@@ -327,7 +337,7 @@ def vector_to_spherical(cartesian):
         raise ValueError('Cartesian points must be (n,3)!')
 
     unit, valid = unitize(cartesian, check_valid=True)
-    unit[np.abs(unit) < _TOL_MERGE] = 0.0
+    unit[np.abs(unit) < TOL_MERGE] = 0.0
 
     x, y, z = unit.T
     spherical = np.zeros((len(cartesian), 2), dtype=np.float64)
@@ -1805,7 +1815,7 @@ def sigfig_int(values, sigfig):
         raise ValueError('sigfig must match identifier')
 
     exponent = np.zeros(len(values))
-    nonzero = np.abs(values) > _TOL_ZERO
+    nonzero = np.abs(values) > TOL_ZERO
     exponent[nonzero] = np.floor(np.log10(np.abs(values[nonzero])))
 
     multiplier = exponent - sigfig + 1
