@@ -54,7 +54,7 @@ def normals(triangles=None, crosses=None):
 
     Parameters
     ------------
-    triangles: (n, 3, 3) float, vertex positions 
+    triangles: (n, 3, 3) float, vertex positions
     crosses:   (n, 3) float, cross products of edge vectors
 
     Returns
@@ -66,11 +66,8 @@ def normals(triangles=None, crosses=None):
         crosses = cross(triangles)
 
     # unitize the cross product vectors
-    # a if both edges are tol.merge, that means the
-    # minimum acceptable cross product norm is tol.merge **2
     normals, valid = util.unitize(crosses,
-                                  check_valid=True,
-                                  threshold=(tol.merge ** 2))
+                                  check_valid=True)
     return normals, valid
 
 
@@ -268,7 +265,7 @@ def nondegenerate(triangles, areas=None, height=None):
     """
     Find all triangles which have an oriented bounding box
     where both of the two sides is larger than a specified height.
-    
+
     Degenerate triangles can be when:
     1) Two of the three vertices are colocated
     2) All three vertices are unique but colinear
@@ -278,7 +275,7 @@ def nondegenerate(triangles, areas=None, height=None):
     ----------
     triangles: (n, 3, 3) float, list of triangles
     height:    float, minimum edge of a triangle to be kept
- 
+
     Returns
     ----------
     nondegenerate: (n,) bool array of triangles that have area
@@ -289,7 +286,7 @@ def nondegenerate(triangles, areas=None, height=None):
 
     if height is None:
         height = tol.merge
-    
+
     # if both edges of the triangles OBB are longer than tol.merge
     # we declare them to be nondegenerate
     ok = (extents(triangles=triangles,

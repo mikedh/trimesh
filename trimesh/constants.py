@@ -9,26 +9,26 @@ import numpy as np
 class NumericalToleranceMesh(object):
     """
     tol.zero: consider floating point numbers less than this zero
+
     tol.merge: when merging vertices, consider vertices closer than this
                to be the same vertex. Here we use the same value (1e-8)
                as SolidWorks uses, according to their documentation.
+
     tol.planar: the maximum distance from a plane a point can be and
                 still be considered to be on the plane
-    tol.facet_min_radius: the minimum radius that an arc drawn from the
-                   non-shared vertices of an adjacency pair with the
-                   same swept angle as the adjacency pair
-                   be to consider the two faces coplanar. This method is more
-                   robust than considering just normal angles as it is tolerant
-                   of numerical error on very small faces.
+
+    tol.facet_threshold: threshold for two facets to be considered coplanar
     """
 
     def __init__(self, **kwargs):
-        self.zero = 1e-12
+        # set our zero for floating point comparision to 100x
+        # the resolution of float64 which works out to 1e-13
+        self.zero = np.finfo(np.float64).resolution * 100
         self.merge = 1e-8
         self.planar = 1e-5
         self.facet_threshold = 5000
         self.fit = 1e-2
-        self.id_len = 6
+
         self.__dict__.update(kwargs)
 
 

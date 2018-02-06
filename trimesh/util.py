@@ -34,8 +34,12 @@ else:
 log = logging.getLogger('trimesh')
 log.addHandler(logging.NullHandler())
 
-# included here so util has only standard library imports
-TOL_ZERO = 1e-12
+# include constants here so we don't have to import
+# a floating point threshold for 0.0
+# we are setting it to 100x the resolution of a float64
+# which works out to be 1e-13
+TOL_ZERO = np.finfo(np.float64).resolution * 100
+# how close to merge vertices
 TOL_MERGE = 1e-8
 
 
@@ -50,8 +54,8 @@ def unitize(points, check_valid=False, threshold=None):
                   For 2D arrays, each row is treated as a vector
 
     check_valid:  boolean, if True enables valid output and checking
-    
-    threshold:    float, cutoff to be considered zero. 
+
+    threshold:    float, cutoff to be considered zero.
 
 
     Returns
@@ -67,10 +71,10 @@ def unitize(points, check_valid=False, threshold=None):
 
     if is_sequence(length):
         length[np.isnan(length)] = 0.0
+    if threshold is None:
+        threshold = TOL_ZERO
 
     if check_valid:
-        if threshold is None:
-            threshold = TOL_ZERO
         # make sure lengths are greater than zero
         valid = np.logical_not(np.isclose(length,
                                           0.0,

@@ -312,7 +312,8 @@ class Trimesh(object):
 
             log.debug('generating face normals as shape was incorrect')
             # use cached triangle cross products
-            face_normals, valid = triangles.normals(crosses=self.triangles_cross)
+            face_normals, valid = triangles.normals(
+                crosses=self.triangles_cross)
             # store valid mask
             self._cache['face_normals_valid'] = valid
 
@@ -729,7 +730,8 @@ class Trimesh(object):
             # this means that the geometry is symmetric about a point
             # examples of this are a sphere, icosahedron, etc
             self._cache['symmetry_axis'] = self.principal_inertia_vectors[0]
-            self._cache['symmetry_section'] = self.principal_inertia_vectors[1:]
+            self._cache[
+                'symmetry_section'] = self.principal_inertia_vectors[1:]
             return 'spherical'
 
         elif diff_zero.any():
@@ -749,12 +751,14 @@ class Trimesh(object):
             # one is one of those two
             section_index = order[np.array([[0, 1],
                                             [1, -1]])[diff_zero]].flatten()
-            self._cache['symmetry_section'] = self.principal_inertia_vectors[section_index]
+            self._cache['symmetry_section'] = self.principal_inertia_vectors[
+                section_index]
 
             # we know the rotation axis is the sole unique value
             # and is either first or last of the sorted values
             axis_index = order[np.array([-1, 0])[diff_zero]][0]
-            self._cache['symmetry_axis'] = self.principal_inertia_vectors[axis_index]
+            self._cache['symmetry_axis'] = self.principal_inertia_vectors[
+                axis_index]
             return 'radial'
         return None
 
@@ -1389,7 +1393,7 @@ class Trimesh(object):
         from the current mesh.
 
         If a height is specified, it will remove any face with a 2D oriented
-        bounding box with one edge shorter than that height. 
+        bounding box with one edge shorter than that height.
 
         If not specified, it will remove any face with a zero normal.
 
@@ -1677,12 +1681,12 @@ class Trimesh(object):
 
     def unmerge_vertices(self):
         """
-        Removes all face references so that every face contains three 
+        Removes all face references so that every face contains three
         unique vertex indices and no faces are adjacent.
         """
-        vertices = self.vertices[self.faces].reshape((-1,3))
-        faces = np.arange(len(vertices), 
-                          dtype=np.int64).reshape((-1,3))
+        vertices = self.vertices[self.faces].reshape((-1, 3))
+        faces = np.arange(len(vertices),
+                          dtype=np.int64).reshape((-1, 3))
 
         self.faces = faces
         self.vertices = vertices
@@ -1971,7 +1975,7 @@ class Trimesh(object):
 
         Returns
         -----------
-        identifier: (tol.id_len,) float
+        identifier: (6,) float
         """
         identifier = comparison.identifier_simple(self)
         return identifier

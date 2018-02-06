@@ -31,7 +31,7 @@ def identifier_simple(mesh):
 
     Returns
     ----------
-    identifier: (5,) float, identifying values of the mesh
+    identifier: (6,) float, identifying values of the mesh
     """
 
     # pre-allocate identifier so indexes of values can't move around
