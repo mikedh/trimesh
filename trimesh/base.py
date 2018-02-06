@@ -1398,13 +1398,13 @@ class Trimesh(object):
         height: float, if specified removes faces with an oriented bounding
                 box shorter than this on one side.
         """
-        if min_edge is None:
+        if height is None:
             # populate valid mask
             normals = self.face_normals
             if 'face_normals_valid' in self._cache:
                 self.update_faces(self._cache['face_normals_valid'])
         else:
-            nondegenerate = triangles.nondegenerate(triangles,
+            nondegenerate = triangles.nondegenerate(self.triangles,
                                                     areas=self.area_faces,
                                                     height=height)
             self.update_faces(nondegenerate)
