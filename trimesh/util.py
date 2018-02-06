@@ -427,6 +427,18 @@ def diagonal_dot(a, b):
 
     Same as np.diag(np.dot(a, b.T)) but without the monstrous
     intermediate matrix.
+
+    Also equivilant to:
+    np.einsum('ij,ij->i', a, b)
+
+    Parameters
+    ------------
+    a: (m, d) array
+    b: (m, d) array
+
+    Returns
+    -------------
+    result: (m, d) array
     """
     result = (np.asanyarray(a) *
               np.asanyarray(b)).sum(axis=1)
