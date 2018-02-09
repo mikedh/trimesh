@@ -22,7 +22,7 @@ def cross(triangles):
 
     Returns
     --------------
-    crosses: (n, 3) float, cross product of two edge vectors 
+    crosses: (n, 3) float, cross product of two edge vectors
     """
     vectors = np.diff(triangles, axis=1)
     crosses = np.cross(vectors[:, 0], vectors[:, 1])
@@ -58,34 +58,19 @@ def normals(triangles, crosses=None):
 
     Parameters
     ------------
-    triangles: (n, 3, 3) float, vertex positions
-    crosses:   (n, 3) float, cross products of edge vectors
+    triangles:   (n, 3, 3) float, vertex positions
+    crosses:     (n, 3) float, cross products of edge vectors
 
     Returns
     ------------
-    normals: (n, 3) float, normal vectors
+    normals: (m, 3) float, normal vectors
+    valid:   (n,)   bool, valid
     """
     if crosses is None:
         crosses = cross(triangles)
-
     # unitize the cross product vectors
-    unit, valid = util.unitize(crosses,
-                               check_valid=True)
-    if valid.all():
-        # all cross products are above machine epsilon in magnitude
-        # so we can just return the ones we got
-        return unit
-
-    # return invalid faces with zero magnitude normals
-    # we could here try to unitize the edge vectors, reject
-    # zero length ones from the pair, but we would still end
-    # up with some invalid vectors and that is a lot of bookkeeping
-    # to generate a result that is going to be thrown away by
-    # the proper nondegenerate check
-    normals = np.zeros((len(triangles), 3), dtype=np.float64)
-    normals[valid] = unit
-    
-    return normals
+    unit, valid = util.unitize(crosses, check_valid=True)
+    return unit, valid
 
 
 def all_coplanar(triangles):
@@ -254,9 +239,11 @@ def windings_aligned(triangles, normals_compare):
 
     calculated, valid = normals(triangles)
     difference = util.diagonal_dot(calculated, normals_compare[valid])
-    result = np.zeros(len(triangles), dtype=np.bool)
-    result[valid] = difference > 0.0
-    return result
+    
+    aligned = np.zeros(len(triangles), dtype=np.bool)
+    aligned[valid] = difference > 0.0
+
+    return aligned
 
 
 def bounds_tree(triangles):

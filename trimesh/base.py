@@ -187,7 +187,7 @@ class Trimesh(object):
             2) merging duplicate vertices
 
         If self._validate:
-            3) Remove triangles which have one edge of their rectangular 2D 
+            3) Remove triangles which have one edge of their rectangular 2D
                oriented bounding box shorter than tol.merge
 
             4) remove duplicated triangles
@@ -316,10 +316,14 @@ class Trimesh(object):
             # this will always return the correct shape but some values
             # will be zero or an arbitrary vector if the inputs had a cross
             # produce below machine epsilon
-            face_normals = triangles.normals(triangles=self.triangles,
-                                             crosses=self.triangles_cross)
-            return face_normals
-
+            normals, valid = triangles.normals(triangles=self.triangles,
+                                               crosses=self.triangles_cross)
+            if valid.all():
+                return normals
+            # make a padded list of normals to make sure shape is correct
+            padded = np.zeros((len(self.triangles), 3), dtype=np.float64)
+            padded[valid] = normals
+            return padded
 
     @face_normals.setter
     def face_normals(self, values):
@@ -341,8 +345,8 @@ class Trimesh(object):
         """
         The vertices of the mesh.
 
-        This is regarded as core information which cannot be regenerated 
-        from cache and as such is stored in self._data which tracks the array 
+        This is regarded as core information which cannot be regenerated
+        from cache and as such is stored in self._data which tracks the array
         for changes and clears cached values of the mesh if this is altered.
 
         Returns
