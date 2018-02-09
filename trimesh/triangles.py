@@ -52,7 +52,7 @@ def area(triangles=None, crosses=None, sum=False):
     return area
 
 
-def normals(triangles, crosses=None):
+def normals(triangles=None, crosses=None):
     """
     Calculates the normals of input triangles
 
