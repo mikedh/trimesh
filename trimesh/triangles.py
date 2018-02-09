@@ -16,10 +16,14 @@ def cross(triangles):
     """
     Returns the cross product of two edges from input triangles
 
-    triangles: vertices of triangles (n,3,3)
-    returns:   cross product of two edge vectors (n,3)
-    """
+    Parameters
+    --------------
+    triangles: (n, 3, 3) float, vertices of triangles
 
+    Returns
+    --------------
+    crosses: (n, 3) float, cross product of two edge vectors 
+    """
     vectors = np.diff(triangles, axis=1)
     crosses = np.cross(vectors[:, 0], vectors[:, 1])
     return crosses
@@ -48,7 +52,7 @@ def area(triangles=None, crosses=None, sum=False):
     return area
 
 
-def normals(triangles=None, crosses=None):
+def normals(triangles, crosses=None):
     """
     Calculates the normals of input triangles
 
@@ -59,24 +63,42 @@ def normals(triangles=None, crosses=None):
 
     Returns
     ------------
-    normals: (m, 3) float, normal vectors
-    valid:   (n,) bool, which normals were above threshold
+    normals: (n, 3) float, normal vectors
     """
     if crosses is None:
         crosses = cross(triangles)
 
     # unitize the cross product vectors
-    normals, valid = util.unitize(crosses,
-                                  check_valid=True)
-    return normals, valid
+    unit, valid = util.unitize(crosses,
+                               check_valid=True)
+    if valid.all():
+        # all cross products are above machine epsilon in magnitude
+        # so we can just return the ones we got
+        return unit
+
+    # return invalid faces with zero magnitude normals
+    # we could here try to unitize the edge vectors, reject
+    # zero length ones from the pair, but we would still end
+    # up with some invalid vectors and that is a lot of bookkeeping
+    # to generate a result that is going to be thrown away by
+    # the proper nondegenerate check
+    normals = np.zeros((len(triangles), 3), dtype=np.float64)
+    normals[valid] = unit
+    
+    return normals
 
 
 def all_coplanar(triangles):
     """
-    Given a list of triangles, return True if they are all coplanar, and False if not.
+    Check to see if a list of triangles are all coplanar
 
-    triangles: vertices of triangles, (n,3,3)
-    returns:   all_coplanar, bool
+    Parameters
+    ----------------
+    triangles: (n, 3, 3) float, vertices of triangles
+
+    Returns
+    ---------------
+    all_coplanar, bool, True if all triangles are coplanar
     """
     triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):

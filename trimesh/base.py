@@ -183,11 +183,13 @@ class Trimesh(object):
 
         Does this by:
             1) removing NaN and Inf values
+
             2) merging duplicate vertices
+
         If self._validate:
-            3) remove degenerate triangles, defined as a triangle
-               with one edge of their rectangular 2D oriented bounding
-               box as less than tol.merge, which is 1e-8 by default
+            3) Remove triangles which have one edge of their rectangular 2D 
+               oriented bounding box shorter than tol.merge
+
             4) remove duplicated triangles
 
         Returns
@@ -294,7 +296,7 @@ class Trimesh(object):
                                        indices=self.faces)
         return sparse
 
-    @property
+    @util.cache_decorator
     def face_normals(self):
         """
         Return the unit normal vector for each face.
@@ -309,30 +311,15 @@ class Trimesh(object):
         # if the shape of the cached normals is incorrect, generate normals
         if (np.shape(self._cache['face_normals']) !=
                 np.shape(self._data['faces'])):
-
             log.debug('generating face normals as shape was incorrect')
-            # use cached triangle cross products
-            face_normals, valid = triangles.normals(
-                crosses=self.triangles_cross)
-            # store valid mask
-            self._cache['face_normals_valid'] = valid
+            # use cached triangle cross products to generate normals
+            # this will always return the correct shape but some values
+            # will be zero or an arbitrary vector if the inputs had a cross
+            # produce below machine epsilon
+            face_normals = triangles.normals(triangles=self.triangles,
+                                             crosses=self.triangles_cross)
+            return face_normals
 
-            if valid.all():
-                # every face has a valid normal so we can just go home
-                self._cache['face_normals'] = face_normals
-            else:
-                # some face are degenerate and we don't want to change shapes
-                # so generate face normals of the correct shape and for
-                # invalid normals set them to an arbitrary unit vector
-                # we could set them to a 0 magnitude vector but the odds
-                # of that screwing up a calculation seem high
-                shaped = np.zeros((len(valid), 3), dtype=np.float64)
-                # the arbitary vector we were talking about
-                shaped += [1.0, 0.0, 0.0]
-                # for valid normals set them to the actual value
-                shaped[valid] = face_normals
-                self._cache['face_normals'] = shaped
-        return self._cache['face_normals']
 
     @face_normals.setter
     def face_normals(self, values):
@@ -354,13 +341,13 @@ class Trimesh(object):
         """
         The vertices of the mesh.
 
-        This is regarded as core information which cannot be regenerated from cache,
-        and as such is stored in self._data, which tracks the array for changes
-        and clears cached values of the mesh if this is altered.
+        This is regarded as core information which cannot be regenerated 
+        from cache and as such is stored in self._data which tracks the array 
+        for changes and clears cached values of the mesh if this is altered.
 
         Returns
         ----------
-        vertices: (n,3) float representing points in cartesian space
+        vertices: (n, 3) float representing points in cartesian space
         """
         return self._data['vertices']
 
@@ -1336,7 +1323,7 @@ class Trimesh(object):
         tree = KDTree(self.vertices.view(np.ndarray))
         return tree
 
-    def remove_degenerate_faces(self, height=None):
+    def remove_degenerate_faces(self, height=tol.merge):
         """
         Remove degenerate faces (faces without 3 unique vertex indices)
         from the current mesh.
@@ -1350,17 +1337,17 @@ class Trimesh(object):
         ------------
         height: float, if specified removes faces with an oriented bounding
                 box shorter than this on one side.
+
+        Returns
+        -------------
+        nondegenerate: (len(self.faces),) bool, mask used to remove faces
         """
-        if height is None:
-            # populate valid mask
-            normals = self.face_normals
-            if 'face_normals_valid' in self._cache:
-                self.update_faces(self._cache['face_normals_valid'])
-        else:
-            nondegenerate = triangles.nondegenerate(self.triangles,
-                                                    areas=self.area_faces,
-                                                    height=height)
-            self.update_faces(nondegenerate)
+        nondegenerate = triangles.nondegenerate(self.triangles,
+                                                areas=self.area_faces,
+                                                height=height)
+        self.update_faces(nondegenerate)
+
+        return nondegenerate
 
     @util.cache_decorator
     def facets(self):
