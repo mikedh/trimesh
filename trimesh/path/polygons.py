@@ -70,10 +70,17 @@ def edges_to_polygons(edges, vertices):
     ----------
     polygons: (p,) list of shapely.geometry.Polygon objects
     """
-    # sequence of ordered traversals
-    dfs = graph.dfs_traversals(edges)
+
     # create closed polygon objects
-    polygons = [Polygon(vertices[i]) for i in dfs]
+    polygons = []
+
+    # loop through a sequence of ordered traversals
+    for dfs in graph.dfs_traversals(edges):
+        # try to recover polygons before they are more complicated
+        try:
+            polygons.append(repair_invalid(Polygon(vertices[dfs])))
+        except ValueError:
+            continue
 
     # if there is only one polygon, just return it
     if len(polygons) == 1:
@@ -401,8 +408,20 @@ def random_polygon(segments=8, radius=1.0):
 
 
 def polygon_scale(polygon):
-    box = np.abs(np.diff(np.reshape(polygon, (2, 2)), axis=0))
-    scale = box.max()
+    """
+    For a Polygon object, return the diagonal length of the AABB.
+
+    Parameters
+    ------------
+    polygon: shapely.geometry.Polygon object
+
+    Returns
+    ------------
+    scale: float, length of AABB diagonal
+    """
+    extents = np.reshape(polygon.bounds, (2, 2)).ptp(axis=0)
+    scale = (extents ** 2).sum() ** .5
+
     return scale
 
 
@@ -440,7 +459,7 @@ def paths_to_polygons(paths, scale=None):
     return polygons, valid
 
 
-def repair_invalid(polygon, scale=None):
+def repair_invalid(polygon, scale=None, rtol=.5):
     """
     Given a shapely.geometry.Polygon, attempt to return a
     valid version of the polygon.
@@ -448,6 +467,7 @@ def repair_invalid(polygon, scale=None):
     Parameters
     -----------
     polygon: shapely.geometry.Polygon object
+    rtol:    float, how close does a perimeter have to be
     scale:   float, or None
 
     Returns
@@ -464,21 +484,46 @@ def repair_invalid(polygon, scale=None):
     # basic repair involves buffering the polygon outwards
     # this will fix a subset of problems.
     basic = polygon.buffer(tol.zero)
+    # if it returned multiple polygons check the largest
+    if is_sequence(basic):
+        basic = basic[np.argmax([i.area for i in basic])]
 
-    if basic.area < tol.zero:
-        raise ValueError('zero area polygon')
-
-    if basic.is_valid:
+    # check perimeter of result agains original perimeter
+    if np.isclose(basic.length,
+                  polygon.length,
+                  rtol=rtol):
         return basic
 
     if scale is None:
-        scale = polygon_scale(polygon)
+        distance = tol.buffer * polygon_scale(polygon)
+    else:
+        distance = tol.buffer * scale
 
-    buffered = basic.buffer(tol.buffer * scale)
-    unbuffered = buffered.buffer(-tol.buffer * scale)
+    # if there are no interiors, we can work with just the exterior
+    # ring, which is often more reliable
+    if len(polygon.interiors) == 0:
+        # try buffering the exterior of the polygon
+        # the interior will be offset by -tol.buffer
+        rings = polygon.exterior.buffer(distance).interiors
+        if len(rings) == 1:
+            # reconstruct a single polygon from the interior ring
+            recon = Polygon(shell=rings[0]).buffer(distance)
+            # check perimeter of result agains original perimeter
+            if np.isclose(recon.length,
+                          polygon.length,
+                          rtol=rtol):
+                return recon
 
-    if unbuffered.is_valid and not is_sequence(unbuffered):
+    # buffer and unbuffer the whole polygon
+    buffered = polygon.buffer(distance).buffer(-distance)
+    # if it returned multiple polygons check the largest
+    if is_sequence(buffered):
+        buffered = buffered[np.argmax([i.area for i in buffered])]
+    # check perimeter of result agains original perimeter
+    if buffered.is_valid and np.isclose(buffered.length,
+                                        polygon.length,
+                                        rtol=rtol):
         log.debug('Recovered invalid polygon through double buffering')
-        return unbuffered
+        return buffered
 
-    raise ValueError('Unable to recover polygon!')
+    raise ValueError('unable to recover polygon!')

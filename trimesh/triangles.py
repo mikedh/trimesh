@@ -239,7 +239,7 @@ def windings_aligned(triangles, normals_compare):
 
     calculated, valid = normals(triangles)
     difference = util.diagonal_dot(calculated, normals_compare[valid])
-    
+
     aligned = np.zeros(len(triangles), dtype=np.bool)
     aligned[valid] = difference > 0.0
 

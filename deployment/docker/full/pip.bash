@@ -1,4 +1,4 @@
-source activate docker-environment
+source activate docker-environment 
 
 pip install trimesh[all]
 
