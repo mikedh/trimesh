@@ -489,9 +489,9 @@ def repair_invalid(polygon, scale=None, rtol=.5):
         basic = basic[np.argmax([i.area for i in basic])]
 
     # check perimeter of result agains original perimeter
-    if np.isclose(basic.length,
-                  polygon.length,
-                  rtol=rtol):
+    if basic.is_valid and np.isclose(basic.length,
+                                     polygon.length,
+                                     rtol=rtol):
         return basic
 
     if scale is None:
@@ -509,9 +509,9 @@ def repair_invalid(polygon, scale=None, rtol=.5):
             # reconstruct a single polygon from the interior ring
             recon = Polygon(shell=rings[0]).buffer(distance)
             # check perimeter of result agains original perimeter
-            if np.isclose(recon.length,
-                          polygon.length,
-                          rtol=rtol):
+            if recon.is_valid and np.isclose(recon.length,
+                                             polygon.length,
+                                             rtol=rtol):
                 return recon
 
     # buffer and unbuffer the whole polygon

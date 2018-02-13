@@ -14,10 +14,14 @@ def keep_only_first_mesh():
 if __name__ == "__main__":
   # Clear scene of default box
   bpy.ops.wm.read_homefile()
-  bpy.ops.object.mode_set(mode='OBJECT')
-  bpy.ops.object.select_all(action='SELECT')
-  bpy.ops.object.delete(use_global=True)
 
+  try:
+    bpy.ops.object.mode_set(mode='OBJECT')
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete(use_global=True)
+  except:
+    pass
+  
   mesh_pre  = $mesh_pre
   mesh_post = os.path.abspath(r'$mesh_post')
 
