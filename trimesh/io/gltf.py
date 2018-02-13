@@ -1,6 +1,6 @@
-'''
+"""
 This module provides GLTF 2.0 exports
-'''
+"""
 
 import json
 import collections
@@ -31,7 +31,7 @@ _shapes = {'SCALAR': -1,
 
 
 def export_gltf(scene):
-    '''
+    """
     Export a scene object as a GLTF directory.
 
     This has the advantage of putting each mesh into a separate file (buffer)
@@ -44,7 +44,7 @@ def export_gltf(scene):
     Returns
     ----------
     export: dict, {file name : file data}
-    '''
+    """
 
     tree, buffer_items = _create_gltf_structure(scene)
 
@@ -78,7 +78,7 @@ def export_gltf(scene):
 
 
 def export_glb(scene):
-    '''
+    """
     Export a scene as a binary GLTF (GLB) file.
 
     Parameters
@@ -88,7 +88,7 @@ def export_glb(scene):
     Returns
     ----------
     exported: bytes, exported result
-    '''
+    """
 
     tree, buffer_items = _create_gltf_structure(scene)
 
@@ -142,7 +142,7 @@ def export_glb(scene):
 
 
 def load_glb(file_obj, **passed):
-    '''
+    """
     Load a GLTF file in the binary GLB format into a trimesh.Scene.
 
     Implemented from specification:
@@ -155,7 +155,7 @@ def load_glb(file_obj, **passed):
     Returns
     ------------
     kwargs: dict, kwargs to instantiate a trimesh.Scene
-    '''
+    """
 
     # save the start position of the file for referencing
     # against lengths
@@ -218,7 +218,7 @@ def load_glb(file_obj, **passed):
 
 
 def _mesh_to_material(mesh, metallic=.02, rough=.1):
-    '''
+    """
     Create a simple GLTF material for a mesh using the most
     commonly occuring color in that mesh.
 
@@ -229,7 +229,7 @@ def _mesh_to_material(mesh, metallic=.02, rough=.1):
     Returns
     ------------
     material: dict, in GLTF material format
-    '''
+    """
     # just get the most commonly occuring color
     color = mesh.visual.main_color
     # convert uint color to 0-1.0 float color
@@ -243,9 +243,9 @@ def _mesh_to_material(mesh, metallic=.02, rough=.1):
 
 
 def _create_gltf_structure(scene):
-    '''
+    """
     Generate a GLTF header
-    '''
+    """
     # we are defining a single scene, and will be setting the
     # world node to the 0th index
     tree = {'scene': 0,
@@ -303,7 +303,7 @@ def _create_gltf_structure(scene):
 
 
 def _read_buffers(header, buffers):
-    '''
+    """
     Given a list of binary data and a layout, return the
     kwargs to create a scene object.
 
@@ -315,7 +315,7 @@ def _read_buffers(header, buffers):
     Returns
     -----------
     kwargs: can be passed to load_kwargs for a trimesh.Scene
-    '''
+    """
     # split buffer data into buffer views
     views = []
     for view in header['bufferViews']:
