@@ -17,10 +17,11 @@ if __name__ == "__main__":
 
   try:
     bpy.ops.object.mode_set(mode='OBJECT')
-    bpy.ops.object.select_all(action='SELECT')
-    bpy.ops.object.delete(use_global=True)
   except:
     pass
+    
+  bpy.ops.object.select_all(action='SELECT')
+  bpy.ops.object.delete(use_global=True)
   
   mesh_pre  = $mesh_pre
   mesh_post = os.path.abspath(r'$mesh_post')
