@@ -9,8 +9,9 @@ import numpy as np
 from .constants import log, tol
 from .geometry import plane_transform
 
-from . import transformations
 from . import util
+from . import grouping
+from . import transformations
 
 
 def point_plane_distance(points,
@@ -331,6 +332,7 @@ class PointCloud(object):
 
         if len(args) == 1:
             self.vertices = args[0]
+            
         if 'vertices' in kwargs:
             self.vertices = kwargs['vertices']
 
@@ -340,6 +342,10 @@ class PointCloud(object):
     def md5(self):
         return self._data.md5()
 
+    def merge_vertices(self):
+        unique, inverse = grouping.unique_rows(self.vertices)
+        self.vertices = self.vertices[unique]
+    
     @property
     def bounds(self):
         return np.array([self.vertices.min(axis=0),
