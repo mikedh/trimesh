@@ -929,17 +929,31 @@ class Trimesh(object):
         inverse:     (len(self.vertices)) int array to reconstruct
                      vertex references (such as output by np.unique)
         """
-        mask = np.asanyarray(mask)
-        if mask.dtype.name == 'bool' and mask.all():
+        # if the mesh is already empty we can't remove anything
+        if self.is_empty:
             return
-        if len(mask) == 0 or self.is_empty:
+        
+        # make sure mask is a numpy array
+        mask = np.asanyarray(mask)
+        
+        if ((mask.dtype.name == 'bool' and mask.all()) or
+            len(mask) == 0 or self.is_empty):
+            # mask doesn't remove any vertices so exit early
             return
 
-        if inverse is not None:
+        # re- index faces from inverse
+        if inverse is not None and util.is_shape(self.faces, (-1,3)):
             self.faces = inverse[self.faces.reshape(-1)].reshape((-1, 3))
+
+        # update the visual object with our mask
         self.visual.update_vertices(mask)
+        # get the normals from cache before dumping
         cached_normals = self._cache.get('vertex_normals')
+
+        # actually apply the mask
         self.vertices = self.vertices[mask]
+
+        # if we had passed vertex normals try to save them
         if util.is_shape(cached_normals, (-1, 3)):
             try:
                 self.vertex_normals = cached_normals[mask]
@@ -957,25 +971,34 @@ class Trimesh(object):
         ---------
         valid: either (m) int, or (len(self.faces)) bool.
         """
+        # if the mesh is already empty we can't remove anything
         if self.is_empty:
             return
+
         mask = np.asanyarray(mask)
-        if mask.dtype.name == 'bool':
-            if mask.all():
-                return
-        elif mask.dtype.name != 'int':
-            mask = mask.astype(np.int)
+        if mask.dtype.name == 'bool' and  mask.all():
+            # mask removes no faces so exit early
+            return
+        
+        # try to save face normals before dumping cache
         cached_normals = self._cache.get('face_normals')
-        if util.is_shape(cached_normals, (-1, 3)):
-            self.face_normals = cached_normals[mask]
+
         faces = self._data['faces']
         # if Trimesh has been subclassed and faces have been moved from data
         # to cache, get faces from cache.
         if not util.is_shape(faces, (-1, 3)):
             faces = self._cache['faces']
+            
+        # actually apply the mask 
         self.faces = faces[mask]
+        # apply the mask to the visual object
         self.visual.update_faces(mask)
 
+        # if our normals were the correct shape apply them
+        if util.is_shape(cached_normals, (-1, 3)):
+            self.face_normals = cached_normals[mask]
+
+        
     def remove_infinite_values(self):
         """
         Ensure that every vertex and face consists of finite numbers.
@@ -987,13 +1010,15 @@ class Trimesh(object):
         self.faces:    masked to remove np.inf/np.nan
         self.vertices: masked to remove np.inf/np.nan
         """
-        # (len(self.faces),) bool, mask for faces
-        faces = np.isfinite(self.faces).all(axis=1)
-        # (len(self.vertices),) bool, mask for vertices
-        vertices = np.isfinite(self.vertices).all(axis=1)
-        # apply the masks
-        self.update_faces(faces)
-        self.update_vertices(vertices)
+        if util.is_shape(self.faces, (-1,3)):
+            # (len(self.faces),) bool, mask for faces
+            face_mask = np.isfinite(self.faces).all(axis=1)
+            self.update_faces(face_mask)
+            
+        if util.is_shape(self.vertices, (-1,3)):
+            # (len(self.vertices),) bool, mask for vertices
+            vertex_mask = np.isfinite(self.vertices).all(axis=1)   
+            self.update_vertices(vertex_mask)
 
     def remove_duplicate_faces(self):
         """
