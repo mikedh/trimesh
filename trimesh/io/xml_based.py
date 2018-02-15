@@ -250,8 +250,7 @@ def load_3DXML(file_obj, *args, **kwargs):
             faces = Rep.find('{*}Faces/{*}Face')
             vertices = Rep.find('{*}VertexBuffer/{*}Positions')
 
-            if (faces is None or
-                    vertices is None):
+            if faces is None or vertices is None:
                 continue
 
             # these are vertex normals

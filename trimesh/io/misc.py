@@ -107,7 +107,7 @@ def load_dict(data, file_type=None):
 
     # now go through data structure and if anything is encoded as base64
     # pull it back into numpy arrays
-    if util.is_dict(data):
+    if isinstance(data, dict):
         loaded = {}
         data = util.decode_keys(data, 'utf-8')
         for key, shape in mesh_data.items():

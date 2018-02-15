@@ -141,10 +141,6 @@ def is_string(obj):
     return isinstance(obj, basestring)
 
 
-def is_dict(obj):
-    return isinstance(obj, dict)
-
-
 def is_none(obj):
     """
     Check to see if an object is None or not.
@@ -184,6 +180,7 @@ def is_sequence(obj):
            hasattr(obj, "__getitem__") or
            hasattr(obj, "__iter__"))
 
+    # check to make sure it is not a set, string, or dictionary
     seq = seq and all(not isinstance(obj, i) for i in (dict,
                                                        set,
                                                        basestring))
@@ -192,6 +189,7 @@ def is_sequence(obj):
     # but sure look like sequences, so we check the shape
     if hasattr(obj, 'shape'):
         seq = seq and obj.shape != ()
+        
     return seq
 
 
@@ -237,20 +235,31 @@ def is_shape(obj, shape):
     Out[7]: False
     """
 
+    # if the obj.shape is different length than
+    # the goal shape it means they have different number
+    # of dimensions and thus the obj is not the query shape
     if (not hasattr(obj, 'shape') or
             len(obj.shape) != len(shape)):
         return False
 
+    # loop through each integer of the two shapes
+    # multiple values are sequences
+    # wildcards are less than zero (i.e. -1)
     for i, target in zip(obj.shape, shape):
         # check if current field has multiple acceptable values
         if is_sequence(target):
             if i in target:
+                # obj shape is in the accepted values
                 continue
             else:
                 return False
+            
         # check if current field is a wildcard
         if target < 0:
             if i == 0:
+                # if a dimension is 0, we don't allow
+                # that to match to a wildcard
+                # it would have to be explicitly called out as 0
                 return False
             else:
                 continue
@@ -259,7 +268,8 @@ def is_shape(obj, shape):
         if target != i:
             return False
 
-    # since none of the checks failed, the two shapes are the same
+    # since none of the checks failed the obj.shape
+    # matches the pattern
     return True
 
 
@@ -1305,7 +1315,8 @@ def encoded_to_array(encoded):
     ----------
     array: numpy array
     """
-    if not is_dict(encoded):
+    
+    if not isinstance(encoded, dict):
         if is_sequence(encoded):
             as_array = np.asanyarray(encoded)
             return as_array
@@ -1946,6 +1957,7 @@ def triangle_strips_to_faces(strips):
 
     From the OpenGL programming guide describing a single triangle
     strip [v0, v1, v2, v3, v4]:
+
     Draws a series of triangles (three-sided polygons) using vertices
     v0, v1, v2, then v2, v1, v3  (note the order), then v2, v3, v4,
     and so on. The ordering is to ensure that the triangles are all

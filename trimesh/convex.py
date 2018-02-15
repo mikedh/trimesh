@@ -1,7 +1,12 @@
 """
-trimesh.py
+convex.py
 
-Library for importing and doing simple operations on triangular meshes.
+Deal with creating and checking convex objects in 2, 3 and N dimensions.
+
+Convex:
+1) "Convex, meaning "curving out" or "extending outward" (compare to concave)
+2) having an outline or surface curved like the exterior of a circle or sphere.
+3) (of a polygon) having only interior angles measuring less than 180°.
 """
 
 import numpy as np
@@ -145,11 +150,22 @@ def adjacency_projections(mesh):
 
 
 def is_convex(mesh):
+    """
+    Check if a mesh is convex.
+
+    Parameters
+    -----------
+    mesh: Trimesh object
+
+    Returns
+    -----------
+    convex: bool, was passed mesh convex or not
+    """
     convex = (mesh.face_adjacency_projections < tol.planar).all()
     return bool(convex)
 
 
-def planar_hull(points, normal, origin=None, input_convex=False):
+def planar_hull(points, normal, origin=None):
     """
     Find the convex outline of a set of points projected to a plane.
 
@@ -158,20 +174,18 @@ def planar_hull(points, normal, origin=None, input_convex=False):
     points: (n,3) float, input points
     normal: (3) float vector, normal vector of plane
     origin: (3) float, location of plane origin
-    input_convex: bool, if True we assume the input points are already from
-                  a convex hull which provides a speedup.
 
     Returns
     -----------
     hull_lines: (n,2,2) set of unordered line segments
     T:          (4,4) float, transformation matrix
+    height:     (2,) float, [Z min, Z max]
     """
     from .points import project_to_plane
 
     if origin is None:
         origin = np.zeros(3)
-    if not input_convex:
-        pass
+
     planar, T = project_to_plane(points,
                                  plane_normal=normal,
                                  plane_origin=origin,
