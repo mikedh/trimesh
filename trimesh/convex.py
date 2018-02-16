@@ -6,7 +6,7 @@ Deal with creating and checking convex objects in 2, 3 and N dimensions.
 Convex:
 1) "Convex, meaning "curving out" or "extending outward" (compare to concave)
 2) having an outline or surface curved like the exterior of a circle or sphere.
-3) (of a polygon) having only interior angles measuring less than 180°.
+3) (of a polygon) having only interior angles measuring less than 180
 """
 
 import numpy as np
