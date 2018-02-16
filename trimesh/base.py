@@ -932,17 +932,17 @@ class Trimesh(object):
         # if the mesh is already empty we can't remove anything
         if self.is_empty:
             return
-        
+
         # make sure mask is a numpy array
         mask = np.asanyarray(mask)
-        
+
         if ((mask.dtype.name == 'bool' and mask.all()) or
-            len(mask) == 0 or self.is_empty):
+                len(mask) == 0 or self.is_empty):
             # mask doesn't remove any vertices so exit early
             return
 
         # re- index faces from inverse
-        if inverse is not None and util.is_shape(self.faces, (-1,3)):
+        if inverse is not None and util.is_shape(self.faces, (-1, 3)):
             self.faces = inverse[self.faces.reshape(-1)].reshape((-1, 3))
 
         # update the visual object with our mask
@@ -976,10 +976,10 @@ class Trimesh(object):
             return
 
         mask = np.asanyarray(mask)
-        if mask.dtype.name == 'bool' and  mask.all():
+        if mask.dtype.name == 'bool' and mask.all():
             # mask removes no faces so exit early
             return
-        
+
         # try to save face normals before dumping cache
         cached_normals = self._cache.get('face_normals')
 
@@ -988,8 +988,8 @@ class Trimesh(object):
         # to cache, get faces from cache.
         if not util.is_shape(faces, (-1, 3)):
             faces = self._cache['faces']
-            
-        # actually apply the mask 
+
+        # actually apply the mask
         self.faces = faces[mask]
         # apply the mask to the visual object
         self.visual.update_faces(mask)
@@ -998,7 +998,6 @@ class Trimesh(object):
         if util.is_shape(cached_normals, (-1, 3)):
             self.face_normals = cached_normals[mask]
 
-        
     def remove_infinite_values(self):
         """
         Ensure that every vertex and face consists of finite numbers.
@@ -1010,14 +1009,14 @@ class Trimesh(object):
         self.faces:    masked to remove np.inf/np.nan
         self.vertices: masked to remove np.inf/np.nan
         """
-        if util.is_shape(self.faces, (-1,3)):
+        if util.is_shape(self.faces, (-1, 3)):
             # (len(self.faces),) bool, mask for faces
             face_mask = np.isfinite(self.faces).all(axis=1)
             self.update_faces(face_mask)
-            
-        if util.is_shape(self.vertices, (-1,3)):
+
+        if util.is_shape(self.vertices, (-1, 3)):
             # (len(self.vertices),) bool, mask for vertices
-            vertex_mask = np.isfinite(self.vertices).all(axis=1)   
+            vertex_mask = np.isfinite(self.vertices).all(axis=1)
             self.update_vertices(vertex_mask)
 
     def remove_duplicate_faces(self):

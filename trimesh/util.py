@@ -189,7 +189,7 @@ def is_sequence(obj):
     # but sure look like sequences, so we check the shape
     if hasattr(obj, 'shape'):
         seq = seq and obj.shape != ()
-        
+
     return seq
 
 
@@ -253,7 +253,7 @@ def is_shape(obj, shape):
                 continue
             else:
                 return False
-            
+
         # check if current field is a wildcard
         if target < 0:
             if i == 0:
@@ -1315,7 +1315,7 @@ def encoded_to_array(encoded):
     ----------
     array: numpy array
     """
-    
+
     if not isinstance(encoded, dict):
         if is_sequence(encoded):
             as_array = np.asanyarray(encoded)
@@ -2056,8 +2056,8 @@ def unique_id(length=12):
     Generate a decent looking alphanumeric unique identifier.
     First 16 bits are time- incrementing, followed by randomness.
 
-    This function is used instead of calling:
-    uuid.uuid4().hex
+    This function is used as a nicer looking alternative to:
+    >>> uuid.uuid4().hex
 
     Follows the advice in:
     https://eager.io/blog/how-long-does-an-id-need-to-be/

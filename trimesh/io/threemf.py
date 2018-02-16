@@ -11,6 +11,7 @@ from ..constants import log
 
 
 def load_3MF(file_obj,
+             postprocess=True,
              **kwargs):
     """
     Load a 3MF formatted file into a Trimesh scene.
@@ -85,15 +86,15 @@ def load_3MF(file_obj,
         # the index of the geometry this item instantiates
         build_items.append((item.attrib['objectid'], transform))
 
-    metadata = {}
+    # collect unit information from the tree
     if 'unit' in tree.attrib:
-        metadata['units'] = tree.attrib['unit']
+        metadata = {'units': tree.attrib['unit']}
     else:
         # the default units, defined by the specification
-        metadata['units'] = 'millimeters'
+        metadata = {'units': 'millimeters'}
 
     # have one mesh per 3MF object
-    # one mesh per geometry ID
+    # one mesh per geometry ID, store as kwargs for the object
     meshes = {}
     for gid in v_seq.keys():
         name = id_name[gid]
@@ -104,8 +105,12 @@ def load_3MF(file_obj,
     # turn the item / component representation into
     # a MultiDiGraph to compound our pain
     g = nx.MultiDiGraph()
+    # build items are the only things that exist according to 3MF
+    # so we accomplish that by linking them to the base frame
     for gid, tf in build_items:
         g.add_edge('world', gid, matrix=tf)
+    # components are instances which need to be linked to base
+    # frame by a build_item
     for start, group in components.items():
         for i, (gid, tf) in enumerate(group):
             g.add_edge(start, gid, matrix=tf)
@@ -114,6 +119,7 @@ def load_3MF(file_obj,
     # flatten the scene structure and simplify to
     # a single unique node per instance
     graph_args = []
+    parents = collections.defaultdict(set)
     for path in graph.multigraph_paths(G=g,
                                        source='world'):
         # collect all the transform on the path
@@ -128,16 +134,45 @@ def load_3MF(file_obj,
 
         # the last element of the path should be the geometry
         last = path[-1][0]
-        # if someone included an undefined component, skip ot
+        # if someone included an undefined component, skip it
         if last not in id_name:
             log.debug('id {} included but not defined!'.format(last))
             continue
+        # frame names unique
         name = id_name[last] + util.unique_id()
+        # index in meshes
         geom = id_name[last]
+
+        # collect parents if we want to combine later
+        if len(path) > 2:
+            parent = path[-2][0]
+            parents[parent].add(last)
+
         graph_args.append({'frame_from': 'world',
                            'frame_to': name,
                            'matrix': transform,
                            'geometry': geom})
+
+    # solidworks will export each body as its own mesh with the part
+    # name as the parent so optionally rename and combine these bodies
+    if postprocess and all('body' in i.lower() for i in meshes.keys()):
+        # don't rename by default
+        rename = {k: k for k in meshes.keys()}
+        for parent, mesh_name in parents.items():
+            # only handle the case where a parent has a single child
+            # if there are multiple children we would do a combine op
+            if len(mesh_name) != 1:
+                continue
+            # rename the part
+            rename[id_name[next(iter(mesh_name))]] = id_name[parent].split(
+                '(')[0]
+
+        # apply the rename operation meshes
+        meshes = {rename[k]: m for k, m in meshes.items()}
+        # rename geometry references in the scene graph
+        for arg in graph_args:
+            if 'geometry' in arg:
+                arg['geometry'] = rename[arg['geometry']]
 
     # construct the kwargs to load the scene
     kwargs = {'base_frame': 'world',

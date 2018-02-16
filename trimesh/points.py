@@ -332,7 +332,7 @@ class PointCloud(object):
 
         if len(args) == 1:
             self.vertices = args[0]
-            
+
         if 'vertices' in kwargs:
             self.vertices = kwargs['vertices']
 
@@ -345,7 +345,7 @@ class PointCloud(object):
     def merge_vertices(self):
         unique, inverse = grouping.unique_rows(self.vertices)
         self.vertices = self.vertices[unique]
-    
+
     @property
     def bounds(self):
         return np.array([self.vertices.min(axis=0),
