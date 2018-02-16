@@ -21,7 +21,7 @@ class VoxelTest(g.unittest.TestCase):
                 assert isinstance(v.pitch, float)
                 assert g.np.isfinite(v.pitch)
 
-                assert g.np.issubdtype(v.filled_count, int)
+                assert isinstance(v.filled_count, int)
                 assert v.filled_count > 0
 
                 assert isinstance(v.as_boxes, g.trimesh.Trimesh)

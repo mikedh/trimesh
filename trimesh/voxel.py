@@ -69,9 +69,7 @@ class Voxel(object):
         --------
         filled: int, number of voxels that are occupied
         """
-        return self.matrix.sum()
-
-        return filled
+        return int(self.matrix.sum())
 
     @util.cache_decorator
     def volume(self):
