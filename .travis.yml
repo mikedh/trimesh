@@ -28,8 +28,6 @@ before_install:
 - sudo chmod +x /usr/bin/testVHACD
 
 install:
-  # We do this conditionally because it saves us some downloading if the
-  # version is the same.
   - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
       wget --quiet https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh -O miniconda.sh;
     else
@@ -42,16 +40,16 @@ install:
   - conda config --add channels conda-forge  # rtree, shapely, pyembree
   - conda update -q conda
   - conda info -a
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy rtree shapely
+  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy 
   - source activate test-environment
   - pip install .
   - pip install nose2
 
 script: 
 - python -c "import trimesh"
-- pip install .[easy]
-- conda install -c conda-forge scikit-image
+- conda install scikit-image rtree shapely
 - if [[ "$TRAVIS_PYTHON_VERSION" != "3.3" && "$TRAVIS_PYTHON_VERSION" != "3.4" ]]; then conda install pyembree && pip install python-fcl; fi
+- pip install .[easy]
 - cd tests
 - nose2
 - cd ../examples

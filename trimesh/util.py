@@ -2051,7 +2051,7 @@ def write_encoded(file_obj, stuff, encoding='utf-8'):
     file_obj.flush()
 
 
-def unique_id(length=12):
+def unique_id(length=12, increment=0):
     """
     Generate a decent looking alphanumeric unique identifier.
     First 16 bits are time- incrementing, followed by randomness.
@@ -2064,15 +2064,19 @@ def unique_id(length=12):
 
     Parameters
     ------------
-    length: int, length of resuling identifier
-
+    length:    int, length of resuling identifier
+    increment: int, number to add to header uint16
+                    useful if calling this function repeatedly
+                    in a tight loop executing faster than time
+                    can increment the header
     Returns
     ------------
     unique: str, unique alphanumeric identifier
     """
     # head the identifier with 16 bits of time information
     # this provides locality and reduces collision chances
-    head = np.array(time.time() % 2**16, dtype=np.uint16).tostring()
+    head = np.array((increment + time.time() * 10) % 2**16,
+                    dtype=np.uint16).tostring()
     # get a bunch of random bytes
     random = np.random.random(int(np.ceil(length / 5))).tostring()
     # encode the time header and random information as base64
