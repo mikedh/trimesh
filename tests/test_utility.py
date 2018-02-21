@@ -169,7 +169,6 @@ class UtilTests(unittest.TestCase):
         assert len(f) + 2 == len(s[0])
         assert (f == strips_to_faces(s)).all()
 
-
     def test_pairwise(self):
         # check to make sure both itertools and numpy
         # methods return the same result

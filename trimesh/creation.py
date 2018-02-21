@@ -64,10 +64,10 @@ def extrude_polygon(polygon,
     return mesh
 
 
-def extrude_polygon_along_path(polygon,
-                               path,
-                               angles=None,
-                               **kwargs):
+def sweep_polygon(polygon,
+                  path,
+                  angles=None,
+                  **kwargs):
     """
     Extrude a 2D shapely polygon into a watertight 3D mesh
     along an arbitrary 3D path.
@@ -101,9 +101,9 @@ def extrude_polygon_along_path(polygon,
     base_verts_3d = np.c_[base_verts_2d, np.zeros(len(base_verts_2d))]
     base_verts_3d = transformations.transform_points(base_verts_3d, tf_mat)
 
-    # Keep running tabulation of vertices and faces
-    vertices = base_verts_3d
-    faces = faces_2d
+    # keep matching sequence of vertices and 0- indexed faces
+    vertices = [base_verts_3d]
+    faces = [faces_2d]
 
     # Compute plane normals for each turn --
     # each turn induces a plane halfway between the two vectors
@@ -132,16 +132,24 @@ def extrude_polygon_along_path(polygon,
         # Project vertices onto plane in 3D
         ds = np.einsum('ij,j->i', (path[i + 1] - verts_3d_prev), norms[i])
         ds = ds / np.dot(v1s[i], norms[i])
+        
         verts_3d_new = np.einsum('i,j->ij', ds, v1s[i]) + verts_3d_prev
-
+        
         # Add to face and vertex lists
         new_faces = [[i + n, (i + 1) % n, i] for i in range(n)]
         new_faces.extend([[(i - 1) % n + n, i + n, i] for i in range(n)])
-        faces = np.vstack((faces, np.array(new_faces) + len(vertices)))
-        vertices = np.vstack((vertices, verts_3d, verts_3d_new))
+
+        # save faces and vertices into a sequence
+        faces.append(np.array(new_faces))        
+        vertices.append(np.vstack((verts_3d, verts_3d_new)))
 
         verts_3d = verts_3d_new
 
+    # do the main stack operation from a sequence to (n,3) arrays
+    # doing one vstack provides a substantial speedup by
+    # avoiding a bunch of temporary  allocations
+    vertices, faces = util.append_faces(vertices, faces)
+        
     # Create final cap
     x, y, z = util.generate_basis(path[-1] - path[-2])
     vecs = verts_3d - path[-1]

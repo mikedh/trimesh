@@ -38,7 +38,8 @@ class InertiaTest(g.unittest.TestCase):
         # the direction (long axis) of the cylinder should correspond to
         # the smallest principal component of inertia, AKA rotation along
         # the axis, rather than the other two which are perpendicular
-        components, vectors = g.trimesh.inertia.principal_axis(c.moment_inertia)
+        components, vectors = g.trimesh.inertia.principal_axis(
+            c.moment_inertia)
         # inferred cylinder axis
         inferred = vectors[components.argmin()]
 
