@@ -98,7 +98,7 @@ def export_urdf(mesh,
         et.SubElement(visual, 'origin', xyz="0 0 0", rpy="0 0 0")
         geometry = et.SubElement(visual, 'geometry')
         et.SubElement(geometry, 'mesh', filename=geom_name,
-                      scale="{:.4E}".format(scale))
+                      scale="{:.4E} {:.4E} {:.4E}".format(scale, scale, scale))
         material = et.SubElement(visual, 'material', name='')
         et.SubElement(material, 'color', rgba="{:.2E} {:.2E} {:.2E} 1".format(
             color[0], color[1], color[2]))
@@ -108,7 +108,7 @@ def export_urdf(mesh,
         et.SubElement(collision, 'origin', xyz="0 0 0", rpy="0 0 0")
         geometry = et.SubElement(collision, 'geometry')
         et.SubElement(geometry, 'mesh', filename=geom_name,
-                      scale="{:.4E}".format(scale))
+                      scale="{:.4E} {:.4E} {:.4E}".format(scale, scale, scale))
 
         # Create rigid joint to previous link
         if prev_link_name is not None:
