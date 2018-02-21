@@ -18,14 +18,19 @@ class CreationTest(g.unittest.TestCase):
         self.assertTrue(sphere.is_winding_consistent)
 
     def test_path_extrude(self):
+        try:
+            import meshpy
+        except ImportError:
+            g.log.error("no meshpy: skipping test")
+            return
+        
         # Create base polygon
         vec = g.np.array([0,1])*0.2
         n_comps = 100
         angle = g.np.pi * 2.0 / n_comps
         rotmat = g.np.array([
             [g.np.cos(angle), -g.np.sin(angle)],
-            [g.np.sin(angle),  g.np.cos(angle)]
-        ])
+            [g.np.sin(angle),  g.np.cos(angle)]])
         perim = []
         for i in range(n_comps):
             perim.append(vec)
