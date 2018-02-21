@@ -2087,6 +2087,7 @@ def unique_id(length=12, increment=0):
     unique = unique.replace(' ', '')[:length]
     return unique
 
+
 def generate_basis(z):
     """
     Generate an arbitrary basis from the given z-axis.

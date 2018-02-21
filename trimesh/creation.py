@@ -91,9 +91,9 @@ def extrude_polygon_along_path(polygon,
 
     # Create basis for first planar polygon cap
     x, y, z = util.generate_basis(path[0] - path[1])
-    tf_mat = np.ones((4,4))
-    tf_mat[:3,:3] = np.c_[x, y, z]
-    tf_mat[:3,3] = path[0]
+    tf_mat = np.ones((4, 4))
+    tf_mat[:3, :3] = np.c_[x, y, z]
+    tf_mat[:3, 3] = path[0]
 
     # Compute 3D locations of those vertices
     verts_3d = np.c_[verts_2d, np.zeros(n)]
@@ -123,17 +123,20 @@ def extrude_polygon_along_path(polygon,
 
         # Rotate if needed
         if angles is not None:
-            tf_mat = transformations.rotation_matrix(angles[i], norms[i], path[i])
-            verts_3d_prev = transformations.transform_points(verts_3d_prev, tf_mat)
+            tf_mat = transformations.rotation_matrix(angles[i],
+                                                     norms[i],
+                                                     path[i])
+            verts_3d_prev = transformations.transform_points(verts_3d_prev,
+                                                             tf_mat)
 
         # Project vertices onto plane in 3D
-        ds = np.einsum('ij,j->i', (path[i+1] - verts_3d_prev), norms[i])
+        ds = np.einsum('ij,j->i', (path[i + 1] - verts_3d_prev), norms[i])
         ds = ds / np.dot(v1s[i], norms[i])
         verts_3d_new = np.einsum('i,j->ij', ds, v1s[i]) + verts_3d_prev
 
         # Add to face and vertex lists
-        new_faces = [[i+n, (i+1)%n, i] for i in range(n)]
-        new_faces.extend([[(i-1)%n + n, i+n, i] for i in range(n)])
+        new_faces = [[i + n, (i + 1) % n, i] for i in range(n)]
+        new_faces.extend([[(i - 1) % n + n, i + n, i] for i in range(n)])
         faces = np.vstack((faces, np.array(new_faces) + len(vertices)))
         vertices = np.vstack((vertices, verts_3d, verts_3d_new))
 
@@ -142,10 +145,11 @@ def extrude_polygon_along_path(polygon,
     # Create final cap
     x, y, z = util.generate_basis(path[-1] - path[-2])
     vecs = verts_3d - path[-1]
-    coords = np.c_[np.einsum('ij,j->i', vecs, x), np.einsum('ij,j->i', vecs, y)]
+    coords = np.c_[np.einsum('ij,j->i', vecs, x),
+                   np.einsum('ij,j->i', vecs, y)]
     base_verts_2d, faces_2d = triangulate_polygon(Polygon(coords))
-    base_verts_3d = (np.einsum('i,j->ij', base_verts_2d[:,0], x) +
-                     np.einsum('i,j->ij', base_verts_2d[:,1], y)) + path[-1]
+    base_verts_3d = (np.einsum('i,j->ij', base_verts_2d[:, 0], x) +
+                     np.einsum('i,j->ij', base_verts_2d[:, 1], y)) + path[-1]
     faces = np.vstack((faces, faces_2d + len(vertices)))
     vertices = np.vstack((vertices, base_verts_3d))
 
