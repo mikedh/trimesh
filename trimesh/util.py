@@ -2086,3 +2086,25 @@ def unique_id(length=12, increment=0):
     # remove spaces and cut to length
     unique = unique.replace(' ', '')[:length]
     return unique
+
+def generate_basis(z):
+    """
+    Generate an arbitrary basis from the given z-axis.
+
+    Parameters
+    ----------
+    z: (3,) float, a positive z-axis vector.
+
+    Returns
+    -------
+    x: (3,) float, the x axis
+    y: (3,) float, the y axis
+    z: (3,) float, the z axis
+    """
+    z = z / np.linalg.norm(z)
+    x = np.array([-z[1], z[0], 0.0])
+    if np.linalg.norm(x) == 0.0:
+        x = np.array([1.0, 0.0, 0.0])
+    x = x / np.linalg.norm(x)
+    y = np.cross(z, x)
+    return x, y, z
