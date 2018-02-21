@@ -64,6 +64,94 @@ def extrude_polygon(polygon,
     return mesh
 
 
+def extrude_polygon_along_path(polygon,
+                               path,
+                               angles=None,
+                               **kwargs):
+    """
+    Extrude a 2D shapely polygon into a watertight 3D mesh
+    along an arbitrary 3D path.
+
+    Parameters
+    ----------
+    polygon: shapely.geometry.Polygon object
+    path:    (n,3) float, a path in 3D
+    angles:  (n,) float, optional rotation angle relative to prior vertex
+                         at each vertex
+
+    Returns
+    -------
+    mesh : Trimesh object of result
+    """
+
+    # Extract 2D vertices and triangulation
+    verts_2d = np.array(polygon.exterior)[:-1]
+    base_verts_2d, faces_2d = triangulate_polygon(polygon, **kwargs)
+    n = len(verts_2d)
+
+    # Create basis for first planar polygon cap
+    x, y, z = util.generate_basis(path[0] - path[1])
+    tf_mat = np.ones((4,4))
+    tf_mat[:3,:3] = np.c_[x, y, z]
+    tf_mat[:3,3] = path[0]
+
+    # Compute 3D locations of those vertices
+    verts_3d = np.c_[verts_2d, np.zeros(n)]
+    verts_3d = transformations.transform_points(verts_3d, tf_mat)
+    base_verts_3d = np.c_[base_verts_2d, np.zeros(len(base_verts_2d))]
+    base_verts_3d = transformations.transform_points(base_verts_3d, tf_mat)
+
+    # Keep running tabulation of vertices and faces
+    vertices = base_verts_3d
+    faces = faces_2d
+
+    # Compute plane normals for each turn --
+    # each turn induces a plane halfway between the two vectors
+    v1s = util.unitize(path[1:-1] - path[:-2])
+    v2s = util.unitize(path[1:-1] - path[2:])
+    norms = np.cross(np.cross(v1s, v2s), v1s + v2s)
+    norms[(norms == 0.0).all(1)] = v1s[(norms == 0.0).all(1)]
+    norms = util.unitize(norms)
+    final_v1 = util.unitize(path[-1] - path[-2])
+    norms = np.vstack((norms, final_v1))
+    v1s = np.vstack((v1s, final_v1))
+
+    # Create all side walls by projecting the 3d vertices into each plane
+    # in succession
+    for i in range(len(norms)):
+        verts_3d_prev = verts_3d
+
+        # Rotate if needed
+        if angles is not None:
+            tf_mat = transformations.rotation_matrix(angles[i], norms[i], path[i])
+            verts_3d_prev = transformations.transform_points(verts_3d_prev, tf_mat)
+
+        # Project vertices onto plane in 3D
+        ds = np.einsum('ij,j->i', (path[i+1] - verts_3d_prev), norms[i])
+        ds = ds / np.dot(v1s[i], norms[i])
+        verts_3d_new = np.einsum('i,j->ij', ds, v1s[i]) + verts_3d_prev
+
+        # Add to face and vertex lists
+        new_faces = [[i+n, (i+1)%n, i] for i in range(n)]
+        new_faces.extend([[(i-1)%n + n, i+n, i] for i in range(n)])
+        faces = np.vstack((faces, np.array(new_faces) + len(vertices)))
+        vertices = np.vstack((vertices, verts_3d, verts_3d_new))
+
+        verts_3d = verts_3d_new
+
+    # Create final cap
+    x, y, z = util.generate_basis(path[-1] - path[-2])
+    vecs = verts_3d - path[-1]
+    coords = np.c_[np.einsum('ij,j->i', vecs, x), np.einsum('ij,j->i', vecs, y)]
+    base_verts_2d, faces_2d = triangulate_polygon(Polygon(coords))
+    base_verts_3d = (np.einsum('i,j->ij', base_verts_2d[:,0], x) +
+                     np.einsum('i,j->ij', base_verts_2d[:,1], y)) + path[-1]
+    faces = np.vstack((faces, faces_2d + len(vertices)))
+    vertices = np.vstack((vertices, base_verts_3d))
+
+    return Trimesh(vertices, faces)
+
+
 def extrude_triangulation(vertices,
                           faces,
                           height,
