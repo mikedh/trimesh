@@ -31,7 +31,7 @@ class ContactData(object):
             names[0]: contact.b1,
             names[1]: contact.b2
         }
-        self._point = result.pos
+        self._point = contact.pos
 
     @property
     def point(self):
