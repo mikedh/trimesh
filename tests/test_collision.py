@@ -32,6 +32,7 @@ class CollisionTest(g.unittest.TestCase):
                                                  return_names=True, 
                                                  return_data=True)
         self.assertTrue(ret == True)
+        assert all(len(i.point) == 3 for i in data)
 
         if 'cube1' not in names:
             print('\n\n', m._objs.keys(), names)
@@ -43,6 +44,7 @@ class CollisionTest(g.unittest.TestCase):
                                            return_data=True)
         self.assertTrue(ret == False)
         self.assertTrue(len(names) == 0)
+        assert all(len(i.point) == 3 for i in data)
 
         # Test internal collision checking and object
         # addition/removal/modification
