@@ -27,14 +27,20 @@ class CollisionTest(g.unittest.TestCase):
         ret = m.in_collision_single(cube)
         self.assertTrue(ret == True)
 
-        ret, names = m.in_collision_single(cube, tf1, return_names=True)
+        ret, names, data = m.in_collision_single(cube, 
+                                                 tf1, 
+                                                 return_names=True, 
+                                                 return_data=True)
         self.assertTrue(ret == True)
 
         if 'cube1' not in names:
             print('\n\n', m._objs.keys(), names)
         self.assertTrue('cube1' in names)
 
-        ret, names = m.in_collision_single(cube, tf2, return_names=True)
+        ret, names, data = m.in_collision_single(cube, 
+                                           tf2, 
+                                           return_names=True,
+                                           return_data=True)
         self.assertTrue(ret == False)
         self.assertTrue(len(names) == 0)
 
