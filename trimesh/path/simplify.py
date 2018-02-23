@@ -311,17 +311,17 @@ def simplify_basic(drawing):
     vertices_new = collections.deque()
     entities_new = collections.deque()
 
-    for polygon in drawing.polygons_closed:
+    # avoid thrashing cache in loop
+    scale = drawing.scale
 
-        # clean up things like self intersections
-        buffered = polygon.buffer(0.0)
+    for polygon in drawing.polygons_closed:
         # get the exterior as an (n,2) array
         # since we generated these from the closed
-        points = merge_colinear(np.array(buffered.exterior.coords),
-                                scale=drawing.scale)
+        points = merge_colinear(np.array(polygon.exterior.coords),
+                                scale=scale)
+
         # check to see if the closed entity represents a circle
-        circle = is_circle(points,
-                           scale=drawing.scale)
+        circle = is_circle(points, scale=scale)
 
         if circle is not None:
             # the points are circular enough for our high standards

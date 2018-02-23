@@ -683,7 +683,7 @@ class Path2D(Path):
         ---------
         polygons_closed: (n,) list of shapely.geometry.Polygon objects
         """
-
+        # will attempt to recover invalid garbage geometry
         polys, valid = polygons.paths_to_polygons(self.discrete)
         self._cache.set('path_valid', valid)
         return polys

@@ -302,7 +302,7 @@ class Trimesh(object):
         Return the unit normal vector for each face.
 
         If a face is degenerate and a normal can't be generated
-        an arbitrary unit vector will be returned for that face.
+        a zero magnitude unit vector will be returned for that face.
 
         Returns
         -----------
@@ -1398,8 +1398,10 @@ class Trimesh(object):
         ---------
         area:   (len(self.facets),) float, list of face group area
         """
-
-        areas = np.array([self.area_faces[i].sum() for i in self.facets])
+        # avoid thrashing the cache inside a loop
+        area_faces = self.area_faces
+        # sum the area of each group of faces represented by facets
+        areas = np.array([area_faces[i].sum() for i in self.facets])
         return areas
 
     @util.cache_decorator
@@ -1426,10 +1428,12 @@ class Trimesh(object):
         ---------
         edges_boundary: sequence of (n,2) int, indices of self.vertices
         """
+        # make each row correspond to a single face
         edges = self.edges_sorted.reshape((-1, 6))
+        # get the edges for each facet
         edges_facet = [edges[i].reshape((-1, 2)) for i in self.facets]
-        edges_boundary = np.array(
-            [i[grouping.group_rows(i, require_count=1)] for i in edges_facet])
+        edges_boundary = np.array([i[grouping.group_rows(i, require_count=1)] 
+                                   for i in edges_facet])
         return edges_boundary
 
     @util.cache_decorator
