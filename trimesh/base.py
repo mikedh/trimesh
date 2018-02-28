@@ -1432,7 +1432,7 @@ class Trimesh(object):
         edges = self.edges_sorted.reshape((-1, 6))
         # get the edges for each facet
         edges_facet = [edges[i].reshape((-1, 2)) for i in self.facets]
-        edges_boundary = np.array([i[grouping.group_rows(i, require_count=1)] 
+        edges_boundary = np.array([i[grouping.group_rows(i, require_count=1)]
                                    for i in edges_facet])
         return edges_boundary
 

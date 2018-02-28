@@ -259,7 +259,8 @@ class Arc(Entity):
                             'radius'
                             'center'
         """
-        return arc_center(vertices[self.points])
+        info = arc_center(vertices[self.points])
+        return info
 
     def bounds(self, vertices):
         """

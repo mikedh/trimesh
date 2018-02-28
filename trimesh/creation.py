@@ -132,15 +132,15 @@ def sweep_polygon(polygon,
         # Project vertices onto plane in 3D
         ds = np.einsum('ij,j->i', (path[i + 1] - verts_3d_prev), norms[i])
         ds = ds / np.dot(v1s[i], norms[i])
-        
+
         verts_3d_new = np.einsum('i,j->ij', ds, v1s[i]) + verts_3d_prev
-        
+
         # Add to face and vertex lists
         new_faces = [[i + n, (i + 1) % n, i] for i in range(n)]
         new_faces.extend([[(i - 1) % n + n, i + n, i] for i in range(n)])
 
         # save faces and vertices into a sequence
-        faces.append(np.array(new_faces))        
+        faces.append(np.array(new_faces))
         vertices.append(np.vstack((verts_3d, verts_3d_new)))
 
         verts_3d = verts_3d_new
@@ -149,7 +149,7 @@ def sweep_polygon(polygon,
     # doing one vstack provides a substantial speedup by
     # avoiding a bunch of temporary  allocations
     vertices, faces = util.append_faces(vertices, faces)
-        
+
     # Create final cap
     x, y, z = util.generate_basis(path[-1] - path[-2])
     vecs = verts_3d - path[-1]

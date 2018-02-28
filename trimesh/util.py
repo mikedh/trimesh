@@ -1091,9 +1091,7 @@ class DataStore:
         return md5
 
     def crc(self):
-        crc_all = np.array([i.crc() for i in self.data.values()],
-                           dtype=np.int64)
-        crc = zlib.adler32(crc_all) & 0xffffffff
+        crc = sum(i.crc() for i in self.data.values())
         return crc
 
 

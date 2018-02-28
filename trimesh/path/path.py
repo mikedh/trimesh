@@ -12,6 +12,7 @@ import collections
 
 from shapely.geometry import Polygon
 from scipy.spatial import cKDTree as KDTree
+from zlib import adler32
 
 from ..points import plane_fit
 from ..geometry import plane_transform
@@ -68,10 +69,11 @@ class Path(object):
         if metadata.__class__.__name__ == 'dict':
             self.metadata.update(metadata)
 
-        self._cache = util.Cache(id_function=self.md5)
+        self._cache = util.Cache(id_function=self.crc)
 
         if process:
-            # literally nothing will work if vertices aren't merged properly
+            # literally nothing will work if vertices aren't
+            # merged properly
             self.merge_vertices()
 
     def process(self):
@@ -107,21 +109,34 @@ class Path(object):
                 layer[i] = str(e.layer)
         return layer
 
-    def md5(self):
+    def crc(self):
         """
-        What is an MD5 hash of the current vertex and entity arrangment.
-
-        Not robust between loads; use self.identifier_md5 for that
+        A CRC of the current vertices and entities.
 
         Returns
         ------------
-        md5: str, MD5 of current paths
+        crc: int, CRC of entity points and vertices
         """
-        target = [e.points for e in self.entities]
-        target.append(int(self.vertices.md5()[:10], 16))
-        target = np.hstack(target).astype(np.int32)
-        hashed = util.md5_object(target.tostring())
-        return hashed
+        # first CRC the points in every entity
+        target = adler32(bytes().join(e.points.tostring()
+                                      for e in self.entities))
+        # add the CRC for the vertices
+        target += self.vertices.crc()
+        return target
+
+    def md5(self):
+        """
+        An MD5 hash of the current vertices and entities.
+
+        Returns
+        ------------
+        md5: str, two appended MD5 hashes
+        """
+
+        target = util.md5_object(bytes().join(e.points.tostring()
+                                              for e in self.entities))
+        target += self.vertices.md5()
+        return target
 
     @util.cache_decorator
     def paths(self):
@@ -190,7 +205,8 @@ class Path(object):
         # get the bounds of each entity
         # some entities (mostly Arc) have bounds that differ from their
         # vertices
-        points = np.array([e.bounds(self.vertices) for e in self.entities])
+        points = np.array([e.bounds(self.vertices)
+                           for e in self.entities])
         points = points.reshape((-1, self.vertices.shape[1]))
 
         # get the max and min of all bounds
