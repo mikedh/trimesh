@@ -855,9 +855,9 @@ class TrackedArray(np.ndarray):
 
     def __hash__(self):
         """
-        Hash is required to return an int, so we convert the hex string to int.
+        Hash is required to return an int, so use the CRC.
         """
-        return int(self.md5(), 16)
+        return self.crc()
 
     def __iadd__(self, other):
         self._modified = True
