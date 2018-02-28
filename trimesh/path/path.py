@@ -190,7 +190,8 @@ class Path(object):
         ----------
         scale: float, approximate size of the world holding this path
         """
-        scale = self.extents.max()
+        # use vertices peak-peak rather than exact extents
+        scale = (self.vertices.ptp(axis=0) ** 2).sum() ** .5
         return scale
 
     @util.cache_decorator
@@ -202,13 +203,13 @@ class Path(object):
         ----------
         bounds: (2, dimension) float, (min, max) coordinates
         """
-        # get the bounds of each entity
-        # some entities (mostly Arc) have bounds that differ from their
-        # vertices
+        # get the exact bounds of each entity
+        # some entities (aka 3- point Arc) have bounds that can't
+        # be generated from just bound box of vertices
         points = np.array([e.bounds(self.vertices)
                            for e in self.entities])
+        # flatten bound extrema into (n, dimension) array
         points = points.reshape((-1, self.vertices.shape[1]))
-
         # get the max and min of all bounds
         bounds = np.array([points.min(axis=0), points.max(axis=0)])
 
@@ -217,13 +218,13 @@ class Path(object):
     @property
     def extents(self):
         """
-        The size of the axis aligned bounding box
+        The size of the axis aligned bounding box.
 
         Returns
         ---------
         extents: (dimension,) float, edge length of AABB
         """
-        return np.diff(self.bounds, axis=0)[0]
+        return self.bounds.ptp(axis=0)
 
     @property
     def units(self):

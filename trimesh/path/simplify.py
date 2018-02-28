@@ -143,7 +143,7 @@ def is_circle(points, scale, verbose=False):
     return control
 
 
-def merge_colinear(points, scale=None):
+def merge_colinear(points, scale):
     """
     Given a set of points representing a path in space,
     merge points which are colinear.
@@ -158,10 +158,9 @@ def merge_colinear(points, scale=None):
     merged: (j, d) set of points with colinear and duplicate
              points merged, where (j < n)
     """
-    points = np.array(points)
-    if scale is None:
-        scale = np.ptp(points, axis=0).max()
-
+    points = np.asanyarray(points)
+    scale = float(scale)
+    
     # the vector from one point to the next
     direction = points[1:] - points[:-1]
     # the length of the direction vector
@@ -283,7 +282,7 @@ def three_point(indices):
     three = [indices[0],
              indices[int(len(indices) / 2)],
              indices[-1]]
-    return np.array(three)
+    return np.asanyarray(three)
 
 
 def simplify_basic(drawing):
@@ -314,14 +313,10 @@ def simplify_basic(drawing):
     # avoid thrashing cache in loop
     scale = drawing.scale
 
-    for polygon in drawing.polygons_closed:
-        # get the exterior as an (n,2) array
-        # since we generated these from the closed
-        points = merge_colinear(np.array(polygon.exterior.coords),
-                                scale=scale)
-
-        # check to see if the closed entity represents a circle
-        circle = is_circle(points, scale=scale)
+    # loop through (n, 2) closed paths
+    for discrete in drawing.discrete:
+        # check to see if the closed entity is a circle
+        circle = is_circle(discrete, scale=scale)
 
         if circle is not None:
             # the points are circular enough for our high standards
@@ -331,9 +326,10 @@ def simplify_basic(drawing):
                                              closed=True))
             vertices_new.extend(circle)
         else:
-            # save this path as a closed Line entity
-            # we cleaned up colinear points so it will still
-            # be simpler than the source data
+            # not a circle, so clean up colinear segments
+            # then save it as a single line entity
+            points = merge_colinear(discrete, scale=scale)
+            # references for new vertices
             indexes = np.arange(len(points)) + len(vertices_new)
             entities_new.append(entities.Line(points=indexes))
             vertices_new.extend(points)

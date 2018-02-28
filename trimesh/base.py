@@ -520,7 +520,7 @@ class Trimesh(object):
         -----------
         extents: (3,) float array containing axis aligned [l,w,h]
         """
-        extents = np.subtract(*self.bounds[::-1])
+        extents = self.bounds.ptp(axis=0)
         return extents
 
     @util.cache_decorator
