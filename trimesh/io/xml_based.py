@@ -240,10 +240,10 @@ def load_3DXML(file_obj, *args, **kwargs):
         part_file = ReferenceRep.attrib['associatedFile'].split(':')[-1]
 
         # prepare to collect actual geometry data
-        mesh_faces = collections.deque()
-        mesh_vertices = collections.deque()
-        mesh_colors = collections.deque()
-        mesh_normals = collections.deque()
+        mesh_faces = []
+        mesh_vertices = []
+        mesh_colors = []
+        mesh_normals = []
 
         # the geometry is stored in a Rep
         for Rep in as_etree[part_file].iter('{*}Rep'):
@@ -262,21 +262,27 @@ def load_3DXML(file_obj, *args, **kwargs):
             (material_file, material_id) = material.attrib['id'].split(
                 'urn:3DXML:')[-1].split('#')
 
-            # triangle strips, sequence of arbitrary length lists of vertex
-            # indexes
-            strips = [np.array(i.split(), dtype=np.int)
+            # triangle strips, sequence of arbitrary length lists
+            # np.fromstring is substantially faster than np.array(i.split())
+            # inside the list comprehension
+            strips = [np.fromstring(i, sep=' ', dtype=np.int64)
                       for i in faces.attrib['strips'].split(',')]
 
             # convert strips to (m,3) int
             mesh_faces.append(util.triangle_strips_to_faces(strips))
-            # convert vertices to (n,3) float
-            mesh_vertices.append(np.array(vertices.text.replace(',',
-                                                                ' ').split(),
-                                          dtype=np.float64).reshape((-1, 3)))
-            # convert VERTEX normals to (n,3) float
-            mesh_normals.append(np.array(normals.text.replace(',',
-                                                              ' ').split(),
-                                         dtype=np.float64).reshape((-1, 3)))
+
+            # they mix delimiters like we couldn't figure it out from the shape :(
+            # load vertices into (n, 3) float64
+            mesh_vertices.append(np.fromstring(vertices.text.replace(',',
+                                                                     ' '),
+                                               sep=' ',
+                                               dtype=np.float64).reshape((-1, 3)))
+            # load vertex normals into (n, 3) float64
+            mesh_normals.append(np.fromstring(normals.text.replace(',',
+                                                                   ' '),
+                                              sep=' ',
+                                              dtype=np.float64).reshape((-1, 3)))
+
             # store the material information as (m,3) uint8 FACE COLORS
             mesh_colors.append(np.tile(colors[material_id],
                                        (len(mesh_faces[-1]), 1)))

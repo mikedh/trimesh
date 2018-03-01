@@ -1950,8 +1950,8 @@ def triangle_strips_to_faces(strips):
     """
     Given a sequence of triangle strips, convert them to (n,3) faces.
 
-    Processes all strips at once using np.hstack and is signifigantly faster
-    than loop- based methods.
+    Processes all strips at once using np.concatenate and is signifigantly 
+    faster than loop- based methods.
 
     From the OpenGL programming guide describing a single triangle
     strip [v0, v1, v2, v3, v4]:
@@ -1975,7 +1975,7 @@ def triangle_strips_to_faces(strips):
     lengths = np.array([len(i) for i in strips])
     # looping through a list of lists is extremely slow
     # combine all the sequences into a blob we can manipulate
-    blob = np.hstack(strips)
+    blob = np.concatenate(strips)
 
     # preallocate and slice the blob into rough triangles
     tri = np.zeros((len(blob) - 2, 3), dtype=np.int)
@@ -1988,7 +1988,8 @@ def triangle_strips_to_faces(strips):
     # because we combined everything into one big array for speed
     length_index = np.cumsum(lengths)[:-1]
     keep = np.ones(len(tri), dtype=np.bool)
-    keep[np.append(length_index - 2, length_index - 1)] = False
+    keep[length_index - 2] = False
+    keep[length_index - 1] = False
     tri = tri[keep]
 
     # flip every other triangle so they generate correct normals/winding

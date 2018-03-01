@@ -1741,7 +1741,9 @@ class Trimesh(object):
         # force generation of face normals so we can check against them
         new_normals = np.dot(matrix[0:3, 0:3], self.face_normals.T).T
         # easier than figuring out what the scale factor of the matrix is
-        new_normals = util.unitize(new_normals)
+        unitized, valid = util.unitize(new_normals, check_valid=True)
+        # invalid normals are zero anyway
+        new_normals[valid] = unitized
 
         # check the first face against the first normal to check winding
         aligned_pre = triangles.windings_aligned(self.vertices[self.faces[:1]],

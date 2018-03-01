@@ -64,7 +64,7 @@ def group(values, min_len=0, max_len=np.inf):
         nondupe = values[1:] != values[:-1]
 
     dupe_idx = np.append(0, np.nonzero(nondupe)[0] + 1)
-    dupe_len = np.diff(np.hstack((dupe_idx, len(values))))
+    dupe_len = np.diff(np.concatenate((dupe_idx, [len(values)])))
     dupe_ok = np.logical_and(np.greater_equal(dupe_len, min_len),
                              np.less_equal(dupe_len, max_len))
     groups = [order[i:(i + j)]
@@ -339,7 +339,7 @@ def group_rows(data, require_count=None, digits=None):
         # you could use: np.array_split(dupe_idx)
         # this is roughly 3x slower than using the group_dict method above.
         start_ok = np.diff(
-            np.hstack((dupe_idx, len(hashable)))) == require_count
+            np.concatenate((dupe_idx, [len(hashable)]))) == require_count
         groups = np.tile(dupe_idx[start_ok].reshape((-1, 1)),
                          require_count) + np.arange(require_count)
         groups_idx = order[groups]
@@ -475,9 +475,9 @@ def blocks(data, min_len=2, max_len=np.inf, digits=None, only_nonzero=False):
 
     # find the inflection points, or locations where the array turns
     # from True to False.
-    infl = np.hstack(([0],
-                      np.nonzero(np.diff(data))[0] + 1,
-                      [len(data)]))
+    infl = np.concatenate(([0],
+                           np.nonzero(np.diff(data))[0] + 1,
+                           [len(data)]))
     infl_len = np.diff(infl)
     infl_ok = np.logical_and(infl_len >= min_len,
                              infl_len <= max_len)

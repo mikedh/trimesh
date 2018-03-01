@@ -160,7 +160,7 @@ def merge_colinear(points, scale):
     """
     points = np.asanyarray(points)
     scale = float(scale)
-    
+
     # the vector from one point to the next
     direction = points[1:] - points[:-1]
     # the length of the direction vector
