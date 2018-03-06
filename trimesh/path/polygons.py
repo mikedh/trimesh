@@ -5,14 +5,13 @@ from shapely.geometry import Polygon, Point, LineString
 from rtree import Rtree
 from collections import deque
 
+from .. import util
 from .. import bounds
 from .. import graph
 
-from ..geometry import medial_axis as _medial_axis
 from ..constants import tol_path as tol
 from ..constants import log
 from ..transformations import transform_points, planar_matrix
-from ..util import is_sequence
 from .traversal import resample_path
 
 
@@ -138,7 +137,7 @@ def polygon_obb(polygon):
 
 
 def transform_polygon(polygon, transform, plot=False):
-    if is_sequence(polygon):
+    if util.is_sequence(polygon):
         result = [transform_polygon(p, t) for p, t in zip(polygon, transform)]
     else:
         shell = transform_points(np.array(polygon.exterior.coords), transform)
@@ -220,7 +219,7 @@ def plot_polygon(polygon, show=True):
             plt.plot(*interior.xy, color='r')
 
     plt.axes().set_aspect('equal', 'datalim')
-    if is_sequence(polygon):
+    if util.is_sequence(polygon):
         [plot_single(i) for i in polygon]
     else:
         plot_single(polygon)
@@ -291,16 +290,36 @@ def medial_axis(polygon, resolution=.01, clip=None):
     ----------
     lines:     (n,2,2) set of line segments
     """
-    def contains(points):
-        return np.array([polygon.contains(Point(i)) for i in points])
+    from scipy.spatial import Voronoi
+    from .entities import Line
+    from .path import Path2D
 
-    boundary = resample_boundaries(polygon=polygon,
-                                   resolution=resolution,
-                                   clip=clip)
-    boundary = stack_boundaries(boundary)
+    samples = resample_boundaries(polygon=polygon,
+                                  resolution=resolution,
+                                  clip=clip)
+    samples = stack_boundaries(samples)
 
-    return _medial_axis(samples=boundary,
-                        contains=contains)
+    # create the voronoi diagram, after vertically stacking the points
+    # deque from a sequnce into a clean (m,2) array
+    voronoi = Voronoi(samples)
+    # which voronoi vertices are contained inside the original polygon
+    contain = np.array([polygon.contains(Point(i))
+                        for i in voronoi.vertices],
+                       dtype=np.bool)
+    # ridge vertices of -1 are outside, make sure they are False
+    contain = np.append(contain, False)
+    # is a ridge fully inside the polygon
+    inside = [i for i in voronoi.ridge_vertices if contain[i].all()]
+    edges = np.vstack([util.stack_lines(i)
+                       for i in inside if len(i) >= 2])
+    # line objects from edges
+    entities = [Line(points=i) for i in edges]
+
+    # create the Path2D object for the medial axis
+    medial = Path2D(entities=entities,
+                    vertices=voronoi.vertices)
+
+    return medial
 
 
 class InversePolygon:
@@ -402,7 +421,7 @@ def random_polygon(segments=8, radius=1.0):
         (np.cos(angles), np.sin(angles))) * radii.reshape((-1, 1))
     points = np.vstack((points, points[0]))
     polygon = Polygon(points).buffer(0.0)
-    if is_sequence(polygon):
+    if util.is_sequence(polygon):
         return polygon[0]
     return polygon
 
@@ -485,7 +504,7 @@ def repair_invalid(polygon, scale=None, rtol=.5):
     # this will fix a subset of problems.
     basic = polygon.buffer(tol.zero)
     # if it returned multiple polygons check the largest
-    if is_sequence(basic):
+    if util.is_sequence(basic):
         basic = basic[np.argmax([i.area for i in basic])]
 
     # check perimeter of result agains original perimeter
@@ -517,7 +536,7 @@ def repair_invalid(polygon, scale=None, rtol=.5):
     # buffer and unbuffer the whole polygon
     buffered = polygon.buffer(distance).buffer(-distance)
     # if it returned multiple polygons check the largest
-    if is_sequence(buffered):
+    if util.is_sequence(buffered):
         buffered = buffered[np.argmax([i.area for i in buffered])]
     # check perimeter of result agains original perimeter
     if buffered.is_valid and np.isclose(buffered.length,

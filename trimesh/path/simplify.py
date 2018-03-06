@@ -291,7 +291,7 @@ def simplify_basic(drawing):
 
     Parameters
     -----------
-    drawing: Path2D object
+    drawing: Path2D object, will not be modified.
 
     Returns
     -----------
@@ -347,5 +347,55 @@ def simplify_basic(drawing):
     simplified._cache = cache
     # set the cache ID so it won't dump when a value is requested
     simplified._cache.id_set()
+
+    return simplified
+
+
+def simplify_spline(path, smooth, path_indexes=None):
+    """
+    Replace discrete curves with b-spline curves, and
+    return the result as a new Path2D object.
+
+    Parameters
+    ------------
+    path:         Path2D object
+    smooth:       float, amount to smooth
+    path_indexes: (n,) int, indexes of path.paths to simplify
+
+    Returns
+    ------------
+    simplified: Path2D object, with specified entities replaced
+    """
+    # if we aren't simplifying specific indexes
+    # simplify all indexes in the path object
+    if path_indexes is None:
+        path_indexes = np.arange(len(path.paths))
+
+    entities_keep = np.ones(len(path.entities),
+                            dtype=np.bool)
+    new_vertices = []
+    new_entities = []
+
+    for i in path_indexes:
+        # entities for this path
+        entity, vertices = points_to_spline_entity(path.discrete[i])
+        # reindex returned control points
+        entity.points += len(path.vertices) + len(new_vertices)
+        # save entity and vertices
+        new_vertices.append(vertices)
+        new_entities.append(entity)
+        # we don't need any of the entities from the
+        # path we just consumed and replaced
+        entities_keep[path.paths[i]] = False
+
+    # flatten entities and vertices
+    entities = np.append(path.entities[entities_keep],
+                         new_entities)
+    vertices = np.vstack((path.vertices,
+                          np.vstack(new_vertices)))
+
+    # create the Path2D object for the result
+    simplified = type(path)(entities=entities,
+                            vertices=vertices)
 
     return simplified

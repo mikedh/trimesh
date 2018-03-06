@@ -857,24 +857,14 @@ class Path2D(Path):
         -----------
         path_indexes: (n) int list of indexes for self.paths
         smooth:       float, how much the spline should smooth the curve
+
+        Returns
+        ------------
+        simplified: Path2D object
         """
-        if path_indexes is None:
-            path_indexes = np.arange(len(self.paths))
-        entities_keep = np.ones(len(self.entities), dtype=np.bool)
-        new_vertices = collections.deque()
-        new_entities = collections.deque()
-        for i in path_indexes:
-            path = self.paths[i]
-            discrete = self.discrete[i]
-            entity, vertices = simplify.points_to_spline_entity(discrete)
-            entity.points += len(self.vertices) + len(new_vertices)
-            new_vertices.extend(vertices)
-            new_entities.append(entity)
-            entities_keep[path] = False
-        self.entities = np.append(self.entities[entities_keep],
-                                  new_entities)
-        self.vertices = np.vstack((self.vertices,
-                                   np.array(new_vertices)))
+        return simplify.simplify_spline(self,
+                                        path_indexes=path_indexes,
+                                        smooth=smooth)
 
     def split(self):
         """

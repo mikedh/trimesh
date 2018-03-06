@@ -278,36 +278,3 @@ def index_sparse(column_count, indices):
                         shape=shape,
                         dtype=np.bool)
     return sparse
-
-
-def medial_axis(samples, contains):
-    """
-    Given a set of samples on a boundary, find the approximate medial axis based
-    on a voronoi diagram and a containment function which can assess whether
-    a point is inside or outside of the closed geometry.
-
-    Parameters
-    ----------
-    samples:    (n,d) set of points on the boundary of the geometry
-    contains:   function which takes (m,d) points and returns an (m) bool array
-
-    Returns
-    ----------
-    lines:     (n,2,2) set of line segments
-    """
-
-    from scipy.spatial import Voronoi
-    from .path.io.load import load_path
-
-    # create the voronoi diagram, after vertically stacking the points
-    # deque from a sequnce into a clean (m,2) array
-    voronoi = Voronoi(samples)
-    # which voronoi vertices are contained inside the original polygon
-    contained = contains(voronoi.vertices)
-    # ridge vertices of -1 are outside, make sure they are False
-    contained = np.append(contained, False)
-    inside = [i for i in voronoi.ridge_vertices if contained[i].all()]
-    line_indices = np.vstack([util.stack_lines(i)
-                              for i in inside if len(i) >= 2])
-    lines = voronoi.vertices[line_indices]
-    return load_path(lines)
