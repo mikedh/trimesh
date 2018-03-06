@@ -723,7 +723,7 @@ class Path2D(Path):
             # all polygons_closed are CCW, so for interiors reverse them
             holes = [np.array(p.exterior.coords)[::-1] for p in holes_poly]
             # a single Polygon object
-            shell = self.polygons_closed[shell_index].exterior.coords
+            shell = self.polygons_closed[shell_index].exterior
             # create a polygon with interiors
             full[i] = Polygon(shell=shell,
                               holes=holes)

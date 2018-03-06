@@ -1460,8 +1460,7 @@ def submesh(mesh,
         all_faces = np.array_equal(np.sort(faces_sequence),
                                    np.arange(len(faces_sequence)))
         if all_faces:
-            log.debug(
-                'Subset of entire mesh requested, returning copy of original')
+            log.debug('entire mesh requested, returning copy of original')
             return mesh.copy()
 
     # avoid nuking the cache on the original mesh
@@ -1478,7 +1477,7 @@ def submesh(mesh,
 
     for faces_index in faces_sequence:
         # sanitize indices in case they are coming in as a set or tuple
-        faces_index = np.array(list(faces_index))
+        faces_index = np.asanyarray(faces_index, dtype=np.int64)
         if len(faces_index) == 0:
             continue
         faces_current = original_faces[faces_index]
@@ -1486,7 +1485,6 @@ def submesh(mesh,
 
         # redefine face indices from zero
         mask[unique] = np.arange(len(unique))
-
         normals.append(mesh.face_normals[faces_index])
         faces.append(mask[faces_current])
         vertices.append(original_vertices[unique])
@@ -1503,6 +1501,8 @@ def submesh(mesh,
                                 visual=visuals[0].concatenate(visuals[1:]),
                                 process=False)
         return appended
+
+    # generate a list of Trimesh objects
     result = [trimesh_type(vertices=v,
                            faces=f,
                            face_normals=n,
@@ -1514,9 +1514,13 @@ def submesh(mesh,
                                                                 visuals)]
     result = np.array(result)
     if len(result) > 0 and only_watertight:
-        watertight = np.array(
-            [i.fill_holes() and len(i.faces) > 4 for i in result])
+        # fill_holes will attempt a repair and returns the
+        # watertight status at the end of the repair attempt
+        watertight = np.array([i.fill_holes() and len(i.faces) > 4
+                               for i in result])
+        # remove unrepairable meshes
         result = result[watertight]
+
     return result
 
 

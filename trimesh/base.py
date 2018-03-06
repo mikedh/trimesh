@@ -40,6 +40,13 @@ from .ray import ray_triangle
 from .constants import log, _log_time, tol
 from .scene import Scene
 
+try:
+    # optionally load an interface to the embree raytracer
+    from .ray import ray_pyembree
+    _has_embree = True
+except ImportError:
+    _has_embree = False
+
 
 class Trimesh(object):
 
@@ -138,22 +145,19 @@ class Trimesh(object):
         if vertex_normals is not None:
             self.vertex_normals = vertex_normals
 
-        # create a ray-mesh query object for the current mesh
-        # initializing is very inexpensive and object is convenient to have.
-        # On first query expensive bookkeeping is done (creation of r-tree),
-        # and is cached for subsequent queries
-        self.ray = ray_triangle.RayMeshIntersector(self)
         # embree is a much, much faster raytracer written by Intel
         # if you have pyembree installed you should use it
         # although both raytracers were designed to have a common API
-        if use_embree:
-            try:
-                from .ray import ray_pyembree
-                self.ray = ray_pyembree.RayMeshIntersector(self)
-            except ImportError:
-                pass
+        if _has_embree and use_embree:
+            self.ray = ray_pyembree.RayMeshIntersector(self)
+        else:
+            # create a ray-mesh query object for the current mesh
+            # initializing is very inexpensive and object is convenient to have.
+            # On first query expensive bookkeeping is done (creation of r-tree),
+            # and is cached for subsequent queries
+            self.ray = ray_triangle.RayMeshIntersector(self)
 
-        # a quick way to get permuated versions of the current mesh
+        # a quick way to get permuted versions of the current mesh
         self.permutate = permutate.Permutator(self)
 
         # convience class for nearest point queries
