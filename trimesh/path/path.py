@@ -725,8 +725,8 @@ class Path2D(Path):
             # a single Polygon object
             shell = self.polygons_closed[shell_index].exterior
             # create a polygon with interiors
-            full[i] = Polygon(shell=shell,
-                              holes=holes)
+            full[i] = polygons.repair_invalid(Polygon(shell=shell,
+                                              holes=holes))
 
         return full
 

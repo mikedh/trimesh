@@ -13,7 +13,7 @@ bash /tmp/draco.bash
 # install and build meshpy
 source activate docker-environment
 pip install --upgrade pip
-pip install meshpy
+pip install 'meshpy==2016.1.2'
 
 # remove garbage
 apt-get remove --auto-remove --purge -y $PACKAGES_BUILD
