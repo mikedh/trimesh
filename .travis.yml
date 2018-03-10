@@ -1,54 +1,48 @@
 language: python
 sudo: required
 dist: trusty
-
 python:
 - '2.7'
 - '3.4'
 - '3.5'
 - '3.6'
-
 before_deploy:
 - sudo apt-get install pandoc -y
 - pip install pypandoc
-
 deploy:
   provider: pypi
   user: mikedh
   password:
-    secure: HbsOtokNjlpRE98DpeeX1uPzMR3XWZbovtyPA2gS4eobkod7YyBXDgj30uOwcMvJMo4sX7Fi3X59qY43qHLiftTFhaMtN4+E1N0HaVVfmTi/Iv/L4qd4gMjCjg6M7N1wiCmYA+ceB8pAGOzLoo2K2uXixBfkeQjxUZjKTHfQYlM
+    secure: T0R0OND+SMgHC6YbQ0XsFt+jWPD8xJFG1dg/YlWk9sttizmNRwivZ3evGF+kE8GJqLuKoDxIWxfyzqaNCujngbTEohGQKOrr8FHP8OUCwzpjigQgb07kquWI3OxHkoKNbebQtMbZ3VVoOF0HjVMKeEN1XT+xVXTCxm6K0U8uBcc=
   on:
-      python: '3.6'
-      branch: master
-      
+    python: '3.6'
+    branch: master
 before_install:
 - sudo apt-get update
 - sudo apt-get install -y openscad blender
-- sudo wget https://github.com/mikedh/v-hacd-1/raw/master/bin/linux/testVHACD --quiet -P /usr/bin
+- sudo wget https://github.com/mikedh/v-hacd-1/raw/master/bin/linux/testVHACD --quiet
+  -P /usr/bin
 - sudo chmod +x /usr/bin/testVHACD
-
 install:
-  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
-      wget --quiet https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh -O miniconda.sh;
-    else
-      wget --quiet https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
-    fi
-  - bash miniconda.sh -b -p $HOME/miniconda
-  - export PATH="$HOME/miniconda/bin:$PATH"
-  - hash -r
-  - conda config --set always_yes yes --set changeps1 no
-  - conda config --add channels conda-forge  # rtree, shapely, pyembree
-  - conda update -q conda
-  - conda info -a
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy 
-  - source activate test-environment
-  - pip install .
-  - pip install nose2
-
-script: 
+- if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then wget --quiet https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
+  -O miniconda.sh; else wget --quiet https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
+  -O miniconda.sh; fi
+- bash miniconda.sh -b -p $HOME/miniconda
+- export PATH="$HOME/miniconda/bin:$PATH"
+- hash -r
+- conda config --set always_yes yes --set changeps1 no
+- conda config --add channels conda-forge
+- conda update -q conda
+- conda info -a
+- conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy
+- source activate test-environment
+- pip install .
+- pip install nose2
+script:
 - python -c "import trimesh"
 - conda install scikit-image rtree shapely
-- if [[ "$TRAVIS_PYTHON_VERSION" != "3.3" && "$TRAVIS_PYTHON_VERSION" != "3.4" ]]; then conda install pyembree && pip install python-fcl; fi
+- if [[ "$TRAVIS_PYTHON_VERSION" != "3.3" && "$TRAVIS_PYTHON_VERSION" != "3.4" ]];
+  then conda install pyembree && pip install python-fcl; fi
 - pip install .[easy]
 - cd tests
 - nose2

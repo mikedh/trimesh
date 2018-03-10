@@ -1,0 +1,32 @@
+# Python CircleCI 2.0 configuration file
+#
+# Check https://circleci.com/docs/2.0/language-python/ for more details
+#
+version: 2
+jobs:
+  build:
+    docker:
+      # specify the version you desire here
+      # use `-browsers` prefix for selenium tests, e.g. `3.6.1-browsers`
+      - image: continuumio/miniconda3
+    working_directory: ~/repo
+
+    steps:
+      - checkout
+      - run:
+          name: install dependencies
+          command: |
+            pip install nose2
+            pip install .
+	    python -c "import trimesh"
+	    conda install -c conda-forge scikit-image rtree shapely pyembree
+	    pip install .[all]
+      # run tests!
+      - run:
+          name: run tests
+          command: nose2
+
+      - store_artifacts:
+          path: test-reports
+          destination: test-reports
+          
