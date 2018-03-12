@@ -90,6 +90,7 @@ def align_vectors(vector_start, vector_end, return_angle=False):
         # and no rotation is needed
         T = np.eye(4)
         T[0:3] *= direction
+        angle = 0.0
     else:
         angle = np.arcsin(norm)
         if direction < 0:

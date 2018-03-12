@@ -714,6 +714,7 @@ def attach_to_log(level=logging.DEBUG,
                   colors=True,
                   blacklist=['TerminalIPythonApp',
                              'PYREADLINE',
+                             'pyembree',
                              'shapely.geos',
                              'shapely.speedups._speedups']):
     """
