@@ -760,12 +760,19 @@ def attach_to_log(level=logging.DEBUG,
     if loggers is None:
         loggers = logging.Logger.manager.loggerDict.values()
 
+    # disable pyembree warnings
+    logging.getLogger('pyembree').disabled = True
+
+    # loop through all available loggers
     for logger in loggers:
+        # skip loggers on the blacklist
         if (logger.__class__.__name__ != 'Logger' or
                 logger.name in blacklist):
             continue
         logger.addHandler(handler)
         logger.setLevel(level)
+
+    # set nicer numpy print options
     np.set_printoptions(precision=5, suppress=True)
 
 
