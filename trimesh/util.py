@@ -1962,7 +1962,7 @@ def triangle_strips_to_faces(strips):
     """
     Given a sequence of triangle strips, convert them to (n,3) faces.
 
-    Processes all strips at once using np.concatenate and is signifigantly 
+    Processes all strips at once using np.concatenate and is signifigantly
     faster than loop- based methods.
 
     From the OpenGL programming guide describing a single triangle

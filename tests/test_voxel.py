@@ -38,12 +38,6 @@ class VoxelTest(g.unittest.TestCase):
                 try:
                     cubes = v.marching_cubes
                     assert cubes.area > 0.0
-
-                    if (g.python_version == (3, 3) or
-                            g.python_version == (3, 4)):
-                        # python 3.3 and 3.4 only have the classic marching cubes
-                        # which doesn't guarantee a watertight result
-                        assert cubes.is_watertight
                 except ImportError:
                     g.log.info('no skimage, skipping marching cubes test')
 
@@ -52,6 +46,27 @@ class VoxelTest(g.unittest.TestCase):
                        v.volume)
 
 
+    def test_marching(self):
+        try:
+            # make sure offset is correct
+            matrix = g.np.ones((3,3,3), dtype=g.np.bool)
+            mesh = g.trimesh.voxel.matrix_to_marching_cubes(
+                matrix=matrix,
+                pitch=1.0,
+                origin=g.np.zeros(3))
+            assert mesh.is_watertight
+            
+            mesh = g.trimesh.voxel.matrix_to_marching_cubes(
+                matrix=matrix,
+                pitch=3.0,
+                origin=g.np.zeros(3))
+            assert mesh.is_watertight
+            
+        except ImportError:
+            g.log.info('no skimage, skipping marching cubes test')
+
+
+            
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()

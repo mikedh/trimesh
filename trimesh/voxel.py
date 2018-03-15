@@ -334,12 +334,16 @@ def matrix_to_marching_cubes(matrix, pitch, origin):
     if len(meshed) == 2:
         log.warning('using old marching cubes, may not be watertight!')
         vertices, faces = meshed
+        normals = None
     elif len(meshed) == 4:
         vertices, faces, normals, vals = meshed
 
     # Return to the origin, add in the pad_width
-    vertices = np.subtract(np.add(vertices, origin), pad_width*pitch)
-    mesh = Trimesh(vertices=vertices, faces=faces)
+    vertices = np.subtract(np.add(vertices, origin), pad_width * pitch)
+    # create the mesh
+    mesh = Trimesh(vertices=vertices,
+                   faces=faces,
+                   vertex_normals=normals)
     return mesh
 
 

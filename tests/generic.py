@@ -26,7 +26,8 @@ try:
 except ImportError:
     has_path = False
 
-python_version = (sys.version_info.major, sys.version_info.minor)
+python_version = np.array([sys.version_info.major,
+                           sys.version_info.minor])
 
 # python 3
 try:
