@@ -1,7 +1,7 @@
 import generic as g
 
 import time
-import psutil
+#import psutil
 import timeit
 import subprocess
 
@@ -23,9 +23,7 @@ def typical_application():
         assert len(mesh.edges_face) > 0
         assert isinstance(mesh.euler_number, int)
 
-        mesh.process()
-
-        if not mesh.is_watertight:
+        if not mesh.is_volume:
             continue
 
         assert len(mesh.facets) == len(mesh.facets_area)
@@ -42,31 +40,11 @@ def typical_application():
                                plane_origin=mesh.centroid)
 
         sample = mesh.sample(1000)
-        even_sample = g.trimesh.sample.sample_surface_even(mesh, 100)
         assert sample.shape == (1000, 3)
-        g.log.info('finished testing meshes')
 
-        # make sure vertex kdtree and triangles rtree exist
-
-        t = mesh.kdtree()
-        assert hasattr(t, 'query')
-        g.log.info('Creating triangles tree')
-        r = mesh.triangles_tree()
-        assert hasattr(r, 'intersection')
-        g.log.info('Triangles tree ok')
-
-        # some memory issues only show up when you copy the mesh a bunch
-        # specifically, if you cache c- objects then deepcopy the mesh this
-        # generally segfaults randomly
-        copy_count = 20
-        g.log.info('Attempting to copy mesh %d times', copy_count)
-        for i in range(copy_count):
-            copied = mesh.copy()
-        g.log.info('Multiple copies done')
-        assert g.np.allclose(copied.identifier,
-                             mesh.identifier)
-        assert isinstance(mesh.identifier_md5, str)
-
+        ident = mesh.identifier_md5
+        assert len(ident) > 0
+        
 
 def establish_baseline(*args, counts=[390, 3820, 1710]):
     '''
@@ -179,13 +157,12 @@ if __name__ == '__main__':
     result['timings'] = timings
     '''
 
-    from multiprocessing import Pool
+    import pyinstrument
 
-    p = Pool(2)
+    profiler = pyinstrument.Profiler()
+    profiler.start()
 
-    tic = [time.time()]
-    a = [establish_baseline() for i in range(4)]
-    tic.append(time.time())
+    typical_application()
 
-    b = list(p.imap_unordered(establish_baseline, range(4)))
-    tic.append(time.time())
+    profiler.stop()
+    print(profiler.output_text(unicode=True, color=True))

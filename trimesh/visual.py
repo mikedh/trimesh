@@ -366,7 +366,12 @@ class ColorVisuals(object):
         ----------
         visual: ColorVisuals object containing information about a subset of faces.
         """
-        result = ColorVisuals(face_colors=self.face_colors[face_index])
+        if self.defined:
+            result = ColorVisuals(
+                face_colors=self.face_colors[face_index])
+        else:
+            result = ColorVisuals()
+            
         return result
 
     @property

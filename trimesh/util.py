@@ -849,14 +849,14 @@ class TrackedArray(np.ndarray):
         """
         if self._modified or not hasattr(self, '_hashed_crc'):
             if self.flags['C_CONTIGUOUS']:
-                self._hashed_crc = zlib.adler32(self) & 0xffffffff
+                self._hashed_crc = zlib.adler32(self)
             else:
                 # the case where we have sliced our nice
                 # contiguous array into a non- contiguous block
                 # for example (note slice *after* track operation):
                 # t = util.tracked_array(np.random.random(10))[::-1]
                 contiguous = np.ascontiguousarray(self)
-                self._hashed_crc = zlib.adler32(contiguous) & 0xffffffff
+                self._hashed_crc = zlib.adler32(contiguous)
 
         self._modified = False
         return self._hashed_crc
@@ -1497,6 +1497,7 @@ def submesh(mesh,
         faces.append(mask[faces_current])
         vertices.append(original_vertices[unique])
         visuals.append(mesh.visual.face_subset(faces_index))
+        
     # we use type(mesh) rather than importing Trimesh from base
     # to avoid a circular import
     trimesh_type = type_named(mesh, 'Trimesh')

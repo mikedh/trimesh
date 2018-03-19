@@ -266,7 +266,12 @@ def facets(mesh, engine=None):
     # a common failure mode is two faces that are very narrow with a slight
     # angle between them, so here we divide by the perpendicular span
     # to penalize very narrow faces, and then square it just for fun
-    parallel = (radii / span) ** 2 > tol.facet_threshold
+    parallel = np.ones(len(radii), dtype=np.bool)
+    # if span is zero we know faces are small/parallel
+    nonzero = np.abs(span) > tol.zero
+    # faces with a radii/span ratio larger than a threshold pass
+    parallel[nonzero] = (radii[nonzero] /
+                         span[nonzero]) ** 2 > tol.facet_threshold
 
     # run connected components on the parallel faces to group them
     components = connected_components(mesh.face_adjacency[parallel],
