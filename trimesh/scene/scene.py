@@ -5,6 +5,7 @@ import copy
 from .. import util
 from .. import units
 from .. import convex
+from .. import caching
 from .. import grouping
 from .. import transformations
 
@@ -34,7 +35,7 @@ class Scene:
         # graph structure of instances
         self.graph = TransformForest(base_frame=base_frame)
 
-        self._cache = util.Cache(id_function=self.md5)
+        self._cache = caching.Cache(id_function=self.md5)
 
         self.add_geometry(geometry)
         self.set_camera()

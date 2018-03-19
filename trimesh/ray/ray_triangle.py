@@ -9,6 +9,7 @@ from .ray_util import contains_points
 from ..constants import tol
 
 from .. import util
+from .. import caching
 from .. import grouping
 from .. import intersections
 from .. import triangles as triangles_mod
@@ -22,7 +23,7 @@ class RayMeshIntersector:
 
     def __init__(self, mesh):
         self.mesh = mesh
-        self._cache = util.Cache(self.mesh.crc)
+        self._cache = caching.Cache(self.mesh.crc)
 
     def intersects_id(self,
                       ray_origins,

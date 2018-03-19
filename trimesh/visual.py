@@ -30,6 +30,7 @@ import colorsys
 import collections
 
 from . import util
+from . import caching
 from . import grouping
 
 
@@ -54,8 +55,8 @@ class ColorVisuals(object):
         vertex_colors: (n,3|4) or (3,) or (4,) uint8, colors per-vertex
         """
         self.mesh = mesh
-        self._data = util.DataStore()
-        self._cache = util.Cache(id_function=self.crc)
+        self._data = caching.DataStore()
+        self._cache = caching.Cache(id_function=self.crc)
 
         self.defaults = {'material_diffuse': np.array([102, 102, 102, 255],
                                                       dtype=np.uint8),
@@ -334,7 +335,7 @@ class ColorVisuals(object):
             raise ValueError('face colors incorrect shape!')
 
         # subclass the array to track for changes using a zlib.adler32 CRC
-        colors = util.tracked_array(colors)
+        colors = caching.tracked_array(colors)
         # put the generated colors and their initial checksum into the cache
         self._cache[key_colors] = colors
         self._cache[key_crc] = colors.crc()

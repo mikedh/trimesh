@@ -23,6 +23,7 @@ from ..constants import tol_path as tol
 from .util import concatenate
 
 from .. import util
+from .. import caching
 from .. import grouping
 from .. import transformations
 
@@ -69,7 +70,7 @@ class Path(object):
         if metadata.__class__.__name__ == 'dict':
             self.metadata.update(metadata)
 
-        self._cache = util.Cache(id_function=self.crc)
+        self._cache = caching.Cache(id_function=self.crc)
 
         if process:
             # literally nothing will work if vertices aren't
@@ -92,7 +93,7 @@ class Path(object):
 
     @vertices.setter
     def vertices(self, values):
-        self._vertices = util.tracked_array(values)
+        self._vertices = caching.tracked_array(values)
 
     @property
     def layers(self):

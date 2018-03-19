@@ -10,6 +10,7 @@ import os
 import sys
 import json
 import time
+import timeit
 
 import numpy as np
 import trimesh

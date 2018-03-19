@@ -9,6 +9,7 @@ from pyembree.mesh_construction import TriangleMesh
 from .ray_util import contains_points
 
 from .. import util
+from .. import caching
 from .. import intersections
 
 # the factor of geometry.scale to offset a ray from a triangle
@@ -22,7 +23,7 @@ class RayMeshIntersector:
 
     def __init__(self, geometry):
         self.mesh = geometry
-        self._cache = util.Cache(id_function=self.mesh.crc)
+        self._cache = caching.Cache(id_function=self.mesh.crc)
 
     @util.cache_decorator
     def _scene(self):

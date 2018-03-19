@@ -21,6 +21,7 @@ from . import repair
 from . import convex
 from . import remesh
 from . import bounds
+from . import caching
 from . import inertia
 from . import nsphere
 from . import boolean
@@ -96,13 +97,13 @@ class Trimesh(object):
         # any data put into the store is converted to a TrackedArray
         # which is a subclass of np.ndarray that provides md5 and crc
         # methods which can be used to detect changes in the array.
-        self._data = util.DataStore()
+        self._data = caching.DataStore()
 
         # self._cache stores information about the mesh which CAN be
         # regenerated from self._data, but may be slow to calculate.
         # In order to maintain consistency
         # the cache is cleared when self._data.crc() changes
-        self._cache = util.Cache(id_function=self._data.crc)
+        self._cache = caching.Cache(id_function=self._data.fast_hash)
         self._cache.update(initial_cache)
 
         # if validate we are allowed to alter the mesh silently

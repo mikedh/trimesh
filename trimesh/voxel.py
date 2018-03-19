@@ -8,6 +8,7 @@ import numpy as np
 
 from . import util
 from . import remesh
+from . import caching
 from . import grouping
 
 from .constants import log
@@ -18,8 +19,8 @@ from collections import deque
 class Voxel(object):
 
     def __init__(self, *args, **kwargs):
-        self._data = util.DataStore()
-        self._cache = util.Cache(id_function=self._data.crc)
+        self._data = caching.DataStore()
+        self._cache = caching.Cache(id_function=self._data.crc)
 
     @util.cache_decorator
     def marching_cubes(self):

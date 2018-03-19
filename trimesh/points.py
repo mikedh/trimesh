@@ -10,6 +10,7 @@ from .constants import log, tol
 from .geometry import plane_transform
 
 from . import util
+from . import caching
 from . import grouping
 from . import transformations
 
@@ -326,8 +327,7 @@ class PointCloud(object):
     """
 
     def __init__(self, *args, **kwargs):
-        self._data = util.DataStore()
-
+        self._data = caching.DataStore()
         self.metadata = {}
 
         if len(args) == 1:

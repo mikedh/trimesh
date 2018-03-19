@@ -5,6 +5,7 @@ import numpy as np
 import networkx as nx
 
 from .. import util
+from .. import caching
 from .. import transformations
 
 
@@ -17,7 +18,7 @@ class TransformForest:
         self._paths = {}
         self._updated = time.time()
 
-        self._cache = util.Cache(id_function=self.md5)
+        self._cache = caching.Cache(id_function=self.md5)
 
     def update(self,
                frame_to,
