@@ -19,7 +19,6 @@ try:
     # packaged in easy wheels on linux (`pip install xxhash`)
     # so keep it as a soft dependency
     import xxhash
-    _xxhasher = xxhash.xxh64()
     hasX = True
 except ImportError:
     hasX = False
@@ -126,18 +125,19 @@ class TrackedArray(np.ndarray):
         # these functions are called millions of times so everything helps
         if self._modified_x or not hasattr(self, '_hashed_xx'):
             if self.flags['C_CONTIGUOUS']:
-                _xxhasher.reset()
-                _xxhasher.update(self)
-                self._hashed_xx = int(_xxhasher.hexdigest(), 16)
+                hasher = xxhash.xxh64()
+                hasher.update(self)
+                self._hashed_xx = int(hasher.hexdigest(), 16)
             else:
                 # the case where we have sliced our nice
                 # contiguous array into a non- contiguous block
                 # for example (note slice *after* track operation):
                 # t = util.tracked_array(np.random.random(10))[::-1]
                 contiguous = np.ascontiguousarray(self)
-                _xxhasher.reset()
-                _xxhasher.update(contiguous)
-                self._hashed_xx = int(_xxhasher.hexdigest(), 16)
+                hasher = xxhash.xxh64()
+                hasher.update(contiguous)
+                self._hashed_xx = int(hasher.hexdigest(), 16)
+                
         self._modified_x = False
         return self._hashed_xx
 
