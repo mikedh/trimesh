@@ -775,11 +775,12 @@ def attach_to_log(level=logging.DEBUG,
     # set nicer numpy print options
     np.set_printoptions(precision=5, suppress=True)
 
+
 def cache_decorator(function):
     """
     A decorator for methods of classes.
 
-    If the object contains `self.cache`, this function 
+    If the object contains `self.cache`, this function
     will check the values in self.cache for this wrapped function
     by name, and if it is already in the cache it will return that
     value rather than evaluating the function again.
@@ -1193,7 +1194,7 @@ def submesh(mesh,
         faces.append(mask[faces_current])
         vertices.append(original_vertices[unique])
         visuals.append(mesh.visual.face_subset(faces_index))
-        
+
     # we use type(mesh) rather than importing Trimesh from base
     # to avoid a circular import
     trimesh_type = type_named(mesh, 'Trimesh')

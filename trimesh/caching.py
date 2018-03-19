@@ -17,12 +17,13 @@ from .util import is_sequence
 try:
     # xxhash is roughly 5x faster than adler32 but is only
     # packaged in easy wheels on linux (`pip install xxhash`)
-    # so keep it as a soft dependency 
+    # so keep it as a soft dependency
     import xxhash
-    _xxhasher = xxhash.xxh64() 
+    _xxhasher = xxhash.xxh64()
     hasX = True
 except ImportError:
     hasX = False
+
 
 def tracked_array(array, dtype=None):
     """
@@ -55,7 +56,7 @@ class TrackedArray(np.ndarray):
     md5: returns hexadecimal string of md5 of array
     crc: returns int zlib.adler32 checksum of array
     """
-    
+
     def __array_finalize__(self, obj):
         """
         Sets a modified flag on every TrackedArray
@@ -227,9 +228,11 @@ class TrackedArray(np.ndarray):
         self._modified_x = True
         super(self.__class__, self).__setslice__(i, j, y)
 
-    if hasX: fast_hash = _xxhash
-    else:     fast_hash = crc
-    
+    if hasX:
+        fast_hash = _xxhash
+    else:
+        fast_hash = crc
+
 
 class Cache:
     """
@@ -249,7 +252,7 @@ class Cache:
         """
         Get a key from the cache.
 
-        If the key is unavailable or the cache has been invalidated 
+        If the key is unavailable or the cache has been invalidated
         returns None.
         """
         self.verify()
@@ -266,8 +269,8 @@ class Cache:
 
     def verify(self):
         """
-        Verify that the cached values are still for the same value of 
-        id_function, and delete all stored items if the value 
+        Verify that the cached values are still for the same value of
+        id_function, and delete all stored items if the value
         of id_function has changed.
         """
         id_new = self._id_function()
@@ -290,7 +293,7 @@ class Cache:
 
     def update(self, items):
         """
-        Update the cache with a set of key, value pairs without 
+        Update the cache with a set of key, value pairs without
         checking id_function.
         """
         self.cache.update(items)
@@ -328,9 +331,10 @@ class Cache:
 
 class DataStore:
     """
-    A class to store multiple numpy arrays and track them all 
+    A class to store multiple numpy arrays and track them all
     for changes. Operates like a dict of ndarray values
     """
+
     def __init__(self):
         self.data = {}
 
@@ -399,7 +403,6 @@ class DataStore:
     def crc(self):
         crc = sum(i.crc() for i in self.data.values())
         return crc
-
 
     def fast_hash(self):
         fast = sum(i.fast_hash() for i in self.data.values())

@@ -372,7 +372,7 @@ class ColorVisuals(object):
                 face_colors=self.face_colors[face_index])
         else:
             result = ColorVisuals()
-            
+
         return result
 
     @property
