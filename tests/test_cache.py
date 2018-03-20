@@ -30,13 +30,13 @@ class CacheTest(g.unittest.TestCase):
             stmt='t._modified_x=True;t.fast_hash()',
             number=count)
 
-        g.log.info('MD5:\n{}\nCRC:\n{}\nXX:\n{}'.format(
+        g.log.info('\nResult\nMD5:\n{}\nCRC:\n{}\nXX:\n{}'.format(
             md,
             c,
             x))
         
         # crc should always be faster than MD5's
-        g.log.info('MD5:\n{}\nCRC:\n{}\nXX:\n{}'.format(
+        g.log.info('\nTime\nMD5:\n{}\nCRC:\n{}\nXX:\n{}'.format(
             mt,
             ct,
             xt))

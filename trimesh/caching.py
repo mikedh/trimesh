@@ -105,14 +105,14 @@ class TrackedArray(np.ndarray):
         """
         if self._modified_c or not hasattr(self, '_hashed_crc'):
             if self.flags['C_CONTIGUOUS']:
-                self._hashed_crc = zlib.adler32(self)
+                self._hashed_crc = zlib.crc32(self)
             else:
                 # the case where we have sliced our nice
                 # contiguous array into a non- contiguous block
                 # for example (note slice *after* track operation):
                 # t = util.tracked_array(np.random.random(10))[::-1]
                 contiguous = np.ascontiguousarray(self)
-                self._hashed_crc = zlib.adler32(contiguous)
+                self._hashed_crc = zlib.crc32(contiguous)
         self._modified_c = False
         return self._hashed_crc
 
@@ -127,7 +127,7 @@ class TrackedArray(np.ndarray):
             if self.flags['C_CONTIGUOUS']:
                 hasher = xxhash.xxh64()
                 hasher.update(self)
-                self._hashed_xx = int(hasher.hexdigest(), 16)
+                self._hashed_xx = hasher.intdigest()
             else:
                 # the case where we have sliced our nice
                 # contiguous array into a non- contiguous block
@@ -136,7 +136,7 @@ class TrackedArray(np.ndarray):
                 contiguous = np.ascontiguousarray(self)
                 hasher = xxhash.xxh64()
                 hasher.update(contiguous)
-                self._hashed_xx = int(hasher.hexdigest(), 16)
+                self._hashed_xx = hasher.intdigest()
                 
         self._modified_x = False
         return self._hashed_xx
