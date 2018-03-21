@@ -3,7 +3,7 @@ caching.py
 -----------
 
 Functions and classes that help with tracking changes in ndarrays
-and clearing caching values based on those changes
+and clearing caching values based on those changes.
 """
 
 import numpy as np
@@ -12,7 +12,6 @@ import hashlib
 import zlib
 
 from .constants import log
-from .util import is_sequence
 
 try:
     # xxhash is roughly 5x faster than adler32 but is only
@@ -22,7 +21,8 @@ try:
     hasX = True
 except ImportError:
     hasX = False
-    
+
+
 def tracked_array(array, dtype=None):
     """
     Properly subclass a numpy ndarray to track changes.
@@ -71,14 +71,11 @@ class TrackedArray(np.ndarray):
 
     def md5(self):
         """
-        Return an MD5 hash of the current array in hexadecimal string form.
+        Return an MD5 hash of the current array.
 
-        This is quite fast; on a modern i7 desktop a (1000000,3) floating point
-        array was hashed reliably in .03 seconds.
-
-        This is only recomputed if a modified flag is set which may have false
-        positives (forcing an unnecessary recompute) but will not have false
-        negatives which would return an incorrect hash.
+        Returns
+        -----------
+        md5: str, hexadecimal MD5 of the array
         """
 
         if self._modified_m or not hasattr(self, '_hashed_md5'):
@@ -100,7 +97,12 @@ class TrackedArray(np.ndarray):
 
     def crc(self):
         """
-        Return a zlib adler32 checksum of the current data.
+        A zlib.crc32 or zlib.adler32 checksum 
+        of the current data.
+
+        Returns
+        -----------
+        crc: int, checksum from zlib.crc32 or zlib.adler32
         """
         if self._modified_c or not hasattr(self, '_hashed_crc'):
             if self.flags['C_CONTIGUOUS']:
@@ -118,6 +120,10 @@ class TrackedArray(np.ndarray):
     def _xxhash(self):
         """
         An xxhash.b64 hash of the array.
+
+        Returns
+        -------------
+        xx: int, xxhash.b64 hash of array.
         """
         # repeat the bookkeeping to get a contiguous array inside
         # the function to avoid additional function calls
@@ -136,7 +142,7 @@ class TrackedArray(np.ndarray):
                 hasher = xxhash.xxh64()
                 hasher.update(contiguous)
                 self._hashed_xx = hasher.intdigest()
-                
+
         self._modified_x = False
         return self._hashed_xx
 
@@ -166,6 +172,12 @@ class TrackedArray(np.ndarray):
         self._modified_m = True
         self._modified_x = True
         return super(self.__class__, self).__imul__(other)
+
+    def __idiv__(self, other):
+        self._modified_c = True
+        self._modified_m = True
+        self._modified_x = True
+        return super(self.__class__, self).__idiv__(other)
 
     def __ipow__(self, other):
         self._modified_c = True
@@ -235,10 +247,17 @@ class TrackedArray(np.ndarray):
 
 class Cache:
     """
-    Class to cache values until an id function changes.
+    Class to cache values until an ID function changes.
     """
 
     def __init__(self, id_function=None):
+        """
+        Create a cache object.
+
+        Parameters
+        ------------
+        id_function: function, that returns hashable value
+        """
         if id_function is None:
             self._id_function = lambda: None
         else:
@@ -253,6 +272,14 @@ class Cache:
 
         If the key is unavailable or the cache has been invalidated
         returns None.
+
+        Parameters
+        -------------
+        key: hashable value
+
+        Returns
+        -------------
+        value: value from cache
         """
         self.verify()
         if key in self.cache:
@@ -351,15 +378,19 @@ class DataStore:
         self._mutable = value
 
     def is_empty(self):
+        """
+        Is the current DataStore empty or not.
+
+        Returns
+        ----------
+        empty: bool, False if there are items in the DataStore
+        """
         if len(self.data) == 0:
             return True
         for v in self.data.values():
-            if is_sequence(v):
-                if len(v) > 0:
-                    return False
-            else:
-                if bool(np.isreal(v)):
-                    return False
+            if (len(np.shape(v)) > 0 or
+                    np.isreal(v)):
+                return False
         return True
 
     def clear(self):
@@ -393,42 +424,64 @@ class DataStore:
             self[key] = value
 
     def md5(self):
+        """
+        Get an MD5 reflecting everything in the DataStore.
+        
+        Returns
+        ----------
+        md5: str, MD5 in hexadecimal
+        """
         hasher = hashlib.md5()
-        for key in np.sort(list(self.data.keys())):
+        for key in sorted(self.data.keys()):
             hasher.update(self.data[key].md5().encode('utf-8'))
         md5 = hasher.hexdigest()
         return md5
 
     def crc(self):
+        """
+        Get a CRC reflecting everything in the DataStore.
+        
+        Returns
+        ----------
+        crc: int, CRC of data
+        """
         crc = sum(i.crc() for i in self.data.values())
         return crc
 
     def fast_hash(self):
+        """
+        Get a CRC32 or xxhash.xxh64 reflecting the DataStore.
+
+        Returns
+        ------------
+        hashed: int, checksum of data
+        """
         fast = sum(i.fast_hash() for i in self.data.values())
         return fast
 
 
-def _fast_crc(count=100):
+def _fast_crc(count=50):
     """
     On certain platforms/builds zlib.adler32 is substantially
     faster than zlib.crc32, but it is not consistent across 
     Windows/Linux/OSX.
 
-    This function runs a quick check (4ms on my machines) to 
+    This function runs a quick check (2ms on my machines) to 
     determine the fastest hashing function available in zlib.
 
     Parameters
     ------------
     count: int, number of repetitions to do on the speed trial
- 
+
     Returns
     ----------
     crc32: function, either zlib.adler32 or zlib.crc32
     """
     import timeit
+
     setup = 'import numpy, zlib;'
     setup += 'd = numpy.random.random((500,3));'
-            
+
     regular = timeit.timeit(setup=setup,
                             stmt='zlib.crc32(d)',
                             number=count)
@@ -441,5 +494,6 @@ def _fast_crc(count=100):
     else:
         return zlib.crc32
 
-# get the fastest CRC32 available on 
+# get the fastest CRC32 available on the 
+# current platform when trimesh is imported
 crc32 = _fast_crc()
