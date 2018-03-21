@@ -12,6 +12,7 @@ import hashlib
 import zlib
 
 from .constants import log
+from .util import is_sequence
 
 try:
     # xxhash is roughly 5x faster than adler32 but is only
@@ -388,9 +389,12 @@ class DataStore:
         if len(self.data) == 0:
             return True
         for v in self.data.values():
-            if (len(np.shape(v)) > 0 or
-                    np.isreal(v)):
-                return False
+            if is_sequence(v):
+                if len(v) > 0:
+                    return False
+            else:
+                if bool(np.isreal(v)):
+                    return False
         return True
 
     def clear(self):
