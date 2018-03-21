@@ -22,8 +22,7 @@ try:
     hasX = True
 except ImportError:
     hasX = False
-
-
+    
 def tracked_array(array, dtype=None):
     """
     Properly subclass a numpy ndarray to track changes.
@@ -105,14 +104,14 @@ class TrackedArray(np.ndarray):
         """
         if self._modified_c or not hasattr(self, '_hashed_crc'):
             if self.flags['C_CONTIGUOUS']:
-                self._hashed_crc = zlib.crc32(self)
+                self._hashed_crc = crc32(self)
             else:
                 # the case where we have sliced our nice
                 # contiguous array into a non- contiguous block
                 # for example (note slice *after* track operation):
                 # t = util.tracked_array(np.random.random(10))[::-1]
                 contiguous = np.ascontiguousarray(self)
-                self._hashed_crc = zlib.crc32(contiguous)
+                self._hashed_crc = crc32(contiguous)
         self._modified_c = False
         return self._hashed_crc
 
@@ -407,3 +406,40 @@ class DataStore:
     def fast_hash(self):
         fast = sum(i.fast_hash() for i in self.data.values())
         return fast
+
+
+def _fast_crc(count=100):
+    """
+    On certain platforms/builds zlib.adler32 is substantially
+    faster than zlib.crc32, but it is not consistent across 
+    Windows/Linux/OSX.
+
+    This function runs a quick check (4ms on my machines) to 
+    determine the fastest hashing function available in zlib.
+
+    Parameters
+    ------------
+    count: int, number of repetitions to do on the speed trial
+ 
+    Returns
+    ----------
+    crc32: function, either zlib.adler32 or zlib.crc32
+    """
+    import timeit
+    setup = 'import numpy, zlib;'
+    setup += 'd = numpy.random.random((500,3));'
+            
+    regular = timeit.timeit(setup=setup,
+                            stmt='zlib.crc32(d)',
+                            number=count)
+    adler = timeit.timeit(setup=setup,
+                          stmt='zlib.adler32(d)',
+                          number=count)
+
+    if adler < regular:
+        return zlib.adler32
+    else:
+        return zlib.crc32
+
+# get the fastest CRC32 available on 
+crc32 = _fast_crc()
