@@ -679,7 +679,9 @@ class Trimesh(object):
 
         transform = np.eye(4)
         transform[:3, :3] = vectors
-        transform = geometry.transform_around(transform, self.centroid)
+        transform = transformations.transform_around(
+            matrix=transform,
+            point=self.centroid)
         transform[:3, 3] -= self.centroid
 
         return transform

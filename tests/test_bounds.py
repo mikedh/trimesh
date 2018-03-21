@@ -86,6 +86,38 @@ class BoundsTest(g.unittest.TestCase):
                 self.assertTrue(g.np.allclose(extents_tf,
                                               extents))
 
+
+    def test_2D(self):
+        for theta in g.np.linspace(0, g.np.pi * 2, 2000):
+        # create some random rectangular-ish 2D points
+            points = g.np.random.random((10,2))*[5,1]
+
+            # save the basic AABB of the points before rotation
+            rectangle_pre = points.ptp(axis=0)
+
+            # rotate them by an increment
+            TR = g.trimesh.transformations.planar_matrix(theta=theta)
+            points = g.trimesh.transform_points(points, TR)
+
+            # find the OBB of the points
+            T, rectangle = g.trimesh.bounds.oriented_bounds_2D(points)
+
+            # apply the calculated OBB
+            oriented = g.trimesh.transform_points(points, T)
+
+            origin = oriented.min(axis=0) + oriented.ptp(axis=0) / 2.0
+
+            # check to make sure the returned rectangle size is right
+            assert g.np.allclose(oriented.ptp(axis=0), rectangle)
+            # check to make sure the OBB consistently returns the
+            # long axis in the same direction
+            assert rectangle[0] > rectangle[1]
+            # check to make sure result is actually returning an OBB 
+            assert g.np.allclose(origin, 0.0)
+            # make sure OBB has less or same area as naive AABB
+            assert g.np.product(rectangle) <= g.np.product(rectangle_pre)
+
+                
     def test_cylinder(self):
         '''
         '''

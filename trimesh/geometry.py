@@ -30,29 +30,6 @@ def plane_transform(origin, normal):
     return transform
 
 
-def transform_around(matrix, point):
-    """
-    Given a transformation matrix, apply its rotation component around a
-    point in space.
-
-    Parameters
-    ----------
-    matrix: (4,4) float, transformation matrix
-    point:  (3,)  float, point in space
-
-    Returns
-    ---------
-    result: (4,4) transformation matrix
-    """
-    point = np.array(point)
-    translate = np.eye(4)
-    translate[0:3, 3] = -point
-    result = np.dot(matrix, translate)
-    translate[0:3, 3] = point
-    result = np.dot(translate, result)
-    return result
-
-
 def align_vectors(vector_start, vector_end, return_angle=False):
     """
     Returns the 4x4 transformation matrix which will rotate from

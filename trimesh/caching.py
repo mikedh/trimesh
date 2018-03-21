@@ -98,7 +98,7 @@ class TrackedArray(np.ndarray):
 
     def crc(self):
         """
-        A zlib.crc32 or zlib.adler32 checksum 
+        A zlib.crc32 or zlib.adler32 checksum
         of the current data.
 
         Returns
@@ -430,7 +430,7 @@ class DataStore:
     def md5(self):
         """
         Get an MD5 reflecting everything in the DataStore.
-        
+
         Returns
         ----------
         md5: str, MD5 in hexadecimal
@@ -444,7 +444,7 @@ class DataStore:
     def crc(self):
         """
         Get a CRC reflecting everything in the DataStore.
-        
+
         Returns
         ----------
         crc: int, CRC of data
@@ -467,10 +467,10 @@ class DataStore:
 def _fast_crc(count=50):
     """
     On certain platforms/builds zlib.adler32 is substantially
-    faster than zlib.crc32, but it is not consistent across 
+    faster than zlib.crc32, but it is not consistent across
     Windows/Linux/OSX.
 
-    This function runs a quick check (2ms on my machines) to 
+    This function runs a quick check (2ms on my machines) to
     determine the fastest hashing function available in zlib.
 
     Parameters
@@ -498,6 +498,7 @@ def _fast_crc(count=50):
     else:
         return zlib.crc32
 
-# get the fastest CRC32 available on the 
+
+# get the fastest CRC32 available on the
 # current platform when trimesh is imported
 crc32 = _fast_crc()

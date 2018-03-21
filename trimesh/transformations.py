@@ -1896,7 +1896,39 @@ def is_same_quaternion(q0, q1):
     return np.allclose(q0, q1) or np.allclose(q0, -q1)
 
 
-def planar_matrix(offset=[0.0, 0.0], theta=0.0):
+def transform_around(matrix, point):
+    """
+    Given a transformation matrix, apply its rotation
+    around a point in space.
+
+    Parameters
+    ----------
+    matrix: (4,4) or (3, 3) float, transformation matrix
+    point:  (3,) or (2,)  float, point in space
+
+    Returns
+    ---------
+    result: (4,4) transformation matrix
+    """
+    point = np.asanyarray(point)
+    matrix = np.asanyarray(matrix)
+    dim = len(point)
+    if matrix.shape != (dim + 1,
+                        dim + 1):
+        raise ValueError('matrix must be (d+1, d+1)')
+
+    translate = np.eye(dim + 1)
+    translate[:dim, dim] = -point
+    result = np.dot(matrix, translate)
+    translate[:dim, dim] = point
+    result = np.dot(translate, result)
+
+    return result
+
+
+def planar_matrix(offset=[0.0, 0.0],
+                  theta=0.0,
+                  point=None):
     '''
     2D homogeonous transformation matrix
 
@@ -1904,7 +1936,7 @@ def planar_matrix(offset=[0.0, 0.0], theta=0.0):
     ----------
     offset: (2,) float, XY offset
     theta:  float, rotation around Z in radians
-
+    point:  (2, ) float, point to rotate around
     Returns
     ----------
     matrix: (3,3) homogenous 2D transformation matrix
@@ -1923,6 +1955,10 @@ def planar_matrix(offset=[0.0, 0.0], theta=0.0):
     T[0, 0:2] = [c, s]
     T[1, 0:2] = [-s, c]
     T[0:2, 2] = offset
+
+    if point is not None:
+        T = transform_around(matrix=T, point=point)
+
     return T
 
 
@@ -1991,15 +2027,16 @@ def transform_points(points, matrix, translate=True):
     ----------
     transformed: (n,d) float, np array of points
     '''
-    points = np.asanyarray(points, order='C', dtype=np.float64)
-    matrix = np.asanyarray(matrix, order='C', dtype=np.float64)
+    points = np.asanyarray(points, dtype=np.float64)
+    matrix = np.asanyarray(matrix, dtype=np.float64)
     if (len(points.shape) != 2 or
             (points.shape[1] + 1 != matrix.shape[1])):
         raise ValueError('matrix dimension must match points!')
 
-    if np.allclose(matrix, np.eye(matrix.shape[0])):
-        # don't bother to apply if matrix is an identity matrix
-        return points
+    # check to see if we've been passed an identity matrix
+    identity = np.abs(matrix - np.eye(matrix.shape[0])).sum()
+    if identity < 1e-8:
+        return np.ascontiguousarray(points)
 
     dimension = points.shape[1]
     column = np.zeros(len(points)) + int(bool(translate))

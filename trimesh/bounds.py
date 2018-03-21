@@ -46,8 +46,11 @@ def oriented_bounds_2D(points, qhull_options='QbB'):
     # (n,2) points on the convex hull
     hull_points = convex.points[convex.vertices]
 
-    # unitize the direction of the edges of the hull polygon
-    edge_vectors = util.unitize(np.diff(hull_edges, axis=1).reshape((-1, 2)))
+    # direction of the edges of the hull polygon
+    edge_vectors = np.diff(hull_edges, axis=1).reshape((-1, 2))
+
+    # unitize vectors
+    edge_vectors /= np.linalg.norm(edge_vectors, axis=1).reshape((-1, 1))
     # create a set of perpendicular vectors
     perp_vectors = np.fliplr(edge_vectors) * [-1.0, 1.0]
 
@@ -66,19 +69,31 @@ def oriented_bounds_2D(points, qhull_options='QbB'):
                               x.max(axis=1),
                               y.max(axis=1)))
 
-    # calculate the extents and area that a box drawn around each edge_vector
-    extents = np.diff(bounds.reshape((-1, 2, 2)), axis=1).reshape((-1, 2))
+    # calculate the extents and area for each edge vector pair
+    extents = np.diff(bounds.reshape((-1, 2, 2)),
+                      axis=1).reshape((-1, 2))
     area = np.product(extents, axis=1)
     area_min = area.argmin()
 
     #(2,) float of smallest rectangle size
     rectangle = extents[area_min]
 
-    # find the (3,3) homogenous transformation which moves the input points
-    # to have a bounding box centered at the origin
-    offset = -bounds[area_min][0:2] - (rectangle * .5)
+    # find the (3,3) homogenous transformation which moves the input
+    # points to have a bounding box centered at the origin
+    offset = -bounds[area_min][:2] - (rectangle * .5)
     theta = np.arctan2(*edge_vectors[area_min][::-1])
-    transform = transformations.planar_matrix(offset, theta)
+    transform = transformations.planar_matrix(offset,
+                                              theta)
+
+    # we would like to consistently return an OBB with
+    # the largest dimension along the X axis
+    if np.less(*rectangle):
+        # a 90 degree rotation
+        flip = transformations.planar_matrix(theta=np.pi / 2)
+        # apply the rotation
+        transform = np.dot(flip, transform)
+        # switch X and Y in the OBB extents
+        rectangle = np.roll(rectangle, 1)
 
     return transform, rectangle
 
@@ -147,7 +162,10 @@ def oriented_bounds(obj, angle_digits=1):
     for spherical in spherical_coords[spherical_unique]:
         # a matrix which will rotate each hull normal to [0,0,1]
         to_2D = np.linalg.inv(transformations.spherical_matrix(*spherical))
-        projected = transformations.transform_points(vertices, to_2D)
+        # apply the transform here
+        projected = np.dot(to_2D,
+                           np.column_stack((vertices,
+                           np.ones(len(vertices)))).T).T[:, :3]
 
         height = projected[:, 2].ptp()
         rotation_2D, box = oriented_bounds_2D(projected[:, 0:2])
@@ -164,7 +182,8 @@ def oriented_bounds(obj, angle_digits=1):
 
     # transform points using our matrix to find the translation for the
     # transform
-    transformed = transformations.transform_points(vertices, to_origin)
+    transformed = transformations.transform_points(vertices,
+                                                   to_origin)
     box_center = (transformed.min(axis=0) + transformed.ptp(axis=0) * .5)
     to_origin[0:3, 3] = -box_center
 
