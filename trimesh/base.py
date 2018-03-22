@@ -1273,7 +1273,7 @@ class Trimesh(object):
             return False
         # consistent winding check is populated into the cache by is_watertight
         populate = self.is_watertight
-        return bool(self._cache['is_winding_consistent'])
+        return self._cache['is_winding_consistent']
 
     @util.cache_decorator
     def is_watertight(self):
@@ -1287,11 +1287,10 @@ class Trimesh(object):
         """
         if self.is_empty:
             return False
-        watertight, is_reversed = graph.is_watertight(
-            edges=self.edges,
-            edges_sorted=self.edges_sorted)
-        self._cache['is_winding_consistent'] = is_reversed
-        return bool(watertight)
+        watertight, winding = graph.is_watertight(edges=self.edges,
+                                                  edges_sorted=self.edges_sorted)
+        self._cache['is_winding_consistent'] = winding
+        return watertight
 
     @util.cache_decorator
     def is_volume(self):
@@ -1308,7 +1307,8 @@ class Trimesh(object):
         """
         valid = bool(self.is_watertight and
                      self.is_winding_consistent and
-                     self.volume > 0)
+                     np.isfinite(self.center_mass).all() and
+                     self.volume > 0.0)
         return valid
 
     @util.cache_decorator

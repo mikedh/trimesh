@@ -591,20 +591,24 @@ def is_watertight(edges, edges_sorted=None):
     """
     Parameters
     ---------
-    edges: (n,2) int, set of vertex indices
+    edges:        (n, 2) int, set of vertex indices
+    edges_sorted: (n, 2) int, vertex indices sorted on axis 1
 
     Returns
     ---------
-    watertight: boolean, whether every edge is contained by two faces
+    watertight: boolean, whether every edge is shared by an even
+                number of faces
+    winding:    boolean, whether every shared edge is reversed
     """
-    if edges_sorted is None:
-        edges_sorted = np.sort(edges, axis=1)
+    # group sorted edges
     groups = grouping.group_rows(edges_sorted, require_count=2)
     watertight = (len(groups) * 2) == len(edges)
 
+    # are opposing edges reversed
     opposing = edges[groups].reshape((-1, 4))[:, 1:3].T
-    reversed = np.equal(*opposing).all()
-    return watertight, reversed
+    winding = np.equal(*opposing).all()
+
+    return bool(watertight), bool(winding)
 
 
 def graph_to_svg(graph):

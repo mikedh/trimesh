@@ -103,7 +103,13 @@ class GraphTest(g.unittest.TestCase):
             check_engines(nodes=g.np.arange(i),
                           edges=edges)
 
+    def test_watertight(self):
+        m = g.get_mesh('shared.STL')
+        #assert m.is_watertight
+        #assert m.is_winding_consistent
+        #assert m.is_volume
 
+            
 def check_engines(edges, nodes):
     '''
     Make sure connected component graph engines are

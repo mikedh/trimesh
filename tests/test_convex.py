@@ -15,7 +15,11 @@ class ConvexTest(g.unittest.TestCase):
                 hulls.append(permutated.convex_hull)
 
             volume = g.np.array([i.volume for i in hulls])
-            self.assertTrue(volume.ptp() < (mesh.scale / 1000))
+
+            if volume.ptp() > (mesh.scale / 1000):
+                print(volume)
+                raise ValueError('volume is inconsistent on {}'.format(
+                    mesh.metadata['file_name']))
             self.assertTrue(volume.min() > 0.0)
 
             if not all(i.is_winding_consistent for i in hulls):
