@@ -216,13 +216,24 @@ class SceneViewer(pyglet.window.Window):
             gl.glDisable(gl.GL_CULL_FACE)
 
     def on_resize(self, width, height):
+        try:
+            # for high DPI screens viewport size
+            # will be different then the passed size
+            width, height = self.get_viewport_size()
+        except BaseException:
+            # older versions of pyglet may not have this
+            pass
+        # set the new viewport size
         gl.glViewport(0, 0, width, height)
         gl.glMatrixMode(gl.GL_PROJECTION)
         gl.glLoadIdentity()
-        gl.gluPerspective(60., width / float(height), .01,
+        gl.gluPerspective(60.,
+                          width / float(height),
+                          .01,
                           self.scene.scale * 5.0)
         gl.glMatrixMode(gl.GL_MODELVIEW)
-        self.view['ball'].place([width / 2, height / 2], (width + height) / 2)
+        self.view['ball'].place([width / 2, height / 2],
+                                (width + height) / 2)
 
     def on_mouse_press(self, x, y, buttons, modifiers):
         self.view['ball'].down([x, -y])
