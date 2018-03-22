@@ -11,6 +11,7 @@ import sys
 import json
 import time
 import timeit
+import tempfile
 
 import numpy as np
 import trimesh

@@ -8,7 +8,6 @@ class ExportTest(g.unittest.TestCase):
         for mesh in g.get_meshes(5):
             for file_type in file_types:
                 export = mesh.export(file_type=file_type)
-
                 if export is None:
                     raise ValueError('Exporting mesh %s to %s resulted in None!',
                                      mesh.metadata['file_name'],
@@ -48,6 +47,24 @@ class ExportTest(g.unittest.TestCase):
                         str(mesh.faces.shape),
                         str(loaded.faces.shape)))
                 self.assertTrue(loaded.vertices.shape == mesh.vertices.shape)
+
+
+                # try exporting/importing certain file types by name
+                if file_type in ['obj', 'stl', 'ply', 'off']:
+                    temp = g.tempfile.NamedTemporaryFile(suffix='.' + file_type,
+                                                         delete=False)
+                    # windows throws permissions errors if you keep it open
+                    temp.close()
+
+                    mesh.export(temp.name)
+                    load = g.trimesh.load(temp.name)
+                    # manual cleanup
+                    g.os.remove(temp.name)
+
+                    assert mesh.faces.shape == load.faces.shape
+                    assert mesh.vertices.shape == load.vertices.shape
+
+
 
     def test_obj(self):
         m = g.get_mesh('textured_tetrahedron.obj', process=False)

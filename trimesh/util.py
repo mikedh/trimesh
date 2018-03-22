@@ -1733,7 +1733,9 @@ def vstack_empty(tup):
     return np.vstack(stackable)
 
 
-def write_encoded(file_obj, stuff, encoding='utf-8'):
+def write_encoded(file_obj,
+                  stuff,
+                  encoding='utf-8'):
     """
     If a file is open in binary mode and a string is passed, encode and write
     If a file is open in text   mode and bytes are passed, decode and write
