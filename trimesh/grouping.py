@@ -77,8 +77,8 @@ def group(values, min_len=0, max_len=np.inf):
 
 def hashable_rows(data, digits=None):
     """
-    We turn our array into integers, based on the precision
-    given by digits, and then put them in a hashable format.
+    We turn our array into integers based on the precision
+    given by digits and then put them in a hashable format.
 
     Parameters
     ---------
@@ -91,20 +91,62 @@ def hashable_rows(data, digits=None):
     hashable:  (n) length array of custom data which can be sorted
                 or used as hash keys
     """
-    as_int = float_to_int(data, digits)
+    # get array as integer to precision we care about
+    as_int = float_to_int(data, digits=digits)
+
+    # if it is flat integers already, return
+    if len(as_int.shape) == 1:
+        return as_int
+
+    # if array is 2D and smallish, we can try bitbanging
+    # this is signifigantly faster than the custom dtype
+    if len(as_int.shape) == 2 and as_int.shape[1] <= 4:
+        # time for some righteous bitbanging
+        # can we pack the whole row into a single 64 bit integer
+        precision = int(np.floor(64 / as_int.shape[1]))
+        # if the max value is less than precision we can do this
+        if np.abs(as_int).max() < 2**(precision - 1):
+            # the resulting package
+            hashable = np.zeros(len(as_int), dtype=np.int64)
+            # loop through each column and bitwise xor to combine
+            # make sure as_int is int64 otherwise bit offset won't work
+            for offset, column in enumerate(as_int.astype(np.int64).T):
+                # will modify hashable in place
+                np.bitwise_xor(hashable,
+                               column << (offset * precision),
+                               out=hashable)
+            return hashable
+
+    # reshape array into magical data type that is weird but hashable
     dtype = np.dtype((np.void, as_int.dtype.itemsize * as_int.shape[1]))
+    # make sure result is contiguous and flat
     hashable = np.ascontiguousarray(as_int).view(dtype).reshape(-1)
     return hashable
 
 
-def float_to_int(data, digits=None, dtype_out=np.int32):
+def float_to_int(data, digits=None, dtype=np.int32):
     """
-    Given a numpy array of data represent it as integers.
+    Given a numpy array of float/bool/int, return as integers.
+
+    Parameters
+    -------------
+    data:   (n, d) float, int, or bool data
+    digits: float/int precision for float conversion
+    dtype:  numpy dtype for result
+
+    Returns
+    -------------
+    as_int: data, as integers
     """
+    # convert to any numpy array
     data = np.asanyarray(data)
 
-    if data.size == 0:
-        return data.astype(dtype_out)
+    # if data is already an integer or boolean we're done
+    # if the data is empty we are also done
+    if data.dtype.kind in 'ib' or data.size == 0:
+        return data.astype(dtype)
+
+    # populate digits from kwargs
     if digits is None:
         digits = util.decimal_to_digits(tol.merge)
     elif isinstance(digits, float) or isinstance(digits, np.float):
@@ -113,13 +155,12 @@ def float_to_int(data, digits=None, dtype_out=np.int32):
         log.warn('Digits were passed as %s!', digits.__class__.__name__)
         raise ValueError('Digits must be None, int, or float!')
 
-    # if data is already an integer or boolean, we're done
-    if data.dtype.kind in 'ib':
-        as_int = data.astype(dtype_out)
-    else:
-        data_max = np.abs(data).max() * 10**digits
-        dtype_out = [np.int32, np.int64][int(data_max > 2**31)]
-        as_int = (np.round(data, digits) * (10**digits)).astype(dtype_out)
+    # data is float so convert to large integers
+    data_max = np.abs(data).max() * 10**digits
+    # ignore passed dtype if we have something large
+    dtype = [np.int32, np.int64][int(data_max > 2**31)]
+    # round, multiply by large number, and convert
+    as_int = (np.round(data, digits) * (10**digits)).astype(dtype)
 
     return as_int
 

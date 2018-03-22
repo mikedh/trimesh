@@ -4,14 +4,19 @@ import generic as g
 class GroupTests(g.unittest.TestCase):
 
     def test_unique_rows(self):
-        count = 100
+        count = 10000
         subset = int(count / 10)
 
+        # check unique_rows on float data
         data = g.np.arange(count * 3).reshape((-1, 3)).astype(g.np.float)
         data[:subset] = data[0]
-
         unique, inverse = g.trimesh.grouping.unique_rows(data)
+        assert (inverse[:subset] == 0).all()
+        assert len(unique) == count - subset + 1
 
+        # check the bitbanging path of hashable rows on small integers
+        data = data[:,:2].astype(int)
+        unique, inverse = g.trimesh.grouping.unique_rows(data)
         assert (inverse[:subset] == 0).all()
         assert len(unique) == count - subset + 1
 

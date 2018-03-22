@@ -165,7 +165,7 @@ def oriented_bounds(obj, angle_digits=1):
         # apply the transform here
         projected = np.dot(to_2D,
                            np.column_stack((vertices,
-                           np.ones(len(vertices)))).T).T[:, :3]
+                                            np.ones(len(vertices)))).T).T[:, :3]
 
         height = projected[:, 2].ptp()
         rotation_2D, box = oriented_bounds_2D(projected[:, 0:2])
