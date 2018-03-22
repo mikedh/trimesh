@@ -161,12 +161,13 @@ class SceneViewer(pyglet.window.Window):
         gl.glEnable(gl.GL_LIGHT0)
         gl.glEnable(gl.GL_LIGHT1)
 
-        gl.glLightfv(gl.GL_LIGHT0, gl.GL_POSITION, _gl_vector(.5, .5, 1, 0))
+        # put the light at one corner of the scenes AABB
+        gl.glLightfv(gl.GL_LIGHT0,
+                     gl.GL_POSITION,
+                     _gl_vector(np.append(self.scene.bounds[1], 0)))
         gl.glLightfv(gl.GL_LIGHT0, gl.GL_SPECULAR, _gl_vector(.5, .5, 1, 1))
-        gl.glLightfv(gl.GL_LIGHT0, gl.GL_DIFFUSE, _gl_vector(1, 1, 1, 1))
-        gl.glLightfv(gl.GL_LIGHT1, gl.GL_POSITION, _gl_vector(1, 0, .5, 0))
-        gl.glLightfv(gl.GL_LIGHT1, gl.GL_DIFFUSE, _gl_vector(.5, .5, .5, 1))
-        gl.glLightfv(gl.GL_LIGHT1, gl.GL_SPECULAR, _gl_vector(1, 1, 1, 1))
+        gl.glLightfv(gl.GL_LIGHT0, gl.GL_DIFFUSE, _gl_vector(1, 1, 1, .75))
+        gl.glLightfv(gl.GL_LIGHT0, gl.GL_AMBIENT, _gl_vector(.1, .1, .1, .2))
 
         gl.glColorMaterial(gl.GL_FRONT_AND_BACK, gl.GL_AMBIENT_AND_DIFFUSE)
         gl.glEnable(gl.GL_COLOR_MATERIAL)
