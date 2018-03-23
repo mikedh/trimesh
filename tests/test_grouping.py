@@ -15,7 +15,7 @@ class GroupTests(g.unittest.TestCase):
         assert len(unique) == count - subset + 1
 
         # check the bitbanging path of hashable rows on small integers
-        data = data[:,:2].astype(int)
+        data = data[:, :2].astype(int)
         unique, inverse = g.trimesh.grouping.unique_rows(data)
         assert (inverse[:subset] == 0).all()
         assert len(unique) == count - subset + 1

@@ -45,28 +45,26 @@ class VoxelTest(g.unittest.TestCase):
                        m.volume,
                        v.volume)
 
-
     def test_marching(self):
         try:
             # make sure offset is correct
-            matrix = g.np.ones((3,3,3), dtype=g.np.bool)
+            matrix = g.np.ones((3, 3, 3), dtype=g.np.bool)
             mesh = g.trimesh.voxel.matrix_to_marching_cubes(
                 matrix=matrix,
                 pitch=1.0,
                 origin=g.np.zeros(3))
             assert mesh.is_watertight
-            
+
             mesh = g.trimesh.voxel.matrix_to_marching_cubes(
                 matrix=matrix,
                 pitch=3.0,
                 origin=g.np.zeros(3))
             assert mesh.is_watertight
-            
+
         except ImportError:
             g.log.info('no skimage, skipping marching cubes test')
 
 
-            
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()

@@ -48,7 +48,6 @@ class ExportTest(g.unittest.TestCase):
                         str(loaded.faces.shape)))
                 self.assertTrue(loaded.vertices.shape == mesh.vertices.shape)
 
-
                 # try exporting/importing certain file types by name
                 if file_type in ['obj', 'stl', 'ply', 'off']:
                     temp = g.tempfile.NamedTemporaryFile(suffix='.' + file_type,
@@ -63,8 +62,6 @@ class ExportTest(g.unittest.TestCase):
 
                     assert mesh.faces.shape == load.faces.shape
                     assert mesh.vertices.shape == load.vertices.shape
-
-
 
     def test_obj(self):
         m = g.get_mesh('textured_tetrahedron.obj', process=False)

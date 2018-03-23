@@ -86,11 +86,10 @@ class BoundsTest(g.unittest.TestCase):
                 self.assertTrue(g.np.allclose(extents_tf,
                                               extents))
 
-
     def test_2D(self):
         for theta in g.np.linspace(0, g.np.pi * 2, 2000):
-        # create some random rectangular-ish 2D points
-            points = g.np.random.random((10,2))*[5,1]
+            # create some random rectangular-ish 2D points
+            points = g.np.random.random((10, 2)) * [5, 1]
 
             # save the basic AABB of the points before rotation
             rectangle_pre = points.ptp(axis=0)
@@ -112,12 +111,11 @@ class BoundsTest(g.unittest.TestCase):
             # check to make sure the OBB consistently returns the
             # long axis in the same direction
             assert rectangle[0] > rectangle[1]
-            # check to make sure result is actually returning an OBB 
+            # check to make sure result is actually returning an OBB
             assert g.np.allclose(origin, 0.0)
             # make sure OBB has less or same area as naive AABB
             assert g.np.product(rectangle) <= g.np.product(rectangle_pre)
 
-                
     def test_cylinder(self):
         '''
         '''

@@ -109,7 +109,7 @@ class GraphTest(g.unittest.TestCase):
         #assert m.is_winding_consistent
         #assert m.is_volume
 
-            
+
 def check_engines(edges, nodes):
     '''
     Make sure connected component graph engines are

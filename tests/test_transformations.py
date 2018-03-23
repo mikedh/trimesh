@@ -57,27 +57,26 @@ class TransformTest(g.unittest.TestCase):
         points = g.np.arange(60, dtype=g.np.float64).reshape((-1, 2))
         assert g.np.allclose(tr.transform_points(points, g.np.eye(3)), points)
 
-
     def test_around(self):
         # check transform_around on 2D points
-        points = g.np.random.random((100,2))
+        points = g.np.random.random((100, 2))
         for i, p in enumerate(points):
             offset = g.np.random.random(2)
             matrix = g.trimesh.transformations.planar_matrix(
-                theta = g.np.random.random()+.1,
-                offset = offset,
-                point = p)
+                theta=g.np.random.random() + .1,
+                offset=offset,
+                point=p)
 
             # apply the matrix
             check = g.trimesh.transform_points(points, matrix)
-            compare = g.np.isclose(check, points+offset)
+            compare = g.np.isclose(check, points + offset)
             # the point we rotated around shouldn't move
             assert compare[i].all()
             # all other points should move
             assert compare.all(axis=1).sum() == 1
 
         # check transform_around on 3D points
-        points = g.np.random.random((100,3))
+        points = g.np.random.random((100, 3))
         for i, p in enumerate(points):
             matrix = g.trimesh.transformations.random_rotation_matrix()
             matrix = g.trimesh.transformations.transform_around(matrix, p)
@@ -90,8 +89,6 @@ class TransformTest(g.unittest.TestCase):
             # all other points should move
             assert compare.all(axis=1).sum() == 1
 
-
-        
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

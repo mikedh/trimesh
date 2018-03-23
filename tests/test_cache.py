@@ -1,35 +1,36 @@
 import generic as g
 
-TEST_DIM = (10000,3)
+TEST_DIM = (10000, 3)
+
 
 class CacheTest(g.unittest.TestCase):
 
     def test_hash(self):
 
         m = g.get_mesh('featuretype.STL')
-        
+
         setup = 'import numpy, trimesh;'
         setup += 'd = numpy.random.random((10000,3));'
         setup += 't = trimesh.caching.tracked_array(d)'
 
         count = 10000
-        
+
         mt = g.timeit.timeit(setup=setup,
-            stmt='t._modified_m=True;t.md5()',
-            number=count)
+                             stmt='t._modified_m=True;t.md5()',
+                             number=count)
         ct = g.timeit.timeit(setup=setup,
-            stmt='t._modified_c=True;t.crc()',
+                             stmt='t._modified_c=True;t.crc()',
                              number=count)
         xt = g.timeit.timeit(setup=setup,
-            stmt='t._modified_x=True;t.fast_hash()',
-            number=count)
-        
+                             stmt='t._modified_x=True;t.fast_hash()',
+                             number=count)
+
         # log result values
         g.log.info('\nResult\nMD5:\n{}\nCRC:\n{}\nXX:\n{}'.format(
             m.vertices.md5(),
             m.vertices.crc(),
             m.vertices.fast_hash()))
-        
+
         # crc should always be faster than MD5
         g.log.info('\nTime\nMD5:\n{}\nCRC:\n{}\nXX:\n{}'.format(
             mt, ct, xt))
@@ -44,17 +45,16 @@ class CacheTest(g.unittest.TestCase):
             assert xt < mt
             assert xt < ct
 
-        
     def test_track(self):
         """
         Check to make sure our fancy caching system only changes
-        hashes when data actually changes. 
+        hashes when data actually changes.
         """
-        ### generate test data and perform numpy operations
+        # generate test data and perform numpy operations
         a = g.trimesh.caching.tracked_array(
             g.np.random.random(TEST_DIM))
         modified = []
-        
+
         modified.append([int(a.md5(), 16),
                          a.crc(),
                          a.fast_hash()])
@@ -72,7 +72,7 @@ class CacheTest(g.unittest.TestCase):
                          a.fast_hash()])
 
         # these operations altered data and
-        # the hash SHOULD have changed 
+        # the hash SHOULD have changed
         modified = g.np.array(modified)
         assert (g.np.diff(modified, axis=0) != 0).all()
 
@@ -94,16 +94,16 @@ class CacheTest(g.unittest.TestCase):
         modified.append([int(a.md5(), 16),
                          a.crc(),
                          a.fast_hash()])
-        
+
         # these operations should have been cosmetic and
         # the hash should NOT have changed
         modified = g.np.array(modified)
         assert (g.np.diff(modified, axis=0) == 0).all()
 
-        ## now change stuff and see if checksums change
+        # now change stuff and see if checksums change
         a = g.trimesh.caching.tracked_array([0, 0, 4])
         modified = []
-        
+
         modified.append([int(a.md5(), 16),
                          a.crc(),
                          a.fast_hash()])
@@ -142,7 +142,6 @@ class CacheTest(g.unittest.TestCase):
                          a.crc(),
                          a.fast_hash()])
 
-        
         a -= 1.0
         modified.append([int(a.md5(), 16),
                          a.crc(),
@@ -155,11 +154,10 @@ class CacheTest(g.unittest.TestCase):
                          a.fast_hash()])
 
         # these operations altered data and
-        # the hash SHOULD have changed 
+        # the hash SHOULD have changed
         modified = g.np.array(modified)
         assert (g.np.diff(modified, axis=0) != 0).all()
 
-        
     def test_contiguous(self):
         a = g.np.random.random((100, 3))
         t = g.trimesh.caching.tracked_array(a)
@@ -167,11 +165,11 @@ class CacheTest(g.unittest.TestCase):
         # hashing will fail on non- contiguous arrays
         # make sure our utility function has handled this properly
         # for both MD5 and CRC
-        t[::-1].md5()
-        t[::-1].crc()
+        assert t.md5() != t[::-1].md5()
+        assert t.crc() != t[::-1].crc()
+        assert t.fast_hash() != t[::-1].fast_hash()
 
 
-        
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()
