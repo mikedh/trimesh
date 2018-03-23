@@ -6,13 +6,12 @@ Functions for grouping values and rows.
 """
 
 import numpy as np
-import networkx as nx
-
-from . import util
-
-from .constants import log, tol
 
 from collections import deque
+
+
+from . import util
+from .constants import log, tol
 
 try:
     from scipy.spatial import cKDTree as KDTree

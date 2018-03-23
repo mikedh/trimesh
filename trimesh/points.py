@@ -83,12 +83,11 @@ def plane_fit(points, tolerance=None):
 
 
 def radial_sort(points,
-                origin=None,
-                normal=None):
+                origin,
+                normal):
     """
-    Sorts a set of points radially (by angle) around an origin/normal.
-    If origin/normal aren't specified, it sorts around centroid
-    and the approximate plane the points lie in.
+    Sorts a set of points radially (by angle) around an
+    origin/normal.
 
     Parameters
     --------------
@@ -100,11 +99,6 @@ def radial_sort(points,
     --------------
     ordered: (n,3) flot, re- ordered points in space
     """
-    # if origin and normal aren't specified, generate one at the centroid
-    if origin is None:
-        origin = np.average(points, axis=0)
-    if normal is None:
-        normal = surface_normal(points)
 
     # create two axis perpendicular to each other and the normal,
     # and project the points onto them

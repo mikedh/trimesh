@@ -5,7 +5,6 @@ import collections
 
 from .. import util
 from .. import graph
-from .. import grouping
 
 from ..constants import log
 

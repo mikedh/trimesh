@@ -1,7 +1,6 @@
 import numpy as np
-import collections
 
-import numpy as np
+import collections
 import json
 
 from string import Template
@@ -16,7 +15,7 @@ from ...resources import get_resource
 from ...util import three_dimensionalize
 from ...constants import log
 from ...constants import tol_path as tol
-from ...util import is_binary_file, multi_dict, make_sequence
+from ...util import multi_dict
 
 
 _templates_dxf = {k: Template(v) for k, v in json.loads(

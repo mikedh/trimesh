@@ -13,7 +13,7 @@ from .geometry import faces_to_edges
 from .grouping import group_rows
 from .triangles import normals, mass_properties
 from .util import is_sequence
-from .constants import log, tol
+from .constants import log
 
 
 def fix_face_winding(mesh):

@@ -1,5 +1,4 @@
 import time
-import copy
 import numpy as np
 
 from ..constants import log
@@ -264,7 +263,6 @@ def multipack(polygons,
             overall_density = density
             overall_offset = offset
             overall_inserted = inserted
-            overall_sheet = sheet
             if density > density_escape:
                 break
 

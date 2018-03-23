@@ -1,7 +1,6 @@
 import numpy as np
 import collections
 import traceback
-import copy
 import os
 
 from .. import util

@@ -17,8 +17,6 @@ import zipfile
 import base64
 import time
 import copy
-import json
-import zlib
 
 from sys import version_info
 from functools import wraps
@@ -1449,7 +1447,7 @@ def histogram_peaks(data,
 
     # (2,) float, start and end of histogram bins
     # round to two signifigant figures
-    edges = [trimesh.util.round_sigfig(i, 2)
+    edges = [round_sigfig(i, 2)
              for i in np.percentile(data, [.1, 99.9])]
 
     h, b = np.histogram(data,

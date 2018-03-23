@@ -367,7 +367,8 @@ def mesh_to_vertex_list(mesh, group=None):
     normals = mesh.vertex_normals.reshape(-1).tolist()
     faces = mesh.faces.reshape(-1).tolist()
     vertices = mesh.vertices.reshape(-1).tolist()
-    color_gl = _validate_colors(mesh.visual.vertex_colors, len(mesh.vertices))
+    color_gl = _validate_colors(mesh.visual.vertex_colors,
+                                len(mesh.vertices))
 
     args = (len(mesh.vertices),  # number of vertices
             gl.GL_TRIANGLES,    # mode
@@ -380,7 +381,6 @@ def mesh_to_vertex_list(mesh, group=None):
 
 
 def path_to_vertex_list(path, group=None):
-    vertices = path.vertices
     lines = np.vstack([util.stack_lines(e.discrete(path.vertices))
                        for e in path.entities])
     index = np.arange(len(lines))

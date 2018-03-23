@@ -9,8 +9,6 @@ import numpy as np
 
 from . import util
 
-from .constants import tol
-
 # how many signifigant figures to use for each field of the identifier
 id_sigfig = np.array([5,  # area
                       10,  # euler number

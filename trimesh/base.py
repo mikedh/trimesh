@@ -1254,9 +1254,10 @@ class Trimesh(object):
         >>> mesh.vertex_neighbors[0]
         [1,2,3,4]
         """
-        g = self.vertex_adjacency_graph
-        l = [g.neighbors(v_i) for v_i, _ in enumerate(self.vertices)]
-        return np.array(l)
+        graph = self.vertex_adjacency_graph
+        neighbors = [list(graph.neighbors(i)) for
+                     i in range(len(self.vertices))]
+        return np.array(neighbors)
 
     @util.cache_decorator
     def is_winding_consistent(self):

@@ -1,12 +1,10 @@
 import numpy as np
 
+from ... import grouping
 from ... import graph
 from ... import util
 
 from ..entities import Line, Arc
-
-from ...geometry import faces_to_edges
-from ...grouping import group_rows
 
 from collections import deque
 from shapely import ops
@@ -152,7 +150,8 @@ def faces_to_path(mesh, face_ids=None):
             (-1, 6))[face_ids].reshape((-1, 2))
 
     # an edge which occurs onely once is on the boundary
-    unique_edges = group_rows(edges, require_count=1)
+    unique_edges = grouping.group_rows(edges,
+                                       require_count=1)
 
     # generate path traversals from the edges
     kwargs = edges_to_path(edges=edges[unique_edges],

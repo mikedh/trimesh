@@ -11,7 +11,8 @@ from .. import graph
 
 from ..constants import tol_path as tol
 from ..constants import log
-from ..transformations import transform_points, planar_matrix
+from ..transformations import transform_points
+
 from .traversal import resample_path
 
 

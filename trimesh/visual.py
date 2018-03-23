@@ -623,10 +623,9 @@ def face_to_vertex_color(mesh, face_colors, dtype=np.uint8):
     -----------
     vertex_colors: (m,4) dtype, colors for each vertex
     """
-
     rgba = to_rgba(face_colors)
-
-    vertex_colors = mesh.faces_sparse.dot(face_colors.astype(np.float64))
+    vertex_colors = mesh.faces_sparse.dot(
+        rgba.astype(np.float64))
     vertex_colors /= mesh.faces_sparse.sum(axis=1)
     vertex_colors = vertex_colors.astype(dtype)
 

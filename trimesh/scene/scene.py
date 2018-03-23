@@ -549,7 +549,6 @@ class Scene:
         vector = np.asanyarray(vector, dtype=np.float64)
         origin = np.asanyarray(origin, dtype=np.float64)
 
-        centroids = collections.deque()
         for node_name in self.graph.nodes_geometry:
             transform, geometry_name = self.graph[node_name]
 
@@ -592,10 +591,8 @@ class Scene:
 
         for group in grouping.group(geometries):
             geometry = geometries[group[0]]
-
             original = transforms[group[0]]
             new_geom = np.dot(scale_matrix, original)
-            inv_geom = np.linalg.inv(new_geom)
 
             result.geometry[geometry].apply_transform(new_geom)
 

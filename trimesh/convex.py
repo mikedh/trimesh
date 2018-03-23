@@ -138,11 +138,7 @@ def adjacency_projections(mesh):
 
     # faces from the second column of face adjacency
     vid_other = mesh.face_adjacency_unshared[:, 1]
-
-    vertex_other = mesh.vertices[vid_other]
-
-    vector_other = vertex_other - origins
-    length_other = (vector_other ** 2).sum(axis=1) ** .5
+    vector_other = mesh.vertices[vid_other] - origins
 
     dots = util.diagonal_dot(vector_other,
                              normals)

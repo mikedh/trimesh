@@ -6,7 +6,6 @@ from string import Template
 import collections
 import subprocess
 import tempfile
-import base64
 import json
 
 from .. import util

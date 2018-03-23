@@ -7,7 +7,6 @@ Find stable orientations of meshes.
 import networkx as nx
 import numpy as np
 
-from .constants import tol
 from .triangles import points_to_barycentric
 
 
@@ -94,7 +93,6 @@ def compute_stable_poses(mesh, center_mass=None,
             n_iters += 1
 
         # Collect stable poses
-        poses = []
         for node in dg.nodes():
             if dg.node[node]['prob'] > 0.0:
                 normal = cvh.face_normals[node]

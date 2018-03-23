@@ -603,7 +603,7 @@ def is_watertight(edges, edges_sorted=None):
     # passing edges_sorted is a speedup only
     if edges_sorted is None:
         edges_sorted = np.sort(edges, axis=1)
-        
+
     # group sorted edges
     groups = grouping.group_rows(edges_sorted, require_count=2)
     watertight = (len(groups) * 2) == len(edges)

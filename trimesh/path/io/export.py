@@ -1,5 +1,3 @@
-import numpy as np
-
 from . import svg_io
 from . import dxf
 

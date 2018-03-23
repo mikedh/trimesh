@@ -71,6 +71,13 @@ def load_stl_binary(file_obj):
         raise HeaderError('Binary STL file not long enough to contain header!')
 
     header = np.fromstring(header_data, dtype=_stl_dtype_header)
+    try:
+        # save the header block as a string
+        # there could be any garbage in there so wrap in try
+        metadata = {'header':
+                    bytes(header['header'][0]).decode('utf-8').strip()}
+    except BaseException:
+        metadata = {}
 
     # now we check the length from the header versus the length of the file
     # data_start should always be position 84, but hard coding that felt ugly
@@ -103,7 +110,8 @@ def load_stl_binary(file_obj):
 
     result = {'vertices': blob['vertices'].reshape((-1, 3)),
               'face_normals': blob['normals'].reshape((-1, 3)),
-              'faces': faces}
+              'faces': faces,
+              'metadata': metadata}
     return result
 
 

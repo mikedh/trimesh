@@ -13,8 +13,6 @@ from . import grouping
 
 from .constants import log
 
-from collections import deque
-
 
 class Voxel(object):
 

@@ -4,14 +4,14 @@ from string import Template
 from collections import deque
 from xml.dom.minidom import parseString as parse_xml
 
-from ... import util
 from .. import entities as entities_mod
-
 from ..arc import arc_center
+
 from ...resources import get_resource
 from ...constants import log
-from ...constants import tol_path as tol
 from ...constants import res_path as res
+
+from ... import util
 
 _template_svg = Template(get_resource('svg.xml.template'))
 
@@ -149,10 +149,9 @@ def export_svg(drawing, return_path=False, **kwargs):
         vertices = points[arc_idx]
         vertex_start, vertex_mid, vertex_end = vertices
         center_info = arc_center(vertices)
-        C, R, N, angle = (center_info['center'],
-                          center_info['radius'],
-                          center_info['normal'],
-                          center_info['span'])
+        C, R, angle = (center_info['center'],
+                       center_info['radius'],
+                       center_info['span'])
         if arc.closed:
             return circle_to_svgpath(C, R, reverse)
 

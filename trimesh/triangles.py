@@ -9,7 +9,7 @@ import numpy as np
 from . import util
 
 from .points import point_plane_distance
-from .constants import tol, log
+from .constants import tol
 
 
 def cross(triangles):
