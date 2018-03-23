@@ -7,12 +7,6 @@ class CacheTest(g.unittest.TestCase):
     def test_hash(self):
 
         m = g.get_mesh('featuretype.STL')
-
-        md = m.vertices.md5()
-        c = m.vertices.crc()
-        x = m.vertices.fast_hash()
-
-        
         
         setup = 'import numpy, trimesh;'
         setup += 'd = numpy.random.random((10000,3));'
@@ -29,65 +23,143 @@ class CacheTest(g.unittest.TestCase):
         xt = g.timeit.timeit(setup=setup,
             stmt='t._modified_x=True;t.fast_hash()',
             number=count)
-
-        g.log.info('\nResult\nMD5:\n{}\nCRC:\n{}\nXX:\n{}'.format(
-            md,
-            c,
-            x))
         
-        # crc should always be faster than MD5's
+        # log result values
+        g.log.info('\nResult\nMD5:\n{}\nCRC:\n{}\nXX:\n{}'.format(
+            m.vertices.md5(),
+            m.vertices.crc(),
+            m.vertices.fast_hash()))
+        
+        # crc should always be faster than MD5
         g.log.info('\nTime\nMD5:\n{}\nCRC:\n{}\nXX:\n{}'.format(
-            mt,
-            ct,
-            xt))
+            mt, ct, xt))
 
+        # CRC should be faster than MD5
+        # this is NOT true if you blindly call adler32
+        # but our speed check on import should assure this
+        assert ct < mt
+
+        # xxhash should be faster than CRC and MD5
         if g.trimesh.caching.hasX:
             assert xt < mt
             assert xt < ct
 
         
     def test_track(self):
-        a = g.trimesh.caching.tracked_array(g.np.random.random(TEST_DIM))
-        modified = g.collections.deque()
-        modified.append(int(a.md5(), 16))
+        """
+        Check to make sure our fancy caching system only changes
+        hashes when data actually changes. 
+        """
+        ### generate test data and perform numpy operations
+        a = g.trimesh.caching.tracked_array(
+            g.np.random.random(TEST_DIM))
+        modified = []
+        
+        modified.append([int(a.md5(), 16),
+                         a.crc(),
+                         a.fast_hash()])
         a[0][0] = 10
-        modified.append(int(a.md5(), 16))
+        modified.append([int(a.md5(), 16),
+                         a.crc(),
+                         a.fast_hash()])
         a[1] = 5
-        modified.append(int(a.md5(), 16))
+        modified.append([int(a.md5(), 16),
+                         a.crc(),
+                         a.fast_hash()])
         a[2:] = 2
-        modified.append(int(a.md5(), 16))
-        self.assertTrue((g.np.diff(modified) != 0).all())
+        modified.append([int(a.md5(), 16),
+                         a.crc(),
+                         a.fast_hash()])
 
-        modified = g.collections.deque()
-        modified.append(int(a.md5(), 16))
+        # these operations altered data and
+        # the hash SHOULD have changed 
+        modified = g.np.array(modified)
+        assert (g.np.diff(modified, axis=0) != 0).all()
+
+        # now do slice operations which don't alter data
+        modified = []
+        modified.append([int(a.md5(), 16),
+                         a.crc(),
+                         a.fast_hash()])
         b = a[[0, 1, 2]]
-        modified.append(int(a.md5(), 16))
+        modified.append([int(a.md5(), 16),
+                         a.crc(),
+                         a.fast_hash()])
         c = a[1:]
-        modified.append(int(a.md5(), 16))
-        self.assertTrue((g.np.diff(modified) == 0).all())
+        modified.append([int(a.md5(), 16),
+                         a.crc(),
+                         a.fast_hash()])
+        # double slice brah
+        a = a[::-1][::-1]
+        modified.append([int(a.md5(), 16),
+                         a.crc(),
+                         a.fast_hash()])
+        
+        # these operations should have been cosmetic and
+        # the hash should NOT have changed
+        modified = g.np.array(modified)
+        assert (g.np.diff(modified, axis=0) == 0).all()
 
+        ## now change stuff and see if checksums change
         a = g.trimesh.caching.tracked_array([0, 0, 4])
-        pre_crc = a.crc()
+        modified = []
+        
+        modified.append([int(a.md5(), 16),
+                         a.crc(),
+                         a.fast_hash()])
         a += 10
-        assert a.crc() != pre_crc
+        modified.append([int(a.md5(), 16),
+                         a.crc(),
+                         a.fast_hash()])
 
+        # assign some new data
         a = g.trimesh.caching.tracked_array([.125, 115.32444, 4],
                                             dtype=g.np.float64)
-        modified = g.collections.deque()
-        modified.append(a.crc())
-        a += [10, 0, 0]
-        modified.append(a.crc())
-        a *= 10
-        # __idiv__ is weird, and not working
-        # modified.append(a.crc())
-        #a /= 2.0
-        modified.append(a.crc())
-        a -= 1.0
-        modified.append(a.crc())
-        a //= 2
-        modified.append(a.crc())
-        assert (g.np.diff(modified) != 0).all()
 
+        modified.append([int(a.md5(), 16),
+                         a.crc(),
+                         a.fast_hash()])
+
+        a += [10, 0, 0]
+        modified.append([int(a.md5(), 16),
+                         a.crc(),
+                         a.fast_hash()])
+
+        a *= 10
+        modified.append([int(a.md5(), 16),
+                         a.crc(),
+                         a.fast_hash()])
+
+        # itruediv rather than idiv
+        a /= 2.0
+        modified.append([int(a.md5(), 16),
+                         a.crc(),
+                         a.fast_hash()])
+
+        # idiv
+        a /= 2.123
+        modified.append([int(a.md5(), 16),
+                         a.crc(),
+                         a.fast_hash()])
+
+        
+        a -= 1.0
+        modified.append([int(a.md5(), 16),
+                         a.crc(),
+                         a.fast_hash()])
+
+        # in place floor division :|
+        a //= 2
+        modified.append([int(a.md5(), 16),
+                         a.crc(),
+                         a.fast_hash()])
+
+        # these operations altered data and
+        # the hash SHOULD have changed 
+        modified = g.np.array(modified)
+        assert (g.np.diff(modified, axis=0) != 0).all()
+
+        
     def test_contiguous(self):
         a = g.np.random.random((100, 3))
         t = g.trimesh.caching.tracked_array(a)

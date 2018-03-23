@@ -50,17 +50,25 @@ class TrackedArray(np.ndarray):
     """
     Track changes in a numpy ndarray.
 
+    General method is to agressivly set 'modified' flags
+    on operations which might alter the array.
+
+    This will force a recompute of a checksum value in some
+    cases where nothing has changed but we don't ever want to
+    return a checksum that doesn't reflect the data.
+
     Methods
     ----------
-    md5: returns hexadecimal string of md5 of array
-    crc: returns int zlib.adler32 checksum of array
+    md5:       returns str, hexadecimal MD5 of array
+    crc:       returns int, zlib crc32/adler32 checksum
+    fast_hash: returns int, CRC or xxhash.xx64
     """
 
     def __array_finalize__(self, obj):
         """
         Sets a modified flag on every TrackedArray
-        This flag will be set on every change, as well as during copies
-        and certain types of slicing.
+        This flag will be set on every change as well as
+        during copies and certain types of slicing.
         """
         self._modified_c = True
         self._modified_m = True
@@ -78,7 +86,6 @@ class TrackedArray(np.ndarray):
         -----------
         md5: str, hexadecimal MD5 of the array
         """
-
         if self._modified_m or not hasattr(self, '_hashed_md5'):
             if self.flags['C_CONTIGUOUS']:
                 hasher = hashlib.md5()
@@ -124,7 +131,7 @@ class TrackedArray(np.ndarray):
 
         Returns
         -------------
-        xx: int, xxhash.b64 hash of array.
+        xx: int, xxhash.xxh64 hash of array.
         """
         # repeat the bookkeeping to get a contiguous array inside
         # the function to avoid additional function calls
@@ -143,19 +150,25 @@ class TrackedArray(np.ndarray):
                 hasher = xxhash.xxh64()
                 hasher.update(contiguous)
                 self._hashed_xx = hasher.intdigest()
-
         self._modified_x = False
         return self._hashed_xx
 
     def __hash__(self):
         """
-        Hash is required to return an int, so use the CRC.
+        Hash is required to return an int.
+
+        Returns
+        -----------
+        hash: int, result of fast_hash
         """
-        return self.crc()
+        return self.fast_hash()
 
     def __iadd__(self, other):
         """
-        In place addition
+        In- place addition.
+
+        The i* operations are in- place, so we better catch
+        all of them.
         """
         self._modified_c = True
         self._modified_m = True
@@ -179,6 +192,20 @@ class TrackedArray(np.ndarray):
         self._modified_m = True
         self._modified_x = True
         return super(self.__class__, self).__idiv__(other)
+
+    def __itruediv__(self, *args, **kwargs):
+        self._modified_c = True
+        self._modified_m = True
+        self._modified_x = True
+        return super(self.__class__, self).__itruediv__(*args,
+                                                        **kwargs)
+
+    def __imatmul__(self, *args, **kwargs):
+        self._modified_c = True
+        self._modified_m = True
+        self._modified_x = True
+        return super(self.__class__, self).__imatmul__(*args,
+                                                       **kwargs)
 
     def __ipow__(self, other):
         self._modified_c = True
@@ -248,7 +275,8 @@ class TrackedArray(np.ndarray):
 
 class Cache:
     """
-    Class to cache values until an ID function changes.
+    Class to cache values which will be stored until the
+    result of an ID function changes.
     """
 
     def __init__(self, id_function=None):
@@ -316,7 +344,8 @@ class Cache:
         if exclude is None:
             self.cache = {}
         else:
-            self.cache = {k: v for k, v in self.cache.items() if k in exclude}
+            self.cache = {k: v for k, v in self.cache.items()
+                          if k in exclude}
 
     def update(self, items):
         """
@@ -359,7 +388,9 @@ class Cache:
 class DataStore:
     """
     A class to store multiple numpy arrays and track them all
-    for changes. Operates like a dict of ndarray values
+    for changes.
+
+    Operates like a dict that only stores numpy.ndarray
     """
 
     def __init__(self):
@@ -486,14 +517,13 @@ def _fast_crc(count=50):
     setup = 'import numpy, zlib;'
     setup += 'd = numpy.random.random((500,3));'
 
-    regular = timeit.timeit(setup=setup,
-                            stmt='zlib.crc32(d)',
-                            number=count)
-    adler = timeit.timeit(setup=setup,
-                          stmt='zlib.adler32(d)',
+    crc32 = timeit.timeit(setup=setup,
+                          stmt='zlib.crc32(d)',
                           number=count)
-
-    if adler < regular:
+    adler32 = timeit.timeit(setup=setup,
+                            stmt='zlib.adler32(d)',
+                            number=count)
+    if adler32 < crc32:
         return zlib.adler32
     else:
         return zlib.crc32
