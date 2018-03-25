@@ -22,6 +22,7 @@ class CacheTest(g.unittest.TestCase):
                              stmt='t._modified_x=True;t.fast_hash()',
                              number=count)
 
+        m = g.get_mesh('featuretype.STL')
         # log result values
         g.log.info('\nResult\nMD5:\n{}\nCRC:\n{}\nXX:\n{}'.format(
             m.vertices.md5(),
