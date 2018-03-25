@@ -14,6 +14,8 @@ jobs:
       - run:
           name: install dependencies
           command: |
+            pip install --upgrade pip
+            conda update -n base conda
             pip install nose2
             pip install .
             python -c "import trimesh"
