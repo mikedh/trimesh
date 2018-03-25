@@ -1321,7 +1321,7 @@ class Trimesh(object):
         --------
         empty: if True, no data exists in the mesh.
         """
-        return bool(self._data.is_empty())
+        return self._data.is_empty()
 
     @util.cache_decorator
     def is_convex(self):
@@ -1728,17 +1728,20 @@ class Trimesh(object):
         matrix = np.asanyarray(matrix, order='C', dtype=np.float64)
         if matrix.shape != (4, 4):
             raise ValueError('Transformation matrix must be (4,4)!')
-
-        if np.allclose(matrix, np.eye(4)):
+        # np.allclose is surprisingly slow
+        elif np.abs(matrix - np.eye(4)).max() < 1e-8:
             log.debug('apply_tranform recieved identity matrix')
             return
 
+        # new vertex positions
         new_vertices = transformations.transform_points(self.vertices,
-                                                        matrix)
+                                                        matrix=matrix)
 
+        # overridden center of mass
         if self._center_mass is not None:
             self._center_mass = transformations.transform_points(
-                np.array([self._center_mass, ]), matrix)[0]
+                np.array([self._center_mass, ]),
+                matrix)[0]
 
         # force generation of face normals so we can check against them
         new_normals = np.dot(matrix[0:3, 0:3], self.face_normals.T).T
@@ -1750,6 +1753,7 @@ class Trimesh(object):
         # check the first face against the first normal to check winding
         aligned_pre = triangles.windings_aligned(self.vertices[self.faces[:1]],
                                                  self.face_normals[:1])[0]
+        # windings aligned after applying transform
         aligned_post = triangles.windings_aligned(new_vertices[self.faces[:1]],
                                                   new_normals[:1])[0]
         if aligned_pre != aligned_post:

@@ -12,14 +12,14 @@ import collections
 
 from shapely.geometry import Polygon
 from scipy.spatial import cKDTree as KDTree
-from zlib import adler32
 
 from ..points import plane_fit
 from ..geometry import plane_transform
 from ..units import _set_units
-from ..util import decimal_to_digits
+
 from ..constants import log
 from ..constants import tol_path as tol
+
 from .util import concatenate
 
 from .. import util
@@ -33,8 +33,16 @@ from . import polygons
 from . import creation
 from . import traversal
 
-
 from .io.export import export_path
+
+try:
+    # try running shapely speedups
+    # these mostly speed up object instantiation
+    from shapely import speedups
+    if speedups.available:
+        speedups.enable()
+except BaseException:
+    pass
 
 
 class Path(object):
@@ -119,8 +127,8 @@ class Path(object):
         crc: int, CRC of entity points and vertices
         """
         # first CRC the points in every entity
-        target = adler32(bytes().join(e.points.tostring()
-                                      for e in self.entities))
+        target = caching.crc32(bytes().join(e.points.tostring()
+                                            for e in self.entities))
         # add the CRC for the vertices
         target += self.vertices.crc()
         return target
@@ -319,22 +327,49 @@ class Path(object):
 
         Parameters
         -----------
-        transform: (dimension + 1, dimension + 1) float, homogenous
-                   transformation matrix
+        transform: (d+1, d+1) float, homogenous transformation 
+                                    matrix for (n, d) vertices
         """
         dimension = self.vertices.shape[1]
         transform = np.asanyarray(transform, dtype=np.float64)
 
         if transform.shape != (dimension + 1, dimension + 1):
             raise ValueError('transform is incorrect shape!')
-        elif np.allclose(transform, np.eye(dimension + 1)):
+        elif np.abs(transform - np.eye(dimension + 1)).max() < 1e-8:
             # if we've been passed an identity matrix do nothing
             return
 
+        # make sure cache is up to date
+        self._cache.verify()
+        # new cache to transfer items
+        cache = {}
+        # apply transform to discretized paths
+        if 'discrete' in self._cache.cache:
+            cache['discrete'] = np.array([transformations.transform_points(d,
+                                                                           matrix=transform)
+                                          for d in self.discrete])
+
+        # things we can just straight up copy
+        # as they are topological not geometric
+        for key in ['root',
+                    'paths',
+                    'dangling',
+                    'vertex_graph',
+                    'enclosure_shell',
+                    'enclosure_undirected']:
+            # if they're in cache save them from the purge
+            if key in self._cache.cache:
+                cache[key] = self._cache.cache[key]
+
+        # transform vertices in place
         self.vertices = transformations.transform_points(self.vertices,
-                                                         transform)
-        # explictly clear the cache
+                                                         matrix=transform)
+        # explicitly clear the cache
         self._cache.clear()
+        self._cache.id_set()
+
+        # populate the things we wangled
+        self._cache.cache.update(cache)
 
     def apply_scale(self, scale):
         """
@@ -387,7 +422,7 @@ class Path(object):
         self.entities: entity.points re- referenced
         self.vertices: duplicates removed
         """
-        digits = decimal_to_digits(tol.merge * self.scale, min_digits=1)
+        digits = util.decimal_to_digits(tol.merge * self.scale, min_digits=1)
         unique, inverse = grouping.unique_rows(self.vertices, digits=digits)
 
         self.vertices = self.vertices[unique]

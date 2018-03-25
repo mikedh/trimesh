@@ -54,7 +54,8 @@ class VectorTests(g.unittest.TestCase):
                 g.log.info('Checking medial axis on %s',
                            d.metadata['file_name'])
                 m = d.medial_axis()
-
+                assert len(m.entities) > 0
+                
     def test_poly(self):
         p = g.get_mesh('2D/LM2.dxf')
         self.assertTrue(p.is_closed)
@@ -144,27 +145,7 @@ class ArcTests(g.unittest.TestCase):
             assert g.np.allclose(center, info['center'])
             assert g.np.allclose(radius, info['radius'])
 
-
-class PolygonsTest(g.unittest.TestCase):
-
-    def test_rasterize(self):
-
-        test_radius = 1.0
-        test_pitch = test_radius / 10.0
-        polygon = g.Point([0, 0]).buffer(test_radius)
-        (offset,
-         grid,
-         grid_points) = g.trimesh.path.polygons.rasterize_polygon(polygon=polygon,
-                                                                  pitch=test_pitch)
-        assert g.trimesh.util.is_shape(grid_points, (-1, 2))
-
-        grid_radius = (grid_points ** 2).sum(axis=1) ** .5
-        pixel_diagonal = (test_pitch * (2.0**.5)) / 2.0
-        contained = grid_radius <= (test_radius + pixel_diagonal)
-
-        assert contained.all()
-
-
+            
 class SplitTest(g.unittest.TestCase):
 
     def test_split(self):

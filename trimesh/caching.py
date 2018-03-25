@@ -420,27 +420,33 @@ class DataStore:
         if len(self.data) == 0:
             return True
         for v in self.data.values():
-            if is_sequence(v):
-                if len(v) > 0:
-                    return False
-            else:
-                if bool(np.isreal(v)):
-                    return False
+            if is_sequence(v) and len(v) > 0:
+                return False
+            elif bool(np.isreal(v)):
+                return False
         return True
 
     def clear(self):
+        """
+        Remove all data from the DataStore.
+        """
         self.data = {}
 
     def __getitem__(self, key):
         try:
             return self.data[key]
         except KeyError:
-            return np.array([])
+            return np.empty((0,))
 
     def __setitem__(self, key, data):
+        """
+        Store an item in the DataStore
+        """
         if hasattr(data, 'md5'):
+            # don't bother to re-track TrackedArray
             self.data[key] = data
         else:
+            # otherwise wrap data
             self.data[key] = tracked_array(data)
 
     def __contains__(self, key):

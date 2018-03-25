@@ -6,9 +6,6 @@ TEST_DIM = (10000, 3)
 class CacheTest(g.unittest.TestCase):
 
     def test_hash(self):
-
-        m = g.get_mesh('featuretype.STL')
-
         setup = 'import numpy, trimesh;'
         setup += 'd = numpy.random.random((10000,3));'
         setup += 't = trimesh.caching.tracked_array(d)'
@@ -62,6 +59,12 @@ class CacheTest(g.unittest.TestCase):
         modified.append([int(a.md5(), 16),
                          a.crc(),
                          a.fast_hash()])
+                         
+        a[0][0] += 0.1
+        modified.append([int(a.md5(), 16),
+                         a.crc(),
+                         a.fast_hash()])
+                         
         a[1] = 5
         modified.append([int(a.md5(), 16),
                          a.crc(),

@@ -6,9 +6,7 @@ version: 2
 jobs:
   build:
     docker:
-      # specify the version you desire here
-      # use `-browsers` prefix for selenium tests, e.g. `3.6.1-browsers`
-      - image: continuumio/miniconda3
+      - image: continuumio/anaconda3
     working_directory: ~/repo
 
     steps:
@@ -19,8 +17,6 @@ jobs:
             pip install nose2
             pip install .
             python -c "import trimesh"
-            pip install .[easy]
-      # run tests!
       - run:
           name: run tests
           command: nose2

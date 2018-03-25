@@ -7,6 +7,9 @@ conda config --set always_yes yes --set changeps1 no
 conda create -q -n docker-environment python=3.5
 source activate docker-environment
 
+# make sure pip is the latest
+pip install --upgrade pip
+
 conda config --add channels conda-forge  # rtree, shapely, pyembree
 conda config --add channels menpo        # cyassimp
 

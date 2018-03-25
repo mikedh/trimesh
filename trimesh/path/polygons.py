@@ -37,7 +37,9 @@ def enclosure_tree(polygons):
     for i, polygon in enumerate(polygons):
         tree.insert(i, polygon.bounds)
     count = len(polygons)
+    # nodes are indexes in polygons
     contains = nx.DiGraph()
+    # make sure every polygon is included
     contains.add_nodes_from(np.arange(count))
     for i in range(count):
         if polygons[i] is None:
@@ -76,8 +78,8 @@ def edges_to_polygons(edges, vertices):
 
     # loop through a sequence of ordered traversals
     for dfs in graph.dfs_traversals(edges):
-        # try to recover polygons before they are more complicated
         try:
+            # try to recover polygons before they are more complicated
             polygons.append(repair_invalid(Polygon(vertices[dfs])))
         except ValueError:
             continue
@@ -150,103 +152,48 @@ def transform_polygon(polygon, transform, plot=False):
     return result
 
 
-def rasterize_polygon(polygon, pitch):
+def plot_polygon(polygon, show=True):
     """
-    Given a shapely polygon, find the raster representation at a given angle
-    relative to the oriented bounding box
+    Plot a shapely polygon using matplotlib.
 
     Parameters
-    ----------
-    polygon: shapely polygon
-    pitch:   what is the edge length of a pixel
-
-    Returns
-    ----------
-    offset:      (2,) float, where the origin of the raster array is located
-    grid:        (n,m) bool, where filled areas are True
-    grid_points: (p,2) float, points in space
+    ------------
+    polygon: shapely.geometry.Polygon object
+    show:    bool, if True will display immediatly
     """
-
-    bounds = np.reshape(polygon.bounds, (2, 2))
-    offset = bounds[0]
-    shape = np.ceil(np.ptp(bounds, axis=0) / pitch).astype(int)
-    grid = np.zeros(shape, dtype=np.bool)
-
-    def fill(ranges):
-        ranges = (np.array(ranges) - offset[0]) / pitch
-        x_index = np.array([np.floor(ranges[0]),
-                            np.ceil(ranges[1])]).astype(int)
-        if np.any(x_index < 0):
-            return
-        grid[x_index[0]:x_index[1], y_index] = True
-        if (y_index > 0):
-            grid[x_index[0]:x_index[1], y_index - 1] = True
-
-    def handler_multi(geometries):
-        for geometry in geometries:
-            handlers[geometry.__class__.__name__](geometry)
-
-    def handler_line(line):
-        fill(line.xy[0])
-
-    def handler_null(data):
-        pass
-
-    handlers = {'GeometryCollection': handler_multi,
-                'MultiLineString': handler_multi,
-                'MultiPoint': handler_multi,
-                'LineString': handler_line,
-                'Point': handler_null}
-
-    x_extents = bounds[:, 0] + [-pitch, pitch]
-    for y_index in range(grid.shape[1]):
-        y = offset[1] + y_index * pitch
-        test = LineString(np.column_stack((x_extents, [y, y])))
-        hits = polygon.intersection(test)
-        handlers[hits.__class__.__name__](hits)
-
-    grid_points = ((np.transpose(np.nonzero(grid)).astype(
-        np.float64) * pitch) + offset + (pitch / 2.0))
-
-    return offset, grid, grid_points
-
-
-def plot_polygon(polygon, show=True):
     import matplotlib.pyplot as plt
 
     def plot_single(single):
         plt.plot(*single.exterior.xy, color='b')
         for interior in single.interiors:
             plt.plot(*interior.xy, color='r')
-
+    # make aspect ratio non- stupid
     plt.axes().set_aspect('equal', 'datalim')
     if util.is_sequence(polygon):
         [plot_single(i) for i in polygon]
     else:
         plot_single(polygon)
+
     if show:
         plt.show()
 
 
-def plot_raster(raster, pitch, offset=[0, 0]):
-    """
-    Plot a raster representation.
-
-    raster: (n,m) array of booleans, representing filled/empty area
-    pitch:  the edge length of a box from raster, in cartesian space
-    offset: offset in cartesian space to the lower left corner of the raster grid
-    """
-    import matplotlib.pyplot as plt
-    plt.axes().set_aspect('equal', 'datalim')
-    filled = (np.column_stack(np.nonzero(raster)) * pitch) + offset
-    for location in filled:
-        plt.gca().add_patch(plt.Rectangle(location,
-                                          pitch,
-                                          pitch,
-                                          facecolor="grey"))
-
-
 def resample_boundaries(polygon, resolution, clip=None):
+    """
+    Return a version of a polygon with boundaries resampled
+    to a specified resolution.
+
+    Parameters
+    -------------
+    polygon:    shapely.geometry.Polygon object
+    resolution: float, desired distance between points on boundary
+    clip:       (2,) int, upper and lower bounds to clip 
+                number of samples to (to avoid exploding counts)
+
+    Returns
+    ------------
+    kwargs: dict, keyword args for a Polygon(**kwargs)
+    """
     def resample_boundary(boundary):
         # add a polygon.exterior or polygon.interior to
         # the deque after resampling based on our resolution
@@ -256,15 +203,27 @@ def resample_boundaries(polygon, resolution, clip=None):
     if clip is None:
         clip = [8, 200]
     # create a sequence of [(n,2)] points
-    result = {'shell': resample_boundary(polygon.exterior),
+    kwargs = {'shell': resample_boundary(polygon.exterior),
               'holes': deque()}
     for interior in polygon.interiors:
-        result['holes'].append(resample_boundary(interior))
-    result['holes'] = np.array(result['holes'])
-    return result
+        kwargs['holes'].append(resample_boundary(interior))
+    kwargs['holes'] = np.array(kwargs['holes'])
+    return kwargs
 
 
 def stack_boundaries(boundaries):
+    """
+    Stack the boundaries of a polygon into a single
+    (n, 2) list of vertices.
+
+    Parameters
+    ------------
+    boundaries: dict, with keys 'shell', 'holes'
+
+    Returns
+    ------------
+    stacked: (n, 2) float, list of vertices
+    """
     if len(boundaries['holes']) == 0:
         return boundaries['shell']
     result = np.vstack((boundaries['shell'],
@@ -482,7 +441,7 @@ def paths_to_polygons(paths, scale=None):
 def repair_invalid(polygon, scale=None, rtol=.5):
     """
     Given a shapely.geometry.Polygon, attempt to return a
-    valid version of the polygon.
+    valid version of the polygon through buffering tricks.
 
     Parameters
     -----------
