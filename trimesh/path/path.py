@@ -353,10 +353,12 @@ class Path(object):
         # as they are topological not geometric
         for key in ['root',
                     'paths',
+                    'path_valid',
                     'dangling',
                     'vertex_graph',
+                    'enclosure',
                     'enclosure_shell',
-                    'enclosure_undirected']:
+                    'enclosure_directed']:
             # if they're in cache save them from the purge
             if key in self._cache.cache:
                 cache[key] = self._cache.cache[key]

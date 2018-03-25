@@ -17,6 +17,8 @@ jobs:
             pip install nose2
             pip install .
             python -c "import trimesh"
+	    conda install -c conda-forge rtree shapely pyembree
+	    pip install .[easy]
       - run:
           name: run tests
           command: nose2
