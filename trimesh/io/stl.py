@@ -70,7 +70,7 @@ def load_stl_binary(file_obj):
     if len(header_data) < header_length:
         raise HeaderError('Binary STL file not long enough to contain header!')
 
-    header = np.fromstring(header_data, dtype=_stl_dtype_header)
+    header = np.frombuffer(header_data, dtype=_stl_dtype_header)
     try:
         # save the header block as a string
         # there could be any garbage in there so wrap in try
@@ -102,11 +102,11 @@ def load_stl_binary(file_obj):
     # so it's much better to raise an exception here.
     if len_data != len_expected:
         raise HeaderError('Binary STL has incorrect length in header!')
+    blob = np.frombuffer(file_obj.read(), dtype=_stl_dtype)
 
-    # all of our vertices will be loaded in order due to the STL format,
+    # all of our vertices will be loaded in order
     # so faces are just sequential indices reshaped.
     faces = np.arange(header['face_count'] * 3).reshape((-1, 3))
-    blob = np.fromstring(file_obj.read(), dtype=_stl_dtype)
 
     result = {'vertices': blob['vertices'].reshape((-1, 3)),
               'face_normals': blob['normals'].reshape((-1, 3)),
