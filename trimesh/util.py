@@ -1028,10 +1028,10 @@ def encoded_to_array(encoded):
 
     dtype = np.dtype(encoded['dtype'])
     if 'base64' in encoded:
-        array = np.fromstring(base64.b64decode(encoded['base64']),
+        array = np.frombuffer(base64.b64decode(encoded['base64']),
                               dtype)
     elif 'binary' in encoded:
-        array = np.fromstring(encoded['binary'],
+        array = np.frombuffer(encoded['binary'],
                               dtype=dtype)
     if 'shape' in encoded:
         array = array.reshape(encoded['shape'])

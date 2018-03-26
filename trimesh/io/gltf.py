@@ -162,7 +162,7 @@ def load_glb(file_obj, **passed):
     start = file_obj.tell()
     # read the first 20 bytes which contain section lengths
     head_data = file_obj.read(20)
-    head = np.fromstring(head_data,
+    head = np.frombuffer(head_data,
                          dtype=np.uint32)
 
     # check to make sure first index is gltf
@@ -199,7 +199,7 @@ def load_glb(file_obj, **passed):
             # read the whole file
             break
 
-        chunk_length, chunk_type = np.fromstring(chunk_head,
+        chunk_length, chunk_type = np.frombuffer(chunk_head,
                                                  dtype=np.uint32)
         # make sure we have the right data type
         if chunk_type != _magic['bin']:
@@ -331,7 +331,7 @@ def _read_buffers(header, buffers):
         data = views[a['bufferView']]
         dtype = _types[a['componentType']]
         shape = _shapes[a['type']]
-        array = np.fromstring(data,
+        array = np.frombuffer(data,
                               dtype=dtype).reshape(shape)
         assert len(array) == a['count']
         access.append(array)

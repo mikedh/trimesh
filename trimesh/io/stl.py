@@ -68,9 +68,14 @@ def load_stl_binary(file_obj):
     header_length = _stl_dtype_header.itemsize
     header_data = file_obj.read(header_length)
     if len(header_data) < header_length:
-        raise HeaderError('Binary STL file not long enough to contain header!')
+        raise HeaderError('Binary STL shorter than a fixed header!')
 
-    header = np.frombuffer(header_data, dtype=_stl_dtype_header)
+    try:
+        header = np.frombuffer(header_data,
+                               dtype=_stl_dtype_header)
+    except BaseException:
+        raise HeaderError('Binary header incorrect type')
+
     try:
         # save the header block as a string
         # there could be any garbage in there so wrap in try

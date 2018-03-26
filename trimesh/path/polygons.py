@@ -187,7 +187,7 @@ def resample_boundaries(polygon, resolution, clip=None):
     -------------
     polygon:    shapely.geometry.Polygon object
     resolution: float, desired distance between points on boundary
-    clip:       (2,) int, upper and lower bounds to clip 
+    clip:       (2,) int, upper and lower bounds to clip
                 number of samples to (to avoid exploding counts)
 
     Returns

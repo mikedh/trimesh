@@ -327,7 +327,7 @@ class Path(object):
 
         Parameters
         -----------
-        transform: (d+1, d+1) float, homogenous transformation 
+        transform: (d+1, d+1) float, homogenous transformation
                                     matrix for (n, d) vertices
         """
         dimension = self.vertices.shape[1]
