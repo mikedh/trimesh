@@ -216,11 +216,14 @@ class Path(object):
         # some entities (aka 3- point Arc) have bounds that can't
         # be generated from just bound box of vertices
         points = np.array([e.bounds(self.vertices)
-                           for e in self.entities])
+                           for e in self.entities],
+                          dtype=np.float64)
         # flatten bound extrema into (n, dimension) array
         points = points.reshape((-1, self.vertices.shape[1]))
         # get the max and min of all bounds
-        bounds = np.array([points.min(axis=0), points.max(axis=0)])
+        bounds = np.array([points.min(axis=0),
+                           points.max(axis=0)],
+                          dtype=np.float64)
 
         return bounds
 

@@ -337,13 +337,16 @@ def simplify_basic(drawing):
     # create the new drawing object
     simplified = type(drawing)(entities=entities_new,
                                vertices=vertices_new)
-
     # we have changed every path to a single closed entity
     # either a closed arc, or a closed line
     # therefore all closed paths are now represented by a single entity
     cache.cache.update({'paths': np.arange(len(entities_new)).reshape((-1, 1)),
                         'path_valid': np.ones(len(entities_new), dtype=np.bool),
                         'dangling': np.array([])})
+    # force recompute of exact bounds
+    if 'bounds' in cache.cache:
+        cache.cache.pop('bounds')
+        
     simplified._cache = cache
     # set the cache ID so it won't dump when a value is requested
     simplified._cache.id_set()

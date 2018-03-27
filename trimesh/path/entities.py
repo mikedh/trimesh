@@ -280,13 +280,15 @@ class Arc(Entity):
             # AABB of an sphere
             info = self.center(vertices)
             bounds = np.array([info['center'] - info['radius'],
-                               info['center'] + info['radius']])
+                               info['center'] + info['radius']],
+                              dtype=np.float64)
         else:
             # since the AABB of a partial arc is hard, approximate
             # the bounds by just looking at the discrete values
             discrete = self.discrete(vertices)
             bounds = np.array([discrete.min(axis=0),
-                               discrete.max(axis=0)])
+                               discrete.max(axis=0)],
+                              dtype=np.float64)
         return bounds
 
 
