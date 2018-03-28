@@ -503,7 +503,7 @@ class Trimesh(object):
         bounds: (2,3) float, bounding box with [min, max] coordinates
         """
         # we use triangles instead of faces because
-        # if there is an unused vertex it will screw up the bounds
+        # if there is an unused vertex it will screw up bounds
         in_mesh = self.triangles.reshape((-1, 3))
         bounds = np.vstack((in_mesh.min(axis=0),
                             in_mesh.max(axis=0)))

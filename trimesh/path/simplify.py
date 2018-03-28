@@ -12,7 +12,11 @@ from ..constants import log
 from ..constants import tol_path as tol
 
 
-def fit_circle_check(points, scale, prior=None, final=False, verbose=False):
+def fit_circle_check(points,
+                     scale,
+                     prior=None,
+                     final=False,
+                     verbose=False):
     """
     Fit a circle, and reject the fit if:
     * the radius is larger than tol.radius_min*scale or tol.radius_max*scale
@@ -316,8 +320,8 @@ def simplify_basic(drawing):
     # loop through (n, 2) closed paths
     for discrete in drawing.discrete:
         # check to see if the closed entity is a circle
-        circle = is_circle(discrete, scale=scale)
-
+        circle = is_circle(discrete,
+                           scale=scale)
         if circle is not None:
             # the points are circular enough for our high standards
             # so replace them with a closed Arc entity
@@ -340,9 +344,11 @@ def simplify_basic(drawing):
     # we have changed every path to a single closed entity
     # either a closed arc, or a closed line
     # therefore all closed paths are now represented by a single entity
-    cache.cache.update({'paths': np.arange(len(entities_new)).reshape((-1, 1)),
-                        'path_valid': np.ones(len(entities_new), dtype=np.bool),
-                        'dangling': np.array([])})
+    cache.cache.update({
+        'paths': np.arange(len(entities_new)).reshape((-1, 1)),
+        'path_valid': np.ones(len(entities_new), dtype=np.bool),
+        'dangling': np.array([])})
+
     # force recompute of exact bounds
     if 'bounds' in cache.cache:
         cache.cache.pop('bounds')

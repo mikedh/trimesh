@@ -84,7 +84,7 @@ class NumericalTolerancePath(object):
         self.seg_angle_min = np.radians(1)
         self.seg_angle_frac = .5
         self.aspect_frac = .1
-        self.radius_frac = .04
+        self.radius_frac = .02
         self.radius_min = 1e-4
         self.radius_max = 50
         self.tangent = np.radians(20)

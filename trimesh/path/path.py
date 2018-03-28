@@ -200,7 +200,7 @@ class Path(object):
         scale: float, approximate size of the world holding this path
         """
         # use vertices peak-peak rather than exact extents
-        scale = (self.vertices.ptp(axis=0) ** 2).sum() ** .5
+        scale = float((self.vertices.ptp(axis=0) ** 2).sum() ** .5)
         return scale
 
     @util.cache_decorator
