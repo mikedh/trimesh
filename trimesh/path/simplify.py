@@ -346,7 +346,7 @@ def simplify_basic(drawing):
     # force recompute of exact bounds
     if 'bounds' in cache.cache:
         cache.cache.pop('bounds')
-        
+
     simplified._cache = cache
     # set the cache ID so it won't dump when a value is requested
     simplified._cache.id_set()

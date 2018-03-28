@@ -99,7 +99,9 @@ class ColorVisuals(object):
         ---------
         defined: bool, are colors defined or not.
         """
-        return self.kind is not None
+        defined = (not self._data.is_empty() and
+                   self.kind is not None)
+        return defined
 
     @property
     def kind(self):
