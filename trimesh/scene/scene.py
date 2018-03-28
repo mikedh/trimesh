@@ -594,7 +594,12 @@ class Scene:
             original = transforms[group[0]]
             new_geom = np.dot(scale_matrix, original)
 
-            result.geometry[geometry].apply_transform(new_geom)
+            if result.geometry[geometry].vertices.shape[1] == 2:
+                # if our scene is 2D only scale in 2D
+                result.geometry[geometry].apply_transform(np.eye(3) * scale)
+            else:
+                # otherwise apply the full transform
+                result.geometry[geometry].apply_transform(new_geom)
 
             for node, t in zip(self.graph.nodes_geometry[group],
                                transforms[group]):
@@ -602,7 +607,6 @@ class Scene:
                                             t,
                                             np.linalg.inv(new_geom)])
                 transform[:3, 3] *= scale
-
                 result.graph.update(frame_to=node,
                                     matrix=transform,
                                     geometry=geometry)

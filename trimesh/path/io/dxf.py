@@ -176,7 +176,7 @@ def load_dxf(file_obj):
 
     # store metadata pulled from the header of the DXF
     metadata = dict()
-    for key in ['$INSUNITS', '$LUNITS']:
+    for key in ['$LUNITS', '$INSUNITS']:
         units = get_key(header_blob, key, '70')
         if units in _DXF_UNITS:
             metadata['units'] = _DXF_UNITS[units]
