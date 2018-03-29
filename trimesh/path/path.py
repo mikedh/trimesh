@@ -44,6 +44,7 @@ try:
 except BaseException:
     pass
 
+
 class Path(object):
     """
     A Path object consists of:
@@ -567,11 +568,22 @@ class Path(object):
         ---------
         copied: Path object, copy of self
         """
+        # copy the core data
         copied = type(self)(entities=copy.deepcopy(self.entities),
                             vertices=copy.deepcopy(self.vertices),
                             metadata=copy.deepcopy(self.metadata))
-        # update cache
-        copied._cache.cache = copy.deepcopy(self._cache.cache)
+
+        # try to copy the cache over to the new object
+        try:
+            # save dict keys before doing slow iteration
+            keys = list(self._cache.cache.keys())
+            # run through each key and copy into new cache
+            copied._cache.cache = {k: copy.deepcopy(self._cache.cache[k])
+                                   for k in keys}
+        except RuntimeError:
+            # if we have multiple threads this may error
+            log.debug('unable to copy cache')
+
         return copied
 
     def show(self):
