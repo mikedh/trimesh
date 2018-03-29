@@ -567,7 +567,12 @@ class Path(object):
         ---------
         copied: Path object, copy of self
         """
-        return copy.deepcopy(self)
+        copied = type(self)(entities=copy.deepcopy(self.entities),
+                            vertices=copy.deepcopy(self.vertices),
+                            metadata=copy.deepcopy(self.metadata))
+        # update cache
+        copied._cache.cache = copy.deepcopy(self._cache.cache)
+        return copied
 
     def show(self):
         if self.is_closed:
