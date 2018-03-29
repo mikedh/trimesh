@@ -383,7 +383,7 @@ def mesh_to_vertex_list(mesh, group=None):
 def path_to_vertex_list(path, group=None):
     if path.vertices.shape[1] == 2:
         path = path.to_3D()
-        
+
     lines = np.vstack([util.stack_lines(e.discrete(path.vertices))
                        for e in path.entities])
     index = np.arange(len(lines))

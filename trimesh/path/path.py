@@ -44,7 +44,6 @@ try:
 except BaseException:
     pass
 
-
 class Path(object):
     """
     A Path object consists of:
@@ -954,28 +953,20 @@ class Path2D(Path):
         self._cache.id_set()
         return np.array(split)
 
-    def plot_discrete(self, show=False, transform=None, axes=None):
+    def plot_discrete(self, show=False):
         """
         Plot the closed curves of the path.
         """
         import matplotlib.pyplot as plt
-        plt.axes().set_aspect('equal', 'datalim')
+        axis = plt.axes()
+        axis.set_aspect('equal', 'datalim')
 
-        def plot_transformed(vertices, color='g'):
-            if transform is None:
-                if axes is None:
-                    plt.plot(*vertices.T, color=color)
-                else:
-                    axes.plot(*vertices.T, color=color)
-            else:
-                transformed = transformations.transform_points(
-                    vertices, transform)
-                plt.plot(*transformed.T, color=color)
-        for i, polygon in enumerate(self.polygons_closed):
+        for i, points in enumerate(self.discrete):
             color = ['g', 'k'][i in self.root]
-            plot_transformed(np.array(polygon.boundary.coords), color=color)
+            axis.plot(*points.T, color=color)
         if show:
             plt.show()
+        return axis
 
     def plot_entities(self, show=False):
         """
