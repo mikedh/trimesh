@@ -1563,19 +1563,25 @@ class Trimesh(object):
         Return a version of the current mesh which will render nicely.
         Does not change current mesh in any way.
 
+        Parameters
+        -------------
+        angle: float, angle in radians to smooth up to
+
         Returns
         ---------
         smoothed: Trimesh object, non watertight version of current mesh
                   which will render nicely with smooth shading.
         """
 
-        # smooth should be recomputed if visuals change, so we
-        # store it in the visuals cache rather than the main mesh cache
-        cached = self.visual._cache.get('smoothed')
+        # smooth should be recomputed if visuals change
+        self.visual._verify_crc()
+        cached = self.visual._cache['smoothed']
         if cached is not None:
             return cached
-        return self.visual._cache.set(key='smoothed',
-                                      value=graph.smoothed(self, angle))
+        smoothed = graph.smoothed(self, angle)
+        self.visual._cache.set(key='smoothed',
+                               value=smoothed)
+        return smoothed
 
     def section(self,
                 plane_normal,

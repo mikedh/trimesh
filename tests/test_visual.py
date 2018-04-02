@@ -115,6 +115,32 @@ class VisualTest(g.unittest.TestCase):
         assert m.visual.kind == 'face'
 
 
+    def test_smooth(self):
+        """
+        Make sure cached smooth model is dumped if colors are changed
+        """
+        m = g.get_mesh('featuretype.STL')
+
+        # will put smoothed mesh into visuals cache
+        s = m.smoothed()
+        # every color should be default color
+        assert s.visual.face_colors.ptp(axis=0).max() == 0
+        # set some faces to a different color
+        faces = m.facets[m.facets_area.argmax()]
+        m.visual.face_colors[faces] = [255,0,0,255]
+        # cache should be dumped yo
+        s1 = m.smoothed()
+        assert s1.visual.face_colors.ptp(axis=0).max() != 0
+
+        # do the same check on vertex color
+        m = g.get_mesh('featuretype.STL')
+        s = m.smoothed()
+        # every color should be default color
+        assert s.visual.vertex_colors.ptp(axis=0).max() == 0
+        m.visual.vertex_colors[g.np.arange(10)] = [255,0,0,255]
+        s1 = m.smoothed()
+        assert s1.visual.face_colors.ptp(axis=0).max() != 0
+        
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()
