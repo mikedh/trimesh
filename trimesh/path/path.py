@@ -578,11 +578,14 @@ class Path(object):
             # save dict keys before doing slow iteration
             keys = list(self._cache.cache.keys())
             # run through each key and copy into new cache
-            copied._cache.cache = {k: copy.deepcopy(self._cache.cache[k])
-                                   for k in keys}
+            for k in keys:
+                copied._cache.cache[k] = copy.deepcopy(self._cache.cache[k])
         except RuntimeError:
-            # if we have multiple threads this may error
+            # if we have multiple threads this may error and is NBD
             log.debug('unable to copy cache')
+        except BaseException:
+            # catch and log errors we weren't expecting
+            log.error('unable to copy cache', exc_info=True)
 
         return copied
 
