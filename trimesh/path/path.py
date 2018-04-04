@@ -934,8 +934,6 @@ class Path2D(Path):
         """
         if self.root is None or len(self.root) == 0:
             split = []
-        elif len(self.root) == 1:
-            split = [copy.deepcopy(self)]
         else:
             split = [None] * len(self.root)
             for i, root in enumerate(self.root):
