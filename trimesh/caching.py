@@ -3,7 +3,7 @@ caching.py
 -----------
 
 Functions and classes that help with tracking changes in ndarrays
-and clearing caching values based on those changes.
+and clearing cached values based on those changes.
 """
 
 import numpy as np
@@ -324,9 +324,9 @@ class Cache:
 
     def verify(self):
         """
-        Verify that the cached values are still for the same value of
-        id_function, and delete all stored items if the value
-        of id_function has changed.
+        Verify that the cached values are still for the same
+        value of id_function and delete all stored items if
+        the value of id_function has changed.
         """
         id_new = self._id_function()
         if (self._lock == 0) and (id_new != self.id_current):
@@ -356,6 +356,9 @@ class Cache:
         self.id_set()
 
     def id_set(self):
+        """
+        Set the current ID to the value of the ID function.
+        """
         self.id_current = self._id_function()
 
     def set(self, key, value):

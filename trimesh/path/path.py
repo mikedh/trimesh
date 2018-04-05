@@ -573,19 +573,22 @@ class Path(object):
                             vertices=copy.deepcopy(self.vertices),
                             metadata=copy.deepcopy(self.metadata))
 
+        cache = {}
         # try to copy the cache over to the new object
         try:
             # save dict keys before doing slow iteration
             keys = list(self._cache.cache.keys())
             # run through each key and copy into new cache
             for k in keys:
-                copied._cache.cache[k] = copy.deepcopy(self._cache.cache[k])
+                cache[k] = copy.deepcopy(self._cache.cache[k])
         except RuntimeError:
             # if we have multiple threads this may error and is NBD
             log.debug('unable to copy cache')
         except BaseException:
             # catch and log errors we weren't expecting
             log.error('unable to copy cache', exc_info=True)
+        copied._cache.cache = cache
+        copied._cache.id_set()
 
         return copied
 
