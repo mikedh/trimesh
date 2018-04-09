@@ -32,29 +32,65 @@ def load_wavefront(file_obj, **kwargs):
     meshes = []
 
     def append_mesh():
-        # append kwargs for a Trimesh constructor to our list of meshes
+        # append kwargs for a Trimesh constructor
+        # to our list of meshes
         if len(current['f']) > 0:
-            loaded = {'vertices': np.array(current['v'],
-                                           dtype=np.float64),
-                      'vertex_normals': np.array(current['vn'],
-                                                 dtype=np.float64),
-                      'faces': np.array(current['f'],
-                                        dtype=np.int64).reshape((-1, 3)),
+            # get vertices as clean numpy array
+            vertices = np.array(current['v'],
+                                dtype=np.float64).reshape((-1, 3))
+            # do the same for faces
+            faces = np.array(current['f'],
+                             dtype=np.int64).reshape((-1, 3))
+
+            # get keys and values of remap as numpy arrays
+            # we are going to try to preserve the order as
+            # much as possible by sorting by remap key
+            keys, values = (np.array(list(remap.keys())),
+                            np.array(list(remap.values())))
+            # new order of vertices
+            vert_order = values[keys.argsort()]
+            # we need to mask to preserve index relationship
+            # between faces and vertices
+            face_order = np.zeros(len(vertices),
+                                  dtype=np.int64)
+            face_order[vert_order] = np.arange(len(vertices),
+                                               dtype=np.int64)
+
+            # apply the ordering and put into kwarg dict
+            loaded = {'vertices': vertices[vert_order],
+                      'faces': face_order[faces],
                       'metadata': {}}
+
+            # handle vertex normals
+            if len(current['vn']) > 0:
+                normals = np.array(current['vn'],
+                                   dtype=np.float64).reshape((-1, 3))
+                loaded['vertex_normals'] = normals[vert_order]
+
+            # handle vertex texture
             if len(current['vt']) > 0:
-                loaded['metadata']['vertex_texture'] = np.array(
-                    current['vt'], dtype=np.float64)
+                texture = np.array(current['vt'], dtype=np.float64)
+                # make sure vertex texture is the right shape
+                # AKA (len(vertices), dimension)
+                texture = texture.reshape((len(vertices), -1))
+                # save vertex texture with correct ordering
+                loaded['metadata']['vertex_texture'] = texture[vert_order]
+
+            # build face groups information
+            # faces didn't move around so we don't have to reindex
             if len(current['g']) > 0:
-                # build face groups information
-                face_groups = np.zeros(len(current['f']) // 3, dtype=int)
+                face_groups = np.zeros(len(current['f']) // 3, dtype=np.int64)
                 for idx, start_f in current['g']:
                     face_groups[start_f:] = idx
                 loaded['metadata']['face_groups'] = face_groups
+
+            # we're done, append the loaded mesh kwarg dict
             meshes.append(loaded)
 
     attribs = {k: [] for k in ['v', 'vt', 'vn']}
     current = {k: [] for k in ['v', 'vt', 'vn', 'f', 'g']}
-    remap_table = {}
+    # remap vertex indexes {str key: int index}
+    remap = {}
     next_idx = 0
     group_idx = 0
 
@@ -66,7 +102,8 @@ def load_wavefront(file_obj, **kwargs):
             # v, vt, or vn
             # vertex, vertex texture, or vertex normal
             # only parse 3 values-- colors shoved into vertices are ignored
-            attribs[line_split[0]].append([float(x) for x in line_split[1:4]])
+            attribs[line_split[0]].append([float(x)
+                                           for x in line_split[1:4]])
         elif line_split[0] == 'f':
             # a face
             ft = line_split[1:]
@@ -76,8 +113,8 @@ def load_wavefront(file_obj, **kwargs):
             for f in ft:
                 # loop through each vertex reference of a face
                 # we are reshaping later into (n,3)
-                if f not in remap_table:
-                    remap_table[f] = next_idx
+                if f not in remap:
+                    remap[f] = next_idx
                     next_idx += 1
                     # faces are "vertex index"/"vertex texture"/"vertex normal"
                     # you are allowed to leave a value blank, which .split
@@ -90,13 +127,13 @@ def load_wavefront(file_obj, **kwargs):
                     if len(f_split) > 2:
                         current['vn'].append(
                             attribs['vn'][int(f_split[2]) - 1])
-                current['f'].append(remap_table[f])
+                current['f'].append(remap[f])
         elif line_split[0] == 'o':
             # defining a new object
             append_mesh()
             # reset current to empty lists
             current = {k: [] for k in current.keys()}
-            remap_table = {}
+            remap = {}
             next_idx = 0
             group_idx = 0
 

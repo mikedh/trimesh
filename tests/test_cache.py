@@ -60,12 +60,12 @@ class CacheTest(g.unittest.TestCase):
         modified.append([int(a.md5(), 16),
                          a.crc(),
                          a.fast_hash()])
-                         
+
         a[0][0] += 0.1
         modified.append([int(a.md5(), 16),
                          a.crc(),
                          a.fast_hash()])
-                         
+
         a[1] = 5
         modified.append([int(a.md5(), 16),
                          a.crc(),

@@ -55,7 +55,7 @@ class VectorTests(g.unittest.TestCase):
                            d.metadata['file_name'])
                 m = d.medial_axis()
                 assert len(m.entities) > 0
-                
+
     def test_poly(self):
         p = g.get_mesh('2D/LM2.dxf')
         self.assertTrue(p.is_closed)
@@ -145,7 +145,7 @@ class ArcTests(g.unittest.TestCase):
             assert g.np.allclose(center, info['center'])
             assert g.np.allclose(radius, info['radius'])
 
-            
+
 class SplitTest(g.unittest.TestCase):
 
     def test_split(self):

@@ -423,8 +423,11 @@ class DataStore:
         if len(self.data) == 0:
             return True
         for v in self.data.values():
-            if is_sequence(v) and len(v) > 0:
-                return False
+            if is_sequence(v):
+                if len(v) == 0:
+                    return True
+                else:
+                    return False
             elif bool(np.isreal(v)):
                 return False
         return True

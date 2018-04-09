@@ -50,6 +50,31 @@ class LoaderTest(g.unittest.TestCase):
         assert g.trimesh.util.is_shape(meshes[1].faces, (4, 3))
         assert g.trimesh.util.is_shape(meshes[1].vertices, (9, 3))
 
+    def test_obj_simple_order(self):
+        # test a simple wavefront model without split indexes
+        # and make sure we don't reorder vertices unneccessarily
+        file_name = g.os.path.join(g.dir_models,
+                                   'cube.OBJ')
+
+        # load a simple OBJ file without merging vertices
+        m = g.trimesh.load(file_name, process=False)
+
+        # we're going to load faces in a basic text way
+        # and compare the order from this method to the
+        # trimesh loader, to see if we get the same thing
+        faces = []
+        with open(file_name, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line[0] != 'f':
+                    continue
+                faces.append(line[1:].strip().split())
+        # get faces as basic numpy array
+        faces = g.np.array(faces, dtype=g.np.int64) - 1
+
+        # trimesh loader should return the same face order
+        assert g.np.allclose(faces, m.faces)
+
     def test_obj_compressed(self):
         mesh = g.get_mesh('cube_compressed.obj', process=False)
 
