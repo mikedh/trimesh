@@ -302,7 +302,8 @@ def simplify_basic(drawing):
     simplified: Path2D with circles.
     """
 
-    if any(i.__class__.__name__ != 'Line' for i in drawing.entities):
+    if any(i.__class__.__name__ != 'Line'
+           for i in drawing.entities):
         log.debug('Path contains non- linear entities, skipping')
         return drawing
 
@@ -339,11 +340,13 @@ def simplify_basic(drawing):
             vertices_new.extend(points)
 
     # create the new drawing object
-    simplified = type(drawing)(entities=entities_new,
-                               vertices=vertices_new)
+    simplified = type(drawing)(
+        entities=entities_new,
+        vertices=vertices_new,
+        metadata=copy.deepcopy(drawing.metadata))
     # we have changed every path to a single closed entity
     # either a closed arc, or a closed line
-    # therefore all closed paths are now represented by a single entity
+    # so all closed paths are now represented by a single entity
     cache.cache.update({
         'paths': np.arange(len(entities_new)).reshape((-1, 1)),
         'path_valid': np.ones(len(entities_new), dtype=np.bool),

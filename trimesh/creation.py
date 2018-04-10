@@ -245,7 +245,8 @@ def extrude_triangulation(vertices,
 
 def triangulate_polygon(polygon, **kwargs):
     """
-    Given a shapely polygon, create a triangulation using meshpy.triangle
+    Given a shapely polygon create a triangulation using
+    meshpy.triangle
 
     Parameters
     ---------
@@ -266,15 +267,48 @@ def triangulate_polygon(polygon, **kwargs):
     Returns
     --------
     mesh_vertices: (n, 2) float array of 2D points
-    mesh_faces:    (n, 3) int array of vertex indicies representing triangles
+    mesh_faces:    (n, 3) int array of vertex indexes
+    """
+    # do the import here, as sometimes this import can segfault
+    # which is not catchable with a try/except block
+    import meshpy.triangle as triangle
+
+    # turn the polygon in to vertices, segments, and hole points
+    arg = _polygon_to_kwargs(polygon)
+    # call meshpy.triangle on our cleaned representation of
+    # the Shapely polygon
+    info = triangle.MeshInfo()
+    info.set_points(arg['vertices'])
+    info.set_facets(arg['segments'])
+    info.set_holes(arg['holes'])
+
+    # build mesh and pass kwargs to triangle
+    mesh = triangle.build(info, **kwargs)
+
+    # (n, 2) float vertices
+    vertices = np.array(mesh.points, dtype=np.float64)
+    # (m, 3) int faces
+    faces = np.array(mesh.elements, dtype=np.int64)
+
+    return vertices, faces
+
+
+def _polygon_to_kwargs(polygon):
+    """
+    Given a shapely polygon generate the data to pass to
+    the triangle mesh generator
+
+    Parameters
+    ---------
+    polygon: Shapely.geometry.Polygon
+
+    Returns
+    --------
+    result: dict, with keys: vertices, segments, holes
     """
 
     if not polygon.is_valid:
         raise ValueError('invalid shapely polygon passed!')
-
-    # do the import here, as sometimes this import can segfault python
-    # which is not catchable with a try/except block
-    import meshpy.triangle as triangle
 
     def round_trip(start, length):
         """
@@ -341,24 +375,25 @@ def triangulate_polygon(polygon, **kwargs):
     # we added a hole for the exterior, which we slice away here
     holes = np.array(holes)[1:]
 
-    # call meshpy.triangle on our cleaned representation of the Shapely polygon
-    info = triangle.MeshInfo()
-    info.set_points(vertices)
-    info.set_facets(facets)
-    info.set_holes(holes)
+    result = {'vertices': vertices,
+              'segments': facets,
+              'holes': holes}
 
-    # uses kwargs
-    mesh = triangle.build(info, **kwargs)
-
-    mesh_vertices = np.array(mesh.points)
-    mesh_faces = np.array(mesh.elements)
-
-    return mesh_vertices, mesh_faces
+    return result
 
 
 def box(extents=None, transform=None):
     """
-    Return a unit cube, centered at the origin with edges of length 1.0
+    Return a cuboid.
+
+    Parameters
+    ------------
+    extents: float, or (3,) float edge length
+    transform: (4, 4) float, transformation matrix
+
+    Returns
+    ------------
+    box: Trimesh object
     """
     vertices = [0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1,
                 1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1]
