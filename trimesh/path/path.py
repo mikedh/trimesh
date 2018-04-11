@@ -15,7 +15,6 @@ from scipy.spatial import cKDTree as KDTree
 
 from ..points import plane_fit
 from ..geometry import plane_transform
-from ..units import _set_units
 
 from ..constants import log
 from ..constants import tol_path as tol
@@ -23,6 +22,7 @@ from ..constants import tol_path as tol
 from .util import concatenate
 
 from .. import util
+from .. import units
 from .. import caching
 from .. import grouping
 from .. import transformations
@@ -265,7 +265,9 @@ class Path(object):
         desired: str, unit system to convert to
         guess:   bool, if True will attempt to guess units
         """
-        _set_units(self, desired, guess)
+        units._convert_units(self,
+                             desired=desired,
+                             guess=guess)
 
     def explode(self):
         """

@@ -909,7 +909,7 @@ class Trimesh(object):
         guess:   boolean, if self.units are not defined should we
                  guess the current units of the document and then convert?
         """
-        units._set_units(self, desired, guess)
+        units._convert_units(self, desired, guess)
 
     def merge_vertices(self):
         """

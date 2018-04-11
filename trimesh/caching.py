@@ -279,7 +279,7 @@ class Cache:
     result of an ID function changes.
     """
 
-    def __init__(self, id_function=None):
+    def __init__(self, id_function):
         """
         Create a cache object.
 
@@ -287,10 +287,8 @@ class Cache:
         ------------
         id_function: function, that returns hashable value
         """
-        if id_function is None:
-            self._id_function = lambda: None
-        else:
-            self._id_function = id_function
+        self._id_function = id_function
+
         self.id_current = self._id_function()
         self._lock = 0
         self.cache = {}

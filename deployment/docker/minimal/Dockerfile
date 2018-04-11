@@ -1,21 +1,16 @@
-from debian:jessie
+FROM alpine:3.4
+MAINTAINER Mike Dawson-Haggerty <mikedh@kerfed.com>
 
-# add conda and our env to path
-ENV PATH /opt/conda/envs/docker-environment/bin:/opt/conda/bin:$PATH
+# packages required to build gpcio
+#ENV PACKAGES="gcc g++ linux-headers build-base libc-dev make musl-dev"
+ENV PACKAGES="gcc g++ gfortran python3 python3-dev build-base wget freetype-dev libpng-dev openblas-dev"
 
-# install conda environment
-COPY apt.bash /tmp/
-RUN bash /tmp/apt.bash
+RUN echo "http://dl-8.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories
+RUN apk --no-cache --update-cache add  $PACKAGES
+RUN ln -s /usr/include/locale.h /usr/include/xlocale.h
 
-# install conda environment
-COPY conda.bash /tmp/
-RUN bash /tmp/conda.bash
-
-# install packages that pip is going to need to build
-COPY pip_built.bash /tmp/
-RUN bash /tmp/pip_built.bash
-
-# install straightforward pip packages including trimesh
-COPY pip.bash /tmp/
-RUN bash /tmp/pip.bash
+# copy over our python requirements
+COPY requirements.txt /tmp/
+RUN pip3 install --no-cache-dir --upgrade pip setuptools
+RUN pip3 install --no-cache-dir --upgrade -r requirements.txt
 

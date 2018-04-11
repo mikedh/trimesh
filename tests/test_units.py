@@ -20,6 +20,42 @@ class UnitsTest(g.unittest.TestCase):
         self.assertTrue(g.np.allclose(scale, 25.4))
         self.assertTrue(m.units == 'mm')
 
+    def test_conversion(self):
+        # test conversions on a multibody STL in a scene
+
+        # a multibody STL with a unit hint in filename
+        m = g.get_mesh('counter.unitsmm.STL')
+
+        # nothing should be set
+        assert m.units is None
+
+        # split into watertight bodies
+        s = g.trimesh.scene.split_scene(m)
+
+        # save the extents
+        extents_pre = s.extents
+
+        # should extract units from file name without
+        # raising a ValueError
+        c = s.convert_units('in', guess=False)
+        # should have converted mm -> in, 1/25.4
+        # extents should scale exactly with unit conversion
+        assert g.np.allclose(extents_pre / c.extents,
+                             25.4,
+                             atol=.01)
+
+    def test_path(self):
+        p = g.get_mesh('2D/tray-easy1.dxf')
+        # should be inches
+        assert 'in' in p.units
+        extents_pre = p.extents
+        p.convert_units('mm')
+        # should have converted in -> mm 25.4
+        # extents should scale exactly with unit conversion
+        assert g.np.allclose(p.extents / extents_pre,
+                             25.4,
+                             atol=.01)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

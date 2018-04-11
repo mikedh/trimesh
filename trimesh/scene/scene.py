@@ -513,15 +513,15 @@ class Scene:
 
         current = existing[0]
         if current is None:
-            if guess:
-                current = units.unit_guess(self.scale)
-            else:
-                raise ValueError('units not defined and not allowed to guess!')
-
-        # exit early if our current units are the same as desired units
-
+            # will raise ValueError if not in metadata
+            # and not allowed to guess
+            current = units.units_from_metadata(self, guess=guess)
+            
+        # find the float conversion
         scale = units.unit_conversion(current=current,
                                       desired=desired)
+        
+        #exit early if our current units are the same as desired units
         if np.isclose(scale, 1.0):
             result = self.copy()
         else:
@@ -639,7 +639,8 @@ class Scene:
 
 def split_scene(geometry):
     '''
-    Given a possible sequence of geometries, decompose them into parts.
+    Given a geometry, list of geometries, or a Scene
+    return them as a single Scene object.
 
     Parameters
     ----------
@@ -649,14 +650,26 @@ def split_scene(geometry):
     ---------
     scene: trimesh.Scene
     '''
+    # already a scene, so return it
     if util.is_instance_named(geometry, 'Scene'):
         return geometry
 
+    # a list of things
     if util.is_sequence(geometry):
-        return Scene(geometry)
-
+        metadata = {}
+        for g in geometry:
+            try:
+                metadata.update(g.metadata)
+            except BaseException:
+                continue
+        return Scene(geometry,
+                     metadata=metadata)
+ 
+    # a single geometry so we are going to split
     split = collections.deque()
+    metadata = {}
     for g in util.make_sequence(geometry):
         split.extend(g.split())
-    scene = Scene(split)
+        metadata.update(g.metadata)
+    scene = Scene(split, metadata=metadata)
     return scene
