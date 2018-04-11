@@ -12,7 +12,8 @@ from . import transformations
 
 def sample_surface(mesh, count):
     """
-    Sample the surface of a mesh, returning the specified number of points
+    Sample the surface of a mesh, returning the specified
+    number of points
 
     For individual triangle sampling uses this method:
     http://mathworld.wolfram.com/TrianglePointPicking.html
@@ -28,7 +29,8 @@ def sample_surface(mesh, count):
     face_index: (count,) indices of faces for each sampled point
     """
 
-    # len(mesh.faces) float array of the areas of each face of the mesh
+    # len(mesh.faces) float, array of the areas
+    # of each face of the mesh
     area = mesh.area_faces
     # total area (float)
     area_sum = np.sum(area)
@@ -69,8 +71,8 @@ def sample_surface(mesh, count):
 
 def volume_mesh(mesh, count):
     """
-    Use rejection sampling to produce points randomly distributed in
-    the volume of a mesh.
+    Use rejection sampling to produce points randomly distributed
+    in the volume of a mesh.
 
     Parameters
     ----------
@@ -80,7 +82,7 @@ def volume_mesh(mesh, count):
     Returns
     ----------
     samples: (n,3) float, points in the volume of the mesh.
-             (n <= count) as samples are produced by rejecting points
+              where: n <= count
     """
     points = (np.random.random((count, 3)) * mesh.extents) + mesh.bounds[0]
     contained = mesh.contains(points)

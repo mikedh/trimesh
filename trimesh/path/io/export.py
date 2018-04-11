@@ -3,7 +3,7 @@ from . import dxf
 
 
 def export_path(path, file_type, file_obj=None):
-    '''
+    """
     Export a Path object to a file- like object, or to a filename
 
     Parameters
@@ -17,7 +17,7 @@ def export_path(path, file_type, file_obj=None):
     mesh: a single Trimesh object, or a list of Trimesh objects,
           depending on the file format.
 
-    '''
+    """
     if ((not hasattr(file_obj, 'read')) and
             (file_obj is not None)):
         file_type = (str(file_obj).split('.')[-1]).lower()
@@ -34,7 +34,7 @@ def export_dict(path):
 
 
 def _write_export(export, file_obj=None):
-    '''
+    """
     Write a string to a file.
     If file_obj isn't specified, return the string
 
@@ -42,7 +42,7 @@ def _write_export(export, file_obj=None):
     ---------
     export: a string of the export data
     file_obj: a file-like object or a filename
-    '''
+    """
 
     if file_obj is None:
         return export

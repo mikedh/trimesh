@@ -22,7 +22,7 @@ except BaseException:
 
 
 def svg_to_path(file_obj, file_type=None):
-    '''
+    """
     Load an SVG file into a Path2D object.
 
     Parameters
@@ -33,7 +33,7 @@ def svg_to_path(file_obj, file_type=None):
     Returns
     -----------
     loaded: dict with kwargs for Path2D constructor
-    '''
+    """
     # first, we grab all of the path strings from the xml file
     xml = parse_xml(file_obj.read())
     paths = [p.attributes['d'].value for p in xml.getElementsByTagName('path')]
@@ -42,7 +42,7 @@ def svg_to_path(file_obj, file_type=None):
 
 
 def _svg_path_convert(paths):
-    '''
+    """
     Convert an SVG path string into a Path2D object
 
     Parameters
@@ -52,7 +52,7 @@ def _svg_path_convert(paths):
     Returns
     -------------
     drawing: loaded, dict with kwargs for Path2D constructor
-    '''
+    """
     def complex_to_float(values):
         return np.array([[i.real, i.imag] for i in values])
 
@@ -109,7 +109,7 @@ def _svg_path_convert(paths):
 
 
 def export_svg(drawing, return_path=False, **kwargs):
-    '''
+    """
     Export a Path2D object into an SVG file.
 
     Parameters
@@ -121,7 +121,7 @@ def export_svg(drawing, return_path=False, **kwargs):
     -----------
     as_svg: str, XML formatted as SVG
 
-    '''
+    """
     if not util.is_instance_named(drawing, 'Path2D'):
         raise ValueError('drawing must be Path2D object!')
 
@@ -140,11 +140,11 @@ def export_svg(drawing, return_path=False, **kwargs):
         return path_str
 
     def svg_arc(arc, reverse):
-        '''
+        """
         arc string: (rx ry x-axis-rotation large-arc-flag sweep-flag x y)+
         large-arc-flag: greater than 180 degrees
         sweep flag: direction (cw/ccw)
-        '''
+        """
         arc_idx = arc.points[::((reverse * -2) + 1)]
         vertices = points[arc_idx]
         vertex_start, vertex_mid, vertex_end = vertices
@@ -175,10 +175,10 @@ def export_svg(drawing, return_path=False, **kwargs):
         return move_str
 
     def svg_discrete(entity, reverse):
-        '''
+        """
         Use an entities discrete representation to export a
         curve as a polyline
-        '''
+        """
         discrete = entity.discrete(points)
         if reverse:
             discrete = discrete[::-1]

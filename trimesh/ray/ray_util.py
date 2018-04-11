@@ -6,7 +6,7 @@ from .. import constants
 
 
 def contains_points(intersector, points, check_direction=None):
-    '''
+    """
     Check if a mesh contains a set of points, using ray tests.
 
     If the point is on the surface of the mesh, behavior is undefined.
@@ -19,7 +19,7 @@ def contains_points(intersector, points, check_direction=None):
     Returns
     ---------
     contains: (n) boolean array, whether point is inside mesh or not
-    '''
+    """
 
     # convert points to float and make sure they are 3D
     points = np.asanyarray(points, dtype=np.float64)

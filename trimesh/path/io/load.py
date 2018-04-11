@@ -10,7 +10,7 @@ from ... import util
 
 
 def load_path(obj, file_type=None):
-    '''
+    """
     Load a file to a Path object.
 
     Parameters
@@ -32,7 +32,7 @@ def load_path(obj, file_type=None):
     Returns
     ---------
     path: Path2D or Path3D object
-    '''
+    """
 
     if isinstance(obj, Path):
         return obj

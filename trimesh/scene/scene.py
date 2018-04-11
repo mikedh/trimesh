@@ -516,12 +516,12 @@ class Scene:
             # will raise ValueError if not in metadata
             # and not allowed to guess
             current = units.units_from_metadata(self, guess=guess)
-            
+
         # find the float conversion
         scale = units.unit_conversion(current=current,
                                       desired=desired)
-        
-        #exit early if our current units are the same as desired units
+
+        # exit early if our current units are the same as desired units
         if np.isclose(scale, 1.0):
             result = self.copy()
         else:
@@ -664,7 +664,7 @@ def split_scene(geometry):
                 continue
         return Scene(geometry,
                      metadata=metadata)
- 
+
     # a single geometry so we are going to split
     split = collections.deque()
     metadata = {}

@@ -65,6 +65,7 @@ def _generate_conversions():
 
 _TO_INCHES = _generate_conversions()
 
+
 def unit_conversion(current, desired):
     """
     Calculate the conversion from one set of units to another.
@@ -161,7 +162,7 @@ def _convert_units(obj, desired, guess=False):
         # if nothing specified in metadata and not allowed
         # to guess will raise a ValueError
         obj.units = units_from_metadata(obj, guess=guess)
-        
+
     log.info('Converting units from %s to %s', obj.units, desired)
     # float, conversion factor
     conversion = unit_conversion(obj.units, desired)

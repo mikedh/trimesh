@@ -1,3 +1,7 @@
+"""
+Ray queries using the pyembree package with the
+API wrapped to match our native raytracer.
+"""
 import numpy as np
 
 from collections import deque
@@ -27,9 +31,9 @@ class RayMeshIntersector:
 
     @util.cache_decorator
     def _scene(self):
-        '''
+        """
         A cached version of the pyembree scene.
-        '''
+        """
         scene = rtcore_scene.EmbreeScene()
         mesh = TriangleMesh(scene, self.mesh.triangles)
         return scene
@@ -38,7 +42,7 @@ class RayMeshIntersector:
                             ray_origins,
                             ray_directions,
                             multiple_hits=True):
-        '''
+        """
         Return the location of where a ray hits a surface.
 
         Parameters
@@ -52,7 +56,7 @@ class RayMeshIntersector:
         locations: (n) sequence of (m,3) intersection points
         index_ray: (n,) int, list of ray index
         index_tri: (n,) int, list of triangle (face) indexes
-        '''
+        """
         (index_tri,
          index_ray,
          locations) = self.intersects_id(ray_origins=ray_origins,
@@ -67,7 +71,7 @@ class RayMeshIntersector:
                       multiple_hits=True,
                       max_hits=100,
                       return_locations=False):
-        '''
+        """
         Find the triangles hit by a list of rays, including optionally
         multiple hits along a single ray.
 
@@ -84,7 +88,7 @@ class RayMeshIntersector:
         index_tri: (m,) int, index of triangle the ray hit
         index_ray: (m,) int, index of ray
         locations: (m,3) float, locations in space
-        '''
+        """
         # make sure input is float64 for embree
         ray_origins = np.asanyarray(deepcopy(ray_origins), dtype=np.float64)
         ray_directions = np.asanyarray(ray_directions, dtype=np.float64)
@@ -181,7 +185,7 @@ class RayMeshIntersector:
     def intersects_first(self,
                          ray_origins,
                          ray_directions):
-        '''
+        """
         Find the index of the first triangle a ray hits.
 
 
@@ -193,7 +197,7 @@ class RayMeshIntersector:
         Returns
         ----------
         triangle_index: (n,) int, index of triangle ray hit, or -1 if not hit
-        '''
+        """
 
         ray_origins = np.asanyarray(deepcopy(ray_origins), dtype=np.float64)
         ray_directions = np.asanyarray(ray_directions, dtype=np.float64)
@@ -204,7 +208,7 @@ class RayMeshIntersector:
     def intersects_any(self,
                        ray_origins,
                        ray_directions):
-        '''
+        """
         Check if a list of rays hits the surface.
 
 
@@ -216,7 +220,7 @@ class RayMeshIntersector:
         Returns
         ----------
         hit:            (n,) bool, did each ray hit the surface
-        '''
+        """
 
         first = self.intersects_first(ray_origins=ray_origins,
                                       ray_directions=ray_directions)
@@ -224,7 +228,7 @@ class RayMeshIntersector:
         return hit
 
     def contains_points(self, points):
-        '''
+        """
         Check if a mesh contains a list of points, using ray tests.
 
         If the point is on the surface of the mesh, behavior is undefined.
@@ -236,5 +240,5 @@ class RayMeshIntersector:
         Returns
         ---------
         contains: (n) boolean array, whether point is inside mesh or not
-        '''
+        """
         return contains_points(self, points)
