@@ -63,17 +63,22 @@ class LoaderTest(g.unittest.TestCase):
         # and compare the order from this method to the
         # trimesh loader, to see if we get the same thing
         faces = []
+        verts = []
         with open(file_name, 'r') as f:
             for line in f:
                 line = line.strip()
-                if line[0] != 'f':
-                    continue
-                faces.append(line[1:].strip().split())
+                if line[0] == 'f':
+                    faces.append(line[1:].strip().split())
+                if line[0] == 'v':
+                    verts.append(line[1:].strip().split())
+
         # get faces as basic numpy array
         faces = g.np.array(faces, dtype=g.np.int64) - 1
+        verts = g.np.array(verts, dtype=g.np.float64)
 
         # trimesh loader should return the same face order
         assert g.np.allclose(faces, m.faces)
+        assert g.np.allclose(verts, m.vertices)
 
     def test_obj_compressed(self):
         mesh = g.get_mesh('cube_compressed.obj', process=False)
