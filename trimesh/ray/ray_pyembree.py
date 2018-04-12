@@ -35,7 +35,8 @@ class RayMeshIntersector:
         A cached version of the pyembree scene.
         """
         scene = rtcore_scene.EmbreeScene()
-        mesh = TriangleMesh(scene, self.mesh.triangles)
+        mesh = TriangleMesh(scene,
+                            self.mesh.triangles.astype(np.float32))
         return scene
 
     def intersects_location(self,
@@ -89,9 +90,11 @@ class RayMeshIntersector:
         index_ray: (m,) int, index of ray
         locations: (m,3) float, locations in space
         """
-        # make sure input is float64 for embree
-        ray_origins = np.asanyarray(deepcopy(ray_origins), dtype=np.float64)
-        ray_directions = np.asanyarray(ray_directions, dtype=np.float64)
+        # make sure input is float32 for embree
+        ray_origins = np.asanyarray(deepcopy(ray_origins),
+                                    dtype=np.float32)
+        ray_directions = np.asanyarray(ray_directions,
+                                       dtype=np.float32)
         ray_directions = util.unitize(ray_directions)
 
         # since we are constructing all hits, save them to a deque then
@@ -199,8 +202,10 @@ class RayMeshIntersector:
         triangle_index: (n,) int, index of triangle ray hit, or -1 if not hit
         """
 
-        ray_origins = np.asanyarray(deepcopy(ray_origins), dtype=np.float64)
-        ray_directions = np.asanyarray(ray_directions, dtype=np.float64)
+        ray_origins = np.asanyarray(deepcopy(ray_origins),
+                                    dtype=np.float32)
+        ray_directions = np.asanyarray(ray_directions,
+                                       dtype=np.float32)
 
         triangle_index = self._scene.run(ray_origins, ray_directions)
         return triangle_index
