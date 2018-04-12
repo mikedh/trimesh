@@ -15,8 +15,8 @@ RUN apk add --no-cache python3 && \
 RUN pip3 install --no-cache-dir --upgrade pip setuptools
 
 # run all the built stuff
-COPY build.sh /tmp/
-RUN ash /tmp/build.sh
+COPY builds /tmp/builds
+RUN ash /tmp/builds/build.sh
 
 # copy over our python requirements
 COPY requirements.txt /tmp/
