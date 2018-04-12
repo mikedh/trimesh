@@ -21,6 +21,7 @@ if platform.system() == 'Windows':
 if platform.system() == 'Darwin':
     _search_path = [i for i in _search_path.split(':') if len(i) > 0]
     _search_path.append('/Applications/blender.app/Contents/MacOS')
+    _search_path.append('/Applications/Blender/blender.app/Contents/MacOS')
     _search_path = ':'.join(_search_path)
     log.debug('searching for blender in: %s', _search_path)
     log.warning('searching for blender in: %s', _search_path)
