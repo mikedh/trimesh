@@ -27,8 +27,9 @@ _ray_offset_floor = 1e-8
 
 # see if we're using a newer version of the pyembree wrapper
 _embree_new = parse_version(_ver) >= parse_version('0.1.4')
-# both old and new versions require the correct different type
+# both old and new versions require exact but different type
 _embree_dtype = [np.float64, np.float32][int(_embree_new)]
+
 
 class RayMeshIntersector:
 
@@ -42,8 +43,10 @@ class RayMeshIntersector:
         A cached version of the pyembree scene.
         """
         scene = rtcore_scene.EmbreeScene()
-        mesh = TriangleMesh(scene,
-                            self.mesh.triangles.astype(_embree_dtype))
+        mesh = TriangleMesh(
+            scene=scene,
+            vertices=self.mesh.vertices.astype(_embree_dtype),
+            indices=self.mesh.faces.astype(_embree_dtype))
         return scene
 
     def intersects_location(self,
