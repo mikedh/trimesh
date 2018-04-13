@@ -7,8 +7,11 @@ import numpy as np
 from collections import deque
 from copy import deepcopy
 
+from pyembree import __version__ as _ver
 from pyembree import rtcore_scene
 from pyembree.mesh_construction import TriangleMesh
+
+from pkg_resources import parse_version
 
 from .ray_util import contains_points
 
@@ -22,6 +25,10 @@ _ray_offset_factor = 1e-4
 # for very small meshes, we want to clip our offset to a sane distance
 _ray_offset_floor = 1e-8
 
+# see if we're using a newer version of the pyembree wrapper
+_embree_new = parse_version(_ver) >= parse_version('0.1.4')
+# both old and new versions require the correct different type
+_embree_dtype = [np.float64, np.float32][int(_embree_new)]
 
 class RayMeshIntersector:
 
@@ -36,7 +43,7 @@ class RayMeshIntersector:
         """
         scene = rtcore_scene.EmbreeScene()
         mesh = TriangleMesh(scene,
-                            self.mesh.triangles.astype(np.float32))
+                            self.mesh.triangles.astype(_embree_dtype))
         return scene
 
     def intersects_location(self,
@@ -90,11 +97,11 @@ class RayMeshIntersector:
         index_ray: (m,) int, index of ray
         locations: (m,3) float, locations in space
         """
-        # make sure input is float32 for embree
+        # make sure input is _dtype for embree
         ray_origins = np.asanyarray(deepcopy(ray_origins),
-                                    dtype=np.float32)
+                                    dtype=_embree_dtype)
         ray_directions = np.asanyarray(ray_directions,
-                                       dtype=np.float32)
+                                       dtype=_embree_dtype)
         ray_directions = util.unitize(ray_directions)
 
         # since we are constructing all hits, save them to a deque then
@@ -203,9 +210,9 @@ class RayMeshIntersector:
         """
 
         ray_origins = np.asanyarray(deepcopy(ray_origins),
-                                    dtype=np.float32)
+                                    dtype=_embree_dtype)
         ray_directions = np.asanyarray(ray_directions,
-                                       dtype=np.float32)
+                                       dtype=_embree_dtype)
 
         triangle_index = self._scene.run(ray_origins, ray_directions)
         return triangle_index

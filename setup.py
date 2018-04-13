@@ -72,5 +72,6 @@ setup(name = 'trimesh',
                                        'msgpack',
                                        'python-fcl',
                                        'colorlog',
-                                       'xxhash']}
+                                       'xxhash',
+                                       'setuptools']}
   )
