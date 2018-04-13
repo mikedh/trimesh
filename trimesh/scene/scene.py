@@ -478,7 +478,7 @@ class Scene:
 
         Parameters
         -----------
-        resultion: (2,) int, resolution to render image
+        resolution: (2,) int, resolution to render image
         **kwargs:  passed to SceneViewer constructor
 
         Returns
