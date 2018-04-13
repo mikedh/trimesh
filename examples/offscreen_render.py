@@ -15,24 +15,25 @@ if __name__ == '__main__':
     # scene = trimesh.scene.Scene(mesh)
     scene = mesh.scene()
 
-    rotate = trimesh.transformations.rotation_matrix(np.radians(45.0), [0,1,0], 
-                                                     scene.centroid)    
+    rotate = trimesh.transformations.rotation_matrix(np.radians(45.0), [0,1,0],
+                                                     scene.centroid)
     for i in range(4):
         trimesh.constants.log.info('Saving image %d', i)
-        
+
         # rotate the camera view transform
         camera_old, _geometry = scene.graph['camera']
         camera_new = np.dot(camera_old, rotate)
 
         # apply the new transform
         scene.graph['camera'] = camera_new
-    
-        # increment the file name
-        file_name = 'render_' + str(i) + '.png'
 
         # saving an image requires an opengl context, so if -nw
         # is passed don't save the image
         if not '-nw' in sys.argv:
+            # increment the file name
+            file_name = 'render_' + str(i) + '.png'
             # save a render of the object as a png
-            scene.save_image(file_name,
-                             resolution=np.array([1920,1080])*2)
+            png = scene.save_image(resolution=[1920, 1080], visible=True)
+            with open(file_name, 'wb') as f:
+                f.write(png)
+                f.close()
