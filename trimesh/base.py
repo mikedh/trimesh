@@ -2146,7 +2146,7 @@ class Trimesh(object):
         copied._density = self._density
 
         # make sure cache is set from here
-        copied._cache.id_set()
+        copied._cache.clear()
 
         return copied
 

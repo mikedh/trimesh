@@ -62,9 +62,11 @@ class MeshTests(g.unittest.TestCase):
             g.log.info('Attempting to copy mesh %d times', copy_count)
             for i in range(copy_count):
                 copied = mesh.copy()
+                assert copied.is_empty == mesh.is_empty
                 #t = copied.triangles_tree
                 c = copied.kdtree
-                copied.apply_transform(g.trimesh.transformations.rotation_matrix(
+                copied.apply_transform(
+                    g.trimesh.transformations.rotation_matrix(
                     g.np.degrees(i),
                     [0, 1, 1]))
             g.log.info('Multiple copies done')
