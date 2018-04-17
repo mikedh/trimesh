@@ -90,6 +90,10 @@ def hashable_rows(data, digits=None):
     hashable:  (n) length array of custom data which can be sorted
                 or used as hash keys
     """
+    # if there is no data return immediatly
+    if len(data) == 0:
+        return np.array([])
+
     # get array as integer to precision we care about
     as_int = float_to_int(data, digits=digits)
 

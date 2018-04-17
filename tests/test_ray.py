@@ -136,6 +136,19 @@ class RayTests(g.unittest.TestCase):
             assert len(g.np.unique(index_triangles)) > 2
 
 
+    def test_edge(self):
+        # Load 3D object
+        mesh = g.get_mesh("teapot.stl", use_embree=False)
+
+        # sample a grid of points
+        points = mesh.bounding_box.sample_grid(step=2.0)
+        results = mesh.ray.contains_points(points)
+        assert g.trimesh.util.is_shape(results, (-1,3))
+
+        # not contained and should surface a bug
+        for point in mesh.bounding_box.vertices:
+            mesh.ray.contains_points([point])
+            
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()
