@@ -125,26 +125,30 @@ class RayTests(g.unittest.TestCase):
 
             # Perform 256 * 256 raycasts, one for each pixel on the image
             # plane. We only want the 'first' hit.
-            index_triangles, index_ray = cube_mesh.ray.intersects_id(ray_origins=ray_origins,
-                                                                     ray_directions=ray_directions,
-                                                                     multiple_hits=False)
+            index_triangles, index_ray = cube_mesh.ray.intersects_id(
+                ray_origins=ray_origins,
+                ray_directions=ray_directions,
+                multiple_hits=False)
             assert len(g.np.unique(index_triangles)) == 2
 
-            index_triangles, index_ray = cube_mesh.ray.intersects_id(ray_origins=ray_origins,
-                                                                     ray_directions=ray_directions,
-                                                                     multiple_hits=True)
+            index_triangles, index_ray = cube_mesh.ray.intersects_id(
+                ray_origins=ray_origins,
+                ray_directions=ray_directions,
+                multiple_hits=True)
             assert len(g.np.unique(index_triangles)) > 2
 
 
-    def test_edge(self):
-        # Load 3D object
+    def test_contain_single(self):
+        # not watertight
         mesh = g.get_mesh("teapot.stl", use_embree=False)
 
-        # sample a grid of points
+        # sample a grid of points (n,3)
         points = mesh.bounding_box.sample_grid(step=2.0)
-        results = mesh.ray.contains_points(points)
-        assert g.trimesh.util.is_shape(results, (-1,3))
+        # to a contains check on every point
+        contained = mesh.ray.contains_points(points)
 
+        assert len(points) == len(contained)
+        
         # not contained and should surface a bug
         for point in mesh.bounding_box.vertices:
             mesh.ray.contains_points([point])
