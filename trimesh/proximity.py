@@ -43,8 +43,8 @@ def nearby_faces(mesh, points):
     # a kd-tree containing every vertex of the mesh
     kdtree = mesh.kdtree
 
-    # find the distance to each vertex to create an axis aligned bounding box
-    distance_vertex = np.abs(points - mesh.vertices[kdtree.query(points)[1]])
+    # query the distance to the nearest vertex to get AABB of a sphere
+    distance_vertex = kdtree.query(points)[0].reshape((-1,1))
     distance_vertex += tol.merge
 
     # axis aligned bounds
