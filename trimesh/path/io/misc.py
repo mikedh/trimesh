@@ -128,7 +128,7 @@ def linestrings_to_path(multi):
             'vertices': np.array(vertices)}
 
 
-def faces_to_path(mesh, face_ids=None):
+def faces_to_path(mesh, face_ids=None, **kwargs):
     """
     Given a mesh and face indices find the outline edges and
     turn them into a Path3D.
@@ -154,12 +154,12 @@ def faces_to_path(mesh, face_ids=None):
                                        require_count=1)
 
     # generate path traversals from the edges
-    kwargs = edges_to_path(edges=edges[unique_edges],
-                           vertices=mesh.vertices)
+    kwargs.update(edges_to_path(edges=edges[unique_edges],
+                                vertices=mesh.vertices))
     return kwargs
 
 
-def edges_to_path(edges, vertices):
+def edges_to_path(edges, vertices, **kwargs):
     """
     Given an edge list of indices and associated vertices
     representing lines, generate kwargs for a Path object.
@@ -176,6 +176,6 @@ def edges_to_path(edges, vertices):
     # sequence of ordered traversals
     dfs = graph.dfs_traversals(edges)
 
-    kwargs = {'entities': [Line(d) for d in dfs],
-              'vertices': vertices}
+    kwargs.update({'entities': [Line(d) for d in dfs],
+                   'vertices': vertices})
     return kwargs

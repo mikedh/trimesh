@@ -1791,7 +1791,7 @@ class Trimesh(object):
                                     max_iter=max_iter)
         return voxelized
 
-    def outline(self, face_ids=None):
+    def outline(self, face_ids=None, **kwargs):
         """
         Given a set of face ids, find the outline of the faces,
         and return it as a Path3D.
@@ -1814,7 +1814,9 @@ class Trimesh(object):
         from .path.io.misc import faces_to_path
         from .path.io.load import _create_path
 
-        path = _create_path(**faces_to_path(self, face_ids))
+        path = _create_path(**faces_to_path(self,
+                                            face_ids,
+                                            **kwargs))
         return path
 
     @util.cache_decorator
