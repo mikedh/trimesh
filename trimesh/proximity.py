@@ -16,7 +16,7 @@ from collections import deque
 
 def nearby_faces(mesh, points):
     """
-    For each point find nearby faces relativly quickly.
+    For each point find nearby faces relatively quickly.
 
     The closest point on the mesh to the queried point is guaranteed to be
     on one of the faces listed.
@@ -44,7 +44,7 @@ def nearby_faces(mesh, points):
     kdtree = mesh.kdtree
 
     # find the distance to each vertex to create an axis aligned bounding box
-    distance_vertex = np.abs(points - mesh.vertices[kdtree.query(points)[1]])
+    distance_vertex = kdtree.query(points)[0]
     distance_vertex += tol.merge
 
     # axis aligned bounds
