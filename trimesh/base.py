@@ -1807,6 +1807,8 @@ class Trimesh(object):
         face_ids: (n) int, list of indices for self.faces to
                   compute the outline of.
                   If None, outline of full mesh will be computed.
+        **kwargs: passed to Path3D constructor
+
         Returns
         ----------
         path:     Path3D object of the outline

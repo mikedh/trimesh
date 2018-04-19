@@ -57,7 +57,7 @@ class RayMeshIntersector:
                                       triangles_normal=self.mesh.face_normals)
         if return_locations:
             if len(index_tri) == 0:
-                return index_tri, index_ray, locations  
+                return index_tri, index_ray, locations
             unique = grouping.unique_rows(np.column_stack((locations,
                                                            index_ray)))[0]
             return index_tri[unique], index_ray[unique], locations[unique]

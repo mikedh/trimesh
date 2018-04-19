@@ -485,7 +485,7 @@ class Path(object):
         -------
         self.entities: length same or shorter
         """
-        entity_hashes = np.array([i.hash for i in self.entities])
+        entity_hashes = np.array([hash(i) for i in self.entities])
         unique, inverse = grouping.unique_rows(entity_hashes)
         if len(unique) != len(self.entities):
             self.entities = np.array(self.entities)[unique]

@@ -343,7 +343,8 @@ def simplify_basic(drawing):
     simplified = type(drawing)(
         entities=entities_new,
         vertices=vertices_new,
-        metadata=copy.deepcopy(drawing.metadata))
+        metadata=copy.deepcopy(drawing.metadata),
+        process=False)
     # we have changed every path to a single closed entity
     # either a closed arc, or a closed line
     # so all closed paths are now represented by a single entity

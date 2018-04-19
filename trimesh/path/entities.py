@@ -14,6 +14,7 @@ from .arc import discretize_arc, arc_center
 from .curve import discretize_bezier, discretize_bspline
 
 from .. import util
+from .. import caching
 
 _HASH_LENGTH = 5
 
@@ -31,30 +32,6 @@ class Entity(object):
             self.closed = closed
         self.layer = layer
         self.kwargs = kwargs
-
-    @property
-    def _class_id(self):
-        """
-        Return an integer that is unique to the class type.
-        Note that this implementation will fail if a class is defined
-        that starts with the same letter as an existing class.
-        Since this function is called a lot, it is a tradeoff between
-        speed and robustness where speed won.
-        """
-        return ord(self.__class__.__name__[0])
-
-    @property
-    def hash(self):
-        """
-        Returns a string unique to the entity.
-        If two identical entities exist, they can be removed
-        by comparing the string returned by this function.
-        """
-        hash = np.zeros(_HASH_LENGTH, dtype=np.int)
-        hash[-2:] = self._class_id, int(self.closed)
-        points_count = np.min([3, len(self.points)])
-        hash[0:points_count] = np.sort(self.points)[-points_count:]
-        return hash
 
     def to_dict(self):
         """
@@ -166,6 +143,20 @@ class Entity(object):
         """
         return copy.deepcopy(self)
 
+    def __hash__(self):
+        """
+        Return a CRC32 that represents the current entity.
+
+        Returns
+        ----------
+        hashed: int, CRC32 of current class name, points, and closed
+        """
+        hashable = (self.__class__.__name__.encode('utf-8') +
+                    self.points.tobytes() +
+                    bytes(self.closed))
+        hashed = caching.crc32(hashable)
+        return hashed
+
 
 class Line(Entity):
     """
@@ -251,13 +242,12 @@ class Arc(Entity):
 
         Parameters
         -------------
-        vertices: (n,dimension) float, vertices in space
+        vertices: (n, dimension) float, vertices in space
 
         Returns
         -------------
-        info: dict, with keys:
-                            'radius'
-                            'center'
+        info: dict, with keys: 'radius'
+                               'center'
         """
         info = arc_center(vertices[self.points])
         return info
@@ -293,10 +283,6 @@ class Arc(Entity):
 
 
 class Curve(Entity):
-
-    @property
-    def _class_id(self):
-        return sum([ord(i) for i in self.__class__.__name__])
 
     @property
     def nodes(self):

@@ -44,7 +44,7 @@ def nearby_faces(mesh, points):
     kdtree = mesh.kdtree
 
     # query the distance to the nearest vertex to get AABB of a sphere
-    distance_vertex = kdtree.query(points)[0].reshape((-1,1))
+    distance_vertex = kdtree.query(points)[0].reshape((-1, 1))
     distance_vertex += tol.merge
 
     # axis aligned bounds
