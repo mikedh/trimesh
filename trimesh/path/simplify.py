@@ -289,7 +289,7 @@ def three_point(indices):
     return np.asanyarray(three)
 
 
-def simplify_basic(drawing):
+def simplify_basic(drawing, process=False, **kwargs):
     """
     Merge colinear segments and fit circles.
 
@@ -336,6 +336,9 @@ def simplify_basic(drawing):
             points = merge_colinear(discrete, scale=scale)
             # references for new vertices
             indexes = np.arange(len(points)) + len(vertices_new)
+            # discrete curves are always closed
+            indexes[-1] = indexes[0]
+            # append new vertices and entity
             entities_new.append(entities.Line(points=indexes))
             vertices_new.extend(points)
 
@@ -344,7 +347,7 @@ def simplify_basic(drawing):
         entities=entities_new,
         vertices=vertices_new,
         metadata=copy.deepcopy(drawing.metadata),
-        process=False)
+        process=process)
     # we have changed every path to a single closed entity
     # either a closed arc, or a closed line
     # so all closed paths are now represented by a single entity

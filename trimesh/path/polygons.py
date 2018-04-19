@@ -75,7 +75,6 @@ def edges_to_polygons(edges, vertices):
 
     # create closed polygon objects
     polygons = []
-
     # loop through a sequence of ordered traversals
     for dfs in graph.dfs_traversals(edges):
         try:

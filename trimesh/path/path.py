@@ -903,7 +903,7 @@ class Path2D(Path):
             return np.array(path_ids)
         return np.setdiff1d(path_ids, [path_id])
 
-    def simplify(self):
+    def simplify(self, **kwargs):
         """
         Return a version of the current path with colinear segments
         merged, and circles entities replacing segmented circular paths.
@@ -912,7 +912,7 @@ class Path2D(Path):
         ---------
         simplified: Path2D object
         """
-        return simplify.simplify_basic(self)
+        return simplify.simplify_basic(self, **kwargs)
 
     def simplify_spline(self, path_indexes=None, smooth=.0002):
         """
