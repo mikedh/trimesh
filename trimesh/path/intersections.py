@@ -4,7 +4,9 @@ from ..util import three_dimensionalize, unitize
 from ..constants import tol_path as tol
 
 
-def line_line(origins, directions):
+def line_line(origins,
+              directions,
+              plane_normal=None):
     """
     Find the intersection between two lines.
     Uses terminology from:
@@ -15,8 +17,9 @@ def line_line(origins, directions):
 
     Parameters
     ---------
-    origins:    (2,d) list of points on lines (d in [2,3])
-    directions: (2,d) list of direction vectors
+    origins:      (2, d) float, points on lines (d in [2,3])
+    directions:   (2, d) float, direction vectors
+    plane_normal: (3, ) float, if not passed computed from cross
 
     Returns
     ---------
@@ -26,12 +29,17 @@ def line_line(origins, directions):
     intersection: if intersects: (d) length point of intersection
                   else:          None
     """
-
+    # check so we can accept 2D or 3D points
     is_2D, origins = three_dimensionalize(origins)
     is_2D, directions = three_dimensionalize(directions)
-    directions = unitize(directions)
 
-    if np.sum(np.abs(np.diff(directions, axis=0))) < tol.zero:
+    # unitize direction vectors
+    directions /= np.linalg.norm(directions,
+                                 axis=1).reshape((-1, 1))
+
+    # exit if values are parallel
+    if np.sum(np.abs(np.diff(directions,
+                             axis=0))) < tol.zero:
         return False, None
 
     # using notation from docstring
@@ -39,10 +47,15 @@ def line_line(origins, directions):
     v, u = directions
     w = p_0 - q_0
 
-    # the normal of the plane given by the two direction vectors
-    plane_normal = unitize(np.cross(u, v))
+    # recompute plane normal if not passed
+    if plane_normal is None:
+        # the normal of the plane given by the two direction vectors
+        plane_normal = np.cross(u, v)
+        plane_normal /= np.linalg.norm(plane_normal)
+
     # vectors perpendicular to the two lines
-    v_perp = unitize(np.cross(v, plane_normal))
+    v_perp = np.cross(v, plane_normal)
+    v_perp /= np.linalg.norm(v_perp)
 
     # if the vector from origin to origin is on the plane given by
     # the direction vector, the dot product with the plane normal

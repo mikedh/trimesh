@@ -11,7 +11,7 @@ def arc_center(points):
     """
     Given three points of an arc, find the center, radius, normal, and angle.
 
-    This uses the fact that the intersection of the perpendicular
+    This uses the fact that the intersection of the perp
     bisectors of the segments between the control points is the center of the arc.
 
     Parameters
@@ -35,17 +35,32 @@ def arc_center(points):
     edge_midpoints = (edge_direction * .5) + points[0:2]
 
     # three points define a plane, so we find its normal vector
-    plane_normal = unitize(np.cross(*edge_direction[::-1]))
-    vector_edge = unitize(edge_direction)
-    vector_perpendicular = unitize(np.cross(vector_edge, plane_normal))
+    plane_normal = np.cross(*edge_direction[::-1])
+    plane_normal /= np.linalg.norm(plane_normal)
 
-    intersects, center = line_line(edge_midpoints, vector_perpendicular)
+    # unit vector along edges
+    vector_edge = (edge_direction /
+                   np.linalg.norm(edge_direction, axis=1).reshape((-1, 1)))
+
+    # perpendicular cector to each segment
+    vector_perp = np.cross(vector_edge, plane_normal)
+    vector_perp /= np.linalg.norm(vector_perp, axis=1).reshape((-1, 1))
+
+    # run the line- line intersection to find the point
+    intersects, center = line_line(origins=edge_midpoints,
+                                   directions=vector_perp,
+                                   plane_normal=plane_normal)
 
     if not intersects:
         raise ValueError('Segments do not intersect!')
 
-    radius = euclidean(points[0], center)
-    vector = unitize(points - center)
+    # radius is euclidean distance
+    radius = ((points[0] - center) ** 2).sum() ** .5
+
+    # vectors from points on arc to center point
+    vector = points - center
+    vector /= np.linalg.norm(vector, axis=1).reshape((-1, 1))
+
     angle = np.arccos(np.clip(np.dot(*vector[[0, 2]]), -1.0, 1.0))
     large_arc = (abs(angle) > tol.zero and
                  np.dot(*edge_direction) < 0.0)
