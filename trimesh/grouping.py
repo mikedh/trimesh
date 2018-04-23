@@ -457,18 +457,38 @@ def group_vectors(vectors,
 
 
 def group_distance(values, distance):
-    consumed = np.zeros(len(values), dtype=np.bool)
+    """
+    Find groups of points which have neighbours closer than radius,
+    where no two points in a group are farther than distance apart.
+
+    Parameters
+    ---------
+    points:   (n, d) points (of dimension d)
+    distance: max distance between points in a cluster
+
+    Returns
+    ----------
+    unique: (m, d), median value of group
+    groups: (m)     sequence of indexes
+
+    """
+    values = np.asanyarray(values,
+                           dtype=np.float64)
+
+    consumed = np.zeros(len(values),
+                        dtype=np.bool)
     tree = KDTree(values)
 
     # (n, d) set of values that are unique
-    unique = deque()
+    unique = []
     # (n) sequence of indicies in values
-    groups = deque()
+    groups = []
 
     for index, value in enumerate(values):
         if consumed[index]:
             continue
-        group = np.array(tree.query_ball_point(value, distance), dtype=np.int)
+        group = np.array(tree.query_ball_point(value, distance),
+                         dtype=np.int)
         consumed[group] = True
         unique.append(np.median(values[group], axis=0))
         groups.append(group)

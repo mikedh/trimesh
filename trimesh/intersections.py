@@ -129,15 +129,17 @@ def mesh_plane(mesh,
         assert valid.all()
         return intersections.reshape((-1, 2, 3))
 
-    plane_normal = np.asanyarray(plane_normal)
-    plane_origin = np.asanyarray(plane_origin)
+    plane_normal = np.asanyarray(plane_normal, dtype=np.float64)
+    plane_origin = np.asanyarray(plane_origin, dtype=np.float64)
+
     if plane_origin.shape != (3,) or plane_normal.shape != (3,):
         raise ValueError('Plane origin and normal must be (3,)!')
 
     # dot product of each vertex with the plane normal, indexed by face
     # so for each face the dot product of each vertex is a row
     # shape is the same as mesh.faces (n,3)
-    dots = np.dot(plane_normal, (mesh.vertices - plane_origin).T)[mesh.faces]
+    dots = np.dot(plane_normal,
+                  (mesh.vertices - plane_origin).T)[mesh.faces]
 
     # sign of the dot product is -1, 0, or 1
     # shape is the same as mesh.faces (n,3)

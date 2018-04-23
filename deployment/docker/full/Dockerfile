@@ -1,4 +1,4 @@
-from debian:jessie
+from debian:jessie-slim
 
 # add conda and our env to path
 ENV PATH /opt/conda/envs/docker-environment/bin:$PATH

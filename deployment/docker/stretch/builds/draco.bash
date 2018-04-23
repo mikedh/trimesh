@@ -1,4 +1,5 @@
 # install draco, google's mesh compression utility
+# requires cmake
 mkdir /tmp/draco_build
 git clone http://github.com/google/draco.git /tmp/draco
 cd /tmp/draco

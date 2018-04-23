@@ -1,25 +1,17 @@
+cd
 wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh  --no-check-certificate --quiet -O miniconda.sh
-bash miniconda.sh -b -p /opt/conda
+bash miniconda.sh -b -p ~/conda
 rm miniconda.sh
 
-export PATH="/opt/conda/bin:$PATH"
+export PATH="~/conda/bin:$PATH"
 conda config --set always_yes yes --set changeps1 no
-conda create -q -n docker-environment python=3.5
-source activate docker-environment
+conda create -q -n denv python=3.6
 
-# make sure pip is the latest
+# make sure pip/conda is the latest
 pip install --upgrade pip
 conda update -n base conda
 
 conda config --add channels conda-forge  # rtree, shapely, pyembree
-conda config --add channels menpo        # cyassimp
-
-# some trimesh ops are 2-3x slower with MKL
-conda install nomkl
-
-# cyassimp is a much faster binding for the assimp importers
-# they use non- standard labels, master vs main
-conda install -c menpo/label/master cyassimp
 
 # scikit-image is used for marching cubes
 conda install -c conda-forge scikit-image
@@ -28,7 +20,7 @@ conda install -c conda-forge scikit-image
 conda install -c conda-forge pyembree
 
 # install most trimesh requirements with built components 
-conda install -c conda-forge shapely rtree numpy scipy
+#conda install -c conda-forge shapely rtree numpy scipy
 
 # remove archives
 conda clean --all -y
