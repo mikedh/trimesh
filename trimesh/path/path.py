@@ -27,6 +27,7 @@ from .. import caching
 from .. import grouping
 from .. import transformations
 
+from . import raster
 from . import simplify
 from . import entities
 from . import polygons
@@ -733,6 +734,37 @@ class Path2D(Path):
             return matrix
         else:
             raise ValueError('Not implemented for multibody geometry')
+
+    def rasterize(self,
+                  pitch,
+                  origin,
+                  resolution,
+                  fill=True,
+                  width=None,
+                  **kwargs):
+        """
+        Rasterize a Path2D object into a boolean image ("mode 1").
+
+        Parameters
+        ------------
+        path:       Path2D object
+        pitch:      float, length in model space of a pixel edge
+        origin:     (2,) float, origin position in model space
+        resolution: (2,) int, resolution in pixel space
+        fill:       bool, if True will return closed regions as filled
+        width:      int, if not None will draw outline this wide (pixels)
+
+        Returns
+        ------------
+        raster: PIL.Image object, mode 1
+        """
+        image = raster.rasterize(self,
+                                 pitch=pitch,
+                                 origin=origin,
+                                 resolution=resolution,
+                                 fill=fill,
+                                 width=width)
+        return image
 
     @property
     def body_count(self):
