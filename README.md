@@ -8,11 +8,17 @@ The API is mostly stable, but this should not be relied on and is not guaranteed
 ## Basic Installation
 
 
-The minimal requirements for trimesh are
+The minimal requirements to import trimesh are
 [numpy](http://www.numpy.org/), [scipy](http://www.scipy.org) and
-[networkx](https://networkx.github.io). Installing other packages mentioned adds functionality but is not required.
+[networkx](https://networkx.github.io). Installing other packages mentioned adds functionality but is **not required**.
 
-The easiest and recommended way to get the most functionality out of Trimesh is to install a [conda environment](https://conda.io/miniconda.html), then:
+For the easiest install with only these minimal dependencies (slower ray queries, no vector path handling, mesh creation, viewer, etc):
+
+```bash
+pip install trimesh
+```
+
+For more functionality, the easiest way to get a full Trimesh install is a [conda environment](https://conda.io/miniconda.html):
 
 ```bash
 # install modules for spatial indexing and  polygon manipulation
@@ -26,15 +32,8 @@ conda install -c conda-forge pyembree
 # install Trimesh and soft dependencies that are easy to install
 # these generally install cleanly on Linux, Windows, and OSX
 pip install trimesh[easy]
-
 ```
  
-Or, for the easiest install with only **minimal dependencies** (slower ray queries, no vector path handling, mesh creation, viewer, etc):
-
-```bash
-pip install trimesh
-```
-
 Further information is available in the [advanced installation documentation](http://trimesh.readthedocs.io/en/latest/install.html).
 
 ## Quick Start
@@ -162,6 +161,6 @@ Trimesh includes an optional pyglet- based viewer for debugging/inspecting. In t
 
 ## Containers
    
-If you want to deploy something in a container that uses trimesh, automated builds containing trimesh and its dependencies are available on Dcker Hub:
+If you want to deploy something in a container that uses trimesh, automated builds containing trimesh and its dependencies are available on Docker Hub:
 
 `docker pull mikedh/trimesh`
