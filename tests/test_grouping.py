@@ -86,6 +86,13 @@ class GroupTests(g.unittest.TestCase):
         self.assertTrue(r.size == 12)
         self.assertTrue(u.size == 11)
 
+    def test_cluster(self):
+        a = (g.np.random.random((10000, 3)) * 5).astype(int)
+
+        r = g.trimesh.grouping.clusters(a, .01)
+
+        r = g.trimesh.grouping.group_distance(a, .01)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

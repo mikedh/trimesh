@@ -67,8 +67,8 @@ class MeshTests(g.unittest.TestCase):
                 c = copied.kdtree
                 copied.apply_transform(
                     g.trimesh.transformations.rotation_matrix(
-                    g.np.degrees(i),
-                    [0, 1, 1]))
+                        g.np.degrees(i),
+                        [0, 1, 1]))
             g.log.info('Multiple copies done')
 
             if not g.np.allclose(copied.identifier,

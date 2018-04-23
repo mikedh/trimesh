@@ -137,7 +137,6 @@ class RayTests(g.unittest.TestCase):
                 multiple_hits=True)
             assert len(g.np.unique(index_triangles)) > 2
 
-
     def test_contain_single(self):
         # not watertight
         mesh = g.get_mesh("teapot.stl", use_embree=False)
@@ -148,11 +147,11 @@ class RayTests(g.unittest.TestCase):
         contained = mesh.ray.contains_points(points)
 
         assert len(points) == len(contained)
-        
+
         # not contained and should surface a bug
         for point in mesh.bounding_box.vertices:
             mesh.ray.contains_points([point])
-            
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()

@@ -510,9 +510,10 @@ def clusters(points, radius):
 
     """
     from . import graph
-
     tree = KDTree(points)
-    pairs = tree.query_pairs(radius)
+
+    # some versions return pairs as a set of tuples
+    pairs = list(tree.query_pairs(radius))
     groups = graph.connected_components(pairs)
 
     return groups

@@ -1,11 +1,13 @@
 import generic as g
 
+
 class RasterTest(g.unittest.TestCase):
-    def test_rasterize(self):        
+
+    def test_rasterize(self):
         p = g.get_mesh('2D/wrench.dxf')
 
         origin = p.bounds[0]
-        pitch =  p.extents.max() / 600
+        pitch = p.extents.max() / 600
         resolution = g.np.ceil(p.extents / pitch).astype(int)
 
         # rasterize with filled
@@ -14,14 +16,14 @@ class RasterTest(g.unittest.TestCase):
                              resolution=resolution,
                              fill=True,
                              width=None)
-        
+
         # rasterize just the outline
         outline = p.rasterize(origin=origin,
                               pitch=pitch,
                               resolution=resolution,
                               fill=False,
                               width=2.0)
-        
+
         # rasterize both
         both = p.rasterize(origin=origin,
                            pitch=pitch,
@@ -29,7 +31,7 @@ class RasterTest(g.unittest.TestCase):
                            fill=True,
                            width=2.0)
 
-        # count the number of filled pixels 
+        # count the number of filled pixels
         fill_cnt = g.np.array(filled).sum()
         both_cnt = g.np.array(both).sum()
         outl_cnt = g.np.array(outline).sum()
@@ -40,7 +42,7 @@ class RasterTest(g.unittest.TestCase):
         assert both_cnt > outl_cnt
         # filled+outline should have more than filled
         assert both_cnt > fill_cnt
-                
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
