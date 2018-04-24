@@ -4,23 +4,25 @@ MAINTAINER Michael Dawson-Haggerty <mikedh@kerfed.com>
 COPY builds/apt.bash /tmp/
 RUN bash /tmp/apt.bash
 
-# build draco and libspatialindex
+# build draco
 COPY builds/draco.bash /tmp/
-COPY builds/spatialindex.bash /tmp/
 COPY builds/builds.bash /tmp/
 RUN bash /tmp/builds.bash
 
 # XVFB in background if you start supervisor
 COPY config/xvfb.supervisord.conf /etc/supervisor/conf.d/
 
-# switch out of root to install python env
+# switch out of root 
 RUN useradd -m -s /bin/bash user
 USER user
+
+# install a conda env
 COPY builds/conda.bash /tmp/
 RUN bash /tmp/conda.bash
-ENV PATH="/home/user/conda/bin:$PATH"
+
+# install python requirements
 COPY config/requirements.txt /tmp/
-RUN pip install -r /tmp/requirements.txt
+RUN /home/user/conda/bin/pip install -r /tmp/requirements.txt
 
 # add user python to path 
 ENV PATH="/home/user/conda/bin:$PATH"

@@ -40,7 +40,7 @@ class SceneViewer(pyglet.window.Window):
             # if you have a graphics card this will probably work
             conf = gl.Config(sample_buffers=1,
                              samples=4,
-                             depth_size=16,
+                             depth_size=24,
                              double_buffer=True)
             super(SceneViewer, self).__init__(config=conf,
                                               visible=visible,
@@ -154,6 +154,10 @@ class SceneViewer(pyglet.window.Window):
         max_depth = (np.abs(self.scene.bounds).max(axis=1) ** 2).sum() ** .5
         max_depth = np.clip(max_depth, 500.00, np.inf)
         gl.glDepthRange(0.0, max_depth)
+
+        gl.glClearDepth(1.0)
+        gl.glEnable(gl.GL_DEPTH_TEST)
+        gl.glDepthFunc(gl.GL_LEQUAL)
 
         gl.glEnable(gl.GL_DEPTH_TEST)
         gl.glEnable(gl.GL_CULL_FACE)
