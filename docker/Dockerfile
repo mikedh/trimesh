@@ -1,14 +1,19 @@
 FROM debian:stretch-slim
+MAINTAINER Michael Dawson-Haggerty <mikedh@kerfed.com>
 
 COPY builds/apt.bash /tmp/
 RUN bash /tmp/apt.bash
 
+# build draco and libspatialindex
 COPY builds/draco.bash /tmp/
 COPY builds/spatialindex.bash /tmp/
 COPY builds/builds.bash /tmp/
 RUN bash /tmp/builds.bash
 
-# switch out of root space to install python env
+# XVFB in background if you start supervisor
+COPY config/xvfb.supervisord.conf /etc/supervisor/conf.d/
+
+# switch out of root to install python env
 RUN useradd -m -s /bin/bash user
 USER user
 COPY builds/conda.bash /tmp/
@@ -17,23 +22,11 @@ ENV PATH="/home/user/conda/bin:$PATH"
 COPY config/requirements.txt /tmp/
 RUN pip install -r /tmp/requirements.txt
 
-COPY . /home/user/mf
+# add user python to path 
+ENV PATH="/home/user/conda/bin:$PATH"
 
-# back to root for supervisor
-USER root
-COPY config/xvfb.supervisord.conf /etc/supervisor/conf.d/
-
-# Setup our environment variables.
+# environment variables for software rendering
 ENV XVFB_WHD="1920x1080x24"\
     DISPLAY=":99" \
     LIBGL_ALWAYS_SOFTWARE="1" \
-    GALLIUM_DRIVER="llvmpipe" \
-    #GALLIUM_DRIVER="swr" \
-    LP_NO_RAST="false" \
-    LP_DEBUG="" \
-    LP_PERF="" \
-    LP_NUM_THREADS=""
-
-# run the default supervisord.conf
-# it will run all of the things in conf.d
-CMD ["supervisord", "-c", "/etc/supervisor/supervisord.conf"]
+    GALLIUM_DRIVER="llvmpipe"

@@ -1,3 +1,5 @@
+set -xe
+
 # install draco, google's mesh compression utility
 # requires cmake
 mkdir /tmp/draco_build

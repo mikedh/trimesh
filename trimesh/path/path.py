@@ -430,9 +430,10 @@ class Path(object):
         self.entities: entity.points re- referenced
         self.vertices: duplicates removed
         """
-        digits = util.decimal_to_digits(tol.merge * self.scale, min_digits=1)
-        unique, inverse = grouping.unique_rows(self.vertices, digits=digits)
-
+        digits = util.decimal_to_digits(tol.merge * self.scale,
+                                        min_digits=1)
+        unique, inverse = grouping.unique_rows(self.vertices,
+                                               digits=digits)
         self.vertices = self.vertices[unique]
         for entity in self.entities:
             # if we merged duplicate vertices, the entity may contain

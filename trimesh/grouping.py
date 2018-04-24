@@ -191,7 +191,9 @@ def unique_ordered(data):
 
 def merge_runs(data, digits=None):
     """
-    Merge duplicate sequential values.
+    Merge duplicate sequential values. This differs from unique_ordered
+    in that values can occur in multiple places in the sequence, but
+    only consecutive repeats are removed
 
     Parameters
     -----------
@@ -213,11 +215,10 @@ def merge_runs(data, digits=None):
     Out[2]: array([-1,  0,  1,  2,  0,  3,  4,  5,  6,  7,  8,  9])
     """
     data = np.asanyarray(data)
-    data_int = float_to_int(data, digits=digits)
-    mask = np.append(True, np.diff(data_int).astype(bool))
+    mask = np.abs(np.diff(data)) > tol.merge
+    mask = np.concatenate((np.array([True]), mask))
 
-    result = data[mask]
-    return result
+    return data[mask]
 
 
 def unique_float(data,
