@@ -54,18 +54,21 @@ def export_mesh(mesh, file_obj, file_type=None):
     return result
 
 
-def export_off(mesh):
+def export_off(mesh, digits=10):
     '''
     Export a mesh as an OFF file, a simple text format
 
     Parameters
     -----------
-    mesh: Trimesh object
+    mesh:   Trimesh object
+    digits: int, number of digits to include on floats
 
     Returns
     -----------
     export: str, string of OFF format output
     '''
+    # make sure its an int
+    digits = int(digits)
     # prepend a 3 (face count) to each face
     faces_stacked = np.column_stack((np.ones(len(mesh.faces)) * 3,
                                      mesh.faces)).astype(np.int64)
@@ -74,7 +77,7 @@ def export_off(mesh):
     export += util.array_to_string(mesh.vertices,
                                    col_delim=' ',
                                    row_delim='\n',
-                                   digits=8) + '\n'
+                                   digits=digits) + '\n'
     export += util.array_to_string(faces_stacked,
                                    col_delim=' ',
                                    row_delim='\n')
