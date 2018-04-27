@@ -142,7 +142,7 @@ class Scene:
         corners_inst = []
         # (n, 3) float corners of each geometry
         corners_geom = {k: bounds_module.corners(v.bounds)
-                        for k, v in self.geometry}
+                        for k, v in self.geometry.items()}
 
         for node_name in self.graph.nodes_geometry:
             # access the transform and geometry name from node
