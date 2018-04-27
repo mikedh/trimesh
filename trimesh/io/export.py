@@ -10,7 +10,7 @@ from .stl import export_stl, export_stl_ascii
 from .ply import _ply_exporters
 
 
-def export_mesh(mesh, file_obj, file_type=None):
+def export_mesh(mesh, file_obj, file_type=None, **kwargs):
     '''
     Export a Trimesh object to a file- like object, or to a filename
 
@@ -41,7 +41,7 @@ def export_mesh(mesh, file_obj, file_type=None):
         raise ValueError('%s exporter not available!', file_type)
 
     log.debug('Exporting %d faces as %s', len(mesh.faces), file_type.upper())
-    export = _mesh_exporters[file_type](mesh)
+    export = _mesh_exporters[file_type](mesh, **kwargs)
 
     if hasattr(file_obj, 'write'):
         result = util.write_encoded(file_obj, export)

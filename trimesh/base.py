@@ -1978,7 +1978,7 @@ class Trimesh(object):
         hashed = comparison.identifier_hash(self.identifier)
         return hashed
 
-    def export(self, file_obj=None, file_type=None):
+    def export(self, file_obj=None, file_type=None, **kwargs):
         """
         Export the current mesh to a file object.
         If file_obj is a filename, file will be written there.
@@ -1996,7 +1996,8 @@ class Trimesh(object):
         """
         return export_mesh(mesh=self,
                            file_obj=file_obj,
-                           file_type=file_type)
+                           file_type=file_type,
+                           **kwargs)
 
     def to_dict(self):
         """
