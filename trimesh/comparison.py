@@ -21,7 +21,8 @@ id_sigfig = np.array([5,  # area
 def identifier_simple(mesh):
     """
     Return a basic identifier for a mesh, consisting of properties
-    that are somewhat robust to transformation and noise.
+    that have been hand tuned to be somewhat robust to rigid
+    transformations and different tesselations.
 
     Parameters
     ----------
@@ -35,23 +36,23 @@ def identifier_simple(mesh):
     # pre-allocate identifier so indexes of values can't move around
     # like they might if we used hstack or something else
     identifier = np.zeros(6, dtype=np.float64)
-
+    # avoid thrashing the cache unnecessarily
+    mesh_area = mesh.area
     # start with properties that are valid regardless of watertightness
     # note that we're going to try to make all parameters relative
     # to area so other values don't get blown up at weird scales
-    identifier[0] = mesh.area
+    identifier[0] = mesh_area
     # topological constant and the only thing we can really
     # trust in this fallen world
     identifier[1] = mesh.euler_number
-
     # if we have a watertight mesh include volume and inertia
     if mesh.is_volume:
         # side length of a cube ratio
         # 1.0 for cubes, different values for other things
-        identifier[2] = (((mesh.area / 6.0) ** (1.0 / 2.0)) /
+        identifier[2] = (((mesh_area / 6.0) ** (1.0 / 2.0)) /
                          (mesh.volume ** (1.0 / 3.0)))
+        # save vertices for radius calculation
         vertices = mesh.vertices - mesh.center_mass
-
         # we are going to special case radially symmetric meshes
         # to replace their surface area with ratio of their
         # surface area to a primitive sphere or cylinder surface area
@@ -67,17 +68,17 @@ def identifier_simple(mesh):
             # area of a cylinder primitive
             area = (2 * np.pi * (R2**.5) * h) + (2 * np.pi * R2)
             # replace area in this case with area ratio
-            identifier[0] = mesh.area / area
+            identifier[0] = mesh_area / area
         elif mesh.symmetry == 'spherical':
             # handle a spherically symmetric mesh
             R2 = (vertices ** 2).sum(axis=1).max()
             area = 4 * np.pi * R2
-            identifier[0] = mesh.area / area
+            identifier[0] = mesh_area / area
     else:
         # if we don't have a watertight mesh add information about the
         # convex hull, which is slow to compute and unreliable
         # just what we're looking for in a hash but hey
-        identifier[3] = mesh.area / mesh.convex_hull.area
+        identifier[3] = mesh_area / mesh.convex_hull.area
         # cube side length ratio for the hull
         identifier[4] = (((mesh.convex_hull.area / 6.0) ** (1.0 / 2.0)) /
                          (mesh.convex_hull.volume ** (1.0 / 3.0)))
@@ -85,7 +86,7 @@ def identifier_simple(mesh):
 
     # add in max radius^2 to area ratio
     R2 = (vertices ** 2).sum(axis=1).max()
-    identifier[5] = R2 / mesh.area
+    identifier[5] = R2 / mesh_area
 
     return identifier
 

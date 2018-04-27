@@ -126,6 +126,41 @@ class Scene:
         return is_empty
 
     @util.cache_decorator
+    def bounds_corners(self):
+        """
+        A list of points that represent the corners of the
+        AABB of every geometry in the scene.
+
+        This can be useful if you want to take the AABB in
+        a specific frame.
+
+        Returns
+        -----------
+        corners: (n, 3) float, points in space
+        """
+        # the saved corners of each instance
+        corners_inst = []
+        # (n, 3) float corners of each geometry
+        corners_geom = {k: bounds_module.corners(v.bounds)
+                        for k, v in self.geometry}
+
+        for node_name in self.graph.nodes_geometry:
+            # access the transform and geometry name from node
+            transform, geometry_name = self.graph[node_name]
+            # not all nodes have associated geometry
+            if geometry_name is None:
+                continue
+            # transform geometry corners into where
+            # the instance of the geometry is located
+            corners_inst.extend(
+                transformations.transform_points(
+                    corners_geom[geometry_name],
+                    transform))
+        # make corners numpy array
+        corners_inst = np.array(corners_inst, dtype=np.float64)
+        return corners_inst
+
+    @util.cache_decorator
     def bounds(self):
         '''
         Return the overall bounding box of the scene.
@@ -134,24 +169,7 @@ class Scene:
         --------
         bounds: (2,3) float points for min, max corner
         '''
-        corners = collections.deque()
-
-        for node_name in self.graph.nodes_geometry:
-            # access the transform and geometry name for every node
-            transform, geometry_name = self.graph[node_name]
-
-            # not all nodes have associated geometry
-            if geometry_name is None:
-                continue
-
-            # geometry objects have bounds properties, which are (2,3) or (2,2)
-            current_bounds = self.geometry[geometry_name].bounds.copy()
-            # find the 8 corner vertices of the axis aligned bounding box
-            current_corners = bounds_module.corners(current_bounds)
-            # transform those corners into where the geometry is located
-            corners.extend(transformations.transform_points(current_corners,
-                                                            transform))
-        corners = np.array(corners)
+        corners = self.bounds_corners
         bounds = np.array([corners.min(axis=0),
                            corners.max(axis=0)])
         return bounds

@@ -5,7 +5,8 @@ graph.py
 Deal with graph operations. Primarily deal with graphs in (n,2)
 edge list form, and abstract the backend graph library being used.
 
-Currently uses networkx, scipy.sparse.csgraph, or graph_tool backends.
+Currently uses networkx, scipy.sparse.csgraph, or graph_tool
+backends.
 """
 
 import numpy as np
@@ -24,7 +25,6 @@ try:
     _has_gt = True
 except ImportError:
     _has_gt = False
-    log.warning('graph-tool unavailable, some operations will be much slower')
 
 try:
     from scipy.sparse import csgraph, coo_matrix
