@@ -83,6 +83,9 @@ def sweep_polygon(polygon,
     -------
     mesh : Trimesh object of result
     """
+    path = np.asanyarray(path, dtype=np.float64)
+    if not util.is_shape(path, (-1, 3)):
+        raise ValueError('Path must be (n, 3)!')
 
     # Extract 2D vertices and triangulation
     verts_2d = np.array(polygon.exterior)[:-1]
