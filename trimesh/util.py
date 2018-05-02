@@ -10,13 +10,15 @@ or imported inside of a function
 """
 
 import numpy as np
-import collections
+
+import time
+import copy
+import json
+import base64
 import logging
 import hashlib
 import zipfile
-import base64
-import time
-import copy
+import collections
 
 from sys import version_info
 from functools import wraps
@@ -24,6 +26,7 @@ from functools import wraps
 # a flag we can check elsewhere for Python 3
 PY3 = version_info.major >= 3
 if PY3:
+    # for type checking
     basestring = str
     from io import BytesIO, StringIO
 else:
@@ -1252,76 +1255,29 @@ def zero_pad(data, count, right=True):
         return np.asanyarray(data)
 
 
-def format_json(data, digits=6):
+def jsonify(obj):
     """
-    Function to turn a 1D float array into a json string
-
-    The built in json library doesn't have a good way of setting the
-    precision of floating point numbers.
+    A version of json.dumps that can handle numpy arrays
+    by creating a custom encoder for numpy dtypes.
 
     Parameters
-    ----------
-    data: (n,) float array
-    digits: int, number of digits of floating point numbers to include
+    --------------
+    obj: JSON- serializable blob
 
     Returns
-    ----------
-    as_json: string, data formatted into a JSON- parsable string
+    --------------
+    dumped: str, JSON dump of obj
     """
-    format_str = '.' + str(int(digits)) + 'f'
-    as_json = '[' + ','.join(map(lambda o: format(o, format_str), data)) + ']'
-    return as_json
-
-
-class Words:
-    """
-    A class to contain a list of words, such as the english language.
-    The primary purpose is to create random keyphrases to be used to name
-    things without resorting to giant hash strings.
-    """
-
-    def __init__(self, file_name='/usr/share/dict/words', words=None):
-        if words is None:
-            self.words = np.loadtxt(file_name, dtype=str)
-        else:
-            self.words = np.array(words, dtype=str)
-
-        self.words_simple = np.array([i.lower()
-                                      for i in self.words if str.isalpha(i)])
-        if len(self.words) == 0:
-            log.warning('No words available!')
-
-    def random_phrase(self, length=2, delimiter='-'):
-        """
-        Create a random phrase using words containing only charecters.
-
-        Parameters
-        ----------
-        length:    int, how many words in phrase
-        delimiter: str, what to separate words with
-
-        Returns
-        ----------
-        phrase: str, length words separated by delimiter
-
-        Examples
-        ----------
-        In [1]: w = trimesh.util.Words()
-        In [2]: for i in range(10): print w.random_phrase()
-          ventilate-hindsight
-          federating-flyover
-          maltreat-patchiness
-          puppets-remonstrated
-          yoghourts-prut
-          inventory-clench
-          uncouple-bracket
-          hipped-croupier
-          puller-demesne
-          phenomenally-hairs
-        """
-        result = str(delimiter).join(np.random.choice(self.words_simple,
-                                                      length))
-        return result
+    class NumpyEncoder(json.JSONEncoder):
+        def default(self, obj):
+            # will work for numpy.ndarrays
+            # as well as their int64/etc objects
+            if hasattr(obj, 'tolist'):
+                return obj.tolist()
+            return json.JSONEncoder.default(self, obj)
+    # run the dumps using our encoder
+    dumped = json.dumps(obj, cls=NumpyEncoder)
+    return dumped
 
 
 def convert_like(item, like):
@@ -1419,78 +1375,6 @@ def wrap_as_stream(item):
     elif isinstance(item, bytes):
         return BytesIO(item)
     raise ValueError('Not a wrappable item!')
-
-
-def histogram_peaks(data,
-                    bins=100,
-                    smoothing=.1,
-                    weights=None,
-                    plot=False,
-                    use_spline=True):
-    """
-    A function to bin data, fit a spline to the histogram,
-    and return the peaks of that spline.
-
-    Parameters
-    -----------
-    data:       (n,) data
-    bins:       int, number of bins in histogram
-    smoothing:  float, fraction to smooth spline (out of 1.0)
-    weights:    (n,) float, weight for each data point
-    plot:       bool, if True plot the histogram and spline
-    use_spline: bool, if True fit a spline to the histogram
-    Returns
-    -----------
-    peaks: (m,) float, ordered list of peaks (largest are at the end).
-    """
-    data = np.asanyarray(data).reshape(-1)
-
-    # (2,) float, start and end of histogram bins
-    # round to two signifigant figures
-    edges = [round_sigfig(i, 2)
-             for i in np.percentile(data, [.1, 99.9])]
-
-    h, b = np.histogram(data,
-                        weights=weights,
-                        bins=np.linspace(*edges, num=bins),
-                        range=edges,
-                        density=False)
-
-    # set x to center of histogram bins
-    x = b[:-1] + (b[1] - b[0]) / 2.0
-
-    if not use_spline:
-        return x[h.argsort()]
-    norm = weights.sum() / bins
-    normalized = h / norm
-
-    from scipy import interpolate
-    # create an order 4 spline representing the radii histogram
-    # note that scipy only supports root finding of order 3 splines
-    # and we want to find peaks using the derivate, so start with order 4
-    spline = interpolate.UnivariateSpline(x,
-                                          normalized,
-                                          k=4,
-                                          s=smoothing)
-    roots = spline.derivative().roots()
-    roots_value = spline(roots)
-    peaks = roots[roots_value.argsort()]
-
-    if plot:
-        import matplotlib.pyplot as plt
-
-        x_plt = np.linspace(x[1], x[-2], 500)
-        y_plt = spline(x_plt)
-
-        plt.hist(data, weights=weights / norm, bins=b)
-        plt.plot(x_plt, y_plt)
-
-        y_max = y_plt.max() * 1.2
-        for peak in peaks[-5:]:
-            plt.plot([peak, peak], [0, y_max])
-        plt.show()
-
-    return peaks
 
 
 def sigfig_round(values, sigfig=1):
@@ -1799,7 +1683,8 @@ def unique_id(length=12, increment=0):
 
 def generate_basis(z):
     """
-    Generate an arbitrary basis from the given z-axis.
+    Generate an arbitrary basis (coordinate frame)
+    from the given z-axis.
 
     Parameters
     ----------

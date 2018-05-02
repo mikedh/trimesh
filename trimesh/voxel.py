@@ -412,3 +412,49 @@ def sparse_surface_to_filled(sparse_surface):
     Take a sparse surface and fill in along Z.
     """
     pass
+
+
+def boolean_sparse(a, b, operation=np.logical_and):
+    """
+    Find common rows between two arrays very quickly
+    using 3D boolean sparse matrices.
+
+    Parameters
+    -----------
+    a: (n, d)  int, coordinates in space
+    b: (m, d)  int, coordinates in space
+    operation: numpy operation function, ie:
+                  np.logical_and
+                  np.logical_or
+
+    Returns
+    -----------
+    coords: (q, d) int, coordinates in space
+    """
+    # 3D sparse arrays, using wrapped scipy.sparse
+    # pip install sparse
+    import sparse
+    
+    # find the bounding box of both arrays
+    extrema = np.array([a.min(axis=0),
+                        a.max(axis=0),
+                        b.min(axis=0),
+                        b.max(axis=0)])
+    origin = extrema.min(axis=0) - 1
+    size = tuple(extrema.ptp(axis=0) + 2)
+
+    # put nearby voxel arrays into same shape sparse array
+    sp_a = sparse.COO((a - origin).T,
+                      data=np.ones(len(a), dtype=np.bool),
+                      shape=size)
+    sp_b = sparse.COO((b - origin).T,
+                      data=np.ones(len(b), dtype=np.bool),
+                      shape=size)
+
+    # apply the logical operation
+    # get a sparse matrix out
+    applied = operation(sp_a, sp_b)
+    # reconstruct the original coordinates
+    coords = np.column_stack(applied.coords) + origin
+
+    return coords

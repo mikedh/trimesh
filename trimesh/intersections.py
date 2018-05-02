@@ -127,11 +127,14 @@ def mesh_plane(mesh,
         # means the culling was done incorrectly and thus things are
         # mega-fucked
         assert valid.all()
+
         return intersections.reshape((-1, 2, 3))
 
-    plane_normal = np.asanyarray(plane_normal, dtype=np.float64)
-    plane_origin = np.asanyarray(plane_origin, dtype=np.float64)
-
+    # check input plane
+    plane_normal = np.asanyarray(plane_normal,
+                                 dtype=np.float64)
+    plane_origin = np.asanyarray(plane_origin,
+                                 dtype=np.float64)
     if plane_origin.shape != (3,) or plane_normal.shape != (3,):
         raise ValueError('Plane origin and normal must be (3,)!')
 
@@ -155,9 +158,11 @@ def mesh_plane(mesh,
                 handle_on_vertex,
                 handle_on_edge)
 
+    # the (m, 2, 3) line segments
     lines = np.vstack([h(signs[c],
                          mesh.faces[c],
-                         mesh.vertices) for c, h in zip(cases, handlers)])
+                         mesh.vertices)
+                       for c, h in zip(cases, handlers)])
 
     log.debug('mesh_cross_section found %i intersections', len(lines))
     if return_faces:
