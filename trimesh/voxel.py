@@ -434,7 +434,7 @@ def boolean_sparse(a, b, operation=np.logical_and):
     # 3D sparse arrays, using wrapped scipy.sparse
     # pip install sparse
     import sparse
-    
+
     # find the bounding box of both arrays
     extrema = np.array([a.min(axis=0),
                         a.max(axis=0),

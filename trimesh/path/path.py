@@ -748,7 +748,6 @@ class Path2D(Path):
 
         Parameters
         ------------
-        path:       Path2D object
         pitch:      float, length in model space of a pixel edge
         origin:     (2,) float, origin position in model space
         resolution: (2,) int, resolution in pixel space

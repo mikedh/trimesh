@@ -43,6 +43,7 @@ def tracked_array(array, dtype=None):
     tracked = np.ascontiguousarray(array,
                                    dtype=dtype).view(TrackedArray)
     assert tracked.flags['C_CONTIGUOUS']
+
     return tracked
 
 
@@ -52,6 +53,9 @@ class TrackedArray(np.ndarray):
 
     General method is to agressivly set 'modified' flags
     on operations which might alter the array.
+
+    We store boolean modified flag for each hash type to
+    make checks fast even for queries of different hashes.
 
     This will force a recompute of a checksum value in some
     cases where nothing has changed but we don't ever want to
@@ -88,8 +92,7 @@ class TrackedArray(np.ndarray):
         """
         if self._modified_m or not hasattr(self, '_hashed_md5'):
             if self.flags['C_CONTIGUOUS']:
-                hasher = hashlib.md5()
-                hasher.update(self)
+                hasher = hashlib.md5(self)
                 self._hashed_md5 = hasher.hexdigest()
             else:
                 # the case where we have sliced our nice
@@ -97,8 +100,7 @@ class TrackedArray(np.ndarray):
                 # for example (note slice *after* track operation):
                 # t = util.tracked_array(np.random.random(10))[::-1]
                 contiguous = np.ascontiguousarray(self)
-                hasher = hashlib.md5()
-                hasher.update(contiguous)
+                hasher = hashlib.md5(contiguous)
                 self._hashed_md5 = hasher.hexdigest()
         self._modified_m = False
         return self._hashed_md5
@@ -138,8 +140,7 @@ class TrackedArray(np.ndarray):
         # these functions are called millions of times so everything helps
         if self._modified_x or not hasattr(self, '_hashed_xx'):
             if self.flags['C_CONTIGUOUS']:
-                hasher = xxhash.xxh64()
-                hasher.update(self)
+                hasher = xxhash.xxh64(self)
                 self._hashed_xx = hasher.intdigest()
             else:
                 # the case where we have sliced our nice
@@ -147,8 +148,7 @@ class TrackedArray(np.ndarray):
                 # for example (note slice *after* track operation):
                 # t = util.tracked_array(np.random.random(10))[::-1]
                 contiguous = np.ascontiguousarray(self)
-                hasher = xxhash.xxh64()
-                hasher.update(contiguous)
+                hasher = xxhash.xxh64(contiguous)
                 self._hashed_xx = hasher.intdigest()
         self._modified_x = False
         return self._hashed_xx
@@ -163,35 +163,39 @@ class TrackedArray(np.ndarray):
         """
         return self.fast_hash()
 
-    def __iadd__(self, other):
+    def __iadd__(self, *args, **kwargs):
         """
         In- place addition.
 
-        The i* operations are in- place, so we better catch
-        all of them.
+        The i* operations are in- place and modify the array,
+        so we better catch all of them.
         """
         self._modified_c = True
         self._modified_m = True
         self._modified_x = True
-        return super(self.__class__, self).__iadd__(other)
+        return super(self.__class__, self).__iadd__(*args,
+                                                    **kwargs)
 
-    def __isub__(self, other):
+    def __isub__(self, *args, **kwargs):
         self._modified_c = True
         self._modified_m = True
         self._modified_x = True
-        return super(self.__class__, self).__isub__(other)
+        return super(self.__class__, self).__isub__(*args,
+                                                    **kwargs)
 
-    def __imul__(self, other):
+    def __imul__(self, *args, **kwargs):
         self._modified_c = True
         self._modified_m = True
         self._modified_x = True
-        return super(self.__class__, self).__imul__(other)
+        return super(self.__class__, self).__imul__(*args,
+                                                    **kwargs)
 
-    def __idiv__(self, other):
+    def __idiv__(self, *args, **kwargs):
         self._modified_c = True
         self._modified_m = True
         self._modified_x = True
-        return super(self.__class__, self).__idiv__(other)
+        return super(self.__class__, self).__idiv__(*args,
+                                                    **kwargs)
 
     def __itruediv__(self, *args, **kwargs):
         self._modified_c = True
@@ -207,69 +211,79 @@ class TrackedArray(np.ndarray):
         return super(self.__class__, self).__imatmul__(*args,
                                                        **kwargs)
 
-    def __ipow__(self, other):
+    def __ipow__(self, *args, **kwargs):
         self._modified_c = True
         self._modified_m = True
         self._modified_x = True
-        return super(self.__class__, self).__ipow__(other)
+        return super(self.__class__, self).__ipow__(*args, **kwargs)
 
-    def __imod__(self, other):
+    def __imod__(self, *args, **kwargs):
         self._modified_c = True
         self._modified_m = True
         self._modified_x = True
-        return super(self.__class__, self).__imod__(other)
+        return super(self.__class__, self).__imod__(*args, **kwargs)
 
-    def __ifloordiv__(self, other):
+    def __ifloordiv__(self, *args, **kwargs):
         self._modified_c = True
         self._modified_m = True
         self._modified_x = True
-        return super(self.__class__, self).__ifloordiv__(other)
+        return super(self.__class__, self).__ifloordiv__(*args,
+                                                         **kwargs)
 
-    def __ilshift__(self, other):
+    def __ilshift__(self, *args, **kwargs):
         self._modified_c = True
         self._modified_m = True
         self._modified_x = True
-        return super(self.__class__, self).__ilshift__(other)
+        return super(self.__class__, self).__ilshift__(*args,
+                                                       **kwargs)
 
-    def __irshift__(self, other):
+    def __irshift__(self, *args, **kwargs):
         self._modified_c = True
         self._modified_m = True
         self._modified_x = True
-        return super(self.__class__, self).__irshift__(other)
+        return super(self.__class__, self).__irshift__(*args,
+                                                       **kwargs)
 
-    def __iand__(self, other):
+    def __iand__(self, *args, **kwargs):
         self._modified_c = True
         self._modified_m = True
         self._modified_x = True
-        return super(self.__class__, self).__iand__(other)
+        return super(self.__class__, self).__iand__(*args,
+                                                    **kwargs)
 
-    def __ixor__(self, other):
+    def __ixor__(self, *args, **kwargs):
         self._modified_c = True
         self._modified_m = True
         self._modified_x = True
-        return super(self.__class__, self).__ixor__(other)
+        return super(self.__class__, self).__ixor__(*args,
+                                                    **kwargs)
 
-    def __ior__(self, other):
+    def __ior__(self, *args, **kwargs):
         self._modified_c = True
         self._modified_m = True
         self._modified_x = True
-        return super(self.__class__, self).__ior__(other)
+        return super(self.__class__, self).__ior__(*args,
+                                                   **kwargs)
 
-    def __setitem__(self, i, y):
+    def __setitem__(self, *args, **kwargs):
         self._modified_c = True
         self._modified_m = True
         self._modified_x = True
-        super(self.__class__, self).__setitem__(i, y)
+        super(self.__class__, self).__setitem__(*args,
+                                                **kwargs)
 
-    def __setslice__(self, i, j, y):
+    def __setslice__(self, *args, **kwargs):
         self._modified_c = True
         self._modified_m = True
         self._modified_x = True
-        super(self.__class__, self).__setslice__(i, j, y)
+        super(self.__class__, self).__setslice__(*args,
+                                                 **kwargs)
 
     if hasX:
+        # if xxhash is installed use it
         fast_hash = _xxhash
     else:
+        # otherwise use our fastest CRC
         fast_hash = crc
 
 
