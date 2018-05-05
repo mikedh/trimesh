@@ -337,10 +337,18 @@ class PointCloud(object):
         return self._data.md5()
 
     def merge_vertices(self):
-        count=len(self.vertices)
+        """
+        Merge vertices closer than tol.merge (default: 1e-8)
+        """
+        # run unique rows
         unique, inverse = grouping.unique_rows(self.vertices)
+
+        # apply unique mask to vertices
         self.vertices = self.vertices[unique]
-        if not self.colors is None and len(self.colors)==count:
+
+        # apply unique mask to colors
+        if (self.colors is not None and
+            len(self.colors) == len(inverse)):
             self.colors=self.colors[unique]
 
     @property
