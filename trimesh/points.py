@@ -348,8 +348,8 @@ class PointCloud(object):
 
         # apply unique mask to colors
         if (self.colors is not None and
-            len(self.colors) == len(inverse)):
-            self.colors=self.colors[unique]
+                len(self.colors) == len(inverse)):
+            self.colors = self.colors[unique]
 
     @property
     def bounds(self):
