@@ -146,7 +146,7 @@ def closest_point(mesh, points):
 
     distance_2 = ((query_close - query_point) ** 2).sum(axis=1)
 
-    # find the single closest point f6or each group of candidates
+    # find the single closest point for each group of candidates
     result_close = np.zeros((len(points), 3), dtype=np.float64)
     result_tid = np.zeros(len(points), dtype=np.int64)
     result_distance = np.zeros(len(points), dtype=np.float64)
@@ -156,7 +156,12 @@ def closest_point(mesh, points):
             len(points)), np.array_split(
             query_close, query_group), np.array_split(
                 distance_2, query_group), candidates):
-        idx = distance.argmin()
+        idx0, idx1 = np.argsort(distance)[:2]
+        idx = idx1 if (abs(distance[idx0] - distance[idx1]) < tol.merge and
+                       np.dot(mesh.face_normals[candidate[idx0]],
+                              points[i] - close_points[idx0]) < 0 and
+                       np.dot(mesh.face_normals[candidate[idx1]],
+                              points[i] - close_points[idx1]) > 0) else idx0
         result_close[i] = close_points[idx]
         result_tid[i] = candidate[idx]
         result_distance[i] = distance[idx]
