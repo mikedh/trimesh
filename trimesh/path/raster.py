@@ -18,7 +18,7 @@ except ImportError:
 def rasterize(path,
               pitch,
               origin,
-              resolution,
+              resolution=None,
               fill=True,
               width=None):
     """
@@ -41,6 +41,13 @@ def rasterize(path,
     # check inputs
     pitch = float(pitch)
     origin = np.asanyarray(origin, dtype=np.float64)
+    
+    # if resolution is None make it larget than path 
+    if resolution is None:
+        span = np.vstack((path.bounds,
+                          origin)).ptp(
+                              axis=0)
+        resolution = np.ceil(span / pitch) + 2
     resolution = np.asanyarray(resolution,
                                dtype=np.int64)
     resolution = tuple(resolution.tolist())

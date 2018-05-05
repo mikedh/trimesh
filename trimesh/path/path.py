@@ -739,7 +739,7 @@ class Path2D(Path):
     def rasterize(self,
                   pitch,
                   origin,
-                  resolution,
+                  resolution=None,
                   fill=True,
                   width=None,
                   **kwargs):
