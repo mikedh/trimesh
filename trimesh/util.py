@@ -1269,6 +1269,7 @@ def jsonify(obj):
     dumped: str, JSON dump of obj
     """
     class NumpyEncoder(json.JSONEncoder):
+
         def default(self, obj):
             # will work for numpy.ndarrays
             # as well as their int64/etc objects
