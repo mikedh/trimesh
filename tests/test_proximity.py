@@ -135,6 +135,26 @@ class NearestTest(g.unittest.TestCase):
         mesh = g.get_mesh('20mm-xyz-cube.stl')
         assert (mesh.nearest.signed_distance([[-51, 4.7, -20.6]]) < 0.0).all()
 
+    def test_acute_edge_case(self):
+        # acute tetrahedron with a sharp edge
+        vertices = [[-1, 0.5, 0], [1, 0.5, 0], [0, -1, -0.5], [0, -1, 0.5]]
+        faces = [[0,1,2],[0,2,3],[0,3,1],[3,2,1]]
+        mesh = g.trimesh.Trimesh(vertices, faces)
+
+        # a set of points on a line outside of the tetrahedron
+        # their closest surface point is [0, 0.5, 0] on the sharp edge
+        # for a point exactly in the middle a closest face is still ambiguous
+        # -> take an even number of points
+        n = 20
+        n += n%2
+        pts = g.np.transpose([g.np.zeros(n), g.np.ones(n), g.np.linspace(-1, 1, n)])
+
+        # the faces facing the points should differ for first and second half of the set
+        # check their indices for inequality
+        faceIdxsA, faceIdxsB = g.np.split(mesh.nearest.on_surface(pts)[-1], 2)
+        assert (g.np.all(faceIdxsA == faceIdxsA[0]) and
+                g.np.all(faceIdxsB == faceIdxsB[0]) and
+                faceIdxsA[0] != faceIdxsB[0])
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
