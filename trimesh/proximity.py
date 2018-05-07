@@ -100,7 +100,6 @@ def closest_point_naive(mesh, points):
 
     return closest, distance, triangle_id
 
-
 def closest_point(mesh, points):
     """
     Given a mesh and a list of points, find the closest point on any triangle.
@@ -146,7 +145,7 @@ def closest_point(mesh, points):
 
     distance_2 = ((query_close - query_point) ** 2).sum(axis=1)
 
-    # find the single closest point f6or each group of candidates
+    # find the single closest point for each group of candidates
     result_close = np.zeros((len(points), 3), dtype=np.float64)
     result_tid = np.zeros(len(points), dtype=np.int64)
     result_distance = np.zeros(len(points), dtype=np.float64)
@@ -156,7 +155,25 @@ def closest_point(mesh, points):
             len(points)), np.array_split(
             query_close, query_group), np.array_split(
                 distance_2, query_group), candidates):
-        idx = distance.argmin()
+        
+        idx = 0
+        if len(candidate) > 1:
+            idx0, idx1 = np.argsort(distance)[:2]
+            idx = idx0
+            # check if we have an ambiguous situation
+            if abs(distance[idx0] - distance[idx1]) < tol.merge:
+                # check if query-points are actually off-surface
+                if distance[idx0] > tol.merge and distance[idx1] > tol.merge:
+                    # get face normals
+                    faceNormal0, faceNormal1 = mesh.face_normals[[candidate[idx0],
+                                                                  candidate[idx1]]]
+                    # compute normalized surface-point to query-point vectors
+                    ptDir0, ptDir1 = ((points[i] - close_points[[idx0,idx1]]) /
+                                      distance[[idx0,idx1], np.newaxis]**0.5)
+                    # compare enclosed angle for both face normals
+                    idx = idx1 if (np.dot(faceNormal0, ptDir0) <
+                                   np.dot(faceNormal1, ptDir1)) else idx0
+                    
         result_close[i] = close_points[idx]
         result_tid[i] = candidate[idx]
         result_distance[i] = distance[idx]
