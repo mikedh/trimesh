@@ -60,8 +60,8 @@ class NearestTest(g.unittest.TestCase):
 
         log_msg = '\n'.join("{}: {}s".format(i, j)
                             for i, j in zip(
-                                    [i.__name__ for i in funs],
-                                    g.np.diff(tic)))
+            [i.__name__ for i in funs],
+            g.np.diff(tic)))
         g.log.info(
             'Compared the following nearest point functions:\n' +
             log_msg)

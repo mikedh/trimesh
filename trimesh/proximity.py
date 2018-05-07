@@ -158,15 +158,13 @@ def closest_point(mesh, points):
             np.array_split(distance_2, query_group),
             candidates):
 
-        # if we have only one candidate or all zero distances
-        # just use the first candidate
-        idx = 0
+        # unless some other check is true use the smallest distance
+        idx = distance.argmin()
 
         # if we have multiple candidates check them
         if len(candidate) > 1:
             # (2, ) int, list of 2 closest candidate indices
-            idxs = np.argsort(distance)[:2]
-
+            idxs = distance.argsort()[:2]
             # make sure the two distances are identical
             check_distance = distance[idxs].ptp() < tol.merge
             # make sure the magnitude of both distances are nonzero
