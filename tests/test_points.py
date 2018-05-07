@@ -11,7 +11,7 @@ class PointsTest(g.unittest.TestCase):
         # random points
         points = g.np.random.random(shape)
         # make sure randomness never gives duplicates by offsetting
-        points += g.np.arange(shape[0]).reshape((-1,1))
+        points += g.np.arange(shape[0]).reshape((-1, 1))
 
         # make some duplicate vertices
         points[:10] = points[0]
@@ -30,13 +30,12 @@ class PointsTest(g.unittest.TestCase):
         # remove the duplicates we created
         cloud.merge_vertices()
 
-        # new shape post- merge 
+        # new shape post- merge
         new_shape = (shape[0] - 9, shape[1])
 
         # make sure vertices and colors are new shape
         assert cloud.vertices.shape == new_shape
         assert len(cloud.colors) == new_shape[0]
-        
 
     def test_vertexonly(self):
         """

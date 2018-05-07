@@ -100,6 +100,7 @@ def closest_point_naive(mesh, points):
 
     return closest, distance, triangle_id
 
+
 def closest_point(mesh, points):
     """
     Given a mesh and a list of points, find the closest point on any triangle.
@@ -150,34 +151,46 @@ def closest_point(mesh, points):
     result_tid = np.zeros(len(points), dtype=np.int64)
     result_distance = np.zeros(len(points), dtype=np.float64)
 
+    # go through results to get minimum distance result
     for i, close_points, distance, candidate in zip(
-        np.arange(
-            len(points)), np.array_split(
-            query_close, query_group), np.array_split(
-                distance_2, query_group), candidates):
-        
+            np.arange(len(points)),
+            np.array_split(query_close, query_group),
+            np.array_split(distance_2, query_group),
+            candidates):
+
+        # if we have only one candidate or all zero distances
+        # just use the first candidate
         idx = 0
+
+        # if we have multiple candidates check them
         if len(candidate) > 1:
-            idx0, idx1 = np.argsort(distance)[:2]
-            idx = idx0
-            # check if we have an ambiguous situation
-            if abs(distance[idx0] - distance[idx1]) < tol.merge:
-                # check if query-points are actually off-surface
-                if distance[idx0] > tol.merge and distance[idx1] > tol.merge:
-                    # get face normals
-                    faceNormal0, faceNormal1 = mesh.face_normals[[candidate[idx0],
-                                                                  candidate[idx1]]]
-                    # compute normalized surface-point to query-point vectors
-                    ptDir0, ptDir1 = ((points[i] - close_points[[idx0,idx1]]) /
-                                      distance[[idx0,idx1], np.newaxis]**0.5)
-                    # compare enclosed angle for both face normals
-                    idx = idx1 if (np.dot(faceNormal0, ptDir0) <
-                                   np.dot(faceNormal1, ptDir1)) else idx0
-                    
+            # (2, ) int, list of 2 closest candidate indices
+            idxs = np.argsort(distance)[:2]
+
+            # make sure the two distances are identical
+            check_distance = distance[idxs].ptp() < tol.merge
+            # make sure the magnitude of both distances are nonzero
+            check_magnitude = (np.abs(distance[idxs]) > tol.merge).all()
+
+            # check if query-points are actually off-surface
+            if check_distance and check_magnitude:
+                # get face normals for two points
+                normals = mesh.face_normals[np.array(candidate)[idxs]]
+                # compute normalized surface-point to query-point vectors
+                vectors = ((points[i] - close_points[idxs]) /
+                           distance[idxs, np.newaxis] ** 0.5)
+                # compare enclosed angle for both face normals
+                dots = util.diagonal_dot(normals, vectors)
+                # take the idx with the most positive angle
+                idx = idxs[dots.argmax()]
+
+        # take the single closest value from the group of values
         result_close[i] = close_points[idx]
         result_tid[i] = candidate[idx]
         result_distance[i] = distance[idx]
-    # we were comparing the distance squared, so now take the square root
+
+    # we were comparing the distance squared so
+    # now take the square root in one vectorized operation
     result_distance **= .5
 
     return result_close, result_distance, result_tid
