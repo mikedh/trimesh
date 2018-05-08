@@ -337,7 +337,7 @@ def voxelize_subdivide_solid(mesh,pitch,max_iter=10):
     #gen new voxels
     idx=np.where(grid==1)
     count=len(idx[0])
-    return np.array([[idx[0][i],idx[1][i],idx[2][i]] for i in range(count)]),origin_position
+    return np.array([[idx[0][i]-1,idx[1][i]-1,idx[2][i]-1] for i in range(count)]),origin_position
 
 
 def matrix_to_points(matrix, pitch, origin):
