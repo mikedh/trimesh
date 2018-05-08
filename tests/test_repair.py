@@ -59,11 +59,7 @@ class RepairTests(g.unittest.TestCase):
 
             tic = g.time.time()
             # flip faces to break winding
-            mesh.faces[:10] = g.np.fliplr(mesh.faces[:10])
-            #assert not mesh.is_watertight
-            if is_volume:
-                assert not mesh.is_volume
-                assert not mesh.is_winding_consistent
+            mesh.faces[:4] = g.np.fliplr(mesh.faces[:4])
 
             # run the operation
             mesh.fix_normals()
@@ -72,9 +68,8 @@ class RepairTests(g.unittest.TestCase):
             assert mesh.is_volume == is_volume
             assert mesh.is_winding_consistent == winding
 
-            # save a timing
+            # save timings
             timing[mesh.metadata['file_name']] = g.time.time() - tic
-
         # print timings as a warning
         g.log.warning(g.json.dumps(timing, indent=4))
 
