@@ -149,21 +149,20 @@ print(mesh.bounding_box_oriented.volume,
 
 ## Use Cases
 
-The `trimesh.Trimesh` object is most useful on single body, watertight mesh that represents a volume. Visuals are color only (no texture). 
+The `trimesh.Trimesh` object is most useful on single body, watertight meshes that represents a volume.
 
 If you expect multibody geometry, you are best off dealing with them as a list of `Trimesh` objects, or as a `trimesh.Scene` object which includes things like overall bounding boxes, convex hulls, etc:
 
 ```
 mesh = trimesh.load('multibody.STL')
-# will heal small holes and only output watertight bodies
-meshes = mesh.split(only_watertight=True)
 
-# will split meshes, and will always return a scene
+# will split meshes into clean watertight chunks
+# always returns a Scene object
 scene = trimesh.scene.split_scene(mesh)
 
 # if you want it back as a single multibody mesh, the splitting
 # will heal problems with individual bodies before concatenating
-blob = scene.dump().sum()
+multi = scene.dump().sum()
 
 ```
 

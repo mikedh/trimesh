@@ -41,8 +41,8 @@ class RepairTests(g.unittest.TestCase):
                    'machinist.XAML',
                    'round.stl',
                    'quadknot.obj',
-                   'FM1_satellite.3DXML',
-                   'soup.STL']]
+                   #'FM1_satellite.3DXML',
+                   'soup.stl']]
 
         for i, mesh in enumerate(meshes):
             # turn scenes into multibody meshes
