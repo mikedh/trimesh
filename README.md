@@ -147,6 +147,25 @@ print(mesh.bounding_box_oriented.volume,
 * Simple scene graph and transform tree which can be rendered (pyglet) or exported.
 * Numerous utility functions, such as transforming points, unitizing vectors, tracking arrays for changes, grouping rows, etc.
 
+## Use Cases
+
+The `trimesh.Trimesh` object is most useful on single body, watertight mesh that represents a volume. Visuals are color only (no texture). 
+
+If you expect multibody geometry, you are best off dealing with them as a list of `Trimesh` objects, or as a `trimesh.Scene` object which includes things like overall bounding boxes, convex hulls, etc:
+
+```
+mesh = trimesh.load('multibody.STL')
+# will heal small holes and only output watertight bodies
+meshes = mesh.split(only_watertight=True)
+
+# will split meshes, and will always return a scene
+scene = trimesh.scene.split_scene(mesh)
+
+# if you want it back as a single multibody mesh, the splitting
+# will heal problems with individual bodies before concatenating
+blob = scene.dump().sum()
+
+```
 
 ## Viewer
 

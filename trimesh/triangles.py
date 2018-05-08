@@ -185,7 +185,10 @@ def mass_properties(triangles,
     volume = integrated[0]
 
     if center_mass is None:
-        center_mass = integrated[1:4] / volume
+        if np.abs(volume) < tol.zero:
+            center_mass = np.zeros(3)
+        else:
+            center_mass = integrated[1:4] / volume
 
     mass = density * volume
 

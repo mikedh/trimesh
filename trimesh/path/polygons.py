@@ -76,7 +76,7 @@ def edges_to_polygons(edges, vertices):
     # create closed polygon objects
     polygons = []
     # loop through a sequence of ordered traversals
-    for dfs in graph.dfs_traversals(edges):
+    for dfs in graph.traversals(edges, mode='dfs'):
         try:
             # try to recover polygons before they are more complicated
             polygons.append(repair_invalid(Polygon(vertices[dfs])))

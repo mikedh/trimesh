@@ -476,7 +476,7 @@ def connected_component_labels(edges, node_count=None):
     return labels
 
 
-def dfs_traversals(edges):
+def traversals(edges, mode='bfs'):
     """
     Given an edge list, generate a sequence of ordered
     depth first search traversals, using scipy.csgraph routines.
@@ -488,11 +488,19 @@ def dfs_traversals(edges):
     Returns
     -----------
     traversals: (m,) sequence of (p,) int,
-                ordered DFS traversals of the graph.
+                ordered DFS or BFS traversals of the graph.
     """
     edges = np.asanyarray(edges, dtype=np.int64)
     if not util.is_shape(edges, (-1, 2)):
         raise ValueError('edges are not (n,2)!')
+
+    mode = str(mode).lower().strip()
+    if mode == 'bfs':
+        func = csgraph.breadth_first_order
+    elif mode == 'dfs':
+        func = csgraph.depth_first_order
+    else:
+        raise ValueError('traversal mode must be either dfs or bfs')
 
     # make sure edges are sorted so we can query
     # an ordered pair later
@@ -505,14 +513,17 @@ def dfs_traversals(edges):
 
     # we're going to make a sequence of traversals
     traversals = []
+    traversals_edge = []
+
     while len(nodes) > 0:
         # starting at any node
         start = nodes.pop()
         # get an (n,) ordered traversal
-        ordered = csgraph.depth_first_order(graph,
-                                            i_start=start,
-                                            return_predecessors=False,
-                                            directed=False)
+        ordered = func(graph,
+                       i_start=start,
+                       return_predecessors=False,
+                       directed=False)
+
         # even if the traversal is closed there won't be an
         # indication from the DFS, so add the first node
         # to the end of the path

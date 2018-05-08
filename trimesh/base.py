@@ -1468,7 +1468,7 @@ class Trimesh(object):
         return ok
 
     @_log_time
-    def fix_normals(self):
+    def fix_normals(self, multibody=False):
         """
         Find and fix problems with self.face_normals and self.faces winding direction.
 
@@ -1476,7 +1476,7 @@ class Trimesh(object):
         and that self.faces is wound in the correct direction for all
         connected components.
         """
-        repair.fix_normals(self)
+        repair.fix_normals(self, multibody=multibody)
 
     def fill_holes(self):
         """
@@ -1905,6 +1905,9 @@ class Trimesh(object):
             if 'vertex_normals' in self._cache:
                 self.vertex_normals *= -1.0
             self.faces = np.fliplr(self.faces)
+        # save our normals
+        self._cache.clear(exclude=['face_normals',
+                                   'vertex_normals'])
 
     def scene(self, **kwargs):
         """
