@@ -294,59 +294,51 @@ def voxelize_subdivide(mesh, pitch, max_iter=10):
 def voxelize_subdivide_solid(mesh,pitch,max_iter=10):
     voxels_sparse,origin_position=voxelize_subdivide(mesh,pitch,max_iter)
     #create grid and mark inner voxels
-    max=voxels_sparse.max()+1
-    max=max+2 #enlarge grid to ensure that the voxels of the bound are empty
-    grid = [[[0 for k in range(max)] for j in range(max)] for i in range(max)]
-    for v in voxels_sparse:
-        grid[v[0]+1][v[1]+1][v[2]+1]=1
+    max_value=voxels_sparse.max()+1
+    max_value=max_value+2 #enlarge grid to ensure that the voxels of the bound are empty
+    grid=np.zeros((max_value,max_value,max_value))
+    voxels_sparse=np.add(voxels_sparse,1)
+    grid.__setitem__(tuple(voxels_sparse.T),1)
 
-    for i in range(max):
+    for i in range(max_value):
         check_dir2=False
-        for j in range(0,max-1):
+        for j in range(0,max_value-1):
             idx=[]
             #find transitions first
-            for k in range(1,max-1):
-                if grid[i][j][k]!=grid[i][j][k-1]:
-                    idx.append(k)
+            #transition positions are from 0 to 1 and from 1 to 0
+            eq=np.equal(grid[i,j,:-1],grid[i,j,1:])
+            idx=np.where(eq==False)[0]+1
             
             c=len(idx)
-            check_dir2=(c%4)>0
+            check_dir2=(c%4)>0 and c>4
             if c<4:
                 continue
             
             for s in range(0,c-c%4,4):
-                for k in range(idx[s],idx[s+3]):
-                    grid[i][j][k]=1
+                grid[i,j,idx[s]:idx[s+3]]=1
         
         if not check_dir2:
             continue
         
         #check another direction for robustness
-        for k in range(0,max-1):
+        for k in range(0,max_value-1):
             idx=[]
             #find transitions first
-            for j in range(1,max-1):
-                if grid[i][j][k]!=grid[i][j-1][k]:
-                    idx.append(k)
+            eq=np.equal(grid[i,:-1,k],grid[i,1:,k])
+            idx=np.where(eq==False)[0]+1
             
             c=len(idx)
             if c<4:
                 continue
             
             for s in range(0,c-c%4,4):
-                for j in range(idx[s],idx[s+3]):
-                    grid[i][j][k]=1
+                grid[i,idx[s]:idx[s+3],k]=1
 
     #gen new voxels
-    new_voxels=[]
-    for i in range(max):
-        for j in range(max):
-            for k in range(max):
-                if grid[i][j][k]==1:
-                    new_voxels.append([i-1,j-1,k-1])
+    idx=np.where(grid==1)
+    count=len(idx[0])
+    return np.array([[idx[0][i],idx[1][i],idx[2][i]] for i in range(count)]),origin_position
 
-    new_voxels=np.array(new_voxels)
-    return new_voxels,origin_position
 
 def matrix_to_points(matrix, pitch, origin):
     """
