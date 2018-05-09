@@ -88,6 +88,9 @@ class RepairTests(g.unittest.TestCase):
         # flip one face
         m.faces[:1] = g.np.fliplr(m.faces[:1])
 
+        # flip every face
+        m.invert()
+
         # not a volume
         assert not m.is_volume
 
@@ -102,7 +105,8 @@ class RepairTests(g.unittest.TestCase):
         # should be volume again
         assert m.is_volume
 
-        assert g.np.isclose(m.volume, a.volume * 2.0)
+        # mesh should be volume of two boxes, and positive
+        assert g.np.isclose(m.volume, g.np.abs(a.volume * 2.0))
 
 
 if __name__ == '__main__':

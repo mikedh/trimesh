@@ -89,22 +89,40 @@ def fix_inversion(mesh, multibody=False):
     mesh.face: may reverse faces
     """
     if multibody:
-        flip = np.zeros(len(mesh.faces), dtype=np.bool)
         groups = graph.connected_components(mesh.face_adjacency)
+        # escape early for single body
+        if len(groups) == 1:
+            if mesh.volume < 0.0:
+                mesh.invert()
+            return
+        # mask of faces to flip
+        flip = np.zeros(len(mesh.faces), dtype=np.bool)
         # save these to avoid thrashing cache
         tri = mesh.triangles
         cross = mesh.triangles_cross
+        # indexes of mesh.faces, not actual faces
         for faces in groups:
+            # calculate the volume of the submesh faces
             volume = triangles.mass_properties(
                 tri[faces],
                 crosses=cross[faces],
                 skip_inertia=True)['volume']
+            # if that volume is negative it is either
+            # inverted or just total garbage
             if volume < 0.0:
                 flip[faces] = True
+        # one or more faces needs flipping
         if flip.any():
-            mesh.faces[flip] = np.fliplr(mesh.faces[flip])
+            with mesh._cache:
+                # flip normals of necessary faces
+                if 'face_normals' in mesh._cache:
+                    mesh.face_normals[flip] *= -1.0
+                # flip faces
+                mesh.faces[flip] = np.fliplr(mesh.faces[flip])
+            # save wangled normals
+            mesh._cache.clear(exclude=['face_normals'])
 
-    if mesh.volume < 0.0:
+    elif mesh.volume < 0.0:
         # reverse every triangles and flip every normals
         mesh.invert()
 
