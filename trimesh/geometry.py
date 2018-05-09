@@ -96,11 +96,14 @@ def faces_to_edges(faces, return_index=False):
     edges: (n*3, 2) int, vertex indices representing edges
     """
     faces = np.asanyarray(faces)
-    edges = np.column_stack((faces[:, (0, 1)],
-                             faces[:, (1, 2)],
-                             faces[:, (2, 0)])).reshape(-1, 2)
+
+    # each face has three edges
+    edges = faces[:, [0, 1, 1, 2, 2, 0]].reshape((-1, 2))
+
     if return_index:
-        face_index = np.tile(np.arange(len(faces)), (3, 1)).T.reshape(-1)
+        # edges are in order of faces due to reshape
+        face_index = np.tile(np.arange(len(faces)),
+                             (3, 1)).T.reshape(-1)
         return edges, face_index
     return edges
 
