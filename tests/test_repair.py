@@ -41,7 +41,6 @@ class RepairTests(g.unittest.TestCase):
                    'machinist.XAML',
                    'round.stl',
                    'quadknot.obj',
-                   #'FM1_satellite.3DXML',
                    'soup.stl']]
 
         for i, mesh in enumerate(meshes):
@@ -92,16 +91,18 @@ class RepairTests(g.unittest.TestCase):
         # not a volume
         assert not m.is_volume
 
-        m.fix_normals()
+        m.fix_normals(multibody=False)
 
         # shouldn't fix inversion of one cube
         assert not m.is_volume
 
         # run fix normal with multibody mode
-        m.fix_normals(multibody=True)
+        m.fix_normals()
 
         # should be volume again
         assert m.is_volume
+
+        assert g.np.isclose(m.volume, a.volume * 2.0)
 
 
 if __name__ == '__main__':

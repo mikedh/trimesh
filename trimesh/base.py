@@ -835,6 +835,39 @@ class Trimesh(object):
         return edges_sorted
 
     @util.cache_decorator
+    def edges_sparse(self):
+        """
+        Edges in sparse COO graph format.
+
+        Returns
+        ----------
+        sparse: (len(self.vertices), len(self.vertices)) bool 
+                sparse graph in COO format
+        """
+        sparse = graph.edges_to_coo(self.edges)
+        return sparse
+
+    @util.cache_decorator
+    def body_count(self):
+        """
+        How many connected groups of vertices exist in this mesh.
+
+        Note that this number may differ from result in mesh.split,
+        which is calculated from FACE rather than vertex adjacency.
+
+        Returns
+        -----------
+        count: int, number of connected vertex groups.
+        """
+        # labels are (len(vertices), int) OB
+        count, labels = graph.csgraph.connected_components(
+            self.edges_sparse,
+            directed=False,
+            return_labels=True)
+        self._cache['vertices_component_label'] = labels
+        return count
+
+    @util.cache_decorator
     def faces_unique_edges(self):
         """
         For each face return which indexes in mesh.unique_edges constructs that face.
@@ -1468,14 +1501,21 @@ class Trimesh(object):
         return ok
 
     @_log_time
-    def fix_normals(self, multibody=False):
+    def fix_normals(self, multibody=None):
         """
         Find and fix problems with self.face_normals and self.faces winding direction.
 
         For face normals ensure that vectors are consistently pointed outwards,
         and that self.faces is wound in the correct direction for all
         connected components.
+
+        Parameters
+        -------------
+        multibody: bool, fix normals across multiple bodies
+                   None, automatically pick from body_count
         """
+        if multibody is None:
+            multibody = self.body_count > 1
         repair.fix_normals(self, multibody=multibody)
 
     def fill_holes(self):
