@@ -12,11 +12,11 @@ before_deploy:
 deploy:
   provider: pypi
   user: mikedh
-  password:
-    secure: T0R0OND+SMgHC6YbQ0XsFt+jWPD8xJFG1dg/YlWk9sttizmNRwivZ3evGF+kE8GJqLuKoDxIWxfyzqaNCujngbTEohGQKOrr8FHP8OUCwzpjigQgb07kquWI3OxHkoKNbebQtMbZ3VVoOF0HjVMKeEN1XT+xVXTCxm6K0U8uBcc=
   on:
     python: '3.6'
     branch: master
+  password:
+    secure: MmFES9M+UZbfpQsWeSVlhgUcdbpCymaeJwExxcyJbkKKWdRoZLRusqCmTdQ7Rai8DxH++ooqgEnHwq+D9e/8Y0jbbFBScPbJVeNFj1B4xV36NlyV8A0027/UTuhvkhoUv/xP6mN4TfuC3tWEj5m20DQlibjjxS154r/BlA6/kic=
 before_install:
 - sudo apt-get update
 - sudo apt-get install -y openscad blender
