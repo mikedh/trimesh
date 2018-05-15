@@ -55,7 +55,8 @@ class Voxel(object):
 
         Returns
         ---------
-        shape: (3,) int, what is the shape of the 3D matrix for these voxels
+        shape: (3,) int, what is the shape of the 3D matrix
+                         for these voxels
         """
         return self.matrix.shape
 
@@ -111,7 +112,8 @@ class Voxel(object):
         point = np.asanyarray(point)
         if point.shape != (3,):
             raise ValueError('to_index requires a single point')
-        index = np.round((point - self.origin) / self.pitch).astype(int)
+        index = np.round((point - self.origin) /
+                         self.pitch).astype(int)
         index = tuple(index)
         return index
 
@@ -171,6 +173,18 @@ class VoxelMesh(Voxel):
         matrix = sparse_to_matrix(self.sparse_surface)
         return matrix
 
+    @util.cache_decorator
+    def matrix_solid(self):
+        """
+        The voxels in a mesh as a 3D matrix.
+
+        Returns
+        ---------
+        matrix: self.shape np.bool, if a cell is True it is occupied
+        """
+        matrix = sparse_to_matrix(self.sparse_solid)
+        return matrix
+
     @property
     def matrix(self):
         """
@@ -184,90 +198,106 @@ class VoxelMesh(Voxel):
         ---------
         matrix: self.shape np.bool, cell occupancy
         """
-        # once filled voxels are implemented
-        # if self._data['mesh'].is_watertight:
-        #    return self.matrix_filled
-
+        if self._data['mesh'].is_watertight:
+            return self.matrix_solid
         return self.matrix_surface
 
     @property
     def origin(self):
+        """
+        The origin of the voxel array.
+
+        Returns
+        ------------
+        origin: (3,) float, point in space
+        """
         populate = self.sparse_surface
         return self._cache['origin']
 
     @util.cache_decorator
     def sparse_surface(self):
-        voxels, origin = voxelize_subdivide(mesh=self._data['mesh'],
-                                            pitch=self._data['pitch'],
-                                            max_iter=self._data['max_iter'][0])
+        """
+        Filled cells on the surface of the mesh.
+
+        Returns
+        ----------------
+        voxels: (n, 3) int, filled cells on mesh surface
+        """
+        voxels, origin = voxelize_subdivide(
+            mesh=self._data['mesh'],
+            pitch=self._data['pitch'],
+            max_iter=self._data['max_iter'][0])
         self._cache['origin'] = origin
         return voxels
 
     @util.cache_decorator
     def sparse_solid(self):
-        voxels, origin = voxelize_subdivide_solid(mesh=self._data['mesh'],
-                                            pitch=self._data['pitch'],
-                                            max_iter=self._data['max_iter'][0])
-        self._cache['origin'] = origin
-        return voxels
-    
-    @util.cache_decorator
-    def as_boxes(self):
         """
-        A rough Trimesh representation of the voxels with a box for each filled voxel.
+        Filled cells inside and on the surface of mesh
+
+        Returns
+        ----------------
+        filled: (n, 3) int, filled cells in or on mesh.
+        """
+        filled = fill_voxelization(self.sparse_surface)
+        return filled
+
+    def as_boxes(self, solid=False):
+        """
+        A rough Trimesh representation of the voxels with a box
+        for each filled voxel.
+
+        Parameters
+        -----------
+        solid: bool, if True return boxes for sparse_solid
 
         Returns
         ---------
-        mesh: Trimesh object representing the current voxel object.
+        mesh: Trimesh object made up of one box per filled cell.
         """
-        centers = (self.sparse_surface *
-                   self.pitch).astype(np.float64) + self.origin
+        if solid:
+            filled = self.sparse_solid
+        else:
+            filled = self.sparse_surface
+        # center points of voxels
+        centers = (filled * self.pitch).astype(np.float64)
+        centers += self.origin - (self.pitch / 2.0)
         mesh = multibox(centers=centers, pitch=self.pitch)
         return mesh
 
-    @util.cache_decorator
-    def as_boxes_solid(self):
-        """
-        A rough Trimesh representation of the voxels with a box for each filled voxel.
-
-        Returns
-        ---------
-        mesh: Trimesh object representing the current voxel object.
-        """
-        centers = (self.sparse_solid *
-                   self.pitch).astype(np.float64) + self.origin
-        mesh = multibox(centers=centers, pitch=self.pitch)
-        return mesh
-    
-    def show(self,solid_mode=False):
+    def show(self, solid=False):
         """
         Convert the current set of voxels into a trimesh for visualization
         and show that via its built- in preview method.
         """
-        if solid_mode:
-            self.as_boxes_solid.show()
-        else:
-            self.as_boxes.show()
+        self.as_boxes(solid=solid).show()
 
 
-def voxelize_subdivide(mesh, pitch, max_iter=10):
+def voxelize_subdivide(mesh,
+                       pitch,
+                       max_iter=10,
+                       edge_factor=2.0):
     """
-    Voxelize a surface by subdividing a mesh until every edge is shorter
-    than half the pitch of the voxel grid.
+    Voxelize a surface by subdividing a mesh until every edge is
+    shorter than: (pitch / edge_factor)
 
     Parameters
     -----------
-    mesh:     Trimesh object
-    pitch:    float, side length of a single voxel cube
+    mesh:        Trimesh object
+    pitch:       float, side length of a single voxel cube
+    max_iter:    int, cap maximum subdivisions
+    edge_factor: float,
 
     Returns
     -----------
     voxels_sparse:   (n,3) int, (m,n,p) indexes of filled cells
-    origin_position: (3,) float, position of the voxel grid origin in space
+    origin_position: (3,) float, position of the voxel
+                                 grid origin in space
     """
-    max_edge = pitch / 2.0
+    max_edge = pitch / edge_factor
 
-    # get the same mesh sudivided so every edge is shorter than half our pitch
+    # get the same mesh sudivided so every edge is shorter
+    # than a factor of our pitch
     v, f = remesh.subdivide_to_size(mesh.vertices,
                                     mesh.faces,
                                     max_edge=max_edge,
@@ -291,53 +321,72 @@ def voxelize_subdivide(mesh, pitch, max_iter=10):
 
     return voxels_sparse, origin_position
 
-def voxelize_subdivide_solid(mesh,pitch,max_iter=10):
-    voxels_sparse,origin_position=voxelize_subdivide(mesh,pitch,max_iter)
-    #create grid and mark inner voxels
-    max_value=voxels_sparse.max()+1
-    max_value=max_value+2 #enlarge grid to ensure that the voxels of the bound are empty
-    grid=np.zeros((max_value,max_value,max_value))
-    voxels_sparse=np.add(voxels_sparse,1)
-    grid.__setitem__(tuple(voxels_sparse.T),1)
+
+def fill_voxelization(occupied):
+    """
+    Given a sparse surface voxelization, fill in between columns.
+
+    Parameters
+    --------------
+    occupied: (n, 3) int, location of filled cells
+
+    Returns
+    --------------
+    filled: (m, 3) int, location of filled cells
+    """
+    # validate inputs
+    occupied = np.asanyarray(occupied, dtype=np.int64)
+    if not util.is_shape(occupied, (-1, 3)):
+        raise ValueError('incorrect shape')
+
+    # create grid and mark inner voxels
+    max_value = occupied.max() + 3
+
+    grid = np.zeros((max_value,
+                     max_value,
+                     max_value),
+                    dtype=np.int64)
+    voxels_sparse = np.add(occupied, 1)
+
+    grid.__setitem__(tuple(voxels_sparse.T), 1)
 
     for i in range(max_value):
-        check_dir2=False
-        for j in range(0,max_value-1):
-            idx=[]
-            #find transitions first
-            #transition positions are from 0 to 1 and from 1 to 0
-            eq=np.equal(grid[i,j,:-1],grid[i,j,1:])
-            idx=np.where(eq==False)[0]+1
-            
-            c=len(idx)
-            check_dir2=(c%4)>0 and c>4
-            if c<4:
+        check_dir2 = False
+        for j in range(0, max_value - 1):
+            idx = []
+            # find transitions first
+            # transition positions are from 0 to 1 and from 1 to 0
+            eq = np.equal(grid[i, j, :-1], grid[i, j, 1:])
+            idx = np.where(eq == False)[0] + 1
+            c = len(idx)
+            check_dir2 = (c % 4) > 0 and c > 4
+            if c < 4:
                 continue
-            
-            for s in range(0,c-c%4,4):
-                grid[i,j,idx[s]:idx[s+3]]=1
-        
+            for s in range(0, c - c % 4, 4):
+                grid[i, j, idx[s]:idx[s + 3]] = 1
         if not check_dir2:
             continue
-        
-        #check another direction for robustness
-        for k in range(0,max_value-1):
-            idx=[]
-            #find transitions first
-            eq=np.equal(grid[i,:-1,k],grid[i,1:,k])
-            idx=np.where(eq==False)[0]+1
-            
-            c=len(idx)
-            if c<4:
-                continue
-            
-            for s in range(0,c-c%4,4):
-                grid[i,idx[s]:idx[s+3],k]=1
 
-    #gen new voxels
-    idx=np.where(grid==1)
-    count=len(idx[0])
-    return np.array([[idx[0][i]-1,idx[1][i]-1,idx[2][i]-1] for i in range(count)]),origin_position
+        # check another direction for robustness
+        for k in range(0, max_value - 1):
+            idx = []
+            # find transitions first
+            eq = np.equal(grid[i, :-1, k], grid[i, 1:, k])
+            idx = np.where(eq == False)[0] + 1
+            c = len(idx)
+            if c < 4:
+                continue
+            for s in range(0, c - c % 4, 4):
+                grid[i, idx[s]:idx[s + 3], k] = 1
+
+    # generate new voxels
+    idx = np.where(grid == 1)
+    filled = np.array([[idx[0][i] - 1,
+                        idx[1][i] - 1,
+                        idx[2][i] - 1]
+                       for i in range(len(idx[0]))])
+
+    return filled
 
 
 def matrix_to_points(matrix, pitch, origin):

@@ -484,6 +484,7 @@ def traversals(edges, mode='bfs'):
     Parameters
     ------------
     edges: (n,2) int, undirected edges of a graph
+    mode:  str, 'bfs', or 'dfs'
 
     Returns
     -----------
@@ -491,9 +492,12 @@ def traversals(edges, mode='bfs'):
                 ordered DFS or BFS traversals of the graph.
     """
     edges = np.asanyarray(edges, dtype=np.int64)
-    if not util.is_shape(edges, (-1, 2)):
+    if len(edges) == 0:
+        return []
+    elif not util.is_shape(edges, (-1, 2)):
         raise ValueError('edges are not (n,2)!')
 
+    # pick the traversal method
     mode = str(mode).lower().strip()
     if mode == 'bfs':
         func = csgraph.breadth_first_order
@@ -545,8 +549,8 @@ def edges_to_coo(edges, count=None):
     Parameters
     ------------
     edges: (n,2) int, edges of a graph
-    node_count: int, the number of nodes.
-                defaults to edges.max() + 1
+    count: int, the number of nodes.
+           if None: count = edges.max() + 1
 
     Returns
     ------------
@@ -562,11 +566,11 @@ def edges_to_coo(edges, count=None):
     else:
         count = int(count)
 
-    matrix = coo_matrix((np.ones(len(edges), dtype=np.bool),
+    matrix = coo_matrix((np.ones(len(edges),
+                                 dtype=np.bool),
                          (edges[:, 0], edges[:, 1])),
                         dtype=np.bool,
                         shape=(count, count))
-
     return matrix
 
 
@@ -713,8 +717,7 @@ def multigraph_paths(G, source, cutoff=None):
 
 def multigraph_collect(G, traversal, attrib=None):
     """
-    Given a MultiDiGraph traversal, collect attributes along that
-    path.
+    Given a MultiDiGraph traversal, collect attributes along it.
 
     Parameters
     -------------

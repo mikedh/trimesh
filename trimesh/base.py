@@ -841,7 +841,7 @@ class Trimesh(object):
 
         Returns
         ----------
-        sparse: (len(self.vertices), len(self.vertices)) bool 
+        sparse: (len(self.vertices), len(self.vertices)) bool
                 sparse graph in COO format
         """
         sparse = graph.edges_to_coo(self.edges)
