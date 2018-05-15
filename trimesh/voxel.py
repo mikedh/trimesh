@@ -204,6 +204,14 @@ class VoxelMesh(Voxel):
         return voxels
 
     @util.cache_decorator
+    def sparse_solid(self):
+        voxels, origin = voxelize_subdivide_solid(mesh=self._data['mesh'],
+                                            pitch=self._data['pitch'],
+                                            max_iter=self._data['max_iter'][0])
+        self._cache['origin'] = origin
+        return voxels
+    
+    @util.cache_decorator
     def as_boxes(self):
         """
         A rough Trimesh representation of the voxels with a box for each filled voxel.
@@ -217,12 +225,29 @@ class VoxelMesh(Voxel):
         mesh = multibox(centers=centers, pitch=self.pitch)
         return mesh
 
-    def show(self):
+    @util.cache_decorator
+    def as_boxes_solid(self):
+        """
+        A rough Trimesh representation of the voxels with a box for each filled voxel.
+
+        Returns
+        ---------
+        mesh: Trimesh object representing the current voxel object.
+        """
+        centers = (self.sparse_solid *
+                   self.pitch).astype(np.float64) + self.origin
+        mesh = multibox(centers=centers, pitch=self.pitch)
+        return mesh
+    
+    def show(self,solid_mode=False):
         """
         Convert the current set of voxels into a trimesh for visualization
         and show that via its built- in preview method.
         """
-        self.as_boxes.show()
+        if solid_mode:
+            self.as_boxes_solid.show()
+        else:
+            self.as_boxes.show()
 
 
 def voxelize_subdivide(mesh, pitch, max_iter=10):
@@ -265,6 +290,54 @@ def voxelize_subdivide(mesh, pitch, max_iter=10):
     voxels_sparse = (occupied_index - origin_index)
 
     return voxels_sparse, origin_position
+
+def voxelize_subdivide_solid(mesh,pitch,max_iter=10):
+    voxels_sparse,origin_position=voxelize_subdivide(mesh,pitch,max_iter)
+    #create grid and mark inner voxels
+    max_value=voxels_sparse.max()+1
+    max_value=max_value+2 #enlarge grid to ensure that the voxels of the bound are empty
+    grid=np.zeros((max_value,max_value,max_value))
+    voxels_sparse=np.add(voxels_sparse,1)
+    grid.__setitem__(tuple(voxels_sparse.T),1)
+
+    for i in range(max_value):
+        check_dir2=False
+        for j in range(0,max_value-1):
+            idx=[]
+            #find transitions first
+            #transition positions are from 0 to 1 and from 1 to 0
+            eq=np.equal(grid[i,j,:-1],grid[i,j,1:])
+            idx=np.where(eq==False)[0]+1
+            
+            c=len(idx)
+            check_dir2=(c%4)>0 and c>4
+            if c<4:
+                continue
+            
+            for s in range(0,c-c%4,4):
+                grid[i,j,idx[s]:idx[s+3]]=1
+        
+        if not check_dir2:
+            continue
+        
+        #check another direction for robustness
+        for k in range(0,max_value-1):
+            idx=[]
+            #find transitions first
+            eq=np.equal(grid[i,:-1,k],grid[i,1:,k])
+            idx=np.where(eq==False)[0]+1
+            
+            c=len(idx)
+            if c<4:
+                continue
+            
+            for s in range(0,c-c%4,4):
+                grid[i,idx[s]:idx[s+3],k]=1
+
+    #gen new voxels
+    idx=np.where(grid==1)
+    count=len(idx[0])
+    return np.array([[idx[0][i]-1,idx[1][i]-1,idx[2][i]-1] for i in range(count)]),origin_position
 
 
 def matrix_to_points(matrix, pitch, origin):
