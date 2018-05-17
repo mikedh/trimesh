@@ -72,7 +72,6 @@ def load(file_obj, file_type=None, **kwargs):
     (file_obj,
      file_type,
      metadata) = _parse_file_args(file_obj, file_type)
-    print(file_type, mesh_loaders)
     if isinstance(file_obj, dict):
         kwargs.update(file_obj)
         loaded = load_kwargs(kwargs)
