@@ -20,6 +20,10 @@ def load_ctm(file_obj, file_type=None):
     ctm = ctmNewContext(CTM_IMPORT)
     ctmLoad(ctm, bytes(file_obj.name, encoding='utf-8'))
 
+    err = ctmGetError(ctm)
+    if err != CTM_NONE:
+        raise Error("Error loading file: " + str(ctmErrorString(err)))
+
     # Get the mesh properties
     vertexCount = ctmGetInteger(ctm, CTM_VERTEX_COUNT)
     triangleCount = ctmGetInteger(ctm, CTM_TRIANGLE_COUNT)
