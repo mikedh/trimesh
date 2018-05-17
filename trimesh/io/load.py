@@ -12,6 +12,7 @@ from ..constants import _log_time, log
 from . import misc
 from .ply import _ply_loaders
 from .stl import _stl_loaders
+from .ctm import _ctm_loaders
 from .misc import _misc_loaders
 from .gltf import _gltf_loaders
 from .assimp import _assimp_loaders
@@ -71,7 +72,7 @@ def load(file_obj, file_type=None, **kwargs):
     (file_obj,
      file_type,
      metadata) = _parse_file_args(file_obj, file_type)
-
+    print(file_type, mesh_loaders)
     if isinstance(file_obj, dict):
         kwargs.update(file_obj)
         loaded = load_kwargs(kwargs)
@@ -347,6 +348,7 @@ mesh_loaders = {}
 # so we load them first and replace them with native loaders if possible
 mesh_loaders.update(_assimp_loaders)
 mesh_loaders.update(_stl_loaders)
+mesh_loaders.update(_ctm_loaders)
 mesh_loaders.update(_misc_loaders)
 mesh_loaders.update(_ply_loaders)
 mesh_loaders.update(_xml_loaders)
