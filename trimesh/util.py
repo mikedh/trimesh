@@ -1116,6 +1116,7 @@ def concatenate(a, b=None):
     """
     if b is None:
         b = []
+    # stack meshes into flat list
     meshes = np.append(a, b)
 
     # Extract the trimesh type to avoid a circular import,
@@ -1123,18 +1124,19 @@ def concatenate(a, b=None):
     trimesh_type = type_named(meshes[0], 'Trimesh')
 
     # append faces and vertices of meshes
-    vertices, faces = append_faces([i.vertices for i in meshes],
-                                   [i.faces for i in meshes],)
+    vertices, faces = append_faces(
+        [i.vertices.copy() for i in meshes],
+        [i.faces.copy() for i in meshes])
 
     visuals = None
     face_normals = None
     try:
         if all('face_normals' in i._cache for i in meshes):
-            face_normals = np.vstack([i.face_normals
-                                      for i in meshes])
+            face_normals = np.vstack(
+                [i.face_normals for i in meshes])
         if any(i.visual.defined for i in m):
-            visuals = meshes[0].visual.concatenate([i.visual
-                                                    for i in meshes[1:]])
+            visuals = meshes[0].visual.concatenate(
+                [i.visual for i in meshes[1:]])
     except BaseException:
         pass
 

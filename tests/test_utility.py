@@ -131,6 +131,35 @@ class UtilTests(unittest.TestCase):
         # make sure all pairs are length 2
         assert all(len(i) == 2 for i in pa)
 
+    def test_concat(self):
+
+        a = g.get_mesh('ballA.off')
+        b = g.get_mesh('ballB.off')
+
+        hA = a.md5()
+        hB = b.md5()
+
+        # make sure we're not mutating original mesh
+        for i in range(4):
+            c = a + b
+            assert g.np.isclose(c.volume,
+                                a.volume + b.volume)
+            assert a.md5() == hA
+            assert b.md5() == hB
+
+        count = 5
+        meshes = []
+        for i in range(count):
+            m = a.copy()
+            m.apply_translation([a.scale, 0, 0])
+            meshes.append(m)
+
+        # do a multimesh concatenate
+        r = g.trimesh.util.concatenate(meshes)
+        assert g.np.isclose(r.volume,
+                            a.volume * count)
+        assert a.md5() == hA
+
 
 class IOTest(unittest.TestCase):
 
