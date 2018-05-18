@@ -1130,15 +1130,13 @@ def concatenate(a, b=None):
 
     visuals = None
     face_normals = None
-    try:
-        if all('face_normals' in i._cache for i in meshes):
-            face_normals = np.vstack(
-                [i.face_normals for i in meshes])
-        if any(i.visual.defined for i in m):
-            visuals = meshes[0].visual.concatenate(
-                [i.visual for i in meshes[1:]])
-    except BaseException:
-        pass
+
+    if all('face_normals' in i._cache for i in meshes):
+        face_normals = np.vstack(
+            [i.face_normals for i in meshes])
+    if any(i.visual.defined for i in meshes):
+        visuals = meshes[0].visual.concatenate(
+            [i.visual for i in meshes[1:]])
 
     # create the mesh object
     mesh = trimesh_type(vertices=vertices,
