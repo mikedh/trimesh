@@ -824,6 +824,8 @@ class Path2D(Path):
             # create a polygon with interiors
             full[i] = polygons.repair_invalid(Polygon(shell=shell,
                                                       holes=holes))
+        # so we can use advanced indexing
+        full = np.array(full)
 
         return full
 

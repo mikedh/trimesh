@@ -119,7 +119,7 @@ class Trimesh(object):
             self.faces = faces
 
         # hold visual information about the mesh (vertex and face colors)
-        if 'visual' in kwargs:
+        if 'visual' in kwargs and kwargs['visual'] is not None:
             self.visual = kwargs['visual']
         else:
             self.visual = visual.create_visual(face_colors=face_colors,

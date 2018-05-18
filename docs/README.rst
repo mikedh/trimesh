@@ -4,10 +4,10 @@ trimesh
 |Build Status| |Build status|
 
 Trimesh is a Python (2.7- 3.3+) library for loading and using
-`triangular meshes <https://en.wikipedia.org/wiki/Triangle_mesh>`__. The
-goal of the library is to provide a fully featured Trimesh object which
-allows for easy manipulation and analysis, in the style of the excellent
-Polygon object in the `Shapely
+`triangular meshes <https://en.wikipedia.org/wiki/Triangle_mesh>`__ with
+an emphasis on watertight meshes. The goal of the library is to provide
+a fully featured Trimesh object which allows for easy manipulation and
+analysis, in the style of the excellent Polygon object in the `Shapely
 library <http://toblerity.org/shapely/manual.html>`__.
 
 The API is mostly stable, but this should not be relied on and is not
@@ -17,14 +17,20 @@ something using trimesh as a backend.
 Basic Installation
 ------------------
 
-The minimum set of packages required to import trimesh are
+The minimal requirements to import trimesh are
 `numpy <http://www.numpy.org/>`__, `scipy <http://www.scipy.org>`__ and
 `networkx <https://networkx.github.io>`__. Installing other packages
-mentioned adds functionality but is not required.
+mentioned adds functionality but is **not required**.
 
-The easiest and recommended way to get the most functionality out of
-Trimesh is to install a `conda
-environment <https://conda.io/miniconda.html>`__, then:
+For the easiest install with only these minimal dependencies (slower ray
+queries, no vector path handling, mesh creation, viewer, etc):
+
+.. code:: bash
+
+    pip install trimesh
+
+For more functionality, the easiest way to get a full Trimesh install is
+a `conda environment <https://conda.io/miniconda.html>`__:
 
 .. code:: bash
 
@@ -39,13 +45,6 @@ environment <https://conda.io/miniconda.html>`__, then:
     # install Trimesh and soft dependencies that are easy to install
     # these generally install cleanly on Linux, Windows, and OSX
     pip install trimesh[easy]
-
-Or, for the easiest install with only **minimal dependencies** (slower
-ray queries, no vector path handling, mesh creation, viewer, etc):
-
-.. code:: bash
-
-    pip install trimesh
 
 Further information is available in the `advanced installation
 documentation <http://trimesh.readthedocs.io/en/latest/install.html>`__.
@@ -125,7 +124,7 @@ example <https://github.com/mikedh/trimesh/blob/master/examples/integrate.ipynb>
     # available, and will be the minimum volume version of each
     # except in certain degenerate cases, where they will be no worse
     # than a least squares fit version of the primitive.
-    print(mesh.bounding_box_oriented.volume,
+    print(mesh.bounding_box_oriented.volume, 
           mesh.bounding_cylinder.volume,
           mesh.bounding_sphere.volume)
 
@@ -183,6 +182,28 @@ Features
 -  Numerous utility functions, such as transforming points, unitizing
    vectors, tracking arrays for changes, grouping rows, etc.
 
+Use Cases
+---------
+
+The ``trimesh.Trimesh`` object is most useful on single body, watertight
+meshes that represents a volume.
+
+If you expect multibody geometry, you are best off dealing with them as
+a list of ``Trimesh`` objects, or as a ``trimesh.Scene`` object which
+includes things like overall bounding boxes, convex hulls, etc:
+
+::
+
+    mesh = trimesh.load('multibody.STL')
+
+    # will split meshes into clean watertight chunks
+    # always returns a Scene object
+    scene = trimesh.scene.split_scene(mesh)
+
+    # if you want it back as a single multibody mesh, the splitting
+    # will heal problems with individual bodies before concatenating
+    multi = scene.dump().sum()
+
 Viewer
 ------
 
@@ -192,24 +213,18 @@ debugging/inspecting. In the mesh view window:
 -  dragging rotates the view
 -  ctl + drag pans
 -  mouse wheel zooms
--  ‘z’ returns to the base view
--  ‘w’ toggles wireframe mode
--  ‘c’ toggles backface culling
+-  'z' returns to the base view
+-  'w' toggles wireframe mode
+-  'c' toggles backface culling
 
 Containers
 ----------
 
 If you want to deploy something in a container that uses trimesh,
 automated builds containing trimesh and its dependencies are available
-on docker hub. For an image with all dependencies:
+on Docker Hub:
 
 ``docker pull mikedh/trimesh``
-
-Or, for a much smaller image with no boolean operations and slightly
-slower graph operations (no graph-tool installed, trimesh will fall back
-to scipy or networkx):
-
-``docker pull mikedh/trimesh_minimal``
 
 .. |Build Status| image:: https://travis-ci.org/mikedh/trimesh.svg?branch=master
    :target: https://travis-ci.org/mikedh/trimesh

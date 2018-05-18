@@ -1101,37 +1101,51 @@ def type_named(obj, name):
     raise ValueError('Unable to extract class of name ' + name)
 
 
-def concatenate(a, b):
+def concatenate(a, b=None):
     """
-    Concatenate two meshes.
+    Concatenate two or more meshes.
 
     Parameters
     ----------
-    a: Trimesh object
-    b: Trimesh object
+    a: Trimesh object, or list of such
+    b: Trimesh object, or list of such
 
     Returns
     ----------
-    result: Trimesh object containing all faces of a and b
+    result: Trimesh object containing concatenated mesh
     """
+    if b is None:
+        b = []
+    meshes = np.append(a, b)
+
     # Extract the trimesh type to avoid a circular import,
     # and assert that both inputs are Trimesh objects
-    trimesh_type = type_named(a, 'Trimesh')
-    trimesh_type = type_named(b, 'Trimesh')
+    trimesh_type = type_named(meshes[0], 'Trimesh')
 
-    new_normals = np.vstack((a.face_normals, b.face_normals))
-    new_faces = np.vstack((a.faces, (b.faces + len(a.vertices))))
-    new_vertices = np.vstack((a.vertices, b.vertices))
-    new_visual = a.visual.concatenate(b.visual)
-    result = trimesh_type(vertices=new_vertices,
-                          faces=new_faces,
-                          face_normals=new_normals,
-                          visual=new_visual,
-                          process=False)
-    # result._cache.id_set()
-    # result.visual._cache.id_set()
+    # append faces and vertices of meshes
+    vertices, faces = append_faces([i.vertices for i in meshes],
+                                   [i.faces for i in meshes],)
 
-    return result
+    visuals = None
+    face_normals = None
+    try:
+        if all('face_normals' in i._cache for i in meshes):
+            face_normals = np.vstack([i.face_normals
+                                      for i in meshes])
+        if any(i.visual.defined for i in m):
+            visuals = meshes[0].visual.concatenate([i.visual
+                                                    for i in meshes[1:]])
+    except BaseException:
+        pass
+
+    # create the mesh object
+    mesh = trimesh_type(vertices=vertices,
+                        faces=faces,
+                        face_normals=face_normals,
+                        visual=visuals,
+                        process=False)
+
+    return mesh
 
 
 def submesh(mesh,
