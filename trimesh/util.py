@@ -44,72 +44,56 @@ TOL_ZERO = np.finfo(np.float64).resolution * 100
 TOL_MERGE = 1e-8
 
 
-def unitize(points, check_valid=False, threshold=None):
+def unitize(vectors,
+            check_valid=False,
+            threshold=None):
     """
-    Turn a list of vectors into a list of unit vectors.
+    Unitize a vector or an array or row- vectors.
 
     Parameters
     ---------
-    points:       (n,m) or (j) input array of vectors.
-                  For 1D arrays, points is treated as a single vector
-                  For 2D arrays, each row is treated as a vector
-
-    check_valid:  boolean, if True enables valid output and checking
-
+    vectors:      (n,m) or (j) float, vectors
+    check_valid:  bool, return mask of nonzero vectors
     threshold:    float, cutoff to be considered zero.
-
 
     Returns
     ---------
-    unit_vectors: (n,m) or (j) length array of unit vectors
-
-    valid:        (n) boolean array, output only if check_valid.
-                   True for all valid (nonzero length) vectors, thus m=sum(valid)
+    unit:  (n,m) or (j) float, unit vectors
+    valid: (n) bool, mask of nonzero vectors if check_valid
     """
-    points = np.asanyarray(points)
-    axis = len(points.shape) - 1
-    length = np.sum(points ** 2, axis=axis) ** .5
+    # make sure we have a numpy array
+    vectors = np.asanyarray(vectors)
 
-    if is_sequence(length):
-        length[np.isnan(length)] = 0.0
+    # allow user to set zero threshold
     if threshold is None:
         threshold = TOL_ZERO
 
-    if check_valid:
-        # make sure lengths are greater than zero
-        valid = np.logical_not(np.isclose(length,
-                                          0.0,
-                                          rtol=0.0,
-                                          atol=threshold))
-        if axis == 1:
-            unit_vectors = (points[valid].T / length[valid]).T
-        elif len(points.shape) == 1 and valid:
-            unit_vectors = points / length
+    if len(vectors.shape) == 2:
+        # for (m, d) arrays take the per- row unit vector
+        # using sqrt and avoiding exponents is slightly faster
+        norm = np.sqrt((vectors * vectors).sum(axis=1))
+        # non-zero norms
+        valid = norm > threshold
+        # in-place reciprocal of nonzero norms
+        norm[valid] **= -1
+        # tile reciprocal of norm
+        tiled = np.tile(norm, (vectors.shape[1], 1)).T
+        # multiply by reciprocal of norm
+        unit = vectors * tiled
+    elif len(vectors.shape) == 1:
+        # treat 1D arrays as a single vector
+        norm = np.sqrt((vectors * vectors).sum())
+        valid = norm > threshold
+        if valid:
+            unit = vectors / norm
         else:
-            unit_vectors = np.array([])
-        return unit_vectors, valid
+            unit = vectors.copy()
     else:
-        unit_vectors = (points.T / length).T
-    return unit_vectors
+        raise ValueError('vectors must be (n, ) or (n, d)!')
 
-
-def euclidean(a, b):
-    """
-    Euclidean distance between vectors a and b.
-
-    Parameters
-    ------------
-    a: (n,) float, vector A
-    b: (n,) float, vector B
-
-    Returns
-    ------------
-    distance: float, euclidean distance between A and B
-    """
-    a = np.asanyarray(a, dtype=np.float64)
-    b = np.asanyarray(b, dtype=np.float64)
-    distance = np.sum((a - b) ** 2) ** .5
-    return distance
+    if check_valid:
+        return unit[valid], valid
+    return unit
 
 
 def is_file(obj):

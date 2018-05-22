@@ -197,9 +197,9 @@ def mean_vertex_normals(vertex_count, faces, face_normals, **kwargs):
         log.warning('Unable to generate sparse matrix! Falling back!',
                     exc_info=True)
         summed = summed_loop()
-    unit_normals, valid = util.unitize(summed, check_valid=True)
-    vertex_normals = np.zeros((vertex_count, 3), dtype=np.float64)
-    vertex_normals[valid] = unit_normals
+
+    # invalid normals will be returned as zero
+    vertex_normals = util.unitize(summed)
 
     return vertex_normals
 

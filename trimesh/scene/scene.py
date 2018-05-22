@@ -16,37 +16,57 @@ from .transforms import TransformForest
 
 
 class Scene:
-    '''
+    """
     A simple scene graph which can be rendered directly via pyglet/openGL,
     or through other endpoints such as a raytracer.
 
     Meshes and lights are added by name, which can then be moved by updating
     transform in the transform tree.
-    '''
+    """
 
     def __init__(self,
                  geometry=None,
                  base_frame='world',
-                 metadata={}):
+                 metadata={},
+                 graph=None):
+        """
+        Create a new Scene object.
 
+        Parameters
+        -------------
+        geometry:   Trimesh, Path2D, Path3D object, or list of same
+        base_frame: str, name of base frame
+        metadata:   dict, any metadata about the scene
+        graph:      TransformForest, graph to use
+                    None: create a new TransformForest
+        """
         # mesh name : Trimesh object
         self.geometry = collections.OrderedDict()
 
         # graph structure of instances
-        self.graph = TransformForest(base_frame=base_frame)
+        if graph is None:
+            # create a new graph
+            self.graph = TransformForest(base_frame=base_frame)
+        else:
+            # if we've been passed a graph use it
+            self.graph = graph
 
+        # create our cache
         self._cache = caching.Cache(id_function=self.md5)
 
+        # add passed geometry to scene
         self.add_geometry(geometry)
+        # make sure there is a transform to "camera"
         self.set_camera()
 
+        # hold metadata about the scene
         self.metadata = {}
         self.metadata.update(metadata)
 
     def add_geometry(self,
                      geometry,
                      node_name=None):
-        '''
+        """
         Add a geometry to the scene.
 
         If the mesh has multiple transforms defined in its metadata, they will
@@ -60,13 +80,16 @@ class Scene:
         Returns
         ----------
         node_name: str, name of node in self.graph
-        '''
+        """
+
         if geometry is None:
             return
-
-        # if passed a sequence call add_geometry on all elements
-        if util.is_sequence(geometry):
+        elif util.is_sequence(geometry):
+            # if passed a sequence call add_geometry on all elements
             return [self.add_geometry(i) for i in geometry]
+        elif isinstance(geometry, dict):
+            # if someone passed us a dict of geometry
+            return self.geometry.update(geometry)
 
         # default values for transforms and name
         transforms = np.eye(4).reshape((-1, 4, 4))
@@ -98,13 +121,13 @@ class Scene:
                               geometry_flags={'visible': True})
 
     def md5(self):
-        '''
+        """
         MD5 of scene, which will change when meshes or transforms are changed
 
         Returns
         --------
         hashed: str, MD5 hash of scene
-        '''
+        """
 
         # get the MD5 of geometry and graph
         data = [i.md5() for i in self.geometry.values()]
@@ -114,13 +137,13 @@ class Scene:
 
     @property
     def is_empty(self):
-        '''
+        """
         Does the scene have anything in it.
 
         Returns
         ----------
         is_empty: bool, True if nothing is in the scene
-        '''
+        """
 
         is_empty = len(self.geometry) == 0
         return is_empty
@@ -162,13 +185,13 @@ class Scene:
 
     @util.cache_decorator
     def bounds(self):
-        '''
+        """
         Return the overall bounding box of the scene.
 
         Returns
         --------
         bounds: (2,3) float points for min, max corner
-        '''
+        """
         corners = self.bounds_corners
         bounds = np.array([corners.min(axis=0),
                            corners.max(axis=0)])
@@ -176,48 +199,48 @@ class Scene:
 
     @util.cache_decorator
     def extents(self):
-        '''
+        """
         Return the axis aligned box size of the current scene.
 
         Returns
         ----------
         extents: (3,) float, bounding box sides length
-        '''
+        """
         return np.diff(self.bounds, axis=0).reshape(-1)
 
     @util.cache_decorator
     def scale(self):
-        '''
+        """
         The approximate scale of the mesh
 
         Returns
         -----------
         scale: float, the mean of the bounding box edge lengths
-        '''
+        """
         scale = (self.extents ** 2).sum() ** .5
         return scale
 
     @util.cache_decorator
     def centroid(self):
-        '''
+        """
         Return the center of the bounding box for the scene.
 
         Returns
         --------
         centroid: (3) float point for center of bounding box
-        '''
+        """
         centroid = np.mean(self.bounds, axis=0)
         return centroid
 
     @util.cache_decorator
     def triangles(self):
-        '''
+        """
         Return a correctly transformed polygon soup of the current scene.
 
         Returns
         ----------
         triangles: (n,3,3) float, triangles in space
-        '''
+        """
         triangles = collections.deque()
         triangles_node = collections.deque()
 
@@ -240,32 +263,32 @@ class Scene:
 
     @util.cache_decorator
     def triangles_node(self):
-        '''
+        """
         Which node of self.graph does each triangle come from.
 
         Returns
         ---------
         triangles_index: (len(self.triangles),) node name for each triangle
-        '''
+        """
         populate = self.triangles
         return self._cache['triangles_node']
 
     @util.cache_decorator
     def geometry_identifiers(self):
-        '''
+        """
         Look up geometries by identifier MD5
 
         Returns
         ---------
         identifiers: dict, identifier md5: key in self.geometry
-        '''
+        """
         identifiers = {mesh.identifier_md5: name
                        for name, mesh in self.geometry.items()}
         return identifiers
 
     @util.cache_decorator
     def duplicate_nodes(self):
-        '''
+        """
         Return a sequence of node keys of identical meshes.
 
         Will combine meshes duplicated by copying in space with different keys in
@@ -275,7 +298,7 @@ class Scene:
         -----------
         duplicates: (m) sequence of keys to self.nodes that represent
                      identical geometry
-        '''
+        """
         # if there is no geometry we can have no duplicate nodes
         if len(self.geometry) == 0:
             return []
@@ -299,7 +322,7 @@ class Scene:
         return duplicates
 
     def set_camera(self, angles=None, distance=None, center=None):
-        '''
+        """
         Add a transform to self.graph for 'camera'
 
         If arguments are not passed sane defaults will be figured out.
@@ -310,12 +333,13 @@ class Scene:
         distance:  float, distance away camera should be
         center:    (3,) float, point camera should center on
 
-        '''
+        """
         if len(self.geometry) == 0:
             return
 
         if center is None:
             center = self.centroid
+
         if distance is None:
             # for a 60.0 degree horizontal FOV
             distance = ((self.extents.max() / 2) /
@@ -344,12 +368,12 @@ class Scene:
                           matrix=transform)
 
     def rezero(self):
-        '''
+        """
         Move the current scene so that the AABB of the whole scene is centered
         at the origin.
 
         Does this by changing the base frame to a new, offset base frame.
-        '''
+        """
         if self.is_empty or np.allclose(self.centroid, 0.0):
             # early exit since what we want already exists
             return
@@ -366,14 +390,14 @@ class Scene:
         self.graph.base_frame = new_base
 
     def dump(self):
-        '''
+        """
         Append all meshes in scene to a list of meshes.
 
         Returns
         ----------
         dumped: (n,) list, of Trimesh objects transformed to their
                            location the scene.graph
-        '''
+        """
         result = collections.deque()
 
         for node_name in self.graph.nodes_geometry:
@@ -386,27 +410,27 @@ class Scene:
 
     @util.cache_decorator
     def convex_hull(self):
-        '''
+        """
         The convex hull of the whole scene
 
         Returns
         ---------
         hull: Trimesh object, convex hull of all meshes in scene
-        '''
+        """
         points = util.vstack_empty([m.vertices for m in self.dump()])
         hull = convex.convex_hull(points)
         return hull
 
     @util.cache_decorator
     def bounding_box(self):
-        '''
+        """
         An axis aligned bounding box for the current scene.
 
         Returns
         ----------
         aabb: trimesh.primitives.Box object with transform and extents defined
               to represent the axis aligned bounding box of the scene
-        '''
+        """
         from .. import primitives
         center = self.bounds.mean(axis=0)
         aabb = primitives.Box(
@@ -417,14 +441,14 @@ class Scene:
 
     @util.cache_decorator
     def bounding_box_oriented(self):
-        '''
+        """
         An oriented bounding box for the current mesh.
 
         Returns
         ---------
         obb: trimesh.primitives.Box object with transform and extents defined
              to represent the minimum volume oriented bounding box of the mesh
-        '''
+        """
         from .. import primitives
         to_origin, extents = bounds_module.oriented_bounds(self)
         obb = primitives.Box(transform=np.linalg.inv(to_origin),
@@ -433,7 +457,7 @@ class Scene:
         return obb
 
     def export(self, file_type=None):
-        '''
+        """
         Export a snapshot of the current scene.
 
         Parameters
@@ -447,7 +471,7 @@ class Scene:
                 meshes: list of meshes, encoded as per file_type
                 transforms: edge list of transforms, eg:
                              ((u, v, {'matrix' : np.eye(4)}))
-        '''
+        """
 
         if file_type == 'gltf':
             return gltf.export_gltf(self)
@@ -491,7 +515,7 @@ class Scene:
         return export
 
     def save_image(self, resolution=(1024, 768), **kwargs):
-        '''
+        """
         Get a PNG image of a scene.
 
         Parameters
@@ -502,7 +526,7 @@ class Scene:
         Returns
         -----------
         png: bytes, render of scene in PNG form
-        '''
+        """
         from .viewer import render_scene
         png = render_scene(scene=self,
                            resolution=resolution,
@@ -510,7 +534,7 @@ class Scene:
         return png
 
     def convert_units(self, desired, guess=False):
-        '''
+        """
         If geometry has units defined, convert them to new units.
 
         Returns a new scene with geometries and transforms scaled.
@@ -518,7 +542,7 @@ class Scene:
         Parameters
         ----------
         units: str, target unit system. EG 'inches', 'mm', etc
-        '''
+        """
         # if there is no geometry do nothing
         if len(self.geometry) == 0:
             return self
@@ -551,14 +575,14 @@ class Scene:
         return result
 
     def explode(self, vector=None, origin=None):
-        '''
+        """
         Explode a scene around a point and vector.
 
         Parameters
         -----------
         vector: (3,) float, or float, explode in a direction or spherically
         origin: (3,) float, point to explode around
-        '''
+        """
         if origin is None:
             origin = self.centroid
         if vector is None:
@@ -588,14 +612,14 @@ class Scene:
             self.graph[node_name] = transform
 
     def scaled(self, scale):
-        '''
+        """
         Return a copy of the current scene, with meshes and scene graph
         transforms scaled to the requested factor.
 
         Parameters
         -----------
         scale: float, factor to scale meshes and transforms by
-        '''
+        """
         scale = float(scale)
         scale_matrix = np.eye(4) * scale
 
@@ -631,24 +655,29 @@ class Scene:
         return result
 
     def copy(self):
-        '''
+        """
         Return a deep copy of the current scene
 
         Returns
         ----------
         copied: trimesh.Scene, copy of the current scene
-        '''
-        copied = copy.deepcopy(self)
+        """
+        # use the geometries copy method to
+        # allow them to handle references to unpickle-able objects
+        geometry = {n: g.copy() for n, g in self.geometry.items()}
+        # create a new scene with copied geometry and graph
+        copied = Scene(geometry=geometry,
+                       graph=self.graph.copy())
         return copied
 
     def show(self, **kwargs):
-        '''
+        """
         Open a pyglet window to preview the current scene
 
         Parameters
         -----------
         smooth: bool, turn on or off automatic smooth shading
-        '''
+        """
         # this imports pyglet, and will raise an ImportError
         # if pyglet is not available
         from .viewer import SceneViewer
@@ -656,7 +685,7 @@ class Scene:
 
 
 def split_scene(geometry):
-    '''
+    """
     Given a geometry, list of geometries, or a Scene
     return them as a single Scene object.
 
@@ -667,7 +696,7 @@ def split_scene(geometry):
     Returns
     ---------
     scene: trimesh.Scene
-    '''
+    """
     # already a scene, so return it
     if util.is_instance_named(geometry, 'Scene'):
         return geometry

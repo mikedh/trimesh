@@ -1,6 +1,7 @@
 import numpy as np
 
-from ..util import three_dimensionalize, euclidean, unitize
+from ..util import three_dimensionalize, unitize
+
 from ..constants import log
 from ..constants import tol_path as tol
 from ..constants import res_path as res

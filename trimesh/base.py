@@ -1321,8 +1321,8 @@ class Trimesh(object):
         """
         if self.is_empty:
             return False
-        watertight, winding = graph.is_watertight(edges=self.edges,
-                                                  edges_sorted=self.edges_sorted)
+        watertight, winding = graph.is_watertight(
+            edges=self.edges, edges_sorted=self.edges_sorted)
         self._cache['is_winding_consistent'] = winding
         return watertight
 
@@ -1790,11 +1790,8 @@ class Trimesh(object):
                 matrix)[0]
 
         # force generation of face normals so we can check against them
-        new_normals = np.dot(matrix[0:3, 0:3], self.face_normals.T).T
-        # easier than figuring out what the scale factor of the matrix is
-        unitized, valid = util.unitize(new_normals, check_valid=True)
-        # invalid normals are zero anyway
-        new_normals[valid] = unitized
+        new_normals = util.unitize(np.dot(matrix[0:3, 0:3],
+                                          self.face_normals.T).T)
 
         # check the first face against the first normal to check winding
         aligned_pre = triangles.windings_aligned(self.vertices[self.faces[:1]],

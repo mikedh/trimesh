@@ -20,16 +20,21 @@ class BooleanTest(g.unittest.TestCase):
             e.primitive.height = 1.0
             self.primitives.append(e)
 
-            self.primitives.append(g.trimesh.primitives.Extrusion(polygon=g.trimesh.path.polygons.random_polygon(),
-                                                                  height=293292.322))
+            self.primitives.append(
+                g.trimesh.primitives.Extrusion(
+                    polygon=g.trimesh.path.polygons.random_polygon(),
+                    height=293292.322))
 
         self.primitives.append(g.trimesh.primitives.Sphere())
         self.primitives.append(g.trimesh.primitives.Sphere(center=[0, 0, 100],
                                                            radius=10.0,
                                                            subdivisions=5))
         self.primitives.append(g.trimesh.primitives.Box())
-        self.primitives.append(g.trimesh.primitives.Box(center=[102.20, 0, 102.0],
-                                                        extents=[29, 100, 1000]))
+        self.primitives.append(
+            g.trimesh.primitives.Box(
+                center=[
+                    102.20, 0, 102.0], extents=[
+                    29, 100, 1000]))
 
         self.primitives.append(g.trimesh.primitives.Cylinder())
         self.primitives.append(g.trimesh.primitives.Cylinder(radius=10,
@@ -79,8 +84,9 @@ class BooleanTest(g.unittest.TestCase):
             return
 
         polygon = g.Point([0, 0]).buffer(.5)
-        e = g.trimesh.primitives.Extrusion(polygon=polygon,
-                                           transform=g.trimesh.transformations.random_rotation_matrix())
+        e = g.trimesh.primitives.Extrusion(
+            polygon=polygon,
+            transform=g.trimesh.transformations.random_rotation_matrix())
 
         # will create an inflated version of the extrusion
         b = e.buffer(.1)

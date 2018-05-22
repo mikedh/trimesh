@@ -31,12 +31,11 @@ class VectorTests(unittest.TestCase):
         vectors[0] = [0, 0, 0]
         vectors, valid = trimesh.unitize(vectors, check_valid=True)
 
-        self.assertFalse(valid[0])
-        self.assertTrue(np.all(valid[1:]))
+        assert not valid[0]
+        assert valid[1:].all()
 
-        length = np.sum(vectors[1:] ** 2, axis=1) ** 2
-        length_check = np.abs(length - 1.0) < TOL_ZERO
-        self.assertTrue(np.all(length_check))
+        length = np.sum(vectors[1:] ** 2, axis=1) ** .5
+        assert np.allclose(length, 1.0)
 
     def test_align(self):
         log.info('Testing vector alignment')
@@ -207,10 +206,8 @@ class MassTests(unittest.TestCase):
 
         for truth in self.truth:
             mesh = self.meshes[truth['filename']]
-            calculated = trimesh.triangles.mass_properties(triangles=mesh.triangles,
-                                                           density=truth[
-                                                               'density'],
-                                                           skip_inertia=False)
+            calculated = trimesh.triangles.mass_properties(
+                triangles=mesh.triangles, density=truth['density'], skip_inertia=False)
 
             parameter_count = 0
             for parameter in calculated.keys():

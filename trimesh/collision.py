@@ -367,8 +367,10 @@ class CollisionManager(object):
         """
         cdata = fcl.CollisionData()
         if return_names or return_data:
-            cdata = fcl.CollisionData(request=fcl.CollisionRequest(num_max_contacts=100000,
-                                                                   enable_contact=True))
+            cdata = fcl.CollisionData(
+                request=fcl.CollisionRequest(
+                    num_max_contacts=100000,
+                    enable_contact=True))
         self._manager.collide(other_manager._manager,
                               cdata,
                               fcl.defaultCollisionCallback)
