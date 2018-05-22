@@ -96,6 +96,23 @@ def unitize(vectors,
     return unit
 
 
+def euclidean(a, b):
+    """
+    Euclidean distance between vectors a and b.
+
+    Parameters
+    ------------
+    a: (n,) float, vector A
+    b: (n,) float, vector B
+
+    Returns
+    ------------
+    distance: float, euclidean distance between A and B
+    """
+    a = np.asanyarray(a, dtype=np.float64)
+    b = np.asanyarray(b, dtype=np.float64)
+    return np.sqrt(((a - b) ** 2).sum())
+
 def is_file(obj):
     """
     Check if an object is file- like
