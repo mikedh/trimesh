@@ -109,9 +109,12 @@ class RayTests(g.unittest.TestCase):
         # Set up a list of ray directions - one for each pixel in our (256,
         # 256) output image.
         ray_directions = g.trimesh.util.grid_arange(
-            [[-h / 2, -w / 2], [h / 2, w / 2]], step=2.0)
+            [[-h / 2, -w / 2],
+             [h / 2, w / 2]],
+            step=2.0)
         ray_directions = g.np.column_stack(
-            (ray_directions, g.np.ones(len(ray_directions)) * f[0]))
+            (ray_directions,
+             g.np.ones(len(ray_directions)) * f[0]))
 
         # Initialize the camera origin to be somewhere behind the cube.
         cam_t = g.np.array([0, 0, -15.])
