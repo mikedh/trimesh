@@ -1970,8 +1970,7 @@ class Trimesh(object):
         scene: trimesh.scene.Scene object, of scene with current mesh in it
         """
         scene = self.scene()
-        scene.show(**kwargs)
-        return scene
+        return scene.show(**kwargs)
 
     def submesh(self, faces_sequence, **kwargs):
         """
