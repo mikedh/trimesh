@@ -17,7 +17,7 @@ def get_resource(name):
     """
     # get the resource
     resource = resource_string('trimesh',
-                os.path.join('resources', name))
+                               os.path.join('resources', name))
     # make sure we return it as a string
     if hasattr(resource, 'decode'):
         return resource.decode('utf-8')

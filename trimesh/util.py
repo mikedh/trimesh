@@ -113,6 +113,7 @@ def euclidean(a, b):
     b = np.asanyarray(b, dtype=np.float64)
     return np.sqrt(((a - b) ** 2).sum())
 
+
 def is_file(obj):
     """
     Check if an object is file- like
