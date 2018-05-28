@@ -670,20 +670,37 @@ class Scene:
                        graph=self.graph.copy())
         return copied
 
-    def show(self, **kwargs):
+    def show(self, viewer=None, **kwargs):
         """
-        Open a pyglet window to preview the current scene
+        Display the current scene. 
 
         Parameters
         -----------
+        viewer: str 'gl':       open a pyglet window
+                str,'notebook': return ipython.display.HTML
+                None: automatically pick based on whether or not
+                          we are in an ipython notebook
         smooth: bool, turn on or off automatic smooth shading
         """
-        # this imports pyglet, and will raise an ImportError
-        # if pyglet is not available
-        from .viewer import SceneViewer
-        SceneViewer(self, **kwargs)
+        
+        if viewer is None:
+            # check to see if we are in a notebook or not
+            from .viewerJS import in_notebook
+            viewer = ['gl', 'notebook'][int(in_notebook())]
+         
+        if viewer == 'gl':
+            # this imports pyglet, and will raise an ImportError
+            # if pyglet is not available
+            from .viewer import SceneViewer
+            return SceneViewer(self, **kwargs)
+        elif viewer == 'notebook':
+            from .viewerJS import scene_to_notebook
+            return scene_to_notebook(self, **kwargs)
+        else:
+            raise ValueError('viewer must be "gl", "notebook", or None')
 
-
+        
+            
 def split_scene(geometry):
     """
     Given a geometry, list of geometries, or a Scene

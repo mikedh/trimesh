@@ -3,6 +3,9 @@ compile.py
 --------------
 
 Take an HTML file and embed local scripts into one blob.
+
+The idea is you develop on viewer.html, then call this file to
+generate the template used in the trimesh viewer.
 """
 import jsmin
 import requests

@@ -39,7 +39,7 @@ def scene_to_html(scene):
     return result
 
 
-def scene_to_notebook(scene, height=600):
+def scene_to_notebook(scene, height=500, **kwargs):
     """
     Convert a scene to HTML containing embedded geometry
     and a three.js viewer that will display nicely in
