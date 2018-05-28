@@ -26,7 +26,8 @@ def plane_transform(origin, normal):
     transform: (4,4) float, transformation matrix
     """
     transform = align_vectors(normal, [0, 0, 1])
-    transform[0:3, 3] = -np.dot(transform, np.append(origin, 1))[0:3]
+    transform[0:3, 3] = -np.dot(transform,
+                                np.append(origin, 1))[0:3]
     return transform
 
 
@@ -50,11 +51,16 @@ def align_vectors(vector_start, vector_end, return_angle=False):
     angle:     float, angle in radians (only returned if flag set)
 
     """
-    start = np.asanyarray(vector_start, dtype=np.float64)
+    # convert start and end to (3, ) float unit vectors
+    start = np.asanyarray(vector_start,
+                          dtype=np.float64).reshape(3)
     start /= np.linalg.norm(start)
-    end = np.asanyarray(vector_end, dtype=np.float64)
+    end = np.asanyarray(vector_end,
+                        dtype=np.float64).reshape(3)
     end /= np.linalg.norm(end)
 
+    # get a unit vector perpendicular to both vectors
+    # this will be the axis we are rotating around
     cross = np.cross(start, end)
     # we clip the norm to 1, as otherwise floating point bs
     # can cause the arcsin to error
