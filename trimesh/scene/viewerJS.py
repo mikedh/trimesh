@@ -26,9 +26,7 @@ def scene_to_html(scene):
     html: str, HTML containing embedded geometry
     """
     # use os.path.join so this works on windows
-    base = get_resource(
-        os.path.join('javascript',
-                     'viewer.html.template'))
+    base = get_resource('viewer.html.template')
 
     # get export as bytes
     data = scene.export(file_type='glb')

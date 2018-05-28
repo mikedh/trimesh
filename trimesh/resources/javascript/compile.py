@@ -79,5 +79,5 @@ if __name__ == '__main__':
     result = html.tostring(h, pretty_print=False).decode('utf-8')
     #result = result.replace('<body>', '').replace('</body>', '')
 
-    with open('viewer.html.template', 'w') as f:
+    with open('../viewer.html.template', 'w') as f:
         f.write(result)
