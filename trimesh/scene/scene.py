@@ -672,7 +672,7 @@ class Scene:
 
     def show(self, viewer=None, **kwargs):
         """
-        Display the current scene. 
+        Display the current scene.
 
         Parameters
         -----------
@@ -682,12 +682,12 @@ class Scene:
                           we are in an ipython notebook
         smooth: bool, turn on or off automatic smooth shading
         """
-        
+
         if viewer is None:
             # check to see if we are in a notebook or not
             from .viewerJS import in_notebook
             viewer = ['gl', 'notebook'][int(in_notebook())]
-         
+
         if viewer == 'gl':
             # this imports pyglet, and will raise an ImportError
             # if pyglet is not available
@@ -699,8 +699,7 @@ class Scene:
         else:
             raise ValueError('viewer must be "gl", "notebook", or None')
 
-        
-            
+
 def split_scene(geometry):
     """
     Given a geometry, list of geometries, or a Scene
