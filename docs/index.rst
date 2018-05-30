@@ -15,7 +15,16 @@ Install
 	      
    install
 
+Examples
+==========
+.. toctree::
+   :maxdepth: 2
+	      
+   examples
 
 Module Reference
 ==================
+.. toctree::
+   :maxdepth: 2
+   
 * :ref:`modindex`
