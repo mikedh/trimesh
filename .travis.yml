@@ -9,14 +9,24 @@ python:
 before_deploy:
 - sudo apt-get install pandoc -y
 - pip install pypandoc
+- pip install -r docs/requirements.txt
+- python docs/build.py
 deploy:
-  provider: pypi
+- provider: pypi
   user: mikedh
   on:
     python: '3.6'
     branch: master
   password:
     secure: MmFES9M+UZbfpQsWeSVlhgUcdbpCymaeJwExxcyJbkKKWdRoZLRusqCmTdQ7Rai8DxH++ooqgEnHwq+D9e/8Y0jbbFBScPbJVeNFj1B4xV36NlyV8A0027/UTuhvkhoUv/xP6mN4TfuC3tWEj5m20DQlibjjxS154r/BlA6/kic=
+- provider: pages
+  skip-cleanup: true
+  github-token: $GITHUB_TOKEN 
+  keep-history: true
+  target-branch: gh-pages
+  local-dir: docs/html
+  on:
+    branch: master
 before_install:
 - sudo apt-get update
 - sudo apt-get install -y openscad blender

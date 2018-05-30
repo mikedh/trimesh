@@ -39,7 +39,10 @@ if __name__ == '__main__':
     # render IPython examples to HTML
     # create examples directory
     examples_dir = os.path.join(build_dir, 'examples')
-    os.makedirs(examples_dir)
+    try:
+        os.makedirs(examples_dir)
+    except FileExistsError:
+        pass
     exp = ['python',
            abspath('../tests/notebook_run.py'),
            'examples',
