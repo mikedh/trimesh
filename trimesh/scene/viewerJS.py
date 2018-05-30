@@ -85,7 +85,8 @@ def in_notebook():
         ipy = get_ipython()
         # we only want to render rich output in notebooks
         # in terminals we definitly do not want to output HTML
-        terminal = 'terminal' in ipy.__class__.__name__.lower()
+        name = str(ipy.__class__).lower()
+        terminal = 'terminal' in name
         return not terminal
 
     except BaseException:
