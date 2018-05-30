@@ -99,17 +99,6 @@ def render_examples(out_dir, in_dir=None, ext='ipynb'):
         render_notebook(nb_path, html_path)
 
 
-def exec_notebook(file_name):
-    """
-    Run a notebook using exec.
-    """
-    if (file_name.endswith('ipynb') and
-            os.path.exists(file_name)):
-        with open(file_name, 'r') as file_obj:
-            script = load_notebook(file_obj)
-        print('\nloaded {}:\n'.format(file_name))
-        print(script)
-        exec(script)
     
 if __name__ == '__main__':
     """
@@ -118,5 +107,13 @@ if __name__ == '__main__':
     if "examples" in sys.argv:
         out_path = sys.argv[sys.argv.index("examples") + 1]
         render_examples(out_path)
-    else:
-        exec_notebook(sys.argv[-1])
+    elif "exec" in sys.argv:
+        # exec the script passed
+        file_name = sys.argv[sys.argv.index("exec") + 1]
+        if (file_name.endswith('ipynb') and
+                os.path.exists(file_name)):
+            with open(file_name, 'r') as file_obj:
+                script = load_notebook(file_obj)
+            print('\nloaded {}:\n'.format(file_name))
+            print(script)
+            exec(script)
