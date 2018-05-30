@@ -3,3 +3,6 @@ numpy
 scipy
 networkx
 recommonmark
+sphinx
+jupyter
+sphinx_rtd_theme
