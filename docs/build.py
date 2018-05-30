@@ -65,3 +65,8 @@ if __name__ == '__main__':
            cwd,
            build_dir]
     subprocess.check_call(bld)
+
+    # keep github pages from using jekyll
+    with open(os.path.join(build_dir, '.nojekyll'), 'w') as f:
+        f.write(' ')
+        
