@@ -6,8 +6,8 @@ version: 2
 jobs:
   build:
     branches:
-      ignore:
-        - gh-pages
+      only:
+        - master
     docker:
       - image: continuumio/anaconda3
     working_directory: ~/repo
