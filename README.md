@@ -34,12 +34,12 @@ conda install -c conda-forge pyembree
 pip install trimesh[easy]
 ```
  
-Further information is available in the [advanced installation documentation](http://trimesh.readthedocs.io/en/latest/install.html).
+Further information is available in the [advanced installation documentation](https://trimsh.org/install.html).
 
 ## Quick Start
 
 Here is an example of loading a mesh from file and colorizing its faces. Here is a nicely formatted
-[ipython notebook version](http://github.com/mikedh/trimesh/blob/master/examples/quick_start.ipynb) of this example. Also check out the [cross section example](https://github.com/mikedh/trimesh/blob/master/examples/section.ipynb) or possibly the [integration of a function over a mesh example](https://github.com/mikedh/trimesh/blob/master/examples/integrate.ipynb).
+[ipython notebook version](https://trimsh.org/examples/quick_start.html) of this example. Also check out the [cross section example](https://trimsh.org/examples/section.html) or possibly the [integration of a function over a mesh example](https://github.com/mikedh/trimesh/blob/master/examples/integrate.ipynb).
 
 ```python
 import numpy as np
