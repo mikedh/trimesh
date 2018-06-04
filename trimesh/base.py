@@ -1762,9 +1762,9 @@ class Trimesh(object):
         """
         Transform mesh by a homogenous transformation matrix.
 
-        Also does bookkeeping to avoid recomputing things, this function
+        Does the bookkeeping to avoid recomputing things so this function
         should be used rather than directly modifying self.vertices
-        if possible
+        if possible.
 
         Parameters
         ----------
@@ -1809,34 +1809,45 @@ class Trimesh(object):
                                                   normal_post)[0]
 
         # preserve face normals if we have them stored
+        new_FN = None
         if 'face_normals' in self._cache:
             # transform face normals by rotation component
-            new_FN = np.dot(matrix[0:3, 0:3],
-                            self.face_normals.T).T
-        else:
-            new_FN = None
+            new_FN = util.unitize(
+                transformations.transform_points(
+                    self.face_normals,
+                    matrix=matrix,
+                    translate=False))
 
         # preserve vertex normals if we have them stored
+        new_VN = None
         if 'vertex_normals' in self._cache:
-            new_VN = np.dot(matrix[0:3, 0:3],
-                            self.vertex_normals.T).T
-        else:
-            new_VN = None
+            new_VN = util.unitize(
+                transformations.transform_points(
+                    self.vertex_normals,
+                    matrix=matrix,
+                    translate=False))
 
+        # if matrix flips windings, flip faces
         if aligned_pre != aligned_post:
             log.debug('normals not aligned after transform: flipping')
             # fliplr will make array non C contiguous, which will
             # cause hashes to be more expensive than necessary
             self.faces = np.ascontiguousarray(np.fliplr(self.faces))
 
-        with self._cache:
-            self.vertices = new_vertices
-            self.face_normals = new_FN
-            self.vertex_normals = new_VN
+        # assign the new values
+        self.vertices = new_vertices
+        self.face_normals = new_FN
+        self.vertex_normals = new_VN
 
-        # preserve normals in cache
+        # preserve normals and topology in cache
+        # while dumping everything else
         self._cache.clear(exclude=['face_normals',
+                                   'face_adjacency',
+                                   'euler_number',
                                    'vertex_normals'])
+        # set the cache ID with the current hash value
+        self._cache.id_set()
+
         log.debug('mesh transformed by matrix')
         return self
 
@@ -1909,7 +1920,8 @@ class Trimesh(object):
         ---------
         area_faces: (n,) float, area of each face.
         """
-        area_faces = triangles.area(crosses=self.triangles_cross, sum=False)
+        area_faces = triangles.area(crosses=self.triangles_cross,
+                                    sum=False)
         return area_faces
 
     @util.cache_decorator
