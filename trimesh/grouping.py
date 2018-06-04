@@ -592,10 +592,11 @@ def merge_intervals(intervals):
     merged = np.array([i for i in merge_generator(intervals)])
     return merged
 
+
 def group_min(groups, data):
     """
     Given a list of groups, find the minimum element of data within each group
-    
+
     Parameters
     -----------
     groups: (n,) The id of each group corresponding to each element in data
@@ -604,11 +605,11 @@ def group_min(groups, data):
     Returns
     -----------
     minimums: (m,) List of minimums of data, where m is the number of groups
-    
+
     """
     # sort with major key groups, minor key data
     order = np.lexsort((data, groups))
-    groups = groups[order] # this is only needed if groups is unsorted
+    groups = groups[order]  # this is only needed if groups is unsorted
     data = data[order]
     # construct an index which marks borders between groups
     index = np.empty(len(groups), 'bool')

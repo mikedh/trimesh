@@ -9,19 +9,20 @@ import numpy as np
 cwd = os.path.dirname(os.path.abspath(
     inspect.getfile(inspect.currentframe())))
 
+
 def load_notebook(file_obj,
                   exclude=['%', 'show', 'plt']):
     """
-    Load an ipynb file into a cleaned and stripped string that can 
+    Load an ipynb file into a cleaned and stripped string that can
     be ran with `exec`
 
-    The motivation for this is to check ipynb examples with CI so 
+    The motivation for this is to check ipynb examples with CI so
     they don't get silently broken and confusing.
 
     Arguments
     ----------
     file_obj :  open file object
-    exclude  :  list, strs which if a line contains the line 
+    exclude  :  list, strs which if a line contains the line
                 will be replaced by a pass statement.
 
     Returns
@@ -51,7 +52,7 @@ def to_pass(line):
 
     Returns
     ----------
-    passed : str, line of code with same leading spaces 
+    passed : str, line of code with same leading spaces
                   but code replaced with pass statement
     """
     spaces = np.nonzero([i != ' ' for i in line])[0][0]
@@ -65,7 +66,7 @@ def render_notebook(file_name, out_name, nbconvert='jupyter'):
     """
     out_name = os.path.abspath(out_name)
     file_name = os.path.abspath(file_name)
-    
+
     command = [nbconvert,
                'nbconvert',
                '--to',
@@ -85,7 +86,7 @@ def render_examples(out_dir, in_dir=None, ext='ipynb'):
     if in_dir is None:
         in_dir = os.path.abspath(
             os.path.join(cwd, '../examples'))
-    
+
     for file_name in os.listdir(in_dir):
         # check extension
         split = file_name.split('.')
@@ -99,7 +100,6 @@ def render_examples(out_dir, in_dir=None, ext='ipynb'):
         render_notebook(nb_path, html_path)
 
 
-    
 if __name__ == '__main__':
     """
     Load and run a notebook if a file name is passed
