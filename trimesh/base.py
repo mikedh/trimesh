@@ -1770,13 +1770,17 @@ class Trimesh(object):
         ----------
         matrix: (4,4) float, homogenous transformation matrix
         """
+        # get c-order float64 matrix
+        matrix = np.asanyarray(matrix,
+                               order='C',
+                               dtype=np.float64)
 
-        matrix = np.asanyarray(matrix, order='C', dtype=np.float64)
         if matrix.shape != (4, 4):
             raise ValueError('Transformation matrix must be (4,4)!')
-        # np.allclose is surprisingly slow
+
+        # np.allclose is surprisingly slow so do this test
         elif np.abs(matrix - np.eye(4)).max() < 1e-8:
-            log.debug('apply_tranform recieved identity matrix')
+            log.debug('apply_tranform passed identity matrix')
             return
 
         # new vertex positions
@@ -1789,25 +1793,51 @@ class Trimesh(object):
                 np.array([self._center_mass, ]),
                 matrix)[0]
 
-        # force generation of face normals so we can check against them
-        new_normals = util.unitize(np.dot(matrix[0:3, 0:3],
-                                          self.face_normals.T).T)
+        # a test triangle pre and post transform
+        triangle_pre = self.vertices[self.faces[:1]]
+        triangle_post = new_vertices[self.faces[:1]]
+
+        # compute triangle normal
+        normal_pre = triangles.normals(triangle_pre)[0]
+        normal_post = triangles.normals(triangle_post)[0]
 
         # check the first face against the first normal to check winding
-        aligned_pre = triangles.windings_aligned(self.vertices[self.faces[:1]],
-                                                 self.face_normals[:1])[0]
+        aligned_pre = triangles.windings_aligned(triangle_pre,
+                                                 normal_pre)[0]
         # windings aligned after applying transform
-        aligned_post = triangles.windings_aligned(new_vertices[self.faces[:1]],
-                                                  new_normals[:1])[0]
+        aligned_post = triangles.windings_aligned(triangle_post,
+                                                  normal_post)[0]
+
+        # preserve face normals if we have them stored
+        if 'face_normals' in self._cache:
+            # transform face normals by rotation component
+            new_FN = np.dot(matrix[0:3, 0:3],
+                            self.face_normals.T).T
+        else:
+            new_FN = None
+
+        # preserve vertex normals if we have them stored
+        if 'vertex_normals' in self._cache:
+            new_VN = np.dot(matrix[0:3, 0:3],
+                            self.vertex_normals.T).T
+        else:
+            new_VN = None
+
         if aligned_pre != aligned_post:
-            log.debug('Triangle normals not aligned after transform; flipping')
-            self.faces = np.fliplr(self.faces)
+            log.debug('normals not aligned after transform: flipping')
+            # fliplr will make array non C contiguous, which will
+            # cause hashes to be more expensive than necessary
+            self.faces = np.ascontiguousarray(np.fliplr(self.faces))
+
         with self._cache:
             self.vertices = new_vertices
-            self.face_normals = new_normals
-        self._cache.clear(exclude=['face_normals'])
+            self.face_normals = new_FN
+            self.vertex_normals = new_VN
 
-        log.debug('Mesh transformed by matrix, normals restored to cache')
+        # preserve normals in cache
+        self._cache.clear(exclude=['face_normals',
+                                   'vertex_normals'])
+        log.debug('mesh transformed by matrix')
         return self
 
     def voxelized(self, pitch, max_iter=10):

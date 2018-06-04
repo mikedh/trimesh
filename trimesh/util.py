@@ -1516,7 +1516,10 @@ def compress(info):
     else:
         file_obj = StringIO()
 
-    with zipfile.ZipFile(file_obj, 'w') as zipper:
+    with zipfile.ZipFile(
+            file_obj,
+            mode='w',
+            compression=zipfile.ZIP_DEFLATED) as zipper:
         for name, data in info.items():
             if hasattr(data, 'read'):
                 # if we were passed a file object, read it
