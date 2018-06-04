@@ -26,6 +26,7 @@ deploy:
   target-branch: gh-pages
   local-dir: docs/html
   on:
+    python: '3.6'
     branch: master
 before_install:
 - sudo apt-get update
