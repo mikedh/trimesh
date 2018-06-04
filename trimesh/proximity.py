@@ -8,6 +8,7 @@ import numpy as np
 
 from . import util
 
+from .grouping import group_min
 from .constants import tol, _log_time
 from .triangles import closest_point as closest_point_corresponding
 
@@ -292,3 +293,188 @@ class ProximityQuery(object):
         signed_distance : (n,3) float, signed distance from point to mesh
         """
         return signed_distance(self._mesh, points)
+
+
+
+def longest_ray(mesh, points, directions):
+    """
+    Find the lengths of the longest rays which do not intersect the mesh
+    cast from a list of points in the provided directions.
+    
+    Parameters
+    -----------
+    points : (n,3) float, list of points in space
+    directions : (n,3) float, directions of rays
+
+    Returns
+    ----------
+    signed_distance : (n,) float, length of rays
+    """
+    points = np.asanyarray(points, dtype=np.float64)
+    if not util.is_shape(points, (-1, 3)):
+        raise ValueError('points must be (n,3)!')
+        
+    directions = np.asanyarray(directions, dtype=np.float64)
+    if not util.is_shape(directions, (-1, 3)):
+        raise ValueError('directions must be (n,3)!')
+        
+    if len(points) != len(directions):
+        raise ValueError('number of points must equal number of directions!')
+    
+    faces, rays, locations = mesh.ray.intersects_id(points, directions, 
+                                                    return_locations=True,
+                                                    multiple_hits=True)
+    distances = np.linalg.norm(locations - points[rays], axis=1)
+    
+    # Reject intersections at distance less than tol.planar
+    rays = rays[distances > tol.planar]
+    distances = distances[distances > tol.planar]
+
+    # Add infinite length for those with no valid intersection
+    no_intersections = np.setdiff1d(np.arange(len(points)), rays)
+    rays = np.concatenate((rays, no_intersections))
+    distances = np.concatenate((distances, np.repeat(np.inf, len(no_intersections))))
+
+    return group_min(rays, distances)
+   
+
+def max_tangent_sphere(mesh, points, inwards=True, normals=None, threshold=1e-6, max_iter=100):
+    """
+    Find the center and radius of the sphere which is tangent to the mesh at the
+    given point and at least one more point with no non-tangential intersections
+    with the mesh.
+    
+    Masatomo Inui, Nobuyuki Umezu & Ryohei Shimane (2016) Shrinking sphere:
+    A parallel algorithm for computing the thickness of 3D objects, 
+    Computer-Aided Design and Applications, 13:2, 199-207, 
+    DOI: 10.1080/16864360.2015.1084186
+    
+    Parameters
+    ----------
+    points : (n,3) float, list of points in space
+    inwards : bool, whether to have the sphere inside the mesh, or outside
+    normals : (n,3) float, normals of the mesh at the given points, or None to
+              compute this automatically.
+        
+    Returns
+    ----------
+    centers : (n,3) float, centers of spheres
+    radii : (n,) float, radii of spheres
+    
+    """
+    points = np.asanyarray(points, dtype=np.float64)
+    if not util.is_shape(points, (-1, 3)):
+        raise ValueError('points must be (n,3)!')
+        
+    if normals is not None:
+        normals = np.asanyarray(normals, dtype=np.float64)
+        if not util.is_shape(normals, (-1, 3)):
+            raise ValueError('normals must be (n,3)!')
+            
+        if len(points) != len(normals):
+            raise ValueError('number of points must equal number of normals!')
+    else:
+        normals = mesh.face_normals[closest_point(mesh, points)[2]]
+        
+    if inwards:
+        normals = -normals
+        
+    # Find initial tangent spheres
+    distances = longest_ray(mesh, points, normals)
+    radii = distances*0.5
+    not_converged = np.repeat(True, len(points)) # Boolean mask
+    
+    # If ray is infinite, find the vertex which is furthest from our point
+    # when projected onto the ray. I.e. find v which maximises
+    # (v-p).n = v.n - p.n. 
+    # We use a loop rather a vectorised approach to reduce memory cost. It
+    # also seems to run faster.
+    for i in np.where(np.isinf(distances))[0]:
+        projections = np.dot(mesh.vertices - points[i], normals[i])
+        
+        # If no points lie outside the tangent plane, then the radius is infinite
+        # otherwise we have a point outside the tangent plane, take the one with maximal
+        # projection
+        if projections.max() < tol.planar:
+            radii[i] = np.inf
+            not_converged[i] = False
+        else:
+            vertex = mesh.vertices[projections.argmax()]
+            radii[i] = (np.dot(vertex - points[i], vertex - points[i]) / 
+                     (2*np.dot(vertex - points[i], normals[i])))
+    
+
+    # Compute centers
+    centers = points + normals * np.nan_to_num(radii.reshape(-1,1))
+    centers[np.isinf(radii)] = [np.nan, np.nan, np.nan]
+    
+    # Our iterative process terminates when the difference in sphere
+    # radius is less than threshold*D
+    D = np.linalg.norm(mesh.bounds[1] - mesh.bounds[0])
+    convergence_threshold = threshold*D
+    n_iter = 0
+    while not_converged.sum() > 0 and n_iter < max_iter:
+        n_iter += 1
+        n_points, n_dists, n_faces = mesh.nearest.on_surface(centers[not_converged])
+        
+        # If the distance to the nearest point is the same as the distance
+        # to the start point then we are done.
+        done = np.abs(n_dists - np.linalg.norm(centers[not_converged] - points[not_converged], axis=1)) < tol.planar
+        not_converged[np.where(not_converged)[0][done]] = False
+        
+        # Otherwise find the radius and center of the sphere tangent to the mesh
+        # at the point and the nearest point.        
+        diff = n_points[~done] - points[not_converged]
+        old_radii = radii[not_converged].copy()
+        # np.einsum produces element wise dot product
+        radii[not_converged] = (np.einsum('ij, ij->i', diff, diff)/
+             (2*np.einsum('ij, ij->i', diff, normals[not_converged])))
+        centers[not_converged] = points[not_converged] + normals[not_converged] * radii[not_converged].reshape(-1,1)
+        
+        # If change in radius is less than threshold we have converged
+        cvged = old_radii - radii[not_converged] < convergence_threshold
+        not_converged[np.where(not_converged)[0][cvged]] = False
+        
+                
+    return centers, radii
+
+def thickness(mesh, points, exterior=False, normals=None, method='max_sphere'):
+    """
+    Find the thickness of the mesh at the given points.
+    
+    Parameters
+    ----------
+    points : (n,3) float, list of points in space
+    exterior : bool, whether to compute the exterior thickness (a.k.a. reach)
+    normals : (n,3) float, normals of the mesh at the given points, or None to
+              compute this automatically.
+    method : string, one of 'max_sphere' or 'ray'
+        
+    Returns
+    ----------
+    thickness : (n,) float, thickness
+    """
+    points = np.asanyarray(points, dtype=np.float64)
+    if not util.is_shape(points, (-1, 3)):
+        raise ValueError('points must be (n,3)!')
+        
+    if normals is not None:
+        normals = np.asanyarray(normals, dtype=np.float64)
+        if not util.is_shape(normals, (-1, 3)):
+            raise ValueError('normals must be (n,3)!')
+            
+        if len(points) != len(normals):
+            raise ValueError('number of points must equal number of normals!')
+    else:
+        normals = mesh.face_normals[closest_point(mesh, points)[2]]
+        
+    if method == 'max_sphere':
+        centers, radii = max_tangent_sphere(mesh, points, not exterior, normals)
+        return radii
+    elif method == 'ray':
+        if exterior:
+            return longest_ray(mesh, points, normals)
+        else:
+            return longest_ray(mesh, points, -normals)
+    else:
+        raise ValueError('Invalid method, use one of "max_sphere" or "ray"')
