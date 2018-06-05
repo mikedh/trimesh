@@ -388,8 +388,8 @@ def _read_buffers(header, buffers):
             kwargs['face_colors'].append(np.tile(color, (len(faces), 1)))
         # re- index faces
         (kwargs['vertices'],
-         kwargs['faces']) = util.append_faces(kwargs['vertices'].copy(),
-                                              kwargs['faces'].copy())
+         kwargs['faces']) = util.append_faces(kwargs['vertices'],
+                                              kwargs['faces'])
         # stack colors
         kwargs['face_colors'] = np.vstack(kwargs['face_colors'])
 
