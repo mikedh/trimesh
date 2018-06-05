@@ -349,11 +349,11 @@ def max_tangent_sphere(mesh,
                        threshold=1e-6,
                        max_iter=100):
     """
-    Find the center and radius of the sphere which is tangent to 
-    the mesh at the given point and at least one more point with no 
+    Find the center and radius of the sphere which is tangent to
+    the mesh at the given point and at least one more point with no
     non-tangential intersections with the mesh.
 
-    Masatomo Inui, Nobuyuki Umezu & Ryohei Shimane (2016) 
+    Masatomo Inui, Nobuyuki Umezu & Ryohei Shimane (2016)
     Shrinking sphere:
     A parallel algorithm for computing the thickness of 3D objects,
     Computer-Aided Design and Applications, 13:2, 199-207,
@@ -465,7 +465,7 @@ def thickness(mesh,
     Parameters
     ----------
     points : (n,3) float, list of points in space
-    exterior : bool, whether to compute the exterior thickness 
+    exterior : bool, whether to compute the exterior thickness
                      (a.k.a. reach)
     normals : (n,3) float, normals of the mesh at the given points
               None, compute this automatically.

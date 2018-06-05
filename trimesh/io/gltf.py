@@ -7,6 +7,8 @@ import collections
 
 import numpy as np
 
+from .. import util
+
 # magic numbers which have meaning in GLTF
 # most are uint32's of UTF-8 text
 _magic = {'gltf': 1179937895,
@@ -289,6 +291,7 @@ def _create_gltf_structure(scene):
                                   "componentType": 5126,
                                   "count": len(mesh.vertices),
                                   "type": "VEC3",
+                                  "byteOffset": 0,
                                   "max": mesh.vertices.max(axis=0).tolist(),
                                   "min": mesh.vertices.min(axis=0).tolist()})
 
@@ -331,8 +334,20 @@ def _read_buffers(header, buffers):
         data = views[a['bufferView']]
         dtype = _types[a['componentType']]
         shape = _shapes[a['type']]
-        array = np.frombuffer(data,
-                              dtype=dtype).reshape(shape)
+
+        # is the acessor offset in a buffer
+        if 'byteOffset' in a:
+            start = a['byteOffset']
+        else:
+            start = 0
+        # basically the number of columns
+        per_count = np.abs(np.product(shape))
+        # length is the number of bytes per item times total
+        length = np.dtype(dtype).itemsize * a['count'] * per_count
+        end = start + length
+
+        array = np.frombuffer(data[start:end], dtype=dtype).reshape(shape)
+
         assert len(array) == a['count']
         access.append(array)
 
@@ -341,38 +356,50 @@ def _read_buffers(header, buffers):
     if 'materials' in header:
         for mat in header['materials']:
             # get the base color of the material
-            color = np.array(mat['pbrMetallicRoughness']['baseColorFactor'],
-                             dtype=np.float)
+            try:
+                color = np.array(mat['pbrMetallicRoughness']['baseColorFactor'],
+                                 dtype=np.float)
+            except:
+                color = np.array([.5, .5, .5, 1])
+
             # convert float 0-1 colors to uint8 colors and append
             colors.append((color * 255).astype(np.uint8))
 
     # load data from accessors into Trimesh objects
     meshes = collections.OrderedDict()
-    for m in header['meshes']:
+    for index, m in enumerate(header['meshes']):
         color = None
         kwargs = collections.defaultdict(list)
         for p in m['primitives']:
             if p['mode'] != 4:
-                raise ValueError('only GL_TRIANGLES meshes supported!')
-            kwargs['faces'].append(access[p['indices']].reshape((-1, 3)))
-            kwargs['vertices'].append(access[p['attributes']['POSITION']])
+                continue
+
+            faces = access[p['indices']].reshape((-1, 3))
+            verts = access[p['attributes']['POSITION']]
+
+            kwargs['faces'].append(faces)
+            kwargs['vertices'].append(verts)
+
             if 'material' in p:
                 color = colors[p['material']]
-        for key, value in kwargs.items():
-            kwargs[key] = np.vstack(value)
-        kwargs['face_colors'] = color
-        meshes[m['name']] = kwargs
+            else:
+                color = [128, 128, 128, 255]
+            # stack colors to line up with faces
+            kwargs['face_colors'].append(np.tile(color, (len(faces), 1)))
+        # re- index faces
+        (kwargs['vertices'],
+         kwargs['faces']) = util.append_faces(kwargs['vertices'].copy(),
+                                              kwargs['faces'].copy())
+        # stack colors
+        kwargs['face_colors'] = np.vstack(kwargs['face_colors'])
 
-    # the index of the node which is the root of the tree
-    root = header['scenes'][header['scene']]['nodes']
-
-    if len(root) != 1:
-        raise ValueError('multiple scene roots')
-    root = root[0]
+        if 'name' in m:
+            meshes[m['name']] = kwargs
+        else:
+            meshes[index] = kwargs
 
     # make it easier to reference nodes
     nodes = header['nodes']
-
     # nodes are referenced by index
     # save their string names if they have one
     # node index (int) : name (str)
@@ -383,12 +410,25 @@ def _read_buffers(header, buffers):
         else:
             names[i] = str(i)
 
+    # make sure we have a unique base frame name
+    base_frame = 'world'
+    if base_frame in names:
+        base_frame = str(int(np.random.random() * 1e10))
+    names[base_frame] = base_frame
+
     # visited, kwargs for scene.graph.update
     graph = collections.deque()
     # unvisited, pairs of node indexes
-    queue = collections.deque([root, c] for c in
-                              nodes[root]['children'])
+    queue = collections.deque()
 
+    # the index of the node which is the root of the tree
+    for root in header['scenes'][header['scene']]['nodes']:
+        # add transform from base frame to these root nodes
+        queue.append([base_frame, root])
+        # add any children to the queue
+        if 'children' in nodes[root]:
+            queue.extend([root, c] for c in
+                         nodes[root]['children'])
     # meshes are listed by index rather than name
     # replace the index with a nicer name
     mesh_names = list(meshes.keys())
@@ -397,23 +437,26 @@ def _read_buffers(header, buffers):
     # kwargs for scene graph loader
     while len(queue) > 0:
         # (int, int) pair of node indexes
-        edge = queue.pop()
+        a, b = queue.pop()
 
         # dict of child node
-        child = nodes[edge[1]]
+        child = nodes[b]
         # add edges of children to be processed
         if 'children' in child:
-            queue.extend([[edge[1], i] for i in child['children']])
+            queue.extend([[b, i] for i in child['children']])
 
         # kwargs to be passed to scene.graph.update
-        kwargs = {'frame_from': names[edge[0]],
-                  'frame_to': names[edge[1]]}
+        kwargs = {'frame_from': names[a],
+                  'frame_to': names[b]}
 
         # grab matrix from child
         # parent -> child relationships have matrix stored in child
         # for the transform from parent to child
         if 'matrix' in child:
             kwargs['matrix'] = np.array(child['matrix']).reshape((4, 4)).T
+        else:
+            kwargs['matrix'] = np.eye(4)
+
         if 'mesh' in child:
             kwargs['geometry'] = mesh_names[child['mesh']]
         graph.append(kwargs)
@@ -422,7 +465,7 @@ def _read_buffers(header, buffers):
     result = {'class': 'Scene',
               'geometry': meshes,
               'graph': graph,
-              'base_frame': names[root]}
+              'base_frame': base_frame}
 
     return result
 

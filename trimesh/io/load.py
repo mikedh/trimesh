@@ -70,7 +70,8 @@ def load(file_obj, file_type=None, **kwargs):
 
     (file_obj,
      file_type,
-     metadata) = _parse_file_args(file_obj, file_type)
+     metadata,
+     opened) = _parse_file_args(file_obj, file_type)
 
     if isinstance(file_obj, dict):
         kwargs.update(file_obj)
@@ -97,6 +98,9 @@ def load(file_obj, file_type=None, **kwargs):
         # assert any(util.is_instance_named(i, t) for t in out_types)
         i.metadata.update(metadata)
 
+    if opened:
+        file_obj.close()
+
     return loaded
 
 
@@ -120,7 +124,8 @@ def load_mesh(file_obj, file_type=None, **kwargs):
     # turn a string into a file obj and type
     (file_obj,
      file_type,
-     metadata) = _parse_file_args(file_obj, file_type)
+     metadata,
+     opened) = _parse_file_args(file_obj, file_type)
 
     # make sure we keep passed kwargs to loader
     # but also make sure loader keys override passed keys
@@ -144,6 +149,9 @@ def load_mesh(file_obj, file_type=None, **kwargs):
     if len(loaded) == 1:
         loaded = loaded[0]
 
+    if opened:
+        file_obj.close()
+
     return loaded
 
 
@@ -163,7 +171,8 @@ def load_compressed(file_obj, file_type=None):
     # turn a string into a file obj and type
     (file_obj,
      file_type,
-     metadata) = _parse_file_args(file_obj, file_type)
+     metadata,
+     opened) = _parse_file_args(file_obj, file_type)
 
     # a dict of 'name' : file-like object
     files = util.decompress(file_obj=file_obj,
@@ -179,6 +188,10 @@ def load_compressed(file_obj, file_type=None):
                         file_type=compressed_type,
                         metadata=metadata)
         geometries.append(geometry)
+
+    if opened:
+        file_obj.close()
+
     return np.array(geometries)
 
 
@@ -287,8 +300,11 @@ def _parse_file_args(file_obj, file_type, **kwargs):
     -----------
     file_obj:  loadable object
     file_type: str, lower case of the type of file (eg 'stl', 'dae', etc)
+    metadata:  dict, any metadata
+    opened:    bool, did we open the file or not
     """
     metadata = {}
+    opened = False
     if ('metadata' in kwargs and
             isinstance(kwargs['metadata'], dict)):
         metadata.update(kwargs['metadata'])
@@ -314,6 +330,7 @@ def _parse_file_args(file_obj, file_type, **kwargs):
                 file_type = util.split_extension(file_path,
                                                  special=['tar.gz', 'tar.bz2'])
             file_obj = open(file_path, 'rb')
+            opened = True
         else:
             if file_type is not None:
                 return file_obj, file_type, metadata
@@ -336,7 +353,7 @@ def _parse_file_args(file_obj, file_type, **kwargs):
         metadata['file_name'] = os.path.basename(file_type)
         file_type = util.split_extension(file_type)
     file_type = file_type.lower()
-    return file_obj, file_type, metadata
+    return file_obj, file_type, metadata, opened
 
 
 compressed_loaders = {'zip': load_compressed,

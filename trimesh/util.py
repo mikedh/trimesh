@@ -866,12 +866,12 @@ def append_faces(vertices_seq, faces_seq):
     vertices_len = np.array([len(i) for i in vertices_seq])
     face_offset = np.append(0, np.cumsum(vertices_len)[:-1])
 
+    new_faces = []
     for offset, faces in zip(face_offset, faces_seq):
         if len(faces) > 0:
-            faces += offset
-
+            new_faces.append(faces + offset)
     vertices = vstack_empty(vertices_seq)
-    faces = vstack_empty(faces_seq)
+    faces = vstack_empty(new_faces)
 
     return vertices, faces
 
