@@ -359,7 +359,7 @@ def _read_buffers(header, buffers):
             try:
                 color = np.array(mat['pbrMetallicRoughness']['baseColorFactor'],
                                  dtype=np.float)
-            except:
+            except BaseException:
                 color = np.array([.5, .5, .5, 1])
 
             # convert float 0-1 colors to uint8 colors and append

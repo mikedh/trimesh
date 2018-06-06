@@ -89,6 +89,48 @@ class TransformTest(g.unittest.TestCase):
             # all other points should move
             assert compare.all(axis=1).sum() == 1
 
+    def test_rotation(self):
+        """
+        test
+        """
+        rotation_matrix = g.trimesh.transformations.rotation_matrix
+
+        R = rotation_matrix(g.np.pi / 2, [0, 0, 1], [1, 0, 0])
+        assert g.np.allclose(g.np.dot(R,
+                                      [0, 0, 0, 1]),
+                             [1, -1, 0, 1])
+
+        angle = (g.np.random.random() - 0.5) * (2 * g.np.pi)
+        direc = g.np.random.random(3) - 0.5
+        point = g.np.random.random(3) - 0.5
+        R0 = rotation_matrix(angle, direc, point)
+        R1 = rotation_matrix(angle - 2 * g.np.pi, direc, point)
+        assert g.trimesh.transformations.is_same_transform(R0, R1)
+
+        R0 = rotation_matrix(angle, direc, point)
+        R1 = rotation_matrix(-angle, -direc, point)
+        assert g.trimesh.transformations.is_same_transform(R0, R1)
+
+        I = g.np.identity(4, g.np.float64)
+        assert g.np.allclose(I, rotation_matrix(g.np.pi * 2, direc))
+
+        assert g.np.allclose(
+            2,
+            g.np.trace(rotation_matrix(g.np.pi / 2,
+                                       direc, point)))
+
+        # test symbolic
+        angle = g.sp.Symbol('angle')
+        Rs = rotation_matrix(angle, [0, 0, 1], [1, 0, 0])
+
+        R = g.np.array(Rs.subs(
+            angle,
+            g.np.pi / 2.0).evalf()).astype(g.np.float64)
+
+        assert g.np.allclose(g.np.dot(R,
+                                      [0, 0, 0, 1]),
+                             [1, -1, 0, 1])
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

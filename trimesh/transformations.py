@@ -300,8 +300,26 @@ def reflection_from_matrix(matrix):
 
 
 def rotation_matrix(angle, direction, point=None):
-    """Return matrix to rotate about axis defined by point and direction.
+    """
+    Return matrix to rotate about axis defined by point and
+    direction.
 
+    Parameters
+    -------------
+    angle     : float, or sympy.Symbol
+                Angle, in radians or symbolic angle
+    direction : (3,) float
+                Unit vector along rotation axis
+    point     : (3, ) float, or None
+                Origin point of rotation axis
+
+    Returns
+    -------------
+    matrix : (4, 4) float, or (4, 4) sympy.Matrix
+             Homogenous transformation matrix
+
+    Examples
+    -------------
     >>> R = rotation_matrix(math.pi/2, [0, 0, 1], [1, 0, 0])
     >>> np.allclose(np.dot(R, [0, 0, 0, 1]), [1, -1, 0, 1])
     True
@@ -319,27 +337,38 @@ def rotation_matrix(angle, direction, point=None):
     >>> I = np.identity(4, np.float64)
     >>> np.allclose(I, rotation_matrix(math.pi*2, direc))
     True
-    >>> np.allclose(2, np.trace(rotation_matrix(math.pi/2,
-    ...                                               direc, point)))
+    >>> np.allclose(2, np.trace(rotation_matrix(math.pi/2,direc,point)))
     True
 
     """
-    sina = math.sin(angle)
-    cosa = math.cos(angle)
+    # special case sympy symbolic angles
+    if type(angle).__name__ == 'Symbol':
+        import sympy as sp
+        sina = sp.sin(angle)
+        cosa = sp.cos(angle)
+    else:
+        sina = math.sin(angle)
+        cosa = math.cos(angle)
+
     direction = unit_vector(direction[:3])
     # rotation matrix around unit vector
-    R = np.diag([cosa, cosa, cosa])
-    R += np.outer(direction, direction) * (1.0 - cosa)
-    direction *= sina
-    R += np.array([[0.0, -direction[2], direction[1]],
-                   [direction[2], 0.0, -direction[0]],
-                   [-direction[1], direction[0], 0.0]])
-    M = np.identity(4)
-    M[:3, :3] = R
+    M = np.diag([cosa, cosa, cosa, 1.0])
+    M[:3, :3] += np.outer(direction, direction) * (1.0 - cosa)
+
+    direction = direction * sina
+    M[:3, :3] += np.array([[0.0, -direction[2], direction[1]],
+                           [direction[2], 0.0, -direction[0]],
+                           [-direction[1], direction[0], 0.0]])
+
+    # if point is specified, rotation is not around origin
     if point is not None:
-        # rotation not around origin
         point = np.array(point[:3], dtype=np.float64, copy=False)
-        M[:3, 3] = point - np.dot(R, point)
+        M[:3, 3] = point - np.dot(M[:3, :3], point)
+
+    # return symbolic angles as sympy Matrix objects
+    if type(angle).__name__ == 'Symbol':
+        return sp.Matrix(M)
+
     return M
 
 
@@ -1427,7 +1456,7 @@ def quaternion_imag(quaternion):
     """Return imaginary part of quaternion.
 
     >>> quaternion_imag([3, 0, 1, 2])
-    array([ 0.,  1.,  2.])
+    array([0., 1., 2.])
 
     """
     return np.array(quaternion[1:4], dtype=np.float64, copy=True)

@@ -596,15 +596,21 @@ def capsule(height=1.0,
     return capsule
 
 
-def cylinder(radius=1.0, height=1.0, sections=32, transform=None):
+def cylinder(radius=1.0,
+             height=1.0,
+             sections=32,
+             transform=None):
     """
     Create a mesh of a cylinder along Z centered at the origin.
 
     Parameters
     ----------
-    radius: float, the radius of the cylinder
-    height: float, the height of the cylinder
-    sections: int, how many pie wedges should the cylinder be meshed as
+    radius : float
+             The radius of the cylinder
+    height : float
+             The height of the cylinder
+    sections : int
+               How many pie wedges should the cylinder have
 
     Returns
     ----------
