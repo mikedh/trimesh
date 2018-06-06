@@ -27,13 +27,7 @@ class SceneViewer(pyglet.window.Window):
 
         self.scene = scene
         self.scene._redraw = self._redraw
-
-        if 'camera' not in scene.graph:
-            # if the camera hasn't been set, set it now
-            scene.set_camera()
-
         width, height = resolution
-        self.reset_view(flags=flags)
 
         try:
             # try enabling antialiasing
@@ -55,6 +49,10 @@ class SceneViewer(pyglet.window.Window):
                                               width=width,
                                               height=height)
 
+        if 'camera' not in scene.graph:
+            # if the camera hasn't been set, set it now
+            scene.set_camera()
+        self.reset_view(flags=flags)
         self.batch = pyglet.graphics.Batch()
         self._smooth = smooth
 
