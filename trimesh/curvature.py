@@ -8,24 +8,41 @@ Query mesh curvature.
 import numpy as np
 from . import util
 
+def face_angles(mesh):
+    """
+    Returns the angle at each vertex of a face.
+    
+    Returns
+    --------
+    angles: (n, 3) float, angle at each vertex of a face.
+    """
+
+    u = mesh.triangles[:,1] - mesh.triangles[:,0]
+    v = mesh.triangles[:,2] - mesh.triangles[:,0]
+    w = mesh.triangles[:,2] - mesh.triangles[:,1]
+    u /= np.linalg.norm(u, axis=1, keepdims=True)
+    v /= np.linalg.norm(v, axis=1, keepdims=True)
+    w /= np.linalg.norm(w, axis=1, keepdims=True)
+    a = np.arccos(np.clip(np.einsum('ij, ij->i', u, v), -1, 1))
+    b = np.arccos(np.clip(np.einsum('ij, ij->i', -u, w), -1, 1))
+    c = np.pi - a - b
+        
+    return np.vstack([a,b,c]).T
+    
 def vertex_defects(mesh):
     """
-    Return the vertex defects
+    Return the vertex defects.
 
     Returns
     --------
     vertex_defect: (n,) float vertex defect at the given vertex.
                    Each value corresponds with self.vertices
     """
-    defects = np.empty(len(mesh.vertices))
-    for i in range(len(mesh.vertices)):
-        faces, v_ix = np.where(mesh.faces == i) # faces incident at i
-        v1 = mesh.triangles[faces, (v_ix+1) % 3] - mesh.vertices[i]
-        v2 = mesh.triangles[faces, (v_ix-1) % 3] - mesh.vertices[i]
-        v1 /= np.linalg.norm(v1, axis=1, keepdims=True)
-        v2 /= np.linalg.norm(v2, axis=1, keepdims=True)
-        defects[i] = 2*np.pi - np.arccos(np.clip(np.einsum('ij, ij->i', v1, v2), -1, 1)).sum()
-    return defects
+    
+    angle_sum = np.zeros(len(mesh.vertices))
+    for i, f in enumerate(mesh.faces):
+            angle_sum[f] += mesh.face_angles[i]
+    return 2*np.pi - angle_sum
 
 def discrete_gaussian_curvature_measure(mesh, points, radius):
     """

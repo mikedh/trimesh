@@ -2165,6 +2165,18 @@ class Trimesh(object):
         return contains
     
     @util.cache_decorator
+    def face_angles(self):
+        """
+        Returns the angle at each vertex of a face.
+        
+        Returns
+        --------
+        angles: (n, 3) float, angle at each vertex of a face.
+        """
+        angles = curvature.face_angles(self)
+        return angles
+    
+    @util.cache_decorator
     def vertex_defects(self):
         """
         Return the vertex defects
