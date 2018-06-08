@@ -2236,7 +2236,12 @@ class Trimesh(object):
     @util.cache_decorator
     def vertex_defects(self):
         """
-        Return the vertex defects
+        Return the vertex defects or the sum of the angles of every
+        face that includes that vertex minus 2*pi.
+
+        If a vertex is only included by coplanar triangles, this
+        will be zero. For convex regions this is positive, and 
+        concave negative.
 
         Returns
         --------
