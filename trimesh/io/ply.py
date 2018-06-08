@@ -58,7 +58,7 @@ def load_ply(file_obj, *args, **kwargs):
     return kwargs
 
 
-def export_ply(mesh, **kwargs):
+def export_ply(mesh, encoding='binary_little_endian', vertex_normal=False):
     '''
     Export a mesh in the PLY format.
 
@@ -73,14 +73,6 @@ def export_ply(mesh, **kwargs):
     export : bytes of result
     '''
 
-    encoding = 'binary_little_endian'
-    if kwargs.has_key('encoding'):
-        encoding = kwargs['encoding']
-
-    use_vertex_normal = False
-    if kwargs.has_key('vertex_normal'):
-        use_vertex_normal = kwargs['vertex_normal']
-
     dtype_face = [('count', '<u1'),
                   ('index', '<i4', (3))]
     dtype_vertex = [('vertex', '<f4', (3))]
@@ -94,7 +86,7 @@ def export_ply(mesh, **kwargs):
     header = templates['intro']
     header += templates['vertex']
 
-    if use_vertex_normal == True:
+    if vertex_normal == True:
         header += templates['vertex_normal']
         dtype_vertex += dtype_vertex_normal
     
@@ -107,7 +99,7 @@ def export_ply(mesh, **kwargs):
 
     vertex['vertex'] = mesh.vertices
 
-    if use_vertex_normal == True:
+    if vertex_normal == True:
         vertex['vertex_normal'] = mesh.vertex_normals
     if mesh.visual.kind == 'vertex':
         vertex['rgba'] = mesh.visual.vertex_colors
