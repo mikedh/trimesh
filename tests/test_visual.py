@@ -140,6 +140,13 @@ class VisualTest(g.unittest.TestCase):
         s1 = m.smoothed()
         assert s1.visual.face_colors.ptp(axis=0).max() != 0
 
+    def test_vertex(self):
+
+        m = g.get_mesh('torus.STL')
+
+        m.visual.vertex_colors = [100,100,100,255]
+
+        assert len(m.visual.vertex_colors) == len(m.vertices)
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
