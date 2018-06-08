@@ -51,6 +51,7 @@ def face_angles_sparse(mesh):
                         mesh.faces_sparse.shape)
     return matrix
 
+
 def vertex_defects(mesh):
     """
     Return the vertex defects, or (2*pi) minus the sum of the angles

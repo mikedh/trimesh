@@ -148,6 +148,7 @@ class VisualTest(g.unittest.TestCase):
 
         assert len(m.visual.vertex_colors) == len(m.vertices)
 
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()
