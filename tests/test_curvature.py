@@ -21,7 +21,7 @@ class CurvatureTest(g.unittest.TestCase):
             mesh=t,
             points=t.vertices,
             radius=1.0)
-        ratio = (gauss < 0.0).sum() / len(gauss)
+        ratio = float((gauss < 0.0).sum()) / float(len(gauss))
         assert g.np.isclose(ratio, 0.5, atol=.2)
 
     def test_mean_curvature(self):
