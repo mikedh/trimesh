@@ -144,7 +144,7 @@ class VisualTest(g.unittest.TestCase):
 
         m = g.get_mesh('torus.STL')
 
-        m.visual.vertex_colors = [100,100,100,255]
+        m.visual.vertex_colors = [100, 100, 100, 255]
 
         assert len(m.visual.vertex_colors) == len(m.vertices)
 

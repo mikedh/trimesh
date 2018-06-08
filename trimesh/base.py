@@ -2205,20 +2205,19 @@ class Trimesh(object):
             log.warning('Mesh is non- watertight for contained point query!')
         contains = self.ray.contains_points(points)
         return contains
-    
+
     @util.cache_decorator
     def face_angles(self):
         """
         Returns the angle at each vertex of a face.
-        
+
         Returns
         --------
         angles: (n, 3) float, angle at each vertex of a face.
         """
         angles = curvature.face_angles(self)
         return angles
-    
-    
+
     @util.cache_decorator
     def face_angles_sparse(self):
         """
@@ -2232,25 +2231,25 @@ class Trimesh(object):
         """
         angles = curvature.face_angles_sparse(self)
         return angles
-    
+
     @util.cache_decorator
     def vertex_defects(self):
         """
-        Return the vertex defects or the sum of the angles of every
-        face that includes that vertex minus 2*pi.
+        Return the vertex defects, or (2*pi) minus the sum of the angles
+        of every face that includes that vertex.
 
         If a vertex is only included by coplanar triangles, this
-        will be zero. For convex regions this is positive, and 
+        will be zero. For convex regions this is positive, and
         concave negative.
 
         Returns
         --------
-        vertex_defect: (n,) float vertex defect at the given vertex.
-                       Each value corresponds with self.vertices
+        vertex_defect : (len(self.vertices), ) float
+                         Vertex defect at the every vertex
         """
         defects = curvature.vertex_defects(self)
         return defects
-    
+
     @util.cache_decorator
     def face_adjacency_tree(self):
         """
@@ -2258,12 +2257,12 @@ class Trimesh(object):
 
         Returns
         --------
-        tree: rtree.index where each edge in self.face_adjacency has a 
+        tree: rtree.index where each edge in self.face_adjacency has a
               rectangular cell
         """
         # the (n,6) interleaved bounding box for every line segment
         segment_bounds = np.column_stack((self.vertices[self.face_adjacency_edges].min(axis=1),
-                                           self.vertices[self.face_adjacency_edges].max(axis=1)))
+                                          self.vertices[self.face_adjacency_edges].max(axis=1)))
         tree = util.bounds_tree(segment_bounds)
         return tree
 
