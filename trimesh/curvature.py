@@ -6,6 +6,7 @@ Query mesh curvature.
 """
 
 import numpy as np
+from scipy.sparse.coo import coo_matrix
 from . import util
 
 def face_angles(mesh):
@@ -39,10 +40,21 @@ def vertex_defects(mesh):
                    Each value corresponds with self.vertices
     """
     
-    angle_sum = np.zeros(len(mesh.vertices))
-    for i, f in enumerate(mesh.faces):
-            angle_sum[f] += mesh.face_angles[i]
-    return 2*np.pi - angle_sum
+    return 2*np.pi - np.asarray(mesh.face_angles_sparse.sum(axis=1)).flatten()
+
+def face_angles_sparse(mesh):
+    """
+    A sparse matrix representation of the face angles.
+
+    Returns
+    ----------
+    sparse: scipy.sparse.coo_matrix with:
+            dtype: float
+            shape: (len(mesh.vertices), len(mesh.faces))
+    """
+    return coo_matrix((mesh.face_angles.flatten(), 
+                       (mesh.faces_sparse.row, mesh.faces_sparse.col)), 
+                      mesh.faces_sparse.shape)
 
 def discrete_gaussian_curvature_measure(mesh, points, radius):
     """

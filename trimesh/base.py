@@ -2176,6 +2176,21 @@ class Trimesh(object):
         angles = curvature.face_angles(self)
         return angles
     
+    
+    @util.cache_decorator
+    def face_angles_sparse(self):
+        """
+        A sparse matrix representation of the face angles.
+
+        Returns
+        ----------
+        sparse: scipy.sparse.coo_matrix with:
+                dtype: float
+                shape: (len(self.vertices), len(self.faces))
+        """
+        angles = curvature.face_angles_sparse(self)
+        return angles
+    
     @util.cache_decorator
     def vertex_defects(self):
         """
