@@ -143,7 +143,7 @@ The `trimesh.Trimesh` object is most useful on single body, watertight meshes th
 This can be seen in the data model of Trimesh, where the emphasis is on faces and vertices and things derived from them, rather than other visual properties or metadata.
 
 It is hopefully useful in other applications, but most of the core effort is around the design use case.
-```
+
 
 ## Viewer
 
