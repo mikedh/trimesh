@@ -58,21 +58,26 @@ def load_ply(file_obj, *args, **kwargs):
     return kwargs
 
 
-def export_ply(mesh):
+def export_ply(mesh, encoding='binary_little_endian', vertex_normal=False):
     '''
     Export a mesh in the PLY format.
 
     Parameters
     ----------
     mesh : Trimesh object
+    encoding : ['ascii'|'binary_little_endian']
+    vertex_normal : include vertex normals
 
     Returns
     ----------
     export : bytes of result
     '''
+
     dtype_face = [('count', '<u1'),
                   ('index', '<i4', (3))]
     dtype_vertex = [('vertex', '<f4', (3))]
+
+    dtype_vertex_normal = [('vertex_normal', '<f4', (3))]
 
     dtype_color = ('rgba', '<u1', (4))
 
@@ -81,36 +86,62 @@ def export_ply(mesh):
     header = templates['intro']
     header += templates['vertex']
 
+    if vertex_normal == True:
+        header += templates['vertex_normal']
+        dtype_vertex += dtype_vertex_normal
+    
     if mesh.visual.kind == 'vertex':
-        dtype_vertex.append(dtype_color)
-        vertex = np.zeros(len(mesh.vertices),
-                          dtype=dtype_vertex)
-        vertex['rgba'] = mesh.visual.vertex_colors
         header += templates['color']
-    else:
-        vertex = np.zeros(len(mesh.vertices),
-                          dtype=dtype_vertex)
+        dtype_vertex.append(dtype_color)
+
+    vertex = np.zeros(len(mesh.vertices),
+                      dtype=dtype_vertex)
+
     vertex['vertex'] = mesh.vertices
+
+    if vertex_normal == True:
+        vertex['vertex_normal'] = mesh.vertex_normals
+    if mesh.visual.kind == 'vertex':
+        vertex['rgba'] = mesh.visual.vertex_colors
 
     header += templates['face']
     if mesh.visual.kind == 'face':
         header += templates['color']
         dtype_face.append(dtype_color)
-        faces = np.zeros(len(mesh.faces), dtype=dtype_face)
-        faces['rgba'] = mesh.visual.face_colors
-    else:
-        faces = np.zeros(len(mesh.faces), dtype=dtype_face)
+
+    faces = np.zeros(len(mesh.faces), dtype=dtype_face)
+
     faces['count'] = 3
     faces['index'] = mesh.faces
+    if mesh.visual.kind == 'face':
+        faces['rgba'] = mesh.visual.face_colors
 
     header += templates['outro']
 
-    counts = {'vertex_count': len(mesh.vertices),
-              'face_count': len(mesh.faces)}
+    header_params = {'vertex_count': len(mesh.vertices),
+                     'face_count': len(mesh.faces),
+                     'encoding' : encoding}
 
-    export = Template(header).substitute(counts).encode('utf-8')
-    export += vertex.tostring()
-    export += faces.tostring()
+    export = Template(header).substitute(header_params).encode('utf-8')
+
+    def ndtoascii(d):
+        fields = []
+        for e in d:
+            if type(e) is np.ndarray:
+                fields += e.tolist()
+            else:
+                fields.append(e)
+        fields = map(str, fields)
+        return ' '.join(fields) + '\n'
+
+    if encoding == 'binary_little_endian':
+        export += vertex.tostring()
+        export += faces.tostring()
+    else:
+        for v in vertex:
+            export += ndtoascii(v)
+        for f in faces:
+            export += ndtoascii(f)
     return export
 
 
