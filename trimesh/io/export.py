@@ -11,7 +11,7 @@ from .ply import _ply_exporters
 
 
 def export_mesh(mesh, file_obj, file_type=None, **kwargs):
-    '''
+    """
     Export a Trimesh object to a file- like object, or to a filename
 
     Parameters
@@ -24,7 +24,7 @@ def export_mesh(mesh, file_obj, file_type=None, **kwargs):
     mesh: a single Trimesh object, or a list of Trimesh objects,
           depending on the file format.
 
-    '''
+    """
     # if we opened a file object in this function
     # we will want to close it when we're done
     was_opened = False
@@ -55,23 +55,26 @@ def export_mesh(mesh, file_obj, file_type=None, **kwargs):
 
 
 def export_off(mesh, digits=10):
-    '''
+    """
     Export a mesh as an OFF file, a simple text format
 
     Parameters
     -----------
-    mesh:   Trimesh object
-    digits: int, number of digits to include on floats
+    mesh   : Trimesh object
+    digits : int
+               number of digits to include on floats
 
     Returns
     -----------
-    export: str, string of OFF format output
-    '''
+    export : str
+              OFF format output
+    """
     # make sure its an int
     digits = int(digits)
     # prepend a 3 (face count) to each face
-    faces_stacked = np.column_stack((np.ones(len(mesh.faces)) * 3,
-                                     mesh.faces)).astype(np.int64)
+    faces_stacked = np.column_stack((
+        np.ones(len(mesh.faces)) * 3,
+        mesh.faces)).astype(np.int64)
     export = 'OFF\n'
     export += str(len(mesh.vertices)) + ' ' + str(len(mesh.faces)) + ' 0\n'
     export += util.array_to_string(mesh.vertices,
@@ -84,33 +87,56 @@ def export_off(mesh, digits=10):
     return export
 
 
-def export_collada(mesh):
-    '''
+def export_collada(mesh, digits=8):
+    """
     Export a mesh as a COLLADA file.
-    '''
-    from ..resources import get_resource
 
+    Parameters
+    --------------
+    mesh   : Trimesh object
+               Mesh to be exported
+    digits : int
+              Number of ASCII digits to include for
+              floating point variables
+
+    Returns
+    ------------
+    dae : str
+            Mesh as a COLLADA file
+    """
+    from ..resources import get_resource
     from string import Template
 
     template_string = get_resource('collada.dae.template')
     template = Template(template_string)
 
-    # we bother setting this because np.array2string uses these printoptions
-    np.set_printoptions(threshold=np.inf, precision=5, linewidth=np.inf)
-    replacement = dict()
-    replacement['VERTEX'] = np.array2string(mesh.vertices.reshape(-1))[1:-1]
-    replacement['FACES'] = np.array2string(mesh.faces.reshape(-1))[1:-1]
-    replacement['NORMALS'] = np.array2string(
-        mesh.vertex_normals.reshape(-1))[1:-1]
-    replacement['VCOUNT'] = str(len(mesh.vertices))
-    replacement['VCOUNTX3'] = str(len(mesh.vertices) * 3)
-    replacement['FCOUNT'] = str(len(mesh.faces))
+    # keys for template
+    replacement = {
+        'VERTEX': util.array_to_string(mesh.vertices,
+                                       col_delim=' ',
+                                       row_delim=' ',
+                                       digits=digits),
+        'FACES': util.array_to_string(mesh.faces,
+                                      col_delim=' ',
+                                      row_delim=' ',
+                                      digits=digits),
+        'NORMALS': util.array_to_string(mesh.vertex_normals,
+                                        col_delim=' ',
+                                        row_delim=' ',
+                                        digits=digits),
+        'VCOUNT': str(len(mesh.vertices)),
+        'VCOUNTX3': str(len(mesh.vertices) * 3),
+        'FCOUNT': str(len(mesh.faces))}
 
-    export = template.substitute(replacement)
-    return export
+    dae = template.substitute(replacement)
+    return dae
 
 
 def export_dict64(mesh):
+    """
+    Export a mesh as a dictionary, with data encoded
+    to base64.
+    """
     return export_dict(mesh, encoding='base64')
 
 
@@ -124,7 +150,6 @@ def export_dict(mesh, encoding=None):
             return util.array_to_encoded(item,
                                          dtype=dtype,
                                          encoding=encoding)
-
     export = {'metadata': util.tolist_dict(mesh.metadata),
               'faces': encode(mesh.faces),
               'face_normals': encode(mesh.face_normals),

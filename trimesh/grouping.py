@@ -19,12 +19,25 @@ except ImportError:
     log.warning('Scipy unavailable')
 
 
-def merge_vertices_hash(mesh):
+def merge_vertices_hash(mesh, distance=None):
     """
-    Removes duplicate vertices, based on integer hashes.
-    This is roughly 20x faster than querying a KD tree in a loop
+    Removes duplicate vertices, based on integer hashes of
+    each row.
+
+    Parameters
+    -------------
+    mesh     : Trimesh object
+                 Mesh to merge vertices of
+    distance : float, or None
+                If not specified uses tol.merge
     """
-    unique, inverse = unique_rows(mesh.vertices)
+    if distance is not None:
+        digits = util.decimal_to_digits(distance)
+    else:
+        digits = None
+    # unique rows
+    unique, inverse = unique_rows(mesh.vertices,
+                                  digits=digits)
     mesh.update_vertices(unique, inverse)
 
 

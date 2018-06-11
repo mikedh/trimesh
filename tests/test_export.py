@@ -4,9 +4,9 @@ import generic as g
 class ExportTest(g.unittest.TestCase):
 
     def test_export(self):
-        file_types = list(g.trimesh.io.export._mesh_exporters.keys())
+        export_types = list(g.trimesh.io.export._mesh_exporters.keys())
         for mesh in g.get_meshes(5):
-            for file_type in file_types:
+            for file_type in export_types:
                 export = mesh.export(file_type=file_type)
                 if export is None:
                     raise ValueError('Exporting mesh %s to %s resulted in None!',
@@ -15,12 +15,13 @@ class ExportTest(g.unittest.TestCase):
 
                 self.assertTrue(len(export) > 0)
 
-                if file_type in ['dae',     # collada, no native importers
-                                 'collada',  # collada, no native importers
-                                 'msgpack',  # kind of flaky, but usually works
-                                 'drc']:    # DRC is not a lossless format
+                if file_type in [
+                        'dae',     # collada, no native importers
+                        'collada',  # collada, no native importers
+                        'msgpack',  # kind of flaky, but usually works
+                        'drc']:    # DRC is not a lossless format
                     g.log.warning(
-                        'Still no native loaders implemented for collada!')
+                        'no native loaders implemented for collada!')
                     continue
 
                 g.log.info('Export/import testing on %s',
@@ -41,7 +42,7 @@ class ExportTest(g.unittest.TestCase):
                                 mesh.metadata['file_name'])
 
                 if loaded.faces.shape != mesh.faces.shape:
-                    raise ValueError('Export -> import for {} on {} gave vertices {}->{}!'.format(
+                    raise ValueError('export cycle {} on {} gave vertices {}->{}!'.format(
                         file_type,
                         mesh.metadata['file_name'],
                         str(mesh.faces.shape),
@@ -62,6 +63,83 @@ class ExportTest(g.unittest.TestCase):
 
                     assert mesh.faces.shape == load.faces.shape
                     assert mesh.vertices.shape == load.vertices.shape
+
+            # if we're not on linux don't run meshlab tests
+            if not g.is_linux:
+                continue
+            # formats exportable by trimesh and importable by meshlab
+            # make sure things we export can be loaded by meshlab
+            both = set(g.meshlab_formats).intersection(
+                set(export_types))
+
+            # additional options to pass to exporters to try to ferret
+            # out combinations which lead to invalid output
+            kwargs = {'ply': [{'vertex_normal': True,
+                               'encoding': 'ascii'},
+                              {'vertex_normal': True,
+                               'encoding': 'binary'},
+                              {'vertex_normal': False,
+                               'encoding': 'ascii'},
+                              {'vertex_normal': False,
+                               'encoding': 'binary'}]}
+
+            # make sure input mesh has garbage removed
+            mesh._validate = True
+            # since we're going to be looking for exact export
+            # counts remove anything small/degenerate again
+            mesh.process()
+
+            # run through file types supported by both meshlab and trimesh
+            for file_type in both:
+                # pull different exporter options for the format
+                if file_type in kwargs:
+                    options = kwargs[file_type]
+                else:
+                    options = [{}]
+
+                # try each combination of options
+                for option in options:
+                    temp = g.tempfile.NamedTemporaryFile(
+                        suffix='.' + file_type,
+                        delete=False)
+                    temp_c = g.tempfile.NamedTemporaryFile(
+                        suffix='.off',
+                        delete=False)
+                    # windows throws permissions errors if you keep it open
+                    temp.close()
+                    temp_c.close()
+                    # write over the tempfile
+                    option['file_obj'] = temp.name
+                    mesh.export(**option)
+
+                    # will raise CalledProcessError if meshlab
+                    # can't successfully import the file
+                    try:
+                        # have meshlab take the export and move it into
+                        # an OFF file, which is basically the simplest format
+                        # that uses by- reference vertices
+                        g.subprocess.check_call(['meshlabserver',
+                                                 '-i',
+                                                 temp.name,
+                                                 '-o',
+                                                 temp_c.name])
+                    except g.subprocess.CalledProcessError as E:
+                        # log the options that produced the failure
+                        g.log.error('failed to export {}'.format(
+                            option))
+                        # raise the error again
+                        raise E
+
+                    # load meshlabs export back into trimesh
+                    r = g.trimesh.load(temp_c.name)
+
+                    # we should have the same number of vertices and faces
+                    assert len(r.vertices) == len(mesh.vertices)
+                    assert len(r.faces) == len(mesh.faces)
+
+                    # manual cleanup
+                    g.os.remove(temp.name)
+                    g.os.remove(temp_c.name)
 
     def test_obj(self):
         m = g.get_mesh('textured_tetrahedron.obj', process=False)
@@ -98,7 +176,6 @@ class ExportTest(g.unittest.TestCase):
         export = m.export(file_type='ply')
         reconstructed = g.trimesh.load(g.trimesh.util.wrap_as_stream(export),
                                        file_type='ply')
-
         assert reconstructed.visual.kind == 'vertex'
 
         assert g.np.allclose(reconstructed.visual.vertex_colors,

@@ -945,12 +945,17 @@ class Trimesh(object):
         """
         units._convert_units(self, desired, guess)
 
-    def merge_vertices(self):
+    def merge_vertices(self, distance=None):
         """
         If a mesh has vertices that are closer than trimesh.constants.tol.merge
         redefine them to be the same vertex and replace face references
+
+        Parameters
+        --------------
+        distance : float or None
+                   if specified, override tol.merge
         """
-        grouping.merge_vertices_hash(self)
+        grouping.merge_vertices_hash(self, distance=distance)
 
     def update_vertices(self, mask, inverse=None):
         """

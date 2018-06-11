@@ -1,17 +1,18 @@
-'''
+"""
 Module which contains all the imports and data available to unit tests
-'''
-
-import unittest
-import itertools
-import inspect
-import logging
+"""
 import os
 import sys
 import json
 import time
 import timeit
+import inspect
+import logging
+import platform
 import tempfile
+import unittest
+import itertools
+import subprocess
 
 import numpy as np
 import sympy as sp
@@ -42,6 +43,9 @@ except ImportError:
     from io import BytesIO
     _PY3 = True
 
+# are we on linux
+is_linux = 'linux' in platform.system().lower()
+
 dir_current = os.path.dirname(os.path.abspath(
     inspect.getfile(inspect.currentframe())))
 dir_models = os.path.abspath(os.path.join(dir_current, '..', 'models'))
@@ -51,7 +55,7 @@ dir_data = os.path.abspath(os.path.join(dir_current, 'data'))
 log = logging.getLogger('trimesh')
 log.addHandler(logging.NullHandler())
 
-'''
+"""
 # block will print who is importing us
 for i in inspect.stack():
     if i.code_context is None:
@@ -60,7 +64,7 @@ for i in inspect.stack():
         file_name = os.path.split(i.filename)[-1]
         print('\n\nRunning tests contained in: {}'.format(file_name))
         break
-'''
+"""
 
 
 def io_wrap(item):
@@ -101,7 +105,7 @@ def get_mesh(file_name, *args, **kwargs):
 def get_meshes(count=np.inf,
                raise_error=False,
                only_watertight=True):
-    '''
+    """
     Get a list of meshes to test with.
 
     Arguments
@@ -113,7 +117,7 @@ def get_meshes(count=np.inf,
     Returns
     ----------
     meshes: list, of Trimesh objects
-    '''
+    """
     # use deterministic file name order
     file_names = np.sort(os.listdir(dir_models))
 
@@ -140,9 +144,9 @@ def get_meshes(count=np.inf,
 
 
 def get_2D(count=None):
-    '''
+    """
     Get Path2D objects to test with.
-    '''
+    """
     if not has_path:
         return []
 
@@ -165,3 +169,8 @@ def get_2D(count=None):
 
 
 data = _load_data()
+
+# formats supported by meshlab
+meshlab_formats = ['3ds', 'ply', 'stl', 'obj', 'qobj', 'off', 'ptx', 'vmi',
+                   'bre', 'dae', 'ctm', 'pts', 'apts', 'xyz', 'gts', 'pdb',
+                   'tri', 'asc', 'x3d', 'x3dv', 'wrl']
