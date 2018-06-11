@@ -120,11 +120,10 @@ class ExportTest(g.unittest.TestCase):
                         # have meshlab take the export and move it into
                         # an OFF file, which is basically the simplest format
                         # that uses by- reference vertices
-                        g.subprocess.check_call(['meshlabserver',
-                                                 '-i',
-                                                 temp.name,
-                                                 '-o',
-                                                 temp_c.name])
+
+                        cmd = 'xvfb-run -a -s "-screen 0 800x600x24" meshlabserver '
+                        cmd += '-i {} -o {}'.format(temp.name, temp_c.name)
+                        g.subprocess.check_call(cmd, shell=True)
                     except g.subprocess.CalledProcessError as E:
                         # log the options that produced the failure
                         g.log.error('failed to export {}'.format(
