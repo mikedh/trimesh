@@ -128,7 +128,7 @@ def export_ply(mesh,
     faces = np.zeros(len(mesh.faces), dtype=dtype_face)
     faces['count'] = 3
     faces['index'] = mesh.faces
-    if mesh.visual.kind == 'face':
+    if mesh.visual.kind == 'face' and encoding != 'ascii':
         faces['rgba'] = mesh.visual.face_colors
 
     header += templates['outro']

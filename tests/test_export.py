@@ -5,7 +5,7 @@ class ExportTest(g.unittest.TestCase):
 
     def test_export(self):
         export_types = list(g.trimesh.io.export._mesh_exporters.keys())
-        for mesh in g.get_meshes(5):
+        for mesh in g.get_meshes(8):
             for file_type in export_types:
                 export = mesh.export(file_type=file_type)
                 if export is None:
@@ -81,7 +81,9 @@ class ExportTest(g.unittest.TestCase):
                               {'vertex_normal': False,
                                'encoding': 'ascii'},
                               {'vertex_normal': False,
-                               'encoding': 'binary'}]}
+                               'encoding': 'binary'}],
+                      'stl': [{'file_type': 'stl'},
+                              {'file_type': 'stl_ascii'}]}
 
             # make sure input mesh has garbage removed
             mesh._validate = True
