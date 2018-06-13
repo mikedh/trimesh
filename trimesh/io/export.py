@@ -69,13 +69,14 @@ def export_off(mesh, digits=10):
     export : str
               OFF format output
     """
-    # make sure its an int
+    # make sure specified digits is an int
     digits = int(digits)
     # prepend a 3 (face count) to each face
     faces_stacked = np.column_stack((
         np.ones(len(mesh.faces)) * 3,
         mesh.faces)).astype(np.int64)
     export = 'OFF\n'
+    # the header is vertex count, face count, another number
     export += str(len(mesh.vertices)) + ' ' + str(len(mesh.faces)) + ' 0\n'
     export += util.array_to_string(mesh.vertices,
                                    col_delim=' ',
@@ -127,7 +128,6 @@ def export_collada(mesh, digits=8):
         'VCOUNT': str(len(mesh.vertices)),
         'VCOUNTX3': str(len(mesh.vertices) * 3),
         'FCOUNT': str(len(mesh.faces))}
-
     dae = template.substitute(replacement)
     return dae
 
@@ -141,6 +141,20 @@ def export_dict64(mesh):
 
 
 def export_dict(mesh, encoding=None):
+    """
+    Export a mesh to a dict
+
+    Parameters
+    ------------
+    mesh : Trimesh object
+             Mesh to be exported
+    encoding : str, or None
+                 'base64'
+
+    Returns
+    -------------
+
+    """
     def encode(item, dtype=None):
         if encoding is None:
             return item.tolist()

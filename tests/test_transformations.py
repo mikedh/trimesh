@@ -131,6 +131,24 @@ class TransformTest(g.unittest.TestCase):
                                       [0, 0, 0, 1]),
                              [1, -1, 0, 1])
 
+    def test_tiny(self):
+        """
+        Test transformations with models containing very small triangles
+        """
+        for validate in [False, True]:
+            m = g.get_mesh('ADIS16480.STL', validate=validate)
+            m.apply_scale(.001)
+            m._cache.clear()
+            fz = g.np.nonzero(g.np.linalg.norm(
+                m.face_normals,
+                axis=1) < 1e-3)
+            print(fz)
+            m.apply_transform(
+                g.trimesh.transformations.rotation_matrix(
+                    g.np.pi/4, [0,0,1]))
+
+
+        
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

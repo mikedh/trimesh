@@ -508,6 +508,7 @@ class Trimesh(object):
         in_mesh = self.triangles.reshape((-1, 3))
         bounds = np.vstack((in_mesh.min(axis=0),
                             in_mesh.max(axis=0)))
+        bounds.flags.writeable = False
         return bounds
 
     @util.cache_decorator
@@ -520,6 +521,7 @@ class Trimesh(object):
         extents: (3,) float array containing axis aligned [l,w,h]
         """
         extents = self.bounds.ptp(axis=0)
+        extents.flags.writeable = False
         return extents
 
     @util.cache_decorator
@@ -532,7 +534,7 @@ class Trimesh(object):
         ----------
         scale: float, the diagonal of the meshes AABB
         """
-        scale = (self.extents ** 2).sum() ** .5
+        scale = float((self.extents ** 2).sum() ** .5)
         return scale
 
     @util.cache_decorator
@@ -554,6 +556,7 @@ class Trimesh(object):
         centroid = np.average(self.triangles_center,
                               axis=0,
                               weights=self.area_faces)
+        centroid.flags.writeable = False
         return centroid
 
     @property
@@ -1751,8 +1754,8 @@ class Trimesh(object):
         """
         Apply the oriented bounding box transform to the current mesh.
 
-        This will result in a mesh with an AABB centered at the origin and the
-        same dimensions as the OBB.
+        This will result in a mesh with an AABB centered at the
+        origin and the same dimensions as the OBB.
 
         Returns
         ----------
@@ -1781,17 +1784,20 @@ class Trimesh(object):
                                order='C',
                                dtype=np.float64)
 
+        # only support homogenous transformations
         if matrix.shape != (4, 4):
             raise ValueError('Transformation matrix must be (4,4)!')
 
+        # exit early if we've been passed an identity matrix
         # np.allclose is surprisingly slow so do this test
         elif np.abs(matrix - np.eye(4)).max() < 1e-8:
             log.debug('apply_tranform passed identity matrix')
             return
 
         # new vertex positions
-        new_vertices = transformations.transform_points(self.vertices,
-                                                        matrix=matrix)
+        new_vertices = transformations.transform_points(
+            self.vertices,
+            matrix=matrix)
 
         # overridden center of mass
         if self._center_mass is not None:
@@ -1800,41 +1806,50 @@ class Trimesh(object):
                 matrix)[0]
 
         # a test triangle pre and post transform
-        triangle_pre = self.vertices[self.faces[:1]]
-        triangle_post = new_vertices[self.faces[:1]]
+        triangle_pre = self.vertices[self.faces[:5]]
+        # we don't care about scale so make sure they aren't tiny
+        triangle_pre /= np.abs(triangle_pre).max()
 
-        # compute triangle normal
-        normal_pre = triangles.normals(triangle_pre)[0]
-        normal_post = triangles.normals(triangle_post)[0]
+        # do the same for the post- transform test
+        triangle_post = new_vertices[self.faces[:5]]
+        triangle_post /= np.abs(triangle_post).max()
 
-        # check the first face against the first normal to check winding
-        aligned_pre = triangles.windings_aligned(triangle_pre,
-                                                 normal_pre)[0]
+        # compute triangle normal before and after transform
+        normal_pre, valid_pre = triangles.normals(triangle_pre)
+        normal_post, valid_post = triangles.normals(triangle_post)
+
+        # check the first few faces against normals to check winding
+        aligned_pre = triangles.windings_aligned(triangle_pre[valid_pre],
+                                                 normal_pre)
         # windings aligned after applying transform
-        aligned_post = triangles.windings_aligned(triangle_post,
-                                                  normal_post)[0]
+        aligned_post = triangles.windings_aligned(triangle_post[valid_post],
+                                                  normal_post)
+
+        # convert multiple face checks to single bool, allowing outliers
+        pre = (aligned_pre.sum() / float(len(aligned_pre))) > .6
+        post = (aligned_post.sum() / float(len(aligned_post))) > .6
 
         # preserve face normals if we have them stored
-        new_FN = None
+        new_face_normals = None
         if 'face_normals' in self._cache:
             # transform face normals by rotation component
-            new_FN = util.unitize(
+            new_face_normals = util.unitize(
                 transformations.transform_points(
                     self.face_normals,
                     matrix=matrix,
                     translate=False))
 
         # preserve vertex normals if we have them stored
-        new_VN = None
+        new_vertex_normals = None
         if 'vertex_normals' in self._cache:
-            new_VN = util.unitize(
+            new_vertex_normals = util.unitize(
                 transformations.transform_points(
                     self.vertex_normals,
                     matrix=matrix,
                     translate=False))
 
         # if matrix flips windings, flip faces
-        if aligned_pre != aligned_post:
+        if pre != post:
             log.debug('normals not aligned after transform: flipping')
             # fliplr will make array non C contiguous, which will
             # cause hashes to be more expensive than necessary
@@ -1842,8 +1857,8 @@ class Trimesh(object):
 
         # assign the new values
         self.vertices = new_vertices
-        self.face_normals = new_FN
-        self.vertex_normals = new_VN
+        self.face_normals = new_face_normals
+        self.vertex_normals = new_vertex_normals
 
         # preserve normals and topology in cache
         # while dumping everything else
@@ -2266,8 +2281,9 @@ class Trimesh(object):
               rectangular cell
         """
         # the (n,6) interleaved bounding box for every line segment
-        segment_bounds = np.column_stack((self.vertices[self.face_adjacency_edges].min(axis=1),
-                                          self.vertices[self.face_adjacency_edges].max(axis=1)))
+        segment_bounds = np.column_stack((
+            self.vertices[self.face_adjacency_edges].min(axis=1),
+            self.vertices[self.face_adjacency_edges].max(axis=1)))
         tree = util.bounds_tree(segment_bounds)
         return tree
 

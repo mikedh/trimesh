@@ -104,12 +104,12 @@ class ExportTest(g.unittest.TestCase):
                     temp = g.tempfile.NamedTemporaryFile(
                         suffix='.' + file_type,
                         delete=False)
-                    temp_c = g.tempfile.NamedTemporaryFile(
+                    temp_off = g.tempfile.NamedTemporaryFile(
                         suffix='.off',
                         delete=False)
                     # windows throws permissions errors if you keep it open
                     temp.close()
-                    temp_c.close()
+                    temp_off.close()
                     # write over the tempfile
                     option['file_obj'] = temp.name
                     mesh.export(**option)
@@ -117,12 +117,12 @@ class ExportTest(g.unittest.TestCase):
                     # will raise CalledProcessError if meshlab
                     # can't successfully import the file
                     try:
-                        # have meshlab take the export and move it into
+                        # have meshlab take the export and convert it into
                         # an OFF file, which is basically the simplest format
                         # that uses by- reference vertices
-
+                        # meshlabserver requires X so wrap it with XVFB
                         cmd = 'xvfb-run -a -s "-screen 0 800x600x24" meshlabserver '
-                        cmd += '-i {} -o {}'.format(temp.name, temp_c.name)
+                        cmd += '-i {} -o {}'.format(temp.name, temp_off.name)
                         g.subprocess.check_call(cmd, shell=True)
                     except g.subprocess.CalledProcessError as E:
                         # log the options that produced the failure
@@ -132,7 +132,7 @@ class ExportTest(g.unittest.TestCase):
                         raise E
 
                     # load meshlabs export back into trimesh
-                    r = g.trimesh.load(temp_c.name)
+                    r = g.trimesh.load(temp_off.name)
 
                     # we should have the same number of vertices and faces
                     assert len(r.vertices) == len(mesh.vertices)
@@ -140,7 +140,7 @@ class ExportTest(g.unittest.TestCase):
 
                     # manual cleanup
                     g.os.remove(temp.name)
-                    g.os.remove(temp_c.name)
+                    g.os.remove(temp_off.name)
 
     def test_obj(self):
         m = g.get_mesh('textured_tetrahedron.obj', process=False)
