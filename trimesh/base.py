@@ -1862,10 +1862,19 @@ class Trimesh(object):
 
         # preserve normals and topology in cache
         # while dumping everything else
-        self._cache.clear(exclude=['face_normals',
-                                   'face_adjacency',
-                                   'euler_number',
-                                   'vertex_normals'])
+        self._cache.clear(exclude=[
+            'face_normals',   # transformed by us
+            'face_adjacency',  # topological
+            'face_adjacency_edges',
+            'face_adjacency_unshared',
+            'edges',
+            'edges_sorted',
+            'edges_unique',
+            'edges_sparse',
+            'body_count',
+            'faces_unique_edges',
+            'euler_number',
+            'vertex_normals'])
         # set the cache ID with the current hash value
         self._cache.id_set()
 

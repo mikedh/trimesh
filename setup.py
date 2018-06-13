@@ -13,18 +13,14 @@ log.addHandler(logging.NullHandler())
 
 long_description = ''
 if os.path.exists('README.md'):
-    try:
-        import pypandoc
-        long_description = pypandoc.convert('README.md', 'rst')
-    except ImportError:
-        log.error('Failed to import pypandoc, docs will look like garbage on pypi!',
-                  exc_info=True)
-        long_description = open('README.md', 'r').read()
+    with open('README.md', 'r') as f:
+        long_description = f.read()
 
 setup(name = 'trimesh',
       version = __version__,
       description='Import, export, process, analyze and view triangular meshes.',
       long_description=long_description,
+      long_description_content_type='text/markdown',
       author='Mike Dawson-Haggerty',
       author_email='mik3dh@gmail.com',
       license = 'MIT',
