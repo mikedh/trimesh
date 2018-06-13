@@ -140,7 +140,12 @@ class Voxel(object):
 
 class VoxelMesh(Voxel):
 
-    def __init__(self, mesh, pitch, max_iter=10, size_max=None, method='ray'):
+    def __init__(self,
+                 mesh,
+                 pitch,
+                 max_iter=10,
+                 size_max=None,
+                 method='subdivide'):
         """
         A voxel representation of a mesh that will track changes to
         the mesh.
