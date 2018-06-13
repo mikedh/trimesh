@@ -1,3 +1,4 @@
+![trimesh Logotype](https://github.com/Tobaloidee/trimesh/blob/master/docs/images/trimesh-logo.png)
 # trimesh #
 [![Build Status](https://travis-ci.org/mikedh/trimesh.svg?branch=master)](https://travis-ci.org/mikedh/trimesh) [![Build status](https://ci.appveyor.com/api/projects/status/j8h3luwvst1tkghl?svg=true)](https://ci.appveyor.com/project/mikedh/trimesh)
 
