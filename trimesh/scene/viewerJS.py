@@ -5,7 +5,6 @@ viewerJS.py
 Render trimesh.Scene objects using three.js
 """
 import os
-import json
 import base64
 
 # for our template

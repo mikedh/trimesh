@@ -102,7 +102,7 @@ def load_dict(data, file_type=None):
     if util.is_instance_named(data, 'Trimesh'):
         return data
     if util.is_string(data):
-        if not '{' in data:
+        if '{' not in data:
             raise ValueError('Object is not a JSON encoded dictionary!')
         data = json.loads(data.decode('utf-8'))
     elif util.is_file(data):

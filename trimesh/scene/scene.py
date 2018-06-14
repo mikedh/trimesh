@@ -1,6 +1,5 @@
 import numpy as np
 import collections
-import copy
 
 from .. import util
 from .. import units

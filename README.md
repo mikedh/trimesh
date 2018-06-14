@@ -1,4 +1,4 @@
-<img src="https://github.com/mikedh/trimesh/blob/master/docs/images/logotype-a.svg" width="60%">
+[![trimesh](https://github.com/mikedh/trimesh/blob/master/docs/images/logotype-a.svg)](http://trimsh.org)
 
 -----------
 

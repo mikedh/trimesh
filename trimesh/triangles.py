@@ -328,7 +328,6 @@ def extents(triangles, areas=None):
         raise ValueError('Triangles must be (n,3,3)!')
 
     if areas is None:
-        #log.warning('areas not passed, will be expensively recomputed')
         areas = area(triangles=triangles,
                      sum=False)
 

@@ -430,7 +430,7 @@ def fill_voxelization(occupied):
             # find transitions first
             # transition positions are from 0 to 1 and from 1 to 0
             eq = np.equal(grid[i, j, :-1], grid[i, j, 1:])
-            idx = np.where(eq == False)[0] + 1
+            idx = np.where(np.logical_not(eq))[0] + 1
             c = len(idx)
             check_dir2 = (c % 4) > 0 and c > 4
             if c < 4:
@@ -445,7 +445,7 @@ def fill_voxelization(occupied):
             idx = []
             # find transitions first
             eq = np.equal(grid[i, :-1, k], grid[i, 1:, k])
-            idx = np.where(eq == False)[0] + 1
+            idx = np.where(np.logical_not(eq))[0] + 1
             c = len(idx)
             if c < 4:
                 continue
