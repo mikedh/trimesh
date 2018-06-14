@@ -145,10 +145,8 @@ class TransformTest(g.unittest.TestCase):
             print(fz)
             m.apply_transform(
                 g.trimesh.transformations.rotation_matrix(
-                    g.np.pi/4, [0,0,1]))
+                    g.np.pi / 4, [0, 0, 1]))
 
-
-        
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

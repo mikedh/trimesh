@@ -1958,7 +1958,7 @@ def transform_around(matrix, point):
 def planar_matrix(offset=[0.0, 0.0],
                   theta=0.0,
                   point=None):
-    '''
+    """
     2D homogeonous transformation matrix
 
     Parameters
@@ -1969,7 +1969,7 @@ def planar_matrix(offset=[0.0, 0.0],
     Returns
     ----------
     matrix: (3,3) homogenous 2D transformation matrix
-    '''
+    """
     offset = np.asanyarray(offset, dtype=np.float64)
     theta = float(theta)
     if not np.isfinite(theta):
@@ -1992,7 +1992,7 @@ def planar_matrix(offset=[0.0, 0.0],
 
 
 def planar_matrix_to_3D(matrix_2D):
-    '''
+    """
     Given a 2D homogenous rotation matrix convert it to a 3D rotation
     matrix that is rotating around the Z axis
 
@@ -2003,7 +2003,7 @@ def planar_matrix_to_3D(matrix_2D):
     Returns
     ----------
     matrix_3D: (4,4) float, homogenous 3D rotation matrix
-    '''
+    """
 
     matrix_2D = np.asanyarray(matrix_2D, dtype=np.float64)
     if matrix_2D.shape != (3, 3):
@@ -2019,7 +2019,7 @@ def planar_matrix_to_3D(matrix_2D):
 
 
 def spherical_matrix(theta, phi, axes='sxyz'):
-    '''
+    """
     Give a spherical coordinate vector, find the rotation that will
     transform a [0,0,1] vector to those coordinates
 
@@ -2035,27 +2035,34 @@ def spherical_matrix(theta, phi, axes='sxyz'):
              input spherical coordinats:
                 np.dot(matrix, [0,0,1,0])
 
-    '''
+    """
     result = euler_matrix(0.0, phi, theta, axes=axes)
     return result
 
 
-def transform_points(points, matrix, translate=True):
-    '''
+def transform_points(points,
+                     matrix,
+                     translate=True):
+    """
     Returns points, rotated by transformation matrix
+    
     If points is (n,2), matrix must be (3,3)
     if points is (n,3), matrix must be (4,4)
 
     Parameters
     ----------
-    points: (n, d) list of points where d is 2 or 3
-    matrix: (3,3) or (4,4) float rotation matrix
-    translate: boolean, apply translation from matrix or not
+    points    : (n, d) float
+                  Points where d is 2 or 3
+    matrix    : (3,3) or (4,4) float 
+                  Homogenous rotation matrix
+    translate : bool
+                  Apply translation from matrix or not
 
     Returns
     ----------
-    transformed: (n,d) float, np array of points
-    '''
+    transformed : (n,d) float
+                   Transformed points
+    """
     points = np.asanyarray(points, dtype=np.float64)
     matrix = np.asanyarray(matrix, dtype=np.float64)
     if (len(points.shape) != 2 or
@@ -2063,9 +2070,9 @@ def transform_points(points, matrix, translate=True):
         raise ValueError('matrix dimension must match points!')
 
     # check to see if we've been passed an identity matrix
-    identity = np.abs(matrix - np.eye(matrix.shape[0])).sum()
+    identity = np.abs(matrix - np.eye(matrix.shape[0])).max()
     if identity < 1e-8:
-        return np.ascontiguousarray(points)
+        return np.ascontiguousarray(points.copy())
 
     dimension = points.shape[1]
     column = np.zeros(len(points)) + int(bool(translate))
@@ -2076,7 +2083,7 @@ def transform_points(points, matrix, translate=True):
 
 
 def is_rigid(matrix):
-    '''
+    """
     Check to make sure a homogeonous transformation matrix is
     a rigid body transform.
 
@@ -2087,7 +2094,7 @@ def is_rigid(matrix):
     Returns
     -----------
     check: bool, True if matrix is a valid (4,4) rigid body transform.
-    '''
+    """
 
     matrix = np.asanyarray(matrix, dtype=np.float64)
 

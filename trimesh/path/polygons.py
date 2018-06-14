@@ -138,16 +138,39 @@ def polygon_obb(polygon):
     return bounds.oriented_bounds_2D(points)
 
 
-def transform_polygon(polygon, transform, plot=False):
+def transform_polygon(polygon, matrix):
+    """
+    Transform a polygon by a a 2D homogenous transform.
+
+    Parameters
+    -------------
+    polygon : shapely.geometry.Polygon
+                 2D polygon to be transformed.
+    matrix  : (3, 3) float
+                 2D homogenous transformation.
+
+    Returns
+    --------------
+    result : shapely.geometry.Polygon
+                 Polygon transformed by matrix.
+
+    """
+    matrix = np.asanyarray(matrix,
+                           dtype=np.float64)
+
     if util.is_sequence(polygon):
-        result = [transform_polygon(p, t) for p, t in zip(polygon, transform)]
-    else:
-        shell = transform_points(np.array(polygon.exterior.coords), transform)
-        holes = [transform_points(np.array(i.coords), transform)
-                 for i in polygon.interiors]
-        result = Polygon(shell=shell, holes=holes)
-    if plot:
-        plot_polygon(result)
+        result = [transform_polygon(p, t)
+                  for p, t in zip(polygon, matrix)]
+        return result
+    # transform the outer shell
+    shell = transform_points(np.array(polygon.exterior.coords),
+                             matrix)[:, :2]
+    # transform the interiors
+    holes = [transform_points(np.array(i.coords),
+                              matrix)[:, :2]
+             for i in polygon.interiors]
+    # create a new polygon with the result
+    result = Polygon(shell=shell, holes=holes)
     return result
 
 

@@ -1881,7 +1881,7 @@ class Trimesh(object):
         log.debug('mesh transformed by matrix')
         return self
 
-    def voxelized(self, pitch, max_iter=10):
+    def voxelized(self, pitch, **kwargs):
         """
         Return a Voxel object representing the current mesh
         discretized into voxels at the specified pitch
@@ -1896,7 +1896,7 @@ class Trimesh(object):
         """
         voxelized = voxel.VoxelMesh(self,
                                     pitch=pitch,
-                                    max_iter=max_iter)
+                                    **kwargs)
         return voxelized
 
     def outline(self, face_ids=None, **kwargs):
