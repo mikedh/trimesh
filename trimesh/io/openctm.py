@@ -26,179 +26,253 @@
 #------------------------------------------------------------------------------
 
 import os
-import ctypes
-from ctypes import *
+
 from ctypes.util import find_library
 
-# Types
-CTMfloat = c_float
-CTMint = c_int32
-CTMuint = c_uint32
-CTMcontext = c_void_p
-CTMenum = c_uint32
+# if we have the necessary stuff populate this later
+_ctm_loaders = {}
 
-# Constants
-CTM_API_VERSION = 0x00000100
-CTM_TRUE = 1
-CTM_FALSE = 0
+try:
+    # try to import the shared libary
+    if os.name == 'nt':
+        from ctypes import WinDLL
+        _lib = WinDLL('openctm.dll')
+    else:
+        from ctypes import CDLL
+        _libName = find_library('openctm')
+        _lib = CDLL(_libName)
+except BaseException:
+    _lib = None
+    
+if _lib:
+    import ctypes
+    from ctypes import *
 
-# CTMenum
-CTM_NONE = 0x0000
-CTM_INVALID_CONTEXT = 0x0001
-CTM_INVALID_ARGUMENT = 0x0002
-CTM_INVALID_OPERATION = 0x0003
-CTM_INVALID_MESH = 0x0004
-CTM_OUT_OF_MEMORY = 0x0005
-CTM_FILE_ERROR = 0x0006
-CTM_BAD_FORMAT = 0x0007
-CTM_LZMA_ERROR = 0x0008
-CTM_INTERNAL_ERROR = 0x0009
-CTM_UNSUPPORTED_FORMAT_VERSION = 0x000A
-CTM_IMPORT = 0x0101
-CTM_EXPORT = 0x0102
-CTM_METHOD_RAW = 0x0201
-CTM_METHOD_MG1 = 0x0202
-CTM_METHOD_MG2 = 0x0203
-CTM_VERTEX_COUNT = 0x0301
-CTM_TRIANGLE_COUNT = 0x0302
-CTM_HAS_NORMALS = 0x0303
-CTM_UV_MAP_COUNT = 0x0304
-CTM_ATTRIB_MAP_COUNT = 0x0305
-CTM_VERTEX_PRECISION = 0x0306
-CTM_NORMAL_PRECISION = 0x0307
-CTM_COMPRESSION_METHOD = 0x0308
-CTM_FILE_COMMENT = 0x0309
-CTM_NAME = 0x0501
-CTM_FILE_NAME = 0x0502
-CTM_PRECISION = 0x0503
-CTM_INDICES = 0x0601
-CTM_VERTICES = 0x0602
-CTM_NORMALS = 0x0603
-CTM_UV_MAP_1 = 0x0700
-CTM_UV_MAP_2 = 0x0701
-CTM_UV_MAP_3 = 0x0702
-CTM_UV_MAP_4 = 0x0703
-CTM_UV_MAP_5 = 0x0704
-CTM_UV_MAP_6 = 0x0705
-CTM_UV_MAP_7 = 0x0706
-CTM_UV_MAP_8 = 0x0707
-CTM_ATTRIB_MAP_1 = 0x0800
-CTM_ATTRIB_MAP_2 = 0x0801
-CTM_ATTRIB_MAP_3 = 0x0802
-CTM_ATTRIB_MAP_4 = 0x0803
-CTM_ATTRIB_MAP_5 = 0x0804
-CTM_ATTRIB_MAP_6 = 0x0805
-CTM_ATTRIB_MAP_7 = 0x0806
-CTM_ATTRIB_MAP_8 = 0x0807
+    import numpy as np
 
-# Load the OpenCTM shared library
-if os.name == 'nt':
-    _lib = WinDLL('openctm.dll')
-else:
-    _libName = find_library('openctm')
-    if not _libName:
-        raise Exception('Could not find the OpenCTM shared library.')
-    _lib = CDLL(_libName)
-if not _lib:
-    raise Exception('Could not open the OpenCTM shared library.')
+    # Types
+    CTMfloat = c_float
+    CTMint = c_int32
+    CTMuint = c_uint32
+    CTMcontext = c_void_p
+    CTMenum = c_uint32
 
-# Functions
-ctmNewContext = _lib.ctmNewContext
-ctmNewContext.argtypes = [CTMenum]
-ctmNewContext.restype = CTMcontext
+    # Constants
+    CTM_API_VERSION = 0x00000100
+    CTM_TRUE = 1
+    CTM_FALSE = 0
 
-ctmFreeContext = _lib.ctmFreeContext
-ctmFreeContext.argtypes = [CTMcontext]
+    # CTMenum
+    CTM_NONE = 0x0000
+    CTM_INVALID_CONTEXT = 0x0001
+    CTM_INVALID_ARGUMENT = 0x0002
+    CTM_INVALID_OPERATION = 0x0003
+    CTM_INVALID_MESH = 0x0004
+    CTM_OUT_OF_MEMORY = 0x0005
+    CTM_FILE_ERROR = 0x0006
+    CTM_BAD_FORMAT = 0x0007
+    CTM_LZMA_ERROR = 0x0008
+    CTM_INTERNAL_ERROR = 0x0009
+    CTM_UNSUPPORTED_FORMAT_VERSION = 0x000A
+    CTM_IMPORT = 0x0101
+    CTM_EXPORT = 0x0102
+    CTM_METHOD_RAW = 0x0201
+    CTM_METHOD_MG1 = 0x0202
+    CTM_METHOD_MG2 = 0x0203
+    CTM_VERTEX_COUNT = 0x0301
+    CTM_TRIANGLE_COUNT = 0x0302
+    CTM_HAS_NORMALS = 0x0303
+    CTM_UV_MAP_COUNT = 0x0304
+    CTM_ATTRIB_MAP_COUNT = 0x0305
+    CTM_VERTEX_PRECISION = 0x0306
+    CTM_NORMAL_PRECISION = 0x0307
+    CTM_COMPRESSION_METHOD = 0x0308
+    CTM_FILE_COMMENT = 0x0309
+    CTM_NAME = 0x0501
+    CTM_FILE_NAME = 0x0502
+    CTM_PRECISION = 0x0503
+    CTM_INDICES = 0x0601
+    CTM_VERTICES = 0x0602
+    CTM_NORMALS = 0x0603
+    CTM_UV_MAP_1 = 0x0700
+    CTM_UV_MAP_2 = 0x0701
+    CTM_UV_MAP_3 = 0x0702
+    CTM_UV_MAP_4 = 0x0703
+    CTM_UV_MAP_5 = 0x0704
+    CTM_UV_MAP_6 = 0x0705
+    CTM_UV_MAP_7 = 0x0706
+    CTM_UV_MAP_8 = 0x0707
+    CTM_ATTRIB_MAP_1 = 0x0800
+    CTM_ATTRIB_MAP_2 = 0x0801
+    CTM_ATTRIB_MAP_3 = 0x0802
+    CTM_ATTRIB_MAP_4 = 0x0803
+    CTM_ATTRIB_MAP_5 = 0x0804
+    CTM_ATTRIB_MAP_6 = 0x0805
+    CTM_ATTRIB_MAP_7 = 0x0806
+    CTM_ATTRIB_MAP_8 = 0x0807
 
-ctmGetError = _lib.ctmGetError
-ctmGetError.argtypes = [CTMcontext]
-ctmGetError.restype = CTMenum
 
-ctmErrorString = _lib.ctmErrorString
-ctmErrorString.argtypes = [CTMenum]
-ctmErrorString.restype = c_char_p
 
-ctmGetInteger = _lib.ctmGetInteger
-ctmGetInteger.argtypes = [CTMcontext, CTMenum]
-ctmGetInteger.restype = CTMint
 
-ctmGetFloat = _lib.ctmGetFloat
-ctmGetFloat.argtypes = [CTMcontext, CTMenum]
-ctmGetFloat.restype = CTMfloat
 
-ctmGetIntegerArray = _lib.ctmGetIntegerArray
-ctmGetIntegerArray.argtypes = [CTMcontext, CTMenum]
-ctmGetIntegerArray.restype = POINTER(CTMuint)
+    # Functions
+    ctmNewContext = _lib.ctmNewContext
+    ctmNewContext.argtypes = [CTMenum]
+    ctmNewContext.restype = CTMcontext
 
-ctmGetFloatArray = _lib.ctmGetFloatArray
-ctmGetFloatArray.argtypes = [CTMcontext, CTMenum]
-ctmGetFloatArray.restype = POINTER(CTMfloat)
+    ctmFreeContext = _lib.ctmFreeContext
+    ctmFreeContext.argtypes = [CTMcontext]
 
-ctmGetNamedUVMap = _lib.ctmGetNamedUVMap
-ctmGetNamedUVMap.argtypes = [CTMcontext, c_char_p]
-ctmGetNamedUVMap.restype = CTMenum
+    ctmGetError = _lib.ctmGetError
+    ctmGetError.argtypes = [CTMcontext]
+    ctmGetError.restype = CTMenum
 
-ctmGetUVMapString = _lib.ctmGetUVMapString
-ctmGetUVMapString.argtypes = [CTMcontext, CTMenum, CTMenum]
-ctmGetUVMapString.restype = c_char_p
+    ctmErrorString = _lib.ctmErrorString
+    ctmErrorString.argtypes = [CTMenum]
+    ctmErrorString.restype = c_char_p
 
-ctmGetUVMapFloat = _lib.ctmGetUVMapFloat
-ctmGetUVMapFloat.argtypes = [CTMcontext, CTMenum, CTMenum]
-ctmGetUVMapFloat.restype = CTMfloat
+    ctmGetInteger = _lib.ctmGetInteger
+    ctmGetInteger.argtypes = [CTMcontext, CTMenum]
+    ctmGetInteger.restype = CTMint
 
-ctmGetNamedAttribMap = _lib.ctmGetNamedAttribMap
-ctmGetNamedAttribMap.argtypes = [CTMcontext, c_char_p]
-ctmGetNamedAttribMap.restype = CTMenum
+    ctmGetFloat = _lib.ctmGetFloat
+    ctmGetFloat.argtypes = [CTMcontext, CTMenum]
+    ctmGetFloat.restype = CTMfloat
 
-ctmGetAttribMapString = _lib.ctmGetAttribMapString
-ctmGetAttribMapString.argtypes = [CTMcontext, CTMenum, CTMenum]
-ctmGetAttribMapString.restype = c_char_p
+    ctmGetIntegerArray = _lib.ctmGetIntegerArray
+    ctmGetIntegerArray.argtypes = [CTMcontext, CTMenum]
+    ctmGetIntegerArray.restype = POINTER(CTMuint)
 
-ctmGetAttribMapFloat = _lib.ctmGetAttribMapFloat
-ctmGetAttribMapFloat.argtypes = [CTMcontext, CTMenum, CTMenum]
-ctmGetAttribMapFloat.restype = CTMfloat
+    ctmGetFloatArray = _lib.ctmGetFloatArray
+    ctmGetFloatArray.argtypes = [CTMcontext, CTMenum]
+    ctmGetFloatArray.restype = POINTER(CTMfloat)
 
-ctmGetString = _lib.ctmGetString
-ctmGetString.argtypes = [CTMcontext, CTMenum]
-ctmGetString.restype = c_char_p
+    ctmGetNamedUVMap = _lib.ctmGetNamedUVMap
+    ctmGetNamedUVMap.argtypes = [CTMcontext, c_char_p]
+    ctmGetNamedUVMap.restype = CTMenum
 
-ctmCompressionMethod = _lib.ctmCompressionMethod
-ctmCompressionMethod.argtypes = [CTMcontext, CTMenum]
+    ctmGetUVMapString = _lib.ctmGetUVMapString
+    ctmGetUVMapString.argtypes = [CTMcontext, CTMenum, CTMenum]
+    ctmGetUVMapString.restype = c_char_p
 
-ctmCompressionLevel = _lib.ctmCompressionLevel
-ctmCompressionLevel.argtypes = [CTMcontext, CTMuint]
+    ctmGetUVMapFloat = _lib.ctmGetUVMapFloat
+    ctmGetUVMapFloat.argtypes = [CTMcontext, CTMenum, CTMenum]
+    ctmGetUVMapFloat.restype = CTMfloat
 
-ctmVertexPrecision = _lib.ctmVertexPrecision
-ctmVertexPrecision.argtypes = [CTMcontext, CTMfloat]
+    ctmGetNamedAttribMap = _lib.ctmGetNamedAttribMap
+    ctmGetNamedAttribMap.argtypes = [CTMcontext, c_char_p]
+    ctmGetNamedAttribMap.restype = CTMenum
 
-ctmVertexPrecisionRel = _lib.ctmVertexPrecisionRel
-ctmVertexPrecisionRel.argtypes = [CTMcontext, CTMfloat]
+    ctmGetAttribMapString = _lib.ctmGetAttribMapString
+    ctmGetAttribMapString.argtypes = [CTMcontext, CTMenum, CTMenum]
+    ctmGetAttribMapString.restype = c_char_p
 
-ctmNormalPrecision = _lib.ctmNormalPrecision
-ctmNormalPrecision.argtypes = [CTMcontext, CTMfloat]
+    ctmGetAttribMapFloat = _lib.ctmGetAttribMapFloat
+    ctmGetAttribMapFloat.argtypes = [CTMcontext, CTMenum, CTMenum]
+    ctmGetAttribMapFloat.restype = CTMfloat
 
-ctmUVCoordPrecision = _lib.ctmUVCoordPrecision
-ctmUVCoordPrecision.argtypes = [CTMcontext, CTMenum, CTMfloat]
+    ctmGetString = _lib.ctmGetString
+    ctmGetString.argtypes = [CTMcontext, CTMenum]
+    ctmGetString.restype = c_char_p
 
-ctmAttribPrecision = _lib.ctmAttribPrecision
-ctmAttribPrecision.argtypes = [CTMcontext, CTMenum, CTMfloat]
+    ctmCompressionMethod = _lib.ctmCompressionMethod
+    ctmCompressionMethod.argtypes = [CTMcontext, CTMenum]
 
-ctmFileComment = _lib.ctmFileComment
-ctmFileComment.argtypes = [CTMcontext, c_char_p]
+    ctmCompressionLevel = _lib.ctmCompressionLevel
+    ctmCompressionLevel.argtypes = [CTMcontext, CTMuint]
 
-ctmDefineMesh = _lib.ctmDefineMesh
-ctmDefineMesh.argtypes = [CTMcontext, POINTER(CTMfloat), CTMuint, POINTER(CTMuint), CTMuint, POINTER(CTMfloat)]
+    ctmVertexPrecision = _lib.ctmVertexPrecision
+    ctmVertexPrecision.argtypes = [CTMcontext, CTMfloat]
 
-ctmAddUVMap = _lib.ctmAddUVMap
-ctmAddUVMap.argtypes = [CTMcontext, POINTER(CTMfloat), c_char_p, c_char_p]
-ctmAddUVMap.restype = CTMenum
+    ctmVertexPrecisionRel = _lib.ctmVertexPrecisionRel
+    ctmVertexPrecisionRel.argtypes = [CTMcontext, CTMfloat]
 
-ctmAddAttribMap = _lib.ctmAddAttribMap
-ctmAddAttribMap.argtypes = [CTMcontext, POINTER(CTMfloat), c_char_p]
-ctmAddAttribMap.restype = CTMenum
+    ctmNormalPrecision = _lib.ctmNormalPrecision
+    ctmNormalPrecision.argtypes = [CTMcontext, CTMfloat]
 
-ctmLoad = _lib.ctmLoad
-ctmLoad.argtypes = [CTMcontext, c_char_p]
+    ctmUVCoordPrecision = _lib.ctmUVCoordPrecision
+    ctmUVCoordPrecision.argtypes = [CTMcontext, CTMenum, CTMfloat]
 
-ctmSave = _lib.ctmSave
-ctmSave.argtypes = [CTMcontext, c_char_p]
+    ctmAttribPrecision = _lib.ctmAttribPrecision
+    ctmAttribPrecision.argtypes = [CTMcontext, CTMenum, CTMfloat]
+
+    ctmFileComment = _lib.ctmFileComment
+    ctmFileComment.argtypes = [CTMcontext, c_char_p]
+
+    ctmDefineMesh = _lib.ctmDefineMesh
+    ctmDefineMesh.argtypes = [
+        CTMcontext,
+        POINTER(CTMfloat),
+        CTMuint,
+        POINTER(CTMuint),
+        CTMuint,
+        POINTER(CTMfloat)]
+
+    ctmAddUVMap = _lib.ctmAddUVMap
+    ctmAddUVMap.argtypes = [CTMcontext, POINTER(CTMfloat), c_char_p, c_char_p]
+    ctmAddUVMap.restype = CTMenum
+
+    ctmAddAttribMap = _lib.ctmAddAttribMap
+    ctmAddAttribMap.argtypes = [CTMcontext, POINTER(CTMfloat), c_char_p]
+    ctmAddAttribMap.restype = CTMenum
+
+    ctmLoad = _lib.ctmLoad
+    ctmLoad.argtypes = [CTMcontext, c_char_p]
+
+    ctmSave = _lib.ctmSave
+    ctmSave.argtypes = [CTMcontext, c_char_p]
+
+
+    def load_ctm(file_obj, file_type=None):
+        """
+        Load a OpenCTM file from a file object.
+
+        Parameters
+        ----------
+        file_obj : open file- like object
+
+        Returns
+        ----------
+        loaded : dict
+                  kwargs for a Trimesh constructor with keys:
+                  vertices:     (n,3) float, vertices
+                  faces:        (m,3) int, indexes of vertices
+        """
+
+        ctm = ctmNewContext(CTM_IMPORT)
+        ctmLoad(ctm, bytes(file_obj.name, encoding='utf-8'))
+
+        err = ctmGetError(ctm)
+        if err != CTM_NONE:
+            raise IOError("Error loading file: " + str(ctmErrorString(err)))
+
+        # get vertices
+        vertex_count = ctmGetInteger(ctm, CTM_VERTEX_COUNT)
+        vertex_ctm = ctmGetFloatArray(ctm, CTM_VERTICES)
+        # use fromiter to avoid loop
+        vertices = np.fromiter(vertex_ctm,
+                               dtype=np.float,
+                               count=vertex_count*3).reshape((-1,3))
+        # get faces
+        face_count = ctmGetInteger(ctm, CTM_TRIANGLE_COUNT)
+        face_ctm = ctmGetIntegerArray(ctm, CTM_INDICES)
+        faces = np.fromiter(face_ctm,
+                            dtype=np.int,
+                            count=face_count*3).reshape((-1,3))
+
+        # create kwargs for trimesh constructor
+        result = {'vertices': vertices,
+                  'faces': faces}
+
+        # get face normals if available
+        if ctmGetInteger(ctm, CTM_HAS_NORMALS) == CTM_TRUE:
+            normals_ctm = ctmGetFloatArray(ctm, CTM_NORMALS)
+            normals = np.fromiter(normal_ctm,
+                                  dtype=np.float,
+                                  count=face_count*3).reshape((-1,3))
+            result['face_normals'] = normals
+
+        return result
+
+    # we have a library so add load_ctm
+    _ctm_loaders = {'ctm': load_ctm}
