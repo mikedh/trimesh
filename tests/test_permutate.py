@@ -19,14 +19,16 @@ class PermutateTest(g.unittest.TestCase):
             if (close(test.face_adjacency,
                       mesh.face_adjacency) and
                     len(mesh.faces) > MIN_FACES):
-                raise ValueError('face adjacency of %s the same after permutation!',
-                                 mesh.metadata['file_name'])
+                raise ValueError(
+                    'face adjacency of %s the same after permutation!',
+                    mesh.metadata['file_name'])
 
             if (close(test.face_adjacency_edges,
                       mesh.face_adjacency_edges) and
                     len(mesh.faces) > MIN_FACES):
-                raise ValueError('face adjacency edges of %s the same after permutation!',
-                                 mesh.metadata['file_name'])
+                raise ValueError(
+                    'face adjacency edges of %s the same after permutation!',
+                    mesh.metadata['file_name'])
 
             self.assertFalse(close(test.faces,
                                    mesh.faces))

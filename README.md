@@ -1,5 +1,9 @@
-# trimesh #
+[![trimesh](https://github.com/mikedh/trimesh/blob/master/docs/images/logotype-a.svg)](http://trimsh.org)
+
+-----------
+
 [![Build Status](https://travis-ci.org/mikedh/trimesh.svg?branch=master)](https://travis-ci.org/mikedh/trimesh) [![Build status](https://ci.appveyor.com/api/projects/status/j8h3luwvst1tkghl?svg=true)](https://ci.appveyor.com/project/mikedh/trimesh)
+
 
 Trimesh is a Python (2.7- 3.3+) library for loading and using [triangular meshes](https://en.wikipedia.org/wiki/Triangle_mesh) with an emphasis on watertight meshes. The goal of the library is to provide a fully featured Trimesh object which allows for easy manipulation and analysis, in the style of the excellent Polygon object in the [Shapely library](http://toblerity.org/shapely/manual.html).
 
@@ -18,28 +22,19 @@ For the easiest install with only these minimal dependencies (slower ray queries
 pip install trimesh
 ```
 
-For more functionality, the easiest way to get a full Trimesh install is a [conda environment](https://conda.io/miniconda.html):
+For more functionality, the easiest way to get a full `trimesh` install is a [conda environment](https://conda.io/miniconda.html):
 
 ```bash
-# install modules for spatial indexing and  polygon manipulation
-# these generally install cleanly on Linux, Windows, and OSX
-conda install -c conda-forge rtree shapely
-
-# install pyembree for fast ray queries
-# Linux and OSX only
-conda install -c conda-forge pyembree
-
-# install Trimesh and soft dependencies that are easy to install
-# these generally install cleanly on Linux, Windows, and OSX
-pip install trimesh[easy]
+# this will install all soft dependencies available on your current platform
+conda install -c conda-forge trimesh
 ```
- 
-Further information is available in the [advanced installation documentation](http://trimesh.readthedocs.io/en/latest/install.html).
+
+Further information is available in the [advanced installation documentation](https://trimsh.org/install.html).
 
 ## Quick Start
 
 Here is an example of loading a mesh from file and colorizing its faces. Here is a nicely formatted
-[ipython notebook version](http://github.com/mikedh/trimesh/blob/master/examples/quick_start.ipynb) of this example. Also check out the [cross section example](https://github.com/mikedh/trimesh/blob/master/examples/section.ipynb) or possibly the [integration of a function over a mesh example](https://github.com/mikedh/trimesh/blob/master/examples/integrate.ipynb).
+[ipython notebook version](https://trimsh.org/examples/quick_start.html) of this example. Also check out the [cross section example](https://trimsh.org/examples/section.html) or possibly the [integration of a function over a mesh example](https://github.com/mikedh/trimesh/blob/master/examples/integrate.ipynb).
 
 ```python
 import numpy as np
@@ -112,59 +107,47 @@ print(mesh.bounding_box_oriented.volume,
 
 ## Features
 
-* Import binary/ASCII STL, Wavefront OBJ, ASCII OFF, binary/ASCII PLY, XAML, 3DXML, etc.
+* Import binary/ASCII STL, Wavefront OBJ, ASCII OFF, binary/ASCII PLY, GLTF/GLB 2.0, 3MF, XAML, 3DXML, etc.
 * Import additional mesh formats using [assimp](http://www.assimp.org/main_features_formats.html) (requires pyassimp or cyassimp)
 * Import and export 2D or 3D vector paths from/to DXF or SVG files
-* Export meshes as binary STL, binary PLY, ASCII OFF, COLLADA, dictionaries, JSON- serializable dictionaries (base64 encoded arrays), MSGPACK- serializable dictionaries (binary string arrays)
-* Preview meshes (requires pyglet)
-* Internal caching of computed values (validated with a zlib.adler32 CRC on face/vertex data)
+* Export meshes as binary STL, binary PLY, ASCII OFF, GLTF/GLB 2.0, COLLADA, dictionaries, JSON- serializable dictionaries (base64 encoded arrays), MSGPACK- serializable dictionaries (binary string arrays)
+* Preview meshes using pyglet
+* Preview meshes in- line in jupyter notebooks using three.js
+* Automatic hashing of numpy arrays for change tracking (MD5, zlib CRC, and xxhash)
+* Internal caching of computed values validated using numpy hashes
 * Fast loading of binary files through importers written by defining custom numpy dtypes
-* Calculate face adjacencies quickly (for 234,230 face mesh .248 s)
-* Calculate cross sections (.146 s)
+* Calculate things like face adjacencies, face angles, vertex defects, etc.
+* Calculate cross sections (IE the slicing operation used in 3D printing)
 * Split mesh based on face connectivity using networkx, graph-tool, or scipy.sparse
 * Calculate mass properties, including volume, center of mass, moment of inertia, and principal components of inertia
-* Find coplanar and adjacent groups of faces (.454 s)
 * Fix triangle winding and normals to be consistent 
 * Find convex hulls of meshes 
 * Compute a rotation/translation/tessellation invariant identifier for meshes
 * Determine duplicate meshes from identifier
-* Determine if a mesh is watertight
-* Determine if a mesh is convex
+* Determine if a mesh is watertight, convex, etc.
 * Repair single triangle and single quad holes
 * Uniformly sample the surface of a mesh
 * Ray-mesh queries including location, triangle id, etc.
 * Boolean operations on meshes (intersection, union, difference) using OpenSCAD or Blender as backend
 * Voxelize watertight meshes
-* Unit conversions
 * Subdivide faces of a mesh
 * Minimum volume oriented bounding boxes for meshes
 * Minimum volume bounding sphere / n-spheres
 * Symbolic integration of function(x,y,z) over a triangle
-* Quick (sympy-numpy lambda) evaluation of symbolic integral result over a mesh 
 * Calculate nearest point on mesh surface and signed distance
 * Determine if a point lies inside or outside of a mesh using signed distance
-* Create meshes with primitive objects (Extrude, Box, Sphere) which are subclasses of Trimesh
+* Create primitive objects (Box, Sphere, Extrusion) which are subclassed Trimesh objects and have all the same features (inertia, viewers, etc)
 * Simple scene graph and transform tree which can be rendered (pyglet) or exported.
 * Numerous utility functions, such as transforming points, unitizing vectors, tracking arrays for changes, grouping rows, etc.
 
-## Use Cases
+## Design Use Case
 
-The `trimesh.Trimesh` object is most useful on single body, watertight meshes that represents a volume.
+The `trimesh.Trimesh` object is most useful on single body, watertight meshes that represent a volume. The design use case is around analysis of geometry exported from a CAD system into a mesh format, for applications related to robotics and manufacturing.
 
-If you expect multibody geometry, you are best off dealing with them as a list of `Trimesh` objects, or as a `trimesh.Scene` object which includes things like overall bounding boxes, convex hulls, etc:
+This can be seen in the data model of Trimesh, where the emphasis is on faces and vertices and things derived from them, rather than other visual properties or metadata.
 
-```
-mesh = trimesh.load('multibody.STL')
+It is hopefully useful in other applications, but most of the core effort is around the design use case.
 
-# will split meshes into clean watertight chunks
-# always returns a Scene object
-scene = trimesh.scene.split_scene(mesh)
-
-# if you want it back as a single multibody mesh, the splitting
-# will heal problems with individual bodies before concatenating
-multi = scene.dump().sum()
-
-```
 
 ## Viewer
 

@@ -163,9 +163,8 @@ def oriented_bounds(obj, angle_digits=1):
         # a matrix which will rotate each hull normal to [0,0,1]
         to_2D = np.linalg.inv(transformations.spherical_matrix(*spherical))
         # apply the transform here
-        projected = np.dot(to_2D,
-                           np.column_stack((vertices,
-                                            np.ones(len(vertices)))).T).T[:, :3]
+        projected = np.dot(to_2D, np.column_stack(
+            (vertices, np.ones(len(vertices)))).T).T[:, :3]
 
         height = projected[:, 2].ptp()
         rotation_2D, box = oriented_bounds_2D(projected[:, 0:2])

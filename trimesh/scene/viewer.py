@@ -27,13 +27,13 @@ class SceneViewer(pyglet.window.Window):
 
         self.scene = scene
         self.scene._redraw = self._redraw
-
-        if 'camera' not in scene.graph:
-            # if the camera hasn't been set, set it now
-            scene.set_camera()
-
-        width, height = resolution
         self.reset_view(flags=flags)
+        self.batch = pyglet.graphics.Batch()
+        self._smooth = smooth
+
+        self.vertex_list = {}
+        self.vertex_list_md5 = {}
+        self.vertex_list_mode = {}
 
         try:
             # try enabling antialiasing
@@ -45,22 +45,19 @@ class SceneViewer(pyglet.window.Window):
             super(SceneViewer, self).__init__(config=conf,
                                               visible=visible,
                                               resizable=True,
-                                              width=width,
-                                              height=height)
+                                              width=resolution[0],
+                                              height=resolution[1])
         except pyglet.window.NoSuchConfigException:
             conf = gl.Config(double_buffer=True)
             super(SceneViewer, self).__init__(config=conf,
                                               resizable=True,
                                               visible=visible,
-                                              width=width,
-                                              height=height)
+                                              width=resolution[0],
+                                              height=resolution[1])
 
-        self.batch = pyglet.graphics.Batch()
-        self._smooth = smooth
-
-        self.vertex_list = {}
-        self.vertex_list_md5 = {}
-        self.vertex_list_mode = {}
+        if 'camera' not in scene.graph:
+            # if the camera hasn't been set, set it now
+            scene.set_camera()
 
         for name, mesh in scene.geometry.items():
             self.add_geometry(name=name,
@@ -140,14 +137,13 @@ class SceneViewer(pyglet.window.Window):
             self.view['ball'].place([self.width / 2.0,
                                      self.height / 2.0],
                                     (self.width + self.height) / 2.0)
+            if isinstance(flags, dict):
+                for k, v in flags.items():
+                    if k in self.view:
+                        self.view[k] = v
+                self.update_flags()
         except BaseException:
             pass
-
-        if isinstance(flags, dict):
-            for k, v in flags.items():
-                if k in self.view:
-                    self.view[k] = v
-        self.update_flags()
 
     def init_gl(self):
         gl.glClearColor(.97, .97, .97, 1.0)

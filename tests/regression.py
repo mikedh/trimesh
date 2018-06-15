@@ -72,8 +72,9 @@ def establish_baseline(*args, counts=[390, 3820, 1710]):
     dot = '\n'.join(('a = np.arange(3*10**3,dtype=np.float64).reshape((-1,3))',
                      'b = np.dot(a, a.T)'))
     # test a cross product
-    cross = '\n'.join(('a = np.arange(3*10**4,dtype=np.float64).reshape((-1,3))',
-                       'b = np.cross(a, a[::-1])'))
+    cross = '\n'.join(
+        ('a = np.arange(3*10**4,dtype=np.float64).reshape((-1,3))',
+         'b = np.cross(a, a[::-1])'))
 
     # try a list comprehension with some stuff in it
     loop = '[i * 3.14 for i in np.arange(10**3) if i % 7 == 0]'

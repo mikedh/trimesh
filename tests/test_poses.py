@@ -19,8 +19,8 @@ class PosesTest(g.unittest.TestCase):
                      g.get_mesh('unit_cube.STL')]:
 
             vectors = g.trimesh.util.grid_linspace([[0.0, 0], [1, 1.0]], 5)[1:]
-            vectors = g.trimesh.unitize(g.np.column_stack((vectors,
-                                                           g.np.ones(len(vectors)))))
+            vectors = g.trimesh.unitize(g.np.column_stack(
+                (vectors, g.np.ones(len(vectors)))))
             for vector, angle in zip(
                     vectors, g.np.linspace(0.0, g.np.pi, len(vectors))):
                 matrix = g.trimesh.transformations.rotation_matrix(

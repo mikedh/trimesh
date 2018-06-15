@@ -1,4 +1,5 @@
 import time
+import copy
 import collections
 
 import numpy as np
@@ -72,6 +73,17 @@ class TransformForest:
         """
         result = str(int(self._updated * 1000)) + str(self.base_frame)
         return result
+
+    def copy(self):
+        """
+        Return a copy of the current TransformForest
+
+        Returns
+        ------------
+        copied: TransformForest
+        """
+        copied = copy.deepcopy(self)
+        return copied
 
     def to_flattened(self, base_frame=None):
         """

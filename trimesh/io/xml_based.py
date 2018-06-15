@@ -10,25 +10,27 @@ from .. import transformations
 
 
 def load_XAML(file_obj, *args, **kwargs):
-    '''
+    """
     Load a 3D XAML file.
 
     Parameters
     ----------
-    file_obj: open file object
+    file_obj : file object
+                Open, containing XAML file
 
     Returns
     ----------
-    result: dict, with keys:
-            vertices:       (n,3) np.float64, points in space
-            faces:          (m,3) np.int64, indices of vertices
-            face_colors:    (m,4) np.uint8, RGBA colors
-            vertex_normals: (n,3) np.float64, vertex normals
-    '''
+    result : dict
+                kwargs for a trimesh constructor, including:
+                vertices:       (n,3) np.float64, points in space
+                faces:          (m,3) np.int64, indices of vertices
+                face_colors:    (m,4) np.uint8, RGBA colors
+                vertex_normals: (n,3) np.float64, vertex normals
+    """
     def element_to_color(element):
-        '''
+        """
         Turn an XML element into a (4,) np.uint8 RGBA color
-        '''
+        """
         if element is None:
             return visual.DEFAULT_COLOR
         hexcolor = int(element.attrib['Color'].replace('#', ''), 16)
@@ -41,9 +43,10 @@ def load_XAML(file_obj, *args, **kwargs):
         return rgba
 
     def element_to_transform(element):
-        '''
-        Turn an XML element into a (4,4) np.float64 transformation matrix.
-        '''
+        """
+        Turn an XML element into a (4,4) np.float64
+        transformation matrix.
+        """
         try:
             matrix = next(element.iter(
                 tag=ns + 'MatrixTransform3D')).attrib['Matrix']
@@ -147,18 +150,21 @@ def load_XAML(file_obj, *args, **kwargs):
 
 
 def load_3DXML(file_obj, *args, **kwargs):
-    '''
+    """
     Load a 3DXML scene into kwargs.
 
     Parameters
     -----------
-    file_obj: open file object holding 3DXML file
+    file_obj : file object
+                  open, containing 3DXML
 
     Returns
     -----------
-    geometries: list of dict, kwargs for Trimesh constructor
-    graph:      list of dict, kwargs for Scene.graph.update
-    '''
+    geometries : list of dict
+                     kwargs for Trimesh constructor
+    graph      :  list of dict
+                     kwargs for Scene.graph.update
+    """
     archive = util.decompress(file_obj, file_type='zip')
 
     # a dictionary of file name : lxml etree
@@ -186,18 +192,13 @@ def load_3DXML(file_obj, *args, **kwargs):
         material_id = MaterialDomain.attrib['id']
         material_file = MaterialDomain.attrib['associatedFile'].split(
             'urn:3DXML:')[-1]
-
         rend = as_etree[material_file].find(
             "{*}Feature[@Alias='RenderingFeature']")
         diffuse = rend.find("{*}Attr[@Name='DiffuseColor']")
         #specular = rend.find("{*}Attr[@Name='SpecularColor']")
         #emissive = rend.find("{*}Attr[@Name='EmissiveColor']")
-        rgb = (
-            np.array(
-                json.loads(
-                    diffuse.attrib['Value'])) *
-            255).astype(
-                np.uint8)
+        rgb = (np.array(json.loads(
+            diffuse.attrib['Value'])) * 255).astype(np.uint8)
         colors[material_id] = rgb
 
     # copy indexes for instances of colors
@@ -220,10 +221,12 @@ def load_3DXML(file_obj, *args, **kwargs):
         if (color is None or
                 'RGBAColorType' not in color.attrib.values()):
             continue
-        rgba = np.array([color.attrib[i] for i in ['red',
-                                                   'green',
-                                                   'blue',
-                                                   'alpha']], dtype=np.float)
+        rgba = np.array([color.attrib[i]
+                         for i in ['red',
+                                   'green',
+                                   'blue',
+                                   'alpha']],
+                        dtype=np.float)
         rgba = (rgba * 255).astype(np.uint8)
         for occurence in ViewProp.findall('{*}OccurenceId/{*}id'):
             reference_id = occurence.text.split('#')[-1]
@@ -271,17 +274,19 @@ def load_3DXML(file_obj, *args, **kwargs):
             # convert strips to (m,3) int
             mesh_faces.append(util.triangle_strips_to_faces(strips))
 
-            # they mix delimiters like we couldn't figure it out from the shape :(
+            # they mix delimiters like we couldn't figure it out from the
+            # shape :(
             # load vertices into (n, 3) float64
-            mesh_vertices.append(np.fromstring(vertices.text.replace(',',
-                                                                     ' '),
-                                               sep=' ',
-                                               dtype=np.float64).reshape((-1, 3)))
+            mesh_vertices.append(np.fromstring(
+                vertices.text.replace(',', ' '),
+                sep=' ',
+                dtype=np.float64).reshape((-1, 3)))
+
             # load vertex normals into (n, 3) float64
-            mesh_normals.append(np.fromstring(normals.text.replace(',',
-                                                                   ' '),
-                                              sep=' ',
-                                              dtype=np.float64).reshape((-1, 3)))
+            mesh_normals.append(np.fromstring(
+                normals.text.replace(',', ' '),
+                sep=' ',
+                dtype=np.float64).reshape((-1, 3)))
 
             # store the material information as (m,3) uint8 FACE COLORS
             mesh_colors.append(np.tile(colors[material_id],
@@ -307,8 +312,7 @@ def load_3DXML(file_obj, *args, **kwargs):
 
     # a Reference3D maps to a subassembly or assembly
     for Reference3D in tree.iter('{*}Reference3D'):
-        references[
-            Reference3D.attrib['id']] = {
+        references[Reference3D.attrib['id']] = {
             'name': Reference3D.attrib['name'],
             'type': 'Reference3D'}
 
@@ -421,9 +425,13 @@ def load_3DXML(file_obj, *args, **kwargs):
 
 
 def print_element(element):
-    '''
-    Pretty- print an lxml.etree element
-    '''
+    """
+    Pretty- print an lxml.etree element.
+
+    Paramters
+    ------------
+    element : etree element
+    """
     print(etree.tostring(element, pretty_print=True).decode('utf-8'))
 
 

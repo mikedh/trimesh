@@ -4,24 +4,25 @@ from .. import util
 
 
 def load_wavefront(file_obj, **kwargs):
-    '''
+    """
     Loads an ascii Wavefront OBJ file_obj into kwargs
     for the Trimesh constructor.
 
-    Vertices with the same position but different normals or uvs are split
-    into multiple vertices.
+    Vertices with the same position but different normals or uvs
+    are split into multiple vertices.
 
     Colors are discarded.
 
     Parameters
     ----------
-    file_obj: file object containing a wavefront file
-    file_type: not used
+    file_obj : file object
+                   Containing a wavefront file
 
     Returns
     ----------
-    loaded: dict with kwargs for Trimesh constructor (vertices, faces)
-    '''
+    loaded : dict
+                kwargs for Trimesh constructor
+    """
 
     # make sure text is UTF-8 with only \n newlines
     text = file_obj.read()
@@ -79,7 +80,8 @@ def load_wavefront(file_obj, **kwargs):
             # build face groups information
             # faces didn't move around so we don't have to reindex
             if len(current['g']) > 0:
-                face_groups = np.zeros(len(current['f']) // 3, dtype=np.int64)
+                face_groups = np.zeros(len(current['f']) // 3,
+                                       dtype=np.int64)
                 for idx, start_f in current['g']:
                     face_groups[start_f:] = idx
                 loaded['metadata']['face_groups'] = face_groups
@@ -101,7 +103,7 @@ def load_wavefront(file_obj, **kwargs):
         if line_split[0] in attribs:
             # v, vt, or vn
             # vertex, vertex texture, or vertex normal
-            # only parse 3 values-- colors shoved into vertices are ignored
+            # only parse 3 values, ignore colors
             attribs[line_split[0]].append([float(x)
                                            for x in line_split[1:4]])
         elif line_split[0] == 'f':
@@ -148,8 +150,10 @@ def load_wavefront(file_obj, **kwargs):
     return meshes
 
 
-def export_wavefront(mesh, include_normals=True, include_texture=True):
-    '''
+def export_wavefront(mesh,
+                     include_normals=True,
+                     include_texture=True):
+    """
     Export a mesh as a Wavefront OBJ file
 
     Parameters
@@ -159,8 +163,9 @@ def export_wavefront(mesh, include_normals=True, include_texture=True):
     Returns
     -----------
     export: str, string of OBJ format output
-    '''
-    # store the multiple options for formatting a vertex index for a face
+    """
+    # store the multiple options for formatting
+    # a vertex index for a face
     face_formats = {('v',): '{}',
                     ('v', 'vn'): '{}//{}',
                     ('v', 'vt'): '{}/{}',

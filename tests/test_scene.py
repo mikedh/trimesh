@@ -81,8 +81,10 @@ class SceneTests(g.unittest.TestCase):
 
         # the oriented bounding box should scale exactly with the scaling
         # factor
-        assert g.np.allclose(scaled.bounding_box_oriented.primitive.extents / extents,
-                             factor)
+        assert g.np.allclose(
+            scaled.bounding_box_oriented.primitive.extents /
+            extents,
+            factor)
 
         # we shouldn't have modified the original scene
         assert scene.md5() == md5
@@ -93,8 +95,11 @@ class SceneTests(g.unittest.TestCase):
 
         converted = scene.convert_units('in')
 
-        assert g.np.allclose(converted.bounding_box_oriented.primitive.extents / extents,
-                             1.0 / 25.4)
+        assert g.np.allclose(
+            converted.bounding_box_oriented.primitive.extents /
+            extents,
+            1.0 /
+            25.4)
 
         assert all(m.units == 'in' for m in converted.geometry.values())
 

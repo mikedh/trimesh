@@ -8,7 +8,6 @@ Fill holes and fix winding and normals of meshes.
 import numpy as np
 import networkx as nx
 
-from . import util
 from . import graph
 from . import triangles
 

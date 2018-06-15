@@ -5,44 +5,55 @@ import json
 from .. import util
 
 
-def load_off(file_obj, file_type=None):
-    '''
+def load_off(file_obj, **kwargs):
+    """
     Load an OFF file into the kwargs for a Trimesh constructor
 
 
     Parameters
     ----------
-    file_obj: file object containing an OFF file
-    file_type: not used
+    file_obj : file object
+                 Contains an OFF file
 
     Returns
     ----------
-    loaded: dict with kwargs for Trimesh constructor (vertices, faces)
-
-    '''
+    loaded : dict
+              kwargs for Trimesh constructor
+    """
     header_string = file_obj.readline()
     if hasattr(header_string, 'decode'):
         header_string = header_string.decode('utf-8')
-    header_string = header_string.strip()
+    header_string = header_string.strip().upper()
 
     if not header_string == 'OFF':
-        raise NameError('Not an OFF file! Header was ' + header_string)
+        raise NameError('Not an OFF file! Header was ' +
+                        header_string)
 
-    header = np.array(file_obj.readline().split()).astype(int)
-    blob = np.array(file_obj.read().split())
+    header = np.array(
+        file_obj.readline().strip().split()).astype(np.int64)
+    vertex_count, face_count = header[:2]
+
+    # read the rest of the file
+    blob = np.array(file_obj.read().strip().split())
+    # there should be 3 points per vertex
+    # and 3 indexes + 1 count per face
     data_ok = np.sum(header * [3, 4, 0]) == len(blob)
     if not data_ok:
         raise NameError('Incorrect number of vertices or faces!')
 
-    vertices = blob[0:(header[0] * 3)].astype(float).reshape((-1, 3))
-    faces = blob[(header[0] * 3):].astype(int).reshape((-1, 4))[:, 1:]
+    vertices = blob[:(vertex_count * 3)].astype(
+        np.float64).reshape((-1, 3))
+    # strip the first column which is a per- face count
+    faces = blob[(vertex_count * 3):].astype(
+        np.int64).reshape((-1, 4))[:, 1:]
 
-    return {'vertices': vertices,
-            'faces': faces}
+    kwargs = {'vertices': vertices,
+              'faces': faces}
+    return kwargs
 
 
 def load_msgpack(blob, file_type=None):
-    '''
+    """
     Load a dict packed with msgpack into kwargs for Trimesh constructor
 
     Parameters
@@ -53,7 +64,7 @@ def load_msgpack(blob, file_type=None):
     Returns
     ----------
     loaded: kwargs for Trimesh constructor (aka mesh=trimesh.Trimesh(**loaded))
-    '''
+    """
 
     import msgpack
     if hasattr(blob, 'read'):
@@ -65,7 +76,7 @@ def load_msgpack(blob, file_type=None):
 
 
 def load_dict(data, file_type=None):
-    '''
+    """
     Load multiple input types into kwargs for a Trimesh constructor.
     Tries to extract keys ['faces', 'vertices', 'face_normals', 'vertex_normals'].
 
@@ -85,13 +96,13 @@ def load_dict(data, file_type=None):
             -vertices: (n,3) float
             -faces:    (n,3) int
             -face_normals: (n,3) float (optional)
-    '''
+    """
     if data is None:
         raise ValueError('data passed to load_dict was None!')
     if util.is_instance_named(data, 'Trimesh'):
         return data
     if util.is_string(data):
-        if not '{' in data:
+        if '{' not in data:
             raise ValueError('Object is not a JSON encoded dictionary!')
         data = json.loads(data.decode('utf-8'))
     elif util.is_file(data):
