@@ -26,29 +26,27 @@
 #------------------------------------------------------------------------------
 
 import os
-
 from ctypes.util import find_library
 
 # if we have the necessary stuff populate this later
 _ctm_loaders = {}
-
+_lib = None
 try:
     # try to import the shared libary
     if os.name == 'nt':
         from ctypes import WinDLL
         _lib = WinDLL('openctm.dll')
     else:
-        from ctypes import CDLL
         _libName = find_library('openctm')
-        _lib = CDLL(_libName)
+        if _libName:
+            from ctypes import CDLL
+            _lib = CDLL(_libName)
 except BaseException:
-    _lib = None
-    
-if _lib:
-    import ctypes
-    from ctypes import *
+    pass
 
+if _lib:
     import numpy as np
+    from ctypes import *
 
     # Types
     CTMfloat = c_float
@@ -110,10 +108,6 @@ if _lib:
     CTM_ATTRIB_MAP_6 = 0x0805
     CTM_ATTRIB_MAP_7 = 0x0806
     CTM_ATTRIB_MAP_8 = 0x0807
-
-
-
-
 
     # Functions
     ctmNewContext = _lib.ctmNewContext
@@ -222,7 +216,6 @@ if _lib:
     ctmSave = _lib.ctmSave
     ctmSave.argtypes = [CTMcontext, c_char_p]
 
-
     def load_ctm(file_obj, file_type=None):
         """
         Load a OpenCTM file from a file object.
@@ -238,9 +231,12 @@ if _lib:
                   vertices:     (n,3) float, vertices
                   faces:        (m,3) int, indexes of vertices
         """
-
         ctm = ctmNewContext(CTM_IMPORT)
-        ctmLoad(ctm, bytes(file_obj.name, encoding='utf-8'))
+        # load file from name
+        # this should be replaced with something that
+        # actually uses the file object data to support streams
+        name = str(file_obj.name).encode('utf-8')
+        ctmLoad(ctm, name)
 
         err = ctmGetError(ctm)
         if err != CTM_NONE:
@@ -252,13 +248,13 @@ if _lib:
         # use fromiter to avoid loop
         vertices = np.fromiter(vertex_ctm,
                                dtype=np.float,
-                               count=vertex_count*3).reshape((-1,3))
+                               count=vertex_count * 3).reshape((-1, 3))
         # get faces
         face_count = ctmGetInteger(ctm, CTM_TRIANGLE_COUNT)
         face_ctm = ctmGetIntegerArray(ctm, CTM_INDICES)
         faces = np.fromiter(face_ctm,
                             dtype=np.int,
-                            count=face_count*3).reshape((-1,3))
+                            count=face_count * 3).reshape((-1, 3))
 
         # create kwargs for trimesh constructor
         result = {'vertices': vertices,
@@ -269,7 +265,7 @@ if _lib:
             normals_ctm = ctmGetFloatArray(ctm, CTM_NORMALS)
             normals = np.fromiter(normal_ctm,
                                   dtype=np.float,
-                                  count=face_count*3).reshape((-1,3))
+                                  count=face_count * 3).reshape((-1, 3))
             result['face_normals'] = normals
 
         return result

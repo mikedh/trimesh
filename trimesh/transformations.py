@@ -2045,7 +2045,7 @@ def transform_points(points,
                      translate=True):
     """
     Returns points, rotated by transformation matrix
-    
+
     If points is (n,2), matrix must be (3,3)
     if points is (n,3), matrix must be (4,4)
 
@@ -2053,7 +2053,7 @@ def transform_points(points,
     ----------
     points    : (n, d) float
                   Points where d is 2 or 3
-    matrix    : (3,3) or (4,4) float 
+    matrix    : (3,3) or (4,4) float
                   Homogenous rotation matrix
     translate : bool
                   Apply translation from matrix or not
