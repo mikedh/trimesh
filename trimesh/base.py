@@ -1459,8 +1459,16 @@ class Trimesh(object):
         """
         if len(self.facets) == 0:
             return np.array([])
-        index_first = np.array([i[0] for i in self.facets])
-        normals = self.face_normals[index_first]
+
+        # the face index of the first face in each facet
+        index = np.array([i[0] for i in self.facets])
+        # (n,3) float, unit normal vectors of facet plane
+        normals = self.face_normals[index]
+        # (n,3) float, points on facet plane
+        origins = self.vertices[self.faces[:, 0][index]]
+        # save origins in cache
+        self._cache['facets_origin'] = origins
+
         return normals
 
     @util.cache_decorator
@@ -1489,25 +1497,25 @@ class Trimesh(object):
         ---------
         on_hull: (len(mesh.facets),) bool, is facet on convex hull
         """
-        # the index of the largest face in each facet to test
-        face_id = [f[self.area_faces[f].argmax()] for f in self.facets]
+        # facets plane, origin and normal
+        normals = self.facets_normal
+        origins = self._cache['facets_origin']
 
-        # test the triangle center and 3 vertices
-        # if all 4 coplanar points are on the convex hull
-        # it is a very strong indication that the whole planar
-        # facet region is on the convex hull
-        test = np.zeros((len(face_id), 4, 3), dtype=np.float64)
-        test[:, :3, :] = self.triangles[face_id]
-        test[:, 3, :] = self.triangles_center[face_id]
+        # (n,3) convex hull vertices
+        convex = self.convex_hull.vertices.view(np.ndarray).copy()
 
-        # distance between the hull surface and our four test points
-        distance = self.convex_hull.nearest.on_surface(
-            test.reshape((-1, 3)))[1]
+        # boolean mask for which facets are on convex hull
+        on_hull = np.zeros(len(self.facets), dtype=np.bool)
 
-        # threshold the distance and check all points
-        ok = (distance < tol.merge).reshape((-1, 4)).all(axis=1)
+        for i, normal, origin in zip(range(len(normals)), normals, origins):
+            # a facet plane is on the convex hull if every vertex
+            # of the convex hull is behind that plane
+            # which we are checking with dot products
+            on_hull[i] = (np.dot(
+                normal,
+                (convex - origin).T) < tol.merge).all()
 
-        return ok
+        return on_hull
 
     @_log_time
     def fix_normals(self, multibody=None):
