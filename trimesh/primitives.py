@@ -435,6 +435,34 @@ class Box(_Primitive):
                                               defaults,
                                               kwargs)
 
+    @property
+    def extents(self):
+        """
+        The size of the bounding cuboid.
+
+        Returns
+        ----------
+        extents : (3,) float
+                         Size of the bounding cuboid.
+        """
+        return self.primitive.extents
+
+    @extents.setter
+    def extents(self, value):
+        """
+        Assign a value to the box extent.
+
+        A shortcut for setting `box.primitive.extents`
+
+        Parameters
+        ------------
+        value : (3,) float
+                      New box size
+        """
+        value = np.asanyarray(value,
+                              dtype=np.float64).reshape(3)
+        self.primitive.extents = value
+
     def sample_volume(self, count):
         """
         Return random samples from inside the volume of the box.

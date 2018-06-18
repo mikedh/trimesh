@@ -106,6 +106,24 @@ class BooleanTest(g.unittest.TestCase):
             assert g.trimesh.util.is_shape(grid, (-1, 3))
             assert (box.nearest.signed_distance(grid) > -1e-6).all()
 
+    def test_box(self):
+        """
+        Test the setter on box primitives
+        """
+        start = [20, 10, 100]
+        box = g.trimesh.primitives.Box(extents=start)
+        assert g.np.allclose(box.primitive.extents,
+                             start)
+        assert g.np.allclose(box.extents,
+                             start)
+
+        end = [1, 3, 4]
+        box.extents = end
+        assert g.np.allclose(box.primitive.extents,
+                             end)
+        assert g.np.allclose(box.extents,
+                             end)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
