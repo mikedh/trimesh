@@ -105,7 +105,7 @@ class _Primitive(Trimesh):
             log.debug('apply_tranform recieved identity matrix')
             return
 
-        new_transform = np.dot(self.primitive.transform, matrix)
+        new_transform = np.dot(matrix, self.primitive.transform)
 
         self.primitive.transform = new_transform
 
@@ -434,34 +434,6 @@ class Box(_Primitive):
         self.primitive = _PrimitiveAttributes(self,
                                               defaults,
                                               kwargs)
-
-    @property
-    def extents(self):
-        """
-        The size of the bounding cuboid.
-
-        Returns
-        ----------
-        extents : (3,) float
-                         Size of the bounding cuboid.
-        """
-        return self.primitive.extents
-
-    @extents.setter
-    def extents(self, value):
-        """
-        Assign a value to the box extent.
-
-        A shortcut for setting `box.primitive.extents`
-
-        Parameters
-        ------------
-        value : (3,) float
-                      New box size
-        """
-        value = np.asanyarray(value,
-                              dtype=np.float64).reshape(3)
-        self.primitive.extents = value
 
     def sample_volume(self, count):
         """

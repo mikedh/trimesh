@@ -32,9 +32,11 @@ class BooleanTest(g.unittest.TestCase):
         self.primitives.append(g.trimesh.primitives.Box())
         self.primitives.append(
             g.trimesh.primitives.Box(
-                center=[
-                    102.20, 0, 102.0], extents=[
-                    29, 100, 1000]))
+                center=[102.20, 0, 102.0],
+                extents=[29, 100, 1000]))
+        self.primitives.append(g.trimesh.primitives.Box(
+            extents=[10, 20, 30],
+            transform=g.trimesh.transformations.random_rotation_matrix()))
 
         self.primitives.append(g.trimesh.primitives.Cylinder())
         self.primitives.append(g.trimesh.primitives.Cylinder(radius=10,
@@ -58,6 +60,11 @@ class BooleanTest(g.unittest.TestCase):
             ratio = [primitive.volume / primitive.to_mesh().volume,
                      primitive.area / primitive.to_mesh().area]
 
+            assert g.np.allclose(
+                primitive.extents,
+                primitive.to_mesh().extents)
+            assert g.np.allclose(primitive.bounds, primitive.to_mesh().bounds)
+
             assert all(g.np.abs(i - 1) < 1e-2 for i in ratio)
 
             self.assertTrue(primitive.is_winding_consistent)
@@ -74,10 +81,8 @@ class BooleanTest(g.unittest.TestCase):
             translation = [0, 0, 5]
             primitive.apply_translation(translation)
 
-            if not g.np.allclose(primitive.centroid - centroid, translation):
-                raise ValueError(
-                    'failed on {}'.format(
-                        primitive.__class__.__name__))
+            # centroid should have translated correctly
+            assert g.np.allclose(primitive.centroid - centroid, translation)
 
     def test_extrusion(self):
         if not has_meshpy:
@@ -116,14 +121,6 @@ class BooleanTest(g.unittest.TestCase):
                              start)
         assert g.np.allclose(box.extents,
                              start)
-
-        end = [1, 3, 4]
-        box.extents = end
-        assert g.np.allclose(box.primitive.extents,
-                             end)
-        assert g.np.allclose(box.extents,
-                             end)
-
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
