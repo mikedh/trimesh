@@ -23,7 +23,7 @@ from .. import intersections
 # to reliably not hit its origin triangle
 _ray_offset_factor = 1e-3
 # for very small meshes, we want to clip our offset to a sane distance
-_ray_offset_floor = 1e-5
+_ray_offset_floor = 1e-4
 
 # see if we're using a newer version of the pyembree wrapper
 _embree_new = parse_version(_ver) >= parse_version('0.1.4')
@@ -35,7 +35,7 @@ class RayMeshIntersector(object):
 
     def __init__(self,
                  geometry,
-                 scale_to_box=False):
+                 scale_to_box=True):
         """
         Do ray- mesh queries.
 
