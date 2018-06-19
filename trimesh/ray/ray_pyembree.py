@@ -21,9 +21,9 @@ from .. import intersections
 
 # the factor of geometry.scale to offset a ray from a triangle
 # to reliably not hit its origin triangle
-_ray_offset_factor = 1e-4
+_ray_offset_factor = 1e-3
 # for very small meshes, we want to clip our offset to a sane distance
-_ray_offset_floor = 1e-8
+_ray_offset_floor = 1e-5
 
 # see if we're using a newer version of the pyembree wrapper
 _embree_new = parse_version(_ver) >= parse_version('0.1.4')
@@ -35,7 +35,7 @@ class RayMeshIntersector(object):
 
     def __init__(self,
                  geometry,
-                 scale_to_box=True):
+                 scale_to_box=False):
         """
         Do ray- mesh queries.
 
@@ -100,11 +100,11 @@ class RayMeshIntersector(object):
                       ray_origins,
                       ray_directions,
                       multiple_hits=True,
-                      max_hits=100,
+                      max_hits=20,
                       return_locations=False):
         """
-        Find the triangles hit by a list of rays, including optionally
-        multiple hits along a single ray.
+        Find the triangles hit by a list of rays, including
+        optionally multiple hits along a single ray.
 
         Parameters
         ----------
@@ -139,21 +139,19 @@ class RayMeshIntersector(object):
 
         if multiple_hits or return_locations:
             # how much to offset ray to transport to the other side
-            offset_distance = np.clip(
-                self.mesh.scale * _ray_offset_factor,
-                a_min=_ray_offset_floor,
-                a_max=1.0)
-            ray_offset = ray_directions * offset_distance
+            ray_offsets = ray_directions * _ray_offset_factor
 
             # grab the planes from triangles
             plane_origins = self.mesh.triangles[:, 0, :]
             plane_normals = self.mesh.face_normals
 
         # use a for loop rather than a while to ensure this exits
-        # if a ray is offset from a triangle and then is reported hitting
-        # itself this could get stuck on that one triangle
+        # if a ray is offset from a triangle and then is reported
+        # hitting itself this could get stuck on that one triangle
         for query_depth in range(max_hits):
             # run the pyembree query
+            # if you set output=1 it will calculate distance along
+            # ray, which is bizzarely slower than our calculation
             query = self._scene.run(
                 ray_origins[current],
                 ray_directions[current])
@@ -205,7 +203,7 @@ class RayMeshIntersector(object):
 
             if multiple_hits:
                 # move the ray origin to the other side of the triangle
-                ray_origins[current] = new_origins + ray_offset[current]
+                ray_origins[current] = new_origins + ray_offsets[current]
             else:
                 break
 
@@ -279,7 +277,8 @@ class RayMeshIntersector(object):
 
         Returns
         ---------
-        contains: (n) boolean array, whether point is inside mesh or not
+        contains: (n,) bool
+                         Whether point is inside mesh or not
         """
         return contains_points(self, points)
 
@@ -293,12 +292,22 @@ class _EmbreeWrap(object):
 
     def __init__(self, vertices, faces, scale):
         self.scene = rtcore_scene.EmbreeScene()
+
+        vertices = np.asanyarray(vertices,
+                                 dtype=_embree_dtype)
+        self.origin = vertices.min(axis=0)
         self.scale = scale
+
+        # offset vertices and scale
+        scaled = (vertices - self.origin) * scale
+
         mesh = TriangleMesh(
             scene=self.scene,
-            vertices=(vertices * scale).astype(_embree_dtype),
+            vertices=scaled.astype(_embree_dtype),
             indices=faces.astype(_embree_dtype))
 
-    def run(self, origins, normals):
-        return self.scene.run(origins * self.scale,
-                              normals)
+    def run(self, origins, normals, **kwargs):
+        scaled = (origins - self.origin) * self.scale
+        return self.scene.run(scaled,
+                              normals,
+                              **kwargs)

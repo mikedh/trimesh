@@ -33,18 +33,19 @@ def contains_points(intersector,
     contains = np.zeros(len(points), dtype=np.bool)
 
     # cull points outside of the axis aligned bounding box
-    # this avoids running ray tests unless points are reasonably close
-    inside_aabb = bounds.contains(intersector.mesh.bounds, points)
+    # this avoids running ray tests unless points are close
+    inside_aabb = bounds.contains(intersector.mesh.bounds,
+                                  points)
 
     # if everything is outside the AABB, exit early
     if not inside_aabb.any():
         return contains
 
-    # default ray direction is random, but we are not generating it
+    # default ray direction is random, but we are not generating
     # uniquely each time so the behavior of this function is easier to debug
-    default_direction = np.array(
-        [0.4395064455, 0.617598629942, 0.652231566745])
-
+    default_direction = np.array([0.4395064455,
+                                  0.617598629942,
+                                  0.652231566745])
     if check_direction is None:
         # if no check direction is specifed use the default
         # stack it only for points inside the AABB
@@ -56,10 +57,13 @@ def contains_points(intersector,
                                  (inside_aabb.sum(), 1))
 
     # cast a ray both forwards and backwards
-    index_ray = intersector.intersects_location(
+    location, index_ray, c = intersector.intersects_location(
         np.vstack(
-            (points[inside_aabb], points[inside_aabb])), np.vstack(
-            (ray_directions, -ray_directions)))[1]
+            (points[inside_aabb],
+             points[inside_aabb])),
+        np.vstack(
+            (ray_directions,
+             -ray_directions)))
 
     # if we hit nothing in either direction just return with no hits
     if len(index_ray) == 0:
@@ -67,8 +71,9 @@ def contains_points(intersector,
 
     # reshape so bi_hits[0] is the result in the forward direction and
     #            bi_hits[1] is the result in the backwards directions
-    bi_hits = np.bincount(index_ray,
-                          minlength=len(ray_directions) * 2).reshape((2, -1))
+    bi_hits = np.bincount(
+        index_ray,
+        minlength=len(ray_directions) * 2).reshape((2, -1))
     # a point is probably inside if it hits a surface an odd number of times
     bi_contains = np.mod(bi_hits, 2) == 1
 
@@ -103,9 +108,8 @@ def contains_points(intersector,
     # only do it if check_direction isn't specified
     # to avoid infinite recursion
     if broken.any() and check_direction is None:
-        # we're going to run the contains check again in a random direction
+        # we're going to run the check again in a random direction
         new_direction = util.unitize(np.random.random(3) - .5)
-
         # do the mask trick again to be able to assign results
         mask = inside_aabb.copy()
         mask[mask] = broken

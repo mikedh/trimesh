@@ -122,6 +122,7 @@ class BooleanTest(g.unittest.TestCase):
         assert g.np.allclose(box.extents,
                              start)
 
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()

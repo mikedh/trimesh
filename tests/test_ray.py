@@ -161,14 +161,15 @@ class RayTests(g.unittest.TestCase):
         ray origin XY.
         """
 
-        for use_embree in [True, False]:
-            mesh = g.get_mesh('unit_cube.STL',
-                              use_embree=use_embree)
+        for kwargs in [{'use_embree': True},
+                       {'use_embree': False}]:
 
+            mesh = g.get_mesh('unit_cube.STL', **kwargs)
             # grid is across meshes XY profile
-            origins = g.trimesh.util.grid_linspace(
-                mesh.bounds[:, :2] + g.np.reshape([-.02, .02], (-1, 1)),
-                100)
+            origins = g.trimesh.util.grid_linspace(mesh.bounds[:, :2] +
+                                                   g.np.reshape(
+                                                       [-.02, .02], (-1, 1)),
+                                                   100)
             origins = g.np.column_stack((
                 origins,
                 g.np.ones(len(origins)) * -100))
@@ -183,9 +184,11 @@ class RayTests(g.unittest.TestCase):
                 ray_directions=vectors)
 
             for p, r in zip(pos, ray):
-                # intersect location XY,
-                # ray origin XY
+                # intersect location XY should match ray origin XY
                 assert g.np.allclose(p[:2], origins[r][:2])
+                # the Z of the hit should be on the cube's
+                # top or bottom face
+                assert g.np.isclose(p[2], mesh.bounds[:, 2]).any()
 
 
 if __name__ == '__main__':
