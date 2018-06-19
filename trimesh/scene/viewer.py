@@ -123,9 +123,9 @@ class SceneViewer(pyglet.window.Window):
             raise ValueError('Geometry passed is not a viewable type!')
 
     def reset_view(self, flags=None):
-        '''
+        """
         Set view to base view.
-        '''
+        """
         self.view = {'wireframe': False,
                      'cull': True,
                      'translation': np.zeros(3),
@@ -254,12 +254,25 @@ class SceneViewer(pyglet.window.Window):
         self.view['translation'][2] += float(dy) / self.height
 
     def on_key_press(self, symbol, modifiers):
+        magnitude = 10
         if symbol == pyglet.window.key.W:
             self.toggle_wireframe()
         elif symbol == pyglet.window.key.Z:
             self.reset_view()
         elif symbol == pyglet.window.key.C:
             self.toggle_culling()
+        elif symbol == pyglet.window.key.LEFT:
+            self.view['ball'].down([0, 0])
+            self.view['ball'].drag([-magnitude, 0])
+        elif symbol == pyglet.window.key.RIGHT:
+            self.view['ball'].down([0, 0])
+            self.view['ball'].drag([magnitude, 0])
+        elif symbol == pyglet.window.key.DOWN:
+            self.view['ball'].down([0, 0])
+            self.view['ball'].drag([0, -magnitude])
+        elif symbol == pyglet.window.key.UP:
+            self.view['ball'].down([0, 0])
+            self.view['ball'].drag([0, magnitude])
 
     def on_draw(self):
         self._update_meshes()
@@ -326,13 +339,13 @@ class SceneViewer(pyglet.window.Window):
         return None
 
     def save_image(self, file_obj):
-        '''
+        """
         Save the current color buffer to a file object, in PNG format.
 
         Parameters
         -------------
         file_obj: file name, or file- like object
-        '''
+        """
         colorbuffer = pyglet.image.get_buffer_manager().get_color_buffer()
         if hasattr(file_obj, 'write'):
             colorbuffer.save(file=file_obj)
@@ -341,10 +354,10 @@ class SceneViewer(pyglet.window.Window):
 
 
 def _view_transform(view):
-    '''
+    """
     Given a dictionary containing view parameters,
     calculate a transformation matrix.
-    '''
+    """
     transform = view['ball'].matrix()
     transform[0:3, 3] = view['center']
     transform[0:3, 3] -= np.dot(transform[0:3, 0:3], view['center'])
@@ -360,10 +373,10 @@ def geometry_md5(geometry):
 
 
 def mesh_to_vertex_list(mesh, group=None):
-    '''
+    """
     Convert a Trimesh object to arguments for an
     indexed vertex list constructor.
-    '''
+    """
     normals = mesh.vertex_normals.reshape(-1).tolist()
     faces = mesh.faces.reshape(-1).tolist()
     vertices = mesh.vertices.reshape(-1).tolist()
@@ -417,7 +430,7 @@ def points_to_vertex_list(points, colors, group=None):
 
 
 def _validate_colors(colors, count):
-    '''
+    """
     Given a list of colors (or None) return a GL- acceptable list of colors
 
     Parameters
@@ -428,7 +441,7 @@ def _validate_colors(colors, count):
     ---------
     colors_type: str, color type
     colors_gl:   list, count length
-    '''
+    """
 
     colors = np.asanyarray(colors)
     count = int(count)
@@ -450,18 +463,18 @@ def _validate_colors(colors, count):
 
 
 def _gl_matrix(array):
-    '''
+    """
     Convert a sane numpy transformation matrix (row major, (4,4))
     to an stupid GLfloat transformation matrix (column major, (16,))
-    '''
+    """
     a = np.array(array).T.reshape(-1)
     return (gl.GLfloat * len(a))(*a)
 
 
 def _gl_vector(array, *args):
-    '''
+    """
     Convert an array and an optional set of args into a flat vector of GLfloat
-    '''
+    """
     array = np.array(array)
     if len(args) > 0:
         array = np.append(array, args)
@@ -470,7 +483,7 @@ def _gl_vector(array, *args):
 
 
 def render_scene(scene, resolution=(1080, 1080), visible=True, **kwargs):
-    '''
+    """
     Render a preview of a scene to a PNG.
 
     Parameters
@@ -482,7 +495,7 @@ def render_scene(scene, resolution=(1080, 1080), visible=True, **kwargs):
     Returns
     ---------
     render: bytes, image in PNG format
-    '''
+    """
     window = SceneViewer(scene,
                          start_loop=False,
                          visible=visible,

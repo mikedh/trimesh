@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 # transformations.py
 
+# Modified for inclusion in the `trimesh` library
+# github.com/mikedh/trimesh
+# -----------------------------------------------------------------------
+#
 # Copyright (c) 2006-2017, Christoph Gohlke
 # Copyright (c) 2006-2017, The Regents of the University of California
 # Produced at the Laboratory for Fluorescence Dynamics
