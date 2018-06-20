@@ -766,6 +766,43 @@ class Path2D(Path):
                                  width=width)
         return image
 
+    def sample(self, count, **kwargs):
+        """
+        Use rejection sampling to generate random points inside a
+        polygon.
+
+        Parameters
+        -----------
+        count   : int
+                    Number of points to return
+                    If there are multiple bodies, there will
+                    be up to count * bodies points returned
+        factor  : float
+                    How many points to test per loop
+                    IE, count * factor
+        max_iter : int,
+                    Maximum number of intersection loops
+                    to run, total points sampled is
+                    count * factor * max_iter
+
+        Returns
+        -----------
+        hit : (n, 2) float
+               Random points inside polygon
+        """
+
+        poly = self.polygons_full
+        if len(poly) == 0:
+            samples = np.array([])
+        elif len(poly) == 1:
+            samples = polygons.sample(poly[0], count=count, **kwargs)
+        else:
+            samples = util.vstack_empty([
+                polygons.sample(i, count=count, **kwargs)
+                for i in poly])
+
+        return samples
+
     @property
     def body_count(self):
         return len(self.root)

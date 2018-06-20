@@ -89,6 +89,22 @@ class VectorTests(g.unittest.TestCase):
         radius = (s ** 2).sum(axis=1).max()
         assert radius < (1.0 + 1e-8)
 
+        # test Path2D sample wiring
+        path = g.trimesh.load_path(p)
+        s = path.sample(count=count)
+        assert len(s) <= count
+        assert s.shape[1] == 2
+        radius = (s ** 2).sum(axis=1).max()
+        assert radius < (1.0 + 1e-8)
+
+        # test sampling with multiple bodies
+        for i in range(3):
+            assert g.np.isclose(path.area, p.area * (i + 1))
+            path = path + \
+                g.trimesh.load_path(g.Point([(i + 2) * 2, 0]).buffer(1.0))
+            s = path.sample(count=count)
+            assert s.shape[1] == 2
+
 
 class ArcTests(g.unittest.TestCase):
 
