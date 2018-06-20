@@ -75,6 +75,20 @@ class VectorTests(g.unittest.TestCase):
         p.fill_gaps()
         self.assertTrue(p.is_closed)
 
+    def test_sample(self):
+        """
+        Test random sampling of polygons
+        """
+        p = g.Point([0, 0]).buffer(1.0)
+        count = 100
+
+        s = g.trimesh.path.polygons.sample(p, count=count)
+        assert len(s) <= count
+        assert s.shape[1] == 2
+
+        radius = (s ** 2).sum(axis=1).max()
+        assert radius < (1.0 + 1e-8)
+
 
 class ArcTests(g.unittest.TestCase):
 
