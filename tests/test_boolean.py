@@ -41,6 +41,27 @@ class BooleanTest(g.unittest.TestCase):
 
             g.log.info('booleans succeeded with %s', engine)
 
+    def test_multiple(self):
+        """
+        Make sure boolean operations work on multiple meshes.
+        """
+        engines = [
+            ('blender', g.trimesh.interfaces.blender.exists),
+            ('scad', g.trimesh.interfaces.scad.exists)]
+        for engine, exists in engines:
+            if not exists:
+                continue
+            a = g.trimesh.primitives.Sphere(center=[0, 0, 0])
+            b = g.trimesh.primitives.Sphere(center=[0, 0, .75])
+            c = g.trimesh.primitives.Sphere(center=[0, 0, 1.5])
+
+            r = g.trimesh.boolean.union([a, b, c])
+
+            assert r.is_volume
+            assert r.body_count == 1
+            assert g.np.isclose(r.volume,
+                                8.617306056726884)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

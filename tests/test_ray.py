@@ -155,6 +155,41 @@ class RayTests(g.unittest.TestCase):
         for point in mesh.bounding_box.vertices:
             mesh.ray.contains_points([point])
 
+    def test_box(self):
+        """
+        Run box- ray intersection along Z and make sure XY match
+        ray origin XY.
+        """
+
+        for kwargs in [{'use_embree': True},
+                       {'use_embree': False}]:
+
+            mesh = g.get_mesh('unit_cube.STL', **kwargs)
+            # grid is across meshes XY profile
+            origins = g.trimesh.util.grid_linspace(mesh.bounds[:, :2] +
+                                                   g.np.reshape(
+                                                       [-.02, .02], (-1, 1)),
+                                                   100)
+            origins = g.np.column_stack((
+                origins,
+                g.np.ones(len(origins)) * -100))
+            # all vectors are along Z axis
+            vectors = g.np.ones((len(origins), 3)) * [0, 0, 1.0]
+
+            # (n,3) float intersection position in space
+            # (n,) int, index of original ray
+            # (m,) int, index of mesh.faces
+            pos, ray, tri = mesh.ray.intersects_location(
+                ray_origins=origins,
+                ray_directions=vectors)
+
+            for p, r in zip(pos, ray):
+                # intersect location XY should match ray origin XY
+                assert g.np.allclose(p[:2], origins[r][:2])
+                # the Z of the hit should be on the cube's
+                # top or bottom face
+                assert g.np.isclose(p[2], mesh.bounds[:, 2]).any()
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

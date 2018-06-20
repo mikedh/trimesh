@@ -4,8 +4,9 @@ MAINTAINER Michael Dawson-Haggerty <mikedh@kerfed.com>
 COPY builds/apt.bash /tmp/
 RUN bash /tmp/apt.bash
 
-# build draco
+# build draco and download vhacd
 COPY builds/draco.bash /tmp/
+COPY builds/vhacd.bash /tmp/
 COPY builds/builds.bash /tmp/
 RUN bash /tmp/builds.bash
 

@@ -866,12 +866,12 @@ def append_faces(vertices_seq, faces_seq):
     vertices_len = np.array([len(i) for i in vertices_seq])
     face_offset = np.append(0, np.cumsum(vertices_len)[:-1])
 
+    new_faces = []
     for offset, faces in zip(face_offset, faces_seq):
         if len(faces) > 0:
-            faces += offset
-
+            new_faces.append(faces + offset)
     vertices = vstack_empty(vertices_seq)
-    faces = vstack_empty(faces_seq)
+    faces = vstack_empty(new_faces)
 
     return vertices, faces
 
@@ -1516,7 +1516,10 @@ def compress(info):
     else:
         file_obj = StringIO()
 
-    with zipfile.ZipFile(file_obj, 'w') as zipper:
+    with zipfile.ZipFile(
+            file_obj,
+            mode='w',
+            compression=zipfile.ZIP_DEFLATED) as zipper:
         for name, data in info.items():
             if hasattr(data, 'read'):
                 # if we were passed a file object, read it

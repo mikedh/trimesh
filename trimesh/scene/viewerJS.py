@@ -5,7 +5,6 @@ viewerJS.py
 Render trimesh.Scene objects using three.js
 """
 import os
-import json
 import base64
 
 # for our template
@@ -87,7 +86,15 @@ def in_notebook():
         # in terminals we definitly do not want to output HTML
         name = str(ipy.__class__).lower()
         terminal = 'terminal' in name
-        return not terminal
+
+        # spyder uses ZMQshell, and can appear to be a notebook
+        spyder = '_' in os.environ and 'spyder' in os.environ['_']
+
+        # assume we are in a notebook if we are not in
+        # a terminal and we haven't been run by spyder
+        notebook = (not terminal) and (not spyder)
+
+        return notebook
 
     except BaseException:
         return False

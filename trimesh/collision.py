@@ -2,7 +2,7 @@ import numpy as np
 
 import collections
 
-from .constants import tol, log
+from .constants import log
 
 _fcl_exists = True
 try:

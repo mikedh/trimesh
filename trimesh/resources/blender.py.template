@@ -35,9 +35,9 @@ if __name__ == "__main__":
   for other in bpy.context.scene.objects[1:]:
     mod = mesh.modifiers.new('boolean', 'BOOLEAN') # add boolean modifier 
     mod.object = other
-    mod.operation = '$operation'
+    mod.operation = '$operation'  
+    bpy.ops.object.modifier_apply(modifier = 'boolean')
   
-  bpy.ops.object.modifier_apply(modifier = 'boolean')
   keep_only_first_mesh()  
   bpy.ops.export_mesh.stl(filepath = mesh_post, 
                           use_mesh_modifiers = True)
