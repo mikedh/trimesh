@@ -5,6 +5,7 @@ voxel.py
 Convert meshes to a simple voxel data structure and back again.
 """
 import numpy as np
+from scipy import ndimage
 
 from . import util
 from . import remesh
@@ -285,7 +286,7 @@ def voxelize_subdivide(mesh,
     -----------
     mesh:        Trimesh object
     pitch:       float, side length of a single voxel cube
-    max_iter:    int, cap maximum subdivisions
+    max_iter:    int, cap maximum subdivisions or None for no limit.
     edge_factor: float,
 
     Returns
@@ -295,6 +296,12 @@ def voxelize_subdivide(mesh,
                                  grid origin in space
     """
     max_edge = pitch / edge_factor
+    
+    if max_iter is None:
+        longest_edge = np.linalg.norm(mesh.vertices[mesh.edges[:,0]] - 
+                                      mesh.vertices[mesh.edges[:,1]], 
+                                      axis=1).max()
+        max_iter = max(int(np.ceil(np.log2(longest_edge/max_edge))), 0)
 
     # get the same mesh sudivided so every edge is shorter
     # than a factor of our pitch
@@ -305,8 +312,10 @@ def voxelize_subdivide(mesh,
 
     # convert the vertices to their voxel grid position
     hit = (v / pitch)
-    # get a conservative-ish wrapping
-    hit = np.vstack((np.ceil(hit), np.floor(hit))).astype(int)
+
+    # Provided edge_factor > 1 and max_iter is large enough, this is 
+    # sufficient to preserve 6-connectivity at the level of voxels.
+    hit = np.round(hit).astype(int)
 
     # remove duplicates
     unique, inverse = grouping.unique_rows(hit)
@@ -318,10 +327,74 @@ def voxelize_subdivide(mesh,
     origin_position = origin_index * pitch
 
     voxels_sparse = (occupied_index - origin_index)
-
+    
     return voxels_sparse, origin_position
 
+def local_voxelize(mesh, point, pitch, radius, fill=True, **kwargs):
+    """
+    Voxelize a mesh in the region of a cube around a point. When fill=True, 
+    uses proximity.contains to fill the resulting voxels so may be meaningless 
+    for non-watertight meshes. Useful to reduce memory cost for small values of 
+    pitch as opposed to global voxelization.
 
+    Parameters
+    -----------
+    mesh:   Trimesh object
+    point:  (3, ) float, point in space
+    pitch:  float, side length of a single voxel cube
+    radius: int, number of voxel cubes to return in each direction.
+    kwargs: parameters to pass to voxelize_subdivide
+    
+    Returns
+    -----------
+    voxels:          (m, m, m) bool, matrix of local voxels where m=2*radius+1
+    origin_position: (3,) float, position of the voxel grid origin in space
+    """
+    
+    point = np.asanyarray(point, dtype=np.float64)
+    
+    # Bounds of region
+    bounds = np.concatenate((point - (radius+0.5)*pitch,
+                             point + (radius+0.5)*pitch))
+
+    # faces that intersect axis aligned bounding box
+    faces = list(mesh.triangles_tree.intersection(bounds))    
+    local = mesh.submesh([[f] for f in faces], append=True)
+    
+    # Translate mesh so point is at 0,0,0
+    local.apply_translation(-point)
+    
+    sparse, origin = voxelize_subdivide(local, pitch, **kwargs)
+    matrix = sparse_to_matrix(sparse)
+    
+    # Find voxel index for point
+    center = np.round(-origin/pitch).astype(int)
+    
+    # Pad matrix if neccesary
+    prepad = np.maximum(radius-center, 0)
+    postpad = np.maximum(center + radius + 1 - matrix.shape, 0)
+    matrix = np.pad(matrix, np.stack((prepad, postpad), axis=-1), 
+                    mode='constant')
+    center += prepad
+    
+    # Extract voxels within the bounding box
+    voxels = matrix[center[0]-radius:center[0]+radius+1,
+                    center[1]-radius:center[1]+radius+1, 
+                    center[2]-radius:center[2]+radius+1]
+    local_origin = point - radius*pitch # origin of local voxels
+    
+    # Fill internal regions
+    if fill:
+        regions, n = ndimage.measurements.label(~voxels)
+        distance = ndimage.morphology.distance_transform_cdt(~voxels)
+        representatives = [np.unravel_index((distance*(regions == i)).argmax(), 
+                                            distance.shape) for i in range(1, n+1)]
+        contains = mesh.contains(np.asarray(representatives)*pitch + local_origin)
+        internal = np.isin(regions, np.where(contains)[0]+1)
+        voxels = np.logical_or(voxels, internal)
+
+    return voxels, local_origin
+    
 def fill_voxelization(occupied):
     """
     Given a sparse surface voxelization, fill in between columns.
@@ -580,3 +653,5 @@ def boolean_sparse(a, b, operation=np.logical_and):
     coords = np.column_stack(applied.coords) + origin
 
     return coords
+
+

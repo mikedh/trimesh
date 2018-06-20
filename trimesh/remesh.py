@@ -94,7 +94,7 @@ def subdivide_to_size(vertices, faces, max_edge, max_iter=10):
     current_faces = faces
     current_vertices = vertices
 
-    for i in range(max_iter):
+    for i in range(max_iter+1):
         triangles = current_vertices[current_faces]
 
         # compute the length of every triangle edge
