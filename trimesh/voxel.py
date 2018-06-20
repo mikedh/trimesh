@@ -5,7 +5,6 @@ voxel.py
 Convert meshes to a simple voxel data structure and back again.
 """
 import numpy as np
-from scipy import ndimage
 
 from . import util
 from . import remesh
@@ -326,7 +325,7 @@ def voxelize_subdivide(mesh,
                                     max_iter=max_iter)
 
     # convert the vertices to their voxel grid position
-    hit = (v / pitch)
+    hit = v / pitch
 
     # Provided edge_factor > 1 and max_iter is large enough, this is
     # sufficient to preserve 6-connectivity at the level of voxels.
@@ -366,6 +365,7 @@ def local_voxelize(mesh, point, pitch, radius, fill=True, **kwargs):
     voxels:          (m, m, m) bool, matrix of local voxels where m=2*radius+1
     origin_position: (3,) float, position of the voxel grid origin in space
     """
+    from scipy import ndimage
 
     point = np.asanyarray(point, dtype=np.float64)
 
@@ -678,13 +678,6 @@ def multibox(centers, pitch):
     rough = Trimesh(vertices=v, faces=f)
 
     return rough
-
-
-def sparse_surface_to_filled(sparse_surface):
-    """
-    Take a sparse surface and fill in along Z.
-    """
-    pass
 
 
 def boolean_sparse(a, b, operation=np.logical_and):
