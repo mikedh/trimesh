@@ -14,7 +14,7 @@ try:
         pyglet.gl.GL_LINES,
         pyglet.gl.GL_POINTS,
         pyglet.gl.GL_TRIANGLES)
-except ImportError:
+except BaseException:
     # otherwise provide mode flags
     # this is so we can unit test without pyglet
     GL_LINES, GL_POINTS, GL_TRIANGLES = (1, 0, 4)
