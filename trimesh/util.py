@@ -685,7 +685,8 @@ def md5_object(obj):
     md5: str, MD5 hash
     """
     hasher = hashlib.md5()
-    if isinstance(obj, basestring):
+    if isinstance(obj, basestring) and PY3:
+        # in python3 convert strings to bytes before hashing
         hasher.update(obj.encode('utf-8'))
     else:
         hasher.update(obj)
