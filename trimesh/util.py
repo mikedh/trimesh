@@ -21,7 +21,6 @@ import zipfile
 import collections
 
 from sys import version_info
-from functools import wraps
 
 # a flag we can check elsewhere for Python 3
 PY3 = version_info.major >= 3
@@ -686,7 +685,11 @@ def md5_object(obj):
     md5: str, MD5 hash
     """
     hasher = hashlib.md5()
-    hasher.update(obj)
+    if isinstance(obj, basestring):
+        hasher.update(obj.encode('utf-8'))
+    else:
+        hasher.update(obj)
+
     md5 = hasher.hexdigest()
     return md5
 
@@ -777,30 +780,6 @@ def attach_to_log(level=logging.DEBUG,
 
     # set nicer numpy print options
     np.set_printoptions(precision=5, suppress=True)
-
-
-def cache_decorator(function):
-    """
-    A decorator for methods of classes.
-
-    If the object contains `self.cache`, this function
-    will check the values in self.cache for this wrapped function
-    by name, and if it is already in the cache it will return that
-    value rather than evaluating the function again.
-    """
-    @wraps(function)
-    def get_cached(*args, **kwargs):
-        self = args[0]
-        name = function.__name__
-        if not (name in self._cache):
-            tic = time.time()
-            self._cache[name] = function(*args, **kwargs)
-            toc = time.time()
-            log.debug('%s was not in cache, executed in %.6f',
-                      name,
-                      toc - tic)
-        return self._cache[name]
-    return property(get_cached)
 
 
 def stack_lines(indices):

@@ -13,6 +13,7 @@ import copy
 
 from . import util
 from . import sample
+from . import caching
 from . import inertia
 from . import creation
 from . import transformations
@@ -204,7 +205,7 @@ class Cylinder(_Primitive):
                                               defaults,
                                               kwargs)
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def volume(self):
         """
         The analytic volume of the cylinder primitive.
@@ -216,7 +217,7 @@ class Cylinder(_Primitive):
         volume = (np.pi * self.primitive.radius ** 2) * self.primitive.height
         return volume
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def moment_inertia(self):
         """
         The analytic inertia tensor of the cylinder primitive.
@@ -367,7 +368,7 @@ class Sphere(_Primitive):
 
         return self.bounding_box
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def area(self):
         """
         Surface area of the current sphere primitive.
@@ -380,7 +381,7 @@ class Sphere(_Primitive):
         area = 4.0 * np.pi * (self.primitive.radius ** 2)
         return area
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def volume(self):
         """
         Volume of the current sphere primitive.
@@ -393,7 +394,7 @@ class Sphere(_Primitive):
         volume = (4.0 * np.pi * (self.primitive.radius ** 3)) / 3.0
         return volume
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def moment_inertia(self):
         """
         The analytic inertia tensor of the sphere primitive.
@@ -498,7 +499,7 @@ class Box(_Primitive):
         else:
             return False
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def volume(self):
         """
         Volume of the box Primitive.
@@ -545,7 +546,7 @@ class Extrusion(_Primitive):
                                               defaults,
                                               kwargs)
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def area(self):
         """
         The surface area of the primitive extrusion.
@@ -562,7 +563,7 @@ class Extrusion(_Primitive):
         area += self.primitive.polygon.area * 2
         return area
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def volume(self):
         """
         The volume of the primitive extrusion.

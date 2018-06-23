@@ -20,7 +20,7 @@ class Voxel(object):
         self._data = caching.DataStore()
         self._cache = caching.Cache(id_function=self._data.crc)
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def marching_cubes(self):
         """
         A marching cubes Trimesh representation of the voxels.
@@ -60,7 +60,7 @@ class Voxel(object):
         """
         return self.matrix.shape
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def filled_count(self):
         """
         Return the number of voxels that are occupied.
@@ -71,7 +71,7 @@ class Voxel(object):
         """
         return int(self.matrix.sum())
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def volume(self):
         """
         What is the volume of the filled cells in the current voxel object.
@@ -83,7 +83,7 @@ class Voxel(object):
         volume = self.filled_count * (self.pitch**3)
         return volume
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def points(self):
         """
         The center of each filled cell as a list of points.
@@ -167,7 +167,7 @@ class VoxelMesh(Voxel):
         self._data['pitch'] = pitch
         self._data['max_iter'] = max_iter
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def matrix_surface(self):
         """
         The voxels on the surface of the mesh as a 3D matrix.
@@ -179,7 +179,7 @@ class VoxelMesh(Voxel):
         matrix = sparse_to_matrix(self.sparse_surface)
         return matrix
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def matrix_solid(self):
         """
         The voxels in a mesh as a 3D matrix.
@@ -220,7 +220,7 @@ class VoxelMesh(Voxel):
         populate = self.sparse_surface
         return self._cache['origin']
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def sparse_surface(self):
         """
         Filled cells on the surface of the mesh.
@@ -244,7 +244,7 @@ class VoxelMesh(Voxel):
 
         return voxels
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def sparse_solid(self):
         """
         Filled cells inside and on the surface of mesh

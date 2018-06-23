@@ -150,7 +150,7 @@ class TransformForest:
         for edge in edgelist:
             self.transforms.add_edge(edge[0], edge[1], **edge[2])
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def nodes(self):
         """
         A list of every node in the graph.
@@ -162,7 +162,7 @@ class TransformForest:
         nodes = np.array(list(self.transforms.nodes()))
         return nodes
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def nodes_geometry(self):
         """
         The nodes in the scene graph with geometry attached.

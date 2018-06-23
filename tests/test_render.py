@@ -1,0 +1,58 @@
+import generic as g
+
+
+class RenderTest(g.unittest.TestCase):
+    """
+    Test to make sure we can convert trimesh objects
+    to pyglet objects for rendering.
+    """
+
+    def test_args(self):
+        from trimesh import rendering
+
+        m = g.get_mesh('featuretype.STL')
+
+        args = rendering.mesh_to_vertexlist(m)
+        args_auto = rendering.convert_to_vertexlist(m)
+        assert len(args) == 7
+        assert len(args_auto) == len(args)
+
+        P30 = m.section(plane_normal=[0, 0, 1],
+                        plane_origin=m.centroid)
+        args = rendering.path_to_vertexlist(P30)
+        args_auto = rendering.convert_to_vertexlist(P30)
+        assert len(args) == 6
+        assert len(args_auto) == len(args)
+
+        P20, T = P30.to_planar()
+        args = rendering.path_to_vertexlist(P20)
+        args_auto = rendering.convert_to_vertexlist(P20)
+        assert len(args) == 6
+        assert len(args_auto) == len(args)
+
+        P21 = g.get_mesh('2D/wrench.dxf')
+        args = rendering.path_to_vertexlist(P21)
+        args_auto = rendering.convert_to_vertexlist(P21)
+        assert len(args) == 6
+        assert len(args_auto) == len(args)
+
+        P22 = g.np.random.random((100, 2))
+        args = rendering.points_to_vertexlist(P22)
+        args_auto = rendering.convert_to_vertexlist(P22)
+        assert len(args) == 6
+        assert len(args_auto) == len(args)
+
+        P31 = g.np.random.random((100, 3))
+        args = rendering.points_to_vertexlist(P31)
+        args_auto = rendering.convert_to_vertexlist(P31)
+        assert len(args) == 6
+        assert len(args_auto) == len(args)
+
+        P32 = g.trimesh.points.PointCloud(P31)
+        args = rendering.convert_to_vertexlist(P32)
+        assert len(args) == 6
+        assert len(args_auto) == len(args)
+
+if __name__ == '__main__':
+    g.trimesh.util.attach_to_log()
+    g.unittest.main()

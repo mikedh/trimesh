@@ -127,12 +127,21 @@ class Scene:
         --------
         hashed: str, MD5 hash of scene
         """
+        # start with transforms hash
+        hashes = [self.graph.md5()]
+        for g in self.geometry.values():
+            if hasattr(g, 'md5'):
+                hashes.append(g.md5())
+            elif hasattr(g, 'tostring'):
+                hashes.append(str(hash(g.tostring())))
+            else:
+                # try to just straight up hash
+                # this may raise errors
+                hashes.append(str(hash(g)))
 
-        # get the MD5 of geometry and graph
-        data = [i.md5() for i in self.geometry.values()]
-        hashed = util.md5_object(np.append(data, self.graph.md5()))
+        md5 = util.md5_object(''.join(hashes))
 
-        return hashed
+        return md5
 
     @property
     def is_empty(self):
@@ -147,7 +156,7 @@ class Scene:
         is_empty = len(self.geometry) == 0
         return is_empty
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def bounds_corners(self):
         """
         A list of points that represent the corners of the
@@ -182,7 +191,7 @@ class Scene:
         corners_inst = np.array(corners_inst, dtype=np.float64)
         return corners_inst
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def bounds(self):
         """
         Return the overall bounding box of the scene.
@@ -196,7 +205,7 @@ class Scene:
                            corners.max(axis=0)])
         return bounds
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def extents(self):
         """
         Return the axis aligned box size of the current scene.
@@ -207,7 +216,7 @@ class Scene:
         """
         return np.diff(self.bounds, axis=0).reshape(-1)
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def scale(self):
         """
         The approximate scale of the mesh
@@ -219,7 +228,7 @@ class Scene:
         scale = (self.extents ** 2).sum() ** .5
         return scale
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def centroid(self):
         """
         Return the center of the bounding box for the scene.
@@ -231,7 +240,7 @@ class Scene:
         centroid = np.mean(self.bounds, axis=0)
         return centroid
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def triangles(self):
         """
         Return a correctly transformed polygon soup of the current scene.
@@ -260,7 +269,7 @@ class Scene:
         triangles = np.vstack(triangles).reshape((-1, 3, 3))
         return triangles
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def triangles_node(self):
         """
         Which node of self.graph does each triangle come from.
@@ -272,7 +281,7 @@ class Scene:
         populate = self.triangles
         return self._cache['triangles_node']
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def geometry_identifiers(self):
         """
         Look up geometries by identifier MD5
@@ -285,7 +294,7 @@ class Scene:
                        for name, mesh in self.geometry.items()}
         return identifiers
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def duplicate_nodes(self):
         """
         Return a sequence of node keys of identical meshes.
@@ -320,7 +329,10 @@ class Scene:
         duplicates = [np.sort(node_names[g]).tolist() for g in node_groups]
         return duplicates
 
-    def set_camera(self, angles=None, distance=None, center=None):
+    def set_camera(self,
+                   angles=None,
+                   distance=None,
+                   center=None):
         """
         Add a transform to self.graph for 'camera'
 
@@ -328,10 +340,12 @@ class Scene:
 
         Parameters
         -----------
-        angles:    (3,) float, initial euler angles in radians
-        distance:  float, distance away camera should be
-        center:    (3,) float, point camera should center on
-
+        angles : (3,) float
+                     Initial euler angles in radians
+        distance:  float
+                     Distance from centroid
+        center:    (3,) float
+                     Point camera should be center on
         """
         if len(self.geometry) == 0:
             return
@@ -407,7 +421,7 @@ class Scene:
             result.append(current)
         return np.array(result)
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def convex_hull(self):
         """
         The convex hull of the whole scene
@@ -420,7 +434,7 @@ class Scene:
         hull = convex.convex_hull(points)
         return hull
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def bounding_box(self):
         """
         An axis aligned bounding box for the current scene.
@@ -438,7 +452,7 @@ class Scene:
             mutable=False)
         return aabb
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def bounding_box_oriented(self):
         """
         An oriented bounding box for the current mesh.
