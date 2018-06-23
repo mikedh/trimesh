@@ -48,7 +48,7 @@ install:
 - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy
 - source activate test-environment
 - pip install .
-- pip install nose2
+- pip install pytest pytest-cov coveralls
 script:
 - python -c "import trimesh"
 - conda install scikit-image rtree shapely
@@ -56,8 +56,7 @@ script:
   then conda install pyembree && pip install python-fcl; fi
 - pip install .[easy]
 - pip install xxhash
-- cd tests
-- nose2
-- cd ../examples
+- pytest --cov=trimesh tests/
+- coveralls
+- cd examples
 - for f in *.ipynb; do python ../tests/notebook_run.py exec "$f"; done
-- cd ..

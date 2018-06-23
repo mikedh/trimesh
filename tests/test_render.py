@@ -8,6 +8,10 @@ class RenderTest(g.unittest.TestCase):
     """
 
     def test_args(self):
+        # not imported to trimesh by __init__
+        # so we don't have a pyglet import attempt
+        # unless we explicitly ask for it (like during
+        # a viewer show() call)
         from trimesh import rendering
 
         m = g.get_mesh('featuretype.STL')
@@ -16,6 +20,15 @@ class RenderTest(g.unittest.TestCase):
         args_auto = rendering.convert_to_vertexlist(m)
         assert len(args) == 7
         assert len(args_auto) == len(args)
+
+        # try turning smoothing off and on
+        args_sm = rendering.mesh_to_vertexlist(
+            m, smooth_threshold=0)
+        args_ns = rendering.mesh_to_vertexlist(
+            m, smooth_threshold=g.np.inf)
+        # vertex count should be different
+        # if smooth kwargs got passed through sucessfully
+        assert args_sm[0] != args_ns[0]
 
         P30 = m.section(plane_normal=[0, 0, 1],
                         plane_origin=m.centroid)
