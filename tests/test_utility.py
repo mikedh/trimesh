@@ -9,7 +9,10 @@ import numpy as np
 import json
 from collections import deque
 
-import generic as g
+try:
+    from . import generic as g
+except BaseException:
+    import generic as g
 
 TEST_DIM = (100, 3)
 TOL_ZERO = 1e-9
