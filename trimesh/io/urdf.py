@@ -6,6 +6,7 @@ import numpy as np
 
 from .. import io
 
+from ..constants import log
 from ..decomposition import convex_decomposition
 from ..version import __version__ as trimesh_version
 
@@ -53,7 +54,9 @@ def export_urdf(mesh,
         convex_pieces = convex_decomposition(mesh, **kwargs)
         if not isinstance(convex_pieces, list):
             convex_pieces = [convex_pieces]
-    except subprocess.CalledProcessError:
+    except BaseException:
+        log.error('problem with convex decomposition, using hull',
+                  exc_info=True)
         convex_pieces = [mesh.convex_hull]
 
     # Get the effective density of the mesh
