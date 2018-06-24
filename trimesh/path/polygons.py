@@ -158,6 +158,8 @@ def transform_polygon(polygon, matrix):
     matrix = np.asanyarray(matrix,
                            dtype=np.float64)
 
+    print('\n\n', matrix)
+
     if util.is_sequence(polygon):
         result = [transform_polygon(p, t)
                   for p, t in zip(polygon, matrix)]

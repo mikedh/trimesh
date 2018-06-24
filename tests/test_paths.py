@@ -41,6 +41,11 @@ class VectorTests(g.unittest.TestCase):
                 self.assertTrue(d.polygons_closed[i].is_valid)
                 self.assertTrue(d.polygons_closed[i].area > g.tol_path.zero)
             export_dict = d.export(file_type='dict')
+            to_dict = d.to_dict()
+            assert isinstance(to_dict, dict)
+            assert isinstance(export_dict, dict)
+            assert len(to_dict) == len(export_dict)
+
             export_svg = d.export(file_type='svg')
             simple = d.simplify()
             split = d.split()
@@ -58,6 +63,11 @@ class VectorTests(g.unittest.TestCase):
                            d.metadata['file_name'])
                 m = d.medial_axis()
                 assert len(m.entities) > 0
+
+            # transform to first quadrant
+            d.rezero()
+            # run process manually
+            d.process()
 
     def test_poly(self):
         p = g.get_mesh('2D/LM2.dxf')
@@ -77,6 +87,46 @@ class VectorTests(g.unittest.TestCase):
 
         p.fill_gaps()
         self.assertTrue(p.is_closed)
+
+    def test_edges(self):
+        """
+        Test edges_to_polygon
+        """
+        m = g.get_mesh('featuretype.STL')
+
+        # get a polygon for the second largest facet
+        index = m.facets_area.argsort()[-2]
+        normal = m.facets_normal[index]
+        origin = m._cache['facets_origin'][index]
+        T = g.trimesh.geometry.plane_transform(origin, normal)
+        vertices = g.trimesh.transform_points(m.vertices, T)[:, :2]
+
+        # find boundary edges for the facet
+        edges = m.edges_sorted.reshape(
+            (-1, 6))[m.facets[index]].reshape((-1, 2))
+        group = g.trimesh.grouping.group_rows(edges, require_count=1)
+
+        # run the polygon conversion
+        polygon = g.trimesh.path.polygons.edges_to_polygons(edges=edges[group],
+                                                            vertices=vertices)
+
+        assert len(polygon) == 1
+        assert g.np.isclose(polygon[0].area, m.facets_area[index])
+
+        # try transforming the polygon around
+        M = g.np.eye(3)
+        M[0][2] = 10.0
+        P2 = g.trimesh.path.polygons.transform_polygon(polygon[0], M)
+        distance = g.np.array(P2.centroid) - g.np.array(polygon[0].centroid)
+        assert g.np.allclose(distance, [10.0, 0])
+
+    def test_random_polygon(self):
+        """
+        Test creation of random polygons
+        """
+        p = g.trimesh.path.polygons.random_polygon()
+        assert p.area > 0.0
+        assert p.is_valid
 
     def test_sample(self):
         """
@@ -99,6 +149,12 @@ class VectorTests(g.unittest.TestCase):
         assert s.shape[1] == 2
         radius = (s ** 2).sum(axis=1).max()
         assert radius < (1.0 + 1e-8)
+
+        # try getting OBB of samples
+        T, extents = g.trimesh.path.polygons.polygon_obb(s)
+        # OBB of samples should be less than diameter of circle
+        diameter = g.np.reshape(p.bounds, (2, 2)).ptp(axis=0).max()
+        assert (extents <= diameter).all()
 
         # test sampling with multiple bodies
         for i in range(3):

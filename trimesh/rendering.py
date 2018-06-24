@@ -104,7 +104,7 @@ def mesh_to_vertexlist(mesh,
     return args
 
 
-def path_to_vertexlist(path, group=None):
+def path_to_vertexlist(path, group=None, colors=None):
     """
     Convert a Path3D object to arguments for an
     indexed vertex list constructor.
@@ -142,7 +142,7 @@ def path_to_vertexlist(path, group=None):
             group,    # group
             index,    # indices
             ('v3f/static', lines.reshape(-1)),
-            ('c3f/static', np.array([.5, .10, .20] * count)))
+            colors_to_gl(colors, count=count))  # default colors
     return args
 
 
@@ -172,16 +172,14 @@ def points_to_vertexlist(points, colors=None, group=None):
     elif not util.is_shape(points, (-1, 3)):
         raise ValueError('Pointcloud must be (n,3)!')
 
-    color_gl = colors_to_gl(colors, len(points))
-
     index = np.arange(len(points)).tolist()
 
-    args = (len(points),         # number of vertices
-            GL_POINTS,  # mode
-            group,               # group
-            index,               # indices
+    args = (len(points),  # number of vertices
+            GL_POINTS,   # mode
+            group,       # group
+            index,       # indices
             ('v3f/static', points.reshape(-1)),
-            color_gl)
+            colors_to_gl(colors, len(points)))
     return args
 
 
@@ -240,7 +238,7 @@ def matrix_to_gl(matrix):
         raise ValueError('matrix must be (4,4)!')
 
     # switch to column major and flatten to (16,)
-    column = np.array(matrix).T.flatten()
+    column = matrix.T.flatten()
     # convert to GLfloat
     glmatrix = (pyglet.gl.GLfloat * 16)(*column)
 
