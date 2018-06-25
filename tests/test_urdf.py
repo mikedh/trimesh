@@ -30,6 +30,7 @@ class URDFTest(g.unittest.TestCase):
         # remove temporary directory
         g.shutil.rmtree(out_dir)
 
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()

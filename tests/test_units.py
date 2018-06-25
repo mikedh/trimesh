@@ -8,8 +8,15 @@ class UnitsTest(g.unittest.TestCase):
 
     def test_units(self):
 
+        # make sure unit conversions fail for fake units
         fake_units = 'blorbs'
-        self.assertFalse(g.trimesh.units.validate(fake_units))
+        fake_units = 'in'
+        try:
+            c = g.trimesh.units.unit_conversion('inches',
+                                                fake_units)
+            assert False
+        except BaseException:
+            pass
 
         m = g.get_mesh('featuretype.STL')
         self.assertTrue(m.units is None)

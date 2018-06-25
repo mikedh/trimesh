@@ -1,7 +1,7 @@
 import numpy as np
-import collections
-import traceback
+
 import os
+import collections
 
 from .. import util
 
@@ -24,6 +24,8 @@ from .xml_based import _xml_loaders
 try:
     from ..path.io.load import load_path, path_formats
 except BaseException:
+    # save a traceback to see why path didn't import
+    import traceback
     _path_traceback = traceback.format_exc(4)
 
     def load_path(*args, **kwargs):
@@ -39,28 +41,51 @@ except BaseException:
 
 
 def mesh_formats():
+    """
+    Get a list of mesh formats
+
+    Returns
+    -----------
+    loaders : list
+        Extensions of available mesh loaders
+        i.e. 'stl', 'ply', etc.
+    """
     return list(mesh_loaders.keys())
 
 
 def available_formats():
-    formats = np.hstack((list(compressed_loaders.keys()),
+    """
+    Get a list of all available loaders
+
+    Returns
+    -----------
+    loaders : list
+        Extensions of available loaders
+        i.e. 'stl', 'ply', 'dxf', etc.
+    """
+
+    loaders = np.hstack((list(compressed_loaders.keys()),
                          mesh_formats(),
                          path_formats()))
-    return formats
+    return loaders
 
 
 def load(file_obj, file_type=None, **kwargs):
     """
-    Load a mesh or vectorized path into a Trimesh, Path2D, or Path3D object.
+    Load a mesh or vectorized path into objects:
+    Trimesh, Path2D, Path3D, Scene
 
     Parameters
     ---------
-    file_obj: a filename string or a file-like object
-    file_type: str representing file type (eg: 'stl')
+    file_obj : str, or file- like object
+        The source of the data to be loadeded
+    file_type: str
+         What kind of file type do we have (eg: 'stl')
 
     Returns
     ---------
-    geometry: Trimesh, Path2D, Path3D, or list of same.
+    geometry : Trimesh, Path2D, Path3D, Scene
+        Loaded geometry as trimesh classes
     """
     # check to see if we're trying to load something that is already a Trimesh
     out_types = ('Trimesh', 'Path')
@@ -69,23 +94,28 @@ def load(file_obj, file_type=None, **kwargs):
                  file_obj.__class__.__name__)
         return file_obj
 
+    # parse the file arguments into clean loadable form
     (file_obj,
      file_type,
      metadata,
      opened) = _parse_file_args(file_obj, file_type)
 
     if isinstance(file_obj, dict):
+        # if we've been passed a dict treat it as kwargs
         kwargs.update(file_obj)
         loaded = load_kwargs(kwargs)
     elif file_type in path_formats():
+        # path formats get loaded with path loader
         loaded = load_path(file_obj,
                            file_type=file_type,
                            **kwargs)
     elif file_type in mesh_loaders:
+        # mesh loaders use mesh loader
         loaded = load_mesh(file_obj,
                            file_type=file_type,
                            **kwargs)
     elif file_type in compressed_loaders:
+        # for archives, like ZIP files
         loaded = load_compressed(file_obj,
                                  file_type=file_type,
                                  **kwargs)

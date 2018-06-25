@@ -69,6 +69,7 @@ class RenderTest(g.unittest.TestCase):
         assert len(args) == 6
         assert len(args_auto) == len(args)
 
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()
