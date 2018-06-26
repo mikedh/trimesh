@@ -12,6 +12,10 @@ class MeshTests(g.unittest.TestCase):
         meshes = g.get_meshes(raise_error=True)
         g.log.info('Running tests on %d meshes', len(meshes))
 
+        formats = g.trimesh.available_formats()
+        assert all(isinstance(i, str) for i in formats)
+        assert all(len(i) > 0 for i in formats)
+
         for mesh in meshes:
             g.log.info('Testing %s', mesh.metadata['file_name'])
             self.assertTrue(len(mesh.faces) > 0)

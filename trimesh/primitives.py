@@ -535,7 +535,7 @@ class Extrusion(_Primitive):
         """
         super(Extrusion, self).__init__(*args, **kwargs)
 
-        # do the import here, so we fail early if Shapely isn't installed
+        # do the import here, fail early if Shapely isn't installed
         from shapely.geometry import Point
 
         defaults = {'polygon': Point([0, 0]).buffer(1.0),
@@ -558,7 +558,8 @@ class Extrusion(_Primitive):
         area: float, surface area of 3D extrusion
         """
         # area of the sides of the extrusion
-        area = self.primitive.height * self.primitive.polygon.length
+        area = abs(self.primitive.height *
+                   self.primitive.polygon.length)
         # area of the two caps of the extrusion
         area += self.primitive.polygon.area * 2
         return area
@@ -574,7 +575,8 @@ class Extrusion(_Primitive):
         ----------
         volume: float, volume of 3D extrusion
         """
-        volume = self.primitive.polygon.area * self.primitive.height
+        volume = abs(self.primitive.polygon.area *
+                     self.primitive.height)
         return volume
 
     @property
@@ -594,8 +596,8 @@ class Extrusion(_Primitive):
 
     def slide(self, distance):
         """
-        Alter the transform of the current extrusion to slide it along its
-        extrude_direction vector
+        Alter the transform of the current extrusion to slide it
+        along its extrude_direction vector
 
         Parameters
         -----------
@@ -618,10 +620,20 @@ class Extrusion(_Primitive):
         buffered: Extrusion object
         """
         distance = float(distance)
-        buffered = Extrusion(transform=self.primitive.transform.copy(),
-                             polygon=self.primitive.polygon.buffer(distance),
-                             height=self.primitive.height + 2.0 * distance)
-        buffered.slide(-distance)
+
+        # start with current height
+        height = self.primitive.height
+        # if current height is negative offset by negative amount
+        height += np.sign(height) * 2.0 * distance
+
+        buffered = Extrusion(
+            transform=self.primitive.transform.copy(),
+            polygon=self.primitive.polygon.buffer(distance),
+            height=height)
+
+        # slide the stock along the axis
+        buffered.slide(-np.sign(height) * distance)
+
         return buffered
 
     def _create_mesh(self):
@@ -629,6 +641,7 @@ class Extrusion(_Primitive):
         mesh = creation.extrude_polygon(self.primitive.polygon,
                                         self.primitive.height)
         mesh.apply_transform(self.primitive.transform)
+
         self._cache['vertices'] = mesh.vertices
         self._cache['faces'] = mesh.faces
         self._cache['face_normals'] = mesh.face_normals

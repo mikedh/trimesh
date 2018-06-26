@@ -1456,7 +1456,8 @@ class Trimesh(object):
 
         Returns
         ---------
-        normals: (n,3) float, normal vector of each facet
+        normals: (len(self.facets), 3) float
+            A unit normal vector for each facet
         """
         if len(self.facets) == 0:
             return np.array([])
@@ -1471,6 +1472,19 @@ class Trimesh(object):
         self._cache['facets_origin'] = origins
 
         return normals
+
+    @caching.cache_decorator
+    def facets_origin(self):
+        """
+        Return a point on the facet plane.
+
+        Returns
+        ------------
+        origins : (len(self.facets), 3) float
+            A point on each facet plane
+        """
+        populate = self.facets_normal
+        return self._cache['facets_origin']
 
     @caching.cache_decorator
     def facets_boundary(self):
@@ -1500,7 +1514,7 @@ class Trimesh(object):
         """
         # facets plane, origin and normal
         normals = self.facets_normal
-        origins = self._cache['facets_origin']
+        origins = self.facets_origin
 
         # (n,3) convex hull vertices
         convex = self.convex_hull.vertices.view(np.ndarray).copy()
@@ -1813,6 +1827,25 @@ class Trimesh(object):
                 np.array([self._center_mass, ]),
                 matrix)[0]
 
+        # preserve face normals if we have them stored
+        new_face_normals = None
+        if 'face_normals' in self._cache:
+            # transform face normals by rotation component
+            new_face_normals = util.unitize(
+                transformations.transform_points(
+                    self.face_normals,
+                    matrix=matrix,
+                    translate=False))
+
+        # preserve vertex normals if we have them stored
+        new_vertex_normals = None
+        if 'vertex_normals' in self._cache:
+            new_vertex_normals = util.unitize(
+                transformations.transform_points(
+                    self.vertex_normals,
+                    matrix=matrix,
+                    translate=False))
+
         # a test triangle pre and post transform
         triangle_pre = self.vertices[self.faces[:5]]
         # we don't care about scale so make sure they aren't tiny
@@ -1837,34 +1870,15 @@ class Trimesh(object):
         pre = (aligned_pre.sum() / float(len(aligned_pre))) > .6
         post = (aligned_post.sum() / float(len(aligned_post))) > .6
 
-        # preserve face normals if we have them stored
-        new_face_normals = None
-        if 'face_normals' in self._cache:
-            # transform face normals by rotation component
-            new_face_normals = util.unitize(
-                transformations.transform_points(
-                    self.face_normals,
-                    matrix=matrix,
-                    translate=False))
-
-        # preserve vertex normals if we have them stored
-        new_vertex_normals = None
-        if 'vertex_normals' in self._cache:
-            new_vertex_normals = util.unitize(
-                transformations.transform_points(
-                    self.vertex_normals,
-                    matrix=matrix,
-                    translate=False))
-
-        # if matrix flips windings, flip faces
         if pre != post:
-            log.debug('normals not aligned after transform: flipping')
+            log.debug('transform flips winding')
             # fliplr will make array non C contiguous, which will
             # cause hashes to be more expensive than necessary
             self.faces = np.ascontiguousarray(np.fliplr(self.faces))
 
         # assign the new values
         self.vertices = new_vertices
+        # may be None if we didn't have them previously
         self.face_normals = new_face_normals
         self.vertex_normals = new_vertex_normals
 
@@ -2007,8 +2021,8 @@ class Trimesh(object):
 
     def invert(self):
         """
-        Invert the mesh in- place by reversing the winding of every face
-        and negating normals without dumping the cache.
+        Invert the mesh in- place by reversing the winding of every
+        face and negating normals without dumping the cache.
 
         Alters
         ---------
