@@ -200,10 +200,12 @@ def extrude_triangulation(vertices,
     normal_test = normals(
         [util.three_dimensionalize(vertices[faces[0]])[1]])[0]
 
+    normal_dot = np.dot(normal_test,
+                        [0.0, 0.0, np.sign(height)])[0]
+
     # make sure the triangulation is aligned with the sign of
     # the height we've been passed
-    if np.dot(normal_test,
-              [0, 0, np.sign(height)]) < 0:
+    if normal_dot < 0.0:
         faces = np.fliplr(faces)
 
     # stack the (n,3) faces into (3*n, 2) edges
@@ -243,6 +245,9 @@ def extrude_triangulation(vertices,
     mesh = Trimesh(*util.append_faces(vertices_seq,
                                       faces_seq),
                    process=True)
+
+    assert mesh.volume > 0.0
+
     return mesh
 
 
@@ -596,15 +601,21 @@ def capsule(height=1.0,
     return capsule
 
 
-def cylinder(radius=1.0, height=1.0, sections=32, transform=None):
+def cylinder(radius=1.0,
+             height=1.0,
+             sections=32,
+             transform=None):
     """
     Create a mesh of a cylinder along Z centered at the origin.
 
     Parameters
     ----------
-    radius: float, the radius of the cylinder
-    height: float, the height of the cylinder
-    sections: int, how many pie wedges should the cylinder be meshed as
+    radius : float
+             The radius of the cylinder
+    height : float
+             The height of the cylinder
+    sections : int
+               How many pie wedges should the cylinder have
 
     Returns
     ----------

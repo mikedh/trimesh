@@ -1,11 +1,13 @@
-import logging
 import os
+import logging
 import subprocess
 
 import numpy as np
 
-from ..decomposition import convex_decomposition
 from .. import io
+
+from ..constants import log
+from ..decomposition import convex_decomposition
 from ..version import __version__ as trimesh_version
 
 
@@ -14,20 +16,22 @@ def export_urdf(mesh,
                 scale=1.0,
                 color=[0.75, 0.75, 0.75],
                 **kwargs):
-    '''
+    """
     Convert a Trimesh object into a URDF package for physics simulation.
     This breaks the mesh into convex pieces and writes them to the same
     directory as the .urdf file.
 
     Parameters
     ---------
-    mesh:      Trimesh object
-    directory: str, the directory name for the URDF package
+    mesh      : Trimesh object
+    directory : str
+                  The directory path for the URDF package
 
     Returns
     ---------
-    mesh: The decomposed mesh
-    '''
+    mesh : Trimesh object
+             Multi-body mesh containing convex decomposition
+    """
 
     import lxml.etree as et
 
@@ -50,11 +54,14 @@ def export_urdf(mesh,
         convex_pieces = convex_decomposition(mesh, **kwargs)
         if not isinstance(convex_pieces, list):
             convex_pieces = [convex_pieces]
-    except subprocess.CalledProcessError:
-        convex_pieces = [mesh]
+    except BaseException:
+        log.error('problem with convex decomposition, using hull',
+                  exc_info=True)
+        convex_pieces = [mesh.convex_hull]
 
     # Get the effective density of the mesh
-    effective_density = mesh.volume / sum([m.volume for m in convex_pieces])
+    effective_density = mesh.volume / sum([
+        m.volume for m in convex_pieces])
 
     # open an XML tree
     root = et.Element('robot', name='root')
@@ -75,7 +82,8 @@ def export_urdf(mesh,
 
         link_name = 'link_{}'.format(piece_name)
         geom_name = '{}'.format(piece_filename)
-        I = [['{:.2E}'.format(y) for y in x] for x in piece.moment_inertia]
+        I = [['{:.2E}'.format(y) for y in x]
+             for x in piece.moment_inertia]
 
         # Write the link out to the XML Tree
         link = et.SubElement(root, 'link', name=link_name)
@@ -98,22 +106,32 @@ def export_urdf(mesh,
         et.SubElement(visual, 'origin', xyz="0 0 0", rpy="0 0 0")
         geometry = et.SubElement(visual, 'geometry')
         et.SubElement(geometry, 'mesh', filename=geom_name,
-                      scale="{:.4E} {:.4E} {:.4E}".format(scale, scale, scale))
+                      scale="{:.4E} {:.4E} {:.4E}".format(scale,
+                                                          scale,
+                                                          scale))
         material = et.SubElement(visual, 'material', name='')
-        et.SubElement(material, 'color', rgba="{:.2E} {:.2E} {:.2E} 1".format(
-            color[0], color[1], color[2]))
+        et.SubElement(material,
+                      'color',
+                      rgba="{:.2E} {:.2E} {:.2E} 1".format(color[0],
+                                                           color[1],
+                                                           color[2]))
 
         # Collision Information
         collision = et.SubElement(link, 'collision')
         et.SubElement(collision, 'origin', xyz="0 0 0", rpy="0 0 0")
         geometry = et.SubElement(collision, 'geometry')
         et.SubElement(geometry, 'mesh', filename=geom_name,
-                      scale="{:.4E} {:.4E} {:.4E}".format(scale, scale, scale))
+                      scale="{:.4E} {:.4E} {:.4E}".format(scale,
+                                                          scale,
+                                                          scale))
 
         # Create rigid joint to previous link
         if prev_link_name is not None:
             joint_name = '{}_joint'.format(link_name)
-            joint = et.SubElement(root, 'joint', name=joint_name, type='fixed')
+            joint = et.SubElement(root,
+                                  'joint',
+                                  name=joint_name,
+                                  type='fixed')
             et.SubElement(joint, 'origin', xyz="0 0 0", rpy="0 0 0")
             et.SubElement(joint, 'parent', link=prev_link_name)
             et.SubElement(joint, 'child', link=link_name)
@@ -123,7 +141,8 @@ def export_urdf(mesh,
     # Write URDF file
     tree = et.ElementTree(root)
     urdf_filename = '{}.urdf'.format(name)
-    tree.write(os.path.join(fullpath, urdf_filename), pretty_print=True)
+    tree.write(os.path.join(fullpath, urdf_filename),
+               pretty_print=True)
 
     # Write Gazebo config file
     root = et.Element('model')

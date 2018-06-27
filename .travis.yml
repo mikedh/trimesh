@@ -9,17 +9,28 @@ python:
 before_deploy:
 - sudo apt-get install pandoc -y
 - pip install pypandoc
+- pip install -r docs/requirements.txt
+- python docs/build.py
 deploy:
-  provider: pypi
+- provider: pypi
   user: mikedh
+  on:
+    python: '3.6'
+    branch: master
   password:
-    secure: T0R0OND+SMgHC6YbQ0XsFt+jWPD8xJFG1dg/YlWk9sttizmNRwivZ3evGF+kE8GJqLuKoDxIWxfyzqaNCujngbTEohGQKOrr8FHP8OUCwzpjigQgb07kquWI3OxHkoKNbebQtMbZ3VVoOF0HjVMKeEN1XT+xVXTCxm6K0U8uBcc=
+    secure: MmFES9M+UZbfpQsWeSVlhgUcdbpCymaeJwExxcyJbkKKWdRoZLRusqCmTdQ7Rai8DxH++ooqgEnHwq+D9e/8Y0jbbFBScPbJVeNFj1B4xV36NlyV8A0027/UTuhvkhoUv/xP6mN4TfuC3tWEj5m20DQlibjjxS154r/BlA6/kic=
+- provider: pages
+  skip-cleanup: true
+  github-token: $GITHUB_TOKEN 
+  keep-history: true
+  target-branch: gh-pages
+  local-dir: docs/html
   on:
     python: '3.6'
     branch: master
 before_install:
 - sudo apt-get update
-- sudo apt-get install -y openscad blender
+- sudo apt-get install -y openscad blender meshlab xvfb
 - sudo wget https://github.com/mikedh/v-hacd-1/raw/master/bin/linux/testVHACD --quiet
   -P /usr/bin
 - sudo chmod +x /usr/bin/testVHACD
@@ -37,7 +48,7 @@ install:
 - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy
 - source activate test-environment
 - pip install .
-- pip install nose2
+- pip install pytest pytest-cov coveralls
 script:
 - python -c "import trimesh"
 - conda install scikit-image rtree shapely
@@ -45,8 +56,9 @@ script:
   then conda install pyembree && pip install python-fcl; fi
 - pip install .[easy]
 - pip install xxhash
-- cd tests
-- nose2
-- cd ../examples
-- for f in *.ipynb; do python ../tests/notebook_run.py "$f"; done
+- pytest --cov=trimesh tests/
+- cd examples
+- for f in *.ipynb; do python ../tests/notebook_run.py exec "$f"; done
 - cd ..
+after_success:
+- coveralls

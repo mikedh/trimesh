@@ -19,12 +19,25 @@ except ImportError:
     log.warning('Scipy unavailable')
 
 
-def merge_vertices_hash(mesh):
+def merge_vertices_hash(mesh, distance=None):
     """
-    Removes duplicate vertices, based on integer hashes.
-    This is roughly 20x faster than querying a KD tree in a loop
+    Removes duplicate vertices, based on integer hashes of
+    each row.
+
+    Parameters
+    -------------
+    mesh     : Trimesh object
+                 Mesh to merge vertices of
+    distance : float, or None
+                If not specified uses tol.merge
     """
-    unique, inverse = unique_rows(mesh.vertices)
+    if distance is not None:
+        digits = util.decimal_to_digits(distance)
+    else:
+        digits = None
+    # unique rows
+    unique, inverse = unique_rows(mesh.vertices,
+                                  digits=digits)
     mesh.update_vertices(unique, inverse)
 
 
@@ -434,15 +447,20 @@ def group_vectors(vectors,
 
     Parameters
     -----------
-    vectors: (n,3) float, vectors in space
-    angle:   float, angle in radians to group by
-    include_negative: bool, if True consider for example
-                      [0,0,1] and [0,0,-1] the same
+    vectors : (n,3) float
+        Direction vector
+    angle : float
+        Group vectors closer than this angle in radians
+    include_negative : bool
+        If True consider the same:
+        [0,0,1] and [0,0,-1]
 
     Returns
     ------------
-    new_vectors: (m,3) float, vectors in space
-    groups:      (m,) sequence of indicies in source vectors
+    new_vectors : (m,3) float
+        Direction vector
+    groups : (m,) sequence of int
+        Indicies of source vectors
     """
 
     vectors = np.asanyarray(vectors, dtype=np.float64)
@@ -464,13 +482,17 @@ def group_distance(values, distance):
 
     Parameters
     ---------
-    points:   (n, d) points (of dimension d)
-    distance: max distance between points in a cluster
+    points :   (n, d) float
+        Points of dimension d
+    distance : float
+        Max distance between points in a cluster
 
     Returns
     ----------
-    unique: (m, d), median value of group
-    groups: (m)     sequence of indexes
+    unique : (m, d) float
+        Median value of each group
+    groups : (m) sequence of int
+        Indexes of points that make up a group
 
     """
     values = np.asanyarray(values,
@@ -502,12 +524,15 @@ def clusters(points, radius):
 
     Parameters
     ---------
-    points: (n, d) points (of dimension d)
-    radius: max distance between points in a cluster
+    points : (n, d) float
+        Points of dimension d
+    radius : float
+        Max distance between points in a cluster
 
     Returns
     ----------
-    groups: (m) sequence of indices for points
+    groups : (m,) sequence of int
+        Indices of points in a cluster
 
     """
     from . import graph
@@ -560,34 +585,29 @@ def blocks(data, min_len=2, max_len=np.inf, digits=None, only_nonzero=False):
     return blocks
 
 
-def merge_intervals(intervals):
+def group_min(groups, data):
     """
-    Given a list of intervals, merge overlapping ranges into a single list
-    of non- overlapping ranges
+    Given a list of groups, find the minimum element of data within each group
 
     Parameters
     -----------
-    intervals: (n,2) list of [start, end] values for ranges
+    groups : (n,) sequence of (q,) int
+        Indexes of each group corresponding to each element in data
+    data : (m,)
+        The data that groups indexes reference
 
     Returns
     -----------
-    merged: (m,2) list of [start, end] values of ranges with no overlaps
+    minimums : (n,)
+        Minimum value of data per group
+
     """
-    def merge_generator(intervals):
-        intervals.sort(axis=1)
-        intervals = intervals[np.lexsort(intervals.T[::-1])]
-        low, high = intervals[0]
-        for current in intervals[1:]:
-            if current[0] <= high:
-                high = max(high, current[1])
-            else:
-                yield [low, high]
-                low, high = current
-        yield [low, high]
-
-    intervals = np.asanyarray(intervals)
-    if not util.is_shape(intervals, (-1, 2)):
-        raise ValueError('Intervals must be (n,2)!')
-
-    merged = np.array([i for i in merge_generator(intervals)])
-    return merged
+    # sort with major key groups, minor key data
+    order = np.lexsort((data, groups))
+    groups = groups[order]  # this is only needed if groups is unsorted
+    data = data[order]
+    # construct an index which marks borders between groups
+    index = np.empty(len(groups), 'bool')
+    index[0] = True
+    index[1:] = groups[1:] != groups[:-1]
+    return data[index]

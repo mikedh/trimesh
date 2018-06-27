@@ -58,8 +58,8 @@ def _generate_conversions():
         for new_key in new_keys:
             to_inch[new_key] = value
 
-    # convert back to regular dictionary
-    to_inch = dict(to_inch)
+    # convert back to regular dictionary and make keys all lower case
+    to_inch = {k.strip().lower(): v for k, v in to_inch.items()}
     return to_inch
 
 
@@ -72,27 +72,20 @@ def unit_conversion(current, desired):
 
     Parameters
     ---------
-    current: str, unit system values are in now (eg 'millimeters')
-    desired: str, unit system we'd like values in (eg 'inches')
+    current : str
+        Unit system values are in now (eg 'millimeters')
+    desired : str
+        Unit system we'd like values in (eg 'inches')
 
     Returns
     ---------
-    conversion: float, number to multiply by to put values into desired units
+    conversion : float
+        Number to multiply by to put values into desired units
     """
+    current = str(current).strip().lower()
+    desired = str(desired).strip().lower()
     conversion = _TO_INCHES[current] / _TO_INCHES[desired]
     return conversion
-
-
-def validate(units):
-    """
-    Check whether a string represents the name of a valid unit
-
-    Returns
-    ---------
-    valid: bool, is units string a valid unit or not
-    """
-    valid = str(units) in _TO_INCHES
-    return valid
 
 
 def units_from_metadata(obj, guess=True):
@@ -148,14 +141,18 @@ def units_from_metadata(obj, guess=True):
 
 def _convert_units(obj, desired, guess=False):
     """
-    Given an object with scale and units, try to convert.
+    Given an object with scale and units try to scale
+    to different units.
 
     Parameters
     ---------
-    obj:     object with apply_scale method
-    desired: str, units desired (eg 'inches')
-    guess:   boolean, whether we are allowed to guess the units
-             if they are not specified.
+    obj :  object
+        With apply_scale method (i.e. Trimesh, Path2D, etc)
+    desired : str
+        Units desired (eg 'inches')
+    guess:   bool
+        Whether we are allowed to guess the units
+        if they are not specified.
     """
     if obj.units is None:
         # try to extract units from metadata

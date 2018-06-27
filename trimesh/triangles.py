@@ -185,7 +185,10 @@ def mass_properties(triangles,
     volume = integrated[0]
 
     if center_mass is None:
-        center_mass = integrated[1:4] / volume
+        if np.abs(volume) < tol.zero:
+            center_mass = np.zeros(3)
+        else:
+            center_mass = integrated[1:4] / volume
 
     mass = density * volume
 
@@ -238,7 +241,8 @@ def windings_aligned(triangles, normals_compare):
         raise ValueError('Triangles must be (n,3,3)!')
 
     calculated, valid = normals(triangles)
-    difference = util.diagonal_dot(calculated, normals_compare[valid])
+    difference = util.diagonal_dot(calculated,
+                                   normals_compare[valid])
 
     aligned = np.zeros(len(triangles), dtype=np.bool)
     aligned[valid] = difference > 0.0
@@ -324,7 +328,6 @@ def extents(triangles, areas=None):
         raise ValueError('Triangles must be (n,3,3)!')
 
     if areas is None:
-        #log.warning('areas not passed, will be expensively recomputed')
         areas = area(triangles=triangles,
                      sum=False)
 

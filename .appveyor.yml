@@ -5,9 +5,9 @@ environment:
   matrix:
     - PYTHON_VERSION: 2.7
       MINICONDA: C:\Miniconda
-    - PYTHON_VERSION: 3.4
-      MINICONDA: C:\Miniconda3
     - PYTHON_VERSION: 3.5
+      MINICONDA: C:\Miniconda3
+    - PYTHON_VERSION: 3.6
       MINICONDA: C:\Miniconda3
 
 init:
@@ -20,8 +20,7 @@ install:
   - "conda create -q -n test-environment python=%PYTHON_VERSION%"
   - activate test-environment
   - pip install numpy scipy
-  - conda install -c scitools shapely
-  - conda install -c ioos rtree
+  - conda install -c conda-forge shapely rtree
   - pip install nose2
   - pip install .[easy]
 

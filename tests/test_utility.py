@@ -9,7 +9,10 @@ import numpy as np
 import json
 from collections import deque
 
-import generic as g
+try:
+    from . import generic as g
+except BaseException:
+    import generic as g
 
 TEST_DIM = (100, 3)
 TOL_ZERO = 1e-9
@@ -31,12 +34,11 @@ class VectorTests(unittest.TestCase):
         vectors[0] = [0, 0, 0]
         vectors, valid = trimesh.unitize(vectors, check_valid=True)
 
-        self.assertFalse(valid[0])
-        self.assertTrue(np.all(valid[1:]))
+        assert not valid[0]
+        assert valid[1:].all()
 
-        length = np.sum(vectors[1:] ** 2, axis=1) ** 2
-        length_check = np.abs(length - 1.0) < TOL_ZERO
-        self.assertTrue(np.all(length_check))
+        length = np.sum(vectors[1:] ** 2, axis=1) ** .5
+        assert np.allclose(length, 1.0)
 
     def test_align(self):
         log.info('Testing vector alignment')
@@ -131,6 +133,35 @@ class UtilTests(unittest.TestCase):
         # make sure all pairs are length 2
         assert all(len(i) == 2 for i in pa)
 
+    def test_concat(self):
+
+        a = g.get_mesh('ballA.off')
+        b = g.get_mesh('ballB.off')
+
+        hA = a.md5()
+        hB = b.md5()
+
+        # make sure we're not mutating original mesh
+        for i in range(4):
+            c = a + b
+            assert g.np.isclose(c.volume,
+                                a.volume + b.volume)
+            assert a.md5() == hA
+            assert b.md5() == hB
+
+        count = 5
+        meshes = []
+        for i in range(count):
+            m = a.copy()
+            m.apply_translation([a.scale, 0, 0])
+            meshes.append(m)
+
+        # do a multimesh concatenate
+        r = g.trimesh.util.concatenate(meshes)
+        assert g.np.isclose(r.volume,
+                            a.volume * count)
+        assert a.md5() == hA
+
 
 class IOTest(unittest.TestCase):
 
@@ -178,10 +209,8 @@ class MassTests(unittest.TestCase):
 
         for truth in self.truth:
             mesh = self.meshes[truth['filename']]
-            calculated = trimesh.triangles.mass_properties(triangles=mesh.triangles,
-                                                           density=truth[
-                                                               'density'],
-                                                           skip_inertia=False)
+            calculated = trimesh.triangles.mass_properties(
+                triangles=mesh.triangles, density=truth['density'], skip_inertia=False)
 
             parameter_count = 0
             for parameter in calculated.keys():

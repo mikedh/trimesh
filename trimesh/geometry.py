@@ -26,7 +26,8 @@ def plane_transform(origin, normal):
     transform: (4,4) float, transformation matrix
     """
     transform = align_vectors(normal, [0, 0, 1])
-    transform[0:3, 3] = -np.dot(transform, np.append(origin, 1))[0:3]
+    transform[0:3, 3] = -np.dot(transform,
+                                np.append(origin, 1))[0:3]
     return transform
 
 
@@ -50,11 +51,16 @@ def align_vectors(vector_start, vector_end, return_angle=False):
     angle:     float, angle in radians (only returned if flag set)
 
     """
-    start = np.asanyarray(vector_start, dtype=np.float64)
+    # convert start and end to (3, ) float unit vectors
+    start = np.asanyarray(vector_start,
+                          dtype=np.float64).reshape(3)
     start /= np.linalg.norm(start)
-    end = np.asanyarray(vector_end, dtype=np.float64)
+    end = np.asanyarray(vector_end,
+                        dtype=np.float64).reshape(3)
     end /= np.linalg.norm(end)
 
+    # get a unit vector perpendicular to both vectors
+    # this will be the axis we are rotating around
     cross = np.cross(start, end)
     # we clip the norm to 1, as otherwise floating point bs
     # can cause the arcsin to error
@@ -96,11 +102,14 @@ def faces_to_edges(faces, return_index=False):
     edges: (n*3, 2) int, vertex indices representing edges
     """
     faces = np.asanyarray(faces)
-    edges = np.column_stack((faces[:, (0, 1)],
-                             faces[:, (1, 2)],
-                             faces[:, (2, 0)])).reshape(-1, 2)
+
+    # each face has three edges
+    edges = faces[:, [0, 1, 1, 2, 2, 0]].reshape((-1, 2))
+
     if return_index:
-        face_index = np.tile(np.arange(len(faces)), (3, 1)).T.reshape(-1)
+        # edges are in order of faces due to reshape
+        face_index = np.tile(np.arange(len(faces)),
+                             (3, 1)).T.reshape(-1)
         return edges, face_index
     return edges
 
@@ -194,9 +203,9 @@ def mean_vertex_normals(vertex_count, faces, face_normals, **kwargs):
         log.warning('Unable to generate sparse matrix! Falling back!',
                     exc_info=True)
         summed = summed_loop()
-    unit_normals, valid = util.unitize(summed, check_valid=True)
-    vertex_normals = np.zeros((vertex_count, 3), dtype=np.float64)
-    vertex_normals[valid] = unit_normals
+
+    # invalid normals will be returned as zero
+    vertex_normals = util.unitize(summed)
 
     return vertex_normals
 

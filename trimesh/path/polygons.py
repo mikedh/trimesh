@@ -1,7 +1,7 @@
 import numpy as np
 import networkx as nx
 
-from shapely.geometry import Polygon, Point, LineString
+from shapely.geometry import Polygon, Point, MultiPoint, LineString
 from rtree import Rtree
 from collections import deque
 
@@ -76,7 +76,7 @@ def edges_to_polygons(edges, vertices):
     # create closed polygon objects
     polygons = []
     # loop through a sequence of ordered traversals
-    for dfs in graph.dfs_traversals(edges):
+    for dfs in graph.traversals(edges, mode='dfs'):
         try:
             # try to recover polygons before they are more complicated
             polygons.append(repair_invalid(Polygon(vertices[dfs])))
@@ -138,16 +138,41 @@ def polygon_obb(polygon):
     return bounds.oriented_bounds_2D(points)
 
 
-def transform_polygon(polygon, transform, plot=False):
+def transform_polygon(polygon, matrix):
+    """
+    Transform a polygon by a a 2D homogenous transform.
+
+    Parameters
+    -------------
+    polygon : shapely.geometry.Polygon
+                 2D polygon to be transformed.
+    matrix  : (3, 3) float
+                 2D homogenous transformation.
+
+    Returns
+    --------------
+    result : shapely.geometry.Polygon
+                 Polygon transformed by matrix.
+
+    """
+    matrix = np.asanyarray(matrix,
+                           dtype=np.float64)
+
+    print('\n\n', matrix)
+
     if util.is_sequence(polygon):
-        result = [transform_polygon(p, t) for p, t in zip(polygon, transform)]
-    else:
-        shell = transform_points(np.array(polygon.exterior.coords), transform)
-        holes = [transform_points(np.array(i.coords), transform)
-                 for i in polygon.interiors]
-        result = Polygon(shell=shell, holes=holes)
-    if plot:
-        plot_polygon(result)
+        result = [transform_polygon(p, t)
+                  for p, t in zip(polygon, matrix)]
+        return result
+    # transform the outer shell
+    shell = transform_points(np.array(polygon.exterior.coords),
+                             matrix)[:, :2]
+    # transform the interiors
+    holes = [transform_points(np.array(i.coords),
+                              matrix)[:, :2]
+             for i in polygon.interiors]
+    # create a new polygon with the result
+    result = Polygon(shell=shell, holes=holes)
     return result
 
 
@@ -435,6 +460,58 @@ def paths_to_polygons(paths, scale=None):
             continue
     polygons = np.array(polygons)
     return polygons, valid
+
+
+def sample(polygon, count, factor=1.5, max_iter=10):
+    """
+    Use rejection sampling to generate random points inside a
+    polygon.
+
+    Parameters
+    -----------
+    polygon : shapely.geometry.Polygon
+                Polygon that will contain points
+    count   : int
+                Number of points to return
+    factor  : float
+                How many points to test per loop
+                IE, count * factor
+    max_iter : int,
+                Maximum number of intersection loops
+                to run, total points sampled is
+                count * factor * max_iter
+
+    Returns
+    -----------
+    hit : (n, 2) float
+           Random points inside polygon
+           where n <= count
+    """
+    bounds = np.reshape(polygon.bounds, (2, 2))
+    extents = bounds.ptp(axis=0)
+
+    hit = []
+    hit_count = 0
+    per_loop = int(count * factor)
+
+    for i in range(max_iter):
+        # generate points inside polygons AABB
+        points = np.random.random((per_loop, 2))
+        points = (points * extents) + bounds[0]
+
+        # do the point in polygon test and append resulting hits
+        hit.append(np.array(polygon.intersection(MultiPoint(points))))
+        # keep track of how many points we've collected
+        hit_count += len(hit[-1])
+
+        # if we have enough points exit the loop
+        if hit_count > count:
+            break
+
+    # stack the hits into an (n,2) array and truncate
+    hit = np.vstack(hit)[:count]
+
+    return hit
 
 
 def repair_invalid(polygon, scale=None, rtol=.5):

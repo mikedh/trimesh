@@ -148,7 +148,7 @@ class Path(object):
         target += self.vertices.md5()
         return target
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def paths(self):
         """
         Sequence of closed paths, encoded by entity index.
@@ -160,7 +160,7 @@ class Path(object):
         paths = traversal.closed_paths(self.entities, self.vertices)
         return paths
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def dangling(self):
         """
         List of entities that aren't included in a closed path
@@ -177,7 +177,7 @@ class Path(object):
                                 included)
         return dangling
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def kdtree(self):
         """
         A KDTree object holding the vertices of the path.
@@ -204,7 +204,7 @@ class Path(object):
         scale = float((self.vertices.ptp(axis=0) ** 2).sum() ** .5)
         return scale
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def bounds(self):
         """
         Return the axis aligned bounding box of the current path.
@@ -317,7 +317,7 @@ class Path(object):
         closed = all(i == 2 for i in dict(self.vertex_graph.degree()).values())
         return closed
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def vertex_graph(self):
         """
         Return a networkx.Graph object for the entity connectiviy
@@ -542,7 +542,7 @@ class Path(object):
                                              scale=self.scale)
         return discrete
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def discrete(self):
         """
         A sequence of connected vertices in space, corresponding to
@@ -628,7 +628,11 @@ class Path3D(Path):
                 self.generate_closed_paths,
                 self.generate_discrete]
 
-    def to_planar(self, to_2D=None, normal=None, check=True, origin=None):
+    def to_planar(self,
+                  to_2D=None,
+                  normal=None,
+                  check=True,
+                  origin=None):
         """
         Check to see if current vectors are all coplanar.
 
@@ -637,12 +641,15 @@ class Path3D(Path):
 
         Parameters
         -----------
-        to_2D: (4,4) float, transformation matrix to apply.
-                     If not passed a plane will be fitted to vertices.
-        normal: (3,) float, normal of plane which is only used if to_2D
-                      is not specified
-        check:  bool, raise a ValueError if the points aren't coplanar after
-                      being transformed
+        to_2D: (4,4) float
+                  Homogenous transformation matrix to apply,
+                  If not passed a plane will be fitted to vertices.
+        normal: (3,) float
+                   Normal of plane, which is only used if to_2D
+                   is not specified.
+        check:  bool
+                  Raise a ValueError if the points aren't coplanar
+                  after being transformed.
         origin: (3,) float, point which will be mapped to (0,0) in the 2D
                      output if to_2D is not specified. If not passed defaults
                      to first vertex in path. Warning: To align different sections
@@ -651,8 +658,11 @@ class Path3D(Path):
 
         Returns
         -----------
-        planar: Path2D object, current path transformed onto a plane
-        to_3D:  (4,4), transformation matrix to move planar back into 3D space
+        planar : trimesh.path.Path2D
+                   Current path transformed onto plane
+        to_3D :  (4,4) float
+                   Homeogenous transformation to move planar
+                   back into 3D space
         """
         if to_2D is None:
             C, N = plane_fit(self.vertices)
@@ -747,7 +757,7 @@ class Path2D(Path):
     def rasterize(self,
                   pitch,
                   origin,
-                  resolution,
+                  resolution=None,
                   fill=True,
                   width=None,
                   **kwargs):
@@ -756,7 +766,6 @@ class Path2D(Path):
 
         Parameters
         ------------
-        path:       Path2D object
         pitch:      float, length in model space of a pixel edge
         origin:     (2,) float, origin position in model space
         resolution: (2,) int, resolution in pixel space
@@ -774,6 +783,43 @@ class Path2D(Path):
                                  fill=fill,
                                  width=width)
         return image
+
+    def sample(self, count, **kwargs):
+        """
+        Use rejection sampling to generate random points inside a
+        polygon.
+
+        Parameters
+        -----------
+        count   : int
+                    Number of points to return
+                    If there are multiple bodies, there will
+                    be up to count * bodies points returned
+        factor  : float
+                    How many points to test per loop
+                    IE, count * factor
+        max_iter : int,
+                    Maximum number of intersection loops
+                    to run, total points sampled is
+                    count * factor * max_iter
+
+        Returns
+        -----------
+        hit : (n, 2) float
+               Random points inside polygon
+        """
+
+        poly = self.polygons_full
+        if len(poly) == 0:
+            samples = np.array([])
+        elif len(poly) == 1:
+            samples = polygons.sample(poly[0], count=count, **kwargs)
+        else:
+            samples = util.vstack_empty([
+                polygons.sample(i, count=count, **kwargs)
+                for i in poly])
+
+        return samples
 
     @property
     def body_count(self):
@@ -794,7 +840,7 @@ class Path2D(Path):
                          metadata=copy.deepcopy(self.metadata))
         return path_3D
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def polygons_closed(self):
         """
         Cycles in the vertex graph, as shapely.geometry.Polygons.
@@ -808,10 +854,10 @@ class Path2D(Path):
         """
         # will attempt to recover invalid garbage geometry
         polys, valid = polygons.paths_to_polygons(self.discrete)
-        self._cache.set('path_valid', valid)
+        self._cache['path_valid'] = valid
         return polys
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def polygons_full(self):
         """
         A list of shapely.geometry.Polygon objects with interiors created
@@ -833,10 +879,12 @@ class Path2D(Path):
             # create a polygon with interiors
             full[i] = polygons.repair_invalid(Polygon(shell=shell,
                                                       holes=holes))
+        # so we can use advanced indexing
+        full = np.array(full)
 
         return full
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def area(self):
         """
         Return the area of the polygons interior.
@@ -848,7 +896,7 @@ class Path2D(Path):
         area = sum(i.area for i in self.polygons_full)
         return area
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def length(self):
         """
         The total discretized length of every entity.
@@ -909,17 +957,13 @@ class Path2D(Path):
         ----------
         medial:     Path2D object
         """
-        if 'medial' in self._cache:
-            return self._cache.get('medial')
-
         if resolution is None:
             resolution = self.scale / 1000.0
 
         medials = [polygons.medial_axis(i, resolution, clip)
                    for i in self.polygons_full]
         medials = np.sum(medials)
-        return self._cache.set(key='medial',
-                               value=medials)
+        return medials
 
     def connected_paths(self, path_id, include_self=False):
         """
@@ -1068,7 +1112,7 @@ class Path2D(Path):
             raise TypeError('Identifier only valid for single body')
         return polygons.polygon_hash(self.polygons_full[0])
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def identifier_md5(self):
         """
         Return an MD5 of the identifier
@@ -1084,9 +1128,9 @@ class Path2D(Path):
                          which are valid polygons
         """
         exists = self.polygons_closed
-        return self._cache.get('path_valid')
+        return self._cache['path_valid']
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def root(self):
         """
         Which indexes of self.paths/self.polygons_closed are root curves.
@@ -1099,7 +1143,7 @@ class Path2D(Path):
         populate = self.enclosure_directed
         return self._cache['root']
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def enclosure(self):
         """
         Networkx Graph object of polygon enclosure.
@@ -1108,16 +1152,16 @@ class Path2D(Path):
             undirected = self.enclosure_directed.to_undirected()
         return undirected
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def enclosure_directed(self):
         """
         Networkx DiGraph of polygon enclosure
         """
         root, enclosure = polygons.enclosure_tree(self.polygons_closed)
-        self._cache.set('root', root)
+        self._cache['root'] = root
         return enclosure
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def enclosure_shell(self):
         """
         A dictionary of path indexes which are 'shell' paths, and values

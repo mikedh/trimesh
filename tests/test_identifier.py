@@ -1,4 +1,7 @@
-import generic as g
+try:
+    from . import generic as g
+except BaseException:
+    import generic as g
 
 
 class IdentifierTest(g.unittest.TestCase):
@@ -29,8 +32,8 @@ class IdentifierTest(g.unittest.TestCase):
             if not ok:
                 debug = []
                 for a in idf:
-                    as_int, exp = g.trimesh.util.sigfig_int(a,
-                                                            g.trimesh.comparison.id_sigfig)
+                    as_int, exp = g.trimesh.util.sigfig_int(
+                        a, g.trimesh.comparison.id_sigfig)
 
                     debug.append(as_int * (10**exp))
                 g.log.error('Hashes on %s differ after transform! diffs:\n %s\n',

@@ -2,8 +2,8 @@
 nsphere.py
 --------------
 
-Functions for fitting and minimizing nspheres (circles, spheres,
-hyperspheres, etc.)
+Functions for fitting and minimizing nspheres:
+circles, spheres, hyperspheres, etc.
 """
 import numpy as np
 

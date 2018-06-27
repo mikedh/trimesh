@@ -219,7 +219,7 @@ class ColorVisuals(object):
         colors = to_rgba(values)
         if (self.mesh is not None and
                 colors.shape == (4,)):
-            count = len(self.mesh.faces)
+            count = len(self.mesh.vertices)
             colors = np.tile(colors, (count, 1))
 
         # if we set any color information, clear the others
@@ -463,8 +463,8 @@ def create_visual(**kwargs):
 
     Parameters
     ----------
-    face_colors:   (n,3|4) uint8, colors
-    vertex_colors: (n,3|4) uint8, colors
+    face_colors   :   (n,3|4) uint8, colors
+    vertex_colors : (n,3|4) uint8, colors
     mesh:          Trimesh object
 
     Returns

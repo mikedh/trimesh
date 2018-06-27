@@ -7,58 +7,66 @@ Fill holes and fix winding and normals of meshes.
 
 import numpy as np
 import networkx as nx
-from collections import deque
 
-from .geometry import faces_to_edges
-from .grouping import group_rows
-from .triangles import normals, mass_properties
-from .util import is_sequence
+from . import graph
+from . import triangles
+
 from .constants import log
+from .grouping import group_rows
+from .geometry import faces_to_edges
 
 
-def fix_face_winding(mesh):
+def fix_winding(mesh):
     """
-    Traverse and change mesh faces in-place to make sure winding is coherent,
-    or that edges on adjacent faces are in opposite directions
-    """
+    Traverse and change mesh faces in-place to make sure winding
+    is correct, with edges on adjacent faces in
+    opposite directions.
 
+    Parameters
+    -------------
+    mesh: Trimesh object
+
+    Alters
+    -------------
+    mesh.face: will reverse columns of certain faces
+    """
+    # anything we would fix is already done
     if mesh.is_winding_consistent:
-        log.debug('consistent winding, exiting repair')
         return
 
-    # we create the face adjacency graph:
-    # every node in g is an index of mesh.faces
-    # every edge in g represents two faces which are connected
     graph_all = nx.from_edgelist(mesh.face_adjacency)
-    faces = mesh.faces.view(np.ndarray).copy()
     flipped = 0
+    faces = mesh.faces.view(np.ndarray).copy()
 
-    # we are going to traverse the graph using BFS, so we have to start
-    # a traversal for every connected component
+    # we are going to traverse the graph using BFS
+    # start a traversal for every connected component
     for components in nx.connected_components(graph_all):
         # get a subgraph for this component
         graph = graph_all.subgraph(components)
         # get the first node in the graph in a way that works on nx's
         # new API and their old API
         start = next(iter(graph.nodes()))
+
         # we traverse every pair of faces in the graph
         # we modify mesh.faces and mesh.face_normals in place
         for face_pair in nx.bfs_edges(graph, start):
             # for each pair of faces, we convert them into edges,
-            # find the edge that both faces share, and then see if the edges
-            # are reversed in order as you would expect in a well constructed
-            # mesh
+            # find the edge that both faces share and then see if edges
+            # are reversed in order as you would expect
+            # (2, ) int
             face_pair = np.ravel(face_pair)
+            # (2, 3) int
             pair = faces[face_pair]
+            # (6, 2) int
             edges = faces_to_edges(pair)
-            overlap = group_rows(np.sort(edges, axis=1), require_count=2)
+            overlap = group_rows(np.sort(edges, axis=1),
+                                 require_count=2)
             if len(overlap) == 0:
                 # only happens on non-watertight meshes
                 continue
             edge_pair = edges[[overlap[0]]]
             if edge_pair[0][0] == edge_pair[1][0]:
-                # if the edges aren't reversed, invert the order of one of the
-                # faces
+                # if the edges aren't reversed, invert the order of one face
                 flipped += 1
                 faces[face_pair[1]] = faces[face_pair[1]][::-1]
     if flipped > 0:
@@ -66,46 +74,106 @@ def fix_face_winding(mesh):
     log.debug('flipped %d/%d edges', flipped, len(mesh.faces) * 3)
 
 
-def fix_normals_direction(mesh):
+def fix_inversion(mesh, multibody=False):
     """
-    Check to see if a mesh has normals pointed outside the solid.
+    Check to see if a mesh has normals pointing "out."
 
-    If the mesh is not watertight, this is meaningless.
+    Parameters
+    -------------
+    mesh:      Trimesh object
+    multibody: bool, if True will try to fix normals on every body
+
+    Alters
+    -------------
+    mesh.face: may reverse faces
     """
-    volume = mass_properties(mesh.triangles,
-                             crosses=mesh.triangles_cross,
-                             skip_inertia=True)['volume']
-    flipped = volume < 0.0
+    if multibody:
+        groups = graph.connected_components(mesh.face_adjacency)
+        # escape early for single body
+        if len(groups) == 1:
+            if mesh.volume < 0.0:
+                mesh.invert()
+            return
+        # mask of faces to flip
+        flip = np.zeros(len(mesh.faces), dtype=np.bool)
+        # save these to avoid thrashing cache
+        tri = mesh.triangles
+        cross = mesh.triangles_cross
+        # indexes of mesh.faces, not actual faces
+        for faces in groups:
+            # calculate the volume of the submesh faces
+            volume = triangles.mass_properties(
+                tri[faces],
+                crosses=cross[faces],
+                skip_inertia=True)['volume']
+            # if that volume is negative it is either
+            # inverted or just total garbage
+            if volume < 0.0:
+                flip[faces] = True
+        # one or more faces needs flipping
+        if flip.any():
+            with mesh._cache:
+                # flip normals of necessary faces
+                if 'face_normals' in mesh._cache:
+                    mesh.face_normals[flip] *= -1.0
+                # flip faces
+                mesh.faces[flip] = np.fliplr(mesh.faces[flip])
+            # save wangled normals
+            mesh._cache.clear(exclude=['face_normals'])
 
-    if flipped:
-        log.debug('Flipping face normals and winding')
-        # since normals were regenerated, this means winding is backwards
-        # if winding is incoherent this won't fix anything
-        mesh.faces = np.fliplr(mesh.faces)
-        mesh.face_normals = None
+    elif mesh.volume < 0.0:
+        # reverse every triangles and flip every normals
+        mesh.invert()
 
 
-def fix_normals(mesh):
+def fix_normals(mesh, multibody=False):
     """
-    Fix the winding and direction of a mesh face and face normals in-place
+    Fix the winding and direction of a mesh face and
+    face normals in-place.
 
     Really only meaningful on watertight meshes, but will orient all
-    faces and winding in a uniform way for non-watertight face patches as well.
+    faces and winding in a uniform way for non-watertight face
+    patches as well.
+
+    Parameters
+    -------------
+    mesh:      Trimesh object
+    multibody: bool, if True try to correct normals direction
+                     on every body.
+
+    Alters
+    --------------
+    mesh.faces: will flip columns on inverted faces
     """
-    fix_face_winding(mesh)
-    fix_normals_direction(mesh)
+    # traverse face adjacency to correct winding
+    fix_winding(mesh)
+    # check to see if a mesh is inverted
+    fix_inversion(mesh, multibody=multibody)
 
 
 def broken_faces(mesh, color=None):
     """
-    Return the index of faces in the mesh which break the watertight status
-    of the mesh. If color is set, change the color of the broken faces.
+    Return the index of faces in the mesh which break the
+    watertight status of the mesh.
+
+    Parameters
+    --------------
+    mesh: Trimesh object
+    color: (4,) uint8, will set broken faces to this color
+           None,       will not alter mesh colors
+
+    Returns
+    ---------------
+    broken: (n, ) int, indexes of mesh.faces
     """
     adjacency = nx.from_edgelist(mesh.face_adjacency)
-    broken = [k for k, v in dict(adjacency.degree()).items() if v != 3]
+    broken = [k for k, v in dict(adjacency.degree()).items()
+              if v != 3]
     broken = np.array(broken)
     if color is not None:
-        if not is_sequence(color):
+        # if someone passed a broken color
+        color = np.array(color)
+        if not (color.shape == (4,) or color.shape == (3,)):
             color = [255, 0, 0, 255]
         mesh.visual.face_colors[broken] = color
     return broken
@@ -169,8 +237,8 @@ def fill_holes(mesh):
                                               index_as_dict)))
     cycles = np.array(nx.cycle_basis(graph))
 
-    new_faces = deque()
-    new_vertex = deque()
+    new_faces = []
+    new_vertex = []
     for hole in cycles:
         # convert the hole, which is a polygon of vertex indices
         # to triangles and new vertices
@@ -213,7 +281,7 @@ def fill_holes(mesh):
     # since the winding is now correct, we can get consistant normals
     # just by doing the cross products on the face edges
     mesh._cache.clear(exclude=['face_normals'])
-    new_normals, valid = normals(new_vertices[new_faces])
+    new_normals, valid = triangles.normals(new_vertices[new_faces])
     mesh.face_normals = np.vstack((mesh.face_normals, new_normals))
     mesh.faces = np.vstack((mesh._data['faces'], new_faces[valid]))
     mesh.vertices = new_vertices

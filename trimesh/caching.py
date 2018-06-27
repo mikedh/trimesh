@@ -8,8 +8,11 @@ and clearing cached values based on those changes.
 
 import numpy as np
 
-import hashlib
 import zlib
+import time
+import hashlib
+
+from functools import wraps
 
 from .constants import log
 from .util import is_sequence
@@ -43,25 +46,80 @@ def tracked_array(array, dtype=None):
     tracked = np.ascontiguousarray(array,
                                    dtype=dtype).view(TrackedArray)
     assert tracked.flags['C_CONTIGUOUS']
+
     return tracked
+
+
+def cache_decorator(function):
+    """
+    A decorator for class methods, replaces @property
+    but will store and retrieve function return values
+    in object cache.
+
+    Parameters
+    ------------
+    function : class method
+                 This is used as a decorator:
+                   @cache_decorator
+                   def foo(self, things):
+                      return 'happy days'
+    """
+    # use wraps to preseve docstring
+    @wraps(function)
+    def get_cached(*args, **kwargs):
+        """
+        Only execute the function if its value isn't stored
+        in cache already.
+        """
+        self = args[0]
+        # use function name as key in cache
+        name = function.__name__
+        # do the dump logic ourselves to avoid
+        # verifying cache twice per call
+        self._cache.verify()
+        # access cache dict to avoid automatic verification
+        if name in self._cache.cache:
+            # already stored so return value
+            return self._cache.cache[name]
+
+        # time execution
+        tic = time.time()
+        # value not in cache so execute the function
+        value = function(*args, **kwargs)
+        # store the value
+        self._cache.cache[name] = value
+        # debug log execution time
+        # this is nice for debugging as you can see when
+        # cache is getting dumped all the time
+        log.debug('%s was not in cache, executed in %.6f',
+                  name,
+                  time.time() - tic)
+        return value
+
+    # all cached values are also properties
+    # so they can be accessed like value attributes
+    # rather than functions
+    return property(get_cached)
 
 
 class TrackedArray(np.ndarray):
     """
-    Track changes in a numpy ndarray.
+    Subclass of numpy.ndarray that provides hash methods
+    to track changes.
 
     General method is to agressivly set 'modified' flags
-    on operations which might alter the array.
+    on operations which might (but don't necessarily) alter
+    the array, ideally we sometimes compute hashes when we
+    don't need to, but we don't return wrong hashes ever.
 
-    This will force a recompute of a checksum value in some
-    cases where nothing has changed but we don't ever want to
-    return a checksum that doesn't reflect the data.
+    We store boolean modified flag for each hash type to
+    make checks fast even for queries of different hashes.
 
     Methods
     ----------
-    md5:       returns str, hexadecimal MD5 of array
-    crc:       returns int, zlib crc32/adler32 checksum
-    fast_hash: returns int, CRC or xxhash.xx64
+    md5 :       str, hexadecimal MD5 of array
+    crc :       int, zlib crc32/adler32 checksum
+    fast_hash : int, CRC or xxhash.xx64
     """
 
     def __array_finalize__(self, obj):
@@ -88,8 +146,7 @@ class TrackedArray(np.ndarray):
         """
         if self._modified_m or not hasattr(self, '_hashed_md5'):
             if self.flags['C_CONTIGUOUS']:
-                hasher = hashlib.md5()
-                hasher.update(self)
+                hasher = hashlib.md5(self)
                 self._hashed_md5 = hasher.hexdigest()
             else:
                 # the case where we have sliced our nice
@@ -97,8 +154,7 @@ class TrackedArray(np.ndarray):
                 # for example (note slice *after* track operation):
                 # t = util.tracked_array(np.random.random(10))[::-1]
                 contiguous = np.ascontiguousarray(self)
-                hasher = hashlib.md5()
-                hasher.update(contiguous)
+                hasher = hashlib.md5(contiguous)
                 self._hashed_md5 = hasher.hexdigest()
         self._modified_m = False
         return self._hashed_md5
@@ -138,8 +194,7 @@ class TrackedArray(np.ndarray):
         # these functions are called millions of times so everything helps
         if self._modified_x or not hasattr(self, '_hashed_xx'):
             if self.flags['C_CONTIGUOUS']:
-                hasher = xxhash.xxh64()
-                hasher.update(self)
+                hasher = xxhash.xxh64(self)
                 self._hashed_xx = hasher.intdigest()
             else:
                 # the case where we have sliced our nice
@@ -147,8 +202,7 @@ class TrackedArray(np.ndarray):
                 # for example (note slice *after* track operation):
                 # t = util.tracked_array(np.random.random(10))[::-1]
                 contiguous = np.ascontiguousarray(self)
-                hasher = xxhash.xxh64()
-                hasher.update(contiguous)
+                hasher = xxhash.xxh64(contiguous)
                 self._hashed_xx = hasher.intdigest()
         self._modified_x = False
         return self._hashed_xx
@@ -163,35 +217,39 @@ class TrackedArray(np.ndarray):
         """
         return self.fast_hash()
 
-    def __iadd__(self, other):
+    def __iadd__(self, *args, **kwargs):
         """
         In- place addition.
 
-        The i* operations are in- place, so we better catch
-        all of them.
+        The i* operations are in- place and modify the array,
+        so we better catch all of them.
         """
         self._modified_c = True
         self._modified_m = True
         self._modified_x = True
-        return super(self.__class__, self).__iadd__(other)
+        return super(self.__class__, self).__iadd__(*args,
+                                                    **kwargs)
 
-    def __isub__(self, other):
+    def __isub__(self, *args, **kwargs):
         self._modified_c = True
         self._modified_m = True
         self._modified_x = True
-        return super(self.__class__, self).__isub__(other)
+        return super(self.__class__, self).__isub__(*args,
+                                                    **kwargs)
 
-    def __imul__(self, other):
+    def __imul__(self, *args, **kwargs):
         self._modified_c = True
         self._modified_m = True
         self._modified_x = True
-        return super(self.__class__, self).__imul__(other)
+        return super(self.__class__, self).__imul__(*args,
+                                                    **kwargs)
 
-    def __idiv__(self, other):
+    def __idiv__(self, *args, **kwargs):
         self._modified_c = True
         self._modified_m = True
         self._modified_x = True
-        return super(self.__class__, self).__idiv__(other)
+        return super(self.__class__, self).__idiv__(*args,
+                                                    **kwargs)
 
     def __itruediv__(self, *args, **kwargs):
         self._modified_c = True
@@ -207,69 +265,79 @@ class TrackedArray(np.ndarray):
         return super(self.__class__, self).__imatmul__(*args,
                                                        **kwargs)
 
-    def __ipow__(self, other):
+    def __ipow__(self, *args, **kwargs):
         self._modified_c = True
         self._modified_m = True
         self._modified_x = True
-        return super(self.__class__, self).__ipow__(other)
+        return super(self.__class__, self).__ipow__(*args, **kwargs)
 
-    def __imod__(self, other):
+    def __imod__(self, *args, **kwargs):
         self._modified_c = True
         self._modified_m = True
         self._modified_x = True
-        return super(self.__class__, self).__imod__(other)
+        return super(self.__class__, self).__imod__(*args, **kwargs)
 
-    def __ifloordiv__(self, other):
+    def __ifloordiv__(self, *args, **kwargs):
         self._modified_c = True
         self._modified_m = True
         self._modified_x = True
-        return super(self.__class__, self).__ifloordiv__(other)
+        return super(self.__class__, self).__ifloordiv__(*args,
+                                                         **kwargs)
 
-    def __ilshift__(self, other):
+    def __ilshift__(self, *args, **kwargs):
         self._modified_c = True
         self._modified_m = True
         self._modified_x = True
-        return super(self.__class__, self).__ilshift__(other)
+        return super(self.__class__, self).__ilshift__(*args,
+                                                       **kwargs)
 
-    def __irshift__(self, other):
+    def __irshift__(self, *args, **kwargs):
         self._modified_c = True
         self._modified_m = True
         self._modified_x = True
-        return super(self.__class__, self).__irshift__(other)
+        return super(self.__class__, self).__irshift__(*args,
+                                                       **kwargs)
 
-    def __iand__(self, other):
+    def __iand__(self, *args, **kwargs):
         self._modified_c = True
         self._modified_m = True
         self._modified_x = True
-        return super(self.__class__, self).__iand__(other)
+        return super(self.__class__, self).__iand__(*args,
+                                                    **kwargs)
 
-    def __ixor__(self, other):
+    def __ixor__(self, *args, **kwargs):
         self._modified_c = True
         self._modified_m = True
         self._modified_x = True
-        return super(self.__class__, self).__ixor__(other)
+        return super(self.__class__, self).__ixor__(*args,
+                                                    **kwargs)
 
-    def __ior__(self, other):
+    def __ior__(self, *args, **kwargs):
         self._modified_c = True
         self._modified_m = True
         self._modified_x = True
-        return super(self.__class__, self).__ior__(other)
+        return super(self.__class__, self).__ior__(*args,
+                                                   **kwargs)
 
-    def __setitem__(self, i, y):
+    def __setitem__(self, *args, **kwargs):
         self._modified_c = True
         self._modified_m = True
         self._modified_x = True
-        super(self.__class__, self).__setitem__(i, y)
+        super(self.__class__, self).__setitem__(*args,
+                                                **kwargs)
 
-    def __setslice__(self, i, j, y):
+    def __setslice__(self, *args, **kwargs):
         self._modified_c = True
         self._modified_m = True
         self._modified_x = True
-        super(self.__class__, self).__setslice__(i, j, y)
+        super(self.__class__, self).__setslice__(*args,
+                                                 **kwargs)
 
     if hasX:
+        # if xxhash is installed use it
         fast_hash = _xxhash
     else:
+        # otherwise use our fastest CRC
         fast_hash = crc
 
 
@@ -292,26 +360,6 @@ class Cache:
         self.id_current = self._id_function()
         self._lock = 0
         self.cache = {}
-
-    def get(self, key):
-        """
-        Get a key from the cache.
-
-        If the key is unavailable or the cache has been invalidated
-        returns None.
-
-        Parameters
-        -------------
-        key: hashable value
-
-        Returns
-        -------------
-        value: value from cache
-        """
-        self.verify()
-        if key in self.cache:
-            return self.cache[key]
-        return None
 
     def delete(self, key):
         """
@@ -359,16 +407,39 @@ class Cache:
         """
         self.id_current = self._id_function()
 
-    def set(self, key, value):
+    def __getitem__(self, key):
+        """
+        Get an item from the cache. If the item
+        is not in the cache, it will return None
+
+        Parameters
+        -------------
+        key : hashable
+               Key in dict
+
+        Returns
+        -------------
+        cached : object, or None
+        """
+        self.verify()
+        if key in self.cache:
+            return self.cache[key]
+        return None
+
+    def __setitem__(self, key, value):
+        """
+        Add an item to the cache.
+
+        Parameters
+        ------------
+        key : hashable
+                 Key to reference value
+        value : any
+                  Value to store in cache
+        """
         self.verify()
         self.cache[key] = value
         return value
-
-    def __getitem__(self, key):
-        return self.get(key)
-
-    def __setitem__(self, key, value):
-        return self.set(key, value)
 
     def __contains__(self, key):
         self.verify()

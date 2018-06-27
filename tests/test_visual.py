@@ -1,4 +1,7 @@
-import generic as g
+try:
+    from . import generic as g
+except BaseException:
+    import generic as g
 
 
 class VisualTest(g.unittest.TestCase):
@@ -139,6 +142,14 @@ class VisualTest(g.unittest.TestCase):
         m.visual.vertex_colors[g.np.arange(10)] = [255, 0, 0, 255]
         s1 = m.smoothed()
         assert s1.visual.face_colors.ptp(axis=0).max() != 0
+
+    def test_vertex(self):
+
+        m = g.get_mesh('torus.STL')
+
+        m.visual.vertex_colors = [100, 100, 100, 255]
+
+        assert len(m.visual.vertex_colors) == len(m.vertices)
 
 
 if __name__ == '__main__':

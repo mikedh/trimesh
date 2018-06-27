@@ -1,4 +1,5 @@
 import time
+import copy
 import collections
 
 import numpy as np
@@ -73,6 +74,17 @@ class TransformForest:
         result = str(int(self._updated * 1000)) + str(self.base_frame)
         return result
 
+    def copy(self):
+        """
+        Return a copy of the current TransformForest
+
+        Returns
+        ------------
+        copied: TransformForest
+        """
+        copied = copy.deepcopy(self)
+        return copied
+
     def to_flattened(self, base_frame=None):
         """
         Export the current transform graph as a flattened
@@ -138,7 +150,7 @@ class TransformForest:
         for edge in edgelist:
             self.transforms.add_edge(edge[0], edge[1], **edge[2])
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def nodes(self):
         """
         A list of every node in the graph.
@@ -150,7 +162,7 @@ class TransformForest:
         nodes = np.array(list(self.transforms.nodes()))
         return nodes
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def nodes_geometry(self):
         """
         The nodes in the scene graph with geometry attached.

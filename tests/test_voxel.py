@@ -1,4 +1,7 @@
-import generic as g
+try:
+    from . import generic as g
+except BaseException:
+    import generic as g
 
 
 class VoxelTest(g.unittest.TestCase):
@@ -24,10 +27,15 @@ class VoxelTest(g.unittest.TestCase):
                 assert isinstance(v.filled_count, int)
                 assert v.filled_count > 0
 
-                assert isinstance(v.as_boxes, g.trimesh.Trimesh)
-                assert abs(v.as_boxes.volume - v.volume) < g.tol.merge
+                box = v.as_boxes(solid=False)
+                boxF = v.as_boxes(solid=True)
+
+                assert isinstance(box, g.trimesh.Trimesh)
+                assert abs(boxF.volume - v.volume) < g.tol.merge
 
                 assert g.trimesh.util.is_shape(v.points, (-1, 3))
+
+                assert len(v.sparse_solid) > len(v.sparse_surface)
 
                 for p in v.points:
                     assert v.is_filled(p)

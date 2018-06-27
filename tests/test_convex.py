@@ -1,4 +1,7 @@
-import generic as g
+try:
+    from . import generic as g
+except BaseException:
+    import generic as g
 
 
 class ConvexTest(g.unittest.TestCase):
@@ -23,8 +26,9 @@ class ConvexTest(g.unittest.TestCase):
             self.assertTrue(volume.min() > 0.0)
 
             if not all(i.is_winding_consistent for i in hulls):
-                raise ValueError('mesh %s reported bad winding on convex hull!',
-                                 mesh.metadata['file_name'])
+                raise ValueError(
+                    'mesh %s reported bad winding on convex hull!',
+                    mesh.metadata['file_name'])
 
             '''
             # to do: make this pass

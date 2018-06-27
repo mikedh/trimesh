@@ -5,6 +5,9 @@
 version: 2
 jobs:
   build:
+    branches:
+      only:
+        - master
     docker:
       - image: continuumio/anaconda3
     working_directory: ~/repo
@@ -14,12 +17,11 @@ jobs:
       - run:
           name: install dependencies
           command: |
-            pip install --upgrade pip
-            conda update -n base conda
+            apt-get update; apt-get install -y meshlab xvfb blender openscad
             pip install nose2
             pip install .
             python -c "import trimesh"
-            conda install -c conda-forge rtree shapely pyembree
+            conda install -y -c conda-forge rtree shapely pyembree
             pip install .[easy]
       - run:
           name: run tests

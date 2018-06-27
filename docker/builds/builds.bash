@@ -7,8 +7,8 @@ apt-get -y --no-install-recommends install $PACKAGES_BUILD
 
 # install draco, google's mesh compression utility
 bash "$(dirname $0)/draco.bash"
-# for rtree
-# bash "$(dirname $0)/spatialindex.bash"
+# install VHACD, a mesh decomposition utility
+bash "$(dirname $0)/vhacd.bash"
 
 # remove garbage
 apt-get clean

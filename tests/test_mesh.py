@@ -1,4 +1,7 @@
-import generic as g
+try:
+    from . import generic as g
+except BaseException:
+    import generic as g
 
 
 class MeshTests(g.unittest.TestCase):
@@ -8,6 +11,10 @@ class MeshTests(g.unittest.TestCase):
         # while getting a list of meshes to run tests on
         meshes = g.get_meshes(raise_error=True)
         g.log.info('Running tests on %d meshes', len(meshes))
+
+        formats = g.trimesh.available_formats()
+        assert all(isinstance(i, str) for i in formats)
+        assert all(len(i) > 0 for i in formats)
 
         for mesh in meshes:
             g.log.info('Testing %s', mesh.metadata['file_name'])

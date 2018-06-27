@@ -1,4 +1,7 @@
-import generic as g
+try:
+    from . import generic as g
+except BaseException:
+    import generic as g
 
 
 class PointsTest(g.unittest.TestCase):
@@ -8,11 +11,34 @@ class PointsTest(g.unittest.TestCase):
         Test pointcloud object
         '''
         shape = (100, 3)
-        cloud = g.trimesh.points.PointCloud(g.np.random.random(shape))
+        # random points
+        points = g.np.random.random(shape)
+        # make sure randomness never gives duplicates by offsetting
+        points += g.np.arange(shape[0]).reshape((-1, 1))
 
-        self.assertTrue(cloud.vertices.shape == shape)
-        self.assertTrue(cloud.extents.shape == (3,))
-        self.assertTrue(cloud.bounds.shape == (2, 3))
+        # make some duplicate vertices
+        points[:10] = points[0]
+
+        # create a pointcloud object
+        cloud = g.trimesh.points.PointCloud(points)
+
+        # set some random colors
+        cloud.colors = g.np.random.random((shape[0], 4))
+
+        # check shapes of data
+        assert cloud.vertices.shape == shape
+        assert cloud.extents.shape == (3,)
+        assert cloud.bounds.shape == (2, 3)
+
+        # remove the duplicates we created
+        cloud.merge_vertices()
+
+        # new shape post- merge
+        new_shape = (shape[0] - 9, shape[1])
+
+        # make sure vertices and colors are new shape
+        assert cloud.vertices.shape == new_shape
+        assert len(cloud.colors) == new_shape[0]
 
     def test_vertexonly(self):
         """

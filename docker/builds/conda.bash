@@ -13,13 +13,12 @@ conda create -q -n denv python=3.6
 pip install --upgrade pip
 conda update -n base conda
 
-conda config --add channels conda-forge  # rtree, shapely, pyembree
+# add conda-forge as remote channel
+conda config --add channels conda-forge
 
 # scikit-image is used for marching cubes
-conda install -c conda-forge scikit-image
-
 # pyembree is used for fast ray tests
-conda install -c conda-forge pyembree
+conda install scikit-image pyembree 
 
 # install most trimesh requirements with built components 
 #conda install -c conda-forge shapely rtree numpy scipy

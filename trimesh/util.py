@@ -21,7 +21,6 @@ import zipfile
 import collections
 
 from sys import version_info
-from functools import wraps
 
 # a flag we can check elsewhere for Python 3
 PY3 = version_info.major >= 3
@@ -44,53 +43,56 @@ TOL_ZERO = np.finfo(np.float64).resolution * 100
 TOL_MERGE = 1e-8
 
 
-def unitize(points, check_valid=False, threshold=None):
+def unitize(vectors,
+            check_valid=False,
+            threshold=None):
     """
-    Turn a list of vectors into a list of unit vectors.
+    Unitize a vector or an array or row- vectors.
 
     Parameters
     ---------
-    points:       (n,m) or (j) input array of vectors.
-                  For 1D arrays, points is treated as a single vector
-                  For 2D arrays, each row is treated as a vector
-
-    check_valid:  boolean, if True enables valid output and checking
-
+    vectors:      (n,m) or (j) float, vectors
+    check_valid:  bool, return mask of nonzero vectors
     threshold:    float, cutoff to be considered zero.
-
 
     Returns
     ---------
-    unit_vectors: (n,m) or (j) length array of unit vectors
-
-    valid:        (n) boolean array, output only if check_valid.
-                   True for all valid (nonzero length) vectors, thus m=sum(valid)
+    unit:  (n,m) or (j) float, unit vectors
+    valid: (n) bool, mask of nonzero vectors if check_valid
     """
-    points = np.asanyarray(points)
-    axis = len(points.shape) - 1
-    length = np.sum(points ** 2, axis=axis) ** .5
+    # make sure we have a numpy array
+    vectors = np.asanyarray(vectors)
 
-    if is_sequence(length):
-        length[np.isnan(length)] = 0.0
+    # allow user to set zero threshold
     if threshold is None:
         threshold = TOL_ZERO
 
-    if check_valid:
-        # make sure lengths are greater than zero
-        valid = np.logical_not(np.isclose(length,
-                                          0.0,
-                                          rtol=0.0,
-                                          atol=threshold))
-        if axis == 1:
-            unit_vectors = (points[valid].T / length[valid]).T
-        elif len(points.shape) == 1 and valid:
-            unit_vectors = points / length
+    if len(vectors.shape) == 2:
+        # for (m, d) arrays take the per- row unit vector
+        # using sqrt and avoiding exponents is slightly faster
+        norm = np.sqrt((vectors * vectors).sum(axis=1))
+        # non-zero norms
+        valid = norm > threshold
+        # in-place reciprocal of nonzero norms
+        norm[valid] **= -1
+        # tile reciprocal of norm
+        tiled = np.tile(norm, (vectors.shape[1], 1)).T
+        # multiply by reciprocal of norm
+        unit = vectors * tiled
+    elif len(vectors.shape) == 1:
+        # treat 1D arrays as a single vector
+        norm = np.sqrt((vectors * vectors).sum())
+        valid = norm > threshold
+        if valid:
+            unit = vectors / norm
         else:
-            unit_vectors = np.array([])
-        return unit_vectors, valid
+            unit = vectors.copy()
     else:
-        unit_vectors = (points.T / length).T
-    return unit_vectors
+        raise ValueError('vectors must be (n, ) or (n, d)!')
+
+    if check_valid:
+        return unit[valid], valid
+    return unit
 
 
 def euclidean(a, b):
@@ -108,8 +110,7 @@ def euclidean(a, b):
     """
     a = np.asanyarray(a, dtype=np.float64)
     b = np.asanyarray(b, dtype=np.float64)
-    distance = np.sum((a - b) ** 2) ** .5
-    return distance
+    return np.sqrt(((a - b) ** 2).sum())
 
 
 def is_file(obj):
@@ -684,7 +685,12 @@ def md5_object(obj):
     md5: str, MD5 hash
     """
     hasher = hashlib.md5()
-    hasher.update(obj)
+    if isinstance(obj, basestring) and PY3:
+        # in python3 convert strings to bytes before hashing
+        hasher.update(obj.encode('utf-8'))
+    else:
+        hasher.update(obj)
+
     md5 = hasher.hexdigest()
     return md5
 
@@ -777,30 +783,6 @@ def attach_to_log(level=logging.DEBUG,
     np.set_printoptions(precision=5, suppress=True)
 
 
-def cache_decorator(function):
-    """
-    A decorator for methods of classes.
-
-    If the object contains `self.cache`, this function
-    will check the values in self.cache for this wrapped function
-    by name, and if it is already in the cache it will return that
-    value rather than evaluating the function again.
-    """
-    @wraps(function)
-    def get_cached(*args, **kwargs):
-        self = args[0]
-        name = function.__name__
-        if not (name in self._cache):
-            tic = time.time()
-            self._cache[name] = function(*args, **kwargs)
-            toc = time.time()
-            log.debug('%s was not in cache, executed in %.6f',
-                      name,
-                      toc - tic)
-        return self._cache[name]
-    return property(get_cached)
-
-
 def stack_lines(indices):
     """
     Stack a list of values that represent a polyline into
@@ -864,12 +846,12 @@ def append_faces(vertices_seq, faces_seq):
     vertices_len = np.array([len(i) for i in vertices_seq])
     face_offset = np.append(0, np.cumsum(vertices_len)[:-1])
 
+    new_faces = []
     for offset, faces in zip(face_offset, faces_seq):
         if len(faces) > 0:
-            faces += offset
-
+            new_faces.append(faces + offset)
     vertices = vstack_empty(vertices_seq)
-    faces = vstack_empty(faces_seq)
+    faces = vstack_empty(new_faces)
 
     return vertices, faces
 
@@ -1101,37 +1083,51 @@ def type_named(obj, name):
     raise ValueError('Unable to extract class of name ' + name)
 
 
-def concatenate(a, b):
+def concatenate(a, b=None):
     """
-    Concatenate two meshes.
+    Concatenate two or more meshes.
 
     Parameters
     ----------
-    a: Trimesh object
-    b: Trimesh object
+    a: Trimesh object, or list of such
+    b: Trimesh object, or list of such
 
     Returns
     ----------
-    result: Trimesh object containing all faces of a and b
+    result: Trimesh object containing concatenated mesh
     """
+    if b is None:
+        b = []
+    # stack meshes into flat list
+    meshes = np.append(a, b)
+
     # Extract the trimesh type to avoid a circular import,
     # and assert that both inputs are Trimesh objects
-    trimesh_type = type_named(a, 'Trimesh')
-    trimesh_type = type_named(b, 'Trimesh')
+    trimesh_type = type_named(meshes[0], 'Trimesh')
 
-    new_normals = np.vstack((a.face_normals, b.face_normals))
-    new_faces = np.vstack((a.faces, (b.faces + len(a.vertices))))
-    new_vertices = np.vstack((a.vertices, b.vertices))
-    new_visual = a.visual.concatenate(b.visual)
-    result = trimesh_type(vertices=new_vertices,
-                          faces=new_faces,
-                          face_normals=new_normals,
-                          visual=new_visual,
-                          process=False)
-    # result._cache.id_set()
-    # result.visual._cache.id_set()
+    # append faces and vertices of meshes
+    vertices, faces = append_faces(
+        [i.vertices.copy() for i in meshes],
+        [i.faces.copy() for i in meshes])
 
-    return result
+    visuals = None
+    face_normals = None
+
+    if all('face_normals' in i._cache for i in meshes):
+        face_normals = np.vstack(
+            [i.face_normals for i in meshes])
+    if any(i.visual.defined for i in meshes):
+        visuals = meshes[0].visual.concatenate(
+            [i.visual for i in meshes[1:]])
+
+    # create the mesh object
+    mesh = trimesh_type(vertices=vertices,
+                        faces=faces,
+                        face_normals=face_normals,
+                        visual=visuals,
+                        process=False)
+
+    return mesh
 
 
 def submesh(mesh,
@@ -1269,6 +1265,7 @@ def jsonify(obj):
     dumped: str, JSON dump of obj
     """
     class NumpyEncoder(json.JSONEncoder):
+
         def default(self, obj):
             # will work for numpy.ndarrays
             # as well as their int64/etc objects
@@ -1499,7 +1496,10 @@ def compress(info):
     else:
         file_obj = StringIO()
 
-    with zipfile.ZipFile(file_obj, 'w') as zipper:
+    with zipfile.ZipFile(
+            file_obj,
+            mode='w',
+            compression=zipfile.ZIP_DEFLATED) as zipper:
         for name, data in info.items():
             if hasattr(data, 'read'):
                 # if we were passed a file object, read it
