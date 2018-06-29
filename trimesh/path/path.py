@@ -298,6 +298,7 @@ class Path(object):
 
         distance, node = KDTree(self.vertices[broken]).query(
             self.vertices[broken], k=2)
+
         edges = broken[node]
         ok = np.logical_and(distance[:, 1] < max_distance, [
                             not self.vertex_graph.has_edge(*i) for i in edges])
@@ -816,18 +817,26 @@ class Path2D(Path):
     def body_count(self):
         return len(self.root)
 
-    def to_3D(self):
+    def to_3D(self, transform=None):
         """
         Convert 2D path to 3D path on the XY plane.
 
+        Parameters
+        -------------
+        transform : (4, 4) float
+            If passed, will transform vertices.
         Returns
         -----------
         path_3D: Path3D version of current path
         """
-        vertices_new = np.column_stack((copy.deepcopy(self.vertices),
-                                        np.zeros(len(self.vertices))))
+        vertices = np.column_stack((copy.deepcopy(self.vertices),
+                                    np.zeros(len(self.vertices))))
+        if transform is not None:
+            vertices = transformations.transform_points(vertices,
+                                                        transform)
+        # make sure everything is deep copied
         path_3D = Path3D(entities=copy.deepcopy(self.entities),
-                         vertices=vertices_new,
+                         vertices=vertices,
                          metadata=copy.deepcopy(self.metadata))
         return path_3D
 

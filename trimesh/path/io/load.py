@@ -63,8 +63,11 @@ def load_path(obj, file_type=None, **kwargs):
     else:
         raise ValueError('Not a supported object type!')
 
+    # pass kwargs through to path loader
+    kwargs.update(loaded)
     # convert the kwargs to a Path2D or Path3D object
-    path = _create_path(**loaded)
+    path = _create_path(**kwargs)
+
     return path
 
 

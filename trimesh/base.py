@@ -1658,36 +1658,88 @@ class Trimesh(object):
                 plane_normal,
                 plane_origin):
         """
-        Returns a cross section of the current mesh and plane defined by
-        origin and normal.
+        Returns a 3D cross section of the current mesh and a plane
+        defined by origin and normal.
 
         Parameters
         ---------
         plane_normal: (3) vector for plane normal
-        plane_origin: (3) vector for plane origin
+           Normal vector of section plane
+        plane_origin : (3,) float
+           Point on the cross section plane
 
         Returns
         ---------
-        intersections: Path3D of intersections
+        intersections: Path3D or None
+           Curve of intersection
         """
-
+        # turn line segments into Path2D/Path3D objects
         from .io.load import load_path
-        lines, face_index = intersections.mesh_plane(mesh=self,
-                                                     plane_normal=plane_normal,
-                                                     plane_origin=plane_origin,
-                                                     return_faces=True)
+
+        # return a single cross section in 3D
+        lines, face_index = intersections.mesh_plane(
+            mesh=self,
+            plane_normal=plane_normal,
+            plane_origin=plane_origin,
+            return_faces=True)
+
+        # if the section didn't hit the mesh return None
         if len(lines) == 0:
             return None
-        path = load_path(lines)
-        path.metadata['face_index'] = face_index
 
+        # otherwise load the line segments into a Path3D object
+        path = load_path(lines)
         return path
+
+    def section_multiplane(self,
+                           plane_origin,
+                           plane_normal,
+                           heights):
+        """
+        Return multiple parallel cross sections of the current
+        mesh in 2D.
+
+        Parameters
+        ---------
+        plane_normal: (3) vector for plane normal
+           Normal vector of section plane
+        plane_origin : (3,) float
+           Point on the cross section plane
+        heights : (n,) float
+           Each section is offset by height along
+           the plane normal.
+
+        Returns
+        ---------
+        paths : (n,) Path2D or None
+            2D cross sections at specified heights.
+            path.metadata['to_3D'] contains transform
+            to return 2D section back into 3D space.
+        """
+        # turn line segments into Path2D/Path3D objects
+        from .io.load import load_path
+        # do a multiplane intersection
+        lines, transforms, faces = intersections.mesh_multiplane(
+            mesh=self,
+            plane_normal=plane_normal,
+            plane_origin=plane_origin,
+            heights=heights)
+
+        # turn the line segments into Path2D objects
+        paths = [None] * len(lines)
+        for index, L, T in zip(range(len(lines)),
+                               lines,
+                               transforms):
+            if len(L) > 0:
+                paths[index] = load_path(
+                    L, metadata={'to_3D': T})
+        return paths
 
     @caching.cache_decorator
     def convex_hull(self):
         """
-        Get a new Trimesh object representing the convex hull of the
-        current mesh.
+        Get a new Trimesh object representing the convex hull of
+        the current mesh.
 
         Returns
         --------

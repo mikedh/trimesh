@@ -1,8 +1,8 @@
 import numpy as np
 
-from ... import grouping
-from ... import graph
 from ... import util
+from ... import graph
+from ... import grouping
 
 from ..entities import Line, Arc
 
@@ -39,14 +39,15 @@ def lines_to_path(lines):
 
     Parameters
     ------------
-    line: (n, 2, 2) float, Path2D object from line segments
-          (n, 2, 3) float, Path3D object from line segments
-          (n, 2) float: Path2D object, assumes vertices are connected
-          (n, 3) float: Path3D object, assumes vertices are connected
+    lines: (n, 2, 2) float, Path2D object from line segments
+           (n, 2, 3) float, Path3D object from line segments
+           (n, 2) float: Path2D object, assumes vertices are connected
+           (n, 3) float: Path3D object, assumes vertices are connected
 
     Returns
     -----------
-    kwargs: dict, kwarg for Path constructor
+    kwargs : dict
+        kwargs for Path constructor
     """
     lines = np.asanyarray(lines, dtype=np.float64)
 
@@ -56,19 +57,18 @@ def lines_to_path(lines):
         result = {'entities': np.array([Line(np.arange(len(lines)))]),
                   'vertices': lines}
         return result
-
-    elif util.is_shape(lines, (-1, 2, 2)):
-        # case where we have 2D lines
-        # linemerge will quickly clean up the lines
-        linestrings = ops.linemerge(lines)
-        return linestrings_to_path(linestrings)
-
-    elif util.is_shape(lines, (-1, 2, 3)):
-        entities = [Line([i, i + 1])
-                    for i in range(0, (lines.shape[0] * 2) - 1, 2)]
-        vertices = lines.reshape((-1, lines.shape[2]))
-        result = {'entities': entities,
-                  'vertices': vertices}
+    elif util.is_shape(lines, (-1, 2, (2, 3))):
+        # case where we have line segments in 2D or 3D
+        dimension = lines.shape[-1]
+        # convert lines to even number of (n, dimension) points
+        lines = lines.reshape((-1, dimension))
+        # merge duplicate vertices
+        unique, inverse = grouping.unique_rows(lines)
+        # use scipy edges_to_path to skip creating
+        # a bajillion individual line entities which
+        # will be super slow vs. fewer polyline entities
+        return edges_to_path(edges=inverse.reshape((-1, 2)),
+                             vertices=lines[unique])
     else:
         raise ValueError('Lines must be (n,(2|3)) or (n,2,(2|3))')
     return result

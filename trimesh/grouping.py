@@ -175,8 +175,10 @@ def float_to_int(data, digits=None, dtype=np.int32):
     data_max = np.abs(data).max() * 10**digits
     # ignore passed dtype if we have something large
     dtype = [np.int32, np.int64][int(data_max > 2**31)]
-    # round, multiply by large number, and convert
-    as_int = (np.round(data, digits) * (10**digits)).astype(dtype)
+    # multiply by requested power of ten
+    # then subtract small epsilon to avoid "go either way" rounding
+    # then do the rounding and convert to integer
+    as_int = np.round((data * 10 ** digits) - 1e-6).astype(dtype)
 
     return as_int
 
