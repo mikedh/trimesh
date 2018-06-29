@@ -10,10 +10,10 @@ from .util import is_ccw
 
 
 def vertex_graph(entities):
-    '''
+    """
     Given a set of entity objects (which have node and closed attributes)
     generate a
-    '''
+    """
     graph = nx.Graph()
     closed = deque()
     for index, entity in enumerate(entities):
@@ -25,7 +25,7 @@ def vertex_graph(entities):
 
 
 def vertex_to_entity_path(vertex_path, graph, entities, vertices=None):
-    '''
+    """
     Convert a path of vertex indices to a path of entity indices.
 
     Parameters
@@ -38,9 +38,9 @@ def vertex_to_entity_path(vertex_path, graph, entities, vertices=None):
     Returns
     ----------
     entity_path: (q,) int, list of entity indices which make up vertex_path
-    '''
+    """
     def edge_direction(a, b):
-        '''
+        """
         Given two edges, figure out if the first needs to be reversed to
         keep the progression forward
 
@@ -48,7 +48,7 @@ def vertex_to_entity_path(vertex_path, graph, entities, vertices=None):
          [1,0] [2,1] -1 -1
          [0,1] [1,2]  1  1
          [0,1] [2,1]  1 -1
-        '''
+        """
         if a[0] == b[0]:
             return -1, 1
         elif a[0] == b[1]:
@@ -103,7 +103,7 @@ def connected_open(graph):
 
 
 def closed_paths(entities, vertices):
-    '''
+    """
     Paths are lists of entity indices.
     We first generate vertex paths using graph cycle algorithms,
     and then convert them to entity paths using
@@ -111,7 +111,7 @@ def closed_paths(entities, vertices):
 
     This will also change the ordering of entity.points in place, so that
     a path may be traversed without having to reverse the entity
-    '''
+    """
     graph, closed = vertex_graph(entities)
     paths = deque(np.reshape(closed, (-1, 1)))
     vertex_paths = np.array(nx.cycles.cycle_basis(graph))
@@ -136,7 +136,7 @@ def arctan2_points(points):
 
 
 def discretize_path(entities, vertices, path, scale=1.0):
-    '''
+    """
     Turn a list of entity indices into a path of connected points.
 
     Parameters
@@ -151,30 +151,31 @@ def discretize_path(entities, vertices, path, scale=1.0):
     discrete:
     Return a (n, dimension) list of vertices.
     Samples arcs/curves to be line segments
-    '''
+    """
+    # make sure vertices are numpy array
     vertices = np.asanyarray(vertices)
-    path = np.asanyarray(path)
     path_len = len(path)
     if path_len == 0:
         raise ValueError('Cannot discretize empty path!')
     if path_len == 1:
         # case where we only have one entity
-        discrete = np.array(entities[path[0]].discrete(vertices))
+        discrete = np.asanyarray(entities[path[0]].discrete(vertices))
     else:
         # run through path appending each entity
         discrete = []
         for i, entity_id in enumerate(path):
-            # bool, are we on the last entity of the path
-            last = (i == (path_len - 1))
             # the current (n, dimension) discrete curve of an entity
             current = entities[entity_id].discrete(vertices, scale=scale)
-            # should we cut off the last point or not
-            slice_index = (int(last) * len(current)) + (int(not last) * -1)
-            # append the entity into a sequence of curves
-            discrete.append(current[:slice_index])
+            # check if we are on the final entity
+            if i >= (path_len - 1):
+                # if we are on the last entity include the last point
+                discrete.append(current)
+            else:
+                # slice off the last point so we don't get duplicate
+                # points from the end of one entity and the start of another
+                discrete.append(current[:-1])
         # stack all curves to one nice (n, dimension) curve
         discrete = np.vstack(discrete)
-
     # make sure 2D curves are are counterclockwise
     if vertices.shape[1] == 2 and not is_ccw(discrete):
         # reversing will make array non c- contiguous
@@ -220,10 +221,10 @@ class PathSample:
         return resampled
 
     def truncate(self, distance):
-        '''
+        """
         Return a truncated version of the path.
         Only one vertex (at the endpoint) will be added.
-        '''
+        """
         position = np.searchsorted(self._cum_norm, distance)
         offset = distance - self._cum_norm[position - 1]
 
@@ -244,7 +245,7 @@ class PathSample:
 
 
 def resample_path(points, count=None, step=None, step_round=True):
-    '''
+    """
     Given a path along (n,d) points, resample them such that the
     distance traversed along the path is constant in between each
     of the resampled points. Note that this can produce clipping at
@@ -265,7 +266,7 @@ def resample_path(points, count=None, step=None, step_round=True):
     Returns
     ----------
     resampled: (j,d) set of points on the path
-    '''
+    """
 
     points = np.array(points, dtype=np.float)
     # generate samples along the perimeter from kwarg count or step
