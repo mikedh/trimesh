@@ -158,20 +158,27 @@ def discretize_path(entities, vertices, path, scale=1.0):
     if path_len == 0:
         raise ValueError('Cannot discretize empty path!')
     if path_len == 1:
-        return np.array(entities[path[0]].discrete(vertices))
+        # case where we only have one entity
+        discrete = np.array(entities[path[0]].discrete(vertices))
+    else:
+        # run through path appending each entity
+        discrete = []
+        for i, entity_id in enumerate(path):
+            # bool, are we on the last entity of the path
+            last = (i == (path_len - 1))
+            # the current (n, dimension) discrete curve of an entity
+            current = entities[entity_id].discrete(vertices, scale=scale)
+            # should we cut off the last point or not
+            slice_index = (int(last) * len(current)) + (int(not last) * -1)
+            # append the entity into a sequence of curves
+            discrete.append(current[:slice_index])
+        # stack all curves to one nice (n, dimension) curve
+        discrete = np.vstack(discrete)
 
-    # actually run through path appending each entity
-    discrete = deque()
-    for i, entity_id in enumerate(path):
-        last = (i == (path_len - 1))
-        current = entities[entity_id].discrete(vertices, scale=scale)
-        slice = (int(last) * len(current)) + (int(not last) * -1)
-        discrete.extend(current[:slice])
-    discrete = np.array(discrete)
-
-    # for 2D discrete curves make sure they are counterclockwise
+    # make sure 2D curves are are counterclockwise
     if vertices.shape[1] == 2 and not is_ccw(discrete):
-        discrete = discrete[::-1]
+        # reversing will make array non c- contiguous
+        discrete = np.ascontiguousarray(discrete[::-1])
 
     return discrete
 
