@@ -103,15 +103,18 @@ class CreationTest(g.unittest.TestCase):
                 area = g.trimesh.triangles.area(tri).sum()
                 assert g.np.isclose(area, poly.area)
 
-            # do a quick benchmark per engine
-            # in general triangle appears to be 2x faster than meshpy
-            times[engine] = min(
-                g.timeit.repeat('t(p, engine=e)',
-                                repeat=3,
-                                number=iterations,
-                                globals={'t': g.trimesh.creation.triangulate_polygon,
-                                         'p': bench,
-                                         'e': engine})) / iterations
+            try:
+                # do a quick benchmark per engine
+                # in general triangle appears to be 2x faster than meshpy
+                times[engine] = min(
+                    g.timeit.repeat('t(p, engine=e)',
+                                    repeat=3,
+                                    number=iterations,
+                                    globals={'t': g.trimesh.creation.triangulate_polygon,
+                                             'p': bench,
+                                             'e': engine})) / iterations
+            except BaseException:
+                g.log.error('failed to benchmark triangle', exc_info=True)
         g.log.warning('benchmarked triangle interfaces: {}'.format(str(times)))
 
 if __name__ == '__main__':
