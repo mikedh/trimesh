@@ -32,6 +32,15 @@ class NSphereTest(g.unittest.TestCase):
                 self.assertTrue(R > 0.0)
                 self.assertTrue(abs(R - R_check) < g.tol.merge)
 
+    def test_isnsphere(self):
+        # make sure created spheres are uv sphere
+        m = g.trimesh.creation.uv_sphere()
+        # move the mesh around for funsies
+        m.apply_translation(g.np.random.random(3))
+        m.apply_transform(g.trimesh.transformations.random_rotation_matrix())
+        # all vertices should be on nsphere
+        assert g.trimesh.nsphere.is_nsphere(m.vertices)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

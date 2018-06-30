@@ -55,7 +55,7 @@ script:
 - if [[ "$TRAVIS_PYTHON_VERSION" != "3.3" && "$TRAVIS_PYTHON_VERSION" != "3.4" ]];
   then conda install pyembree && pip install python-fcl; fi
 - pip install .[easy]
-- pip install xxhash
+- pip install triangle xxhash
 - pytest --cov=trimesh tests/
 - cd examples
 - for f in *.ipynb; do python ../tests/notebook_run.py exec "$f"; done
