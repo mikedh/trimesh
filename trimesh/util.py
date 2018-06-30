@@ -413,7 +413,8 @@ def pairwise(iterable):
     import itertools
     a, b = itertools.tee(iterable)
     # pop the first element of the second item
-    popped = next(b)
+    next(b)
+
     return zip(a, b)
 
 

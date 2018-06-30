@@ -7,7 +7,6 @@ from ... import grouping
 from ..entities import Line, Arc
 
 from collections import deque
-from shapely import ops
 
 
 def dict_to_path(drawing_obj):

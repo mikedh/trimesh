@@ -7,9 +7,6 @@ Functions for grouping values and rows.
 
 import numpy as np
 
-from collections import deque
-
-
 from . import util
 from .constants import log, tol
 

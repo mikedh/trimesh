@@ -6,7 +6,7 @@ Functions dealing with (n,d) points.
 """
 import numpy as np
 
-from .constants import log, tol
+from .constants import tol
 from .geometry import plane_transform
 
 from . import util

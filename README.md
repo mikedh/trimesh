@@ -106,8 +106,7 @@ print(mesh.bounding_box_oriented.volume,
 
 ## Features
 
-* Import binary/ASCII STL, Wavefront OBJ, ASCII OFF, binary/ASCII PLY, GLTF/GLB 2.0, 3MF, XAML, 3DXML, etc.
-* Import additional mesh formats using [assimp](http://www.assimp.org/main_features_formats.html) (requires pyassimp or cyassimp)
+* Import meshes from binary/ASCII STL, Wavefront OBJ, ASCII OFF, binary/ASCII PLY, GLTF/GLB 2.0, 3MF, XAML, 3DXML, etc.
 * Import and export 2D or 3D vector paths from/to DXF or SVG files
 * Export meshes as binary STL, binary PLY, ASCII OFF, GLTF/GLB 2.0, COLLADA, dictionaries, JSON- serializable dictionaries (base64 encoded arrays), MSGPACK- serializable dictionaries (binary string arrays)
 * Preview meshes using pyglet

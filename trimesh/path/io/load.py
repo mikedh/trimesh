@@ -99,7 +99,7 @@ def _create_path(entities,
                              dtype=np.float64)
 
     if len(vertices.shape) != 2:
-        raise ValueErrror(
+        raise ValueError(
             'vertices must be (n, dimension), not {}'.format(
                 vertices.shape))
 

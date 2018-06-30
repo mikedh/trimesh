@@ -5,7 +5,6 @@ import collections
 import numpy as np
 import networkx as nx
 
-from .. import util
 from .. import caching
 from .. import transformations
 

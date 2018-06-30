@@ -31,7 +31,6 @@ from . import raster
 from . import simplify
 from . import entities
 from . import polygons
-from . import creation
 from . import traversal
 
 from .io.export import export_path

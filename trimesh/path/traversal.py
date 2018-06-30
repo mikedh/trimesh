@@ -11,43 +11,74 @@ from .util import is_ccw
 
 def vertex_graph(entities):
     """
-    Given a set of entity objects (which have node and closed attributes)
-    generate a
+    Given a set of entity objects generate a networkx.Graph
+    that represents their vertex nodes.
+
+    Parameters
+    --------------
+    entities : list
+       Objects with 'closed' and 'nodes' attributes
+
+    Returns
+    -------------
+    graph : networkx.Graph
+        Graph where node indexes represent vertices
+    closed : (n,) int
+        Indexes of entities which are 'closed'
     """
     graph = nx.Graph()
-    closed = deque()
+    closed = []
     for index, entity in enumerate(entities):
         if entity.closed:
             closed.append(index)
         else:
-            graph.add_edges_from(entity.nodes, entity_index=index)
+            graph.add_edges_from(entity.nodes,
+                                 entity_index=index)
     return graph, np.array(closed)
 
 
-def vertex_to_entity_path(vertex_path, graph, entities, vertices=None):
+def vertex_to_entity_path(vertex_path,
+                          graph,
+                          entities,
+                          vertices=None):
     """
     Convert a path of vertex indices to a path of entity indices.
 
     Parameters
     ----------
-    vertex_path: (n,) int, list of vertex indicies
-    graph:       nx.Graph of the vertex connectivity
-    entities:    (m,) list of entity objects
-    vertices:    (p, d) float, list of vertices
+    vertex_path : (n,) int
+        Ordered list of vertex indicies representing a path
+    graph : nx.Graph
+        Vertex connectivity
+    entities : (m,) list
+        Entity objects
+    vertices :  (p, dimension) float
+        Vertex points in space
 
     Returns
     ----------
-    entity_path: (q,) int, list of entity indices which make up vertex_path
+    entity_path : (q,) int
+        Entity indices which make up vertex_path
     """
     def edge_direction(a, b):
         """
-        Given two edges, figure out if the first needs to be reversed to
-        keep the progression forward
+        Given two edges, figure out if the first needs to be
+         reversed to keep the progression forward.
 
          [1,0] [1,2] -1  1
          [1,0] [2,1] -1 -1
          [0,1] [1,2]  1  1
          [0,1] [2,1]  1 -1
+
+        Parameters
+        ------------
+        a : (2,) int
+        b : (2,) int
+
+        Returns
+        ------------
+        a_direction : int
+        b_direction : int
         """
         if a[0] == b[0]:
             return -1, 1
@@ -58,13 +89,13 @@ def vertex_to_entity_path(vertex_path, graph, entities, vertices=None):
         elif a[1] == b[1]:
             return 1, -1
         else:
-            raise ValueError(
-                'Can\'t determine direction, edges aren\'t connected!')
+            raise ValueError('edges aren\'t connected!')
 
     if vertices is None:
         ccw_direction = 1
     else:
-        ccw_check = is_ccw(vertices[np.append(vertex_path, vertex_path[0])])
+        ccw_check = is_ccw(vertices[np.append(vertex_path,
+                                              vertex_path[0])])
         ccw_direction = (ccw_check * 2) - 1
 
     # populate the list of entities
@@ -87,6 +118,8 @@ def vertex_to_entity_path(vertex_path, graph, entities, vertices=None):
                                 entities[b].end_points)
         entities[a].points = entities[a].points[::da]
         entities[b].points = entities[b].points[::db]
+    entity_path = np.array(entity_path)
+
     return entity_path
 
 
@@ -106,33 +139,43 @@ def closed_paths(entities, vertices):
     """
     Paths are lists of entity indices.
     We first generate vertex paths using graph cycle algorithms,
-    and then convert them to entity paths using
-    a frankly worrying number of loops and conditionals...
+    and then convert them to entity paths.
 
-    This will also change the ordering of entity.points in place, so that
-    a path may be traversed without having to reverse the entity
+    This will also change the ordering of entity.points in place
+    so a path may be traversed without having to reverse the entity.
+
+    Parameters
+    -------------
+    entities : (n,) entity objects
+        Entity objects
+    vertices : (m, dimension) float
+        Vertex points in space
+
+    Returns
+    -------------
+    entity_paths : sequence of (n,) int
+        Ordered traversals of entities
     """
+    # get a networkx graph of entities
     graph, closed = vertex_graph(entities)
-    paths = deque(np.reshape(closed, (-1, 1)))
+    # add entities that are closed as single- entity paths
+    entity_paths = deque(np.reshape(closed, (-1, 1)))
+    # look for cycles in the graph, or closed loops
     vertex_paths = np.array(nx.cycles.cycle_basis(graph))
 
+    # loop through every vertex cycle
     for vertex_path in vertex_paths:
+        # a path has no length if it has fewer than 2 vertices
         if len(vertex_path) < 2:
             continue
-        entity_path = vertex_to_entity_path(vertex_path,
-                                            graph,
-                                            entities,
-                                            vertices)
-        paths.append(np.array(entity_path))
-    paths = np.array(paths)
-    return paths
-
-
-def arctan2_points(points):
-    angle = np.arctan2(*points.T[::-1])
-    test = angle < 0.0
-    angle[test] = (np.pi * 2) + angle[test]
-    return angle
+        # convert vertex indicies to entity indices
+        entity_paths.append(
+            vertex_to_entity_path(vertex_path,
+                                  graph,
+                                  entities,
+                                  vertices))
+    entity_paths = np.array(entity_paths)
+    return entity_paths
 
 
 def discretize_path(entities, vertices, path, scale=1.0):
@@ -141,16 +184,21 @@ def discretize_path(entities, vertices, path, scale=1.0):
 
     Parameters
     -----------
-    entities: list of entity objects
-    vertices: (n, dimension) float, vertices referenced by entities
-    path:     (m,) int, indexes of entities
-    scale:    float, overall scale of drawing
+    entities : (j,) entity objects
+       Objects like 'Line', 'Arc', etc.
+    vertices: (n, dimension) float
+        Vertex points in space.
+    path : (m,) int
+        Indexes of entities
+    scale : float
+        Overall scale of drawing used for
+        numeric tolerances in certain cases
 
     Returns
     -----------
-    discrete:
-    Return a (n, dimension) list of vertices.
-    Samples arcs/curves to be line segments
+    discrete : (p, dimension) float
+       Connected points in space that lie on the
+       path and can be connected with line segments.
     """
     # make sure vertices are numpy array
     vertices = np.asanyarray(vertices)
@@ -159,7 +207,8 @@ def discretize_path(entities, vertices, path, scale=1.0):
         raise ValueError('Cannot discretize empty path!')
     if path_len == 1:
         # case where we only have one entity
-        discrete = np.asanyarray(entities[path[0]].discrete(vertices))
+        discrete = np.asanyarray(entities[path[0]].discrete(vertices,
+                                                            scale=scale))
     else:
         # run through path appending each entity
         discrete = []
@@ -244,7 +293,10 @@ class PathSample:
         return truncated
 
 
-def resample_path(points, count=None, step=None, step_round=True):
+def resample_path(points,
+                  count=None,
+                  step=None,
+                  step_round=True):
     """
     Given a path along (n,d) points, resample them such that the
     distance traversed along the path is constant in between each
@@ -259,13 +311,17 @@ def resample_path(points, count=None, step=None, step_round=True):
 
     Parameters
     ----------
-    points:   (n,d) sequence of points in space
-    count:    number of points to sample to (aka np.linspace)
-    step:     distance each step should take along the path (aka np.arange)
+    points:   (n, d) float
+        Points in space
+    count : int,
+        Number of points to sample evenly (aka np.linspace)
+    step : float
+        Distance each step should take along the path (aka np.arange)
 
     Returns
     ----------
-    resampled: (j,d) set of points on the path
+    resampled : (j,d) float
+        Points on the path
     """
 
     points = np.array(points, dtype=np.float)

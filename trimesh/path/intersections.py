@@ -1,6 +1,6 @@
 import numpy as np
 
-from ..util import three_dimensionalize, unitize
+from ..util import three_dimensionalize
 from ..constants import tol_path as tol
 
 

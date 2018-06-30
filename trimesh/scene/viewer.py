@@ -7,7 +7,6 @@ import tempfile
 import platform
 import collections
 
-from .. import util
 from .. import rendering
 from ..transformations import Arcball
 

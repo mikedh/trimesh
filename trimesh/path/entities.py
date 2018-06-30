@@ -16,8 +16,6 @@ from .curve import discretize_bezier, discretize_bspline
 from .. import util
 from .. import caching
 
-_HASH_LENGTH = 5
-
 
 class Entity(object):
 

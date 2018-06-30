@@ -1,7 +1,7 @@
 import numpy as np
 import networkx as nx
 
-from shapely.geometry import Polygon, Point, MultiPoint, LineString
+from shapely.geometry import Polygon, Point, MultiPoint
 from rtree import Rtree
 from collections import deque
 
