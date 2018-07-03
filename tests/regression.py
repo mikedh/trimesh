@@ -1,4 +1,7 @@
-import generic as g
+try:
+    from . import generic as g
+except BaseException:
+    import generic as g
 
 import time
 #import psutil
@@ -119,7 +122,8 @@ if __name__ == '__main__':
                   'soup.stl',
                   'bun_zipper_res2.ply']
 
-    setup = 'import generic as g;'
+    setup = 'try: from . import generic as g
+except BaseException: import generic as g;'
     setup += 'm=g.get_mesh(\'{}\');'
 
     # test a dot product with itself

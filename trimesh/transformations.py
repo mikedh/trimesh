@@ -2071,7 +2071,9 @@ def transform_points(points,
     matrix = np.asanyarray(matrix, dtype=np.float64)
     if (len(points.shape) != 2 or
             (points.shape[1] + 1 != matrix.shape[1])):
-        raise ValueError('matrix dimension must match points!')
+        raise ValueError('matrix shape ({}) doesn\'t match points ({})'.format(
+            matrix.shape,
+            points.shape))
 
     # check to see if we've been passed an identity matrix
     identity = np.abs(matrix - np.eye(matrix.shape[0])).max()

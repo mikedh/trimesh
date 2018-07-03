@@ -517,7 +517,6 @@ def traversals(edges, mode='bfs'):
 
     # we're going to make a sequence of traversals
     traversals = []
-    traversals_edge = []
 
     while len(nodes) > 0:
         # starting at any node

@@ -18,12 +18,10 @@ jobs:
           name: install dependencies
           command: |
             apt-get update; apt-get install -y meshlab xvfb blender openscad
-            pip install --upgrade pip
-            conda update -n base conda
             pip install nose2
             pip install .
             python -c "import trimesh"
-            conda install -c conda-forge rtree shapely pyembree
+            conda install -y -c conda-forge rtree shapely pyembree
             pip install .[easy]
       - run:
           name: run tests

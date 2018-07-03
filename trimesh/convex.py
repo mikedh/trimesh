@@ -161,40 +161,6 @@ def is_convex(mesh):
     return bool(convex)
 
 
-def planar_hull(points, normal, origin=None):
-    """
-    Find the convex outline of a set of points projected to a plane.
-
-    Parameters
-    -----------
-    points: (n,3) float, input points
-    normal: (3) float vector, normal vector of plane
-    origin: (3) float, location of plane origin
-
-    Returns
-    -----------
-    hull_lines: (n,2,2) set of unordered line segments
-    T:          (4,4) float, transformation matrix
-    height:     (2,) float, [Z min, Z max]
-    """
-    from .points import project_to_plane
-
-    if origin is None:
-        origin = np.zeros(3)
-
-    planar, T = project_to_plane(points,
-                                 plane_normal=normal,
-                                 plane_origin=origin,
-                                 return_planar=False,
-                                 return_transform=True)
-    hull_edges = spatial.ConvexHull(planar[:, 0:2]).simplices
-    hull_lines = planar[hull_edges]
-    planar_z = planar[:, 2]
-    height = np.array([planar_z.min(),
-                       planar_z.max()])
-    return hull_lines, T, height
-
-
 def hull_points(obj):
     """
     Try to extract a convex set of points from multiple input formats.

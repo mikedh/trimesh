@@ -340,8 +340,6 @@ def export_dxf(path):
                                increment=False)
 
         # (n,) float knots, formatted with group code
-        #knots = '40\n' + '\n40\n'.join(spline.knots.reshape(-1).astype(str))
-
         knots = ('40\n{:.12f}\n' * len(spline.knots)
                  ).format(*spline.knots)[:-1]
 
