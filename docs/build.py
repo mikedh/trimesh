@@ -11,12 +11,24 @@ import os
 import inspect
 import subprocess
 
+
 def abspath(rel):
     """
-    Take paths relative to the current file
-    and convert them to absolute paths.
+    Take paths relative to the current file and
+    convert them to absolute paths.
+
+    Parameters
+    ------------
+    rel     : str
+              Relative path, IE '../stuff'
+
+    Returns
+    -------------
+    abspath : str
+              Absolute path, IE '/home/user/stuff'
     """
     return os.path.abspath(os.path.join(cwd, rel))
+
 
 # current working directory
 cwd = os.path.dirname(os.path.abspath(
@@ -25,17 +37,15 @@ cwd = os.path.dirname(os.path.abspath(
 # output location for all the html
 build_dir = abspath('html')
 
-
 if __name__ == '__main__':
-
-    # convert main readme to an RST for docs
+    # convert README to an RST for sphinx
     pdc = ['pandoc',
            '--from=markdown',
            '--to=rst',
            '--output=' + abspath('README.rst'),
            abspath('../README.md')]
     subprocess.check_call(pdc)
-    
+
     # render IPython examples to HTML
     # create examples directory
     examples_dir = os.path.join(build_dir, 'examples')
@@ -46,9 +56,8 @@ if __name__ == '__main__':
     exp = ['python',
            abspath('../tests/notebook_run.py'),
            'examples',
-           examples_dir]    
+           examples_dir]
     subprocess.check_call(exp)
-    
 
     # build the API doc
     api = ['sphinx-apidoc',
@@ -57,7 +66,6 @@ if __name__ == '__main__':
            abspath('../trimesh')]
     subprocess.check_call(api)
 
-    
     # build the HTML docs
     bld = ['sphinx-build',
            '-b',
@@ -69,4 +77,7 @@ if __name__ == '__main__':
     # keep github pages from using jekyll
     with open(os.path.join(build_dir, '.nojekyll'), 'w') as f:
         f.write(' ')
-        
+
+    # add cname for docs domain
+    with open(os.path.join(build_dir, 'CNAME'), 'w') as f:
+        f.write('trimsh.org')

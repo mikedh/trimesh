@@ -509,6 +509,7 @@ class Trimesh(object):
         in_mesh = self.triangles.reshape((-1, 3))
         bounds = np.vstack((in_mesh.min(axis=0),
                             in_mesh.max(axis=0)))
+        bounds.flags.writeable = False
         return bounds
 
     @util.cache_decorator
@@ -521,6 +522,7 @@ class Trimesh(object):
         extents: (3,) float array containing axis aligned [l,w,h]
         """
         extents = self.bounds.ptp(axis=0)
+        extents.flags.writeable = False
         return extents
 
     @util.cache_decorator
@@ -533,7 +535,7 @@ class Trimesh(object):
         ----------
         scale: float, the diagonal of the meshes AABB
         """
-        scale = (self.extents ** 2).sum() ** .5
+        scale = float((self.extents ** 2).sum() ** .5)
         return scale
 
     @util.cache_decorator
@@ -555,6 +557,7 @@ class Trimesh(object):
         centroid = np.average(self.triangles_center,
                               axis=0,
                               weights=self.area_faces)
+        centroid.flags.writeable = False
         return centroid
 
     @property
@@ -946,12 +949,17 @@ class Trimesh(object):
         """
         units._convert_units(self, desired, guess)
 
-    def merge_vertices(self):
+    def merge_vertices(self, distance=None):
         """
         If a mesh has vertices that are closer than trimesh.constants.tol.merge
         redefine them to be the same vertex and replace face references
+
+        Parameters
+        --------------
+        distance : float or None
+                   if specified, override tol.merge
         """
-        grouping.merge_vertices_hash(self)
+        grouping.merge_vertices_hash(self, distance=distance)
 
     def update_vertices(self, mask, inverse=None):
         """
@@ -1452,8 +1460,16 @@ class Trimesh(object):
         """
         if len(self.facets) == 0:
             return np.array([])
-        index_first = np.array([i[0] for i in self.facets])
-        normals = self.face_normals[index_first]
+
+        # the face index of the first face in each facet
+        index = np.array([i[0] for i in self.facets])
+        # (n,3) float, unit normal vectors of facet plane
+        normals = self.face_normals[index]
+        # (n,3) float, points on facet plane
+        origins = self.vertices[self.faces[:, 0][index]]
+        # save origins in cache
+        self._cache['facets_origin'] = origins
+
         return normals
 
     @util.cache_decorator
@@ -1482,25 +1498,25 @@ class Trimesh(object):
         ---------
         on_hull: (len(mesh.facets),) bool, is facet on convex hull
         """
-        # the index of the largest face in each facet to test
-        face_id = [f[self.area_faces[f].argmax()] for f in self.facets]
+        # facets plane, origin and normal
+        normals = self.facets_normal
+        origins = self._cache['facets_origin']
 
-        # test the triangle center and 3 vertices
-        # if all 4 coplanar points are on the convex hull
-        # it is a very strong indication that the whole planar
-        # facet region is on the convex hull
-        test = np.zeros((len(face_id), 4, 3), dtype=np.float64)
-        test[:, :3, :] = self.triangles[face_id]
-        test[:, 3, :] = self.triangles_center[face_id]
+        # (n,3) convex hull vertices
+        convex = self.convex_hull.vertices.view(np.ndarray).copy()
 
-        # distance between the hull surface and our four test points
-        distance = self.convex_hull.nearest.on_surface(
-            test.reshape((-1, 3)))[1]
+        # boolean mask for which facets are on convex hull
+        on_hull = np.zeros(len(self.facets), dtype=np.bool)
 
-        # threshold the distance and check all points
-        ok = (distance < tol.merge).reshape((-1, 4)).all(axis=1)
+        for i, normal, origin in zip(range(len(normals)), normals, origins):
+            # a facet plane is on the convex hull if every vertex
+            # of the convex hull is behind that plane
+            # which we are checking with dot products
+            on_hull[i] = (np.dot(
+                normal,
+                (convex - origin).T) < tol.merge).all()
 
-        return ok
+        return on_hull
 
     @_log_time
     def fix_normals(self, multibody=None):
@@ -1747,8 +1763,8 @@ class Trimesh(object):
         """
         Apply the oriented bounding box transform to the current mesh.
 
-        This will result in a mesh with an AABB centered at the origin and the
-        same dimensions as the OBB.
+        This will result in a mesh with an AABB centered at the
+        origin and the same dimensions as the OBB.
 
         Returns
         ----------
@@ -1764,26 +1780,33 @@ class Trimesh(object):
         """
         Transform mesh by a homogenous transformation matrix.
 
-        Also does bookkeeping to avoid recomputing things, this function
+        Does the bookkeeping to avoid recomputing things so this function
         should be used rather than directly modifying self.vertices
-        if possible
+        if possible.
 
         Parameters
         ----------
         matrix: (4,4) float, homogenous transformation matrix
         """
+        # get c-order float64 matrix
+        matrix = np.asanyarray(matrix,
+                               order='C',
+                               dtype=np.float64)
 
-        matrix = np.asanyarray(matrix, order='C', dtype=np.float64)
+        # only support homogenous transformations
         if matrix.shape != (4, 4):
             raise ValueError('Transformation matrix must be (4,4)!')
-        # np.allclose is surprisingly slow
+
+        # exit early if we've been passed an identity matrix
+        # np.allclose is surprisingly slow so do this test
         elif np.abs(matrix - np.eye(4)).max() < 1e-8:
-            log.debug('apply_tranform recieved identity matrix')
+            log.debug('apply_tranform passed identity matrix')
             return
 
         # new vertex positions
-        new_vertices = transformations.transform_points(self.vertices,
-                                                        matrix=matrix)
+        new_vertices = transformations.transform_points(
+            self.vertices,
+            matrix=matrix)
 
         # overridden center of mass
         if self._center_mass is not None:
@@ -1791,28 +1814,83 @@ class Trimesh(object):
                 np.array([self._center_mass, ]),
                 matrix)[0]
 
-        # force generation of face normals so we can check against them
-        new_normals = util.unitize(np.dot(matrix[0:3, 0:3],
-                                          self.face_normals.T).T)
+        # a test triangle pre and post transform
+        triangle_pre = self.vertices[self.faces[:5]]
+        # we don't care about scale so make sure they aren't tiny
+        triangle_pre /= np.abs(triangle_pre).max()
 
-        # check the first face against the first normal to check winding
-        aligned_pre = triangles.windings_aligned(self.vertices[self.faces[:1]],
-                                                 self.face_normals[:1])[0]
+        # do the same for the post- transform test
+        triangle_post = new_vertices[self.faces[:5]]
+        triangle_post /= np.abs(triangle_post).max()
+
+        # compute triangle normal before and after transform
+        normal_pre, valid_pre = triangles.normals(triangle_pre)
+        normal_post, valid_post = triangles.normals(triangle_post)
+
+        # check the first few faces against normals to check winding
+        aligned_pre = triangles.windings_aligned(triangle_pre[valid_pre],
+                                                 normal_pre)
         # windings aligned after applying transform
-        aligned_post = triangles.windings_aligned(new_vertices[self.faces[:1]],
-                                                  new_normals[:1])[0]
-        if aligned_pre != aligned_post:
-            log.debug('Triangle normals not aligned after transform; flipping')
-            self.faces = np.fliplr(self.faces)
-        with self._cache:
-            self.vertices = new_vertices
-            self.face_normals = new_normals
-        self._cache.clear(exclude=['face_normals'])
+        aligned_post = triangles.windings_aligned(triangle_post[valid_post],
+                                                  normal_post)
 
-        log.debug('Mesh transformed by matrix, normals restored to cache')
+        # convert multiple face checks to single bool, allowing outliers
+        pre = (aligned_pre.sum() / float(len(aligned_pre))) > .6
+        post = (aligned_post.sum() / float(len(aligned_post))) > .6
+
+        # preserve face normals if we have them stored
+        new_face_normals = None
+        if 'face_normals' in self._cache:
+            # transform face normals by rotation component
+            new_face_normals = util.unitize(
+                transformations.transform_points(
+                    self.face_normals,
+                    matrix=matrix,
+                    translate=False))
+
+        # preserve vertex normals if we have them stored
+        new_vertex_normals = None
+        if 'vertex_normals' in self._cache:
+            new_vertex_normals = util.unitize(
+                transformations.transform_points(
+                    self.vertex_normals,
+                    matrix=matrix,
+                    translate=False))
+
+        # if matrix flips windings, flip faces
+        if pre != post:
+            log.debug('normals not aligned after transform: flipping')
+            # fliplr will make array non C contiguous, which will
+            # cause hashes to be more expensive than necessary
+            self.faces = np.ascontiguousarray(np.fliplr(self.faces))
+
+        # assign the new values
+        self.vertices = new_vertices
+        self.face_normals = new_face_normals
+        self.vertex_normals = new_vertex_normals
+
+        # preserve normals and topology in cache
+        # while dumping everything else
+        self._cache.clear(exclude=[
+            'face_normals',   # transformed by us
+            'face_adjacency',  # topological
+            'face_adjacency_edges',
+            'face_adjacency_unshared',
+            'edges',
+            'edges_sorted',
+            'edges_unique',
+            'edges_sparse',
+            'body_count',
+            'faces_unique_edges',
+            'euler_number',
+            'vertex_normals'])
+        # set the cache ID with the current hash value
+        self._cache.id_set()
+
+        log.debug('mesh transformed by matrix')
         return self
 
-    def voxelized(self, pitch, max_iter=10):
+    def voxelized(self, pitch, **kwargs):
         """
         Return a Voxel object representing the current mesh
         discretized into voxels at the specified pitch
@@ -1827,7 +1905,7 @@ class Trimesh(object):
         """
         voxelized = voxel.VoxelMesh(self,
                                     pitch=pitch,
-                                    max_iter=max_iter)
+                                    **kwargs)
         return voxelized
 
     def outline(self, face_ids=None, **kwargs):
@@ -1881,7 +1959,8 @@ class Trimesh(object):
         ---------
         area_faces: (n,) float, area of each face.
         """
-        area_faces = triangles.area(crosses=self.triangles_cross, sum=False)
+        area_faces = triangles.area(crosses=self.triangles_cross,
+                                    sum=False)
         return area_faces
 
     @util.cache_decorator
@@ -2164,20 +2243,19 @@ class Trimesh(object):
             log.warning('Mesh is non- watertight for contained point query!')
         contains = self.ray.contains_points(points)
         return contains
-    
+
     @util.cache_decorator
     def face_angles(self):
         """
         Returns the angle at each vertex of a face.
-        
+
         Returns
         --------
         angles: (n, 3) float, angle at each vertex of a face.
         """
         angles = curvature.face_angles(self)
         return angles
-    
-    
+
     @util.cache_decorator
     def face_angles_sparse(self):
         """
@@ -2191,20 +2269,25 @@ class Trimesh(object):
         """
         angles = curvature.face_angles_sparse(self)
         return angles
-    
+
     @util.cache_decorator
     def vertex_defects(self):
         """
-        Return the vertex defects
+        Return the vertex defects, or (2*pi) minus the sum of the angles
+        of every face that includes that vertex.
+
+        If a vertex is only included by coplanar triangles, this
+        will be zero. For convex regions this is positive, and
+        concave negative.
 
         Returns
         --------
-        vertex_defect: (n,) float vertex defect at the given vertex.
-                       Each value corresponds with self.vertices
+        vertex_defect : (len(self.vertices), ) float
+                         Vertex defect at the every vertex
         """
         defects = curvature.vertex_defects(self)
         return defects
-    
+
     @util.cache_decorator
     def face_adjacency_tree(self):
         """
@@ -2212,12 +2295,13 @@ class Trimesh(object):
 
         Returns
         --------
-        tree: rtree.index where each edge in self.face_adjacency has a 
+        tree: rtree.index where each edge in self.face_adjacency has a
               rectangular cell
         """
         # the (n,6) interleaved bounding box for every line segment
-        segment_bounds = np.column_stack((self.vertices[self.face_adjacency_edges].min(axis=1),
-                                           self.vertices[self.face_adjacency_edges].max(axis=1)))
+        segment_bounds = np.column_stack((
+            self.vertices[self.face_adjacency_edges].min(axis=1),
+            self.vertices[self.face_adjacency_edges].max(axis=1)))
         tree = util.bounds_tree(segment_bounds)
         return tree
 

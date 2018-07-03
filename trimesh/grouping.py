@@ -19,12 +19,25 @@ except ImportError:
     log.warning('Scipy unavailable')
 
 
-def merge_vertices_hash(mesh):
+def merge_vertices_hash(mesh, distance=None):
     """
-    Removes duplicate vertices, based on integer hashes.
-    This is roughly 20x faster than querying a KD tree in a loop
+    Removes duplicate vertices, based on integer hashes of
+    each row.
+
+    Parameters
+    -------------
+    mesh     : Trimesh object
+                 Mesh to merge vertices of
+    distance : float, or None
+                If not specified uses tol.merge
     """
-    unique, inverse = unique_rows(mesh.vertices)
+    if distance is not None:
+        digits = util.decimal_to_digits(distance)
+    else:
+        digits = None
+    # unique rows
+    unique, inverse = unique_rows(mesh.vertices,
+                                  digits=digits)
     mesh.update_vertices(unique, inverse)
 
 
@@ -592,10 +605,11 @@ def merge_intervals(intervals):
     merged = np.array([i for i in merge_generator(intervals)])
     return merged
 
+
 def group_min(groups, data):
     """
     Given a list of groups, find the minimum element of data within each group
-    
+
     Parameters
     -----------
     groups: (n,) The id of each group corresponding to each element in data
@@ -604,11 +618,11 @@ def group_min(groups, data):
     Returns
     -----------
     minimums: (m,) List of minimums of data, where m is the number of groups
-    
+
     """
     # sort with major key groups, minor key data
     order = np.lexsort((data, groups))
-    groups = groups[order] # this is only needed if groups is unsorted
+    groups = groups[order]  # this is only needed if groups is unsorted
     data = data[order]
     # construct an index which marks borders between groups
     index = np.empty(len(groups), 'bool')

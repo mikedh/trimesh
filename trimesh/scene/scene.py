@@ -1,6 +1,5 @@
 import numpy as np
 import collections
-import copy
 
 from .. import util
 from .. import units
@@ -473,6 +472,7 @@ class Scene:
                              ((u, v, {'matrix' : np.eye(4)}))
         """
 
+        file_type = str(file_type).strip().lower()
         if file_type == 'gltf':
             return gltf.export_gltf(self)
         elif file_type == 'glb':

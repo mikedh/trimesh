@@ -12,7 +12,7 @@ from . import remesh
 from . import caching
 from . import grouping
 
-from .constants import log
+from .constants import log, _log_time
 
 
 class Voxel(object):
@@ -141,7 +141,12 @@ class Voxel(object):
 
 class VoxelMesh(Voxel):
 
-    def __init__(self, mesh, pitch, max_iter=10, size_max=None):
+    def __init__(self,
+                 mesh,
+                 pitch,
+                 max_iter=10,
+                 size_max=None,
+                 method='subdivide'):
         """
         A voxel representation of a mesh that will track changes to
         the mesh.
@@ -158,6 +163,7 @@ class VoxelMesh(Voxel):
         """
         super(VoxelMesh, self).__init__()
 
+        self._method = method
         self._data['mesh'] = mesh
         self._data['pitch'] = pitch
         self._data['max_iter'] = max_iter
@@ -224,11 +230,19 @@ class VoxelMesh(Voxel):
         ----------------
         voxels: (n, 3) int, filled cells on mesh surface
         """
-        voxels, origin = voxelize_subdivide(
+        if self._method == 'ray':
+            func = voxelize_ray
+        elif self._method == 'subdivide':
+            func = voxelize_subdivide
+        else:
+            raise ValueError('voxelization method incorrect')
+
+        voxels, origin = func(
             mesh=self._data['mesh'],
             pitch=self._data['pitch'],
             max_iter=self._data['max_iter'][0])
         self._cache['origin'] = origin
+
         return voxels
 
     @util.cache_decorator
@@ -274,6 +288,7 @@ class VoxelMesh(Voxel):
         self.as_boxes(solid=solid).show()
 
 
+@_log_time
 def voxelize_subdivide(mesh,
                        pitch,
                        max_iter=10,
@@ -395,6 +410,64 @@ def local_voxelize(mesh, point, pitch, radius, fill=True, **kwargs):
 
     return voxels, local_origin
     
+@_log_time
+def voxelize_ray(mesh,
+                 pitch,
+                 per_cell=[2, 2],
+                 **kwargs):
+    """
+    Voxelize a mesh using ray queries.
+
+    Parameters
+    -------------
+    mesh     : Trimesh object
+                 Mesh to be voxelized
+    pitch    : float
+                 Length of voxel cube
+    per_cell : (2,) int
+                 How many ray queries to make per cell
+
+    Returns
+    -------------
+    voxels : (n, 3) int
+                 Voxel positions
+    origin : (3, ) int
+                 Origin of voxels
+    """
+    # how many rays per cell
+    per_cell = np.array(per_cell).astype(np.int).reshape(2)
+    # edge length of cube voxels
+    pitch = float(pitch)
+
+    # create the ray origins in a grid
+    bounds = mesh.bounds[:, :2].copy()
+    # offset start so we get the requested number per cell
+    bounds[0] += pitch / (1.0 + per_cell)
+    # offset end so arange doesn't short us
+    bounds[1] += pitch
+    # on X we are doing multiple rays per voxel step
+    step = pitch / per_cell
+    # 2D grid
+    ray_ori = util.grid_arange(bounds, step=step)
+    # a Z position below the mesh
+    z = np.ones(len(ray_ori)) * (mesh.bounds[0][2] - pitch)
+    ray_ori = np.column_stack((ray_ori, z))
+    # all rays are along positive Z
+    ray_dir = np.ones_like(ray_ori) * [0, 0, 1]
+
+    # if you have pyembree this should be decently fast
+    hits = mesh.ray.intersects_location(ray_ori, ray_dir)[0]
+
+    # just convert hit locations to integer positions
+    voxels = np.round(hits / pitch).astype(np.int64)
+
+    # offset voxels by min, so matrix isn't huge
+    origin = voxels.min(axis=0)
+    voxels -= origin
+
+    return voxels, origin
+
+
 def fill_voxelization(occupied):
     """
     Given a sparse surface voxelization, fill in between columns.
@@ -430,7 +503,7 @@ def fill_voxelization(occupied):
             # find transitions first
             # transition positions are from 0 to 1 and from 1 to 0
             eq = np.equal(grid[i, j, :-1], grid[i, j, 1:])
-            idx = np.where(eq == False)[0] + 1
+            idx = np.where(np.logical_not(eq))[0] + 1
             c = len(idx)
             check_dir2 = (c % 4) > 0 and c > 4
             if c < 4:
@@ -445,7 +518,7 @@ def fill_voxelization(occupied):
             idx = []
             # find transitions first
             eq = np.equal(grid[i, :-1, k], grid[i, 1:, k])
-            idx = np.where(eq == False)[0] + 1
+            idx = np.where(np.logical_not(eq))[0] + 1
             c = len(idx)
             if c < 4:
                 continue

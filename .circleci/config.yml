@@ -6,8 +6,8 @@ version: 2
 jobs:
   build:
     branches:
-      ignore:
-        - gh-pages
+      only:
+        - master
     docker:
       - image: continuumio/anaconda3
     working_directory: ~/repo
@@ -17,6 +17,7 @@ jobs:
       - run:
           name: install dependencies
           command: |
+            apt-get update; apt-get install -y meshlab xvfb blender openscad
             pip install --upgrade pip
             conda update -n base conda
             pip install nose2

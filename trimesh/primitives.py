@@ -105,7 +105,7 @@ class _Primitive(Trimesh):
             log.debug('apply_tranform recieved identity matrix')
             return
 
-        new_transform = np.dot(self.primitive.transform, matrix)
+        new_transform = np.dot(matrix, self.primitive.transform)
 
         self.primitive.transform = new_transform
 

@@ -7,7 +7,6 @@ from tempfile import NamedTemporaryFile
 from subprocess import check_call
 
 from .. import io
-from .. import util
 
 
 class MeshScript:

@@ -15,7 +15,7 @@ from .. import intersections
 from .. import triangles as triangles_mod
 
 
-class RayMeshIntersector:
+class RayMeshIntersector(object):
     """
     An object to query a mesh for ray intersections.
     Precomputes an r-tree for each triangle on the mesh.

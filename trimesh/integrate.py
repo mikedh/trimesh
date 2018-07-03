@@ -54,7 +54,7 @@ def symbolic_barycentric(function):
         def __init__(self, expr, expr_args):
             self.lambdified = sp.lambdify(args=expr_args,
                                           expr=expr,
-                                          modules='numpy')
+                                          modules=['numpy', 'sympy'])
 
         def __call__(self, mesh, *args):
             """
