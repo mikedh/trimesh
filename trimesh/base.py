@@ -36,6 +36,7 @@ from . import decomposition
 from . import intersections
 from . import transformations
 from . import curvature
+from . import registration
 
 
 from .io.export import export_mesh
