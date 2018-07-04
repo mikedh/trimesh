@@ -1,4 +1,7 @@
-import generic as g
+try:
+    from . import generic as g
+except BaseException:
+    import generic as g
 
 
 class GroupTests(g.unittest.TestCase):
@@ -92,6 +95,78 @@ class GroupTests(g.unittest.TestCase):
         r = g.trimesh.grouping.clusters(a, .01)
 
         r = g.trimesh.grouping.group_distance(a, .01)
+
+    def test_unique_float(self):
+
+        a = g.np.arange(100) / 2.0
+        t = g.np.tile(a, 2).flatten()
+
+        unique = g.trimesh.grouping.unique_float(t)
+        assert g.np.allclose(unique, a)
+
+        unique, index, inverse = g.trimesh.grouping.unique_float(t,
+                                                                 return_index=True,
+                                                                 return_inverse=True)
+        assert g.np.allclose(unique[inverse], t)
+        assert g.np.allclose(unique, t[index])
+
+    def test_group_rows(self):
+        a = g.np.arange(100) / 2.0
+        b = g.np.tile(a, 3).reshape((-1, 3))
+        c = g.np.vstack((b, b))
+
+        gr = g.trimesh.grouping.group_rows(c)
+        assert gr.shape == (100, 2)
+        assert g.np.allclose(c[gr].ptp(axis=1), 0.0)
+
+        gr = g.trimesh.grouping.group_rows(c, require_count=2)
+        assert gr.shape == (100, 2)
+        assert g.np.allclose(c[gr].ptp(axis=1), 0.0)
+
+        c = g.np.vstack((c, [1, 2, 3]))
+        gr = g.trimesh.grouping.group_rows(c, require_count=2)
+        grd = g.trimesh.grouping.group_rows(c)
+        # should discard the single element
+        assert gr.shape == (100, 2)
+        # should get the single element correctly
+        assert len(grd) == 101
+        assert sum(1 for i in grd if len(i) == 2) == 100
+        assert g.np.allclose(c[gr].ptp(axis=1), 0.0)
+
+    def test_group_vector(self):
+        x = g.np.linspace(-100, 100, 100)
+
+        vec = g.np.column_stack((x,
+                                 g.np.ones(len(x)),
+                                 g.np.zeros(len(x))))
+        vec = g.trimesh.unitize(vec)
+
+        uv, ui = g.trimesh.grouping.group_vectors(vec)
+        assert g.np.allclose(uv, vec)
+        assert len(vec) == len(ui)
+        assert g.np.allclose(uv[ui.flatten()], vec)
+
+        vec = g.np.vstack((vec, -vec))
+        uv, ui = g.trimesh.grouping.group_vectors(vec)
+        assert g.np.allclose(uv, vec)
+        assert len(ui) == len(vec)
+
+        uv, ui = g.trimesh.grouping.group_vectors(vec,
+                                                  include_negative=True)
+        # since we included negative vectors, there should
+        # be half the number of unique vectors and 2 indexes per vector
+        assert ui.shape == (100, 2)
+        assert uv.shape == (100, 3)
+        assert g.np.allclose(uv, vec[:100])
+
+    def test_boolean_rows(self):
+        a = g.np.arange(10).reshape((-1, 2))
+        b = g.np.arange(10).reshape((-1, 2)) + 8
+
+        # should have one overlapping row
+        intersection = g.trimesh.grouping.boolean_rows(
+            a, b, g.np.intersect1d)
+        assert g.np.allclose(intersection.ravel(), [8, 9])
 
 
 if __name__ == '__main__':

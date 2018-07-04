@@ -5,7 +5,6 @@ voxel.py
 Convert meshes to a simple voxel data structure and back again.
 """
 import numpy as np
-from scipy import ndimage
 
 from . import util
 from . import remesh
@@ -21,7 +20,7 @@ class Voxel(object):
         self._data = caching.DataStore()
         self._cache = caching.Cache(id_function=self._data.crc)
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def marching_cubes(self):
         """
         A marching cubes Trimesh representation of the voxels.
@@ -61,7 +60,7 @@ class Voxel(object):
         """
         return self.matrix.shape
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def filled_count(self):
         """
         Return the number of voxels that are occupied.
@@ -72,7 +71,7 @@ class Voxel(object):
         """
         return int(self.matrix.sum())
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def volume(self):
         """
         What is the volume of the filled cells in the current voxel object.
@@ -84,7 +83,7 @@ class Voxel(object):
         volume = self.filled_count * (self.pitch**3)
         return volume
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def points(self):
         """
         The center of each filled cell as a list of points.
@@ -168,7 +167,7 @@ class VoxelMesh(Voxel):
         self._data['pitch'] = pitch
         self._data['max_iter'] = max_iter
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def matrix_surface(self):
         """
         The voxels on the surface of the mesh as a 3D matrix.
@@ -180,7 +179,7 @@ class VoxelMesh(Voxel):
         matrix = sparse_to_matrix(self.sparse_surface)
         return matrix
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def matrix_solid(self):
         """
         The voxels in a mesh as a 3D matrix.
@@ -221,7 +220,7 @@ class VoxelMesh(Voxel):
         populate = self.sparse_surface
         return self._cache['origin']
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def sparse_surface(self):
         """
         Filled cells on the surface of the mesh.
@@ -245,7 +244,7 @@ class VoxelMesh(Voxel):
 
         return voxels
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def sparse_solid(self):
         """
         Filled cells inside and on the surface of mesh
@@ -311,12 +310,12 @@ def voxelize_subdivide(mesh,
                                  grid origin in space
     """
     max_edge = pitch / edge_factor
-    
+
     if max_iter is None:
-        longest_edge = np.linalg.norm(mesh.vertices[mesh.edges[:,0]] - 
-                                      mesh.vertices[mesh.edges[:,1]], 
+        longest_edge = np.linalg.norm(mesh.vertices[mesh.edges[:, 0]] -
+                                      mesh.vertices[mesh.edges[:, 1]],
                                       axis=1).max()
-        max_iter = max(int(np.ceil(np.log2(longest_edge/max_edge))), 0)
+        max_iter = max(int(np.ceil(np.log2(longest_edge / max_edge))), 0)
 
     # get the same mesh sudivided so every edge is shorter
     # than a factor of our pitch
@@ -326,9 +325,9 @@ def voxelize_subdivide(mesh,
                                     max_iter=max_iter)
 
     # convert the vertices to their voxel grid position
-    hit = (v / pitch)
+    hit = v / pitch
 
-    # Provided edge_factor > 1 and max_iter is large enough, this is 
+    # Provided edge_factor > 1 and max_iter is large enough, this is
     # sufficient to preserve 6-connectivity at the level of voxels.
     hit = np.round(hit).astype(int)
 
@@ -342,14 +341,15 @@ def voxelize_subdivide(mesh,
     origin_position = origin_index * pitch
 
     voxels_sparse = (occupied_index - origin_index)
-    
+
     return voxels_sparse, origin_position
+
 
 def local_voxelize(mesh, point, pitch, radius, fill=True, **kwargs):
     """
-    Voxelize a mesh in the region of a cube around a point. When fill=True, 
-    uses proximity.contains to fill the resulting voxels so may be meaningless 
-    for non-watertight meshes. Useful to reduce memory cost for small values of 
+    Voxelize a mesh in the region of a cube around a point. When fill=True,
+    uses proximity.contains to fill the resulting voxels so may be meaningless
+    for non-watertight meshes. Useful to reduce memory cost for small values of
     pitch as opposed to global voxelization.
 
     Parameters
@@ -359,57 +359,62 @@ def local_voxelize(mesh, point, pitch, radius, fill=True, **kwargs):
     pitch:  float, side length of a single voxel cube
     radius: int, number of voxel cubes to return in each direction.
     kwargs: parameters to pass to voxelize_subdivide
-    
+
     Returns
     -----------
     voxels:          (m, m, m) bool, matrix of local voxels where m=2*radius+1
     origin_position: (3,) float, position of the voxel grid origin in space
     """
-    
+    from scipy import ndimage
+
     point = np.asanyarray(point, dtype=np.float64)
-    
+
     # Bounds of region
-    bounds = np.concatenate((point - (radius+0.5)*pitch,
-                             point + (radius+0.5)*pitch))
+    bounds = np.concatenate((point - (radius + 0.5) * pitch,
+                             point + (radius + 0.5) * pitch))
 
     # faces that intersect axis aligned bounding box
-    faces = list(mesh.triangles_tree.intersection(bounds))    
+    faces = list(mesh.triangles_tree.intersection(bounds))
     local = mesh.submesh([[f] for f in faces], append=True)
-    
+
     # Translate mesh so point is at 0,0,0
     local.apply_translation(-point)
-    
+
     sparse, origin = voxelize_subdivide(local, pitch, **kwargs)
     matrix = sparse_to_matrix(sparse)
-    
+
     # Find voxel index for point
-    center = np.round(-origin/pitch).astype(int)
-    
+    center = np.round(-origin / pitch).astype(int)
+
     # Pad matrix if neccesary
-    prepad = np.maximum(radius-center, 0)
+    prepad = np.maximum(radius - center, 0)
     postpad = np.maximum(center + radius + 1 - matrix.shape, 0)
-    matrix = np.pad(matrix, np.stack((prepad, postpad), axis=-1), 
+    matrix = np.pad(matrix, np.stack((prepad, postpad), axis=-1),
                     mode='constant')
     center += prepad
-    
+
     # Extract voxels within the bounding box
-    voxels = matrix[center[0]-radius:center[0]+radius+1,
-                    center[1]-radius:center[1]+radius+1, 
-                    center[2]-radius:center[2]+radius+1]
-    local_origin = point - radius*pitch # origin of local voxels
-    
+    voxels = matrix[center[0] - radius:center[0] + radius + 1,
+                    center[1] - radius:center[1] + radius + 1,
+                    center[2] - radius:center[2] + radius + 1]
+    local_origin = point - radius * pitch  # origin of local voxels
+
     # Fill internal regions
     if fill:
         regions, n = ndimage.measurements.label(~voxels)
         distance = ndimage.morphology.distance_transform_cdt(~voxels)
-        representatives = [np.unravel_index((distance*(regions == i)).argmax(), 
-                                            distance.shape) for i in range(1, n+1)]
-        contains = mesh.contains(np.asarray(representatives)*pitch + local_origin)
-        internal = np.isin(regions, np.where(contains)[0]+1)
+        representatives = [np.unravel_index((distance * (regions == i)).argmax(),
+                                            distance.shape) for i in range(1, n + 1)]
+        contains = mesh.contains(
+            np.asarray(representatives) *
+            pitch +
+            local_origin)
+        internal = np.isin(regions, np.where(contains)[0] + 1)
         voxels = np.logical_or(voxels, internal)
 
     return voxels, local_origin
-    
+
+
 @_log_time
 def voxelize_ray(mesh,
                  pitch,
@@ -675,13 +680,6 @@ def multibox(centers, pitch):
     return rough
 
 
-def sparse_surface_to_filled(sparse_surface):
-    """
-    Take a sparse surface and fill in along Z.
-    """
-    pass
-
-
 def boolean_sparse(a, b, operation=np.logical_and):
     """
     Find common rows between two arrays very quickly
@@ -726,5 +724,3 @@ def boolean_sparse(a, b, operation=np.logical_and):
     coords = np.column_stack(applied.coords) + origin
 
     return coords
-
-

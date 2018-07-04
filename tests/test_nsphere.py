@@ -1,4 +1,7 @@
-import generic as g
+try:
+    from . import generic as g
+except BaseException:
+    import generic as g
 
 
 class NSphereTest(g.unittest.TestCase):
@@ -28,6 +31,15 @@ class NSphereTest(g.unittest.TestCase):
                 self.assertTrue(len(C) == d)
                 self.assertTrue(R > 0.0)
                 self.assertTrue(abs(R - R_check) < g.tol.merge)
+
+    def test_isnsphere(self):
+        # make sure created spheres are uv sphere
+        m = g.trimesh.creation.uv_sphere()
+        # move the mesh around for funsies
+        m.apply_translation(g.np.random.random(3))
+        m.apply_transform(g.trimesh.transformations.random_rotation_matrix())
+        # all vertices should be on nsphere
+        assert g.trimesh.nsphere.is_nsphere(m.vertices)
 
 
 if __name__ == '__main__':

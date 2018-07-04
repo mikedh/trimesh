@@ -65,7 +65,7 @@ class RayMeshIntersector(object):
             scale = 1.0
         return scale
 
-    @util.cache_decorator
+    @caching.cache_decorator
     def _scene(self):
         """
         A cached version of the pyembree scene.

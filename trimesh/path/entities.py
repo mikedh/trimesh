@@ -16,8 +16,6 @@ from .curve import discretize_bezier, discretize_bspline
 from .. import util
 from .. import caching
 
-_HASH_LENGTH = 5
-
 
 class Entity(object):
 
@@ -153,7 +151,7 @@ class Entity(object):
         """
         hashable = (self.__class__.__name__.encode('utf-8') +
                     self.points.tobytes() +
-                    bytes(self.closed))
+                    bytes(bool(self.closed)))
         hashed = caching.crc32(hashable)
         return hashed
 

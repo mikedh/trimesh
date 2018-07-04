@@ -8,8 +8,11 @@ and clearing cached values based on those changes.
 
 import numpy as np
 
-import hashlib
 import zlib
+import time
+import hashlib
+
+from functools import wraps
 
 from .constants import log
 from .util import is_sequence
@@ -47,25 +50,76 @@ def tracked_array(array, dtype=None):
     return tracked
 
 
+def cache_decorator(function):
+    """
+    A decorator for class methods, replaces @property
+    but will store and retrieve function return values
+    in object cache.
+
+    Parameters
+    ------------
+    function : class method
+                 This is used as a decorator:
+                   @cache_decorator
+                   def foo(self, things):
+                      return 'happy days'
+    """
+    # use wraps to preseve docstring
+    @wraps(function)
+    def get_cached(*args, **kwargs):
+        """
+        Only execute the function if its value isn't stored
+        in cache already.
+        """
+        self = args[0]
+        # use function name as key in cache
+        name = function.__name__
+        # do the dump logic ourselves to avoid
+        # verifying cache twice per call
+        self._cache.verify()
+        # access cache dict to avoid automatic verification
+        if name in self._cache.cache:
+            # already stored so return value
+            return self._cache.cache[name]
+
+        # time execution
+        tic = time.time()
+        # value not in cache so execute the function
+        value = function(*args, **kwargs)
+        # store the value
+        self._cache.cache[name] = value
+        # debug log execution time
+        # this is nice for debugging as you can see when
+        # cache is getting dumped all the time
+        log.debug('%s was not in cache, executed in %.6f',
+                  name,
+                  time.time() - tic)
+        return value
+
+    # all cached values are also properties
+    # so they can be accessed like value attributes
+    # rather than functions
+    return property(get_cached)
+
+
 class TrackedArray(np.ndarray):
     """
-    Track changes in a numpy ndarray.
+    Subclass of numpy.ndarray that provides hash methods
+    to track changes.
 
     General method is to agressivly set 'modified' flags
-    on operations which might alter the array.
+    on operations which might (but don't necessarily) alter
+    the array, ideally we sometimes compute hashes when we
+    don't need to, but we don't return wrong hashes ever.
 
     We store boolean modified flag for each hash type to
     make checks fast even for queries of different hashes.
 
-    This will force a recompute of a checksum value in some
-    cases where nothing has changed but we don't ever want to
-    return a checksum that doesn't reflect the data.
-
     Methods
     ----------
-    md5:       returns str, hexadecimal MD5 of array
-    crc:       returns int, zlib crc32/adler32 checksum
-    fast_hash: returns int, CRC or xxhash.xx64
+    md5 :       str, hexadecimal MD5 of array
+    crc :       int, zlib crc32/adler32 checksum
+    fast_hash : int, CRC or xxhash.xx64
     """
 
     def __array_finalize__(self, obj):
@@ -307,26 +361,6 @@ class Cache:
         self._lock = 0
         self.cache = {}
 
-    def get(self, key):
-        """
-        Get a key from the cache.
-
-        If the key is unavailable or the cache has been invalidated
-        returns None.
-
-        Parameters
-        -------------
-        key: hashable value
-
-        Returns
-        -------------
-        value: value from cache
-        """
-        self.verify()
-        if key in self.cache:
-            return self.cache[key]
-        return None
-
     def delete(self, key):
         """
         Remove a key from the cache.
@@ -373,16 +407,39 @@ class Cache:
         """
         self.id_current = self._id_function()
 
-    def set(self, key, value):
+    def __getitem__(self, key):
+        """
+        Get an item from the cache. If the item
+        is not in the cache, it will return None
+
+        Parameters
+        -------------
+        key : hashable
+               Key in dict
+
+        Returns
+        -------------
+        cached : object, or None
+        """
+        self.verify()
+        if key in self.cache:
+            return self.cache[key]
+        return None
+
+    def __setitem__(self, key, value):
+        """
+        Add an item to the cache.
+
+        Parameters
+        ------------
+        key : hashable
+                 Key to reference value
+        value : any
+                  Value to store in cache
+        """
         self.verify()
         self.cache[key] = value
         return value
-
-    def __getitem__(self, key):
-        return self.get(key)
-
-    def __setitem__(self, key, value):
-        return self.set(key, value)
 
     def __contains__(self, key):
         self.verify()

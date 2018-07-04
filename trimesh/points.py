@@ -6,7 +6,7 @@ Functions dealing with (n,d) points.
 """
 import numpy as np
 
-from .constants import log, tol
+from .constants import tol
 from .geometry import plane_transform
 
 from . import util
@@ -54,19 +54,21 @@ def major_axis(points):
     return axis
 
 
-def plane_fit(points, tolerance=None):
+def plane_fit(points):
     """
-    Given a set of points, find an origin and normal using least squares
+    Given a set of points, find an origin and normal using SVD.
 
     Parameters
     ---------
-    points: (n,3)
-    tolerance: how non-planar the result can be without raising an error
+    points : (n,3) float
+        Points in 3D space
 
     Returns
     ---------
-    C: (3) point on the plane
-    N: (3) normal vector
+    C : (3,) float
+        Point on the plane
+    N : (3,) float
+        Normal vector of plane
     """
 
     C = points[0]
@@ -74,11 +76,6 @@ def plane_fit(points, tolerance=None):
     M = np.dot(x.T, x)
     N = np.linalg.svd(M)[0][:, -1]
 
-    if not (tolerance is None):
-        normal_range = np.ptp(np.dot(N, points.T))
-        if normal_range > tol.planar:
-            log.error('Points have peak to peak of %f', normal_range)
-            raise ValueError('Plane outside tolerance!')
     return C, N
 
 
@@ -270,14 +267,19 @@ def k_means(points, k, **kwargs):
 
     Parameters
     ----------
-    points: (n, d) set of points
-    k: int, number of centroids to compute
-    **kwargs: passed directly to scipy.cluster.vq.kmeans
+    points:  (n, d) float
+        Points in a space
+    k : int
+         Number of centroids to compute
+    **kwargs : dict
+        Passed directly to scipy.cluster.vq.kmeans
 
     Returns
     ----------
-    centroids: (k, d) set of points
-    labels: (n) set of indexes for which points belong to which centroid
+    centroids : (k, d) float
+         Points in some space
+    labels: (n) int
+        Indexes for which points belong to which centroid
     """
     from scipy.cluster.vq import kmeans
     from scipy.spatial import cKDTree
@@ -294,7 +296,8 @@ def k_means(points, k, **kwargs):
 
 def plot_points(points, show=True):
     """
-    Plot an (n,3) list of points using matplotlib
+    Plot an (n,3) list of points using matplotlib.
+
     """
     import matplotlib.pyplot as plt
     from mpl_toolkits.mplot3d import Axes3D
@@ -370,7 +373,7 @@ class PointCloud(object):
 
     @vertices.setter
     def vertices(self, data):
-        data = np.asanyarray(data)
+        data = np.asanyarray(data, dtype=np.float64)
         if not util.is_shape(data, (-1, 3)):
             raise ValueError('Point clouds only consist of (n,3) points!')
         self._data['vertices'] = data

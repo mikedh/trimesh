@@ -200,10 +200,12 @@ def extrude_triangulation(vertices,
     normal_test = normals(
         [util.three_dimensionalize(vertices[faces[0]])[1]])[0]
 
+    normal_dot = np.dot(normal_test,
+                        [0.0, 0.0, np.sign(height)])[0]
+
     # make sure the triangulation is aligned with the sign of
     # the height we've been passed
-    if np.dot(normal_test,
-              [0, 0, np.sign(height)]) < 0:
+    if normal_dot < 0.0:
         faces = np.fliplr(faces)
 
     # stack the (n,3) faces into (3*n, 2) edges
@@ -243,17 +245,30 @@ def extrude_triangulation(vertices,
     mesh = Trimesh(*util.append_faces(vertices_seq,
                                       faces_seq),
                    process=True)
+
+    assert mesh.volume > 0.0
+
     return mesh
 
 
-def triangulate_polygon(polygon, **kwargs):
+def triangulate_polygon(polygon,
+                        triangle_args='pq0D',
+                        engine='auto',
+                        **kwargs):
     """
-    Given a shapely polygon create a triangulation using
-    meshpy.triangle
+    Given a shapely polygon create a triangulation using one of
+    the python interfaces to triangle.c:
+    pip install meshpy
+    pip install triangle
 
     Parameters
     ---------
-    polygon: Shapely.geometry.Polygon
+    polygon : Shapely.geometry.Polygon
+        Polygon object to be triangulated
+    triangle_args : str
+        Passed to triangle.triangulate
+    engine : str
+        'meshpy', 'triangle', or 'auto'
     kwargs: passed directly to meshpy.triangle.build:
             triangle.build(mesh_info,
                            verbose=False,
@@ -268,26 +283,38 @@ def triangulate_polygon(polygon, **kwargs):
                            generate_faces=False,
                            min_angle=None)
     Returns
-    --------
-    mesh_vertices: (n, 2) float array of 2D points
-    mesh_faces:    (n, 3) int array of vertex indexes
+    --------------
+    vertices : (n, 2) float
+       Points in space
+    faces :    (n, 3) int
+       Index of vertices that make up triangles
     """
-    # do the import here, as sometimes this import can segfault
-    # which is not catchable with a try/except block
-    import meshpy.triangle as triangle
 
     # turn the polygon in to vertices, segments, and hole points
     arg = _polygon_to_kwargs(polygon)
+
+    try:
+        if str(engine).strip() in ['auto', 'triangle']:
+            from triangle import triangulate
+            result = triangulate(arg, triangle_args)
+            return result['vertices'], result['triangles']
+    except ImportError:
+        # no triangle, so move on to meshpy
+        pass
+
+    # do the import here, as sometimes this import can segfault
+    # which is not catchable with a try/except block
+    import meshpy.triangle as triangle
     # call meshpy.triangle on our cleaned representation of
     # the Shapely polygon
     info = triangle.MeshInfo()
     info.set_points(arg['vertices'])
     info.set_facets(arg['segments'])
-    info.set_holes(arg['holes'])
-
+    # not all polygons have holes
+    if 'holes' in arg:
+        info.set_holes(arg['holes'])
     # build mesh and pass kwargs to triangle
     mesh = triangle.build(info, **kwargs)
-
     # (n, 2) float vertices
     vertices = np.array(mesh.points, dtype=np.float64)
     # (m, 3) int faces
@@ -373,14 +400,14 @@ def _polygon_to_kwargs(polygon):
     vertices = np.vstack(vertices)
     facets = np.vstack(facets).tolist()
 
+    result = {'vertices': vertices,
+              'segments': facets}
     # holes in meshpy lingo are a (h, 2) list of (x,y) points
     # which are inside the region of the hole
     # we added a hole for the exterior, which we slice away here
     holes = np.array(holes)[1:]
-
-    result = {'vertices': vertices,
-              'segments': facets,
-              'holes': holes}
+    if len(holes) > 0:
+        result['holes'] = holes
 
     return result
 

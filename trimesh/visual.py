@@ -463,8 +463,8 @@ def create_visual(**kwargs):
 
     Parameters
     ----------
-    face_colors:   (n,3|4) uint8, colors
-    vertex_colors: (n,3|4) uint8, colors
+    face_colors   :   (n,3|4) uint8, colors
+    vertex_colors : (n,3|4) uint8, colors
     mesh:          Trimesh object
 
     Returns

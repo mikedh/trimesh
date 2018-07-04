@@ -1,7 +1,7 @@
 import numpy as np
-import collections
-import traceback
+
 import os
+import collections
 
 from .. import util
 
@@ -23,82 +23,121 @@ from .xml_based import _xml_loaders
 
 try:
     from ..path.io.load import load_path, path_formats
-except BaseException:
-    _path_traceback = traceback.format_exc(4)
+except BaseException as E:
+    # save a traceback to see why path didn't import
+    _path_exception = E
 
     def load_path(*args, **kwargs):
         """
         Dummy load path function that will raise an exception on use.
         Import of path failed, probably because a dependency is not installed.
         """
-        print(_path_traceback)
-        raise ImportError('No path functionality available!')
+        raise _path_exception
 
     def path_formats():
         return []
 
 
 def mesh_formats():
+    """
+    Get a list of mesh formats
+
+    Returns
+    -----------
+    loaders : list
+        Extensions of available mesh loaders
+        i.e. 'stl', 'ply', etc.
+    """
     return list(mesh_loaders.keys())
 
 
 def available_formats():
-    formats = np.hstack((list(compressed_loaders.keys()),
+    """
+    Get a list of all available loaders
+
+    Returns
+    -----------
+    loaders : list
+        Extensions of available loaders
+        i.e. 'stl', 'ply', 'dxf', etc.
+    """
+
+    loaders = np.hstack((list(compressed_loaders.keys()),
                          mesh_formats(),
                          path_formats()))
-    return formats
+    return loaders
 
 
 def load(file_obj, file_type=None, **kwargs):
     """
-    Load a mesh or vectorized path into a Trimesh, Path2D, or Path3D object.
+    Load a mesh or vectorized path into objects:
+    Trimesh, Path2D, Path3D, Scene
 
     Parameters
     ---------
-    file_obj: a filename string or a file-like object
-    file_type: str representing file type (eg: 'stl')
+    file_obj : str, or file- like object
+        The source of the data to be loadeded
+    file_type: str
+         What kind of file type do we have (eg: 'stl')
 
     Returns
     ---------
-    geometry: Trimesh, Path2D, Path3D, or list of same.
+    geometry : Trimesh, Path2D, Path3D, Scene
+        Loaded geometry as trimesh classes
     """
-    # check to see if we're trying to load something that is already a Trimesh
-    out_types = ('Trimesh', 'Path')
-    if any(util.is_instance_named(file_obj, t) for t in out_types):
+    # check to see if we're trying to load something
+    # that is already a native trimesh object
+    # do the check by name to avoid circular imports
+    out_types = ('Trimesh', 'Path', 'Scene')
+    if any(util.is_instance_named(file_obj, t)
+           for t in out_types):
         log.info('Loaded called on %s object, returning input',
                  file_obj.__class__.__name__)
         return file_obj
 
-    (file_obj,
-     file_type,
-     metadata,
-     opened) = _parse_file_args(file_obj, file_type)
+    # parse the file arguments into clean loadable form
+    (file_obj,  # file- like object
+     file_type,  # str, what kind of file
+     metadata,  # dict, any metadata from file name
+     opened     # bool, did we open the file ourselves
+     ) = _parse_file_args(file_obj, file_type)
 
     if isinstance(file_obj, dict):
+        # if we've been passed a dict treat it as kwargs
         kwargs.update(file_obj)
         loaded = load_kwargs(kwargs)
     elif file_type in path_formats():
+        # path formats get loaded with path loader
         loaded = load_path(file_obj,
                            file_type=file_type,
                            **kwargs)
     elif file_type in mesh_loaders:
+        # mesh loaders use mesh loader
         loaded = load_mesh(file_obj,
                            file_type=file_type,
                            **kwargs)
     elif file_type in compressed_loaders:
+        # for archives, like ZIP files
         loaded = load_compressed(file_obj,
                                  file_type=file_type,
                                  **kwargs)
-        # metadata we got from filename will be garbage, so suppress it
+        # metadata we got from filename will be garbage
         metadata = {}
     else:
-        raise ValueError('File type: %s not supported', str(file_type))
+        if file_type in ['svg', 'dxf']:
+            # call the dummy function to raise the import error
+            # this prevents the exception from being super opaque
+            load_path()
+        else:
+            raise ValueError('File type: %s not supported',
+                             file_type)
 
     for i in util.make_sequence(loaded):
         # check to make sure loader actually loaded something
-        # assert any(util.is_instance_named(i, t) for t in out_types)
         i.metadata.update(metadata)
 
+    # if we opened the file in this function from a file name
+    # clean up after ourselves by closing it
     if opened:
         file_obj.close()
 

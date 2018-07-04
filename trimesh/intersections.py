@@ -9,35 +9,49 @@ import numpy as np
 from .constants import log, tol
 
 from . import util
+from . import geometry
 from . import grouping
+from . import transformations
 
 
 def mesh_plane(mesh,
                plane_normal,
                plane_origin,
-               return_faces=False):
+               return_faces=False,
+               cached_dots=None):
     """
     Find a the intersections between a mesh and a plane,
     returning a set of line segments on that plane.
 
     Parameters
     ---------
-    mesh:          Trimesh object
-    plane_normal:  (3,) float, plane normal
-    plane_origin:  (3,) float, plane origin
-    return_faces:  bool, if True return face index line is from
+    mesh : Trimesh object
+        Source mesh to slice
+    plane_normal : (3,) float
+        Normal vector of plane to intersect with mesh
+    plane_origin:  (3,) float
+        Point on plane to intersect with mesh
+    return_faces:  bool
+        If True return face index each line is from
+    cached_dots : (n, 3) float
+        If an external function has stored dot
+        products pass them here to avoid recomputing
 
     Returns
     ----------
-    lines:      (m, 2, 3) float, list of 3D line segments
-    face_index: (m,) int, index of mesh.faces for each line
+    lines :  (m, 2, 3) float
+        List of 3D line segments in space
+    face_index : (m,) int
+        Index of mesh.faces for each line
+        Only returned if return_faces was True
     """
 
     def triangle_cases(signs):
         """
-        Figure out which faces correspond to which intersection case from
-        the signs of the dot product of each vertex.
-        Does this by bitbang each row of signs into an 8 bit integer.
+        Figure out which faces correspond to which intersection
+        case from the signs of the dot product of each vertex.
+        Does this by bitbang each row of signs into an 8 bit
+        integer.
 
         code : signs      : intersects
         0    : [-1 -1 -1] : No
@@ -111,14 +125,14 @@ def mesh_plane(mesh,
 
     def handle_basic(signs, faces, vertices):
         # case where one vertex is on one side and two are on the other
-        unique_element = grouping.unique_value_in_row(signs, unique=[-1, 1])
+        unique_element = grouping.unique_value_in_row(
+            signs, unique=[-1, 1])
         edges = np.column_stack(
-            (faces[unique_element], faces[
-                np.roll(
-                    unique_element, 1, axis=1)], faces[unique_element], faces[
-                np.roll(
-                    unique_element, 2, axis=1)])).reshape(
-                        (-1, 2))
+            (faces[unique_element],
+             faces[np.roll(unique_element, 1, axis=1)],
+             faces[unique_element],
+             faces[np.roll(unique_element, 2, axis=1)])).reshape(
+            (-1, 2))
         intersections, valid = plane_lines(plane_origin,
                                            plane_normal,
                                            vertices[edges.T],
@@ -127,7 +141,6 @@ def mesh_plane(mesh,
         # means the culling was done incorrectly and thus things are
         # mega-fucked
         assert valid.all()
-
         return intersections.reshape((-1, 2, 3))
 
     # check input plane
@@ -138,11 +151,14 @@ def mesh_plane(mesh,
     if plane_origin.shape != (3,) or plane_normal.shape != (3,):
         raise ValueError('Plane origin and normal must be (3,)!')
 
-    # dot product of each vertex with the plane normal, indexed by face
-    # so for each face the dot product of each vertex is a row
-    # shape is the same as mesh.faces (n,3)
-    dots = np.dot(plane_normal,
-                  (mesh.vertices - plane_origin).T)[mesh.faces]
+    if cached_dots is not None:
+        dots = cached_dots
+    else:
+        # dot product of each vertex with the plane normal indexed by face
+        # so for each face the dot product of each vertex is a row
+        # shape is the same as mesh.faces (n,3)
+        dots = np.dot(plane_normal,
+                      (mesh.vertices - plane_origin).T)[mesh.faces]
 
     # sign of the dot product is -1, 0, or 1
     # shape is the same as mesh.faces (n,3)
@@ -164,11 +180,103 @@ def mesh_plane(mesh,
                          mesh.vertices)
                        for c, h in zip(cases, handlers)])
 
-    log.debug('mesh_cross_section found %i intersections', len(lines))
+    log.debug('mesh_cross_section found %i intersections',
+              len(lines))
+
     if return_faces:
         face_index = np.hstack([np.nonzero(c)[0] for c in cases])
         return lines, face_index
     return lines
+
+
+def mesh_multiplane(mesh,
+                    plane_origin,
+                    plane_normal,
+                    heights):
+    """
+    A utility function for slicing a mesh by multiple
+    parallel planes, which caches the dot product operation.
+
+    Parameters
+    -------------
+    mesh : trimesh.Trimesh
+        Geometry to be sliced by planes
+    plane_normal : (3,) float
+        Normal vector of plane
+    plane_origin : (3,) float
+        Point on a plane
+    heights : (m,) float
+        Offset distances from plane to slice at
+
+    Returns
+    --------------
+    lines : (m,) sequence of (n, 2, 2) float
+        Lines in space for m planes
+    to_3D : (m, 4, 4) float
+        Transform to move each section back to 3D
+    face_index : (m,) sequence of (n,) int
+        Indexes of mesh.faces for each segment
+    """
+    # check input plane
+    plane_normal = util.unitize(plane_normal)
+    plane_origin = np.asanyarray(plane_origin,
+                                 dtype=np.float64)
+    heights = np.asanyarray(heights, dtype=np.float64)
+
+    # dot product of every vertex with plane
+    vertex_dots = np.dot(plane_normal,
+                         (mesh.vertices - plane_origin).T)
+
+    # reconstruct transforms for each 2D section
+    base_transform = geometry.plane_transform(origin=plane_origin,
+                                              normal=plane_normal)
+    # alter translation Z inside loop
+    translation = np.eye(4)
+
+    # store results
+    transforms = []
+    face_index = []
+    segments = []
+
+    # loop through user specified heights
+    for height in heights:
+        # offset the origin by the height
+        new_origin = plane_origin + (plane_normal * height)
+        # offset the dot products by height and index by faces
+        new_dots = (vertex_dots - height)[mesh.faces]
+        # run the intersection with the cached dot products
+        lines, index = mesh_plane(mesh=mesh,
+                                  plane_origin=new_origin,
+                                  plane_normal=plane_normal,
+                                  return_faces=True,
+                                  cached_dots=new_dots)
+
+        # get the transforms to 3D space and back
+        translation[2, 3] = height
+        to_3D = np.dot(base_transform, translation)
+        to_2D = np.linalg.inv(to_3D)
+        transforms.append(to_3D)
+
+        # transform points to 2D frame
+        lines_2D = transformations.transform_points(
+            lines.reshape((-1, 3)),
+            to_2D)
+
+        # if we didn't screw up the transform all
+        # of the Z values should be zero
+        assert np.allclose(lines_2D[:, 2], 0.0)
+
+        # reshape back in to lines and discard Z
+        lines_2D = lines_2D[:, :2].reshape((-1, 2, 2))
+        # store (n, 2, 2) float lines
+        segments.append(lines_2D)
+        # store (n,) int indexes of mesh.faces
+        face_index.append(face_index)
+
+    # (n, 4, 4) transforms from 2D to 3D
+    transforms = np.array(transforms, dtype=np.float64)
+
+    return segments, transforms, face_index
 
 
 def plane_lines(plane_origin,
@@ -180,18 +288,24 @@ def plane_lines(plane_origin,
 
     Parameters
     ---------
-    plane_origin:  plane origin, (3) list
-    plane_normal:  plane direction (3) list
-    endpoints:     (2, n, 3) points defining lines to be intersect tested
-    line_segments: if True, only returns intersections as valid if
-                   vertices from endpoints are on different sides
-                   of the plane.
+    plane_origin : (3,) float
+        Point on plane
+    plane_normal : (3,) float
+        Plane normal vector
+    endpoints : (2, n, 3) float
+        Points defining lines to be tested
+    line_segments : bool
+        If True, only returns intersections as valid if
+        vertices from endpoints are on different sides
+        of the plane.
 
     Returns
     ---------
-    intersections: (m, 3) list of cartesian intersection points
-    valid        : (n, 3) list of booleans indicating whether a valid
-                   intersection occurred
+    intersections : (m, 3) float
+        Cartesian intersection points
+    valid : (n, 3) bool
+        Indicate whether a valid intersection exists
+        for each input line segment
     """
     endpoints = np.asanyarray(endpoints)
     plane_origin = np.asanyarray(plane_origin).reshape(3)
@@ -206,7 +320,8 @@ def plane_lines(plane_origin,
     # We discard on-plane vectors by checking that the dot product is nonzero
     valid = np.abs(b) > tol.zero
     if line_segments:
-        test = np.dot(plane_normal, np.transpose(plane_origin - endpoints[1]))
+        test = np.dot(plane_normal,
+                      np.transpose(plane_origin - endpoints[1]))
         different_sides = np.sign(t) != np.sign(test)
         nonzero = np.logical_or(np.abs(t) > tol.zero,
                                 np.abs(test) > tol.zero)
@@ -225,26 +340,34 @@ def planes_lines(plane_origins,
                  line_origins,
                  line_directions):
     """
-    Given one line per plane, find the intersection points
+    Given one line per plane, find the intersection points.
 
     Parameters
     -----------
-    plane_origins:   (n,3) float, plane origins
-    plane_normals:   (n,3) float, plane normals
-    line_origins:    (n,3) float, line origins
-    line_directions: (n,3) float, line directions
+    plane_origins : (n,3) float
+        Point on each plane
+    plane_normals : (n,3) float
+        Normal vector of each plane
+    line_origins : (n,3) float
+        Point at origin of each line
+    line_directions : (n,3) float
+        Direction vector of each line
 
     Returns
     ----------
-    on_plane: (n,3) float, points on specified planes
-    valid:    (n,) bool, did plane intersect line or not
+    on_plane : (n,3) float
+        Points on specified planes
+    valid : (n,) bool
+        Did plane intersect line or not
     """
 
+    # check input types
     plane_origins = np.asanyarray(plane_origins, dtype=np.float64)
     plane_normals = np.asanyarray(plane_normals, dtype=np.float64)
     line_origins = np.asanyarray(line_origins, dtype=np.float64)
     line_directions = np.asanyarray(line_directions, dtype=np.float64)
 
+    # vector from line to plane
     origin_vectors = plane_origins - line_origins
 
     projection_ori = util.diagonal_dot(origin_vectors, plane_normals)

@@ -147,7 +147,7 @@ if _ctm_lib:
         # get face normals if available
         if ctmGetInteger(ctm, CTM_HAS_NORMALS) == CTM_TRUE:
             normals_ctm = ctmGetFloatArray(ctm, CTM_NORMALS)
-            normals = np.fromiter(normal_ctm,
+            normals = np.fromiter(normals_ctm,
                                   dtype=np.float,
                                   count=face_count * 3).reshape((-1, 3))
             result['face_normals'] = normals
