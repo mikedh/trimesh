@@ -1140,16 +1140,20 @@ def submesh(mesh,
 
     Parameters
     ----------
-    mesh: Trimesh object
-    faces_sequence: sequence of face indices from mesh
-    only_watertight: only return submeshes which are watertight.
-    append: return a single mesh which has the faces specified appended.
-            if this flag is set, only_watertight is ignored
+    mesh : Trimesh
+       Source mesh to take geometry from
+    faces_sequence : sequence (p,) int
+        Indexes of mesh.faces
+    only_watertight : bool
+        Only return submeshes which are watertight.
+    append : bool
+        Return a single mesh which has the faces appended,
+        if this flag is set, only_watertight is ignored
 
     Returns
     ---------
-    if append: Trimesh object
-    else:      list of Trimesh objects
+    if append : Trimesh object
+    else        list of Trimesh objects
     """
     # evaluate generators so we can escape early
     faces_sequence = list(faces_sequence)
@@ -1163,7 +1167,7 @@ def submesh(mesh,
         all_faces = np.array_equal(np.sort(faces_sequence),
                                    np.arange(len(faces_sequence)))
         if all_faces:
-            log.debug('entire mesh requested, returning copy of original')
+            log.debug('entire mesh requested, returning copy')
             return mesh.copy()
 
     # avoid nuking the cache on the original mesh

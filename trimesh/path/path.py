@@ -941,7 +941,8 @@ class Path2D(Path):
     def medial_axis(self, resolution=None, clip=None):
         """
         Find the approximate medial axis based
-        on a voronoi diagram of evenly spaced points on the boundary of the polygon.
+        on a voronoi diagram of evenly spaced points on the
+        boundary of the polygon.
 
         Parameters
         ----------

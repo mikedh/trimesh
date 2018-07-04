@@ -29,9 +29,9 @@ class VisualTest(g.unittest.TestCase):
         self.assertTrue(any(r.visual.face_colors.ptp(axis=0) > 1))
 
     def test_data_model(self):
-        '''
+        """
         Test the probably too- magical color caching and storage system.
-        '''
+        """
         m = g.get_mesh('featuretype.STL')
         test_color = [255, 0, 0, 255]
         test_color_2 = [0, 255, 0, 255]
@@ -151,6 +151,22 @@ class VisualTest(g.unittest.TestCase):
 
         assert len(m.visual.vertex_colors) == len(m.vertices)
 
+    def test_conversion(self):
+        m = g.get_mesh('machinist.XAML')
+        assert m.visual.kind == 'face'
+
+        # unmerge vertices so we don't get average colors
+        m.unmerge_vertices()
+
+        # store initial face colors
+        initial = g.deepcopy(m.visual.face_colors.copy())
+
+        # assign averaged vertex colors as default
+        m.visual.vertex_colors = m.visual.vertex_colors
+        assert m.visual.kind == 'vertex'
+
+        m.visual._cache.clear()
+        assert g.np.allclose(initial, m.visual.face_colors)
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

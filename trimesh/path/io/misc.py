@@ -175,6 +175,8 @@ def edges_to_path(edges, vertices, **kwargs):
     # sequence of ordered traversals
     dfs = graph.traversals(edges, mode='dfs')
 
+    # kwargs for Path constructor
+    # turn traversals into Line objects
     kwargs.update({'entities': [Line(d) for d in dfs],
                    'vertices': vertices})
     return kwargs

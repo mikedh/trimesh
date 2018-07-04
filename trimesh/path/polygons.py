@@ -2,6 +2,8 @@ import numpy as np
 import networkx as nx
 
 from shapely.geometry import Polygon, Point, MultiPoint
+from shapely import vectorized
+
 from rtree import Rtree
 from collections import deque
 
@@ -255,20 +257,27 @@ def stack_boundaries(boundaries):
     return result
 
 
-def medial_axis(polygon, resolution=.01, clip=None):
+def medial_axis(polygon,
+                resolution=.01,
+                clip=None):
     """
-    Given a shapely polygon, find the approximate medial axis based
-    on a voronoi diagram of evenly spaced points on the boundary of the polygon.
+    Given a shapely polygon, find the approximate medial axis
+    using a voronoi diagram of evenly spaced points on the
+    boundary of the polygon.
 
     Parameters
     ----------
-    polygon:    a shapely.geometry.Polygon
-    resolution: target distance between each sample on the polygon boundary
-    clip:       [minimum number of samples, maximum number of samples]
-                specifying a very fine resolution can cause the sample count to
-                explode, so clip specifies a minimum and maximum number of samples
-                to use per boundary region. To not clip, this can be specified as:
-                [0, np.inf]
+    polygon : shapely.geometry.Polygon
+        The source geometry
+    resolution : float
+        Distance between each sample on the polygon boundary
+    clip : None, or (2,) float
+        Clip the lower and upper bound of sample count to:
+        [minimum number of samples, maximum number of samples]
+        specifying a very fine resolution can cause the sample count to
+        explode, so clip specifies a minimum and maximum number of samples
+        to use per boundary region. To not clip, this can be specified as:
+        [0, np.inf]
 
     Returns
     ----------
@@ -278,31 +287,27 @@ def medial_axis(polygon, resolution=.01, clip=None):
     from .entities import Line
     from .path import Path2D
 
+    # get evenly spaced points on the polygons boundaries
     samples = resample_boundaries(polygon=polygon,
                                   resolution=resolution,
                                   clip=clip)
+    # stack the boundary into a (m,2) float array
     samples = stack_boundaries(samples)
-
-    # create the voronoi diagram, after vertically stacking the points
-    # deque from a sequnce into a clean (m,2) array
+    # create the voronoi diagram on 2D points
     voronoi = Voronoi(samples)
-    # which voronoi vertices are contained inside the original polygon
-    contain = np.array([polygon.contains(Point(i))
-                        for i in voronoi.vertices],
-                       dtype=np.bool)
+    # which voronoi vertices are contained inside the polygon
+    contains = vectorized.contains(polygon, *voronoi.vertices.T)
     # ridge vertices of -1 are outside, make sure they are False
-    contain = np.append(contain, False)
-    # is a ridge fully inside the polygon
-    inside = [i for i in voronoi.ridge_vertices if contain[i].all()]
-    edges = np.vstack([util.stack_lines(i)
-                       for i in inside if len(i) >= 2])
+    contains = np.append(contains, False)
+    # make sure ridge vertices is numpy array
+    ridge = np.asanyarray(voronoi.ridge_vertices, dtype=np.int64)
+    # only take ridges where every vertex is contained
+    edges = ridge[contains[ridge].all(axis=1)]
     # line objects from edges
     entities = [Line(points=i) for i in edges]
-
     # create the Path2D object for the medial axis
     medial = Path2D(entities=entities,
                     vertices=voronoi.vertices)
-
     return medial
 
 

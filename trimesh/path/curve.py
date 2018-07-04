@@ -5,7 +5,7 @@ from ..constants import tol_path as tol
 
 
 def discretize_bezier(points, count=None, scale=1.0):
-    '''
+    """
     Parameters
     ----------
     points:  (o,d) list of points of the bezier. The first and last
@@ -16,7 +16,7 @@ def discretize_bezier(points, count=None, scale=1.0):
     ----------
     discrete: (n,d) list of points, a polyline representation
               of the bezier curve which respects constants.RES_LENGTH
-    '''
+    """
     def compute(t):
         # compute discrete points given a sampling t
         t_d = 1.0 - t
@@ -29,7 +29,7 @@ def discretize_bezier(points, count=None, scale=1.0):
         return discrete
 
     # make sure we have a numpy array
-    points = np.array(points)
+    points = np.asanyarray(points, dtype=np.float64)
 
     if count is None:
         # how much distance does a small percentage of the curve take
@@ -49,7 +49,7 @@ def discretize_bezier(points, count=None, scale=1.0):
 
 
 def discretize_bspline(control, knots, count=None, scale=1.0):
-    '''
+    """
     Given a B-Splines control points and knot vector, return
     a sampled version of the curve.
 
@@ -63,12 +63,12 @@ def discretize_bspline(control, knots, count=None, scale=1.0):
     Returns
     ----------
     discrete: (count,d) list of points, a polyline of the B-spline.
-    '''
+    """
 
     # evaluate the b-spline using scipy/fitpack
     from scipy.interpolate import splev
     # (n, d) control points where d is the dimension of vertices
-    control = np.array(control)
+    control = np.asanyarray(control, dtype=np.float64)
     degree = len(knots) - len(control) - 1
     if count is None:
         norm = np.linalg.norm(np.diff(control, axis=0), axis=1).sum()
@@ -83,12 +83,12 @@ def discretize_bspline(control, knots, count=None, scale=1.0):
 
 
 def binomial(n):
-    '''
+    """
     Return all binomial coefficents for a given order.
 
     For n > 5, scipy.special.binom is used, below we hardcode
     to avoid the scipy.special dependancy.
-    '''
+    """
     if n == 1:
         return [1, 1]
     elif n == 2:

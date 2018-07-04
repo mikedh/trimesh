@@ -130,14 +130,16 @@ def face_adjacency_radius(mesh):
 
     Parameters
     --------------
-    mesh: Trimesh object
+    mesh : trimesh.Trimesh
 
     Returns
     -------------
-    radii: (n,) float, approximate radius between faces.
-           Parallel faces will have a value of np.inf
-    span:  (n,) float, perpendicular projection distance of two
-           unshared vertices onto the shared edge
+    radii : (len(self.face_adjacency),) float
+        Approximate radius between faces
+        Parallel faces will have a value of np.inf
+    span :  (len(self.face_adjacency),) float
+        Perpendicular projection distance of two
+        unshared vertices onto the shared edge
     """
 
     # solve for the radius of the adjacent faces
@@ -145,8 +147,8 @@ def face_adjacency_radius(mesh):
     # R = ------------------
     #     2 * sin(theta / 2)
     nonzero = mesh.face_adjacency_angles > np.radians(.01)
-    denominator = np.abs(2.0 *
-                         np.sin(mesh.face_adjacency_angles[nonzero] / 1.0))
+    denominator = np.abs(
+        2.0 * np.sin(mesh.face_adjacency_angles[nonzero] / 1.0))
 
     # consider the distance between the non- shared vertices of the
     # face adjacency pair as the key distance
@@ -246,13 +248,16 @@ def facets(mesh, engine=None):
 
     Parameters
     ---------
-    mesh:  Trimesh
-    engine: str, which graph engine to use ('scipy', 'networkx', 'graphtool')
+    mesh :  trimesh.Trimesh
+    engine : str
+       Which graph engine to use:
+       ('scipy', 'networkx', 'graphtool')
 
     Returns
     ---------
-    facets: list of groups of face indexes (mesh.faces) of parallel
-                  adjacent faces.
+    facets : sequence of (n,) int
+        Groups of face indexes of
+        parallel adjacent faces.
     """
     # what is the radius of a circle that passes through the perpendicular
     # projection of the vector between the two non- shared vertices
@@ -476,6 +481,48 @@ def connected_component_labels(edges, node_count=None):
     return labels
 
 
+def split_traversal(edges, traversal, edge_hash=None):
+    """
+    Given a traversal over a list of edges split it if
+    a sequential index pair is not in the edges.
+
+    Parameters
+    --------------
+    edges : (n, 2) int
+       Graph edge indexes
+    traversal : (m,) int
+       Traversal through edges
+    edge_hash : (n,)
+       Edges sorted on axis=1 and
+       passed to grouping.hashable_rows
+
+    Returns
+    ---------------
+    split : sequence of (p,) int
+    """
+    if edge_hash is None:
+        edge_hash = grouping.hashable_rows(
+            np.sort(edges, axis=1))
+
+    trav_edge = np.column_stack((traversal[:-1],
+                                 traversal[1:]))
+
+    trav_hash = grouping.hashable_rows(np.sort(trav_edge, axis=1))
+    contained = np.in1d(trav_hash, edge_hash)
+
+    # exit early if every edge of traversal exists
+    if contained.all():
+        return [traversal]
+
+    # find contiguous groups of contained edges
+    blocks = grouping.blocks(contained, min_len=1)
+    # turn edges back in to traversal
+    split = [np.append(oedge[b][:, 0], oedge[b[-1]][1])
+             for b in blocks]
+
+    return split
+
+
 def traversals(edges, mode='bfs'):
     """
     Given an edge list, generate a sequence of ordered
@@ -525,15 +572,15 @@ def traversals(edges, mode='bfs'):
         ordered = func(graph,
                        i_start=start,
                        return_predecessors=False,
-                       directed=False)
+                       directed=False).astype(np.int64)
 
         # even if the traversal is closed there won't be an
         # indication from the DFS, so add the first node
         # to the end of the path
         if np.sort(ordered[[0, -1]]) in edges:
             ordered = np.append(ordered, ordered[0])
-        # add the traversal to our result
         traversals.append(ordered)
+
         # remove the nodes we've consumed
         nodes.difference_update(ordered)
 

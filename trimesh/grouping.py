@@ -544,7 +544,11 @@ def clusters(points, radius):
     return groups
 
 
-def blocks(data, min_len=2, max_len=np.inf, digits=None, only_nonzero=False):
+def blocks(data,
+           min_len=2,
+           max_len=np.inf,
+           digits=None,
+           only_nonzero=False):
     """
     Given an array, find the indices of contiguous blocks
     of equal values.
