@@ -60,11 +60,14 @@ if __name__ == '__main__':
            examples_dir]
     subprocess.check_call(exp)
 
-    # copy images to build directory
-    shutil.copytree(
-        abspath('images'), 
-        os.path.join(build_dir, 'images'))
-
+    # copy images to build director
+    try:
+        shutil.copytree(
+            abspath('images'), 
+            os.path.join(build_dir, 'images'))
+    except BaseException as E:
+        print('unable to copy images', E)
+        
     # build the API doc
     api = ['sphinx-apidoc',
            '-o',
