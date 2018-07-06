@@ -1,4 +1,4 @@
-[![trimesh](https://github.com/mikedh/trimesh/blob/master/docs/images/logotype-a.svg)](http://trimsh.org)
+[![trimesh](https://trimsh.org/images/logotype-a.svg)](http://trimsh.org)
 
 -----------
 [![Build Status](https://travis-ci.org/mikedh/trimesh.svg?branch=master)](https://travis-ci.org/mikedh/trimesh) [![Build status](https://ci.appveyor.com/api/projects/status/j8h3luwvst1tkghl?svg=true)](https://ci.appveyor.com/project/mikedh/trimesh) [![Coverage Status](https://coveralls.io/repos/github/mikedh/trimesh/badge.svg)](https://coveralls.io/github/mikedh/trimesh) [![PyPI version](https://badge.fury.io/py/trimesh.svg)](https://badge.fury.io/py/trimesh)
