@@ -284,8 +284,8 @@ def medial_axis(polygon,
     lines:     (n,2,2) set of line segments
     """
     from scipy.spatial import Voronoi
-    from .entities import Line
     from .path import Path2D
+    from .io.misc import edges_to_path
 
     # get evenly spaced points on the polygons boundaries
     samples = resample_boundaries(polygon=polygon,
@@ -304,10 +304,10 @@ def medial_axis(polygon,
     # only take ridges where every vertex is contained
     edges = ridge[contains[ridge].all(axis=1)]
     # line objects from edges
-    entities = [Line(points=i) for i in edges]
-    # create the Path2D object for the medial axis
-    medial = Path2D(entities=entities,
-                    vertices=voronoi.vertices)
+    medial = Path2D(**edges_to_path(
+        edges=edges,
+        vertices=voronoi.vertices))
+
     return medial
 
 

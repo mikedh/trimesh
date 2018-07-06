@@ -465,26 +465,31 @@ def connected_component_labels(edges, node_count=None):
 
     Parameters
     ----------
-    edges: (n, 2) int, edges of a graph
-    node_count: int, the largest node in the graph.
+    edges : (n, 2) int
+       Edges of a graph
+    node_count : int, or None
+        The largest node in the graph.
 
     Returns
     ---------
-    labels: (node_count,) int, component labels for each node
+    labels : (node_count,) int
+        Component labels for each node
     """
     matrix = edges_to_coo(edges, node_count)
-    body_count, labels = csgraph.connected_components(matrix,
-                                                      directed=False)
+    body_count, labels = csgraph.connected_components(
+        matrix, directed=False)
 
     assert len(labels) == node_count
 
     return labels
 
 
-def split_traversal(edges, traversal, edge_hash=None):
+def split_traversal(traversal,
+                    edges,
+                    edges_hash=None):
     """
-    Given a traversal over a list of edges split it if
-    a sequential index pair is not in the edges.
+    Given a traversal as a list of nodes, split the traversal
+    if a sequential index pair is not in the given edges.
 
     Parameters
     --------------
@@ -500,27 +505,86 @@ def split_traversal(edges, traversal, edge_hash=None):
     ---------------
     split : sequence of (p,) int
     """
-    if edge_hash is None:
-        edge_hash = grouping.hashable_rows(
+    # hash edge rows for contains checks
+    if edges_hash is None:
+        edges_hash = grouping.hashable_rows(
             np.sort(edges, axis=1))
 
+    # turn the (n,) traversal into (n-1,2) edges
     trav_edge = np.column_stack((traversal[:-1],
                                  traversal[1:]))
-
-    trav_hash = grouping.hashable_rows(np.sort(trav_edge, axis=1))
-    contained = np.in1d(trav_hash, edge_hash)
+    # hash each edge so we can compare to edge set
+    trav_hash = grouping.hashable_rows(
+        np.sort(trav_edge, axis=1))
+    # check if each edge is contained in edge set
+    contained = np.in1d(trav_hash, edges_hash)
 
     # exit early if every edge of traversal exists
     if contained.all():
         return [traversal]
 
     # find contiguous groups of contained edges
-    blocks = grouping.blocks(contained, min_len=1)
-    # turn edges back in to traversal
-    split = [np.append(oedge[b][:, 0], oedge[b[-1]][1])
+    blocks = grouping.blocks(contained,
+                             min_len=1,
+                             only_nonzero=True)
+
+    # turn edges back in to sequence of traversals
+    split = [np.append(trav_edge[b][:, 0],
+                       trav_edge[b[-1]][1])
              for b in blocks]
 
     return split
+
+
+def fill_traversals(traversals, edges, edges_hash=None):
+    """
+    Convert a traversal of a list of edges into a sequence of
+    traversals where every pair of consecutive node indexes
+    is an edge in a passed edge list
+
+    Parameters
+    -------------
+    traversals : sequence of (m,) int
+       Node indexes of traversals of a graph
+    edges : (n, 2) int
+       Pairs of connected node indexes
+    edges_hash : None, or (n,) int
+       Edges sorted along axis 1 then hashed
+       using grouping.hashable_rows
+
+    Returns
+    --------------
+    splits : sequence of (p,) int
+       Node indexes of connected traversals
+    """
+
+    # make edges correct type
+    edges = np.asanyarray(edges, dtype=np.int64)
+    # hash edges for contains checks
+    if edges_hash is None:
+        edges_hash = grouping.hashable_rows(np.sort(edges,
+                                                    axis=1))
+    splits = []
+    for nodes in traversals:
+        # split traversals to remove edges
+        # that don't actually exist
+        splits.extend(split_traversal(
+            traversal=nodes,
+            edges=edges,
+            edges_hash=edges_hash))
+    # turn the split traversals back into (n,2) edges
+    included = np.vstack([np.column_stack((i[:-1], i[1:]))
+                          for i in splits])
+    # sort included edges in place
+    included.sort(axis=1)
+    # make sure any edges not included in split traversals
+    # are just added as a length 2 traversal
+    splits.extend(grouping.boolean_rows(
+        edges,
+        included,
+        operation=np.setdiff1d))
+
+    return splits
 
 
 def traversals(edges, mode='bfs'):
@@ -530,8 +594,8 @@ def traversals(edges, mode='bfs'):
 
     Parameters
     ------------
-    edges: (n,2) int, undirected edges of a graph
-    mode:  str, 'bfs', or 'dfs'
+    edges : (n,2) int, undirected edges of a graph
+    mode :  str, 'bfs', or 'dfs'
 
     Returns
     -----------
@@ -556,7 +620,6 @@ def traversals(edges, mode='bfs'):
     # make sure edges are sorted so we can query
     # an ordered pair later
     edges.sort(axis=1)
-
     # set of nodes to make sure we get every node
     nodes = set(edges.reshape(-1))
     # coo_matrix for csgraph routines
@@ -574,13 +637,7 @@ def traversals(edges, mode='bfs'):
                        return_predecessors=False,
                        directed=False).astype(np.int64)
 
-        # even if the traversal is closed there won't be an
-        # indication from the DFS, so add the first node
-        # to the end of the path
-        if np.sort(ordered[[0, -1]]) in edges:
-            ordered = np.append(ordered, ordered[0])
         traversals.append(ordered)
-
         # remove the nodes we've consumed
         nodes.difference_update(ordered)
 

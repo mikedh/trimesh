@@ -112,12 +112,37 @@ class GraphTest(g.unittest.TestCase):
         #assert m.is_winding_consistent
         #assert m.is_volume
 
+    def test_traversals(self):
+        """
+        Test traversals (BFS+DFS)
+        """
+        nodes = g.np.arange(20)
+        edges = g.np.column_stack((nodes[:-1],
+                                   nodes[1:]))
+        edges = g.np.vstack((edges,
+                             [[19, 0],
+                              [10, 1000]]))
+
+        dfs_basic = g.trimesh.graph.traversals(edges, 'dfs')
+
+        dfs_set = set(g.np.hstack(dfs_basic))
+        nodes_set = set(g.np.append(nodes, [19, 1000]))
+        assert dfs_set == nodes_set
+
+        dfs = g.trimesh.graph.fill_traversals(dfs_basic, edges)
+        inc = g.np.vstack([g.np.column_stack((i[:-1], i[1:]))
+                           for i in dfs])
+        inc.sort(axis=1)
+
+        assert set(g.trimesh.grouping.hashable_rows(inc)) == set(
+            g.trimesh.grouping.hashable_rows(edges))
+
 
 def check_engines(edges, nodes):
-    '''
+    """
     Make sure connected component graph engines are
     returning the exact same values
-    '''
+    """
     results = []
     engines = [None, 'scipy', 'networkx']
 

@@ -8,6 +8,7 @@ python build.py
 """
 
 import os
+import shutil
 import inspect
 import subprocess
 
@@ -58,6 +59,11 @@ if __name__ == '__main__':
            'examples',
            examples_dir]
     subprocess.check_call(exp)
+
+    # copy images to build directory
+    shutil.copytree(
+        abspath('images'), 
+        os.path.join(build_dir, 'images'))
 
     # build the API doc
     api = ['sphinx-apidoc',
