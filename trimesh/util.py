@@ -1612,11 +1612,15 @@ def vstack_empty(tup):
     stacked: (n,d) array, with same number of columns as
               constituent arrays.
     """
+    # filter out empty arrays
     stackable = [i for i in tup if len(i) > 0]
+    # if we only have one array just return it
     if len(stackable) == 1:
-        return stackable[0]
+        return np.asanyarray(stackable[0])
+    # if we have nothing return an empty numpy array
     elif len(stackable) == 0:
         return np.array([])
+    # otherwise just use vstack as normal
     return np.vstack(stackable)
 
 

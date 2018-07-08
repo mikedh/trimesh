@@ -124,13 +124,16 @@ class GraphTest(g.unittest.TestCase):
         edges = g.np.vstack((edges,
                              [[19, 0],
                               [10, 1000],
-                              [500, 501]]))
+                              [500, 501]])).astype(g.np.int64)
         # collect the new nodes
         nodes = g.np.unique(edges)
 
         # the basic BFS/DFS traversal
         dfs_basic = g.trimesh.graph.traversals(edges, 'dfs')
         bfs_basic = g.trimesh.graph.traversals(edges, 'bfs')
+        # check return types
+        assert all(i.dtype == g.np.int64 for i in dfs_basic)
+        assert all(i.dtype == g.np.int64 for i in bfs_basic)
 
         # check to make sure traversals visited every node
         dfs_set = set(g.np.hstack(dfs_basic))
@@ -139,20 +142,32 @@ class GraphTest(g.unittest.TestCase):
         assert dfs_set == nodes_set
         assert bfs_set == nodes_set
 
-        # disconnect consecutive nodes that are not edges into a sequence
-        dfs = g.trimesh.graph.fill_traversals(dfs_basic, edges)
-        # edges that are included in the new separated traversal
-        inc = g.np.vstack([g.np.column_stack((i[:-1], i[1:]))
-                           for i in dfs])
+        # check traversal filling
+        # fill_traversals should always include every edge
+        # regardless of the path so test on bfs/dfs/empty
+        for traversal in [dfs_basic, bfs_basic, []]:
+            # disconnect consecutive nodes that are not edges
+            # and add edges that were left off by jumps
+            dfs = g.trimesh.graph.fill_traversals(traversal, edges)
+            # edges that are included in the new separated traversal
+            inc = g.trimesh.util.vstack_empty(
+                [g.np.column_stack((i[:-1], i[1:]))
+                 for i in dfs])
 
-        # make a set from edges included in the traversal
-        inc_set = set(g.trimesh.grouping.hashable_rows(
-            g.np.sort(inc, axis=1)))
-        # make a set of the source edges we were supposed to include
-        edge_set = set(g.trimesh.grouping.hashable_rows(
-            g.np.sort(edges, axis=1)))
+            # make a set from edges included in the traversal
+            inc_set = set(g.trimesh.grouping.hashable_rows(
+                g.np.sort(inc, axis=1)))
+            # make a set of the source edges we were supposed to include
+            edge_set = set(g.trimesh.grouping.hashable_rows(
+                g.np.sort(edges, axis=1)))
 
-        assert inc_set == edge_set
+            # we should have exactly the same edges
+            # after the filled traversal as we started with
+            assert len(inc) == len(edges)
+            assert inc_set == edge_set
+
+            # check all return dtypes
+            assert all(i.dtype == g.np.int64 for i in dfs)
 
 
 def check_engines(edges, nodes):

@@ -505,6 +505,9 @@ def split_traversal(traversal,
     ---------------
     split : sequence of (p,) int
     """
+    traversal = np.asanyarray(traversal,
+                              dtype=np.int64)
+
     # hash edge rows for contains checks
     if edges_hash is None:
         edges_hash = grouping.hashable_rows(
@@ -557,9 +560,13 @@ def fill_traversals(traversals, edges, edges_hash=None):
     splits : sequence of (p,) int
        Node indexes of connected traversals
     """
-
-    # make edges correct type
+    # make sure edges are correct type
     edges = np.asanyarray(edges, dtype=np.int64)
+
+    # if there are no traversals just return edges
+    if len(traversals) == 0:
+        return edges.copy()
+
     # hash edges for contains checks
     if edges_hash is None:
         edges_hash = grouping.hashable_rows(np.sort(edges,
@@ -573,16 +580,21 @@ def fill_traversals(traversals, edges, edges_hash=None):
             edges=edges,
             edges_hash=edges_hash))
     # turn the split traversals back into (n,2) edges
-    included = np.vstack([np.column_stack((i[:-1], i[1:]))
-                          for i in splits])
-    # sort included edges in place
-    included.sort(axis=1)
-    # make sure any edges not included in split traversals
-    # are just added as a length 2 traversal
-    splits.extend(grouping.boolean_rows(
-        edges,
-        included,
-        operation=np.setdiff1d))
+    included = util.vstack_empty([np.column_stack((i[:-1], i[1:]))
+                                  for i in splits])
+    if len(included) > 0:
+        # sort included edges in place
+        included.sort(axis=1)
+        # make sure any edges not included in split traversals
+        # are just added as a length 2 traversal
+        splits.extend(grouping.boolean_rows(
+            edges,
+            included,
+            operation=np.setdiff1d))
+    else:
+        # no edges were included, so our filled traversal
+        # is just the original edges copied over
+        splits = edges.copy()
 
     return splits
 

@@ -152,9 +152,9 @@ def faces_to_path(mesh, face_ids=None, **kwargs):
     unique_edges = grouping.group_rows(edges,
                                        require_count=1)
 
-    # generate path traversals from the edges
     kwargs.update(edges_to_path(edges=edges[unique_edges],
                                 vertices=mesh.vertices))
+
     return kwargs
 
 

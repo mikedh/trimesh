@@ -117,6 +117,7 @@ class CreationTest(g.unittest.TestCase):
                 g.log.error('failed to benchmark triangle', exc_info=True)
         g.log.warning('benchmarked triangle interfaces: {}'.format(str(times)))
 
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()

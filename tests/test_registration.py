@@ -59,6 +59,7 @@ class RegistrationTest(g.unittest.TestCase):
                              g.np.linalg.inv(matrixN))
         assert g.np.allclose(transformed, points_a[index])
 
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()
