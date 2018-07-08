@@ -190,7 +190,7 @@ def extrude_triangulation(vertices,
     height = float(height)
 
     if not util.is_shape(vertices, (-1, 2)):
-        raise ValueError('Vertices must be (n,3)')
+        raise ValueError('Vertices must be (n,2)')
     if not util.is_shape(faces, (-1, 3)):
         raise ValueError('Faces must be (n,3)')
     if np.abs(height) < tol.zero:
