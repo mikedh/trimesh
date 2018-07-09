@@ -33,7 +33,8 @@ class Entity(object):
 
     def to_dict(self):
         """
-        Returns a dictionary with all of the information about the entity.
+        Returns a dictionary with all of the information
+        about the entity.
         """
         return {'type': self.__class__.__name__,
                 'points': self.points.tolist(),
@@ -42,7 +43,8 @@ class Entity(object):
     @property
     def closed(self):
         """
-        If the first point is the same as the end point, the entity is closed
+        If the first point is the same as the end point
+        the entity is closed
         """
         closed = (len(self.points) > 2 and
                   np.equal(self.points[0], self.points[-1]))

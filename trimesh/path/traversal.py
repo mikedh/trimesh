@@ -89,7 +89,12 @@ def vertex_to_entity_path(vertex_path,
         elif a[1] == b[1]:
             return 1, -1
         else:
-            raise ValueError('edges aren\'t connected!')
+            msg = 'edges not connected!'
+            msg += '\nvertex_path: {}'.format(vertex_path)
+            msg += '\nentity_path: {}'.format(entity_path)
+            msg += '\nentity[a]: {}'.format(entities[ea].points)
+            msg += '\nentity[b]: {}'.format(entities[eb].points)
+            raise ValueError(msg)
 
     if vertices is None:
         ccw_direction = 1
@@ -98,41 +103,37 @@ def vertex_to_entity_path(vertex_path,
                                               vertex_path[0])])
         ccw_direction = (ccw_check * 2) - 1
 
-    # populate the list of entities
-    vertex_path = np.asanyarray(vertex_path)
-    entity_path = deque()
+    # make sure vertex path is correct type
+    vertex_path = np.asanyarray(vertex_path, dtype=np.int64)
+    # we will be saving entity indexes
+    entity_path = []
+    # loop through pairs of vertices
     for i in np.arange(len(vertex_path) + 1):
         vertex_path_pos = np.mod(np.arange(2) + i, len(vertex_path))
         vertex_index = vertex_path[vertex_path_pos]
         entity_index = graph.get_edge_data(*vertex_index)['entity_index']
         entity_path.append(entity_index)
-    # remove duplicate entities
+    # remove duplicate entities and order CCW
     entity_path = unique_ordered(entity_path)[::ccw_direction]
-
+    # check to make sure there is more than one entity
+    if len(entity_path) == 1:
+        # apply CCW reverse in place if necessary
+        if ccw_direction < 0:
+            index = entity_path[0]
+            entities[index].points = entities[index].points[::ccw_direction]
+        return entity_path
     # traverse the entity path and reverse entities in place to align
     # with this path ordering
     round_trip = np.append(entity_path, entity_path[0])
     round_trip = zip(round_trip[:-1], round_trip[1:])
-    for a, b in round_trip:
-        da, db = edge_direction(entities[a].end_points,
-                                entities[b].end_points)
-        entities[a].points = entities[a].points[::da]
-        entities[b].points = entities[b].points[::db]
+    for ea, eb in round_trip:
+        da, db = edge_direction(entities[ea].end_points,
+                                entities[eb].end_points)
+        entities[ea].points = entities[ea].points[::da]
+        entities[eb].points = entities[eb].points[::db]
     entity_path = np.array(entity_path)
 
     return entity_path
-
-
-def connected_open(graph):
-    broken = set()
-    for node, degree in graph.degree().items():
-        if degree == 2:
-            continue
-        if node in broken:
-            continue
-        [broken.add(i) for i in nx.node_connected_component(graph, node)]
-    okay = set(graph.nodes()).difference(broken)
-    return broken, okay
 
 
 def closed_paths(entities, vertices):
