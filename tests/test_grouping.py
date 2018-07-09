@@ -162,11 +162,18 @@ class GroupTests(g.unittest.TestCase):
     def test_boolean_rows(self):
         a = g.np.arange(10).reshape((-1, 2))
         b = g.np.arange(10).reshape((-1, 2)) + 8
+        # make one a different dtype
+        b = b.astype(g.np.int32)
 
         # should have one overlapping row
         intersection = g.trimesh.grouping.boolean_rows(
             a, b, g.np.intersect1d)
         assert g.np.allclose(intersection.ravel(), [8, 9])
+
+        diff = g.trimesh.grouping.boolean_rows(
+            a, b, g.np.setdiff1d)
+        assert g.np.allclose(g.np.unique(diff),
+                             g.np.arange(8))
 
 
 if __name__ == '__main__':

@@ -416,19 +416,21 @@ def boolean_rows(a, b, operation=np.intersect1d):
 
     Parameters
     ---------
-    a: (n,d) array
-    b: (m,d) array
-    operation: boolean set operation function:
-               set.intersection
-               set.difference
-               set.union
+    a: (n, d) int
+        Array with row vectors
+    b: (m, d) int
+        Array with row vectors
+    operation : function
+        Numpy boolean set operation function:
+          -np.intersect1d
+          -np.setdiff1d
 
     Returns
     --------
     shared: (p, d) array containing rows in both a and b
     """
-    a = np.asanyarray(a)
-    b = np.asanyarray(b)
+    a = np.asanyarray(a, dtype=np.int64)
+    b = np.asanyarray(b, dtype=np.int64)
 
     av = a.view([('', a.dtype)] * a.shape[1]).ravel()
     bv = b.view([('', b.dtype)] * b.shape[1]).ravel()
