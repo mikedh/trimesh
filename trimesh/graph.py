@@ -42,41 +42,49 @@ def face_adjacency(faces=None,
 
     Parameters
     ----------
-    faces:        (n, d) int, set of faces referencing vertices by index
-    mesh:         Trimesh object, optional if passed will used cached edges
-    return_edges: bool, return the edges shared by adjacent faces
+    faces : (n, 3) int, or None
+        List of vertex indices representing triangles
+    mesh : Trimesh object
+        If passed will used cached edges instead of faces
+    return_edges : bool
+        Return the edges shared by adjacent faces
 
     Returns
     ---------
-    adjacency: (m,2) int, indexes of faces that are adjacent
-
-    if return_edges:
-         edges: (m,2) int, indexes of vertices which make up the
-                 edges shared by the adjacent faces
+    adjacency : (m,2) int
+        Indexes of faces that are adjacent
+    edges: (m,2) int
+        Only returned if return_edges is True
+        Indexes of vertices which make up the
+        edges shared by the adjacent faces
 
     Examples
     ----------
-    This is useful for lots of things, such as finding connected components:
-
-    graph = nx.Graph()
-    graph.add_edges_from(mesh.face_adjacency)
-    groups = nx.connected_components(graph_connected)
+    This is useful for lots of things such as finding 
+    face- connected components:
+    >>> graph = nx.Graph()
+    >>> graph.add_edges_from(mesh.face_adjacency)
+    >>> groups = nx.connected_components(graph_connected)
     """
 
     if mesh is None:
         # first generate the list of edges for the current faces
         # also return the index for which face the edge is from
-        edges, edges_face = faces_to_edges(faces, return_index=True)
+        edges, edges_face = faces_to_edges(faces,
+                                           return_index=True)
+        # make sure edge rows are sorted
         edges.sort(axis=1)
     else:
-        # if passed a mesh, used the cached values for edges sorted
+        # if passed a mesh, used the cached values
         edges = mesh.edges_sorted
         edges_face = mesh.edges_face
 
     # this will return the indices for duplicate edges
     # every edge appears twice in a well constructed mesh
-    # so for every row in edge_idx, edges[edge_idx[*][0]] == edges[edge_idx[*][1]]
-    # in this call to group rows, we discard edges which don't occur twice
+    # so for every row in edge_idx:
+    # edges[edge_idx[*][0]] == edges[edge_idx[*][1]]
+    # in this call to group rows we discard edges which
+    # don't occur twice
     edge_groups = grouping.group_rows(edges, require_count=2)
 
     if len(edge_groups) == 0:
@@ -103,16 +111,18 @@ def face_adjacency_unshared(mesh):
 
     Parameters
     ----------
-    mesh: Trimesh object
+    mesh : Trimesh object
 
     Returns
     -----------
-    vid_unshared: (len(mesh.face_adjacency), 2) int, indexes of mesh.vertices
+    vid_unshared : (len(mesh.face_adjacency), 2) int
+        Indexes of mesh.vertices
     """
 
-    # the non- shared vertex index is the same shape as face_adjacnecy
+    # the non- shared vertex index is the same shape as face_adjacnecy 
     # just holding vertex indices rather than face indices
-    vid_unshared = np.zeros_like(mesh.face_adjacency, dtype=np.int64)
+    vid_unshared = np.zeros_like(mesh.face_adjacency,
+                                 dtype=np.int64)
     # loop through both columns of face adjacency
     for i, adjacency in enumerate(mesh.face_adjacency.T):
         # faces from the current column of face adjacency
@@ -179,30 +189,27 @@ def face_adjacency_radius(mesh):
 
 def vertex_adjacency_graph(mesh):
     """
-    Returns a networkx graph representing the vertices and their connections
-    in the mesh.
+    Returns a networkx graph representing the vertices and 
+    their connections in the mesh.
 
     Parameters
     ----------
-    mesh:         Trimesh object
+    mesh : Trimesh object
 
     Returns
     ---------
-    graph: networkx.Graph(), graph representing vertices and edges between
-                             them,where vertices are networkx Nodes and edges
-                             are Edges.
+    graph : networkx.Graph
+        Graph representing vertices and edges between
+        them where vertices are nodes and edges are edges
 
     Examples
     ----------
     This is useful for getting nearby vertices for a given vertex,
     potentially for some simple smoothing techniques.
-
-
-    graph = mesh.vertex_adjacency_graph
-    graph.neighbors(0)
+    >>> graph = mesh.vertex_adjacency_graph
+    >>> graph.neighbors(0)
     > [1,3,4]
     """
-
     g = nx.Graph()
     g.add_edges_from(mesh.edges_unique)
     return g
@@ -562,6 +569,8 @@ def fill_traversals(traversals, edges, edges_hash=None):
     """
     # make sure edges are correct type
     edges = np.asanyarray(edges, dtype=np.int64)
+    # make sure edges are sorted
+    edges.sort(axis=1)
 
     # if there are no traversals just return edges
     if len(traversals) == 0:
@@ -569,8 +578,8 @@ def fill_traversals(traversals, edges, edges_hash=None):
 
     # hash edges for contains checks
     if edges_hash is None:
-        edges_hash = grouping.hashable_rows(np.sort(edges,
-                                                    axis=1))
+        edges_hash = grouping.hashable_rows(edges)
+
     splits = []
     for nodes in traversals:
         # split traversals to remove edges
