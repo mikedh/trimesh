@@ -631,7 +631,8 @@ class Path3D(Path):
     def to_planar(self,
                   to_2D=None,
                   normal=None,
-                  check=True):
+                  check=True,
+                  origin=None):
         """
         Check to see if current vectors are all coplanar.
 
@@ -649,6 +650,11 @@ class Path3D(Path):
         check:  bool
                   Raise a ValueError if the points aren't coplanar
                   after being transformed.
+        origin: (3,) float, point which will be mapped to (0,0) in the 2D
+                     output if to_2D is not specified. If not passed defaults
+                     to first vertex in path. Warning: To align different sections
+                     with this. Otherwise some sections might be mirrored across
+                     the origin.
 
         Returns
         -----------
@@ -663,6 +669,9 @@ class Path3D(Path):
             if normal is not None:
                 N *= np.sign(np.dot(N, normal))
                 N = normal
+            if origin is not None:
+                C = np.array(C)  # Without this you modify the first point in the path!
+                C += (origin - C) - N * np.dot(N, origin - C)
             to_2D = plane_transform(C, N)
 
         flat = transformations.transform_points(self.vertices, to_2D)
