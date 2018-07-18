@@ -60,7 +60,7 @@ def face_adjacency(faces=None,
 
     Examples
     ----------
-    This is useful for lots of things such as finding 
+    This is useful for lots of things such as finding
     face- connected components:
     >>> graph = nx.Graph()
     >>> graph.add_edges_from(mesh.face_adjacency)
@@ -119,7 +119,7 @@ def face_adjacency_unshared(mesh):
         Indexes of mesh.vertices
     """
 
-    # the non- shared vertex index is the same shape as face_adjacnecy 
+    # the non- shared vertex index is the same shape as face_adjacnecy
     # just holding vertex indices rather than face indices
     vid_unshared = np.zeros_like(mesh.face_adjacency,
                                  dtype=np.int64)
@@ -189,7 +189,7 @@ def face_adjacency_radius(mesh):
 
 def vertex_adjacency_graph(mesh):
     """
-    Returns a networkx graph representing the vertices and 
+    Returns a networkx graph representing the vertices and
     their connections in the mesh.
 
     Parameters

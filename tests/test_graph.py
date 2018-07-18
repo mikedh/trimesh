@@ -129,12 +129,10 @@ class GraphTest(g.unittest.TestCase):
 
         all_edges = g.data['edges']
         all_edges.append(simple_edges)
- 
 
         for edges in all_edges:
             edges = g.np.array(edges, dtype=g.np.int64)
-            assert g.trimesh.util.is_shape(edges, (-1,2))
-            
+            assert g.trimesh.util.is_shape(edges, (-1, 2))
 
             # collect the new nodes
             nodes = g.np.unique(edges)
@@ -180,8 +178,6 @@ class GraphTest(g.unittest.TestCase):
                 # unique edges should be the same
                 assert inc_set == edge_set
 
-
-                
                 # check all return dtypes
                 assert all(i.dtype == g.np.int64 for i in dfs)
 

@@ -6,7 +6,7 @@ import collections
 from .. import util
 
 from ..base import Trimesh
-from ..scene import Scene
+from ..scene.scene import Scene, append_scenes
 from ..constants import _log_time, log
 
 from . import misc
@@ -29,8 +29,13 @@ except BaseException as E:
 
     def load_path(*args, **kwargs):
         """
-        Dummy load path function that will raise an exception on use.
-        Import of path failed, probably because a dependency is not installed.
+        Dummy load path function that will raise an exception
+        on use. Import of path failed, probably because a
+        dependency is not installed.
+
+        Raises
+        ----------
+        path_exception : Whatever failed when we imported path
         """
         raise _path_exception
 
@@ -217,28 +222,44 @@ def load_compressed(file_obj, file_type=None):
     # a dict of 'name' : file-like object
     files = util.decompress(file_obj=file_obj,
                             file_type=file_type)
-    geometries = collections.deque()
-    archive_name = metadata['file_path']
+    # store loaded geometries as a list
+    geometries = []
+
+    # try to save the files with meaningful metadata
+    if 'file_path' in metadata:
+        archive_name = metadata['file_path']
+    else:
+        archive_name = 'archive'
+
     for name, data in files.items():
+        # only load formats that we support
         compressed_type = util.split_extension(name).lower()
         if compressed_type not in available_formats():
+            # don't raise an exception, just try the next one
             continue
-        metadata['file_name'] = archive_name + '/' + os.path.basename(name)
+        # store the file name relative to the archive
+        metadata['file_name'] = (archive_name + '/' +
+                                 os.path.basename(name))
+        # load the individual geometry
         geometry = load(file_obj=data,
                         file_type=compressed_type,
                         metadata=metadata)
         geometries.append(geometry)
 
+    # if we opened the file in this function
+    # clean up after ourselves
     if opened:
         file_obj.close()
 
-    return np.array(geometries)
+    # append meshes or scenes into a single Scene object
+    result = append_scenes(geometries)
+
+    return result
 
 
 def load_kwargs(*args, **kwargs):
     """
     Load geometry from a properly formatted dict or kwargs
-
     """
     def handle_scene():
         """

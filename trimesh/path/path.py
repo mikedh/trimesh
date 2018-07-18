@@ -596,11 +596,17 @@ class Path(object):
 
         return copied
 
-    def show(self):
-        if self.is_closed:
-            self.plot_discrete(show=True)
-        else:
-            self.plot_entities(show=True)
+    def scene(self):
+        """
+        Get a scene object containing the current Path3D object.
+
+        Returns
+        --------
+        scene: trimesh.scene.Scene object containing current path
+        """
+        from ..scene import Scene
+        scene = Scene(self)
+        return scene
 
     def __add__(self, other):
         """
@@ -641,14 +647,15 @@ class Path3D(Path):
         Parameters
         -----------
         to_2D: (4,4) float
-                  Homogenous transformation matrix to apply,
-                  If not passed a plane will be fitted to vertices.
-        normal: (3,) float
-                   Normal of plane, which is only used if to_2D
-                   is not specified.
+            Homogenous transformation matrix to apply,
+            If not passed a plane will be fitted to vertices.
+        normal: (3,) float, or None
+           Approximate normal of direction of plane
+           if to_2D is not specified
+           Sign will be applied to fit plane normal
         check:  bool
-                  Raise a ValueError if the points aren't coplanar
-                  after being transformed.
+            If True: Raise a ValueError if
+            points aren't coplanar
 
         Returns
         -----------
@@ -659,36 +666,44 @@ class Path3D(Path):
                    back into 3D space
         """
         if to_2D is None:
+            # fit a plane to our vertices
             C, N = plane_fit(self.vertices)
+            # apply the normal sign hint
             if normal is not None:
-                N *= np.sign(np.dot(N, normal))
-                N = normal
+                normal = np.asanyarray(normal, dtype=np.float64)
+                if normal.shape == (3,):
+                    N *= np.sign(np.dot(N, normal))
+                    N = normal
+                else:
+                    log.warning(
+                        "passed normal not used: {}".format(
+                            normal.shape))
+            # create a transform from fit plane
             to_2D = plane_transform(C, N)
 
-        flat = transformations.transform_points(self.vertices, to_2D)
+        # make sure we've extracted a transform
+        to_2D = np.asanyarray(to_2D, dtype=np.float64)
+        if to_2D.shape != (4, 4):
+            raise ValueError('unable to create transform!')
 
+        # transform points to 2D plane
+        flat = transformations.transform_points(self.vertices,
+                                                to_2D)
+        # raise a ValueError if not planar and we want to check
         if check and np.any(np.std(flat[:, 2]) > tol.planar):
-            log.error('points have z with deviation %f', np.std(flat[:, 2]))
-            raise NameError('Points aren\'t planar!')
+            log.error('points have z with deviation %f',
+                      np.std(flat[:, 2]))
+            raise ValueError('Points aren\'t planar!')
 
+        # create the Path2D with the same entities
+        # and vertices projected onto the plane
         planar = Path2D(entities=copy.deepcopy(self.entities),
-                        vertices=flat[:, 0:2],
+                        vertices=flat[:, :2],
                         metadata=copy.deepcopy(self.metadata))
+        # save the transform from 2D to 3D
         to_3D = np.linalg.inv(to_2D)
 
         return planar, to_3D
-
-    def scene(self):
-        """
-        Get a scene object containing the current Path3D object.
-
-        Returns
-        --------
-        scene: trimesh.scene.Scene object containing current path
-        """
-        from ..scene import Scene
-        scene = Scene(self)
-        return scene
 
     def show(self):
         """
@@ -698,11 +713,12 @@ class Path3D(Path):
 
     def plot_discrete(self, show=False):
         """
-        Plot the discrete closed curves.
+        Plot closed curves
 
         Parameters
         ------------
-        show:
+        show : bool
+           If False will not execute matplotlib.pyplot.show
         """
         import matplotlib.pyplot as plt
         from mpl_toolkits.mplot3d import Axes3D
@@ -714,6 +730,15 @@ class Path3D(Path):
             plt.show()
 
     def plot_entities(self, show=False):
+        """
+        Plot discrete version of entities without regards
+        for connectivity.
+
+        Parameters
+        -------------
+        show : bool
+           If False will not execute matplotlib.pyplot.show
+        """
         import matplotlib.pyplot as plt
         from mpl_toolkits.mplot3d import Axes3D
         fig = plt.figure()
@@ -727,7 +752,19 @@ class Path3D(Path):
 
 class Path2D(Path):
 
+    def show(self):
+        """
+        Plot the current Path2D object using matplotlib.
+        """
+        if self.is_closed:
+            self.plot_discrete(show=True)
+        else:
+            self.plot_entities(show=True)
+
     def _process_functions(self):
+        """
+        Return a list of functions to clean up a Path2D
+        """
         return [self.merge_vertices,
                 self.remove_duplicate_entities,
                 self.remove_unreferenced_vertices]

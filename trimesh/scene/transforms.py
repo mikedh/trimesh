@@ -40,8 +40,7 @@ class TransformForest:
         axis:        (3) array
         angle:       float, radians
         translation: (3) array
-
-        geometry: Geometry object name
+        geometry : Geometry object name
         """
         if frame_from is None:
             frame_from = self.base_frame
@@ -139,15 +138,57 @@ class TransformForest:
         -------
         edgelist: (n,) list of tuples
         """
-        # wrapped in a list for nx 2.0
-        export = list(nx.to_edgelist(self.transforms))
-        for e in export:
-            e[2]['matrix'] = np.array(e[2]['matrix']).tolist()
+        # save cleaned edges
+        export = []
+        # loop through (node, node, edge attributes)
+        for edge in nx.to_edgelist(self.transforms):
+            a, b, c = edge
+            # geometry is a node property but save it to the
+            # edge so we don't need two dictionaries
+            if 'geometry' in self.transforms.nodes[b]:
+                c['geometry'] = self.transforms.nodes[b]['geometry']
+            # save the matrix as a float list
+            c['matrix'] = np.asanyarray(c['matrix'],
+                                        dtype=np.float64).tolist()
+            export.append((a, b, c))
         return export
 
+    def from_edgelist(self, edges, strict=True):
+        """
+        Load transform data from an edge list into the current
+        scene graph.
+
+        Parameters
+        -------------
+        edgelist : (n,) tuples
+            (node_a, node_b, {key: value})
+        strict : bool
+            If true, raise a ValueError when a
+            malformed edge is passed in a tuple.
+        """
+        # loop through each edge
+        for edge in edges:
+            # edge contains attributes
+            if len(edge) == 3:
+                self.update(edge[1], edge[0], **edge[2])
+            # edge just contains nodes
+            elif len(edge) == 2:
+                self.update(edge[1], edge[0])
+            # edge is broken
+            elif strict:
+                raise ValueError('edge incorrect shape: {}'.format(str(edge)))
+
     def load(self, edgelist):
-        for edge in edgelist:
-            self.transforms.add_edge(edge[0], edge[1], **edge[2])
+        """
+        Load transform data from an edge list into the current
+        scene graph.
+
+        Parameters
+        -------------
+        edgelist : (n,) tuples
+            (node_a, node_b, {key: value})
+        """
+        self.from_edgelist(edgelist, strict=True)
 
     @caching.cache_decorator
     def nodes(self):

@@ -16,11 +16,10 @@ from .transforms import TransformForest
 
 class Scene:
     """
-    A simple scene graph which can be rendered directly via pyglet/openGL,
-    or through other endpoints such as a raytracer.
-
-    Meshes and lights are added by name, which can then be moved by updating
-    transform in the transform tree.
+    A simple scene graph which can be rendered directly via
+    pyglet/openGL or through other endpoints such as a
+    raytracer. Meshes are added by name, which can then be
+    moved by updating transform in the transform tree.
     """
 
     def __init__(self,
@@ -188,7 +187,8 @@ class Scene:
                     corners_geom[geometry_name],
                     transform))
         # make corners numpy array
-        corners_inst = np.array(corners_inst, dtype=np.float64)
+        corners_inst = np.array(corners_inst,
+                                dtype=np.float64)
         return corners_inst
 
     @caching.cache_decorator
@@ -368,12 +368,14 @@ class Scene:
         # padded aspect ratio to make sure the model is in view initially
         translation[2][3] += distance * 1.35
 
-        transform = np.dot(transformations.rotation_matrix(angles[0],
-                                                           [1, 0, 0],
-                                                           point=center),
-                           transformations.rotation_matrix(angles[1],
-                                                           [0, 1, 0],
-                                                           point=center))
+        transform = np.dot(transformations.rotation_matrix(
+            angles[0],
+            [1, 0, 0],
+            point=center),
+            transformations.rotation_matrix(
+            angles[1],
+            [0, 1, 0],
+            point=center))
         transform = np.dot(transform, translation)
 
         self.graph.update(frame_from='camera',
@@ -713,6 +715,24 @@ class Scene:
         else:
             raise ValueError('viewer must be "gl", "notebook", or None')
 
+    def __add__(self, other):
+        """
+        Concatenate the current scene with another scene or mesh.
+
+        Parameters
+        ------------
+        other : trimesh.Scene, trimesh.Trimesh, trimesh.Path
+           Other object to append into the result scene
+
+        Returns
+        ------------
+        appended : trimesh.Scene
+           Scene with geometry from both scenes
+        """
+        result = append_scenes([self, other],
+                               common=[self.graph.base_frame])
+        return result
+
 
 def split_scene(geometry):
     """
@@ -750,3 +770,110 @@ def split_scene(geometry):
         metadata.update(g.metadata)
     scene = Scene(split, metadata=metadata)
     return scene
+
+
+def append_scenes(iterable, common=['world']):
+    """
+    Concatenate multiple scene objects into one scene.
+
+    Parameters
+    -------------
+    iterable : (n,) Trimesh or Scene
+       Geometries that should be appended
+    common : (n,) str
+       Nodes that shouldn't be remapped
+
+    Returns
+    ------------
+    result : trimesh.Scene
+       Scene containing all geometry
+    """
+    if isinstance(iterable, Scene):
+        return iterable
+
+    # save geometry in dict
+    geometry = {}
+    # save transforms as edge tuples
+    edges = []
+
+    # nodes which shouldn't be remapped
+    common = set(common)
+    # nodes which are consumed and need to be remapped
+    consumed = set()
+
+    def node_remap(node):
+        """
+        Remap node to new name if necessary
+
+        Parameters
+        -------------
+        node : hashable
+           Node name in original scene
+
+        Returns
+        -------------
+        name : hashable
+           Node name in concatenated scene
+        """
+
+        # if we've already remapped a node use it
+        if node in map_node:
+            return map_node[node]
+
+        # if a node is consumed and isn't one of the nodes
+        # we're going to hold common between scenes remap it
+        if node not in common and node in consumed:
+            name = str(node) + '-' + util.unique_id().upper()
+            map_node[node] = name
+            node = name
+
+        # keep track of which nodes have been used
+        # in the current scene
+        current.add(node)
+        return node
+
+    # loop through every geometry
+    for s in iterable:
+        # allow Trimesh/Path2D geometry to be passed
+        if hasattr(s, 'scene'):
+            s = s.scene()
+        # if we don't have a scene raise an exception
+        if not isinstance(s, Scene):
+            raise ValueError('{} is not a scene!'.format(
+                type(s).__name__))
+
+        # remap geometries if they have been consumed
+        map_geom = {}
+        for k, v in s.geometry.items():
+            # if a geometry already exists add a UUID to the name
+            if k in geometry:
+                name = str(k) + '-' + util.unique_id().upper()
+            else:
+                name = k
+            # store name mapping
+            map_geom[k] = name
+            # store geometry with new name
+            geometry[name] = v
+
+        # remap nodes and edges so duplicates won't
+        # stomp all over each other
+        map_node = {}
+        # the nodes used in this scene
+        current = set()
+        for a, b, attr in s.graph.to_edgelist():
+            # remap node names from local names
+            a, b = node_remap(a), node_remap(b)
+            # remap geometry keys
+            if 'geometry' in attr:
+                attr['geometry'] = map_geom[attr['geometry']]
+            # save the new edge
+            edges.append((a, b, attr))
+        # mark nodes from current scene as consumed
+        consumed.update(current)
+
+    # add all data to a new scene
+    result = Scene()
+    result.graph.from_edgelist(edges)
+    result.geometry.update(geometry)
+
+    return result

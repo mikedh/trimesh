@@ -22,8 +22,25 @@ class SceneTests(g.unittest.TestCase):
             scene_split.convert_units('in')
             scene_base = g.trimesh.Scene(mesh)
 
+            # save MD5 of scene before concat
+            pre = [scene_split.md5(), scene_base.md5()]
+            # make sure MD5's give the same result twice
+            assert scene_split.md5() == pre[0]
+            assert scene_base.md5() == pre[1]
+
+            # try out scene appending
+            concat = scene_split + scene_base
+
+            # make sure concat didn't mess with original scenes
+            assert scene_split.md5() == pre[0]
+            assert scene_base.md5() == pre[1]
+
+            # make sure concatenate appended things, stuff
+            assert len(concat.geometry) == (len(scene_split.geometry) +
+                                            len(scene_base.geometry))
+
             for s in [scene_split, scene_base]:
-                self.assertTrue(len(s.geometry) > 0)
+                assert len(s.geometry) > 0
 
                 flattened = s.graph.to_flattened()
                 g.json.dumps(flattened)
@@ -71,9 +88,9 @@ class SceneTests(g.unittest.TestCase):
                 s.explode()
 
     def test_scaling(self):
-        '''
+        """
         Test the scaling of scenes including unit conversion.
-        '''
+        """
         scene = g.get_mesh('cycloidal.3DXML')
 
         md5 = scene.md5()
@@ -128,6 +145,40 @@ class SceneTests(g.unittest.TestCase):
         s = s.convert_units('inches')
         n = s.duplicate_nodes
         assert len(n) == 0
+
+    def test_zipped(self):
+        """
+        Make sure a zip file with multiple file types
+        is returned as a single scene.
+        """
+        m = g.get_mesh('scenes.zip')
+
+        assert len(m.geometry) >= 6
+        assert len(m.graph.nodes_geometry) >= 10
+        assert any(isinstance(i, g.trimesh.path.Path2D)
+                   for i in m.geometry.values())
+        assert any(isinstance(i, g.trimesh.Trimesh)
+                   for i in m.geometry.values())
+
+    def test_doubling(self):
+        s = g.get_mesh('cycloidal.3DXML')
+
+        # make sure we parked our car where we thought
+        assert len(s.geometry) == 13
+
+        # concatenate a scene with itself
+        r = s + s
+
+        # new scene should have twice as much geometry
+        assert len(r.geometry) == (2 * len(s.geometry))
+
+        assert g.np.allclose(s.extents,
+                             r.extents)
+
+        # duplicate node groups should be twice as long
+        set_ori = set([len(i) * 2 for i in s.duplicate_nodes])
+        set_dbl = set([len(i) for i in r.duplicate_nodes])
+        assert set_ori == set_dbl
 
 
 class GraphTests(g.unittest.TestCase):
