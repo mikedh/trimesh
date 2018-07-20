@@ -13,6 +13,10 @@ class SectionTest(g.unittest.TestCase):
         z_levels = g.np.arange(start=mesh.bounds[0][2],
                                stop=mesh.bounds[1][2] + 2 * step,
                                step=step)
+
+        # randomly order Z so first level is probably not zero
+        z_levels = g.np.random.permutation(z_levels)
+
         sections = [None] * len(z_levels)
         sections_3D = [None] * len(z_levels)
 
@@ -58,6 +62,7 @@ class SectionTest(g.unittest.TestCase):
                 # make sure mesh.multipath_section is the same
                 assert paths[index] is None
                 continue
+            # reconstruct path from line segments
             rc = g.trimesh.load_path(lines[index])
             assert g.np.isclose(rc.area, sections[index].area)
             assert g.np.isclose(rc.area, paths[index].area)
@@ -72,6 +77,10 @@ class SectionTest(g.unittest.TestCase):
             # make sure reconstructed 3D section is at right height
             assert g.np.isclose(back_3D.vertices[:, 2].mean(),
                                 sections_3D[index].vertices[:, 2].mean())
+
+            # make sure reconstruction is at z of frame
+            assert g.np.isclose(back_3D.vertices[:, 2].mean(),
+                                z_levels[index])
 
 
 class PlaneLine(g.unittest.TestCase):
