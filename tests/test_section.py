@@ -14,6 +14,7 @@ class SectionTest(g.unittest.TestCase):
                                stop=mesh.bounds[1][2] + 2 * step,
                                step=step)
         sections = [None] * len(z_levels)
+        sections_3D = [None] * len(z_levels)
 
         for index, z in enumerate(z_levels):
             plane_origin = [0, 0, z]
@@ -28,10 +29,14 @@ class SectionTest(g.unittest.TestCase):
                             g.trimesh.constants.tol.merge)
                 continue
 
+            # Z should be in plane frame
+            assert g.np.allclose(section.vertices[:, 2], z)
+
             planar, to_3D = section.to_planar()
             assert planar.is_closed
             assert (len(planar.polygons_full) > 0)
             sections[index] = planar
+            sections_3D[index] = section
 
         # try getting the sections as Path2D through
         # the multiplane method
@@ -50,10 +55,23 @@ class SectionTest(g.unittest.TestCase):
         for index in range(len(z_levels)):
             if sections[index] is None:
                 assert len(lines[index]) == 0
+                # make sure mesh.multipath_section is the same
+                assert paths[index] is None
                 continue
             rc = g.trimesh.load_path(lines[index])
             assert g.np.isclose(rc.area, sections[index].area)
             assert g.np.isclose(rc.area, paths[index].area)
+
+            # send Path2D back to 3D using the transform returned by section
+            back_3D = paths[index].to_3D(paths[index].metadata['to_3D'])
+
+            # make sure all vertices have constant Z
+            assert back_3D.vertices[:, 2].ptp() < 1e-8
+            assert sections_3D[index].vertices[:, 2].ptp() < 1e-8
+
+            # make sure reconstructed 3D section is at right height
+            assert g.np.isclose(back_3D.vertices[:, 2].mean(),
+                                sections_3D[index].vertices[:, 2].mean())
 
 
 class PlaneLine(g.unittest.TestCase):
