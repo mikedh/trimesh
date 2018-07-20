@@ -230,6 +230,8 @@ def mesh_multiplane(mesh,
     # reconstruct transforms for each 2D section
     base_transform = geometry.plane_transform(origin=plane_origin,
                                               normal=plane_normal)
+    base_transform = np.linalg.inv(base_transform)
+
     # alter translation Z inside loop
     translation = np.eye(4)
 
