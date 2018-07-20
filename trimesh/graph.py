@@ -531,25 +531,39 @@ def split_traversal(traversal,
 
     # exit early if every edge of traversal exists
     if contained.all():
-        # check to see if the traversal should be closed
-        edge = np.sort(traversal[[0, -1]])
-        if edge.ptp() > 0:
-            close = grouping.hashable_rows(edge.reshape((1, 2)))[0]
-            if close in edges_hash:
-                traversal = np.append(traversal, traversal[0])
-        return traversal.reshape(1, -1)
+        # just reshape one traversal
+        filled = traversal.reshape(1, -1)
+    else:
+        # find contiguous groups of contained edges
+        blocks = grouping.blocks(contained,
+                                 min_len=1,
+                                 only_nonzero=True)
 
-    # find contiguous groups of contained edges
-    blocks = grouping.blocks(contained,
-                             min_len=1,
-                             only_nonzero=True)
+        # turn edges back in to sequence of traversals
+        filled = [np.append(trav_edge[b][:, 0],
+                            trav_edge[b[-1]][1])
+                  for b in blocks]
 
-    # turn edges back in to sequence of traversals
-    split = [np.append(trav_edge[b][:, 0],
-                       trav_edge[b[-1]][1])
-             for b in blocks]
+    # convert to list so we can alter things inside it
+    filled = np.array(filled).tolist()
+    # close traversals if necessary
+    for i, t in enumerate(filled):
+        # make sure elements of sequence are numpy arrays
+        filled[i] = np.asanyarray(filled[i])
+        # don't close if its a single edge
+        if len(t) <= 2:
+            continue
+        # make sure it's not already closed
+        edge = np.sort([t[0], t[-1]])
+        if edge.ptp() == 0:
+            continue
+        close = grouping.hashable_rows(edge.reshape((1, 2)))[0]
+        # if we need the edge add it
+        if close in edges_hash:
+            filled[i] = np.append(t, t[0])
+    result = np.array(filled)
 
-    return split
+    return result
 
 
 def fill_traversals(traversals, edges, edges_hash=None):
