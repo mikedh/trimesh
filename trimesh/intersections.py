@@ -221,15 +221,15 @@ def mesh_multiplane(mesh,
     plane_normal = util.unitize(plane_normal)
     plane_origin = np.asanyarray(plane_origin,
                                  dtype=np.float64)
-    heights = np.asanyarray(heights, dtype=np.float64)
+    heights = np.asanyarray(heights - heights[0], dtype=np.float64)
 
     # dot product of every vertex with plane
     vertex_dots = np.dot(plane_normal,
                          (mesh.vertices - plane_origin).T)
 
-    # reconstruct transforms for each 2D section
-    base_transform = geometry.plane_transform(origin=plane_origin,
-                                              normal=plane_normal)
+    # transforms to 3D for each 2D section.
+    base_transform = np.linalg.inv(geometry.plane_transform(origin=plane_origin,
+                                                            normal=plane_normal))
     # alter translation Z inside loop
     translation = np.eye(4)
 
