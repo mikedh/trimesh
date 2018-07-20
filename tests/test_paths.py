@@ -8,7 +8,35 @@ class VectorTests(g.unittest.TestCase):
 
     def test_discrete(self):
         for d in g.get_2D():
-            self.assertTrue(len(d.polygons_closed) == len(d.paths))
+
+            # store md5 before requesting passive functions
+            md5 = d.md5()
+
+            # make sure various methods return
+            # basically the same bounds
+            atol = d.scale / 1000
+            for dis, pa, pl in zip(d.discrete,
+                                   d.paths,
+                                   d.polygons_closed):
+                # bounds of discrete version of path
+                bd = g.np.array([g.np.min(dis, axis=0),
+                                 g.np.max(dis, axis=0)])
+                # bounds of polygon version of path
+                bl = g.np.reshape(pl.bounds, (2, 2))
+                # try bounds of included entities from path
+                pad = g.np.vstack([d.entities[i].discrete(d.vertices)
+                                   for i in pa])
+                bp = g.np.array([g.np.min(pad, axis=0),
+                                 g.np.max(pad, axis=0)])
+
+                assert g.np.allclose(bd, bl, atol=atol)
+                assert g.np.allclose(bl, bp, atol=atol)
+
+            assert len(d.discrete) == len(d.polygons_closed)
+            assert len(d.discrete) == len(d.paths)
+            # these operations shouldn't have mutated anything!
+
+            assert d.md5() == md5
 
             # file_name should be populated, and if we have a DXF file
             # the layer field should be populated with layer names

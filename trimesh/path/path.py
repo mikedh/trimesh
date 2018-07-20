@@ -127,7 +127,7 @@ class Path(object):
         crc: int, CRC of entity points and vertices
         """
         # first CRC the points in every entity
-        target = caching.crc32(bytes().join(e.points.tostring()
+        target = caching.crc32(bytes().join(e._bytes()
                                             for e in self.entities))
         # add the CRC for the vertices
         target += self.vertices.crc()
@@ -142,7 +142,7 @@ class Path(object):
         md5: str, two appended MD5 hashes
         """
 
-        target = util.md5_object(bytes().join(e.points.tostring()
+        target = util.md5_object(bytes().join(e._bytes()
                                               for e in self.entities))
         target += self.vertices.md5()
         return target
@@ -156,7 +156,8 @@ class Path(object):
         ---------
         paths: (n,) sequence of (*,) int referencing self.entities
         """
-        paths = traversal.closed_paths(self.entities, self.vertices)
+        paths = traversal.closed_paths(self.entities,
+                                       self.vertices)
         return paths
 
     @caching.cache_decorator
@@ -197,7 +198,8 @@ class Path(object):
 
         Returns
         ----------
-        scale: float, approximate size of the world holding this path
+        scale : float
+            Approximate size of the world holding this path
         """
         # use vertices peak-peak rather than exact extents
         scale = float((self.vertices.ptp(axis=0) ** 2).sum() ** .5)
@@ -351,9 +353,9 @@ class Path(object):
         cache = {}
         # apply transform to discretized paths
         if 'discrete' in self._cache.cache:
-            cache['discrete'] = np.array([transformations.transform_points(d,
-                                                                           matrix=transform)
-                                          for d in self.discrete])
+            cache['discrete'] = np.array([
+                transformations.transform_points(d, matrix=transform)
+                for d in self.discrete])
 
         # things we can just straight up copy
         # as they are topological not geometric
@@ -550,9 +552,11 @@ class Path(object):
 
         Returns
         ---------
-        discrete: (len(self.paths),) sequence of (m*, dimension) float
+        discrete : (len(self.paths),)
+            A sequence of (m*, dimension) float
         """
-        discrete = np.array([self.discretize_path(i) for i in self.paths])
+        discrete = np.array([self.discretize_path(i)
+                             for i in self.paths])
         return discrete
 
     def export(self, file_obj=None, file_type='dict'):
@@ -889,8 +893,8 @@ class Path2D(Path):
         polygons_closed: (n,) list of shapely.geometry.Polygon objects
         """
         # will attempt to recover invalid garbage geometry
-        polys, valid = polygons.paths_to_polygons(self.discrete)
-        self._cache['path_valid'] = valid
+        # and will be None if geometry is unrecoverable
+        polys = polygons.paths_to_polygons(self.discrete)
         return polys
 
     @caching.cache_decorator
@@ -992,7 +996,7 @@ class Path2D(Path):
 
         Returns
         ----------
-        medial:     Path2D object
+        medial : Path2D object
         """
         if resolution is None:
             resolution = self.scale / 1000.0
@@ -1062,41 +1066,7 @@ class Path2D(Path):
         ----------
         split: (n,) list of Path2D objects
         """
-        if self.root is None or len(self.root) == 0:
-            split = []
-        else:
-            split = [None] * len(self.root)
-            for i, root in enumerate(self.root):
-                connected = self.connected_paths(root, include_self=True)
-
-                new_root = np.nonzero(connected == root)[0]
-                new_entities = collections.deque()
-                new_paths = collections.deque()
-                new_metadata = copy.deepcopy(self.metadata)
-                new_metadata['split_2D'] = i
-
-                for path in self.paths[self.path_valid][connected]:
-                    new_paths.append(np.arange(len(path)) + len(new_entities))
-                    new_entities.extend(path)
-                new_entities = np.array(new_entities)
-
-                assert len(new_paths) == len(connected)
-
-                # prevents the copying from nuking our cache
-                with self._cache:
-                    split[i] = Path2D(
-                        entities=copy.deepcopy(
-                            self.entities[new_entities]), vertices=copy.deepcopy(
-                            self.vertices), metadata=new_metadata)
-                    split[i]._cache.update(
-                        {'paths': np.array(new_paths),
-                         'polygons_closed': self.polygons_closed[connected],
-                         'path_valid': np.ones(len(new_paths), dtype=np.bool),
-                         'discrete': self.discrete[self.path_valid][connected],
-                         'root': new_root})
-        [i._cache.id_set() for i in split]
-        self._cache.id_set()
-        return np.array(split)
+        return traversal.split(self)
 
     def plot_discrete(self, show=False):
         """
@@ -1164,8 +1134,9 @@ class Path2D(Path):
         path_valid: (n,) bool, indexes of self.paths self.polygons_closed
                          which are valid polygons
         """
-        exists = self.polygons_closed
-        return self._cache['path_valid']
+        valid = [i is not None for i in self.polygons_closed]
+        valid = np.array(valid, dtype=np.bool)
+        return valid
 
     @caching.cache_decorator
     def root(self):

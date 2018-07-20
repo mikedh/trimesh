@@ -4,6 +4,8 @@ import networkx as nx
 from shapely.geometry import Polygon, Point, MultiPoint
 from shapely import vectorized
 
+import copy
+
 from rtree import Rtree
 from collections import deque
 
@@ -37,7 +39,8 @@ def enclosure_tree(polygons):
     """
     tree = Rtree()
     for i, polygon in enumerate(polygons):
-        tree.insert(i, polygon.bounds)
+        if polygon is not None:
+            tree.insert(i, polygon.bounds)
     count = len(polygons)
     # nodes are indexes in polygons
     contains = nx.DiGraph()
@@ -157,10 +160,7 @@ def transform_polygon(polygon, matrix):
                  Polygon transformed by matrix.
 
     """
-    matrix = np.asanyarray(matrix,
-                           dtype=np.float64)
-
-    print('\n\n', matrix)
+    matrix = np.asanyarray(matrix, dtype=np.float64)
 
     if util.is_sequence(polygon):
         result = [transform_polygon(p, t)
@@ -281,7 +281,7 @@ def medial_axis(polygon,
 
     Returns
     ----------
-    lines:     (n,2,2) set of line segments
+    medial : Path2D object
     """
     from scipy.spatial import Voronoi
     from .path import Path2D
@@ -440,17 +440,18 @@ def paths_to_polygons(paths, scale=None):
 
     Parameters
     -----------
-    paths: (n,) sequence, of (m,2) float, closed paths
-    scale: float, scale of drawing
+    paths : (n,) sequence
+        Of (m,2) float, closed paths
+    scale: float
+        Approximate scale of drawing for precision
 
     Returns
     -----------
-    polys: (p,) list of shapely.geometry.Polygons
-    valid: (n,) bool, whether input path was valid:
-                        valid.sum() == p
+    polys: (p,) list
+        shapely.geometry.Polygon
+        None
     """
-    polygons = []
-    valid = np.zeros(len(paths), dtype=np.bool)
+    polygons = [None] * len(paths)
     for i, path in enumerate(paths):
         if len(path) < 4:
             # since the first and last vertices are identical in
@@ -458,13 +459,14 @@ def paths_to_polygons(paths, scale=None):
             # non-zero area
             continue
         try:
-            polygons.append(repair_invalid(Polygon(path), scale))
-            valid[i] = True
+            polygons[i] = repair_invalid(Polygon(path), scale)
         except ValueError:
             # raised if a polygon is unrecoverable
             continue
+        except BaseException:
+            log.error('unrecoverable polygon', exc_info=True)
     polygons = np.array(polygons)
-    return polygons, valid
+    return polygons
 
 
 def sample(polygon, count, factor=1.5, max_iter=10):
@@ -505,7 +507,9 @@ def sample(polygon, count, factor=1.5, max_iter=10):
         points = (points * extents) + bounds[0]
 
         # do the point in polygon test and append resulting hits
-        hit.append(np.array(polygon.intersection(MultiPoint(points))))
+        mask = vectorized.contains(polygon, *points.T)
+        hit.append(points[mask])
+
         # keep track of how many points we've collected
         hit_count += len(hit[-1])
 

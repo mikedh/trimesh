@@ -25,7 +25,7 @@ class Entity(object):
                  layer=None,
                  **kwargs):
 
-        self.points = np.asanyarray(points)
+        self.points = np.asanyarray(points, dtype=np.int64)
         if closed is not None:
             self.closed = closed
         self.layer = layer
@@ -47,7 +47,7 @@ class Entity(object):
         the entity is closed
         """
         closed = (len(self.points) > 2 and
-                  np.equal(self.points[0], self.points[-1]))
+                  self.points[0] == self.points[-1])
         return closed
 
     @property
@@ -101,7 +101,18 @@ class Entity(object):
         """
         Reverse the current entity in place.
         """
-        self.points = self.points[::direction]
+        if direction < 0:
+            self._direction = -1
+        else:
+            self._direction = 1
+
+    def _orient(self, curve):
+        """
+        Reverse a curve if a flag is set
+        """
+        if hasattr(self, '_direction') and self._direction < 0:
+            return curve[::-1]
+        return curve
 
     def bounds(self, vertices):
         """
@@ -149,13 +160,16 @@ class Entity(object):
 
         Returns
         ----------
-        hashed: int, CRC32 of current class name, points, and closed
+        hashed : int
+            CRC32 of current class name, points, and closed
         """
-        hashable = (self.__class__.__name__.encode('utf-8') +
-                    self.points.tobytes() +
-                    bytes(bool(self.closed)))
-        hashed = caching.crc32(hashable)
+        hashed = caching.crc32(self._bytes())
         return hashed
+
+    def _bytes(self):
+        hashable = (self.__class__.__name__.encode('utf-8') +
+                    self.points.tobytes())
+        return hashable
 
 
 class Line(Entity):
@@ -176,7 +190,7 @@ class Line(Entity):
         -------------
         discrete: (m, dimension) float, linear path in space
         """
-        discrete = vertices[self.points]
+        discrete = self._orient(vertices[self.points])
         return discrete
 
     @property
@@ -193,8 +207,9 @@ class Line(Entity):
         ----------
         exploded: (n,) Line entities
         """
-        points = np.column_stack((self.points,
-                                  self.points)).ravel()[1:-1].reshape((-1, 2))
+        points = np.column_stack((
+            self.points,
+            self.points)).ravel()[1:-1].reshape((-1, 2))
         exploded = [Line(i) for i in points]
         return exploded
 
@@ -218,14 +233,22 @@ class Arc(Entity):
     def closed(self, value):
         self._closed = bool(value)
 
+    def _bytes(self):
+        hashable = (self.__class__.__name__.encode('utf-8') +
+                    bytes(bool(self.closed)) +
+                    self.points.tobytes())
+        return hashable
+
     def discrete(self, vertices, scale=1.0):
         """
         Discretize the arc entity into line sections.
 
         Parameters
         ------------
-        vertices: (n, dimension) float, points in space
-        scale:    float, size of overall scene for numerical comparisons
+        vertices : (n, dimension) float
+            Points in space
+        scale : float
+            Size of overall scene for numerical comparisons
 
         Returns
         -------------
@@ -234,7 +257,7 @@ class Arc(Entity):
         discrete = discretize_arc(vertices[self.points],
                                   close=self.closed,
                                   scale=scale)
-        return discrete
+        return self._orient(discrete)
 
     def center(self, vertices):
         """
@@ -242,7 +265,8 @@ class Arc(Entity):
 
         Parameters
         -------------
-        vertices: (n, dimension) float, vertices in space
+        vertices : (n, dimension) float
+            Vertices in space
 
         Returns
         -------------
@@ -295,9 +319,10 @@ class Curve(Entity):
 class Bezier(Curve):
 
     def discrete(self, vertices, scale=1.0, count=None):
-        return discretize_bezier(vertices[self.points],
-                                 count=count,
-                                 scale=scale)
+        discrete = discretize_bezier(vertices[self.points],
+                                     count=count,
+                                     scale=scale)
+        return self._orient(discrete)
 
 
 class BSpline(Curve):
@@ -307,21 +332,29 @@ class BSpline(Curve):
                  closed=None,
                  layer=None,
                  **kwargs):
-        self.points = points
-        self.knots = knots
+        self.points = np.asanyarray(points, dtype=np.int64)
+        self.knots = np.asanyarray(knots, dtype=np.float64)
         self.layer = layer
         self.kwargs = kwargs
 
     def discrete(self, vertices, count=None, scale=1.0):
-        result = discretize_bspline(control=vertices[self.points],
-                                    knots=self.knots,
-                                    count=count,
-                                    scale=scale)
-        return result
+        discrete = discretize_bspline(
+            control=vertices[self.points],
+            knots=self.knots,
+            count=count,
+            scale=scale)
+        return self._orient(discrete)
+
+    def _bytes(self):
+        hashable = (self.__class__.__name__.encode('utf-8') +
+                    self.knots.tobytes() +
+                    self.points.tobytes())
+        return hashable
 
     def to_dict(self):
         """
-        Returns a dictionary with all of the information about the entity.
+        Returns a dictionary with all of the information
+        about the entity.
         """
         return {'type': self.__class__.__name__,
                 'points': self.points.tolist(),

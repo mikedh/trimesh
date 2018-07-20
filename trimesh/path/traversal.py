@@ -1,6 +1,7 @@
 import numpy as np
 import networkx as nx
 
+import copy
 from collections import deque
 
 from ..grouping import unique_ordered
@@ -120,17 +121,19 @@ def vertex_to_entity_path(vertex_path,
         # apply CCW reverse in place if necessary
         if ccw_direction < 0:
             index = entity_path[0]
-            entities[index].points = entities[index].points[::ccw_direction]
+            entities[index].reverse()
+
         return entity_path
-    # traverse the entity path and reverse entities in place to align
-    # with this path ordering
+    # traverse the entity path and reverse entities in place to
+    # align with this path ordering
     round_trip = np.append(entity_path, entity_path[0])
     round_trip = zip(round_trip[:-1], round_trip[1:])
     for ea, eb in round_trip:
         da, db = edge_direction(entities[ea].end_points,
                                 entities[eb].end_points)
-        entities[ea].points = entities[ea].points[::da]
-        entities[eb].points = entities[eb].points[::db]
+        entities[ea].reverse(direction=da)
+        entities[eb].reverse(direction=db)
+
     entity_path = np.array(entity_path)
 
     return entity_path
@@ -208,8 +211,9 @@ def discretize_path(entities, vertices, path, scale=1.0):
         raise ValueError('Cannot discretize empty path!')
     if path_len == 1:
         # case where we only have one entity
-        discrete = np.asanyarray(entities[path[0]].discrete(vertices,
-                                                            scale=scale))
+        discrete = np.asanyarray(entities[path[0]].discrete(
+            vertices,
+            scale=scale))
     else:
         # run through path appending each entity
         discrete = []
@@ -352,3 +356,55 @@ def resample_path(points,
         assert check[1] < tol.merge
 
     return resampled
+
+
+def split(self):
+
+    # if self.root is None or len(self.root) == 0:
+    #    return np.array([])
+
+    Path2D = type(self)
+
+    split = []
+
+    for root_index, root in enumerate(self.root):
+        # get a list of the root curve's children
+        connected = list(self.enclosure_directed[root].keys())
+        # add the root node to the list
+        connected.append(root)
+
+        # store new paths and entities
+        new_paths = []
+        new_entities = []
+
+        for index in connected:
+            path = self.paths[index]
+            # add a path which is just sequential indexes
+            new_paths.append(np.arange(len(path)) +
+                             len(new_entities))
+            # save the entity indexes
+            new_entities.extend(path)
+
+        # store the root index from the original drawing
+        metadata = copy.deepcopy(self.metadata)
+        metadata['split_2D'] = root_index
+        # we made the root path the last index of connected
+        new_root = np.array([len(new_paths) - 1])
+
+        # prevents the copying from nuking our cache
+        with self._cache:
+            # create the Path2D
+            split.append(Path2D(
+                entities=copy.deepcopy(self.entities[new_entities]),
+                vertices=copy.deepcopy(self.vertices),
+                metadata=metadata))
+            # add back expensive things to the cache
+            split[-1]._cache.update(
+                {'paths': new_paths,
+                 'polygons_closed': self.polygons_closed[connected],
+                 'discrete': self.discrete[connected],
+                 'root': new_root})
+            # set the cache ID
+            split[-1]._cache.id_set()
+
+    return np.array(split)

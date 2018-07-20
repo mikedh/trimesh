@@ -59,7 +59,7 @@ def get_key(blob, field, code):
 
 
 def load_dxf(file_obj):
-    '''
+    """
     Load a DXF file to a dictionary containing vertices and entities.
 
     Parameters
@@ -69,11 +69,11 @@ def load_dxf(file_obj):
     Returns
     ----------
     result: dict, keys are  entities, vertices and metadata
-    '''
+    """
     def info(e):
-        '''
+        """
         Pull metadata based on group code
-        '''
+        """
         # which keys should we extract from the entity data
         # DXF group code : our metadata key
         get = {'8': 'layer'}
@@ -214,7 +214,7 @@ def load_dxf(file_obj):
 
 
 def export_dxf(path):
-    '''
+    """
     Export a 2D path object to a DXF file
 
     Parameters
@@ -224,11 +224,11 @@ def export_dxf(path):
     Returns
     ----------
     export: str, path formatted as a DXF file
-    '''
+    """
     def format_points(points,
                       as_2D=False,
                       increment=True):
-        '''
+        """
         Format points into DXF- style point string.
 
         Parameters
@@ -245,7 +245,7 @@ def export_dxf(path):
         Returns
         -----------
         packed: str, points formatted with group code
-        '''
+        """
         points = np.asanyarray(points, dtype=np.float64)
         three = three_dimensionalize(points, return_2D=False)
         if increment:
@@ -267,7 +267,7 @@ def export_dxf(path):
         return packed
 
     def entity_info(entity):
-        '''
+        """
         Pull layer, color, and name information about an entity
 
         Parameters
@@ -277,7 +277,7 @@ def export_dxf(path):
         Returns
         ----------
         subs: dict, with keys 'COLOR', 'LAYER', 'NAME'
-        '''
+        """
         subs = {'COLOR': 255,  # default is ByLayer
                 'LAYER': 0,
                 'NAME': str(id(entity))[:16]}
@@ -356,8 +356,8 @@ def export_dxf(path):
 
         normal = [0.0, 0.0, 1.0]
         n_code = [210, 220, 230]
-        n_str = '\n'.join('{:d}\n{:.12f}'.format(i, j) for i, j in zip(n_code,
-                                                                       normal))
+        n_str = '\n'.join('{:d}\n{:.12f}'.format(i, j)
+                          for i, j in zip(n_code, normal))
 
         subs = entity_info(spline)
         subs.update({'TYPE': 'SPLINE',
@@ -375,10 +375,10 @@ def export_dxf(path):
         return result
 
     def convert_generic(entity, vertices):
-        '''
+        """
         For entities we don't know how to handle, return their
         discrete form as a polyline
-        '''
+        """
         return convert_line(entity, vertices)
 
     templates = _templates_dxf
