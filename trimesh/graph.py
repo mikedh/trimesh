@@ -532,7 +532,7 @@ def split_traversal(traversal,
     # exit early if every edge of traversal exists
     if contained.all():
         # just reshape one traversal
-        filled = traversal.reshape(1, -1)
+        split = [traversal]
     else:
         # find contiguous groups of contained edges
         blocks = grouping.blocks(contained,
@@ -540,16 +540,14 @@ def split_traversal(traversal,
                                  only_nonzero=True)
 
         # turn edges back in to sequence of traversals
-        filled = [np.append(trav_edge[b][:, 0],
-                            trav_edge[b[-1]][1])
-                  for b in blocks]
+        split = [np.append(trav_edge[b][:, 0],
+                           trav_edge[b[-1]][1])
+                 for b in blocks]
 
-    # convert to list so we can alter things inside it
-    filled = np.array(filled).tolist()
     # close traversals if necessary
-    for i, t in enumerate(filled):
+    for i, t in enumerate(split):
         # make sure elements of sequence are numpy arrays
-        filled[i] = np.asanyarray(filled[i])
+        split[i] = np.asanyarray(split[i], dtype=np.int64)
         # don't close if its a single edge
         if len(t) <= 2:
             continue
@@ -560,8 +558,8 @@ def split_traversal(traversal,
         close = grouping.hashable_rows(edge.reshape((1, 2)))[0]
         # if we need the edge add it
         if close in edges_hash:
-            filled[i] = np.append(t, t[0])
-    result = np.array(filled)
+            split[i] = np.append(t, t[0]).astype(np.int64)
+    result = np.array(split)
 
     return result
 
