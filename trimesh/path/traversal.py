@@ -96,7 +96,7 @@ def vertex_to_entity_path(vertex_path,
             msg += '\nentity[b]: {}'.format(entities[eb].points)
             raise ValueError(msg)
 
-    if vertices is None:
+    if vertices is None or vertices.shape[1] != 2:
         ccw_direction = 1
     else:
         ccw_check = is_ccw(vertices[np.append(vertex_path,

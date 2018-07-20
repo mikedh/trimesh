@@ -40,6 +40,9 @@ class MeshTests(g.unittest.TestCase):
             if len(mesh.facets) != 0:
                 faces = mesh.facets[mesh.facets_area.argmax()]
                 outline = mesh.outline(faces)
+                # check to make sure we can generate closed paths
+                # on a Path3D object
+                test = outline.paths
 
             smoothed = mesh.smoothed()
 

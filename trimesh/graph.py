@@ -531,7 +531,13 @@ def split_traversal(traversal,
 
     # exit early if every edge of traversal exists
     if contained.all():
-        return [traversal]
+        # check to see if the traversal should be closed
+        edge = np.sort(traversal[[0, -1]])
+        if edge.ptp() > 0:
+            close = grouping.hashable_rows(edge.reshape((1, 2)))[0]
+            if close in edges_hash:
+                traversal = np.append(traversal, traversal[0])
+        return traversal.reshape(1, -1)
 
     # find contiguous groups of contained edges
     blocks = grouping.blocks(contained,
