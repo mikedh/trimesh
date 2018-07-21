@@ -916,8 +916,8 @@ class Path2D(Path):
         for i, root in enumerate(self.root):
             # a list of multiple Polygon objects that
             # are fully contained by the root curve
-            children = [self.polygons_closed[i]
-                        for i in enclosure[root].keys()]
+            children = [self.polygons_closed[child]
+                        for child in enclosure[root].keys()]
             # all polygons_closed are CCW, so for interiors reverse them
             holes = [np.array(p.exterior.coords)[::-1] for p in children]
             # a single Polygon object

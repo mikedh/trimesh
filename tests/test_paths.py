@@ -39,7 +39,7 @@ class VectorTests(g.unittest.TestCase):
             assert d.md5() == md5
             # make sure None polygons are not referenced in graph
             assert all(d.polygons_closed[i] is not None
-                       for i in d.enclosure_directed.nodes)
+                       for i in d.enclosure_directed.nodes())
 
             # file_name should be populated, and if we have a DXF file
             # the layer field should be populated with layer names
