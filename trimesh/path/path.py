@@ -905,17 +905,27 @@ class Path2D(Path):
 
         Returns
         ---------
-        full: list of shapely.geometry.Polygon objects
+        full : (len(self.root),) shapely.geometry.Polygon
+            Polygons containing interiors
         """
-        full = [None] * len(self.enclosure_shell)
-        for i, (shell_index,
-                holes_index) in enumerate(self.enclosure_shell.items()):
-            # a list of multiple Polygon objects
-            holes_poly = self.polygons_closed[holes_index]
+        # pre- allocate the list to avoid indexing problems
+        full = [None] * len(self.root)
+        # store the graph to avoid cache thrashing
+        enclosure = self.enclosure_directed
+        # loop through root curves
+        for i, root in enumerate(self.root):
+            # a list of multiple Polygon objects that
+            # are fully contained by the root curve
+            children = [self.polygons_closed[i]
+                        for i in enclosure[root].keys()]
             # all polygons_closed are CCW, so for interiors reverse them
-            holes = [np.array(p.exterior.coords)[::-1] for p in holes_poly]
+            holes = [np.array(p.exterior.coords)[::-1] for p in children]
             # a single Polygon object
-            shell = self.polygons_closed[shell_index].exterior
+            try:
+                shell = self.polygons_closed[root].exterior
+            except:
+                from IPython import embed
+                embed()
             # create a polygon with interiors
             full[i] = polygons.repair_invalid(Polygon(shell=shell,
                                                       holes=holes))

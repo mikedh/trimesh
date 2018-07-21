@@ -32,11 +32,14 @@ class VectorTests(g.unittest.TestCase):
                 assert g.np.allclose(bd, bl, atol=atol)
                 assert g.np.allclose(bl, bp, atol=atol)
 
+            # these should all correspond to each other
             assert len(d.discrete) == len(d.polygons_closed)
             assert len(d.discrete) == len(d.paths)
             # these operations shouldn't have mutated anything!
-
             assert d.md5() == md5
+            # make sure None polygons are not referenced in graph
+            assert all(d.polygons_closed[i] is not None
+                       for i in d.enclosure_directed.nodes)
 
             # file_name should be populated, and if we have a DXF file
             # the layer field should be populated with layer names

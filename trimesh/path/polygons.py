@@ -22,44 +22,60 @@ from .traversal import resample_path
 
 def enclosure_tree(polygons):
     """
-    Given a list of shapely polygons, which are the root (aka outermost)
-    polygons, and which represent the holes which penetrate the root
-    curve. We do this by creating an R-tree for rough collision detection,
-    and then do polygon queries for a final result
+    Given a list of shapely polygons with only exteriors,
+    find which curves represent the exterior shell or root curve
+    and which represent holes which penetrate the exterior.
+
+    This is done with an R-tree for rough overlap detection,
+    and then exact polygon queries for a final result.
 
     Parameters
     -----------
-    polygons: (n,) list of shapely.geometry.Polygon objects
+    polygons : (n,) shapely.geometry.Polygon
+       Polygons which only have exteriors and may overlap
 
     Returns
     -----------
-    roots: (m,) int, index of polygons which are root
-    contains:  networkx.DiGraph, edges indicate a polygon
-               contained by another polygon
+    roots : (m,) int
+        Index of polygons which are root
+    contains : networkx.DiGraph
+       Edges indicate a polygon is
+       contained by another polygon
     """
     tree = Rtree()
-    for i, polygon in enumerate(polygons):
-        if polygon is not None:
-            tree.insert(i, polygon.bounds)
-    count = len(polygons)
     # nodes are indexes in polygons
     contains = nx.DiGraph()
-    # make sure every polygon is included
-    contains.add_nodes_from(np.arange(count))
-    for i in range(count):
-        if polygons[i] is None:
+    for i, polygon in enumerate(polygons):
+        # if a polygon is None it means creation
+        # failed due to weird geometry so ignore it
+        if polygon is None:
+            continue
+        # insert polygon bounds into rtree
+        tree.insert(i, polygon.bounds)
+        # make sure every valid polygon has a node
+        contains.add_node(i)
+
+    # loop through every polygon
+    for i, polygon in enumerate(polygons):
+        # if polygon creation failed ignore it
+        if polygon is None:
             continue
         # we first query for bounding box intersections from the R-tree
-        for j in tree.intersection(polygons[i].bounds):
+        for j in tree.intersection(polygon.bounds):
+            # if we are checking a polygon against itself continue
             if (i == j):
                 continue
-            # we then do a more accurate polygon in polygon test to generate
-            # the enclosure tree information
+            # do a more accurate polygon in polygon test
+            # for the enclosure tree information
             if polygons[i].contains(polygons[j]):
                 contains.add_edge(i, j)
             elif polygons[j].contains(polygons[i]):
                 contains.add_edge(j, i)
-    roots = [n for n, deg in dict(contains.in_degree()).items() if deg == 0]
+    # a root or exterior curve has no parents
+    # wrap in dict call to avoid networkx view
+    in_degree = dict(contains.in_degree())
+    roots = [n for n, deg in in_degree.items() if deg == 0]
+
     return roots, contains
 
 

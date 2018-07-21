@@ -1,29 +1,30 @@
 FROM debian:stretch-slim
 MAINTAINER Michael Dawson-Haggerty <mikedh@kerfed.com>
 
-COPY builds/apt.bash /tmp/
+COPY docker/builds/apt.bash /tmp/
 RUN bash /tmp/apt.bash
 
 # build draco and download vhacd
-COPY builds/draco.bash /tmp/
-COPY builds/vhacd.bash /tmp/
-COPY builds/builds.bash /tmp/
+COPY docker/builds/draco.bash /tmp/
+COPY docker/builds/vhacd.bash /tmp/
+COPY docker/builds/builds.bash /tmp/
 RUN bash /tmp/builds.bash
 
 # XVFB in background if you start supervisor
-COPY config/xvfb.supervisord.conf /etc/supervisor/conf.d/
+COPY docker/config/xvfb.supervisord.conf /etc/supervisor/conf.d/
 
 # switch out of root 
 RUN useradd -m -s /bin/bash user
+RUN chown -R user:user /tmp
 USER user
 
 # install a conda env
-COPY builds/conda.bash /tmp/
+COPY docker/builds/conda.bash /tmp/
 RUN bash /tmp/conda.bash
 
 # install python requirements
-COPY config/requirements.txt /tmp/
-RUN /home/user/conda/bin/pip install -r /tmp/requirements.txt
+COPY . /tmp/trimesh
+RUN /home/user/conda/bin/pip install /tmp/trimesh[all]
 
 # add user python to path 
 ENV PATH="/home/user/conda/bin:$PATH"
