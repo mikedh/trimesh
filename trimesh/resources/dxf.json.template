@@ -1,6 +1,8 @@
 {
     "line": "0\nLWPOLYLINE\n  5\n$NAME\n330\n1F\n100\nAcDbEntity\n  8\n$LAYER\n 62\n$COLOR\n100\nAcDbPolyline\n 90\n $VCOUNT\n 70\n  $FLAG\n$POINTS\n",
     "entities": "0\nSECTION\n2\nENTITIES\n${ENTITIES}0\nENDSEC",
+    "objects": "0\nSECTION\n2\nOBJECTS\n${OBJECTS}\n0\nENDSEC",
+    "xrecord": "100\nAcDbXrecord\n${INDEX}\n${DATA}",
     "footer": "0\nEOF\n",
     "arc": "  0\n$TYPE\n  5\n$NAME\n330\n1F\n100\nAcDbEntity\n  8\n $LAYER\n62\n $COLOR\n100\nAcDbCircle\n$DATA\n",
     "bspline": " 0\nSPLINE\n  5\n$NAME\n330\n1F\n100\nAcDbEntity\n  8\n$LAYER\n  6\nCONTINUOUS\n 62\n     $COLOR\n100\nAcDbSpline\n$NORMAL\n 70\n    $FLAG\n 71\n     $DEGREE\n 72\n    $KCOUNT\n 73\n     $PCOUNT\n 74\n     $FCOUNT\n 42\n0.000000001\n 43\n0.00000001\n$KNOTS\n$POINTS\n",

@@ -1256,14 +1256,16 @@ def zero_pad(data, count, right=True):
         return np.asanyarray(data)
 
 
-def jsonify(obj):
+def jsonify(obj, **kwargs):
     """
     A version of json.dumps that can handle numpy arrays
     by creating a custom encoder for numpy dtypes.
 
     Parameters
     --------------
-    obj: JSON- serializable blob
+    obj : JSON- serializable blob
+    **kwargs :
+        Passed to json.dumps
 
     Returns
     --------------
@@ -1278,7 +1280,7 @@ def jsonify(obj):
                 return obj.tolist()
             return json.JSONEncoder.default(self, obj)
     # run the dumps using our encoder
-    dumped = json.dumps(obj, cls=NumpyEncoder)
+    dumped = json.dumps(obj, cls=NumpyEncoder, **kwargs)
     return dumped
 
 

@@ -46,6 +46,10 @@ _DXF_UNITS = {1: 'inches',
 # backwards, for reference
 _UNITS_TO_DXF = {v: k for k, v in _DXF_UNITS.items()}
 
+# save metadata to a DXF Xrecord
+# Valid values are 1-369 (except 5 and 105)
+XRECORD_METADATA = 134
+
 
 def get_key(blob, field, code):
     try:
@@ -70,6 +74,58 @@ def load_dxf(file_obj):
     ----------
     result: dict, keys are  entities, vertices and metadata
     """
+
+    def get_metadata():
+        """
+        Get metadata from DXF objects section of the file.
+
+        Returns
+        ----------
+        metadata : dict
+           Any available metadata stored in XRecord
+        """
+        metadata = {}
+
+        # get the section which contains objects in the DXF file
+        obj_start = np.nonzero(blob[:, 1] == 'OBJECTS')[0]
+
+        if len(obj_start) == 0:
+            return metadata
+        obj_start = obj_start[0]
+
+        obj_end = endsec[np.searchsorted(endsec, obj_start)]
+        obj_blob = blob[obj_start:obj_end]
+
+        # check if there are any objects to consider
+        # if obj_start <= obj_end:
+        #    return metadata
+
+        # the index of xrecords are one past the group code key
+        xrecords = np.nonzero((
+            obj_blob == ['100', 'ACDBXRECORD']).all(axis=1))[0] + 1
+
+        # if there are no XRecords return
+        if len(xrecords) == 0:
+            return metadata
+
+        # resplit the file data without upper() to preserve case
+        blob_lower = np.array(str.splitlines(raw)).reshape((-1, 2))
+        # newlines and split should never be effected by upper()
+        assert len(blob_lower) == len(blob)
+
+        # the likely exceptions are related to JSON decoding
+        try:
+            # loop through xrecords by group code
+            for code, data in blob_lower[obj_start:obj_end][xrecords]:
+                if code == str(XRECORD_METADATA):
+                    metadata.update(json.loads(data))
+                # we could store xrecords in the else here
+                # but they have a lot of garbage so don't
+                # metadata['XRECORD_' + code] = data
+        except BaseException:
+            log.error('failed to load metadata!', exc_info=True)
+        return metadata
+
     def info(e):
         """
         Pull metadata based on group code
@@ -159,9 +215,10 @@ def load_dxf(file_obj):
     raw = file_obj.read()
     if hasattr(raw, 'decode'):
         raw = raw.decode('utf-8', errors='ignore')
-    raw = str(raw).upper().replace(' ', '')
+    raw = str(raw).replace(' ', '')
+    raw_upper = raw.upper()
     # if this reshape fails, it means the DXF is malformed
-    blob = np.array(str.splitlines(raw)).reshape((-1, 2))
+    blob = np.array(str.splitlines(raw_upper)).reshape((-1, 2))
 
     # get the section which contains the header in the DXF file
     endsec = np.nonzero(blob[:, 1] == 'ENDSEC')[0]
@@ -174,8 +231,10 @@ def load_dxf(file_obj):
     entity_end = endsec[np.searchsorted(endsec, entity_start)]
     entity_blob = blob[entity_start:entity_end]
 
-    # store metadata pulled from the header of the DXF
-    metadata = dict()
+    # try to load path metadata from xrecords stored in DXF
+    metadata = get_metadata()
+
+    # store unit data pulled from the header of the DXF
     for key in ['$LUNITS', '$INSUNITS']:
         units = get_key(header_blob, key, '70')
         if units in _DXF_UNITS:
@@ -187,15 +246,18 @@ def load_dxf(file_obj):
     group_check = entity_blob[:, 0] == '0'
     inflection = np.nonzero(group_check)[0]
 
+    # DXF object to trimesh object converters
     loaders = {'LINE': (dict, convert_line),
                'LWPOLYLINE': (multi_dict, convert_polyline),
                'ARC': (dict, convert_arc),
                'CIRCLE': (dict, convert_circle),
                'SPLINE': (multi_dict, convert_bspline)}
 
+    # store loaded objects
     vertices = collections.deque()
     entities = collections.deque()
 
+    # loop through chunks of entity information
     for chunk in np.array_split(entity_blob, inflection):
         if len(chunk) > 2:
             entity_type = chunk[0][1]
@@ -206,6 +268,7 @@ def load_dxf(file_obj):
             else:
                 log.debug('Entity type %s not supported', entity_type)
 
+    # return result as kwargs for trimesh.path.Path2D constructor
     result = {'vertices': util.vstack_empty(vertices).astype(np.float64),
               'entities': np.array(entities),
               'metadata': metadata}
@@ -381,6 +444,20 @@ def export_dxf(path):
         """
         return convert_line(entity, vertices)
 
+    def convert_metadata():
+        """
+        Save path metadata as a DXF Xrecord object.
+        """
+        if len(path.metadata) == 0:
+            return ''
+        # dump metadata to compact JSON and make sure there are no newlines
+        as_json = util.jsonify(path.metadata,
+                               separators=(',', ':')).replace('\n', ' ')
+        xrecord = templates['xrecord'].substitute({'INDEX': XRECORD_METADATA,
+                                                   'DATA': as_json})
+        result = templates['objects'].substitute({'OBJECTS': xrecord})
+        return result
+
     templates = _templates_dxf
     np.set_printoptions(precision=12)
     conversions = {'Line': convert_line,
@@ -404,5 +481,6 @@ def export_dxf(path):
     header = templates['header'].substitute(hsub)
     entities = templates['entities'].substitute({'ENTITIES': entities_str})
     footer = templates['footer'].substitute()
-    export = '\n'.join([header, entities, footer])
+    objects = convert_metadata()
+    export = '\n'.join([header, entities, objects, footer])
     return export

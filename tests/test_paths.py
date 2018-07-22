@@ -277,6 +277,9 @@ class SplitTest(g.unittest.TestCase):
                    '2D/spline_1.dxf']:
             p = g.get_mesh(fn)
 
+            # make sure something was loaded
+            assert len(p.root) > 0
+
             # split by connected
             split = p.split()
 
