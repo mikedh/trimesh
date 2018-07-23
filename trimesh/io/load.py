@@ -126,8 +126,6 @@ def load(file_obj, file_type=None, **kwargs):
         loaded = load_compressed(file_obj,
                                  file_type=file_type,
                                  **kwargs)
-        # metadata we got from filename will be garbage
-        metadata = {}
     else:
         if file_type in ['svg', 'dxf']:
             # call the dummy function to raise the import error
