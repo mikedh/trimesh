@@ -873,7 +873,11 @@ def append_scenes(iterable, common=['world']):
             # remap node names from local names
             a, b = node_remap(a), node_remap(b)
             # remap geometry keys
-            if 'geometry' in attr:
+            # if key is not in map_geom it means one of the scenes
+            # referred to geometry that doesn't exist
+            # rather than crash here we ignore it as the user
+            # possibly intended to add in geometries back later
+            if 'geometry' in attr and attr['geometry'] in map_geom:
                 attr['geometry'] = map_geom[attr['geometry']]
             # save the new edge
             edges.append((a, b, attr))
