@@ -13,17 +13,20 @@ except ImportError:
 
 def plane_transform(origin, normal):
     """
-    Given the origin and normal of a plane, find the transform that will move
-    that plane to be coplanar with the XY plane
+    Given the origin and normal of a plane find the transform
+    that will move that plane to be coplanar with the XY plane.
 
     Parameters
     ----------
-    origin: (3,) float, point in space
-    normal: (3,) float, plane normal vector
+    origin : (3,) float
+        Point that lies on the plane
+    normal : (3,) float
+        Vector that points along normal of plane
 
     Returns
     ---------
-    transform: (4,4) float, transformation matrix
+    transform: (4,4) float
+        Transformation matrix to move points onto XY plane
     """
     transform = align_vectors(normal, [0, 0, 1])
     transform[0:3, 3] = -np.dot(transform,

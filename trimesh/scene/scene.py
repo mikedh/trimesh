@@ -54,8 +54,6 @@ class Scene:
 
         # add passed geometry to scene
         self.add_geometry(geometry)
-        # make sure there is a transform to "camera"
-        self.set_camera()
 
         # hold metadata about the scene
         self.metadata = {}
@@ -67,8 +65,9 @@ class Scene:
         """
         Add a geometry to the scene.
 
-        If the mesh has multiple transforms defined in its metadata, they will
-        all be copied into the TransformForest of the current scene automatically.
+        If the mesh has multiple transforms defined in its
+        metadata, they will all be copied into the
+        TransformForest of the current scene automatically.
 
         Parameters
         ----------
@@ -83,44 +82,42 @@ class Scene:
         if geometry is None:
             return
         elif util.is_sequence(geometry):
-            # if passed a sequence call add_geometry on all elements
+            # if passed a sequence add all elements
             return [self.add_geometry(i) for i in geometry]
         elif isinstance(geometry, dict):
             # if someone passed us a dict of geometry
             return self.geometry.update(geometry)
 
-        # default values for transforms and name
-        transforms = np.eye(4).reshape((-1, 4, 4))
-        geometry_name = 'geometry_' + str(len(self.geometry))
-
-        # if object has metadata indicating different transforms or name
-        # use those values
-        if hasattr(geometry, 'metadata'):
-            if 'name' in geometry.metadata:
-                geometry_name = geometry.metadata['name']
-
-            if 'transforms' in geometry.metadata:
-                transforms = np.asanyarray(geometry.metadata['transforms'])
-                transforms = transforms.reshape((-1, 4, 4))
+        # if object has metadata indicating different
+        # information use those values
+        if 'name' in geometry.metadata:
+            name = geometry.metadata['name']
+        else:
+            # try to create a simple name
+            name = 'geometry_' + str(len(self.geometry))
+            # if its already taken make a not- simple name
+            if name in self.geometry:
+                name = 'geometry_' + util.unique_id().upper()
 
         # save the geometry reference
-        self.geometry[geometry_name] = geometry
+        self.geometry[name] = geometry
 
-        for i, transform in enumerate(transforms):
+        # create a unique node name if not passed
+        if node_name is None:
+            node_name = name + util.unique_id().upper()
 
-            # if we haven't been passed a name to set in the graph
-            # use the geometry name plus an index
-            if node_name is None:
-                node_name = geometry_name + '_' + str(i)
-
-            self.graph.update(frame_to=node_name,
-                              matrix=transform,
-                              geometry=geometry_name,
-                              geometry_flags={'visible': True})
+        # create an identity transform from world
+        transform = np.eye(4)
+        self.graph.update(frame_to=node_name,
+                          matrix=transform,
+                          geometry=name,
+                          geometry_flags={'visible': True})
+        return node_name
 
     def md5(self):
         """
-        MD5 of scene, which will change when meshes or transforms are changed
+        MD5 of scene which will change when meshes or
+        transforms are changed
 
         Returns
         --------
@@ -243,7 +240,8 @@ class Scene:
     @caching.cache_decorator
     def triangles(self):
         """
-        Return a correctly transformed polygon soup of the current scene.
+        Return a correctly transformed polygon soup of the
+        current scene.
 
         Returns
         ----------
@@ -253,18 +251,23 @@ class Scene:
         triangles_node = collections.deque()
 
         for node_name in self.graph.nodes_geometry:
-
+            # which geometry does this node refer to
             transform, geometry_name = self.graph[node_name]
 
+            # get the actual potential mesh instance
             geometry = self.geometry[geometry_name]
             if not hasattr(geometry, 'triangles'):
                 continue
-
-            triangles.append(transformations.transform_points(
-                geometry.triangles.copy().reshape((-1, 3)),
-                transform))
-            triangles_node.append(np.tile(node_name, len(geometry.triangles)))
-
+            # append the (n, 3, 3) triangles to a sequence
+            triangles.append(
+                transformations.transform_points(
+                    geometry.triangles.copy().reshape((-1, 3)),
+                    matrix=transform))
+            # save the node names for each triangle
+            triangles_node.append(
+                np.tile(node_name,
+                        len(geometry.triangles)))
+        # save the resulting nodes to the cache
         self._cache['triangles_node'] = np.hstack(triangles_node)
         triangles = np.vstack(triangles).reshape((-1, 3, 3))
         return triangles
@@ -276,7 +279,8 @@ class Scene:
 
         Returns
         ---------
-        triangles_index: (len(self.triangles),) node name for each triangle
+        triangles_index : (len(self.triangles),)
+            Node name for each triangle
         """
         populate = self.triangles
         return self._cache['triangles_node']
@@ -319,6 +323,7 @@ class Scene:
         node_names = np.array(self.graph.nodes_geometry)
         # the geometry names for each node in the same order
         node_geom = np.array([self.graph[i][1] for i in node_names])
+
         # the mesh md5 for each node in the same order
         node_hash = np.array([mesh_hash[v] for v in node_geom])
 
@@ -365,7 +370,7 @@ class Scene:
         translation[0:3, 3] = center
         # offset by a distance set by the model size
         # the FOV is set for the Y axis, we multiply by a lightly
-        # padded aspect ratio to make sure the model is in view initially
+        # padded aspect ratio to make sure the model is in view
         translation[2][3] += distance * 1.35
 
         transform = np.dot(transformations.rotation_matrix(
@@ -384,16 +389,17 @@ class Scene:
 
     def rezero(self):
         """
-        Move the current scene so that the AABB of the whole scene is centered
-        at the origin.
+        Move the current scene so that the AABB of the whole
+        scene is centered at the origin.
 
-        Does this by changing the base frame to a new, offset base frame.
+        Does this by changing the base frame to a new, offset
+        base frame.
         """
         if self.is_empty or np.allclose(self.centroid, 0.0):
             # early exit since what we want already exists
             return
 
-        # the transformation to move the overall scene to the AABB centroid
+        # the transformation to move the overall scene to AABB centroid
         matrix = np.eye(4)
         matrix[:3, 3] = -self.centroid
 
@@ -461,8 +467,10 @@ class Scene:
 
         Returns
         ---------
-        obb: trimesh.primitives.Box object with transform and extents defined
-             to represent the minimum volume oriented bounding box of the mesh
+        obb : trimesh.primitives.Box
+            Box primitive with transform and extents defined
+            to represent the minimum volume oriented bounding
+            box of the mesh
         """
         from .. import primitives
         to_origin, extents = bounds_module.oriented_bounds(self)
@@ -505,7 +513,8 @@ class Scene:
             file_type = {'Trimesh': 'ply',
                          'Path2D': 'dxf'}
 
-        # if the mesh has an export method use it, otherwise put the mesh
+        # if the mesh has an export method use it
+        # otherwise put the mesh
         # itself into the export object
         for geometry_name, geometry in self.geometry.items():
             if hasattr(geometry, 'export'):

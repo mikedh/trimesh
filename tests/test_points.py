@@ -54,6 +54,29 @@ class PointsTest(g.unittest.TestCase):
         assert len(mesh.vertices) < 950
         assert len(mesh.vertices) > 900
 
+    def test_plane(self):
+        # make sure plane fitting works for 2D points in space
+        for i in range(10):
+            # create a random rotation
+            matrix = g.trimesh.transformations.random_rotation_matrix()
+            # create some random points in spacd
+            p = g.np.random.random((1000, 3))
+            # make them all lie on the XY plane so we know
+            # the correct normal to check against
+            p[:, 2] = 0
+            # transform them into random frame
+            p = g.trimesh.transform_points(p, matrix)
+            # we made the Z values zero before transforming
+            # so the true normal should be Z then rotated
+            truth = g.trimesh.transform_points([[0, 0, 1]],
+                                               matrix,
+                                               translate=False)[0]
+            # run the plane fit
+            C, N = g.trimesh.points.plane_fit(p)
+
+            # sign of normal is arbitrary on fit so check both
+            assert g.np.allclose(truth, N) or g.np.allclose(truth, -N)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

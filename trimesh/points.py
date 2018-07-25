@@ -70,10 +70,15 @@ def plane_fit(points):
     N : (3,) float
         Normal vector of plane
     """
-
-    C = points[0]
+    # make sure input is numpy array
+    points = np.asanyarray(points, dtype=np.float64)
+    # make the plane origin the mean of the points
+    C = points.mean(axis=0)
+    # points offset by the plane origin
     x = points - C
+    # create a (3, 3) matrix
     M = np.dot(x.T, x)
+    # run SVD
     N = np.linalg.svd(M)[0][:, -1]
 
     return C, N

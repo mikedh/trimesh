@@ -478,7 +478,8 @@ class Path(object):
         ----------
         self.entities: shortened
         """
-        valid = np.array([i.is_valid for i in self.entities], dtype=np.bool)
+        valid = np.array([i.is_valid for i in self.entities],
+                         dtype=np.bool)
         self.entities = self.entities[valid]
 
     def remove_duplicate_entities(self):
@@ -494,7 +495,7 @@ class Path(object):
         if len(unique) != len(self.entities):
             self.entities = np.array(self.entities)[unique]
 
-    @property
+    @caching.cache_decorator
     def referenced_vertices(self):
         """
         Which vertices are referenced by an entity.
@@ -655,8 +656,8 @@ class Path3D(Path):
             If not passed a plane will be fitted to vertices.
         normal: (3,) float, or None
            Approximate normal of direction of plane
-           if to_2D is not specified
-           Sign will be applied to fit plane normal
+           If to_2D is not specified sign
+           will be applied to fit plane normal
         check:  bool
             If True: Raise a ValueError if
             points aren't coplanar
@@ -669,9 +670,13 @@ class Path3D(Path):
                    Homeogenous transformation to move planar
                    back into 3D space
         """
+        # which vertices are actually referenced
+        referenced = self.referenced_vertices
+
+        # no explict transform passed
         if to_2D is None:
             # fit a plane to our vertices
-            C, N = plane_fit(self.vertices)
+            C, N = plane_fit(self.vertices[referenced])
             # apply the normal sign hint
             if normal is not None:
                 normal = np.asanyarray(normal, dtype=np.float64)
@@ -682,30 +687,59 @@ class Path3D(Path):
                     log.warning(
                         "passed normal not used: {}".format(
                             normal.shape))
-            # create a transform from fit plane
-            to_2D = plane_transform(C, N)
+            # create a transform from fit plane to XY
+            to_2D = plane_transform(origin=C,
+                                    normal=N)
 
         # make sure we've extracted a transform
         to_2D = np.asanyarray(to_2D, dtype=np.float64)
         if to_2D.shape != (4, 4):
             raise ValueError('unable to create transform!')
 
-        # transform points to 2D plane
+        # transform all vertices to 2D plane
         flat = transformations.transform_points(self.vertices,
                                                 to_2D)
-        # raise a ValueError if not planar and we want to check
-        if check and np.any(np.std(flat[:, 2]) > tol.planar):
-            log.error('points have z with deviation %f',
-                      np.std(flat[:, 2]))
-            raise ValueError('Points aren\'t planar!')
+
+        # Z values of vertices which are referenced
+        heights = flat[referenced][:, 2]
+        # points are not on a plane because Z varies
+        if heights.ptp() > tol.planar:
+            # since Z is inconsistent set height to zero
+            height = 0.0
+            if check:
+                raise ValueError('points are not flat!')
+        else:
+            # if the points were planar store the height
+            height = heights.mean()
+
+        # the transform from 2D to 3D
+        to_3D = np.linalg.inv(to_2D)
+
+        # if the transform didn't move the path to
+        # exactly Z=0 adjust it so the returned transform does
+        if np.abs(height) > tol.planar:
+            # adjust to_3D transform by height
+            adjust = transformations.translation_matrix(
+                [0, 0, height])
+            # apply the height adjustment to_3D
+            to_3D = np.dot(to_3D, adjust)
+
+            # do a check on to_3D
+            # flat[:,2] = 0
+            # a = transformations.transform_points(flat[referenced],
+            #                                     to_3D)
+            # assert np.allclose(self.vertices[referenced], a)
+
+        # copy metadata to new object
+        metadata = copy.deepcopy(self.metadata)
+        # store transform we used to move it onto the plane
+        metadata['to_3D'] = to_3D
 
         # create the Path2D with the same entities
-        # and vertices projected onto the plane
+        # and XY values of vertices projected onto the plane
         planar = Path2D(entities=copy.deepcopy(self.entities),
                         vertices=flat[:, :2],
-                        metadata=copy.deepcopy(self.metadata))
-        # save the transform from 2D to 3D
-        to_3D = np.linalg.inv(to_2D)
+                        metadata=metadata)
 
         return planar, to_3D
 
@@ -865,10 +899,18 @@ class Path2D(Path):
         -------------
         transform : (4, 4) float
             If passed, will transform vertices.
+            If not passed and 'to_3D' is in metadata
+            that transform will be used.
+
         Returns
         -----------
         path_3D: Path3D version of current path
         """
+        # if there is a stored 'to_3D' transform in metadata use it
+        if transform is None and 'to_3D' in self.metadata:
+            transform = self.metadata['to_3D']
+
+        # copy vertices and stack with zeros from (n, 2) to (n, 3)
         vertices = np.column_stack((copy.deepcopy(self.vertices),
                                     np.zeros(len(self.vertices))))
         if transform is not None:
