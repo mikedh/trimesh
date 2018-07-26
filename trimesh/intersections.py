@@ -12,6 +12,7 @@ from . import util
 from . import geometry
 from . import grouping
 from . import transformations
+from . import points
 
 
 def mesh_plane(mesh,
@@ -221,7 +222,11 @@ def mesh_multiplane(mesh,
     plane_normal = util.unitize(plane_normal)
     plane_origin = np.asanyarray(plane_origin,
                                  dtype=np.float64)
-    heights = np.asanyarray(heights, dtype=np.float64)
+
+    # Move points by the lowest offset.
+    signed_offset = points.point_plane_distance([0, 0, 0],
+                                                plane_normal, plane_origin)
+    heights = np.asanyarray(heights + signed_offset, dtype=np.float64)
 
     # dot product of every vertex with plane
     vertex_dots = np.dot(plane_normal,
