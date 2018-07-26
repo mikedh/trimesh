@@ -63,11 +63,11 @@ if __name__ == '__main__':
     # copy images to build director
     try:
         shutil.copytree(
-            abspath('images'), 
+            abspath('images'),
             os.path.join(build_dir, 'images'))
     except BaseException as E:
         print('unable to copy images', E)
-        
+
     # build the API doc
     api = ['sphinx-apidoc',
            '-o',

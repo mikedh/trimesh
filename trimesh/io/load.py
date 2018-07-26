@@ -1,7 +1,6 @@
 import numpy as np
 
 import os
-import collections
 
 from .. import util
 

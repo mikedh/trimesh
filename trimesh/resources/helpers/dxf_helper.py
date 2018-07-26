@@ -6,9 +6,8 @@ Manipulate DXF templates as plain text files rather
 than strings inside a JSON blob
 """
 
-import numpy as np
-import json
 import os
+import json
 
 
 def get_json(file_name='../dxf.json.template'):
@@ -40,7 +39,7 @@ def read_files(path):
 
 if __name__ == '__main__':
     # dump files to JSON
-    #t = read_files('dxf')
+    # t = read_files('dxf')
     # write_json(t)
 
     # dump JSON to files

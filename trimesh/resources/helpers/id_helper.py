@@ -13,8 +13,6 @@ changes. We use this to generate the arbitrary sigfig thresholds.
 import numpy as np
 import trimesh
 
-import collections
-
 import time
 import json
 import os
@@ -22,9 +20,6 @@ from scipy import interpolate
 
 import collections
 import logging
-
-from trimesh.constants import tol
-from trimesh import util
 
 TOL_ZERO = 1e-12
 
@@ -35,7 +30,7 @@ def permutations(mesh,
                  count=1000,
                  subdivisions=2,
                  cutoff=3600):
-    '''
+    """
     Permutate a mesh, record the maximum it deviates from the original mesh
     and the resulting value of an identifier function.
 
@@ -50,7 +45,7 @@ def permutations(mesh,
     Returns
     -----------
     identifiers: numpy array of identifiers
-    '''
+    """
 
     identifiers = []
     start = time.time()
@@ -72,7 +67,7 @@ def permutations(mesh,
             # after the first few displace it a lot
 
         transformed = trimesh.permutate.transform(current)
-        #noisy = trimesh.permutate.noise(transformed, displacement)
+        # noisy = trimesh.permutate.noise(transformed, displacement)
 
         identifier = function(transformed)
         identifiers.append(identifier)

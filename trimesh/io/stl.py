@@ -135,22 +135,28 @@ def load_stl_ascii(file_obj):
               faces:        (m,3) int, indexes of vertices
               face_normals: (m,3) float, normal vector of each face
     """
-    header = file_obj.readline()
+    # the first line is the header which we save
+    metadata = {'header': file_obj.readline()}
 
+    # read all text into one string
     text = file_obj.read()
+    # convert bytes to string
     if hasattr(text, 'decode'):
         text = text.decode('utf-8')
+    # split by endsolid keyword
     text = text.lower().split('endsolid')[0]
-    blob = np.array(text.split())
+    # create array of splits
+    blob = np.array(text.strip().split())
 
     # there are 21 'words' in each face
     face_len = 21
-    face_count = len(blob) / face_len
-    if (len(blob) % face_len) != 0:
-        raise HeaderError('Incorrect number of values in STL file!')
 
-    face_count = int(face_count)
-    # this offset is to be added to a fixed set of indices that is tiled
+    # length of blob should be multiple of face_len
+    if (len(blob) % face_len) != 0:
+        raise HeaderError('Incorrect length STL file!')
+    face_count = int(len(blob) / face_len)
+
+    # this offset is to be added to a fixed set of tiled indices
     offset = face_len * np.arange(face_count).reshape((-1, 1))
     normal_index = np.tile([2, 3, 4], (face_count, 1)) + offset
     vertex_index = np.tile([8, 9, 10,
@@ -164,6 +170,7 @@ def load_stl_ascii(file_obj):
 
     return {'vertices': vertices,
             'faces': faces,
+            'metadata': metadata,
             'face_normals': face_normals}
 
 
@@ -198,11 +205,12 @@ def export_stl_ascii(mesh):
 
     Parameters
     ---------
-    mesh: Trimesh object
+    mesh : trimesh.Trimesh
 
     Returns
     ---------
-    export: str, mesh represented as an ASCII STL file
+    export : str
+        Mesh represented as an ASCII STL file
     """
 
     # move all the data thats going into the STL file into one array

@@ -965,7 +965,7 @@ class Path2D(Path):
             # a single Polygon object
             try:
                 shell = self.polygons_closed[root].exterior
-            except:
+            except BaseException:
                 from IPython import embed
                 embed()
             # create a polygon with interiors

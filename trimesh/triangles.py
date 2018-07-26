@@ -503,8 +503,9 @@ def closest_point(triangles, points):
 
     # case where projection is inside the triangle
     # just evaluate the barycentric coordinates
-    closest[case_barycentric] = (triangles[case_barycentric] *
-                                 barycentric[case_barycentric].reshape((-1, 3, 1))).sum(axis=1)
+    closest[case_barycentric] = (
+        triangles[case_barycentric] *
+        barycentric[case_barycentric].reshape((-1, 3, 1))).sum(axis=1)
 
     # if case_edge.any():
     # case where the closest point lies on the edge of a triangle

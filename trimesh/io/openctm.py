@@ -4,7 +4,7 @@
 #
 # To get shared libary this binding imports, you can download
 # and install it on Linux using this bash script:
-#   https://github.com/mikedh/trimesh/blob/master/docker/builds/openctm.bash
+#  https://github.com/mikedh/trimesh/blob/master/docker/builds/openctm.bash
 #------------------------------------------------------------------------------
 # Copyright (c) 2009-2010 Marcus Geelnard
 #

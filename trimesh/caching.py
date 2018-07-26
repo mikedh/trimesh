@@ -107,7 +107,7 @@ class TrackedArray(np.ndarray):
     Subclass of numpy.ndarray that provides hash methods
     to track changes.
 
-    General method is to agressivly set 'modified' flags
+    General method is to aggressively set 'modified' flags
     on operations which might (but don't necessarily) alter
     the array, ideally we sometimes compute hashes when we
     don't need to, but we don't return wrong hashes ever.

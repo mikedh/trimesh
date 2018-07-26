@@ -195,8 +195,8 @@ def load_3DXML(file_obj, *args, **kwargs):
         rend = as_etree[material_file].find(
             "{*}Feature[@Alias='RenderingFeature']")
         diffuse = rend.find("{*}Attr[@Name='DiffuseColor']")
-        #specular = rend.find("{*}Attr[@Name='SpecularColor']")
-        #emissive = rend.find("{*}Attr[@Name='EmissiveColor']")
+        # specular = rend.find("{*}Attr[@Name='SpecularColor']")
+        # emissive = rend.find("{*}Attr[@Name='EmissiveColor']")
         rgb = (np.array(json.loads(
             diffuse.attrib['Value'])) * 255).astype(np.uint8)
         colors[material_id] = rgb
@@ -205,7 +205,7 @@ def load_3DXML(file_obj, *args, **kwargs):
     for MaterialDomainInstance in material_tree.iter(
             '{*}MaterialDomainInstance'):
         instance = MaterialDomainInstance.find('{*}IsInstanceOf')
-        #colors[b.attrib['id']] = colors[instance.text]
+        # colors[b.attrib['id']] = colors[instance.text]
         for aggregate in MaterialDomainInstance.findall('{*}IsAggregatedBy'):
             colors[aggregate.text] = colors[instance.text]
 
@@ -242,11 +242,11 @@ def load_3DXML(file_obj, *args, **kwargs):
         # which part file in the archive contains the geometry we care about
         part_file = ReferenceRep.attrib['associatedFile'].split(':')[-1]
 
-        # prepare to collect actual geometry data
+        # load actual geometry
         mesh_faces = []
-        mesh_vertices = []
         mesh_colors = []
         mesh_normals = []
+        mesh_vertices = []
 
         # the geometry is stored in a Rep
         for Rep in as_etree[part_file].iter('{*}Rep'):

@@ -158,13 +158,13 @@ def line_ball_intersection(start_points, end_points, center, radius):
     """
 
     # We solve for the intersection of |x-c|**2 = r**2 and
-    # x = o + dl. This yields
+    # x = o + dL. This yields
     # d = (-l.(o-c) +- sqrt[ l.(o-c)**2 - l.l((o-c).(o-c) - r^**2) ]) / l.l
-    l = end_points - start_points
+    L = end_points - start_points
     oc = start_points - center  # o-c
     r = radius
-    ldotl = np.einsum('ij, ij->i', l, l)  # l.l
-    ldotoc = np.einsum('ij, ij->i', l, oc)  # l.(o-c)
+    ldotl = np.einsum('ij, ij->i', L, L)  # l.l
+    ldotoc = np.einsum('ij, ij->i', L, oc)  # l.(o-c)
     ocdotoc = np.einsum('ij, ij->i', oc, oc)  # (o-c).(o-c)
     discrims = ldotoc**2 - ldotl * (ocdotoc - r**2)
 
