@@ -1,7 +1,5 @@
-import numpy as np
-
-import collections
 import json
+import numpy as np
 
 from string import Template
 
@@ -9,18 +7,10 @@ from ..arc import to_threepoint
 from ..entities import Line, Arc, BSpline
 from ..util import is_ccw
 
-from ... import util
-
-from ...resources import get_resource
-from ...util import three_dimensionalize
 from ...constants import log
 from ...constants import tol_path as tol
-from ...util import multi_dict
-
-
-_templates_dxf = {k: Template(v) for k, v in json.loads(
-    get_resource('dxf.json.template')).items()}
-
+from ...resources import get_resource
+from ... import util
 
 # unit codes
 _DXF_UNITS = {1: 'inches',
@@ -50,6 +40,9 @@ _UNITS_TO_DXF = {v: k for k, v in _DXF_UNITS.items()}
 # Valid values are 1-369 (except 5 and 105)
 XRECORD_METADATA = 134
 
+# get the templates for exporting DXF files
+_TEMPLATES = {k: Template(v) for k, v in json.loads(
+    get_resource('dxf.json.template')).items()}
 
 def get_key(blob, field, code):
     try:
@@ -57,7 +50,10 @@ def get_key(blob, field, code):
     except IndexError:
         return None
     if line[0] == code:
-        return int(line[1])
+        try:
+            return int(line[1])
+        except ValueError:
+            return line[1]
     else:
         return None
 
@@ -85,6 +81,8 @@ def load_dxf(file_obj):
            Any available metadata stored in XRecord
         """
         metadata = {}
+        # save file version info
+        metadata['ACADVER'] = get_key(header_blob, '$ACADVER', '1')
 
         # get the section which contains objects in the DXF file
         obj_start = np.nonzero(blob[:, 1] == 'OBJECTS')[0]
@@ -95,10 +93,6 @@ def load_dxf(file_obj):
 
         obj_end = endsec[np.searchsorted(endsec, obj_start)]
         obj_blob = blob[obj_start:obj_end]
-
-        # check if there are any objects to consider
-        # if obj_start <= obj_end:
-        #    return metadata
 
         # the index of xrecords are one past the group code key
         xrecords = np.nonzero((
@@ -124,6 +118,7 @@ def load_dxf(file_obj):
                 # metadata['XRECORD_' + code] = data
         except BaseException:
             log.error('failed to load metadata!', exc_info=True)
+
         return metadata
 
     def info(e):
@@ -213,9 +208,15 @@ def load_dxf(file_obj):
     # we are removing all whitespace then splitting with the
     # splitlines function which uses the universal newline method
     raw = file_obj.read()
+    # if we've been passed bytes
     if hasattr(raw, 'decode'):
+        # search for the sentinal string indicating binary DXF
+        # do it by encoding sentinel to bytes and subset searching
+        if raw[:100].find('AutoCAD Binary DXF'.encode('utf-8')) != -1:
+            raise ValueError('binary DXF not supported!')
         raw = raw.decode('utf-8', errors='ignore')
-    raw = str(raw).replace(' ', '')
+
+    raw = str(raw).replace(' ', '').strip()
     raw_upper = raw.upper()
     # if this reshape fails, it means the DXF is malformed
     blob = np.array(str.splitlines(raw_upper)).reshape((-1, 2))
@@ -232,13 +233,29 @@ def load_dxf(file_obj):
     entity_blob = blob[entity_start:entity_end]
 
     # try to load path metadata from xrecords stored in DXF
-    metadata = get_metadata()
+    try:
+        metadata = get_metadata()
+    except BaseException:
+        log.error('failed to extract metadata!',
+                  exc_info=True)
+        metadata = {}
 
     # store unit data pulled from the header of the DXF
-    for key in ['$LUNITS', '$INSUNITS']:
+    # prefer LUNITS over INSUNITS
+    # I couldn't find a table for LUNITS values but they
+    # look like they are 0- indexed versions of
+    # the INSUNITS keys, so for now offset the key value
+    for offset, key in [(0, '$INSUNITS'),
+                        (-1, '$LUNITS')]:
+        # get the key from the header blob
         units = get_key(header_blob, key, '70')
+        # if it exists add the offset
+        if units is not None:
+            units += offset
+        # if the key is in our list of units store it
         if units in _DXF_UNITS:
             metadata['units'] = _DXF_UNITS[units]
+    # warn on drawings with no units
     if 'units' not in metadata:
         log.warning('DXF doesn\'t have units specified!')
 
@@ -248,14 +265,14 @@ def load_dxf(file_obj):
 
     # DXF object to trimesh object converters
     loaders = {'LINE': (dict, convert_line),
-               'LWPOLYLINE': (multi_dict, convert_polyline),
+               'LWPOLYLINE': (util.multi_dict, convert_polyline),
                'ARC': (dict, convert_arc),
                'CIRCLE': (dict, convert_circle),
-               'SPLINE': (multi_dict, convert_bspline)}
+               'SPLINE': (util.multi_dict, convert_bspline)}
 
     # store loaded objects
-    vertices = collections.deque()
-    entities = collections.deque()
+    vertices = []
+    entities = []
 
     # loop through chunks of entity information
     for chunk in np.array_split(entity_blob, inflection):
@@ -288,6 +305,7 @@ def export_dxf(path):
     ----------
     export: str, path formatted as a DXF file
     """
+
     def format_points(points,
                       as_2D=False,
                       increment=True):
@@ -310,7 +328,7 @@ def export_dxf(path):
         packed: str, points formatted with group code
         """
         points = np.asanyarray(points, dtype=np.float64)
-        three = three_dimensionalize(points, return_2D=False)
+        three = util.three_dimensionalize(points, return_2D=False)
         if increment:
             group = np.tile(np.arange(len(three),
                                       dtype=np.int).reshape((-1, 1)),
@@ -458,7 +476,7 @@ def export_dxf(path):
         result = templates['objects'].substitute({'OBJECTS': xrecord})
         return result
 
-    templates = _templates_dxf
+    templates = _TEMPLATES
     np.set_printoptions(precision=12)
     conversions = {'Line': convert_line,
                    'Arc': convert_arc,

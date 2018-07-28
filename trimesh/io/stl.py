@@ -135,7 +135,7 @@ def load_stl_ascii(file_obj):
               faces:        (m,3) int, indexes of vertices
               face_normals: (m,3) float, normal vector of each face
     """
-    
+
     # the first line is the header
     header = file_obj.readline()
     # make sure header is a string, not bytes

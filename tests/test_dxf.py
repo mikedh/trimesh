@@ -17,6 +17,11 @@ class DXFTest(g.unittest.TestCase):
             assert g.np.isclose(sum(i.area for i in s),
                                 d.area)
             splits.append(s)
+
+            d.export(file_obj='temp.dxf')
+            r = g.trimesh.load('temp.dxf')
+            assert g.np.isclose(r.area, d.area)
+
         single = g.np.hstack(splits)
 
         for p in single:

@@ -148,14 +148,23 @@ def get_2D(count=None):
     """
     Get Path2D objects to test with.
     """
+    # if no path loading return empty list
     if not has_path:
         return []
 
+    # all files in the 2D models directory
     ls = os.listdir(dir_2D)
+    # if count isn't passed return all files
     if count is None:
         count = len(ls)
-    paths = deque()
+    # save resulting loaded paths
+    paths = []
     for file_name in ls:
+        # check to see if the file is loadable
+        ext = trimesh.util.split_extension(file_name)
+        if ext not in trimesh.available_formats():
+            continue
+        # full path
         location = os.path.join(dir_2D, file_name)
         try:
             paths.append(trimesh.load(location))
@@ -163,10 +172,11 @@ def get_2D(count=None):
             log.error('failed on: {}'.format(file_name),
                       exc_info=True)
             raise E
-
+        # if we don't need every path break
         if len(paths) >= count:
             break
-    return list(paths)
+
+    return paths
 
 
 data = _load_data()
