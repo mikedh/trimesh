@@ -45,7 +45,7 @@ install:
 - conda config --add channels conda-forge
 - conda update -q conda
 - conda info -a
-- conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy
+- conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION nomkl numpy scipy
 - source activate test-environment
 - pip install .
 - pip install pytest pytest-cov coveralls
