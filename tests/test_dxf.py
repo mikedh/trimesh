@@ -115,7 +115,7 @@ class DXFTest(g.unittest.TestCase):
         # loop through each group of the same drawing
         for k, group in groups.items():
             # get the total length of every entity
-            L = [paths[g].length for g in group]
+            L = [paths[i].length for i in group]
             L = g.np.array(L, dtype=g.np.float64)
 
             # make sure all versions have consistent length
@@ -124,7 +124,7 @@ class DXFTest(g.unittest.TestCase):
             # count the number of entities in the path
             # this should be the same for every version
             E = g.np.array(
-                [len(paths[g].entities) for g in group],
+                [len(paths[i].entities) for i in group],
                 dtype=g.np.int64)
             assert E.ptp() == 0
 
