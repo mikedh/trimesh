@@ -44,6 +44,7 @@ XRECORD_METADATA = 134
 _TEMPLATES = {k: Template(v) for k, v in json.loads(
     get_resource('dxf.json.template')).items()}
 
+
 def get_key(blob, field, code):
     try:
         line = blob[np.nonzero(blob[:, 1] == field)[0][0] + 1]
@@ -123,7 +124,7 @@ def load_dxf(file_obj):
 
     def info(e):
         """
-        Pull metadata based on group code
+        Pull metadata based on group code, and return as a dict.
         """
         # which keys should we extract from the entity data
         # DXF group code : our metadata key
@@ -137,13 +138,21 @@ def load_dxf(file_obj):
         return renamed
 
     def convert_line(e):
+        """
+        Convert DXF LINE entities into trimesh Line entities.
+        """
+        # create a single Line entity
         entities.append(Line(points=len(vertices) + np.arange(2),
                              **info(e)))
+        # add the vertices to our collection
         vertices.extend(np.array([[e['10'], e['20']],
                                   [e['11'], e['21']]],
                                  dtype=np.float64))
 
     def convert_circle(e):
+        """
+        Convert DXF CIRCLE entities into trimesh Circle entities
+        """
         R = float(e['40'])
         C = np.array([e['10'],
                       e['20']]).astype(np.float64)
@@ -155,21 +164,37 @@ def load_dxf(file_obj):
         vertices.extend(points)
 
     def convert_arc(e):
+        """
+        Convert DXF ARC entities into into trimesh Arc entities.
+        """
+        # the radius of the circle
         R = float(e['40'])
+        # the center point of the circle
         C = np.array([e['10'],
                       e['20']], dtype=np.float64)
+        # the start and end angle of the arc, in degrees
+        # this may depend on an AUNITS header data
         A = np.radians(np.array([e['50'],
                                  e['51']], dtype=np.float64))
+        # convert center/radius/angle representation
+        # to three points on the arc representation
         points = to_threepoint(center=C[0:2],
                                radius=R,
                                angles=A)
+        # add a single Arc entity
         entities.append(Arc(points=len(vertices) + np.arange(3),
                             closed=False,
                             **info(e)))
+        # add the three vertices
         vertices.extend(points)
 
     def convert_polyline(e):
-        lines = np.column_stack((e['10'], e['20'])).astype(np.float64)
+        """
+        Convert DXF LWPOLYLINE entities into trimesh Line entities.
+        """
+        # load the points in the line
+        lines = np.column_stack((e['10'],
+                                 e['20'])).astype(np.float64)
 
         # 70 is the closed flag for polylines
         # if the closed flag is set make sure to close
@@ -177,30 +202,43 @@ def load_dxf(file_obj):
             lines = np.vstack((lines, lines[:1]))
 
         # 42 is the bulge flag for polylines
-        # "bulge" is autocad for "add a stupid arc using implicit flags
+        # "bulge" is autocad for "add a stupid arc using flags
         # in my otherwise normal polygon"
         if '42' in e:
-            log.warning('polyline with bulge %s detected, ignoring!',
-                        e['42'])
+            log.warning(
+                'polyline with bulge %s detected, ignoring!',
+                e['42'])
 
-        entities.append(Line(points=np.arange(len(lines)) + len(vertices),
-                             **info(e)))
+        # add a single line entity
+        entities.append(Line(
+            points=np.arange(len(lines)) + len(vertices),
+            **info(e)))
+        # add the vertices
         vertices.extend(lines)
 
     def convert_bspline(e):
+        """
+        Convert DXF Spline entities into trimesh BSpline entities.
+        """
         # in the DXF there are n points and n ordered fields
         # with the same group code
-        points = np.column_stack((e['10'], e['20'])).astype(np.float64)
+        points = np.column_stack((e['10'],
+                                  e['20'])).astype(np.float64)
         knots = np.array(e['40']).astype(np.float64)
+
+        # check bit coded flag for closed
+        # closed = bool(int(e['70'][0]) & 1)
         # check euclidean distance to see if closed
-        closed = np.linalg.norm(points[0] - points[-1]) < tol.merge
-        # if it is closed, make sure it is CCW for later polygon happiness
-        if closed and (not is_ccw(np.vstack((points, points[0])))):
-            points = points[::-1]
-        entities.append(BSpline(points=np.arange(len(points)) + len(vertices),
-                                knots=knots,
-                                closed=closed,
-                                **info(e)))
+        closed = np.linalg.norm(points[0] -
+                                points[-1]) < tol.merge
+
+        # create a BSpline entity
+        entities.append(BSpline(
+            points=np.arange(len(points)) + len(vertices),
+            knots=knots,
+            closed=closed,
+            **info(e)))
+        # add the vertices
         vertices.extend(points)
 
     # in a DXF file, lines come in pairs,
@@ -212,11 +250,14 @@ def load_dxf(file_obj):
     if hasattr(raw, 'decode'):
         # search for the sentinal string indicating binary DXF
         # do it by encoding sentinel to bytes and subset searching
-        if raw[:100].find('AutoCAD Binary DXF'.encode('utf-8')) != -1:
+        if raw[:22].find(b'AutoCAD Binary DXF') != -1:
             raise ValueError('binary DXF not supported!')
+        # try decoding bytes as UTF-8
         raw = raw.decode('utf-8', errors='ignore')
 
+    # remove spaces and leading/trailing whitespace
     raw = str(raw).replace(' ', '').strip()
+    # a version of data in upper case
     raw_upper = raw.upper()
     # if this reshape fails, it means the DXF is malformed
     blob = np.array(str.splitlines(raw_upper)).reshape((-1, 2))
@@ -270,23 +311,65 @@ def load_dxf(file_obj):
                'CIRCLE': (dict, convert_circle),
                'SPLINE': (util.multi_dict, convert_bspline)}
 
-    # store loaded objects
+    # store loaded vertices
     vertices = []
+    # store loaded entities
     entities = []
 
+    # an old-style polyline entity strings its data across
+    # multiple vertex entities like a real asshole
+    polyline = None
+
     # loop through chunks of entity information
+    # chunk will be an (n, 2) array of (group code, data) pairs
     for chunk in np.array_split(entity_blob, inflection):
         if len(chunk) > 2:
+            # the string representing entity type
             entity_type = chunk[0][1]
-            if entity_type in loaders:
+            # special case old- style polyline entities
+            if entity_type == 'POLYLINE':
+                polyline = [dict(chunk)]
+            # if we are collecting vertex entities
+            elif polyline is not None and entity_type == 'VERTEX':
+                polyline.append(dict(chunk))
+            # the end of a polyline
+            elif polyline is not None and entity_type == 'SEQEND':
+                # pull the geometry information for the entity
+                lines = [[i['10'], i['20']]
+                         for i in polyline[1:]]
+                # check for a closed flag on the polyline
+                if '70' in polyline[0]:
+                    # flag is bit- coded integer
+                    flag = int(polyline[0]['70'])
+                    # first bit represents closed
+                    if bool(flag & 1):
+                        lines.append(lines[0])
+                # create a single Line entity
+                entities.append(Line(
+                    points=np.arange(len(lines)) + len(vertices),
+                    **info(dict(polyline[0]))))
+                # add the vertices to our collection
+                vertices.extend(lines)
+                # no longer have an active polyline
+                polyline = None
+            # if the entity contains all relevant data we can
+            # cleanly load it from inside a single function
+            elif entity_type in loaders:
+                # the chunker converts an (n,2) list into a dict
                 chunker, loader = loaders[entity_type]
+                # convert data to dict
                 entity_data = chunker(chunk)
+                # append data to the lists we're collecting
                 loader(entity_data)
             else:
-                log.debug('Entity type %s not supported', entity_type)
+                log.debug('Entity type %s not supported',
+                          entity_type)
+
+    # stack vertices into single array
+    vertices = util.vstack_empty(vertices).astype(np.float64)
 
     # return result as kwargs for trimesh.path.Path2D constructor
-    result = {'vertices': util.vstack_empty(vertices).astype(np.float64),
+    result = {'vertices': vertices,
               'entities': np.array(entities),
               'metadata': metadata}
 
@@ -468,12 +551,19 @@ def export_dxf(path):
         """
         if len(path.metadata) == 0:
             return ''
-        # dump metadata to compact JSON and make sure there are no newlines
-        as_json = util.jsonify(path.metadata,
-                               separators=(',', ':')).replace('\n', ' ')
-        xrecord = templates['xrecord'].substitute({'INDEX': XRECORD_METADATA,
-                                                   'DATA': as_json})
-        result = templates['objects'].substitute({'OBJECTS': xrecord})
+        # dump metadata to compact JSON
+        # make sure there are no newlines to break DXF
+        # util.jsonify will be able to convert numpy arrays
+        as_json = util.jsonify(
+            path.metadata,
+            separators=(',', ':')).replace('\n', ' ')
+        # create an XRECORD for our use
+        xrecord = templates['xrecord'].substitute({
+            'INDEX': XRECORD_METADATA,
+            'DATA': as_json})
+        # add the XRECORD to an objects section
+        result = templates['objects'].substitute({
+            'OBJECTS': xrecord})
         return result
 
     templates = _TEMPLATES

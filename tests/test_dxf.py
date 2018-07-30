@@ -82,6 +82,52 @@ class DXFTest(g.unittest.TestCase):
         # check string roundtrip
         assert r.metadata['thangs'] == 'poppin'
 
+    def test_versions(self):
+        """
+        DXF files have a bajillion versions, so test against
+        the same files saved in multiple versions by 2D CAD packages.
+        """
+        # directory where multiple versions of DXF are
+        dir_versions = g.os.path.join(g.dir_2D, 'versions')
+
+        # load the different versions
+        paths = {}
+        for f in g.os.listdir(dir_versions):
+            # full path including directory
+            ff = g.os.path.join(dir_versions, f)
+            try:
+                paths[f] = g.trimesh.load(ff)
+            except ValueError as E:
+                # something like 'r14a' for ascii
+                # and 'r14b' for binary
+                version = f.split('.')[-2]
+                # we should only get ValueErrors on binary DXF
+                assert version[-1] == 'b'
+                print(E, f)
+
+        # group drawings which have the same geometry
+        # but exported in different revisions of the DXF format
+        groups = g.collections.defaultdict(list)
+        for k in paths.keys():
+            # the first string before a period is the drawing name
+            groups[k.split('.')[0]].append(k)
+
+        # loop through each group of the same drawing
+        for k, group in groups.items():
+            # get the total length of every entity
+            L = [paths[g].length for g in group]
+            L = g.np.array(L, dtype=g.np.float64)
+
+            # make sure all versions have consistent length
+            assert g.np.allclose(L, L.mean(), rtol=.01)
+
+            # count the number of entities in the path
+            # this should be the same for every version
+            E = g.np.array(
+                [len(paths[g].entities) for g in group],
+                dtype=g.np.int64)
+            assert E.ptp() == 0
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
