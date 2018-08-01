@@ -1,7 +1,7 @@
 import numpy as np
 import os
 
-from .dxf import load_dxf
+from .dxf import _dxf_loaders
 from .svg_io import svg_to_path
 from ..path import Path, Path2D, Path3D
 
@@ -133,5 +133,5 @@ def path_formats():
     return list(_LOADERS.keys())
 
 
-_LOADERS = {'dxf': load_dxf,
-            'svg': svg_to_path}
+_LOADERS = {'svg': svg_to_path}
+_LOADERS.update(_dxf_loaders)

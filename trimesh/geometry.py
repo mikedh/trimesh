@@ -165,7 +165,10 @@ def triangulate_quads(quads):
     return faces
 
 
-def mean_vertex_normals(vertex_count, faces, face_normals, **kwargs):
+def mean_vertex_normals(vertex_count,
+                        faces,
+                        face_normals,
+                        **kwargs):
     """
     Find vertex normals from the mean of the faces that contain that vertex.
 
@@ -189,7 +192,6 @@ def mean_vertex_normals(vertex_count, faces, face_normals, **kwargs):
         else:
             sparse = index_sparse(vertex_count, faces)
         summed = sparse.dot(face_normals)
-        log.debug('Generated vertex normals using sparse matrix')
         return summed
 
     def summed_loop():
@@ -203,8 +205,9 @@ def mean_vertex_normals(vertex_count, faces, face_normals, **kwargs):
     try:
         summed = summed_sparse()
     except BaseException:
-        log.warning('Unable to generate sparse matrix! Falling back!',
-                    exc_info=True)
+        log.warning(
+            'unable to generate sparse matrix! Falling back!',
+            exc_info=True)
         summed = summed_loop()
 
     # invalid normals will be returned as zero

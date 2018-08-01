@@ -12,6 +12,15 @@ from ...constants import tol_path as tol
 from ...resources import get_resource
 from ... import util
 
+# stuff for DWG loading
+import os
+import shutil
+import tempfile
+
+import subprocess
+from distutils.spawn import find_executable
+
+
 # unit codes
 _DXF_UNITS = {1: 'inches',
               2: 'feet',
@@ -40,8 +49,8 @@ _UNITS_TO_DXF = {v: k for k, v in _DXF_UNITS.items()}
 # Valid values are 1-369 (except 5 and 105)
 XRECORD_METADATA = 134
 
-# get the templates for exporting DXF files
-_TEMPLATES = {k: Template(v) for k, v in json.loads(
+# get the TEMPLATES for exporting DXF files
+TEMPLATES = {k: Template(v) for k, v in json.loads(
     get_resource('dxf.json.template')).items()}
 
 
@@ -61,7 +70,8 @@ def get_key(blob, field, code):
 
 def load_dxf(file_obj):
     """
-    Load a DXF file to a dictionary containing vertices and entities.
+    Load a DXF file to a dictionary containing vertices and
+    entities.
 
     Parameters
     ----------
@@ -470,7 +480,7 @@ def export_dxf(path):
         # 0 is default (open)
         subs['FLAG'] = int(bool(line.closed))
 
-        result = templates['line'].substitute(subs)
+        result = TEMPLATES['line'].substitute(subs)
         return result
 
     def convert_arc(arc, vertices):
@@ -494,7 +504,7 @@ def export_dxf(path):
                 *np.degrees(info['angles']))
         subs['DATA'] = data
 
-        result = templates['arc'].substitute(subs)
+        result = TEMPLATES['arc'].substitute(subs)
 
         return result
 
@@ -534,7 +544,7 @@ def export_dxf(path):
                      'KCOUNT': len(spline.knots),
                      'PCOUNT': len(spline.points)})
         # format into string template
-        result = templates['bspline'].substitute(subs)
+        result = TEMPLATES['bspline'].substitute(subs)
 
         return result
 
@@ -558,16 +568,18 @@ def export_dxf(path):
             path.metadata,
             separators=(',', ':')).replace('\n', ' ')
         # create an XRECORD for our use
-        xrecord = templates['xrecord'].substitute({
+        xrecord = TEMPLATES['xrecord'].substitute({
             'INDEX': XRECORD_METADATA,
             'DATA': as_json})
         # add the XRECORD to an objects section
-        result = templates['objects'].substitute({
+        result = TEMPLATES['objects'].substitute({
             'OBJECTS': xrecord})
         return result
 
-    templates = _TEMPLATES
+    # make sure we're not losing a ton of
+    # precision in the string conversion
     np.set_printoptions(precision=12)
+    # trimesh entity to DXF entity converters
     conversions = {'Line': convert_line,
                    'Arc': convert_arc,
                    'Bezier': convert_generic,
@@ -586,9 +598,79 @@ def export_dxf(path):
     if path.units in _UNITS_TO_DXF:
         hsub['LUNITS'] = _UNITS_TO_DXF[path.units]
 
-    header = templates['header'].substitute(hsub)
-    entities = templates['entities'].substitute({'ENTITIES': entities_str})
-    footer = templates['footer'].substitute()
+    # sections of the DXF
+    header = TEMPLATES['header'].substitute(hsub)
+    # entities section
+    entities = TEMPLATES['entities'].substitute({
+        'ENTITIES': entities_str})
+    footer = TEMPLATES['footer'].substitute()
+    # metadata encoded as objects section
     objects = convert_metadata()
-    export = '\n'.join([header, entities, objects, footer])
+    # append them all into one DXF file
+    export = '\n'.join([header,
+                        entities,
+                        objects,
+                        footer])
     return export
+
+
+def load_dwg(file_obj):
+    """
+    Load DWG files by converting them to DXF files using
+    TeighaFileConverter.
+
+    Parameters
+    -------------
+    file_obj : file- like object
+
+    Returns
+    -------------
+    loaded : dict
+        kwargs for a Path2D constructor
+    """
+
+    # temp directory for DWG file
+    dir_dwg = tempfile.mkdtemp()
+    # temp directory for DXF output
+    dir_dxf = tempfile.mkdtemp()
+
+    # put together the suprocess command
+    cmd = [_xvfb_run,  # suppress the GUI QT status bar
+           _teigha,   # run the converter
+           dir_dwg,   # the directory containing DWG files
+           dir_dxf,   # the directory for output DXF files
+           'ACAD14',  # the revision of DXF
+           'DXF',     # the output format
+           '1',       # recurse input folder
+           '1']       # audit each file
+
+    # read the DWG data into a bytes object
+    data = file_obj.read()
+    # write the file_obj in the temp directory
+    with open(os.path.join(dir_dwg, 'drawing.dwg'), 'wb') as f:
+        f.write(data)
+
+    # eat QT's whining and run the conversion
+    output = subprocess.check_output(cmd)
+
+    # load the DXF produced from the conversion
+    with open(os.path.join(dir_dxf, 'drawing.dxf'), 'r') as f:
+        kwargs = load_dxf(f)
+
+    # remove the temporary directories
+    shutil.rmtree(dir_dxf)
+    shutil.rmtree(dir_dwg)
+
+    return kwargs
+
+
+# the DWG to DXF converter
+_teigha = find_executable('TeighaFileConverter')
+# supress X11 output
+_xvfb_run = find_executable('xvfb-run')
+
+# store the loaders we have available
+_dxf_loaders = {'dxf': load_dxf}
+# DWG is only available if teigha converter is installed
+if _teigha is not None and _xvfb_run is not None:
+    _dxf_loaders['dwg'] = load_dwg
