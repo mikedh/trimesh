@@ -2,7 +2,7 @@ from . import svg_io
 from . import dxf
 
 
-def export_path(path, file_type, file_obj=None):
+def export_path(path, file_type, file_obj=None, **kwargs):
     """
     Export a Path object to a file- like object, or to a filename
 
@@ -22,11 +22,14 @@ def export_path(path, file_type, file_obj=None):
             (file_obj is not None)):
         file_type = (str(file_obj).split('.')[-1]).lower()
         file_obj = open(file_obj, 'wb')
-    export = _path_exporters[file_type](path)
+    export = _path_exporters[file_type](path, **kwargs)
     return _write_export(export, file_obj)
 
 
 def export_dict(path):
+    """
+    Export a path as a dict of kwargs for the Path constructor.
+    """
     export_entities = [e.to_dict() for e in path.entities]
     export_object = {'entities': export_entities,
                      'vertices': path.vertices.tolist()}

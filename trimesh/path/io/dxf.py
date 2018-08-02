@@ -386,7 +386,7 @@ def load_dxf(file_obj):
     return result
 
 
-def export_dxf(path):
+def export_dxf(path, include_metadata=False):
     """
     Export a 2D path object to a DXF file
 
@@ -559,7 +559,7 @@ def export_dxf(path):
         """
         Save path metadata as a DXF Xrecord object.
         """
-        if len(path.metadata) == 0:
+        if (not include_metadata) or len(path.metadata) == 0:
             return ''
         # dump metadata to compact JSON
         # make sure there are no newlines to break DXF
@@ -606,11 +606,14 @@ def export_dxf(path):
     footer = TEMPLATES['footer'].substitute()
     # metadata encoded as objects section
     objects = convert_metadata()
+    # filter out empty sections
+    sections = [i for i in [header,
+                            entities,
+                            objects,
+                            footer]
+                if len(i) > 0]
     # append them all into one DXF file
-    export = '\n'.join([header,
-                        entities,
-                        objects,
-                        footer])
+    export = '\n'.join(sections)
     return export
 
 

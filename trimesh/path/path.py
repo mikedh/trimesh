@@ -560,10 +560,11 @@ class Path(object):
                              for i in self.paths])
         return discrete
 
-    def export(self, file_obj=None, file_type='dict'):
+    def export(self, file_obj=None, file_type='dict', **kwargs):
         return export_path(self,
                            file_type=file_type,
-                           file_obj=file_obj)
+                           file_obj=file_obj,
+                           **kwargs)
 
     def to_dict(self):
         export_dict = self.export(file_type='dict')

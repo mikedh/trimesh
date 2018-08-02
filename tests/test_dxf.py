@@ -71,7 +71,7 @@ class DXFTest(g.unittest.TestCase):
 
         # export as a DXF file, which should put our
         # custom data into an XRecord
-        d.export('hey.dxf')
+        d.export('hey.dxf', include_metadata=True)
 
         # reload from export
         r = g.trimesh.load('hey.dxf')
