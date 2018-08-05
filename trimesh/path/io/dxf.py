@@ -668,9 +668,9 @@ def _teigha_convert(data, extension='dwg'):
     # temp directory for DXF output
     dir_out = tempfile.mkdtemp()
 
-    # put together the suprocess command
+    # put together the subprocess command
     cmd = [_xvfb_run,  # suppress the GUI QT status bar
-           '-a',      # find a new screen if one is occupied
+           '-a',      # use an automatic screen
            _teigha,   # run the converter
            dir_dwg,   # the directory containing DWG files
            dir_out,   # the directory for output DXF files
@@ -679,8 +679,11 @@ def _teigha_convert(data, extension='dwg'):
            '1',       # recurse input folder
            '1']       # audit each file
 
+    # if Xvfb is already running it probably
+    # has a working configuration so use it
+    running = b'Xvfb' in subprocess.check_output(['ps', '-eaf'])
     # chop off XVFB if it isn't installed or is running
-    if _xvfb_run is None:
+    if running or _xvfb_run is None:
         cmd = cmd[2:]
 
     # create file in correct mode for data
@@ -696,11 +699,20 @@ def _teigha_convert(data, extension='dwg'):
     with open(dwg_name, mode) as f:
         f.write(data)
 
-    # eat QT's whining and run the conversion
+    # run the conversion
     output = subprocess.check_output(cmd)
 
     # load the ASCII DXF produced from the conversion
     name_result = os.path.join(dir_out, 'drawing.dxf')
+    # if the conversion failed log things before failing
+    if not os.path.exists(name_result):
+        log.error('teigha convert failed!\nls {}: {}\n\n {}'.format(
+            dir_out,
+            os.listdir(dir_out),
+            output))
+        raise ValueError('conversion using Teigha failed!')
+
+    # load converted file into a string
     with open(name_result, 'r') as f:
         converted = f.read()
 
