@@ -178,9 +178,9 @@ def mass_properties(triangles,
                                            (triangles[:, 1, triangle_i] * g1[:, i]) +
                                            (triangles[:, 2, triangle_i] * g2[:, i]))
 
-    coefficents = 1.0 / np.array([6, 24, 24, 24, 60, 60, 60, 120, 120, 120],
+    coefficients = 1.0 / np.array([6, 24, 24, 24, 60, 60, 60, 120, 120, 120],
                                  dtype=np.float64)
-    integrated = integral.sum(axis=1) * coefficents
+    integrated = integral.sum(axis=1) * coefficients
 
     volume = integrated[0]
 

@@ -100,7 +100,7 @@ def hashable_rows(data, digits=None):
     hashable:  (n) length array of custom data which can be sorted
                 or used as hash keys
     """
-    # if there is no data return immediatly
+    # if there is no data return immediately
     if len(data) == 0:
         return np.array([])
 
@@ -112,7 +112,7 @@ def hashable_rows(data, digits=None):
         return as_int
 
     # if array is 2D and smallish, we can try bitbanging
-    # this is signifigantly faster than the custom dtype
+    # this is significantly faster than the custom dtype
     if len(as_int.shape) == 2 and as_int.shape[1] <= 4:
         # time for some righteous bitbanging
         # can we pack the whole row into a single 64 bit integer
@@ -183,7 +183,7 @@ def float_to_int(data, digits=None, dtype=np.int32):
 def unique_ordered(data):
     """
     Returns the same as np.unique, but ordered as per the
-    first occurance of the unique value in data.
+    first occurrence of the unique value in data.
 
     Examples
     ---------
@@ -241,7 +241,7 @@ def unique_float(data,
     Identical to the numpy.unique command, except evaluates floating point
     numbers, using a specified number of digits.
 
-    If digits isn't specified, the libray default TOL_MERGE will be used.
+    If digits isn't specified, the library default TOL_MERGE will be used.
     """
     data = np.asanyarray(data)
     as_int = float_to_int(data, digits)
@@ -461,7 +461,7 @@ def group_vectors(vectors,
     new_vectors : (m,3) float
         Direction vector
     groups : (m,) sequence of int
-        Indicies of source vectors
+        Indices of source vectors
     """
 
     vectors = np.asanyarray(vectors, dtype=np.float64)
@@ -505,7 +505,7 @@ def group_distance(values, distance):
 
     # (n, d) set of values that are unique
     unique = []
-    # (n) sequence of indicies in values
+    # (n) sequence of indices in values
     groups = []
 
     for index, value in enumerate(values):

@@ -358,7 +358,7 @@ def _polygon_to_kwargs(polygon):
     def add_boundary(boundary, start):
         # coords is an (n, 2) ordered list of points on the polygon boundary
         # the first and last points are the same, and there are no
-        # guarentees on points not being duplicated (which will
+        # guarantees on points not being duplicated (which will
         # later cause meshpy/triangle to shit a brick)
         coords = np.array(boundary.coords)
         # find indices points which occur only once, and sort them
@@ -522,7 +522,7 @@ def uv_sphere(radius=1.0,
     Parameters
     ----------
     radius: float, radius of sphere
-    count: (2,) int, number of lattitude and longitude lines
+    count: (2,) int, number of latitude and longitude lines
     theta: (n,) float, optional
     phi:   (n,) float, optional
 
@@ -589,7 +589,7 @@ def capsule(height=1.0,
     ----------
     height: float, center to center distance of two spheres
     radius: float, radius of the cylinder and hemispheres
-    count:  (2,) int, number of sections on lattitude and longitude
+    count:  (2,) int, number of sections on latitude and longitude
 
     Returns
     ----------

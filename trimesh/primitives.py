@@ -103,7 +103,7 @@ class _Primitive(Trimesh):
             raise ValueError('Transformation matrix must be (4,4)!')
 
         if np.allclose(matrix, np.eye(4)):
-            log.debug('apply_tranform recieved identity matrix')
+            log.debug('apply_tranform received identity matrix')
             return
 
         new_transform = np.dot(matrix, self.primitive.transform)
@@ -128,14 +128,14 @@ class _PrimitiveAttributes(object):
         for key, value in kwargs.items():
             if key in defaults:
                 self._data[key] = util.convert_like(value, defaults[key])
-        # if configured as immutable, apply setting afer instantiation values
+        # if configured as immutable, apply setting after instantiation values
         # are set
         if 'mutable' in kwargs:
             self._mutable = bool(kwargs['mutable'])
 
     @property
     def __doc__(self):
-        # this is generated dynamically as the format operation can be suprisingly
+        # this is generated dynamically as the format operation can be surprisingly
         # slow and if generated in __init__ it is called a lot of times
         # when we didn't really need to generate it
 

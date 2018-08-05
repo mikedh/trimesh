@@ -17,7 +17,7 @@ from collections import deque
 
 def nearby_faces(mesh, points):
     """
-    For each point find nearby faces relativly quickly.
+    For each point find nearby faces relatively quickly.
 
     The closest point on the mesh to the queried point is guaranteed to be
     on one of the faces listed.

@@ -306,11 +306,11 @@ class CollisionManager(object):
 
         Returns
         -------
-        is_collision: bool,  True if a collision occured between any pair of objects
+        is_collision: bool,  True if a collision occurred between any pair of objects
                              and False otherwise
         names: set of 2-tup, The set of pairwise collisions. Each tuple
                              contains two names in alphabetical order indicating
-                             that the two correspoinding objects are in collision.
+                             that the two corresponding objects are in collision.
         contacts: list of ContactData, All contacts detected
         """
         cdata = fcl.CollisionData()
@@ -357,12 +357,12 @@ class CollisionManager(object):
 
         Returns
         -------
-        is_collision: bool,  True if a collision occured between any pair of objects
+        is_collision: bool,  True if a collision occurred between any pair of objects
                              and False otherwise
         names: set of 2-tup, The set of pairwise collisions. Each tuple
                              contains two names (first from this manager,
                              second from the other_manager) indicating
-                             that the two correspoinding objects are in collision.
+                             that the two corresponding objects are in collision.
         contacts: list of ContactData, All contacts detected
         """
         cdata = fcl.CollisionData()

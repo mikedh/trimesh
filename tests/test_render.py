@@ -30,7 +30,7 @@ class RenderTest(g.unittest.TestCase):
         args_ns = rendering.mesh_to_vertexlist(
             m, smooth_threshold=g.np.inf)
         # vertex count should be different
-        # if smooth kwargs got passed through sucessfully
+        # if smooth kwargs got passed through successfully
         assert args_sm[0] != args_ns[0]
 
         P30 = m.section(plane_normal=[0, 0, 1],

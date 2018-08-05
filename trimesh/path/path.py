@@ -282,7 +282,7 @@ class Path(object):
 
     def fill_gaps(self, max_distance=np.inf):
         """
-        Find vertexes with degree 1 and try to connect them to other
+        Find vertices with degree 1 and try to connect them to other
         vertices of degree 1, in place.
 
         Parameters
@@ -674,7 +674,7 @@ class Path3D(Path):
         # which vertices are actually referenced
         referenced = self.referenced_vertices
 
-        # no explict transform passed
+        # no explicit transform passed
         if to_2D is None:
             # fit a plane to our vertices
             C, N = plane_fit(self.vertices[referenced])

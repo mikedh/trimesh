@@ -185,7 +185,7 @@ def load_3DXML(file_obj, *args, **kwargs):
     # index of root element of directed acyclic graph
     root_id = tree.find('{*}ProductStructure').attrib['root']
 
-    # load the materials libary from the materials elements
+    # load the materials library from the materials elements
     colors = {}
     material_tree = as_etree['CATMaterialRef.3dxml']
     for MaterialDomain in material_tree.iter('{*}MaterialDomain'):
@@ -213,7 +213,7 @@ def load_3DXML(file_obj, *args, **kwargs):
     # element id : {key : value}
     references = collections.defaultdict(dict)
 
-    # the 3DXML can specify different visual properties for  occurences
+    # the 3DXML can specify different visual properties for  occurrences
     view = tree.find('{*}DefaultView')
     for ViewProp in view.iter('{*}DefaultViewProperty'):
         color = ViewProp.find('{*}GraphicProperties/' +
@@ -228,8 +228,8 @@ def load_3DXML(file_obj, *args, **kwargs):
                                    'alpha']],
                         dtype=np.float)
         rgba = (rgba * 255).astype(np.uint8)
-        for occurence in ViewProp.findall('{*}OccurenceId/{*}id'):
-            reference_id = occurence.text.split('#')[-1]
+        for occurrence in ViewProp.findall('{*}OccurenceId/{*}id'):
+            reference_id = occurrence.text.split('#')[-1]
             references[reference_id]['color'] = rgba
 
     # geometries will hold meshes
@@ -303,7 +303,7 @@ def load_3DXML(file_obj, *args, **kwargs):
         mesh['face_colors'] = np.vstack(mesh_colors)
 
         # as far as I can tell, all 3DXML files are exported as
-        # implicit milimeters (it isn't specified in the file)
+        # implicit millimeters (it isn't specified in the file)
         mesh['metadata'] = {'units': 'mm'}
         mesh['class'] = 'Trimesh'
 
@@ -428,7 +428,7 @@ def print_element(element):
     """
     Pretty- print an lxml.etree element.
 
-    Paramters
+    Parameters
     ------------
     element : etree element
     """

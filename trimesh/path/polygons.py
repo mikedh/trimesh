@@ -201,7 +201,7 @@ def plot_polygon(polygon, show=True):
     Parameters
     ------------
     polygon: shapely.geometry.Polygon object
-    show:    bool, if True will display immediatly
+    show:    bool, if True will display immediately
     """
     import matplotlib.pyplot as plt
 
@@ -568,7 +568,7 @@ def repair_invalid(polygon, scale=None, rtol=.5):
     if util.is_sequence(basic):
         basic = basic[np.argmax([i.area for i in basic])]
 
-    # check perimeter of result agains original perimeter
+    # check perimeter of result against original perimeter
     if basic.is_valid and np.isclose(basic.length,
                                      polygon.length,
                                      rtol=rtol):
@@ -588,7 +588,7 @@ def repair_invalid(polygon, scale=None, rtol=.5):
         if len(rings) == 1:
             # reconstruct a single polygon from the interior ring
             recon = Polygon(shell=rings[0]).buffer(distance)
-            # check perimeter of result agains original perimeter
+            # check perimeter of result against original perimeter
             if recon.is_valid and np.isclose(recon.length,
                                              polygon.length,
                                              rtol=rtol):
@@ -599,7 +599,7 @@ def repair_invalid(polygon, scale=None, rtol=.5):
     # if it returned multiple polygons check the largest
     if util.is_sequence(buffered):
         buffered = buffered[np.argmax([i.area for i in buffered])]
-    # check perimeter of result agains original perimeter
+    # check perimeter of result against original perimeter
     if buffered.is_valid and np.isclose(buffered.length,
                                         polygon.length,
                                         rtol=rtol):

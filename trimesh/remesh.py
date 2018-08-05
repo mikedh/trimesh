@@ -19,7 +19,7 @@ def subdivide(vertices, faces, face_index=None):
 
     Parameters
     ----------
-    vertices: (n,3) float, verticies
+    vertices: (n,3) float, vertices
     faces:    (n,3) int,   indexes of vertices which make up triangular faces
     face_index: faces to subdivide.
                 if None: all faces of mesh will be subdivided

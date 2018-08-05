@@ -9,7 +9,7 @@ import numpy as np
 
 from . import util
 
-# how many signifigant figures to use for each field of the identifier
+# how many significant figures to use for each field of the identifier
 id_sigfig = np.array([5,  # area
                       10,  # euler number
                       5,  # area/volume ratio
@@ -56,9 +56,9 @@ def identifier_simple(mesh):
         # we are going to special case radially symmetric meshes
         # to replace their surface area with ratio of their
         # surface area to a primitive sphere or cylinder surface area
-        # this is because tesselated curved surfaces are really rough
+        # this is because tessellated curved surfaces are really rough
         # to reliably hash as they are very sensitive to floating point
-        # and tesselation error. By making area proportionate to a fit
+        # and tessellation error. By making area proportionate to a fit
         # primitive area we are able to reliably hash at more sigfigs
         if mesh.symmetry == 'radial':
             # cylinder height
@@ -93,7 +93,7 @@ def identifier_simple(mesh):
 
 def identifier_hash(identifier, sigfig=None):
     """
-    Hash an identifier array to a specified number of signifigant figures.
+    Hash an identifier array to a specified number of significant figures.
 
     Parameters
     ----------
@@ -107,7 +107,7 @@ def identifier_hash(identifier, sigfig=None):
     if sigfig is None:
         sigfig = id_sigfig
 
-    # convert identifer to integers and order of magnitude
+    # convert identifier to integers and order of magnitude
     as_int, multiplier = util.sigfig_int(identifier, sigfig)
     # make all scales positive
     if (multiplier < 0).any():

@@ -82,7 +82,7 @@ class UtilTests(unittest.TestCase):
 
         def strips_to_faces(strips):
             '''
-            A slow but straightfoward version of the function to test against
+            A slow but straightforward version of the function to test against
             '''
             faces = g.collections.deque()
             for s in strips:
@@ -185,10 +185,10 @@ class ContainsTest(unittest.TestCase):
         contains = sphere.contains(samples)
 
         if not contains[truth_in].all():
-            raise ValueError('contains test doesnt match truth!')
+            raise ValueError('contains test does not match truth!')
 
         if contains[truth_out].any():
-            raise ValueError('contains test doesnt match truth!')
+            raise ValueError('contains test does not match truth!')
 
 
 class MassTests(unittest.TestCase):

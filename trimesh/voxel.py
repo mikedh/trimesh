@@ -386,7 +386,7 @@ def local_voxelize(mesh, point, pitch, radius, fill=True, **kwargs):
     # Find voxel index for point
     center = np.round(-origin / pitch).astype(int)
 
-    # Pad matrix if neccesary
+    # Pad matrix if necessary
     prepad = np.maximum(radius - center, 0)
     postpad = np.maximum(center + radius + 1 - matrix.shape, 0)
     matrix = np.pad(matrix, np.stack((prepad, postpad), axis=-1),

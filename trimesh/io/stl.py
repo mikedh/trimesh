@@ -222,7 +222,7 @@ def export_stl_ascii(mesh):
         Mesh represented as an ASCII STL file
     """
 
-    # move all the data thats going into the STL file into one array
+    # move all the data that's going into the STL file into one array
     blob = np.zeros((len(mesh.faces), 4, 3))
     blob[:, 0, :] = mesh.face_normals
     blob[:, 1:, :] = mesh.triangles

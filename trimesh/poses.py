@@ -80,7 +80,7 @@ def compute_stable_poses(mesh, center_mass=None,
         # Create toppling digraph
         dg = _create_topple_graph(cvh, sample_com)
 
-        # Propogate probabilites to sink nodes with a breadth-first traversal
+        # Propagate probabilites to sink nodes with a breadth-first traversal
         nodes = [n for n in dg.nodes() if dg.in_degree(n) == 0]
         n_iters = 0
         while len(nodes) > 0 and n_iters <= len(mesh.faces):

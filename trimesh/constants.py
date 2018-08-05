@@ -21,7 +21,7 @@ class NumericalToleranceMesh(object):
     """
 
     def __init__(self, **kwargs):
-        # set our zero for floating point comparision to 100x
+        # set our zero for floating point comparison to 100x
         # the resolution of float64 which works out to 1e-13
         self.zero = np.finfo(np.float64).resolution * 100
         self.merge = 1e-8

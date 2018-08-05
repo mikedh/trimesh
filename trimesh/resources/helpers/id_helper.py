@@ -2,11 +2,11 @@
 features.py
 ---------------
 
-In trimesh.comparision, we arbitrarily threshold identifier values
-at a certain number of signifigant figures.
+In trimesh.comparison, we arbitrarily threshold identifier values
+at a certain number of significant figures.
 
 This file permutates meshes around and observes how their identifier,
-which is supposed to be pretty invarient to translation and tesselation
+which is supposed to be pretty invariant to translation and tessellation
 changes. We use this to generate the arbitrary sigfig thresholds.
 """
 
@@ -62,8 +62,8 @@ def permutations(mesh,
         current = np.random.choice(divided).copy()
 
         if i > (count / 10):
-            # run first bunch without tesselation permutation
-            current = current.permutate.tesselation()
+            # run first bunch without tessellation permutation
+            current = current.permutate.tessellation()
             # after the first few displace it a lot
 
         transformed = trimesh.permutate.transform(current)

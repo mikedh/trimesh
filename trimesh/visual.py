@@ -233,7 +233,7 @@ class ColorVisuals(object):
         A magical function which maintains the sanity of vertex and face colors.
 
         * If colors have been explicitly stored or changed, they are considered
-        user data, stored in self._data (DataStore), and are returned immediatly
+        user data, stored in self._data (DataStore), and are returned immediately
         when requested.
         * If colors have never been set, a (count,4) tiled copy of the default diffuse
         color will be stored in the cache
@@ -260,7 +260,7 @@ class ColorVisuals(object):
 
         # the face or vertex colors
         key_colors = str(name) + '_colors'
-        # the inital crc of the
+        # the initial crc of the
         key_crc = key_colors + '_crc'
 
         if key_colors in self._data:
@@ -332,7 +332,7 @@ class ColorVisuals(object):
         for name in ['face', 'vertex']:
             # the face or vertex colors
             key_colors = str(name) + '_colors'
-            # the inital crc of the
+            # the initial crc of the
             key_crc = key_colors + '_crc'
 
             if key_colors not in self._cache:
@@ -386,7 +386,7 @@ class ColorVisuals(object):
     @property
     def main_color(self):
         """
-        What is the most commonly occuring color.
+        What is the most commonly occurring color.
 
         Returns
         ------------
@@ -403,7 +403,7 @@ class ColorVisuals(object):
 
         # find the unique colors
         unique, inverse = grouping.unique_rows(colors)
-        # the most commonly occuring color, or mode
+        # the most commonly occurring color, or mode
         # this will be an index of inverse, not colors
         mode_index = np.bincount(inverse).argmax()
         color = colors[unique[mode_index]]
@@ -502,7 +502,7 @@ def to_rgba(colors, dtype=np.uint8):
           colors.max() <= opaque):
         colors = colors.astype(dtype)
     else:
-        raise ValueError('colors non- convertable!')
+        raise ValueError('colors non- convertible!')
 
     if util.is_shape(colors, (-1, 3)):
         colors = np.column_stack((colors,
@@ -669,7 +669,7 @@ def colors_to_materials(colors, count=None):
         unique, index = grouping.unique_rows(rgba)
         diffuse = rgba[unique]
     else:
-        raise ValueError('Colors not convertable!')
+        raise ValueError('Colors not convertible!')
 
     return diffuse, index
 

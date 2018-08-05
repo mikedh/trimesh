@@ -75,10 +75,10 @@ class Trimesh(object):
         metadata:       dict, any metadata about the mesh
 
         process:        bool, if True, Nan and Inf values will be removed
-                        immediatly and vertices will be merged
+                        immediately and vertices will be merged
 
         validate:       bool, if True, degenerate and duplicate faces will be
-                        removed immediatly, and some functions will alter
+                        removed immediately, and some functions will alter
                         the mesh to ensure consistent results.
 
         use_embree:     bool, if True try to use pyembree raytracer.
@@ -132,7 +132,7 @@ class Trimesh(object):
         self.visual.mesh = self
 
         # normals are accessed through setters/properties and are regenerated
-        # if dimensions are inconsistant, but can be set by the constructor
+        # if dimensions are inconsistent, but can be set by the constructor
         # to avoid a substantial number of cross products
         if face_normals is not None:
             self.face_normals = face_normals
@@ -676,7 +676,7 @@ class Trimesh(object):
 
         Returns
         ----------
-        tranform: (4,4) float, homogenous transformation matrix
+        transform: (4,4) float, homogenous transformation matrix
         """
         order = np.argsort(self.principal_inertia_components)[1:][::-1]
         vectors = self.principal_inertia_vectors[order]
@@ -913,7 +913,7 @@ class Trimesh(object):
 
         Returns
         ----------
-        euler_number: int, topological invarient
+        euler_number: int, topological invariant
         """
         euler = len(self.vertices) - len(self.edges_unique) + len(self.faces)
         return euler
@@ -1280,7 +1280,7 @@ class Trimesh(object):
     def vertex_neighbors(self):
         """
         The vertex neighbors of each vertex of the mesh, determined from
-        the cached vertex_adjacency_graph, if already existant.
+        the cached vertex_adjacency_graph, if already existent.
 
         Returns
         ----------
@@ -2154,7 +2154,7 @@ class Trimesh(object):
     @caching.cache_decorator
     def identifier_md5(self):
         """
-        An MD5 of the rotation invarient identifier vector
+        An MD5 of the rotation invariant identifier vector
 
         Returns
         ---------

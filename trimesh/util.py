@@ -445,7 +445,7 @@ def diagonal_dot(a, b):
     Same as np.diag(np.dot(a, b.T)) but without the monstrous
     intermediate matrix.
 
-    Also equivilant to:
+    Also equivalent to:
     np.einsum('ij,ij->i', a, b)
 
     Parameters
@@ -631,7 +631,7 @@ def decimal_to_digits(decimal, min_digits=None):
     Parameters
     -----------
     decimal:    float
-    min_digits: int, minumum number of digits to return
+    min_digits: int, minimum number of digits to return
 
     Returns
     -----------
@@ -901,7 +901,7 @@ def array_to_string(array,
         format_str = value_format.replace(
             '{}', '{:.' + str(digits) + 'f}') + col_delim
     else:
-        raise ValueError('dtype %s not convertable!',
+        raise ValueError('dtype %s not convertible!',
                          array.dtype.name)
 
     # length of extra delimiters at the end
@@ -909,7 +909,7 @@ def array_to_string(array,
     # if we have a 2D array add a row delimiter
     if len(array.shape) == 2:
         format_str *= array.shape[1]
-        # cut off the last column delimeter and add a row delimiter
+        # cut off the last column delimiter and add a row delimiter
         format_str = format_str[:-len(col_delim)] + row_delim
         end_junk = len(row_delim)
 
@@ -1383,17 +1383,17 @@ def wrap_as_stream(item):
 
 def sigfig_round(values, sigfig=1):
     """
-    Round a single value to a specified number of signifigant figures.
+    Round a single value to a specified number of significant figures.
 
     Parameters
     ----------
     values: float, value to be rounded
-    sigfig: int, number of signifigant figures to reduce to
+    sigfig: int, number of significant figures to reduce to
 
 
     Returns
     ----------
-    rounded: values, but rounded to the specified number of signifigant figures
+    rounded: values, but rounded to the specified number of significant figures
 
 
     Examples
@@ -1416,12 +1416,12 @@ def sigfig_round(values, sigfig=1):
 def sigfig_int(values, sigfig):
     """
     Convert a set of floating point values into integers with a specified number
-    of signifigant figures and an exponent.
+    of significant figures and an exponent.
 
     Parameters
     ------------
     values: (n,) float or int, array of values
-    sigfig: (n,) int, number of signifigant figures to keep
+    sigfig: (n,) int, number of significant figures to keep
 
     Returns
     ------------
@@ -1528,7 +1528,7 @@ def split_extension(file_name, special=['tar.bz2', 'tar.gz']):
     Parameters
     ----------
     file_name: str, file name
-    special:   list of str, multipart exensions
+    special:   list of str, multipart extensions
                eg: ['tar.bz2', 'tar.gz']
 
     Returns
@@ -1549,7 +1549,7 @@ def triangle_strips_to_faces(strips):
     """
     Given a sequence of triangle strips, convert them to (n,3) faces.
 
-    Processes all strips at once using np.concatenate and is signifigantly
+    Processes all strips at once using np.concatenate and is significantly
     faster than loop- based methods.
 
     From the OpenGL programming guide describing a single triangle
@@ -1668,7 +1668,7 @@ def unique_id(length=12, increment=0):
 
     Parameters
     ------------
-    length:    int, length of resuling identifier
+    length:    int, length of resulting identifier
     increment: int, number to add to header uint16
                     useful if calling this function repeatedly
                     in a tight loop executing faster than time

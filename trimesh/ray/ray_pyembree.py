@@ -58,7 +58,7 @@ class RayMeshIntersector(object):
         Scaling factor for precision.
         """
         if self._scale_to_box:
-            # scale vertices to approximatly a cube to help with
+            # scale vertices to approximately a cube to help with
             # numerical issues at very large/small scales
             scale = 100.0 / self.mesh.scale
         else:

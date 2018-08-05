@@ -66,19 +66,19 @@ class PermutateTest(g.unittest.TestCase):
                 no_noise = g.trimesh.permutate.noise(mesh, magnitude=0.0)
 
                 transform = g.trimesh.permutate.transform(mesh)
-                tesselate = g.trimesh.permutate.tesselation(mesh)
+                tessellate = g.trimesh.permutate.tessellation(mesh)
 
                 make_assertions(mesh, noise, rigid=False)
                 make_assertions(mesh, no_noise, rigid=True)
                 make_assertions(mesh, transform, rigid=True)
-                make_assertions(mesh, tesselate, rigid=True)
+                make_assertions(mesh, tessellate, rigid=True)
 
             # make sure permutate didn't alter the original mesh
             self.assertTrue(original.md5() == mesh.md5())
 
     def test_tesselation(self):
         for mesh in g.get_meshes(5):
-            tess = g.trimesh.permutate.tesselation(mesh)
+            tess = g.trimesh.permutate.tessellation(mesh)
             # print(tess.area-mesh.area)
             self.assertTrue(abs(tess.area - mesh.area) < g.tol.merge)
             volume_check = abs(tess.volume - mesh.volume) / mesh.scale
@@ -91,7 +91,7 @@ class PermutateTest(g.unittest.TestCase):
 
     def test_base(self):
         for mesh in g.get_meshes(1):
-            tess = mesh.permutate.tesselation()
+            tess = mesh.permutate.tessellation()
             noise = mesh.permutate.noise()
             noise = mesh.permutate.noise(magnitude=mesh.scale / 10)
             transform = mesh.permutate.transform()

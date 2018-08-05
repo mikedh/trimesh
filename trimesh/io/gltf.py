@@ -222,7 +222,7 @@ def load_glb(file_obj, **passed):
 def _mesh_to_material(mesh, metallic=.02, rough=.1):
     """
     Create a simple GLTF material for a mesh using the most
-    commonly occuring color in that mesh.
+    commonly occurring color in that mesh.
 
     Parameters
     ------------
@@ -232,7 +232,7 @@ def _mesh_to_material(mesh, metallic=.02, rough=.1):
     ------------
     material: dict, in GLTF material format
     """
-    # just get the most commonly occuring color
+    # just get the most commonly occurring color
     color = mesh.visual.main_color
     # convert uint color to 0-1.0 float color
     color = color.astype(float) / (2 ** (8 * color.dtype.itemsize))
@@ -335,7 +335,7 @@ def _read_buffers(header, buffers):
         dtype = _types[a['componentType']]
         shape = _shapes[a['type']]
 
-        # is the acessor offset in a buffer
+        # is the accessor offset in a buffer
         if 'byteOffset' in a:
             start = a['byteOffset']
         else:

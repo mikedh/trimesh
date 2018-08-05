@@ -21,7 +21,7 @@ class IdentifierTest(g.unittest.TestCase):
             idf = g.deque()
             for i in range(count):
                 permutated = mesh.permutate.transform()
-                permutated = permutated.permutate.tesselation()
+                permutated = permutated.permutate.tessellation()
 
                 md5.append(permutated.identifier_md5)
                 idf.append(permutated.identifier)

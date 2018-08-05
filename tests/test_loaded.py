@@ -55,7 +55,7 @@ class LoaderTest(g.unittest.TestCase):
 
     def test_obj_simple_order(self):
         # test a simple wavefront model without split indexes
-        # and make sure we don't reorder vertices unneccessarily
+        # and make sure we don't reorder vertices unnecessarily
         file_name = g.os.path.join(g.dir_models,
                                    'cube.OBJ')
 

@@ -105,7 +105,7 @@ def discretize_arc(points, close=False, scale=1.0):
     if close:
         angle = np.pi * 2
 
-    # the number of facets, based on the angle critera
+    # the number of facets, based on the angle criteria
     count_a = angle / res.seg_angle
     count_l = ((R * angle)) / (res.seg_frac * scale)
 

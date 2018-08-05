@@ -102,7 +102,7 @@ def substitute_barycentric(function):
         'x1,x2,x3,y1,y2,y3,z1,z2,z3', real=True)
 
     # generate the substitution dictionary to convert from cartesian to barycentric
-    # since the input could have been a sympy expresion or a string
+    # since the input could have been a sympy expression or a string
     # that we parsed substitute based on name to avoid id(x) issues
     substitutions = {}
     for symbol in function.free_symbols:

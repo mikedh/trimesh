@@ -205,7 +205,7 @@ def _attrib_to_transform(attrib):
     return transform
 
 
-# do import here to keep lxml a soft dependancy
+# do import here to keep lxml a soft dependency
 try:
     from lxml import etree
     _three_loaders = {'3mf': load_3MF}

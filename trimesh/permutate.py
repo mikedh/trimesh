@@ -69,13 +69,13 @@ def noise(mesh, magnitude=None):
     return permutated
 
 
-def tesselation(mesh):
+def tessellation(mesh):
     """
     Subdivide each face of a mesh into three faces with the new vertex
     randomly placed inside the old face.
 
     This produces a mesh with exactly the same surface area and volume
-    but with different tesselation.
+    but with different tessellation.
 
     Parameters
     ----------
@@ -125,15 +125,15 @@ class Permutator:
     def noise(self, magnitude=None):
         return noise(self._mesh, magnitude)
 
-    def tesselation(self):
-        return tesselation(self._mesh)
+    def tessellation(self):
+        return tessellation(self._mesh)
 
 
 try:
     # copy the function docstrings to the helper object
     Permutator.noise.__doc__ = noise.__doc__
     Permutator.transform.__doc__ = transform.__doc__
-    Permutator.tesselation.__doc__ = tesselation.__doc__
+    Permutator.tessellation.__doc__ = tessellation.__doc__
 except AttributeError:
     # no docstrings in Python2
     pass

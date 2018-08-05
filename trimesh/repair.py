@@ -278,7 +278,7 @@ def fill_holes(mesh):
     else:
         new_vertices = mesh.vertices
 
-    # since the winding is now correct, we can get consistant normals
+    # since the winding is now correct, we can get consistent normals
     # just by doing the cross products on the face edges
     mesh._cache.clear(exclude=['face_normals'])
     new_normals, valid = triangles.normals(new_vertices[new_faces])

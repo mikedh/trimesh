@@ -405,7 +405,7 @@ class EnforcedForest(nx.DiGraph):
         elif self.has_edge(v, u):
             direction = -1
         else:
-            raise ValueError('Edge doesnt exist!')
+            raise ValueError('Edge does not exist!')
         data = self.get_edge_data(*[u, v][::direction])
         return data, direction
 

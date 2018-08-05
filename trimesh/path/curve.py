@@ -21,7 +21,7 @@ def discretize_bezier(points, count=None, scale=1.0):
         # compute discrete points given a sampling t
         t_d = 1.0 - t
         n = len(points) - 1
-        # binomial coefficents, i, and each point
+        # binomial coefficients, i, and each point
         iterable = zip(binomial(n), np.arange(n + 1), points)
         stacked = [((t**i) * (t_d**(n - i))).reshape((-1, 1))
                    * p * c for c, i, p in iterable]
@@ -84,10 +84,10 @@ def discretize_bspline(control, knots, count=None, scale=1.0):
 
 def binomial(n):
     """
-    Return all binomial coefficents for a given order.
+    Return all binomial coefficients for a given order.
 
     For n > 5, scipy.special.binom is used, below we hardcode
-    to avoid the scipy.special dependancy.
+    to avoid the scipy.special dependency.
     """
     if n == 1:
         return [1, 1]

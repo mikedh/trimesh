@@ -451,7 +451,7 @@ def connected_components(edges,
                                        ('scipy', components_csgraph),
                                        ('networkx', components_networkx)))
 
-    # if a graph engine has explictly been requested use it
+    # if a graph engine has explicitly been requested use it
     if engine in engines:
         return engines[engine]()
 

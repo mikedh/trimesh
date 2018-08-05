@@ -63,12 +63,12 @@ def scene_to_notebook(scene, height=500, **kwargs):
     # embed this puppy as the srcdoc attr of an IFframe
     # I tried this a dozen ways and this is the only one that works
     # display.HTML and display.Javascript really, really don't work
-    embeded = display.HTML('<iframe srcdoc="{srcdoc}" '
+    embedded = display.HTML('<iframe srcdoc="{srcdoc}" '
                            'width="100%" height="{height}px" '
                            'style="border:none;"></iframe>'.format(
                                srcdoc=srcdoc,
                                height=height))
-    return embeded
+    return embedded
 
 
 def in_notebook():
@@ -83,7 +83,7 @@ def in_notebook():
         # function returns ipython context
         ipy = get_ipython()
         # we only want to render rich output in notebooks
-        # in terminals we definitly do not want to output HTML
+        # in terminals we definitely do not want to output HTML
         name = str(ipy.__class__).lower()
         terminal = 'terminal' in name
 

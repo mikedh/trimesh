@@ -111,7 +111,7 @@ def units_from_metadata(obj, guess=True):
         # get the string which might contain unit hints
         hints = obj.metadata[key].lower()
         if 'unit' in hints:
-            # replace all delimeter options with white space
+            # replace all delimiter options with white space
             for delim in '_-.':
                 hints = hints.replace(delim, ' ')
             # loop through each hint

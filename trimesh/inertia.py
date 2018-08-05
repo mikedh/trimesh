@@ -5,7 +5,7 @@ inertia.py
 Functions for dealing with inertia tensors.
 
 Results validated against known geometries and for internal
-consistancy.
+consistency.
 """
 
 import numpy as np

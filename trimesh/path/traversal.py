@@ -48,7 +48,7 @@ def vertex_to_entity_path(vertex_path,
     Parameters
     ----------
     vertex_path : (n,) int
-        Ordered list of vertex indicies representing a path
+        Ordered list of vertex indices representing a path
     graph : nx.Graph
         Vertex connectivity
     entities : (m,) list
@@ -172,7 +172,7 @@ def closed_paths(entities, vertices):
         # a path has no length if it has fewer than 2 vertices
         if len(vertex_path) < 2:
             continue
-        # convert vertex indicies to entity indices
+        # convert vertex indices to entity indices
         entity_paths.append(
             vertex_to_entity_path(vertex_path,
                                   graph,

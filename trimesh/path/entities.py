@@ -261,7 +261,7 @@ class Arc(Entity):
 
     def center(self, vertices):
         """
-        Return the center information about the arc entitiy.
+        Return the center information about the arc entity.
 
         Parameters
         -------------

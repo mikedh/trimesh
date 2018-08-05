@@ -2,7 +2,7 @@
 # for inclusion in the `trimesh` package:
 # https://github.com/mikedh/trimesh
 #
-# To get shared libary this binding imports, you can download
+# To get shared library this binding imports, you can download
 # and install it on Linux using this bash script:
 #  https://github.com/mikedh/trimesh/blob/master/docker/builds/openctm.bash
 #------------------------------------------------------------------------------
@@ -35,7 +35,7 @@ _ctm_loaders = {}
 _ctm_lib = None
 try:
     if os.name == 'nt':
-        # try to import the shared libary on windows
+        # try to import the shared library on windows
         _ctm_lib = ctypes.WinDLL('openctm.dll')
     else:
         # try to import on other platforms

@@ -14,7 +14,7 @@ class ConvexTest(g.unittest.TestCase):
             for i in range(50):
                 permutated = mesh.permutate.transform()
                 if i % 10 == 0:
-                    permutated = permutated.permutate.tesselation()
+                    permutated = permutated.permutate.tessellation()
                 hulls.append(permutated.convex_hull)
 
             volume = g.np.array([i.volume for i in hulls])

@@ -47,7 +47,7 @@ def contains_points(intersector,
                                   0.617598629942,
                                   0.652231566745])
     if check_direction is None:
-        # if no check direction is specifed use the default
+        # if no check direction is specified use the default
         # stack it only for points inside the AABB
         ray_directions = np.tile(default_direction,
                                  (inside_aabb.sum(), 1))
