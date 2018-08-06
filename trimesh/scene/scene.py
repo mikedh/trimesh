@@ -104,7 +104,10 @@ class Scene:
 
         # create a unique node name if not passed
         if node_name is None:
-            node_name = name + util.unique_id().upper()
+            # a random unique identifier
+            unique = util.unique_id(increment=len(self.geometry))
+            # geometry name + UUID
+            node_name = name +'_' + unique.upper()
 
         # create an identity transform from world
         transform = np.eye(4)
