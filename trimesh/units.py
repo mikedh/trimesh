@@ -7,64 +7,13 @@ Very basic, only here to avoid requiring sympy.physics.units
 or pint
 """
 from .constants import log
+from .resources import get_resource
 
+import json
 import collections
 
-
-def _generate_conversions():
-    """
-    Generate conversions for unit systems.
-    """
-    # conversions to inches
-    to_inch = {'microinches': 1.0 / 1000.0,
-               'mils': 1.0 / 1000.0,
-               'inches': 1.00,
-               'feet': 12.0,
-               'yards': 36.0,
-               'miles': 63360,
-               'angstroms': 1.0 / 2.54e8,
-               'nanometers': 1.0 / 2.54e7,
-               'microns': 1.0 / 2.54e4,
-               'millimeters': 1.0 / 2.54e1,
-               'centimeters': 1.0 / 2.54e0,
-               'meters': 1.0 / 2.54e-2,
-               'kilometers': 1.0 / 2.54e-5,
-               'decimeters': 1.0 / 2.54e-1,
-               'decameters': 1.0 / 2.54e-3,
-               'hectometers': 1.0 / 2.54e-4,
-               'gigameters': 1.0 / 2.54e-11,
-               'AU': 5889679948818.897,
-               'light years': 3.72461748e17,
-               'parsecs': 1.21483369e18}
-
-    # if a unit is known by other symbols, include them here
-    synonyms = collections.defaultdict(list)
-    synonyms.update({'millimeters': ['mm'],
-                     'inches': ['in', '"'],
-                     'feet': ["'"],
-                     'meters': ['m']})
-
-    # add non- plural version of units to conversions
-    # eg, millimeters -> millimeter
-    for key in to_inch.keys():
-        if key[-2:] == 'es' and key != 'miles':
-            synonyms[key].append(key[:-2])
-        elif key[-1] == 's':
-            synonyms[key].append(key[:-1])
-
-    # update the dict with synonyms
-    for key, new_keys in synonyms.items():
-        value = to_inch[key]
-        for new_key in new_keys:
-            to_inch[new_key] = value
-
-    # convert back to regular dictionary and make keys all lower case
-    to_inch = {k.strip().lower(): v for k, v in to_inch.items()}
-    return to_inch
-
-
-_TO_INCHES = _generate_conversions()
-
+# scaling factors from various unit systems to inches
+_TO_INCHES = json.loads(get_resource('units_to_inches.json'))
 
 def unit_conversion(current, desired):
     """
