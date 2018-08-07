@@ -1,19 +1,19 @@
 """
 units.py
 --------------
-Deal with physical unit systems.
+Deal with physical unit systems (i.e. inches, mm)
 
-Very basic, only here to avoid requiring sympy.physics.units
-or pint
+Very basic conversions, and no requirement for
+sympy.physics.units or pint.
 """
+import json
+
 from .constants import log
 from .resources import get_resource
 
-import json
-import collections
-
 # scaling factors from various unit systems to inches
-_TO_INCHES = json.loads(get_resource('units_to_inches.json'))
+TO_INCH = json.loads(get_resource('units_to_inches.json'))
+
 
 def unit_conversion(current, desired):
     """
@@ -33,25 +33,27 @@ def unit_conversion(current, desired):
     """
     current = str(current).strip().lower()
     desired = str(desired).strip().lower()
-    conversion = _TO_INCHES[current] / _TO_INCHES[desired]
+    conversion = TO_INCH[current] / TO_INCH[desired]
     return conversion
 
 
 def units_from_metadata(obj, guess=True):
     """
-    Wild ass guess for the units of a drawing or model.
-
-    Will try to extract hints from metadata, and failing that
-    it will guess based on the object scale.
+    Try to extract hints from metadata and if that fails
+    guess based on the object scale.
 
 
     Parameters
     ------------
-    obj: object, with 'metadata' dict and 'scale' float
+    obj: object
+        Has attributes 'metadata' (dict) and 'scale' (float)
+    guess : bool
+        If metadata doesn't indicate units, guess from scale
 
     Returns
     ------------
-    units: str, guess of what the units might be
+    units: str
+        A guess of what the units might be
     """
     # try to guess from metadata
     for key in ['file_name', 'name']:
@@ -73,15 +75,16 @@ def units_from_metadata(obj, guess=True):
                     'units', '').replace(
                         'unit', '').strip()
                 # if the hint is a valid unit return it
-                if hint in _TO_INCHES:
+                if hint in TO_INCH:
                     return hint
 
     if not guess:
         raise ValueError('no units and not allowed to guess')
+
     # we made it to the wild ass guess section
     # if the scale is larger than 100 mystery units
     # declare the model to be millimeters, otherwise inches
-    log.warning('No units, guessing units from scale')
+    log.warning('no units: guessing from scale')
     if float(obj.scale) > 100.0:
         return 'millimeters'
     else:
@@ -91,7 +94,7 @@ def units_from_metadata(obj, guess=True):
 def _convert_units(obj, desired, guess=False):
     """
     Given an object with scale and units try to scale
-    to different units.
+    to different units via the object's `apply_scale`.
 
     Parameters
     ---------
@@ -109,7 +112,7 @@ def _convert_units(obj, desired, guess=False):
         # to guess will raise a ValueError
         obj.units = units_from_metadata(obj, guess=guess)
 
-    log.info('Converting units from %s to %s', obj.units, desired)
+    log.info('converting units from %s to %s', obj.units, desired)
     # float, conversion factor
     conversion = unit_conversion(obj.units, desired)
 

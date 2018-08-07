@@ -51,14 +51,19 @@ def unitize(vectors,
 
     Parameters
     ---------
-    vectors:      (n,m) or (j) float, vectors
-    check_valid:  bool, return mask of nonzero vectors
-    threshold:    float, cutoff to be considered zero.
+    vectors : (n,m) or (j) float
+       Vector or vectors to be unitized
+    check_valid :  bool
+       If set, will return mask of nonzero vectors
+    threshold : float
+       Cutoff for a value to be considered zero.
 
     Returns
     ---------
-    unit:  (n,m) or (j) float, unit vectors
-    valid: (n) bool, mask of nonzero vectors if check_valid
+    unit :  (n,m) or (j) float
+       Input vectors but unitized
+    valid : (n,) bool or bool
+        Mask of nonzero vectors returned if `check_valid`
     """
     # make sure we have a numpy array
     vectors = np.asanyarray(vectors)
@@ -101,12 +106,15 @@ def euclidean(a, b):
 
     Parameters
     ------------
-    a: (n,) float, vector A
-    b: (n,) float, vector B
+    a : (n,) float
+       First vector
+    b : (n,) float
+       Second vector
 
     Returns
     ------------
-    distance: float, euclidean distance between A and B
+    distance : float
+        Euclidean distance between A and B
     """
     a = np.asanyarray(a, dtype=np.float64)
     b = np.asanyarray(b, dtype=np.float64)
@@ -119,11 +127,13 @@ def is_file(obj):
 
     Parameters
     ------------
-    obj: object to be checked
+    obj : object
+       Any object type to be checked
 
     Returns
     -----------
-    is_file: bool, True if object is a file
+    is_file : bool
+        True if object is a file
     """
     return hasattr(obj, 'read') or hasattr(obj, 'write')
 
@@ -134,11 +144,13 @@ def is_string(obj):
 
     Parameters
     ------------
-    obj: object to be checked
+    obj : object
+       Any object type to be checked
 
     Returns
     ------------
-    is_string: bool, True if obj is a string
+    is_string : bool
+        True if obj is a string
     """
     return isinstance(obj, basestring)
 
@@ -151,11 +163,13 @@ def is_none(obj):
 
     Parameters
     -------------
-    obj: object to be checked
+    obj : object
+      Any object type to be checked
 
     Returns
     -------------
-    is_none: bool, True if obj is None
+    is_none : bool
+        True if obj is None or numpy None-like
     """
     if obj is None:
         return True
@@ -172,11 +186,13 @@ def is_sequence(obj):
 
     Parameters
     -------------
-    obj: object to be checked
+    obj : object
+      Any object type to be checked
 
     Returns
     -------------
-    is_sequence: bool, True if object is sequence
+    is_sequence : bool
+        True if object is sequence
     """
     seq = (not hasattr(obj, "strip") and
            hasattr(obj, "__getitem__") or
@@ -205,10 +221,11 @@ def is_shape(obj, shape):
 
     Parameters
     ---------
-    obj:   np.ndarray to check the shape of
-    shape: list or tuple of shape.
-           Any negative term will be considered a wildcard
-           Any tuple term will be evaluated as an OR
+    obj :   np.ndarray
+       Array to check the shape on
+    shape : list or tuple
+       Any negative term will be considered a wildcard
+       Any tuple term will be evaluated as an OR
 
     Returns
     ---------
@@ -216,24 +233,24 @@ def is_shape(obj, shape):
 
     Examples
     ------------------------
-    In [1]: a = np.random.random((100,3))
+    In [1]: a = np.random.random((100, 3))
 
     In [2]: a.shape
     Out[2]: (100, 3)
 
-    In [3]: trimesh.util.is_shape(a, (-1,3))
+    In [3]: trimesh.util.is_shape(a, (-1, 3))
     Out[3]: True
 
-    In [4]: trimesh.util.is_shape(a, (-1,3,5))
+    In [4]: trimesh.util.is_shape(a, (-1, 3, 5))
     Out[4]: False
 
-    In [5]: trimesh.util.is_shape(a, (100,-1))
+    In [5]: trimesh.util.is_shape(a, (100, -1))
     Out[5]: True
 
-    In [6]: trimesh.util.is_shape(a, (-1,(3,4)))
+    In [6]: trimesh.util.is_shape(a, (-1, (3, 4)))
     Out[6]: True
 
-    In [7]: trimesh.util.is_shape(a, (-1,(4,5)))
+    In [7]: trimesh.util.is_shape(a, (-1, (4, 5)))
     Out[7]: False
     """
 
@@ -285,11 +302,13 @@ def make_sequence(obj):
 
     Parameters
     --------------
-    obj: object to be made a sequence
+    obj : object
+      An object to be made a sequence
 
     Returns
     --------------
-    as_sequence: (n,) sequence containing input
+    as_sequence : (n,) sequence
+       Contains input value
     """
     if is_sequence(obj):
         return np.array(list(obj))
@@ -299,12 +318,14 @@ def make_sequence(obj):
 
 def vector_hemisphere(vectors):
     """
-    For a set of 3D vectors alter the sign so they are all in the upper
-    hemisphere.
+    For a set of 3D vectors alter the sign so they are all in the
+    upper hemisphere.
 
-    If the vector lies on the plane, all vectors with negative Y will be reversed.
-    If the vector has a zero Z and Y value, vectors with a negative X value
-    will be reversed
+    If the vector lies on the plane all vectors with negative Y
+    will be reversed.
+
+    If the vector has a zero Z and Y value vectors with a
+    negative X value will be reversed.
 
     Parameters
     ----------
@@ -334,11 +355,9 @@ def vector_hemisphere(vectors):
     # all on-plane vectors with negative Y values
     signs[np.logical_and(zero[:, 2], neg[:, 1])] = -1.0
     # all on-plane vectors with zero Y values and negative X values
-    signs[np.logical_and(
-        np.logical_and(
-            zero[:, 2],
-            zero[:, 1]),
-        neg[:, 0])] = -1.0
+    signs[np.logical_and(np.logical_and(zero[:, 2],
+                                        zero[:, 1]),
+                         neg[:, 0])] = -1.0
 
     oriented = vectors * signs.reshape((-1, 1))
     return oriented
@@ -346,7 +365,18 @@ def vector_hemisphere(vectors):
 
 def vector_to_spherical(cartesian):
     """
-    Convert a set of cartesian points to (n,2) spherical vectors
+    Convert a set of cartesian points to (n,2) spherical unit
+    vectors.
+
+    Parameters
+    ------------
+    cartesian : (n, 3) float
+       Points in space
+
+    Returns
+    ------------
+    spherical : (n, 2) float
+       Angles, in radians
     """
     cartesian = np.asanyarray(cartesian, dtype=np.float64)
     if not is_shape(cartesian, (-1, 3)):
@@ -365,11 +395,20 @@ def vector_to_spherical(cartesian):
 def spherical_to_vector(spherical):
     """
     Convert a set of (n,2) spherical vectors to (n,3) vectors
+
+    Parameters
+    -----------
+    spherical : (n , 2) float
+       Angles, in radians
+
+    Returns
+    -----------
+    vectors : (n, 3) float
+      Unit vectors
     """
     spherical = np.asanyarray(spherical, dtype=np.float64)
     if not is_shape(spherical, (-1, 2)):
-        raise ValueError(
-            'Spherical vectors must be passed as an (n,2) set of angles!')
+        raise ValueError('spherical coordinates must be (n, 2)!')
 
     theta, phi = spherical.T
     st, ct = np.sin(theta), np.cos(theta)
@@ -386,11 +425,13 @@ def pairwise(iterable):
 
     Parameters
     -----------
-    iterable: flat list
+    iterable : (m, ) list
+       A sequence of values
 
     Returns
     -----------
-    pairs: (n,) seq of (2,) pairs of items
+    pairs: (n, 2)
+      Pairs of sequential values
 
     Example
     -----------
@@ -830,28 +871,38 @@ def stack_lines(indices):
 
 def append_faces(vertices_seq, faces_seq):
     """
-    Given a sequence of zero- indexed faces and vertices,
-    combine them into a single (n,3) list of faces and (m,3) vertices
+    Given a sequence of zero- indexed faces and vertices
+    combine them into a single array of faces and
+    a single array of vertices.
 
     Parameters
-    ---------
-    vertices_seq: (n) sequence of (m,d) vertex arrays
-    faces_seq     (n) sequence of (p,j) faces, zero indexed
-                  and referencing their counterpoint vertices
+    -----------
+    vertices_seq : (n, ) sequence of (m, d) float
+      Multiple arrays of verticesvertex arrays
+    faces_seq : (n, ) sequence of (p, j) int
+      Zero indexed faces for matching vertices
 
     Returns
     ----------
-    vertices: (i, d) float, vertices
-    faces:    (j, 3) int, faces
+    vertices : (i, d) float
+      Points in space
+    faces : (j, 3) int
+      Reference vertex indices
     """
+    # the length of each vertex array
     vertices_len = np.array([len(i) for i in vertices_seq])
+    # how much each group of faces needs to be offset
     face_offset = np.append(0, np.cumsum(vertices_len)[:-1])
 
     new_faces = []
     for offset, faces in zip(face_offset, faces_seq):
-        if len(faces) > 0:
-            new_faces.append(faces + offset)
+        if len(faces) == 0:
+            continue
+        # apply the index offset
+        new_faces.append(faces + offset)
+    # stack to clean (n, 3) float
     vertices = vstack_empty(vertices_seq)
+    # stack to clean (n, 3) int
     faces = vstack_empty(new_faces)
 
     return vertices, faces
@@ -863,20 +914,30 @@ def array_to_string(array,
                     digits=8,
                     value_format='{}'):
     """
-    Convert a 1 or 2D array into a string with a specified number of digits
-    and delimiter.
+    Convert a 1 or 2D array into a string with a specified number
+    of digits and delimiter. The reason this exists is that the
+    basic numpy array to string conversions are suprisingly bad.
 
     Parameters
     ----------
-    array:     (n,) or (n,d) float/int, array to be converted
-               If (n,) only column delimiter will be used
-    col_delim: str, what string should separate values in a column
-    row_delim: str, what string should separate values in a row
-    digits:    int, how many digits should floating point numbers include
+    array : (n,) or (n, d) float or int
+       Data to be converted
+       If shape is (n,) only column delimiter will be used
+    col_delim : str
+      What string should separate values in a column
+    row_delim : str
+      What string should separate values in a row
+    digits : int
+      How many digits should floating point numbers include
+    value_format : str
+       Format string for each value or sequence of values
+       If multiple values per value_format it must divide
+       into array evenly.
 
     Returns
     ----------
-    formatted: str, string representation of original array
+    formatted : str
+       String representation of original array
     """
     # convert inputs to correct types
     array = np.asanyarray(array)
@@ -932,17 +993,21 @@ def array_to_encoded(array, dtype=None, encoding='base64'):
     Export a numpy array to a compact serializable dictionary.
 
     Parameters
-    ---------
-    array: numpy array
-    dtype: optional, what dtype should array be encoded with.
-    encoding: str, 'base64' or 'binary'
+    ------------
+    array : array
+      Any numpy array
+    dtype : str or None
+      Optional dtype to encode array
+    encoding : str
+      'base64' or 'binary'
 
     Returns
     ---------
-    encoded: dict with keys:
-                 dtype: string of dtype
-                 shape: int tuple of shape
-                 base64: base64 encoded string of flat array
+    encoded : dict
+      Has keys:
+      'dtype':  str, of dtype
+      'shape':  tuple of shape
+      'base64': str, base64 encoded string
     """
     array = np.asanyarray(array)
     shape = array.shape
@@ -967,15 +1032,26 @@ def array_to_encoded(array, dtype=None, encoding='base64'):
 
 def decode_keys(store, encoding='utf-8'):
     """
-    If a dictionary has keys that are bytes encode them (utf-8 default)
+    If a dictionary has keys that are bytes decode them to a str.
 
     Parameters
     ---------
-    store: dict
+    store : dict
+      Dictionary with data
 
     Returns
     ---------
-    store: dict, with same data and if keys were bytes they have been encoded
+    result : dict
+      Values are untouched but keys that were bytes
+      are converted to ASCII strings.
+
+    Example
+    -----------
+    In [1]: d
+    Out[1]: {1020: 'nah', b'hi': 'stuff'}
+
+    In [2]: trimesh.util.decode_keys(d)
+    Out[2]: {1020: 'nah', 'hi': 'stuff'}
     """
     keys = store.keys()
     for key in keys:
@@ -992,12 +1068,14 @@ def encoded_to_array(encoded):
     Turn a dictionary with base64 encoded strings back into a numpy array.
 
     Parameters
-    ----------
-    encoded: dict with keys:
-                 dtype: string of dtype
-                 shape: int tuple of shape
-                 base64: base64 encoded string of flat array
-                 binary:  decode result coming from numpy.tostring
+    ------------
+    encoded : dict
+      Has keys:
+        dtype: string of dtype
+        shape: int tuple of shape
+        base64: base64 encoded string of flat array
+        binary:  decode result coming from numpy.tostring
+
     Returns
     ----------
     array: numpy array
@@ -1031,12 +1109,15 @@ def is_instance_named(obj, name):
 
     Parameters
     ---------
-    obj: instance of a class
-    name: string
+    obj : instance
+      Some object of some class
+    name: str
+      The name of the class we want to check for
 
     Returns
     ---------
-    bool, whether the object is a member of the named class
+    is_instance : bool
+      Whether the object is a member of the named class
     """
     try:
         type_named(obj, name)
@@ -1063,7 +1144,8 @@ def type_bases(obj, depth=4):
 
 def type_named(obj, name):
     """
-    Similar to the type() builtin, but looks in class bases for named instance.
+    Similar to the type() builtin, but looks in class bases
+    for named instance.
 
     Parameters
     ----------

@@ -107,7 +107,7 @@ class Scene:
             # a random unique identifier
             unique = util.unique_id(increment=len(self.geometry))
             # geometry name + UUID
-            node_name = name +'_' + unique.upper()
+            node_name = name + '_' + unique.upper()
 
         # create an identity transform from world
         transform = np.eye(4)

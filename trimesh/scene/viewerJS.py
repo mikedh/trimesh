@@ -64,10 +64,10 @@ def scene_to_notebook(scene, height=500, **kwargs):
     # I tried this a dozen ways and this is the only one that works
     # display.HTML and display.Javascript really, really don't work
     embedded = display.HTML('<iframe srcdoc="{srcdoc}" '
-                           'width="100%" height="{height}px" '
-                           'style="border:none;"></iframe>'.format(
-                               srcdoc=srcdoc,
-                               height=height))
+                            'width="100%" height="{height}px" '
+                            'style="border:none;"></iframe>'.format(
+                                srcdoc=srcdoc,
+                                height=height))
     return embedded
 
 
