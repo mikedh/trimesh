@@ -44,9 +44,16 @@ _DXF_UNITS = {1: 'inches',
 # backwards, for reference
 _UNITS_TO_DXF = {v: k for k, v in _DXF_UNITS.items()}
 
-# save metadata to a DXF Xrecord
+# save metadata to a DXF Xrecord starting here
 # Valid values are 1-369 (except 5 and 105)
 XRECORD_METADATA = 134
+# the sentinel string for trimesh metadata
+# this should be seen at XRECORD_METADATA
+XRECORD_SENTINEL = 'TRIMESH_METADATA:'
+# the maximum line length before we split lines
+XRECORD_MAX_LINE = 200
+# the maximum index of XRECORDS
+XRECORD_MAX_INDEX = 368
 
 # get the TEMPLATES for exporting DXF files
 TEMPLATES = {k: Template(v) for k, v in json.loads(
@@ -67,7 +74,7 @@ def get_key(blob, field, code):
         return None
 
 
-def load_dxf(file_obj):
+def load_dxf(file_obj, **kwargs):
     """
     Load a DXF file to a dictionary containing vertices and
     entities.
@@ -231,6 +238,7 @@ def load_dxf(file_obj):
         """
         # in the DXF there are n points and n ordered fields
         # with the same group code
+
         points = np.column_stack((e['10'],
                                   e['20'])).astype(np.float64)
         knots = np.array(e['40']).astype(np.float64)
@@ -339,9 +347,11 @@ def load_dxf(file_obj):
     # loop through chunks of entity information
     # chunk will be an (n, 2) array of (group code, data) pairs
     for chunk in np.array_split(entity_blob, inflection):
-        if len(chunk) > 2:
+        if len(chunk) >= 1:
             # the string representing entity type
             entity_type = chunk[0][1]
+
+            ############
             # special case old- style polyline entities
             if entity_type == 'POLYLINE':
                 polyline = [dict(chunk)]
@@ -366,8 +376,9 @@ def load_dxf(file_obj):
                     **info(dict(polyline[0]))))
                 # add the vertices to our collection
                 vertices.extend(lines)
-                # no longer have an active polyline
+                # we no longer have an active polyline
                 polyline = None
+
             # if the entity contains all relevant data we can
             # cleanly load it from inside a single function
             elif entity_type in loaders:
@@ -573,6 +584,7 @@ def export_dxf(path, include_metadata=False):
         as_json = util.jsonify(
             path.metadata,
             separators=(',', ':')).replace('\n', ' ')
+
         # create an XRECORD for our use
         xrecord = TEMPLATES['xrecord'].substitute({
             'INDEX': XRECORD_METADATA,
@@ -623,7 +635,7 @@ def export_dxf(path, include_metadata=False):
     return export
 
 
-def load_dwg(file_obj):
+def load_dwg(file_obj, **kwargs):
     """
     Load DWG files by converting them to DXF files using
     TeighaFileConverter.
@@ -642,9 +654,9 @@ def load_dwg(file_obj):
     # convert data into R14 ASCII DXF
     converted = _teigha_convert(data)
     # load into kwargs for Path2D constructor
-    kwargs = load_dxf(util.wrap_as_stream(converted))
+    result = load_dxf(util.wrap_as_stream(converted))
 
-    return kwargs
+    return result
 
 
 def _teigha_convert(data, extension='dwg'):
