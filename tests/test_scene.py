@@ -151,7 +151,8 @@ class SceneTests(g.unittest.TestCase):
         Make sure a zip file with multiple file types
         is returned as a single scene.
         """
-        m = g.get_mesh('scenes.zip')
+        # allow mixed 2D and 3D geometry
+        m = g.get_mesh('scenes.zip', mixed=True)
 
         assert len(m.geometry) >= 6
         assert len(m.graph.nodes_geometry) >= 10
@@ -159,6 +160,9 @@ class SceneTests(g.unittest.TestCase):
                    for i in m.geometry.values())
         assert any(isinstance(i, g.trimesh.Trimesh)
                    for i in m.geometry.values())
+
+        m = g.get_mesh('scenes.zip', mixed=False)
+        assert len(m.geometry) < 6
 
     def test_doubling(self):
         s = g.get_mesh('cycloidal.3DXML')
