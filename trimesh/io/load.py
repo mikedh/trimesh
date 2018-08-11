@@ -197,18 +197,25 @@ def load_mesh(file_obj, file_type=None, **kwargs):
     return loaded
 
 
-def load_compressed(file_obj, file_type=None):
+def load_compressed(file_obj, file_type=None, mixed=False):
     """
-    Given a compressed archive, load all the geometry that we can from it.
+    Given a compressed archive load all the geometry that
+    we can from it.
 
     Parameters
     ----------
-    file_obj: open file-like object
-    file_type: str, type of file
+    file_obj : open file-like object
+      Containing compressed data
+    file_type : str
+      Type of the archive file
+    mixed : bool
+      If False, for archives containing both 2D and 3D
+      data will only load the 3D data into the Scene.
 
     Returns
     ----------
-    geometries: list of geometry objects
+    scene : trimesh.Scene
+      Geometry loaded in to a Scene object
     """
     # turn a string into a file obj and type
     (file_obj,
@@ -228,10 +235,23 @@ def load_compressed(file_obj, file_type=None):
     else:
         archive_name = 'archive'
 
+    # populate our available formats
+    if mixed:
+        available = available_formats()
+    else:
+        # all types contained in ZIP archive
+        contains = set(util.split_extension(n).lower()
+                       for n in files.keys())
+        # if there are no mesh formats available
+        if contains.isdisjoint(mesh_formats()):
+            available = path_formats()
+        else:
+            available = mesh_formats()
+
     for name, data in files.items():
         # only load formats that we support
         compressed_type = util.split_extension(name).lower()
-        if compressed_type not in available_formats():
+        if compressed_type not in available:
             # don't raise an exception, just try the next one
             continue
         # store the file name relative to the archive

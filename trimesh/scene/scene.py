@@ -569,7 +569,17 @@ class Scene:
 
         Parameters
         ----------
-        units: str, target unit system. EG 'inches', 'mm', etc
+        desired : str
+          Desired final unit system: 'inches', 'mm', etc.
+        guess : bool
+          Is the converter allowed to guess scale when models
+          don't have it specified in their metadata.
+
+        Returns
+        ----------
+        scaled : trimesh.Scene
+          Copy of scene with scaling applied
+          and units set for each model.
         """
         # if there is no geometry do nothing
         if len(self.geometry) == 0:
