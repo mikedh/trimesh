@@ -24,7 +24,7 @@ class SceneViewer(pyglet.window.Window):
                  resolution=(640, 480),
                  start_loop=True,
                  callback=None,
-                 callback_period=1.0/60.0,
+                 callback_period=None,
                  **kwargs):
 
         self.scene = scene
@@ -70,29 +70,24 @@ class SceneViewer(pyglet.window.Window):
         self.set_size(*resolution)
         self.update_flags()
 
-        # Set up the NULL periodic task, if the period is non-zero
-        if self.callback_period != 0.0:
-            pyglet.clock.schedule_interval(self.null_periodic_callback, self.callback_period)
-
+        # someone has passed a callback to be called before renders
+        if self.callback is not None:
+            # if no callback period is specified set it to default
+            if callback_period is None:
+                callback_period = 1.0 / 100.0
+            # set up a do-nothing periodic task which will
+            # trigger `self.on_draw` every `callback_period`
+            # seconds if someone has passed a callback
+            pyglet.clock.schedule_interval(lambda x: x,
+                                           callback_period)
         if start_loop:
             pyglet.app.run()
-
-    def null_periodic_callback(self, dt):
-        """
-        A periodic callback method that does nothing.
-        
-        This is required by the pyglet clock API, since the method passed to the
-        schedule_interval method must take only a `dt` parameter. Instead, this
-        method is simply used to allow the callback trigger to take place, and the
-        real callback method is called during the `_update_meshes` method below.
-        """
-        pass
 
     def _redraw(self):
         self.on_draw()
 
     def _update_meshes(self):
-        # Call the callback method, if specified
+        # call the callback if specified
         if self.callback is not None:
             self.callback(self.scene)
         for name, mesh in self.scene.geometry.items():
