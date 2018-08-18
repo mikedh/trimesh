@@ -744,11 +744,12 @@ class Path3D(Path):
 
         return planar, to_3D
 
-    def show(self):
+    def show(self, **kwargs):
         """
         Show the current Path3D object.
         """
-        self.scene().show()
+        scene = self.scene()
+        return scene.show(**kwargs)
 
     def plot_discrete(self, show=False):
         """
