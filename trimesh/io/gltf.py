@@ -7,7 +7,7 @@ import collections
 
 import numpy as np
 
-from .. import util
+from .. import util, rendering
 
 # magic numbers which have meaning in GLTF
 # most are uint32's of UTF-8 text
@@ -303,18 +303,20 @@ def _create_gltf_structure(scene):
             buffer_items.append(mesh.vertices.astype(np.float32).tostring())
 
         elif util.is_instance_named(mesh, 'Path3D'):
-            # the vertex accessor
+            vxlist_args = rendering.path_to_vertexlist(mesh)
+            vertex_list = vxlist_args[4][1]
+
             tree['meshes'].append({"name": name,
                                    "primitives": [
                                        {"attributes":
                                         {"POSITION": len(tree['accessors'])},
                                         "mode": 1,  # mode 1 is GL_LINES
-                                        "material":0 #TODO deal with multiple
+                                        "material": len(tree['materials'])
                                         }]})
 
             tree['accessors'].append({"bufferView": len(buffer_items),
                                       "componentType": 5126,
-                                      "count": len(mesh.vertices),
+                                      "count": vxlist_args[0],
                                       "type": "VEC3",
                                       "byteOffset": 0,
                                       "max": mesh.vertices.max(axis=0).tolist(),
@@ -326,7 +328,7 @@ def _create_gltf_structure(scene):
                 "roughnessFactor": 0
             }})
 
-            buffer_items.append(mesh.vertices.astype(np.float32).tostring())
+            buffer_items.append(vertex_list.astype(np.float32).tostring())
     return tree, buffer_items
 
 
