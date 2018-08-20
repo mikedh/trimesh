@@ -7,7 +7,7 @@ import collections
 
 import numpy as np
 
-from .. import util
+from .. import util, rendering
 
 # magic numbers which have meaning in GLTF
 # most are uint32's of UTF-8 text
@@ -58,7 +58,7 @@ def export_gltf(scene):
 
         # create the buffer views
         current_pos = 0
-        for j in range(2):
+        for j in range(2): #TODO this breaks for GL modes that don't have 2 buffers (e.g. GL_LINES)
             current_item = buffer_items[i + j]
             views.append({"buffer": len(buffers),
                           "byteOffset": current_pos,
@@ -266,42 +266,69 @@ def _create_gltf_structure(scene):
 
     buffer_items = []
     for name, mesh in scene.geometry.items():
-        # meshes reference accessor indexes
-        tree['meshes'].append({"name": name,
-                               "primitives": [
-                                   {"attributes":
-                                    {"POSITION": len(tree['accessors']) + 1},
-                                    "indices": len(tree['accessors']),
-                                    "mode": 4,  # mode 4 is GL_TRIANGLES
-                                    'material': len(tree['materials'])}]})
+        if util.is_instance_named(mesh, 'Trimesh'):
+            # meshes reference accessor indexes
+            tree['meshes'].append({"name": name,
+                                   "primitives": [
+                                       {"attributes":
+                                        {"POSITION": len(tree['accessors']) + 1},
+                                        "indices": len(tree['accessors']),
+                                        "mode": 4,  # mode 4 is GL_TRIANGLES
+                                        'material': len(tree['materials'])}]})
 
-        tree['materials'].append(_mesh_to_material(mesh))
+            tree['materials'].append(_mesh_to_material(mesh))
 
-        # accessors refer to data locations
-        # mesh faces are stored as flat list of integers
-        tree['accessors'].append({"bufferView": len(buffer_items),
-                                  "componentType": 5125,
-                                  "count": len(mesh.faces) * 3,
-                                  "max": [int(mesh.faces.max())],
-                                  "min": [0],
-                                  "type": "SCALAR"})
+            # accessors refer to data locations
+            # mesh faces are stored as flat list of integers
+            tree['accessors'].append({"bufferView": len(buffer_items),
+                                      "componentType": 5125,
+                                      "count": len(mesh.faces) * 3,
+                                      "max": [int(mesh.faces.max())],
+                                      "min": [0],
+                                      "type": "SCALAR"})
 
-        # the vertex accessor
-        tree['accessors'].append({"bufferView": len(buffer_items) + 1,
-                                  "componentType": 5126,
-                                  "count": len(mesh.vertices),
-                                  "type": "VEC3",
-                                  "byteOffset": 0,
-                                  "max": mesh.vertices.max(axis=0).tolist(),
-                                  "min": mesh.vertices.min(axis=0).tolist()})
+            # the vertex accessor
+            tree['accessors'].append({"bufferView": len(buffer_items) + 1,
+                                      "componentType": 5126,
+                                      "count": len(mesh.vertices),
+                                      "type": "VEC3",
+                                      "byteOffset": 0,
+                                      "max": mesh.vertices.max(axis=0).tolist(),
+                                      "min": mesh.vertices.min(axis=0).tolist()})
+            # convert to the correct dtypes
+            # 5126 is a float32
+            # 5125 is an unsigned 32 bit integer
+            # add faces, then vertices
+            buffer_items.append(mesh.faces.astype(np.uint32).tostring())
+            buffer_items.append(mesh.vertices.astype(np.float32).tostring())
 
-        # convert to the correct dtypes
-        # 5126 is a float32
-        # 5125 is an unsigned 32 bit integer
-        # add faces, then vertices
-        buffer_items.append(mesh.faces.astype(np.uint32).tostring())
-        buffer_items.append(mesh.vertices.astype(np.float32).tostring())
+        elif util.is_instance_named(mesh, 'Path3D'):
+            vxlist_args = rendering.path_to_vertexlist(mesh)
+            vertex_list = vxlist_args[4][1]
 
+            tree['meshes'].append({"name": name,
+                                   "primitives": [
+                                       {"attributes":
+                                        {"POSITION": len(tree['accessors'])},
+                                        "mode": 1,  # mode 1 is GL_LINES
+                                        "material": len(tree['materials'])
+                                        }]})
+
+            tree['accessors'].append({"bufferView": len(buffer_items),
+                                      "componentType": 5126,
+                                      "count": vxlist_args[0],
+                                      "type": "VEC3",
+                                      "byteOffset": 0,
+                                      "max": mesh.vertices.max(axis=0).tolist(),
+                                      "min": mesh.vertices.min(axis=0).tolist()})
+
+            tree['materials'].append({"pbrMetallicRoughness": {  # TODO add color in future; this is just black
+                "baseColorFactor": [0, 0, 0, 0],
+                "metallicFactor": 0,
+                "roughnessFactor": 0
+            }})
+
+            buffer_items.append(vertex_list.astype(np.float32).tostring())
     return tree, buffer_items
 
 
