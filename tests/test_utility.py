@@ -248,8 +248,13 @@ class HemisphereTests(unittest.TestCase):
         resigned = trimesh.util.vector_hemisphere(v)
 
         check = (abs(np.diff(resigned.reshape((-1, 2, 3)),
-                             axis=1).sum(axis=2)) < trimesh.constants.tol.zero).all()
-        self.assertTrue(check)
+            axis=1).sum(axis=2)) < trimesh.constants.tol.zero).all()
+        assert check
+
+        a, s = trimesh.util.vector_hemisphere(v, return_sign=True)
+        assert g.np.allclose(v, a * s.reshape((-1,1)))
+
+        
 
 
 class FileTests(unittest.TestCase):

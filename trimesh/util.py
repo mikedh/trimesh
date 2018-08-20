@@ -316,7 +316,7 @@ def make_sequence(obj):
         return np.array([obj])
 
 
-def vector_hemisphere(vectors):
+def vector_hemisphere(vectors, return_sign=False):
     """
     For a set of 3D vectors alter the sign so they are all in the
     upper hemisphere.
@@ -329,12 +329,19 @@ def vector_hemisphere(vectors):
 
     Parameters
     ----------
-    vectors: (n,3) float, set of vectors
+    vectors : (n,3) float
+      Input vectors
+    return_sign : bool
+      Return the sign mask or not
 
     Returns
     ----------
-    oriented: (n,3) float, set of vectors with same magnitude but all
-                           pointing in the same hemisphere.
+    oriented: (n, 3) float
+       Vectors with same magnitude as source
+       but possibly reversed to ensure all vectors
+       are in the same hemisphere.
+    sign : (n,) float
+
 
     """
     vectors = np.asanyarray(vectors, dtype=np.float64)
@@ -358,8 +365,11 @@ def vector_hemisphere(vectors):
     signs[np.logical_and(np.logical_and(zero[:, 2],
                                         zero[:, 1]),
                          neg[:, 0])] = -1.0
-
+    # apply the signs to the source vectors
     oriented = vectors * signs.reshape((-1, 1))
+
+    if return_sign:
+        return oriented, signs
     return oriented
 
 

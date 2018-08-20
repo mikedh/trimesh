@@ -127,8 +127,9 @@ class Path(object):
         crc: int, CRC of entity points and vertices
         """
         # first CRC the points in every entity
-        target = caching.crc32(bytes().join(e._bytes()
-                                            for e in self.entities))
+        target = caching.crc32(bytes().join(
+            e._bytes()
+            for e in self.entities))
         # add the CRC for the vertices
         target += self.vertices.crc()
         return target
@@ -142,8 +143,9 @@ class Path(object):
         md5: str, two appended MD5 hashes
         """
 
-        target = util.md5_object(bytes().join(e._bytes()
-                                              for e in self.entities))
+        target = util.md5_object(bytes().join(
+            e._bytes()
+            for e in self.entities))
         target += self.vertices.md5()
         return target
 

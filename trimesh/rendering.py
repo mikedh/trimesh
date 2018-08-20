@@ -17,7 +17,7 @@ try:
 except BaseException:
     # otherwise provide mode flags
     # this is so we can unit test without pyglet
-    GL_LINES, GL_POINTS, GL_TRIANGLES = (1, 0, 4)
+    GL_POINTS, GL_LINES, GL_TRIANGLES = (0, 1, 4)
 
 from . import util
 

@@ -58,7 +58,8 @@ def export_gltf(scene):
 
         # create the buffer views
         current_pos = 0
-        for j in range(2): #TODO this breaks for GL modes that don't have 2 buffers (e.g. GL_LINES)
+        for j in range(
+                2):  # TODO this breaks for GL modes that don't have 2 buffers (e.g. GL_LINES)
             current_item = buffer_items[i + j]
             views.append({"buffer": len(buffers),
                           "byteOffset": current_pos,
@@ -271,7 +272,8 @@ def _create_gltf_structure(scene):
             tree['meshes'].append({"name": name,
                                    "primitives": [
                                        {"attributes":
-                                        {"POSITION": len(tree['accessors']) + 1},
+                                        {"POSITION": len(
+                                            tree['accessors']) + 1},
                                         "indices": len(tree['accessors']),
                                         "mode": 4,  # mode 4 is GL_TRIANGLES
                                         'material': len(tree['materials'])}]})
