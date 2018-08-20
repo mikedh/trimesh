@@ -1689,6 +1689,10 @@ class Trimesh(object):
 
         # otherwise load the line segments into a Path3D object
         path = load_path(lines)
+
+        # add the face index info into metadata
+        path.metadata['face_index'] = face_index
+
         return path
 
     def section_multiplane(self,
