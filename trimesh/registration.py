@@ -21,23 +21,32 @@ def procrustes(a,
                return_cost=True):
     """
     Perform Procrustes' analysis subject to constraints. Finds the
-    transformation T mapping a to b which minimizes the sums-of-squares
+    transformation T mapping a to b which minimizes the square sum
     distances between Ta and b, also called the cost.
 
     Parameters
     ----------
-    a           : (n,3) float, list of points in space
-    b           : (n,3) float, list of points in space
-    reflection  : bool, if the transformation is allowed reflections
-    translation : bool, if the transformation is allowed translations
-    scale       : bool, if the transformation is allowed scaling
-    return_cost : bool, whether to return the cost and transformed a as well
+    a : (n,3) float
+      List of points in space
+    b : (n,3) float
+      List of points in space
+    reflection : bool
+      If the transformation is allowed reflections
+    translation : bool
+      If the transformation is allowed translations
+    scale : bool
+      If the transformation is allowed scaling
+    return_cost : bool
+      Whether to return the cost and transformed a as well
 
     Returns
     ----------
-    matrix      : (4,4) float, the transformation matrix sending a to b
-    transformed : (n,3) float, the image of a under the transformation
-    cost        : float, the cost of the transformation
+    matrix : (4,4) float
+      The transformation matrix sending a to b
+    transformed : (n,3) float
+      The image of a under the transformation
+    cost : float
+      The cost of the transformation
     """
 
     a = np.asanyarray(a, dtype=np.float64)
@@ -105,18 +114,27 @@ def icp(a,
 
     Parameters
     ----------
-    a              : (n,3) float, list of points in space.
-    b              : (m,3) float or Trimesh, list of points in space or mesh.
-    initial        : (4,4) float, initial transformation.
-    threshold      : float, stop when change in cost is less than threshold
-    max_iterations : int, maximum number of iterations
-    kwargs         : dict, args to pass to procrustes
+    a : (n,3) float
+      List of points in space.
+    b : (m,3) float or Trimesh
+      List of points in space or mesh.
+    initial : (4,4) float
+      Initial transformation.
+    threshold : float
+      Stop when change in cost is less than threshold
+    max_iterations : int
+      Maximum number of iterations
+    kwargs : dict
+      Args to pass to procrustes
 
     Returns
     ----------
-    matrix      : (4,4) float, the transformation matrix sending a to b
-    transformed : (n,3) float, the image of a under the transformation
-    cost        : float, the cost of the transformation
+    matrix : (4,4) float
+      The transformation matrix sending a to b
+    transformed : (n,3) float
+      The image of a under the transformation
+    cost : float
+      The cost of the transformation
     """
 
     a = np.asanyarray(a, dtype=np.float64)
@@ -130,7 +148,7 @@ def icp(a,
             raise ValueError('points must be (n,3)!')
         btree = cKDTree(b)
 
-    # Transform a under initial_transformation
+    # transform a under initial_transformation
     a = transform_points(a, initial)
     total_matrix = initial
 
@@ -146,10 +164,12 @@ def icp(a,
             distances, ix = btree.query(a, 1)
             closest = b[ix]
 
-        # Align a with closest points
-        matrix, transformed, cost = procrustes(a, closest, **kwargs)
+        # align a with closest points
+        matrix, transformed, cost = procrustes(a=a,
+                                               b=closest,
+                                               **kwargs)
 
-        # Update a
+        # update a with our new transformed points
         a = transformed
         total_matrix = np.dot(matrix, total_matrix)
 
