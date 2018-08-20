@@ -1,5 +1,9 @@
 """
-This module provides GLTF 2.0 exports
+gltf.py
+------------
+
+Provides GLTF 2.0 exports of trimesh.Trimesh objects
+as GL_TRIANGLES, and trimesh.Path2D/Path3D as GL_LINES
 """
 
 import json
@@ -7,7 +11,8 @@ import collections
 
 import numpy as np
 
-from .. import util, rendering
+from .. import util
+from .. import rendering
 
 # magic numbers which have meaning in GLTF
 # most are uint32's of UTF-8 text
@@ -36,8 +41,8 @@ def export_gltf(scene):
     """
     Export a scene object as a GLTF directory.
 
-    This has the advantage of putting each mesh into a separate file (buffer)
-    as opposed to one large file, but means multiple files need to be tracked.
+    This has the advantage of putting each mesh into a separate
+    file (buffer) as opposed to one large file.
 
     Parameters
     -----------
@@ -58,8 +63,9 @@ def export_gltf(scene):
 
         # create the buffer views
         current_pos = 0
-        for j in range(
-                2):  # TODO this breaks for GL modes that don't have 2 buffers (e.g. GL_LINES)
+        # TODO this breaks for GL modes
+        # that don't have 2 buffers (e.g. GL_LINES)
+        for j in range(2):
             current_item = buffer_items[i + j]
             views.append({"buffer": len(buffers),
                           "byteOffset": current_pos,
@@ -136,9 +142,9 @@ def export_glb(scene):
                            0x004E4942],
                           dtype=np.uint32)
 
-    exported = (header.tostring() +
+    exported = (header.tobytes() +
                 content +
-                bin_header.tostring() +
+                bin_header.tobytes() +
                 buffer_data)
 
     return exported
@@ -153,11 +159,13 @@ def load_glb(file_obj, **passed):
 
     Parameters
     ------------
-    file_obj: file- like object containing GLB file
+    file_obj : file- like object
+       Containing GLB data
 
     Returns
     ------------
-    kwargs: dict, kwargs to instantiate a trimesh.Scene
+    kwargs : dict
+      Kwargs to instantiate a trimesh.Scene
     """
 
     # save the start position of the file for referencing
@@ -247,7 +255,19 @@ def _mesh_to_material(mesh, metallic=.02, rough=.1):
 
 def _create_gltf_structure(scene):
     """
-    Generate a GLTF header
+    Generate a GLTF header.
+
+    Parameters
+    -------------
+    scene : trimesh.Scene
+      Input scene data
+
+    Returns
+    ---------------
+    tree : dict
+      Contains required keys for a GLTF scene
+    buffer_items : list
+      Contains bytes of data
     """
     # we are defining a single scene, and will be setting the
     # world node to the 0th index
@@ -260,78 +280,142 @@ def _create_gltf_structure(scene):
             'materials': []}
 
     # GLTF references meshes by index, so store them here
-    mesh_index = {name: i for i, name in enumerate(scene.geometry.keys())}
+    mesh_index = {name: i for i, name in
+                  enumerate(scene.geometry.keys())}
     # grab the flattened scene graph in GLTF's format
     nodes = scene.graph.to_gltf(mesh_index=mesh_index)
     tree.update(nodes)
 
     buffer_items = []
-    for name, mesh in scene.geometry.items():
-        if util.is_instance_named(mesh, 'Trimesh'):
-            # meshes reference accessor indexes
-            tree['meshes'].append({"name": name,
-                                   "primitives": [
-                                       {"attributes":
-                                        {"POSITION": len(
-                                            tree['accessors']) + 1},
-                                        "indices": len(tree['accessors']),
-                                        "mode": 4,  # mode 4 is GL_TRIANGLES
-                                        'material': len(tree['materials'])}]})
+    for name, geometry in scene.geometry.items():
+        if util.is_instance_named(geometry, 'Trimesh'):
+            # add the junk
+            _append_mesh(mesh=geometry,
+                         name=name,
+                         tree=tree,
+                         buffer_items=buffer_items)
+        elif util.is_instance_named(geometry, 'Path'):
+            _append_path(path=geometry,
+                         name=name,
+                         tree=tree,
+                         buffer_items=buffer_items)
 
-            tree['materials'].append(_mesh_to_material(mesh))
-
-            # accessors refer to data locations
-            # mesh faces are stored as flat list of integers
-            tree['accessors'].append({"bufferView": len(buffer_items),
-                                      "componentType": 5125,
-                                      "count": len(mesh.faces) * 3,
-                                      "max": [int(mesh.faces.max())],
-                                      "min": [0],
-                                      "type": "SCALAR"})
-
-            # the vertex accessor
-            tree['accessors'].append({"bufferView": len(buffer_items) + 1,
-                                      "componentType": 5126,
-                                      "count": len(mesh.vertices),
-                                      "type": "VEC3",
-                                      "byteOffset": 0,
-                                      "max": mesh.vertices.max(axis=0).tolist(),
-                                      "min": mesh.vertices.min(axis=0).tolist()})
-            # convert to the correct dtypes
-            # 5126 is a float32
-            # 5125 is an unsigned 32 bit integer
-            # add faces, then vertices
-            buffer_items.append(mesh.faces.astype(np.uint32).tostring())
-            buffer_items.append(mesh.vertices.astype(np.float32).tostring())
-
-        elif util.is_instance_named(mesh, 'Path3D'):
-            vxlist_args = rendering.path_to_vertexlist(mesh)
-            vertex_list = vxlist_args[4][1]
-
-            tree['meshes'].append({"name": name,
-                                   "primitives": [
-                                       {"attributes":
-                                        {"POSITION": len(tree['accessors'])},
-                                        "mode": 1,  # mode 1 is GL_LINES
-                                        "material": len(tree['materials'])
-                                        }]})
-
-            tree['accessors'].append({"bufferView": len(buffer_items),
-                                      "componentType": 5126,
-                                      "count": vxlist_args[0],
-                                      "type": "VEC3",
-                                      "byteOffset": 0,
-                                      "max": mesh.vertices.max(axis=0).tolist(),
-                                      "min": mesh.vertices.min(axis=0).tolist()})
-
-            tree['materials'].append({"pbrMetallicRoughness": {  # TODO add color in future; this is just black
-                "baseColorFactor": [0, 0, 0, 0],
-                "metallicFactor": 0,
-                "roughnessFactor": 0
-            }})
-
-            buffer_items.append(vertex_list.astype(np.float32).tostring())
     return tree, buffer_items
+
+
+def _append_mesh(mesh,
+                 name,
+                 tree,
+                 buffer_items):
+    """
+    Append a mesh to the scene structure and put the
+    data into buffer_items.
+
+    Parameters
+    -------------
+    mesh : trimesh.Trimesh
+      Source geometry
+    name : str
+      Name of geometry
+    tree : dict
+      Will be updated with data from mesh
+    buffer_items
+      Will have buffer appended with mesh data
+    """
+    # meshes reference accessor indexes
+    tree['meshes'].append({
+        "name": name,
+        "primitives": [
+            {"attributes":
+             {"POSITION": len(
+                 tree['accessors']) + 1},
+             "indices": len(tree['accessors']),
+             "mode": 4,  # mode 4 is GL_TRIANGLES
+             'material': len(tree['materials'])}]})
+
+    tree['materials'].append(_mesh_to_material(mesh))
+
+    # accessors refer to data locations
+    # mesh faces are stored as flat list of integers
+    tree['accessors'].append({
+        "bufferView": len(buffer_items),
+        "componentType": 5125,
+        "count": len(mesh.faces) * 3,
+        "max": [int(mesh.faces.max())],
+        "min": [0],
+        "type": "SCALAR"})
+
+    # the vertex accessor
+    tree['accessors'].append({
+        "bufferView": len(buffer_items) + 1,
+        "componentType": 5126,
+        "count": len(mesh.vertices),
+        "type": "VEC3",
+        "byteOffset": 0,
+        "max": mesh.vertices.max(axis=0).tolist(),
+        "min": mesh.vertices.min(axis=0).tolist()})
+
+    # convert mesh data to the correct dtypes
+    # faces: 5125 is an unsigned 32 bit integer
+    buffer_items.append(
+        mesh.faces.astype(np.uint32).tobytes())
+    # vertices: 5126 is a float32
+    buffer_items.append(
+        mesh.vertices.astype(np.float32).tobytes())
+
+
+def _append_path(path, name, tree, buffer_items):
+    """
+    Append a 2D or 3D path to the scene structure and put the
+    data into buffer_items.
+
+    Parameters
+    -------------
+    path : trimesh.Path2D or trimesh.Path3D
+      Source geometry
+    name : str
+      Name of geometry
+    tree : dict
+      Will be updated with data from path
+    buffer_items
+      Will have buffer appended with path data
+    """
+
+    # convert the path to the unnamed args for
+    # a pyglet vertex list
+    vxlist = rendering.path_to_vertexlist(path)
+
+    tree['meshes'].append({
+        "name": name,
+        "primitives": [
+            {"attributes":
+             {"POSITION": len(tree['accessors'])},
+             "mode": 1,  # mode 1 is GL_LINES
+             "material": len(tree['materials'])
+             }]})
+
+    tree['accessors'].append({
+        "bufferView": len(buffer_items),
+        "componentType": 5126,
+        "count": vxlist[0],
+        "type": "VEC3",
+        "byteOffset": 0,
+        "max": path.vertices.max(axis=0).tolist(),
+        "min": path.vertices.min(axis=0).tolist()})
+
+    # TODO add color support to Path object
+    # this is just exporting everying as black
+    tree['materials'].append({
+        "pbrMetallicRoughness": {
+            "baseColorFactor": [0, 0, 0, 0],
+            "metallicFactor": 0,
+            "roughnessFactor": 0
+        }})
+
+    # data is the second value of the fourth field
+    # which is a (data type, data) tuple
+    buffer_items.append(
+        vxlist[4][1].astype(np.float32).tobytes())
 
 
 def _read_buffers(header, buffers):
