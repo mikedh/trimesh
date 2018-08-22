@@ -270,8 +270,8 @@ class SceneViewer(pyglet.window.Window):
         # apply the camera transform to the matrix stack
         gl.glMultMatrixf(rendering.matrix_to_gl(transform_camera))
 
-        # dragging the mouse moves the view transform (but doesn't alter the
-        # scene)
+        # dragging the mouse moves the view transform
+        # but doesn't alter the scene
         transform_view = view_to_transform(self.view)
         gl.glMultMatrixf(rendering.matrix_to_gl(transform_view))
 

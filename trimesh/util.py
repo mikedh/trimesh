@@ -926,7 +926,7 @@ def array_to_string(array,
     """
     Convert a 1 or 2D array into a string with a specified number
     of digits and delimiter. The reason this exists is that the
-    basic numpy array to string conversions are suprisingly bad.
+    basic numpy array to string conversions are surprisingly bad.
 
     Parameters
     ----------

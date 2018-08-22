@@ -219,8 +219,8 @@ class ExportTest(g.unittest.TestCase):
         path2D = g.get_mesh('2D/wrench.dxf')
         path3D = path2D.to_3D()
 
-        a = g.trimesh.Scene([path2D]).export(file_type='glb')
-        b = g.trimesh.Scene([path3D]).export(file_type='glb')
+        a = g.trimesh.Scene(path2D).export(file_type='glb')
+        b = g.trimesh.Scene(path3D).export(file_type='glb')
 
         assert len(a) > 0
         assert len(b) > 0

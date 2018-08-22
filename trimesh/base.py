@@ -156,7 +156,7 @@ class Trimesh(object):
         # a quick way to get permuted versions of the current mesh
         self.permutate = permutate.Permutator(self)
 
-        # convience class for nearest point queries
+        # convenience class for nearest point queries
         self.nearest = proximity.ProximityQuery(self)
 
         # store metadata about the mesh in a dictionary
