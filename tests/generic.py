@@ -26,6 +26,12 @@ from copy import deepcopy
 from trimesh.constants import tol, tol_path
 from trimesh.base import Trimesh
 
+# make sure everyone knows they should run additional
+# validation checks and raise exceptions
+trimesh.constants.tol.strict = True
+trimesh.constants.tol_path.strict = True
+
+
 try:
     from shapely.geometry import Point, Polygon
     has_path = True

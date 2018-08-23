@@ -11,6 +11,7 @@ from ...constants import log
 from ...constants import tol_path as tol
 from ...resources import get_resource
 from ... import util
+from ... import grouping
 
 # stuff for DWG loading
 import os
@@ -209,27 +210,112 @@ def load_dxf(file_obj, **kwargs):
         Convert DXF LWPOLYLINE entities into trimesh Line entities.
         """
         # load the points in the line
-        lines = np.column_stack((e['10'],
-                                 e['20'])).astype(np.float64)
+        lines = np.column_stack((
+            e['10'], e['20'])).astype(np.float64)
+
+        # save entity info so we don't have to recompute
+        polyinfo = info(e)
 
         # 70 is the closed flag for polylines
         # if the closed flag is set make sure to close
-        if ('70' in e and int(e['70'][0]) == 1):
+        if ('70' in e and int(e['70'][0]) & 1):
             lines = np.vstack((lines, lines[:1]))
 
-        # 42 is the bulge flag for polylines
+        # 42 is the vertex bulge flag for LWPOLYLINE entities
         # "bulge" is autocad for "add a stupid arc using flags
-        # in my otherwise normal polygon"
+        # in my otherwise normal polygon", it's like SVG arc
+        # flags but somehow even more annoying
         if '42' in e:
-            log.warning(
-                'polyline with bulge %s detected, ignoring!',
-                e['42'])
+            # from Autodesk reference:
+            # The bulge is the tangent of one fourth the included
+            # angle for an arc segment, made negative if the arc
+            # goes clockwise from the start point to the endpoint.
+            # A bulge of 0 indicates a straight segment, and a
+            # bulge of 1 is a semicircle.
+            log.debug('polyline bulge: {}'.format(e['42']))
+            # what position were vertices stored at
+            vid = np.nonzero(chunk[:, 0] == '10')[0]
+            # what position were bulges stored at in the chunk
+            bid = np.nonzero(chunk[:, 0] == '42')[0]
+            # which vertex index is bulge value associated with
+            bulge_idx = np.searchsorted(vid, bid)
 
-        # add a single line entity
+            # the actual bulge float values
+            bulge = np.array(e['42'], dtype=np.float64)
+            # use bulge to calculate included angle of the arc
+            angle = np.arctan(bulge) * 4.0
+            # the indexes making up a bulged segment
+            tid = np.column_stack((bulge_idx, bulge_idx - 1))
+            # the vector connecting the two ends of the arc
+            vector = lines[tid[:, 0]] - lines[tid[:, 1]]
+            # the length of the connector segment
+            length = (np.linalg.norm(vector, axis=1))
+
+            # perpendicular vectors by crossing vector with Z
+            perp = np.cross(
+                np.column_stack((vector, np.zeros(len(vector)))),
+                np.ones((len(vector), 3)) * [0, 0, 1])
+            # strip the zero Z
+            perp = util.unitize(perp[:, :2])
+
+            # midpoint of each line
+            midpoint = lines[tid].mean(axis=1)
+
+            # calculate the signed radius of each arc segment
+            radius = (length / 2.0) / np.sin(angle / 2.0)
+
+            # offset magnitude to point on arc
+            offset = radius - np.cos(angle / 2) * radius
+
+            # convert each arc to three points:
+            # start, any point on arc, end
+            three = np.column_stack((
+                lines[tid[:, 0]],
+                midpoint + perp * offset.reshape((-1, 1)),
+                lines[tid[:, 1]])).reshape((-1, 3, 2))
+
+            # if we're in strict mode make sure our arcs
+            # have the same magnitude as the input data
+            if tol.strict:
+                from .. import arc as arcmod
+                check_angle = [arcmod.arc_center(i)['span']
+                               for i in three]
+                assert np.allclose(np.abs(angle),
+                                   np.abs(check_angle))
+
+                check_radii = [arcmod.arc_center(i)['radius']
+                               for i in three]
+                assert np.allclose(check_radii, np.abs(radius))
+
+            # if there are unconsumed line
+            # segments add them to drawing
+            if (len(lines) - 1) > len(bulge):
+                # indexes of line segments
+                existing = util.stack_lines(np.arange(len(lines)))
+                # remove line segments replaced with arcs
+                for line_idx in grouping.boolean_rows(
+                        existing,
+                        np.sort(tid, axis=1),
+                        np.setdiff1d):
+                    # add a single line entity and vertices
+                    entities.append(Line(
+                        points=np.arange(2) + len(vertices),
+                        **polyinfo))
+                    vertices.extend(lines[line_idx])
+            # add the three point arcs to the result
+            for arc_points in three:
+                entities.append(Arc(
+                    points=np.arange(3) + len(vertices),
+                    **polyinfo))
+                vertices.extend(arc_points)
+            # done with this polyline
+            return
+
+        # we have a normal polyline so just add it
+        # as single line entity and vertices
         entities.append(Line(
             points=np.arange(len(lines)) + len(vertices),
-            **info(e)))
-        # add the vertices
+            **polyinfo))
         vertices.extend(lines)
 
     def convert_bspline(e):

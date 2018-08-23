@@ -128,6 +128,26 @@ class DXFTest(g.unittest.TestCase):
                 dtype=g.np.int64)
             assert E.ptp() == 0
 
+    def test_bulge(self):
+        """
+        Test bulged polylines which are polylines with
+        implicit arcs.
+        """
+        # get a drawing with bulged polylines
+        p = g.get_mesh('2D/LM2.dxf')
+        # count the number of unclosed arc entities
+        # this drawing only has polylines with bulge
+        spans = [e.center(p.vertices)['span']
+                 for e in p.entities if
+                 type(e).__name__ == 'Arc' and
+                 not e.closed]
+        # should have only one outer loop
+        assert len(p.root) == 1
+        # should have 6 partial arcs from bulge
+        assert len(spans) == 6
+        # all arcs should be 180 degree slot end caps
+        assert g.np.allclose(spans, g.np.pi)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

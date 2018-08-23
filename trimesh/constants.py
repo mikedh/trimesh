@@ -28,7 +28,8 @@ class NumericalToleranceMesh(object):
         self.planar = 1e-5
         self.facet_threshold = 5000
         self.fit = 1e-2
-
+        # run additional checks and asserts
+        self.strict = False
         self.__dict__.update(kwargs)
 
 
@@ -88,7 +89,8 @@ class NumericalTolerancePath(object):
         self.radius_min = 1e-4
         self.radius_max = 50
         self.tangent = np.radians(20)
-
+        # run additional checks and asserts
+        self.strict = False
         self.__dict__.update(kwargs)
 
 
