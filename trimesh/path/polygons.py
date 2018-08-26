@@ -274,7 +274,7 @@ def stack_boundaries(boundaries):
 
 
 def medial_axis(polygon,
-                resolution=.01,
+                resolution=None,
                 clip=None):
     """
     Given a shapely polygon, find the approximate medial axis
@@ -302,6 +302,9 @@ def medial_axis(polygon,
     from scipy.spatial import Voronoi
     from .path import Path2D
     from .io.misc import edges_to_path
+
+    if resolution is None:
+        resolution = .01
 
     # get evenly spaced points on the polygons boundaries
     samples = resample_boundaries(polygon=polygon,
