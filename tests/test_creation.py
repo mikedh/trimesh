@@ -71,25 +71,38 @@ class CreationTest(g.unittest.TestCase):
         """
         Basic tests of annular cylinder creation
         """
-        a = g.trimesh.creation.annulus(r_min=1.0,
-                                       r_max=2.0,
-                                       height=1.0)
 
-        # mesh should be well constructed
-        assert a.is_volume
-        assert a.is_watertight
-        assert a.is_winding_consistent
-        # should be centered at origin
-        assert g.np.allclose(a.center_mass, 0.0)
-        # should be along Z
-        assert g.np.allclose(a.symmetry_axis, [0, 0, 1.0])
+        transforms = [None]
+        transforms.extend(g.transforms)
 
-        # vertices should all be at r_min or r_max
-        radii = g.np.linalg.norm(a.vertices[:, :2], axis=1)
-        assert g.np.logical_or(g.np.isclose(radii, 1.0),
-                               g.np.isclose(radii, 2.0)).all()
-        # all heights should be at +/- height/2.0
-        assert g.np.allclose(g.np.abs(a.vertices[:, 2]), 0.5)
+        for T in transforms:
+            a = g.trimesh.creation.annulus(r_min=1.0,
+                                           r_max=2.0,
+                                           height=1.0,
+                                           transform=T)
+            # mesh should be well constructed
+            assert a.is_volume
+            assert a.is_watertight
+            assert a.is_winding_consistent
+            # should be centered at origin
+            assert g.np.allclose(a.center_mass, 0.0)
+            # should be along Z
+            axis = g.np.eye(3)
+            if T is not None:
+                # rotate the symmetry axis ground truth
+                axis = g.trimesh.transform_points(axis, T)
+
+            # should be along rotated Z
+            assert (g.np.allclose(a.symmetry_axis, axis[2]) or
+                    g.np.allclose(a.symmetry_axis, -axis[2]))
+
+            radii = [g.np.dot(a.vertices, i) for i in axis[:2]]
+            radii = g.np.linalg.norm(radii, axis=0)
+            # vertices should all be at r_min or r_max
+            assert g.np.logical_or(g.np.isclose(radii, 1.0),
+                                   g.np.isclose(radii, 2.0)).all()
+            # all heights should be at +/- height/2.0
+            assert g.np.allclose(g.np.abs(g.np.dot(a.vertices, axis[2])), 0.5)
 
     def test_triangulate(self):
         """

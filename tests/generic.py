@@ -41,6 +41,12 @@ except ImportError:
 python_version = np.array([sys.version_info.major,
                            sys.version_info.minor])
 
+
+# some repeatable transforms to use in tests
+transforms = [trimesh.transformations.euler_matrix(np.pi / 4, i, 0)
+              for i in np.linspace(0.0, np.pi * 2.0, 100)]
+transforms = np.array(transforms)
+
 # python 3
 try:
     from cStringIO import StringIO
