@@ -22,11 +22,16 @@ def sinwave(scene):
       Scene containing geometry
 
     """
-    # take a node
-    node = s.graph.nodes_geometry[0]
-
+    # create an empty homogenous transformation
     matrix = np.eye(4)
+    # set Y as cos of time
+    matrix[1][3] = np.cos(time.time()) * 2
+    # set Z as sin of time
     matrix[2][3] = np.sin(time.time()) * 3
+
+    # take one of the two spheres arbitrarily
+    node = s.graph.nodes_geometry[0]
+    # apply the transform to the node
     scene.graph.update(node, matrix=matrix)
 
 
