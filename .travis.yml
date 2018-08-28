@@ -58,7 +58,7 @@ script:
 - pip install triangle xxhash
 - pytest --cov=trimesh tests/
 - cd examples
-- for f in *.ipynb; do python ../tests/notebook_run.py exec "$f"; done
+- for f in *py*; do python ../tests/notebook_run.py exec "$f"; done
 - cd ..
 after_success:
 - coveralls

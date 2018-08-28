@@ -80,7 +80,7 @@ def in_notebook():
     in_notebook: bool, True if we are in a notebook
     """
     try:
-        # function returns ipython context
+        # function returns IPython context, but only in IPython
         ipy = get_ipython()
         # we only want to render rich output in notebooks
         # in terminals we definitely do not want to output HTML

@@ -10,6 +10,7 @@ import time
 import trimesh
 import numpy as np
 
+
 def sinwave(scene):
     """
     A callback passed to a scene viewer which will update
@@ -19,16 +20,15 @@ def sinwave(scene):
     -------------
     scene : trimesh.Scene
       Scene containing geometry
-    
+
     """
     # take a node
     node = s.graph.nodes_geometry[0]
- 
+
     matrix = np.eye(4)
     matrix[2][3] = np.sin(time.time()) * 3
     scene.graph.update(node, matrix=matrix)
-    
-    
+
 
 if __name__ == '__main__':
     # create some spheres
@@ -36,12 +36,11 @@ if __name__ == '__main__':
     b = trimesh.primitives.Sphere()
 
     # set some colors for the balls
-    a.visual.face_colors = [255,0,0,255]
-    b.visual.face_colors = [0,0,100,255]
+    a.visual.face_colors = [255, 0, 0, 255]
+    b.visual.face_colors = [0, 0, 100, 255]
 
     # create a scene with the two balls
-    s = trimesh.Scene([a,b])
+    s = trimesh.Scene([a, b])
 
     # open the scene viewer and move a ball around
     s.show(callback=sinwave)
-    

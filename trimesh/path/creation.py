@@ -10,7 +10,7 @@ def circle_pattern(pattern_radius,
                    count,
                    center=[0.0, 0.0],
                    angle=None):
-    '''
+    """
     Create a Path2D representing a circle pattern.
 
     Parameters
@@ -25,7 +25,7 @@ def circle_pattern(pattern_radius,
     Returns
     -------------
     pattern: Path2D object
-    '''
+    """
     from .path import Path2D
 
     if angle is None:

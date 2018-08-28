@@ -9,13 +9,13 @@ if __name__ == '__main__':
     trimesh.util.attach_to_log()
 
     # load a mesh
-    mesh  = trimesh.load('../models/featuretype.STL')
+    mesh = trimesh.load('../models/featuretype.STL')
 
     # get a scene object containing the mesh, this is equivalent to:
     # scene = trimesh.scene.Scene(mesh)
     scene = mesh.scene()
 
-    rotate = trimesh.transformations.rotation_matrix(np.radians(45.0), [0,1,0],
+    rotate = trimesh.transformations.rotation_matrix(np.radians(45.0), [0, 1, 0],
                                                      scene.centroid)
     for i in range(4):
         trimesh.constants.log.info('Saving image %d', i)

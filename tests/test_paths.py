@@ -343,6 +343,18 @@ class SectionTest(g.unittest.TestCase):
                 polygon.interiors[0].coords)
 
 
+class CreationTests(g.unittest.TestCase):
+
+    def test_circle(self):
+        from trimesh.path import creation
+        pattern = creation.circle_pattern(pattern_radius=1.0,
+                                          circle_radius=0.1,
+                                          count=4)
+        assert len(pattern.entities) == 4
+        assert len(pattern.polygons_closed) == 4
+        assert len(pattern.polygons_full) == 4
+
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()
