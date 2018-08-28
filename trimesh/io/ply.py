@@ -196,7 +196,7 @@ def read_ply_header(file_obj):
     while True:
         line = file_obj.readline()
         if line is None:
-            raise ValueError('Header wasn\'t terminated properly!')
+            raise ValueError("Header not terminated properly!")
         line = line.decode('utf-8').strip().split()
 
         if 'end_header' in line:
