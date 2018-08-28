@@ -33,7 +33,6 @@ class SceneViewer(pyglet.window.Window):
         self.scene._redraw = self._redraw
         self.reset_view(flags=flags)
         self.batch = pyglet.graphics.Batch()
-        self._smooth = smooth
 
         self.vertex_list = {}
         self.vertex_list_hash = {}
@@ -65,12 +64,13 @@ class SceneViewer(pyglet.window.Window):
 
         for name, mesh in scene.geometry.items():
             self.add_geometry(name=name,
-                              geometry=mesh)
+                              geometry=mesh,
+                              smooth=bool(smooth))
         self.init_gl()
         self.set_size(*resolution)
         self.update_flags()
 
-        # someone has passed a callback to be called before renders
+        # someone has passed a callback to be called periodically
         if self.callback is not None:
             # if no callback period is specified set it to default
             if callback_period is None:
