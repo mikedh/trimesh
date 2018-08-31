@@ -2,7 +2,7 @@
 points.py
 -------------
 
-Functions dealing with (n,d) points.
+Functions dealing with (n, d) points.
 """
 import numpy as np
 
