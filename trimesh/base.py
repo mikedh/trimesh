@@ -351,7 +351,7 @@ class Trimesh(object):
             # which normals have a nonzero value for each value
             nonzero = (np.abs(values) > tol.merge).any(axis=1)
             # what percentage of normals have any nonzero value defined
-            percent = float(nonzero.sum()) / float(len(nonzero))
+            percent = float(nonzero.sum()) / np.clip(len(nonzero), 1.0, np.inf)
 
             # if we don't have mostly nonzero normals we probably
             # want to regenerate them automatically
