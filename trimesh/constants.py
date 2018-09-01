@@ -28,6 +28,9 @@ class NumericalToleranceMesh(object):
         self.planar = 1e-5
         self.facet_threshold = 5000
         self.fit = 1e-2
+        # what percentage of values being nonzero
+        # is enough for us to consider the array OK
+        self.nonzero_percent = .9
         # run additional checks and asserts
         self.strict = False
         self.__dict__.update(kwargs)

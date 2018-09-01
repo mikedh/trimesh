@@ -317,7 +317,7 @@ class Trimesh(object):
         """
         # if the shape of the cached normals is incorrect, generate normals
         if (np.shape(self._cache['face_normals']) !=
-                np.shape(self._data['faces'])):
+            np.shape(self._data['faces'])):
             log.debug('generating face normals as shape was incorrect')
             # use cached triangle cross products to generate normals
             # this will always return the correct shape but some values
@@ -335,7 +335,7 @@ class Trimesh(object):
     @face_normals.setter
     def face_normals(self, values):
         """
-        Assign values to face normals
+        Assign values to face normals.
 
         Parameters
         -------------
@@ -344,9 +344,22 @@ class Trimesh(object):
         """
         if values is not None:
             # make sure face normals are C- contiguous float
-            self._cache['face_normals'] = np.asanyarray(values,
-                                                        order='C',
-                                                        dtype=np.float64)
+            values = np.asanyarray(values,
+                                   order='C',
+                                   dtype=np.float64)
+
+            # which normals have a nonzero value for each value
+            nonzero = (np.abs(values) > tol.merge).any(axis=1)
+            # what percentage of normals have any nonzero value defined
+            percent = float(nonzero.sum()) / float(len(nonzero))
+
+            # if we don't have mostly nonzero normals we probably
+            # want to regenerate them automatically
+            if percent < tol.nonzero_percent:
+                log.warning('face normals mostly zero! ignoring!')
+                return
+
+        self._cache['face_normals'] = values
 
     @property
     def vertices(self):
