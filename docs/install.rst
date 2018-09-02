@@ -28,33 +28,15 @@ The easiest way to get going on the most platforms is through Conda.
    conda update -q conda
    conda create -q -n conda_env python=3.6
    source activate conda_env
-   
-   # cyassimp is a much faster binding for the assimp importers
-   # they use non- standard labels, master vs main
-   # note that it installs cleanly in Linux and Windows
-   # but generally fails on OSX
-   conda config --add channels menpo 
-   conda install -c menpo/label/master cyassimp
 
    # install most trimesh requirements with built components from conda-forge
    conda config --add channels conda-forge  # rtree, shapely, pyembree
    conda install shapely rtree graph-tool pyembree numpy scipy
    conda install -c conda-forge scikit-image
 
-   # graph-tool is only tested on Ubuntu and very unlikely to work elsewhere
-   # it is used in connected components calculations, and is slighly faster in
-   # most cases than scipy.sparse and networkx (although if graph-tool is not
-   # installed trimesh will automatically use next the fastest option)
-   conda config --add channels ostrokach
-   conda install graph-tool
-
-   # requires compilation, and fails a lot
-   # used by trimesh.primitives.Extrusion objects
-   pip install meshpy
-
-   # install trimesh et al (everything except for meshpy, which is separated
-   # above because it fails all the time and is easier to debug individually)
-   pip install trimesh[easy]
+   # install trimesh and all possible dependancies
+   # if this fails try: pip install trimesh[easy]
+   pip install trimesh[all]
 
 
 Ubuntu Notes

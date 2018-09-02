@@ -357,9 +357,11 @@ class Trimesh(object):
 
             # which normals have a nonzero value for each value
             nonzero = (np.abs(values) > tol.merge).any(axis=1)
-            # what percentage of normals have any nonzero value defined
-            percent = float(nonzero.sum()) / np.clip(len(nonzero), 1.0, np.inf)
-
+            # what percentage of normals have any nonzero values
+            # clip denominator to 1.0 to avoid divide by zero
+            percent = (float(nonzero.sum()) /
+                       np.clip(len(nonzero), 1.0, np.inf))
+            print('percent', percent, tol.nonzero_percent)
             # if we don't have mostly nonzero normals we probably
             # want to regenerate them automatically
             if percent < tol.nonzero_percent:
@@ -373,14 +375,15 @@ class Trimesh(object):
         """
         The vertices of the mesh.
 
-        This is regarded as core information which cannot be regenerated
-        from cache and as such is stored in self._data which tracks the array
-        for changes and clears cached values of the mesh if this is altered.
+        This is regarded as core information which cannot be
+        generated from cache and as such is stored in self._data
+        which tracks the array for changes and clears cached
+        values of the mesh if this is altered.
 
         Returns
         ----------
         vertices : (n, 3) float
-          Points in cartesian space, referenced by self.faces
+          Points in cartesian space referenced by self.faces
         """
         return self._data['vertices']
 
@@ -401,10 +404,11 @@ class Trimesh(object):
     @caching.cache_decorator
     def vertex_normals(self):
         """
-        The vertex normals of the mesh. If the normals were loaded, we check to
-        make sure we have the same number of vertex normals and vertices before
-        returning them. If there are no vertex normals defined, or a shape mismatch
-        we calculate the vertex normals from the mean normals of the faces the
+        The vertex normals of the mesh. If the normals were loaded
+        we check to make sure we have the same number of vertex
+        normals and vertices before returning them. If there are
+        no vertex normals defined or a shape mismatch we  calculate
+        the vertex normals from the mean normals of the faces the
         vertex is used in.
 
         Returns
@@ -415,10 +419,11 @@ class Trimesh(object):
         """
         # make sure we have faces_sparse
         assert hasattr(self.faces_sparse, 'dot')
-        vertex_normals = geometry.mean_vertex_normals(len(self.vertices),
-                                                      self.faces,
-                                                      self.face_normals,
-                                                      sparse=self.faces_sparse)
+        vertex_normals = geometry.mean_vertex_normals(
+            vertex_count=len(self.vertices),
+            faces=self.faces,
+            face_normals=self.face_normals,
+            sparse=self.faces_sparse)
         return vertex_normals
 
     @vertex_normals.setter
