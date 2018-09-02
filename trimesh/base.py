@@ -302,7 +302,7 @@ class Trimesh(object):
                                        indices=self.faces)
         return sparse
 
-    @caching.cache_decorator
+    @property
     def face_normals(self):
         """
         Return the unit normal vector for each face.
@@ -315,22 +315,29 @@ class Trimesh(object):
         normals : (len(self.faces), 3) np.float64
           Normal vectors of each face
         """
-        # if the shape of the cached normals is incorrect, generate normals
-        if (np.shape(self._cache['face_normals']) !=
-            np.shape(self._data['faces'])):
-            log.debug('generating face normals as shape was incorrect')
-            # use cached triangle cross products to generate normals
-            # this will always return the correct shape but some values
-            # will be zero or an arbitrary vector if the inputs had a cross
-            # produce below machine epsilon
-            normals, valid = triangles.normals(triangles=self.triangles,
-                                               crosses=self.triangles_cross)
-            if valid.all():
-                return normals
-            # make a padded list of normals to make sure shape is correct
-            padded = np.zeros((len(self.triangles), 3), dtype=np.float64)
-            padded[valid] = normals
-            return padded
+        # check shape of cached normals
+        cached = self._cache['face_normals']
+        if np.shape(cached) == np.shape(self._data['faces']):
+            return cached
+
+        log.debug('generating face normals')
+        # use cached triangle cross products to generate normals
+        # this will always return the correct shape but some values
+        # will be zero or an arbitrary vector if the inputs had
+        # a cross product below machine epsilon
+        normals, valid = triangles.normals(
+            triangles=self.triangles,
+            crosses=self.triangles_cross)
+
+        # if all triangles are valid shape is correct
+        if valid.all():
+            return normals
+
+        # make a padded list of normals for correct shape
+        padded = np.zeros((len(self.triangles), 3),
+                          dtype=np.float64)
+        padded[valid] = normals
+        return padded
 
     @face_normals.setter
     def face_normals(self, values):
