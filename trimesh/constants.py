@@ -24,31 +24,18 @@ class NumericalToleranceMesh(object):
         # set our zero for floating point comparison to 100x
         # the resolution of float64 which works out to 1e-13
         self.zero = np.finfo(np.float64).resolution * 100
+        # vertices closer than this should be merged
         self.merge = 1e-8
+        # peak to valley flatness to be considered planar
         self.planar = 1e-5
+        # coplanar threshold: ratio of (radius / span) ** 2
         self.facet_threshold = 5000
-        self.fit = 1e-2
-        # what percentage of values being nonzero
-        # is enough for us to consider the array OK
-        self.nonzero_percent = .9
         # run additional checks and asserts
         self.strict = False
+
+        # add any passed kwargs
         self.__dict__.update(kwargs)
 
-
-class NumericalResolutionMesh(object):
-    """
-    res.mesh: when meshing solids, what distance to use
-    """
-
-    def __init__(self, **kwargs):
-        self.mesh = .01
-
-        self.__dict__.update(kwargs)
-
-
-tol = NumericalToleranceMesh()
-res = NumericalResolutionMesh()
 
 # numerical tolerances for paths
 
@@ -117,6 +104,10 @@ class NumericalResolutionPath(object):
         self.export = '.5f'
 
 
+# instantiate mesh tolerances with defaults
+tol = NumericalToleranceMesh()
+
+# instantiate path tolerances with defaults
 tol_path = NumericalTolerancePath()
 res_path = NumericalResolutionPath()
 
@@ -126,6 +117,11 @@ log.addHandler(_NullHandler())
 
 
 def _log_time(method):
+    """
+    A decorator for methods which will time the method
+    and then emit a log.debug message with the method name
+    and how long it took to execute.
+    """
     def timed(*args, **kwargs):
         tic = time_function()
         result = method(*args, **kwargs)
@@ -136,13 +132,3 @@ def _log_time(method):
     timed.__name__ = method.__name__
     timed.__doc__ = method.__doc__
     return timed
-
-# exceptions
-
-
-class MeshError(Exception):
-    pass
-
-
-class TransformError(Exception):
-    pass
