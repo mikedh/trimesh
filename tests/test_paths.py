@@ -280,7 +280,7 @@ class ArcTests(g.unittest.TestCase):
         p = s.to_planar()[0]
 
         assert len(p.polygons_closed) == 4
-        assert len(p.polygons_full) == 0
+        assert len(p.polygons_full) == 2
         assert len(p.root) == 2
 
 
