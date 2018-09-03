@@ -12,21 +12,24 @@ class NormalsTest(g.unittest.TestCase):
         # normal is just a unit vector of the vertex position
         truth = g.trimesh.util.unitize(mesh.vertices)
 
-        # force fallback to loop normal summing by passing None as the sparse
-        # matrix
-        normals = g.trimesh.geometry.mean_vertex_normals(len(mesh.vertices),
-                                                         mesh.faces,
-                                                         mesh.face_normals,
-                                                         sparse=None)
+        # force fallback to loop normal summing by passing None
+        # as the sparse matrix
+        normals = g.trimesh.geometry.mean_vertex_normals(
+            len(mesh.vertices),
+            mesh.faces,
+            mesh.face_normals,
+            sparse=None)
         assert g.np.allclose(normals - truth, 0.0)
 
-        # make sure the automatic sparse matrix generation works as well
-        normals = g.trimesh.geometry.mean_vertex_normals(len(mesh.vertices),
-                                                         mesh.faces,
-                                                         mesh.face_normals)
+        # make sure the automatic sparse matrix generation works
+        normals = g.trimesh.geometry.mean_vertex_normals(
+            len(mesh.vertices),
+            mesh.faces,
+            mesh.face_normals)
         assert g.np.allclose(normals - truth, 0.0)
 
-        # make sure the Trimesh normals- related attributes are wired correctly
+        # make sure the Trimesh normals- related attributes
+        # are wired correctly
         assert mesh.faces_sparse is not None
         assert mesh.vertex_normals.shape == mesh.vertices.shape
         assert g.np.allclose(mesh.vertex_normals - truth, 0.0)
@@ -42,7 +45,8 @@ class NormalsTest(g.unittest.TestCase):
         mesh.face_normals = None
         assert mesh.face_normals.shape == mesh.faces.shape
 
-        # we should be able to assign stupid wrong values of the right shape
+        # we should be able to assign stupid wrong values of the
+        # right shape
         mesh.face_normals = g.np.ones_like(mesh.faces) * [0.0, 0.0, 1.0]
         assert g.np.allclose(mesh.face_normals, [0.0, 0.0, 1.0])
 

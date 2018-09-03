@@ -355,11 +355,15 @@ class Trimesh(object):
                                    order='C',
                                    dtype=np.float64)
 
-            # which normals have a nonzero value for each value
-            nonzero = (np.abs(values) > tol.merge).any(axis=1)
+            # check if any values are larger than tol.merge
+            # this check is equivalent to but 25% faster than:
+            # `np.abs(values) > tol.merge`
+            nonzero = np.logical_or(values > tol.merge,
+                                    values < -tol.merge)
 
+            # don't set the normals if they are all zero
             if not nonzero.any():
-                log.warning('face_normals set to zero, ignoring!')
+                log.warning('face_normals all zero, ignoring!')
                 return
 
         self._cache['face_normals'] = values
