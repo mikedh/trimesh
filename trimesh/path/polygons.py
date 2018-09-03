@@ -85,7 +85,7 @@ def enclosure_tree(polygons):
 
     # if there are multiple nested polygons split the graph
     # so the contains logic returns the individual polygons
-    if degrees.max() > 1:
+    if len(degrees) > 0 and degrees.max() > 1:
         # this could also be done by removing edges but
         # the bookkeeping is a lot easier to comprehend
         # with subgraphs
