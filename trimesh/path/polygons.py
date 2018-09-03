@@ -71,10 +71,29 @@ def enclosure_tree(polygons):
                 contains.add_edge(i, j)
             elif polygons[j].contains(polygons[i]):
                 contains.add_edge(j, i)
-    # a root or exterior curve has no parents
+
+    # a root or exterior curve has an even number of parents
     # wrap in dict call to avoid networkx view
-    in_degree = dict(contains.in_degree())
-    roots = [n for n, deg in in_degree.items() if deg == 0]
+    degree = dict(contains.in_degree())
+
+    # convert keys and values to numpy arrays
+    indexes = np.array(list(degree.keys()))
+    degrees = np.array(list(degree.values()))
+
+    # roots are curves with an even inward degree (parent count)
+    roots = indexes[(degrees % 2) == 0]
+
+    # if there are multiple nested polygons split the graph
+    # so the contains logic returns the individual polygons
+    if degrees.max() > 1:
+        # this could also be done by removing edges but
+        # the bookkeeping is a lot easier to comprehend
+        # with subgraphs
+        subgraphs = []
+        for root in roots:
+            children = indexes[degrees == degree[root] + 1]
+            subgraphs.append(contains.subgraph(np.append(children, root)))
+        contains = nx.compose_all(subgraphs)
 
     return roots, contains
 
