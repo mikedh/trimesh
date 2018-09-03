@@ -57,6 +57,9 @@ script:
 - pip install .[easy]
 - pip install triangle xxhash
 - pytest --cov=trimesh tests/
+- pip install networkx==1.11 -I
+- python tests/test_graph.py
+- python tests/test_scene.py
 - cd examples
 - for f in *py*; do python ../tests/notebook_run.py exec "$f"; done
 - cd ..
