@@ -32,7 +32,7 @@ def convex_hull(obj, qhull_options='QbB Pp'):
     Arguments
     --------
     obj: Trimesh object OR
-         (n,3) float, cartesian points
+    (n,3) float, cartesian points
 
     Returns
     --------

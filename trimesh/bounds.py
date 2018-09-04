@@ -78,7 +78,7 @@ def oriented_bounds_2D(points, qhull_options='QbB'):
     area = np.product(extents, axis=1)
     area_min = area.argmin()
 
-    #(2,) float of smallest rectangle size
+    # (2,) float of smallest rectangle size
     rectangle = extents[area_min]
 
     # find the (3,3) homogenous transformation which moves the input

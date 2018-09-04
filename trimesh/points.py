@@ -10,6 +10,7 @@ from .constants import tol
 from .geometry import plane_transform
 
 from . import util
+from . import convex
 from . import caching
 from . import grouping
 from . import transformations
@@ -153,70 +154,6 @@ def project_to_plane(points,
     return transformed
 
 
-def absolute_orientation(points_A, points_B, return_error=False):
-    """
-    Calculates the transform that best aligns points_A with points_B
-    Uses Horn's method for the absolute orientation problem, in 3D with no scaling.
-
-    Parameters
-    ---------
-    points_A:     (n,3) list of points
-    points_B:     (n,3) list of points, T*points_A
-    return_error: boolean, if True returns (n) list of euclidean distances
-                  representing the distance from  T*points_A[i] to points_B[i]
-
-
-    Returns
-    ---------
-    M:    (4,4) transformation matrix for the transform that best aligns
-           points_A to points_B
-    error: float, list of maximum euclidean distance
-    """
-
-    points_A = np.array(points_A)
-    points_B = np.array(points_B)
-    if (points_A.shape != points_B.shape):
-        raise ValueError('Points must be of the same shape!')
-    if len(points_A.shape) != 2 or points_A.shape[1] != 3:
-        raise ValueError('Points must be (n,3)!')
-
-    lc = np.average(points_A, axis=0)
-    rc = np.average(points_B, axis=0)
-    left = points_A - lc
-    right = points_B - rc
-    M = np.dot(left.T, right)
-    [[Sxx, Sxy, Sxz],
-     [Syx, Syy, Syz],
-     [Szx, Szy, Szz]] = M
-    N = [[(Sxx + Syy + Szz), (Syz - Szy), (Szx - Sxz), (Sxy - Syx)],
-         [(Syz - Szy), (Sxx - Syy - Szz), (Sxy + Syx), (Szx + Sxz)],
-         [(Szx - Sxz), (Sxy + Syx), (-Sxx + Syy - Szz), (Syz + Szy)],
-         [(Sxy - Syx), (Szx + Sxz), (Syz + Szy), (-Sxx - Syy + Szz)]]
-    (w, v) = np.linalg.eig(N)
-    q = v[:, np.argmax(w)]
-    q = q / np.linalg.norm(q)
-    M1 = [[q[0], -q[1], -q[2], -q[3]],
-          [q[1], q[0], q[3], -q[2]],
-          [q[2], -q[3], q[0], q[1]],
-          [q[3], q[2], -q[1], q[0]]]
-    M2 = [[q[0], -q[1], -q[2], -q[3]],
-          [q[1], q[0], -q[3], q[2]],
-          [q[2], q[3], q[0], -q[1]],
-          [q[3], -q[2], q[1], q[0]]]
-    R = np.dot(np.transpose(M1), M2)[1:4, 1:4]
-    T = rc - np.dot(R, lc)
-
-    M = np.eye(4)
-    M[0:3, 0:3] = R
-    M[0:3, 3] = T
-
-    if return_error:
-        errors = np.sum((transformations.transform_points(
-            points_A, M) - points_B)**2, axis=1)
-        return M, errors.max()
-    return M
-
-
 def remove_close(points, radius):
     """
     Given an (n, m) set of points where n=(2|3) return a list of points
@@ -224,13 +161,17 @@ def remove_close(points, radius):
 
     Parameters
     ------------
-    points: (n, dimension) float, points in space
-    radius: float, minimum radius between result points
+    points : (n, dimension) float
+      Points in space
+    radius : float
+      Minimum radius between result points
 
     Returns
     ------------
-    culled: (m, dimension) float, points in space
-    mask:   (n,) bool, which points from the original set were returned
+    culled : (m, dimension) float
+      Points in space
+    mask : (n,) bool
+      Which points from the original set were returned
     """
     from scipy.spatial import cKDTree as KDTree
 
@@ -301,19 +242,28 @@ def k_means(points, k, **kwargs):
 
 def plot_points(points, show=True):
     """
-    Plot an (n,3) list of points using matplotlib.
+    Plot an (n,3) list of points using matplotlib
 
+    Parameters
+    -------------
+    points : (n, 3) float
+      Points in space
+    show : bool
+      If False, will not show until plt.show() is called
     """
     import matplotlib.pyplot as plt
     from mpl_toolkits.mplot3d import Axes3D
 
-    points = np.asanyarray(points)
-    dimension = points.shape[1]
-    if dimension == 3:
+    points = np.asanyarray(points, dtype=np.float64)
+
+    if len(points.shape) != 2:
+        raise ValueError('Points must be (n, 2|3)!')
+
+    if points.shape[1] == 3:
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
         ax.scatter(*points.T)
-    elif dimension == 2:
+    elif points.shape[1] == 2:
         plt.scatter(*points.T)
     else:
         raise ValueError('Points must be 2D or 3D, not %dD', dimension)
@@ -324,24 +274,50 @@ def plot_points(points, show=True):
 
 class PointCloud(object):
     """
-    Hold a 3D set of points in an object which can be visualized
+    Hold 3D points in an object which can be visualized
     in a scene.
     """
 
     def __init__(self, *args, **kwargs):
         self._data = caching.DataStore()
+        self._cache = caching.Cache(self._data.md5)
         self.metadata = {}
 
-        if len(args) == 1:
-            self.vertices = args[0]
-
+        # load vertices from args/kwargs
         if 'vertices' in kwargs:
             self.vertices = kwargs['vertices']
+        elif len(args) == 1:
+            self.vertices = args[0]
 
         if 'color' in kwargs:
             self.colors = kwargs['color']
 
+    def __setitem__(self, *args, **kwargs):
+        return self.vertices.__setitem__(*args, **kwargs)
+
+    def __getitem__(self, *args, **kwargs):
+        return self.vertices.__getitem__(*args, **kwargs)
+
+    def shape(self):
+        """
+        Get the shape of the pointcloud
+
+        Returns
+        ----------
+        shape : (2,) int
+          Shape of vertex array
+        """
+        return self.vertices.shape
+
     def md5(self):
+        """
+        Get an MD5 hash of the current vertices.
+
+        Returns
+        ----------
+        md5 : str
+          Hash of self.vertices
+        """
         return self._data.md5()
 
     def merge_vertices(self):
@@ -361,19 +337,51 @@ class PointCloud(object):
 
     @property
     def bounds(self):
+        """
+        The axis aligned bounds of the PointCloud
+
+        Returns
+        ------------
+        bounds : (2, 3) float
+          Miniumum, Maximum verteex
+        """
         return np.array([self.vertices.min(axis=0),
                          self.vertices.max(axis=0)])
 
     @property
     def extents(self):
+        """
+        The size of the axis aligned bounds
+
+        Returns
+        ------------
+        extents : (3,) float
+          Edge length of axis aligned bounding box
+        """
         return self.bounds.ptp(axis=0)
 
     @property
     def centroid(self):
+        """
+        The mean vertex position
+
+        Returns
+        ------------
+        centroid : (3,) float
+          Mean vertex position
+        """
         return self.vertices.mean(axis=0)
 
     @property
     def vertices(self):
+        """
+        Vertices of the PointCloud
+
+        Returns
+        ------------
+        vertices : (n, 3) float
+          Points in the PointCloud
+        """
         return self._data['vertices']
 
     @vertices.setter
@@ -385,6 +393,14 @@ class PointCloud(object):
 
     @property
     def colors(self):
+        """
+        Stored per- point color
+
+        Returns
+        ----------
+        colors : (len(self.vertices), 4) np.uint8
+          Per- point RGBA color
+        """
         return self._data['colors']
 
     @colors.setter
@@ -394,9 +410,32 @@ class PointCloud(object):
             data = np.tile(data, (len(self.vertices), 1))
         self._data['colors'] = data
 
+    @caching.cache_decorator
+    def convex_hull(self):
+        """
+        A convex hull of every point.
+
+        Returns
+        -------------
+        convex_hull : trimesh.Trimesh
+          A watertight mesh of the hull of the points
+        """
+        return convex.convex_hull(self.vertices)
+
     def scene(self):
+        """
+        A scene containing just the PointCloud
+
+        Returns
+        ----------
+        scene : trimesh.Scene
+          Scene object containing this PointCloud
+        """
         from .scene.scene import Scene
         return Scene(self)
 
     def show(self):
+        """
+        Open a viewer window displaying the current PointCloud
+        """
         self.scene().show()

@@ -5,7 +5,6 @@ from string import Template
 
 from ..arc import to_threepoint
 from ..entities import Line, Arc, BSpline
-from ..util import is_ccw
 
 from ...constants import log
 from ...constants import tol_path as tol

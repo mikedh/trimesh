@@ -50,20 +50,6 @@ class VectorTests(unittest.TestCase):
             aligned = np.abs(result - target).sum() < TOL_ZERO
             self.assertTrue(aligned)
 
-    def test_horn(self):
-        log.info('Testing absolute orientation')
-        for i in range(10):
-            points_A = (np.random.random(self.test_dim) - .5) * 100
-            angle = 4 * np.pi * (np.random.random() - .5)
-            vector = trimesh.unitize(np.random.random(3) - .5)
-            offset = 100 * (np.random.random(3) - .5)
-            T = trimesh.transformations.rotation_matrix(angle, vector)
-            T[0:3, 3] = offset
-            points_B = trimesh.transformations.transform_points(points_A, T)
-            M, error = trimesh.points.absolute_orientation(
-                points_A, points_B, return_error=True)
-            self.assertTrue(np.all(error < TOL_ZERO))
-
 
 class UtilTests(unittest.TestCase):
 
@@ -76,14 +62,14 @@ class UtilTests(unittest.TestCase):
                 self.assertTrue(0 in tree.intersection(bounds[0]))
 
     def test_strips(self):
-        '''
+        """
         Test our conversion of triangle strips to face indexes.
-        '''
+        """
 
         def strips_to_faces(strips):
-            '''
+            """
             A slow but straightforward version of the function to test against
-            '''
+            """
             faces = g.collections.deque()
             for s in strips:
                 s = g.np.asanyarray(s, dtype=g.np.int)
