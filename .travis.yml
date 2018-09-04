@@ -11,6 +11,8 @@ before_deploy:
 - pip install pypandoc
 - pip install -r docs/requirements.txt
 - python docs/build.py
+- git tag `python -c "f = open('trimesh/version.py', 'r'); exec(f.read()); print(__version__)"`
+
 deploy:
 - provider: pypi
   user: mikedh
@@ -19,6 +21,7 @@ deploy:
     branch: master
   password:
     secure: MmFES9M+UZbfpQsWeSVlhgUcdbpCymaeJwExxcyJbkKKWdRoZLRusqCmTdQ7Rai8DxH++ooqgEnHwq+D9e/8Y0jbbFBScPbJVeNFj1B4xV36NlyV8A0027/UTuhvkhoUv/xP6mN4TfuC3tWEj5m20DQlibjjxS154r/BlA6/kic=
+
 - provider: pages
   skip-cleanup: true
   github-token: $GITHUB_TOKEN 
@@ -28,6 +31,13 @@ deploy:
   on:
     python: '3.6'
     branch: master
+
+- provider: releases
+  api_key: $GITHUB_TOKEN
+  file: "*"
+  on:
+    tags: true
+
 before_install:
 - sudo apt-get update
 - sudo apt-get install -y openscad blender meshlab xvfb

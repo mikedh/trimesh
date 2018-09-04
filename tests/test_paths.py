@@ -32,14 +32,11 @@ class VectorTests(g.unittest.TestCase):
                 assert g.np.allclose(bd, bl, atol=atol)
                 assert g.np.allclose(bl, bp, atol=atol)
 
-            # these should all correspond to each other
-            assert len(d.discrete) == len(d.polygons_closed)
-            assert len(d.discrete) == len(d.paths)
+            # run some checks
+            check_Path2D(d)
+
             # these operations shouldn't have mutated anything!
             assert d.md5() == md5
-            # make sure None polygons are not referenced in graph
-            assert all(d.polygons_closed[i] is not None
-                       for i in d.enclosure_directed.nodes())
 
             # file_name should be populated, and if we have a DXF file
             # the layer field should be populated with layer names
@@ -272,7 +269,6 @@ class ArcTests(g.unittest.TestCase):
         """
         inner = g.trimesh.creation.annulus(r_min=.5, r_max=.6)
         outer = g.trimesh.creation.annulus(r_min=.9, r_max=1.0)
-
         m = inner + outer
 
         s = m.section(plane_normal=[0, 0, 1],
@@ -282,6 +278,7 @@ class ArcTests(g.unittest.TestCase):
         assert len(p.polygons_closed) == 4
         assert len(p.polygons_full) == 2
         assert len(p.root) == 2
+        check_Path2D(p)
 
 
 class SplitTest(g.unittest.TestCase):
@@ -312,6 +309,7 @@ class SplitTest(g.unittest.TestCase):
                 assert len(s.path_valid) == len(s.paths)
                 assert len(s.paths) == len(s.discrete)
                 assert s.path_valid.sum() == len(s.polygons_closed)
+                check_Path2D(s)
 
 
 class ExportTest(g.unittest.TestCase):
@@ -324,10 +322,12 @@ class ExportTest(g.unittest.TestCase):
             stream = g.trimesh.util.wrap_as_stream(exported)
             loaded = g.trimesh.load(stream, file_type='svg')
 
-            # we only have line and arc primitives as SVG export and import
-            if all(i.__class__.__name__ in ['Line',
-                                            'Arc'] for i in d.entities):
-                # perimeter should stay the same-ish on export/inport
+            # we only have line and arc primitives as SVG
+            # export and import
+            if all(i.__class__.__name__ in ['Line', 'Arc']
+                   for i in d.entities):
+                # perimeter should stay the same-ish
+                # on export/inport
                 assert g.np.isclose(d.length,
                                     loaded.length,
                                     rtol=.01)
@@ -360,6 +360,9 @@ class SectionTest(g.unittest.TestCase):
             assert not g.trimesh.path.util.is_ccw(
                 polygon.interiors[0].coords)
 
+            # should be a valid Path2D
+            check_Path2D(planar)
+
 
 class CreationTests(g.unittest.TestCase):
 
@@ -371,6 +374,31 @@ class CreationTests(g.unittest.TestCase):
         assert len(pattern.entities) == 4
         assert len(pattern.polygons_closed) == 4
         assert len(pattern.polygons_full) == 4
+
+        # should be a valid Path2D
+        check_Path2D(pattern)
+
+
+def check_Path2D(path):
+    """
+    Make basic assertions on Path2D objects
+    """
+    # root count should be the same as the closed polygons
+    assert len(path.root) == len(path.polygons_full)
+
+    # make sure polygons are really polygons
+    assert all(type(i).__name__ == 'Polygon'
+               for i in path.polygons_full)
+    assert all(type(i).__name__ == 'Polygon'
+               for i in path.polygons_closed)
+
+    # these should all correspond to each other
+    assert len(path.discrete) == len(path.polygons_closed)
+    assert len(path.discrete) == len(path.paths)
+
+    # make sure None polygons are not referenced in graph
+    assert all(path.polygons_closed[i] is not None
+               for i in path.enclosure_directed.nodes())
 
 
 if __name__ == '__main__':

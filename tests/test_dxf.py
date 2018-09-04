@@ -85,7 +85,12 @@ class DXFTest(g.unittest.TestCase):
     def test_versions(self):
         """
         DXF files have a bajillion versions, so test against
-        the same files saved in multiple versions by 2D CAD packages.
+        the same files saved in multiple versions by 2D CAD
+        packages.
+
+        Version test files are named things like:
+        ae.r14a.dxf: all entity types, R14 ASCII DXF
+        uc.2007b.dxf: unit square, R2007 binary DXF
         """
         # directory where multiple versions of DXF are
         dir_versions = g.os.path.join(g.dir_2D, 'versions')
