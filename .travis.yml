@@ -11,7 +11,9 @@ before_deploy:
 - pip install pypandoc
 - pip install -r docs/requirements.txt
 - python docs/build.py
-- git tag `python -c "f = open('trimesh/version.py', 'r'); exec(f.read()); print(__version__)"` || true
+- export TMVERSION=`python -c "f = open('trimesh/version.py', 'r'); exec(f.read()); print(__version__)"`
+- git tag $TMVERSION || true
+- tar -czf ../trimesh-$TMVERSION.tar.gz ../trimesh
 
 deploy:
 - provider: pypi
@@ -34,10 +36,10 @@ deploy:
 
 - provider: releases
   api_key: $GITHUB_TOKEN
-  file: "*"
+  skip_cleanup: true
+  file: "../trimesh-$TMVERSION.tar.gz"
   on:
     tags: true
-
 before_install:
 - sudo apt-get update
 - sudo apt-get install -y openscad blender meshlab xvfb
