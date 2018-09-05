@@ -25,6 +25,8 @@ class PointsTest(g.unittest.TestCase):
         # set some random colors
         cloud.colors = g.np.random.random((shape[0], 4))
 
+        assert cloud.convex_hull.volume > 0.0
+
         # check shapes of data
         assert cloud.vertices.shape == shape
         assert cloud.extents.shape == (3,)
@@ -40,10 +42,10 @@ class PointsTest(g.unittest.TestCase):
         assert cloud.vertices.shape == new_shape
         assert len(cloud.colors) == new_shape[0]
 
-    def test_vertexonly(self):
+    def test_vertex_only(self):
         """
-        Test to make sure we can instantiate a mesh with just vertices
-        for some reason
+        Test to make sure we can instantiate a mesh with just
+        vertices and no faces for some unknowable reason
         """
 
         v = g.np.random.random((1000, 3))

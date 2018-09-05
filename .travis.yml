@@ -11,7 +11,7 @@ before_deploy:
 - pip install pypandoc
 - pip install -r docs/requirements.txt
 - python docs/build.py
-- git tag `python -c "f = open('trimesh/version.py', 'r'); exec(f.read()); print(__version__)"`
+- git tag `python -c "f = open('trimesh/version.py', 'r'); exec(f.read()); print(__version__)"` || true
 
 deploy:
 - provider: pypi

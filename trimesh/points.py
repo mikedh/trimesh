@@ -10,7 +10,6 @@ from .constants import tol
 from .geometry import plane_transform
 
 from . import util
-from . import convex
 from . import caching
 from . import grouping
 from . import transformations
@@ -420,6 +419,7 @@ class PointCloud(object):
         convex_hull : trimesh.Trimesh
           A watertight mesh of the hull of the points
         """
+        from . import convex
         return convex.convex_hull(self.vertices)
 
     def scene(self):
