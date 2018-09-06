@@ -1,11 +1,13 @@
 language: python
 sudo: required
 dist: trusty
+
 python:
 - '2.7'
 - '3.4'
 - '3.5'
 - '3.6'
+
 before_deploy:
 - sudo apt-get install pandoc -y
 - pip install pypandoc
@@ -38,14 +40,14 @@ deploy:
   api_key: $GITHUB_TOKEN
   skip_cleanup: true
   file: "../trimesh-$TMVERSION.tar.gz"
-  on:
-    tags: true
+
 before_install:
 - sudo apt-get update
 - sudo apt-get install -y openscad blender meshlab xvfb
 - sudo wget https://github.com/mikedh/v-hacd-1/raw/master/bin/linux/testVHACD --quiet
   -P /usr/bin
 - sudo chmod +x /usr/bin/testVHACD
+
 install:
 - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then wget --quiet https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
   -O miniconda.sh; else wget --quiet https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
@@ -61,6 +63,7 @@ install:
 - source activate test-environment
 - pip install .
 - pip install pytest pytest-cov coveralls
+
 script:
 - python -c "import trimesh"
 - conda install scikit-image rtree shapely

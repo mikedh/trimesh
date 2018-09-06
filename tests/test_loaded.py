@@ -20,6 +20,17 @@ class LoaderTest(g.unittest.TestCase):
         # check to make sure there is signal not just zeros
         assert mesh.metadata['face_groups'].ptp() > 0
 
+    def test_remote(self):
+        """
+        Try loading a remote mesh using requests
+        """
+        # get a unit cube from project's github
+        mesh = g.trimesh.io.load.load_remote(
+            url='https://github.com/mikedh/trimesh/raw/master/models/unit_cube.STL')
+
+        assert g.np.isclose(mesh.volume, 1.0)
+        assert isinstance(mesh, g.trimesh.Trimesh)
+
     def test_obj_quad(self):
         mesh = g.get_mesh('quadknot.obj')
         # make sure some data got loaded
