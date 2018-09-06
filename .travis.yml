@@ -10,12 +10,10 @@ python:
 
 before_deploy:
 - sudo apt-get install pandoc -y
-- pip install pypandoc
 - pip install -r docs/requirements.txt
 - python docs/build.py
 - export TMVERSION=`python -c "f = open('trimesh/version.py', 'r'); exec(f.read()); print(__version__)"`
 - git tag $TMVERSION || true
-- tar -czf ../trimesh-$TMVERSION.tar.gz ../trimesh
 
 deploy:
 - provider: pypi
@@ -39,7 +37,10 @@ deploy:
 - provider: releases
   api_key: $GITHUB_TOKEN
   skip_cleanup: true
-  file: "../trimesh-$TMVERSION.tar.gz"
+  file: "README.md"
+  on:
+    python: '3.6'
+    branch: master
 
 before_install:
 - sudo apt-get update
