@@ -9,10 +9,13 @@ python:
 - '3.6'
 
 before_deploy:
-- sudo apt-get install pandoc -y
 - pip install -r docs/requirements.txt
 - python docs/build.py
+
+# extract the current trimesh version from the version file
 - export TMVERSION=`python -c "f = open('trimesh/version.py', 'r'); exec(f.read()); print(__version__)"`
+
+# tag the release and if it's already tagged chill
 - git tag $TMVERSION || true
 
 deploy:
@@ -27,7 +30,7 @@ deploy:
 - provider: pages
   skip-cleanup: true
   github-token: $GITHUB_TOKEN 
-  keep-history: true
+  keep-history: false
   target-branch: gh-pages
   local-dir: docs/html
   on:
@@ -36,7 +39,9 @@ deploy:
 
 - provider: releases
   api_key: $GITHUB_TOKEN
-  skip_cleanup: true
+  skip_cleanup: false
+  # only release the README github will create source
+  # tarballs which are what people would want anyway
   file: "README.md"
   on:
     python: '3.6'
@@ -44,7 +49,7 @@ deploy:
 
 before_install:
 - sudo apt-get update
-- sudo apt-get install -y openscad blender meshlab xvfb
+- sudo apt-get install -y openscad blender meshlab xvfb pandoc
 - sudo wget https://github.com/mikedh/v-hacd-1/raw/master/bin/linux/testVHACD --quiet
   -P /usr/bin
 - sudo chmod +x /usr/bin/testVHACD
@@ -62,22 +67,37 @@ install:
 - conda info -a
 - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION nomkl numpy scipy
 - source activate test-environment
+
+# only install the basic version of the library to make sure
+# trimesh imports with only the minimal install
 - pip install .
 - pip install pytest pytest-cov coveralls
 
 script:
+
 - python -c "import trimesh"
 - conda install scikit-image rtree shapely
-- if [[ "$TRAVIS_PYTHON_VERSION" != "3.3" && "$TRAVIS_PYTHON_VERSION" != "3.4" ]];
-  then conda install pyembree && pip install python-fcl; fi
+
+# eat exit codes for these two packages
+# pyembree and python-fcl not available everywhere
+- conda install pyembree || true
+- pip install python-fcl || true
 - pip install .[easy]
 - pip install triangle xxhash
+
+# run tests
 - pytest --cov=trimesh tests/
+
+# downgrade networkx from 2.x to 1.x to make sure our
+# graph operations work on both versions of their API
 - pip install -Iv networkx==1.11
 - python -c "import networkx; print(networkx.__version__)"
 - pytest tests/test_graph.py tests/test_scene.py
+
+# make sure examples still work
 - cd examples
 - for f in *py*; do python ../tests/notebook_run.py exec "$f"; done
 - cd ..
+
 after_success:
 - coveralls
