@@ -7,9 +7,9 @@ except BaseException:
 class PointsTest(g.unittest.TestCase):
 
     def test_pointcloud(self):
-        '''
-        Test pointcloud object
-        '''
+        """
+        Test PointCloud object
+        """
         shape = (100, 3)
         # random points
         points = g.np.random.random(shape)
@@ -22,16 +22,20 @@ class PointsTest(g.unittest.TestCase):
         # create a pointcloud object
         cloud = g.trimesh.points.PointCloud(points)
 
-        # set some random colors
-        cloud.colors = g.np.random.random((shape[0], 4))
+        initial_md5 = cloud.md5()
 
         assert cloud.convex_hull.volume > 0.0
 
         # check shapes of data
         assert cloud.vertices.shape == shape
+        assert cloud.shape == shape
         assert cloud.extents.shape == (3,)
         assert cloud.bounds.shape == (2, 3)
 
+        assert cloud.md5() == initial_md5
+
+        # set some random colors
+        cloud.colors = g.np.random.random((shape[0], 4))
         # remove the duplicates we created
         cloud.merge_vertices()
 
@@ -41,6 +45,11 @@ class PointsTest(g.unittest.TestCase):
         # make sure vertices and colors are new shape
         assert cloud.vertices.shape == new_shape
         assert len(cloud.colors) == new_shape[0]
+        assert cloud.md5() != initial_md5
+
+        # check getitem and setitem
+        cloud[0] = [10, 10, 10]
+        assert g.np.allclose(cloud[0], [10, 10, 10])
 
     def test_vertex_only(self):
         """
@@ -78,6 +87,30 @@ class PointsTest(g.unittest.TestCase):
 
             # sign of normal is arbitrary on fit so check both
             assert g.np.allclose(truth, N) or g.np.allclose(truth, -N)
+
+    def test_kmeans(self,
+                    cluster_count=5,
+                    points_per_cluster=100):
+        """
+        Test K-means clustering
+        """
+        clustered = []
+        for i in range(cluster_count):
+            clustered.append(
+                g.np.random.random((points_per_cluster, 3)) + (i * 10.0))
+        clustered = g.np.vstack(clustered)
+
+        # run k- means clustering on our nicely separated data
+        centroids, klabel = g.trimesh.points.k_means(points=clustered,
+                                                     k=cluster_count)
+
+        # reshape to make sure all groups have the same index
+        variance = klabel.reshape(
+            (cluster_count, points_per_cluster)).ptp(
+            axis=1)
+
+        assert len(centroids) == cluster_count
+        assert (variance == 0).all()
 
 
 if __name__ == '__main__':

@@ -187,24 +187,6 @@ def remove_close(points, radius):
     return points[unique], unique
 
 
-def remove_close_set(points_fixed, points_reduce, radius):
-    """
-    Given two sets of points and a radius, return a set of points
-    that is the subset of points_reduce where no point is within
-    radius of any point in points_fixed
-    """
-    from scipy.spatial import cKDTree as KDTree
-
-    tree_fixed = KDTree(points_fixed)
-    tree_reduce = KDTree(points_reduce)
-    reduce_duplicates = tree_fixed.query_ball_tree(tree_reduce, r=radius)
-    reduce_duplicates = np.unique(np.hstack(reduce_duplicates).astype(int))
-    reduce_mask = np.ones(len(points_reduce), dtype=np.bool)
-    reduce_mask[reduce_duplicates] = False
-    points_clean = points_reduce[reduce_mask]
-    return points_clean
-
-
 def k_means(points, k, **kwargs):
     """
     Find k centroids that attempt to minimize the k- means problem:
@@ -229,13 +211,16 @@ def k_means(points, k, **kwargs):
     from scipy.cluster.vq import kmeans
     from scipy.spatial import cKDTree
 
-    points = np.asanyarray(points)
+    points = np.asanyarray(points, dtype=np.float64)
     points_std = points.std(axis=0)
     whitened = points / points_std
     centroids_whitened, distortion = kmeans(whitened, k, **kwargs)
     centroids = centroids_whitened * points_std
+
+    # find which centroid each point is closest to
     tree = cKDTree(centroids)
     labels = tree.query(points, k=1)[1]
+
     return centroids, labels
 
 
@@ -297,6 +282,7 @@ class PointCloud(object):
     def __getitem__(self, *args, **kwargs):
         return self.vertices.__getitem__(*args, **kwargs)
 
+    @property
     def shape(self):
         """
         Get the shape of the pointcloud

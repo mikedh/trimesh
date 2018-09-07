@@ -68,6 +68,20 @@ class SimplifyTest(g.unittest.TestCase):
                 self.polygon_simplify(polygon=polygon,
                                       arc_count=arc_count)
 
+    def test_spline(self):
+        """
+        Test basic spline simplification of Path2D objects
+        """
+        scene = g.get_mesh('cycloidal.3DXML')
+        m = scene.geometry['disc_cam_A']
+
+        path_3D = m.outline(m.facets[m.facets_area.argmax()])
+        path_2D, to_3D = path_3D.to_planar()
+
+        simple = g.trimesh.path.simplify.simplify_spline(path_2D,
+                                                         smooth=.01,
+                                                         verbose=True)
+        assert g.np.isclose(path_2D.area, simple.area, rtol=.01)
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
