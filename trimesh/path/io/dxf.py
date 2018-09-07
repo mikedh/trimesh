@@ -821,7 +821,11 @@ def _teigha_convert(data, extension='dwg'):
 
 
 # the DWG to DXF converter
-_teigha = find_executable('TeighaFileConverter')
+for _name in ['ODAFileConverter',
+              'TeighaFileConverter']:
+    _teigha = find_executable(_name)
+    if _teigha is not None:
+        break
 # suppress X11 output
 _xvfb_run = find_executable('xvfb-run')
 
