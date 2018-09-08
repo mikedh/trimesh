@@ -29,7 +29,14 @@ class ExportTest(g.unittest.TestCase):
 
                 g.log.info('Export/import testing on %s',
                            mesh.metadata['file_name'])
-                loaded = g.trimesh.load(file_obj=g.io_wrap(export),
+
+                # if export is string or bytes wrap as pseudo file object
+                if isinstance(export, str) or isinstance(export, bytes):
+                    file_obj = g.io_wrap(export)
+                else:
+                    file_obj = export
+
+                loaded = g.trimesh.load(file_obj=file_obj,
                                         file_type=file_type)
 
                 if (not g.trimesh.util.is_shape(loaded._data['faces'], (-1, 3)) or

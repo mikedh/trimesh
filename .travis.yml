@@ -13,7 +13,7 @@ before_deploy:
 - python docs/build.py
 
 # extract the current trimesh version from the version file
-- export TMVERSION=`python -c "f = open('trimesh/version.py', 'r'); exec(f.read()); print(__version__)"`
+- export TMVERSION=`python -c "exec(open('trimesh/version.py','r').read()); print(__version__)"`
 
 # tag the release and if it's already tagged chill
 - git tag $TMVERSION || true
@@ -75,9 +75,12 @@ install:
 
 script:
 
+# try simple tests with only 3 minimal deps
 - python -c "import trimesh"
-- conda install scikit-image rtree shapely
+- pytest tests/test_inertia.py
 
+# install most deps here
+- conda install scikit-image rtree shapely
 # eat exit codes for these two packages
 # pyembree and python-fcl not available everywhere
 - conda install pyembree || true
@@ -85,7 +88,7 @@ script:
 - pip install .[easy]
 - pip install triangle xxhash
 
-# run tests
+# run main tests
 - pytest --cov=trimesh tests/
 
 # downgrade networkx from 2.x to 1.x to make sure our

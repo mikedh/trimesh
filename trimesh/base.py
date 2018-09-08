@@ -899,6 +899,20 @@ class Trimesh(object):
         return edges_unique
 
     @caching.cache_decorator
+    def edges_unique_length(self):
+        """
+        How long is each unique edge.
+
+        Returns
+        ----------
+        length : (len(self.edges_unique), ) float
+          Length of each unique edge
+        """
+        vector = np.subtract(*self.vertices[self.edges_unique.T])
+        length = np.linalg.norm(vector, axis=1)
+        return length
+
+    @caching.cache_decorator
     def edges_sorted(self):
         """
         Edges sorted along axis 1
@@ -914,14 +928,16 @@ class Trimesh(object):
     @caching.cache_decorator
     def edges_sparse(self):
         """
-        Edges in sparse COO graph format.
+        Edges in sparse bool COO graph format where connected
+        vertices are True.
 
         Returns
         ----------
         sparse: (len(self.vertices), len(self.vertices)) bool
           Sparse graph in COO format
         """
-        sparse = graph.edges_to_coo(self.edges)
+        sparse = graph.edges_to_coo(self.edges,
+                                    count=len(self.vertices))
         return sparse
 
     @caching.cache_decorator
@@ -1622,9 +1638,8 @@ class Trimesh(object):
             # a facet plane is on the convex hull if every vertex
             # of the convex hull is behind that plane
             # which we are checking with dot products
-            on_hull[i] = (np.dot(
-                normal,
-                (convex - origin).T) < tol.merge).all()
+            dot = np.dot(normal, (convex - origin).T)
+            on_hull[i] = (dot < tol.merge).all()
 
         return on_hull
 

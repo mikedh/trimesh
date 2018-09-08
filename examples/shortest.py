@@ -21,9 +21,7 @@ if __name__ == '__main__':
     edges = mesh.edges_unique
 
     # the actual length of each unique edge
-    length = np.linalg.norm(mesh.vertices[edges[:, 0]] -
-                            mesh.vertices[edges[:, 1]],
-                            axis=1)
+    length = mesh.edges_unique_length
 
     # create the graph with edge attributes for length
     g = nx.Graph()
@@ -49,10 +47,15 @@ if __name__ == '__main__':
     # VISUALIZE RESULT
     # make the sphere transparent-ish
     mesh.visual.face_colors = [100, 100, 100, 100]
-    # make a scene with the two points, the path between them
-    # and the original mesh we were working on
+    # Path3D with the path between the points
+    path_visual = trimesh.load_path(mesh.vertices[path])
+    # visualizable two points
+    points_visual = trimesh.points.PointCloud(mesh.vertices[[start, end]])
+
+    # create a scene with the mesh, path, and points
     scene = trimesh.Scene([
-        trimesh.points.PointCloud(mesh.vertices[[start, end]]),
-        mesh,
-        trimesh.load_path(mesh.vertices[path])])
-    scene.show()
+        points_visual,
+        path_visual,
+        mesh])
+
+    scene.show(smooth=False)

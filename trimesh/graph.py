@@ -683,35 +683,45 @@ def traversals(edges, mode='bfs'):
     return traversals
 
 
-def edges_to_coo(edges, count=None):
+def edges_to_coo(edges, count=None, data=None):
     """
     Given an edge list, return a boolean scipy.sparse.coo_matrix
     representing the edges in matrix form.
 
     Parameters
     ------------
-    edges: (n,2) int, edges of a graph
-    count: int, the number of nodes.
-           if None: count = edges.max() + 1
+    edges : (n,2) int
+      Edges of a graph
+    count : int
+      The total number of nodes in the graph
+      if None: count = edges.max() + 1
+    data : (n,) any
+      Assign data to each edge, if None will
+      be bool True for each specified edge
 
     Returns
     ------------
-    matrix: (count, count) bool, scipy.sparse.coo_matrix
+    matrix: (count, count) scipy.sparse.coo_matrix
+      Sparse COO
     """
     edges = np.asanyarray(edges, dtype=np.int64)
     if not (len(edges) == 0 or
             util.is_shape(edges, (-1, 2))):
         raise ValueError('edges must be (n,2)!')
 
+    # if count isn't specified just set it to largest
+    # value referenced in edges
     if count is None:
         count = edges.max() + 1
-    else:
-        count = int(count)
+    count = int(count)
 
-    matrix = coo_matrix((np.ones(len(edges),
-                                 dtype=np.bool),
-                         (edges[:, 0], edges[:, 1])),
-                        dtype=np.bool,
+    # if no data is specified set every specified edge
+    # to True
+    if data is None:
+        data = np.ones(len(edges), dtype=np.bool)
+
+    matrix = coo_matrix((data, edges.T),
+                        dtype=data.dtype,
                         shape=(count, count))
     return matrix
 

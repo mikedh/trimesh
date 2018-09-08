@@ -203,6 +203,9 @@ def is_sequence(obj):
                                                        set,
                                                        basestring))
 
+    # PointCloud objects can look like an array but are not
+    seq = seq and type(obj).__name__ not in ['PointCloud']
+
     # numpy sometimes returns objects that are single float64 values
     # but sure look like sequences, so we check the shape
     if hasattr(obj, 'shape'):
@@ -1454,11 +1457,12 @@ def bounds_tree(bounds):
 
 def wrap_as_stream(item):
     """
-    Wrap a string or bytes object as a file object
+    Wrap a string or bytes object as a file object.
 
     Parameters
     ----------
-    item: str or bytes: item to be wrapped
+    item: str or bytes
+      Item to be wrapped
 
     Returns
     ---------
@@ -1470,7 +1474,7 @@ def wrap_as_stream(item):
         return StringIO(item)
     elif isinstance(item, bytes):
         return BytesIO(item)
-    raise ValueError('Not a wrappable item!')
+    raise ValueError('{} is not wrappable!'.format(type(item).__name__))
 
 
 def sigfig_round(values, sigfig=1):

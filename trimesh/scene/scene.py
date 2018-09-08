@@ -81,6 +81,7 @@ class Scene:
 
         if geometry is None:
             return
+        # PointCloud objects will look like a sequence
         elif util.is_sequence(geometry):
             # if passed a sequence add all elements
             return [self.add_geometry(i) for i in geometry]

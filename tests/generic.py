@@ -16,7 +16,11 @@ import itertools
 import subprocess
 
 import numpy as np
-import sympy as sp
+
+try:
+    import sympy as sp
+except ImportError:
+    pass
 
 import trimesh
 import collections
@@ -79,14 +83,7 @@ for i in inspect.stack():
         break
 """
 
-
-def io_wrap(item):
-    if isinstance(item, str):
-        return StringIO(item)
-    if _PY3 and isinstance(item, bytes):
-        return BytesIO(item)
-    return item
-
+io_wrap = trimesh.util.wrap_as_stream
 
 def _load_data():
     data = {}

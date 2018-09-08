@@ -18,14 +18,14 @@ class MeshTests(g.unittest.TestCase):
 
         for mesh in meshes:
             g.log.info('Testing %s', mesh.metadata['file_name'])
-            self.assertTrue(len(mesh.faces) > 0)
-            self.assertTrue(len(mesh.vertices) > 0)
+            assert len(mesh.faces) > 0
+            assert len(mesh.vertices) > 0
 
-            self.assertTrue(len(mesh.edges) > 0)
-            self.assertTrue(len(mesh.edges_unique) > 0)
-            self.assertTrue(len(mesh.edges_sorted) > 0)
-            self.assertTrue(len(mesh.edges_face) > 0)
-            self.assertTrue(isinstance(mesh.euler_number, int))
+            assert len(mesh.edges) > 0
+            assert len(mesh.edges_unique) > 0
+            assert len(mesh.edges_sorted) > 0
+            assert len(mesh.edges_face) > 0
+            assert isinstance(mesh.euler_number, int)
 
             mesh.process()
 
@@ -59,10 +59,10 @@ class MeshTests(g.unittest.TestCase):
             # make sure vertex kdtree and triangles rtree exist
 
             t = mesh.kdtree
-            self.assertTrue(hasattr(t, 'query'))
+            assert hasattr(t, 'query')
             g.log.info('Creating triangles tree')
             r = mesh.triangles_tree
-            self.assertTrue(hasattr(r, 'intersection'))
+            assert hasattr(r, 'intersection')
             g.log.info('Triangles tree ok')
 
             # some memory issues only show up when you copy the mesh a bunch
@@ -88,12 +88,12 @@ class MeshTests(g.unittest.TestCase):
     def test_vertex_neighbors(self):
         m = g.trimesh.primitives.Box()
         neighbors = m.vertex_neighbors
-        self.assertTrue(len(neighbors) == len(m.vertices))
+        assert len(neighbors) == len(m.vertices)
         elist = m.edges_unique.tolist()
 
         for v_i, neighs in enumerate(neighbors):
             for n in neighs:
-                self.assertTrue(([v_i, n] in elist or [n, v_i] in elist))
+                assert ([v_i, n] in elist or [n, v_i] in elist)
 
 
 if __name__ == '__main__':
