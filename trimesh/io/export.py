@@ -164,7 +164,7 @@ def export_dict(mesh, encoding=None):
             return util.array_to_encoded(item,
                                          dtype=dtype,
                                          encoding=encoding)
-    export = {'metadata': util.tolist_dict(mesh.metadata),
+    export = {'metadata': util.tolist(mesh.metadata),
               'faces': encode(mesh.faces),
               'face_normals': encode(mesh.face_normals),
               'vertices': encode(mesh.vertices)}

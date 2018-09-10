@@ -629,13 +629,22 @@ def multi_dict(pairs):
     return result
 
 
-def tolist_dict(data):
-    def tolist(item):
-        if hasattr(item, 'tolist'):
-            return item.tolist()
-        else:
-            return item
-    result = {k: tolist(v) for k, v in data.items()}
+def tolist(data):
+    """
+    Ensure that any arrays or dicts passed containing
+    numpy arrays are properly converted to lists
+
+    Parameters
+    -----------------
+    data : any
+      Usually a dict with some numpy arrays as values
+
+    Returns
+    ------------
+    result : any
+      JSON- serializable version of data 
+    """
+    result = json.loads(jsonify(data))
     return result
 
 

@@ -244,7 +244,7 @@ def _mesh_to_material(mesh, metallic=.02, rough=.1):
     # just get the most commonly occurring color
     color = mesh.visual.main_color
     # convert uint color to 0-1.0 float color
-    color = color.astype(float) / (2 ** (8 * color.dtype.itemsize))
+    color = color.astype(float) / ((2 ** (8 * color.dtype.itemsize)) - 1)
 
     material = {'pbrMetallicRoughness':
                 {'baseColorFactor': color.tolist(),

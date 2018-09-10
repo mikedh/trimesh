@@ -76,7 +76,9 @@ def to_pass(line):
     passed : str, line of code with same leading spaces
                   but code replaced with pass statement
     """
-    spaces = np.nonzero([i != ' ' for i in line])[0][0]
+    # the number of leading spaces on the line
+    spaces = len(line) - len(line.lstrip(' '))
+    # replace statement with pass and correct leading spaces
     passed = (' ' * spaces) + 'pass'
     return passed
 
