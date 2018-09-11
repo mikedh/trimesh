@@ -1,29 +1,31 @@
-language: python
+# we are using miniconda python
+language: generic
 sudo: required
 dist: xenial
 
-python:
-- '2.7'
-- '3.4'
-- '3.5'
-- '3.6'
-- '3.7'
+matrix:
+  include:
+    - env: PYTHON_VERSION=2.7
+    - env: PYTHON_VERSION=3.4
+    - env: PYTHON_VERSION=3.5
+    - env: PYTHON_VERSION=3.6
+    - env: PYTHON_VERSION=3.7
 
 before_deploy:
 - pip install -r docs/requirements.txt
 - python docs/build.py
 
 # extract the current trimesh version from the version file
-- export TMVERSION=`python -c "exec(open('trimesh/version.py','r').read()); print(__version__)"`
+- export TM_VERSION=`python -c "exec(open('trimesh/version.py','r').read()); print(__version__)"`
 
 # tag the release and if it's already tagged chill
-- git tag $TMVERSION || true
+- git tag $TM_VERSION || true
 
 deploy:
 - provider: pypi
   user: mikedh
   on:
-    python: '3.6'
+    condition: $PYTHON_VERSION = '3.6'
     branch: master
   password:
     secure: MmFES9M+UZbfpQsWeSVlhgUcdbpCymaeJwExxcyJbkKKWdRoZLRusqCmTdQ7Rai8DxH++ooqgEnHwq+D9e/8Y0jbbFBScPbJVeNFj1B4xV36NlyV8A0027/UTuhvkhoUv/xP6mN4TfuC3tWEj5m20DQlibjjxS154r/BlA6/kic=
@@ -35,7 +37,7 @@ deploy:
   target-branch: gh-pages
   local-dir: docs/html
   on:
-    python: '3.6'
+    condition: $PYTHON_VERSION = '3.6'
     branch: master
 
 - provider: releases
@@ -45,18 +47,18 @@ deploy:
   # tarballs which are what people would want anyway
   file: "README.md"
   on:
-    python: '3.6'
+    condition: $PYTHON_VERSION = '3.6'
     branch: master
 
 before_install:
-- sudo apt-get update
-- sudo apt-get install -y openscad blender meshlab xvfb pandoc
+- sudo apt-get -qq update
+- sudo apt-get -qq -y install openscad blender meshlab xvfb pandoc
 - sudo wget https://github.com/mikedh/v-hacd-1/raw/master/bin/linux/testVHACD --quiet
   -P /usr/bin
 - sudo chmod +x /usr/bin/testVHACD
 
 install:
-- if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then wget --quiet https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
+- if [[ "$PYTHON_VERSION" == "2.7" ]]; then wget --quiet https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
   -O miniconda.sh; else wget --quiet https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
   -O miniconda.sh; fi
 - bash miniconda.sh -b -p $HOME/miniconda
@@ -66,7 +68,7 @@ install:
 - conda config --add channels conda-forge
 - conda update -q conda
 - conda info -a
-- conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION nomkl numpy scipy
+- conda create -q -n test-environment python=$PYTHON_VERSION nomkl numpy scipy
 - source activate test-environment
 
 # only install the basic version of the library to make sure
@@ -86,8 +88,8 @@ script:
 - conda install scikit-image rtree shapely
 
 # pyembree and python-fcl not available everywhere
-- if [[ "$TRAVIS_PYTHON_VERSION" == "3.6" ]]; then conda install pyembree; fi;
-- if [[ "$TRAVIS_PYTHON_VERSION" == "3.6" ]]; then pip install python-fcl; fi;
+- if [[ "$PYTHON_VERSION" == "3.6" ]]; then conda install pyembree; fi;
+- if [[ "$PYTHON_VERSION" == "3.6" ]]; then pip install python-fcl; fi;
 
 # install most deps here
 - pip install .[easy]
