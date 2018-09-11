@@ -7,6 +7,7 @@ python:
 - '3.4'
 - '3.5'
 - '3.6'
+- '3.7'
 
 before_deploy:
 - pip install -r docs/requirements.txt
@@ -69,13 +70,15 @@ install:
 - source activate test-environment
 
 # only install the basic version of the library to make sure
-# trimesh imports with only the minimal install
+# trimesh imports and functions with only the minimal install
 - pip install .
+
+# install testing stuff
 - pip install pytest pytest-cov coveralls
 
 script:
 
-# try simple tests with only 3 minimal deps
+# try simple tests with only minimal deps
 - python -c "import trimesh"
 - pytest tests/test_inertia.py
 
@@ -88,6 +91,8 @@ script:
 
 # install most deps here
 - pip install .[easy]
+
+# xxhash only has linux wheels and triangle is compiled
 - pip install triangle xxhash
 
 # run main tests
@@ -101,7 +106,7 @@ script:
 
 # make sure examples still work
 - cd examples
-- for f in *py*; do python ../tests/notebook_run.py exec "$f"; done
+- for f in *py*; do python ../tests/notebooks.py exec "$f"; done
 - cd ..
 
 after_success:
