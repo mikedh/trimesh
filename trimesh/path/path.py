@@ -356,7 +356,8 @@ class Path(object):
         # apply transform to discretized paths
         if 'discrete' in self._cache.cache:
             cache['discrete'] = np.array([
-                transformations.transform_points(d, matrix=transform)
+                transformations.transform_points(
+                    d, matrix=transform)
                 for d in self.discrete])
 
         # things we can just straight up copy
@@ -374,8 +375,9 @@ class Path(object):
                 cache[key] = self._cache.cache[key]
 
         # transform vertices in place
-        self.vertices = transformations.transform_points(self.vertices,
-                                                         matrix=transform)
+        self.vertices = transformations.transform_points(
+            self.vertices,
+            matrix=transform)
         # explicitly clear the cache
         self._cache.clear()
         self._cache.id_set()
@@ -395,6 +397,27 @@ class Path(object):
         dimension = self.vertices.shape[1]
         matrix = np.eye(dimension + 1)
         matrix[:dimension, :dimension] *= float(scale)
+        self.apply_transform(matrix)
+
+    def apply_translation(self, offset):
+        """
+        Apply a transformation matrix to the current path in- place
+
+        Parameters
+        -----------
+        transform: (dimension + 1, dimension + 1) float, homogenous
+                   transformation matrix
+        """
+        # work on 2D and 3D paths
+        dimension = self.vertices.shape[1]
+        # make sure offset is correct length and type
+        offset = np.array(
+            offset, dtype=np.float64).reshape(dimension)
+        # create a homogenous transform
+        matrix = np.eye(dimension + 1)
+        # apply the offset
+        matrix[:dimension, dimension] = offset
+
         self.apply_transform(matrix)
 
     def apply_layer(self, name):

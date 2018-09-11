@@ -180,69 +180,100 @@ def pack_paths(paths, sheet_size=None):
 
     Returns
     ------------
-    packed: Path2D object
+    packed : trimesh.path.Path2D
+      Object containing input geometry
+    inserted : (m,) int
+      Indexes of paths inserted into result
     """
-    # store multiple copies of a path if it has quantities defined
-    multi = []
+    if sheet_size is not None:
+        sheet_size = np.sort(sheet_size)[::-1]
+
+    quantity = []
     for path in paths:
         if 'quantity' in path.metadata:
-            count = path.metadata['quantity']
+            quantity.append(path.metadata['quantity'])
         else:
-            count = 1
-        for i in range(count):
-            multi.append(path.copy())
+            quantity.append(1)
 
-    # pack using exterior polygon
-    points = [i.polygons_closed[i.root[0]] for i in multi]
+    # pack using exterior polygon (will OBB)
+    polygons = [i.polygons_closed[i.root[0]] for i in paths]
 
     # pack the polygons using rectangular bin packing
-    inserted, transforms = multipack(polygons=points,
+    inserted, transforms = multipack(polygons=polygons,
+                                     quantity=quantity,
                                      sheet_size=sheet_size)
 
-    # apply the pack transforms to the individual path instances
-    for path, transform in zip(multi, transforms):
-        path.apply_transform(transform)
+    multi = []
+    for i, T in zip(inserted, transforms):
+        multi.append(paths[i].copy())
+        multi[-1].apply_transform(T)
 
     # append all packed paths into a single Path object
     packed = concatenate(multi)
 
-    return packed
+    return packed, inserted
 
 
 def multipack(polygons,
               sheet_size=None,
               iterations=50,
               density_escape=.95,
-              spacing=0.094):
+              spacing=0.094,
+              quantity=None):
     """
-    Pack polygons into a rectangle.
+    Pack polygons into a rectangle by taking each Polygon's OBB
+    and then packing that as a rectangle.
 
     Parameters
     ------------
-    polygons:       (n,) list, of shapely.geometry.Polygon objects
-    sheet_size:     (2,) float, size of sheet
-    iterations:     int, number of times to run the loop
-    density_escape: float, when to exit early
-    spacing:        float, how big a gap to leave between polygons
+    polygons : (n,) shapely.geometry.Polygon
+      Source geometry
+    sheet_size : (2,) float
+      Size of rectangular sheet
+    iterations : int
+      Number of times to run the loop
+    density_escape : float
+      When to exit early (0.0 - 1.0)
+    spacing : float
+      How big a gap to leave between polygons
+    quantity : (n,) int, or None
+      Quantity of each Polygon
 
     Returns
     -------------
-    overall_inserted:  (n,) bool, was polygon inserted
-    transforms_packed: (m, 3, 3) float, transformations
+    overall_inserted : (m,) int
+      Indexes of inserted polygons
+    packed : (m, 3, 3) float
+      Homogeonous transforms from original frame to packed frame
     """
 
+    if quantity is None:
+        quantity = np.ones(len(polygons), dtype=np.int64)
+    else:
+        quantity = np.asanyarray(quantity, dtype=np.int64)
+    if len(quantity) != len(polygons):
+        raise ValueError('quantity must match polygons')
+
     # find the oriented bounding box of the polygons
-    transforms_obb, rectangles = polygons_obb(polygons)
+    obb, rectangles = polygons_obb(polygons)
+
     # pad all sides of the rectangle
     rectangles += 2.0 * spacing
-
     # move the OBB transform so the polygon is centered
     # in the padded rectangle
     for i, r in enumerate(rectangles):
-        transforms_obb[i][0:2, 2] += r * .5
+        obb[i][0:2, 2] += r * .5
 
+    # for polygons occurring multiple times
+    indexes = np.hstack([np.ones(q, dtype=np.int64) * i
+                         for i, q in enumerate(quantity)])
+    # stack using advanced indexing
+    obb = obb[indexes]
+    rectangles = rectangles[indexes]
+
+    # store timing
     tic = time.time()
-    overall_density = 0
+    overall_density = 0.0
 
     # if no sheet size specified, make a large one
     if sheet_size is None:
@@ -272,10 +303,12 @@ def multipack(polygons,
               toc - tic)
     log.debug('%i/%i parts were packed successfully',
               np.sum(overall_inserted),
-              len(polygons))
+              quantity.sum())
     log.debug('final rectangular density is %f.', overall_density)
 
-    transforms_packed = transforms_obb[overall_inserted]
-    transforms_packed.reshape(-1, 9)[:, [2, 5]] += overall_offset + spacing
+    # transformations to packed positions
+    packed = obb[overall_inserted]
+    # apply the offset and inter- polygon spacing
+    packed.reshape(-1, 9)[:, [2, 5]] += overall_offset + spacing
 
-    return overall_inserted, transforms_packed
+    return indexes[overall_inserted], packed

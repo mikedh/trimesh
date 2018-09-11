@@ -85,6 +85,7 @@ for i in inspect.stack():
 
 io_wrap = trimesh.util.wrap_as_stream
 
+
 def _load_data():
     data = {}
     for file_name in os.listdir(dir_data):

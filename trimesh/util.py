@@ -642,7 +642,7 @@ def tolist(data):
     Returns
     ------------
     result : any
-      JSON- serializable version of data 
+      JSON- serializable version of data
     """
     result = json.loads(jsonify(data))
     return result

@@ -57,17 +57,16 @@ class VectorTests(g.unittest.TestCase):
                     g.log.error('On file %s First and last vertex distance %f',
                                 d.metadata['file_name'],
                                 circuit_dist)
-                self.assertTrue(circuit_test)
+                assert circuit_test
 
                 is_ccw = g.trimesh.path.util.is_ccw(verts)
                 if not is_ccw:
                     g.log.error('discrete %s not ccw!',
                                 d.metadata['file_name'])
-                # self.assertTrue(is_ccw)
 
             for i in range(len(d.paths)):
-                self.assertTrue(d.polygons_closed[i].is_valid)
-                self.assertTrue(d.polygons_closed[i].area > g.tol_path.zero)
+                assert d.polygons_closed[i].is_valid
+                assert d.polygons_closed[i].area > g.tol_path.zero
             export_dict = d.export(file_type='dict')
             to_dict = d.to_dict()
             assert isinstance(to_dict, dict)
@@ -86,6 +85,15 @@ class VectorTests(g.unittest.TestCase):
             if len(d.root) == 1:
                 d.apply_obb()
 
+            # store the X values of bounds
+            ori = d.bounds.copy()
+            # apply a translation
+            d.apply_translation([10, 0])
+            # X should have translated by 10.0
+            assert g.np.allclose(d.bounds[:, 0] - 10, ori[:, 0])
+            # Y should not have moved
+            assert g.np.allclose(d.bounds[:, 1], ori[:, 1])
+
             if len(d.vertices) < 150:
                 g.log.info('Checking medial axis on %s',
                            d.metadata['file_name'])
@@ -99,22 +107,22 @@ class VectorTests(g.unittest.TestCase):
 
     def test_poly(self):
         p = g.get_mesh('2D/LM2.dxf')
-        self.assertTrue(p.is_closed)
-        self.assertTrue(any(len(i.points) > 2 for i in p.entities if
-                            g.trimesh.util.is_instance_named(i, 'Line')))
+        assert p.is_closed
+        assert any(len(i.points) > 2 for i in p.entities if
+                   g.trimesh.util.is_instance_named(i, 'Line'))
 
         assert len(p.layers) == len(p.entities)
         assert len(g.np.unique(p.layers)) > 1
 
         p.explode()
-        self.assertTrue(all(len(i.points) == 2 for i in p.entities if
-                            g.trimesh.util.is_instance_named(i, 'Line')))
-        self.assertTrue(p.is_closed)
+        assert all(len(i.points) == 2 for i in p.entities if
+                   g.trimesh.util.is_instance_named(i, 'Line'))
+        assert p.is_closed
         p.entities = p.entities[:-1]
         self.assertFalse(p.is_closed)
 
         p.fill_gaps()
-        self.assertTrue(p.is_closed)
+        assert p.is_closed
 
     def test_edges(self):
         """
@@ -187,8 +195,8 @@ class VectorTests(g.unittest.TestCase):
         # test sampling with multiple bodies
         for i in range(3):
             assert g.np.isclose(path.area, p.area * (i + 1))
-            path = path + \
-                g.trimesh.load_path(g.Point([(i + 2) * 2, 0]).buffer(1.0))
+            path = path + g.trimesh.load_path(
+                g.Point([(i + 2) * 2, 0]).buffer(1.0))
             s = path.sample(count=count)
             assert s.shape[1] == 2
 
@@ -207,9 +215,8 @@ class ArcTests(g.unittest.TestCase):
                           center_info['normal'],
                           center_info['span'])
 
-        self.assertTrue(abs(R - res_radius) < g.tol_path.zero)
-        self.assertTrue(g.trimesh.util.euclidean(
-            C, res_center) < g.tol_path.zero)
+        assert abs(R - res_radius) < g.tol_path.zero
+        assert g.trimesh.util.euclidean(C, res_center) < g.tol_path.zero
 
     def test_center_random(self):
 

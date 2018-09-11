@@ -17,8 +17,13 @@ class PackingTest(g.unittest.TestCase):
     def test_paths(self):
         from trimesh.path import packing
         paths = [g.trimesh.load_path(i) for i in self.nestable]
-        r = packing.pack_paths(paths)
 
+        r, inserted = packing.pack_paths(paths)
+
+        # number of paths inserted
+        count = len(g.np.unique(inserted))
+        assert count == len(paths)
+        assert count == len(r.split())
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

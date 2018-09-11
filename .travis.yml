@@ -79,12 +79,14 @@ script:
 - python -c "import trimesh"
 - pytest tests/test_inertia.py
 
-# install most deps here
+# shapely/rtree are easiest to get from conda
 - conda install scikit-image rtree shapely
-# eat exit codes for these two packages
+
 # pyembree and python-fcl not available everywhere
-- conda install pyembree || true
-- pip install python-fcl || true
+- if [[ "$TRAVIS_PYTHON_VERSION" == "3.6" ]]; then conda install pyembree; fi;
+- if [[ "$TRAVIS_PYTHON_VERSION" == "3.6" ]]; then pip install python-fcl; fi;
+
+# install most deps here
 - pip install .[easy]
 - pip install triangle xxhash
 
@@ -94,7 +96,7 @@ script:
 # downgrade networkx from 2.x to 1.x to make sure our
 # graph operations work on both versions of their API
 - pip install -Iv networkx==1.11
-- python -c "import networkx; print(networkx.__version__)"
+- python -c "import networkx; print('::NX_VERSION::', networkx.__version__)"
 - pytest tests/test_graph.py tests/test_scene.py
 
 # make sure examples still work

@@ -94,6 +94,11 @@ class Entity(object):
     def is_valid(self):
         """
         Is the current entity valid.
+
+        Returns
+        -----------
+        valid : bool
+          Is the current entity well formed
         """
         return True
 
@@ -183,25 +188,36 @@ class Line(Entity):
 
         Parameters
         ------------
-        vertices: (n, dimension) float, points in space
-        scale:    float, size of overall scene for numerical comparisons
+        vertices: (n, dimension) float
+          Points in space
+        scale : float
+          Size of overall scene for numerical comparisons
 
         Returns
         -------------
-        discrete: (m, dimension) float, linear path in space
+        discrete: (m, dimension) float
+          Path in space composed of line segments
         """
         discrete = self._orient(vertices[self.points])
         return discrete
 
     @property
     def is_valid(self):
+        """
+        Is the current entity valid.
+
+        Returns
+        -----------
+        valid : bool
+          Is the current entity well formed
+        """
         valid = np.any((self.points - self.points[0]) != 0)
         return valid
 
     def explode(self):
         """
-        If the current Line entity consists of multiple lines, break it
-        up into n Line entities.
+        If the current Line entity consists of multiple line
+        break it up into n Line entities.
 
         Returns
         ----------
@@ -223,7 +239,8 @@ class Arc(Entity):
 
         Returns
         ----------
-        closed: bool, if true arc will be a closed circle in space
+        closed : bool
+          If set True, Arc will be a closed circle
         """
         if hasattr(self, '_closed'):
             return self._closed
@@ -231,7 +248,28 @@ class Arc(Entity):
 
     @closed.setter
     def closed(self, value):
+        """
+        Set the Arc to be closed or not, without
+        changing the control points
+
+        Parameters
+        ------------
+        value : bool
+          Should this Arc be a closed circle or not
+        """
         self._closed = bool(value)
+
+    @property
+    def is_valid(self):
+        """
+        Is the current Arc entity valid.
+
+        Returns
+        -----------
+        valid : bool
+          Does the current Arc have exactly 3 control points
+        """
+        return len(np.unique(self.points)) == 3
 
     def _bytes(self):
         hashable = (self.__class__.__name__.encode('utf-8') +
@@ -307,7 +345,9 @@ class Arc(Entity):
 
 
 class Curve(Entity):
-
+    """
+    The parent class for all wild curves in space.
+    """
     @property
     def nodes(self):
         return [[self.points[0],
@@ -317,8 +357,28 @@ class Curve(Entity):
 
 
 class Bezier(Curve):
+    """
+    An open or closed Bezier curve
+    """
 
     def discrete(self, vertices, scale=1.0, count=None):
+        """
+        Discretize the Bezier curve.
+
+        Parameters
+        -------------
+        vertices : (n, 2) or (n, 3) float
+          Points in space
+        scale : float
+          Scale of overall drawings (for precision)
+        count : int
+          Number of segments to reurn
+
+        Returns
+        -------------
+        discrete : (m, 2) or (m, 3) float
+          Curve as line segments
+        """
         discrete = discretize_bezier(vertices[self.points],
                                      count=count,
                                      scale=scale)
@@ -326,6 +386,9 @@ class Bezier(Curve):
 
 
 class BSpline(Curve):
+    """
+    An open or closed B- Spline.
+    """
 
     def __init__(self, points,
                  knots,
@@ -338,6 +401,23 @@ class BSpline(Curve):
         self.kwargs = kwargs
 
     def discrete(self, vertices, count=None, scale=1.0):
+        """
+        Discretize the B-Spline curve.
+
+        Parameters
+        -------------
+        vertices : (n, 2) or (n, 3) float
+          Points in space
+        scale : float
+          Scale of overall drawings (for precision)
+        count : int
+          Number of segments to reurn
+
+        Returns
+        -------------
+        discrete : (m, 2) or (m, 3) float
+          Curve as line segments
+        """
         discrete = discretize_bspline(
             control=vertices[self.points],
             knots=self.knots,
