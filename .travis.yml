@@ -71,7 +71,7 @@ install:
 - source activate test-environment
 
 # make sure we parked our car in the right spot
-- python -c "import os,sys;assert '{}.{}'.format(sys.version_info.major, sys.version_info.minor) == os.environ['PYTHON_VERSION']"
+- python -c "import os,sys;assert '{}.{}'.format(*sys.version_info[:2])==os.environ['PYTHON_VERSION']"
 
 # only install the basic version of the library to make sure
 # trimesh imports and functions with only the minimal install
