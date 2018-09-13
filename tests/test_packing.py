@@ -22,7 +22,9 @@ class PackingTest(g.unittest.TestCase):
 
         # number of paths inserted
         count = len(g.np.unique(inserted))
+        # should have inserted all our paths
         assert count == len(paths)
+        # splitting should result in the right number of paths
         assert count == len(r.split())
 
 if __name__ == '__main__':

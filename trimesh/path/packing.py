@@ -20,9 +20,11 @@ class RectangleBin:
 
         Parameters
         ------------
-        bounds: (4,) float, (minx, miny, maxx, maxy)
-        size:   (2,) float, alternative to set bounds
-                     with (x length, y length)
+        bounds : (4,) float or None
+          (minx, miny, maxx, maxy)
+        size : (2,) float or None
+          Alternative method to set bounds
+          (X size, Y size)
         """
         self.child = [None, None]
         self.occupied = False
@@ -130,20 +132,26 @@ def pack_rectangles(rectangles, sheet_size, shuffle=False):
 
     Parameters
     ----------
-    rectangles: (n, 2) float, array of (width, height) pairs
-                 representing the smaller rectangles to be packed.
-    sheet_size: (2,) float,  array of (width, height) pair representing
-                 the sheet size the smaller rectangles will be packed onto.
-    shuffle:     bool, whether or not to shuffle the insert order of the
-                 smaller rectangles, as the final packing density depends on the
-                 order of which rectangles are inserted onto the larger sheet.
+    rectangles : (n, 2) float
+      An array of (width, height) pairs
+      representing the rectangles to be packed.
+    sheet_size : (2,) float
+      Width, height of rectangular sheet
+    shuffle : bool
+      Whether or not to shuffle the insert order of the
+      smaller rectangles, as the final packing density depends
+      on insertion order.
 
     Returns
     ---------
-    density:      float, effective density
-    offset:       (m,2) float, offsets to packed location
-    inserted:     (n,) bool, which of the original rectangles were packed
-    consumed_box: (2,) bounding box of resulting packing
+    density : float
+      Area filled over total sheet area
+    offset :  (m,2) float
+      Offsets to move rectangles to their packed location
+    inserted : (n,) bool
+      Which of the original rectangles were packed
+    consumed_box : (2,) float
+      Bounding box size of packed result
     """
     offset = np.zeros((len(rectangles), 2))
     inserted = np.zeros(len(rectangles), dtype=np.bool)
@@ -176,7 +184,8 @@ def pack_paths(paths, sheet_size=None):
 
     Parameters
     ------------
-    paths: (n,) list, of Path2D objects
+    paths: (n,) Path2D
+      Geometry to be packed
 
     Returns
     ------------
