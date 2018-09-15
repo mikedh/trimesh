@@ -109,9 +109,7 @@ script:
 - pytest tests/test_graph.py tests/test_scene.py
 
 # make sure examples still work
-- cd examples
-- for f in *py*; do python ../tests/notebooks.py exec "$f"; done
-- cd ..
+- for f in examples/*py*; do python tests/notebooks.py exec "$f"; done
 
 after_success:
 - coveralls

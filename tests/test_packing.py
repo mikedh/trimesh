@@ -27,6 +27,7 @@ class PackingTest(g.unittest.TestCase):
         # splitting should result in the right number of paths
         assert count == len(r.split())
 
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()

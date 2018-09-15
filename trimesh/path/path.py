@@ -65,10 +65,14 @@ class Path(object):
 
         Parameters
         -----------
-        entities: list of Entity objects
-        vertices: (n, dimension) float, vertices referenced by entities
-        metadata: dict, any metadata about the path
-        process:  bool, if True run simple cleanup operations
+        entities : (m,) trimesh.path.entities.Entity
+          Contains geometric entities
+        vertices : (n, dimension) float
+          The vertices referenced by entities
+        metadata : dict
+          Any metadata about the path
+        process :  bool
+          Run simple cleanup or not
         """
 
         self.entities = np.array(entities)

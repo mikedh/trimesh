@@ -83,6 +83,7 @@ class SimplifyTest(g.unittest.TestCase):
                                                          verbose=True)
         assert g.np.isclose(path_2D.area, simple.area, rtol=.01)
 
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()

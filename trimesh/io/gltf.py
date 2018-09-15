@@ -36,6 +36,14 @@ _shapes = {'SCALAR': -1,
            'MAT3': (3, 3),
            'MAT4': (4, 4)}
 
+# a default PBR metallic material
+_default_material = {
+    "pbrMetallicRoughness": {
+        "baseColorFactor": [0, 0, 0, 0],
+        "metallicFactor": 0,
+        "roughnessFactor": 0
+    }}
+
 
 def export_gltf(scene):
     """
@@ -333,6 +341,11 @@ def _append_mesh(mesh,
              "mode": 4,  # mode 4 is GL_TRIANGLES
              'material': len(tree['materials'])}]})
 
+    # if units are defined, store them as an extra:
+    # https://github.com/KhronosGroup/glTF/tree/master/extensions
+    if mesh.units is not None:
+        tree['meshes'][-1]['extras'] = {'units': str(mesh.units)}
+
     tree['materials'].append(_mesh_to_material(mesh))
 
     # accessors refer to data locations
@@ -394,6 +407,11 @@ def _append_path(path, name, tree, buffer_items):
              "material": len(tree['materials'])
              }]})
 
+    # if units are defined, store them as an extra:
+    # https://github.com/KhronosGroup/glTF/tree/master/extensions
+    if path.units is not None:
+        tree['meshes'][-1]['extras'] = {'units': str(mesh.units)}
+
     tree['accessors'].append({
         "bufferView": len(buffer_items),
         "componentType": 5126,
@@ -405,12 +423,7 @@ def _append_path(path, name, tree, buffer_items):
 
     # TODO add color support to Path object
     # this is just exporting everying as black
-    tree['materials'].append({
-        "pbrMetallicRoughness": {
-            "baseColorFactor": [0, 0, 0, 0],
-            "metallicFactor": 0,
-            "roughnessFactor": 0
-        }})
+    tree['materials'].append(_default_material)
 
     # data is the second value of the fourth field
     # which is a (data type, data) tuple
@@ -425,12 +438,15 @@ def _read_buffers(header, buffers):
 
     Parameters
     -----------
-    header:  dict, with GLTF keys
-    buffers: list, of bytes
+    header : dict
+      With GLTF keys
+    buffers : list of bytes
+      Stored data
 
     Returns
     -----------
-    kwargs: can be passed to load_kwargs for a trimesh.Scene
+    kwargs : dict
+      Can be passed to load_kwargs for a trimesh.Scene
     """
     # split buffer data into buffer views
     views = []
@@ -505,6 +521,14 @@ def _read_buffers(header, buffers):
                                               kwargs['faces'])
         # stack colors
         kwargs['face_colors'] = np.vstack(kwargs['face_colors'])
+
+        # try loading units from the GLTF extra
+        if 'extras' in m and 'units' in m['extras']:
+            try:
+                units = str(m['extras']['units'])
+                kwargs['metadata'] = {'units': units}
+            except BaseException:
+                pass
 
         if 'name' in m:
             meshes[m['name']] = kwargs

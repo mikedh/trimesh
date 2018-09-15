@@ -562,9 +562,43 @@ class Scene:
                            **kwargs)
         return png
 
+    @property
+    def units(self):
+        """
+        Get the units for every model in the scene, and
+        raise a ValueError if there are mixed units.
+
+        Returns
+        -----------
+        units : str
+          Units for every model in the scene
+        """
+        existing = [i.units for i in self.geometry.values()]
+
+        if any(existing[0] != e for e in existing):
+            # if all of our geometry doesn't have the same units already
+            # this function will only do some hot nonsense
+            raise ValueError('models in scene have inconsistent units!')
+
+        return existing[0]
+
+    @units.setter
+    def units(self, value):
+        """
+        Set the units for every model in the scene without
+        converting any units just setting the tag.
+
+        Parameters
+        ------------
+        value : str
+          Value to set every geometry unit value to
+        """
+        for m in self.geometry.values():
+            m.units = value
+
     def convert_units(self, desired, guess=False):
         """
-        If geometry has units defined, convert them to new units.
+        If geometry has units defined convert them to new units.
 
         Returns a new scene with geometries and transforms scaled.
 
@@ -579,20 +613,14 @@ class Scene:
         Returns
         ----------
         scaled : trimesh.Scene
-          Copy of scene with scaling applied
-          and units set for each model.
+          Copy of scene with scaling applied and units set
+          for every model
         """
         # if there is no geometry do nothing
         if len(self.geometry) == 0:
-            return self
+            return self.copy()
 
-        existing = [i.units for i in self.geometry.values()]
-        if any(existing[0] != e for e in existing):
-            # if all of our geometry doesn't have the same units already
-            # this function will only do some hot nonsense
-            raise ValueError('Models in scene have inconsistent units!')
-
-        current = existing[0]
+        current = self.units
         if current is None:
             # will raise ValueError if not in metadata
             # and not allowed to guess
@@ -608,8 +636,8 @@ class Scene:
         else:
             result = self.scaled(scale=scale)
 
-        for geometry in result.geometry.values():
-            geometry.units = desired
+        # apply the units to every geometry
+        self.units = desired
 
         return result
 
@@ -619,8 +647,10 @@ class Scene:
 
         Parameters
         -----------
-        vector: (3,) float, or float, explode in a direction or spherically
-        origin: (3,) float, point to explode around
+        vector : (3,) float or float
+           Explode radially around a direction vector or spherically
+        origin : (3,) float
+          Point to explode around
         """
         if origin is None:
             origin = self.centroid
@@ -657,7 +687,13 @@ class Scene:
 
         Parameters
         -----------
-        scale: float, factor to scale meshes and transforms by
+        scale : float
+          Factor to scale meshes and transforms
+
+        Returns
+        -----------
+        scaled : trimesh.Scene
+          A copy of the current scene but scaled
         """
         scale = float(scale)
         scale_matrix = np.eye(4) * scale
@@ -699,7 +735,8 @@ class Scene:
 
         Returns
         ----------
-        copied: trimesh.Scene, copy of the current scene
+        copied : trimesh.Scene
+          Copy of the current scene
         """
         # use the geometries copy method to
         # allow them to handle references to unpickle-able objects
@@ -719,7 +756,8 @@ class Scene:
                 str,'notebook': return ipython.display.HTML
                 None: automatically pick based on whether or not
                           we are in an ipython notebook
-        smooth: bool, turn on or off automatic smooth shading
+        smooth : bool
+          Turn on or off automatic smooth shading
         """
 
         if viewer is None:
@@ -764,7 +802,7 @@ def split_scene(geometry):
 
     Parameters
     ----------
-    geometry: splittable
+    geometry : splittable
 
     Returns
     ---------
