@@ -14,7 +14,7 @@ from ..io import gltf
 from .transforms import TransformForest
 
 
-class Scene:
+class Scene(object):
     """
     A simple scene graph which can be rendered directly via
     pyglet/openGL or through other endpoints such as a

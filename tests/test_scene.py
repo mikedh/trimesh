@@ -128,8 +128,9 @@ class SceneTests(g.unittest.TestCase):
 
         # original shouldn't have changed
         assert converted.units == 'in'
-        assert scene.units == 'mm'
         assert all(m.units == 'in' for m in converted.geometry.values())
+
+        assert scene.units == 'mm'
 
         # we shouldn't have modified the original scene
         assert scene.md5() == md5
