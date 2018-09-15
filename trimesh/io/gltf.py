@@ -410,7 +410,7 @@ def _append_path(path, name, tree, buffer_items):
     # if units are defined, store them as an extra:
     # https://github.com/KhronosGroup/glTF/tree/master/extensions
     if path.units is not None:
-        tree['meshes'][-1]['extras'] = {'units': str(mesh.units)}
+        tree['meshes'][-1]['extras'] = {'units': str(path.units)}
 
     tree['accessors'].append({
         "bufferView": len(buffer_items),
