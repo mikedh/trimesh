@@ -636,8 +636,8 @@ class Scene:
         else:
             result = self.scaled(scale=scale)
 
-        # apply the units to every geometry
-        self.units = desired
+        # apply the units to every geometry of the scaled result
+        result.units = desired
 
         return result
 

@@ -112,6 +112,7 @@ class SceneTests(g.unittest.TestCase):
 
         # 3DXML comes in as mm
         assert all(m.units == 'mm' for m in scene.geometry.values())
+        assert scene.units == 'mm'
 
         converted = scene.convert_units('in')
 
@@ -121,6 +122,13 @@ class SceneTests(g.unittest.TestCase):
             1.0 /
             25.4)
 
+        # shouldn't have changed the original extents
+        assert g.np.allclose(
+            extents, scene.bounding_box_oriented.primitive.extents)
+
+        # original shouldn't have changed
+        assert converted.units == 'in'
+        assert scene.units == 'mm'
         assert all(m.units == 'in' for m in converted.geometry.values())
 
         # we shouldn't have modified the original scene
