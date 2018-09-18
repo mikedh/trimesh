@@ -84,7 +84,7 @@ script:
 
 # try simple tests with only minimal deps
 - python -c "import trimesh"
-- pytest tests/test_inertia.py
+- pytest  -p no:warnings tests/test_inertia.py
 
 # shapely/rtree are easiest to get from conda
 - conda install scikit-image rtree shapely
@@ -100,7 +100,9 @@ script:
 - pip install triangle xxhash
 
 # run main tests
-- pytest --cov=trimesh tests/
+# -W default means that warnings only prints the
+# first instance of a warning rather than all of them
+- pytest -W default --cov=trimesh tests/
 
 # downgrade networkx from 2.x to 1.x to make sure our
 # graph operations work on both versions of their API

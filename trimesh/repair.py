@@ -64,7 +64,7 @@ def fix_winding(mesh):
             if len(overlap) == 0:
                 # only happens on non-watertight meshes
                 continue
-            edge_pair = edges[[overlap[0]]]
+            edge_pair = edges[overlap[0]]
             if edge_pair[0][0] == edge_pair[1][0]:
                 # if the edges aren't reversed, invert the order of one face
                 flipped += 1
