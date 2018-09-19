@@ -773,13 +773,14 @@ def is_watertight(edges, edges_sorted=None):
 
     # group sorted edges
     groups = grouping.group_rows(edges_sorted, require_count=2)
-    watertight = (len(groups) * 2) == len(edges)
+    watertight = bool((len(groups) * 2) == len(edges))
 
     # are opposing edges reversed
     opposing = edges[groups].reshape((-1, 4))[:, 1:3].T
-    winding = np.equal(*opposing).all()
+    # wrap the weird numpy bool
+    winding = bool(np.equal(*opposing).all())
 
-    return bool(watertight), bool(winding)
+    return watertight, winding
 
 
 def graph_to_svg(graph):
