@@ -12,7 +12,7 @@ matrix:
     - env: PYTHON_VERSION=3.7
 
 before_deploy:
-- pip install -r docs/requirements.txt
+- pip install -q -r docs/requirements.txt
 - python docs/build.py
 
 # extract the current trimesh version from the version file
@@ -78,7 +78,7 @@ install:
 - pip install .
 
 # install testing stuff
-- pip install pytest pytest-cov coveralls
+- pip install -q pytest pytest-cov coveralls
 
 script:
 
@@ -87,17 +87,17 @@ script:
 - pytest  -p no:warnings tests/test_inertia.py
 
 # shapely/rtree are easiest to get from conda
-- conda install scikit-image rtree shapely
+- conda install -q scikit-image rtree shapely
 
 # pyembree and python-fcl not available everywhere
 - if [[ "$PYTHON_VERSION" == "3.6" ]]; then conda install pyembree; fi;
 - if [[ "$PYTHON_VERSION" == "3.6" ]]; then pip install python-fcl; fi;
 
 # install most deps here
-- pip install .[easy]
+- pip install -q .[easy]
 
 # xxhash only has linux wheels and triangle is compiled
-- pip install triangle xxhash
+- pip install -q triangle xxhash
 
 # run main tests
 # -W default means that warnings only prints the
@@ -106,7 +106,7 @@ script:
 
 # downgrade networkx from 2.x to 1.x to make sure our
 # graph operations work on both versions of their API
-- pip install -Iv networkx==1.11
+- pip install -q -Iv networkx==1.11
 - python -c "import networkx; print('::NX_VERSION::', networkx.__version__)"
 - pytest tests/test_graph.py tests/test_scene.py
 
