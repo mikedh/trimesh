@@ -38,7 +38,7 @@ if __name__ == '__main__':
 
         # saving an image requires an opengl context, so if -nw
         # is passed don't save the image
-        if not '-nw' in sys.argv:
+        try:
             # increment the file name
             file_name = 'render_' + str(i) + '.png'
             # save a render of the object as a png
@@ -47,3 +47,6 @@ if __name__ == '__main__':
             with open(file_name, 'wb') as f:
                 f.write(png)
                 f.close()
+
+        except BaseException as E:
+            print("unable to save image", str(E))
