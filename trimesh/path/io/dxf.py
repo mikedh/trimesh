@@ -328,6 +328,16 @@ def load_dxf(file_obj, **kwargs):
                                   e['20'])).astype(np.float64)
         knots = np.array(e['40']).astype(np.float64)
 
+        # if there are only two points, save it as a line
+        if len(points) == 2:
+            # create a single Line entity
+            entities.append(Line(points=len(vertices) +
+                                 np.arange(2),
+                             **info(e)))
+            # add the vertices to our collection
+            vertices.extend(points)
+            return
+
         # check bit coded flag for closed
         # closed = bool(int(e['70'][0]) & 1)
         # check euclidean distance to see if closed
@@ -525,9 +535,9 @@ def export_dxf(path, include_metadata=False):
         points = np.asanyarray(points, dtype=np.float64)
         three = util.three_dimensionalize(points, return_2D=False)
         if increment:
-            group = np.tile(np.arange(len(three),
-                                      dtype=np.int).reshape((-1, 1)),
-                            (1, 3))
+            group = np.tile(
+                np.arange(len(three), dtype=np.int).reshape((-1, 1)),
+                (1, 3))
         else:
             group = np.zeros((len(three), 3), dtype=np.int)
         group += [10, 20, 30]

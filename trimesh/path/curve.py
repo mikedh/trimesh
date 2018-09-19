@@ -48,7 +48,10 @@ def discretize_bezier(points, count=None, scale=1.0):
     return result
 
 
-def discretize_bspline(control, knots, count=None, scale=1.0):
+def discretize_bspline(control,
+                       knots,
+                       count=None,
+                       scale=1.0):
     """
     Given a B-Splines control points and knot vector, return
     a sampled version of the curve.
