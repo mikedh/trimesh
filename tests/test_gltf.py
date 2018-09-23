@@ -40,7 +40,7 @@ class GLTFTest(g.unittest.TestCase):
             extents = scene.extents.copy()
             as_in = scene.convert_units('in')
             # should all be exactly mm -> in conversion factor
-            assert g.np.allclose(extents / as_in.extents, 25.4)
+            assert g.np.allclose(extents / as_in.extents, 25.4, atol=.001)
 
 
 if __name__ == '__main__':

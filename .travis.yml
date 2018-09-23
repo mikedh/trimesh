@@ -96,8 +96,11 @@ script:
 # install most deps here
 - pip install -q .[easy]
 
-# xxhash only has linux wheels and triangle is compiled
-- pip install -q triangle xxhash
+# xxhash only has linux wheels and is a soft dependancy
+- pip install -q xxhash || true
+# triangle is compiled, sometimes fails 
+# on Python 3.7, and is a soft dependency
+- pip install -q triangle || true
 
 # run main tests
 # -W default means that warnings only prints the
