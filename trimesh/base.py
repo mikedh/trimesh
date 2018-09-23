@@ -331,12 +331,18 @@ class Trimesh(object):
 
         # if all triangles are valid shape is correct
         if valid.all():
+            # put calculated face normals into cache manually
+            self._cache['face_normals'] = normals
             return normals
 
         # make a padded list of normals for correct shape
         padded = np.zeros((len(self.triangles), 3),
                           dtype=np.float64)
         padded[valid] = normals
+
+        # put calculated face normals into cache manually
+        self._cache['face_normals'] = padded
+
         return padded
 
     @face_normals.setter
@@ -1673,6 +1679,39 @@ class Trimesh(object):
           Is the mesh watertight after the function completes
         """
         return repair.fill_holes(self)
+
+    def register(self, other, **kwargs):
+        """
+        Align a mesh with another mesh or a PointCloud using
+        the principal axes of inertia as a starting point which
+        is refined by iterative closest point.
+
+        Parameters
+        ------------
+        mesh : trimesh.Trimesh object
+          Mesh to align with other
+        other : trimesh.Trimesh or (n, 3) float
+          Mesh or points in space
+        samples : int
+          Number of samples from mesh surface to align
+        icp_first : int
+          How many ICP iterations for the 9 possible
+          combinations of
+        icp_final : int
+          How many ICP itertations for the closest
+          candidate from the wider search
+
+        Returns
+        -----------
+        mesh_to_other : (4, 4) float
+          Transform to align mesh to the other object
+        cost : float
+          Average square distance per point
+        """
+        mesh_to_other, cost = registration.mesh_other(mesh=self,
+                                                      other=other,
+                                                      **kwargs)
+        return mesh_to_other, cost
 
     def compute_stable_poses(self,
                              center_mass=None,

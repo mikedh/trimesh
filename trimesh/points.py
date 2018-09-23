@@ -320,6 +320,19 @@ class PointCloud(object):
                 len(self.colors) == len(inverse)):
             self.colors = self.colors[unique]
 
+    def apply_transform(self, transform):
+        """
+        Apply a homogenous transformation to the PointCloud
+        object in- place.
+
+        Parameters
+        --------------
+        transform : (4, 4) float
+          Homogenous transformation to apply to PointCloud
+        """
+        self.vertices = transformations.transform_points(self.vertices,
+                                                         matrix=transform)
+
     @property
     def bounds(self):
         """
