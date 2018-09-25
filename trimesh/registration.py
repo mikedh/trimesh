@@ -16,21 +16,12 @@ from . import transformations
 from .transformations import transform_points
 
 
-def key_points(mesh, count):
-    """
-    Return a combination of mesh vertices and surface samples
-    with vertices chosen by likelyhood to be important to registation
-    """
-    stack = []
-    if len(mesh.vertices) < (count / 2):
-        return np.vstack((
-            mesh.vertices,
-            mesh.sample(count - len(mesh.vertices))))
-    else:
-        return mesh.sample(count)
-
-
-def mesh_other(mesh, other, samples=500, icp_first=10, icp_final=50):
+def mesh_other(mesh,
+               other,
+               samples=500,
+               scale=False,
+               icp_first=10,
+               icp_final=50):
     """
     Align a mesh with another mesh or a PointCloud using
     the principal axes of inertia as a starting point which
@@ -44,6 +35,8 @@ def mesh_other(mesh, other, samples=500, icp_first=10, icp_final=50):
       Mesh or points in space
     samples : int
       Number of samples from mesh surface to align
+    scale : bool
+      Allow scaling in transform
     icp_first : int
       How many ICP iterations for the 9 possible
       combinations of
@@ -59,6 +52,19 @@ def mesh_other(mesh, other, samples=500, icp_first=10, icp_final=50):
       Average squared distance per point
     """
 
+    def key_points(m, count):
+        """
+        Return a combination of mesh vertices and surface samples
+        with vertices chosen by likelyhood to be important 
+        to registation.
+        """
+        if len(m.vertices) < (count / 2):
+            return np.vstack((
+                m.vertices,
+                m.sample(count - len(m.vertices))))
+        else:
+            return m.sample(count)
+
     if not util.is_instance_named(mesh, 'Trimesh'):
         raise ValueError('mesh must be Trimesh object!')
 
@@ -67,15 +73,15 @@ def mesh_other(mesh, other, samples=500, icp_first=10, icp_final=50):
     # if both are meshes use the smaller one for searching
     if util.is_instance_named(other, 'Trimesh'):
         if len(mesh.vertices) > len(other.vertices):
+            # do the expensive tree construction on the
+            # smaller mesh and query the others points
             search = other
             inverse = False
-            points = key_points(mesh=mesh,
-                                count=samples)
+            points = key_points(m=mesh, count=samples)
             points_mesh = mesh
         else:
             points_mesh = other
-            points = key_points(mesh=other,
-                                count=samples)
+            points = key_points(m=other, count=samples)
 
         if points_mesh.is_volume:
             points_PIT = points_mesh.principal_inertia_transform
@@ -89,13 +95,18 @@ def mesh_other(mesh, other, samples=500, icp_first=10, icp_final=50):
     else:
         raise ValueError('other must be mesh or (n, 3) points!')
 
+    # get the transform that aligns the search mesh principal
+    # axes of inertia with the XYZ axis at the origin
     if search.is_volume:
         search_PIT = search.principal_inertia_transform
     else:
         search_PIT = search.bounding_box_oriented.principal_inertia_transform
 
-        # move from mesh a to mesh b
-    search_to_points = np.dot(np.linalg.inv(points_PIT), search_PIT)
+    # transform that moves the principal axes of inertia
+    # of the search mesh to be aligned with the best- guess
+    # principal axes of the points
+    search_to_points = np.dot(np.linalg.inv(points_PIT),
+                              search_PIT)
 
     # permutations of cube rotations
     # the principal inertia transform has arbitrary sign
@@ -111,40 +122,42 @@ def mesh_other(mesh, other, samples=500, icp_first=10, icp_final=50):
                                    [1, -1, -1],
                                    [-1, -1, -1]]])
 
-    #from IPython import embed
-    # embed()
-
-    # loop through permutations and run iterative closest point on each
-    costs, transforms = [], []
+    # loop through permutations and run iterative closest point
+    costs = np.ones(len(cubes)) * np.inf
+    transforms = [None] * len(cubes)
     centroid = search.centroid
-    for flip in cubes:
-        a_to_b = np.dot(transformations.transform_around(flip, centroid),
-                        np.linalg.inv(search_to_points))
 
-        # import trimesh
-        # vpt = trimesh.PointCloud(points)
-        # vpt.apply_transform(a_to_b)
-        # trimesh.Scene([search, vpt]).show()
+    for i, flip in enumerate(cubes):
+        # transform from points to search mesh
+        # flipped around the centroid of search
+        a_to_b = np.dot(
+            transformations.transform_around(flip, centroid),
+            np.linalg.inv(search_to_points))
 
         # run first pass ICP
         matrix, junk, cost = icp(a=points,
                                  b=search,
                                  initial=a_to_b,
                                  max_iterations=int(icp_first),
-                                 scale=False)
-        transforms.append(matrix)
-        costs.append(cost)
+                                 scale=scale)
+
+        # save transform and costs from ICP
+        transforms[i] = matrix
+        costs[i] = cost
 
     # run a final ICP refinement step
     matrix, junk, cost = icp(a=points,
                              b=search,
                              initial=transforms[np.argmin(costs)],
                              max_iterations=int(icp_final),
-                             scale=False)
+                             scale=scale)
 
-    # convert square sum distance to squared average distance
+    # convert to per- point distance average
     cost /= len(points)
 
+    # we picked the smaller mesh to construct the tree
+    # on so we may have calculated a transform backwards
+    # to save computation, so just invert matrix here
     if inverse:
         mesh_to_other = np.linalg.inv(matrix)
     else:

@@ -100,6 +100,7 @@ class RegistrationTest(g.unittest.TestCase):
         truth_to_points, cost = truth.register(points)
         truth.apply_transform(truth_to_points)
         distance = truth.nearest.on_surface(points)[1]
+
         assert distance.mean() < noise
 
 
