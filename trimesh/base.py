@@ -1562,7 +1562,11 @@ class Trimesh(object):
         # avoid thrashing the cache inside a loop
         area_faces = self.area_faces
         # sum the area of each group of faces represented by facets
-        areas = np.array([area_faces[i].sum() for i in self.facets])
+        # use native python sum in tight loop as opposed to array.sum()
+        # as in this case the lower function call overhead of
+        # native sum provides roughly a 50% speedup
+        areas = np.array([sum(area_faces[i]) for i in self.facets],
+                         dtype=np.float64)
         return areas
 
     @caching.cache_decorator
