@@ -467,6 +467,10 @@ class Path(object):
                                                digits=digits)
         self.vertices = self.vertices[unique]
         for entity in self.entities:
+            # don't screw up control- point- knot relationship
+            if type(entity).__name__ in 'BSpline Bezier':
+                entity.points = inverse[entity.points]
+                continue
             # if we merged duplicate vertices, the entity may contain
             # multiple references to the same vertex
             entity.points = grouping.merge_runs(inverse[entity.points])

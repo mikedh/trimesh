@@ -8,7 +8,7 @@ Trimesh is a pure Python (2.7- 3.3+) library for loading and using [triangular m
 
 The API is mostly stable, but this should not be relied on and is not guaranteed; install a specific version if you plan on deploying something using trimesh as a backend.
 
-Pull requests are hugely appreciated and responded to promptly! If you'd like to contribute, here is an [up to date list of potential enhancements](https://github.com/mikedh/trimesh/issues/199) although things not on that list are also welcome. Also, some [general advice for writing mesh code in Python and Numpy.](https://github.com/mikedh/trimesh/blob/master/trimesh/io/README.md)
+Pull requests are highly appreciated and are responded to promptly! If you'd like to contribute, here is an [up to date list of potential enhancements](https://github.com/mikedh/trimesh/issues/199) although things not on that list are also welcome. Also, some [general advice for writing mesh code in Python and Numpy.](https://github.com/mikedh/trimesh/blob/master/trimesh/io/README.md)
 
 
 ## Basic Installation
@@ -17,13 +17,13 @@ The minimal requirements to import trimesh are
 [numpy](http://www.numpy.org/), [scipy](http://www.scipy.org) and
 [networkx](https://networkx.github.io). Installing other packages mentioned adds functionality but is **not required**.
 
-For the easiest install with only these minimal dependencies (slower ray queries, no vector path handling, mesh creation, viewer, etc):
+For the easiest install with only these minimal dependencies:
 
 ```bash
 pip install trimesh
 ```
 
-For more functionality, the easiest way to get a full `trimesh` install is a [conda environment](https://conda.io/miniconda.html):
+For more functionality, like faster ray queries (`pyembree`), vector path handling (`shapely` and `rtree`), preview windows (`pyglet`), faster cache checks (`xxhash`) and more, the easiest way to get a full `trimesh` install is a [conda environment](https://conda.io/miniconda.html):
 
 ```bash
 # this will install all soft dependencies available on your current platform
