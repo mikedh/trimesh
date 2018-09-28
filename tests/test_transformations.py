@@ -9,7 +9,7 @@ class TransformTest(g.unittest.TestCase):
     def test_doctest(self):
         """
         Run doctests on transformations, which checks docstrings
-        for interactive sessions and then verifies they execute 
+        for interactive sessions and then verifies they execute
         correctly.
 
         This is how the upstream transformations unit tests,

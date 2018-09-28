@@ -55,7 +55,7 @@ def mesh_other(mesh,
     def key_points(m, count):
         """
         Return a combination of mesh vertices and surface samples
-        with vertices chosen by likelyhood to be important 
+        with vertices chosen by likelyhood to be important
         to registation.
         """
         if len(m.vertices) < (count / 2):

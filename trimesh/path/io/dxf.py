@@ -333,7 +333,7 @@ def load_dxf(file_obj, **kwargs):
             # create a single Line entity
             entities.append(Line(points=len(vertices) +
                                  np.arange(2),
-                             **info(e)))
+                                 **info(e)))
             # add the vertices to our collection
             vertices.extend(points)
             return

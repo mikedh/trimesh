@@ -84,14 +84,16 @@ def enclosure_tree(polygons):
     # if there are multiple nested polygons split the graph
     # so the contains logic returns the individual polygons
     if len(degrees) > 0 and degrees.max() > 1:
-        # this could also be done by removing edges but
-        # the bookkeeping is a lot easier to comprehend
-        # with subgraphs
-        subgraphs = []
+        # collect new edges for graph
+        edges = []
+        # find edges of subgraph for each root and children
         for root in roots:
             children = indexes[degrees == degree[root] + 1]
-            subgraphs.append(contains.subgraph(np.append(children, root)))
-        contains = nx.compose_all(subgraphs)
+            edges.extend(contains.subgraph(np.append(children, root)).edges())
+        # stack edges into new directed graph
+        contains = nx.from_edgelist(edges, nx.DiGraph())
+        # if roots have no children add them anyway
+        contains.add_nodes_from(roots)
 
     return roots, contains
 
