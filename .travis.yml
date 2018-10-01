@@ -110,8 +110,10 @@ script:
 # downgrade networkx from 2.x to 1.x to make sure our
 # graph operations work on both versions of their API
 - pip install -q -Iv networkx==1.11
+# print version for logs
 - python -c "import networkx; print('::NX_VERSION::', networkx.__version__)"
-- pytest tests/test_graph.py tests/test_scene.py
+# will print tons of depreciation warnings we don't care about 
+- pytest -p no:warnings tests/test_graph.py tests/test_scene.py
 
 # make sure examples still work
 - cd examples
