@@ -2579,8 +2579,9 @@ class Trimesh(object):
         """
         Safely get a copy of the current mesh.
 
-        Copied objects will have emptied caches to avoid memory issues and
-        so may be slow on initial operations until caches are regenerated.
+        Copied objects will have emptied caches to avoid memory
+        issues and so may be slow on initial operations until
+        caches are regenerated.
 
         Current object will *not* have its cache cleared.
 
