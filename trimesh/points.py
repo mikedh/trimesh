@@ -224,6 +224,76 @@ def k_means(points, k, **kwargs):
     return centroids, labels
 
 
+def tsp(points, start=0):
+    """
+    Find an ordering of points where each is visited and
+    the next point is the closest in euclidean distance.
+
+    Assumes every point is visitable from every other point,
+    i.e. the travelling salesman problem on a fully connected
+    graph.
+
+    Parameters
+    ---------------
+    points : (n, dimension) float
+      ND points in space
+    start : int
+      The index of points we should start at
+
+    Returns
+    ---------------
+    traversal : (n,) int
+      Ordered traversal visiting every point
+    distances : (n - 1,) float
+      The distance between points in the traversal
+    """
+    # points should be float
+    points = np.asanyarray(points, dtype=np.float64)
+    # start should be an index
+    start = int(start)
+
+    # a mask of unvisited points by index
+    unvisited = np.ones(len(points), dtype=np.bool)
+    unvisited[start] = False
+    # traversal of points by index
+    traversal = [start]
+    # list of distances
+    distances = []
+    # a mask of indexes in order
+    index_mask = np.arange(len(points), dtype=np.int64)
+
+    # bound our traversal in case it's dumb
+    for i in range(len(points) + 2):
+
+        # we should always exit via this break
+        if not unvisited.any():
+            break
+
+        # which point are we currently at
+        current = points[traversal[i]]
+
+        # do NlogN distance query
+        # use sum instead of np.linalg.norm as it is slightly faster
+        dist = ((points[unvisited] - current) ** 2).sum(axis=1) ** 0.5
+
+        # minimum distance index
+        min_index = dist.argmin()
+        # successor is closest unvisited point
+        successor = index_mask[unvisited][min_index]
+        # update the mask
+        unvisited[successor] = False
+        # append the index to the traversal
+        traversal.append(successor)
+        # append the distance
+        distances.append(dist[min_index])
+
+    # make sure results are numpy arrays of correct dtype
+    traversal = np.array(traversal, dtype=np.int64)
+    distances = np.array(distances, dtype=np.float64)
+
+    return traversal, distances
+
+
 def plot_points(points, show=True):
     """
     Plot an (n,3) list of points using matplotlib

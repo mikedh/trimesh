@@ -2,12 +2,12 @@ import numpy as np
 import networkx as nx
 
 import copy
-from collections import deque
+
+from .util import is_ccw
+from ..util import unitize
 
 from ..grouping import unique_ordered
-from ..util import unitize
 from ..constants import tol_path as tol
-from .util import is_ccw
 
 
 def vertex_graph(entities):
@@ -163,7 +163,7 @@ def closed_paths(entities, vertices):
     # get a networkx graph of entities
     graph, closed = vertex_graph(entities)
     # add entities that are closed as single- entity paths
-    entity_paths = deque(np.reshape(closed, (-1, 1)))
+    entity_paths = np.reshape(closed, (-1, 1)).tolist()
     # look for cycles in the graph, or closed loops
     vertex_paths = np.array(nx.cycles.cycle_basis(graph))
 

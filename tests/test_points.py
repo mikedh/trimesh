@@ -112,6 +112,27 @@ class PointsTest(g.unittest.TestCase):
         assert len(centroids) == cluster_count
         assert (variance == 0).all()
 
+    def test_tsp(self):
+        """
+        Test our solution for visiting every point in order.
+        """
+        for dimension in [2, 3]:
+            for count in [2, 10, 100]:
+                for i in range(10):
+                    points = g.np.random.random((count, dimension))
+
+                    # find a path that visits every point quickly
+                    idx, dist = g.trimesh.points.tsp(points, start=0)
+
+                    # indexes should visit every point exactly once
+                    assert set(idx) == set(range(len(points)))
+                    assert len(idx) == len(points)
+                    assert len(dist) == len(points) - 1
+
+                    # make sure distances returned are correct
+                    dist_check = g.np.linalg.norm(g.np.diff(points[idx], axis=0), axis=1)
+                    assert g.np.allclose(dist_check, dist)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
