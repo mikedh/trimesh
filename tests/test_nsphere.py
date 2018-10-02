@@ -12,7 +12,7 @@ class NSphereTest(g.unittest.TestCase):
 
         # get some assorted mesh geometries to test performance
         # and a perfect sphere mesh to test the degenerate case
-        for m in g.np.append(g.get_meshes(5),
+        for m in g.np.append(list(g.get_meshes(5)),
                              g.trimesh.primitives.Sphere()):
 
             s = m.bounding_sphere

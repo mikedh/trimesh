@@ -9,12 +9,12 @@ class BoundsTest(g.unittest.TestCase):
     def setUp(self):
         meshes = [g.get_mesh(i) for i in ['large_block.STL',
                                           'featuretype.STL']]
-        self.meshes = g.np.append(meshes, g.get_meshes(5))
+        self.meshes = g.np.append(meshes, list(g.get_meshes(5)))
 
     def test_obb_mesh(self):
-        '''
+        """
         Test the OBB functionality in attributes of Trimesh objects
-        '''
+        """
         for m in self.meshes:
             g.log.info('Testing OBB of %s', m.metadata['file_name'])
             for i in range(6):
@@ -61,9 +61,9 @@ class BoundsTest(g.unittest.TestCase):
             p = m.bounding_primitive
 
     def test_obb_points(self):
-        '''
+        """
         Test OBB functions with raw points as input
-        '''
+        """
         for dimension in [3, 2]:
             for i in range(25):
                 points = g.np.random.random((10, dimension))
@@ -120,8 +120,8 @@ class BoundsTest(g.unittest.TestCase):
             assert g.np.product(rectangle) <= g.np.product(rectangle_pre)
 
     def test_cylinder(self):
-        '''
-        '''
+        """
+        """
         height = 10.0
         radius = 1.0
         sphere = g.trimesh.util.grid_linspace([[0, 0],
