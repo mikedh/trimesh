@@ -133,7 +133,8 @@ class PointsTest(g.unittest.TestCase):
                     assert (idx >= 0).all()
 
                     # make sure distances returned are correct
-                    dist_check = g.np.linalg.norm(g.np.diff(points[idx], axis=0), axis=1)
+                    dist_check = g.np.linalg.norm(
+                        g.np.diff(points[idx], axis=0), axis=1)
                     assert g.np.allclose(dist_check, dist)
 
 

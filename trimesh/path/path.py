@@ -593,7 +593,25 @@ class Path(object):
                              for i in self.paths])
         return discrete
 
-    def export(self, file_obj=None, file_type='dict', **kwargs):
+    def export(self,
+               file_obj=None,
+               file_type=None,
+               **kwargs):
+        """
+        Export the path to a file object or return data.
+
+        Parameters
+        ---------------
+        file_obj : None, str, or file object
+          File object or string to export to
+        file_type : None or str
+          Type of file: dxf, dict, svg
+
+        Returns
+        ---------------
+        exported : bytes or str
+          Exported as specified type
+        """
         return export_path(self,
                            file_type=file_type,
                            file_obj=file_obj,

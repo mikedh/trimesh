@@ -324,7 +324,7 @@ class ExportTest(g.unittest.TestCase):
     def test_svg(self):
         for d in g.get_2D():
             # export as svg string
-            exported = d.export('svg')
+            exported = d.export(file_type='svg')
             # load the exported SVG
             stream = g.trimesh.util.wrap_as_stream(exported)
             loaded = g.trimesh.load(stream, file_type='svg')

@@ -36,4 +36,4 @@ ENV XVFB_WHD="1920x1080x24"\
     GALLIUM_DRIVER="llvmpipe"
 
 # make sure build fails if tests are failing
-RUN pytest /tmp/trimesh/tests
+RUN pytest -p no:warnings /tmp/trimesh/tests

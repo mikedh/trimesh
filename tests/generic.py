@@ -191,7 +191,14 @@ def get_2D(count=None):
 
 data = _load_data()
 
-# formats supported by meshlab
-meshlab_formats = ['3ds', 'ply', 'stl', 'obj', 'qobj', 'off', 'ptx', 'vmi',
-                   'bre', 'dae', 'ctm', 'pts', 'apts', 'xyz', 'gts', 'pdb',
-                   'tri', 'asc', 'x3d', 'x3dv', 'wrl']
+
+from distutils.spawn import find_executable
+
+# formats supported by meshlab for export tests
+if any(find_executable(i) is None
+       for i in ['xfvb-run', 'meshlabserver']):
+    meshlab_formats = []
+else:
+    meshlab_formats = ['3ds', 'ply', 'stl', 'obj', 'qobj', 'off', 'ptx', 'vmi',
+                       'bre', 'dae', 'ctm', 'pts', 'apts', 'xyz', 'gts', 'pdb',
+                       'tri', 'asc', 'x3d', 'x3dv', 'wrl']

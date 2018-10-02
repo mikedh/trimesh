@@ -18,16 +18,21 @@ class DXFTest(g.unittest.TestCase):
                                 d.area)
             splits.append(s)
 
-            d.export(file_obj='temp.dxf')
-            r = g.trimesh.load('temp.dxf')
+            d.export(file_obj=temp_name)
+            r = g.trimesh.load(temp_name)
             assert g.np.isclose(r.area, d.area)
 
         single = g.np.hstack(splits)
 
         for p in single:
             p.vertices /= p.scale
-            p.export(file_obj='temp.dxf')
-            r = g.trimesh.load('temp.dxf')
+
+            # make sure exporting by name works
+            # use tempfile to avoid dumping file in
+            # our working directory
+            p.export(temp_name)
+            r = g.trimesh.load(temp_name)
+
             ratio = abs(p.length - r.length) / p.length
             if ratio > .01:
                 g.log.error('perimeter ratio on export %s wrong! %f %f %f',
@@ -69,12 +74,16 @@ class DXFTest(g.unittest.TestCase):
         d = g.get_mesh('2D/wrench.dxf')
         d.metadata.update(data)
 
+        # get a path we can write
+        temp_name = g.tempfile.NamedTemporaryFile(
+            suffix='.dxf', delete=False).name
+
         # export as a DXF file, which should put our
         # custom data into an XRecord
-        d.export('hey.dxf', include_metadata=True)
+        d.export(temp_name, include_metadata=True)
 
         # reload from export
-        r = g.trimesh.load('hey.dxf')
+        r = g.trimesh.load(temp_name)
 
         # check numpy round trip
         assert g.np.allclose(r.metadata['pnts'],

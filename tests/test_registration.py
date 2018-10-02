@@ -87,7 +87,11 @@ class RegistrationTest(g.unittest.TestCase):
             a_check = a.copy()
             a_check.apply_transform(a_to_b)
 
-            assert g.np.linalg.norm(a_check.centroid - b.centroid) < (noise * 2)
+            assert g.np.linalg.norm(
+                a_check.centroid -
+                b.centroid) < (
+                noise *
+                2)
 
             # find the distance from the truth mesh to each scan vertex
             distance = a_check.nearest.on_surface(b.vertices)[1]

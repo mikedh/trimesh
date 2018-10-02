@@ -20,7 +20,8 @@ class GLTFTest(g.unittest.TestCase):
 
         # export it as a a GLB file
         export = original.export('glb')
-        kwargs = g.trimesh.io.gltf.load_glb(g.trimesh.util.wrap_as_stream(export))
+        kwargs = g.trimesh.io.gltf.load_glb(
+            g.trimesh.util.wrap_as_stream(export))
         reloaded = g.trimesh.io.load.load_kwargs(kwargs)
 
         # make assertions on original and reloaded
