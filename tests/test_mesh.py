@@ -8,15 +8,12 @@ class MeshTests(g.unittest.TestCase):
 
     def test_meshes(self):
         # make sure we can load everything we think we can
-        # while getting a list of meshes to run tests on
-        meshes = g.get_meshes(raise_error=True)
-        g.log.info('Running tests on %d meshes', len(meshes))
-
         formats = g.trimesh.available_formats()
         assert all(isinstance(i, str) for i in formats)
         assert all(len(i) > 0 for i in formats)
+        assert all(i in formats for i in ['stl', 'ply', 'off', 'obj'])
 
-        for mesh in meshes:
+        for mesh in g.get_meshes(raise_error=True):
             g.log.info('Testing %s', mesh.metadata['file_name'])
             assert len(mesh.faces) > 0
             assert len(mesh.vertices) > 0

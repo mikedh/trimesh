@@ -7,11 +7,14 @@ except BaseException:
 class DXFTest(g.unittest.TestCase):
 
     def test_dxf(self):
-        drawings = g.get_2D()
+
+        # get a path we can write
+        temp_name = g.tempfile.NamedTemporaryFile(
+            suffix='.dxf', delete=False).name
 
         # split drawings into single body parts
         splits = []
-        for d in drawings:
+        for d in g.get_2D():
             s = d.split()
             # check area of split result vs source
             assert g.np.isclose(sum(i.area for i in s),

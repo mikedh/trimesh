@@ -7,8 +7,8 @@ except BaseException:
 class VectorTests(g.unittest.TestCase):
 
     def test_discrete(self):
-        for d in g.get_2D():
 
+        for d in g.get_2D():
             # store md5 before requesting passive functions
             md5 = d.md5()
 

@@ -130,28 +130,29 @@ def get_meshes(count=np.inf,
     meshes: list, of Trimesh objects
     """
     # use deterministic file name order
-    file_names = np.sort(os.listdir(dir_models))
+    file_names = sorted(os.listdir(dir_models))
 
-    meshes = deque()
+    meshes = []
     for file_name in file_names:
         extension = trimesh.util.split_extension(file_name).lower()
         if extension in trimesh.available_formats():
             loaded = trimesh.util.make_sequence(get_mesh(file_name))
-            for i in loaded:
-                is_mesh = trimesh.util.is_instance_named(i, 'Trimesh')
-                is_scene = trimesh.util.is_instance_named(i, 'Scene')
+            for m in loaded:
+                is_mesh = trimesh.util.is_instance_named(m, 'Trimesh')
+                is_scene = trimesh.util.is_instance_named(m, 'Scene')
                 if raise_error and not is_mesh and not is_scene:
                     raise ValueError('%s returned a non- Trimesh object!',
                                      file_name)
-                if not is_mesh or (only_watertight and not i.is_watertight):
+                if not is_mesh or (only_watertight and not m.is_watertight):
                     continue
-                meshes.append(i)
+                meshes.append(m)
+                yield m
         else:
             log.warning('%s has no loader, not running test on!',
                         file_name)
+
         if len(meshes) >= count:
             break
-    return list(meshes)
 
 
 def get_2D(count=None):
@@ -160,16 +161,16 @@ def get_2D(count=None):
     """
     # if no path loading return empty list
     if not has_path:
-        return []
+        raise StopIteration
 
     # all files in the 2D models directory
-    ls = os.listdir(dir_2D)
+    listdir = os.listdir(dir_2D)
     # if count isn't passed return all files
     if count is None:
-        count = len(ls)
+        count = len(listdir)
     # save resulting loaded paths
     paths = []
-    for file_name in ls:
+    for file_name in listdir:
         # check to see if the file is loadable
         ext = trimesh.util.split_extension(file_name)
         if ext not in trimesh.available_formats():
@@ -182,11 +183,12 @@ def get_2D(count=None):
             log.error('failed on: {}'.format(file_name),
                       exc_info=True)
             raise E
+
+        yield paths[-1]
+
         # if we don't need every path break
         if len(paths) >= count:
             break
-
-    return paths
 
 
 data = _load_data()
