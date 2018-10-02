@@ -75,7 +75,9 @@ def unitize(vectors,
     if len(vectors.shape) == 2:
         # for (m, d) arrays take the per- row unit vector
         # using sqrt and avoiding exponents is slightly faster
-        norm = np.sqrt((vectors * vectors).sum(axis=1))
+        # also dot with ones is faser than .sum(axis=1)
+        norm = np.sqrt(np.dot(vectors * vectors,
+                              np.ones(vectors.shape[1])))
         # non-zero norms
         valid = norm > threshold
         # in-place reciprocal of nonzero norms

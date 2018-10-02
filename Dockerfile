@@ -24,7 +24,7 @@ RUN bash /tmp/conda.bash
 
 # install python requirements
 COPY . /tmp/trimesh
-RUN /home/user/conda/bin/pip install /tmp/trimesh[all]
+RUN /home/user/conda/bin/pip install /tmp/trimesh[all] pytest
 
 # add user python to path 
 ENV PATH="/home/user/conda/bin:$PATH"
@@ -34,3 +34,6 @@ ENV XVFB_WHD="1920x1080x24"\
     DISPLAY=":99" \
     LIBGL_ALWAYS_SOFTWARE="1" \
     GALLIUM_DRIVER="llvmpipe"
+
+# make sure build fails if tests are failing
+RUN pytest /tmp/trimesh/tests

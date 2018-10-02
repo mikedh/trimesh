@@ -129,6 +129,9 @@ class PointsTest(g.unittest.TestCase):
                     assert len(idx) == len(points)
                     assert len(dist) == len(points) - 1
 
+                    # shouldn't be any negative indexes
+                    assert (idx >= 0).all()
+
                     # make sure distances returned are correct
                     dist_check = g.np.linalg.norm(g.np.diff(points[idx], axis=0), axis=1)
                     assert g.np.allclose(dist_check, dist)
