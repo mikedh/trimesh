@@ -1007,20 +1007,19 @@ class Path2D(Path):
         full = [None] * len(self.root)
         # store the graph to avoid cache thrashing
         enclosure = self.enclosure_directed
+        # store closed polygons to avoid cache hits
+        closed = self.polygons_closed
+
         # loop through root curves
         for i, root in enumerate(self.root):
             # a list of multiple Polygon objects that
             # are fully contained by the root curve
-            children = [self.polygons_closed[child]
+            children = [closed[child]
                         for child in enclosure[root].keys()]
             # all polygons_closed are CCW, so for interiors reverse them
             holes = [np.array(p.exterior.coords)[::-1] for p in children]
             # a single Polygon object
-            try:
-                shell = self.polygons_closed[root].exterior
-            except BaseException:
-                from IPython import embed
-                embed()
+            shell = closed[root].exterior
             # create a polygon with interiors
             full[i] = polygons.repair_invalid(Polygon(shell=shell,
                                                       holes=holes))
