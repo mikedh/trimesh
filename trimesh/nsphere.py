@@ -102,18 +102,23 @@ def fit_nsphere(points, prior=None):
     radius: float, mean radius across circle
     error:  float, peak to peak value of deviation from mean radius
     """
+    points = np.asanyarray(points, dtype=np.float64)
+    ones = np.ones(points.shape[1])
 
     def residuals(center):
-        radii_sq = ((points - center)**2).sum(axis=1)
-        residuals = radii_sq - radii_sq.mean()
-        return residuals
+        # do the axis sum with a dot
+        radii_sq = np.dot((points - center) ** 2, ones)
+        return radii_sq - radii_sq.mean()
 
     if prior is None:
-        center_guess = np.mean(points, axis=0)
+        center_guess = points.mean(axis=0)
     else:
-        center_guess = prior
+        center_guess = np.asanyarray(prior)
 
-    center_result, return_code = leastsq(residuals, center_guess, gtol=1e-8)
+    center_result, return_code = leastsq(residuals,
+                                         center_guess,
+                                         xtol=1e-8)
+
     if not (return_code in [1, 2, 3, 4]):
         raise ValueError('Least square fit failed!')
 
