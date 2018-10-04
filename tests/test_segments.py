@@ -24,7 +24,7 @@ class SegmentsTest(g.unittest.TestCase):
             # make index 1 the first segment but offset along vector
             # IE make s[0] colinear with s[1]
             s[1] = s[0] + 10 * (s[0][0] - s[0][1])
-            # calcualte colinear pairs
+            # calculate colinear pairs
             colinear = segments.colinear_pairs(s)
 
             # due to our wangling the first and second index

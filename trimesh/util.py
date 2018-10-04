@@ -349,39 +349,52 @@ def vector_hemisphere(vectors, return_sign=False):
 
 
     """
+    # vectors as numpy array
     vectors = np.asanyarray(vectors, dtype=np.float64)
 
     if is_shape(vectors, (-1, 2)):
-        # for 2D vectors just check the Y value and
-        # reverse sign if it is negative
-        signs = np.ones(len(vectors), dtype=np.float64)
-        sign[vectors[:, 1] < TOL_ZERO] *= -1.0
-        oriented = vectors * signs.reshape((-1, 1))
-    elif is_shape(vectors, (-1, 3)):
-        neg = vectors < -TOL_ZERO
+        # 2D vector case
+        # check the Y value and reverse vector
+        # direction if negative.
+        negative = vectors < -TOL_ZERO
         zero = np.logical_not(
-            np.logical_or(neg, vectors > TOL_ZERO))
+            np.logical_or(negative, vectors > TOL_ZERO))
+
+        signs = np.ones(len(vectors), dtype=np.float64)
+        # negative Y values are reversed
+        signs[negative[:, 1]] = -1.0
+
+        # zero Y and negative X are reversed
+        signs[np.logical_and(zero[:, 1], negative[:, 0])] = -1.0
+
+    elif is_shape(vectors, (-1, 3)):
+        # 3D vector case
+        negative = vectors < -TOL_ZERO
+        zero = np.logical_not(
+            np.logical_or(negative, vectors > TOL_ZERO))
         # move all                          negative Z to positive
         # then for zero Z vectors, move all negative Y to positive
         # then for zero Y vectors, move all negative X to positive
         signs = np.ones(len(vectors), dtype=np.float64)
-
         # all vectors with negative Z values
-        signs[neg[:, 2]] = -1.0
+        signs[negative[:, 2]] = -1.0
         # all on-plane vectors with negative Y values
-        signs[np.logical_and(zero[:, 2], neg[:, 1])] = -1.0
+        signs[np.logical_and(zero[:, 2], negative[:, 1])] = -1.0
         # all on-plane vectors with zero Y values
         # and negative X values
         signs[np.logical_and(np.logical_and(zero[:, 2],
                                             zero[:, 1]),
-                             neg[:, 0])] = -1.0
-        # apply the signs to the source vectors
-        oriented = vectors * signs.reshape((-1, 1))
+                             negative[:, 0])] = -1.0
+
     else:
-        raise ValueError('Vectors must be (n,3)!')
+        raise ValueError('vectors must be (n,3)!')
+
+    # apply the signs to the vectors
+    oriented = vectors * signs.reshape((-1, 1))
 
     if return_sign:
         return oriented, signs
+
     return oriented
 
 

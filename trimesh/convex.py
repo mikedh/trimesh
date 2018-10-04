@@ -3,7 +3,7 @@ convex.py
 
 Deal with creating and checking convex objects in 2, 3 and N dimensions.
 
-Convex:
+Convex is defined as:
 1) "Convex, meaning "curving out" or "extending outward" (compare to concave)
 2) having an outline or surface curved like the exterior of a circle or sphere.
 3) (of a polygon) having only interior angles measuring less than 180
@@ -23,7 +23,7 @@ except ImportError:
     log.warning('Scipy import failed!')
 
 
-def convex_hull(obj, qhull_options='QbB Pp'):
+def convex_hull(obj, qhull_options='QbB Pp QJn'):
     """
     Get a new Trimesh object representing the convex hull of the
     current mesh, with proper normals and watertight.
@@ -31,12 +31,13 @@ def convex_hull(obj, qhull_options='QbB Pp'):
 
     Arguments
     --------
-    obj: Trimesh object OR
-    (n,3) float, cartesian points
+    obj : Trimesh, or (n,3) float
+      Mesh or cartesian points
 
     Returns
     --------
-    convex: Trimesh object of convex hull
+    convex : Trimesh
+      Mesh of convex hull
     """
     from .base import Trimesh
 
@@ -48,32 +49,43 @@ def convex_hull(obj, qhull_options='QbB Pp'):
         if not util.is_shape(points, (-1, 3)):
             raise ValueError('Object must be Trimesh or (n,3) points!')
 
-    c = spatial.ConvexHull(points.reshape((-1, 3)),
-                           qhull_options=qhull_options)
+    points = points.reshape((-1, 3))
+
+    #points_origin = points.min(axis=0)
+    #points_scale  = points.ptp(axis=0).mean()
+    #scaled = (points - points_origin) / points_scale
+
+    hull = spatial.ConvexHull(points,
+                              qhull_options=qhull_options)
 
     # hull object doesn't remove unreferenced vertices
     # create a mask to re- index faces for only referenced vertices
-    vid = np.sort(c.vertices)
-    mask = np.zeros(len(c.points), dtype=np.int64)
+    vid = np.sort(hull.vertices)
+    mask = np.zeros(len(hull.points), dtype=np.int64)
     mask[vid] = np.arange(len(vid))
     # remove unreferenced vertices here
-    faces = mask[c.simplices].copy()
-    vertices = c.points[vid].copy()
+    faces = mask[hull.simplices].copy()
+
+    # rescale vertices back to original size
+    #vertices = (c.points[vid].copy() * points_scale) + points_origin
+    vertices = hull.points[vid].copy()
 
     # qhull returns faces with random winding
     # calculate the returned normal of each face
     crosses = triangles.cross(vertices[faces])
-    normals, valid = triangles.normals(crosses=crosses)
 
-    # remove degenerate faces
+    # qhull returns zero magnitude faces like an asshole
+    normals, valid = util.unitize(crosses, check_valid=True)
+
+    # remove zero magnitude faces
     faces = faces[valid]
     crosses = crosses[valid]
 
-    # calcalate each triangles area and cartesian center point
+    # each triangle area and mean center
     triangles_area = triangles.area(crosses=crosses, sum=False)
     triangles_center = vertices[faces].mean(axis=1)
 
-    # since the convex hull is (very hopefully) convex, the vector from
+    # since the convex hull is (hopefully) convex, the vector from
     # the centroid to the center of each face
     # should have a positive dot product with the normal of that face
     # if it doesn't it is probably backwards
@@ -81,12 +93,15 @@ def convex_hull(obj, qhull_options='QbB Pp'):
     centroid = np.average(triangles_center,
                           weights=triangles_area,
                           axis=0)
-    test_vector = vertices[faces[:, 0]] - centroid
+    # a vector from the centroid to a point on each face
+    test_vector = triangles_center - centroid
+    # check the projection against face normals
     backwards = util.diagonal_dot(normals,
                                   test_vector) < 0.0
 
-    # flip the winding and normals to be outward facing
+    # flip the winding outward facing
     faces[backwards] = np.fliplr(faces[backwards])
+    # flip the normal
     normals[backwards] *= -1.0
 
     # save the work we did to the cache so it doesn't have to be recomputed
@@ -100,7 +115,8 @@ def convex_hull(obj, qhull_options='QbB Pp'):
                      faces=faces,
                      face_normals=normals,
                      initial_cache=initial_cache,
-                     process=True)
+                     process=True,
+                     validate=False)
 
     # we did the gross case above, but sometimes precision issues
     # leave some faces backwards anyway
@@ -125,11 +141,13 @@ def adjacency_projections(mesh):
 
     Parameters
     ----------
-    mesh: Trimesh object
+    mesh : Trimesh
+      Input geometry
 
     Returns
     ----------
-    projection: distance of projection of adjacent vertex onto plane
+    projection : (len(mesh.face_adjacency),) float
+      Distance of projection of adjacent vertex onto plane
     """
     # normals and origins from the first column of face adjacency
     normals = mesh.face_normals[mesh.face_adjacency[:, 0]]
@@ -140,8 +158,9 @@ def adjacency_projections(mesh):
     vid_other = mesh.face_adjacency_unshared[:, 1]
     vector_other = mesh.vertices[vid_other] - origins
 
-    dots = util.diagonal_dot(vector_other,
-                             normals)
+    # get the projection with a dot product
+    dots = util.diagonal_dot(vector_other, normals)
+
     return dots
 
 
@@ -151,17 +170,29 @@ def is_convex(mesh):
 
     Parameters
     -----------
-    mesh: Trimesh object
+    mesh : Trimesh
+      Input geometry
 
     Returns
     -----------
-    convex: bool, was passed mesh convex or not
+    convex : bool
+      Was passed mesh convex or not
     """
-    convex = (mesh.face_adjacency_projections < tol.planar).all()
-    return bool(convex)
+    # don't consider zero- area faces
+    nonzero = mesh.area_faces > tol.merge
+
+    # adjacencies with two nonzero faces
+    adj_ok = nonzero[mesh.face_adjacency].all(axis=1)
+
+    # if projections of vertex onto plane of adjacent
+    # face is negative, it means the face pair is locally
+    # convex, and if that is true for all faces the mesh is convex
+    convex = bool(mesh.face_adjacency_projections[adj_ok].max() < tol.planar)
+
+    return convex
 
 
-def hull_points(obj):
+def hull_points(obj, qhull_options='QbB Pp'):
     """
     Try to extract a convex set of points from multiple input formats.
 
@@ -176,14 +207,13 @@ def hull_points(obj):
     points: (o,d) convex set of points
     """
     if hasattr(obj, 'convex_hull'):
-        points = obj.convex_hull.vertices
-    elif util.is_sequence(obj):
-        initial = np.asanyarray(obj)
-        if len(initial.shape) != 2:
-            raise ValueError('Points must be (n, dimension)!')
-        hull = spatial.ConvexHull(initial, qhull_options='QbB Pp')
-        points = hull.points[hull.vertices]
-    else:
-        raise ValueError('Can\'t extract hull points from %s',
-                         obj.__class__.__name__)
+        return obj.convex_hull.vertices
+
+    initial = np.asanyarray(obj, dtype=np.float64)
+    if len(initial.shape) != 2:
+        raise ValueError('points must be (n, dimension)!')
+
+    hull = spatial.ConvexHull(initial, qhull_options=qhull_options)
+    points = hull.points[hull.vertices]
+
     return points

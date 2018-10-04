@@ -36,6 +36,7 @@ def fix_winding(mesh):
 
     graph_all = nx.from_edgelist(mesh.face_adjacency)
     flipped = 0
+
     faces = mesh.faces.view(np.ndarray).copy()
 
     # we are going to traverse the graph using BFS
@@ -69,8 +70,10 @@ def fix_winding(mesh):
                 # if the edges aren't reversed, invert the order of one face
                 flipped += 1
                 faces[face_pair[1]] = faces[face_pair[1]][::-1]
+
     if flipped > 0:
         mesh.faces = faces
+
     log.debug('flipped %d/%d edges', flipped, len(mesh.faces) * 3)
 
 
@@ -219,6 +222,9 @@ def fill_holes(mesh):
 
     if len(mesh.faces) < 3:
         return False
+
+    if mesh.is_watertight:
+        return True
 
     # we know that in a watertight mesh, every edge will be included twice
     # thus, every edge which appears only once is part of the boundary of a
