@@ -1228,7 +1228,9 @@ class Path2D(Path):
         """
         Return an MD5 of the identifier
         """
-        return util.md5_array(self.identifier, digits=4)
+        as_int = (self.identifier * 1e4).astype(np.int64)
+        hashed = util.md5_object(as_int.tostring(order='C'))
+        return hashed
 
     @property
     def path_valid(self):

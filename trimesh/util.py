@@ -350,28 +350,35 @@ def vector_hemisphere(vectors, return_sign=False):
 
     """
     vectors = np.asanyarray(vectors, dtype=np.float64)
-    if not is_shape(vectors, (-1, 3)):
+
+    if is_shape(vectors, (-1, 2)):
+        # for 2D vectors just check the Y value and
+        # reverse sign if it is negative
+        signs = np.ones(len(vectors), dtype=np.float64)
+        sign[vectors[:, 1] < TOL_ZERO] *= -1.0
+        oriented = vectors * signs.reshape((-1, 1))
+    elif is_shape(vectors, (-1, 3)):
+        neg = vectors < -TOL_ZERO
+        zero = np.logical_not(
+            np.logical_or(neg, vectors > TOL_ZERO))
+        # move all                          negative Z to positive
+        # then for zero Z vectors, move all negative Y to positive
+        # then for zero Y vectors, move all negative X to positive
+        signs = np.ones(len(vectors), dtype=np.float64)
+
+        # all vectors with negative Z values
+        signs[neg[:, 2]] = -1.0
+        # all on-plane vectors with negative Y values
+        signs[np.logical_and(zero[:, 2], neg[:, 1])] = -1.0
+        # all on-plane vectors with zero Y values
+        # and negative X values
+        signs[np.logical_and(np.logical_and(zero[:, 2],
+                                            zero[:, 1]),
+                             neg[:, 0])] = -1.0
+        # apply the signs to the source vectors
+        oriented = vectors * signs.reshape((-1, 1))
+    else:
         raise ValueError('Vectors must be (n,3)!')
-
-    neg = vectors < -TOL_ZERO
-    zero = np.logical_not(np.logical_or(neg, vectors > TOL_ZERO))
-
-    # move all                          negative Z to positive
-    # then for zero Z vectors, move all negative Y to positive
-    # then for zero Y vectors, move all negative X to positive
-
-    signs = np.ones(len(vectors), dtype=np.float64)
-
-    # all vectors with negative Z values
-    signs[neg[:, 2]] = -1.0
-    # all on-plane vectors with negative Y values
-    signs[np.logical_and(zero[:, 2], neg[:, 1])] = -1.0
-    # all on-plane vectors with zero Y values and negative X values
-    signs[np.logical_and(np.logical_and(zero[:, 2],
-                                        zero[:, 1]),
-                         neg[:, 0])] = -1.0
-    # apply the signs to the source vectors
-    oriented = vectors * signs.reshape((-1, 1))
 
     if return_sign:
         return oriented, signs
@@ -758,26 +765,6 @@ def md5_object(obj):
         hasher.update(obj)
 
     md5 = hasher.hexdigest()
-    return md5
-
-
-def md5_array(array, digits=5):
-    """
-    Take the MD5 of an array when considering the specified number of digits.
-
-    Parameters
-    ---------
-    array:  numpy array
-    digits: int, number of digits to account for in the MD5
-
-    Returns
-    ---------
-    md5: str, md5 hash of input
-    """
-    digits = int(digits)
-    array = np.asanyarray(array, dtype=np.float64).reshape(-1)
-    as_int = (array * 10 ** digits).astype(np.int64)
-    md5 = md5_object(as_int.tostring(order='C'))
     return md5
 
 

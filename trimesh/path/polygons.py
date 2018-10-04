@@ -410,21 +410,27 @@ class InversePolygon:
 
 def polygon_hash(polygon):
     """
-    An approximate hash of a a shapely Polygon object.
+    Return a vector containing values representitive of
+    a particular polygon.
 
     Parameters
     ---------
-    polygon: shapely.geometry.Polygon object
+    polygon : shapely.geometry.Polygon
+      Input geometry
 
     Returns
     ---------
-    hash: (5) length list of hash representing input polygon
+    hashed: (6), float
+      Representitive values representing input polygon
     """
-    result = [len(polygon.interiors),
-              polygon.convex_hull.area,
-              polygon.convex_hull.length,
-              polygon.area,
-              polygon.length]
+    result = np.array(
+        [len(polygon.interiors),
+         polygon.convex_hull.area,
+         polygon.convex_hull.length,
+         polygon.area,
+         polygon.length,
+         polygon.exterior.length],
+        dtype=np.float64)
     return result
 
 
