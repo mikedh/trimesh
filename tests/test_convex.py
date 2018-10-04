@@ -22,7 +22,7 @@ class ConvexTest(g.unittest.TestCase):
             # which of the volumes are close to the median volume
             close = g.np.isclose(volume,
                                  g.np.median(volume),
-                                 atol=mesh.scale / 1000)
+                                 atol=mesh.bounding_box.volume / 1000)
 
             if g.platform.system() == 'Linux':
                 # on linux the convex hulls are pretty robust
