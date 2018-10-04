@@ -7,11 +7,16 @@ except BaseException:
 class ConvexTest(g.unittest.TestCase):
 
     def test_convex(self):
-        for mesh in g.get_meshes(10):
-            if not mesh.is_watertight:
-                continue
+        for name in ['featuretype.STL',
+                     'quadknot.obj',
+                     'unit_cube.STL',
+                     '1002_tray_bottom.STL']:
+
+            mesh = g.get_mesh(name)
+            assert mesh.is_watertight
+
             hulls = []
-            for i in range(50):
+            for i in range(25):
                 permutated = mesh.permutate.transform()
                 if i % 10 == 0:
                     permutated = permutated.permutate.tessellation()
