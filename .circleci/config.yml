@@ -2,12 +2,13 @@
 #
 # Check https://circleci.com/docs/2.0/language-python/ for more details
 #
-version: 2
+workflows:
+  version: 2
 jobs:
   build:
-    branches:
-      only:
-        - master
+    filters:
+      branches:
+        only: master
     docker:
       - image: continuumio/anaconda3
     working_directory: ~/repo
@@ -17,17 +18,13 @@ jobs:
       - run:
           name: install dependencies
           command: |
-            apt-get update; apt-get install -y meshlab xvfb blender openscad
-            pip install nose2
+            apt-get update; apt-get install -qq -y meshlab xvfb blender openscad
+            pip install pytest
             pip install .
             python -c "import trimesh"
-            conda install -y -c conda-forge rtree shapely pyembree
+            pytest tests/test_inertia
+            conda install --quiet -y -c conda-forge rtree shapely pyembree
             pip install .[easy]
       - run:
           name: run tests
-          command: nose2
-
-      - store_artifacts:
-          path: test-reports
-          destination: test-reports
-          
+          command: pytest tests
