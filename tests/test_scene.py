@@ -94,15 +94,18 @@ class SceneTests(g.unittest.TestCase):
         scene = g.get_mesh('cycloidal.3DXML')
 
         md5 = scene.md5()
-        extents = scene.bounding_box_oriented.primitive.extents.copy()
+        extents = sorted(scene.bounding_box_oriented.primitive.extents.copy())
+
+        # TODO: have OBB return sorted extents
+        # and adjust the transform to be correct
 
         factor = 10.0
         scaled = scene.scaled(factor)
 
-        # the oriented bounding box should scale exactly with the scaling
-        # factor
+        # the oriented bounding box should scale exactly
+        # with the scaling factor
         assert g.np.allclose(
-            scaled.bounding_box_oriented.primitive.extents /
+            g.np.sort(scaled.bounding_box_oriented.primitive.extents) /
             extents,
             factor)
 
@@ -111,20 +114,22 @@ class SceneTests(g.unittest.TestCase):
         assert scaled.md5() != md5
 
         # 3DXML comes in as mm
-        assert all(m.units == 'mm' for m in scene.geometry.values())
+        assert all(m.units == 'mm'
+                   for m in scene.geometry.values())
         assert scene.units == 'mm'
 
         converted = scene.convert_units('in')
 
         assert g.np.allclose(
-            converted.bounding_box_oriented.primitive.extents /
-            extents,
-            1.0 /
-            25.4)
+            g.np.sort(
+                converted.bounding_box_oriented.primitive.extents) / extents,
+            1.0 / 25.4,
+            atol=1e-3)
 
         # shouldn't have changed the original extents
         assert g.np.allclose(
-            extents, scene.bounding_box_oriented.primitive.extents)
+            extents,
+            g.np.sort(scene.bounding_box_oriented.primitive.extents))
 
         # original shouldn't have changed
         assert converted.units == 'in'

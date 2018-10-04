@@ -121,11 +121,11 @@ def convex_hull(obj, qhull_options='QbB Pp QJn'):
     # we did the gross case above, but sometimes precision issues
     # leave some faces backwards anyway
     # this call will exit early if the winding is consistent
-    # and if not will (slowly) fix it by traversing the adjacency graph
+    # and if not will fix it by traversing the adjacency graph
     convex.fix_normals(multibody=False)
 
-    # sometimes the QbB option will cause unrecoverable precision issues
-    # so try the hull again without it
+    # sometimes the QbB option will cause precision issues
+    # so try the hull again without it and 
     # check for qhull_options is None to avoid infinite recursion
     if (qhull_options is not None and
             not convex.is_winding_consistent):
