@@ -102,7 +102,7 @@ def colinear_pairs(segments, radius=.01, angle=.01):
 
     Returns
     ------------
-    pairs : (m, 2) float
+    pairs : (m, 2) int
       Indexes of segments which are colinear
     """
     from scipy import spatial

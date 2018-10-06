@@ -1,7 +1,7 @@
 import numpy as np
 import time
 
-from .constants import log
+from .constants import log, tol
 
 from . import util
 from . import convex
@@ -102,7 +102,7 @@ def oriented_bounds_2D(points, qhull_options='QbB'):
     return transform, rectangle
 
 
-def oriented_bounds(obj, angle_digits=1):
+def oriented_bounds(obj, angle_digits=1, ordered=True):
     """
     Find the oriented bounding box for a Trimesh
 
@@ -192,6 +192,25 @@ def oriented_bounds(obj, angle_digits=1):
                                                    to_origin)
     box_center = (transformed.min(axis=0) + transformed.ptp(axis=0) * .5)
     to_origin[0:3, 3] = -box_center
+
+    # return ordered 3D extents
+    if ordered:
+        # sort the three extents
+        order = min_extents.argsort()
+        # generate a matrix which will flip transform
+        # to match the new ordering
+        flip = np.eye(4)
+        flip[:3, :3] = -np.eye(3)[order]
+
+        # make sure transform isn't mangling triangles
+        # by reversing windings on triangles
+        if np.isclose(np.trace(flip[:3, :3]), 0.0):
+            flip[:3, :3] = np.dot(flip[:3, :3], -np.eye(3))
+
+        # apply the flip to the OBB transform
+        to_origin = np.dot(flip, to_origin)
+        # apply the order to the extents
+        min_extents = min_extents[order]
 
     log.debug('oriented_bounds checked %d vectors in %0.4fs',
               len(spherical_unique),

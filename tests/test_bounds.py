@@ -36,7 +36,7 @@ class BoundsTest(g.unittest.TestCase):
                 if not test_ok:
                     g.log.error('bounds test failed %s',
                                 str(test))
-                self.assertTrue(test_ok)
+                assert test_ok
 
                 m.apply_transform(matrix)
                 m.apply_obb()
@@ -69,10 +69,9 @@ class BoundsTest(g.unittest.TestCase):
                 points = g.np.random.random((10, dimension))
                 to_origin, extents = g.trimesh.bounds.oriented_bounds(points)
 
-                self.assertTrue(g.trimesh.util.is_shape(
-                    to_origin, (dimension + 1, dimension + 1)))
-                self.assertTrue(g.trimesh.util.is_shape(
-                    extents, (dimension,)))
+                assert g.trimesh.util.is_shape(to_origin,
+                                               (dimension + 1, dimension + 1))
+                assert g.trimesh.util.is_shape(extents, (dimension,))
 
                 transformed = g.trimesh.transform_points(points, to_origin)
 
@@ -82,12 +81,11 @@ class BoundsTest(g.unittest.TestCase):
                 for i in transformed_bounds:
                     # assert that the points once our obb to_origin transform is applied
                     # has a bounding box centered on the origin
-                    self.assertTrue(g.np.allclose(g.np.abs(i), extents / 2.0))
+                    assert g.np.allclose(g.np.abs(i), extents / 2.0)
 
                 extents_tf = g.np.diff(
                     transformed_bounds, axis=0).reshape(dimension)
-                self.assertTrue(g.np.allclose(extents_tf,
-                                              extents))
+                assert g.np.allclose(extents_tf, extents)
 
     def test_2D(self):
         for theta in g.np.linspace(0, g.np.pi * 2, 2000):
@@ -138,6 +136,48 @@ class BoundsTest(g.unittest.TestCase):
             assert g.np.isclose(height,
                                 p.bounding_cylinder.primitive.height,
                                 rtol=.01)
+
+    def test_obb_order(self):
+        # make sure our sorting and transform flipping of
+        # OBB extents are working by checking against a box
+
+        extents = [10, 2, 3.5]
+        extents_ordered = g.np.sort(extents)
+
+        for i in range(100):
+            # transform box randomly in rotation and translation
+            mat = g.trimesh.transformations.random_rotation_matrix()
+            # translate in box -100 : +100
+            mat[:3, 3] = (g.np.random.random(3) - .5) * 200
+
+            # source mesh to check
+            b = g.trimesh.creation.box(extents=extents,
+                                       transform=mat)
+
+            # calculated OBB primitive
+            obb = b.bounding_box_oriented
+
+            # make sure extents returned were ordered
+            assert g.np.allclose(obb.primitive.extents,
+                                 extents_ordered)
+
+            # make sure mesh isn't reversing windings
+            assert g.np.isclose(obb.to_mesh().volume,
+                                g.np.product(extents))
+
+            # make sure OBB has the same bounds as the source mesh
+            # since it is a box the AABB of the OBB should be
+            # the same as the AABB of the source mesh (lol)
+            assert g.np.allclose(obb.bounds,
+                                 b.bounds)
+
+            # unordered extents and transforms
+            uT, uE = g.trimesh.bounds.oriented_bounds(b, ordered=False)
+            assert g.np.allclose(g.np.sort(uE), extents_ordered)
+            # create a box from the unordered OBB information
+            uB = g.trimesh.creation.box(extents=uE, transform=g.np.linalg.inv(uT))
+            # make sure it is a real OBB too
+            assert g.np.allclose(uB.bounds, b.bounds)
 
 
 if __name__ == '__main__':
