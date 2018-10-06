@@ -4,11 +4,11 @@
 [![Build Status](https://travis-ci.org/mikedh/trimesh.svg?branch=master)](https://travis-ci.org/mikedh/trimesh) [![Build status](https://ci.appveyor.com/api/projects/status/j8h3luwvst1tkghl?svg=true)](https://ci.appveyor.com/project/mikedh/trimesh) [![Coverage Status](https://coveralls.io/repos/github/mikedh/trimesh/badge.svg)](https://coveralls.io/github/mikedh/trimesh) [![PyPI version](https://badge.fury.io/py/trimesh.svg)](https://badge.fury.io/py/trimesh) [![Join the chat at https://gitter.im/trimsh/Lobby](https://badges.gitter.im/trimsh/Lobby.svg)](https://gitter.im/trimsh/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 
-Trimesh is a pure Python (2.7- 3.3+) library for loading and using [triangular meshes](https://en.wikipedia.org/wiki/Triangle_mesh) with an emphasis on watertight meshes. The goal of the library is to provide a fully featured and well tested Trimesh object which allows for easy manipulation and analysis, in the style of the Polygon object in the [Shapely library](http://toblerity.org/shapely/manual.html).
+Trimesh is a pure Python (2.7- 3.3+) library for loading and using [triangular meshes](https://en.wikipedia.org/wiki/Triangle_mesh) with an emphasis on single- body watertight meshes. The goal of the library is to provide a full featured and well tested Trimesh object which allows for easy manipulation and analysis, in the style of the Polygon object in the [Shapely library](http://toblerity.org/shapely/manual.html).
 
 The API is mostly stable, but this should not be relied on and is not guaranteed; install a specific version if you plan on deploying something using trimesh as a backend.
 
-Pull requests are highly appreciated and are responded to promptly! If you'd like to contribute, here is an [up to date list of potential enhancements](https://github.com/mikedh/trimesh/issues/199) although things not on that list are also welcome. Also, some [general advice for writing mesh code in Python and Numpy.](https://github.com/mikedh/trimesh/blob/master/trimesh/io/README.md)
+Pull requests are appreciated and responded to promptly! If you'd like to contribute, here is an [up to date list of potential enhancements](https://github.com/mikedh/trimesh/issues/199) although things not on that list are also welcome. Some [general advice for writing mesh code in Python and Numpy.](https://github.com/mikedh/trimesh/blob/master/trimesh/io/README.md)
 
 
 ## Basic Installation
@@ -139,14 +139,6 @@ print(mesh.bounding_box_oriented.volume,
 * Create primitive objects (Box, Cylinder, Sphere, Extrusion) which are subclassed Trimesh objects and have all the same features (inertia, viewers, etc)
 * Simple scene graph and transform tree which can be rendered (pyglet window or three.js in a jupyter notebook) or exported.
 * Numerous utility functions, such as transforming points, unitizing vectors, tracking arrays for changes, grouping rows, etc.
-
-## Design Use Case
-
-The `trimesh.Trimesh` object is most useful on single body, watertight meshes that represent a volume. The design use case is around analysis of geometry exported from a CAD system into a mesh format, for applications related to robotics and manufacturing.
-
-This can be seen in the data model of Trimesh, where the emphasis is on faces and vertices and things derived from them, rather than other visual properties or metadata.
-
-It is hopefully useful in other applications, but most of the core effort is around the design use case.
 
 
 ## Viewer

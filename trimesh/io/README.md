@@ -31,7 +31,7 @@ In [7]: %timeit np.fromstring(text, sep='\n', dtype=np.float64)
 The highest priority is making sure `pip install trimesh` works. If someone just wants an STL loader they shouldn't need to compile 8 million things. Also in general dependencies should be running unit tests in CI on Python 2.7 and 3.4-3.7 on Windows and Linux (OSX as a bonus). 
 
 #### `pip install trimesh[easy]` 
-Installs things that install cleanly on all major platforms / Python versions without compiling (they have working wheels). Unfortunatly two packages (`rtree` and `shapely`) currently required additional shared libraries to function rather than including them in the wheels.
+Install things that install cleanly on all major platforms / Python versions without compiling (they have working wheels). Unfortunatly two packages (`rtree` and `shapely`) currently required additional shared libraries to function rather than including them in the wheels.
 
 #### `pip install trimesh[all]`
 Includes libraries that need compiling. Should be able to install through some means on all platforms.

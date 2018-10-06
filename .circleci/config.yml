@@ -14,7 +14,7 @@ jobs:
 
     steps:
       - checkout
-      - install:
+      - run:
           name: install dependencies
           command: |
             apt-get update; apt-get install -qq -y meshlab xvfb blender openscad
