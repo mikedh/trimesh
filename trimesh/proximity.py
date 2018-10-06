@@ -442,8 +442,12 @@ def max_tangent_sphere(mesh,
         diff = n_points[~done] - points[not_converged]
         old_radii = radii[not_converged].copy()
         # np.einsum produces element wise dot product
-        radii[not_converged] = (np.einsum('ij, ij->i', diff, diff) /
-                                (2 * np.einsum('ij, ij->i', diff, normals[not_converged])))
+        radii[not_converged] = (np.einsum('ij, ij->i',
+                                          diff,
+                                          diff) /
+                                (2 * np.einsum('ij, ij->i',
+                                               diff,
+                                               normals[not_converged])))
         centers[not_converged] = points[not_converged] + \
             normals[not_converged] * radii[not_converged].reshape(-1, 1)
 

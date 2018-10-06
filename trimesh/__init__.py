@@ -2,7 +2,10 @@
 https://github.com/mikedh/trimesh
 ------------------------------------
 
-Trimesh is a pure Python (2.7- 3.3+) library for loading and using triangular meshes with an emphasis on watertight meshes. The goal of the library is to provide a fully featured Trimesh object which allows for easy manipulation and analysis, in the style of the Polygon object in the Shapely library.
+Trimesh is a pure Python (2.7- 3.3+) library for loading and using triangular
+meshes with an emphasis on watertight meshes. The goal of the library is to
+provide a fully featured Trimesh object which allows for easy manipulation
+and analysis, in the style of the Polygon object in the Shapely library.
 """
 # current version
 from .version import __version__
@@ -24,3 +27,18 @@ from .io.load import load_mesh, load_path, load, available_formats
 
 # avoid a circular import in trimesh.base
 from . import primitives
+
+# explicitly list imports in __all__
+# as otherwise flake8 gets mad
+__all__ = [__version__,
+           Trimesh,
+           PointCloud,
+           Scene,
+           unitize,
+           tol,
+           load,
+           load_mesh,
+           load_path,
+           primitives,
+           transform_points,
+           available_formats]

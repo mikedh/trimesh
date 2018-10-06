@@ -1,13 +1,7 @@
 import trimesh
 import unittest
 import logging
-import time
-import os
-import sys
-import inspect
 import numpy as np
-import json
-from collections import deque
 
 try:
     from . import generic as g
@@ -211,7 +205,7 @@ class MassTests(unittest.TestCase):
                      parameter_count, truth['filename'])
 
 
-class FileTests(unittest.TestCase):
+class IOWrapTests(unittest.TestCase):
 
     def test_io_wrap(self):
         test_b = g.np.random.random(1).tostring()
@@ -238,19 +232,6 @@ class FileTests(unittest.TestCase):
             self.assertTrue(len(hashed) > 5)
 
             file_obj.close()
-
-
-class FileTests(unittest.TestCase):
-
-    def test_io_wrap(self):
-        test_b = g.np.random.random(1).tostring()
-        test_s = 'this is a test yo'
-
-        res_b = g.trimesh.util.wrap_as_stream(test_b).read()
-        res_s = g.trimesh.util.wrap_as_stream(test_s).read()
-
-        self.assertTrue(res_b == test_b)
-        self.assertTrue(res_s == test_s)
 
 
 class CompressTests(unittest.TestCase):

@@ -1,7 +1,7 @@
 import numpy as np
 import time
 
-from .constants import log, tol
+from .constants import log
 
 from . import util
 from . import convex

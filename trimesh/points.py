@@ -332,7 +332,7 @@ def plot_points(points, show=True):
     elif points.shape[1] == 2:
         plt.scatter(*points.T)
     else:
-        raise ValueError('Points must be 2D or 3D, not %dD', dimension)
+        raise ValueError('points not 2D/3D: {}'.format(points.shape))
 
     if show:
         plt.show()

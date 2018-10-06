@@ -16,7 +16,6 @@ import trimesh
 import time
 import json
 import os
-from scipy import interpolate
 
 import collections
 import logging

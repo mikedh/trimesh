@@ -49,12 +49,6 @@ def convex_hull(obj, qhull_options='QbB Pp QJn'):
         if not util.is_shape(points, (-1, 3)):
             raise ValueError('Object must be Trimesh or (n,3) points!')
 
-    points = points.reshape((-1, 3))
-
-    #points_origin = points.min(axis=0)
-    #points_scale  = points.ptp(axis=0).mean()
-    #scaled = (points - points_origin) / points_scale
-
     hull = spatial.ConvexHull(points,
                               qhull_options=qhull_options)
 
@@ -67,7 +61,6 @@ def convex_hull(obj, qhull_options='QbB Pp QJn'):
     faces = mask[hull.simplices].copy()
 
     # rescale vertices back to original size
-    #vertices = (c.points[vid].copy() * points_scale) + points_origin
     vertices = hull.points[vid].copy()
 
     # qhull returns faces with random winding
@@ -125,7 +118,7 @@ def convex_hull(obj, qhull_options='QbB Pp QJn'):
     convex.fix_normals(multibody=False)
 
     # sometimes the QbB option will cause precision issues
-    # so try the hull again without it and 
+    # so try the hull again without it and
     # check for qhull_options is None to avoid infinite recursion
     if (qhull_options is not None and
             not convex.is_winding_consistent):

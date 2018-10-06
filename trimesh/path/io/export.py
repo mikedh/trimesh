@@ -32,8 +32,7 @@ def export_path(path,
     # run the export
     export = _path_exporters[file_type](path, **kwargs)
     # if we've been passed files write the data
-    result = _write_export(export=export,
-                           file_obj=file_obj)
+    _write_export(export=export, file_obj=file_obj)
 
     return export
 
