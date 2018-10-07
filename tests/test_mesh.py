@@ -15,6 +15,8 @@ class MeshTests(g.unittest.TestCase):
 
         for mesh in g.get_meshes(raise_error=True):
             g.log.info('Testing %s', mesh.metadata['file_name'])
+
+            start = {mesh.md5(), mesh.crc()}
             assert len(mesh.faces) > 0
             assert len(mesh.vertices) > 0
 
@@ -24,7 +26,18 @@ class MeshTests(g.unittest.TestCase):
             assert len(mesh.edges_face) > 0
             assert isinstance(mesh.euler_number, int)
 
+            # check bounding primitives
+            assert mesh.bounding_box.volume > 0.0
+            assert mesh.bounding_primitive.volume > 0.0
+
+            # none of these should have mutated anything
+            assert start == {mesh.md5(), mesh.crc()}
+
+            # run processing, again
             mesh.process()
+
+            # still shouldn't have changed anything
+            assert start == {mesh.md5(), mesh.crc()}
 
             if not (mesh.is_watertight and
                     mesh.is_winding_consistent):
@@ -81,6 +94,9 @@ class MeshTests(g.unittest.TestCase):
             if not g.np.allclose(copied.identifier,
                                  mesh.identifier):
                 raise ValueError('copied identifier changed!')
+
+            # ...still shouldn't have changed anything
+            assert start == {mesh.md5(), mesh.crc()}
 
     def test_vertex_neighbors(self):
         m = g.trimesh.primitives.Box()

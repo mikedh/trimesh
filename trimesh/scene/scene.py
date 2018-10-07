@@ -11,10 +11,12 @@ from .. import transformations
 from .. import bounds as bounds_module
 
 from ..io import gltf
+from ..parent import Geometry
+
 from .transforms import TransformForest
 
 
-class Scene(object):
+class Scene(Geometry):
     """
     A simple scene graph which can be rendered directly via
     pyglet/openGL or through other endpoints such as a
@@ -445,43 +447,6 @@ class Scene(object):
         points = util.vstack_empty([m.vertices for m in self.dump()])
         hull = convex.convex_hull(points)
         return hull
-
-    @caching.cache_decorator
-    def bounding_box(self):
-        """
-        An axis aligned bounding box for the current scene.
-
-        Returns
-        ----------
-        aabb: trimesh.primitives.Box object with transform and extents defined
-              to represent the axis aligned bounding box of the scene
-        """
-        from .. import primitives
-        center = self.bounds.mean(axis=0)
-        aabb = primitives.Box(
-            transform=transformations.translation_matrix(center),
-            extents=self.extents,
-            mutable=False)
-        return aabb
-
-    @caching.cache_decorator
-    def bounding_box_oriented(self):
-        """
-        An oriented bounding box for the current mesh.
-
-        Returns
-        ---------
-        obb : trimesh.primitives.Box
-            Box primitive with transform and extents defined
-            to represent the minimum volume oriented bounding
-            box of the mesh
-        """
-        from .. import primitives
-        to_origin, extents = bounds_module.oriented_bounds(self)
-        obb = primitives.Box(transform=np.linalg.inv(to_origin),
-                             extents=extents,
-                             mutable=False)
-        return obb
 
     def export(self, file_type=None):
         """

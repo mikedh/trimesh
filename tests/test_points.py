@@ -51,6 +51,13 @@ class PointsTest(g.unittest.TestCase):
         cloud[0] = [10, 10, 10]
         assert g.np.allclose(cloud[0], [10, 10, 10])
 
+        assert g.np.isclose(cloud.bounding_box.volume,
+                            g.np.product(points.ptp(axis=0)))
+        # will populate all bounding primitives
+        assert cloud.bounding_primitive.volume > 0.0
+        # ... except AABB (it uses OBB)
+        assert cloud.bounding_box.volume > 0.0
+
     def test_vertex_only(self):
         """
         Test to make sure we can instantiate a mesh with just

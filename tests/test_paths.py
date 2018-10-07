@@ -385,6 +385,27 @@ class CreationTests(g.unittest.TestCase):
         # should be a valid Path2D
         check_Path2D(pattern)
 
+    def test_rect(self):
+        from trimesh.path import creation
+
+        # create a single rectangle
+        pattern = creation.rectangle([[0, 0], [2, 3]])
+        assert len(pattern.entities) == 1
+        assert len(pattern.polygons_closed) == 1
+        assert len(pattern.polygons_full) == 1
+        assert g.np.isclose(pattern.area, 6.0)
+        # should be a valid Path2D
+        check_Path2D(pattern)
+
+        # make 10 untouching rectangles
+        pattern = creation.rectangle(
+            g.np.arange(40).reshape((-1, 2, 2)))
+        assert len(pattern.entities) == 10
+        assert len(pattern.polygons_closed) == 10
+        assert len(pattern.polygons_full) == 10
+        # should be a valid Path2D
+        check_Path2D(pattern)
+
 
 def check_Path2D(path):
     """

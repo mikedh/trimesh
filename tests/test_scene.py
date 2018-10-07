@@ -109,6 +109,10 @@ class SceneTests(g.unittest.TestCase):
             extents,
             factor)
 
+        # check bounding primitives
+        assert scene.bounding_box.volume > 0.0
+        assert scene.bounding_primitive.volume > 0.0
+
         # we shouldn't have modified the original scene
         assert scene.md5() == md5
         assert scaled.md5() != md5
@@ -121,8 +125,7 @@ class SceneTests(g.unittest.TestCase):
         converted = scene.convert_units('in')
 
         assert g.np.allclose(
-            g.np.sort(
-                converted.bounding_box_oriented.primitive.extents) / extents,
+            converted.bounding_box_oriented.primitive.extents / extents,
             1.0 / 25.4,
             atol=1e-3)
 
@@ -140,8 +143,6 @@ class SceneTests(g.unittest.TestCase):
         # we shouldn't have modified the original scene
         assert scene.md5() == md5
         assert converted.md5() != md5
-
-        populate = scene.bounding_box
 
     def test_3DXML(self):
         s = g.get_mesh('rod.3DXML')
