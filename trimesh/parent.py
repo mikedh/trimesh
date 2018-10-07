@@ -6,7 +6,6 @@ The base class for Trimesh, PointCloud, and Scene objects
 """
 import numpy as np
 
-from . import bounds
 from . import caching
 
 
@@ -44,7 +43,7 @@ class Geometry(object):
           Box object with transform and extents defined
           representing the minimum volume oriented bounding box of the mesh
         """
-        from . import primitives
+        from . import primitives, bounds
         to_origin, extents = bounds.oriented_bounds(self)
         obb = primitives.Box(transform=np.linalg.inv(to_origin),
                              extents=extents,
@@ -83,7 +82,7 @@ class Geometry(object):
         mincyl : trimesh.primitives.Cylinder
           Cylinder primitive containing current mesh
         """
-        from . import primitives
+        from . import primitives, bounds
         kwargs = bounds.minimum_cylinder(self)
         mincyl = primitives.Cylinder(mutable=False, **kwargs)
         return mincyl

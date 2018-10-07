@@ -70,6 +70,11 @@ class CacheTest(g.unittest.TestCase):
                          a.crc(),
                          a.fast_hash()])
 
+        a[:10] = g.np.fliplr(a[:10])
+        modified.append([int(a.md5(), 16),
+                         a.crc(),
+                         a.fast_hash()])
+
         a[1] = 5
         modified.append([int(a.md5(), 16),
                          a.crc(),
