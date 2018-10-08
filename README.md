@@ -55,7 +55,7 @@ mesh.euler_number
 
 # the convex hull is another Trimesh object that is available as a property
 # lets compare the volume of our mesh with the volume of its convex hull
-np.divide(mesh.volume, mesh.convex_hull.volume)
+print(mesh.volume / mesh.convex_hull.volume)
 
 # since the mesh is watertight, it means there is a
 # volumetric center of mass which we can set as the origin for our mesh
