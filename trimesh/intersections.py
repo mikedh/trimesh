@@ -384,3 +384,153 @@ def planes_lines(plane_origins,
     on_plane += line_origins[valid]
 
     return on_plane, valid
+
+def slice_mesh_plane(mesh,
+                     plane_normal,
+                     plane_origin,
+                     cached_dots=None):
+    """
+    Slice a mesh with a plane, returning a new mesh that is the
+    portion of the original mesh to the positive normal side of the plane
+    Parameters
+    ---------
+    mesh : Trimesh object
+        Source mesh to slice
+    plane_normal : (3,) float
+        Normal vector of plane to intersect with mesh
+    plane_origin:  (3,) float
+        Point on plane to intersect with mesh
+    cached_dots : (n, 3) float
+        If an external function has stored dot
+        products pass them here to avoid recomputing
+    Returns
+    ----------
+    new_mesh : Trimesh object
+        Sliced mesh
+    """
+
+    from . import base
+
+    # If passed invalid input, return None
+    if mesh is None:
+        return None
+
+    # check input plane
+    plane_normal = np.asanyarray(plane_normal,
+                            dtype=np.float64)
+    plane_origin = np.asanyarray(plane_origin,
+                            dtype=np.float64)
+
+    if plane_origin.shape != (3,) or plane_normal.shape != (3,):
+        raise ValueError('Plane origin and normal must be (3,)!')
+
+    if cached_dots is not None:
+        dots = cached_dots
+    else:
+        # dot product of each vertex with the plane normal indexed by face
+        # so for each face the dot product of each vertex is a row
+        # shape is the same as mesh.faces (n,3)
+        dots = np.dot(plane_normal,
+                (mesh.vertices - plane_origin).T)[mesh.faces]
+
+    # Find vertex orientations w.r.t. faces for all triangles:
+    #  -1 -> vertex "inside" plane (positive normal direction)
+    #   0 -> vertex on plane
+    #   1 -> vertex "outside" plane (negative normal direction)
+    signs = np.zeros(mesh.faces.shape, dtype=np.int8)
+    signs[dots < -tol.merge] = 1
+    signs[dots > tol.merge] = -1
+
+    # Find all triangles that intersect this plane
+    # onedge <- indices of all triangles intersecting the plane
+    # inside <- indices of all triangles "inside" the plane (positive normal)
+    ssum = np.sum(signs, axis=1)
+    sumabssigns = np.sum(np.abs(signs), axis=1)
+    abssumsigns = np.abs(ssum)
+    onedge = np.logical_and(sumabssigns >= 2, abssumsigns <= 1)
+    inside = np.logical_or(ssum == -3,
+                       np.logical_and(ssum == -1, sumabssigns == 1))
+
+    # Automatically include all faces that are "inside"
+    new_faces = mesh.faces[inside]
+
+    # Separate faces on the edge into two cases: those which will become
+    # quads (two vertices inside plane) and those which will become triangles
+    # (one vertex inside plane)
+    cut_triangles = mesh.triangles[onedge]
+    cut_faces_quad = mesh.faces[np.logical_and(onedge, ssum < 0)]
+    cut_faces_tri = mesh.faces[np.logical_and(onedge, ssum >= 0)]
+    cut_signs_quad = signs[np.logical_and(onedge, ssum < 0)]
+    cut_signs_tri = signs[np.logical_and(onedge, ssum >= 0)]
+
+    # If no faces to cut, the surface is not in contact with this plane.
+    # Thus, return a mesh with only the inside faces
+    if len(cut_faces_quad) + len(cut_faces_tri) == 0:
+        new_mesh = base.Trimesh(vertices=mesh.vertices, faces=new_faces)
+        new_mesh.remove_unreferenced_vertices()
+        return new_mesh
+
+    # Extract the intersections of each triangle's edges with the plane
+    o = cut_triangles                               # origins
+    d = np.roll(o, -1, axis=1) - o                  # directions
+    num = (plane_origin - o).dot(plane_normal)      # compute num/denom
+    denom = np.dot(d, plane_normal)
+    denom[denom == 0.0] = 1e-12                     # prevent division by zero
+    dist = np.divide(num, denom)
+    int_points = np.einsum('ij,ijk->ijk', dist, d) + o    # intersection points for each segment
+
+    # Initialize the array of new vertices with the current vertices
+    new_vertices = mesh.vertices
+
+    # Handle the case where a new quad is formed by the intersection
+    # First, extract the intersection points belonging to a new quad
+    quad_int_points = int_points[(ssum < 0)[onedge],:,:]
+    num_quads = len(quad_int_points)
+    if num_quads > 0:
+        # Extract the vertex on the outside of the plane, then get the vertices (in CCW order of the inside vertices)
+        quad_int_inds = np.where(cut_signs_quad == 1)[1]
+        quad_int_verts = cut_faces_quad[np.stack((range(num_quads), range(num_quads)), axis=1),
+                                    np.stack(((quad_int_inds+1)%3, (quad_int_inds+2)%3), axis=1)]
+
+        # Fill out new quad faces with the intersection points as vertices
+        new_quad_faces = np.append(quad_int_verts,
+                               np.arange(len(new_vertices), len(new_vertices)+2*num_quads).reshape(num_quads,2),
+                               axis=1)
+
+        # Extract correct intersection points from int_points and order them in the same way as they were added to faces
+        new_quad_vertices = quad_int_points[np.stack((range(num_quads), range(num_quads)), axis=1),
+                                        np.stack((((quad_int_inds + 2) % 3).T, quad_int_inds.T), axis=1),
+                                        : ].reshape(2*num_quads,3)
+
+        # Add new vertices to existing vertices, triangulate quads, and add the resulting triangles to the new faces
+        new_vertices = np.append(new_vertices, new_quad_vertices, axis=0)
+        new_tri_faces_from_quads = geometry.triangulate_quads(new_quad_faces)
+        new_faces = np.append(new_faces, new_tri_faces_from_quads, axis=0)
+
+    # Handle the case where a new triangle is formed by the intersection
+    # First, extract the intersection points belonging to a new triangle
+    tri_int_points = int_points[(ssum >= 0)[onedge],:,:]
+    num_tris = len(tri_int_points)
+    if num_tris > 0:
+        # Extract the single vertex for each triangle inside the plane and get the inside vertices (CCW order)
+        tri_int_inds = np.where(cut_signs_tri == -1)[1]
+        tri_int_verts = cut_faces_tri[range(num_tris),tri_int_inds].reshape(num_tris,1)
+
+        # Fill out new triangles with the intersection points as vertices
+        new_tri_faces = np.append(tri_int_verts,
+                              np.arange(len(new_vertices), len(new_vertices)+2*num_tris).reshape(num_tris,2),
+                              axis=1)
+
+        # Extract correct intersection points and order them in the same way as the vertices were added to the faces
+        new_tri_vertices = tri_int_points[np.stack((range(num_tris), range(num_tris)), axis=1),
+                                      np.stack((tri_int_inds.T, ((tri_int_inds+2)%3).T), axis=1),
+                                      : ].reshape(2*num_tris,3)
+
+        # Append new vertices and new faces
+        new_vertices = np.append(new_vertices, new_tri_vertices, axis=0)
+        new_faces = np.append(new_faces, new_tri_faces, axis=0)
+
+    # Make new mesh and remove cut out vertices
+    new_mesh = base.Trimesh(vertices=new_vertices,faces=new_faces)
+    new_mesh.remove_unreferenced_vertices()
+    return new_mesh

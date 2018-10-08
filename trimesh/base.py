@@ -1810,6 +1810,34 @@ class Trimesh(Geometry):
                 paths[index] = load_path(
                     L, metadata={'to_3D': T})
         return paths
+    
+    def slice_plane(self,
+                    plane_origin,
+                    plane_normal):
+        """
+        Returns another mesh that is the current mesh 
+        sliced by the plane defined by origin and normal.
+
+        Parameters
+        ---------
+        plane_normal: (3) vector for plane normal
+          Normal vector of slicing plane
+        plane_origin : (3,) float
+          Point on the slicing plane
+
+        Returns
+        ---------
+        new_mesh: trimesh.Trimesh or None
+          Subset of current mesh sliced by plane
+        """
+        
+        # return a new mesh
+        new_mesh = intersections.slice_mesh_plane(
+            mesh=self,
+            plane_normal=plane_normal,
+            plane_origin=plane_origin)
+
+        return new_mesh
 
     @caching.cache_decorator
     def convex_hull(self):
