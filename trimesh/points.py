@@ -250,7 +250,7 @@ def tsp(points, start=0):
     traversal : (n,) int
       Ordered traversal visiting every point
     distances : (n - 1,) float
-      The distance between points in the traversal
+      The euclidean distance between points in traversal
     """
     # points should be float
     points = np.asanyarray(points, dtype=np.float64)
@@ -296,12 +296,12 @@ def tsp(points, start=0):
         successor = index_mask[unvisited][min_index]
         # update the mask
         unvisited[successor] = False
-        # append the index to the traversal
+        # store the index to the traversal
         traversal[i + 1] = successor
-        # append the distance
+        # store the distance
         distances[i] = dist[min_index]
 
-    # we were comparing squared distance so root result
+    # we were comparing distance^2 so take square root
     distances **= 0.5
 
     return traversal, distances

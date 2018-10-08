@@ -162,8 +162,12 @@ def merge_colinear(points, scale):
     merged: (j, d) set of points with colinear and duplicate
              points merged, where (j < n)
     """
-    points = np.asanyarray(points)
+    points = np.asanyarray(points, dtype=np.float64)
     scale = float(scale)
+
+    # if there's less than 3 points nothing to merge
+    if len(points) < 3:
+        return points.copy()
 
     # the vector from one point to the next
     direction = points[1:] - points[:-1]
