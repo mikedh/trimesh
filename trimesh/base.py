@@ -1490,19 +1490,10 @@ class Trimesh(Geometry):
         if len(self.facets) == 0:
             return np.array([])
 
-        area = self.area_face
-        normals = self.face_normals
-
-        normals = [np.average(normals[f], axis=0, weights=area[f])
-                   for f in self.facets]
-        normals = util.unitize(normals)
-        
-        
         # the face index of the first face in each facet
         index = np.array([i[0] for i in self.facets])
         # (n,3) float, unit normal vectors of facet plane
-        #normals = self.face_normals[index]
-        
+        normals = self.face_normals[index]
         # (n,3) float, points on facet plane
         origins = self.vertices[self.faces[:, 0][index]]
         # save origins in cache

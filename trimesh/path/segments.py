@@ -121,7 +121,12 @@ def colinear_pairs(segments, radius=.01, angle=.01):
     # calculate angles between pairs
     angles = geometry.vector_angle(vectors[pairs])
 
+    # angles can be within tolerance of 180 degrees or 0.0 degrees
+    angle_ok = np.logical_or(
+        np.isclose(angles, np.pi, atol=angle),
+        np.isclose(angles, 0.0, atol=angle))
+
     # check angle threshold
-    colinear = pairs[angles < angle]
+    colinear = pairs[angle_ok]
 
     return colinear

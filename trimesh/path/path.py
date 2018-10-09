@@ -1188,7 +1188,7 @@ class Path2D(Path):
             plt.show()
         return axis
 
-    def plot_entities(self, show=False):
+    def plot_entities(self, show=False, color=None):
         """
         Plot the entities of the path, with no notion of topology
         """
@@ -1205,7 +1205,11 @@ class Path2D(Path):
             discrete = entity.discrete(self.vertices)
             e_key = entity.__class__.__name__ + str(int(entity.closed))
             fmt = eformat[e_key]
-            if hasattr(entity, 'color'):
+            if color is not None:
+                # passed color will override other optons
+                fmt['color'] = color
+            elif hasattr(entity, 'color'):
+                # if entity has specified color use it
                 fmt['color'] = entity.color
             plt.plot(*discrete.T, **fmt)
         if show:
