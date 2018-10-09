@@ -21,9 +21,9 @@ jobs:
             pip install pytest
             pip install .
             python -c "import trimesh"
-            pytest tests/test_inertia.py
+            pytest -p no:warnings tests/test_inertia.py
             conda install --quiet -y -c conda-forge rtree shapely pyembree
             pip install .[easy]
       - run:
           name: run tests
-          command: pytest tests
+          command: pytest -W default tests
