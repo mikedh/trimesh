@@ -130,6 +130,35 @@ class PlaneLine(g.unittest.TestCase):
         assert valid.all()
         assert (g.np.abs(i[:, 2] - z) < g.tol.merge).all()
 
+class SliceTest(g.unittest.TestCase):
+
+    def test_slice(self):
+        mesh = g.trimesh.creation.box()
+
+        # Cut corner off of box and make sure the bounds and number of faces is correct
+        # (Tests new triangles, but not new quads or triangles contained entirely)
+        plane_origin = mesh.bounds[1] - 0.05
+        plane_normal = mesh.bounds[1]
+
+
+        sliced_mesh = mesh.slice_plane(plane_origin=plane_origin,
+                                       plane_normal=plane_normal)
+
+        assert g.np.isclose(sliced_mesh.bounds[0], mesh.bounds[1]-0.15).all()
+        assert g.np.isclose(sliced_mesh.bounds[1], mesh.bounds[1]).all()
+        assert len(sliced_mesh.faces) == 5
+
+        # Cut top off of box and make sure bounds and number of faces is correct
+        # Tests new quads and entirely contained triangles
+        plane_origin = mesh.bounds[1] - 0.05
+        plane_normal = g.np.array([0,0,1])
+
+        sliced_mesh = mesh.slice_plane(plane_origin=plane_origin,
+                                       plane_normal=plane_normal)
+        
+        assert g.np.isclose(sliced_mesh.bounds[0], mesh.bounds[0] + g.np.array([0,0,0.95])).all()
+        assert g.np.isclose(sliced_mesh.bounds[1], mesh.bounds[1]).all()
+        assert len(sliced_mesh.faces) == 14
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
