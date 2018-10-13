@@ -1811,12 +1811,12 @@ class Trimesh(Geometry):
                 paths[index] = load_path(
                     L, metadata={'to_3D': T})
         return paths
-    
+
     def slice_plane(self,
                     plane_origin,
                     plane_normal):
         """
-        Returns another mesh that is the current mesh 
+        Returns another mesh that is the current mesh
         sliced by the plane defined by origin and normal.
 
         Parameters
@@ -1831,7 +1831,7 @@ class Trimesh(Geometry):
         new_mesh: trimesh.Trimesh or None
           Subset of current mesh sliced by plane
         """
-        
+
         # return a new mesh
         new_mesh = intersections.slice_mesh_plane(
             mesh=self,

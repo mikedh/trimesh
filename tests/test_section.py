@@ -130,6 +130,7 @@ class PlaneLine(g.unittest.TestCase):
         assert valid.all()
         assert (g.np.abs(i[:, 2] - z) < g.tol.merge).all()
 
+
 class SliceTest(g.unittest.TestCase):
 
     def test_slice(self):
@@ -140,25 +141,41 @@ class SliceTest(g.unittest.TestCase):
         plane_origin = mesh.bounds[1] - 0.05
         plane_normal = mesh.bounds[1]
 
+        sliced = mesh.slice_plane(plane_origin=plane_origin,
+                                  plane_normal=plane_normal)
 
-        sliced_mesh = mesh.slice_plane(plane_origin=plane_origin,
-                                       plane_normal=plane_normal)
-
-        assert g.np.isclose(sliced_mesh.bounds[0], mesh.bounds[1]-0.15).all()
-        assert g.np.isclose(sliced_mesh.bounds[1], mesh.bounds[1]).all()
-        assert len(sliced_mesh.faces) == 5
+        assert g.np.isclose(sliced.bounds[0], mesh.bounds[1] - 0.15).all()
+        assert g.np.isclose(sliced.bounds[1], mesh.bounds[1]).all()
+        assert len(sliced.faces) == 5
 
         # Cut top off of box and make sure bounds and number of faces is correct
         # Tests new quads and entirely contained triangles
         plane_origin = mesh.bounds[1] - 0.05
-        plane_normal = g.np.array([0,0,1])
+        plane_normal = g.np.array([0, 0, 1])
 
-        sliced_mesh = mesh.slice_plane(plane_origin=plane_origin,
-                                       plane_normal=plane_normal)
-        
-        assert g.np.isclose(sliced_mesh.bounds[0], mesh.bounds[0] + g.np.array([0,0,0.95])).all()
-        assert g.np.isclose(sliced_mesh.bounds[1], mesh.bounds[1]).all()
-        assert len(sliced_mesh.faces) == 14
+        sliced = mesh.slice_plane(plane_origin=plane_origin,
+                                  plane_normal=plane_normal)
+
+        assert g.np.isclose(
+            sliced.bounds[0], mesh.bounds[0] + g.np.array([0, 0, 0.95])).all()
+        assert g.np.isclose(sliced.bounds[1], mesh.bounds[1]).all()
+        assert len(sliced.faces) == 14
+
+        # non- watertight more complex mesh
+        bunny = g.get_mesh('bunny.ply')
+
+        origin = bunny.bounds.mean(axis=0)
+        normal = g.trimesh.unitize([1, 1, 2])
+
+        sliced = bunny.slice_plane(plane_origin=origin,
+                                   plane_normal=normal)
+        assert len(sliced.faces) > 0
+
+        # check the projections manually
+        dot = g.np.dot(normal, (sliced.vertices - origin).T)
+        # should be lots of stuff at the plane and nothing behind
+        assert g.np.isclose(dot.min(), 0.0)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
