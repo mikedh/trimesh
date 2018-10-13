@@ -957,6 +957,7 @@ class Trimesh(Geometry):
           guess the current units of the document and then convert?
         """
         units._convert_units(self, desired, guess)
+        return self
 
     def merge_vertices(self, distance=None):
         """

@@ -445,16 +445,14 @@ def parse_file_args(file_obj,
             file_obj = open(file_path, 'rb')
             opened = True
         else:
-            if file_type is not None:
-                return file_obj, file_type, metadata, opened
-            elif '{' in file_obj:
+            if '{' in file_obj:
                 # if a dict bracket is in the string, its probably a straight
                 # JSON
                 file_type = 'json'
             elif 'https://' in file_obj or 'http://' in file_obj:
                 # we've been passed a URL so retrieve it
                 raise ValueError('use load_remote to load URL!')
-            else:
+            elif file_type is None:
                 raise ValueError('string is not a file!')
 
     if file_type is None:
@@ -467,7 +465,10 @@ def parse_file_args(file_obj,
             metadata['file_path'] = file_type
         metadata['file_name'] = os.path.basename(file_type)
         file_type = util.split_extension(file_type)
+
+    # all our stored extensions reference in lower case
     file_type = file_type.lower()
+
     return file_obj, file_type, metadata, opened
 
 

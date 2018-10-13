@@ -4,30 +4,24 @@ from ..constants import res_path as res
 from ..constants import tol_path as tol
 
 
-def discretize_bezier(points, count=None, scale=1.0):
+def discretize_bezier(points,
+                      count=None,
+                      scale=1.0):
     """
     Parameters
     ----------
-    points:  (o,d) list of points of the bezier. The first and last
-             points should be the start and end of the curve.
-             For a 2D cubic bezier, order o=3, dimension d=2
-
+    points : (order, dimension) float
+      Control points of the bezier curve
+      For a 2D cubic bezier, order=3, dimension=2
+    count : int, or None
+      Number of segments
+    scale : float
+      Scale of curve
     Returns
     ----------
     discrete: (n,d) list of points, a polyline representation
               of the bezier curve which respects constants.RES_LENGTH
     """
-    def compute(t):
-        # compute discrete points given a sampling t
-        t_d = 1.0 - t
-        n = len(points) - 1
-        # binomial coefficients, i, and each point
-        iterable = zip(binomial(n), np.arange(n + 1), points)
-        stacked = [((t**i) * (t_d**(n - i))).reshape((-1, 1))
-                   * p * c for c, i, p in iterable]
-        discrete = np.sum(stacked, axis=0)
-        return discrete
-
     # make sure we have a numpy array
     points = np.asanyarray(points, dtype=np.float64)
 
@@ -39,8 +33,21 @@ def discretize_bezier(points, count=None, scale=1.0):
         count = int(np.clip(count,
                             res.min_sections * len(points),
                             res.max_sections * len(points)))
-    result = compute(np.linspace(0.0, 1.0, count))
+    count = int(count)
 
+    # parameterize incrementing 0.0 - 1.0
+    t = np.linspace(0.0, 1.0, count)
+    # decrementing 1.0-0.0
+    t_d = 1.0 - t
+    n = len(points) - 1
+    # binomial coefficients, i, and each point
+    iterable = zip(binomial(n), np.arange(len(points)), points)
+    # run the actual interpolation
+    stacked = [((t**i) * (t_d**(n - i))).reshape((-1, 1))
+               * p * c for c, i, p in iterable]
+    result = np.sum(stacked, axis=0)
+
+    # test to make sure end points are correct
     test = np.sum((result[[0, -1]] - points[[0, -1]])**2, axis=1)
     assert (test < tol.merge).all()
     assert len(result) >= 2
@@ -58,14 +65,18 @@ def discretize_bspline(control,
 
     Parameters
     ----------
-    control:  (o,d) list of control points of the b- spline.
-    knots:    (j) list of knots
-    count:    int, number of sections to discretize the spline in to.
-              If not specified, RES_LENGTH will be used to inform this.
+    control : (o, d) float
+      Control points of the b- spline
+    knots : (j,) float
+      B-spline knots
+    count : int
+      Number of line segments to discretize the spline
+      If not specified will be calculated as something reasonable
 
     Returns
     ----------
-    discrete: (count,d) list of points, a polyline of the B-spline.
+    discrete : (count, dimension) float
+       Points on a polyline version of the B-spline
     """
 
     # evaluate the b-spline using scipy/fitpack
@@ -92,6 +103,16 @@ def binomial(n):
 
     For n > 5, scipy.special.binom is used, below we hardcode
     to avoid the scipy.special dependency.
+
+    Parameters
+    --------------
+    n : int
+      Order
+
+    Returns
+    ---------------
+    binom : (n + 1,) int
+      Binomial coefficents of a given order
     """
     if n == 1:
         return [1, 1]

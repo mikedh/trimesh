@@ -16,7 +16,7 @@ class ExportTest(g.unittest.TestCase):
                                      mesh.metadata['file_name'],
                                      file_type)
 
-                self.assertTrue(len(export) > 0)
+                assert len(export) > 0
 
                 if file_type in [
                         'dae',     # collada, no native importers
@@ -57,7 +57,7 @@ class ExportTest(g.unittest.TestCase):
                         mesh.metadata['file_name'],
                         str(mesh.faces.shape),
                         str(loaded.faces.shape)))
-                self.assertTrue(loaded.vertices.shape == mesh.vertices.shape)
+                assert loaded.vertices.shape == mesh.vertices.shape
 
                 # try exporting/importing certain file types by name
                 if file_type in ['obj', 'stl', 'ply', 'off']:
@@ -231,6 +231,52 @@ class ExportTest(g.unittest.TestCase):
 
         assert len(a) > 0
         assert len(b) > 0
+
+    def test_parse_file_args(self):
+        """
+        Test the magical trimesh.io.load.parse_file_args
+        """
+        # it's wordy
+        f = g.trimesh.io.load.parse_file_args
+
+        # a path that doesn't exist
+        nonexists = '/banana{}'.format(g.np.random.random())
+        assert not g.os.path.exists(nonexists)
+
+        # loadable OBJ model
+        exists = g.os.path.join(g.dir_models, 'tube.obj')
+        assert g.os.path.exists(exists)
+
+        # should be able to extract type from passed filename
+        args = f(file_obj=exists, file_type=None)
+        assert len(args) == 4
+        assert args[1] == 'obj'
+
+        # should be able to extract correct type from longer name
+        args = f(file_obj=exists, file_type='YOYOMA.oBj')
+        assert len(args) == 4
+        assert args[1] == 'obj'
+
+        # with a nonexistant file and no extension it should raise
+        try:
+            args = f(file_obj=nonexists, file_type=None)
+        except ValueError as E:
+            assert 'not a file' in str(E)
+        else:
+            raise ValueError('should have raised exception!')
+
+        # nonexistant file with extension passed should return
+        # file name anyway, maybe something else can handle i
+        args = f(file_obj=nonexists, file_type='.ObJ')
+        assert len(args) == 4
+        # should have cleaned up case
+        assert args[1] == 'obj'
+
+        # make sure overriding type works for string filenames
+        args = f(file_obj=exists, file_type='STL')
+        assert len(args) == 4
+        # should have used manually passed type over .obj
+        assert args[1] == 'stl'
 
 
 if __name__ == '__main__':

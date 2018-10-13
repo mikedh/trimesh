@@ -1820,4 +1820,5 @@ def generate_basis(z):
         x = np.array([1.0, 0.0, 0.0])
     x = x / np.linalg.norm(x)
     y = np.cross(z, x)
-    return x, y, z
+    result = np.array([x, y, z])
+    return result
