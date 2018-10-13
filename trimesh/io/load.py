@@ -446,7 +446,7 @@ def parse_file_args(file_obj,
             opened = True
         else:
             if file_type is not None:
-                return file_obj, file_type, metadata
+                return file_obj, file_type, metadata, opened
             elif '{' in file_obj:
                 # if a dict bracket is in the string, its probably a straight
                 # JSON
