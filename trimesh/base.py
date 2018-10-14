@@ -251,7 +251,7 @@ class Trimesh(Geometry):
         crc : int
           Checksum of current mesh data
         """
-        return self._data.crc()
+        return self._data.fast_hash()
 
     @property
     def faces(self):

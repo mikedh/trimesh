@@ -446,12 +446,13 @@ def slice_mesh_plane(mesh,
     # Find all triangles that intersect this plane
     # onedge <- indices of all triangles intersecting the plane
     # inside <- indices of all triangles "inside" the plane (positive normal)
-    ssum = np.sum(signs, axis=1)
-    sumabssigns = np.sum(np.abs(signs), axis=1)
-    abssumsigns = np.abs(ssum)
-    onedge = np.logical_and(sumabssigns >= 2, abssumsigns <= 1)
-    inside = np.logical_or(ssum == -3,
-                           np.logical_and(ssum == -1, sumabssigns == 1))
+    signs_sum = signs.sum(axis=1)
+    signs_asum = np.abs(signs).sum(axis=1)
+
+    onedge = np.logical_and(signs_asum >= 2,
+                            np.abs(signs_sum) <= 1)
+    inside = np.logical_or(signs_sum == -3,
+                           np.logical_and(signs_sum == -1, signs_asum == 1))
 
     # Automatically include all faces that are "inside"
     new_faces = mesh.faces[inside]
@@ -460,10 +461,10 @@ def slice_mesh_plane(mesh,
     # quads (two vertices inside plane) and those which will become triangles
     # (one vertex inside plane)
     cut_triangles = mesh.triangles[onedge]
-    cut_faces_quad = mesh.faces[np.logical_and(onedge, ssum < 0)]
-    cut_faces_tri = mesh.faces[np.logical_and(onedge, ssum >= 0)]
-    cut_signs_quad = signs[np.logical_and(onedge, ssum < 0)]
-    cut_signs_tri = signs[np.logical_and(onedge, ssum >= 0)]
+    cut_faces_quad = mesh.faces[np.logical_and(onedge, signs_sum < 0)]
+    cut_faces_tri = mesh.faces[np.logical_and(onedge, signs_sum >= 0)]
+    cut_signs_quad = signs[np.logical_and(onedge, signs_sum < 0)]
+    cut_signs_tri = signs[np.logical_and(onedge, signs_sum >= 0)]
 
     # If no faces to cut, the surface is not in contact with this plane.
     # Thus, return a mesh with only the inside faces
@@ -487,7 +488,7 @@ def slice_mesh_plane(mesh,
 
     # Handle the case where a new quad is formed by the intersection
     # First, extract the intersection points belonging to a new quad
-    quad_int_points = int_points[(ssum < 0)[onedge], :, :]
+    quad_int_points = int_points[(signs_sum < 0)[onedge], :, :]
     num_quads = len(quad_int_points)
     if num_quads > 0:
         # Extract the vertex on the outside of the plane, then get the vertices
@@ -519,7 +520,7 @@ def slice_mesh_plane(mesh,
 
     # Handle the case where a new triangle is formed by the intersection
     # First, extract the intersection points belonging to a new triangle
-    tri_int_points = int_points[(ssum >= 0)[onedge], :, :]
+    tri_int_points = int_points[(signs_sum >= 0)[onedge], :, :]
     num_tris = len(tri_int_points)
     if num_tris > 0:
         # Extract the single vertex for each triangle inside the plane and get the
@@ -547,8 +548,11 @@ def slice_mesh_plane(mesh,
         new_vertices = np.append(new_vertices, new_tri_vertices, axis=0)
         new_faces = np.append(new_faces, new_tri_faces, axis=0)
 
-    # Make new mesh and remove cut out vertices
-    new_mesh = base.Trimesh(vertices=new_vertices, faces=new_faces)
-    new_mesh.remove_unreferenced_vertices()
+    # new mesh without cut off vertices
+    unique, inverse = np.unique(new_faces,
+                                return_inverse=True)
+    new_mesh = base.Trimesh(vertices=new_vertices[unique],
+                            faces=inverse.reshape((-1, 3)),
+                            process=False)
 
     return new_mesh

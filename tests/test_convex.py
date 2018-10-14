@@ -41,7 +41,7 @@ class ConvexTest(g.unittest.TestCase):
                 close_ok = ratio > .9
 
             if not close_ok:
-                log.error('volume inconsistent: {}'.format(volume))
+                g.log.error('volume inconsistent: {}'.format(volume))
                 raise ValueError('volume is inconsistent on {}'.format(
                     mesh.metadata['file_name']))
             assert volume.min() > 0.0

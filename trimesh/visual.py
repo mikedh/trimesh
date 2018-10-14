@@ -134,7 +134,7 @@ class ColorVisuals(object):
         # will make sure everything has been transferred
         # to datastore that needs to be before returning crc
 
-        result = self._data.crc()
+        result = self._data.fast_hash()
         if hasattr(self.mesh, 'crc'):
             # bitwise xor combines hashes better than a sum
             result ^= self.mesh.crc()
