@@ -674,4 +674,70 @@ def colors_to_materials(colors, count=None):
     return diffuse, index
 
 
+def _default_cmap(values):
+    """
+    Linearly interpolate between red and green.
+
+    Parameters
+    --------------
+    values : (n, ) float
+      Values to interpolate
+
+    Returns
+    ---------------
+    colors : (n, 4) uint8
+      RGBA colors for interpolated values
+    """
+    # float 1D array clamped to 0.0 - 1.0
+    values = np.clip(np.asanyarray(values,
+                                   dtype=np.float64).ravel(),
+                     0.0,
+                     1.0)
+
+    # create emptyu
+    colors = np.ones((len(values), 4),
+                     dtype=np.uint8) * [0, 0, 0, 255]
+    # set 1.0 values to green
+    colors[:, 0] = (255 * (1.0 - values)).astype(np.uint8)
+    # set 0.0 values to red
+    colors[:, 1] = (255 * values).astype(np.uint8)
+
+    return colors
+
+
+def interpolate(values, cmap=None, dtype=np.uint8):
+    """
+    Given a 1D list of values, return interpolated colors
+    for the range.
+
+    Parameters
+    ---------------
+    values : (n, ) float
+      Values to be interpolated over
+    cmap : None, or str
+      Key to a colormap contained in:
+      matplotlib.pyplot.colormaps()
+      e.g: 'viridis'
+
+    Returns
+    -------------
+    interpolated : (n, 4) dtype
+      Interpolated RGBA colors
+    """
+    if cmap is None:
+        cmap = _default_cmap
+    else:
+        from matplotlib.pyplot import get_cmap
+        cmap = get_cmap(cmap)
+
+    # make input always float
+    values = np.asanyarray(values, dtype=np.float64).ravel()
+    # scale values to 0.0 - 1.0 and get colors
+    colors = cmap((values - values.min()) / values.ptp())
+    # convert to 0-255 RGBA
+    rgba = to_rgba(colors, dtype=dtype)
+
+    return rgba
+
+
 DEFAULT_COLOR = np.array([102, 102, 102, 255], dtype=np.uint8)
