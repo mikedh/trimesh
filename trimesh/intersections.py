@@ -526,7 +526,8 @@ def slice_mesh_plane(mesh,
         # Extract the single vertex for each triangle inside the plane and get the
         # inside vertices (CCW order)
         tri_int_inds = np.where(cut_signs_tri == -1)[1]
-        tri_int_verts = cut_faces_tri[range(num_tris), tri_int_inds].reshape(num_tris, 1)
+        tri_int_verts = cut_faces_tri[range(
+            num_tris), tri_int_inds].reshape(num_tris, 1)
 
         # Fill out new triangles with the intersection points as vertices
         new_tri_faces = np.append(

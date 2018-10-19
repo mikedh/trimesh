@@ -372,7 +372,7 @@ class Bezier(Curve):
         scale : float
           Scale of overall drawings (for precision)
         count : int
-          Number of segments to reurn
+          Number of segments to return
 
         Returns
         -------------
@@ -411,7 +411,7 @@ class BSpline(Curve):
         scale : float
           Scale of overall drawings (for precision)
         count : int
-          Number of segments to reurn
+          Number of segments to return
 
         Returns
         -------------

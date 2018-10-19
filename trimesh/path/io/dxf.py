@@ -725,9 +725,14 @@ def export_dxf(path, include_metadata=False):
                             objects,
                             footer]
                 if len(i) > 0]
-    # append them all into one DXF file
-    export = '\n'.join(sections)
-    return export
+
+    # random whitespace causes AutoCAD to fail to load
+    # although Draftsight, LibreCAD, and Inkscape don't care
+    # what a giant legacy piece of shit
+    # strip out all leading and trailing whitespace
+    blob = '\n'.join(sections).replace(' ', '')
+
+    return blob
 
 
 def load_dwg(file_obj, **kwargs):

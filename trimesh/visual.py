@@ -674,38 +674,56 @@ def colors_to_materials(colors, count=None):
     return diffuse, index
 
 
-def _default_cmap(values):
+def linear_color_map(values, color_range=None):
     """
-    Linearly interpolate between red and green.
+    Linearly interpolate between two colors.
+
+    If colors are not specified the function will
+    interpolate between  0.0 values as red and 1.0 as green.
 
     Parameters
     --------------
     values : (n, ) float
       Values to interpolate
+    color_range : None, or (2, 4) uint8
+      What colors should extrema be set to
 
     Returns
     ---------------
     colors : (n, 4) uint8
       RGBA colors for interpolated values
     """
-    # float 1D array clamped to 0.0 - 1.0
-    values = np.clip(np.asanyarray(values,
-                                   dtype=np.float64).ravel(),
-                     0.0,
-                     1.0)
 
-    # create emptyu
-    colors = np.ones((len(values), 4),
-                     dtype=np.uint8) * [0, 0, 0, 255]
-    # set 1.0 values to green
-    colors[:, 0] = (255 * (1.0 - values)).astype(np.uint8)
-    # set 0.0 values to red
-    colors[:, 1] = (255 * values).astype(np.uint8)
+    if color_range is None:
+        color_range = np.array([[255, 0, 0, 255],
+                                [0, 255, 0, 255]],
+                               dtype=np.uint8)
+    else:
+        color_range = np.asanyarray(color_range,
+                                    dtype=np.uint8)
+
+    if color_range.shape != (2, 4):
+        raise ValueError('color_range must be RGBA (2, 4)')
+
+    # float 1D array clamped to 0.0 - 1.0
+    values = np.clip(np.asanyarray(
+        values, dtype=np.float64).ravel(),
+        0.0, 1.0).reshape((-1, 1))
+
+    # the stacked component colors
+    color = [np.ones((len(values), 4)) * c
+             for c in color_range.astype(np.float64)]
+
+    # interpolated colors
+    colors = (color[1] * values) + (color[0] * (1.0 - values))
+
+    # rounded and set to correct data type
+    colors = np.round(colors).astype(np.uint8)
 
     return colors
 
 
-def interpolate(values, cmap=None, dtype=np.uint8):
+def interpolate(values, color_map=None, dtype=np.uint8):
     """
     Given a 1D list of values, return interpolated colors
     for the range.
@@ -714,7 +732,7 @@ def interpolate(values, cmap=None, dtype=np.uint8):
     ---------------
     values : (n, ) float
       Values to be interpolated over
-    cmap : None, or str
+    color_map : None, or str
       Key to a colormap contained in:
       matplotlib.pyplot.colormaps()
       e.g: 'viridis'
@@ -724,11 +742,13 @@ def interpolate(values, cmap=None, dtype=np.uint8):
     interpolated : (n, 4) dtype
       Interpolated RGBA colors
     """
-    if cmap is None:
-        cmap = _default_cmap
+
+    # get a color interpolation function
+    if color_map is None:
+        cmap = linear_color_map
     else:
         from matplotlib.pyplot import get_cmap
-        cmap = get_cmap(cmap)
+        cmap = get_cmap(color_map)
 
     # make input always float
     values = np.asanyarray(values, dtype=np.float64).ravel()

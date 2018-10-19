@@ -38,10 +38,10 @@ def read_files(path):
 
 
 if __name__ == '__main__':
-    # dump files to JSON
-    # t = read_files('dxf')
-    # write_json(t)
+    # dump files to JSON template
+    t = read_files('dxf')
+    write_json(t)
 
-    # dump JSON to files
-    t = get_json()
-    write_files(t)
+    # dump JSON to files for editing
+    #$t = get_json()
+    #$write_files(t)

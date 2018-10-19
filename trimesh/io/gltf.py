@@ -392,7 +392,9 @@ def _append_mesh(mesh,
         tree['meshes'][-1]['primitives'][0]['attributes']['COLOR_0'] = len(
             tree['accessors'])
 
-        color_data = _byte_pad(mesh.visual.vertex_colors.astype(np.uint8).tobytes())
+        color_data = _byte_pad(
+            mesh.visual.vertex_colors.astype(
+                np.uint8).tobytes())
 
         # the vertex color accessor data
         tree['accessors'].append({
@@ -407,7 +409,8 @@ def _append_mesh(mesh,
         buffer_items.append(color_data)
     else:
         # if no colors, set a material
-        tree['meshes'][-1]['primitives'][0]['material'] = len(tree['materials'])
+        tree['meshes'][-1]['primitives'][0]['material'] = len(
+            tree['materials'])
         # add a default- ish material
         tree['materials'].append(_mesh_to_material(mesh))
 
@@ -416,7 +419,9 @@ def _append_mesh(mesh,
         tree['meshes'][-1]['primitives'][0]['attributes']['NORMAL'] = len(
             tree['accessors'])
 
-        normal_data = _byte_pad(mesh.vertex_normals.astype(np.float32).tobytes())
+        normal_data = _byte_pad(
+            mesh.vertex_normals.astype(
+                np.float32).tobytes())
         # the vertex color accessor data
         tree['accessors'].append({
             "bufferView": len(buffer_items),

@@ -275,7 +275,7 @@ def tsp(points, start=0):
 
     # in the loop we want to call distances.sum(axis=1)
     # a lot and it's actually kind of slow for "reasons"
-    # dot products with ones is equivilant and ~2x faster
+    # dot products with ones is equivalent and ~2x faster
     sum_ones = np.ones(points.shape[1])
 
     # loop through all points

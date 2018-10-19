@@ -39,9 +39,9 @@ def mesh_other(mesh,
       Allow scaling in transform
     icp_first : int
       How many ICP iterations for the 9 possible
-      combinations of
+      combinations of sign flippage
     icp_final : int
-      How many ICP itertations for the closest
+      How many ICP iterations for the closest
       candidate from the wider search
 
     Returns
@@ -55,7 +55,7 @@ def mesh_other(mesh,
     def key_points(m, count):
         """
         Return a combination of mesh vertices and surface samples
-        with vertices chosen by likelyhood to be important
+        with vertices chosen by likelihood to be important
         to registation.
         """
         if len(m.vertices) < (count / 2):

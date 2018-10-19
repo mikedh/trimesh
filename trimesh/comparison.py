@@ -70,7 +70,8 @@ def identifier_simple(mesh):
                 # cylinder height
                 h = np.dot(vertices, mesh.symmetry_axis).ptp()
                 # section radius
-                R2 = (np.dot(vertices, mesh.symmetry_section.T)**2).sum(axis=1).max()
+                R2 = (np.dot(vertices, mesh.symmetry_section.T)
+                      ** 2).sum(axis=1).max()
                 # area of a cylinder primitive
                 area = (2 * np.pi * (R2**.5) * h) + (2 * np.pi * R2)
                 # replace area in this case with area ratio
