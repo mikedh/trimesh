@@ -42,7 +42,7 @@ class VectorTests(g.unittest.TestCase):
             assert d.md5() == md5
 
             # copy should have saved the metadata
-            assert set(copied.metadata.keys) == set(d.metadata.keys())
+            assert set(copied.metadata.keys()) == set(d.metadata.keys())
             
             # file_name should be populated, and if we have a DXF file
             # the layer field should be populated with layer names
