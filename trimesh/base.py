@@ -1814,7 +1814,8 @@ class Trimesh(Geometry):
 
     def slice_plane(self,
                     plane_origin,
-                    plane_normal):
+                    plane_normal,
+                    **kwargs):
         """
         Returns another mesh that is the current mesh
         sliced by the plane defined by origin and normal.
@@ -1836,7 +1837,8 @@ class Trimesh(Geometry):
         new_mesh = intersections.slice_mesh_plane(
             mesh=self,
             plane_normal=plane_normal,
-            plane_origin=plane_origin)
+            plane_origin=plane_origin,
+            **kwargs)
 
         return new_mesh
 
