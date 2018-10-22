@@ -630,10 +630,21 @@ class Path(object):
         ---------
         copied: Path object, copy of self
         """
+
+        metadata = {}
+        # grab all the keys into a list so if something is added
+        # in another thread it probably doesn't stomp on our loop
+        for key in list(self.metadata.keys()):
+            try:
+                metadata[key] = copy.deepcopy(self.metadata[key])
+            except RuntimeError:
+                # multiple threads
+                log.warning('key {} changed during copy'.format(key))
+
         # copy the core data
         copied = type(self)(entities=copy.deepcopy(self.entities),
                             vertices=copy.deepcopy(self.vertices),
-                            metadata=copy.deepcopy(self.metadata))
+                            metadata=metadata)
 
         cache = {}
         # try to copy the cache over to the new object

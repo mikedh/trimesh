@@ -35,9 +35,15 @@ class VectorTests(g.unittest.TestCase):
             # run some checks
             check_Path2D(d)
 
+            # copying shouldn't touch original file
+            copied = d.copy()
+
             # these operations shouldn't have mutated anything!
             assert d.md5() == md5
 
+            # copy should have saved the metadata
+            assert set(copied.metadata.keys) == set(d.metadata.keys())
+            
             # file_name should be populated, and if we have a DXF file
             # the layer field should be populated with layer names
             if d.metadata['file_name'][-3:] == 'dxf':
