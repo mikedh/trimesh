@@ -157,6 +157,8 @@ class CreationTest(g.unittest.TestCase):
         """
         Check the plumbing of path triangulation
         """
+        if len(self.engines) == 0:
+            return
         p = g.get_mesh('2D/ChuteHolderPrint.DXF')
         v, f = p.triangulate()
         check_triangulation(v, f, p.area)
