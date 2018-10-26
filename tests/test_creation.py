@@ -132,27 +132,45 @@ class CreationTest(g.unittest.TestCase):
             for poly in [bigger, smaller, donut, bench]:
                 v, f = g.trimesh.creation.triangulate_polygon(
                     poly, engine=engine)
-                assert g.trimesh.util.is_shape(v, (-1, 2))
-                assert v.dtype.kind == 'f'
-                assert g.trimesh.util.is_shape(f, (-1, 3))
-                assert f.dtype.kind == 'i'
-                tri = g.trimesh.util.three_dimensionalize(v)[1][f]
-                area = g.trimesh.triangles.area(tri).sum()
-                assert g.np.isclose(area, poly.area)
 
+                # run asserts
+                check_triangulation(v, f, poly.area)
             try:
                 # do a quick benchmark per engine
-                # in general triangle appears to be 2x faster than meshpy
+                # in general triangle appears to be 2x
+                # faster than meshpy
                 times[engine] = min(
-                    g.timeit.repeat('t(p, engine=e)',
-                                    repeat=3,
-                                    number=iterations,
-                                    globals={'t': g.trimesh.creation.triangulate_polygon,
-                                             'p': bench,
-                                             'e': engine})) / iterations
+                    g.timeit.repeat(
+                        't(p, engine=e)',
+                        repeat=3,
+                        number=iterations,
+                        globals={'t': g.trimesh.creation.triangulate_polygon,
+                                 'p': bench,
+                                 'e': engine})) / iterations
             except BaseException:
-                g.log.error('failed to benchmark triangle', exc_info=True)
-        g.log.warning('benchmarked triangle interfaces: {}'.format(str(times)))
+                g.log.error(
+                    'failed to benchmark triangle', exc_info=True)
+        g.log.warning(
+            'benchmarked triangle interfaces: {}'.format(str(times)))
+
+    def test_triangulate_plumbing(self):
+        """
+        Check the plumbing of path triangulation
+        """
+        p = g.get_mesh('2D/ChuteHolderPrint.DXF')
+        v, f = p.triangulate()
+        check_triangulation(v, f, p.area)
+
+
+def check_triangulation(v, f, true_area):
+    assert g.trimesh.util.is_shape(v, (-1, 2))
+    assert v.dtype.kind == 'f'
+    assert g.trimesh.util.is_shape(f, (-1, 3))
+    assert f.dtype.kind == 'i'
+
+    tri = g.trimesh.util.three_dimensionalize(v)[1][f]
+    area = g.trimesh.triangles.area(tri).sum()
+    assert g.np.isclose(area, true_area)
 
 
 if __name__ == '__main__':

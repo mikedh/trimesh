@@ -7,17 +7,26 @@ except BaseException:
 class SphericalTests(g.unittest.TestCase):
 
     def test_spherical(self):
+        """
+        Convert vectors to spherical coordinates
+        """
+        # random unit vectors
         v = g.trimesh.unitize(g.np.random.random((1000, 3)) - .5)
+        # (n, 2) angles in radians
         spherical = g.trimesh.util.vector_to_spherical(v)
+        # back to unit vectors
         v2 = g.trimesh.util.spherical_to_vector(spherical)
-        self.assertTrue((g.np.abs(v - v2) < g.trimesh.constants.tol.merge).all())
+
+        assert g.np.allclose(v, v2)
 
 
 class HemisphereTests(g.unittest.TestCase):
 
     def test_hemisphere(self):
         for dimension in [2, 3]:
-            v = g.trimesh.unitize(g.np.random.random((10000, dimension)) - .5)
+            # random unit vectors
+            v = g.trimesh.unitize(
+                g.np.random.random((10000, dimension)) - .5)
 
             # add some on- axis points
             v[:dimension] = g.np.eye(dimension)

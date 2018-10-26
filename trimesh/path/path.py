@@ -1029,7 +1029,8 @@ class Path2D(Path):
             children = [closed[child]
                         for child in enclosure[root].keys()]
             # all polygons_closed are CCW, so for interiors reverse them
-            holes = [np.array(p.exterior.coords)[::-1] for p in children]
+            holes = [np.array(p.exterior.coords)[::-1]
+                     for p in children]
             # a single Polygon object
             shell = closed[root].exterior
             # create a polygon with interiors
@@ -1095,6 +1096,36 @@ class Path2D(Path):
             return result[0]
         return result
 
+    def triangulate(self, **kwargs):
+        """
+        Create a region- aware triangulation of the 2D path.
+
+        Parameters
+        -------------
+        **kwargs : dict
+          Passed to trimesh.creation.triangulate_polygon
+
+        Returns
+        -------------
+        vertices : (n, 2) float
+          2D vertices of triangulation
+        faces : (n, 3) int
+          Indexes of vertices for triangles
+        """
+        from ..creation import triangulate_polygon
+
+        # append vertices and faces into sequence
+        v_seq = []
+        f_seq = []
+
+        # loop through polygons with interiors
+        for polygon in self.polygons_full:
+            v, f = triangulate_polygon(polygon, **kwargs)
+            v_seq.append(v)
+            f_seq.append(f)
+
+        return util.append_faces(v_seq, f_seq)
+
     def medial_axis(self, resolution=None, clip=None):
         """
         Find the approximate medial axis based
@@ -1103,16 +1134,15 @@ class Path2D(Path):
 
         Parameters
         ----------
-        resolution: target distance between each sample on the polygon boundary
-        clip:       [minimum number of samples, maximum number of samples]
-                    specifying a very fine resolution can cause the sample count to
-                    explode, so clip specifies a minimum and maximum number of samples
-                    to use per boundary region. To not clip, this can be specified as:
-                    [0, np.inf]
+        resolution : None or float
+          Distance between each sample on the polygon boundary
+        clip : None, or (2,) float
+          Min, max number of samples
 
         Returns
         ----------
         medial : Path2D object
+          Contains only medial axis of Path
         """
         if resolution is None:
             resolution = self.scale / 1000.0
@@ -1124,23 +1154,27 @@ class Path2D(Path):
 
     def connected_paths(self, path_id, include_self=False):
         """
-        Given an index of self.paths, find other paths which overlap with
-        that path.
+        Given an index of self.paths find other paths which
+        overlap with that path.
 
         Parameters
         -----------
-        path_id:      int, index of self.paths
-        include_self: bool, should the result include path_id or not
+        path_id : int
+          Index of self.paths
+        include_self : bool
+          Should the result include path_id or not
 
         Returns
         -----------
-        path_ids: (n,) int, indexes of self.paths that overlap input path_id
+        path_ids :  (n, ) int
+          Indexes of self.paths that overlap input path_id
         """
         if len(self.root) == 1:
             path_ids = np.arange(len(self.polygons_closed))
         else:
-            path_ids = list(nx.node_connected_component(self.enclosure,
-                                                        path_id))
+            path_ids = list(nx.node_connected_component(
+                self.enclosure,
+                path_id))
         if include_self:
             return np.array(path_ids)
         return np.setdiff1d(path_ids, [path_id])
@@ -1152,7 +1186,7 @@ class Path2D(Path):
 
         Returns
         ---------
-        simplified: Path2D object
+        simplified : Path2D object
         """
         return simplify.simplify_basic(self, **kwargs)
 
@@ -1162,8 +1196,10 @@ class Path2D(Path):
 
         Parameters
         -----------
-        path_indexes: (n) int list of indexes for self.paths
-        smooth:       float, how much the spline should smooth the curve
+        path_indexes : (n) int
+          List of indexes of self.paths to convert
+        smooth : float
+          How much the spline should smooth the curve
 
         Returns
         ------------
@@ -1180,7 +1216,8 @@ class Path2D(Path):
 
         Returns
         ----------
-        split: (n,) list of Path2D objects
+        split:  (n,) list of Path2D objects
+          Each connected region and interiors
         """
         return traversal.split(self)
 
