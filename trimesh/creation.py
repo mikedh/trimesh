@@ -255,7 +255,7 @@ def extrude_triangulation(vertices,
 
 
 def triangulate_polygon(polygon,
-                        triangle_args='pq0D',
+                        triangle_args='pq30',
                         engine='auto',
                         **kwargs):
     """
@@ -307,7 +307,7 @@ def triangulate_polygon(polygon,
 
     # do the import here, as sometimes this import can segfault
     # which is not catchable with a try/except block
-    import meshpy.triangle as triangle
+    from meshpy import triangle
     # call meshpy.triangle on our cleaned representation of
     # the Shapely polygon
     info = triangle.MeshInfo()
@@ -402,6 +402,11 @@ def _polygon_to_kwargs(polygon):
     # by stacking the sequence of (p,2) arrays
     vertices = np.vstack(vertices)
     facets = np.vstack(facets).tolist()
+
+    # shapely polygons can include a Z component
+    # strip it out for the triangulation
+    if vertices.shape[1] == 3:
+        vertices = vertices[:, :2]
 
     result = {'vertices': vertices,
               'segments': facets}
