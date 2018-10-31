@@ -48,8 +48,21 @@ def load_wavefront(file_obj, **kwargs):
             # much as possible by sorting by remap key
             keys, values = (np.array(list(remap.keys())),
                             np.array(list(remap.values())))
+
+            try:
+                # if we sort keys as strings they will be an
+                # ordering like (1/1/1, 10/10/10) vs (1/1/1, 2/2/2)
+                # so try to convert to int before sorting
+                split = np.array([i.split('/')[0] for i in keys],
+                                 dtype=np.int)
+                order = split.argsort()
+            except BaseException:
+                # we can still use arbitrary order as a fallback
+                order = keys.argsort()
+
             # new order of vertices
-            vert_order = values[keys.argsort()]
+            vert_order = values[order]
+
             # we need to mask to preserve index relationship
             # between faces and vertices
             face_order = np.zeros(len(vertices),
