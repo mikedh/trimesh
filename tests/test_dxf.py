@@ -68,32 +68,6 @@ class DXFTest(g.unittest.TestCase):
         assert len(d.entities[0].points) == len(r.entities[0].points)
         assert len(d.entities[0].knots) == len(r.entities[0].knots)
 
-    def test_xrecord(self):
-        # data to store to test export / import round trip
-        data = {'thangs': 'poppin',
-                'pnts': g.np.arange(9).reshape((-1, 3))}
-
-        # get a drawing and add our data to metadata
-        d = g.get_mesh('2D/wrench.dxf')
-        d.metadata.update(data)
-
-        # get a path we can write
-        temp_name = g.tempfile.NamedTemporaryFile(
-            suffix='.dxf', delete=False).name
-
-        # export as a DXF file, which should put our
-        # custom data into an XRecord
-        d.export(temp_name, include_metadata=True)
-
-        # reload from export
-        r = g.trimesh.load(temp_name)
-
-        # check numpy round trip
-        assert g.np.allclose(r.metadata['pnts'],
-                             data['pnts'])
-        # check string roundtrip
-        assert r.metadata['thangs'] == 'poppin'
-
     def test_versions(self):
         """
         DXF files have a bajillion versions, so test against

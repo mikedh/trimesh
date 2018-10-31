@@ -63,7 +63,8 @@ class Scene(Geometry):
 
     def add_geometry(self,
                      geometry,
-                     node_name=None):
+                     node_name=None,
+                     geom_name=None):
         """
         Add a geometry to the scene.
 
@@ -86,21 +87,32 @@ class Scene(Geometry):
         # PointCloud objects will look like a sequence
         elif util.is_sequence(geometry):
             # if passed a sequence add all elements
-            return [self.add_geometry(i) for i in geometry]
+            for value in geometry:
+                self.add_geometry(value)
+            return
+
         elif isinstance(geometry, dict):
             # if someone passed us a dict of geometry
-            return self.geometry.update(geometry)
+            for key, value in geometry.items():
+                self.add_geometry(value, geom_name=key)
+            return
 
-        # if object has metadata indicating different
-        # information use those values
-        if 'name' in geometry.metadata:
+        # get or create a name to reference the geometry by
+        if geom_name is not None:
+            # if name is passed use it
+            name = geom_name
+        elif 'name' in geometry.metadata:
+            # if name is in metadata use it
             name = geometry.metadata['name']
+        elif 'file_name' in geometry.metadata:
+            name = geometry.metadata['file_name']
         else:
             # try to create a simple name
             name = 'geometry_' + str(len(self.geometry))
-            # if its already taken make a not- simple name
-            if name in self.geometry:
-                name = 'geometry_' + util.unique_id().upper()
+
+        # if its already taken add a unique random string to it
+        if name in self.geometry:
+            name += ':' + util.unique_id().upper()
 
         # save the geometry reference
         self.geometry[name] = geometry
@@ -157,6 +169,31 @@ class Scene(Geometry):
 
         is_empty = len(self.geometry) == 0
         return is_empty
+
+    @property
+    def is_valid(self):
+        """
+        Is every geometry connected to the root node.
+
+        Returns
+        -----------
+        is_valid : bool
+          Does every geometry have a transform
+        """
+        if len(self.geometry) == 0:
+            return True
+
+        try:
+            referenced = {self.graph[i][1]
+                          for i in self.graph.nodes_geometry}
+        except BaseException:
+            # if connectivity to world frame is broken return false
+            return False
+
+        # every geometry is referenced
+        ok = referenced == set(self.geometry.keys())
+
+        return ok
 
     @caching.cache_decorator
     def bounds_corners(self):
@@ -790,11 +827,19 @@ def split_scene(geometry):
 
     # a single geometry so we are going to split
     split = collections.deque()
+
     metadata = {}
     for g in util.make_sequence(geometry):
         split.extend(g.split())
         metadata.update(g.metadata)
+
+    # if there is only one geometry in the mesh
+    # name it from the file name
+    if len(split) == 1 and 'file_name' in metadata:
+        split = {metadata['file_name']: split[0]}
+
     scene = Scene(split, metadata=metadata)
+
     return scene
 
 

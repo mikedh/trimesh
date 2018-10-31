@@ -60,20 +60,6 @@ TEMPLATES = {k: Template(v) for k, v in json.loads(
     get_resource('dxf.json.template')).items()}
 
 
-def get_key(blob, field, code):
-    try:
-        line = blob[np.nonzero(blob[:, 1] == field)[0][0] + 1]
-    except IndexError:
-        return None
-    if line[0] == code:
-        try:
-            return int(line[1])
-        except ValueError:
-            return line[1]
-    else:
-        return None
-
-
 def load_dxf(file_obj, **kwargs):
     """
     Load a DXF file to a dictionary containing vertices and
@@ -87,56 +73,6 @@ def load_dxf(file_obj, **kwargs):
     ----------
     result: dict, keys are  entities, vertices and metadata
     """
-
-    def get_metadata():
-        """
-        Get metadata from DXF objects section of the file.
-
-        Returns
-        ----------
-        metadata : dict
-           Any available metadata stored in XRecord
-        """
-        metadata = {}
-        # save file version info
-        metadata['ACADVER'] = get_key(header_blob, '$ACADVER', '1')
-
-        # get the section which contains objects in the DXF file
-        obj_start = np.nonzero(blob[:, 1] == 'OBJECTS')[0]
-
-        if len(obj_start) == 0:
-            return metadata
-        obj_start = obj_start[0]
-
-        obj_end = endsec[np.searchsorted(endsec, obj_start)]
-        obj_blob = blob[obj_start:obj_end]
-
-        # the index of xrecords are one past the group code key
-        xrecords = np.nonzero((
-            obj_blob == ['100', 'ACDBXRECORD']).all(axis=1))[0] + 1
-
-        # if there are no XRecords return
-        if len(xrecords) == 0:
-            return metadata
-
-        # resplit the file data without upper() to preserve case
-        blob_lower = np.array(str.splitlines(raw)).reshape((-1, 2))
-        # newlines and split should never be effected by upper()
-        assert len(blob_lower) == len(blob)
-
-        # the likely exceptions are related to JSON decoding
-        try:
-            # loop through xrecords by group code
-            for code, data in blob_lower[obj_start:obj_end][xrecords]:
-                if code == str(XRECORD_METADATA):
-                    metadata.update(json.loads(data))
-                # we could store xrecords in the else here
-                # but they have a lot of garbage so don't
-                # metadata['XRECORD_' + code] = data
-        except BaseException:
-            log.error('failed to load metadata!', exc_info=True)
-
-        return metadata
 
     def info(e):
         """
@@ -367,7 +303,7 @@ def load_dxf(file_obj, **kwargs):
                 # no converter to ASCII DXF available
                 raise ValueError('binary DXF not supported!')
             else:
-                # convert to R14 ASCII DXF
+                # convert binary DXF to R14 ASCII DXF
                 raw = _teigha_convert(raw, extension='dxf')
         else:
             # we've been passed bytes that don't have the
@@ -392,26 +328,30 @@ def load_dxf(file_obj, **kwargs):
     entity_end = endsec[np.searchsorted(endsec, entity_start)]
     entity_blob = blob[entity_start:entity_end]
 
-    # try to load path metadata from xrecords stored in DXF
-    try:
-        metadata = get_metadata()
-    except BaseException:
-        log.error('failed to extract metadata!',
-                  exc_info=True)
-        metadata = {}
+    # store some properties from the DXF header
+    metadata = {'DXF_HEADER': {}}
+
+    for key in ['$DIMSCALE', '$DIMUNIT', '$INSUNITS', '$LUNITS']:
+        value = get_key(header_blob,
+                        key,
+                        '70')
+        if value is not None:
+            metadata['DXF_HEADER'][key] = value
 
     # store unit data pulled from the header of the DXF
     # prefer LUNITS over INSUNITS
     # I couldn't find a table for LUNITS values but they
     # look like they are 0- indexed versions of
     # the INSUNITS keys, so for now offset the key value
-    for offset, key in [(0, '$INSUNITS'),
-                        (-1, '$LUNITS')]:
+    for offset, key in [(-1, '$LUNITS'),
+                        (0, '$INSUNITS')]:
         # get the key from the header blob
         units = get_key(header_blob, key, '70')
         # if it exists add the offset
-        if units is not None:
-            units += offset
+        if units is None:
+            continue
+        metadata[key] = units
+        units += offset
         # if the key is in our list of units store it
         if units in _DXF_UNITS:
             metadata['units'] = _DXF_UNITS[units]
@@ -498,7 +438,7 @@ def load_dxf(file_obj, **kwargs):
     return result
 
 
-def export_dxf(path, include_metadata=False):
+def export_dxf(path):
     """
     Export a 2D path object to a DXF file
 
@@ -667,28 +607,6 @@ def export_dxf(path, include_metadata=False):
         """
         return convert_line(entity, vertices)
 
-    def convert_metadata():
-        """
-        Save path metadata as a DXF Xrecord object.
-        """
-        if (not include_metadata) or len(path.metadata) == 0:
-            return ''
-        # dump metadata to compact JSON
-        # make sure there are no newlines to break DXF
-        # util.jsonify will be able to convert numpy arrays
-        as_json = util.jsonify(
-            path.metadata,
-            separators=(',', ':')).replace('\n', ' ')
-
-        # create an XRECORD for our use
-        xrecord = TEMPLATES['xrecord'].substitute({
-            'INDEX': XRECORD_METADATA,
-            'DATA': as_json})
-        # add the XRECORD to an objects section
-        result = TEMPLATES['objects'].substitute({
-            'OBJECTS': xrecord})
-        return result
-
     # make sure we're not losing a ton of
     # precision in the string conversion
     np.set_printoptions(precision=12)
@@ -717,12 +635,10 @@ def export_dxf(path, include_metadata=False):
     entities = TEMPLATES['entities'].substitute({
         'ENTITIES': entities_str})
     footer = TEMPLATES['footer'].substitute()
-    # metadata encoded as objects section
-    objects = convert_metadata()
+
     # filter out empty sections
     sections = [i for i in [header,
                             entities,
-                            objects,
                             footer]
                 if len(i) > 0]
 
@@ -757,6 +673,24 @@ def load_dwg(file_obj, **kwargs):
     result = load_dxf(util.wrap_as_stream(converted))
 
     return result
+
+
+def get_key(blob, field, code):
+    """
+    Given a loaded (n, 2) blob and a field name
+    get a value by code.
+    """
+    try:
+        line = blob[np.nonzero(blob[:, 1] == field)[0][0] + 1]
+    except IndexError:
+        return None
+    if line[0] == code:
+        try:
+            return int(line[1])
+        except ValueError:
+            return line[1]
+    else:
+        return None
 
 
 def _teigha_convert(data, extension='dwg'):
@@ -836,11 +770,13 @@ def _teigha_convert(data, extension='dwg'):
 
 
 # the DWG to DXF converter
+# they renamed it at some point but it is the same
 for _name in ['ODAFileConverter',
               'TeighaFileConverter']:
     _teigha = find_executable(_name)
     if _teigha is not None:
         break
+
 # suppress X11 output
 _xvfb_run = find_executable('xvfb-run')
 

@@ -165,6 +165,9 @@ def merge_colinear(points, scale):
     points = np.asanyarray(points, dtype=np.float64)
     scale = float(scale)
 
+    if len(points.shape) != 2 or points.shape[1] != 2:
+        raise ValueError('only for 2D points!')
+
     # if there's less than 3 points nothing to merge
     if len(points) < 3:
         return points.copy()
@@ -185,12 +188,15 @@ def merge_colinear(points, scale):
     # if we have points A B C D
     # and direction vectors A-B, B-C, etc
     # these will be perpendicular to the vectors A-C, B-D, etc
-    perpendicular = (points[2:] - points[:-2]).T[::-1].T
-    perpendicular /= np.linalg.norm(perpendicular, axis=1).reshape((-1, 1))
+    perp = (points[2:] - points[:-2]).T[::-1].T
+    perp_norm = np.linalg.norm(perp, axis=1)
+    perp_nonzero = perp_norm > tol.merge
+    perp[perp_nonzero] /= perp_norm[perp_nonzero].reshape((-1, 1))
 
     # find the projection of each direction vector
     # onto the perpendicular vector
-    projection = np.abs(diagonal_dot(perpendicular, direction[:-1]))
+    projection = np.abs(diagonal_dot(perp,
+                                     direction[:-1]))
 
     projection_ratio = np.max((projection / direction_norm[1:],
                                projection / direction_norm[:-1]), axis=0)
