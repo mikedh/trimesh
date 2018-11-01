@@ -1,5 +1,6 @@
 import numpy as np
 
+from ..constants import log
 from .. import util
 
 
@@ -86,9 +87,14 @@ def load_wavefront(file_obj, **kwargs):
                 texture = np.array(current['vt'], dtype=np.float64)
                 # make sure vertex texture is the right shape
                 # AKA (len(vertices), dimension)
-                texture = texture.reshape((len(vertices), -1))
-                # save vertex texture with correct ordering
-                loaded['metadata']['vertex_texture'] = texture[vert_order]
+                try:
+                    texture = texture.reshape((len(vertices), -1))
+                    # save vertex texture with correct ordering
+                    loaded['metadata']['vertex_texture'] = texture[vert_order]
+                except ValueError:
+                    log.warning(
+                        'Texture information seems broken: %s' % file_obj.name
+                    )
 
             # build face groups information
             # faces didn't move around so we don't have to reindex
