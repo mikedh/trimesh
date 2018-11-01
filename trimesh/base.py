@@ -809,7 +809,7 @@ class Trimesh(Geometry):
         # edges_unique will be added automatically by the decorator
         # additional terms generated need to be added to the cache manually
         self._cache['edges_unique_idx'] = unique
-        self._cache['edges_unique_inv'] = inverse
+        self._cache['edges_unique_inverse'] = inverse
         return edges_unique
 
     @caching.cache_decorator
@@ -825,6 +825,23 @@ class Trimesh(Geometry):
         vector = np.subtract(*self.vertices[self.edges_unique.T])
         length = np.linalg.norm(vector, axis=1)
         return length
+
+    @caching.cache_decorator
+    def edges_unique_inverse(self):
+        """
+        Return the inverse required to reproduce
+        self.edges_sorted from self.edges_unique.
+
+        Useful for referencing edge properties:
+        mesh.edges_unique[mesh.edges_unique_inverse] == m.edges_sorted
+
+        Returns
+        ----------
+        inverse : (len(self.edges),) int
+          Indexes of self.edges_unique
+        """
+        populate = self.edges_unique
+        return self._cache['edges_unique_inverse']
 
     @caching.cache_decorator
     def edges_sorted(self):
