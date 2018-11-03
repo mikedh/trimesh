@@ -246,6 +246,8 @@ class SceneViewer(pyglet.window.Window):
             self.reset_view()
         elif symbol == pyglet.window.key.C:
             self.toggle_culling()
+        elif symbol == pyglet.window.key.Q:
+            self.close()
         elif symbol == pyglet.window.key.LEFT:
             self.view['ball'].down([0, 0])
             self.view['ball'].drag([-magnitude, 0])
