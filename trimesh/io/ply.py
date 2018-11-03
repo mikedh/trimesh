@@ -41,8 +41,9 @@ def load_ply(file_obj, *args, **kwargs):
 
     Returns
     ---------
-    mesh_kwargs : dictionary of mesh info which can be passed to
-                  Trimesh constructor, eg: a = Trimesh(**mesh_kwargs)
+    mesh_kwargs : dict
+      Data which can be passed to
+      Trimesh constructor, eg: a = Trimesh(**mesh_kwargs)
     """
 
     # OrderedDict which is populated from the header
@@ -237,13 +238,22 @@ def elements_to_kwargs(elements):
     kwargs: dict, with keys for Trimesh constructor.
             eg: mesh = trimesh.Trimesh(**kwargs)
     """
-    vertices = np.column_stack([elements['vertex']['data'][i] for i in 'xyz'])
+    vertices = np.column_stack([elements['vertex']['data'][i]
+                                for i in 'xyz'])
     if not util.is_shape(vertices, (-1, 3)):
         raise ValueError('Vertices were not (n,3)!')
 
+    try:
+        face_data = elements['face']['data']
+    except KeyError:
+        # some PLY files only include vertices
+        face_data = None
+        faces = None
+
+    # what keys do in-the-wild exporters use for vertices
     index_names = ['vertex_index',
                    'vertex_indices']
-    face_data = elements['face']['data']
+
     if util.is_shape(face_data, (-1, (3, 4))):
         faces = face_data
     elif isinstance(face_data, dict):
@@ -254,8 +264,8 @@ def elements_to_kwargs(elements):
     elif isinstance(face_data, np.ndarray):
         blob = elements['face']['data']
         # some exporters set this name to 'vertex_index'
-        # and some others use 'vertex_indices', but we really
-        # don't care about the name unless there are multiple properties
+        # and some others use 'vertex_indices' but we really
+        # don't care about the name unless there are multiple
         if len(blob.dtype.names) == 1:
             name = blob.dtype.names[0]
         elif len(blob.dtype.names) > 1:
@@ -264,33 +274,35 @@ def elements_to_kwargs(elements):
                     name = i
                     break
         faces = elements['face']['data'][name]['f1']
-    else:
-        raise ValueError('Couldn\'t extract face data!')
 
-    if not util.is_shape(faces, (-1, (3, 4))):
-        raise ValueError('Faces weren\'t (n,(3|4))!')
-
-    result = {'vertices': vertices,
-              'faces': faces,
+    # kwargs for Trimesh or PointCloud
+    result = {'faces': faces,
+              'vertices': vertices,
               'ply_data': elements}
 
-    # if both vertex and face color are defined, pick the one
+    # if both vertex and face color are defined pick the one
     # with the most going on
-    f_color, f_signal = element_colors(elements['face'])
-    v_color, v_signal = element_colors(elements['vertex'])
-    colors = [{'face_colors': f_color},
-              {'vertex_colors': v_color}]
-    colors_index = np.argmax([f_signal,
-                              v_signal])
-    result.update(colors[colors_index])
+    colors = []
+    signal = []
+    if result['faces'] is not None:
+        f_color, f_signal = element_colors(elements['face'])
+        colors.append({'face_colors': f_color})
+        signal.append(f_signal)
+    if result['vertices'] is not None:
+        v_color, v_signal = element_colors(elements['vertex'])
+        colors.append({'vertex_colors': v_color})
+        signal.append(v_signal)
+
+    # add the winning colors to the result
+    result.update(colors[np.argmax(signal)])
 
     return result
 
 
 def element_colors(element):
     """
-    Given an element, try to extract RGBA color from its properties
-    and return them as an (n,3|4) array.
+    Given an element, try to extract RGBA color from
+    properties and return them as an (n,3|4) array.
 
     Parameters
     -------------

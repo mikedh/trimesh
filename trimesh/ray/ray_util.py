@@ -53,8 +53,9 @@ def contains_points(intersector,
                                  (inside_aabb.sum(), 1))
     else:
         # if a direction is passed use it
-        ray_directions = np.tile(np.array(check_direction).reshape(3),
-                                 (inside_aabb.sum(), 1))
+        ray_directions = np.tile(
+            np.array(check_direction).reshape(3),
+            (inside_aabb.sum(), 1))
 
     # cast a ray both forwards and backwards
     location, index_ray, c = intersector.intersects_location(
@@ -116,11 +117,20 @@ def contains_points(intersector,
 
         # run a contains check again on the broken points with a
         # new random direction but only once and assign it to our results
-        contains[mask] = contains_points(intersector,
-                                         points[inside_aabb][broken],
-                                         check_direction=new_direction)
+        contains[mask] = contains_points(
+            intersector,
+            points[inside_aabb][broken],
+            check_direction=new_direction)
+
         constants.log.debug(
             'detected %d broken contains test, attempted to fix',
+            broken.sum())
+
+    # we had unrecoverable points
+    if broken.any() and check_direction is not None:
+        constants.log.error(
+            'ray contains tests had %d unrecoverable!' +
+            'try loading mesh with use_embree=False!',
             broken.sum())
 
     return contains

@@ -5,6 +5,7 @@ import os
 from .. import util
 
 from ..base import Trimesh
+from ..points import PointCloud
 from ..scene.scene import Scene, append_scenes
 from ..constants import _log_time, log
 
@@ -331,9 +332,15 @@ def load_kwargs(*args, **kwargs):
         return scene
 
     def handle_trimesh_kwargs():
+        """
+        Load information with vertices and faces into a mesh
+        or PointCloud object.
+        """
         if (isinstance(kwargs['vertices'], dict) or
                 isinstance(kwargs['faces'], dict)):
             return Trimesh(**misc.load_dict(kwargs))
+        elif kwargs['faces'] is None:
+            return PointCloud(**kwargs)
         else:
             return Trimesh(**kwargs)
 
