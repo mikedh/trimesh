@@ -43,13 +43,8 @@ class Scene(Geometry):
         # mesh name : Trimesh object
         self.geometry = collections.OrderedDict()
 
-        # graph structure of instances
-        if graph is None:
-            # create a new graph
-            self.graph = TransformForest(base_frame=base_frame)
-        else:
-            # if we've been passed a graph use it
-            self.graph = graph
+        # create a new graph
+        self.graph = TransformForest(base_frame=base_frame)
 
         # create our cache
         self._cache = caching.Cache(id_function=self.md5)
@@ -60,6 +55,10 @@ class Scene(Geometry):
         # hold metadata about the scene
         self.metadata = {}
         self.metadata.update(metadata)
+
+        if graph is not None:
+            # if we've been passed a graph override the default
+            self.graph = graph
 
     def add_geometry(self,
                      geometry,
@@ -684,7 +683,7 @@ class Scene(Geometry):
 
     def scaled(self, scale):
         """
-        Return a copy of the current scene, with meshes and scene graph
+        Return a copy of the current scene, with meshes and scene
         transforms scaled to the requested factor.
 
         Parameters
@@ -700,11 +699,16 @@ class Scene(Geometry):
         scale = float(scale)
         scale_matrix = np.eye(4) * scale
 
-        transforms = np.array([self.graph[i][0]
-                               for i in self.graph.nodes_geometry])
-        geometries = np.array([self.graph[i][1]
-                               for i in self.graph.nodes_geometry])
+        # preallocate transforms and geometries
+        nodes = self.graph.nodes_geometry
+        transforms = np.zeros((len(nodes), 4, 4))
+        geometries = [None] * len(nodes)
 
+        # collect list of transforms
+        for i, node in enumerate(nodes):
+            transforms[i], geometries[i] = self.graph[node]
+
+        # result is a copy
         result = self.copy()
         result.graph.clear()
 
@@ -722,10 +726,13 @@ class Scene(Geometry):
 
             for node, t in zip(self.graph.nodes_geometry[group],
                                transforms[group]):
-                transform = util.multi_dot([scale_matrix,
-                                            t,
-                                            np.linalg.inv(new_geom)])
+                # generate the new transforms
+                transform = util.multi_dot(
+                    [scale_matrix,
+                     t,
+                     np.linalg.inv(new_geom)])
                 transform[:3, 3] *= scale
+                # update scene with new transforms
                 result.graph.update(frame_to=node,
                                     matrix=transform,
                                     geometry=geometry)

@@ -80,7 +80,10 @@ class TransformForest(object):
         ------------
         copied: TransformForest
         """
-        copied = copy.deepcopy(self)
+        copied = TransformForest()
+        copied.base_frame = copy.deepcopy(self.base_frame)
+        copied.transforms = copy.deepcopy(self.transforms)
+
         return copied
 
     def to_flattened(self, base_frame=None):
