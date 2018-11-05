@@ -697,7 +697,10 @@ class Scene(Geometry):
           A copy of the current scene but scaled
         """
         scale = float(scale)
-        scale_matrix = np.eye(4) * scale
+        # matrix for 2D scaling
+        scale_2D = np.eye(3) * scale
+        # matrix for 3D scaling
+        scale_3D = np.eye(4) * scale
 
         # preallocate transforms and geometries
         nodes = self.graph.nodes_geometry
@@ -710,27 +713,30 @@ class Scene(Geometry):
 
         # result is a copy
         result = self.copy()
+        # remove all existing transforms
         result.graph.clear()
 
         for group in grouping.group(geometries):
+            # hashable reference to self.geometry
             geometry = geometries[group[0]]
+            # original transform from world to geometry
             original = transforms[group[0]]
-            new_geom = np.dot(scale_matrix, original)
+            # transform for geometry
+            new_geom = np.dot(scale_3D, original)
 
             if result.geometry[geometry].vertices.shape[1] == 2:
                 # if our scene is 2D only scale in 2D
-                result.geometry[geometry].apply_transform(np.eye(3) * scale)
+                result.geometry[geometry].apply_transform(scale_2D)
             else:
                 # otherwise apply the full transform
                 result.geometry[geometry].apply_transform(new_geom)
 
-            for node, t in zip(self.graph.nodes_geometry[group],
+            for node, T in zip(self.graph.nodes_geometry[group],
                                transforms[group]):
                 # generate the new transforms
                 transform = util.multi_dot(
-                    [scale_matrix,
-                     t,
-                     np.linalg.inv(new_geom)])
+                    [scale_3D, T, np.linalg.inv(new_geom)])
+                # apply scale to translation
                 transform[:3, 3] *= scale
                 # update scene with new transforms
                 result.graph.update(frame_to=node,
