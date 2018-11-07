@@ -16,13 +16,15 @@ class ConvexTest(g.unittest.TestCase):
             assert mesh.is_watertight
 
             hulls = []
-            for i in range(25):
-                permutated = mesh.permutate.transform()
-                if i % 10 == 0:
-                    permutated = permutated.permutate.tessellation()
-                hulls.append(permutated.convex_hull)
+            volume = []
 
-            volume = g.np.array([i.volume for i in hulls])
+            # transform the mesh around space and check volume
+            # use repeatable transforms to avoid spurious failures
+            for T in g.transforms[::2]:
+                permutated = mesh.copy()
+                permutated.apply_transform(T)
+                hulls.append(permutated.convex_hull)
+                volume.append(hulls[-1].volume)
 
             # which of the volumes are close to the median volume
             close = g.np.isclose(volume,
@@ -44,7 +46,7 @@ class ConvexTest(g.unittest.TestCase):
                 g.log.error('volume inconsistent: {}'.format(volume))
                 raise ValueError('volume is inconsistent on {}'.format(
                     mesh.metadata['file_name']))
-            assert volume.min() > 0.0
+            assert min(volume) > 0.0
 
             if not all(i.is_winding_consistent for i in hulls):
                 raise ValueError(
