@@ -11,7 +11,7 @@ from . import remesh
 from . import caching
 from . import grouping
 
-from .constants import log, _log_time
+from .constants import log, log_time
 
 
 class Voxel(object):
@@ -287,7 +287,7 @@ class VoxelMesh(Voxel):
         self.as_boxes(solid=solid).show()
 
 
-@_log_time
+@log_time
 def voxelize_subdivide(mesh,
                        pitch,
                        max_iter=10,
@@ -436,7 +436,7 @@ def local_voxelize(mesh, point, pitch, radius, fill=True, **kwargs):
     return voxels, local_origin
 
 
-@_log_time
+@log_time
 def voxelize_ray(mesh,
                  pitch,
                  per_cell=[2, 2],

@@ -1309,23 +1309,25 @@ def submesh(mesh,
     if append:
         visuals = np.array(visuals)
         vertices, faces = append_faces(vertices, faces)
-        appended = trimesh_type(vertices=vertices,
-                                faces=faces,
-                                face_normals=np.vstack(normals),
-                                visual=visuals[0].concatenate(visuals[1:]),
-                                process=False)
+        appended = trimesh_type(
+            vertices=vertices,
+            faces=faces,
+            face_normals=np.vstack(normals),
+            visual=visuals[0].concatenate(visuals[1:]),
+            process=False)
         return appended
 
     # generate a list of Trimesh objects
-    result = [trimesh_type(vertices=v,
-                           faces=f,
-                           face_normals=n,
-                           visual=c,
-                           metadata=copy.deepcopy(mesh.metadata),
-                           process=False) for v, f, n, c in zip(vertices,
-                                                                faces,
-                                                                normals,
-                                                                visuals)]
+    result = [trimesh_type(
+        vertices=v,
+        faces=f,
+        face_normals=n,
+        visual=c,
+        metadata=copy.deepcopy(mesh.metadata),
+        process=False) for v, f, n, c in zip(vertices,
+                                             faces,
+                                             normals,
+                                             visuals)]
     result = np.array(result)
     if len(result) > 0 and only_watertight:
         # fill_holes will attempt a repair and returns the
@@ -1342,12 +1344,15 @@ def zero_pad(data, count, right=True):
     """
     Parameters
     --------
-    data: (n) length 1D array
-    count: int
+    data : (n,)
+      1D array
+    count : int
+      Minimum length of result array
 
     Returns
     --------
-    padded: (count) length 1D array if (n < count), otherwise length (n)
+    padded : (m,)
+      1D array where m >= count
     """
     if len(data) == 0:
         return np.zeros(count)
@@ -1375,7 +1380,8 @@ def jsonify(obj, **kwargs):
 
     Returns
     --------------
-    dumped: str, JSON dump of obj
+    dumped : str
+      JSON dump of obj
     """
     class NumpyEncoder(json.JSONEncoder):
 

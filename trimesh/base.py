@@ -39,7 +39,7 @@ from . import intersections
 from . import transformations
 
 from .io.export import export_mesh
-from .constants import log, _log_time, tol
+from .constants import log, log_time, tol
 
 from .scene import Scene
 from .parent import Geometry
@@ -1113,7 +1113,7 @@ class Trimesh(Geometry):
         """
         self.apply_translation(self.bounds[0] * -1.0)
 
-    @_log_time
+    @log_time
     def split(self, only_watertight=True, adjacency=None, **kwargs):
         """
         Returns a list of Trimesh objects, based on face connectivity.
@@ -1579,7 +1579,7 @@ class Trimesh(Geometry):
 
         return on_hull
 
-    @_log_time
+    @log_time
     def fix_normals(self, multibody=None):
         """
         Find and fix problems with self.face_normals and self.faces
@@ -1716,7 +1716,7 @@ class Trimesh(Geometry):
                                            face_index=face_index)
         return Trimesh(vertices=vertices, faces=faces)
 
-    @_log_time
+    @log_time
     def smoothed(self, angle=.4):
         """
         Return a version of the current mesh which will render nicely.

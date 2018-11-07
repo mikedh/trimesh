@@ -319,45 +319,56 @@ def load_dxf(file_obj, **kwargs):
 
     # get the section which contains the header in the DXF file
     endsec = np.nonzero(blob[:, 1] == 'ENDSEC')[0]
-    header_start = np.nonzero(blob[:, 1] == 'HEADER')[0][0]
-    header_end = endsec[np.searchsorted(endsec, header_start)]
-    header_blob = blob[header_start:header_end]
 
     # get the section which contains entities in the DXF file
     entity_start = np.nonzero(blob[:, 1] == 'ENTITIES')[0][0]
     entity_end = endsec[np.searchsorted(endsec, entity_start)]
     entity_blob = blob[entity_start:entity_end]
 
-    # store some properties from the DXF header
-    metadata = {'DXF_HEADER': {}}
+    # store metadata
+    metadata = {}
 
-    for key in ['$DIMSCALE', '$DIMUNIT', '$INSUNITS', '$LUNITS']:
-        value = get_key(header_blob,
-                        key,
-                        '70')
-        if value is not None:
-            metadata['DXF_HEADER'][key] = value
+    # try reading the header, which may be malformed
+    header_start = np.nonzero(blob[:, 1] == 'HEADER')[0]
+    if len(header_start) > 0:
+        header_end = endsec[np.searchsorted(endsec, header_start[0])]
+        header_blob = blob[header_start[0]:header_end]
 
-    # store unit data pulled from the header of the DXF
-    # prefer LUNITS over INSUNITS
-    # I couldn't find a table for LUNITS values but they
-    # look like they are 0- indexed versions of
-    # the INSUNITS keys, so for now offset the key value
-    for offset, key in [(-1, '$LUNITS'),
-                        (0, '$INSUNITS')]:
-        # get the key from the header blob
-        units = get_key(header_blob, key, '70')
-        # if it exists add the offset
-        if units is None:
-            continue
-        metadata[key] = units
-        units += offset
-        # if the key is in our list of units store it
-        if units in _DXF_UNITS:
-            metadata['units'] = _DXF_UNITS[units]
-    # warn on drawings with no units
-    if 'units' not in metadata:
-        log.warning('DXF doesn\'t have units specified!')
+        # store some properties from the DXF header
+        metadata['DXF_HEADER'] = {}
+        for key, group in [('$ACADVER', '1'),
+                           ('$DIMSCALE', '40'),
+                           ('$DIMALT', '70'),
+                           ('$DIMALTF', '40'),
+                           ('$DIMUNIT', '70'),
+                           ('$INSUNITS', '70'),
+                           ('$LUNITS', '70')]:
+            value = get_key(header_blob,
+                            key,
+                            group)
+            if value is not None:
+                metadata['DXF_HEADER'][key] = value
+
+        # store unit data pulled from the header of the DXF
+        # prefer LUNITS over INSUNITS
+        # I couldn't find a table for LUNITS values but they
+        # look like they are 0- indexed versions of
+        # the INSUNITS keys, so for now offset the key value
+        for offset, key in [(-1, '$LUNITS'),
+                            (0, '$INSUNITS')]:
+            # get the key from the header blob
+            units = get_key(header_blob, key, '70')
+            # if it exists add the offset
+            if units is None:
+                continue
+            metadata[key] = units
+            units += offset
+            # if the key is in our list of units store it
+            if units in _DXF_UNITS:
+                metadata['units'] = _DXF_UNITS[units]
+        # warn on drawings with no units
+        if 'units' not in metadata:
+            log.warning('DXF doesn\'t have units specified!')
 
     # find the start points of entities
     group_check = entity_blob[:, 0] == '0'

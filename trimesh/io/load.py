@@ -7,7 +7,7 @@ from .. import util
 from ..base import Trimesh
 from ..points import PointCloud
 from ..scene.scene import Scene, append_scenes
-from ..constants import _log_time, log
+from ..constants import log_time, log
 
 from . import misc
 from .ply import _ply_loaders
@@ -147,7 +147,7 @@ def load(file_obj, file_type=None, **kwargs):
     return loaded
 
 
-@_log_time
+@log_time
 def load_mesh(file_obj, file_type=None, **kwargs):
     """
     Load a mesh file into a Trimesh object
