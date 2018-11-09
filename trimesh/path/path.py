@@ -468,13 +468,20 @@ class Path(object):
                                                digits=digits)
         self.vertices = self.vertices[unique]
         for entity in self.entities:
+            # what kind of entity are we dealing with
+            kind = type(entity).__name__
             # don't screw up control- point- knot relationship
-            if type(entity).__name__ in 'BSpline Bezier':
+            if kind in 'BSpline Bezier':
                 entity.points = inverse[entity.points]
                 continue
-            # if we merged duplicate vertices, the entity may contain
-            # multiple references to the same vertex
-            entity.points = grouping.merge_runs(inverse[entity.points])
+            # if we merged duplicate vertices, the entity may
+            # have multiple references to the same vertex
+            points = grouping.merge_runs(inverse[entity.points])
+            # if there are three points and two are identical fix it
+            if kind == 'Line' and len(points) == 3 and points[0] == points[-1]:
+                points = points[:2]
+            # store points in entity
+            entity.points = points
 
     def replace_vertex_references(self, mask):
         """

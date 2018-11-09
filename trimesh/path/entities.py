@@ -14,7 +14,6 @@ from .arc import discretize_arc, arc_center
 from .curve import discretize_bezier, discretize_bspline
 
 from .. import util
-from .. import caching
 
 
 class Entity(object):
@@ -161,19 +160,21 @@ class Entity(object):
 
     def __hash__(self):
         """
-        Return a CRC32 that represents the current entity.
+        Return a hash that represents the current entity.
 
         Returns
         ----------
         hashed : int
-            CRC32 of current class name, points, and closed
+            Hash of current class name, points, and closed
         """
-        hashed = caching.crc32(self._bytes())
+        hashed = hash(self._bytes())
         return hashed
 
     def _bytes(self):
+        # give consistent ordering of points for hash
+        direction = [1, -1][int(self.points[0] > self.points[-1])]
         hashable = (self.__class__.__name__.encode('utf-8') +
-                    self.points.tobytes())
+                    self.points[::direction].tobytes())
         return hashable
 
 
@@ -272,9 +273,10 @@ class Arc(Entity):
         return len(np.unique(self.points)) == 3
 
     def _bytes(self):
+        direction = [1, -1][int(self.points[0] > self.points[-1])]
         hashable = (self.__class__.__name__.encode('utf-8') +
                     bytes(bool(self.closed)) +
-                    self.points.tobytes())
+                    self.points[::direction].tobytes())
         return hashable
 
     def discrete(self, vertices, scale=1.0):
@@ -426,9 +428,10 @@ class BSpline(Curve):
         return self._orient(discrete)
 
     def _bytes(self):
+        direction = [1, -1][int(self.points[0] > self.points[-1])]
         hashable = (self.__class__.__name__.encode('utf-8') +
-                    self.knots.tobytes() +
-                    self.points.tobytes())
+                    self.knots[::direction].tobytes() +
+                    self.points[::direction].tobytes())
         return hashable
 
     def to_dict(self):

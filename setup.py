@@ -4,14 +4,16 @@ import os
 from setuptools import setup
 
 # load __version__
-exec(open('trimesh/version.py').read())
+version_file = 'trimesh/version.py'
+exec(open(version_file).read())
 
-
+# load README.md as long_description
 long_description = ''
 if os.path.exists('README.md'):
     with open('README.md', 'r') as f:
         long_description = f.read()
 
+# call the magical setuptools setup
 setup(name='trimesh',
       version=__version__,
       description='Import, export, process, analyze and view triangular meshes.',
@@ -48,7 +50,10 @@ setup(name='trimesh',
       install_requires=['numpy',
                         'scipy',
                         'networkx'],
-      extras_require={'easy': ['lxml',
+      extras_require={'test': ['pytest',
+                               'pytest-cov',
+                               'coveralls'],
+                      'easy': ['lxml',
                                'pyglet',
                                'shapely',
                                'rtree',
