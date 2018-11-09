@@ -14,6 +14,15 @@ import tempfile
 import unittest
 import itertools
 import subprocess
+import contextlib
+import threading
+
+try:  # Python 3
+    from http.server import SimpleHTTPRequestHandler
+    import socketserver
+except ImportError:  # Python 2
+    from SimpleHTTPServer import SimpleHTTPRequestHandler
+    import SocketServer as socketserver
 
 import numpy as np
 
@@ -111,6 +120,28 @@ def get_mesh(file_name, *args, **kwargs):
     if len(meshes) == 1:
         return meshes[0]
     return list(meshes)
+
+
+@contextlib.contextmanager
+def serve_meshes():
+    """
+    This context manager serves meshes over HTTP at some available port
+    """
+    class _ServerThread(threading.Thread):
+        def run(self):
+            os.chdir(dir_models)
+            Handler = SimpleHTTPRequestHandler
+            self.httpd = socketserver.TCPServer(('', 0), Handler)
+            _, self.port = self.httpd.server_address
+            self.httpd.serve_forever()
+
+    t = _ServerThread()
+    t.daemon = False
+    t.start()
+    time.sleep(0.2)
+    yield 'http://localhost:{}'.format(t.port)
+    t.httpd.shutdown()
+    t.join()
 
 
 def get_meshes(count=np.inf,
