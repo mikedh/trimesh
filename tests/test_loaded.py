@@ -24,9 +24,10 @@ class LoaderTest(g.unittest.TestCase):
         """
         Try loading a remote mesh using requests
         """
-        # get a unit cube from project's github
-        mesh = g.trimesh.io.load.load_remote(
-            url='https://github.com/mikedh/trimesh/raw/master/models/unit_cube.STL')
+        # get a unit cube from localhost
+        with g.serve_meshes() as address:
+            mesh = g.trimesh.io.load.load_remote(
+                url=address + '/unit_cube.STL')
 
         assert g.np.isclose(mesh.volume, 1.0)
         assert isinstance(mesh, g.trimesh.Trimesh)
