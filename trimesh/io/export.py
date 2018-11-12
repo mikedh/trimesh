@@ -1,5 +1,6 @@
 import numpy as np
 import json
+import openctm
 
 from ..constants import log
 from .. import util
@@ -32,9 +33,13 @@ def export_mesh(mesh, file_obj, file_type=None, **kwargs):
     if util.is_string(file_obj):
         if file_type is None:
             file_type = (str(file_obj).split('.')[-1]).lower()
+        # This is only untill we have stream support
+        if file_type == 'ctm':
+            return openctm.export_mesh(openctm.CTM(mesh.vertices, mesh.faces), file_obj)
         if file_type in _mesh_exporters:
             was_opened = True
             file_obj = open(file_obj, 'wb')
+
     file_type = str(file_type).lower()
 
     if not (file_type in _mesh_exporters):
