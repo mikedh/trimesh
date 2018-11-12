@@ -3,7 +3,7 @@ import numpy as np
 
 
 def load_pyassimp(file_obj, file_type=None):
-    '''
+    """
     Use the pyassimp library to load a mesh, from a file object and type,
     or filename (if file_obj is a string)
 
@@ -15,7 +15,7 @@ def load_pyassimp(file_obj, file_type=None):
     Returns
     ---------
     meshes: (n,) list of dicts, which contain kwargs for Trimesh constructor
-    '''
+    """
 
     def LPMesh_to_Trimesh(lp):
         colors = (np.reshape(lp.colors, (-1, 4))
@@ -39,7 +39,7 @@ def load_pyassimp(file_obj, file_type=None):
 
 
 def load_cyassimp(file_obj, file_type=None):
-    '''
+    """
     Load a file using the cyassimp bindings.
 
     The easiest way to install these is with conda:
@@ -53,7 +53,7 @@ def load_cyassimp(file_obj, file_type=None):
     Returns
     ---------
     meshes: (n,) list of dicts, which contain kwargs for Trimesh constructor
-    '''
+    """
 
     if hasattr(file_obj, 'read'):
         # if it has a read attribute it is probably a file object

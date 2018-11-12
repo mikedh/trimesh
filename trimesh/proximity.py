@@ -9,7 +9,7 @@ import numpy as np
 from . import util
 
 from .grouping import group_min
-from .constants import tol, _log_time
+from .constants import tol, log_time
 from .triangles import closest_point as closest_point_corresponding
 
 from collections import deque
@@ -241,7 +241,7 @@ class ProximityQuery(object):
     def __init__(self, mesh):
         self._mesh = mesh
 
-    @_log_time
+    @log_time
     def on_surface(self, points):
         """
         Given list of points, for each point find the closest point
@@ -442,8 +442,12 @@ def max_tangent_sphere(mesh,
         diff = n_points[~done] - points[not_converged]
         old_radii = radii[not_converged].copy()
         # np.einsum produces element wise dot product
-        radii[not_converged] = (np.einsum('ij, ij->i', diff, diff) /
-                                (2 * np.einsum('ij, ij->i', diff, normals[not_converged])))
+        radii[not_converged] = (np.einsum('ij, ij->i',
+                                          diff,
+                                          diff) /
+                                (2 * np.einsum('ij, ij->i',
+                                               diff,
+                                               normals[not_converged])))
         centers[not_converged] = points[not_converged] + \
             normals[not_converged] * radii[not_converged].reshape(-1, 1)
 

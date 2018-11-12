@@ -8,7 +8,7 @@ class IdentifierTest(g.unittest.TestCase):
 
     def test_identifier(self):
         count = 25
-        meshes = g.np.append(g.get_meshes(10),
+        meshes = g.np.append(list(g.get_meshes(10)),
                              g.get_mesh('fixed_top.ply'))
         for mesh in meshes:
             if not mesh.is_volume:

@@ -7,8 +7,8 @@ except BaseException:
 class VectorTests(g.unittest.TestCase):
 
     def test_discrete(self):
-        for d in g.get_2D():
 
+        for d in g.get_2D():
             # store md5 before requesting passive functions
             md5 = d.md5()
 
@@ -32,14 +32,17 @@ class VectorTests(g.unittest.TestCase):
                 assert g.np.allclose(bd, bl, atol=atol)
                 assert g.np.allclose(bl, bp, atol=atol)
 
-            # these should all correspond to each other
-            assert len(d.discrete) == len(d.polygons_closed)
-            assert len(d.discrete) == len(d.paths)
+            # run some checks
+            check_Path2D(d)
+
+            # copying shouldn't touch original file
+            copied = d.copy()
+
             # these operations shouldn't have mutated anything!
             assert d.md5() == md5
-            # make sure None polygons are not referenced in graph
-            assert all(d.polygons_closed[i] is not None
-                       for i in d.enclosure_directed.nodes())
+
+            # copy should have saved the metadata
+            assert set(copied.metadata.keys()) == set(d.metadata.keys())
 
             # file_name should be populated, and if we have a DXF file
             # the layer field should be populated with layer names
@@ -60,17 +63,16 @@ class VectorTests(g.unittest.TestCase):
                     g.log.error('On file %s First and last vertex distance %f',
                                 d.metadata['file_name'],
                                 circuit_dist)
-                self.assertTrue(circuit_test)
+                assert circuit_test
 
                 is_ccw = g.trimesh.path.util.is_ccw(verts)
                 if not is_ccw:
                     g.log.error('discrete %s not ccw!',
                                 d.metadata['file_name'])
-                # self.assertTrue(is_ccw)
 
             for i in range(len(d.paths)):
-                self.assertTrue(d.polygons_closed[i].is_valid)
-                self.assertTrue(d.polygons_closed[i].area > g.tol_path.zero)
+                assert d.polygons_closed[i].is_valid
+                assert d.polygons_closed[i].area > g.tol_path.zero
             export_dict = d.export(file_type='dict')
             to_dict = d.to_dict()
             assert isinstance(to_dict, dict)
@@ -89,6 +91,15 @@ class VectorTests(g.unittest.TestCase):
             if len(d.root) == 1:
                 d.apply_obb()
 
+            # store the X values of bounds
+            ori = d.bounds.copy()
+            # apply a translation
+            d.apply_translation([10, 0])
+            # X should have translated by 10.0
+            assert g.np.allclose(d.bounds[:, 0] - 10, ori[:, 0])
+            # Y should not have moved
+            assert g.np.allclose(d.bounds[:, 1], ori[:, 1])
+
             if len(d.vertices) < 150:
                 g.log.info('Checking medial axis on %s',
                            d.metadata['file_name'])
@@ -102,22 +113,22 @@ class VectorTests(g.unittest.TestCase):
 
     def test_poly(self):
         p = g.get_mesh('2D/LM2.dxf')
-        self.assertTrue(p.is_closed)
-        self.assertTrue(any(len(i.points) > 2 for i in p.entities if
-                            g.trimesh.util.is_instance_named(i, 'Line')))
+        assert p.is_closed
+        assert any(len(i.points) > 2 for i in p.entities if
+                   g.trimesh.util.is_instance_named(i, 'Line'))
 
         assert len(p.layers) == len(p.entities)
         assert len(g.np.unique(p.layers)) > 1
 
         p.explode()
-        self.assertTrue(all(len(i.points) == 2 for i in p.entities if
-                            g.trimesh.util.is_instance_named(i, 'Line')))
-        self.assertTrue(p.is_closed)
+        assert all(len(i.points) == 2 for i in p.entities if
+                   g.trimesh.util.is_instance_named(i, 'Line'))
+        assert p.is_closed
         p.entities = p.entities[:-1]
         self.assertFalse(p.is_closed)
 
         p.fill_gaps()
-        self.assertTrue(p.is_closed)
+        assert p.is_closed
 
     def test_edges(self):
         """
@@ -190,8 +201,8 @@ class VectorTests(g.unittest.TestCase):
         # test sampling with multiple bodies
         for i in range(3):
             assert g.np.isclose(path.area, p.area * (i + 1))
-            path = path + \
-                g.trimesh.load_path(g.Point([(i + 2) * 2, 0]).buffer(1.0))
+            path = path + g.trimesh.load_path(
+                g.Point([(i + 2) * 2, 0]).buffer(1.0))
             s = path.sample(count=count)
             assert s.shape[1] == 2
 
@@ -210,9 +221,8 @@ class ArcTests(g.unittest.TestCase):
                           center_info['normal'],
                           center_info['span'])
 
-        self.assertTrue(abs(R - res_radius) < g.tol_path.zero)
-        self.assertTrue(g.trimesh.util.euclidean(
-            C, res_center) < g.tol_path.zero)
+        assert abs(R - res_radius) < g.tol_path.zero
+        assert g.trimesh.util.euclidean(C, res_center) < g.tol_path.zero
 
     def test_center_random(self):
 
@@ -265,6 +275,24 @@ class ArcTests(g.unittest.TestCase):
             assert g.np.allclose(center, info['center'])
             assert g.np.allclose(radius, info['radius'])
 
+    def test_multiroot(self):
+        """
+        Test a Path2D object containing polygons nested in
+        the interiors of other polygons.
+        """
+        inner = g.trimesh.creation.annulus(r_min=.5, r_max=.6)
+        outer = g.trimesh.creation.annulus(r_min=.9, r_max=1.0)
+        m = inner + outer
+
+        s = m.section(plane_normal=[0, 0, 1],
+                      plane_origin=[0, 0, 0])
+        p = s.to_planar()[0]
+
+        assert len(p.polygons_closed) == 4
+        assert len(p.polygons_full) == 2
+        assert len(p.root) == 2
+        check_Path2D(p)
+
 
 class SplitTest(g.unittest.TestCase):
 
@@ -294,6 +322,7 @@ class SplitTest(g.unittest.TestCase):
                 assert len(s.path_valid) == len(s.paths)
                 assert len(s.paths) == len(s.discrete)
                 assert s.path_valid.sum() == len(s.polygons_closed)
+                check_Path2D(s)
 
 
 class ExportTest(g.unittest.TestCase):
@@ -301,15 +330,17 @@ class ExportTest(g.unittest.TestCase):
     def test_svg(self):
         for d in g.get_2D():
             # export as svg string
-            exported = d.export('svg')
+            exported = d.export(file_type='svg')
             # load the exported SVG
             stream = g.trimesh.util.wrap_as_stream(exported)
             loaded = g.trimesh.load(stream, file_type='svg')
 
-            # we only have line and arc primitives as SVG export and import
-            if all(i.__class__.__name__ in ['Line',
-                                            'Arc'] for i in d.entities):
-                # perimeter should stay the same-ish on export/inport
+            # we only have line and arc primitives as SVG
+            # export and import
+            if all(i.__class__.__name__ in ['Line', 'Arc']
+                   for i in d.entities):
+                # perimeter should stay the same-ish
+                # on export/inport
                 assert g.np.isclose(d.length,
                                     loaded.length,
                                     rtol=.01)
@@ -341,6 +372,67 @@ class SectionTest(g.unittest.TestCase):
             # the interior should NOT be counterclockwise
             assert not g.trimesh.path.util.is_ccw(
                 polygon.interiors[0].coords)
+
+            # should be a valid Path2D
+            check_Path2D(planar)
+
+
+class CreationTests(g.unittest.TestCase):
+
+    def test_circle(self):
+        from trimesh.path import creation
+        pattern = creation.circle_pattern(pattern_radius=1.0,
+                                          circle_radius=0.1,
+                                          count=4)
+        assert len(pattern.entities) == 4
+        assert len(pattern.polygons_closed) == 4
+        assert len(pattern.polygons_full) == 4
+
+        # should be a valid Path2D
+        check_Path2D(pattern)
+
+    def test_rect(self):
+        from trimesh.path import creation
+
+        # create a single rectangle
+        pattern = creation.rectangle([[0, 0], [2, 3]])
+        assert len(pattern.entities) == 1
+        assert len(pattern.polygons_closed) == 1
+        assert len(pattern.polygons_full) == 1
+        assert g.np.isclose(pattern.area, 6.0)
+        # should be a valid Path2D
+        check_Path2D(pattern)
+
+        # make 10 untouching rectangles
+        pattern = creation.rectangle(
+            g.np.arange(40).reshape((-1, 2, 2)))
+        assert len(pattern.entities) == 10
+        assert len(pattern.polygons_closed) == 10
+        assert len(pattern.polygons_full) == 10
+        # should be a valid Path2D
+        check_Path2D(pattern)
+
+
+def check_Path2D(path):
+    """
+    Make basic assertions on Path2D objects
+    """
+    # root count should be the same as the closed polygons
+    assert len(path.root) == len(path.polygons_full)
+
+    # make sure polygons are really polygons
+    assert all(type(i).__name__ == 'Polygon'
+               for i in path.polygons_full)
+    assert all(type(i).__name__ == 'Polygon'
+               for i in path.polygons_closed)
+
+    # these should all correspond to each other
+    assert len(path.discrete) == len(path.polygons_closed)
+    assert len(path.discrete) == len(path.paths)
+
+    # make sure None polygons are not referenced in graph
+    assert all(path.polygons_closed[i] is not None
+               for i in path.enclosure_directed.nodes())
 
 
 if __name__ == '__main__':

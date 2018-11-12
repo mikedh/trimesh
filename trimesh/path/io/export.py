@@ -1,29 +1,40 @@
-from . import svg_io
+from ... import util
+
 from . import dxf
+from . import svg_io
 
 
-def export_path(path, file_type, file_obj=None, **kwargs):
+def export_path(path,
+                file_type=None,
+                file_obj=None,
+                **kwargs):
     """
     Export a Path object to a file- like object, or to a filename
 
     Parameters
     ---------
-    file_obj:  a filename string or a file-like object
-    file_type: str representing file type (eg: 'svg')
-    process:   boolean flag, whether to process the mesh on load
+    file_obj:  None, str, or file object
+      A filename string or a file-like object
+    file_type: None or str
+      File type, e.g.: 'svg', 'dxf'
+    kwargs : passed to loader
 
     Returns
     ---------
-    mesh: a single Trimesh object, or a list of Trimesh objects,
-          depending on the file format.
-
+    exported : str or bytes
+      Data exported
     """
-    if ((not hasattr(file_obj, 'read')) and
-            (file_obj is not None)):
-        file_type = (str(file_obj).split('.')[-1]).lower()
-        file_obj = open(file_obj, 'wb')
+    # if file object is a string it is probably a file path
+    # so we can split the extension to set the file type
+    if util.is_string(file_obj):
+        file_type = util.split_extension(file_obj)
+
+    # run the export
     export = _path_exporters[file_type](path, **kwargs)
-    return _write_export(export, file_obj)
+    # if we've been passed files write the data
+    _write_export(export=export, file_obj=file_obj)
+
+    return export
 
 
 def export_dict(path):
@@ -49,7 +60,8 @@ def _write_export(export, file_obj=None):
 
     if file_obj is None:
         return export
-    elif hasattr(file_obj, 'write'):
+
+    if hasattr(file_obj, 'write'):
         out_file = file_obj
     else:
         out_file = open(file_obj, 'wb')
@@ -57,7 +69,9 @@ def _write_export(export, file_obj=None):
         out_file.write(export)
     except TypeError:
         out_file.write(export.encode('utf-8'))
+
     out_file.close()
+
     return export
 
 

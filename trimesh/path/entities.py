@@ -14,7 +14,6 @@ from .arc import discretize_arc, arc_center
 from .curve import discretize_bezier, discretize_bspline
 
 from .. import util
-from .. import caching
 
 
 class Entity(object):
@@ -94,6 +93,11 @@ class Entity(object):
     def is_valid(self):
         """
         Is the current entity valid.
+
+        Returns
+        -----------
+        valid : bool
+          Is the current entity well formed
         """
         return True
 
@@ -156,19 +160,21 @@ class Entity(object):
 
     def __hash__(self):
         """
-        Return a CRC32 that represents the current entity.
+        Return a hash that represents the current entity.
 
         Returns
         ----------
         hashed : int
-            CRC32 of current class name, points, and closed
+            Hash of current class name, points, and closed
         """
-        hashed = caching.crc32(self._bytes())
+        hashed = hash(self._bytes())
         return hashed
 
     def _bytes(self):
+        # give consistent ordering of points for hash
+        direction = [1, -1][int(self.points[0] > self.points[-1])]
         hashable = (self.__class__.__name__.encode('utf-8') +
-                    self.points.tobytes())
+                    self.points[::direction].tobytes())
         return hashable
 
 
@@ -183,25 +189,36 @@ class Line(Entity):
 
         Parameters
         ------------
-        vertices: (n, dimension) float, points in space
-        scale:    float, size of overall scene for numerical comparisons
+        vertices: (n, dimension) float
+          Points in space
+        scale : float
+          Size of overall scene for numerical comparisons
 
         Returns
         -------------
-        discrete: (m, dimension) float, linear path in space
+        discrete: (m, dimension) float
+          Path in space composed of line segments
         """
         discrete = self._orient(vertices[self.points])
         return discrete
 
     @property
     def is_valid(self):
+        """
+        Is the current entity valid.
+
+        Returns
+        -----------
+        valid : bool
+          Is the current entity well formed
+        """
         valid = np.any((self.points - self.points[0]) != 0)
         return valid
 
     def explode(self):
         """
-        If the current Line entity consists of multiple lines, break it
-        up into n Line entities.
+        If the current Line entity consists of multiple line
+        break it up into n Line entities.
 
         Returns
         ----------
@@ -223,7 +240,8 @@ class Arc(Entity):
 
         Returns
         ----------
-        closed: bool, if true arc will be a closed circle in space
+        closed : bool
+          If set True, Arc will be a closed circle
         """
         if hasattr(self, '_closed'):
             return self._closed
@@ -231,12 +249,34 @@ class Arc(Entity):
 
     @closed.setter
     def closed(self, value):
+        """
+        Set the Arc to be closed or not, without
+        changing the control points
+
+        Parameters
+        ------------
+        value : bool
+          Should this Arc be a closed circle or not
+        """
         self._closed = bool(value)
 
+    @property
+    def is_valid(self):
+        """
+        Is the current Arc entity valid.
+
+        Returns
+        -----------
+        valid : bool
+          Does the current Arc have exactly 3 control points
+        """
+        return len(np.unique(self.points)) == 3
+
     def _bytes(self):
+        direction = [1, -1][int(self.points[0] > self.points[-1])]
         hashable = (self.__class__.__name__.encode('utf-8') +
                     bytes(bool(self.closed)) +
-                    self.points.tobytes())
+                    self.points[::direction].tobytes())
         return hashable
 
     def discrete(self, vertices, scale=1.0):
@@ -307,7 +347,9 @@ class Arc(Entity):
 
 
 class Curve(Entity):
-
+    """
+    The parent class for all wild curves in space.
+    """
     @property
     def nodes(self):
         return [[self.points[0],
@@ -317,8 +359,28 @@ class Curve(Entity):
 
 
 class Bezier(Curve):
+    """
+    An open or closed Bezier curve
+    """
 
     def discrete(self, vertices, scale=1.0, count=None):
+        """
+        Discretize the Bezier curve.
+
+        Parameters
+        -------------
+        vertices : (n, 2) or (n, 3) float
+          Points in space
+        scale : float
+          Scale of overall drawings (for precision)
+        count : int
+          Number of segments to return
+
+        Returns
+        -------------
+        discrete : (m, 2) or (m, 3) float
+          Curve as line segments
+        """
         discrete = discretize_bezier(vertices[self.points],
                                      count=count,
                                      scale=scale)
@@ -326,6 +388,9 @@ class Bezier(Curve):
 
 
 class BSpline(Curve):
+    """
+    An open or closed B- Spline.
+    """
 
     def __init__(self, points,
                  knots,
@@ -338,6 +403,23 @@ class BSpline(Curve):
         self.kwargs = kwargs
 
     def discrete(self, vertices, count=None, scale=1.0):
+        """
+        Discretize the B-Spline curve.
+
+        Parameters
+        -------------
+        vertices : (n, 2) or (n, 3) float
+          Points in space
+        scale : float
+          Scale of overall drawings (for precision)
+        count : int
+          Number of segments to return
+
+        Returns
+        -------------
+        discrete : (m, 2) or (m, 3) float
+          Curve as line segments
+        """
         discrete = discretize_bspline(
             control=vertices[self.points],
             knots=self.knots,
@@ -346,9 +428,10 @@ class BSpline(Curve):
         return self._orient(discrete)
 
     def _bytes(self):
+        direction = [1, -1][int(self.points[0] > self.points[-1])]
         hashable = (self.__class__.__name__.encode('utf-8') +
-                    self.knots.tobytes() +
-                    self.points.tobytes())
+                    self.knots[::direction].tobytes() +
+                    self.points[::direction].tobytes())
         return hashable
 
     def to_dict(self):

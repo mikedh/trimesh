@@ -374,14 +374,25 @@ class Cache:
         value of id_function and delete all stored items if
         the value of id_function has changed.
         """
+        # if we are in a lock don't check anything
+        if self._lock != 0:
+            return
+
+        # check the hash of our data
         id_new = self._id_function()
-        if (self._lock == 0) and (id_new != self.id_current):
+
+        # things changed
+        if id_new != self.id_current:
             if len(self.cache) > 0:
                 log.debug('%d items cleared from cache: %s',
                           len(self.cache),
                           str(list(self.cache.keys())))
-            self.clear()
-            self.id_set()
+            # hash changed, so dump the cache
+            # do it manually rather than calling clear()
+            # as we are internal logic and can avoid function calls
+            self.cache = {}
+            # set the id to the new data hash
+            self.id_current = id_new
 
     def clear(self, exclude=None):
         """

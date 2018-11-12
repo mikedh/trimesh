@@ -1,27 +1,29 @@
 [![trimesh](https://trimsh.org/images/logotype-a.svg)](http://trimsh.org)
 
 -----------
-[![Build Status](https://travis-ci.org/mikedh/trimesh.svg?branch=master)](https://travis-ci.org/mikedh/trimesh) [![Build status](https://ci.appveyor.com/api/projects/status/j8h3luwvst1tkghl?svg=true)](https://ci.appveyor.com/project/mikedh/trimesh) [![Coverage Status](https://coveralls.io/repos/github/mikedh/trimesh/badge.svg)](https://coveralls.io/github/mikedh/trimesh) [![PyPI version](https://badge.fury.io/py/trimesh.svg)](https://badge.fury.io/py/trimesh)
+[![Build Status](https://travis-ci.org/mikedh/trimesh.svg?branch=master)](https://travis-ci.org/mikedh/trimesh) [![Build status](https://ci.appveyor.com/api/projects/status/j8h3luwvst1tkghl?svg=true)](https://ci.appveyor.com/project/mikedh/trimesh) [![Coverage Status](https://coveralls.io/repos/github/mikedh/trimesh/badge.svg)](https://coveralls.io/github/mikedh/trimesh) [![PyPI version](https://badge.fury.io/py/trimesh.svg)](https://badge.fury.io/py/trimesh) [![Join the chat at https://gitter.im/trimsh/Lobby](https://badges.gitter.im/trimsh/Lobby.svg)](https://gitter.im/trimsh/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 
-Trimesh is a Python (2.7- 3.3+) library for loading and using [triangular meshes](https://en.wikipedia.org/wiki/Triangle_mesh) with an emphasis on watertight meshes. The goal of the library is to provide a fully featured Trimesh object which allows for easy manipulation and analysis, in the style of the excellent Polygon object in the [Shapely library](http://toblerity.org/shapely/manual.html).
+Trimesh is a pure Python (2.7- 3.3+) library for loading and using [triangular meshes](https://en.wikipedia.org/wiki/Triangle_mesh) with an emphasis on single- body watertight surfaces. The goal of the library is to provide a full featured and well tested Trimesh object which allows for easy manipulation and analysis, in the style of the Polygon object in the [Shapely library](http://toblerity.org/shapely/manual.html).
 
 The API is mostly stable, but this should not be relied on and is not guaranteed; install a specific version if you plan on deploying something using trimesh as a backend.
 
-## Basic Installation
+Pull requests are appreciated and responded to promptly! If you'd like to contribute, here is an [up to date list of potential enhancements](https://github.com/mikedh/trimesh/issues/199) although things not on that list are also welcome. Some [general advice for writing mesh code in Python and Numpy.](https://github.com/mikedh/trimesh/blob/master/trimesh/io/README.md)
 
+
+## Basic Installation
 
 The minimal requirements to import trimesh are
 [numpy](http://www.numpy.org/), [scipy](http://www.scipy.org) and
 [networkx](https://networkx.github.io). Installing other packages mentioned adds functionality but is **not required**.
 
-For the easiest install with only these minimal dependencies (slower ray queries, no vector path handling, mesh creation, viewer, etc):
+For the easiest install with only these minimal dependencies:
 
 ```bash
 pip install trimesh
 ```
 
-For more functionality, the easiest way to get a full `trimesh` install is a [conda environment](https://conda.io/miniconda.html):
+For more functionality, like faster ray queries (`pyembree`), vector path handling (`shapely` and `rtree`), preview windows (`pyglet`), faster cache checks (`xxhash`) and more, the easiest way to get a full `trimesh` install is a [conda environment](https://conda.io/miniconda.html):
 
 ```bash
 # this will install all soft dependencies available on your current platform
@@ -53,7 +55,7 @@ mesh.euler_number
 
 # the convex hull is another Trimesh object that is available as a property
 # lets compare the volume of our mesh with the volume of its convex hull
-np.divide(mesh.volume, mesh.convex_hull.volume)
+print(mesh.volume / mesh.convex_hull.volume)
 
 # since the mesh is watertight, it means there is a
 # volumetric center of mass which we can set as the origin for our mesh
@@ -134,17 +136,9 @@ print(mesh.bounding_box_oriented.volume,
 * Symbolic integration of function(x,y,z) over a triangle
 * Calculate nearest point on mesh surface and signed distance
 * Determine if a point lies inside or outside of a mesh using signed distance
-* Create primitive objects (Box, Sphere, Extrusion) which are subclassed Trimesh objects and have all the same features (inertia, viewers, etc)
-* Simple scene graph and transform tree which can be rendered (pyglet) or exported.
+* Create primitive objects (Box, Cylinder, Sphere, Extrusion) which are subclassed Trimesh objects and have all the same features (inertia, viewers, etc)
+* Simple scene graph and transform tree which can be rendered (pyglet window or three.js in a jupyter notebook) or exported.
 * Numerous utility functions, such as transforming points, unitizing vectors, tracking arrays for changes, grouping rows, etc.
-
-## Design Use Case
-
-The `trimesh.Trimesh` object is most useful on single body, watertight meshes that represent a volume. The design use case is around analysis of geometry exported from a CAD system into a mesh format, for applications related to robotics and manufacturing.
-
-This can be seen in the data model of Trimesh, where the emphasis is on faces and vertices and things derived from them, rather than other visual properties or metadata.
-
-It is hopefully useful in other applications, but most of the core effort is around the design use case.
 
 
 ## Viewer

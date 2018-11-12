@@ -5,8 +5,9 @@ import os
 from .. import util
 
 from ..base import Trimesh
+from ..points import PointCloud
 from ..scene.scene import Scene, append_scenes
-from ..constants import _log_time, log
+from ..constants import log_time, log
 
 from . import misc
 from .ply import _ply_loaders
@@ -104,7 +105,7 @@ def load(file_obj, file_type=None, **kwargs):
      file_type,  # str, what kind of file
      metadata,  # dict, any metadata from file name
      opened     # bool, did we open the file ourselves
-     ) = _parse_file_args(file_obj, file_type)
+     ) = parse_file_args(file_obj, file_type)
 
     if isinstance(file_obj, dict):
         # if we've been passed a dict treat it as kwargs
@@ -146,7 +147,7 @@ def load(file_obj, file_type=None, **kwargs):
     return loaded
 
 
-@_log_time
+@log_time
 def load_mesh(file_obj, file_type=None, **kwargs):
     """
     Load a mesh file into a Trimesh object
@@ -167,7 +168,7 @@ def load_mesh(file_obj, file_type=None, **kwargs):
     (file_obj,
      file_type,
      metadata,
-     opened) = _parse_file_args(file_obj, file_type)
+     opened) = parse_file_args(file_obj, file_type)
 
     # make sure we keep passed kwargs to loader
     # but also make sure loader keys override passed keys
@@ -197,24 +198,31 @@ def load_mesh(file_obj, file_type=None, **kwargs):
     return loaded
 
 
-def load_compressed(file_obj, file_type=None):
+def load_compressed(file_obj, file_type=None, mixed=False):
     """
-    Given a compressed archive, load all the geometry that we can from it.
+    Given a compressed archive load all the geometry that
+    we can from it.
 
     Parameters
     ----------
-    file_obj: open file-like object
-    file_type: str, type of file
+    file_obj : open file-like object
+      Containing compressed data
+    file_type : str
+      Type of the archive file
+    mixed : bool
+      If False, for archives containing both 2D and 3D
+      data will only load the 3D data into the Scene.
 
     Returns
     ----------
-    geometries: list of geometry objects
+    scene : trimesh.Scene
+      Geometry loaded in to a Scene object
     """
     # turn a string into a file obj and type
     (file_obj,
      file_type,
      metadata,
-     opened) = _parse_file_args(file_obj, file_type)
+     opened) = parse_file_args(file_obj, file_type)
 
     # a dict of 'name' : file-like object
     files = util.decompress(file_obj=file_obj,
@@ -228,10 +236,23 @@ def load_compressed(file_obj, file_type=None):
     else:
         archive_name = 'archive'
 
+    # populate our available formats
+    if mixed:
+        available = available_formats()
+    else:
+        # all types contained in ZIP archive
+        contains = set(util.split_extension(n).lower()
+                       for n in files.keys())
+        # if there are no mesh formats available
+        if contains.isdisjoint(mesh_formats()):
+            available = path_formats()
+        else:
+            available = mesh_formats()
+
     for name, data in files.items():
         # only load formats that we support
         compressed_type = util.split_extension(name).lower()
-        if compressed_type not in available_formats():
+        if compressed_type not in available:
             # don't raise an exception, just try the next one
             continue
         # store the file name relative to the archive
@@ -252,6 +273,34 @@ def load_compressed(file_obj, file_type=None):
     result = append_scenes(geometries)
 
     return result
+
+
+def load_remote(url, **kwargs):
+    """
+    Load a mesh at a remote URL into a local trimesh object.
+
+    This must be called explicitly rather than automatically
+    from trimesh.load to ensure users don't accidentally make
+    network requests.
+
+    Parameters
+    ------------
+    url : string
+      URL containing mesh file
+    **kwargs : passed to `load`
+    """
+    # import here to keep requirement soft
+    import requests
+
+    # download the mesh
+    response = requests.get(url)
+    # wrap as file object
+    file_obj = util.wrap_as_stream(response.content)
+    # actually load
+    loaded = load(file_obj=file_obj,
+                  file_type=url,
+                  **kwargs)
+    return loaded
 
 
 def load_kwargs(*args, **kwargs):
@@ -283,9 +332,15 @@ def load_kwargs(*args, **kwargs):
         return scene
 
     def handle_trimesh_kwargs():
+        """
+        Load information with vertices and faces into a mesh
+        or PointCloud object.
+        """
         if (isinstance(kwargs['vertices'], dict) or
                 isinstance(kwargs['faces'], dict)):
             return Trimesh(**misc.load_dict(kwargs))
+        elif kwargs['faces'] is None:
+            return PointCloud(**kwargs)
         else:
             return Trimesh(**kwargs)
 
@@ -319,10 +374,12 @@ def load_kwargs(*args, **kwargs):
     return handler()
 
 
-def _parse_file_args(file_obj, file_type, **kwargs):
+def parse_file_args(file_obj,
+                    file_type,
+                    **kwargs):
     """
-    Given a file_obj and a file_type, try to turn them into a file-like object
-    and a lowercase string of file type
+    Given a file_obj and a file_type try to turn them into a file-like
+    object and a lowercase string of file type.
 
     Parameters
     -----------
@@ -335,6 +392,11 @@ def _parse_file_args(file_obj, file_type, **kwargs):
                     -------------------------------------------
                     file_obj:   the same string passed as file_obj
                     file_type:  set to 'json'
+
+               str: string is a valid URL
+                    -------------------------------------------
+                    file_obj: an open 'rb' file object with retrieved data
+                    file_type: from the extension
 
                str: string is not an existing path or a JSON-like object
                     -------------------------------------------
@@ -390,15 +452,15 @@ def _parse_file_args(file_obj, file_type, **kwargs):
             file_obj = open(file_path, 'rb')
             opened = True
         else:
-            if file_type is not None:
-                return file_obj, file_type, metadata
-            elif '{' in file_obj:
+            if '{' in file_obj:
                 # if a dict bracket is in the string, its probably a straight
                 # JSON
                 file_type = 'json'
-            else:
-                raise ValueError(
-                    'File object passed as string that is not a file!')
+            elif 'https://' in file_obj or 'http://' in file_obj:
+                # we've been passed a URL so retrieve it
+                raise ValueError('use load_remote to load URL!')
+            elif file_type is None:
+                raise ValueError('string is not a file!')
 
     if file_type is None:
         file_type = file_obj.__class__.__name__
@@ -410,7 +472,10 @@ def _parse_file_args(file_obj, file_type, **kwargs):
             metadata['file_path'] = file_type
         metadata['file_name'] = os.path.basename(file_type)
         file_type = util.split_extension(file_type)
+
+    # all our stored extensions reference in lower case
     file_type = file_type.lower()
+
     return file_obj, file_type, metadata, opened
 
 

@@ -1,16 +1,19 @@
-'''
+"""
 examples/convexify.py
+------------------------
 
 Take a mesh with multiple bodies, take the convex hull
-of each body, then combine them back into one mesh. 
-Useful for generating collision models of an object. 
-'''
+of each body, then combine them back into one mesh.
+
+Useful for generating collision models of an object.
+"""
+
 import sys
 import trimesh
 import numpy as np
 
 if __name__ == '__main__':
-    
+
     # attach to trimesh logs
     trimesh.util.attach_to_log()
 
@@ -18,11 +21,11 @@ if __name__ == '__main__':
     # file objects are also supported
     mesh = trimesh.load_mesh('../models/box.STL')
 
-    # split the mesh into connected components of the face adjacency graph. 
+    # split the mesh into connected components of face adjacency
     # splitting sometimes produces non- watertight meshes
     # though the splitter will try to repair single quad and
-    # single triangle holes, in our case here we are going to be 
-    # taking convex hulls anyway, so there is no reason to not discard
+    # single triangle holes, in our case here we are going to be
+    # taking convex hulls anyway so there is no reason to discard
     # the non- watertight bodies
     meshes = mesh.split(only_watertight=False)
 
@@ -32,13 +35,9 @@ if __name__ == '__main__':
     # combine all components into one mesh
     convex_combined = np.sum(meshes_convex)
 
+    print('Showing original mesh')
+    mesh.show()
 
-    # if -nw is passed, don't show the preview window
-    if not '-nw' in sys.argv:
-        # show the original mesh
-        trimesh.constants.log.info('Showing original mesh')
-        mesh.show()
-
-        # open a viewer window for convexified mesh
-        trimesh.constants.log.info('Showing convexified mesh')
-        convex_combined.show()
+    # open a viewer window for convexified mesh
+    print('Showing convexified mesh')
+    convex_combined.show()

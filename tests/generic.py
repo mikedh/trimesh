@@ -14,9 +14,22 @@ import tempfile
 import unittest
 import itertools
 import subprocess
+import contextlib
+import threading
+
+try:  # Python 3
+    from http.server import SimpleHTTPRequestHandler
+    import socketserver
+except ImportError:  # Python 2
+    from SimpleHTTPServer import SimpleHTTPRequestHandler
+    import SocketServer as socketserver
 
 import numpy as np
-import sympy as sp
+
+try:
+    import sympy as sp
+except ImportError:
+    pass
 
 import trimesh
 import collections
@@ -26,6 +39,12 @@ from copy import deepcopy
 from trimesh.constants import tol, tol_path
 from trimesh.base import Trimesh
 
+# make sure everyone knows they should run additional
+# validation checks and raise exceptions
+trimesh.constants.tol.strict = True
+trimesh.constants.tol_path.strict = True
+
+
 try:
     from shapely.geometry import Point, Polygon
     has_path = True
@@ -34,6 +53,12 @@ except ImportError:
 
 python_version = np.array([sys.version_info.major,
                            sys.version_info.minor])
+
+
+# some repeatable transforms to use in tests
+transforms = [trimesh.transformations.euler_matrix(np.pi / 4, i, 0)
+              for i in np.linspace(0.0, np.pi * 2.0, 100)]
+transforms = np.array(transforms)
 
 # python 3
 try:
@@ -67,13 +92,7 @@ for i in inspect.stack():
         break
 """
 
-
-def io_wrap(item):
-    if isinstance(item, str):
-        return StringIO(item)
-    if _PY3 and isinstance(item, bytes):
-        return BytesIO(item)
-    return item
+io_wrap = trimesh.util.wrap_as_stream
 
 
 def _load_data():
@@ -103,6 +122,28 @@ def get_mesh(file_name, *args, **kwargs):
     return list(meshes)
 
 
+@contextlib.contextmanager
+def serve_meshes():
+    """
+    This context manager serves meshes over HTTP at some available port
+    """
+    class _ServerThread(threading.Thread):
+        def run(self):
+            os.chdir(dir_models)
+            Handler = SimpleHTTPRequestHandler
+            self.httpd = socketserver.TCPServer(('', 0), Handler)
+            _, self.port = self.httpd.server_address
+            self.httpd.serve_forever()
+
+    t = _ServerThread()
+    t.daemon = False
+    t.start()
+    time.sleep(0.2)
+    yield 'http://localhost:{}'.format(t.port)
+    t.httpd.shutdown()
+    t.join()
+
+
 def get_meshes(count=np.inf,
                raise_error=False,
                only_watertight=True):
@@ -120,28 +161,29 @@ def get_meshes(count=np.inf,
     meshes: list, of Trimesh objects
     """
     # use deterministic file name order
-    file_names = np.sort(os.listdir(dir_models))
+    file_names = sorted(os.listdir(dir_models))
 
-    meshes = deque()
+    meshes = []
     for file_name in file_names:
         extension = trimesh.util.split_extension(file_name).lower()
         if extension in trimesh.available_formats():
             loaded = trimesh.util.make_sequence(get_mesh(file_name))
-            for i in loaded:
-                is_mesh = trimesh.util.is_instance_named(i, 'Trimesh')
-                is_scene = trimesh.util.is_instance_named(i, 'Scene')
+            for m in loaded:
+                is_mesh = trimesh.util.is_instance_named(m, 'Trimesh')
+                is_scene = trimesh.util.is_instance_named(m, 'Scene')
                 if raise_error and not is_mesh and not is_scene:
                     raise ValueError('%s returned a non- Trimesh object!',
                                      file_name)
-                if not is_mesh or (only_watertight and not i.is_watertight):
+                if not is_mesh or (only_watertight and not m.is_watertight):
                     continue
-                meshes.append(i)
+                meshes.append(m)
+                yield m
         else:
             log.warning('%s has no loader, not running test on!',
                         file_name)
+
         if len(meshes) >= count:
             break
-    return list(meshes)
 
 
 def get_2D(count=None):
@@ -150,16 +192,16 @@ def get_2D(count=None):
     """
     # if no path loading return empty list
     if not has_path:
-        return []
+        raise StopIteration
 
     # all files in the 2D models directory
-    ls = os.listdir(dir_2D)
+    listdir = os.listdir(dir_2D)
     # if count isn't passed return all files
     if count is None:
-        count = len(ls)
+        count = len(listdir)
     # save resulting loaded paths
     paths = []
-    for file_name in ls:
+    for file_name in listdir:
         # check to see if the file is loadable
         ext = trimesh.util.split_extension(file_name)
         if ext not in trimesh.available_formats():
@@ -172,16 +214,24 @@ def get_2D(count=None):
             log.error('failed on: {}'.format(file_name),
                       exc_info=True)
             raise E
+
+        yield paths[-1]
+
         # if we don't need every path break
         if len(paths) >= count:
             break
 
-    return paths
-
 
 data = _load_data()
 
-# formats supported by meshlab
-meshlab_formats = ['3ds', 'ply', 'stl', 'obj', 'qobj', 'off', 'ptx', 'vmi',
-                   'bre', 'dae', 'ctm', 'pts', 'apts', 'xyz', 'gts', 'pdb',
-                   'tri', 'asc', 'x3d', 'x3dv', 'wrl']
+
+from distutils.spawn import find_executable
+
+# formats supported by meshlab for export tests
+if any(find_executable(i) is None
+       for i in ['xfvb-run', 'meshlabserver']):
+    meshlab_formats = []
+else:
+    meshlab_formats = ['3ds', 'ply', 'stl', 'obj', 'qobj', 'off', 'ptx', 'vmi',
+                       'bre', 'dae', 'ctm', 'pts', 'apts', 'xyz', 'gts', 'pdb',
+                       'tri', 'asc', 'x3d', 'x3dv', 'wrl']

@@ -17,7 +17,7 @@ try:
 except BaseException:
     # otherwise provide mode flags
     # this is so we can unit test without pyglet
-    GL_LINES, GL_POINTS, GL_TRIANGLES = (1, 0, 4)
+    GL_POINTS, GL_LINES, GL_TRIANGLES = (0, 1, 4)
 
 from . import util
 
@@ -30,13 +30,13 @@ def convert_to_vertexlist(geometry, **kwargs):
     Parameters
     ------------
     obj : Trimesh, Path2D, Path3D, (n,2) float, (n,3) float
-            Object to render
+      Object to render
 
     Returns
     ------------
     args : tuple
-            Args to be passed to pyglet indexed vertex list
-            constructor.
+      Args to be passed to pyglet indexed vertex list
+      constructor.
     """
     if util.is_instance_named(geometry, 'Trimesh'):
         return mesh_to_vertexlist(geometry, **kwargs)
@@ -58,6 +58,7 @@ def convert_to_vertexlist(geometry, **kwargs):
 
 def mesh_to_vertexlist(mesh,
                        group=None,
+                       smooth=True,
                        smooth_threshold=60000):
     """
     Convert a Trimesh object to arguments for an
@@ -66,18 +67,20 @@ def mesh_to_vertexlist(mesh,
     Parameters
     -------------
     mesh : trimesh.Trimesh
-            Mesh to be rendered
+      Mesh to be rendered
     group : str
-            Rendering group for the vertex list
+      Rendering group for the vertex list
+    smooth : bool
+      Should we try to smooth shade the mesh
     smooth_threshold : int
-            Maximum number of faces to smooth shade
+      Maximum number of faces to smooth shade
 
     Returns
     --------------
     args : (7,) tuple
-            Args for vertex list constructor
+      Args for vertex list constructor
     """
-    if len(mesh.faces) < smooth_threshold:
+    if smooth and len(mesh.faces) < smooth_threshold:
         # if we have a small number of faces smooth the mesh
         mesh = mesh.smoothed()
         vertex_count = len(mesh.vertices)
@@ -104,7 +107,7 @@ def mesh_to_vertexlist(mesh,
     return args
 
 
-def path_to_vertexlist(path, group=None, colors=None):
+def path_to_vertexlist(path, group=None, colors=None, **kwargs):
     """
     Convert a Path3D object to arguments for an
     indexed vertex list constructor.
@@ -112,14 +115,14 @@ def path_to_vertexlist(path, group=None, colors=None):
     Parameters
     -------------
     path : trimesh.path.Path3D object
-            Mesh to be rendered
+      Mesh to be rendered
     group : str
-            Rendering group for the vertex list
+      Rendering group for the vertex list
 
     Returns
     --------------
     args : (7,) tuple
-            Args for vertex list constructor
+      Args for vertex list constructor
     """
     # avoid cache check inside tight loop
     vertices = path.vertices
@@ -146,7 +149,7 @@ def path_to_vertexlist(path, group=None, colors=None):
     return args
 
 
-def points_to_vertexlist(points, colors=None, group=None):
+def points_to_vertexlist(points, colors=None, group=None, **kwargs):
     """
     Convert a numpy array of 3D points to args for
     a vertex list constructor.
@@ -154,16 +157,16 @@ def points_to_vertexlist(points, colors=None, group=None):
     Parameters
     -------------
     points : (n, 3) float
-            Points to be rendered
+      Points to be rendered
     colors : (n, 3) or (n, 4) float
-            Colors for each point
+      Colors for each point
     group : str
-            Rendering group for the vertex list
+      Rendering group for the vertex list
 
     Returns
     --------------
     args : (7,) tuple
-            Args for vertex list constructor
+      Args for vertex list constructor
     """
     points = np.asanyarray(points, dtype=np.float64)
 
@@ -189,14 +192,15 @@ def colors_to_gl(colors, count):
 
     Parameters
     ------------
-    colors: (count, (3 or 4)) colors
+    colors: (count, (3 or 4)) float
+      Input colors as an array
 
     Returns
     ---------
     colors_type : str
-                    color type
-    colors_gl:   (count,) list
-                    Colors to pass to pyglet
+      Color type
+    colors_gl : (count,) list
+      Colors to pass to pyglet
     """
 
     colors = np.asanyarray(colors)
@@ -226,12 +230,12 @@ def matrix_to_gl(matrix):
     Parameters
     -------------
     matrix : (4,4) float
-                Row- major homogenous transform
+      Row- major homogenous transform
 
     Returns
     -------------
     glmatrix : (16,) pyglet.gl.GLfloat
-                Transform in pyglet format
+      Transform in pyglet format
     """
     matrix = np.asanyarray(matrix, dtype=np.float64)
     if matrix.shape != (4, 4):

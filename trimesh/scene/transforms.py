@@ -9,7 +9,7 @@ from .. import caching
 from .. import transformations
 
 
-class TransformForest:
+class TransformForest(object):
 
     def __init__(self, base_frame='world'):
         self.transforms = EnforcedForest()
@@ -80,7 +80,10 @@ class TransformForest:
         ------------
         copied: TransformForest
         """
-        copied = copy.deepcopy(self)
+        copied = TransformForest()
+        copied.base_frame = copy.deepcopy(self.base_frame)
+        copied.transforms = copy.deepcopy(self.transforms)
+
         return copied
 
     def to_flattened(self, base_frame=None):
@@ -145,8 +148,8 @@ class TransformForest:
             a, b, c = edge
             # geometry is a node property but save it to the
             # edge so we don't need two dictionaries
-            if 'geometry' in self.transforms.nodes[b]:
-                c['geometry'] = self.transforms.nodes[b]['geometry']
+            if 'geometry' in self.transforms.node[b]:
+                c['geometry'] = self.transforms.node[b]['geometry']
             # save the matrix as a float list
             c['matrix'] = np.asanyarray(c['matrix'],
                                         dtype=np.float64).tolist()
@@ -217,7 +220,7 @@ class TransformForest:
 
         nodes_geometry = []
         for n in nodes:
-            if (n in self.transforms.node and
+            if (n in nodes and
                     'geometry' in self.transforms.node[n]):
                 nodes_geometry.append(n)
         return np.array(nodes_geometry)

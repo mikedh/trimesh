@@ -103,8 +103,8 @@ class RayTests(g.unittest.TestCase):
             assert (result == truth).all()
 
     def test_multiple_hits(self):
-        '''
-        '''
+        """
+        """
         # Set camera focal length (in pixels)
         f = g.np.array([1000., 1000.])
         h, w = 256, 256
@@ -192,6 +192,26 @@ class RayTests(g.unittest.TestCase):
                 # the Z of the hit should be on the cube's
                 # top or bottom face
                 assert g.np.isclose(p[2], mesh.bounds[:, 2]).any()
+
+        def test_broken(self):
+            """
+            Test a mesh with badly defined face normals
+            """
+
+            ray_origins = g.np.array([[0.12801793, 24.5030052, -5.],
+                                      [0.12801793, 24.5030052, -5.]])
+            ray_directions = g.np.array([[-0.13590759, -0.98042506, 0.],
+                                         [0.13590759, 0.98042506, -0.]])
+
+            for kwargs in [{'use_embree': True},
+                           {'use_embree': False}]:
+                mesh = g.get_mesh('broken.STL', **kwargs)
+
+                locations, index_ray, index_tri = mesh.ray.intersects_location(
+                    ray_origins=ray_origins, ray_directions=ray_directions)
+
+                # should be same number of location hits
+                assert len(locations) == len(ray_origins)
 
 
 if __name__ == '__main__':

@@ -7,12 +7,15 @@ except BaseException:
 class TransformTest(g.unittest.TestCase):
 
     def test_doctest(self):
-        '''
-        Run doctests on transformations, which checks docstrings for
-        interactive sessions and then verifies they execute correctly.
+        """
+        Run doctests on transformations, which checks docstrings
+        for interactive sessions and then verifies they execute
+        correctly.
 
-        This is how the upstream transformations unit tests.
-        '''
+        This is how the upstream transformations unit tests,
+        but it depends on numpy string formatting and is very
+        flaky.
+        """
         import trimesh
         import random
         import doctest
@@ -31,10 +34,10 @@ class TransformTest(g.unittest.TestCase):
         g.log.info('transformations {}'.format(str(results)))
 
     def test_downstream(self):
-        '''
-        Run tests on functions that were added downstream of the original
-        transformations.py
-        '''
+        """
+        Run tests on functions that were added by us to the
+        original transformations.py
+        """
         tr = g.trimesh.transformations
 
         assert not tr.is_rigid(g.np.ones((4, 4)))

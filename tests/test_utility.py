@@ -1,13 +1,7 @@
 import trimesh
 import unittest
 import logging
-import time
-import os
-import sys
-import inspect
 import numpy as np
-import json
-from collections import deque
 
 try:
     from . import generic as g
@@ -20,8 +14,6 @@ TOL_CHECK = 1e-2
 
 log = logging.getLogger('trimesh')
 log.addHandler(logging.NullHandler())
-
-_QUICK = '-q' in sys.argv
 
 
 class VectorTests(unittest.TestCase):
@@ -50,20 +42,6 @@ class VectorTests(unittest.TestCase):
             aligned = np.abs(result - target).sum() < TOL_ZERO
             self.assertTrue(aligned)
 
-    def test_horn(self):
-        log.info('Testing absolute orientation')
-        for i in range(10):
-            points_A = (np.random.random(self.test_dim) - .5) * 100
-            angle = 4 * np.pi * (np.random.random() - .5)
-            vector = trimesh.unitize(np.random.random(3) - .5)
-            offset = 100 * (np.random.random(3) - .5)
-            T = trimesh.transformations.rotation_matrix(angle, vector)
-            T[0:3, 3] = offset
-            points_B = trimesh.transformations.transform_points(points_A, T)
-            M, error = trimesh.points.absolute_orientation(
-                points_A, points_B, return_error=True)
-            self.assertTrue(np.all(error < TOL_ZERO))
-
 
 class UtilTests(unittest.TestCase):
 
@@ -76,14 +54,14 @@ class UtilTests(unittest.TestCase):
                 self.assertTrue(0 in tree.intersection(bounds[0]))
 
     def test_strips(self):
-        '''
+        """
         Test our conversion of triangle strips to face indexes.
-        '''
+        """
 
         def strips_to_faces(strips):
-            '''
+            """
             A slow but straightforward version of the function to test against
-            '''
+            """
             faces = g.collections.deque()
             for s in strips:
                 s = g.np.asanyarray(s, dtype=g.np.int)
@@ -227,32 +205,7 @@ class MassTests(unittest.TestCase):
                      parameter_count, truth['filename'])
 
 
-class SphericalTests(unittest.TestCase):
-
-    def test_spherical(self):
-        v = g.trimesh.unitize(g.np.random.random((1000, 3)) - .5)
-        spherical = g.trimesh.util.vector_to_spherical(v)
-        v2 = g.trimesh.util.spherical_to_vector(spherical)
-        self.assertTrue((np.abs(v - v2) < g.trimesh.constants.tol.merge).all())
-
-
-class HemisphereTests(unittest.TestCase):
-
-    def test_hemisphere(self):
-        v = trimesh.unitize(np.random.random((10000, 3)) - .5)
-        v[0] = [0, 1, 0]
-        v[1] = [1, 0, 0]
-        v[2] = [0, 0, 1]
-        v = np.column_stack((v, -v)).reshape((-1, 3))
-
-        resigned = trimesh.util.vector_hemisphere(v)
-
-        check = (abs(np.diff(resigned.reshape((-1, 2, 3)),
-                             axis=1).sum(axis=2)) < trimesh.constants.tol.zero).all()
-        self.assertTrue(check)
-
-
-class FileTests(unittest.TestCase):
+class IOWrapTests(unittest.TestCase):
 
     def test_io_wrap(self):
         test_b = g.np.random.random(1).tostring()
@@ -279,19 +232,6 @@ class FileTests(unittest.TestCase):
             self.assertTrue(len(hashed) > 5)
 
             file_obj.close()
-
-
-class FileTests(unittest.TestCase):
-
-    def test_io_wrap(self):
-        test_b = g.np.random.random(1).tostring()
-        test_s = 'this is a test yo'
-
-        res_b = g.trimesh.util.wrap_as_stream(test_b).read()
-        res_s = g.trimesh.util.wrap_as_stream(test_s).read()
-
-        self.assertTrue(res_b == test_b)
-        self.assertTrue(res_s == test_s)
 
 
 class CompressTests(unittest.TestCase):

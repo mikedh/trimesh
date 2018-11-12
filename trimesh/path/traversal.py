@@ -2,12 +2,12 @@ import numpy as np
 import networkx as nx
 
 import copy
-from collections import deque
+
+from .util import is_ccw
+from ..util import unitize
 
 from ..grouping import unique_ordered
-from ..util import unitize
 from ..constants import tol_path as tol
-from .util import is_ccw
 
 
 def vertex_graph(entities):
@@ -163,7 +163,7 @@ def closed_paths(entities, vertices):
     # get a networkx graph of entities
     graph, closed = vertex_graph(entities)
     # add entities that are closed as single- entity paths
-    entity_paths = deque(np.reshape(closed, (-1, 1)))
+    entity_paths = np.reshape(closed, (-1, 1)).tolist()
     # look for cycles in the graph, or closed loops
     vertex_paths = np.array(nx.cycles.cycle_basis(graph))
 
@@ -359,17 +359,36 @@ def resample_path(points,
 
 
 def split(self):
+    """
+    Split a Path2D into multiple Path2D objects where each
+    one has exactly one root curve.
 
-    # if self.root is None or len(self.root) == 0:
-    #    return np.array([])
+    Parameters
+    --------------
+    self : trimesh.path.Path2D
+      Input geometry
 
+    Returns
+    -------------
+    split : list of trimesh.path.Path2D
+      Original geometry as separate paths
+    """
+    # avoid a circular import by referencing class of self
     Path2D = type(self)
 
+    # save the results of the split to an array
     split = []
+
+    # get objects from cache to avoid a bajillion
+    # cache checks inside the tight loop
+    paths = self.paths
+    discrete = self.discrete
+    polygons_closed = self.polygons_closed
+    enclosure_directed = self.enclosure_directed
 
     for root_index, root in enumerate(self.root):
         # get a list of the root curve's children
-        connected = list(self.enclosure_directed[root].keys())
+        connected = list(enclosure_directed[root].keys())
         # add the root node to the list
         connected.append(root)
 
@@ -378,7 +397,7 @@ def split(self):
         new_entities = []
 
         for index in connected:
-            path = self.paths[index]
+            path = paths[index]
             # add a path which is just sequential indexes
             new_paths.append(np.arange(len(path)) +
                              len(new_entities))
@@ -401,8 +420,8 @@ def split(self):
             # add back expensive things to the cache
             split[-1]._cache.update(
                 {'paths': new_paths,
-                 'polygons_closed': self.polygons_closed[connected],
-                 'discrete': self.discrete[connected],
+                 'polygons_closed': polygons_closed[connected],
+                 'discrete': discrete[connected],
                  'root': new_root})
             # set the cache ID
             split[-1]._cache.id_set()

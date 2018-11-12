@@ -1,10 +1,8 @@
 import numpy as np
 import networkx as nx
 
-from shapely.geometry import Polygon, Point, MultiPoint
+from shapely.geometry import Polygon, Point
 from shapely import vectorized
-
-import copy
 
 from rtree import Rtree
 from collections import deque
@@ -71,10 +69,31 @@ def enclosure_tree(polygons):
                 contains.add_edge(i, j)
             elif polygons[j].contains(polygons[i]):
                 contains.add_edge(j, i)
-    # a root or exterior curve has no parents
+
+    # a root or exterior curve has an even number of parents
     # wrap in dict call to avoid networkx view
-    in_degree = dict(contains.in_degree())
-    roots = [n for n, deg in in_degree.items() if deg == 0]
+    degree = dict(contains.in_degree())
+
+    # convert keys and values to numpy arrays
+    indexes = np.array(list(degree.keys()))
+    degrees = np.array(list(degree.values()))
+
+    # roots are curves with an even inward degree (parent count)
+    roots = indexes[(degrees % 2) == 0]
+
+    # if there are multiple nested polygons split the graph
+    # so the contains logic returns the individual polygons
+    if len(degrees) > 0 and degrees.max() > 1:
+        # collect new edges for graph
+        edges = []
+        # find edges of subgraph for each root and children
+        for root in roots:
+            children = indexes[degrees == degree[root] + 1]
+            edges.extend(contains.subgraph(np.append(children, root)).edges())
+        # stack edges into new directed graph
+        contains = nx.from_edgelist(edges, nx.DiGraph())
+        # if roots have no children add them anyway
+        contains.add_nodes_from(roots)
 
     return roots, contains
 
@@ -274,7 +293,7 @@ def stack_boundaries(boundaries):
 
 
 def medial_axis(polygon,
-                resolution=.01,
+                resolution=None,
                 clip=None):
     """
     Given a shapely polygon, find the approximate medial axis
@@ -302,6 +321,9 @@ def medial_axis(polygon,
     from scipy.spatial import Voronoi
     from .path import Path2D
     from .io.misc import edges_to_path
+
+    if resolution is None:
+        resolution = .01
 
     # get evenly spaced points on the polygons boundaries
     samples = resample_boundaries(polygon=polygon,
@@ -388,21 +410,27 @@ class InversePolygon:
 
 def polygon_hash(polygon):
     """
-    An approximate hash of a a shapely Polygon object.
+    Return a vector containing values representitive of
+    a particular polygon.
 
     Parameters
     ---------
-    polygon: shapely.geometry.Polygon object
+    polygon : shapely.geometry.Polygon
+      Input geometry
 
     Returns
     ---------
-    hash: (5) length list of hash representing input polygon
+    hashed: (6), float
+      Representitive values representing input polygon
     """
-    result = [len(polygon.interiors),
-              polygon.convex_hull.area,
-              polygon.convex_hull.length,
-              polygon.area,
-              polygon.length]
+    result = np.array(
+        [len(polygon.interiors),
+         polygon.convex_hull.area,
+         polygon.convex_hull.length,
+         polygon.area,
+         polygon.length,
+         polygon.exterior.length],
+        dtype=np.float64)
     return result
 
 

@@ -70,7 +70,6 @@ class RayMeshIntersector(object):
         """
         A cached version of the pyembree scene.
         """
-
         return _EmbreeWrap(vertices=self.mesh.vertices,
                            faces=self.mesh.faces,
                            scale=self._scale)
@@ -296,7 +295,7 @@ class _EmbreeWrap(object):
     """
     A light wrapper for PyEmbree scene objects which
     allows queries to be scaled to help with precision
-    issues, as well as selectring the correct dtypes.
+    issues, as well as selecting the correct dtypes.
     """
 
     def __init__(self, vertices, faces, scale):

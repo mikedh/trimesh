@@ -16,7 +16,7 @@ class ExportTest(g.unittest.TestCase):
                                      mesh.metadata['file_name'],
                                      file_type)
 
-                self.assertTrue(len(export) > 0)
+                assert len(export) > 0
 
                 if file_type in [
                         'dae',     # collada, no native importers
@@ -29,7 +29,14 @@ class ExportTest(g.unittest.TestCase):
 
                 g.log.info('Export/import testing on %s',
                            mesh.metadata['file_name'])
-                loaded = g.trimesh.load(file_obj=g.io_wrap(export),
+
+                # if export is string or bytes wrap as pseudo file object
+                if isinstance(export, str) or isinstance(export, bytes):
+                    file_obj = g.io_wrap(export)
+                else:
+                    file_obj = export
+
+                loaded = g.trimesh.load(file_obj=file_obj,
                                         file_type=file_type)
 
                 if (not g.trimesh.util.is_shape(loaded._data['faces'], (-1, 3)) or
@@ -50,7 +57,7 @@ class ExportTest(g.unittest.TestCase):
                         mesh.metadata['file_name'],
                         str(mesh.faces.shape),
                         str(loaded.faces.shape)))
-                self.assertTrue(loaded.vertices.shape == mesh.vertices.shape)
+                assert loaded.vertices.shape == mesh.vertices.shape
 
                 # try exporting/importing certain file types by name
                 if file_type in ['obj', 'stl', 'ply', 'off']:
@@ -157,6 +164,27 @@ class ExportTest(g.unittest.TestCase):
         assert m.metadata['vertex_texture'].shape == reconstructed.metadata[
             'vertex_texture'].shape
 
+    def test_obj_order(self):
+        """
+        Make sure simple round trips through Wavefront don't
+        reorder vertices.
+        """
+        # get a writeable temp file location
+        temp = g.tempfile.NamedTemporaryFile(
+            suffix='.obj',
+            delete=False)
+        temp.close()
+
+        # simple solid
+        x = g.trimesh.creation.icosahedron()
+        x.export(temp.name)
+        y = g.trimesh.load_mesh(temp.name, process=False)
+
+        # vertices should be same shape and order
+        assert g.np.allclose(x.vertices, y.vertices)
+        # faces should be same
+        assert g.np.allclose(x.faces, y.faces)
+
     def test_ply(self):
         m = g.get_mesh('machinist.XAML')
 
@@ -210,6 +238,66 @@ class ExportTest(g.unittest.TestCase):
         # the scene should be identical after export-> import cycle
         assert g.np.allclose(loaded.extents / source.extents,
                              1.0)
+
+    def test_gltf_path(self):
+        """
+        Check to make sure GLTF exports of Path2D and Path3D
+        objects don't immediatly crash.
+        """
+        path2D = g.get_mesh('2D/wrench.dxf')
+        path3D = path2D.to_3D()
+
+        a = g.trimesh.Scene(path2D).export(file_type='glb')
+        b = g.trimesh.Scene(path3D).export(file_type='glb')
+
+        assert len(a) > 0
+        assert len(b) > 0
+
+    def test_parse_file_args(self):
+        """
+        Test the magical trimesh.io.load.parse_file_args
+        """
+        # it's wordy
+        f = g.trimesh.io.load.parse_file_args
+
+        # a path that doesn't exist
+        nonexists = '/banana{}'.format(g.np.random.random())
+        assert not g.os.path.exists(nonexists)
+
+        # loadable OBJ model
+        exists = g.os.path.join(g.dir_models, 'tube.obj')
+        assert g.os.path.exists(exists)
+
+        # should be able to extract type from passed filename
+        args = f(file_obj=exists, file_type=None)
+        assert len(args) == 4
+        assert args[1] == 'obj'
+
+        # should be able to extract correct type from longer name
+        args = f(file_obj=exists, file_type='YOYOMA.oBj')
+        assert len(args) == 4
+        assert args[1] == 'obj'
+
+        # with a nonexistant file and no extension it should raise
+        try:
+            args = f(file_obj=nonexists, file_type=None)
+        except ValueError as E:
+            assert 'not a file' in str(E)
+        else:
+            raise ValueError('should have raised exception!')
+
+        # nonexistant file with extension passed should return
+        # file name anyway, maybe something else can handle i
+        args = f(file_obj=nonexists, file_type='.ObJ')
+        assert len(args) == 4
+        # should have cleaned up case
+        assert args[1] == 'obj'
+
+        # make sure overriding type works for string filenames
+        args = f(file_obj=exists, file_type='STL')
+        assert len(args) == 4
+        # should have used manually passed type over .obj
+        assert args[1] == 'stl'
 
 
 if __name__ == '__main__':

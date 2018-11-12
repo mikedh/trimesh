@@ -10,8 +10,7 @@ cwd = os.path.dirname(os.path.abspath(
     inspect.getfile(inspect.currentframe())))
 
 
-def load_notebook(file_obj,
-                  exclude=['%', 'show', 'plt']):
+def load_notebook(file_obj):
     """
     Load an ipynb file into a cleaned and stripped string that can
     be ran with `exec`
@@ -30,15 +29,37 @@ def load_notebook(file_obj,
     script : str, cleaned script which can be passed to exec
     """
     raw = json.load(file_obj)
-    lines = []
-    for line in np.hstack([i['source']
-                           for i in raw['cells'] if 'source' in i]):
-        if any(i in line for i in exclude):
-            lines.append(to_pass(line))
-        else:
-            lines.append(line.rstrip())
-    script = '\n'.join(lines) + '\n'
+    lines = np.hstack([i['source']
+                       for i in raw['cells'] if 'source' in i])
+    script = exclude_calls(lines)
     return script
+
+
+def exclude_calls(lines, exclude=['%', 'show', 'plt']):
+    """
+    Exclude certain calls based on substrings, replacing
+    them with pass statements.
+
+    Parameters
+    -------------
+    lines : (n, ) str
+      Lines making up a Python script
+    exclude (m, ) str
+      Substrings to exclude lines based off of
+
+    Returns
+    -------------
+    joined : str
+      Lines combined with newline
+    """
+    result = []
+    for line in lines:
+        if any(i in line for i in exclude):
+            result.append(to_pass(line))
+        else:
+            result.append(line.rstrip())
+    result = '\n'.join(result) + '\n'
+    return result
 
 
 def to_pass(line):
@@ -55,7 +76,9 @@ def to_pass(line):
     passed : str, line of code with same leading spaces
                   but code replaced with pass statement
     """
-    spaces = np.nonzero([i != ' ' for i in line])[0][0]
+    # the number of leading spaces on the line
+    spaces = len(line) - len(line.lstrip(' '))
+    # replace statement with pass and correct leading spaces
     passed = (' ' * spaces) + 'pass'
     return passed
 
@@ -115,5 +138,9 @@ if __name__ == '__main__':
             with open(file_name, 'r') as file_obj:
                 script = load_notebook(file_obj)
             print('\nloaded {}:\n'.format(file_name))
-            print(script)
+            exec(script)
+        elif file_name.endswith('.py'):
+            with open(file_name, 'r') as file_obj:
+                script = exclude_calls(file_obj.read().split('\n'))
+            print('\nloaded {}:\n'.format(file_name))
             exec(script)

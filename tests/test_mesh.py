@@ -8,26 +8,36 @@ class MeshTests(g.unittest.TestCase):
 
     def test_meshes(self):
         # make sure we can load everything we think we can
-        # while getting a list of meshes to run tests on
-        meshes = g.get_meshes(raise_error=True)
-        g.log.info('Running tests on %d meshes', len(meshes))
-
         formats = g.trimesh.available_formats()
         assert all(isinstance(i, str) for i in formats)
         assert all(len(i) > 0 for i in formats)
+        assert all(i in formats for i in ['stl', 'ply', 'off', 'obj'])
 
-        for mesh in meshes:
+        for mesh in g.get_meshes(raise_error=True):
             g.log.info('Testing %s', mesh.metadata['file_name'])
-            self.assertTrue(len(mesh.faces) > 0)
-            self.assertTrue(len(mesh.vertices) > 0)
 
-            self.assertTrue(len(mesh.edges) > 0)
-            self.assertTrue(len(mesh.edges_unique) > 0)
-            self.assertTrue(len(mesh.edges_sorted) > 0)
-            self.assertTrue(len(mesh.edges_face) > 0)
-            self.assertTrue(isinstance(mesh.euler_number, int))
+            start = {mesh.md5(), mesh.crc()}
+            assert len(mesh.faces) > 0
+            assert len(mesh.vertices) > 0
 
+            assert len(mesh.edges) > 0
+            assert len(mesh.edges_unique) > 0
+            assert len(mesh.edges_sorted) > 0
+            assert len(mesh.edges_face) > 0
+            assert isinstance(mesh.euler_number, int)
+
+            # check bounding primitives
+            assert mesh.bounding_box.volume > 0.0
+            assert mesh.bounding_primitive.volume > 0.0
+
+            # none of these should have mutated anything
+            assert start == {mesh.md5(), mesh.crc()}
+
+            # run processing, again
             mesh.process()
+
+            # still shouldn't have changed anything
+            assert start == {mesh.md5(), mesh.crc()}
 
             if not (mesh.is_watertight and
                     mesh.is_winding_consistent):
@@ -59,10 +69,10 @@ class MeshTests(g.unittest.TestCase):
             # make sure vertex kdtree and triangles rtree exist
 
             t = mesh.kdtree
-            self.assertTrue(hasattr(t, 'query'))
+            assert hasattr(t, 'query')
             g.log.info('Creating triangles tree')
             r = mesh.triangles_tree
-            self.assertTrue(hasattr(r, 'intersection'))
+            assert hasattr(r, 'intersection')
             g.log.info('Triangles tree ok')
 
             # some memory issues only show up when you copy the mesh a bunch
@@ -85,15 +95,18 @@ class MeshTests(g.unittest.TestCase):
                                  mesh.identifier):
                 raise ValueError('copied identifier changed!')
 
+            # ...still shouldn't have changed anything
+            assert start == {mesh.md5(), mesh.crc()}
+
     def test_vertex_neighbors(self):
         m = g.trimesh.primitives.Box()
         neighbors = m.vertex_neighbors
-        self.assertTrue(len(neighbors) == len(m.vertices))
+        assert len(neighbors) == len(m.vertices)
         elist = m.edges_unique.tolist()
 
         for v_i, neighs in enumerate(neighbors):
             for n in neighs:
-                self.assertTrue(([v_i, n] in elist or [n, v_i] in elist))
+                assert ([v_i, n] in elist or [n, v_i] in elist)
 
 
 if __name__ == '__main__':

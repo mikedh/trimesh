@@ -13,16 +13,18 @@ from ..resources import get_resource
 
 def scene_to_html(scene):
     """
-    Return HTML that will render the scene.
-    Uses GLTF/GLB encoded to base64.
+    Return HTML that will render the scene using
+    GLTF/GLB encoded to base64 loaded by three.js
 
     Parameters
     --------------
-    scene: trimesh.Scene object
+    scene : trimesh.Scene
+      Source geometry
 
     Returns
     --------------
-    html: str, HTML containing embedded geometry
+    html : str
+      HTML containing embedded geometry
     """
     # use os.path.join so this works on windows
     base = get_resource('viewer.html.template')
@@ -46,11 +48,13 @@ def scene_to_notebook(scene, height=500, **kwargs):
 
     Parameters
     -------------
-    scene: trimesh.Scene object
+    scene : trimesh.Scene
+      Source geometry
 
     Returns
     -------------
-    html: IPython.display.HTML object
+    html : IPython.display.HTML
+      Object containing rendered scene
     """
     # keep as soft dependency
     from IPython import display
@@ -62,12 +66,13 @@ def scene_to_notebook(scene, height=500, **kwargs):
     srcdoc = as_html.replace('"', '&quot;')
     # embed this puppy as the srcdoc attr of an IFframe
     # I tried this a dozen ways and this is the only one that works
-    # display.HTML and display.Javascript really, really don't work
-    embedded = display.HTML('<iframe srcdoc="{srcdoc}" '
-                            'width="100%" height="{height}px" '
-                            'style="border:none;"></iframe>'.format(
-                                srcdoc=srcdoc,
-                                height=height))
+    # display.IFrame/display.Javascript really, really don't work
+    embedded = display.HTML(
+        '<iframe srcdoc="{srcdoc}" '
+        'width="100%" height="{height}px" '
+        'style="border:none;"></iframe>'.format(
+            srcdoc=srcdoc,
+            height=height))
     return embedded
 
 
@@ -77,10 +82,11 @@ def in_notebook():
 
     Returns
     -----------
-    in_notebook: bool, True if we are in a notebook
+    in_notebook : bool
+      Returns True if we are in a notebook
     """
     try:
-        # function returns ipython context
+        # function returns IPython context, but only in IPython
         ipy = get_ipython()
         # we only want to render rich output in notebooks
         # in terminals we definitely do not want to output HTML

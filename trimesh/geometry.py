@@ -119,29 +119,31 @@ def faces_to_edges(faces, return_index=False):
 
 def vector_angle(pairs):
     """
-    Find the angles between vector pairs
+    Find the angles between pairs of unit vectors.
 
     Parameters
     ----------
-    pairs: (n,2,3) set of unit vector pairs
+    pairs : (n,2,3) float
+      Unit vector pairs
 
     Returns
     ----------
-    angles: (n,) float, angles between vectors
-
-    Examples
-    ----------
-    angles = mesh.face_normals[mesh.face_adjacency]
+    angles : (n,) float
+      Angles between vectors in radians
     """
-    pairs = np.asanyarray(pairs)
+    pairs = np.asanyarray(pairs, dtype=np.float64)
     if len(pairs) == 0:
         return np.array([])
-    elif not util.is_shape(pairs, (-1, 2, 3)):
-        raise ValueError('pairs must be (n,2,3)!')
+    elif not util.is_shape(pairs, (-1, 2, (2, 3))):
+        raise ValueError('pairs must be (n,2,(2|3))!')
+
+    # do the dot product between vectors
     dots = util.diagonal_dot(pairs[:, 0], pairs[:, 1])
     # clip for floating point error
     dots = np.clip(dots, -1.0, 1.0)
+    # do cos and remove arbitrary sign
     angles = np.abs(np.arccos(dots))
+
     return angles
 
 

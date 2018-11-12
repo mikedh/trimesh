@@ -7,12 +7,12 @@ class HeaderError(Exception):
 
 
 # define a numpy datatype for the data section of a binary STL file
-_stl_dtype = np.dtype([('normals', np.float32, (3)),
-                       ('vertices', np.float32, (3, 3)),
-                       ('attributes', np.uint16)])
+_stl_dtype = np.dtype([('normals', np.dtype('<f4'), (3)),
+                       ('vertices', np.dtype('<f4'), (3, 3)),
+                       ('attributes', np.dtype('<u2'))])
 # define a numpy datatype for the header of a binary STL file
 _stl_dtype_header = np.dtype([('header', np.void, 80),
-                              ('face_count', np.int32)])
+                              ('face_count', np.dtype('<i4'))])
 
 
 def load_stl(file_obj, file_type=None):

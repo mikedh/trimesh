@@ -172,28 +172,31 @@ def extrude_triangulation(vertices,
                           height,
                           **kwargs):
     """
-    Turn a shapely.geometry Polygon object and a height (float)
-    into a watertight Trimesh object.
+    Turn a 2D triangulation into a watertight Trimesh.
 
     Parameters
     ----------
-    vertices: (n,2) float, 2D vertices
-    faces:    (m,3) int,   triangle indexes of vertices
-    height:   float, distance to extrude triangulation
+    vertices : (n, 2) float
+      2D vertices
+    faces : (m, 3) int
+      Triangle indexes of vertices
+    height : float
+      Distance to extrude triangulation
 
     Returns
     ---------
-    mesh: Trimesh object of result
+    mesh : trimesh.Trimesh
+      Mesh created from extrusion
     """
     vertices = np.asanyarray(vertices, dtype=np.float64)
-    faces = np.asanyarray(faces, dtype=np.int)
     height = float(height)
+    faces = np.asanyarray(faces, dtype=np.int64)
 
     if not util.is_shape(vertices, (-1, 2)):
         raise ValueError('Vertices must be (n,2)')
     if not util.is_shape(faces, (-1, 3)):
         raise ValueError('Faces must be (n,3)')
-    if np.abs(height) < tol.zero:
+    if np.abs(height) < tol.merge:
         raise ValueError('Height must be nonzero!')
 
     # make sure triangulation winding is pointing up
@@ -252,7 +255,7 @@ def extrude_triangulation(vertices,
 
 
 def triangulate_polygon(polygon,
-                        triangle_args='pq0D',
+                        triangle_args='pq30',
                         engine='auto',
                         **kwargs):
     """
@@ -304,7 +307,7 @@ def triangulate_polygon(polygon,
 
     # do the import here, as sometimes this import can segfault
     # which is not catchable with a try/except block
-    import meshpy.triangle as triangle
+    from meshpy import triangle
     # call meshpy.triangle on our cleaned representation of
     # the Shapely polygon
     info = triangle.MeshInfo()
@@ -400,6 +403,11 @@ def _polygon_to_kwargs(polygon):
     vertices = np.vstack(vertices)
     facets = np.vstack(facets).tolist()
 
+    # shapely polygons can include a Z component
+    # strip it out for the triangulation
+    if vertices.shape[1] == 3:
+        vertices = vertices[:, :2]
+
     result = {'vertices': vertices,
               'segments': facets}
     # holes in meshpy lingo are a (h, 2) list of (x,y) points
@@ -486,14 +494,17 @@ def icosphere(subdivisions=3, radius=1.0):
 
     Parameters
     ----------
-    subdivisions: int, how many times to subdivide the mesh.
-                  Note that the number of faces will grow as function of
-                  4 ** subdivisions, so you probably want to keep this under ~5
-    radius: float, radius of resulting sphere
+    subdivisions : int
+      How many times to subdivide the mesh.
+      Note that the number of faces will grow as function of
+      4 ** subdivisions, so you probably want to keep this under ~5
+    radius : float
+      Desired radius of sphere
 
     Returns
     ---------
-    ico: trimesh.Trimesh object of sphere
+    ico : trimesh.Trimesh
+      Meshed sphere
     """
     def refine_spherical():
         vectors = ico.vertices
@@ -521,14 +532,19 @@ def uv_sphere(radius=1.0,
 
     Parameters
     ----------
-    radius: float, radius of sphere
-    count: (2,) int, number of latitude and longitude lines
-    theta: (n,) float, optional
-    phi:   (n,) float, optional
+    radius : float
+      Radius of sphere
+    count : (2,) int
+      Number of latitude and longitude lines
+    theta : (n,) float
+      Optional theta angles in radians
+    phi :   (n,) float
+      Optional phi angles in radians
 
     Returns
     ----------
-    mesh: Trimesh object of UV sphere with specified parameters
+    mesh : trimesh.Trimesh
+       Mesh of UV sphere with specified parameters
     """
 
     count = np.array(count, dtype=np.int)
@@ -671,6 +687,78 @@ def cylinder(radius=1.0,
         cylinder.apply_transform(transform)
 
     return cylinder
+
+
+def annulus(r_min=1.0,
+            r_max=2.0,
+            height=1.0,
+            sections=32,
+            transform=None):
+    """
+    Create a mesh of an annular cylinder along Z,
+    centered at the origin.
+
+    Parameters
+    ----------
+    r_min : float
+      The inner radius of the annular cylinder
+    r_max : float
+      The outer radius of the annular cylinder
+    height : float
+      The height of the annular cylinder
+    sections : int
+      How many pie wedges should the annular cylinder have
+
+    Returns
+    ----------
+    annulus : trimesh.Trimesh
+      Mesh of annular cylinder
+    """
+    r_min = abs(float(r_min))
+    r_max = abs(float(r_max))
+    height = float(height)
+    sections = int(sections)
+
+    # if center radius is zero this is a cylinder
+    if r_min < tol.merge:
+        return cylinder(radius=r_max,
+                        height=height,
+                        sections=sections,
+                        transform=transform)
+
+    # create a 2D pie out of wedges
+    theta = np.linspace(0, np.pi * 2, sections)[:-1]
+    unit = np.column_stack((np.sin(theta),
+                            np.cos(theta)))
+    assert len(unit) == sections - 1
+
+    vertices = np.vstack((unit * r_min,
+                          unit * r_max))
+
+    # one flattened triangulated quad covering one slice
+    face = np.array([0, sections - 1, 1,
+                     1, sections - 1, sections])
+
+    # tile one quad into lots of quads
+    faces = (np.tile(face, (sections - 1, 1)) +
+             np.arange(sections - 1).reshape((-1, 1))).reshape((-1, 3))
+
+    # stitch the last and first triangles with correct winding
+    faces[-1] = [sections - 1, 0, sections - 2]
+
+    # extrude the 2D profile into a mesh
+    annulus = extrude_triangulation(vertices=vertices,
+                                    faces=faces,
+                                    height=height)
+
+    # move the annulus so the centroid is at the origin
+    annulus.vertices[:, 2] -= height * .5
+    if transform is not None:
+        # apply a transform here before any cache stuff is generated
+        # and would have to be dumped after the transform is applied
+        annulus.apply_transform(transform)
+
+    return annulus
 
 
 def random_soup(face_count=100):

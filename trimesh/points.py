@@ -2,12 +2,13 @@
 points.py
 -------------
 
-Functions dealing with (n,d) points.
+Functions dealing with (n, d) points.
 """
 import numpy as np
 
 from .constants import tol
 from .geometry import plane_transform
+from .parent import Geometry
 
 from . import util
 from . import caching
@@ -153,70 +154,6 @@ def project_to_plane(points,
     return transformed
 
 
-def absolute_orientation(points_A, points_B, return_error=False):
-    """
-    Calculates the transform that best aligns points_A with points_B
-    Uses Horn's method for the absolute orientation problem, in 3D with no scaling.
-
-    Parameters
-    ---------
-    points_A:     (n,3) list of points
-    points_B:     (n,3) list of points, T*points_A
-    return_error: boolean, if True returns (n) list of euclidean distances
-                  representing the distance from  T*points_A[i] to points_B[i]
-
-
-    Returns
-    ---------
-    M:    (4,4) transformation matrix for the transform that best aligns
-           points_A to points_B
-    error: float, list of maximum euclidean distance
-    """
-
-    points_A = np.array(points_A)
-    points_B = np.array(points_B)
-    if (points_A.shape != points_B.shape):
-        raise ValueError('Points must be of the same shape!')
-    if len(points_A.shape) != 2 or points_A.shape[1] != 3:
-        raise ValueError('Points must be (n,3)!')
-
-    lc = np.average(points_A, axis=0)
-    rc = np.average(points_B, axis=0)
-    left = points_A - lc
-    right = points_B - rc
-    M = np.dot(left.T, right)
-    [[Sxx, Sxy, Sxz],
-     [Syx, Syy, Syz],
-     [Szx, Szy, Szz]] = M
-    N = [[(Sxx + Syy + Szz), (Syz - Szy), (Szx - Sxz), (Sxy - Syx)],
-         [(Syz - Szy), (Sxx - Syy - Szz), (Sxy + Syx), (Szx + Sxz)],
-         [(Szx - Sxz), (Sxy + Syx), (-Sxx + Syy - Szz), (Syz + Szy)],
-         [(Sxy - Syx), (Szx + Sxz), (Syz + Szy), (-Sxx - Syy + Szz)]]
-    (w, v) = np.linalg.eig(N)
-    q = v[:, np.argmax(w)]
-    q = q / np.linalg.norm(q)
-    M1 = [[q[0], -q[1], -q[2], -q[3]],
-          [q[1], q[0], q[3], -q[2]],
-          [q[2], -q[3], q[0], q[1]],
-          [q[3], q[2], -q[1], q[0]]]
-    M2 = [[q[0], -q[1], -q[2], -q[3]],
-          [q[1], q[0], -q[3], q[2]],
-          [q[2], q[3], q[0], -q[1]],
-          [q[3], -q[2], q[1], q[0]]]
-    R = np.dot(np.transpose(M1), M2)[1:4, 1:4]
-    T = rc - np.dot(R, lc)
-
-    M = np.eye(4)
-    M[0:3, 0:3] = R
-    M[0:3, 3] = T
-
-    if return_error:
-        errors = np.sum((transformations.transform_points(
-            points_A, M) - points_B)**2, axis=1)
-        return M, errors.max()
-    return M
-
-
 def remove_close(points, radius):
     """
     Given an (n, m) set of points where n=(2|3) return a list of points
@@ -224,13 +161,17 @@ def remove_close(points, radius):
 
     Parameters
     ------------
-    points: (n, dimension) float, points in space
-    radius: float, minimum radius between result points
+    points : (n, dimension) float
+      Points in space
+    radius : float
+      Minimum radius between result points
 
     Returns
     ------------
-    culled: (m, dimension) float, points in space
-    mask:   (n,) bool, which points from the original set were returned
+    culled : (m, dimension) float
+      Points in space
+    mask : (n,) bool
+      Which points from the original set were returned
     """
     from scipy.spatial import cKDTree as KDTree
 
@@ -245,24 +186,6 @@ def remove_close(points, radius):
         unique[i] = True
 
     return points[unique], unique
-
-
-def remove_close_set(points_fixed, points_reduce, radius):
-    """
-    Given two sets of points and a radius, return a set of points
-    that is the subset of points_reduce where no point is within
-    radius of any point in points_fixed
-    """
-    from scipy.spatial import cKDTree as KDTree
-
-    tree_fixed = KDTree(points_fixed)
-    tree_reduce = KDTree(points_reduce)
-    reduce_duplicates = tree_fixed.query_ball_tree(tree_reduce, r=radius)
-    reduce_duplicates = np.unique(np.hstack(reduce_duplicates).astype(int))
-    reduce_mask = np.ones(len(points_reduce), dtype=np.bool)
-    reduce_mask[reduce_duplicates] = False
-    points_clean = points_reduce[reduce_mask]
-    return points_clean
 
 
 def k_means(points, k, **kwargs):
@@ -289,59 +212,180 @@ def k_means(points, k, **kwargs):
     from scipy.cluster.vq import kmeans
     from scipy.spatial import cKDTree
 
-    points = np.asanyarray(points)
+    points = np.asanyarray(points, dtype=np.float64)
     points_std = points.std(axis=0)
     whitened = points / points_std
     centroids_whitened, distortion = kmeans(whitened, k, **kwargs)
     centroids = centroids_whitened * points_std
+
+    # find which centroid each point is closest to
     tree = cKDTree(centroids)
     labels = tree.query(points, k=1)[1]
+
     return centroids, labels
+
+
+def tsp(points, start=0):
+    """
+    Find an ordering of points where each is visited and
+    the next point is the closest in euclidean distance,
+    and if there are multiple points with equal distance
+    go to an arbitrary one.
+
+    Assumes every point is visitable from every other point,
+    i.e. the travelling salesman problem on a fully connected
+    graph. It is not a MINIMUM traversal; rather it is a
+    "not totally goofy traversal, quickly." On random points
+    this traversal is often ~20x shorter than random ordering.
+
+    Parameters
+    ---------------
+    points : (n, dimension) float
+      ND points in space
+    start : int
+      The index of points we should start at
+
+    Returns
+    ---------------
+    traversal : (n,) int
+      Ordered traversal visiting every point
+    distances : (n - 1,) float
+      The euclidean distance between points in traversal
+    """
+    # points should be float
+    points = np.asanyarray(points, dtype=np.float64)
+
+    if len(points.shape) != 2:
+        raise ValueError('points must be (n, dimension)!')
+
+    # start should be an index
+    start = int(start)
+
+    # a mask of unvisited points by index
+    unvisited = np.ones(len(points), dtype=np.bool)
+    unvisited[start] = False
+
+    # traversal of points by index
+    traversal = np.zeros(len(points), dtype=np.int64) - 1
+    traversal[0] = start
+    # list of distances
+    distances = np.zeros(len(points) - 1, dtype=np.float64)
+    # a mask of indexes in order
+    index_mask = np.arange(len(points), dtype=np.int64)
+
+    # in the loop we want to call distances.sum(axis=1)
+    # a lot and it's actually kind of slow for "reasons"
+    # dot products with ones is equivalent and ~2x faster
+    sum_ones = np.ones(points.shape[1])
+
+    # loop through all points
+    for i in range(len(points) - 1):
+        # which point are we currently on
+        current = points[traversal[i]]
+
+        # do NlogN distance query
+        # use dot instead of .sum(axis=1) or np.linalg.norm
+        # as it is faster, also don't square root here
+        dist = np.dot((points[unvisited] - current) ** 2,
+                      sum_ones)
+
+        # minimum distance index
+        min_index = dist.argmin()
+        # successor is closest unvisited point
+        successor = index_mask[unvisited][min_index]
+        # update the mask
+        unvisited[successor] = False
+        # store the index to the traversal
+        traversal[i + 1] = successor
+        # store the distance
+        distances[i] = dist[min_index]
+
+    # we were comparing distance^2 so take square root
+    distances **= 0.5
+
+    return traversal, distances
 
 
 def plot_points(points, show=True):
     """
-    Plot an (n,3) list of points using matplotlib.
+    Plot an (n,3) list of points using matplotlib
 
+    Parameters
+    -------------
+    points : (n, 3) float
+      Points in space
+    show : bool
+      If False, will not show until plt.show() is called
     """
     import matplotlib.pyplot as plt
     from mpl_toolkits.mplot3d import Axes3D
 
-    points = np.asanyarray(points)
-    dimension = points.shape[1]
-    if dimension == 3:
+    points = np.asanyarray(points, dtype=np.float64)
+
+    if len(points.shape) != 2:
+        raise ValueError('Points must be (n, 2|3)!')
+
+    if points.shape[1] == 3:
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
         ax.scatter(*points.T)
-    elif dimension == 2:
+    elif points.shape[1] == 2:
         plt.scatter(*points.T)
     else:
-        raise ValueError('Points must be 2D or 3D, not %dD', dimension)
+        raise ValueError('points not 2D/3D: {}'.format(
+            points.shape))
 
     if show:
         plt.show()
 
 
-class PointCloud(object):
+class PointCloud(Geometry):
     """
-    Hold a 3D set of points in an object which can be visualized
+    Hold 3D points in an object which can be visualized
     in a scene.
     """
 
     def __init__(self, *args, **kwargs):
         self._data = caching.DataStore()
+        self._cache = caching.Cache(self._data.md5)
         self.metadata = {}
 
-        if len(args) == 1:
-            self.vertices = args[0]
-
+        # load vertices from args/kwargs
         if 'vertices' in kwargs:
             self.vertices = kwargs['vertices']
+        elif len(args) == 1:
+            self.vertices = args[0]
 
         if 'color' in kwargs:
             self.colors = kwargs['color']
 
+    def __setitem__(self, *args, **kwargs):
+        return self.vertices.__setitem__(*args, **kwargs)
+
+    def __getitem__(self, *args, **kwargs):
+        return self.vertices.__getitem__(*args, **kwargs)
+
+    @property
+    def shape(self):
+        """
+        Get the shape of the pointcloud
+
+        Returns
+        ----------
+        shape : (2,) int
+          Shape of vertex array
+        """
+        return self.vertices.shape
+
     def md5(self):
+        """
+        Get an MD5 hash of the current vertices.
+
+        Returns
+        ----------
+        md5 : str
+          Hash of self.vertices
+        """
         return self._data.md5()
 
     def merge_vertices(self):
@@ -359,32 +403,87 @@ class PointCloud(object):
                 len(self.colors) == len(inverse)):
             self.colors = self.colors[unique]
 
+    def apply_transform(self, transform):
+        """
+        Apply a homogenous transformation to the PointCloud
+        object in- place.
+
+        Parameters
+        --------------
+        transform : (4, 4) float
+          Homogenous transformation to apply to PointCloud
+        """
+        self.vertices = transformations.transform_points(self.vertices,
+                                                         matrix=transform)
+
     @property
     def bounds(self):
+        """
+        The axis aligned bounds of the PointCloud
+
+        Returns
+        ------------
+        bounds : (2, 3) float
+          Miniumum, Maximum verteex
+        """
         return np.array([self.vertices.min(axis=0),
                          self.vertices.max(axis=0)])
 
     @property
     def extents(self):
+        """
+        The size of the axis aligned bounds
+
+        Returns
+        ------------
+        extents : (3,) float
+          Edge length of axis aligned bounding box
+        """
         return self.bounds.ptp(axis=0)
 
     @property
     def centroid(self):
+        """
+        The mean vertex position
+
+        Returns
+        ------------
+        centroid : (3,) float
+          Mean vertex position
+        """
         return self.vertices.mean(axis=0)
 
     @property
     def vertices(self):
+        """
+        Vertices of the PointCloud
+
+        Returns
+        ------------
+        vertices : (n, 3) float
+          Points in the PointCloud
+        """
         return self._data['vertices']
 
     @vertices.setter
     def vertices(self, data):
-        data = np.asanyarray(data, dtype=np.float64)
+        # we want to copy data for new object
+        data = np.array(data, dtype=np.float64, copy=True)
         if not util.is_shape(data, (-1, 3)):
-            raise ValueError('Point clouds only consist of (n,3) points!')
+            raise ValueError(
+                'point clouds only consist of (n,3) points!')
         self._data['vertices'] = data
 
     @property
     def colors(self):
+        """
+        Stored per- point color
+
+        Returns
+        ----------
+        colors : (len(self.vertices), 4) np.uint8
+          Per- point RGBA color
+        """
         return self._data['colors']
 
     @colors.setter
@@ -394,9 +493,33 @@ class PointCloud(object):
             data = np.tile(data, (len(self.vertices), 1))
         self._data['colors'] = data
 
+    @caching.cache_decorator
+    def convex_hull(self):
+        """
+        A convex hull of every point.
+
+        Returns
+        -------------
+        convex_hull : trimesh.Trimesh
+          A watertight mesh of the hull of the points
+        """
+        from . import convex
+        return convex.convex_hull(self.vertices)
+
     def scene(self):
+        """
+        A scene containing just the PointCloud
+
+        Returns
+        ----------
+        scene : trimesh.Scene
+          Scene object containing this PointCloud
+        """
         from .scene.scene import Scene
         return Scene(self)
 
     def show(self):
+        """
+        Open a viewer window displaying the current PointCloud
+        """
         self.scene().show()

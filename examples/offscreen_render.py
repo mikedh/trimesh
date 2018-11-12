@@ -9,14 +9,23 @@ if __name__ == '__main__':
     trimesh.util.attach_to_log()
 
     # load a mesh
-    mesh  = trimesh.load('../models/featuretype.STL')
+    mesh = trimesh.load('../models/featuretype.STL')
 
     # get a scene object containing the mesh, this is equivalent to:
     # scene = trimesh.scene.Scene(mesh)
     scene = mesh.scene()
 
-    rotate = trimesh.transformations.rotation_matrix(np.radians(45.0), [0,1,0],
-                                                     scene.centroid)
+    # add a base transform for the camera which just
+    # centers the mesh into the FOV of the camera
+    scene.set_camera()
+
+    # a 45 degree homogenous rotation matrix around
+    # the Y axis at the scene centroid
+    rotate = trimesh.transformations.rotation_matrix(
+        angle=np.radians(45.0),
+        direction=[0, 1, 0],
+        point=scene.centroid)
+
     for i in range(4):
         trimesh.constants.log.info('Saving image %d', i)
 
@@ -29,11 +38,15 @@ if __name__ == '__main__':
 
         # saving an image requires an opengl context, so if -nw
         # is passed don't save the image
-        if not '-nw' in sys.argv:
+        try:
             # increment the file name
             file_name = 'render_' + str(i) + '.png'
             # save a render of the object as a png
-            png = scene.save_image(resolution=[1920, 1080], visible=True)
+            png = scene.save_image(resolution=[1920, 1080],
+                                   visible=True)
             with open(file_name, 'wb') as f:
                 f.write(png)
                 f.close()
+
+        except BaseException as E:
+            print("unable to save image", str(E))

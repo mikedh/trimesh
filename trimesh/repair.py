@@ -36,6 +36,7 @@ def fix_winding(mesh):
 
     graph_all = nx.from_edgelist(mesh.face_adjacency)
     flipped = 0
+
     faces = mesh.faces.view(np.ndarray).copy()
 
     # we are going to traverse the graph using BFS
@@ -64,13 +65,15 @@ def fix_winding(mesh):
             if len(overlap) == 0:
                 # only happens on non-watertight meshes
                 continue
-            edge_pair = edges[[overlap[0]]]
+            edge_pair = edges[overlap[0]]
             if edge_pair[0][0] == edge_pair[1][0]:
                 # if the edges aren't reversed, invert the order of one face
                 flipped += 1
                 faces[face_pair[1]] = faces[face_pair[1]][::-1]
+
     if flipped > 0:
         mesh.faces = faces
+
     log.debug('flipped %d/%d edges', flipped, len(mesh.faces) * 3)
 
 
@@ -220,6 +223,9 @@ def fill_holes(mesh):
     if len(mesh.faces) < 3:
         return False
 
+    if mesh.is_watertight:
+        return True
+
     # we know that in a watertight mesh, every edge will be included twice
     # thus, every edge which appears only once is part of the boundary of a
     # hole.
@@ -273,19 +279,35 @@ def fill_holes(mesh):
         if not reversed:
             new_faces[face_index] = face[::-1]
 
+    # stack vertices into clean (n, 3) float
     if len(new_vertex) != 0:
         new_vertices = np.vstack((mesh.vertices, new_vertex))
     else:
         new_vertices = mesh.vertices
 
-    # since the winding is now correct, we can get consistent normals
-    # just by doing the cross products on the face edges
-    mesh._cache.clear(exclude=['face_normals'])
+    # try to save face normals if we can
+    if 'face_normals' in mesh._cache.cache:
+        cached_normals = mesh._cache.cache['face_normals']
+    else:
+        cached_normals = None
+
+    # also we can remove any zero are triangles by masking here
     new_normals, valid = triangles.normals(new_vertices[new_faces])
-    mesh.face_normals = np.vstack((mesh.face_normals, new_normals))
+    # all the added faces were broken
+    if not valid.any():
+        return False
+
+    # apply the new faces and vertices
     mesh.faces = np.vstack((mesh._data['faces'], new_faces[valid]))
     mesh.vertices = new_vertices
-    mesh._cache.id_set()
+
+    # dump the cache and set id to the new hash
+    mesh._cache.verify()
+
+    # save us a normals recompute if we can
+    if cached_normals is not None:
+        mesh.face_normals = np.vstack((cached_normals,
+                                       new_normals))
 
     # this is usually the case where two vertices of a triangle are just
     # over tol.merge apart, but the normal calculation is screwed up

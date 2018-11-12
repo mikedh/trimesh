@@ -40,7 +40,9 @@ class SceneTests(g.unittest.TestCase):
                                             len(scene_base.geometry))
 
             for s in [scene_split, scene_base]:
+                pre = s.md5()
                 assert len(s.geometry) > 0
+                assert s.is_valid
 
                 flattened = s.graph.to_flattened()
                 g.json.dumps(flattened)
@@ -54,6 +56,7 @@ class SceneTests(g.unittest.TestCase):
                 assert g.trimesh.util.is_shape(s.triangles, (-1, 3, 3))
                 assert len(s.triangles) == len(s.triangles_node)
 
+                assert s.md5() == pre
                 assert s.md5() is not None
 
                 assert len(s.duplicate_nodes) > 0
@@ -96,38 +99,75 @@ class SceneTests(g.unittest.TestCase):
         md5 = scene.md5()
         extents = scene.bounding_box_oriented.primitive.extents.copy()
 
+        # TODO: have OBB return sorted extents
+        # and adjust the transform to be correct
+
         factor = 10.0
         scaled = scene.scaled(factor)
 
-        # the oriented bounding box should scale exactly with the scaling
-        # factor
+        # the oriented bounding box should scale exactly
+        # with the scaling factor
         assert g.np.allclose(
             scaled.bounding_box_oriented.primitive.extents /
             extents,
             factor)
+
+        # check bounding primitives
+        assert scene.bounding_box.volume > 0.0
+        assert scene.bounding_primitive.volume > 0.0
 
         # we shouldn't have modified the original scene
         assert scene.md5() == md5
         assert scaled.md5() != md5
 
         # 3DXML comes in as mm
-        assert all(m.units == 'mm' for m in scene.geometry.values())
+        assert all(m.units == 'mm'
+                   for m in scene.geometry.values())
+        assert scene.units == 'mm'
 
         converted = scene.convert_units('in')
 
         assert g.np.allclose(
-            converted.bounding_box_oriented.primitive.extents /
-            extents,
-            1.0 /
-            25.4)
+            converted.bounding_box_oriented.primitive.extents / extents,
+            1.0 / 25.4,
+            atol=1e-3)
 
+        # shouldn't have changed the original extents
+        assert g.np.allclose(
+            extents,
+            scene.bounding_box_oriented.primitive.extents)
+
+        # original shouldn't have changed
+        assert converted.units == 'in'
         assert all(m.units == 'in' for m in converted.geometry.values())
+
+        assert scene.units == 'mm'
 
         # we shouldn't have modified the original scene
         assert scene.md5() == md5
         assert converted.md5() != md5
 
-        populate = scene.bounding_box
+    def test_dupe(self):
+        m = g.get_mesh('tube.obj')
+
+        assert m.body_count == 1
+
+        s = g.trimesh.scene.split_scene(m)
+        assert len(s.graph.nodes) == 2
+        assert len(s.graph.nodes_geometry) == 1
+        assert len(s.duplicate_nodes) == 1
+        assert len(s.duplicate_nodes[0]) == 1
+
+        c = s.copy()
+        assert len(c.graph.nodes) == 2
+        assert len(c.graph.nodes_geometry) == 1
+        assert len(c.duplicate_nodes) == 1
+        assert len(c.duplicate_nodes[0]) == 1
+
+        u = s.convert_units('in', guess=True)
+        assert len(u.graph.nodes_geometry) == 1
+        assert len(u.duplicate_nodes) == 1
+        assert len(u.duplicate_nodes[0]) == 1
 
     def test_3DXML(self):
         s = g.get_mesh('rod.3DXML')
@@ -151,7 +191,8 @@ class SceneTests(g.unittest.TestCase):
         Make sure a zip file with multiple file types
         is returned as a single scene.
         """
-        m = g.get_mesh('scenes.zip')
+        # allow mixed 2D and 3D geometry
+        m = g.get_mesh('scenes.zip', mixed=True)
 
         assert len(m.geometry) >= 6
         assert len(m.graph.nodes_geometry) >= 10
@@ -159,6 +200,9 @@ class SceneTests(g.unittest.TestCase):
                    for i in m.geometry.values())
         assert any(isinstance(i, g.trimesh.Trimesh)
                    for i in m.geometry.values())
+
+        m = g.get_mesh('scenes.zip', mixed=False)
+        assert len(m.geometry) < 6
 
     def test_doubling(self):
         s = g.get_mesh('cycloidal.3DXML')

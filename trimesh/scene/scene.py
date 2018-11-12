@@ -11,10 +11,12 @@ from .. import transformations
 from .. import bounds as bounds_module
 
 from ..io import gltf
+from ..parent import Geometry
+
 from .transforms import TransformForest
 
 
-class Scene:
+class Scene(Geometry):
     """
     A simple scene graph which can be rendered directly via
     pyglet/openGL or through other endpoints such as a
@@ -41,13 +43,8 @@ class Scene:
         # mesh name : Trimesh object
         self.geometry = collections.OrderedDict()
 
-        # graph structure of instances
-        if graph is None:
-            # create a new graph
-            self.graph = TransformForest(base_frame=base_frame)
-        else:
-            # if we've been passed a graph use it
-            self.graph = graph
+        # create a new graph
+        self.graph = TransformForest(base_frame=base_frame)
 
         # create our cache
         self._cache = caching.Cache(id_function=self.md5)
@@ -59,9 +56,14 @@ class Scene:
         self.metadata = {}
         self.metadata.update(metadata)
 
+        if graph is not None:
+            # if we've been passed a graph override the default
+            self.graph = graph
+
     def add_geometry(self,
                      geometry,
-                     node_name=None):
+                     node_name=None,
+                     geom_name=None):
         """
         Add a geometry to the scene.
 
@@ -81,23 +83,35 @@ class Scene:
 
         if geometry is None:
             return
+        # PointCloud objects will look like a sequence
         elif util.is_sequence(geometry):
             # if passed a sequence add all elements
-            return [self.add_geometry(i) for i in geometry]
+            for value in geometry:
+                self.add_geometry(value)
+            return
+
         elif isinstance(geometry, dict):
             # if someone passed us a dict of geometry
-            return self.geometry.update(geometry)
+            for key, value in geometry.items():
+                self.add_geometry(value, geom_name=key)
+            return
 
-        # if object has metadata indicating different
-        # information use those values
-        if 'name' in geometry.metadata:
+        # get or create a name to reference the geometry by
+        if geom_name is not None:
+            # if name is passed use it
+            name = geom_name
+        elif 'name' in geometry.metadata:
+            # if name is in metadata use it
             name = geometry.metadata['name']
+        elif 'file_name' in geometry.metadata:
+            name = geometry.metadata['file_name']
         else:
             # try to create a simple name
             name = 'geometry_' + str(len(self.geometry))
-            # if its already taken make a not- simple name
-            if name in self.geometry:
-                name = 'geometry_' + util.unique_id().upper()
+
+        # if its already taken add a unique random string to it
+        if name in self.geometry:
+            name += ':' + util.unique_id().upper()
 
         # save the geometry reference
         self.geometry[name] = geometry
@@ -154,6 +168,31 @@ class Scene:
 
         is_empty = len(self.geometry) == 0
         return is_empty
+
+    @property
+    def is_valid(self):
+        """
+        Is every geometry connected to the root node.
+
+        Returns
+        -----------
+        is_valid : bool
+          Does every geometry have a transform
+        """
+        if len(self.geometry) == 0:
+            return True
+
+        try:
+            referenced = {self.graph[i][1]
+                          for i in self.graph.nodes_geometry}
+        except BaseException:
+            # if connectivity to world frame is broken return false
+            return False
+
+        # every geometry is referenced
+        ok = referenced == set(self.geometry.keys())
+
+        return ok
 
     @caching.cache_decorator
     def bounds_corners(self):
@@ -445,43 +484,6 @@ class Scene:
         hull = convex.convex_hull(points)
         return hull
 
-    @caching.cache_decorator
-    def bounding_box(self):
-        """
-        An axis aligned bounding box for the current scene.
-
-        Returns
-        ----------
-        aabb: trimesh.primitives.Box object with transform and extents defined
-              to represent the axis aligned bounding box of the scene
-        """
-        from .. import primitives
-        center = self.bounds.mean(axis=0)
-        aabb = primitives.Box(
-            transform=transformations.translation_matrix(center),
-            extents=self.extents,
-            mutable=False)
-        return aabb
-
-    @caching.cache_decorator
-    def bounding_box_oriented(self):
-        """
-        An oriented bounding box for the current mesh.
-
-        Returns
-        ---------
-        obb : trimesh.primitives.Box
-            Box primitive with transform and extents defined
-            to represent the minimum volume oriented bounding
-            box of the mesh
-        """
-        from .. import primitives
-        to_origin, extents = bounds_module.oriented_bounds(self)
-        obb = primitives.Box(transform=np.linalg.inv(to_origin),
-                             extents=extents,
-                             mutable=False)
-        return obb
-
     def export(self, file_type=None):
         """
         Export a snapshot of the current scene.
@@ -561,27 +563,65 @@ class Scene:
                            **kwargs)
         return png
 
+    @property
+    def units(self):
+        """
+        Get the units for every model in the scene, and
+        raise a ValueError if there are mixed units.
+
+        Returns
+        -----------
+        units : str
+          Units for every model in the scene
+        """
+        existing = [i.units for i in self.geometry.values()]
+
+        if any(existing[0] != e for e in existing):
+            # if all of our geometry doesn't have the same units already
+            # this function will only do some hot nonsense
+            raise ValueError('models in scene have inconsistent units!')
+
+        return existing[0]
+
+    @units.setter
+    def units(self, value):
+        """
+        Set the units for every model in the scene without
+        converting any units just setting the tag.
+
+        Parameters
+        ------------
+        value : str
+          Value to set every geometry unit value to
+        """
+        for m in self.geometry.values():
+            m.units = value
+
     def convert_units(self, desired, guess=False):
         """
-        If geometry has units defined, convert them to new units.
+        If geometry has units defined convert them to new units.
 
         Returns a new scene with geometries and transforms scaled.
 
         Parameters
         ----------
-        units: str, target unit system. EG 'inches', 'mm', etc
+        desired : str
+          Desired final unit system: 'inches', 'mm', etc.
+        guess : bool
+          Is the converter allowed to guess scale when models
+          don't have it specified in their metadata.
+
+        Returns
+        ----------
+        scaled : trimesh.Scene
+          Copy of scene with scaling applied and units set
+          for every model
         """
         # if there is no geometry do nothing
         if len(self.geometry) == 0:
-            return self
+            return self.copy()
 
-        existing = [i.units for i in self.geometry.values()]
-        if any(existing[0] != e for e in existing):
-            # if all of our geometry doesn't have the same units already
-            # this function will only do some hot nonsense
-            raise ValueError('Models in scene have inconsistent units!')
-
-        current = existing[0]
+        current = self.units
         if current is None:
             # will raise ValueError if not in metadata
             # and not allowed to guess
@@ -597,8 +637,8 @@ class Scene:
         else:
             result = self.scaled(scale=scale)
 
-        for geometry in result.geometry.values():
-            geometry.units = desired
+        # apply the units to every geometry of the scaled result
+        result.units = desired
 
         return result
 
@@ -608,8 +648,10 @@ class Scene:
 
         Parameters
         -----------
-        vector: (3,) float, or float, explode in a direction or spherically
-        origin: (3,) float, point to explode around
+        vector : (3,) float or float
+           Explode radially around a direction vector or spherically
+        origin : (3,) float
+          Point to explode around
         """
         if origin is None:
             origin = self.centroid
@@ -641,42 +683,62 @@ class Scene:
 
     def scaled(self, scale):
         """
-        Return a copy of the current scene, with meshes and scene graph
+        Return a copy of the current scene, with meshes and scene
         transforms scaled to the requested factor.
 
         Parameters
         -----------
-        scale: float, factor to scale meshes and transforms by
+        scale : float
+          Factor to scale meshes and transforms
+
+        Returns
+        -----------
+        scaled : trimesh.Scene
+          A copy of the current scene but scaled
         """
         scale = float(scale)
-        scale_matrix = np.eye(4) * scale
+        # matrix for 2D scaling
+        scale_2D = np.eye(3) * scale
+        # matrix for 3D scaling
+        scale_3D = np.eye(4) * scale
 
-        transforms = np.array([self.graph[i][0]
-                               for i in self.graph.nodes_geometry])
-        geometries = np.array([self.graph[i][1]
-                               for i in self.graph.nodes_geometry])
+        # preallocate transforms and geometries
+        nodes = self.graph.nodes_geometry
+        transforms = np.zeros((len(nodes), 4, 4))
+        geometries = [None] * len(nodes)
 
+        # collect list of transforms
+        for i, node in enumerate(nodes):
+            transforms[i], geometries[i] = self.graph[node]
+
+        # result is a copy
         result = self.copy()
+        # remove all existing transforms
         result.graph.clear()
 
         for group in grouping.group(geometries):
+            # hashable reference to self.geometry
             geometry = geometries[group[0]]
+            # original transform from world to geometry
             original = transforms[group[0]]
-            new_geom = np.dot(scale_matrix, original)
+            # transform for geometry
+            new_geom = np.dot(scale_3D, original)
 
             if result.geometry[geometry].vertices.shape[1] == 2:
                 # if our scene is 2D only scale in 2D
-                result.geometry[geometry].apply_transform(np.eye(3) * scale)
+                result.geometry[geometry].apply_transform(scale_2D)
             else:
                 # otherwise apply the full transform
                 result.geometry[geometry].apply_transform(new_geom)
 
-            for node, t in zip(self.graph.nodes_geometry[group],
+            for node, T in zip(self.graph.nodes_geometry[group],
                                transforms[group]):
-                transform = util.multi_dot([scale_matrix,
-                                            t,
-                                            np.linalg.inv(new_geom)])
+                # generate the new transforms
+                transform = util.multi_dot(
+                    [scale_3D, T, np.linalg.inv(new_geom)])
+                # apply scale to translation
                 transform[:3, 3] *= scale
+                # update scene with new transforms
                 result.graph.update(frame_to=node,
                                     matrix=transform,
                                     geometry=geometry)
@@ -688,7 +750,8 @@ class Scene:
 
         Returns
         ----------
-        copied: trimesh.Scene, copy of the current scene
+        copied : trimesh.Scene
+          Copy of the current scene
         """
         # use the geometries copy method to
         # allow them to handle references to unpickle-able objects
@@ -708,7 +771,8 @@ class Scene:
                 str,'notebook': return ipython.display.HTML
                 None: automatically pick based on whether or not
                           we are in an ipython notebook
-        smooth: bool, turn on or off automatic smooth shading
+        smooth : bool
+          Turn on or off automatic smooth shading
         """
 
         if viewer is None:
@@ -753,7 +817,7 @@ def split_scene(geometry):
 
     Parameters
     ----------
-    geometry: splittable
+    geometry : splittable
 
     Returns
     ---------
@@ -776,11 +840,19 @@ def split_scene(geometry):
 
     # a single geometry so we are going to split
     split = collections.deque()
+
     metadata = {}
     for g in util.make_sequence(geometry):
         split.extend(g.split())
         metadata.update(g.metadata)
+
+    # if there is only one geometry in the mesh
+    # name it from the file name
+    if len(split) == 1 and 'file_name' in metadata:
+        split = {metadata['file_name']: split[0]}
+
     scene = Scene(split, metadata=metadata)
+
     return scene
 
 

@@ -11,7 +11,7 @@ from . import remesh
 from . import caching
 from . import grouping
 
-from .constants import log, _log_time
+from .constants import log, log_time
 
 
 class Voxel(object):
@@ -287,7 +287,7 @@ class VoxelMesh(Voxel):
         self.as_boxes(solid=solid).show()
 
 
-@_log_time
+@log_time
 def voxelize_subdivide(mesh,
                        pitch,
                        max_iter=10,
@@ -354,20 +354,31 @@ def local_voxelize(mesh, point, pitch, radius, fill=True, **kwargs):
 
     Parameters
     -----------
-    mesh:   Trimesh object
-    point:  (3, ) float, point in space
-    pitch:  float, side length of a single voxel cube
-    radius: int, number of voxel cubes to return in each direction.
-    kwargs: parameters to pass to voxelize_subdivide
+    mesh : trimesh.Trimesh
+      Source geometry
+    point : (3, ) float
+      Point in space to voxelize around
+    pitch :  float
+      Side length of a single voxel cube
+    radius : int
+      Number of voxel cubes to return in each direction.
+    kwargs : parameters to pass to voxelize_subdivide
 
     Returns
     -----------
-    voxels:          (m, m, m) bool, matrix of local voxels where m=2*radius+1
-    origin_position: (3,) float, position of the voxel grid origin in space
+    voxels : (m, m, m) bool
+      Array of local voxels where m=2*radius+1
+    origin_position : (3,) float
+      Position of the voxel grid origin in space
     """
     from scipy import ndimage
 
-    point = np.asanyarray(point, dtype=np.float64)
+    # make sure point is correct type/shape
+    point = np.asanyarray(point, dtype=np.float64).reshape(3)
+    # this is a gotcha- radius sounds a lot like it should be in
+    # float model space, not int voxel space so check
+    if not isinstance(radius, int):
+        raise ValueError('radius needs to be an integer number of cubes!')
 
     # Bounds of region
     bounds = np.concatenate((point - (radius + 0.5) * pitch,
@@ -375,6 +386,11 @@ def local_voxelize(mesh, point, pitch, radius, fill=True, **kwargs):
 
     # faces that intersect axis aligned bounding box
     faces = list(mesh.triangles_tree.intersection(bounds))
+
+    # didn't hit anything so exit
+    if len(faces) == 0:
+        return np.array([], dtype=np.bool), np.zeros(3)
+
     local = mesh.submesh([[f] for f in faces], append=True)
 
     # Translate mesh so point is at 0,0,0
@@ -384,11 +400,12 @@ def local_voxelize(mesh, point, pitch, radius, fill=True, **kwargs):
     matrix = sparse_to_matrix(sparse)
 
     # Find voxel index for point
-    center = np.round(-origin / pitch).astype(int)
+    center = np.round(-origin / pitch).astype(np.int64)
 
-    # Pad matrix if necessary
+    # pad matrix if necessary
     prepad = np.maximum(radius - center, 0)
     postpad = np.maximum(center + radius + 1 - matrix.shape, 0)
+
     matrix = np.pad(matrix, np.stack((prepad, postpad), axis=-1),
                     mode='constant')
     center += prepad
@@ -409,13 +426,17 @@ def local_voxelize(mesh, point, pitch, radius, fill=True, **kwargs):
             np.asarray(representatives) *
             pitch +
             local_origin)
-        internal = np.isin(regions, np.where(contains)[0] + 1)
+
+        where = np.where(contains)[0] + 1
+        # use in1d vs isin for older numpy versions
+        internal = np.in1d(regions.flatten(), where).reshape(regions.shape)
+
         voxels = np.logical_or(voxels, internal)
 
     return voxels, local_origin
 
 
-@_log_time
+@log_time
 def voxelize_ray(mesh,
                  pitch,
                  per_cell=[2, 2],

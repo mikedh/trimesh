@@ -31,6 +31,7 @@ from . import raster
 from . import simplify
 from . import entities
 from . import polygons
+from . import segments
 from . import traversal
 
 from .io.export import export_path
@@ -65,10 +66,14 @@ class Path(object):
 
         Parameters
         -----------
-        entities: list of Entity objects
-        vertices: (n, dimension) float, vertices referenced by entities
-        metadata: dict, any metadata about the path
-        process:  bool, if True run simple cleanup operations
+        entities : (m,) trimesh.path.entities.Entity
+          Contains geometric entities
+        vertices : (n, dimension) float
+          The vertices referenced by entities
+        metadata : dict
+          Any metadata about the path
+        process :  bool
+          Run simple cleanup or not
         """
 
         self.entities = np.array(entities)
@@ -127,8 +132,9 @@ class Path(object):
         crc: int, CRC of entity points and vertices
         """
         # first CRC the points in every entity
-        target = caching.crc32(bytes().join(e._bytes()
-                                            for e in self.entities))
+        target = caching.crc32(bytes().join(
+            e._bytes()
+            for e in self.entities))
         # add the CRC for the vertices
         target += self.vertices.crc()
         return target
@@ -142,8 +148,9 @@ class Path(object):
         md5: str, two appended MD5 hashes
         """
 
-        target = util.md5_object(bytes().join(e._bytes()
-                                              for e in self.entities))
+        target = util.md5_object(bytes().join(
+            e._bytes()
+            for e in self.entities))
         target += self.vertices.md5()
         return target
 
@@ -354,7 +361,8 @@ class Path(object):
         # apply transform to discretized paths
         if 'discrete' in self._cache.cache:
             cache['discrete'] = np.array([
-                transformations.transform_points(d, matrix=transform)
+                transformations.transform_points(
+                    d, matrix=transform)
                 for d in self.discrete])
 
         # things we can just straight up copy
@@ -372,8 +380,9 @@ class Path(object):
                 cache[key] = self._cache.cache[key]
 
         # transform vertices in place
-        self.vertices = transformations.transform_points(self.vertices,
-                                                         matrix=transform)
+        self.vertices = transformations.transform_points(
+            self.vertices,
+            matrix=transform)
         # explicitly clear the cache
         self._cache.clear()
         self._cache.id_set()
@@ -393,6 +402,27 @@ class Path(object):
         dimension = self.vertices.shape[1]
         matrix = np.eye(dimension + 1)
         matrix[:dimension, :dimension] *= float(scale)
+        self.apply_transform(matrix)
+
+    def apply_translation(self, offset):
+        """
+        Apply a transformation matrix to the current path in- place
+
+        Parameters
+        -----------
+        transform: (dimension + 1, dimension + 1) float, homogenous
+                   transformation matrix
+        """
+        # work on 2D and 3D paths
+        dimension = self.vertices.shape[1]
+        # make sure offset is correct length and type
+        offset = np.array(
+            offset, dtype=np.float64).reshape(dimension)
+        # create a homogenous transform
+        matrix = np.eye(dimension + 1)
+        # apply the offset
+        matrix[:dimension, dimension] = offset
+
         self.apply_transform(matrix)
 
     def apply_layer(self, name):
@@ -438,9 +468,20 @@ class Path(object):
                                                digits=digits)
         self.vertices = self.vertices[unique]
         for entity in self.entities:
-            # if we merged duplicate vertices, the entity may contain
-            # multiple references to the same vertex
-            entity.points = grouping.merge_runs(inverse[entity.points])
+            # what kind of entity are we dealing with
+            kind = type(entity).__name__
+            # don't screw up control- point- knot relationship
+            if kind in 'BSpline Bezier':
+                entity.points = inverse[entity.points]
+                continue
+            # if we merged duplicate vertices, the entity may
+            # have multiple references to the same vertex
+            points = grouping.merge_runs(inverse[entity.points])
+            # if there are three points and two are identical fix it
+            if kind == 'Line' and len(points) == 3 and points[0] == points[-1]:
+                points = points[:2]
+            # store points in entity
+            entity.points = points
 
     def replace_vertex_references(self, mask):
         """
@@ -560,7 +601,25 @@ class Path(object):
                              for i in self.paths])
         return discrete
 
-    def export(self, file_obj=None, file_type='dict', **kwargs):
+    def export(self,
+               file_obj=None,
+               file_type=None,
+               **kwargs):
+        """
+        Export the path to a file object or return data.
+
+        Parameters
+        ---------------
+        file_obj : None, str, or file object
+          File object or string to export to
+        file_type : None or str
+          Type of file: dxf, dict, svg
+
+        Returns
+        ---------------
+        exported : bytes or str
+          Exported as specified type
+        """
         return export_path(self,
                            file_type=file_type,
                            file_obj=file_obj,
@@ -578,10 +637,21 @@ class Path(object):
         ---------
         copied: Path object, copy of self
         """
+
+        metadata = {}
+        # grab all the keys into a list so if something is added
+        # in another thread it probably doesn't stomp on our loop
+        for key in list(self.metadata.keys()):
+            try:
+                metadata[key] = copy.deepcopy(self.metadata[key])
+            except RuntimeError:
+                # multiple threads
+                log.warning('key {} changed during copy'.format(key))
+
         # copy the core data
         copied = type(self)(entities=copy.deepcopy(self.entities),
                             vertices=copy.deepcopy(self.vertices),
-                            metadata=copy.deepcopy(self.metadata))
+                            metadata=metadata)
 
         cache = {}
         # try to copy the cache over to the new object
@@ -744,11 +814,12 @@ class Path3D(Path):
 
         return planar, to_3D
 
-    def show(self):
+    def show(self, **kwargs):
         """
         Show the current Path3D object.
         """
-        self.scene().show()
+        scene = self.scene()
+        return scene.show(**kwargs)
 
     def plot_discrete(self, show=False):
         """
@@ -955,20 +1026,20 @@ class Path2D(Path):
         full = [None] * len(self.root)
         # store the graph to avoid cache thrashing
         enclosure = self.enclosure_directed
+        # store closed polygons to avoid cache hits
+        closed = self.polygons_closed
+
         # loop through root curves
         for i, root in enumerate(self.root):
             # a list of multiple Polygon objects that
             # are fully contained by the root curve
-            children = [self.polygons_closed[child]
+            children = [closed[child]
                         for child in enclosure[root].keys()]
             # all polygons_closed are CCW, so for interiors reverse them
-            holes = [np.array(p.exterior.coords)[::-1] for p in children]
+            holes = [np.array(p.exterior.coords)[::-1]
+                     for p in children]
             # a single Polygon object
-            try:
-                shell = self.polygons_closed[root].exterior
-            except BaseException:
-                from IPython import embed
-                embed()
+            shell = closed[root].exterior
             # create a polygon with interiors
             full[i] = polygons.repair_invalid(Polygon(shell=shell,
                                                       holes=holes))
@@ -1032,6 +1103,36 @@ class Path2D(Path):
             return result[0]
         return result
 
+    def triangulate(self, **kwargs):
+        """
+        Create a region- aware triangulation of the 2D path.
+
+        Parameters
+        -------------
+        **kwargs : dict
+          Passed to trimesh.creation.triangulate_polygon
+
+        Returns
+        -------------
+        vertices : (n, 2) float
+          2D vertices of triangulation
+        faces : (n, 3) int
+          Indexes of vertices for triangles
+        """
+        from ..creation import triangulate_polygon
+
+        # append vertices and faces into sequence
+        v_seq = []
+        f_seq = []
+
+        # loop through polygons with interiors
+        for polygon in self.polygons_full:
+            v, f = triangulate_polygon(polygon, **kwargs)
+            v_seq.append(v)
+            f_seq.append(f)
+
+        return util.append_faces(v_seq, f_seq)
+
     def medial_axis(self, resolution=None, clip=None):
         """
         Find the approximate medial axis based
@@ -1040,16 +1141,15 @@ class Path2D(Path):
 
         Parameters
         ----------
-        resolution: target distance between each sample on the polygon boundary
-        clip:       [minimum number of samples, maximum number of samples]
-                    specifying a very fine resolution can cause the sample count to
-                    explode, so clip specifies a minimum and maximum number of samples
-                    to use per boundary region. To not clip, this can be specified as:
-                    [0, np.inf]
+        resolution : None or float
+          Distance between each sample on the polygon boundary
+        clip : None, or (2,) float
+          Min, max number of samples
 
         Returns
         ----------
         medial : Path2D object
+          Contains only medial axis of Path
         """
         if resolution is None:
             resolution = self.scale / 1000.0
@@ -1061,23 +1161,27 @@ class Path2D(Path):
 
     def connected_paths(self, path_id, include_self=False):
         """
-        Given an index of self.paths, find other paths which overlap with
-        that path.
+        Given an index of self.paths find other paths which
+        overlap with that path.
 
         Parameters
         -----------
-        path_id:      int, index of self.paths
-        include_self: bool, should the result include path_id or not
+        path_id : int
+          Index of self.paths
+        include_self : bool
+          Should the result include path_id or not
 
         Returns
         -----------
-        path_ids: (n,) int, indexes of self.paths that overlap input path_id
+        path_ids :  (n, ) int
+          Indexes of self.paths that overlap input path_id
         """
         if len(self.root) == 1:
             path_ids = np.arange(len(self.polygons_closed))
         else:
-            path_ids = list(nx.node_connected_component(self.enclosure,
-                                                        path_id))
+            path_ids = list(nx.node_connected_component(
+                self.enclosure,
+                path_id))
         if include_self:
             return np.array(path_ids)
         return np.setdiff1d(path_ids, [path_id])
@@ -1089,7 +1193,7 @@ class Path2D(Path):
 
         Returns
         ---------
-        simplified: Path2D object
+        simplified : Path2D object
         """
         return simplify.simplify_basic(self, **kwargs)
 
@@ -1099,8 +1203,10 @@ class Path2D(Path):
 
         Parameters
         -----------
-        path_indexes: (n) int list of indexes for self.paths
-        smooth:       float, how much the spline should smooth the curve
+        path_indexes : (n) int
+          List of indexes of self.paths to convert
+        smooth : float
+          How much the spline should smooth the curve
 
         Returns
         ------------
@@ -1117,7 +1223,8 @@ class Path2D(Path):
 
         Returns
         ----------
-        split: (n,) list of Path2D objects
+        split:  (n,) list of Path2D objects
+          Each connected region and interiors
         """
         return traversal.split(self)
 
@@ -1136,7 +1243,7 @@ class Path2D(Path):
             plt.show()
         return axis
 
-    def plot_entities(self, show=False):
+    def plot_entities(self, show=False, color=None):
         """
         Plot the entities of the path, with no notion of topology
         """
@@ -1153,7 +1260,11 @@ class Path2D(Path):
             discrete = entity.discrete(self.vertices)
             e_key = entity.__class__.__name__ + str(int(entity.closed))
             fmt = eformat[e_key]
-            if hasattr(entity, 'color'):
+            if color is not None:
+                # passed color will override other optons
+                fmt['color'] = color
+            elif hasattr(entity, 'color'):
+                # if entity has specified color use it
                 fmt['color'] = entity.color
             plt.plot(*discrete.T, **fmt)
         if show:
@@ -1177,7 +1288,9 @@ class Path2D(Path):
         """
         Return an MD5 of the identifier
         """
-        return util.md5_array(self.identifier, digits=4)
+        as_int = (self.identifier * 1e4).astype(np.int64)
+        hashed = util.md5_object(as_int.tostring(order='C'))
+        return hashed
 
     @property
     def path_valid(self):

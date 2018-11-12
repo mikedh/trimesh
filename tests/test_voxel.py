@@ -7,9 +7,9 @@ except BaseException:
 class VoxelTest(g.unittest.TestCase):
 
     def test_voxel(self):
-        '''
+        """
         Test that voxels work at all
-        '''
+        """
         for m in [g.get_mesh('featuretype.STL'),
                   g.trimesh.primitives.Box(),
                   g.trimesh.primitives.Sphere()]:
@@ -71,6 +71,35 @@ class VoxelTest(g.unittest.TestCase):
 
         except ImportError:
             g.log.info('no skimage, skipping marching cubes test')
+
+    def test_local(self):
+        """
+        Try calling local voxel functions
+        """
+        mesh = g.trimesh.creation.box()
+
+        # it should have some stuff
+        voxel = g.trimesh.voxel.local_voxelize(mesh=mesh,
+                                               point=[.5, .5, .5],
+                                               pitch=.1,
+                                               radius=5,
+                                               fill=True)
+
+        assert len(voxel[0].shape) == 3
+
+        # try it when it definitly doesn't hit anything
+        empty = g.trimesh.voxel.local_voxelize(mesh=mesh,
+                                               point=[10, 10, 10],
+                                               pitch=.1,
+                                               radius=5,
+                                               fill=True)
+
+        # try it when it is in the center of a volume
+        center = g.trimesh.voxel.local_voxelize(mesh=mesh,
+                                                point=[0, 0, 0],
+                                                pitch=.1,
+                                                radius=2,
+                                                fill=True)
 
 
 if __name__ == '__main__':

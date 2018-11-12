@@ -14,6 +14,11 @@ class RepairTests(g.unittest.TestCase):
             mesh = g.get_mesh(mesh_name)
             if not mesh.is_watertight:
                 continue
+
+            hashes = [{mesh._data.crc(),
+                       mesh._data.md5(),
+                       mesh._data.fast_hash()}]
+
             mesh.faces = mesh.faces[1:-1]
             assert not mesh.is_watertight
             assert not mesh.is_volume
@@ -22,12 +27,24 @@ class RepairTests(g.unittest.TestCase):
             g.trimesh.repair.broken_faces(mesh,
                                           color=[255, 0, 0, 255])
 
+            hashes.append({mesh._data.crc(),
+                           mesh._data.md5(),
+                           mesh._data.fast_hash()})
+
+            assert hashes[0] != hashes[1]
+
             # run the fill holes operation
             mesh.fill_holes()
             # should be a superset of the last two
             assert mesh.is_volume
             assert mesh.is_watertight
             assert mesh.is_winding_consistent
+
+            hashes.append({mesh._data.crc(),
+                           mesh._data.md5(),
+                           mesh._data.fast_hash()})
+
+            assert hashes[1] != hashes[2]
 
     def test_fix_normals(self):
         for mesh in g.get_meshes(5):

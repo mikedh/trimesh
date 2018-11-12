@@ -19,25 +19,28 @@ except ImportError:
 
 def oriented_bounds_2D(points, qhull_options='QbB'):
     """
-    Find an oriented bounding box for a set of 2D points.
+    Find an oriented bounding box for an array of 2D points.
 
     Parameters
     ----------
-    points: (n,2) float, 2D points
+    points : (n,2) float
+      Points in 2D.
 
     Returns
     ----------
-    transform: (3,3) float, homogenous 2D transformation matrix to move the
-                input points so that the axis aligned bounding box
-                is CENTERED AT THE ORIGIN
-    rectangle: (2,) float, size of extents once input points are transformed
-                by transform
+    transform : (3,3) float
+      Homogenous 2D transformation matrix to move the
+      input points so that the axis aligned bounding box
+      is CENTERED AT THE ORIGIN.
+    rectangle : (2,) float
+       Size of extents once input points are transformed
+       by transform
     """
     # make sure input is a numpy array
     points = np.asanyarray(points)
     # create a convex hull object of our points
-    # 'QbB' is a qhull option which has it scale the input to unit box
-    # to avoid precision issues with very large/small meshes
+    # 'QbB' is a qhull option which has it scale the input to unit
+    # box to avoid precision issues with very large/small meshes
     convex = spatial.ConvexHull(points,
                                 qhull_options=qhull_options)
 
@@ -75,7 +78,7 @@ def oriented_bounds_2D(points, qhull_options='QbB'):
     area = np.product(extents, axis=1)
     area_min = area.argmin()
 
-    #(2,) float of smallest rectangle size
+    # (2,) float of smallest rectangle size
     rectangle = extents[area_min]
 
     # find the (3,3) homogenous transformation which moves the input
@@ -86,7 +89,8 @@ def oriented_bounds_2D(points, qhull_options='QbB'):
                                               theta)
 
     # we would like to consistently return an OBB with
-    # the largest dimension along the X axis
+    # the largest dimension along the X axis rather than
+    # the long axis being arbitrarily X or Y.
     if np.less(*rectangle):
         # a 90 degree rotation
         flip = transformations.planar_matrix(theta=np.pi / 2)
@@ -98,25 +102,27 @@ def oriented_bounds_2D(points, qhull_options='QbB'):
     return transform, rectangle
 
 
-def oriented_bounds(obj, angle_digits=1):
+def oriented_bounds(obj, angle_digits=1, ordered=True):
     """
     Find the oriented bounding box for a Trimesh
 
     Parameters
     ----------
-    obj:       Trimesh object, (n,3) or (n,2) float set of points
-    angle_tol: float, angle in radians that OBB can be away from minimum volume
-               solution. Even with large values the returned extents will cover
-               the mesh albeit with larger than minimal volume.
-               Larger values may experience substantial speedups.
-               Acceptable values are floats >= 0.0.
-               The default is small (1e-6) but non-zero.
+    obj : trimesh.Trimesh, (n, 2) float, or (n, 3) float
+       Mesh object or points in 2D or 3D space
+    angle_digits : int
+       How much angular precision do we want on our result.
+       Even with less precision the returned extents will cover
+       the mesh albeit with larger than minimal volume, and may
+       experience substantial speedups.
 
     Returns
     ----------
-    to_origin: (4,4) float, transformation matrix which will move the center of the
-               bounding box of the input mesh to the origin.
-    extents: (3,) float, the extents of the mesh once transformed with to_origin
+    to_origin : (4,4) float
+      Transformation matrix which will move the center of the
+      bounding box of the input mesh to the origin.
+    extents: (3,) float
+      The extents of the mesh once transformed with to_origin
     """
 
     # extract a set of convex hull vertices and normals from the input
@@ -131,6 +137,7 @@ def oriented_bounds(obj, angle_digits=1):
         vertices = obj.convex_hull.vertices
         hull_normals = obj.convex_hull.face_normals
     elif util.is_sequence(obj):
+        # we've been passed a list of points
         points = np.asanyarray(obj)
         if util.is_shape(points, (-1, 2)):
             return oriented_bounds_2D(points)
@@ -186,6 +193,25 @@ def oriented_bounds(obj, angle_digits=1):
     box_center = (transformed.min(axis=0) + transformed.ptp(axis=0) * .5)
     to_origin[0:3, 3] = -box_center
 
+    # return ordered 3D extents
+    if ordered:
+        # sort the three extents
+        order = min_extents.argsort()
+        # generate a matrix which will flip transform
+        # to match the new ordering
+        flip = np.eye(4)
+        flip[:3, :3] = -np.eye(3)[order]
+
+        # make sure transform isn't mangling triangles
+        # by reversing windings on triangles
+        if np.isclose(np.trace(flip[:3, :3]), 0.0):
+            flip[:3, :3] = np.dot(flip[:3, :3], -np.eye(3))
+
+        # apply the flip to the OBB transform
+        to_origin = np.dot(flip, to_origin)
+        # apply the order to the extents
+        min_extents = min_extents[order]
+
     log.debug('oriented_bounds checked %d vectors in %0.4fs',
               len(spherical_unique),
               time.time() - tic)
@@ -195,8 +221,8 @@ def oriented_bounds(obj, angle_digits=1):
 
 def minimum_cylinder(obj, sample_count=10, angle_tol=.001):
     """
-    Find the approximate minimum volume cylinder which contains a mesh or
-    list of points.
+    Find the approximate minimum volume cylinder which contains
+    a mesh or a a list of points.
 
     Samples a hemisphere then uses scipy.optimize to pick the
     final orientation of the cylinder.
@@ -207,29 +233,33 @@ def minimum_cylinder(obj, sample_count=10, angle_tol=.001):
 
     Parameters
     ----------
-    obj: Trimesh object OR
-         (n,3) float, points in space
-    sample_count: int, how densely should we sample the hemisphere.
-                  Angular spacing is 180 degrees / this number
+    obj : trimesh.Trimesh, or (n, 3) float
+      Mesh object or points in space
+    sample_count : int
+      How densely should we sample the hemisphere.
+      Angular spacing is 180 degrees / this number
 
     Returns
     ----------
-    result: dict, with keys:
-                'radius'    : float, radius of cylinder
-                'height'    : float, height of cylinder
-                'transform' : (4,4) float, transform from the origin
-                               to centered cylinder
+    result : dict
+      With keys:
+        'radius'    : float, radius of cylinder
+        'height'    : float, height of cylinder
+        'transform' : (4,4) float, transform from the origin
+                      to centered cylinder
     """
 
     def volume_from_angles(spherical, return_data=False):
         """
-        Takes spherical coordinates and calculates the volume of a cylinder
-        along that vector
+        Takes spherical coordinates and calculates the volume
+        of a cylinder along that vector
 
         Parameters
         ---------
-        spherical: (2,) float, theta and phi
-        return_data: bool, flag for returned
+        spherical : (2,) float
+           Theta and phi
+        return_data : bool
+           Flag for returned
 
         Returns
         --------
@@ -240,8 +270,10 @@ def minimum_cylinder(obj, sample_count=10, angle_tol=.001):
         else:
             volume (float)
         """
-        to_2D = transformations.spherical_matrix(*spherical, axes='rxyz')
-        projected = transformations.transform_points(hull, matrix=to_2D)
+        to_2D = transformations.spherical_matrix(*spherical,
+                                                 axes='rxyz')
+        projected = transformations.transform_points(hull,
+                                                     matrix=to_2D)
         height = projected[:, 2].ptp()
 
         try:
@@ -307,11 +339,13 @@ def corners(bounds):
 
     Parameters
     ----------
-    bounds: (2,3) or (2,2) float, axis aligned bounds
+    bounds : (2,3) or (2,2) float
+      Axis aligned bounds
 
     Returns
     ----------
-    corners: (8,3) float, corner vertices of the cube
+    corners : (8,3) float
+      Corner vertices of the cube
     """
 
     bounds = np.asanyarray(bounds, dtype=np.float64)
@@ -341,22 +375,28 @@ def contains(bounds, points):
 
     Parameters
     -----------
-    bounds: (2, dimension) float, axis aligned bounding box
-    points: (n, dimension) float, points in space
+    bounds : (2, dimension) float
+       Axis aligned bounding box
+    points : (n, dimension) float
+       Points in space
 
     Returns
     -----------
-    points_inside: (n,) bool, True if points are inside the AABB
+    points_inside : (n,) bool
+      True if points are inside the AABB
     """
+    # make sure we have correct input types
     bounds = np.asanyarray(bounds, dtype=np.float64)
-    points = np.asanyarray(points)
+    points = np.asanyarray(points, dtype=np.float64)
 
     if len(bounds) != 2:
         raise ValueError('bounds must be (2,dimension)!')
     if not util.is_shape(points, (-1, bounds.shape[1])):
         raise ValueError('bounds shape must match points!')
 
-    points_inside = np.logical_and((points > bounds[0]).all(axis=1),
-                                   (points < bounds[1]).all(axis=1))
+    # run the simple check
+    points_inside = np.logical_and(
+        (points > bounds[0]).all(axis=1),
+        (points < bounds[1]).all(axis=1))
 
     return points_inside

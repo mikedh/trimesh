@@ -89,7 +89,8 @@ def _svg_path_convert(paths):
                                    svg_cubic.end])
         if not starting:
             points[0] = vertices[-1]
-        entities.append(entities_mod.Bezier(np.arange(4) + len(vertices)))
+        entities.append(entities_mod.Bezier(np.arange(4) +
+                                            len(vertices)))
         vertices.extend(points)
 
     entities = deque()
@@ -102,7 +103,9 @@ def _svg_path_convert(paths):
     for svg_string in paths:
         starting = True
         for svg_entity in parse_path(svg_string):
-            loaders[svg_entity.__class__.__name__](svg_entity)
+            type_name = svg_entity.__class__.__name__
+            if type_name in loaders:
+                loaders[type_name](svg_entity)
     loaded = {'entities': np.array(entities),
               'vertices': np.array(vertices)}
     return loaded

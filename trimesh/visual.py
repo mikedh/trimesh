@@ -134,7 +134,7 @@ class ColorVisuals(object):
         # will make sure everything has been transferred
         # to datastore that needs to be before returning crc
 
-        result = self._data.crc()
+        result = self._data.fast_hash()
         if hasattr(self.mesh, 'crc'):
             # bitwise xor combines hashes better than a sum
             result ^= self.mesh.crc()
@@ -672,6 +672,92 @@ def colors_to_materials(colors, count=None):
         raise ValueError('Colors not convertible!')
 
     return diffuse, index
+
+
+def linear_color_map(values, color_range=None):
+    """
+    Linearly interpolate between two colors.
+
+    If colors are not specified the function will
+    interpolate between  0.0 values as red and 1.0 as green.
+
+    Parameters
+    --------------
+    values : (n, ) float
+      Values to interpolate
+    color_range : None, or (2, 4) uint8
+      What colors should extrema be set to
+
+    Returns
+    ---------------
+    colors : (n, 4) uint8
+      RGBA colors for interpolated values
+    """
+
+    if color_range is None:
+        color_range = np.array([[255, 0, 0, 255],
+                                [0, 255, 0, 255]],
+                               dtype=np.uint8)
+    else:
+        color_range = np.asanyarray(color_range,
+                                    dtype=np.uint8)
+
+    if color_range.shape != (2, 4):
+        raise ValueError('color_range must be RGBA (2, 4)')
+
+    # float 1D array clamped to 0.0 - 1.0
+    values = np.clip(np.asanyarray(
+        values, dtype=np.float64).ravel(),
+        0.0, 1.0).reshape((-1, 1))
+
+    # the stacked component colors
+    color = [np.ones((len(values), 4)) * c
+             for c in color_range.astype(np.float64)]
+
+    # interpolated colors
+    colors = (color[1] * values) + (color[0] * (1.0 - values))
+
+    # rounded and set to correct data type
+    colors = np.round(colors).astype(np.uint8)
+
+    return colors
+
+
+def interpolate(values, color_map=None, dtype=np.uint8):
+    """
+    Given a 1D list of values, return interpolated colors
+    for the range.
+
+    Parameters
+    ---------------
+    values : (n, ) float
+      Values to be interpolated over
+    color_map : None, or str
+      Key to a colormap contained in:
+      matplotlib.pyplot.colormaps()
+      e.g: 'viridis'
+
+    Returns
+    -------------
+    interpolated : (n, 4) dtype
+      Interpolated RGBA colors
+    """
+
+    # get a color interpolation function
+    if color_map is None:
+        cmap = linear_color_map
+    else:
+        from matplotlib.pyplot import get_cmap
+        cmap = get_cmap(color_map)
+
+    # make input always float
+    values = np.asanyarray(values, dtype=np.float64).ravel()
+    # scale values to 0.0 - 1.0 and get colors
+    colors = cmap((values - values.min()) / values.ptp())
+    # convert to 0-255 RGBA
+    rgba = to_rgba(colors, dtype=dtype)
+
+    return rgba
 
 
 DEFAULT_COLOR = np.array([102, 102, 102, 255], dtype=np.uint8)

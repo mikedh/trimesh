@@ -75,7 +75,9 @@ def unitize(vectors,
     if len(vectors.shape) == 2:
         # for (m, d) arrays take the per- row unit vector
         # using sqrt and avoiding exponents is slightly faster
-        norm = np.sqrt((vectors * vectors).sum(axis=1))
+        # also dot with ones is faser than .sum(axis=1)
+        norm = np.sqrt(np.dot(vectors * vectors,
+                              np.ones(vectors.shape[1])))
         # non-zero norms
         valid = norm > threshold
         # in-place reciprocal of nonzero norms
@@ -203,6 +205,9 @@ def is_sequence(obj):
                                                        set,
                                                        basestring))
 
+    # PointCloud objects can look like an array but are not
+    seq = seq and type(obj).__name__ not in ['PointCloud']
+
     # numpy sometimes returns objects that are single float64 values
     # but sure look like sequences, so we check the shape
     if hasattr(obj, 'shape'):
@@ -316,7 +321,7 @@ def make_sequence(obj):
         return np.array([obj])
 
 
-def vector_hemisphere(vectors):
+def vector_hemisphere(vectors, return_sign=False):
     """
     For a set of 3D vectors alter the sign so they are all in the
     upper hemisphere.
@@ -329,37 +334,67 @@ def vector_hemisphere(vectors):
 
     Parameters
     ----------
-    vectors: (n,3) float, set of vectors
+    vectors : (n,3) float
+      Input vectors
+    return_sign : bool
+      Return the sign mask or not
 
     Returns
     ----------
-    oriented: (n,3) float, set of vectors with same magnitude but all
-                           pointing in the same hemisphere.
+    oriented: (n, 3) float
+       Vectors with same magnitude as source
+       but possibly reversed to ensure all vectors
+       are in the same hemisphere.
+    sign : (n,) float
+
 
     """
+    # vectors as numpy array
     vectors = np.asanyarray(vectors, dtype=np.float64)
-    if not is_shape(vectors, (-1, 3)):
-        raise ValueError('Vectors must be (n,3)!')
 
-    neg = vectors < -TOL_ZERO
-    zero = np.logical_not(np.logical_or(neg, vectors > TOL_ZERO))
+    if is_shape(vectors, (-1, 2)):
+        # 2D vector case
+        # check the Y value and reverse vector
+        # direction if negative.
+        negative = vectors < -TOL_ZERO
+        zero = np.logical_not(
+            np.logical_or(negative, vectors > TOL_ZERO))
 
-    # move all                          negative Z to positive
-    # then for zero Z vectors, move all negative Y to positive
-    # then for zero Y vectors, move all negative X to positive
+        signs = np.ones(len(vectors), dtype=np.float64)
+        # negative Y values are reversed
+        signs[negative[:, 1]] = -1.0
 
-    signs = np.ones(len(vectors), dtype=np.float64)
+        # zero Y and negative X are reversed
+        signs[np.logical_and(zero[:, 1], negative[:, 0])] = -1.0
 
-    # all vectors with negative Z values
-    signs[neg[:, 2]] = -1.0
-    # all on-plane vectors with negative Y values
-    signs[np.logical_and(zero[:, 2], neg[:, 1])] = -1.0
-    # all on-plane vectors with zero Y values and negative X values
-    signs[np.logical_and(np.logical_and(zero[:, 2],
-                                        zero[:, 1]),
-                         neg[:, 0])] = -1.0
+    elif is_shape(vectors, (-1, 3)):
+        # 3D vector case
+        negative = vectors < -TOL_ZERO
+        zero = np.logical_not(
+            np.logical_or(negative, vectors > TOL_ZERO))
+        # move all                          negative Z to positive
+        # then for zero Z vectors, move all negative Y to positive
+        # then for zero Y vectors, move all negative X to positive
+        signs = np.ones(len(vectors), dtype=np.float64)
+        # all vectors with negative Z values
+        signs[negative[:, 2]] = -1.0
+        # all on-plane vectors with negative Y values
+        signs[np.logical_and(zero[:, 2], negative[:, 1])] = -1.0
+        # all on-plane vectors with zero Y values
+        # and negative X values
+        signs[np.logical_and(np.logical_and(zero[:, 2],
+                                            zero[:, 1]),
+                             negative[:, 0])] = -1.0
 
+    else:
+        raise ValueError('vectors must be (n,3)!')
+
+    # apply the signs to the vectors
     oriented = vectors * signs.reshape((-1, 1))
+
+    if return_sign:
+        return oriented, signs
+
     return oriented
 
 
@@ -616,13 +651,22 @@ def multi_dict(pairs):
     return result
 
 
-def tolist_dict(data):
-    def tolist(item):
-        if hasattr(item, 'tolist'):
-            return item.tolist()
-        else:
-            return item
-    result = {k: tolist(v) for k, v in data.items()}
+def tolist(data):
+    """
+    Ensure that any arrays or dicts passed containing
+    numpy arrays are properly converted to lists
+
+    Parameters
+    -----------------
+    data : any
+      Usually a dict with some numpy arrays as values
+
+    Returns
+    ------------
+    result : any
+      JSON- serializable version of data
+    """
+    result = json.loads(jsonify(data))
     return result
 
 
@@ -734,26 +778,6 @@ def md5_object(obj):
         hasher.update(obj)
 
     md5 = hasher.hexdigest()
-    return md5
-
-
-def md5_array(array, digits=5):
-    """
-    Take the MD5 of an array when considering the specified number of digits.
-
-    Parameters
-    ---------
-    array:  numpy array
-    digits: int, number of digits to account for in the MD5
-
-    Returns
-    ---------
-    md5: str, md5 hash of input
-    """
-    digits = int(digits)
-    array = np.asanyarray(array, dtype=np.float64).reshape(-1)
-    as_int = (array * 10 ** digits).astype(np.int64)
-    md5 = md5_object(as_int.tostring(order='C'))
     return md5
 
 
@@ -916,7 +940,7 @@ def array_to_string(array,
     """
     Convert a 1 or 2D array into a string with a specified number
     of digits and delimiter. The reason this exists is that the
-    basic numpy array to string conversions are suprisingly bad.
+    basic numpy array to string conversions are surprisingly bad.
 
     Parameters
     ----------
@@ -1285,23 +1309,25 @@ def submesh(mesh,
     if append:
         visuals = np.array(visuals)
         vertices, faces = append_faces(vertices, faces)
-        appended = trimesh_type(vertices=vertices,
-                                faces=faces,
-                                face_normals=np.vstack(normals),
-                                visual=visuals[0].concatenate(visuals[1:]),
-                                process=False)
+        appended = trimesh_type(
+            vertices=vertices,
+            faces=faces,
+            face_normals=np.vstack(normals),
+            visual=visuals[0].concatenate(visuals[1:]),
+            process=False)
         return appended
 
     # generate a list of Trimesh objects
-    result = [trimesh_type(vertices=v,
-                           faces=f,
-                           face_normals=n,
-                           visual=c,
-                           metadata=copy.deepcopy(mesh.metadata),
-                           process=False) for v, f, n, c in zip(vertices,
-                                                                faces,
-                                                                normals,
-                                                                visuals)]
+    result = [trimesh_type(
+        vertices=v,
+        faces=f,
+        face_normals=n,
+        visual=c,
+        metadata=copy.deepcopy(mesh.metadata),
+        process=False) for v, f, n, c in zip(vertices,
+                                             faces,
+                                             normals,
+                                             visuals)]
     result = np.array(result)
     if len(result) > 0 and only_watertight:
         # fill_holes will attempt a repair and returns the
@@ -1318,12 +1344,15 @@ def zero_pad(data, count, right=True):
     """
     Parameters
     --------
-    data: (n) length 1D array
-    count: int
+    data : (n,)
+      1D array
+    count : int
+      Minimum length of result array
 
     Returns
     --------
-    padded: (count) length 1D array if (n < count), otherwise length (n)
+    padded : (m,)
+      1D array where m >= count
     """
     if len(data) == 0:
         return np.zeros(count)
@@ -1351,7 +1380,8 @@ def jsonify(obj, **kwargs):
 
     Returns
     --------------
-    dumped: str, JSON dump of obj
+    dumped : str
+      JSON dump of obj
     """
     class NumpyEncoder(json.JSONEncoder):
 
@@ -1444,11 +1474,12 @@ def bounds_tree(bounds):
 
 def wrap_as_stream(item):
     """
-    Wrap a string or bytes object as a file object
+    Wrap a string or bytes object as a file object.
 
     Parameters
     ----------
-    item: str or bytes: item to be wrapped
+    item: str or bytes
+      Item to be wrapped
 
     Returns
     ---------
@@ -1460,7 +1491,7 @@ def wrap_as_stream(item):
         return StringIO(item)
     elif isinstance(item, bytes):
         return BytesIO(item)
-    raise ValueError('Not a wrappable item!')
+    raise ValueError('{} is not wrappable!'.format(type(item).__name__))
 
 
 def sigfig_round(values, sigfig=1):
@@ -1795,4 +1826,5 @@ def generate_basis(z):
         x = np.array([1.0, 0.0, 0.0])
     x = x / np.linalg.norm(x)
     y = np.cross(z, x)
-    return x, y, z
+    result = np.array([x, y, z])
+    return result

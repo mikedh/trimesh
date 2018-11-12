@@ -39,7 +39,8 @@ def load_path(obj, file_type=None, **kwargs):
         return obj
     elif util.is_file(obj):
         # for open file objects use loaders
-        loaded = _LOADERS[file_type](obj)
+        loaded = path_loaders[file_type](obj,
+                                         file_type=file_type)
         obj.close()
     elif util.is_string(obj):
         # strings passed are evaluated as file objects
@@ -47,7 +48,8 @@ def load_path(obj, file_type=None, **kwargs):
             # get the file type from the extension
             file_type = os.path.splitext(obj)[-1][1:].lower()
             # call the loader
-            loaded = _LOADERS[file_type](file_obj)
+            loaded = path_loaders[file_type](file_obj,
+                                             file_type=file_type)
     elif util.is_instance_named(obj, 'Polygon'):
         # convert from shapely polygons to Path2D
         loaded = misc.polygon_to_path(obj)
@@ -130,8 +132,8 @@ def path_formats():
         Extensions of loadable formats, ie:
         ['svg', 'dxf']
     """
-    return list(_LOADERS.keys())
+    return list(path_loaders.keys())
 
 
-_LOADERS = {'svg': svg_to_path}
-_LOADERS.update(_dxf_loaders)
+path_loaders = {'svg': svg_to_path}
+path_loaders.update(_dxf_loaders)

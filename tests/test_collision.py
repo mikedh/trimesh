@@ -28,50 +28,51 @@ class CollisionTest(g.unittest.TestCase):
         m.add_object('cube1', cube, tf1)
 
         ret = m.in_collision_single(cube)
-        self.assertTrue(ret == True)
+        assert ret == True
 
         ret, names, data = m.in_collision_single(cube,
                                                  tf1,
                                                  return_names=True,
                                                  return_data=True)
-        self.assertTrue(ret == True)
+
+        assert ret == True
         assert all(len(i.point) == 3 for i in data)
 
         if 'cube1' not in names:
             print('\n\n', m._objs.keys(), names)
-        self.assertTrue('cube1' in names)
+        assert 'cube1' in names
 
         ret, names, data = m.in_collision_single(cube,
                                                  tf2,
                                                  return_names=True,
                                                  return_data=True)
-        self.assertTrue(ret == False)
-        self.assertTrue(len(names) == 0)
+        assert ret == False
+        assert len(names) == 0
         assert all(len(i.point) == 3 for i in data)
 
         # Test internal collision checking and object
         # addition/removal/modification
         ret = m.in_collision_internal()
-        self.assertTrue(ret == False)
+        assert ret == False
 
         m.add_object('cube2', cube, tf1)
         ret, names = m.in_collision_internal(return_names=True)
-        self.assertTrue(ret == True)
-        self.assertTrue(('cube1', 'cube2') in names)
-        self.assertTrue(('cube0', 'cube1') not in names)
-        self.assertTrue(('cube2', 'cube1') not in names)
+        assert ret == True
+        assert ('cube1', 'cube2') in names
+        assert ('cube0', 'cube1') not in names
+        assert ('cube2', 'cube1') not in names
 
         m.set_transform('cube2', tf2)
         ret = m.in_collision_internal()
-        self.assertTrue(ret == False)
+        assert ret == False
 
         m.set_transform('cube2', tf1)
         ret = m.in_collision_internal()
-        self.assertTrue(ret == True)
+        assert ret == True
 
         m.remove_object('cube2')
         ret = m.in_collision_internal()
-        self.assertTrue(ret == False)
+        assert ret == False
 
         # Test manager-to-manager collision checking
         m = g.trimesh.collision.CollisionManager()
@@ -82,17 +83,17 @@ class CollisionTest(g.unittest.TestCase):
         n.add_object('cube0', cube, tf2)
 
         ret = m.in_collision_other(n)
-        self.assertTrue(ret == False)
+        assert ret == False
 
         n.add_object('cube3', cube, tf1)
 
         ret = m.in_collision_other(n)
-        self.assertTrue(ret == True)
+        assert ret == True
 
         ret, names = m.in_collision_other(n, return_names=True)
-        self.assertTrue(ret == True)
-        self.assertTrue(('cube1', 'cube3') in names)
-        self.assertTrue(('cube3', 'cube1') not in names)
+        assert ret == True
+        assert ('cube1', 'cube3') in names
+        assert ('cube3', 'cube1') not in names
 
     def test_distance(self):
         # Ensure that FCL is importable
@@ -121,42 +122,42 @@ class CollisionTest(g.unittest.TestCase):
         m.add_object('cube1', cube, tf1)
 
         dist = m.min_distance_single(cube)
-        self.assertTrue(g.np.isclose(dist, 4.0))
+        assert g.np.isclose(dist, 4.0)
 
         dist, name = m.min_distance_single(cube, return_name=True)
-        self.assertTrue(g.np.isclose(dist, 4.0))
-        self.assertTrue(name == 'cube1')
+        assert g.np.isclose(dist, 4.0)
+        assert name == 'cube1'
 
         m.add_object('cube2', cube, tf2)
 
         dist, name = m.min_distance_single(cube, tf3, return_name=True)
-        self.assertTrue(g.np.isclose(dist, 2.0))
-        self.assertTrue(name == 'cube1')
+        assert g.np.isclose(dist, 2.0)
+        assert name == 'cube1'
 
         dist, name = m.min_distance_single(cube, tf4, return_name=True)
-        self.assertTrue(g.np.isclose(dist, 2.0))
-        self.assertTrue(name == 'cube2')
+        assert g.np.isclose(dist, 2.0)
+        assert name == 'cube2'
 
         # Test internal distance checking and object
         # addition/removal/modification
         dist = m.min_distance_internal()
-        self.assertTrue(g.np.isclose(dist, 9.0))
+        assert g.np.isclose(dist, 9.0)
 
         dist, names = m.min_distance_internal(return_names=True)
-        self.assertTrue(g.np.isclose(dist, 9.0))
-        self.assertTrue(names == ('cube1', 'cube2'))
+        assert g.np.isclose(dist, 9.0)
+        assert names == ('cube1', 'cube2')
 
         m.add_object('cube3', cube, tf3)
 
         dist, names = m.min_distance_internal(return_names=True)
-        self.assertTrue(g.np.isclose(dist, 2.0))
-        self.assertTrue(names == ('cube1', 'cube3'))
+        assert g.np.isclose(dist, 2.0)
+        assert names == ('cube1', 'cube3')
 
         m.set_transform('cube3', tf4)
 
         dist, names = m.min_distance_internal(return_names=True)
-        self.assertTrue(g.np.isclose(dist, 2.0))
-        self.assertTrue(names == ('cube2', 'cube3'))
+        assert g.np.isclose(dist, 2.0)
+        assert names == ('cube2', 'cube3')
 
         # Test manager-to-manager distance checking
         m = g.trimesh.collision.CollisionManager()
@@ -167,14 +168,14 @@ class CollisionTest(g.unittest.TestCase):
         n.add_object('cube0', cube, tf2)
 
         dist, names = m.min_distance_other(n, return_names=True)
-        self.assertTrue(g.np.isclose(dist, 4.0))
-        self.assertTrue(names == ('cube0', 'cube0'))
+        assert g.np.isclose(dist, 4.0)
+        assert names == ('cube0', 'cube0')
 
         n.add_object('cube4', cube, tf4)
 
         dist, names = m.min_distance_other(n, return_names=True)
-        self.assertTrue(g.np.isclose(dist, 1.0))
-        self.assertTrue(names == ('cube0', 'cube4'))
+        assert g.np.isclose(dist, 1.0)
+        assert names == ('cube0', 'cube4')
 
     def test_scene(self):
         try:

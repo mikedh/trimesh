@@ -59,6 +59,54 @@ class RegistrationTest(g.unittest.TestCase):
                              g.np.linalg.inv(matrixN))
         assert g.np.allclose(transformed, points_a[index])
 
+    def test_mesh(self):
+        noise = .05
+        extents = [6, 12, 3]
+
+        # create the mesh as a simple box
+        mesh = g.trimesh.creation.box(extents=extents)
+
+        # subdivide until we have more faces than we want
+        for i in range(3):
+            mesh = mesh.subdivide()
+        # apply tesselation and random noise
+        mesh = mesh.permutate.noise(noise)
+        # randomly rotation with translation
+        transform = g.trimesh.transformations.random_rotation_matrix()
+        transform[:3, 3] = (g.np.random.random(3) - .5) * 1000
+
+        mesh.apply_transform(transform)
+
+        scan = mesh
+        # create a "true" mesh
+        truth = g.trimesh.creation.box(extents=extents)
+
+        for a, b in [[truth, scan], [scan, truth]]:
+            a_to_b, cost = a.register(b)
+
+            a_check = a.copy()
+            a_check.apply_transform(a_to_b)
+
+            assert g.np.linalg.norm(
+                a_check.centroid -
+                b.centroid) < (
+                noise *
+                2)
+
+            # find the distance from the truth mesh to each scan vertex
+            distance = a_check.nearest.on_surface(b.vertices)[1]
+            assert distance.max() < (noise * 2)
+
+        # try our registration with points
+        points = g.trimesh.transform_points(
+            scan.sample(100),
+            matrix=g.trimesh.transformations.random_rotation_matrix())
+        truth_to_points, cost = truth.register(points)
+        truth.apply_transform(truth_to_points)
+        distance = truth.nearest.on_surface(points)[1]
+
+        assert distance.mean() < noise
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

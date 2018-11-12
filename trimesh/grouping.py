@@ -540,7 +540,8 @@ def clusters(points, radius):
     tree = KDTree(points)
 
     # some versions return pairs as a set of tuples
-    pairs = list(tree.query_pairs(radius))
+    pairs = tree.query_pairs(r=radius, output_type='ndarray')
+    # group connected components
     groups = graph.connected_components(pairs)
 
     return groups

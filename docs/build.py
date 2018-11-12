@@ -8,6 +8,7 @@ python build.py
 """
 
 import os
+import sys
 import shutil
 import inspect
 import subprocess
@@ -38,6 +39,9 @@ cwd = os.path.dirname(os.path.abspath(
 # output location for all the html
 build_dir = abspath('html')
 
+# sphinx produces a lot of output
+verbose = '-v' in sys.argv
+
 if __name__ == '__main__':
     # convert README to an RST for sphinx
     pdc = ['pandoc',
@@ -55,7 +59,7 @@ if __name__ == '__main__':
     except FileExistsError:
         pass
     exp = ['python',
-           abspath('../tests/notebook_run.py'),
+           abspath('../tests/notebooks.py'),
            'examples',
            examples_dir]
     subprocess.check_call(exp)
@@ -73,15 +77,21 @@ if __name__ == '__main__':
            '-o',
            cwd,
            abspath('../trimesh')]
-    subprocess.check_call(api)
-
     # build the HTML docs
     bld = ['sphinx-build',
            '-b',
            'html',
            cwd,
            build_dir]
-    subprocess.check_call(bld)
+
+    if verbose:
+        # sphinx produces a ton of useless output
+        subprocess.check_call(api)
+        subprocess.check_call(bld)
+    else:
+        print('running sphinx, eating output')
+        subprocess.check_output(api, stderr=subprocess.DEVNULL)
+        subprocess.check_output(bld, stderr=subprocess.DEVNULL)
 
     # keep github pages from using jekyll
     with open(os.path.join(build_dir, '.nojekyll'), 'w') as f:

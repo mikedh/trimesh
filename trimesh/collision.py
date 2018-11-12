@@ -23,8 +23,10 @@ class ContactData(object):
 
         Parameters
         ----------
-        names:   list of str, the names of the two objects in order.
-        contact: fcl.Contact, the contact in question.
+        names : list of str
+          The names of the two objects in order.
+        contact : fcl.Contact
+          The contact in question.
         """
         self.names = set(names)
         self._inds = {
@@ -40,7 +42,8 @@ class ContactData(object):
 
         Returns
         -------
-        point: (3,) float, the intersection point.
+        point : (3,) float
+          The intersection point.
         """
         return self._point
 
@@ -51,11 +54,13 @@ class ContactData(object):
 
         Parameters
         ----------
-        name: str, the name of the target object.
+        name : str
+          The name of the target object.
 
         Returns
         -------
-        index: int, the index of the face in collisoin.
+        index : int
+          The index of the face in collison
         """
         return self._inds[name]
 
@@ -71,8 +76,10 @@ class DistanceData(object):
 
         Parameters
         ----------
-        names:   list of str, the names of the two objects in order.
-        contact: fcl.DistanceResult, the distance query result.
+        names : list of str
+          The names of the two objects in order.
+        contact : fcl.DistanceResult
+          The distance query result.
         """
         self.names = set(names)
         self._inds = {
@@ -92,7 +99,8 @@ class DistanceData(object):
 
         Returns
         -------
-        distance: float, the euclidean distance between the objects.
+        distance : float
+          The euclidean distance between the objects.
         """
         return self._distance
 
@@ -103,11 +111,13 @@ class DistanceData(object):
 
         Parameters
         ----------
-        name: str, the name of the target object.
+        name : str
+          The name of the target object.
 
         Returns
         -------
-        index: int, the index of the face in collisoin.
+        index : int
+          The index of the face in collisoin.
         """
         return self._inds[name]
 
@@ -117,11 +127,13 @@ class DistanceData(object):
 
         Parameters
         ----------
-        name: str, the name of the target object.
+        name : str
+          The name of the target object.
 
         Returns
         -------
-        point: (3,) float, the closest point.
+        point : (3,) float
+          The closest point.
         """
         return self._points[name]
 
@@ -161,9 +173,12 @@ class CollisionManager(object):
 
         Parameters
         ----------
-        name:      str, an identifier for the object
-        mesh:      Trimesh object, the geometry of the collision object
-        transform: (4,4) float, homogenous transform matrix for the object
+        name : str
+          An identifier for the object
+        mesh : Trimesh object
+          The geometry of the collision object
+        transform : (4,4) float
+          Homogenous transform matrix for the object
         """
 
         # if no transform passed, assume identity transform
@@ -197,7 +212,8 @@ class CollisionManager(object):
 
         Parameters
         ----------
-        name: str, the identifier for the object
+        name : str
+          The identifier for the object
         """
         if name in self._objs:
             self._manager.unregisterObject(self._objs[name]['obj'])
@@ -216,8 +232,10 @@ class CollisionManager(object):
 
         Parameters
         ----------
-        name:      str, an identifier for the object already in the manager
-        transform: (4,4) float, a new homogenous transform matrix for the object
+        name : str
+          An identifier for the object already in the manager
+        transform : (4,4) float
+          A new homogenous transform matrix for the object
         """
         if name in self._objs:
             o = self._objs[name]['obj']
@@ -235,18 +253,25 @@ class CollisionManager(object):
 
         Parameters
         ----------
-        mesh:         Trimesh object, the geometry of the collision object
-        transform:    (4,4) float,    homogenous transform matrix
-        return_names: bool,           If true, a set is returned containing the names
-                                      of all objects in collision with the object
-        return_data:  bool,           If true, a list of ContactData is returned as well
+        mesh : Trimesh object
+          The geometry of the collision object
+        transform : (4,4) float
+          Homogenous transform matrix
+        return_names : bool
+          If true, a set is returned containing the names
+          of all objects in collision with the object
+        return_data :  bool
+          If true, a list of ContactData is returned as well
 
         Returns
-        -------
-        is_collision: bool,            True if a collision occurs and False otherwise
-        names: set of str,             The set of names of objects that collided with the
-                                       provided one
-        contacts: list of ContactData, All contacts detected
+        ------------
+        is_collision : bool
+          True if a collision occurs and False otherwise
+        names : set of str
+          The set of names of objects that collided with the
+          provided one
+        contacts : list of ContactData
+          All contacts detected
         """
         if transform is None:
             transform = np.eye(4)
@@ -300,18 +325,23 @@ class CollisionManager(object):
 
         Parameters
         ----------
-        return_names : bool If true, a set is returned containing the names
-                            of all pairs of objects in collision.
-        return_data:  bool, If true, a list of ContactData is returned as well
+        return_names : bool
+          If true, a set is returned containing the names
+          of all pairs of objects in collision.
+        return_data :  bool
+          If true, a list of ContactData is returned as well
 
         Returns
         -------
-        is_collision: bool,  True if a collision occurred between any pair of objects
-                             and False otherwise
-        names: set of 2-tup, The set of pairwise collisions. Each tuple
-                             contains two names in alphabetical order indicating
-                             that the two corresponding objects are in collision.
-        contacts: list of ContactData, All contacts detected
+        is_collision : bool
+          True if a collision occurred between any pair of objects
+          and False otherwise
+        names : set of 2-tup
+          The set of pairwise collisions. Each tuple
+          contains two names in alphabetical order indicating
+          that the two corresponding objects are in collision.
+        contacts : list of ContactData
+          All contacts detected
         """
         cdata = fcl.CollisionData()
         if return_names or return_data:
@@ -346,24 +376,31 @@ class CollisionManager(object):
     def in_collision_other(self, other_manager,
                            return_names=False, return_data=False):
         """
-        Check if any object from this manager collides with any object from another manager.
+        Check if any object from this manager collides with any object
+        from another manager.
 
         Parameters
-        ----------
-        other_manager: CollisionManager, another collision manager object
-        return_names:  bool,             If true, a set is returned containing the names
-                                         of all pairs of objects in collision.
-        return_data:   bool,             If true, a list of ContactData is returned as well
+        -------------------
+        other_manager : CollisionManager
+          Another collision manager object
+        return_names : bool
+          If true, a set is returned containing the names
+          of all pairs of objects in collision.
+        return_data : bool
+          If true, a list of ContactData is returned as well
 
         Returns
-        -------
-        is_collision: bool,  True if a collision occurred between any pair of objects
-                             and False otherwise
-        names: set of 2-tup, The set of pairwise collisions. Each tuple
-                             contains two names (first from this manager,
-                             second from the other_manager) indicating
-                             that the two corresponding objects are in collision.
-        contacts: list of ContactData, All contacts detected
+        -------------
+        is_collision : bool
+          True if a collision occurred between any pair of objects
+          and False otherwise
+        names : set of 2-tup
+          The set of pairwise collisions. Each tuple
+          contains two names (first from this manager,
+          second from the other_manager) indicating
+          that the two corresponding objects are in collision.
+        contacts : list of ContactData
+          All contacts detected
         """
         cdata = fcl.CollisionData()
         if return_names or return_data:
@@ -404,24 +441,34 @@ class CollisionManager(object):
         else:
             return result
 
-    def min_distance_single(self, mesh, transform=None,
-                            return_name=False, return_data=False):
+    def min_distance_single(self,
+                            mesh,
+                            transform=None,
+                            return_name=False,
+                            return_data=False):
         """
-        Get the minimum distance between a single object and any object in the
-        manager.
+        Get the minimum distance between a single object and any
+        object in the manager.
 
         Parameters
-        ----------
-        mesh:         Trimesh object, the geometry of the collision object
-        transform:    (4,4) float,    homogenous transform matrix for the object
-        return_names: bool,           If true, return name of the closest object
-        return_data:  bool,           If true, a DistanceData object is returned as well
+        ---------------
+        mesh : Trimesh object
+          The geometry of the collision object
+        transform : (4,4) float
+          Homogenous transform matrix for the object
+        return_names : bool
+          If true, return name of the closest object
+        return_data : bool
+          If true, a DistanceData object is returned as well
 
         Returns
-        -------
-        distance: float,    Min distance between mesh and any object in the manager
-        name: str,          The name of the object in the manager that was closest
-        data: DistanceData, Extra data about the distance query
+        -------------
+        distance : float
+          Min distance between mesh and any object in the manager
+        name : str
+          The name of the object in the manager that was closest
+        data : DistanceData
+          Extra data about the distance query
         """
         if transform is None:
             transform = np.eye(4)
@@ -472,16 +519,21 @@ class CollisionManager(object):
         Get the minimum distance between any pair of objects in the manager.
 
         Parameters
-        ----------
-        return_names : bool, If true, a 2-tuple is returned containing the names
-                             of the closest objects.
-        return_data:  bool,  If true, a DistanceData object is returned as well
+        -------------
+        return_names : bool
+          If true, a 2-tuple is returned containing the names
+          of the closest objects.
+        return_data : bool
+          If true, a DistanceData object is returned as well
 
         Returns
-        -------
-        distance: float,    Min distance between any two managed objects
-        names: (2,) str,    The names of the closest objects
-        data: DistanceData, Extra data about the distance query
+        -----------
+        distance : float
+          Min distance between any two managed objects
+        names : (2,) str
+          The names of the closest objects
+        data : DistanceData
+          Extra data about the distance query
         """
         ddata = fcl.DistanceData()
         if return_data:
@@ -513,23 +565,30 @@ class CollisionManager(object):
     def min_distance_other(self, other_manager,
                            return_names=False, return_data=False):
         """
-        Get the minimum distance between any pair of objects, one in each manager.
+        Get the minimum distance between any pair of objects,
+        one in each manager.
 
         Parameters
         ----------
-        other_manager: CollisionManager, another collision manager object
-        return_names:  bool,             If true, a 2-tuple is returned containing
-                                         the names of the closest objects.
-        return_data:   bool,             If true, a DistanceData object is returned as well
+        other_manager : CollisionManager
+          Another collision manager object
+        return_names : bool
+          If true, a 2-tuple is returned containing
+          the names of the closest objects.
+        return_data : bool
+          If true, a DistanceData object is returned as well
 
         Returns
-        -------
-        distance: float,     The min distance between a pair of objects,
-                             one from each manager.
-        names: 2-tup of str, A 2-tuple containing two names (first from this manager,
-                             second from the other_manager) indicating
-                             the two closest objects.
-        data: DistanceData,  Extra data about the distance query
+        -----------
+        distance : float
+          The min distance between a pair of objects,
+          one from each manager.
+        names : 2-tup of str
+          A 2-tuple containing two names (first from this manager,
+          second from the other_manager) indicating
+          the two closest objects.
+        data : DistanceData
+          Extra data about the distance query
         """
         ddata = fcl.DistanceData()
         if return_data:
@@ -574,11 +633,13 @@ class CollisionManager(object):
 
         Parameters
         -------------
-        mesh: Trimesh object
+        mesh : Trimesh
+          Mesh to create BVH for
 
         Returns
         --------------
-        bvh: fcl.BVHModel object
+        bvh : fcl.BVHModel
+          BVH object of source mesh
         """
         bvh = mesh_to_BVH(mesh)
         return bvh
@@ -590,7 +651,13 @@ class CollisionManager(object):
 
         Parameters
         -----------
-        geom: CollisionObject, BVHModel
+        geom : CollisionObject or BVHModel
+          Input model
+
+        Returns
+        ------------
+        names : hashable
+          Name of input geometry
         """
         return self._names[id(geom)]
 
@@ -601,11 +668,13 @@ def mesh_to_BVH(mesh):
 
     Parameters
     -----------
-    mesh: Trimesh object
+    mesh : Trimesh
+      Input geometry
 
     Returns
     ------------
-    bvh: fcl.BVHModel object
+    bvh : fcl.BVHModel
+      BVH of input geometry
     """
     bvh = fcl.BVHModel()
     bvh.beginModel(num_tris_=len(mesh.faces),
@@ -622,12 +691,15 @@ def scene_to_collision(scene):
 
     Parameters
     ------------
-    scene: trimesh.Scene object
+    scene : trimesh.Scene
+      Scene to create collision objects for
 
     Returns
     ------------
-    manager: CollisionManager object
+    manager : CollisionManager
+      CollisionManager for objects in scene
     objects: {node name: CollisionObject}
+      Collision objects for nodes in scene
     """
     manager = CollisionManager()
     objects = {}

@@ -1,5 +1,6 @@
 import numpy as np
 
+from ..constants import log
 from .. import util
 
 
@@ -48,8 +49,21 @@ def load_wavefront(file_obj, **kwargs):
             # much as possible by sorting by remap key
             keys, values = (np.array(list(remap.keys())),
                             np.array(list(remap.values())))
+
+            try:
+                # if we sort keys as strings they will be an
+                # ordering like (1/1/1, 10/10/10) vs (1/1/1, 2/2/2)
+                # so try to convert to int before sorting
+                split = np.array([i.split('/')[0] for i in keys],
+                                 dtype=np.int)
+                order = split.argsort()
+            except BaseException:
+                # we can still use arbitrary order as a fallback
+                order = keys.argsort()
+
             # new order of vertices
-            vert_order = values[keys.argsort()]
+            vert_order = values[order]
+
             # we need to mask to preserve index relationship
             # between faces and vertices
             face_order = np.zeros(len(vertices),
@@ -73,9 +87,14 @@ def load_wavefront(file_obj, **kwargs):
                 texture = np.array(current['vt'], dtype=np.float64)
                 # make sure vertex texture is the right shape
                 # AKA (len(vertices), dimension)
-                texture = texture.reshape((len(vertices), -1))
-                # save vertex texture with correct ordering
-                loaded['metadata']['vertex_texture'] = texture[vert_order]
+                try:
+                    texture = texture.reshape((len(vertices), -1))
+                    # save vertex texture with correct ordering
+                    loaded['metadata']['vertex_texture'] = texture[vert_order]
+                except ValueError:
+                    log.warning(
+                        'Texture information seems broken: %s' % file_obj.name
+                    )
 
             # build face groups information
             # faces didn't move around so we don't have to reindex

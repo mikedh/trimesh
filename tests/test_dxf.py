@@ -7,27 +7,35 @@ except BaseException:
 class DXFTest(g.unittest.TestCase):
 
     def test_dxf(self):
-        drawings = g.get_2D()
+
+        # get a path we can write
+        temp_name = g.tempfile.NamedTemporaryFile(
+            suffix='.dxf', delete=False).name
 
         # split drawings into single body parts
         splits = []
-        for d in drawings:
+        for d in g.get_2D():
             s = d.split()
             # check area of split result vs source
             assert g.np.isclose(sum(i.area for i in s),
                                 d.area)
             splits.append(s)
 
-            d.export(file_obj='temp.dxf')
-            r = g.trimesh.load('temp.dxf')
+            d.export(file_obj=temp_name)
+            r = g.trimesh.load(temp_name)
             assert g.np.isclose(r.area, d.area)
 
         single = g.np.hstack(splits)
 
         for p in single:
             p.vertices /= p.scale
-            p.export(file_obj='temp.dxf')
-            r = g.trimesh.load('temp.dxf')
+
+            # make sure exporting by name works
+            # use tempfile to avoid dumping file in
+            # our working directory
+            p.export(temp_name)
+            r = g.trimesh.load(temp_name)
+
             ratio = abs(p.length - r.length) / p.length
             if ratio > .01:
                 g.log.error('perimeter ratio on export %s wrong! %f %f %f',
@@ -60,32 +68,15 @@ class DXFTest(g.unittest.TestCase):
         assert len(d.entities[0].points) == len(r.entities[0].points)
         assert len(d.entities[0].knots) == len(r.entities[0].knots)
 
-    def test_xrecord(self):
-        # data to store to test export / import round trip
-        data = {'thangs': 'poppin',
-                'pnts': g.np.arange(9).reshape((-1, 3))}
-
-        # get a drawing and add our data to metadata
-        d = g.get_mesh('2D/wrench.dxf')
-        d.metadata.update(data)
-
-        # export as a DXF file, which should put our
-        # custom data into an XRecord
-        d.export('hey.dxf', include_metadata=True)
-
-        # reload from export
-        r = g.trimesh.load('hey.dxf')
-
-        # check numpy round trip
-        assert g.np.allclose(r.metadata['pnts'],
-                             data['pnts'])
-        # check string roundtrip
-        assert r.metadata['thangs'] == 'poppin'
-
     def test_versions(self):
         """
         DXF files have a bajillion versions, so test against
-        the same files saved in multiple versions by 2D CAD packages.
+        the same files saved in multiple versions by 2D CAD
+        packages.
+
+        Version test files are named things like:
+        ae.r14a.dxf: all entity types, R14 ASCII DXF
+        uc.2007b.dxf: unit square, R2007 binary DXF
         """
         # directory where multiple versions of DXF are
         dir_versions = g.os.path.join(g.dir_2D, 'versions')
@@ -127,6 +118,26 @@ class DXFTest(g.unittest.TestCase):
                 [len(paths[i].entities) for i in group],
                 dtype=g.np.int64)
             assert E.ptp() == 0
+
+    def test_bulge(self):
+        """
+        Test bulged polylines which are polylines with
+        implicit arcs.
+        """
+        # get a drawing with bulged polylines
+        p = g.get_mesh('2D/LM2.dxf')
+        # count the number of unclosed arc entities
+        # this drawing only has polylines with bulge
+        spans = [e.center(p.vertices)['span']
+                 for e in p.entities if
+                 type(e).__name__ == 'Arc' and
+                 not e.closed]
+        # should have only one outer loop
+        assert len(p.root) == 1
+        # should have 6 partial arcs from bulge
+        assert len(spans) == 6
+        # all arcs should be 180 degree slot end caps
+        assert g.np.allclose(spans, g.np.pi)
 
 
 if __name__ == '__main__':

@@ -23,13 +23,16 @@ class SceneViewer(pyglet.window.Window):
                  visible=True,
                  resolution=(640, 480),
                  start_loop=True,
+                 callback=None,
+                 callback_period=None,
                  **kwargs):
 
         self.scene = scene
+        self.callback = callback
+        self.callback_period = callback_period
         self.scene._redraw = self._redraw
         self.reset_view(flags=flags)
         self.batch = pyglet.graphics.Batch()
-        self._smooth = smooth
 
         self.vertex_list = {}
         self.vertex_list_hash = {}
@@ -61,11 +64,22 @@ class SceneViewer(pyglet.window.Window):
 
         for name, mesh in scene.geometry.items():
             self.add_geometry(name=name,
-                              geometry=mesh)
+                              geometry=mesh,
+                              smooth=bool(smooth))
         self.init_gl()
         self.set_size(*resolution)
         self.update_flags()
 
+        # someone has passed a callback to be called periodically
+        if self.callback is not None:
+            # if no callback period is specified set it to default
+            if callback_period is None:
+                callback_period = 1.0 / 100.0
+            # set up a do-nothing periodic task which will
+            # trigger `self.on_draw` every `callback_period`
+            # seconds if someone has passed a callback
+            pyglet.clock.schedule_interval(lambda x: x,
+                                           callback_period)
         if start_loop:
             pyglet.app.run()
 
@@ -73,6 +87,9 @@ class SceneViewer(pyglet.window.Window):
         self.on_draw()
 
     def _update_meshes(self):
+        # call the callback if specified
+        if self.callback is not None:
+            self.callback(self.scene)
         for name, mesh in self.scene.geometry.items():
             if self.vertex_list_hash[name] != geometry_hash(mesh):
                 self.add_geometry(name, mesh)
@@ -229,6 +246,8 @@ class SceneViewer(pyglet.window.Window):
             self.reset_view()
         elif symbol == pyglet.window.key.C:
             self.toggle_culling()
+        elif symbol == pyglet.window.key.Q:
+            self.close()
         elif symbol == pyglet.window.key.LEFT:
             self.view['ball'].down([0, 0])
             self.view['ball'].drag([-magnitude, 0])
@@ -253,8 +272,8 @@ class SceneViewer(pyglet.window.Window):
         # apply the camera transform to the matrix stack
         gl.glMultMatrixf(rendering.matrix_to_gl(transform_camera))
 
-        # dragging the mouse moves the view transform (but doesn't alter the
-        # scene)
+        # dragging the mouse moves the view transform
+        # but doesn't alter the scene
         transform_view = view_to_transform(self.view)
         gl.glMultMatrixf(rendering.matrix_to_gl(transform_view))
 

@@ -162,8 +162,15 @@ def merge_colinear(points, scale):
     merged: (j, d) set of points with colinear and duplicate
              points merged, where (j < n)
     """
-    points = np.asanyarray(points)
+    points = np.asanyarray(points, dtype=np.float64)
     scale = float(scale)
+
+    if len(points.shape) != 2 or points.shape[1] != 2:
+        raise ValueError('only for 2D points!')
+
+    # if there's less than 3 points nothing to merge
+    if len(points) < 3:
+        return points.copy()
 
     # the vector from one point to the next
     direction = points[1:] - points[:-1]
@@ -181,12 +188,15 @@ def merge_colinear(points, scale):
     # if we have points A B C D
     # and direction vectors A-B, B-C, etc
     # these will be perpendicular to the vectors A-C, B-D, etc
-    perpendicular = (points[2:] - points[:-2]).T[::-1].T
-    perpendicular /= np.linalg.norm(perpendicular, axis=1).reshape((-1, 1))
+    perp = (points[2:] - points[:-2]).T[::-1].T
+    perp_norm = np.linalg.norm(perp, axis=1)
+    perp_nonzero = perp_norm > tol.merge
+    perp[perp_nonzero] /= perp_norm[perp_nonzero].reshape((-1, 1))
 
     # find the projection of each direction vector
     # onto the perpendicular vector
-    projection = np.abs(diagonal_dot(perpendicular, direction[:-1]))
+    projection = np.abs(diagonal_dot(perp,
+                                     direction[:-1]))
 
     projection_ratio = np.max((projection / direction_norm[1:],
                                projection / direction_norm[:-1]), axis=0)
@@ -232,7 +242,7 @@ def resample_spline(points, smooth=.001, count=None, degree=3):
     return resampled
 
 
-def points_to_spline_entity(points, smooth=.0005, count=None):
+def points_to_spline_entity(points, smooth=None, count=None):
     """
     Create a spline entity from a curve in space
 
@@ -251,7 +261,10 @@ def points_to_spline_entity(points, smooth=.0005, count=None):
     from scipy.interpolate import splprep
     if count is None:
         count = len(points)
-    points = np.asanyarray(points)
+    if smooth is None:
+        smooth = 0.002
+
+    points = np.asanyarray(points, dtype=np.float64)
     closed = np.linalg.norm(points[0] - points[-1]) < tol.merge
 
     knots, control, degree = splprep(points.T, s=smooth)[0]
@@ -268,25 +281,6 @@ def points_to_spline_entity(points, smooth=.0005, count=None):
                               closed=closed)
 
     return entity, control
-
-
-def three_point(indices):
-    """
-    Given a long list of ordered indices,
-    return the first, middle and last.
-
-    Parameters
-    -----------
-    indices: (n,) array
-
-    Returns
-    ----------
-    three: (3,) array
-    """
-    three = [indices[0],
-             indices[int(len(indices) / 2)],
-             indices[-1]]
-    return np.asanyarray(three)
 
 
 def simplify_basic(drawing, process=False, **kwargs):
@@ -367,51 +361,51 @@ def simplify_basic(drawing, process=False, **kwargs):
     return simplified
 
 
-def simplify_spline(path, smooth, path_indexes=None):
+def simplify_spline(path, smooth=None, verbose=False):
     """
-    Replace discrete curves with b-spline curves, and
+    Replace discrete curves with b-spline or Arc and
     return the result as a new Path2D object.
 
     Parameters
     ------------
-    path:         Path2D object
-    smooth:       float, amount to smooth
-    path_indexes: (n,) int, indexes of path.paths to simplify
+    path : trimesh.path.Path2D
+      Input geometry
+    smooth : float
+      Distance to smooth
 
     Returns
     ------------
-    simplified: Path2D object, with specified entities replaced
+    simplified : Path2D
+      Consists of Arc and BSpline entities
     """
-    # if we aren't simplifying specific indexes
-    # simplify all indexes in the path object
-    if path_indexes is None:
-        path_indexes = np.arange(len(path.paths))
 
-    entities_keep = np.ones(len(path.entities),
-                            dtype=np.bool)
     new_vertices = []
     new_entities = []
+    scale = path.scale
 
-    for i in path_indexes:
+    for discrete in path.discrete:
+        circle = is_circle(discrete,
+                           scale=scale,
+                           verbose=verbose)
+        if circle is not None:
+            # the points are circular enough for our high standards
+            # so replace them with a closed Arc entity
+            new_entities.append(entities.Arc(points=np.arange(3) +
+                                             len(new_vertices),
+                                             closed=True))
+            new_vertices.extend(circle)
+            continue
+
         # entities for this path
-        entity, vertices = points_to_spline_entity(path.discrete[i])
+        entity, vertices = points_to_spline_entity(discrete, smooth=smooth)
         # reindex returned control points
-        entity.points += len(path.vertices) + len(new_vertices)
+        entity.points += len(new_vertices)
         # save entity and vertices
-        new_vertices.append(vertices)
+        new_vertices.extend(vertices)
         new_entities.append(entity)
-        # we don't need any of the entities from the
-        # path we just consumed and replaced
-        entities_keep[path.paths[i]] = False
-
-    # flatten entities and vertices
-    entities = np.append(path.entities[entities_keep],
-                         new_entities)
-    vertices = np.vstack((path.vertices,
-                          np.vstack(new_vertices)))
 
     # create the Path2D object for the result
-    simplified = type(path)(entities=entities,
-                            vertices=vertices)
+    simplified = type(path)(entities=new_entities,
+                            vertices=new_vertices)
 
     return simplified

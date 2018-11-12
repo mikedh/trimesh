@@ -10,7 +10,160 @@ import numpy as np
 from scipy.spatial import cKDTree
 
 from . import util
+from . import bounds
+from . import transformations
+
 from .transformations import transform_points
+
+
+def mesh_other(mesh,
+               other,
+               samples=500,
+               scale=False,
+               icp_first=10,
+               icp_final=50):
+    """
+    Align a mesh with another mesh or a PointCloud using
+    the principal axes of inertia as a starting point which
+    is refined by iterative closest point.
+
+    Parameters
+    ------------
+    mesh : trimesh.Trimesh object
+      Mesh to align with other
+    other : trimesh.Trimesh or (n, 3) float
+      Mesh or points in space
+    samples : int
+      Number of samples from mesh surface to align
+    scale : bool
+      Allow scaling in transform
+    icp_first : int
+      How many ICP iterations for the 9 possible
+      combinations of sign flippage
+    icp_final : int
+      How many ICP iterations for the closest
+      candidate from the wider search
+
+    Returns
+    -----------
+    mesh_to_other : (4, 4) float
+      Transform to align mesh to the other object
+    cost : float
+      Average squared distance per point
+    """
+
+    def key_points(m, count):
+        """
+        Return a combination of mesh vertices and surface samples
+        with vertices chosen by likelihood to be important
+        to registation.
+        """
+        if len(m.vertices) < (count / 2):
+            return np.vstack((
+                m.vertices,
+                m.sample(count - len(m.vertices))))
+        else:
+            return m.sample(count)
+
+    if not util.is_instance_named(mesh, 'Trimesh'):
+        raise ValueError('mesh must be Trimesh object!')
+
+    inverse = True
+    search = mesh
+    # if both are meshes use the smaller one for searching
+    if util.is_instance_named(other, 'Trimesh'):
+        if len(mesh.vertices) > len(other.vertices):
+            # do the expensive tree construction on the
+            # smaller mesh and query the others points
+            search = other
+            inverse = False
+            points = key_points(m=mesh, count=samples)
+            points_mesh = mesh
+        else:
+            points_mesh = other
+            points = key_points(m=other, count=samples)
+
+        if points_mesh.is_volume:
+            points_PIT = points_mesh.principal_inertia_transform
+        else:
+            points_PIT = points_mesh.bounding_box_oriented.principal_inertia_transform
+
+    elif util.is_shape(other, (-1, 3)):
+        # case where other is just points
+        points = other
+        points_PIT = bounds.oriented_bounds(points)[0]
+    else:
+        raise ValueError('other must be mesh or (n, 3) points!')
+
+    # get the transform that aligns the search mesh principal
+    # axes of inertia with the XYZ axis at the origin
+    if search.is_volume:
+        search_PIT = search.principal_inertia_transform
+    else:
+        search_PIT = search.bounding_box_oriented.principal_inertia_transform
+
+    # transform that moves the principal axes of inertia
+    # of the search mesh to be aligned with the best- guess
+    # principal axes of the points
+    search_to_points = np.dot(np.linalg.inv(points_PIT),
+                              search_PIT)
+
+    # permutations of cube rotations
+    # the principal inertia transform has arbitrary sign
+    # along the 3 major axis so try all combinations of
+    # 180 degree rotations with a quick first ICP pass
+    cubes = np.array([np.eye(4) * np.append(diag, 1)
+                      for diag in [[1, 1, 1],
+                                   [1, 1, -1],
+                                   [1, -1, 1],
+                                   [-1, 1, 1],
+                                   [-1, -1, 1],
+                                   [-1, 1, -1],
+                                   [1, -1, -1],
+                                   [-1, -1, -1]]])
+
+    # loop through permutations and run iterative closest point
+    costs = np.ones(len(cubes)) * np.inf
+    transforms = [None] * len(cubes)
+    centroid = search.centroid
+
+    for i, flip in enumerate(cubes):
+        # transform from points to search mesh
+        # flipped around the centroid of search
+        a_to_b = np.dot(
+            transformations.transform_around(flip, centroid),
+            np.linalg.inv(search_to_points))
+
+        # run first pass ICP
+        matrix, junk, cost = icp(a=points,
+                                 b=search,
+                                 initial=a_to_b,
+                                 max_iterations=int(icp_first),
+                                 scale=scale)
+
+        # save transform and costs from ICP
+        transforms[i] = matrix
+        costs[i] = cost
+
+    # run a final ICP refinement step
+    matrix, junk, cost = icp(a=points,
+                             b=search,
+                             initial=transforms[np.argmin(costs)],
+                             max_iterations=int(icp_final),
+                             scale=scale)
+
+    # convert to per- point distance average
+    cost /= len(points)
+
+    # we picked the smaller mesh to construct the tree
+    # on so we may have calculated a transform backwards
+    # to save computation, so just invert matrix here
+    if inverse:
+        mesh_to_other = np.linalg.inv(matrix)
+    else:
+        mesh_to_other = matrix
+
+    return mesh_to_other, cost
 
 
 def procrustes(a,
@@ -21,23 +174,32 @@ def procrustes(a,
                return_cost=True):
     """
     Perform Procrustes' analysis subject to constraints. Finds the
-    transformation T mapping a to b which minimizes the sums-of-squares
+    transformation T mapping a to b which minimizes the square sum
     distances between Ta and b, also called the cost.
 
     Parameters
     ----------
-    a           : (n,3) float, list of points in space
-    b           : (n,3) float, list of points in space
-    reflection  : bool, if the transformation is allowed reflections
-    translation : bool, if the transformation is allowed translations
-    scale       : bool, if the transformation is allowed scaling
-    return_cost : bool, whether to return the cost and transformed a as well
+    a : (n,3) float
+      List of points in space
+    b : (n,3) float
+      List of points in space
+    reflection : bool
+      If the transformation is allowed reflections
+    translation : bool
+      If the transformation is allowed translations
+    scale : bool
+      If the transformation is allowed scaling
+    return_cost : bool
+      Whether to return the cost and transformed a as well
 
     Returns
     ----------
-    matrix      : (4,4) float, the transformation matrix sending a to b
-    transformed : (n,3) float, the image of a under the transformation
-    cost        : float, the cost of the transformation
+    matrix : (4,4) float
+      The transformation matrix sending a to b
+    transformed : (n,3) float
+      The image of a under the transformation
+    cost : float
+      The cost of the transformation
     """
 
     a = np.asanyarray(a, dtype=np.float64)
@@ -105,18 +267,27 @@ def icp(a,
 
     Parameters
     ----------
-    a              : (n,3) float, list of points in space.
-    b              : (m,3) float or Trimesh, list of points in space or mesh.
-    initial        : (4,4) float, initial transformation.
-    threshold      : float, stop when change in cost is less than threshold
-    max_iterations : int, maximum number of iterations
-    kwargs         : dict, args to pass to procrustes
+    a : (n,3) float
+      List of points in space.
+    b : (m,3) float or Trimesh
+      List of points in space or mesh.
+    initial : (4,4) float
+      Initial transformation.
+    threshold : float
+      Stop when change in cost is less than threshold
+    max_iterations : int
+      Maximum number of iterations
+    kwargs : dict
+      Args to pass to procrustes
 
     Returns
     ----------
-    matrix      : (4,4) float, the transformation matrix sending a to b
-    transformed : (n,3) float, the image of a under the transformation
-    cost        : float, the cost of the transformation
+    matrix : (4,4) float
+      The transformation matrix sending a to b
+    transformed : (n,3) float
+      The image of a under the transformation
+    cost : float
+      The cost of the transformation
     """
 
     a = np.asanyarray(a, dtype=np.float64)
@@ -130,7 +301,7 @@ def icp(a,
             raise ValueError('points must be (n,3)!')
         btree = cKDTree(b)
 
-    # Transform a under initial_transformation
+    # transform a under initial_transformation
     a = transform_points(a, initial)
     total_matrix = initial
 
@@ -146,10 +317,12 @@ def icp(a,
             distances, ix = btree.query(a, 1)
             closest = b[ix]
 
-        # Align a with closest points
-        matrix, transformed, cost = procrustes(a, closest, **kwargs)
+        # align a with closest points
+        matrix, transformed, cost = procrustes(a=a,
+                                               b=closest,
+                                               **kwargs)
 
-        # Update a
+        # update a with our new transformed points
         a = transformed
         total_matrix = np.dot(matrix, total_matrix)
 

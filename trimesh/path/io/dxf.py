@@ -5,12 +5,12 @@ from string import Template
 
 from ..arc import to_threepoint
 from ..entities import Line, Arc, BSpline
-from ..util import is_ccw
 
 from ...constants import log
 from ...constants import tol_path as tol
 from ...resources import get_resource
 from ... import util
+from ... import grouping
 
 # stuff for DWG loading
 import os
@@ -44,30 +44,23 @@ _DXF_UNITS = {1: 'inches',
 # backwards, for reference
 _UNITS_TO_DXF = {v: k for k, v in _DXF_UNITS.items()}
 
-# save metadata to a DXF Xrecord
+# save metadata to a DXF Xrecord starting here
 # Valid values are 1-369 (except 5 and 105)
 XRECORD_METADATA = 134
+# the sentinel string for trimesh metadata
+# this should be seen at XRECORD_METADATA
+XRECORD_SENTINEL = 'TRIMESH_METADATA:'
+# the maximum line length before we split lines
+XRECORD_MAX_LINE = 200
+# the maximum index of XRECORDS
+XRECORD_MAX_INDEX = 368
 
 # get the TEMPLATES for exporting DXF files
 TEMPLATES = {k: Template(v) for k, v in json.loads(
     get_resource('dxf.json.template')).items()}
 
 
-def get_key(blob, field, code):
-    try:
-        line = blob[np.nonzero(blob[:, 1] == field)[0][0] + 1]
-    except IndexError:
-        return None
-    if line[0] == code:
-        try:
-            return int(line[1])
-        except ValueError:
-            return line[1]
-    else:
-        return None
-
-
-def load_dxf(file_obj):
+def load_dxf(file_obj, **kwargs):
     """
     Load a DXF file to a dictionary containing vertices and
     entities.
@@ -80,56 +73,6 @@ def load_dxf(file_obj):
     ----------
     result: dict, keys are  entities, vertices and metadata
     """
-
-    def get_metadata():
-        """
-        Get metadata from DXF objects section of the file.
-
-        Returns
-        ----------
-        metadata : dict
-           Any available metadata stored in XRecord
-        """
-        metadata = {}
-        # save file version info
-        metadata['ACADVER'] = get_key(header_blob, '$ACADVER', '1')
-
-        # get the section which contains objects in the DXF file
-        obj_start = np.nonzero(blob[:, 1] == 'OBJECTS')[0]
-
-        if len(obj_start) == 0:
-            return metadata
-        obj_start = obj_start[0]
-
-        obj_end = endsec[np.searchsorted(endsec, obj_start)]
-        obj_blob = blob[obj_start:obj_end]
-
-        # the index of xrecords are one past the group code key
-        xrecords = np.nonzero((
-            obj_blob == ['100', 'ACDBXRECORD']).all(axis=1))[0] + 1
-
-        # if there are no XRecords return
-        if len(xrecords) == 0:
-            return metadata
-
-        # resplit the file data without upper() to preserve case
-        blob_lower = np.array(str.splitlines(raw)).reshape((-1, 2))
-        # newlines and split should never be effected by upper()
-        assert len(blob_lower) == len(blob)
-
-        # the likely exceptions are related to JSON decoding
-        try:
-            # loop through xrecords by group code
-            for code, data in blob_lower[obj_start:obj_end][xrecords]:
-                if code == str(XRECORD_METADATA):
-                    metadata.update(json.loads(data))
-                # we could store xrecords in the else here
-                # but they have a lot of garbage so don't
-                # metadata['XRECORD_' + code] = data
-        except BaseException:
-            log.error('failed to load metadata!', exc_info=True)
-
-        return metadata
 
     def info(e):
         """
@@ -202,27 +145,112 @@ def load_dxf(file_obj):
         Convert DXF LWPOLYLINE entities into trimesh Line entities.
         """
         # load the points in the line
-        lines = np.column_stack((e['10'],
-                                 e['20'])).astype(np.float64)
+        lines = np.column_stack((
+            e['10'], e['20'])).astype(np.float64)
+
+        # save entity info so we don't have to recompute
+        polyinfo = info(e)
 
         # 70 is the closed flag for polylines
         # if the closed flag is set make sure to close
-        if ('70' in e and int(e['70'][0]) == 1):
+        if ('70' in e and int(e['70'][0]) & 1):
             lines = np.vstack((lines, lines[:1]))
 
-        # 42 is the bulge flag for polylines
+        # 42 is the vertex bulge flag for LWPOLYLINE entities
         # "bulge" is autocad for "add a stupid arc using flags
-        # in my otherwise normal polygon"
+        # in my otherwise normal polygon", it's like SVG arc
+        # flags but somehow even more annoying
         if '42' in e:
-            log.warning(
-                'polyline with bulge %s detected, ignoring!',
-                e['42'])
+            # from Autodesk reference:
+            # The bulge is the tangent of one fourth the included
+            # angle for an arc segment, made negative if the arc
+            # goes clockwise from the start point to the endpoint.
+            # A bulge of 0 indicates a straight segment, and a
+            # bulge of 1 is a semicircle.
+            log.debug('polyline bulge: {}'.format(e['42']))
+            # what position were vertices stored at
+            vid = np.nonzero(chunk[:, 0] == '10')[0]
+            # what position were bulges stored at in the chunk
+            bid = np.nonzero(chunk[:, 0] == '42')[0]
+            # which vertex index is bulge value associated with
+            bulge_idx = np.searchsorted(vid, bid)
 
-        # add a single line entity
+            # the actual bulge float values
+            bulge = np.array(e['42'], dtype=np.float64)
+            # use bulge to calculate included angle of the arc
+            angle = np.arctan(bulge) * 4.0
+            # the indexes making up a bulged segment
+            tid = np.column_stack((bulge_idx, bulge_idx - 1))
+            # the vector connecting the two ends of the arc
+            vector = lines[tid[:, 0]] - lines[tid[:, 1]]
+            # the length of the connector segment
+            length = (np.linalg.norm(vector, axis=1))
+
+            # perpendicular vectors by crossing vector with Z
+            perp = np.cross(
+                np.column_stack((vector, np.zeros(len(vector)))),
+                np.ones((len(vector), 3)) * [0, 0, 1])
+            # strip the zero Z
+            perp = util.unitize(perp[:, :2])
+
+            # midpoint of each line
+            midpoint = lines[tid].mean(axis=1)
+
+            # calculate the signed radius of each arc segment
+            radius = (length / 2.0) / np.sin(angle / 2.0)
+
+            # offset magnitude to point on arc
+            offset = radius - np.cos(angle / 2) * radius
+
+            # convert each arc to three points:
+            # start, any point on arc, end
+            three = np.column_stack((
+                lines[tid[:, 0]],
+                midpoint + perp * offset.reshape((-1, 1)),
+                lines[tid[:, 1]])).reshape((-1, 3, 2))
+
+            # if we're in strict mode make sure our arcs
+            # have the same magnitude as the input data
+            if tol.strict:
+                from .. import arc as arcmod
+                check_angle = [arcmod.arc_center(i)['span']
+                               for i in three]
+                assert np.allclose(np.abs(angle),
+                                   np.abs(check_angle))
+
+                check_radii = [arcmod.arc_center(i)['radius']
+                               for i in three]
+                assert np.allclose(check_radii, np.abs(radius))
+
+            # if there are unconsumed line
+            # segments add them to drawing
+            if (len(lines) - 1) > len(bulge):
+                # indexes of line segments
+                existing = util.stack_lines(np.arange(len(lines)))
+                # remove line segments replaced with arcs
+                for line_idx in grouping.boolean_rows(
+                        existing,
+                        np.sort(tid, axis=1),
+                        np.setdiff1d):
+                    # add a single line entity and vertices
+                    entities.append(Line(
+                        points=np.arange(2) + len(vertices),
+                        **polyinfo))
+                    vertices.extend(lines[line_idx])
+            # add the three point arcs to the result
+            for arc_points in three:
+                entities.append(Arc(
+                    points=np.arange(3) + len(vertices),
+                    **polyinfo))
+                vertices.extend(arc_points)
+            # done with this polyline
+            return
+
+        # we have a normal polyline so just add it
+        # as single line entity and vertices
         entities.append(Line(
             points=np.arange(len(lines)) + len(vertices),
-            **info(e)))
-        # add the vertices
+            **polyinfo))
         vertices.extend(lines)
 
     def convert_bspline(e):
@@ -231,9 +259,20 @@ def load_dxf(file_obj):
         """
         # in the DXF there are n points and n ordered fields
         # with the same group code
+
         points = np.column_stack((e['10'],
                                   e['20'])).astype(np.float64)
         knots = np.array(e['40']).astype(np.float64)
+
+        # if there are only two points, save it as a line
+        if len(points) == 2:
+            # create a single Line entity
+            entities.append(Line(points=len(vertices) +
+                                 np.arange(2),
+                                 **info(e)))
+            # add the vertices to our collection
+            vertices.extend(points)
+            return
 
         # check bit coded flag for closed
         # closed = bool(int(e['70'][0]) & 1)
@@ -264,7 +303,7 @@ def load_dxf(file_obj):
                 # no converter to ASCII DXF available
                 raise ValueError('binary DXF not supported!')
             else:
-                # convert to R14 ASCII DXF
+                # convert binary DXF to R14 ASCII DXF
                 raw = _teigha_convert(raw, extension='dxf')
         else:
             # we've been passed bytes that don't have the
@@ -280,41 +319,56 @@ def load_dxf(file_obj):
 
     # get the section which contains the header in the DXF file
     endsec = np.nonzero(blob[:, 1] == 'ENDSEC')[0]
-    header_start = np.nonzero(blob[:, 1] == 'HEADER')[0][0]
-    header_end = endsec[np.searchsorted(endsec, header_start)]
-    header_blob = blob[header_start:header_end]
 
     # get the section which contains entities in the DXF file
     entity_start = np.nonzero(blob[:, 1] == 'ENTITIES')[0][0]
     entity_end = endsec[np.searchsorted(endsec, entity_start)]
     entity_blob = blob[entity_start:entity_end]
 
-    # try to load path metadata from xrecords stored in DXF
-    try:
-        metadata = get_metadata()
-    except BaseException:
-        log.error('failed to extract metadata!',
-                  exc_info=True)
-        metadata = {}
+    # store metadata
+    metadata = {}
 
-    # store unit data pulled from the header of the DXF
-    # prefer LUNITS over INSUNITS
-    # I couldn't find a table for LUNITS values but they
-    # look like they are 0- indexed versions of
-    # the INSUNITS keys, so for now offset the key value
-    for offset, key in [(0, '$INSUNITS'),
-                        (-1, '$LUNITS')]:
-        # get the key from the header blob
-        units = get_key(header_blob, key, '70')
-        # if it exists add the offset
-        if units is not None:
+    # try reading the header, which may be malformed
+    header_start = np.nonzero(blob[:, 1] == 'HEADER')[0]
+    if len(header_start) > 0:
+        header_end = endsec[np.searchsorted(endsec, header_start[0])]
+        header_blob = blob[header_start[0]:header_end]
+
+        # store some properties from the DXF header
+        metadata['DXF_HEADER'] = {}
+        for key, group in [('$ACADVER', '1'),
+                           ('$DIMSCALE', '40'),
+                           ('$DIMALT', '70'),
+                           ('$DIMALTF', '40'),
+                           ('$DIMUNIT', '70'),
+                           ('$INSUNITS', '70'),
+                           ('$LUNITS', '70')]:
+            value = get_key(header_blob,
+                            key,
+                            group)
+            if value is not None:
+                metadata['DXF_HEADER'][key] = value
+
+        # store unit data pulled from the header of the DXF
+        # prefer LUNITS over INSUNITS
+        # I couldn't find a table for LUNITS values but they
+        # look like they are 0- indexed versions of
+        # the INSUNITS keys, so for now offset the key value
+        for offset, key in [(-1, '$LUNITS'),
+                            (0, '$INSUNITS')]:
+            # get the key from the header blob
+            units = get_key(header_blob, key, '70')
+            # if it exists add the offset
+            if units is None:
+                continue
+            metadata[key] = units
             units += offset
-        # if the key is in our list of units store it
-        if units in _DXF_UNITS:
-            metadata['units'] = _DXF_UNITS[units]
-    # warn on drawings with no units
-    if 'units' not in metadata:
-        log.warning('DXF doesn\'t have units specified!')
+            # if the key is in our list of units store it
+            if units in _DXF_UNITS:
+                metadata['units'] = _DXF_UNITS[units]
+        # warn on drawings with no units
+        if 'units' not in metadata:
+            log.warning('DXF doesn\'t have units specified!')
 
     # find the start points of entities
     group_check = entity_blob[:, 0] == '0'
@@ -339,9 +393,11 @@ def load_dxf(file_obj):
     # loop through chunks of entity information
     # chunk will be an (n, 2) array of (group code, data) pairs
     for chunk in np.array_split(entity_blob, inflection):
-        if len(chunk) > 2:
+        if len(chunk) >= 1:
             # the string representing entity type
             entity_type = chunk[0][1]
+
+            ############
             # special case old- style polyline entities
             if entity_type == 'POLYLINE':
                 polyline = [dict(chunk)]
@@ -366,8 +422,9 @@ def load_dxf(file_obj):
                     **info(dict(polyline[0]))))
                 # add the vertices to our collection
                 vertices.extend(lines)
-                # no longer have an active polyline
+                # we no longer have an active polyline
                 polyline = None
+
             # if the entity contains all relevant data we can
             # cleanly load it from inside a single function
             elif entity_type in loaders:
@@ -392,7 +449,7 @@ def load_dxf(file_obj):
     return result
 
 
-def export_dxf(path, include_metadata=False):
+def export_dxf(path):
     """
     Export a 2D path object to a DXF file
 
@@ -429,9 +486,9 @@ def export_dxf(path, include_metadata=False):
         points = np.asanyarray(points, dtype=np.float64)
         three = util.three_dimensionalize(points, return_2D=False)
         if increment:
-            group = np.tile(np.arange(len(three),
-                                      dtype=np.int).reshape((-1, 1)),
-                            (1, 3))
+            group = np.tile(
+                np.arange(len(three), dtype=np.int).reshape((-1, 1)),
+                (1, 3))
         else:
             group = np.zeros((len(three), 3), dtype=np.int)
         group += [10, 20, 30]
@@ -561,27 +618,6 @@ def export_dxf(path, include_metadata=False):
         """
         return convert_line(entity, vertices)
 
-    def convert_metadata():
-        """
-        Save path metadata as a DXF Xrecord object.
-        """
-        if (not include_metadata) or len(path.metadata) == 0:
-            return ''
-        # dump metadata to compact JSON
-        # make sure there are no newlines to break DXF
-        # util.jsonify will be able to convert numpy arrays
-        as_json = util.jsonify(
-            path.metadata,
-            separators=(',', ':')).replace('\n', ' ')
-        # create an XRECORD for our use
-        xrecord = TEMPLATES['xrecord'].substitute({
-            'INDEX': XRECORD_METADATA,
-            'DATA': as_json})
-        # add the XRECORD to an objects section
-        result = TEMPLATES['objects'].substitute({
-            'OBJECTS': xrecord})
-        return result
-
     # make sure we're not losing a ton of
     # precision in the string conversion
     np.set_printoptions(precision=12)
@@ -610,20 +646,23 @@ def export_dxf(path, include_metadata=False):
     entities = TEMPLATES['entities'].substitute({
         'ENTITIES': entities_str})
     footer = TEMPLATES['footer'].substitute()
-    # metadata encoded as objects section
-    objects = convert_metadata()
+
     # filter out empty sections
     sections = [i for i in [header,
                             entities,
-                            objects,
                             footer]
                 if len(i) > 0]
-    # append them all into one DXF file
-    export = '\n'.join(sections)
-    return export
+
+    # random whitespace causes AutoCAD to fail to load
+    # although Draftsight, LibreCAD, and Inkscape don't care
+    # what a giant legacy piece of shit
+    # strip out all leading and trailing whitespace
+    blob = '\n'.join(sections).replace(' ', '')
+
+    return blob
 
 
-def load_dwg(file_obj):
+def load_dwg(file_obj, **kwargs):
     """
     Load DWG files by converting them to DXF files using
     TeighaFileConverter.
@@ -642,9 +681,27 @@ def load_dwg(file_obj):
     # convert data into R14 ASCII DXF
     converted = _teigha_convert(data)
     # load into kwargs for Path2D constructor
-    kwargs = load_dxf(util.wrap_as_stream(converted))
+    result = load_dxf(util.wrap_as_stream(converted))
 
-    return kwargs
+    return result
+
+
+def get_key(blob, field, code):
+    """
+    Given a loaded (n, 2) blob and a field name
+    get a value by code.
+    """
+    try:
+        line = blob[np.nonzero(blob[:, 1] == field)[0][0] + 1]
+    except IndexError:
+        return None
+    if line[0] == code:
+        try:
+            return int(line[1])
+        except ValueError:
+            return line[1]
+    else:
+        return None
 
 
 def _teigha_convert(data, extension='dwg'):
@@ -724,7 +781,13 @@ def _teigha_convert(data, extension='dwg'):
 
 
 # the DWG to DXF converter
-_teigha = find_executable('TeighaFileConverter')
+# they renamed it at some point but it is the same
+for _name in ['ODAFileConverter',
+              'TeighaFileConverter']:
+    _teigha = find_executable(_name)
+    if _teigha is not None:
+        break
+
 # suppress X11 output
 _xvfb_run = find_executable('xvfb-run')
 
