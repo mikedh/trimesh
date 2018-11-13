@@ -8,7 +8,7 @@ circles, spheres, hyperspheres, etc.
 import numpy as np
 
 from . import convex
-
+from . import bounds
 from .constants import log, tol
 
 try:
@@ -70,17 +70,29 @@ def minimum_nsphere(obj):
     # find the maximum radius^2 point for each of the voronoi vertices
     # this is worst case quite expensive, but we have used quick convex
     # hull methods to reduce n for this operation
-    # we are doing comparisons on the radius^2 value so as to only do a sqrt
-    # once
-    r2 = np.array([((points - v)**2).sum(axis=1).max()
-                   for v in voronoi.vertices])
+    # we are doing comparisons on the radius squared then rooting once
+
+    if len(points) * len(voronoi.vertices) > 1e7:
+        # if we have a bajillion points loop
+        radii_2 = np.array([((points - v)**2).sum(axis=1).max()
+                            for v in voronoi.vertices])
+    else:
+        # otherwise tiling is massively faster
+        # what dimension are the points
+        dim = points.shape[1]
+        v_tile = np.tile(voronoi.vertices, len(points)).reshape((-1, dim))
+        # tile points per voronoi vertex
+        p_tile = np.tile(points, (len(voronoi.vertices), 1)).reshape((-1, dim))
+        # find the maximum radius of points for each voronoi vertex
+        radii_2 = ((p_tile - v_tile)**2).sum(axis=1).reshape(
+            (len(voronoi.vertices), -1)).max(axis=1)
+
     # we want the smallest sphere, so we take the min of the radii options
-    r2_idx = r2.argmin()
-    center_v = voronoi.vertices[r2_idx]
+    radii_idx = radii_2.argmin()
 
     # return voronoi radius and center to global scale
-    radius_v = np.sqrt(r2[r2_idx]) * points_scale
-    center_v = (center_v * points_scale) + points_origin
+    radius_v = np.sqrt(radii_2[radii_idx]) * points_scale
+    center_v = (voronoi.vertices[radii_idx] * points_scale) + points_origin
 
     if radius_v > fit_R:
         return fit_C, fit_R
