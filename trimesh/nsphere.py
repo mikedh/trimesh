@@ -8,7 +8,7 @@ circles, spheres, hyperspheres, etc.
 import numpy as np
 
 from . import convex
-from . import bounds
+
 from .constants import log, tol
 
 try:

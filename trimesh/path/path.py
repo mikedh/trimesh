@@ -795,12 +795,6 @@ class Path3D(Path):
             # apply the height adjustment to_3D
             to_3D = np.dot(to_3D, adjust)
 
-            # do a check on to_3D
-            # flat[:,2] = 0
-            # a = transformations.transform_points(flat[referenced],
-            #                                     to_3D)
-            # assert np.allclose(self.vertices[referenced], a)
-
         # copy metadata to new object
         metadata = copy.deepcopy(self.metadata)
         # store transform we used to move it onto the plane
