@@ -20,7 +20,7 @@ _magic = {'gltf': 1179937895,
           'json': 1313821514,
           'bin': 5130562}
 
-# GLTF data type codes: numpy dtypes, always little endian
+# GLTF data type codes: little endian numpy dtypes
 _types = {5120: '<i1',
           5121: '<u1',
           5122: '<i2',
@@ -43,6 +43,11 @@ _default_material = {
         "baseColorFactor": [0, 0, 0, 0],
         "metallicFactor": 0,
         "roughnessFactor": 0}}
+
+# specify common dtypes with forced little endian
+float32 = np.dtype('<f4')
+uint32 = np.dtype('<u4')
+uint8 = np.dtype('<u1')
 
 
 def export_gltf(scene):
@@ -202,7 +207,7 @@ def load_glb(file_obj, **passed):
     if chunk_type != _magic['json']:
         raise ValueError('no initial JSON header!')
 
-    # np.uint32 causes an error in read, so we convert to native int
+    # uint32 causes an error in read, so we convert to native int
     # for the length passed to read, for the JSON header
     json_data = file_obj.read(int(chunk_length))
     # convert to text
@@ -256,7 +261,8 @@ def _mesh_to_material(mesh, metallic=0.0, rough=0.0):
     # just get the most commonly occurring color
     color = mesh.visual.main_color
     # convert uint color to 0-1.0 float color
-    color = color.astype(float) / ((2 ** (8 * color.dtype.itemsize)) - 1)
+    color = color.astype(float32) / (
+        (2 ** (8 * color.dtype.itemsize)) - 1)
 
     material = {'pbrMetallicRoughness':
                 {'baseColorFactor': color.tolist(),
@@ -367,7 +373,7 @@ def _append_mesh(mesh,
     # convert mesh data to the correct dtypes
     # faces: 5125 is an unsigned 32 bit integer
     buffer_items.append(
-        _byte_pad(mesh.faces.astype(np.uint32).tobytes()))
+        _byte_pad(mesh.faces.astype(uint32).tobytes()))
 
     # the vertex accessor
     tree['accessors'].append({
@@ -380,7 +386,7 @@ def _append_mesh(mesh,
         "min": mesh.vertices.min(axis=0).tolist()})
     # vertices: 5126 is a float32
     buffer_items.append(
-        _byte_pad(mesh.vertices.astype(np.float32).tobytes()))
+        _byte_pad(mesh.vertices.astype(float32).tobytes()))
 
     # make sure to append colors after other stuff to
     # not screw up the indexes of accessors or buffers
@@ -394,7 +400,7 @@ def _append_mesh(mesh,
 
         color_data = _byte_pad(
             mesh.visual.vertex_colors.astype(
-                np.uint8).tobytes())
+                uint8).tobytes())
 
         # the vertex color accessor data
         tree['accessors'].append({
@@ -421,7 +427,7 @@ def _append_mesh(mesh,
 
         normal_data = _byte_pad(
             mesh.vertex_normals.astype(
-                np.float32).tobytes())
+                float32).tobytes())
         # the vertex color accessor data
         tree['accessors'].append({
             "bufferView": len(buffer_items),
@@ -513,7 +519,7 @@ def _append_path(path, name, tree, buffer_items):
     # data is the second value of the fourth field
     # which is a (data type, data) tuple
     buffer_items.append(
-        _byte_pad(vxlist[4][1].astype(np.float32).tobytes()))
+        _byte_pad(vxlist[4][1].astype(float32).tobytes()))
 
 
 def _read_buffers(header, buffers):
@@ -577,7 +583,7 @@ def _read_buffers(header, buffers):
                 color = np.array([.5, .5, .5, 1])
 
             # convert float 0-1 colors to uint8 colors and append
-            colors.append((color * 255).astype(np.uint8))
+            colors.append((color * 255).astype(uint8))
 
     # load data from accessors into Trimesh objects
     meshes = collections.OrderedDict()

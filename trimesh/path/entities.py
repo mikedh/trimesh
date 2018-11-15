@@ -439,9 +439,13 @@ class BSpline(Curve):
     def _bytes(self):
         # give consistent ordering of points for hash
         if self.points[0] > self.points[-1]:
-            return b'BSpline' + self.knots.tobytes() + self.points.tobytes()
+            return (b'BSpline' +
+                    self.knots.tobytes() +
+                    self.points.tobytes())
         else:
-            return b'BSpline' + self.knots[::-1].tobytes() + self.points[::-1].tobytes()
+            return (b'BSpline' +
+                    self.knots[::-1].tobytes() +
+                    self.points[::-1].tobytes())
 
     def to_dict(self):
         """
