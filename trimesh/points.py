@@ -518,8 +518,8 @@ class PointCloud(Geometry):
         from .scene.scene import Scene
         return Scene(self)
 
-    def show(self):
+    def show(self, **kwargs):
         """
         Open a viewer window displaying the current PointCloud
         """
-        self.scene().show()
+        self.scene().show(**kwargs)
