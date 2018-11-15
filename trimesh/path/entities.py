@@ -172,10 +172,12 @@ class Entity(object):
 
     def _bytes(self):
         # give consistent ordering of points for hash
-        direction = [1, -1][int(self.points[0] > self.points[-1])]
-        hashable = (self.__class__.__name__.encode('utf-8') +
-                    self.points[::direction].tobytes())
-        return hashable
+        if self.points[0] > self.points[-1]:
+            return (self.__class__.__name__.encode('utf-8') +
+                    self.points.tobytes())
+        else:
+            return (self.__class__.__name__.encode('utf-8') +
+                    self.points[::-1].tobytes())
 
 
 class Line(Entity):
@@ -230,6 +232,13 @@ class Line(Entity):
         exploded = [Line(i) for i in points]
         return exploded
 
+    def _bytes(self):
+        # give consistent ordering of points for hash
+        if self.points[0] > self.points[-1]:
+            return b'Line' + self.points.tobytes()
+        else:
+            return b'Line' + self.points[::-1].tobytes()
+
 
 class Arc(Entity):
 
@@ -273,11 +282,11 @@ class Arc(Entity):
         return len(np.unique(self.points)) == 3
 
     def _bytes(self):
-        direction = [1, -1][int(self.points[0] > self.points[-1])]
-        hashable = (self.__class__.__name__.encode('utf-8') +
-                    bytes(bool(self.closed)) +
-                    self.points[::direction].tobytes())
-        return hashable
+        # give consistent ordering of points for hash
+        if self.points[0] > self.points[-1]:
+            return b'Arc' + bytes(self.closed) + self.points.tobytes()
+        else:
+            return b'Arc' + bytes(self.closed) + self.points[::-1].tobytes()
 
     def discrete(self, vertices, scale=1.0):
         """
@@ -428,11 +437,11 @@ class BSpline(Curve):
         return self._orient(discrete)
 
     def _bytes(self):
-        direction = [1, -1][int(self.points[0] > self.points[-1])]
-        hashable = (self.__class__.__name__.encode('utf-8') +
-                    self.knots[::direction].tobytes() +
-                    self.points[::direction].tobytes())
-        return hashable
+        # give consistent ordering of points for hash
+        if self.points[0] > self.points[-1]:
+            return b'BSpline' + self.knots.tobytes() + self.points.tobytes()
+        else:
+            return b'BSpline' + self.knots[::-1].tobytes() + self.points[::-1].tobytes()
 
     def to_dict(self):
         """

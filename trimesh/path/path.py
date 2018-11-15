@@ -23,6 +23,7 @@ from .util import concatenate
 
 from .. import util
 from .. import units
+from .. import graph
 from .. import caching
 from .. import grouping
 from .. import transformations
@@ -132,11 +133,10 @@ class Path(object):
         crc: int, CRC of entity points and vertices
         """
         # first CRC the points in every entity
-        target = caching.crc32(bytes().join(
-            e._bytes()
-            for e in self.entities))
+        target = caching.crc32(bytes().join(e._bytes()
+                                            for e in self.entities))
         # add the CRC for the vertices
-        target += self.vertices.crc()
+        target ^= self.vertices.crc()
         return target
 
     def md5(self):
@@ -147,11 +147,12 @@ class Path(object):
         ------------
         md5: str, two appended MD5 hashes
         """
+        # first MD5 the points in every entity
+        target = '{}{}'.format(
+            util.md5_object(bytes().join(e._bytes()
+                                         for e in self.entities)),
+            self.vertices.md5())
 
-        target = util.md5_object(bytes().join(
-            e._bytes()
-            for e in self.entities))
-        target += self.vertices.md5()
         return target
 
     @caching.cache_decorator
@@ -335,6 +336,21 @@ class Path(object):
         """
         graph, closed = traversal.vertex_graph(self.entities)
         return graph
+
+    @caching.cache_decorator
+    def vertex_nodes(self):
+        """
+        Get a list of which vertex indices are nodes,
+        which are either endpoints or points where the
+        entity makes a direction change.
+
+        Returns
+        --------------
+        nodes : (n, 2) int
+          Indexes of self.vertices which are nodes
+        """
+        nodes = np.vstack([e.nodes for e in self.entities])
+        return nodes
 
     def apply_transform(self, transform):
         """

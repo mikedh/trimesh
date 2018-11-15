@@ -436,5 +436,13 @@ def check_Path2D(path):
 
 
 if __name__ == '__main__':
-    g.trimesh.util.attach_to_log()
+    from pyinstrument import Profiler
+    prof = Profiler()
+    prof.start()
+
+    # g.trimesh.util.attach_to_log()
     g.unittest.main()
+
+    prof.stop()
+    txt = prof.output_text(unicode=True, color=True)
+    print(txt)
