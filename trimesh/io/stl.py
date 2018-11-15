@@ -7,12 +7,15 @@ class HeaderError(Exception):
 
 
 # define a numpy datatype for the data section of a binary STL file
-_stl_dtype = np.dtype([('normals', np.dtype('<f4'), (3)),
-                       ('vertices', np.dtype('<f4'), (3, 3)),
-                       ('attributes', np.dtype('<u2'))])
+# everything in STL is always Little Endian
+# this works natively on Little Endian systems, but blows up on Big Endians
+# so we always specify byteorder
+_stl_dtype = np.dtype([('normals', '<f4', (3)),
+                       ('vertices', '<f4', (3, 3)),
+                       ('attributes', '<u2')])
 # define a numpy datatype for the header of a binary STL file
 _stl_dtype_header = np.dtype([('header', np.void, 80),
-                              ('face_count', np.dtype('<i4'))])
+                              ('face_count', '<i4')])
 
 
 def load_stl(file_obj, file_type=None):
@@ -174,8 +177,8 @@ def load_stl_ascii(file_obj):
 
     # faces are groups of three sequential vertices
     faces = np.arange(face_count * 3).reshape((-1, 3))
-    face_normals = blob[normal_index].astype(np.float64)
-    vertices = blob[vertex_index.reshape((-1, 3))].astype(np.float64)
+    face_normals = blob[normal_index].astype('<f8')
+    vertices = blob[vertex_index.reshape((-1, 3))].astype('<f8')
 
     return {'vertices': vertices,
             'faces': faces,

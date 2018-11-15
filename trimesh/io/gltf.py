@@ -20,13 +20,13 @@ _magic = {'gltf': 1179937895,
           'json': 1313821514,
           'bin': 5130562}
 
-# GLTF data type codes: numpy dtypes
-_types = {5120: np.int8,
-          5121: np.uint8,
-          5122: np.int16,
-          5123: np.uint16,
-          5125: np.uint32,
-          5126: np.float32}
+# GLTF data type codes: numpy dtypes, always little endian
+_types = {5120: '<i1',
+          5121: '<u1',
+          5122: '<i2',
+          5123: '<u2',
+          5125: '<u4',
+          5126: '<f4'}
 
 # GLTF data formats: numpy shapes
 _shapes = {'SCALAR': -1,
@@ -146,13 +146,13 @@ def export_glb(scene, include_normals=False):
                   len(content),
                   # magic number which is 'JSON'
                   1313821514],
-                 dtype=np.uint32).tobytes())
+                 dtype='<u4').tobytes())
 
     # the header of the binary data section
     bin_header = _byte_pad(
         np.array([len(buffer_data),
                   0x004E4942],
-                 dtype=np.uint32).tobytes())
+                 dtype='<u4').tobytes())
 
     exported = bytes().join([header,
                              content,
@@ -186,7 +186,7 @@ def load_glb(file_obj, **passed):
     # read the first 20 bytes which contain section lengths
     head_data = file_obj.read(20)
     head = np.frombuffer(head_data,
-                         dtype=np.uint32)
+                         dtype='<u4')
 
     # check to make sure first index is gltf
     # and second is 2, for GLTF 2.0
@@ -223,7 +223,7 @@ def load_glb(file_obj, **passed):
             break
 
         chunk_length, chunk_type = np.frombuffer(chunk_head,
-                                                 dtype=np.uint32)
+                                                 dtype='<u4')
         # make sure we have the right data type
         if chunk_type != _magic['bin']:
             raise ValueError('not binary GLTF!')
@@ -572,7 +572,7 @@ def _read_buffers(header, buffers):
             # get the base color of the material
             try:
                 color = np.array(mat['pbrMetallicRoughness']['baseColorFactor'],
-                                 dtype=np.float)
+                                 dtype='<f8')
             except BaseException:
                 color = np.array([.5, .5, .5, 1])
 
