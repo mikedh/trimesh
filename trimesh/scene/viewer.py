@@ -9,6 +9,7 @@ import collections
 
 from .. import rendering
 from ..transformations import Arcball
+from ..util import log
 
 # smooth only when fewer faces than this
 _SMOOTH_MAX_FACES = 100000
@@ -38,6 +39,20 @@ class SceneViewer(pyglet.window.Window):
         self.vertex_list_hash = {}
         self.vertex_list_mode = {}
 
+        if scene.camera is not None:
+            if resolution is not None:
+                resolution_from_cam = (scene.camera.width, scene.camera.height)
+                if resolution != resolution_from_cam:
+                    log.warning(
+                        'resolution is overwritten by Camera: '
+                        '{} -> {}'.format(resolution, resolution_from_cam)
+                    )
+                    resolution = resolution_from_cam
+        else:
+            if 'camera' not in scene.graph:
+                # if the camera hasn't been set, set it now
+                scene.set_camera()
+
         try:
             # try enabling antialiasing
             # if you have a graphics card this will probably work
@@ -57,10 +72,6 @@ class SceneViewer(pyglet.window.Window):
                                               visible=visible,
                                               width=resolution[0],
                                               height=resolution[1])
-
-        if 'camera' not in scene.graph:
-            # if the camera hasn't been set, set it now
-            scene.set_camera()
 
         for name, mesh in scene.geometry.items():
             self.add_geometry(name=name,
@@ -212,7 +223,8 @@ class SceneViewer(pyglet.window.Window):
         gl.glViewport(0, 0, width, height)
         gl.glMatrixMode(gl.GL_PROJECTION)
         gl.glLoadIdentity()
-        gl.gluPerspective(60.,
+        fovy = self.scene.camera.fovy if self.scene.camera else 60
+        gl.gluPerspective(fovy,
                           width / float(height),
                           .01,
                           self.scene.scale * 5.0)

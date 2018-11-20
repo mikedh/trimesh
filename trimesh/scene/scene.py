@@ -60,6 +60,8 @@ class Scene(Geometry):
             # if we've been passed a graph override the default
             self.graph = graph
 
+        self.camera = None
+
     def add_geometry(self,
                      geometry,
                      node_name=None,
@@ -379,7 +381,8 @@ class Scene(Geometry):
     def set_camera(self,
                    angles=None,
                    distance=None,
-                   center=None):
+                   center=None,
+                   camera=None):
         """
         Add a transform to self.graph for 'camera'
 
@@ -393,7 +396,22 @@ class Scene(Geometry):
                      Distance from centroid
         center:    (3,) float
                      Point camera should be center on
+        camera:  Camera object
+                     Object that stores camera parameters
         """
+        if camera is not None:
+            if not (angles is None and distance is None and center is None):
+                raise ValueError(
+                    'If camera is given, angles, distance '
+                    'and center must be None'
+                )
+
+            self.graph.update(frame_from='camera',
+                              frame_to=self.graph.base_frame,
+                              matrix=camera.transform)
+            self.camera = camera
+            return
+
         if len(self.geometry) == 0:
             return
 
