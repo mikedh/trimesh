@@ -777,3 +777,44 @@ def random_soup(face_count=100):
     faces = np.arange(face_count * 3).reshape((-1, 3))
     soup = Trimesh(vertices=vertices, faces=faces)
     return soup
+
+
+def axis(transform=None,
+         origin_size=0.04,
+         origin_color=(255, 255, 255),
+         axis_radius=0.01,
+         axis_length=0.4):
+    if transform is None:
+        transform = np.eye(4)
+
+    axis_origin = icosphere(radius=origin_size)
+    axis_origin.apply_transform(transform)
+    axis_origin.visual.face_colors = origin_color
+
+    # z-axis
+    translation = transformations.translation_matrix([0, 0, axis_length / 2])
+    transform_z_axis = transform.dot(translation)
+    z_axis = cylinder(
+        radius=axis_radius, height=axis_length, transform=transform_z_axis
+    )
+    z_axis.visual.face_colors = [0, 0, 255]  # blue
+
+    # y-axis
+    translation = transformations.translation_matrix([0, 0, axis_length / 2])
+    rotation = transformations.rotation_matrix(np.deg2rad(-90), [1, 0, 0])
+    transform_y_axis = transform.dot(rotation).dot(translation)
+    y_axis = cylinder(
+        radius=axis_radius, height=axis_length, transform=transform_y_axis
+    )
+    y_axis.visual.face_colors = [0, 255, 0]  # green
+
+    # x-axis
+    translation = transformations.translation_matrix([0, 0, axis_length / 2])
+    rotation = transformations.rotation_matrix(np.deg2rad(90), [0, 1, 0])
+    transform_x_axis = transform.dot(rotation).dot(translation)
+    x_axis = cylinder(
+        radius=axis_radius, height=axis_length, transform=transform_x_axis
+    )
+    x_axis.visual.face_colors = [255, 0, 0]  # red
+
+    return axis_origin + x_axis + y_axis + z_axis
