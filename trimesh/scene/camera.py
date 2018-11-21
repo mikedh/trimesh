@@ -13,6 +13,16 @@ class Camera(object):
         fovxy=None,
         transform=None,
     ):
+        """
+        Create a new Camera object that stores camera intrinsic parameters
+
+        Parameters
+        ----------
+        resolution: (2,) int, (height, width)
+        fxfy: (2,) float, (fx, fy) = (K[0][0], K[1][1])
+        fovxy: (2,) float, (fovx, fovy) in degree
+        transform: (4, 4) float, transformation matrix
+        """
         # TODO(unknown): skew is not supported
         # TODO(unknown): cx and cy that are not half of width and height
 
