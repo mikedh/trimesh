@@ -38,6 +38,15 @@ class CreationTest(g.unittest.TestCase):
         self.assertTrue(sphere.is_watertight)
         self.assertTrue(sphere.is_winding_consistent)
 
+    def test_axis(self):
+        origin_size = 0.04
+        axis_length = 0.4
+        axis = g.trimesh.creation.axis(
+            origin_size=origin_size, axis_length=axis_length
+        )
+        assert all(e == (origin_size + axis_length)
+                   for e in axis.bounding_box.primitive.extents)
+
     def test_path_sweep(self):
 
         if len(self.engines) == 0:
