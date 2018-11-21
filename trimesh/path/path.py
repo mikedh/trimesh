@@ -288,32 +288,57 @@ class Path(object):
             new_entities.extend(entity.explode())
         self.entities = np.array(new_entities)
 
-    def fill_gaps(self, max_distance=np.inf):
+    def fill_gaps(self, max_distance=None):
         """
-        Find vertices with degree 1 and try to connect them to other
-        vertices of degree 1, in place.
+        Find vertices with degree 1 and try to connect them to
+        other vertices of degree 1, in place.
 
         Parameters
         ----------
-        max_distance: float, connect vertices up to this distance.
-                      Default is infinity, but something like path.scale/100
-                      may make more sense.
+        max_distance : float
+          Connect vertices up to this distance.
+          Default is path.scale / 1000.0
         """
 
+        # which vertices are only connected to one entity
         broken = np.array(
-            [k for k, v in dict(self.vertex_graph.degree()).items() if v == 1])
+            [k for k, v in
+             dict(self.vertex_graph.degree()).items() if v == 1])
+
+        # of there is only one broken end we can't do anything
         if len(broken) < 2:
             return
 
+        # find pairs of close vertices
         distance, node = KDTree(self.vertices[broken]).query(
             self.vertices[broken], k=2)
 
-        edges = broken[node]
-        ok = np.logical_and(distance[:, 1] < max_distance, [
-                            not self.vertex_graph.has_edge(*i) for i in edges])
+        # set a scale- relative max distance
+        if max_distance is None:
+            max_distance = self.scale / 1000.0
 
-        self.entities = np.append(self.entities,
-                                  [entities.Line(i) for i in edges[ok]])
+        # change edges into a (n, 2) int
+        # that references self.vertices
+        edges = np.sort(broken[node], axis=1)
+        # remove duplicate edges
+        unique = grouping.unique_rows(edges)[0]
+        # apply the unique mask
+        edges = edges[unique]
+        distance = distance[unique]
+
+        # make sure edge doesn't exist and distance between
+        # vertices is the maximum allowable
+        ok = np.logical_and(distance[:, 1] < max_distance,
+                            [not self.vertex_graph.has_edge(*i) for i in edges])
+
+        # the vertices we want to merge
+        merge = edges[ok]
+        # do the merge with a mask
+        mask = np.arange(len(self.vertices))
+        mask[merge[:, 0]] = merge[:, 1]
+
+        # apply the mask to the
+        self.replace_vertex_references(mask)
 
     @property
     def is_closed(self):
@@ -324,7 +349,9 @@ class Path(object):
         -----------
         closed: every entity is connected at its ends
         """
-        closed = all(i == 2 for i in dict(self.vertex_graph.degree()).values())
+        closed = all(i == 2 for i in
+                     dict(self.vertex_graph.degree()).values())
+
         return closed
 
     @caching.cache_decorator
@@ -505,11 +532,13 @@ class Path(object):
 
         Parameters
         ------------
-        mask: (len(self.vertices), ) int, contains new vertex indexes
+        mask : (len(self.vertices), ) int
+          Contains new vertex indexes
 
         Alters
         ------------
-        entity.points in self.entities: replaced by mask[entity.points]
+        entity.points in self.entities
+          Replaced by mask[entity.points]
         """
         for entity in self.entities:
             entity.points = mask[entity.points]

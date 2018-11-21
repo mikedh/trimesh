@@ -49,12 +49,15 @@ def extrude_polygon(polygon,
 
     Parameters
     ----------
-    polygon: shapely.geometry.Polygon object
-    height:  float, distance to extrude polygon along Z
+    polygon : shapely.geometry.Polygon
+      2D geometry to extrude
+    height : float
+      Distance to extrude polygon along Z
 
     Returns
     ----------
-    mesh: Trimesh object of result
+    mesh : trimesh.Trimesh
+      Resulting extrusion as watertight body
     """
     vertices, faces = triangulate_polygon(polygon, **kwargs)
     mesh = extrude_triangulation(vertices=vertices,
@@ -69,20 +72,26 @@ def sweep_polygon(polygon,
                   angles=None,
                   **kwargs):
     """
-    Extrude a 2D shapely polygon into a watertight 3D mesh
-    along an arbitrary 3D path.
+    Extrude a 2D shapely polygon into a 3D mesh along an
+    arbitrary 3D path. Doesn't handle sharp curvature.
+
 
     Parameters
     ----------
-    polygon: shapely.geometry.Polygon object
-    path:    (n,3) float, a path in 3D
-    angles:  (n,) float, optional rotation angle relative to prior vertex
-                         at each vertex
+    polygon : shapely.geometry.Polygon
+      Profile to sweep along path
+    path : (n, 3) float
+      A path in 3D
+    angles :  (n,) float
+      Optional rotation angle relative to prior vertex
+      at each vertex
 
     Returns
     -------
-    mesh : Trimesh object of result
+    mesh : trimesh.Trimesh
+      Geometry of result
     """
+
     path = np.asanyarray(path, dtype=np.float64)
     if not util.is_shape(path, (-1, 3)):
         raise ValueError('Path must be (n, 3)!')
@@ -101,8 +110,10 @@ def sweep_polygon(polygon,
     # Compute 3D locations of those vertices
     verts_3d = np.c_[verts_2d, np.zeros(n)]
     verts_3d = transformations.transform_points(verts_3d, tf_mat)
-    base_verts_3d = np.c_[base_verts_2d, np.zeros(len(base_verts_2d))]
-    base_verts_3d = transformations.transform_points(base_verts_3d, tf_mat)
+    base_verts_3d = np.c_[base_verts_2d,
+                          np.zeros(len(base_verts_2d))]
+    base_verts_3d = transformations.transform_points(base_verts_3d,
+                                                     tf_mat)
 
     # keep matching sequence of vertices and 0- indexed faces
     vertices = [base_verts_3d]
@@ -261,8 +272,8 @@ def triangulate_polygon(polygon,
     """
     Given a shapely polygon create a triangulation using one of
     the python interfaces to triangle.c:
-    pip install meshpy
-    pip install triangle
+    > pip install meshpy
+    > pip install triangle
 
     Parameters
     ---------
@@ -333,11 +344,13 @@ def _polygon_to_kwargs(polygon):
 
     Parameters
     ---------
-    polygon: Shapely.geometry.Polygon
+    polygon : Shapely.geometry.Polygon
+      Input geometry
 
     Returns
     --------
-    result: dict, with keys: vertices, segments, holes
+    result : dict
+      Has keys: vertices, segments, holes
     """
 
     if not polygon.is_valid:
@@ -426,12 +439,15 @@ def box(extents=None, transform=None):
 
     Parameters
     ------------
-    extents: float, or (3,) float edge length
-    transform: (4, 4) float, transformation matrix
+    extents : float, or (3,) float
+      Edge lengths
+    transform: (4, 4) float
+      Transformation matrix
 
     Returns
     ------------
-    box: Trimesh object
+    box : trimesh.Trimesh
+      Cuboid geometry in space
     """
     vertices = [0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1,
                 1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1]
@@ -471,6 +487,10 @@ def icosahedron():
     """
     Create an icosahedron, a 20 faced polyhedron.
 
+    Returns
+    -------------
+    ico : trimesh.Trimesh
+      Icosahederon centered at the origin.
     """
     t = (1.0 + 5.0**.5) / 2.0
     vertices = [-1, t, 0, 1, t, 0, -1, -t, 0, 1, -t, 0, 0, -1, t, 0, 1, t,
@@ -526,9 +546,9 @@ def uv_sphere(radius=1.0,
               theta=None,
               phi=None):
     """
-    Create a UV sphere (latitude + longitude) centered at the origin.
-
-    Roughly one order of magnitude faster than an icosphere but slightly uglier.
+    Create a UV sphere (latitude + longitude) centered at the
+    origin. Roughly one order of magnitude faster than an
+    icosphere but slightly uglier.
 
     Parameters
     ----------
@@ -603,16 +623,20 @@ def capsule(height=1.0,
 
     Parameters
     ----------
-    height: float, center to center distance of two spheres
-    radius: float, radius of the cylinder and hemispheres
-    count:  (2,) int, number of sections on latitude and longitude
+    height : float
+      Center to center distance of two spheres
+    radius : float
+      Radius of the cylinder and hemispheres
+    count : (2,) int
+      Number of sections on latitude and longitude
 
     Returns
     ----------
-    capsule: Trimesh of capsule with given properties
-             - cylinder axis is along Z
-             - one hemisphere is centered at the origin
-             - other hemisphere is centered along the Z axis at specified height
+    capsule : trimesh.Trimesh
+      Capsule geometry with:
+        - cylinder axis is along Z
+        - one hemisphere is centered at the origin
+        - other hemisphere is centered along the Z axis at height
     """
     height = float(height)
     radius = float(radius)
@@ -623,7 +647,8 @@ def capsule(height=1.0,
     # so that we can offset the top and bottom of a sphere to
     # get a nicely meshed capsule
     theta = np.linspace(0, np.pi, count[0])
-    center = np.clip(np.arctan(tol.merge / radius), tol.merge, np.inf)
+    center = np.clip(np.arctan(tol.merge / radius),
+                     tol.merge, np.inf)
     offset = np.array([-center, center]) + (np.pi / 2)
     theta = np.insert(theta,
                       int(len(theta) / 2),
@@ -649,15 +674,16 @@ def cylinder(radius=1.0,
     Parameters
     ----------
     radius : float
-             The radius of the cylinder
+      The radius of the cylinder
     height : float
-             The height of the cylinder
+      The height of the cylinder
     sections : int
-               How many pie wedges should the cylinder have
+      How many pie wedges should the cylinder have
 
     Returns
     ----------
-    cylinder: Trimesh, resulting mesh
+    cylinder: trimesh.Trimesh
+      Resulting mesh of a cylinder
     """
 
     # create a 2D pie out of wedges
@@ -767,11 +793,13 @@ def random_soup(face_count=100):
 
     Parameters
     -----------
-    face_count: int, number of faces in resultant mesh
+    face_count : int
+      Number of faces in resultant mesh
 
     Returns
     -----------
-    soup: Trimesh object with face_count random faces
+    soup : trimesh.Trimesh
+      Geometry with face_count random faces
     """
     vertices = np.random.random((face_count * 3, 3)) - 0.5
     faces = np.arange(face_count * 3).reshape((-1, 3))
@@ -781,55 +809,90 @@ def random_soup(face_count=100):
 
 def axis(transform=None,
          origin_size=0.04,
-         origin_color=(1.0, 1.0, 1.0),
-         axis_radius=0.01,
-         axis_length=0.4):
+         origin_color=None,
+         axis_radius=None,
+         axis_length=None):
     """
-    Return XYZ axis as Trimesh, which represents position and orientation
+    Return XYZ axis as Trimesh, which represents position and
+    orientation.
 
     Parameters
     ----------
-    transform: (4, 4) float, transformation matrix
-    origin_size: float, radius of sphere that represents the origin
-    origin_color: (3,) float or int, uint8 or float color of the origin
-    axis_radius: float, radius of cylinder that represents x, y, z axis
-    axis_length: float, length of cylinder that represents x, y, z axis
+    transform : (4, 4) float
+      Transformation matrix
+    origin_size : float
+      Radius of sphere that represents the origin
+    origin_color : (3,) float or int, uint8 or float
+      Color of the origin
+    axis_radius : float
+      Radius of cylinder that represents x, y, z axis
+    axis_length: float
+      Length of cylinder that represents x, y, z axis
 
     Returns
     -------
-    axis: Trimesh object
+    axis : trimesh.Trimesh
+      Mesh geometry of axis indicators
     """
+    # the size of the ball representing the origin
+    origin_size = float(origin_size)
+
+    # set the transform and use origin-relative
+    # sized for other parameters if not specified
     if transform is None:
         transform = np.eye(4)
+    if origin_color is None:
+        origin_color = [255, 255, 255, 255]
+    if axis_radius is None:
+        axis_radius = origin_size / 5.0
+    if axis_length is None:
+        axis_length = origin_size * 10.0
 
-    axis_origin = icosphere(radius=origin_size)
+    # generate a ball for the origin
+    axis_origin = uv_sphere(radius=origin_size,
+                            count=[16, 16])
     axis_origin.apply_transform(transform)
+
+    # apply color to the origin ball
     axis_origin.visual.face_colors = origin_color
 
-    # z-axis
-    translation = transformations.translation_matrix([0, 0, axis_length / 2])
-    transform_z_axis = transform.dot(translation)
+    # create the cylinder for the z-axis
+    translation = transformations.translation_matrix(
+        [0, 0, axis_length / 2])
     z_axis = cylinder(
-        radius=axis_radius, height=axis_length, transform=transform_z_axis
-    )
-    z_axis.visual.face_colors = [0, 0, 255]  # blue
+        radius=axis_radius,
+        height=axis_length,
+        transform=transform.dot(translation))
+    # XYZ->RGB, Z is blue
+    z_axis.visual.face_colors = [0, 0, 255]
 
-    # y-axis
-    translation = transformations.translation_matrix([0, 0, axis_length / 2])
-    rotation = transformations.rotation_matrix(np.deg2rad(-90), [1, 0, 0])
-    transform_y_axis = transform.dot(rotation).dot(translation)
+    # create the cylinder for the y-axis
+    translation = transformations.translation_matrix(
+        [0, 0, axis_length / 2])
+    rotation = transformations.rotation_matrix(np.radians(-90),
+                                               [1, 0, 0])
     y_axis = cylinder(
-        radius=axis_radius, height=axis_length, transform=transform_y_axis
-    )
-    y_axis.visual.face_colors = [0, 255, 0]  # green
+        radius=axis_radius,
+        height=axis_length,
+        transform=transform.dot(rotation).dot(translation))
+    # XYZ->RGB, Y is green
+    y_axis.visual.face_colors = [0, 255, 0]
 
-    # x-axis
-    translation = transformations.translation_matrix([0, 0, axis_length / 2])
-    rotation = transformations.rotation_matrix(np.deg2rad(90), [0, 1, 0])
-    transform_x_axis = transform.dot(rotation).dot(translation)
+    # create the cylinder for the x-axis
+    translation = transformations.translation_matrix(
+        [0, 0, axis_length / 2])
+    rotation = transformations.rotation_matrix(np.radians(90),
+                                               [0, 1, 0])
     x_axis = cylinder(
-        radius=axis_radius, height=axis_length, transform=transform_x_axis
-    )
-    x_axis.visual.face_colors = [255, 0, 0]  # red
+        radius=axis_radius,
+        height=axis_length,
+        transform=transform.dot(rotation).dot(translation))
+    # XYZ->RGB, X is red
+    x_axis.visual.face_colors = [255, 0, 0]
 
-    return axis_origin + x_axis + y_axis + z_axis
+    # append the sphere and three cylinders
+    result = util.concatenate([axis_origin,
+                               x_axis,
+                               y_axis,
+                               z_axis])
+    return result

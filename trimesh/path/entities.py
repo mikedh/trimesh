@@ -361,10 +361,10 @@ class Curve(Entity):
     """
     @property
     def nodes(self):
-        return [[self.points[0],
-                 self.points[1]],
-                [self.points[1],
-                 self.points[-1]]]
+        # a point midway through the curve
+        mid = self.points[len(self.points) // 2]
+        return [[self.points[0], mid],
+                [mid, self.points[-1]]]
 
 
 class Bezier(Curve):
