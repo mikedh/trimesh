@@ -125,9 +125,10 @@ class VectorTests(g.unittest.TestCase):
                    g.trimesh.util.is_instance_named(i, 'Line'))
         assert p.is_closed
         p.entities = p.entities[:-1]
-        self.assertFalse(p.is_closed)
+        assert not p.is_closed
 
-        p.fill_gaps()
+        # fill gaps of any distance
+        p.fill_gaps(g.np.inf)
         assert p.is_closed
 
     def test_edges(self):
@@ -149,11 +150,13 @@ class VectorTests(g.unittest.TestCase):
         group = g.trimesh.grouping.group_rows(edges, require_count=1)
 
         # run the polygon conversion
-        polygon = g.trimesh.path.polygons.edges_to_polygons(edges=edges[group],
-                                                            vertices=vertices)
+        polygon = g.trimesh.path.polygons.edges_to_polygons(
+            edges=edges[group],
+            vertices=vertices)
 
         assert len(polygon) == 1
-        assert g.np.isclose(polygon[0].area, m.facets_area[index])
+        assert g.np.isclose(polygon[0].area,
+                            m.facets_area[index])
 
         # try transforming the polygon around
         M = g.np.eye(3)
