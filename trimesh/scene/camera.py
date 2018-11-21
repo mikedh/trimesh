@@ -1,3 +1,6 @@
+import collections
+import numbers
+
 import numpy as np
 
 
@@ -5,74 +8,80 @@ class Camera(object):
 
     def __init__(
         self,
-        width=None,
-        height=None,
-        fx=None,
-        fy=None,
-        fovx=None,
-        fovy=None,
+        resolution=None,
+        fxfy=None,
+        fovxy=None,
         transform=None,
     ):
         # TODO(unknown): skew is not supported
         # TODO(unknown): cx and cy that are not half of width and height
-        self.width = width
-        self.height = height
-        self._fx = fx
-        self._fy = fy
-        self._fovx = fovx
-        self._fovy = fovy
+
+        if resolution:
+            if (not isinstance(resolution, collections.Sequence) or
+                    len(resolution) != 2 or
+                    not all(isinstance(x, int) for x in resolution)):
+                raise ValueError(
+                    'resolution must be sequence of integer as (height, width)'
+                )
+        self.resolution = resolution
+
+        if fxfy:
+            if (not isinstance(fxfy, collections.Sequence) or
+                    len(fxfy) != 2 or
+                    not all(isinstance(x, numbers.Real) for x in fxfy)):
+                raise ValueError(
+                    'fxfy must be sequence of real as (fx, fy)'
+                )
+        self._fxfy = fxfy
+
+        if fovxy:
+            if (not isinstance(fovxy, collections.Sequence) or
+                    len(fovxy) != 2 or
+                    not all(isinstance(x, numbers.Real) for x in fovxy)):
+                raise ValueError(
+                    'fovxy must be sequence of real as (fovx, fovy)'
+                )
+        self._fovxy = fovxy
 
         if transform is None:
             transform = np.eye(4)
         self.transform = transform
 
-    @property
-    def fx(self):
-        if self._fx is None:
-            assert self.width is not None
-            assert self._fovx is not None
-            self._fx = (
-                (self.width / 2.) /
-                np.tan(np.deg2rad(self._fovx / 2.))
-            )
-        return self._fx
+    @staticmethod
+    def _get_f(pixel_size, fov):
+        assert pixel_size is not None
+        assert fov is not None
+        f = ((pixel_size / 2.) / np.tan(np.deg2rad(fov / 2.)))
+        return f
 
     @property
-    def fy(self):
-        if self._fy is None:
-            assert self.height is not None
-            assert self._fovy is not None
-            self._fy = (
-                (self.height / 2.) /
-                np.tan(np.deg2rad(self._fovy / 2.))
-            )
-        return self._fy
+    def fxfy(self):
+        if self._fxfy is None:
+            fx = self._get_f(self.resolution[0], self.fovxy[0])
+            fy = self._get_f(self.resolution[1], self.fovxy[1])
+            self._fxfy = (fx, fy)
+        return self._fxfy
 
     @property
     def K(self):
         K = np.eye(3, dtype=np.float64)
-        K[0, 0] = self.fx
-        K[1, 1] = self.fy
-        K[0, 2] = self.width / 2.
-        K[1, 2] = self.height / 2.
+        K[0, 0] = self.fxfy[0]
+        K[1, 1] = self.fxfy[1]
+        K[0, 2] = self.resolution[0] / 2.
+        K[1, 2] = self.resolution[1] / 2.
         return K
 
-    @property
-    def fovx(self):
-        if self._fovx is None:
-            assert self.width is not None
-            assert self._fx is not None
-            self._fovx = 2 * np.rad2deg(
-                np.arctan(self.width / 2. / self._fx)
-            )
-        return self._fovx
+    @staticmethod
+    def _get_fov(pixel_size, f):
+        assert pixel_size is not None
+        assert f is not None
+        fov = 2 * np.rad2deg(np.arctan(pixel_size / 2. / f))
+        return fov
 
     @property
-    def fovy(self):
-        if self._fovy is None:
-            assert self.height is not None
-            assert self._fy is not None
-            self._fovy = 2 * np.rad2deg(
-                np.arctan(self.height / 2. / self._fy)
-            )
-        return self._fovy
+    def fovxy(self):
+        if self._fovxy is None:
+            fovx = self._get_fov(self.resolution[0], self.fxfy[0])
+            fovy = self._get_fov(self.resolution[1], self.fxfy[1])
+            self._fovxy = (fovx, fovy)
+        return self._fovxy

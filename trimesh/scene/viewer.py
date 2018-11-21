@@ -41,13 +41,12 @@ class SceneViewer(pyglet.window.Window):
 
         if scene.camera is not None:
             if resolution is not None:
-                resolution_from_cam = (scene.camera.width, scene.camera.height)
-                if resolution != resolution_from_cam:
+                if resolution != scene.camera.resolution:
                     log.warning(
                         'resolution is overwritten by Camera: '
-                        '{} -> {}'.format(resolution, resolution_from_cam)
+                        '{} -> {}'.format(resolution, scene.camera.resolution)
                     )
-                    resolution = resolution_from_cam
+                    resolution = scene.camera.resolution
         else:
             if 'camera' not in scene.graph:
                 # if the camera hasn't been set, set it now
@@ -223,7 +222,7 @@ class SceneViewer(pyglet.window.Window):
         gl.glViewport(0, 0, width, height)
         gl.glMatrixMode(gl.GL_PROJECTION)
         gl.glLoadIdentity()
-        fovy = self.scene.camera.fovy if self.scene.camera else 60
+        fovy = self.scene.camera.fovxy[1] if self.scene.camera else 60
         gl.gluPerspective(fovy,
                           width / float(height),
                           .01,
