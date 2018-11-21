@@ -781,9 +781,24 @@ def random_soup(face_count=100):
 
 def axis(transform=None,
          origin_size=0.04,
-         origin_color=(255, 255, 255),
+         origin_color=(1.0, 1.0, 1.0),
          axis_radius=0.01,
          axis_length=0.4):
+    """
+    Return XYZ axis as Trimesh, which represents position and orientation
+
+    Parameters
+    ----------
+    transform: (4, 4) float, transformation matrix
+    origin_size: float, radius of sphere that represents the origin
+    origin_color: (3,) float or int, uint8 or float color of the origin
+    axis_radius: float, radius of cylinder that represents x, y, z axis
+    axis_length: float, length of cylinder that represents x, y, z axis
+
+    Returns
+    -------
+    axis: Trimesh object
+    """
     if transform is None:
         transform = np.eye(4)
 
