@@ -823,14 +823,15 @@ def random_soup(face_count=100):
     return soup
 
 
-def axis(transform=None,
-         origin_size=0.04,
+def axis(origin_size=0.04,
+         transform=None,
          origin_color=None,
          axis_radius=None,
          axis_length=None):
     """
     Return XYZ axis as Trimesh, which represents position and
-    orientation.
+    orientation. If you set the origin size, other parameters
+    will be set relative to it.
 
     Parameters
     ----------
@@ -866,7 +867,7 @@ def axis(transform=None,
 
     # generate a ball for the origin
     axis_origin = uv_sphere(radius=origin_size,
-                            count=[16, 16])
+                            count=[10, 10])
     axis_origin.apply_transform(transform)
 
     # apply color to the origin ball

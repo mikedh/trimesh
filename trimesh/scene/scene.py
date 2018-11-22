@@ -34,11 +34,14 @@ class Scene(Geometry):
 
         Parameters
         -------------
-        geometry:   Trimesh, Path2D, Path3D object, or list of same
-        base_frame: str, name of base frame
-        metadata:   dict, any metadata about the scene
-        graph:      TransformForest, graph to use
-                    None: create a new TransformForest
+        geometry : Trimesh, Path2D, Path3D PointCloud or list
+          Geometry to initially add to the scene
+        base_frame : str or hashable
+          Name of base frame
+        metadata : dict
+          Any metadata about the scene
+        graph : TransformForest or None
+          A passed transform graph to use
         """
         # mesh name : Trimesh object
         self.geometry = collections.OrderedDict()
@@ -77,14 +80,19 @@ class Scene(Geometry):
 
         Parameters
         ----------
-        geometry: Trimesh, Path3D, or list of same
-        node_name: name in the scene graph
-        parent_node_name: name of parent node in the scene graph
-        transform: (4, 4) float, transformation matrix
+        geometry : Trimesh, Path2D, Path3D PointCloud or list
+          Geometry to initially add to the scene
+        base_frame : str or hashable
+          Name of base frame
+        metadata : dict
+          Any metadata about the scene
+        graph : TransformForest or None
+          A passed transform graph to use
 
         Returns
         ----------
-        node_name: str, name of node in self.graph
+        node_name : str
+          Name of node in self.graph
         """
 
         if geometry is None:
@@ -393,43 +401,43 @@ class Scene(Geometry):
         """
         Add a transform to self.graph for 'camera'
 
-        If arguments are not passed sane defaults will be figured out.
+        If arguments are not passed sane defaults will be figured
+        out which show the mesh roughly centered.
 
         Parameters
         -----------
         angles : (3,) float
-                     Initial euler angles in radians
-        distance:  float
-                     Distance from centroid
-        center:    (3,) float
-                     Point camera should be center on
-        camera:  Camera object
-                     Object that stores camera parameters
+          Initial euler angles in radians
+        distance : float
+          Distance from centroid
+        center : (3,) float
+          Point camera should be center on
+        camera : Camera object
+          Object that stores camera parameters
         """
+        # passed camera object
         if camera is not None:
-            if not (angles is None and distance is None and center is None):
-                raise ValueError(
-                    'If camera is given, angles, distance '
-                    'and center must be None'
-                )
-
             self.graph.update(frame_from='camera',
                               frame_to=self.graph.base_frame,
                               matrix=camera.transform)
             self.camera = camera
             return
 
+        # if no geometry nothing to set camera to
         if len(self.geometry) == 0:
             return
 
+        # use centroid if no center passed
         if center is None:
             center = self.centroid
 
+        # use scene AABB to set standoff distance
         if distance is None:
             # for a 60.0 degree horizontal FOV
             distance = ((self.extents.max() / 2) /
                         np.tan(np.radians(60.0) / 2.0))
 
+        # set with no rotation by default
         if angles is None:
             angles = np.zeros(3)
 

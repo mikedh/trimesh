@@ -151,6 +151,7 @@ Trimesh includes an optional pyglet- based viewer for debugging/inspecting. In t
 * 'z' returns to the base view 
 * 'w' toggles wireframe mode
 * 'c' toggles backface culling
+* 'a' toggles an XYZ-RGB axis marker
 
 ## Containers
    
