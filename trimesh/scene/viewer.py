@@ -27,16 +27,16 @@ class SceneViewer(pyglet.window.Window):
                  callback_period=None,
                  **kwargs):
 
-        self.scene = scene
+        self.scene = self._scene = scene
         self.callback = callback
         self.callback_period = callback_period
         self.scene._redraw = self._redraw
         self.reset_view(flags=flags)
         self.batch = pyglet.graphics.Batch()
 
-        self.vertex_list = {}
-        self.vertex_list_hash = {}
-        self.vertex_list_mode = {}
+        self.vertex_list = self._vertex_list = {}
+        self.vertex_list_hash = self._vertex_list_hash = {}
+        self.vertex_list_mode = self._vertex_list_mode = {}
 
         try:
             # try enabling antialiasing
@@ -113,7 +113,8 @@ class SceneViewer(pyglet.window.Window):
                      'translation': np.zeros(3),
                      'center': self.scene.centroid,
                      'scale': self.scene.scale,
-                     'ball': Arcball()}
+                     'ball': Arcball(),
+                     'axis': False}
 
         try:
             self.view['ball'].place([self.width / 2.0,
@@ -189,6 +190,10 @@ class SceneViewer(pyglet.window.Window):
         self.view['wireframe'] = not self.view['wireframe']
         self.update_flags()
 
+    def toggle_axis(self):
+        self.view['axis'] = not self.view['axis']
+        self.update_flags()
+
     def update_flags(self):
         if self.view['wireframe']:
             gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
@@ -199,6 +204,29 @@ class SceneViewer(pyglet.window.Window):
             gl.glEnable(gl.GL_CULL_FACE)
         else:
             gl.glDisable(gl.GL_CULL_FACE)
+
+        if self.view['axis']:
+            import copy
+            from .. import creation
+            self._scene = self.scene.copy()
+            self._vertex_list = copy.copy(self.vertex_list)
+            self._vertex_list_hash = copy.copy(self.vertex_list_hash)
+            self._vertex_list_mode = copy.copy(self.vertex_list_mode)
+            for (node_from, node_to), edge_data in \
+                    self._scene.graph.transforms.edges.items():
+                name = 'axis/' + node_from + '-' + node_to
+                mesh = creation.axis(transform=edge_data['matrix'])
+                self.scene.add_geometry(
+                    geometry=mesh,
+                    node_name=name,
+                    geom_name=name,
+                )
+                self.add_geometry(name, mesh)
+        else:
+            self.scene = self._scene
+            self.vertex_list = self._vertex_list
+            self.vertex_list_hash = self._vertex_list_hash
+            self.vertex_list_mode = self._vertex_list_mode
 
     def on_resize(self, width, height):
         try:
@@ -246,6 +274,8 @@ class SceneViewer(pyglet.window.Window):
             self.reset_view()
         elif symbol == pyglet.window.key.C:
             self.toggle_culling()
+        elif symbol == pyglet.window.key.A:
+            self.toggle_axis()
         elif symbol == pyglet.window.key.Q:
             self.close()
         elif symbol == pyglet.window.key.LEFT:
