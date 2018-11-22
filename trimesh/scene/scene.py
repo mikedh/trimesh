@@ -63,7 +63,9 @@ class Scene(Geometry):
     def add_geometry(self,
                      geometry,
                      node_name=None,
-                     geom_name=None):
+                     geom_name=None,
+                     parent_node_name=None,
+                     transform=None):
         """
         Add a geometry to the scene.
 
@@ -75,6 +77,8 @@ class Scene(Geometry):
         ----------
         geometry: Trimesh, Path3D, or list of same
         node_name: name in the scene graph
+        parent_node_name: name of parent node in the scene graph
+        transform: (4, 4) float, transformation matrix
 
         Returns
         ----------
@@ -123,9 +127,12 @@ class Scene(Geometry):
             # geometry name + UUID
             node_name = name + '_' + unique.upper()
 
-        # create an identity transform from world
-        transform = np.eye(4)
+        if transform is None:
+            # create an identity transform from parent_node
+            transform = np.eye(4)
+
         self.graph.update(frame_to=node_name,
+                          frame_from=parent_node_name,
                           matrix=transform,
                           geometry=name,
                           geometry_flags={'visible': True})
