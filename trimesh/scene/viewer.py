@@ -235,18 +235,30 @@ class SceneViewer(pyglet.window.Window):
 
     def toggle_axis(self):
         """
-        Toggle a rendered XYZ/RGB axis marker on or off,
-        off by default.
+        Toggle a rendered XYZ/RGB axis marker on, world frame,
+        or every frame. Off by default
         """
-        self.view['axis'] = not self.view['axis']
+        # cycle through three axis states
+        states = [False, 'world', 'all']
+        # the state after toggling
+        index = (states.index(self.view['axis']) + 1) % len(states)
+        # update state to next index
+        self.view['axis'] = states[index]
+        # perform gl actions
         self.update_flags()
 
     def update_flags(self):
+        """
+        Check the view flags and call what is needed with gl
+        to handle it correctly.
+        """
+        # view mode, filled vs wirefrom
         if self.view['wireframe']:
             gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
         else:
             gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
 
+        # backface culling on or off
         if self.view['cull']:
             gl.glEnable(gl.GL_CULL_FACE)
         else:
@@ -301,11 +313,10 @@ class SceneViewer(pyglet.window.Window):
         self.view['ball'].down([x, -y])
 
     def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
-        delta = np.array([dx, dy], dtype=np.float) / [self.width, self.height]
-
         # left mouse button, with control key down (pan)
         if ((buttons == pyglet.window.mouse.LEFT) and
                 (modifiers & pyglet.window.key.MOD_CTRL)):
+            delta = [dx / self.width, dy / self.height]
             self.view['translation'][0:2] += delta
 
         # left mouse button, no modifier keys pressed (rotate)
@@ -362,8 +373,8 @@ class SceneViewer(pyglet.window.Window):
         count_original = len(node_names)
         count = -1
 
-        # if we are rendering an axis marker do it now
-        if self._axis is not None:
+        # if we are rendering an axis marker at the world
+        if self._axis:
             # we stored it as a vertex list
             self._axis.draw(mode=gl.GL_TRIANGLES)
 
@@ -371,24 +382,36 @@ class SceneViewer(pyglet.window.Window):
             count += 1
             current_node = node_names.popleft()
 
+            # get the transform from world to geometry and mesh name
             transform, geometry_name = self.scene.graph[current_node]
 
+            # if no geometry at this frame continue without rendering
             if geometry_name is None:
                 continue
 
+            # get a reference to the mesh so we can check transparency
             mesh = self.scene.geometry[geometry_name]
-
-            if (hasattr(mesh, 'visual') and
-                    mesh.visual.transparency):
-                # put the current item onto the back of the queue
-                if count < count_original:
-                    node_names.append(current_node)
-                    continue
 
             # add a new matrix to the model stack
             gl.glPushMatrix()
             # transform by the nodes transform
             gl.glMultMatrixf(rendering.matrix_to_gl(transform))
+
+            # draw an axis marker for each mesh frame
+            if self.view['axis'] == 'all':
+                self._axis.draw(mode=gl.GL_TRIANGLES)
+
+            # transparent things must be drawn last
+            if (hasattr(mesh, 'visual') and mesh.visual.transparency):
+                # put the current item onto the back of the queue
+                if count < count_original:
+                    # add the node to be drawn last
+                    node_names.append(current_node)
+                    # pop the matrix stack for now
+                    gl.glPopMatrix()
+                    # come back to this mesh later
+                    continue
+
             # get the mode of the current geometry
             mode = self.vertex_list_mode[geometry_name]
             # draw the mesh with its transform applied
