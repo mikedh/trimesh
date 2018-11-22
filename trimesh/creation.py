@@ -53,6 +53,8 @@ def extrude_polygon(polygon,
       2D geometry to extrude
     height : float
       Distance to extrude polygon along Z
+    **kwargs:
+        passed to Trimesh
 
     Returns
     ----------
@@ -193,6 +195,8 @@ def extrude_triangulation(vertices,
       Triangle indexes of vertices
     height : float
       Distance to extrude triangulation
+    **kwargs:
+        passed to Trimesh
 
     Returns
     ---------
@@ -258,7 +262,8 @@ def extrude_triangulation(vertices,
 
     mesh = Trimesh(*util.append_faces(vertices_seq,
                                       faces_seq),
-                   process=True)
+                   process=True,
+                   **kwargs)
 
     assert mesh.volume > 0.0
 
@@ -433,7 +438,7 @@ def _polygon_to_kwargs(polygon):
     return result
 
 
-def box(extents=None, transform=None):
+def box(extents=None, transform=None, **kwargs):
     """
     Return a cuboid.
 
@@ -443,6 +448,8 @@ def box(extents=None, transform=None):
       Edge lengths
     transform: (4, 4) float
       Transformation matrix
+    **kwargs:
+        passed to Trimesh to create box
 
     Returns
     ------------
@@ -476,7 +483,8 @@ def box(extents=None, transform=None):
     box = Trimesh(vertices=vertices,
                   faces=faces,
                   face_normals=face_normals,
-                  process=False)
+                  process=False,
+                  **kwargs)
     if transform is not None:
         box.apply_transform(transform)
 
@@ -667,7 +675,8 @@ def capsule(height=1.0,
 def cylinder(radius=1.0,
              height=1.0,
              sections=32,
-             transform=None):
+             transform=None,
+             **kwargs):
     """
     Create a mesh of a cylinder along Z centered at the origin.
 
@@ -679,6 +688,8 @@ def cylinder(radius=1.0,
       The height of the cylinder
     sections : int
       How many pie wedges should the cylinder have
+    **kwargs:
+        passed to Trimesh to create cylinder
 
     Returns
     ----------
@@ -703,7 +714,8 @@ def cylinder(radius=1.0,
     # extrude the 2D triangulation into a Trimesh object
     cylinder = extrude_triangulation(vertices=vertices,
                                      faces=faces,
-                                     height=height)
+                                     height=height,
+                                     **kwargs)
     # the extrusion was along +Z, so move the cylinder
     # center of mass back to the origin
     cylinder.vertices[:, 2] -= height * .5
@@ -719,7 +731,8 @@ def annulus(r_min=1.0,
             r_max=2.0,
             height=1.0,
             sections=32,
-            transform=None):
+            transform=None,
+            **kwargs):
     """
     Create a mesh of an annular cylinder along Z,
     centered at the origin.
@@ -734,6 +747,8 @@ def annulus(r_min=1.0,
       The height of the annular cylinder
     sections : int
       How many pie wedges should the annular cylinder have
+    **kwargs:
+        passed to Trimesh to create annulus
 
     Returns
     ----------
@@ -775,7 +790,8 @@ def annulus(r_min=1.0,
     # extrude the 2D profile into a mesh
     annulus = extrude_triangulation(vertices=vertices,
                                     faces=faces,
-                                    height=height)
+                                    height=height,
+                                    **kwargs)
 
     # move the annulus so the centroid is at the origin
     annulus.vertices[:, 2] -= height * .5
