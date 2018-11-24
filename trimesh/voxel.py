@@ -14,7 +14,7 @@ from . import grouping
 from .constants import log, log_time
 
 
-class Voxel(object):
+class VoxelBase(object):
 
     def __init__(self, *args, **kwargs):
         self._data = caching.DataStore()
@@ -138,7 +138,49 @@ class Voxel(object):
         return is_filled
 
 
-class VoxelMesh(Voxel):
+class Voxel(VoxelBase):
+
+    def __init__(self, matrix, pitch, origin):
+        super(Voxel, self).__init__()
+
+        self._data['matrix'] = matrix
+        self._data['pitch'] = pitch
+        self._data['origin'] = origin
+
+    @property
+    def origin(self):
+        return self._data['origin']
+
+    @property
+    def matrix(self):
+        return self._data['matrix']
+
+    def as_boxes(self):
+        """
+        A rough Trimesh representation of the voxels with a box
+        for each filled voxel.
+
+        Returns
+        ---------
+        mesh: Trimesh object made up of one box per filled cell.
+        """
+        centers = matrix_to_points(
+            matrix=self._data['matrix'],
+            pitch=self._data['pitch'],
+            origin=self._data['origin'],
+        )
+        mesh = multibox(centers=centers, pitch=self.pitch)
+        return mesh
+
+    def show(self, *args, **kwargs):
+        """
+        Convert the current set of voxels into a trimesh for visualization
+        and show that via its built- in preview method.
+        """
+        return self.as_boxes().show(*args, **kwargs)
+
+
+class VoxelMesh(VoxelBase):
 
     def __init__(self,
                  mesh,
