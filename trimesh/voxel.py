@@ -112,8 +112,7 @@ class Voxel(object):
         point = np.asanyarray(point)
         if point.shape != (3,):
             raise ValueError('to_index requires a single point')
-        index = np.round((point - self.origin) /
-                         self.pitch).astype(int)
+        index = np.round((point - self.origin) / self.pitch + 0.5).astype(int)
         index = tuple(index)
         return index
 
@@ -274,8 +273,7 @@ class VoxelMesh(Voxel):
         else:
             filled = self.sparse_surface
         # center points of voxels
-        centers = (filled * self.pitch).astype(np.float64)
-        centers += self.origin - (self.pitch / 2.0)
+        centers = indices_to_points(filled, pitch, self.origin)
         mesh = multibox(centers=centers, pitch=self.pitch)
         return mesh
 
@@ -561,6 +559,24 @@ def fill_voxelization(occupied):
     return filled
 
 
+def indices_to_points(indices, pitch, origin):
+    """
+    Convert indices of an (n,m,p) matrix into a set of voxel center points.
+
+    Parameters
+    ----------
+    indices: (q, 3) int, index of voxel matrix (n,m,p)
+    pitch: float, what pitch was the voxel matrix computed with
+    origin: (3,) float, what is the origin of the voxel matrix
+
+    Returns
+    ----------
+    points: (q, 3) list of points
+    """
+    points = (indices - 0.5) * pitch + origin
+    return points
+
+
 def matrix_to_points(matrix, pitch, origin):
     """
     Convert an (n,m,p) matrix into a set of points for each voxel center.
@@ -575,7 +591,8 @@ def matrix_to_points(matrix, pitch, origin):
     ----------
     points: (q, 3) list of points
     """
-    points = np.column_stack(np.nonzero(matrix)) * pitch + origin
+    indices = np.column_stack(np.nonzero(matrix))
+    points = indices_to_points(indices, pitch, origin)
     return points
 
 
