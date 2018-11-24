@@ -46,7 +46,7 @@ class SceneViewer(pyglet.window.Window):
 
         if scene.camera is not None:
             if resolution is not None:
-                if resolution != scene.camera.resolution:
+                if not all(resolution == scene.camera.resolution):
                     log.warning(
                         'resolution is overwritten by Camera: '
                         '{} -> {}'.format(resolution,
