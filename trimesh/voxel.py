@@ -573,6 +573,13 @@ def indices_to_points(indices, pitch, origin):
     ----------
     points: (q, 3) list of points
     """
+    indices = np.asanyarray(indices, dtype=np.float64)
+    origin = np.asanyarray(origin, dtype=np.float64)
+    pitch = float(pitch)
+
+    if origin.shape != (3,):
+        raise ValueError('origin incorrect shape!')
+
     points = (indices - 0.5) * pitch + origin
     return points
 
