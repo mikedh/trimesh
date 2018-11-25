@@ -592,7 +592,7 @@ def matrix_to_points(matrix, pitch, origin):
     points: (q, 3) list of points
     """
     indices = np.column_stack(np.nonzero(matrix))
-    points = indices_to_points(indices, pitch, origin)
+    points = indices_to_points(indices=indices, pitch=pitch, origin=origin)
     return points
 
 
