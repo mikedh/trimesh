@@ -273,7 +273,7 @@ class VoxelMesh(Voxel):
         else:
             filled = self.sparse_surface
         # center points of voxels
-        centers = indices_to_points(filled, pitch, self.origin)
+        centers = indices_to_points(indices=filled, pitch=self.pitch, origin=self.origin)
         mesh = multibox(centers=centers, pitch=self.pitch)
         return mesh
 
