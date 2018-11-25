@@ -109,11 +109,10 @@ class Voxel(object):
         ---------
         index: (3,) int tuple, index in self.matrix
         """
-        point = np.asanyarray(point)
-        if point.shape != (3,):
-            raise ValueError('to_index requires a single point')
-        index = np.round((point - self.origin) / self.pitch + 0.5).astype(int)
-        index = tuple(index)
+        indices = points_to_indices(points=[point],
+                                    pitch=self.pitch,
+                                    origin=self.origin)
+        index = tuple(indices[0])
         return index
 
     def is_filled(self, point):
@@ -273,7 +272,9 @@ class VoxelMesh(Voxel):
         else:
             filled = self.sparse_surface
         # center points of voxels
-        centers = indices_to_points(indices=filled, pitch=self.pitch, origin=self.origin)
+        centers = indices_to_points(indices=filled,
+                                    pitch=self.pitch,
+                                    origin=self.origin)
         mesh = multibox(centers=centers, pitch=self.pitch)
         return mesh
 
@@ -559,6 +560,34 @@ def fill_voxelization(occupied):
     return filled
 
 
+def points_to_indices(points, pitch, origin):
+    """
+    Convert center points of an (n,m,p) matrix into its indices.
+
+    Parameters
+    ----------
+    points: (q, 3) float, center points of voxel matrix (n,m,p)
+    pitch: float, what pitch was the voxel matrix computed with
+    origin: (3,) float, what is the origin of the voxel matrix
+
+    Returns
+    ----------
+    indices: (q, 3) int, list of indices
+    """
+    points = np.asanyarray(points, dtype=np.float64)
+    origin = np.asanyarray(origin, dtype=np.float64)
+    pitch = float(pitch)
+
+    if points.shape != (points.shape[0], 3):
+        raise ValueError('shape of points must be (q, 3)')
+
+    if origin.shape != (3,):
+        raise ValueError('shape of origin must be (3,)')
+
+    indices = np.round((points - origin) / pitch + 0.5).astype(int)
+    return indices
+
+
 def indices_to_points(indices, pitch, origin):
     """
     Convert indices of an (n,m,p) matrix into a set of voxel center points.
@@ -571,14 +600,17 @@ def indices_to_points(indices, pitch, origin):
 
     Returns
     ----------
-    points: (q, 3) list of points
+    points: (q, 3) float, list of points
     """
     indices = np.asanyarray(indices, dtype=np.float64)
     origin = np.asanyarray(origin, dtype=np.float64)
     pitch = float(pitch)
 
+    if indices.shape != (indices.shape[0], 3):
+        raise ValueError('shape of indices must be (q, 3)')
+
     if origin.shape != (3,):
-        raise ValueError('origin incorrect shape!')
+        raise ValueError('shape of origin must be (3,)')
 
     points = (indices - 0.5) * pitch + origin
     return points
