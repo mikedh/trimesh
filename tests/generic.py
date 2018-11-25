@@ -81,17 +81,18 @@ dir_data = os.path.abspath(os.path.join(dir_current, 'data'))
 log = logging.getLogger('trimesh')
 log.addHandler(logging.NullHandler())
 
-"""
-# block will print who is importing us
-for i in inspect.stack():
-    if i.code_context is None:
-        continue
-    if any('import generic' in j for j in i.code_context if j is not None):
-        file_name = os.path.split(i.filename)[-1]
-        print('\n\nRunning tests contained in: {}'.format(file_name))
-        break
-"""
 
+def random(*args, **kwargs):
+    """
+    A random function always seeded from the same value.
+
+    Replaces np.random.random
+    """
+    state = np.random.RandomState(seed=1)
+    return state.random_sample(*args, **kwargs)
+
+
+# turn strings / bytes into file- like objects
 io_wrap = trimesh.util.wrap_as_stream
 
 
