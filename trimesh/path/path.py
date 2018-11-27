@@ -118,7 +118,7 @@ class Path(object):
         ---------
         layers: (len(entities), ) list of str
         """
-        layer = [None] * len(self.entities)
+        layer = ['NONE'] * len(self.entities)
         for i, e in enumerate(self.entities):
             if hasattr(e, 'layer'):
                 layer[i] = str(e.layer)
@@ -1098,7 +1098,7 @@ class Path2D(Path):
         ---------
         area: float, total area of polygons minus interiors
         """
-        area = sum(i.area for i in self.polygons_full)
+        area = float(sum(i.area for i in self.polygons_full))
         return area
 
     @caching.cache_decorator

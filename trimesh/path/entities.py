@@ -366,7 +366,7 @@ class Text(Entity):
 
         return angle
 
-    def length(self):
+    def length(self, vertices):
         return 0.0
 
     def discrete(self, *args, **kwargs):

@@ -100,7 +100,7 @@ class VectorTests(g.unittest.TestCase):
             # Y should not have moved
             assert g.np.allclose(d.bounds[:, 1], ori[:, 1])
 
-            if len(d.vertices) < 150:
+            if len(d.polygons_full) > 0 and len(d.vertices) < 150:
                 g.log.info('Checking medial axis on %s',
                            d.metadata['file_name'])
                 m = d.medial_axis()

@@ -12,8 +12,12 @@ class ExportTest(g.unittest.TestCase):
             exported = d.export(file_type='svg')
             # load the exported SVG
             stream = g.trimesh.util.wrap_as_stream(exported)
-            loaded = g.trimesh.load(stream, file_type='svg')
 
+            if g.np.isclose(d.area, 0.0):
+                continue
+            
+            loaded = g.trimesh.load(stream, file_type='svg')
+            
             # we only have line and arc primitives as SVG
             # export and import
             if all(i.__class__.__name__ in ['Line', 'Arc']
