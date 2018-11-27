@@ -328,27 +328,6 @@ class SplitTest(g.unittest.TestCase):
                 check_Path2D(s)
 
 
-class ExportTest(g.unittest.TestCase):
-
-    def test_svg(self):
-        for d in g.get_2D():
-            # export as svg string
-            exported = d.export(file_type='svg')
-            # load the exported SVG
-            stream = g.trimesh.util.wrap_as_stream(exported)
-            loaded = g.trimesh.load(stream, file_type='svg')
-
-            # we only have line and arc primitives as SVG
-            # export and import
-            if all(i.__class__.__name__ in ['Line', 'Arc']
-                   for i in d.entities):
-                # perimeter should stay the same-ish
-                # on export/inport
-                assert g.np.isclose(d.length,
-                                    loaded.length,
-                                    rtol=.01)
-
-
 class SectionTest(g.unittest.TestCase):
 
     def test_section(self):
@@ -439,13 +418,5 @@ def check_Path2D(path):
 
 
 if __name__ == '__main__':
-    from pyinstrument import Profiler
-    prof = Profiler()
-    prof.start()
-
-    # g.trimesh.util.attach_to_log()
+    g.trimesh.util.attach_to_log()
     g.unittest.main()
-
-    prof.stop()
-    txt = prof.output_text(unicode=True, color=True)
-    print(txt)

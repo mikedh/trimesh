@@ -21,6 +21,7 @@ except ImportError:
 # so we don't keep trying tile operations
 _LOWMEM = False
 
+
 def minimum_nsphere(obj):
     """
     Compute the minimum n- sphere for a mesh or a set of points.
@@ -87,7 +88,10 @@ def minimum_nsphere(obj):
             dim = points.shape[1]
             v_tile = np.tile(voronoi.vertices, len(points)).reshape((-1, dim))
             # tile points per voronoi vertex
-            p_tile = np.tile(points, (len(voronoi.vertices), 1)).reshape((-1, dim))
+            p_tile = np.tile(
+                points, (len(
+                    voronoi.vertices), 1)).reshape(
+                (-1, dim))
             # find the maximum radius of points for each voronoi vertex
             radii_2 = ((p_tile - v_tile)**2).sum(axis=1).reshape(
                 (len(voronoi.vertices), -1)).max(axis=1)

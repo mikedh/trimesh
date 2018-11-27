@@ -513,8 +513,10 @@ class Path(object):
         for entity in self.entities:
             # what kind of entity are we dealing with
             kind = type(entity).__name__
+
+            # entities that don't need runs merged
             # don't screw up control- point- knot relationship
-            if kind in 'BSpline Bezier':
+            if kind in 'BSpline Bezier Text':
                 entity.points = inverse[entity.points]
                 continue
             # if we merged duplicate vertices, the entity may
@@ -901,14 +903,14 @@ class Path3D(Path):
 
 class Path2D(Path):
 
-    def show(self):
+    def show(self, annotations=True):
         """
         Plot the current Path2D object using matplotlib.
         """
         if self.is_closed:
-            self.plot_discrete(show=True)
+            self.plot_discrete(show=True, annotations=annotations)
         else:
-            self.plot_entities(show=True)
+            self.plot_entities(show=True, annotations=annotations)
 
     def _process_functions(self):
         """
@@ -1267,7 +1269,7 @@ class Path2D(Path):
         """
         return traversal.split(self)
 
-    def plot_discrete(self, show=False):
+    def plot_discrete(self, show=False, annotations=True):
         """
         Plot the closed curves of the path.
         """
@@ -1278,11 +1280,18 @@ class Path2D(Path):
         for i, points in enumerate(self.discrete):
             color = ['g', 'k'][i in self.root]
             axis.plot(*points.T, color=color)
+
+        if annotations:
+            for e in self.entities:
+                if not hasattr(e, 'plot'):
+                    continue
+                e.plot(self.vertices)
+
         if show:
             plt.show()
         return axis
 
-    def plot_entities(self, show=False, color=None):
+    def plot_entities(self, show=False, annotations=True, color=None):
         """
         Plot the entities of the path, with no notion of topology
         """
@@ -1296,6 +1305,9 @@ class Path2D(Path):
                    'BSpline0': {'color': 'm', 'linewidth': 1},
                    'BSpline1': {'color': 'm', 'linewidth': 1}}
         for entity in self.entities:
+            if annotations and hasattr(entity, 'plot'):
+                entity.plot(self.vertices)
+                continue
             discrete = entity.discrete(self.vertices)
             e_key = entity.__class__.__name__ + str(int(entity.closed))
             fmt = eformat[e_key]

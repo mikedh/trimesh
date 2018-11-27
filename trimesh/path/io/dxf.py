@@ -4,7 +4,7 @@ import numpy as np
 from string import Template
 
 from ..arc import to_threepoint
-from ..entities import Line, Arc, BSpline
+from ..entities import Line, Arc, BSpline, Text
 
 from ...constants import log
 from ...constants import tol_path as tol
@@ -43,6 +43,9 @@ _DXF_UNITS = {1: 'inches',
               20: 'parsecs'}
 # backwards, for reference
 _UNITS_TO_DXF = {v: k for k, v in _DXF_UNITS.items()}
+
+# a string which we will replace spaces with temporarily
+_SAFESPACE = '|<^>|'
 
 # save metadata to a DXF Xrecord starting here
 # Valid values are 1-369 (except 5 and 105)
@@ -289,6 +292,42 @@ def load_dxf(file_obj, **kwargs):
         # add the vertices
         vertices.extend(points)
 
+    def convert_text(e):
+        """
+        Convert a DXF TEXT entity into a native text entity.
+        """
+        # rotation angle converted to radians
+        angle = np.radians(float(e['50']))
+        # text with leading and trailing whitespace removed
+        text = e['1'].strip()
+
+        # height of text
+        height = float(e['40'])
+
+        # origin point
+        origin = np.array([e['10'],
+                           e['20']]).astype(np.float64)
+
+        # an origin- relative point (so transforms work)
+        vector = origin + [np.cos(angle), np.sin(angle)]
+
+        # try to extract a (horizontal, vertical) text alignment
+        align = ['center', 'center']
+        try:
+            align[0] = ['left', 'center', 'right'][int(e['72'])]
+        except BaseException:
+            pass
+
+        # append the entity
+        entities.append(Text(origin=len(vertices),
+                             vector=len(vertices) + 1,
+                             height=height,
+                             text=text,
+                             align=align))
+        # append the text origin and direction
+        vertices.append(origin)
+        vertices.append(vector)
+
     # in a DXF file, lines come in pairs,
     # a group code then the next line is the value
     # we are removing all whitespace then splitting with the
@@ -310,12 +349,15 @@ def load_dxf(file_obj, **kwargs):
             # header for binary DXF so try decoding as UTF-8
             raw = raw.decode('utf-8', errors='ignore')
 
-    # remove spaces and leading/trailing whitespace
-    raw = str(raw).replace(' ', '').strip()
-    # a version of data in upper case
-    raw_upper = raw.upper()
+    # remove trailing whitespace
+    raw = str(raw).strip()
+    # without any spaces and in upper case
+    cleaned = raw.replace(' ', '').strip().upper()
+
+    # blob with spaces and original case
+    blob_raw = np.array(str.splitlines(raw)).reshape((-1, 2))
     # if this reshape fails, it means the DXF is malformed
-    blob = np.array(str.splitlines(raw_upper)).reshape((-1, 2))
+    blob = np.array(str.splitlines(cleaned)).reshape((-1, 2))
 
     # get the section which contains the header in the DXF file
     endsec = np.nonzero(blob[:, 1] == 'ENDSEC')[0]
@@ -324,6 +366,8 @@ def load_dxf(file_obj, **kwargs):
     entity_start = np.nonzero(blob[:, 1] == 'ENTITIES')[0][0]
     entity_end = endsec[np.searchsorted(endsec, entity_start)]
     entity_blob = blob[entity_start:entity_end]
+    # store the entity blob with original case
+    entity_raw = blob_raw[entity_start:entity_end]
 
     # store metadata
     metadata = {}
@@ -391,52 +435,68 @@ def load_dxf(file_obj, **kwargs):
     polyline = None
 
     # loop through chunks of entity information
-    # chunk will be an (n, 2) array of (group code, data) pairs
-    for chunk in np.array_split(entity_blob, inflection):
-        if len(chunk) >= 1:
-            # the string representing entity type
-            entity_type = chunk[0][1]
+    for index in np.array_split(np.arange(len(entity_blob)), inflection):
 
-            ############
-            # special case old- style polyline entities
-            if entity_type == 'POLYLINE':
-                polyline = [dict(chunk)]
-            # if we are collecting vertex entities
-            elif polyline is not None and entity_type == 'VERTEX':
-                polyline.append(dict(chunk))
-            # the end of a polyline
-            elif polyline is not None and entity_type == 'SEQEND':
-                # pull the geometry information for the entity
-                lines = [[i['10'], i['20']]
-                         for i in polyline[1:]]
-                # check for a closed flag on the polyline
-                if '70' in polyline[0]:
-                    # flag is bit- coded integer
-                    flag = int(polyline[0]['70'])
-                    # first bit represents closed
-                    if bool(flag & 1):
-                        lines.append(lines[0])
-                # create a single Line entity
-                entities.append(Line(
-                    points=np.arange(len(lines)) + len(vertices),
-                    **info(dict(polyline[0]))))
-                # add the vertices to our collection
-                vertices.extend(lines)
-                # we no longer have an active polyline
-                polyline = None
+        # if there is only a header continue
+        if len(index) < 1:
+            continue
 
-            # if the entity contains all relevant data we can
-            # cleanly load it from inside a single function
-            elif entity_type in loaders:
-                # the chunker converts an (n,2) list into a dict
-                chunker, loader = loaders[entity_type]
-                # convert data to dict
-                entity_data = chunker(chunk)
-                # append data to the lists we're collecting
-                loader(entity_data)
-            else:
-                log.debug('Entity type %s not supported',
-                          entity_type)
+        # chunk will be an (n, 2) array of (group code, data) pairs
+        chunk = entity_blob[index]
+
+        # the string representing entity type
+        entity_type = chunk[0][1]
+
+        ############
+        # special case old- style polyline entities
+        if entity_type == 'POLYLINE':
+            polyline = [dict(chunk)]
+        # if we are collecting vertex entities
+        elif polyline is not None and entity_type == 'VERTEX':
+            polyline.append(dict(chunk))
+        # the end of a polyline
+        elif polyline is not None and entity_type == 'SEQEND':
+            # pull the geometry information for the entity
+            lines = [[i['10'], i['20']]
+                     for i in polyline[1:]]
+            # check for a closed flag on the polyline
+            if '70' in polyline[0]:
+                # flag is bit- coded integer
+                flag = int(polyline[0]['70'])
+                # first bit represents closed
+                if bool(flag & 1):
+                    lines.append(lines[0])
+            # create a single Line entity
+            entities.append(Line(
+                points=np.arange(len(lines)) + len(vertices),
+                **info(dict(polyline[0]))))
+            # add the vertices to our collection
+            vertices.extend(lines)
+            # we no longer have an active polyline
+            polyline = None
+        elif entity_type == 'TEXT':
+            # text entities need spaces preserved so take
+            # group codes from clean representation (0- column)
+            # and data from the raw representation (1- column)
+            chunk_raw = entity_raw[index]
+            # if we didn't use clean group codes we wouldn't
+            # be able to access them by key as whitespace
+            # is random and crazy, like: '  1 '
+            chunk_raw[:, 0] = entity_blob[index][:, 0]
+            convert_text(dict(chunk_raw))
+
+        # if the entity contains all relevant data we can
+        # cleanly load it from inside a single function
+        elif entity_type in loaders:
+            # the chunker converts an (n,2) list into a dict
+            chunker, loader = loaders[entity_type]
+            # convert data to dict
+            entity_data = chunker(chunk)
+            # append data to the lists we're collecting
+            loader(entity_data)
+        else:
+            log.debug('Entity type %s not supported',
+                      entity_type)
 
     # stack vertices into single array
     vertices = util.vstack_empty(vertices).astype(np.float64)
@@ -470,18 +530,22 @@ def export_dxf(path):
 
         Parameters
         -----------
-        points:    (n,2) or (n,3) float, points in space
-        as_2D:     bool, if True only output 2 points per vertex
-        increment: bool, if True increment group code per point
-                   Example:
-                       [[X0, Y0, Z0], [X1, Y1, Z1]]
-                   Result, new lines replaced with spaces:
-                     True  -> 10 X0 20 Y0 30 Z0 11 X1 21 Y1 31 Z1
-                     False -> 10 X0 20 Y0 30 Z0 10 X1 20 Y1 30 Z1
+        points : (n,2) or (n,3) float
+          Points in space
+        as_2D : bool
+          If True only output 2 points per vertex
+        increment : bool
+          If True increment group code per point
+          Example:
+            [[X0, Y0, Z0], [X1, Y1, Z1]]
+          Result, new lines replaced with spaces:
+            True  -> 10 X0 20 Y0 30 Z0 11 X1 21 Y1 31 Z1
+            False -> 10 X0 20 Y0 30 Z0 10 X1 20 Y1 30 Z1
 
         Returns
         -----------
-        packed: str, points formatted with group code
+        packed : str
+          Points formatted with group code
         """
         points = np.asanyarray(points, dtype=np.float64)
         three = util.three_dimensionalize(points, return_2D=False)
@@ -509,11 +573,13 @@ def export_dxf(path):
 
         Parameters
         -----------
-        entity: entity object
+        entity : entity object
+          Source entity to pull metadata
 
         Returns
         ----------
-        subs: dict, with keys 'COLOR', 'LAYER', 'NAME'
+        subs : dict
+          Has keys 'COLOR', 'LAYER', 'NAME'
         """
         subs = {'COLOR': 255,  # default is ByLayer
                 'LAYER': 0,
@@ -531,8 +597,28 @@ def export_dxf(path):
         return subs
 
     def convert_line(line, vertices):
-        points = line.discrete(vertices)
+        """
+        Convert an entity to a discrete polyline
 
+        Parameters
+        -------------
+        line : entity
+          Entity which has 'e.discrete' method
+        vertices : (n, 2) float
+          Vertices in space
+
+        Returns
+        -----------
+        as_dxf : str
+          Entity exported as a DXF
+        """
+        # get a discrete representation of entity
+        points = line.discrete(vertices)
+        # if one or fewer points return nothing
+        if len(points) <= 1:
+            return ''
+
+        # generate a substitution dictionary for template
         subs = entity_info(line)
         subs['POINTS'] = format_points(points,
                                        as_2D=True,
@@ -611,6 +697,24 @@ def export_dxf(path):
 
         return result
 
+    def convert_text(txt, vertices):
+        """
+        Convert a Text entity to DXF string.
+        """
+        sub = entity_info(txt)
+
+        # get the origin point of the text
+        sub['ORIGIN'] = format_points(vertices[[txt.origin]],
+                                      increment=False)
+        # rotation angle in degrees
+        sub['ANGLE'] = np.degrees(txt.angle(vertices))
+        # actual string of text with spaces escaped
+        sub['TEXT'] = txt.text.replace(' ', _SAFESPACE)
+        # height of text
+        sub['HEIGHT'] = txt.height
+
+        return TEMPLATES['text'].substitute(sub)
+
     def convert_generic(entity, vertices):
         """
         For entities we don't know how to handle, return their
@@ -623,6 +727,7 @@ def export_dxf(path):
     np.set_printoptions(precision=12)
     # trimesh entity to DXF entity converters
     conversions = {'Line': convert_line,
+                   'Text': convert_text,
                    'Arc': convert_arc,
                    'Bezier': convert_generic,
                    'BSpline': convert_bspline}
@@ -657,7 +762,8 @@ def export_dxf(path):
     # although Draftsight, LibreCAD, and Inkscape don't care
     # what a giant legacy piece of shit
     # strip out all leading and trailing whitespace
-    blob = '\n'.join(sections).replace(' ', '')
+    blob = '\n'.join(sections).replace(
+        ' ', '').replace(_SAFESPACE, ' ')
 
     return blob
 
