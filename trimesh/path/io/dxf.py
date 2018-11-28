@@ -509,7 +509,7 @@ def load_dxf(file_obj, **kwargs):
     return result
 
 
-def export_dxf(path):
+def export_dxf(path, layers=None):
     """
     Export a 2D path object to a DXF file
 
@@ -732,8 +732,12 @@ def export_dxf(path):
                    'Bezier': convert_generic,
                    'BSpline': convert_bspline}
     entities_str = ''
-    for e in path.entities:
+    for e, layer in zip(path.entities, path.layers):
         name = type(e).__name__
+        # only export specified layers
+        if layers is not None:
+            if not layer in layers:
+                continue
         if name in conversions:
             entities_str += conversions[name](e, path.vertices)
         else:

@@ -15,9 +15,9 @@ class ExportTest(g.unittest.TestCase):
 
             if g.np.isclose(d.area, 0.0):
                 continue
-            
+
             loaded = g.trimesh.load(stream, file_type='svg')
-            
+
             # we only have line and arc primitives as SVG
             # export and import
             if all(i.__class__.__name__ in ['Line', 'Arc']
@@ -41,6 +41,9 @@ class ExportTest(g.unittest.TestCase):
         # combine two circles
         c = a + b
 
+        # should be combined
+        assert g.np.isclose(c.area, a.area + b.area)
+
         # export C with just layer of A
         aX = c.export(file_type='svg',
                       layers=['ACIRCLE'],
@@ -52,6 +55,13 @@ class ExportTest(g.unittest.TestCase):
                       return_path=True)
 
         assert len(cX) > len(aX)
+
+        # make
+        aR = g.trimesh.load(g.io_wrap(c.export(file_type='dxf',
+                                               layers=['ACIRCLE'])),
+                            file_type='dxf')
+
+        assert g.np.isclose(aR.area, a.area)
 
 
 if __name__ == '__main__':
