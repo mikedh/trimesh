@@ -296,13 +296,21 @@ def load_dxf(file_obj, **kwargs):
         """
         Convert a DXF TEXT entity into a native text entity.
         """
-        # rotation angle converted to radians
-        angle = np.radians(float(e['50']))
+        if '50' in e:
+            # rotation angle converted to radians
+            angle = np.radians(float(e['50']))
+        else:
+            # otherwise no rotation
+            angle = 0.0
+
         # text with leading and trailing whitespace removed
         text = e['1'].strip()
 
         # height of text
-        height = float(e['40'])
+        if '40' in e:
+            height = float(e['40'])
+        else:
+            height = None
 
         # origin point
         origin = np.array([e['10'],
@@ -483,8 +491,11 @@ def load_dxf(file_obj, **kwargs):
             # be able to access them by key as whitespace
             # is random and crazy, like: '  1 '
             chunk_raw[:, 0] = entity_blob[index][:, 0]
-            convert_text(dict(chunk_raw))
-
+            try:
+                convert_text(dict(chunk_raw))
+            except BaseException:
+                log.warning('failed to load text entity!',
+                            exc_info=True)
         # if the entity contains all relevant data we can
         # cleanly load it from inside a single function
         elif entity_type in loaders:
