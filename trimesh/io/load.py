@@ -458,9 +458,9 @@ def parse_file_args(file_obj,
                 file_type = 'json'
             elif 'https://' in file_obj or 'http://' in file_obj:
                 # we've been passed a URL so retrieve it
-                raise ValueError('use load_remote to load URL!')
+                raise ValueError('use load_remote to load URL: %s' % file_obj)
             elif file_type is None:
-                raise ValueError('string is not a file!')
+                raise ValueError('string is not a file: %s' % file_obj)
 
     if file_type is None:
         file_type = file_obj.__class__.__name__
