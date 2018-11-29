@@ -10,7 +10,6 @@ from .constants import log, tol
 from .triangles import normals
 from .geometry import faces_to_edges
 from .grouping import group_rows, unique_rows
-from .io.load import load_path
 
 from . import util
 from . import transformations
@@ -923,46 +922,62 @@ def camera_marker(camera, marker_height=0.4, origin_size=None):
     Parameters
     ---------------
     camera : trimesh.scene.Camera
-        Camera object with FOV and transform defined
+      Camera object with FOV and transform defined
     marker_height : float
-        How far along the camera Z should FOV indicators be
+      How far along the camera Z should FOV indicators be
     origin_size : float
-        Sphere radius of the origin (default: marker_height / 10.0)
+      Sphere radius of the origin (default: marker_height / 10.0)
 
     Returns
     ------------
     meshes : list
-       Contains Trimesh and Path3D objects which can be visualized
+      Contains Trimesh and Path3D objects which can be visualized
     """
+
+    # append the visualizations to an array
+    meshes = [axis(origin_size=marker_height / 10.0)]
+    meshes[0].apply_transform(camera.transform)
+
+    try:
+        # path is a soft dependancy
+        from .io.load import load_path
+    except ImportError:
+        # they probably don't have shapely installed
+        log.warning('unable to create FOV visualization!',
+                    exc_info=True)
+        return meshes
+
+    # create sane origin size from marker height
     if origin_size is None:
         origin_size = marker_height / 10.0
 
+    # calculate vertices from camera FOV angles
     x = marker_height * np.tan(np.deg2rad(camera.fov[0]) / 2.0)
     y = marker_height * np.tan(np.deg2rad(camera.fov[1]) / 2.0)
     z = marker_height
 
-    points = [
-        (0, 0, 0),  # origin
-        (-x, -y, z),
-        (x, -y, z),
-        (x, y, z),
-        (-x, y, z),
-    ]
+    # combine the points into the vertices of an FOV visualization
+    points = [(0, 0, 0),
+              (-x, -y, z),
+              (x, -y, z),
+              (x, y, z),
+              (-x, y, z)]
+    # apply the camera extrinsic transform
     points = transformations.transform_points(points, camera.transform)
 
-    point_origin = points[0]
-    points = points[1:]
+    # create line segments for the FOV visualization
+    # a segment from the origin to each bound of the FOV
+    segments = np.column_stack((np.zeros_like(points), points)).reshape((-1, 3))
 
-    meshes = []
-    mesh = axis(origin_size=marker_height / 10.0)
-    mesh.apply_transform(camera.transform)
-    meshes.append(mesh)
+    # add a loop for the outside of the FOV then reshape
+    # the whole thing into multiple line segments
+    segments = np.vstack((segments,
+                          points[[1, 2,
+                                  2, 3,
+                                  3, 4,
+                                  4, 1]])).reshape((-1, 2, 3))
 
-    for point in points:
-        mesh = load_path([point_origin, point])
-        meshes.append(mesh)
-
-    mesh = load_path(np.r_[points, points[0:1]])
-    meshes.append(mesh)
+    # add a single Path3D object for all line segments
+    meshes.append(load_path(segments))
 
     return meshes

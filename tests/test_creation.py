@@ -47,13 +47,17 @@ class CreationTest(g.unittest.TestCase):
             assert g.np.allclose(radii, 1.0)
 
     def test_camera_marker(self):
+        """
+        Create a marker including FOV for a camera object
+        """
         camera = g.trimesh.scene.Camera(resolution=(320, 240), fov=(60, 45))
         meshes = g.trimesh.creation.camera_marker(
-            camera=camera, marker_height=0.04
-        )
+            camera=camera, marker_height=0.04)
         assert isinstance(meshes, list)
+        # all meshes should be viewable type
         for mesh in meshes:
-            assert isinstance(mesh, (g.trimesh.Trimesh, g.trimesh.path.Path3D))
+            assert isinstance(mesh, (g.trimesh.Trimesh,
+                                     g.trimesh.path.Path3D))
 
     def test_axis(self):
         # specify the size of the origin radius

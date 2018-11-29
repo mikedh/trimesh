@@ -457,10 +457,11 @@ def parse_file_args(file_obj,
                 # JSON
                 file_type = 'json'
             elif 'https://' in file_obj or 'http://' in file_obj:
-                # we've been passed a URL so retrieve it
-                raise ValueError('use load_remote to load URL: %s' % file_obj)
+                # we've been passed a URL, warn to use explicit function
+                # and don't do network calls via magical pipeline
+                raise ValueError('use load_remote to load URL: {}'.format(file_obj))
             elif file_type is None:
-                raise ValueError('string is not a file: %s' % file_obj)
+                raise ValueError('string is not a file: {}'.format(file_obj))
 
     if file_type is None:
         file_type = file_obj.__class__.__name__
