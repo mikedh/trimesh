@@ -10,6 +10,7 @@ from .constants import log, tol
 from .triangles import normals
 from .geometry import faces_to_edges
 from .grouping import group_rows, unique_rows
+from .io.load import load_path
 
 from . import util
 from . import transformations
@@ -913,3 +914,55 @@ def axis(origin_size=0.04,
                                y_axis,
                                z_axis])
     return result
+
+
+def camera_marker(camera, marker_height=0.4, origin_size=None):
+    """
+    Create a visual marker for a camera object, including an axis and FOV.
+
+    Parameters
+    ---------------
+    camera : trimesh.scene.Camera
+        Camera object with FOV and transform defined
+    marker_height : float
+        How far along the camera Z should FOV indicators be
+    origin_size : float
+        Sphere radius of the origin (default: marker_height / 10.0)
+
+    Returns
+    ------------
+    meshes : list
+       Contains Trimesh and Path3D objects which can be visualized
+    """
+    if origin_size is None:
+        origin_size = marker_height / 10.0
+
+    x = marker_height * np.tan(np.deg2rad(camera.fov[0]) / 2.0)
+    y = marker_height * np.tan(np.deg2rad(camera.fov[1]) / 2.0)
+    z = marker_height
+
+    points = [
+        (0, 0, 0),  # origin
+        (-x, -y, z),
+        (x, -y, z),
+        (x, y, z),
+        (-x, y, z),
+    ]
+    points = transformations.transform_points(points, camera.transform)
+
+    point_origin = points[0]
+    points = points[1:]
+
+    meshes = []
+    mesh = axis(origin_size=marker_height / 10.0)
+    mesh.apply_transform(camera.transform)
+    meshes.append(mesh)
+
+    for point in points:
+        mesh = load_path([point_origin, point])
+        meshes.append(mesh)
+
+    mesh = load_path(np.r_[points, points[0:1]])
+    meshes.append(mesh)
+
+    return meshes
