@@ -1,5 +1,6 @@
 """
-Module which contains all the imports and data available to unit tests
+Module which contains all the imports and data available to
+unit tests to reduce the amount of boilerplate.
 """
 import os
 import sys
@@ -17,10 +18,12 @@ import subprocess
 import contextlib
 import threading
 
-try:  # Python 3
+try:
+    # Python 3
     from http.server import SimpleHTTPRequestHandler
     import socketserver
-except ImportError:  # Python 2
+except ImportError:
+    # Python 2
     from SimpleHTTPServer import SimpleHTTPRequestHandler
     import SocketServer as socketserver
 
@@ -34,8 +37,8 @@ except ImportError:
 import trimesh
 import collections
 
-from collections import deque
 from copy import deepcopy
+from collections import deque
 from trimesh.constants import tol, tol_path
 from trimesh.base import Trimesh
 
@@ -51,20 +54,22 @@ try:
 except ImportError:
     has_path = False
 
+# Python version as an array, i.e. [3, 6]
 python_version = np.array([sys.version_info.major,
                            sys.version_info.minor])
 
-
-# some repeatable transforms to use in tests
+# some repeatable homogenous transforms to use in tests
 transforms = [trimesh.transformations.euler_matrix(np.pi / 4, i, 0)
               for i in np.linspace(0.0, np.pi * 2.0, 100)]
+# should be a (100, 4, 4) float
 transforms = np.array(transforms)
 
-# python 3
 try:
+    # do the imports for Python 2
     from cStringIO import StringIO
     _PY3 = False
 except ImportError:
+    # if that didn't work we're probably on Python 3
     from io import StringIO
     from io import BytesIO
     _PY3 = True
@@ -72,31 +77,43 @@ except ImportError:
 # are we on linux
 is_linux = 'linux' in platform.system().lower()
 
-dir_current = os.path.dirname(os.path.abspath(
-    inspect.getfile(inspect.currentframe())))
-dir_models = os.path.abspath(os.path.join(dir_current, '..', 'models'))
-dir_2D = os.path.abspath(os.path.join(dir_current, '..', 'models', '2D'))
-dir_data = os.path.abspath(os.path.join(dir_current, 'data'))
+# find the current absolute path using inspect
+dir_current = os.path.dirname(
+    os.path.abspath(
+        inspect.getfile(
+            inspect.currentframe())))
+# the absolute path for our reference models
+dir_models = os.path.abspath(
+    os.path.join(dir_current, '..', 'models'))
+# the absolute path for our 2D reference models
+dir_2D = os.path.abspath(
+    os.path.join(dir_current, '..', 'models', '2D'))
+# the absolute path for our test data and truth
+dir_data = os.path.abspath(
+    os.path.join(dir_current, 'data'))
 
+# a logger for tests to call
 log = logging.getLogger('trimesh')
 log.addHandler(logging.NullHandler())
+
+# turn strings / bytes into file- like objects
+io_wrap = trimesh.util.wrap_as_stream
 
 
 def random(*args, **kwargs):
     """
     A random function always seeded from the same value.
 
-    Replaces np.random.random
+    Replaces: np.random.random(*args, **kwargs)
     """
     state = np.random.RandomState(seed=1)
     return state.random_sample(*args, **kwargs)
 
 
-# turn strings / bytes into file- like objects
-io_wrap = trimesh.util.wrap_as_stream
-
-
 def _load_data():
+    """
+    Load the JSON files from our truth directory.
+    """
     data = {}
     for file_name in os.listdir(dir_data):
         name, extension = os.path.splitext(file_name)
@@ -113,6 +130,21 @@ def _load_data():
 
 
 def get_mesh(file_name, *args, **kwargs):
+    """
+    Get a mesh from the models directory by name.
+
+    Parameters
+    -------------
+    file_name : str
+      Name of model in /models/
+    *args : [str]
+      Additional files to load
+
+    Returns
+    -----------
+    meshes : trimesh.Trimesh or list
+      Single mesh or list of meshes from args
+    """
     meshes = collections.deque()
     for name in np.append(file_name, args):
         location = os.path.join(dir_models, name)
@@ -126,7 +158,8 @@ def get_mesh(file_name, *args, **kwargs):
 @contextlib.contextmanager
 def serve_meshes():
     """
-    This context manager serves meshes over HTTP at some available port
+    This context manager serves meshes over HTTP at some
+    available port.
     """
     class _ServerThread(threading.Thread):
         def run(self):
@@ -149,17 +182,20 @@ def get_meshes(count=np.inf,
                raise_error=False,
                only_watertight=True):
     """
-    Get a list of meshes to test with.
+    Get meshes to test with.
 
-    Arguments
+    Parameters
     ----------
-    count: int, approximate number of meshes you want
-    raise_error: bool, if True raise a ValueError if a mesh
-                 that should be loadable returns a non- Trimesh object.
+    count : int
+      Approximate number of meshes you want
+    raise_error : bool
+      If True raise a ValueError if a mesh
+      that should be loadable returns a non- Trimesh object.
 
     Returns
     ----------
-    meshes: list, of Trimesh objects
+    meshes : list
+      Trimesh objects from models folder
     """
     # use deterministic file name order
     file_names = sorted(os.listdir(dir_models))
@@ -190,13 +226,23 @@ def get_meshes(count=np.inf,
 def get_2D(count=None):
     """
     Get Path2D objects to test with.
+
+    Parameters
+    --------------
+    count : int
+      Number of 2D drawings to return
+
+    Yields
+    --------------
+    path : trimesh.path.Path2D
+      Drawing from models folder
     """
     # if no path loading return empty list
     if not has_path:
         raise StopIteration
 
     # all files in the 2D models directory
-    listdir = os.listdir(dir_2D)
+    listdir = sorted(os.listdir(dir_2D))
     # if count isn't passed return all files
     if count is None:
         count = len(listdir)
@@ -223,11 +269,11 @@ def get_2D(count=None):
             break
 
 
+# all the JSON files with truth data
 data = _load_data()
 
-
+# find executables to run with subprocess
 from distutils.spawn import find_executable
-
 # formats supported by meshlab for export tests
 if any(find_executable(i) is None
        for i in ['xfvb-run', 'meshlabserver']):
