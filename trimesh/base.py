@@ -1858,6 +1858,39 @@ class Trimesh(Geometry):
             **kwargs)
 
         return new_mesh
+    
+    def slice_planes(self,
+                     plane_origins,
+                     plane_normals,
+                     **kwargs):
+        """
+        Returns another mesh that is the current mesh
+        sliced by the planes defined by origins and normals.
+        Saves some computation over calling the slice_mesh_plane
+        method multiple times by not creating a new object and 
+        just carrying the faces and vertices arrays.
+
+        Parameters
+        ---------
+        plane_normals: (n,3) float
+          Normal vectors of slicing planes
+        plane_origins : (n,3) float
+          Points on the slicing planes
+
+        Returns
+        ---------
+        new_mesh: trimesh.Trimesh or None
+          Subset of current mesh sliced by planes
+        """
+
+        # return a new mesh
+        new_mesh = intersections.slice_mesh_planes(
+            mesh=self,
+            plane_normals=plane_normals,
+            plane_origins=plane_origins,
+            **kwargs)
+
+        return new_mesh
 
     @caching.cache_decorator
     def convex_hull(self):
