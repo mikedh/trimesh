@@ -181,27 +181,30 @@ class SliceTest(g.unittest.TestCase):
         plane_origins = [mesh.bounds[1] - 0.05, mesh.bounds[1] - 0.05]
         plane_normals = [g.np.array([0, 0, 1]), g.np.array([0, 1, 0])]
 
-        sliced = mesh.slice_planes(plane_origins=plane_origins,
-                                   plane_normals=plane_normals)
+        sliced = mesh.slice_plane(plane_origin=plane_origins,
+                                  plane_normal=plane_normals)
 
         assert g.np.isclose(
             sliced.bounds[0], mesh.bounds[0] + g.np.array([0, 0.95, 0.95])).all()
         assert g.np.isclose(sliced.bounds[1], mesh.bounds[1]).all()
         assert len(sliced.faces) == 11
 
-        # Try with more complicated mesh and make sure we get correct projections and some faces
-        origins = [bunny.bounds.mean(axis=0), bunny.bounds.mean(axis=0)+0.01*g.trimesh.unitize([1, 1, 2])]
+        # Try with more complicated mesh and make sure we get correct projections
+        # and some faces
+        origins = [bunny.bounds.mean(axis=0), bunny.bounds.mean(
+            axis=0) + 0.01 * g.trimesh.unitize([1, 1, 2])]
         normals = [g.trimesh.unitize([1, 1, 2]), -g.trimesh.unitize([1, 1, 2])]
 
-        sliced = bunny.slice_planes(plane_origins=origins,
-                                    plane_normals=normals)
+        sliced = bunny.slice_plane(plane_origin=origins,
+                                   plane_normal=normals)
         assert len(sliced.faces) > 0
 
-        for o,n in zip(origins,normals):
+        for o, n in zip(origins, normals):
             # check the projections manually
             dot = g.np.dot(n, (sliced.vertices - o).T)
             # should be lots of stuff at the plane and nothing behind
             assert g.np.isclose(dot.min(), 0.0)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

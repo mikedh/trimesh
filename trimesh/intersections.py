@@ -385,13 +385,14 @@ def planes_lines(plane_origins,
 
     return on_plane, valid
 
-def slice_faces_plane(vertices, 
+
+def slice_faces_plane(vertices,
                       faces,
                       plane_normal,
                       plane_origin,
                       cached_dots=None):
     """
-    Slice a mesh (given as a set of faces and vertices) with a plane, returning a 
+    Slice a mesh (given as a set of faces and vertices) with a plane, returning a
     new mesh (again as a set of faces and vertices) that is the
     portion of the original mesh to the positive normal side of the plane.
 
@@ -425,8 +426,8 @@ def slice_faces_plane(vertices,
         # dot product of each vertex with the plane normal indexed by face
         # so for each face the dot product of each vertex is a row
         # shape is the same as faces (n,3)
-        dots = np.einsum('i,ij->j', plane_normal, 
-                                    (vertices - plane_origin).T)[faces]
+        dots = np.einsum('i,ij->j', plane_normal,
+                         (vertices - plane_origin).T)[faces]
 
     # Find vertex orientations w.r.t. faces for all triangles:
     #  -1 -> vertex "inside" plane (positive normal direction)
@@ -470,7 +471,7 @@ def slice_faces_plane(vertices,
         vert_counts = np.bincount(new_faces.flatten(), minlength=len(vertices))
         unique_verts = vert_counts > 0
         unique_inds = np.where(unique_verts)[0]
-        unique_faces = (np.cumsum(unique_verts)-1)[new_faces]
+        unique_faces = (np.cumsum(unique_verts) - 1)[new_faces]
         return vertices[unique_inds], unique_faces
 
     # Extract the intersections of each triangle's edges with the plane
@@ -549,17 +550,23 @@ def slice_faces_plane(vertices,
         new_vertices = np.append(new_vertices, new_tri_vertices, axis=0)
         new_faces = np.append(new_faces, new_tri_faces, axis=0)
 
-    # new mesh without cut off vertices
-    vert_counts = np.bincount(new_faces.flatten(), minlength=len(new_vertices))
-    unique_verts = vert_counts > 0
-    unique_inds = np.where(unique_verts)[0]
-    unique_faces = (np.cumsum(unique_verts)-1)[new_faces]
-    return new_vertices[unique_inds], unique_faces
-    
+    # find the unique indices in the new faces
+    # using an integer- only unique function
+    unique, inverse = util.unique_bincount(new_faces.reshape(-1),
+                                           minlength=len(new_vertices),
+                                           return_inverse=True)
+
+    # use the unique indexes for our final vertex and faces
+    final_vert = new_vertices[unique]
+    final_face = inverse.reshape((-1, 3))
+
+    return final_vert, final_face
+
+
 def slice_mesh_plane(mesh,
                      plane_normal,
                      plane_origin,
-                     cached_dots=None):
+                     **kwargs):
     """
     Slice a mesh with a plane, returning a new mesh that is the
     portion of the original mesh to the positive normal side of the plane
@@ -580,12 +587,12 @@ def slice_mesh_plane(mesh,
     new_mesh : Trimesh object
         Sliced mesh
     """
-
-    from . import base
-
-    # If passed invalid input, return None
+    # check input for none
     if mesh is None:
         return None
+
+    # avoid circular import
+    from .base import Trimesh
 
     # check input plane
     plane_normal = np.asanyarray(plane_normal,
@@ -593,60 +600,31 @@ def slice_mesh_plane(mesh,
     plane_origin = np.asanyarray(plane_origin,
                                  dtype=np.float64)
 
-    if plane_origin.shape != (3,) or plane_normal.shape != (3,):
-        raise ValueError('Plane origin and normal must be (3,)!')
-    
-    new_vertices, new_faces = slice_faces_plane(mesh.vertices, mesh.faces, plane_normal, plane_origin, cached_dots=cached_dots)
-    new_mesh = base.Trimesh(vertices=new_vertices,
-                            faces=new_faces,
-                            process=False)
-    return new_mesh
+    # check to make sure origins and normals have acceptable shape
+    shape_ok = ((plane_origin.shape == (3,) or
+                 util.is_shape(plane_origin, (-1, 3))) and
+                (plane_normal.shape == (3,) or
+                 util.is_shape(plane_normal, (-1, 3))) and
+                plane_origin.shape == plane_normal.shape)
+    if not shape_ok:
+        raise ValueError('plane origins and normals must be (n, 3)!')
 
-def slice_mesh_planes(mesh,
-                      plane_normals,
-                      plane_origins):
-    """
-    Slice a mesh with a plane, returning a new mesh that is the
-    portion of the original mesh to the positive normal side of the plane
+    # start with original vertices and faces
+    vertices = mesh.vertices.copy()
+    faces = mesh.faces.copy()
 
-    Parameters
-    ---------
-    mesh : Trimesh object
-        Source mesh to slice
-    plane_normal : (3,) float
-        Normal vector of plane to intersect with mesh
-    plane_origin:  (3,) float
-        Point on plane to intersect with mesh
-    cached_dots : (n, 3) float
-        If an external function has stored dot
-        products pass them here to avoid recomputing
-    Returns
-    ----------
-    new_mesh : Trimesh object
-        Sliced mesh
-    """
+    # slice away specified planes
+    for origin, normal in zip(plane_origin.reshape((-1, 3)),
+                              plane_normal.reshape((-1, 3))):
+        # save the new vertices and faces
+        vertices, faces = slice_faces_plane(vertices=vertices,
+                                            faces=faces,
+                                            plane_normal=normal,
+                                            plane_origin=origin,
+                                            **kwargs)
 
-    from . import base
-
-    # If passed invalid input, return None
-    if mesh is None:
-        return None
-
-    # check input plane
-    plane_normals = np.asanyarray(plane_normals,
-                                dtype=np.float64)
-    plane_origins = np.asanyarray(plane_origins,
-                                dtype=np.float64)
-
-    if plane_origins.shape[1] != 3 or plane_normals.shape[1] != 3:
-        raise ValueError('Plane origins and normals must be of dimension (n,3)!')
-
-    new_vertices = mesh.vertices
-    new_faces = mesh.faces
-    for o,n in zip(plane_origins, plane_normals):
-        new_vertices, new_faces = slice_faces_plane(new_vertices, new_faces, n, o)
-    
-    new_mesh = base.Trimesh(vertices=new_vertices,
-                            faces=new_faces,
-                            process=False)
+    # create a mesh from the sliced result
+    new_mesh = Trimesh(vertices=vertices,
+                       faces=faces,
+                       process=False)
     return new_mesh
