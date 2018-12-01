@@ -1816,18 +1816,23 @@ def generate_basis(z):
 
     Returns
     -------
-    x: (3,) float, the x axis
-    y: (3,) float, the y axis
-    z: (3,) float, the z axis
+    x : (3,) float
+      Vector along x axis
+    y : (3,) float
+      Vector along y axis
+    z : (3,) float
+      Vector along z axis
     """
     z = z / np.linalg.norm(z)
+
     x = np.array([-z[1], z[0], 0.0])
-    if np.linalg.norm(x) == 0.0:
+    if np.isclose(np.linalg.norm(x), 0.0):
         x = np.array([1.0, 0.0, 0.0])
     x = x / np.linalg.norm(x)
     y = np.cross(z, x)
     result = np.array([x, y, z])
     return result
+
 
 def unique_bincount(values,
                     minlength,
