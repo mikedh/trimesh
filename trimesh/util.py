@@ -1862,6 +1862,7 @@ def unique_bincount(values,
         counts = np.bincount(values, minlength=minlength)
     except TypeError:
         # casting failed on 32 bit windows
+        log.error('casting failed!', exc_info=True)
         # fall back to numpy unique
         return np.unique(values, return_inverse=return_inverse)
 
