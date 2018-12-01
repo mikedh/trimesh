@@ -62,9 +62,11 @@ class AlignTests(g.unittest.TestCase):
                                g.trimesh.util.generate_basis(target)))
         for vector in vectors:
             T, a = align(vector, target, return_angle=True)
-            result = g.np.dot(T, g.np.append(vector, 1))[:3]
-            aligned = g.np.linalg.norm(result - target) < 1e8
-            assert aligned
+            # rotate vector with transform
+            check = g.np.dot(T[:3, :3], vector)
+            # compare to target vector
+            norm = g.np.linalg.norm(check - target)
+            assert norm < 1e-8
 
         # these vectors should be perpendicular and zero
         angles = [align(i, target, return_angle=True)[1]
@@ -92,8 +94,9 @@ class AlignTests(g.unittest.TestCase):
 
             # check to make sure returned transform is correct
             check = g.np.dot(T, g.np.append(vector, 1))[:3]
-            aligned = g.np.linalg.norm(check - vector[0]) < 1e8
-            assert aligned
+            norm = g.np.linalg.norm(check - vectors[0])
+
+            assert norm < 1e-8
 
 
 if __name__ == '__main__':

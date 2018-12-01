@@ -4,6 +4,8 @@ apt-get install -y --no-install-recommends blender openscad wget bzip2 superviso
 
 # get teigha converter for DWG to DXF conversion
 wget https://download.opendesign.com/guestfiles/ODAFileConverter/ODAFileConverter_QT5_lnxX64_4.7dll.deb --no-check-certificate --quiet -O teigha.deb
+echo "a9ca9c72e6303bc0a03b8b7f64a7300fec6092184f7efb2c8a89aca8d34ec32b  teigha.deb" | sha256sum --check
+
 dpkg -i teigha.deb
 rm teigha.deb
 
