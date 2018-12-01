@@ -9,16 +9,16 @@ from .base import Trimesh
 from .constants import log, tol
 from .triangles import normals
 from .geometry import faces_to_edges
-from .grouping import group_rows, unique_rows
 
 from . import util
+from . import grouping
 from . import transformations
 
 import numpy as np
-
-from collections import deque
+import collections
 
 try:
+    # shapely is a soft dependency
     from shapely.geometry import Polygon
     from shapely.wkb import loads as load_wkb
 except ImportError:
@@ -26,7 +26,25 @@ except ImportError:
 
 
 def validate_polygon(obj):
-    if util.is_instance_named(obj, 'Polygon'):
+    """
+    Make sure an input can be returned as a valid polygon.
+
+    Parameters
+    -------------
+    obj : shapely.geomtry.Polygon, str (wkb), or (n, 2) float
+      Object which might be a polygon
+
+    Returns
+    ------------
+    polygon : shapely.geometry.Polygon
+      Valid polygon object
+
+    Raises
+    -------------
+    ValueError
+      If a valid finite- area polygon isn't available
+    """
+    if isinstance(obj, Polygon):
         polygon = obj
     elif util.is_shape(obj, (-1, 2)):
         polygon = Polygon(obj)
@@ -232,7 +250,7 @@ def extrude_triangulation(vertices,
     # edges which only occur once are on the boundary of the polygon
     # since the triangulation may have subdivided the boundary of the
     # shapely polygon, we need to find it again
-    edges_unique = group_rows(edges_sorted, require_count=1)
+    edges_unique = grouping.group_rows(edges_sorted, require_count=1)
 
     # (n, 2, 2) set of line segments (positions, not references)
     boundary = vertices[edges[edges_unique]]
@@ -275,8 +293,8 @@ def triangulate_polygon(polygon,
                         engine='auto',
                         **kwargs):
     """
-    Given a shapely polygon create a triangulation using one of
-    the python interfaces to triangle.c:
+    Given a shapely polygon create a triangulation using one
+    of the python interfaces to triangle.c:
     > pip install meshpy
     > pip install triangle
 
@@ -301,6 +319,7 @@ def triangulate_polygon(polygon,
                            generate_edges=None,
                            generate_faces=False,
                            min_angle=None)
+
     Returns
     --------------
     vertices : (n, 2) float
@@ -324,8 +343,7 @@ def triangulate_polygon(polygon,
     # do the import here, as sometimes this import can segfault
     # which is not catchable with a try/except block
     from meshpy import triangle
-    # call meshpy.triangle on our cleaned representation of
-    # the Shapely polygon
+    # call meshpy.triangle on our cleaned representation
     info = triangle.MeshInfo()
     info.set_points(arg['vertices'])
     info.set_facets(arg['segments'])
@@ -384,7 +402,7 @@ def _polygon_to_kwargs(polygon):
         coords = np.array(boundary.coords)
         # find indices points which occur only once, and sort them
         # to maintain order
-        unique = np.sort(unique_rows(coords)[0])
+        unique = np.sort(grouping.unique_rows(coords)[0])
         cleaned = coords[unique]
 
         vertices.append(cleaned)
@@ -401,11 +419,11 @@ def _polygon_to_kwargs(polygon):
         return len(cleaned)
 
     # sequence of (n,2) points in space
-    vertices = deque()
+    vertices = collections.deque()
     # sequence of (n,2) indices of vertices
-    facets = deque()
+    facets = collections.deque()
     # list of (2) vertices in interior of hole regions
-    holes = deque()
+    holes = collections.deque()
 
     start = add_boundary(polygon.exterior, 0)
     for interior in polygon.interiors:
@@ -507,8 +525,8 @@ def icosahedron():
              1, 5, 9, 5, 11, 4, 11, 10, 2, 10, 7, 6, 7, 1, 8,
              3, 9, 4, 3, 4, 2, 3, 2, 6, 3, 6, 8, 3, 8, 9,
              4, 9, 5, 2, 4, 11, 6, 2, 10, 8, 6, 7, 9, 8, 1]
-    # make every vertex have radius 1.0
-    vertices = np.reshape(vertices, (-1, 3)) / 1.9021130325903071
+    # scale vertices so each vertex radius is 1.0
+    vertices = np.reshape(vertices, (-1, 3)) / np.sqrt(2.0 + t)
     faces = np.reshape(faces, (-1, 3))
     mesh = Trimesh(vertices=vertices,
                    faces=faces,
@@ -805,12 +823,12 @@ def annulus(r_min=1.0,
 
 def random_soup(face_count=100):
     """
-    Return a random set of triangles as a Trimesh
+    Return random triangles as a Trimesh
 
     Parameters
     -----------
     face_count : int
-      Number of faces in resultant mesh
+      Number of faces desired in mesh
 
     Returns
     -----------
@@ -829,8 +847,8 @@ def axis(origin_size=0.04,
          axis_radius=None,
          axis_length=None):
     """
-    Return XYZ axis as Trimesh, which represents position and
-    orientation. If you set the origin size, other parameters
+    Return an XYZ axis marker as a  Trimesh, which represents position
+    and orientation. If you set the origin size the other parameters
     will be set relative to it.
 
     Parameters
@@ -848,7 +866,7 @@ def axis(origin_size=0.04,
 
     Returns
     -------
-    axis : trimesh.Trimesh
+    marker : trimesh.Trimesh
       Mesh geometry of axis indicators
     """
     # the size of the ball representing the origin
@@ -908,11 +926,11 @@ def axis(origin_size=0.04,
     x_axis.visual.face_colors = [255, 0, 0]
 
     # append the sphere and three cylinders
-    result = util.concatenate([axis_origin,
+    marker = util.concatenate([axis_origin,
                                x_axis,
                                y_axis,
                                z_axis])
-    return result
+    return marker
 
 
 def camera_marker(camera, marker_height=0.4, origin_size=None):
@@ -940,7 +958,7 @@ def camera_marker(camera, marker_height=0.4, origin_size=None):
 
     try:
         # path is a soft dependancy
-        from .io.load import load_path
+        from .path.io.load import load_path
     except ImportError:
         # they probably don't have shapely installed
         log.warning('unable to create FOV visualization!',
