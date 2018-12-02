@@ -1,13 +1,21 @@
 import os.path
 
 import numpy as np
-import PIL.Image
+
+try:
+    import PIL.Image as PIL_Image
+except ImportError:
+    PIL_Image = None
 
 from ..constants import log
 from .. import util
 
 
 def _get_vertex_colors(uv, mtllibs):
+    if PIL_Image is None:
+        log.warning('Pillow is required to load texture')
+        return
+
     vertex_colors = np.zeros((len(uv), 3), dtype=np.uint8)
     n_success = 0
     for mtllib in mtllibs:
@@ -15,7 +23,7 @@ def _get_vertex_colors(uv, mtllibs):
             os.path.dirname(mtllib['filename']), mtllib['map_Kd']
         )
         try:
-            texture = np.asarray(PIL.Image.open(texture_file))
+            texture = np.asarray(PIL_Image.open(texture_file))
         except IOError:
             continue
         height, width = texture.shape[:2]
