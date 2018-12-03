@@ -2,8 +2,8 @@
 resolvers.py
 ---------------
 
-Tools to load assets referenced in meshes,
-like MTL files or texture images.
+Tools to load assets referenced in meshes, like MTL files
+or texture images.
 """
 import os
 import trimesh
@@ -19,6 +19,11 @@ class FileSystemResolver(Resolver):
     def __init__(self, source):
         """
         Resolve files based on a source path.
+
+        Parameters
+        ------------
+        source : str
+          File path where mesh was loaded from
         """
 
         # remove everything other than absolute path
@@ -34,6 +39,19 @@ class FileSystemResolver(Resolver):
             raise ValueError('path not a file or directory!')
 
     def get(self, name):
+        """
+        Get an asset.
+
+        Parameters
+        -------------
+        name : str
+          Name of the asset
+
+        Returns
+        ------------
+        data : bytes
+          Loaded data from asset
+        """
         with open(os.path.join(self.parent, name), 'rb') as f:
             data = f.read()
         return data
@@ -45,7 +63,34 @@ class ZipResolver(Resolver):
     """
 
     def __init__(self, archive):
+        """
+        Resolve files inside a ZIP archive as loaded by
+        trimesh.util.decompress
+
+        Parameters
+        -------------
+        archive : dict
+          Contains resources as file object
+        """
         self.archive = archive
 
     def get(self, name):
-        return self.archive[name].read()
+        """
+        Get an asset from the ZIP archive.
+
+        Parameters
+        -------------
+        name : str
+          Name of the asset
+
+        Returns
+        -------------
+        data : bytes
+          Loaded data from asset
+        """
+        # data is stored as a file object
+        data = self.archive[name].read()
+        # set the file object back to beginning
+        self.archive[name].seek(0)
+
+        return data
