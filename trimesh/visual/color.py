@@ -29,9 +29,9 @@ import numpy as np
 import colorsys
 import collections
 
-from . import util
-from . import caching
-from . import grouping
+from .. import util
+from .. import caching
+from .. import grouping
 
 
 class ColorVisuals(object):
