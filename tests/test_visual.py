@@ -205,6 +205,19 @@ class VisualTest(g.unittest.TestCase):
         # every color should differ
         assert (colors[:-1] != colors[1:]).any(axis=1).all()
 
+    def test_uv_to_color(self):
+        try:
+            import PIL.Image
+        except ImportError:
+            return
+
+        n_vertices = 100
+        uv = g.np.array([[0.25, 0.2], [0.4, 0.5]], dtype=float)
+        texture = g.np.arange(96, dtype=g.np.uint8).reshape(8, 4, 3)
+        colors = g.trimesh.visual.uv_to_color(uv, PIL.Image.fromarray(texture))
+        colors_expected = [[75, 76, 77, 255], [54, 55, 56, 255]]
+
+        g.np.testing.assert_allclose(colors, colors_expected, rtol=0, atol=0)
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
