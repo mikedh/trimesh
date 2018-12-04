@@ -13,6 +13,8 @@ from .color import (ColorVisuals,
                     DEFAULT_COLOR,
                     linear_color_map)
 
+from .texture import uv_to_color
+
 # explicitly list imports in __all__
 # as otherwise flake8 gets mad
 __all__ = [ColorVisuals,
@@ -21,4 +23,5 @@ __all__ = [ColorVisuals,
            create_visual,
            DEFAULT_COLOR,
            interpolate,
-           linear_color_map]
+           linear_color_map,
+           uv_to_color]

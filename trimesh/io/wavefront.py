@@ -9,6 +9,7 @@ except ImportError:
 
 from ..constants import log
 from .. import util
+from .. import visual
 
 
 def _get_vertex_colors(uv, mtllibs):
@@ -16,21 +17,17 @@ def _get_vertex_colors(uv, mtllibs):
         log.warning('Pillow is required to load texture')
         return
 
-    vertex_colors = np.zeros((len(uv), 3), dtype=np.uint8)
+    vertex_colors = np.zeros((len(uv), 4), dtype=np.uint8)
     n_success = 0
     for mtllib in mtllibs:
         texture_file = os.path.join(
             os.path.dirname(mtllib['filename']), mtllib['map_Kd']
         )
         try:
-            texture = np.asarray(PIL_Image.open(texture_file))
+            texture = PIL_Image.open(texture_file)
         except IOError:
             continue
-        height, width = texture.shape[:2]
-
-        x = (uv[:, 0] * width).round().astype(int)
-        y = ((1 - uv[:, 1]) * height).round().astype(int)
-        vertex_colors += texture[y, x]
+        vertex_colors += visual.uv_to_color(uv, texture)
         n_success += 1
     if n_success == 0:
         return  # all fails
