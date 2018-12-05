@@ -1,7 +1,51 @@
+import os.path
+
 import numpy as np
+
+try:
+    import PIL.Image as PIL_Image
+except ImportError:
+    PIL_Image = None
 
 from ..constants import log
 from .. import util
+from .. import visual
+
+
+def _get_vertex_colors(uv, mtllibs):
+    if PIL_Image is None:
+        log.warning('Pillow is required to load texture')
+        return
+
+    vertex_colors = np.zeros((len(uv), 4), dtype=np.uint8)
+    n_success = 0
+    for mtllib in mtllibs:
+        texture_file = os.path.join(
+            os.path.dirname(mtllib['filename']), mtllib['map_Kd']
+        )
+        try:
+            texture = PIL_Image.open(texture_file)
+        except IOError:
+            continue
+        vertex_colors += visual.uv_to_color(uv, texture)
+        n_success += 1
+    if n_success == 0:
+        return  # all fails
+    return vertex_colors
+
+
+def _parse_mtl(filename):
+    data = {'filename': filename,
+            'newmtl': None,
+            'map_Kd': None}
+    with open(filename) as f:
+        for line in f:
+            line_split = line.strip().split()
+            if not line_split:
+                continue
+            if line_split[0] in data:
+                data[line_split[0]] = line_split[1]
+    return data
 
 
 def load_wavefront(file_obj, **kwargs):
@@ -105,11 +149,22 @@ def load_wavefront(file_obj, **kwargs):
                     face_groups[start_f:] = idx
                 loaded['metadata']['face_groups'] = face_groups
 
+            if len(current['usemtl']) > 0:
+                current_mtllibs = [mtllibs[k] for k in current['usemtl']
+                                   if k in mtllibs]
+                vertex_colors = _get_vertex_colors(
+                    uv=loaded['metadata']['vertex_texture'],
+                    mtllibs=current_mtllibs,
+                )
+                loaded['vertex_colors'] = vertex_colors
+                loaded['metadata']['mtllibs'] = current_mtllibs
+
             # we're done, append the loaded mesh kwarg dict
             meshes.append(loaded)
 
     attribs = {k: [] for k in ['v', 'vt', 'vn']}
-    current = {k: [] for k in ['v', 'vt', 'vn', 'f', 'g']}
+    current = {k: [] for k in ['v', 'vt', 'vn', 'f', 'g', 'usemtl']}
+    mtllibs = {}
     # remap vertex indexes {str key: int index}
     remap = {}
     next_idx = 0
@@ -162,6 +217,14 @@ def load_wavefront(file_obj, **kwargs):
             # defining a new group
             group_idx += 1
             current['g'].append((group_idx, len(current['f']) // 3))
+        elif line_split[0] == 'mtllib':
+            mtl_file = os.path.join(os.path.dirname(file_obj.name),
+                                    line_split[1])
+            mtllib = _parse_mtl(mtl_file)
+            if mtllib.get('newmtl'):
+                mtllibs[mtllib['newmtl']] = mtllib
+        elif line_split[0] == 'usemtl':
+            current['usemtl'].append(line_split[1])
 
     if next_idx > 0:
         append_mesh()
