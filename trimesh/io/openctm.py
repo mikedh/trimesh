@@ -99,7 +99,7 @@ if _ctm_lib:
     ctmSave = _ctm_lib.ctmSave
     ctmSave.argtypes = [CTMcontext, ctypes.c_char_p]
 
-    def load_ctm(file_obj, file_type=None):
+    def load_ctm(file_obj, file_type=None, **kwargs):
         """
         Load OpenCTM files from a file object.
 

@@ -14,7 +14,7 @@ class Resolver(object):
         raise NotImplementedError('you need to implement a get method!')
 
 
-class FileSystemResolver(Resolver):
+class FilePathResolver(Resolver):
 
     def __init__(self, source):
         """
@@ -52,6 +52,7 @@ class FileSystemResolver(Resolver):
         data : bytes
           Loaded data from asset
         """
+        # load the file by path name
         with open(os.path.join(self.parent, name), 'rb') as f:
             data = f.read()
         return data
@@ -88,6 +89,15 @@ class ZipResolver(Resolver):
         data : bytes
           Loaded data from asset
         """
+        # if name isn't in archive try some similar values
+        if name not in self.archive:
+            if hasattr(name, 'decode'):
+                name = name.decode('utf-8')
+            for option in [name, name.strip(), name.split('/')[-1]]:
+                if option in self.archive:
+                    name = option
+                    break
+
         # data is stored as a file object
         data = self.archive[name].read()
         # set the file object back to beginning

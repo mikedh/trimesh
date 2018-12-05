@@ -3,52 +3,92 @@ import os.path
 import numpy as np
 
 try:
-    import PIL.Image as PIL_Image
+    from PIL import Image
 except ImportError:
-    PIL_Image = None
+    Image = None
 
 from ..constants import log
 from .. import util
 from .. import visual
 
 
-def _get_vertex_colors(uv, mtllibs):
-    if PIL_Image is None:
-        log.warning('Pillow is required to load texture')
+def _get_vertex_colors(uv, mtllibs, resolver):
+    """
+    Turn loaded UV and materials into vertex colors.
+
+    Parameters
+    ------------
+    uv : (n, 2) float
+      Texture coordinates
+    mttlibs : list of dict
+      Material data including image names
+    resolver : trimesh.visual.resolvers.Resolver
+      Object to load data referenced by name
+
+    Returns
+    -----------
+    colors : (n, 4) float or None
+      Loaded RGBA colors
+    """
+    if Image is None:
+        log.warning('pillow is required to load texture')
         return
 
+    success = False
     vertex_colors = np.zeros((len(uv), 4), dtype=np.uint8)
-    n_success = 0
-    for mtllib in mtllibs:
-        texture_file = os.path.join(
-            os.path.dirname(mtllib['filename']), mtllib['map_Kd']
-        )
-        try:
-            texture = PIL_Image.open(texture_file)
-        except IOError:
-            continue
+
+    for mtl in mtllibs:
+        # get the data for the image
+        texture_data = resolver.get(mtl['map_Kd'])
+        # load the actual image
+        texture = Image.open(util.wrap_as_stream(texture_data))
+        # append the loaded colors
         vertex_colors += visual.uv_to_color(uv, texture)
-        n_success += 1
-    if n_success == 0:
-        return  # all fails
+        success = True
+
+    # nothing actually loaded
+    if not success:
+        return
     return vertex_colors
 
 
-def _parse_mtl(filename):
-    data = {'filename': filename,
-            'newmtl': None,
+def parse_mtl(mtl):
+    """
+    Parse a loaded MTL file.
+
+    Parameters
+    -------------
+    mtl : str or bytes
+      Data from an MTL file
+
+    Returns
+    ------------
+    data : dict
+      Has keys map_Kd
+    """
+    # decode bytes if necessary
+    if hasattr(mtl, 'decode'):
+        mtl = mtl.decode('utf-8')
+
+    # initial data layout
+    data = {'newmtl': None,
             'map_Kd': None}
-    with open(filename) as f:
-        for line in f:
-            line_split = line.strip().split()
-            if not line_split:
-                continue
-            if line_split[0] in data:
-                data[line_split[0]] = line_split[1]
+
+    # use universal newline splitting
+    for line in str.splitlines(mtl.strip()):
+        # clean leading/trailing whitespace and split
+        line_split = line.strip().split()
+        # needs to be at least two values
+        if len(line_split) <= 1:
+            continue
+        # store the keys
+        if line_split[0] in data:
+            data[line_split[0]] = line_split[1]
+
     return data
 
 
-def load_wavefront(file_obj, **kwargs):
+def load_wavefront(file_obj, resolver=None, **kwargs):
     """
     Loads an ascii Wavefront OBJ file_obj into kwargs
     for the Trimesh constructor.
@@ -61,12 +101,16 @@ def load_wavefront(file_obj, **kwargs):
     Parameters
     ----------
     file_obj : file object
-                   Containing a wavefront file
+      Containing a wavefront file
+    resolver : trimesh.visual.Resolver or None
+      For loading referenced files, like MTL or textures
+    kwargs : **
+      Passed to trimesh.Trimesh.__init__
 
     Returns
     ----------
     loaded : dict
-                kwargs for Trimesh constructor
+      kwargs for Trimesh constructor
     """
 
     # make sure text is UTF-8 with only \n newlines
@@ -152,14 +196,17 @@ def load_wavefront(file_obj, **kwargs):
             if len(current['usemtl']) > 0:
                 current_mtllibs = [mtllibs[k] for k in current['usemtl']
                                    if k in mtllibs]
-                vertex_colors = _get_vertex_colors(
-                    uv=loaded['metadata']['vertex_texture'],
-                    mtllibs=current_mtllibs,
-                )
-                loaded['vertex_colors'] = vertex_colors
-                loaded['metadata']['mtllibs'] = current_mtllibs
+                try:
+                    vertex_colors = _get_vertex_colors(
+                        uv=loaded['metadata']['vertex_texture'],
+                        mtllibs=current_mtllibs,
+                        resolver=resolver)
+                    loaded['vertex_colors'] = vertex_colors
+                    loaded['metadata']['mtllibs'] = current_mtllibs
+                except BaseException:
+                    log.error('failed to load texture!', exc_info=True)
 
-            # we're done, append the loaded mesh kwarg dict
+            # this mesh is done so append the loaded mesh kwarg dict
             meshes.append(loaded)
 
     attribs = {k: [] for k in ['v', 'vt', 'vn']}
@@ -218,11 +265,26 @@ def load_wavefront(file_obj, **kwargs):
             group_idx += 1
             current['g'].append((group_idx, len(current['f']) // 3))
         elif line_split[0] == 'mtllib':
-            mtl_file = os.path.join(os.path.dirname(file_obj.name),
-                                    line_split[1])
-            mtllib = _parse_mtl(mtl_file)
-            if mtllib.get('newmtl'):
+
+            # a resolver to load files
+            if resolver is None:
+                resolver = visual.resolvers.FilePathResolver(file_obj.name)
+
+            # the name of the referenced material file
+            mtl_name = line_split[1]
+            # bytes containing MTL data
+            try:
+                mtl_data = resolver.get(mtl_name)
+            except:
+                log.error('unable to load material:', mtl_name)
+                continue
+
+            # loaded into a dict
+            mtllib = parse_mtl(mtl_data)
+
+            if 'newmtl' in mtllib:
                 mtllibs[mtllib['newmtl']] = mtllib
+
         elif line_split[0] == 'usemtl':
             current['usemtl'].append(line_split[1])
 

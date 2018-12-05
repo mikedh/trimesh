@@ -1,8 +1,7 @@
-import numpy as np
-
 import os
 
 from .. import util
+from .. import visual
 
 from ..base import Trimesh
 from ..points import PointCloud
@@ -66,14 +65,14 @@ def available_formats():
         Extensions of available loaders
         i.e. 'stl', 'ply', 'dxf', etc.
     """
+    loaders = mesh_formats()
+    loaders.extend(path_formats())
+    loaders.extend(compressed_loaders.keys())
 
-    loaders = np.hstack((list(compressed_loaders.keys()),
-                         mesh_formats(),
-                         path_formats()))
     return loaders
 
 
-def load(file_obj, file_type=None, **kwargs):
+def load(file_obj, file_type=None, resolver=None, **kwargs):
     """
     Load a mesh or vectorized path into objects:
     Trimesh, Path2D, Path3D, Scene
@@ -120,6 +119,7 @@ def load(file_obj, file_type=None, **kwargs):
         # mesh loaders use mesh loader
         loaded = load_mesh(file_obj,
                            file_type=file_type,
+                           resolver=resolver,
                            **kwargs)
     elif file_type in compressed_loaders:
         # for archives, like ZIP files
@@ -148,7 +148,7 @@ def load(file_obj, file_type=None, **kwargs):
 
 
 @log_time
-def load_mesh(file_obj, file_type=None, **kwargs):
+def load_mesh(file_obj, file_type=None, resolver=None, **kwargs):
     """
     Load a mesh file into a Trimesh object
 
@@ -173,7 +173,8 @@ def load_mesh(file_obj, file_type=None, **kwargs):
     # make sure we keep passed kwargs to loader
     # but also make sure loader keys override passed keys
     results = mesh_loaders[file_type](file_obj,
-                                      file_type=file_type)
+                                      file_type=file_type,
+                                      resolver=resolver)
 
     if util.is_file(file_obj):
         file_obj.close()
@@ -230,6 +231,9 @@ def load_compressed(file_obj, file_type=None, mixed=False):
     # store loaded geometries as a list
     geometries = []
 
+    # so loaders can access textures/etc
+    resolver = visual.resolvers.ZipResolver(files)
+    
     # try to save the files with meaningful metadata
     if 'file_path' in metadata:
         archive_name = metadata['file_path']
@@ -261,6 +265,7 @@ def load_compressed(file_obj, file_type=None, mixed=False):
         # load the individual geometry
         geometry = load(file_obj=data,
                         file_type=compressed_type,
+                        resolver=resolver,
                         metadata=metadata)
         geometries.append(geometry)
 

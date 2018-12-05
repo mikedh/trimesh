@@ -491,7 +491,8 @@ def export_draco(mesh):
 
     Returns
     ----------
-    data : str or bytes, data
+    data : str or bytes
+      DRC file bytes
     """
     with tempfile.NamedTemporaryFile(suffix='.ply') as temp_ply:
         temp_ply.write(export_ply(mesh))
@@ -511,18 +512,19 @@ def export_draco(mesh):
     return data
 
 
-def load_draco(file_obj, file_type=None):
+def load_draco(file_obj, **kwargs):
     """
     Load a mesh from Google's Draco format.
 
     Parameters
     ----------
-    file_obj  : open file- like object
-    file_type : unused
+    file_obj  : file- like object
+      Contains data
 
     Returns
     ----------
-    kwargs : dict, kwargs to construct a Trimesh object
+    kwargs : dict
+      Keyword arguments to construct a Trimesh object
     """
 
     with tempfile.NamedTemporaryFile(suffix='.drc') as temp_drc:

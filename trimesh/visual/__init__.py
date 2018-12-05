@@ -15,6 +15,10 @@ from .color import (ColorVisuals,
 
 from .texture import uv_to_color
 
+from . import color
+from . import texture
+from . import resolvers
+
 # explicitly list imports in __all__
 # as otherwise flake8 gets mad
 __all__ = [ColorVisuals,
