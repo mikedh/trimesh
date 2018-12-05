@@ -108,6 +108,19 @@ class MeshTests(g.unittest.TestCase):
             for n in neighs:
                 assert ([v_i, n] in elist or [n, v_i] in elist)
 
+    def test_validate(self):
+        """
+        Make sure meshes with validation work
+        """
+        m = g.get_mesh('featuretype.STL', validate=True)
+
+        assert m._validate
+        assert m.is_volume
+
+        len_pre = len(m.vertices)
+        m.remove_unreferenced_vertices()
+        assert len(m.vertices) == len_pre
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
