@@ -17,10 +17,6 @@ try:
 except ImportError:
     log.warning('No scipy!')
 
-# if we get a MemoryError change this to True
-# so we don't keep trying tile operations
-_LOWMEM = False
-
 
 def minimum_nsphere(obj):
     """
@@ -71,38 +67,21 @@ def minimum_nsphere(obj):
     # , qhull_options='QbB Pp')
     voronoi = spatial.Voronoi(points, furthest_site=True)
 
-    # if we've gotten a MemoryError before don't try tiling
-    global _LOWMEM
-
     # find the maximum radius^2 point for each of the voronoi vertices
-    # this is worst case quite expensive, but we have used quick convex
+    # this is worst case quite expensive but we have used quick convex
     # hull methods to reduce n for this operation
     # we are doing comparisons on the radius squared then rooting once
-    if _LOWMEM or (len(points) * len(voronoi.vertices)) > 1e7:
-        # if we have a bajillion points loop
+    try:
+        # cdist is massivly faster than looping or tiling methods
+        # although it does create a very large intermediate array
         radii_2 = spatial.distance.cdist(voronoi.vertices, points,
-            metric='sqeuclidean').max(axis=1)
-    else:
-        # otherwise tiling is massively faster
-        try:
-            dim = points.shape[1]
-            v_tile = np.tile(voronoi.vertices, len(points)).reshape((-1, dim))
-            # tile points per voronoi vertex
-            p_tile = np.tile(
-                points, (len(
-                    voronoi.vertices), 1)).reshape(
-                (-1, dim))
-            # find the maximum radius of points for each voronoi vertex
-            radii_2 = ((p_tile - v_tile)**2).sum(axis=1).reshape(
-                (len(voronoi.vertices), -1)).max(axis=1)
-        except MemoryError:
-            # don't try tiling again
-            _LOWMEM = True
-            # fall back to the list comprehension
-            radii_2 = np.array([((points - v)**2).sum(axis=1).max()
-                                for v in voronoi.vertices])
-            # log the MemoryError
-            log.warning('MemoryError: falling back to slower check!')
+                                         metric='sqeuclidean').max(axis=1)
+    except MemoryError:
+        # log the MemoryError
+        log.warning('MemoryError: falling back to slower check!')
+        # fall back to a potentially very slow list comprehension
+        radii_2 = np.array([((points - v) ** 2).sum(axis=1).max()
+                            for v in voronoi.vertices])
 
     # we want the smallest sphere, so we take the min of the radii options
     radii_idx = radii_2.argmin()
