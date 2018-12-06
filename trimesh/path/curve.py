@@ -112,7 +112,7 @@ def binomial(n):
     Returns
     ---------------
     binom : (n + 1,) int
-      Binomial coefficents of a given order
+      Binomial coefficients of a given order
     """
     if n == 1:
         return [1, 1]

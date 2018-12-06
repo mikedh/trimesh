@@ -39,7 +39,7 @@ from . import intersections
 from . import transformations
 
 from .io.export import export_mesh
-from .constants import log, _log_time, tol
+from .constants import log, log_time, tol
 
 from .scene import Scene
 from .parent import Geometry
@@ -809,7 +809,7 @@ class Trimesh(Geometry):
         # edges_unique will be added automatically by the decorator
         # additional terms generated need to be added to the cache manually
         self._cache['edges_unique_idx'] = unique
-        self._cache['edges_unique_inv'] = inverse
+        self._cache['edges_unique_inverse'] = inverse
         return edges_unique
 
     @caching.cache_decorator
@@ -825,6 +825,23 @@ class Trimesh(Geometry):
         vector = np.subtract(*self.vertices[self.edges_unique.T])
         length = np.linalg.norm(vector, axis=1)
         return length
+
+    @caching.cache_decorator
+    def edges_unique_inverse(self):
+        """
+        Return the inverse required to reproduce
+        self.edges_sorted from self.edges_unique.
+
+        Useful for referencing edge properties:
+        mesh.edges_unique[mesh.edges_unique_inverse] == m.edges_sorted
+
+        Returns
+        ----------
+        inverse : (len(self.edges),) int
+          Indexes of self.edges_unique
+        """
+        populate = self.edges_unique
+        return self._cache['edges_unique_inverse']
 
     @caching.cache_decorator
     def edges_sorted(self):
@@ -1096,7 +1113,7 @@ class Trimesh(Geometry):
         """
         self.apply_translation(self.bounds[0] * -1.0)
 
-    @_log_time
+    @log_time
     def split(self, only_watertight=True, adjacency=None, **kwargs):
         """
         Returns a list of Trimesh objects, based on face connectivity.
@@ -1562,7 +1579,7 @@ class Trimesh(Geometry):
 
         return on_hull
 
-    @_log_time
+    @log_time
     def fix_normals(self, multibody=None):
         """
         Find and fix problems with self.face_normals and self.faces
@@ -1699,7 +1716,7 @@ class Trimesh(Geometry):
                                            face_index=face_index)
         return Trimesh(vertices=vertices, faces=faces)
 
-    @_log_time
+    @log_time
     def smoothed(self, angle=.4):
         """
         Return a version of the current mesh which will render nicely.
@@ -1814,7 +1831,8 @@ class Trimesh(Geometry):
 
     def slice_plane(self,
                     plane_origin,
-                    plane_normal):
+                    plane_normal,
+                    **kwargs):
         """
         Returns another mesh that is the current mesh
         sliced by the plane defined by origin and normal.
@@ -1836,7 +1854,8 @@ class Trimesh(Geometry):
         new_mesh = intersections.slice_mesh_plane(
             mesh=self,
             plane_normal=plane_normal,
-            plane_origin=plane_origin)
+            plane_origin=plane_origin,
+            **kwargs)
 
         return new_mesh
 
@@ -1884,8 +1903,10 @@ class Trimesh(Geometry):
         Remove all vertices in the current mesh which are not
         referenced by a face.
         """
-        unique, inverse = np.unique(self.faces.reshape(-1),
-                                    return_inverse=True)
+        # use unique_bincount over np.unique for a 20x speedup
+        unique, inverse = util.unique_bincount(self.faces.reshape(-1),
+                                               minlength=len(self.vertices),
+                                               return_inverse=True)
         self.faces = inverse.reshape((-1, 3))
         self.vertices = self.vertices[unique]
 

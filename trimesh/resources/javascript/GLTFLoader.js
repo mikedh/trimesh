@@ -2833,7 +2833,7 @@ THREE.GLTFLoader = (function() {
    * @return {Promise<THREE.Scene>}
    */
   GLTFParser.prototype.loadScene = (function() {
-    // scene node hierachy builder
+    // scene node hierarchy builder
 
     function buildNodeHierachy(nodeId, parentObject, json, allNodes, skins) {
       var node = allNodes[nodeId];
@@ -2877,7 +2877,7 @@ THREE.GLTFLoader = (function() {
         }
       }
 
-      // build node hierachy
+      // build node hierarchy
 
       parentObject.add(node);
 

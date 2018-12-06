@@ -5,6 +5,7 @@ from .. import bounds
 from .. import constants
 
 
+@constants.log_time
 def contains_points(intersector,
                     points,
                     check_direction=None):
@@ -53,8 +54,9 @@ def contains_points(intersector,
                                  (inside_aabb.sum(), 1))
     else:
         # if a direction is passed use it
-        ray_directions = np.tile(np.array(check_direction).reshape(3),
-                                 (inside_aabb.sum(), 1))
+        ray_directions = np.tile(
+            np.array(check_direction).reshape(3),
+            (inside_aabb.sum(), 1))
 
     # cast a ray both forwards and backwards
     location, index_ray, c = intersector.intersects_location(
@@ -104,21 +106,25 @@ def contains_points(intersector,
     broken = np.logical_and(np.logical_not(agree),
                             np.logical_not(one_freespace))
 
+    # if all rays agree return
+    if not broken.any():
+        return contains
+
     # try to run again with a new random vector
     # only do it if check_direction isn't specified
     # to avoid infinite recursion
-    if broken.any() and check_direction is None:
+    if check_direction is None:
         # we're going to run the check again in a random direction
         new_direction = util.unitize(np.random.random(3) - .5)
         # do the mask trick again to be able to assign results
         mask = inside_aabb.copy()
         mask[mask] = broken
 
-        # run a contains check again on the broken points with a
-        # new random direction but only once and assign it to our results
-        contains[mask] = contains_points(intersector,
-                                         points[inside_aabb][broken],
-                                         check_direction=new_direction)
+        contains[mask] = contains_points(
+            intersector,
+            points[inside_aabb][broken],
+            check_direction=new_direction)
+
         constants.log.debug(
             'detected %d broken contains test, attempted to fix',
             broken.sum())

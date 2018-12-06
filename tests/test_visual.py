@@ -30,14 +30,16 @@ class VisualTest(g.unittest.TestCase):
 
     def test_data_model(self):
         """
-        Test the probably too- magical color caching and storage system.
+        Test the probably too- magical color caching and storage
+        system.
         """
         m = g.get_mesh('featuretype.STL')
         test_color = [255, 0, 0, 255]
         test_color_2 = [0, 255, 0, 255]
         test_color_transparent = [25, 33, 0, 146]
 
-        # there should be nothing in the cache or DataStore when starting
+        # there should be nothing in the cache or DataStore when
+        # starting
         assert len(m.visual._cache) == 0
         assert len(m.visual._data) == 0
         # no visuals have been defined so this should be None
@@ -174,7 +176,7 @@ class VisualTest(g.unittest.TestCase):
         """
         values = g.np.array([-1.0, 0.0, 1.0, 2.0])
         # should clamp
-        colors = g.trimesh.visual._default_cmap(values)
+        colors = g.trimesh.visual.linear_color_map(values)
         print(colors)
         assert g.np.allclose(colors[0], [255, 0, 0, 255])
         assert g.np.allclose(colors[1], [255, 0, 0, 255])

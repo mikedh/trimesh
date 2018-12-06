@@ -9,6 +9,8 @@ import numpy as np
 
 from . import util
 
+from .constants import tol
+
 # how many significant figures to use for each field of the identifier
 id_sigfig = np.array([5,  # area
                       10,  # euler number
@@ -26,11 +28,13 @@ def identifier_simple(mesh):
 
     Parameters
     ----------
-    mesh: Trimesh object
+    mesh : Trimesh object
+      Source geometry
 
     Returns
     ----------
-    identifier: (6,) float, identifying values of the mesh
+    identifier : (6,) float
+      Identifying values of the mesh
     """
     # verify the cache once
     mesh._cache.verify()
@@ -48,9 +52,11 @@ def identifier_simple(mesh):
         # note that we're going to try to make all parameters relative
         # to area so other values don't get blown up at weird scales
         identifier[0] = mesh_area
+
         # topological constant and the only thing we can really
         # trust in this fallen world
         identifier[1] = mesh.euler_number
+
         # if we have a watertight mesh include volume and inertia
         if mesh.is_volume:
             # side length of a cube ratio
@@ -70,7 +76,8 @@ def identifier_simple(mesh):
                 # cylinder height
                 h = np.dot(vertices, mesh.symmetry_axis).ptp()
                 # section radius
-                R2 = (np.dot(vertices, mesh.symmetry_section.T)**2).sum(axis=1).max()
+                R2 = (np.dot(vertices, mesh.symmetry_section.T)
+                      ** 2).sum(axis=1).max()
                 # area of a cylinder primitive
                 area = (2 * np.pi * (R2**.5) * h) + (2 * np.pi * R2)
                 # replace area in this case with area ratio
@@ -99,16 +106,20 @@ def identifier_simple(mesh):
 
 def identifier_hash(identifier, sigfig=None):
     """
-    Hash an identifier array to a specified number of significant figures.
+    Hash an identifier array to a specified number of
+    significant figures.
 
     Parameters
     ----------
-    identifier: (n,) float
-    sigfig:     (n,) int
+    identifier : (n,) float
+      Vector of properties
+    sigfig : (n,) int
+      Number of sigfigs per property
 
     Returns
     ----------
-    md5: str, MD5 hash of identifier
+    md5 : str
+      MD5 hash of identifier
     """
     if sigfig is None:
         sigfig = id_sigfig
@@ -121,3 +132,52 @@ def identifier_hash(identifier, sigfig=None):
     hashable = (as_int * (10 ** multiplier)).astype(np.int64)
     md5 = util.md5_object(hashable)
     return md5
+
+
+def face_ordering(mesh):
+    """
+    Triangles with three different length sides are
+    ordered in two ways:
+    [small edge, medium edge, large edge] (SML)
+    [small edge, large edge,  medium edge] (SLM)
+
+    This function returns [-1, 0, 1], depending on whether
+    the triangle is SML or SLM, and 0 if M == L.
+
+    The reason this is useful as it as a rare property that is
+    invarient to translation and rotation but changes when a
+    mesh is reflected or inverted. It is NOT invarient to
+    different tesselations of the same surface.
+
+    Parameters
+    -------------
+    mesh : trimesh.Trimesh
+      Source geometry to calculate ordering on
+
+    Returns
+    --------------
+    order : (len(mesh.faces), ) int
+      Is each face SML (-1), SLM (+1), or M==L (0)
+    """
+
+    # the length of each edge in faces
+    norms = mesh.edges_unique_length[
+        mesh.edges_unique_inverse].reshape((-1, 3))
+
+    # the per- row index of the shortest edge
+    small = norms.argmin(axis=1)
+
+    # the ordered index for the medium and large edge norm
+    # aranged to reference flattened norms for indexing
+    MLidx = np.column_stack((small + 1, small + 2)) % 3
+    MLidx += (np.arange(len(small)) * 3).reshape((-1, 1))
+
+    # subtract the two largest edge lengths from each other
+    diff = np.subtract(*norms.reshape(-1)[MLidx.T])
+
+    # mark by sign but keep zero values zero
+    order = np.zeros(len(norms), dtype=np.int64)
+    order[diff < tol.merge] = -1
+    order[diff > tol.merge] = 1
+
+    return order

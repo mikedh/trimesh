@@ -34,62 +34,90 @@ def plane_transform(origin, normal):
     return transform
 
 
-def align_vectors(vector_start, vector_end, return_angle=False):
+def align_vectors(a, b, return_angle=False):
     """
-    Returns the 4x4 transformation matrix which will rotate from
-    vector_start to vector_end, eg:
+    Find a transform between two 3D vectors.
 
-    vector_end == np.dot(T, np.append(vector_start, 1))[0:3]
-
+    Implements the method described here:
+    http://ethaneade.com/rot_between_vectors.pdf
 
     Parameters
-    -----------
-    vector_start: (3,) float, vector in space
-    vector_end:   (3,) float, vector in space
-    return_angle: bool, return angle between vectors or not
+    --------------
+    a : (3,) float
+      Source vector
+    b : (3,) float
+      Target vector
+    return_angle : bool
+      If True return the angle between the two vectors
 
     Returns
-    -----------
-    transform: (4,4) float, transformation matrix
-    angle:     float, angle in radians (only returned if flag set)
-
+    -------------
+    transform : (4, 4) float
+      Homogenous transform from a to b
+    angle : float
+      Angle between vectors in radians
+      Only returned if return_angle
     """
-    # convert start and end to (3, ) float unit vectors
-    start = np.asanyarray(vector_start,
-                          dtype=np.float64).reshape(3)
-    start /= np.linalg.norm(start)
-    end = np.asanyarray(vector_end,
-                        dtype=np.float64).reshape(3)
-    end /= np.linalg.norm(end)
+    # copy of input vectors
+    a = np.array(a, dtype=np.float64, copy=True)
+    b = np.array(b, dtype=np.float64, copy=True)
 
-    # get a unit vector perpendicular to both vectors
-    # this will be the axis we are rotating around
-    cross = np.cross(start, end)
-    # we clip the norm to 1, as otherwise floating point bs
-    # can cause the arcsin to error
-    norm = np.linalg.norm(cross)
-    norm = np.clip(norm, -1.0, 1.0)
-    direction = np.sign(np.dot(start, end))
+    # make sure vectors are 3D
+    if a.shape != (3,) or b.shape != (3,):
+        raise ValueError('only works for (3,) vectors')
 
-    if norm < tol.zero:
-        # if the norm is zero, the vectors are the same
-        # and no rotation is needed
-        T = np.eye(4)
-        T[0:3] *= direction
+    # unitize input vectors
+    a /= np.linalg.norm(a)
+    b /= np.linalg.norm(b)
+
+    # projection of a onto b
+    dot = np.dot(a, b)
+
+    # are vectors just reversed
+    if dot < (tol.zero - 1):
+        # a reversed vector is 180 degrees
+        angle = np.pi
+
+        # get an arbitrary perpendicular vector to a
+        perp = util.generate_basis(a)[0] * np.eye(3)
+
+        # (3, 3) rotation from a to b
+        rotation = (2 * np.dot(perp, perp.T)) - np.eye(3)
+
+    # are vectors already the same
+    elif dot > (1 - tol.zero):
         angle = 0.0
-    else:
-        angle = np.arcsin(norm)
-        if direction < 0:
-            angle = np.pi - angle
-        T = rotation_matrix(angle, cross)
+        # no rotation
+        rotation = np.eye(3)
 
-    check = np.abs(np.dot(T[:3, :3], start) - end)
-    if not (check < 1e-5).all():
-        raise ValueError('aligning vectors failed!')
+    # vectors are at some angle to each other
+    else:
+        # we already handled values out of the range [-1.0, 1.0]
+        angle = np.arccos(dot)
+
+        # (3,) vector perpendicular to both a and b
+        w = np.cross(a, b)
+
+        # a scalar
+        c = 1.0 / (1.0 + dot)
+
+        # (3, 3) skew- symmetric matrix from the (3,) vector w
+        # the matrix has the property: wx == -wx.T
+        wx = np.array([[0, -w[2], w[1]],
+                       [w[2], 0, -w[0]],
+                       [-w[1], w[0], 0]])
+
+        # (3, 3) rotation from a to b
+        rotation = np.eye(3) + wx + (np.dot(wx, wx) * c)
+
+    # put rotation into homogenous transformation matrix
+    transform = np.eye(4)
+    transform[:3, :3] = rotation
 
     if return_angle:
-        return T, angle
-    return T
+        return transform, angle
+
+    return transform
 
 
 def faces_to_edges(faces, return_index=False):

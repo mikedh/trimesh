@@ -101,6 +101,33 @@ class VoxelTest(g.unittest.TestCase):
                                                 radius=2,
                                                 fill=True)
 
+    def test_points_to_from_indices(self):
+        points = [[0.05, 0.55, 0.35]]
+        origin = [0, 0, 0]
+        pitch = 0.1
+        indices = [[1, 6, 4]]
+
+        # points -> indices
+        indices2 = g.trimesh.voxel.points_to_indices(
+            points=points, origin=origin, pitch=pitch
+        )
+        g.np.testing.assert_allclose(indices, indices2, atol=0, rtol=0)
+
+        # indices -> points
+        points2 = g.trimesh.voxel.indices_to_points(
+            indices=indices, origin=origin, pitch=pitch
+        )
+        g.np.testing.assert_allclose(points, points2)
+
+        # indices -> points -> indices (this must be consistent)
+        points2 = g.trimesh.voxel.indices_to_points(
+            indices=indices, origin=origin, pitch=pitch
+        )
+        indices2 = g.trimesh.voxel.points_to_indices(
+            points=points2, origin=origin, pitch=pitch
+        )
+        g.np.testing.assert_allclose(indices, indices2, atol=0, rtol=0)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

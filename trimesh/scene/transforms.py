@@ -80,7 +80,10 @@ class TransformForest(object):
         ------------
         copied: TransformForest
         """
-        copied = copy.deepcopy(self)
+        copied = TransformForest()
+        copied.base_frame = copy.deepcopy(self.base_frame)
+        copied.transforms = copy.deepcopy(self.transforms)
+
         return copied
 
     def to_flattened(self, base_frame=None):
@@ -217,7 +220,7 @@ class TransformForest(object):
 
         nodes_geometry = []
         for n in nodes:
-            if (n in self.transforms.node and
+            if (n in nodes and
                     'geometry' in self.transforms.node[n]):
                 nodes_geometry.append(n)
         return np.array(nodes_geometry)

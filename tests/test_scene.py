@@ -40,7 +40,9 @@ class SceneTests(g.unittest.TestCase):
                                             len(scene_base.geometry))
 
             for s in [scene_split, scene_base]:
+                pre = s.md5()
                 assert len(s.geometry) > 0
+                assert s.is_valid
 
                 flattened = s.graph.to_flattened()
                 g.json.dumps(flattened)
@@ -54,6 +56,7 @@ class SceneTests(g.unittest.TestCase):
                 assert g.trimesh.util.is_shape(s.triangles, (-1, 3, 3))
                 assert len(s.triangles) == len(s.triangles_node)
 
+                assert s.md5() == pre
                 assert s.md5() is not None
 
                 assert len(s.duplicate_nodes) > 0
@@ -143,6 +146,28 @@ class SceneTests(g.unittest.TestCase):
         # we shouldn't have modified the original scene
         assert scene.md5() == md5
         assert converted.md5() != md5
+
+    def test_dupe(self):
+        m = g.get_mesh('tube.obj')
+
+        assert m.body_count == 1
+
+        s = g.trimesh.scene.split_scene(m)
+        assert len(s.graph.nodes) == 2
+        assert len(s.graph.nodes_geometry) == 1
+        assert len(s.duplicate_nodes) == 1
+        assert len(s.duplicate_nodes[0]) == 1
+
+        c = s.copy()
+        assert len(c.graph.nodes) == 2
+        assert len(c.graph.nodes_geometry) == 1
+        assert len(c.duplicate_nodes) == 1
+        assert len(c.duplicate_nodes[0]) == 1
+
+        u = s.convert_units('in', guess=True)
+        assert len(u.graph.nodes_geometry) == 1
+        assert len(u.duplicate_nodes) == 1
+        assert len(u.duplicate_nodes[0]) == 1
 
     def test_3DXML(self):
         s = g.get_mesh('rod.3DXML')

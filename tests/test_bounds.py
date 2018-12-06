@@ -120,8 +120,13 @@ class BoundsTest(g.unittest.TestCase):
     def test_cylinder(self):
         """
         """
+        # not rotationally symmetric
+        mesh = g.get_mesh('featuretype.STL')
+
         height = 10.0
         radius = 1.0
+
+        # spherical coordinates to loop through
         sphere = g.trimesh.util.grid_linspace([[0, 0],
                                                [g.np.pi * 2, g.np.pi * 2]],
                                               5)
@@ -136,6 +141,14 @@ class BoundsTest(g.unittest.TestCase):
             assert g.np.isclose(height,
                                 p.bounding_cylinder.primitive.height,
                                 rtol=.01)
+
+            # regular mesh should have the same bounding cylinder
+            # regardless of transform
+            copied = mesh.copy()
+            copied.apply_transform(T)
+            assert g.np.isclose(mesh.bounding_cylinder.volume,
+                                copied.bounding_cylinder.volume,
+                                rtol=.05)
 
     def test_obb_order(self):
         # make sure our sorting and transform flipping of
@@ -175,7 +188,8 @@ class BoundsTest(g.unittest.TestCase):
             uT, uE = g.trimesh.bounds.oriented_bounds(b, ordered=False)
             assert g.np.allclose(g.np.sort(uE), extents_ordered)
             # create a box from the unordered OBB information
-            uB = g.trimesh.creation.box(extents=uE, transform=g.np.linalg.inv(uT))
+            uB = g.trimesh.creation.box(
+                extents=uE, transform=g.np.linalg.inv(uT))
             # make sure it is a real OBB too
             assert g.np.allclose(uB.bounds, b.bounds)
 

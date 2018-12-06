@@ -7,17 +7,26 @@ except BaseException:
 class SphericalTests(g.unittest.TestCase):
 
     def test_spherical(self):
+        """
+        Convert vectors to spherical coordinates
+        """
+        # random unit vectors
         v = g.trimesh.unitize(g.np.random.random((1000, 3)) - .5)
+        # (n, 2) angles in radians
         spherical = g.trimesh.util.vector_to_spherical(v)
+        # back to unit vectors
         v2 = g.trimesh.util.spherical_to_vector(spherical)
-        self.assertTrue((g.np.abs(v - v2) < g.trimesh.constants.tol.merge).all())
+
+        assert g.np.allclose(v, v2)
 
 
 class HemisphereTests(g.unittest.TestCase):
 
     def test_hemisphere(self):
         for dimension in [2, 3]:
-            v = g.trimesh.unitize(g.np.random.random((10000, dimension)) - .5)
+            # random unit vectors
+            v = g.trimesh.unitize(
+                g.np.random.random((10000, dimension)) - .5)
 
             # add some on- axis points
             v[:dimension] = g.np.eye(dimension)
@@ -34,6 +43,60 @@ class HemisphereTests(g.unittest.TestCase):
 
             a, s = g.trimesh.util.vector_hemisphere(v, return_sign=True)
             assert g.np.allclose(v, a * s.reshape((-1, 1)))
+
+
+class AlignTests(g.unittest.TestCase):
+
+    def test_align(self):
+        """
+        Test aligning two 3D vectors
+        """
+
+        # function we're testing
+        align = g.trimesh.geometry.align_vectors
+
+        # start with some edge cases and make sure the transform works
+        target = g.np.array([0, 0, 1], dtype=g.np.float64)
+        vectors = g.np.vstack((g.trimesh.unitize(g.np.random.random((1000, 3)) - .5),
+                               [-target, target],
+                               g.trimesh.util.generate_basis(target)))
+        for vector in vectors:
+            T, a = align(vector, target, return_angle=True)
+            # rotate vector with transform
+            check = g.np.dot(T[:3, :3], vector)
+            # compare to target vector
+            norm = g.np.linalg.norm(check - target)
+            assert norm < 1e-8
+
+        # these vectors should be perpendicular and zero
+        angles = [align(i, target, return_angle=True)[1]
+                  for i in g.trimesh.util.generate_basis(target)]
+        assert g.np.allclose(angles, [g.np.pi / 2, g.np.pi / 2, 0.0])
+
+        # generate angles from 0 to 180 degrees
+        angles = g.np.linspace(0.0, g.np.pi, 1000)
+        # generate on- plane vectors
+        vectors = g.np.column_stack((g.np.cos(angles),
+                                     g.np.sin(angles),
+                                     g.np.zeros(len(angles))))
+
+        # rotate them arbitrarily off the plane just for funsies
+        vectors = g.trimesh.transform_points(vectors,
+                                             g.transforms[20])
+
+        for angle, vector in zip(angles, vectors):
+            # check alignment to first vector
+            # which was created with zero angle
+            T, a = align(vector, vectors[0], return_angle=True)
+
+            # check to make sure returned angle corresponds with truth
+            assert g.np.isclose(a, angle)
+
+            # check to make sure returned transform is correct
+            check = g.np.dot(T, g.np.append(vector, 1))[:3]
+            norm = g.np.linalg.norm(check - vectors[0])
+
+            assert norm < 1e-8
 
 
 if __name__ == '__main__':

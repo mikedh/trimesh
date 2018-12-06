@@ -68,32 +68,6 @@ class DXFTest(g.unittest.TestCase):
         assert len(d.entities[0].points) == len(r.entities[0].points)
         assert len(d.entities[0].knots) == len(r.entities[0].knots)
 
-    def test_xrecord(self):
-        # data to store to test export / import round trip
-        data = {'thangs': 'poppin',
-                'pnts': g.np.arange(9).reshape((-1, 3))}
-
-        # get a drawing and add our data to metadata
-        d = g.get_mesh('2D/wrench.dxf')
-        d.metadata.update(data)
-
-        # get a path we can write
-        temp_name = g.tempfile.NamedTemporaryFile(
-            suffix='.dxf', delete=False).name
-
-        # export as a DXF file, which should put our
-        # custom data into an XRecord
-        d.export(temp_name, include_metadata=True)
-
-        # reload from export
-        r = g.trimesh.load(temp_name)
-
-        # check numpy round trip
-        assert g.np.allclose(r.metadata['pnts'],
-                             data['pnts'])
-        # check string roundtrip
-        assert r.metadata['thangs'] == 'poppin'
-
     def test_versions(self):
         """
         DXF files have a bajillion versions, so test against
@@ -164,6 +138,37 @@ class DXFTest(g.unittest.TestCase):
         assert len(spans) == 6
         # all arcs should be 180 degree slot end caps
         assert g.np.allclose(spans, g.np.pi)
+
+    def test_text(self):
+        # load file with a single text entity
+        original = g.get_mesh('2D/text.dxf')
+
+        # export then reload
+        roundtrip = g.trimesh.load(
+            file_obj=g.io_wrap(original.export(file_type='dxf')),
+            file_type='dxf')
+
+        for d in [original, roundtrip]:
+            # should contain a single Text entity
+            assert len(d.entities) == 1
+
+            # shouldn't crash anything
+            assert len(d.polygons_closed) == 0
+            assert len(d.polygons_full) == 0
+            assert len(d.discrete) == 0
+            assert len(d.paths) == 0
+
+            # make sure it preserved case and special chars
+            assert d.entities[0].text == "HEY WHAT's poppin"
+
+            # height should 1.0
+            assert g.np.isclose(d.entities[0].height, 1.0)
+
+            # get the 2D rotation of the text
+            angle = d.entities[0].angle(d.vertices)
+
+            # angle should be 30 degrees
+            assert g.np.isclose(angle, g.np.radians(30.0))
 
 
 if __name__ == '__main__':

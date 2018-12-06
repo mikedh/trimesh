@@ -20,13 +20,13 @@ _magic = {'gltf': 1179937895,
           'json': 1313821514,
           'bin': 5130562}
 
-# GLTF data type codes: numpy dtypes
-_types = {5120: np.int8,
-          5121: np.uint8,
-          5122: np.int16,
-          5123: np.uint16,
-          5125: np.uint32,
-          5126: np.float32}
+# GLTF data type codes: little endian numpy dtypes
+_types = {5120: '<i1',
+          5121: '<u1',
+          5122: '<i2',
+          5123: '<u2',
+          5125: '<u4',
+          5126: '<f4'}
 
 # GLTF data formats: numpy shapes
 _shapes = {'SCALAR': -1,
@@ -43,6 +43,11 @@ _default_material = {
         "baseColorFactor": [0, 0, 0, 0],
         "metallicFactor": 0,
         "roughnessFactor": 0}}
+
+# specify common dtypes with forced little endian
+float32 = np.dtype('<f4')
+uint32 = np.dtype('<u4')
+uint8 = np.dtype('<u1')
 
 
 def export_gltf(scene):
@@ -146,13 +151,13 @@ def export_glb(scene, include_normals=False):
                   len(content),
                   # magic number which is 'JSON'
                   1313821514],
-                 dtype=np.uint32).tobytes())
+                 dtype='<u4').tobytes())
 
     # the header of the binary data section
     bin_header = _byte_pad(
         np.array([len(buffer_data),
                   0x004E4942],
-                 dtype=np.uint32).tobytes())
+                 dtype='<u4').tobytes())
 
     exported = bytes().join([header,
                              content,
@@ -186,7 +191,7 @@ def load_glb(file_obj, **passed):
     # read the first 20 bytes which contain section lengths
     head_data = file_obj.read(20)
     head = np.frombuffer(head_data,
-                         dtype=np.uint32)
+                         dtype='<u4')
 
     # check to make sure first index is gltf
     # and second is 2, for GLTF 2.0
@@ -202,7 +207,7 @@ def load_glb(file_obj, **passed):
     if chunk_type != _magic['json']:
         raise ValueError('no initial JSON header!')
 
-    # np.uint32 causes an error in read, so we convert to native int
+    # uint32 causes an error in read, so we convert to native int
     # for the length passed to read, for the JSON header
     json_data = file_obj.read(int(chunk_length))
     # convert to text
@@ -223,7 +228,7 @@ def load_glb(file_obj, **passed):
             break
 
         chunk_length, chunk_type = np.frombuffer(chunk_head,
-                                                 dtype=np.uint32)
+                                                 dtype='<u4')
         # make sure we have the right data type
         if chunk_type != _magic['bin']:
             raise ValueError('not binary GLTF!')
@@ -256,7 +261,8 @@ def _mesh_to_material(mesh, metallic=0.0, rough=0.0):
     # just get the most commonly occurring color
     color = mesh.visual.main_color
     # convert uint color to 0-1.0 float color
-    color = color.astype(float) / ((2 ** (8 * color.dtype.itemsize)) - 1)
+    color = color.astype(float32) / (
+        (2 ** (8 * color.dtype.itemsize)) - 1)
 
     material = {'pbrMetallicRoughness':
                 {'baseColorFactor': color.tolist(),
@@ -367,7 +373,7 @@ def _append_mesh(mesh,
     # convert mesh data to the correct dtypes
     # faces: 5125 is an unsigned 32 bit integer
     buffer_items.append(
-        _byte_pad(mesh.faces.astype(np.uint32).tobytes()))
+        _byte_pad(mesh.faces.astype(uint32).tobytes()))
 
     # the vertex accessor
     tree['accessors'].append({
@@ -380,7 +386,7 @@ def _append_mesh(mesh,
         "min": mesh.vertices.min(axis=0).tolist()})
     # vertices: 5126 is a float32
     buffer_items.append(
-        _byte_pad(mesh.vertices.astype(np.float32).tobytes()))
+        _byte_pad(mesh.vertices.astype(float32).tobytes()))
 
     # make sure to append colors after other stuff to
     # not screw up the indexes of accessors or buffers
@@ -392,7 +398,9 @@ def _append_mesh(mesh,
         tree['meshes'][-1]['primitives'][0]['attributes']['COLOR_0'] = len(
             tree['accessors'])
 
-        color_data = _byte_pad(mesh.visual.vertex_colors.astype(np.uint8).tobytes())
+        color_data = _byte_pad(
+            mesh.visual.vertex_colors.astype(
+                uint8).tobytes())
 
         # the vertex color accessor data
         tree['accessors'].append({
@@ -407,7 +415,8 @@ def _append_mesh(mesh,
         buffer_items.append(color_data)
     else:
         # if no colors, set a material
-        tree['meshes'][-1]['primitives'][0]['material'] = len(tree['materials'])
+        tree['meshes'][-1]['primitives'][0]['material'] = len(
+            tree['materials'])
         # add a default- ish material
         tree['materials'].append(_mesh_to_material(mesh))
 
@@ -416,7 +425,9 @@ def _append_mesh(mesh,
         tree['meshes'][-1]['primitives'][0]['attributes']['NORMAL'] = len(
             tree['accessors'])
 
-        normal_data = _byte_pad(mesh.vertex_normals.astype(np.float32).tobytes())
+        normal_data = _byte_pad(
+            mesh.vertex_normals.astype(
+                float32).tobytes())
         # the vertex color accessor data
         tree['accessors'].append({
             "bufferView": len(buffer_items),
@@ -508,7 +519,7 @@ def _append_path(path, name, tree, buffer_items):
     # data is the second value of the fourth field
     # which is a (data type, data) tuple
     buffer_items.append(
-        _byte_pad(vxlist[4][1].astype(np.float32).tobytes()))
+        _byte_pad(vxlist[4][1].astype(float32).tobytes()))
 
 
 def _read_buffers(header, buffers):
@@ -567,12 +578,12 @@ def _read_buffers(header, buffers):
             # get the base color of the material
             try:
                 color = np.array(mat['pbrMetallicRoughness']['baseColorFactor'],
-                                 dtype=np.float)
+                                 dtype='<f8')
             except BaseException:
                 color = np.array([.5, .5, .5, 1])
 
             # convert float 0-1 colors to uint8 colors and append
-            colors.append((color * 255).astype(np.uint8))
+            colors.append((color * 255).astype(uint8))
 
     # load data from accessors into Trimesh objects
     meshes = collections.OrderedDict()

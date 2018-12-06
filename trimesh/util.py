@@ -1309,23 +1309,25 @@ def submesh(mesh,
     if append:
         visuals = np.array(visuals)
         vertices, faces = append_faces(vertices, faces)
-        appended = trimesh_type(vertices=vertices,
-                                faces=faces,
-                                face_normals=np.vstack(normals),
-                                visual=visuals[0].concatenate(visuals[1:]),
-                                process=False)
+        appended = trimesh_type(
+            vertices=vertices,
+            faces=faces,
+            face_normals=np.vstack(normals),
+            visual=visuals[0].concatenate(visuals[1:]),
+            process=False)
         return appended
 
     # generate a list of Trimesh objects
-    result = [trimesh_type(vertices=v,
-                           faces=f,
-                           face_normals=n,
-                           visual=c,
-                           metadata=copy.deepcopy(mesh.metadata),
-                           process=False) for v, f, n, c in zip(vertices,
-                                                                faces,
-                                                                normals,
-                                                                visuals)]
+    result = [trimesh_type(
+        vertices=v,
+        faces=f,
+        face_normals=n,
+        visual=c,
+        metadata=copy.deepcopy(mesh.metadata),
+        process=False) for v, f, n, c in zip(vertices,
+                                             faces,
+                                             normals,
+                                             visuals)]
     result = np.array(result)
     if len(result) > 0 and only_watertight:
         # fill_holes will attempt a repair and returns the
@@ -1342,12 +1344,15 @@ def zero_pad(data, count, right=True):
     """
     Parameters
     --------
-    data: (n) length 1D array
-    count: int
+    data : (n,)
+      1D array
+    count : int
+      Minimum length of result array
 
     Returns
     --------
-    padded: (count) length 1D array if (n < count), otherwise length (n)
+    padded : (m,)
+      1D array where m >= count
     """
     if len(data) == 0:
         return np.zeros(count)
@@ -1375,7 +1380,8 @@ def jsonify(obj, **kwargs):
 
     Returns
     --------------
-    dumped: str, JSON dump of obj
+    dumped : str
+      JSON dump of obj
     """
     class NumpyEncoder(json.JSONEncoder):
 
@@ -1801,8 +1807,8 @@ def unique_id(length=12, increment=0):
 
 def generate_basis(z):
     """
-    Generate an arbitrary basis (coordinate frame)
-    from the given z-axis.
+    Generate an arbitrary basis or coordinate frame
+    from the given z-axis vector.
 
     Parameters
     ----------
@@ -1810,15 +1816,71 @@ def generate_basis(z):
 
     Returns
     -------
-    x: (3,) float, the x axis
-    y: (3,) float, the y axis
-    z: (3,) float, the z axis
+    x : (3,) float
+      Vector along x axis
+    y : (3,) float
+      Vector along y axis
+    z : (3,) float
+      Vector along z axis
     """
     z = z / np.linalg.norm(z)
+
     x = np.array([-z[1], z[0], 0.0])
-    if np.linalg.norm(x) == 0.0:
+    if np.isclose(np.linalg.norm(x), 0.0):
         x = np.array([1.0, 0.0, 0.0])
     x = x / np.linalg.norm(x)
     y = np.cross(z, x)
     result = np.array([x, y, z])
     return result
+
+
+def unique_bincount(values,
+                    minlength,
+                    return_inverse=True):
+    """
+    For arrays of integers, find unique values using bin counting.
+    Roughly 20x faster for correct input than np.unique.
+
+    Parameters
+    --------------
+    values : (n,) int
+      Values to find unique members of
+    minlength : int
+      Maximum value that will occur in values (values.max())
+    return_inverse : bool
+      If True, return an inverse such that unique[inverse] == values
+
+    Returns
+    ------------
+    unique : (m,) int
+      Unique values in original array
+    inverse : (n,) int
+      An array such that unique[inverse] == values
+      Only returned if return_inverse is True
+    """
+    values = np.asanyarray(values)
+    if len(values.shape) != 1 or values.dtype.kind != 'i':
+        raise ValueError('input must be 1D integers!')
+
+    try:
+        # count the number of occurances of each value
+        counts = np.bincount(values, minlength=minlength)
+    except TypeError:
+        # casting failed on 32 bit windows
+        log.error('casting failed!', exc_info=True)
+        # fall back to numpy unique
+        return np.unique(values, return_inverse=return_inverse)
+
+    # which bins are occupied at all
+    unique_bin = counts > 0
+
+    # which values are unique
+    # indexes correspond to original values
+    unique = np.where(unique_bin)[0]
+
+    if return_inverse:
+        # find the inverse to reconstruct original
+        inverse = (np.cumsum(unique_bin) - 1)[values]
+        return unique, inverse
+
+    return unique

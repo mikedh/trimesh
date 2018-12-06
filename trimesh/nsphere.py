@@ -17,6 +17,10 @@ try:
 except ImportError:
     log.warning('No scipy!')
 
+# if we get a MemoryError change this to True
+# so we don't keep trying tile operations
+_LOWMEM = False
+
 
 def minimum_nsphere(obj):
     """
@@ -67,20 +71,45 @@ def minimum_nsphere(obj):
     # , qhull_options='QbB Pp')
     voronoi = spatial.Voronoi(points, furthest_site=True)
 
+    # if we've gotten a MemoryError before don't try tiling
+    global _LOWMEM
+
     # find the maximum radius^2 point for each of the voronoi vertices
     # this is worst case quite expensive, but we have used quick convex
     # hull methods to reduce n for this operation
-    # we are doing comparisons on the radius^2 value so as to only do a sqrt
-    # once
-    r2 = np.array([((points - v)**2).sum(axis=1).max()
-                   for v in voronoi.vertices])
+    # we are doing comparisons on the radius squared then rooting once
+    if _LOWMEM or (len(points) * len(voronoi.vertices)) > 1e7:
+        # if we have a bajillion points loop
+        radii_2 = np.array([((points - v)**2).sum(axis=1).max()
+                            for v in voronoi.vertices])
+    else:
+        # otherwise tiling is massively faster
+        try:
+            dim = points.shape[1]
+            v_tile = np.tile(voronoi.vertices, len(points)).reshape((-1, dim))
+            # tile points per voronoi vertex
+            p_tile = np.tile(
+                points, (len(
+                    voronoi.vertices), 1)).reshape(
+                (-1, dim))
+            # find the maximum radius of points for each voronoi vertex
+            radii_2 = ((p_tile - v_tile)**2).sum(axis=1).reshape(
+                (len(voronoi.vertices), -1)).max(axis=1)
+        except MemoryError:
+            # don't try tiling again
+            _LOWMEM = True
+            # fall back to the list comprehension
+            radii_2 = np.array([((points - v)**2).sum(axis=1).max()
+                                for v in voronoi.vertices])
+            # log the MemoryError
+            log.warning('MemoryError: falling back to slower check!')
+
     # we want the smallest sphere, so we take the min of the radii options
-    r2_idx = r2.argmin()
-    center_v = voronoi.vertices[r2_idx]
+    radii_idx = radii_2.argmin()
 
     # return voronoi radius and center to global scale
-    radius_v = np.sqrt(r2[r2_idx]) * points_scale
-    center_v = (center_v * points_scale) + points_origin
+    radius_v = np.sqrt(radii_2[radii_idx]) * points_scale
+    center_v = (voronoi.vertices[radii_idx] * points_scale) + points_origin
 
     if radius_v > fit_R:
         return fit_C, fit_R

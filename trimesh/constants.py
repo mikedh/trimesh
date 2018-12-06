@@ -116,12 +116,13 @@ log = _getLogger('trimesh')
 log.addHandler(_NullHandler())
 
 
-def _log_time(method):
+def log_time(method):
     """
     A decorator for methods which will time the method
     and then emit a log.debug message with the method name
     and how long it took to execute.
     """
+
     def timed(*args, **kwargs):
         tic = time_function()
         result = method(*args, **kwargs)

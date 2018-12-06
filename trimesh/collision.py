@@ -639,7 +639,7 @@ class CollisionManager(object):
         Returns
         --------------
         bvh : fcl.BVHModel
-          BVH object of souce mesh
+          BVH object of source mesh
         """
         bvh = mesh_to_BVH(mesh)
         return bvh

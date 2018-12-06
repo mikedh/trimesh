@@ -164,6 +164,27 @@ class ExportTest(g.unittest.TestCase):
         assert m.metadata['vertex_texture'].shape == reconstructed.metadata[
             'vertex_texture'].shape
 
+    def test_obj_order(self):
+        """
+        Make sure simple round trips through Wavefront don't
+        reorder vertices.
+        """
+        # get a writeable temp file location
+        temp = g.tempfile.NamedTemporaryFile(
+            suffix='.obj',
+            delete=False)
+        temp.close()
+
+        # simple solid
+        x = g.trimesh.creation.icosahedron()
+        x.export(temp.name)
+        y = g.trimesh.load_mesh(temp.name, process=False)
+
+        # vertices should be same shape and order
+        assert g.np.allclose(x.vertices, y.vertices)
+        # faces should be same
+        assert g.np.allclose(x.faces, y.faces)
+
     def test_ply(self):
         m = g.get_mesh('machinist.XAML')
 

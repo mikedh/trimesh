@@ -275,7 +275,7 @@ def tsp(points, start=0):
 
     # in the loop we want to call distances.sum(axis=1)
     # a lot and it's actually kind of slow for "reasons"
-    # dot products with ones is equivilant and ~2x faster
+    # dot products with ones is equivalent and ~2x faster
     sum_ones = np.ones(points.shape[1])
 
     # loop through all points
@@ -467,9 +467,11 @@ class PointCloud(Geometry):
 
     @vertices.setter
     def vertices(self, data):
-        data = np.asanyarray(data, dtype=np.float64)
+        # we want to copy data for new object
+        data = np.array(data, dtype=np.float64, copy=True)
         if not util.is_shape(data, (-1, 3)):
-            raise ValueError('Point clouds only consist of (n,3) points!')
+            raise ValueError(
+                'point clouds only consist of (n,3) points!')
         self._data['vertices'] = data
 
     @property
@@ -516,8 +518,8 @@ class PointCloud(Geometry):
         from .scene.scene import Scene
         return Scene(self)
 
-    def show(self):
+    def show(self, **kwargs):
         """
         Open a viewer window displaying the current PointCloud
         """
-        self.scene().show()
+        self.scene().show(**kwargs)

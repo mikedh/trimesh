@@ -5,8 +5,9 @@ import os
 from .. import util
 
 from ..base import Trimesh
+from ..points import PointCloud
 from ..scene.scene import Scene, append_scenes
-from ..constants import _log_time, log
+from ..constants import log_time, log
 
 from . import misc
 from .ply import _ply_loaders
@@ -146,7 +147,7 @@ def load(file_obj, file_type=None, **kwargs):
     return loaded
 
 
-@_log_time
+@log_time
 def load_mesh(file_obj, file_type=None, **kwargs):
     """
     Load a mesh file into a Trimesh object
@@ -331,9 +332,15 @@ def load_kwargs(*args, **kwargs):
         return scene
 
     def handle_trimesh_kwargs():
+        """
+        Load information with vertices and faces into a mesh
+        or PointCloud object.
+        """
         if (isinstance(kwargs['vertices'], dict) or
                 isinstance(kwargs['faces'], dict)):
             return Trimesh(**misc.load_dict(kwargs))
+        elif kwargs['faces'] is None:
+            return PointCloud(**kwargs)
         else:
             return Trimesh(**kwargs)
 
@@ -450,10 +457,11 @@ def parse_file_args(file_obj,
                 # JSON
                 file_type = 'json'
             elif 'https://' in file_obj or 'http://' in file_obj:
-                # we've been passed a URL so retrieve it
-                raise ValueError('use load_remote to load URL!')
+                # we've been passed a URL, warn to use explicit function
+                # and don't do network calls via magical pipeline
+                raise ValueError('use load_remote to load URL: {}'.format(file_obj))
             elif file_type is None:
-                raise ValueError('string is not a file!')
+                raise ValueError('string is not a file: {}'.format(file_obj))
 
     if file_type is None:
         file_type = file_obj.__class__.__name__

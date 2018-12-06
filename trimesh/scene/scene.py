@@ -34,22 +34,20 @@ class Scene(Geometry):
 
         Parameters
         -------------
-        geometry:   Trimesh, Path2D, Path3D object, or list of same
-        base_frame: str, name of base frame
-        metadata:   dict, any metadata about the scene
-        graph:      TransformForest, graph to use
-                    None: create a new TransformForest
+        geometry : Trimesh, Path2D, Path3D PointCloud or list
+          Geometry to initially add to the scene
+        base_frame : str or hashable
+          Name of base frame
+        metadata : dict
+          Any metadata about the scene
+        graph : TransformForest or None
+          A passed transform graph to use
         """
         # mesh name : Trimesh object
         self.geometry = collections.OrderedDict()
 
-        # graph structure of instances
-        if graph is None:
-            # create a new graph
-            self.graph = TransformForest(base_frame=base_frame)
-        else:
-            # if we've been passed a graph use it
-            self.graph = graph
+        # create a new graph
+        self.graph = TransformForest(base_frame=base_frame)
 
         # create our cache
         self._cache = caching.Cache(id_function=self.md5)
@@ -61,9 +59,18 @@ class Scene(Geometry):
         self.metadata = {}
         self.metadata.update(metadata)
 
+        if graph is not None:
+            # if we've been passed a graph override the default
+            self.graph = graph
+
+        self.camera = None
+
     def add_geometry(self,
                      geometry,
-                     node_name=None):
+                     node_name=None,
+                     geom_name=None,
+                     parent_node_name=None,
+                     transform=None):
         """
         Add a geometry to the scene.
 
@@ -73,12 +80,19 @@ class Scene(Geometry):
 
         Parameters
         ----------
-        geometry: Trimesh, Path3D, or list of same
-        node_name: name in the scene graph
+        geometry : Trimesh, Path2D, Path3D PointCloud or list
+          Geometry to initially add to the scene
+        base_frame : str or hashable
+          Name of base frame
+        metadata : dict
+          Any metadata about the scene
+        graph : TransformForest or None
+          A passed transform graph to use
 
         Returns
         ----------
-        node_name: str, name of node in self.graph
+        node_name : str
+          Name of node in self.graph
         """
 
         if geometry is None:
@@ -86,21 +100,32 @@ class Scene(Geometry):
         # PointCloud objects will look like a sequence
         elif util.is_sequence(geometry):
             # if passed a sequence add all elements
-            return [self.add_geometry(i) for i in geometry]
+            for value in geometry:
+                self.add_geometry(value)
+            return
+
         elif isinstance(geometry, dict):
             # if someone passed us a dict of geometry
-            return self.geometry.update(geometry)
+            for key, value in geometry.items():
+                self.add_geometry(value, geom_name=key)
+            return
 
-        # if object has metadata indicating different
-        # information use those values
-        if 'name' in geometry.metadata:
+        # get or create a name to reference the geometry by
+        if geom_name is not None:
+            # if name is passed use it
+            name = geom_name
+        elif 'name' in geometry.metadata:
+            # if name is in metadata use it
             name = geometry.metadata['name']
+        elif 'file_name' in geometry.metadata:
+            name = geometry.metadata['file_name']
         else:
             # try to create a simple name
             name = 'geometry_' + str(len(self.geometry))
-            # if its already taken make a not- simple name
-            if name in self.geometry:
-                name = 'geometry_' + util.unique_id().upper()
+
+        # if its already taken add a unique random string to it
+        if name in self.geometry:
+            name += ':' + util.unique_id().upper()
 
         # save the geometry reference
         self.geometry[name] = geometry
@@ -112,9 +137,12 @@ class Scene(Geometry):
             # geometry name + UUID
             node_name = name + '_' + unique.upper()
 
-        # create an identity transform from world
-        transform = np.eye(4)
+        if transform is None:
+            # create an identity transform from parent_node
+            transform = np.eye(4)
+
         self.graph.update(frame_to=node_name,
+                          frame_from=parent_node_name,
                           matrix=transform,
                           geometry=name,
                           geometry_flags={'visible': True})
@@ -157,6 +185,31 @@ class Scene(Geometry):
 
         is_empty = len(self.geometry) == 0
         return is_empty
+
+    @property
+    def is_valid(self):
+        """
+        Is every geometry connected to the root node.
+
+        Returns
+        -----------
+        is_valid : bool
+          Does every geometry have a transform
+        """
+        if len(self.geometry) == 0:
+            return True
+
+        try:
+            referenced = {self.graph[i][1]
+                          for i in self.graph.nodes_geometry}
+        except BaseException:
+            # if connectivity to world frame is broken return false
+            return False
+
+        # every geometry is referenced
+        ok = referenced == set(self.geometry.keys())
+
+        return ok
 
     @caching.cache_decorator
     def bounds_corners(self):
@@ -343,32 +396,48 @@ class Scene(Geometry):
     def set_camera(self,
                    angles=None,
                    distance=None,
-                   center=None):
+                   center=None,
+                   camera=None):
         """
         Add a transform to self.graph for 'camera'
 
-        If arguments are not passed sane defaults will be figured out.
+        If arguments are not passed sane defaults will be figured
+        out which show the mesh roughly centered.
 
         Parameters
         -----------
         angles : (3,) float
-                     Initial euler angles in radians
-        distance:  float
-                     Distance from centroid
-        center:    (3,) float
-                     Point camera should be center on
+          Initial euler angles in radians
+        distance : float
+          Distance from centroid
+        center : (3,) float
+          Point camera should be center on
+        camera : Camera object
+          Object that stores camera parameters
         """
+        # passed camera object
+        if camera is not None:
+            self.graph.update(frame_from='camera',
+                              frame_to=self.graph.base_frame,
+                              matrix=camera.transform)
+            self.camera = camera
+            return
+
+        # if no geometry nothing to set camera to
         if len(self.geometry) == 0:
             return
 
+        # use centroid if no center passed
         if center is None:
             center = self.centroid
 
+        # use scene AABB to set standoff distance
         if distance is None:
             # for a 60.0 degree horizontal FOV
             distance = ((self.extents.max() / 2) /
                         np.tan(np.radians(60.0) / 2.0))
 
+        # set with no rotation by default
         if angles is None:
             angles = np.zeros(3)
 
@@ -647,7 +716,7 @@ class Scene(Geometry):
 
     def scaled(self, scale):
         """
-        Return a copy of the current scene, with meshes and scene graph
+        Return a copy of the current scene, with meshes and scene
         transforms scaled to the requested factor.
 
         Parameters
@@ -661,34 +730,48 @@ class Scene(Geometry):
           A copy of the current scene but scaled
         """
         scale = float(scale)
-        scale_matrix = np.eye(4) * scale
+        # matrix for 2D scaling
+        scale_2D = np.eye(3) * scale
+        # matrix for 3D scaling
+        scale_3D = np.eye(4) * scale
 
-        transforms = np.array([self.graph[i][0]
-                               for i in self.graph.nodes_geometry])
-        geometries = np.array([self.graph[i][1]
-                               for i in self.graph.nodes_geometry])
+        # preallocate transforms and geometries
+        nodes = self.graph.nodes_geometry
+        transforms = np.zeros((len(nodes), 4, 4))
+        geometries = [None] * len(nodes)
 
+        # collect list of transforms
+        for i, node in enumerate(nodes):
+            transforms[i], geometries[i] = self.graph[node]
+
+        # result is a copy
         result = self.copy()
+        # remove all existing transforms
         result.graph.clear()
 
         for group in grouping.group(geometries):
+            # hashable reference to self.geometry
             geometry = geometries[group[0]]
+            # original transform from world to geometry
             original = transforms[group[0]]
-            new_geom = np.dot(scale_matrix, original)
+            # transform for geometry
+            new_geom = np.dot(scale_3D, original)
 
             if result.geometry[geometry].vertices.shape[1] == 2:
                 # if our scene is 2D only scale in 2D
-                result.geometry[geometry].apply_transform(np.eye(3) * scale)
+                result.geometry[geometry].apply_transform(scale_2D)
             else:
                 # otherwise apply the full transform
                 result.geometry[geometry].apply_transform(new_geom)
 
-            for node, t in zip(self.graph.nodes_geometry[group],
+            for node, T in zip(self.graph.nodes_geometry[group],
                                transforms[group]):
-                transform = util.multi_dot([scale_matrix,
-                                            t,
-                                            np.linalg.inv(new_geom)])
+                # generate the new transforms
+                transform = util.multi_dot(
+                    [scale_3D, T, np.linalg.inv(new_geom)])
+                # apply scale to translation
                 transform[:3, 3] *= scale
+                # update scene with new transforms
                 result.graph.update(frame_to=node,
                                     matrix=transform,
                                     geometry=geometry)
@@ -790,11 +873,19 @@ def split_scene(geometry):
 
     # a single geometry so we are going to split
     split = collections.deque()
+
     metadata = {}
     for g in util.make_sequence(geometry):
         split.extend(g.split())
         metadata.update(g.metadata)
+
+    # if there is only one geometry in the mesh
+    # name it from the file name
+    if len(split) == 1 and 'file_name' in metadata:
+        split = {metadata['file_name']: split[0]}
+
     scene = Scene(split, metadata=metadata)
+
     return scene
 
 
