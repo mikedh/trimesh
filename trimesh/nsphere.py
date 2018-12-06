@@ -80,8 +80,8 @@ def minimum_nsphere(obj):
     # we are doing comparisons on the radius squared then rooting once
     if _LOWMEM or (len(points) * len(voronoi.vertices)) > 1e7:
         # if we have a bajillion points loop
-        radii_2 = np.array([((points - v)**2).sum(axis=1).max()
-                            for v in voronoi.vertices])
+        radii_2 = spatial.distance.cdist(voronoi.vertices, points,
+            metric='sqeuclidean').max(axis=1)
     else:
         # otherwise tiling is massively faster
         try:
