@@ -15,6 +15,9 @@ class Resolver(object):
 
 
 class FilePathResolver(Resolver):
+    """
+    Resolve files from a source path on the file system.
+    """
 
     def __init__(self, source):
         """
@@ -60,7 +63,7 @@ class FilePathResolver(Resolver):
 
 class ZipResolver(Resolver):
     """
-    Resolve file from a ZIP archive.
+    Resolve files inside a ZIP archive.
     """
 
     def __init__(self, archive):
@@ -93,6 +96,7 @@ class ZipResolver(Resolver):
         if name not in self.archive:
             if hasattr(name, 'decode'):
                 name = name.decode('utf-8')
+            # try with cleared whitespace, split paths
             for option in [name, name.strip(), name.split('/')[-1]]:
                 if option in self.archive:
                     name = option

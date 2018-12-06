@@ -72,7 +72,10 @@ def available_formats():
     return loaders
 
 
-def load(file_obj, file_type=None, resolver=None, **kwargs):
+def load(file_obj,
+         file_type=None,
+         resolver=None,
+         **kwargs):
     """
     Load a mesh or vectorized path into objects:
     Trimesh, Path2D, Path3D, Scene
@@ -80,14 +83,18 @@ def load(file_obj, file_type=None, resolver=None, **kwargs):
     Parameters
     ---------
     file_obj : str, or file- like object
-        The source of the data to be loadeded
+      The source of the data to be loadeded
     file_type: str
-         What kind of file type do we have (eg: 'stl')
+      What kind of file type do we have (eg: 'stl')
+    resolver : trimesh.visual.Resolver
+      Object to load referenced assets like materials and textures
+    kwargs : **
+      Passed to geometry __init__
 
     Returns
     ---------
     geometry : Trimesh, Path2D, Path3D, Scene
-        Loaded geometry as trimesh classes
+      Loaded geometry as trimesh classes
     """
     # check to see if we're trying to load something
     # that is already a native trimesh object

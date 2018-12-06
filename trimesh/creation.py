@@ -21,8 +21,11 @@ try:
     # shapely is a soft dependency
     from shapely.geometry import Polygon
     from shapely.wkb import loads as load_wkb
-except ImportError:
-    log.warning('shapely.geometry.Polygon not available!')
+except BaseException:
+    # shapely will sometimes raise OSErrors
+    # on import rather than just ImportError
+    log.warning('shapely.geometry.Polygon not available!',
+                exc_info=True)
 
 
 def validate_polygon(obj):
