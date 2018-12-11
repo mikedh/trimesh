@@ -1807,12 +1807,13 @@ def unique_id(length=12, increment=0):
 
 def generate_basis(z):
     """
-    Generate an arbitrary basis or coordinate frame
-    from the given z-axis vector.
+    Generate an arbitrary basis (also known as a coordinate frame)
+    from a given z-axis vector.
 
     Parameters
     ----------
-    z: (3,) float, a positive z-axis vector.
+    z: (3,) float
+      A vector along the positive z-axis
 
     Returns
     -------
@@ -1823,14 +1824,29 @@ def generate_basis(z):
     z : (3,) float
       Vector along z axis
     """
-    z = z / np.linalg.norm(z)
+    # get a copy of input vector
+    z = np.array(z, dtype=np.float64, copy=True)
+    # must be a 3D vector
+    if z.shape != (3,):
+        raise ValueError('z must be (3,) float!')
 
+    # normalize vector in- place
+    z /= np.linalg.norm(z)
+    # X as arbitrary perpendicular vector
     x = np.array([-z[1], z[0], 0.0])
+    # avoid degenerate case
     if np.isclose(np.linalg.norm(x), 0.0):
+        # Z is already along Z [0, 0, 1]
+        # so a perpendicular X is just X
         x = np.array([1.0, 0.0, 0.0])
-    x = x / np.linalg.norm(x)
+    else:
+        # otherwise normalize X in- place
+        x /= np.linalg.norm(x)
+    # get perpendicular Y with cross product
     y = np.cross(z, x)
-    result = np.array([x, y, z])
+    # append result values into vector
+    result = np.array([x, y, z], dtype=np.float64)
+
     return result
 
 
@@ -1838,8 +1854,8 @@ def unique_bincount(values,
                     minlength,
                     return_inverse=True):
     """
-    For arrays of integers, find unique values using bin counting.
-    Roughly 20x faster for correct input than np.unique.
+    For arrays of integers find unique values using bin counting.
+    Roughly 20x faster for correct input than np.unique
 
     Parameters
     --------------
@@ -1863,7 +1879,7 @@ def unique_bincount(values,
         raise ValueError('input must be 1D integers!')
 
     try:
-        # count the number of occurances of each value
+        # count the number of occurrences of each value
         counts = np.bincount(values, minlength=minlength)
     except TypeError:
         # casting failed on 32 bit windows
