@@ -750,7 +750,10 @@ def export_dxf(path, layers=None):
             if not layer in layers:
                 continue
         if name in conversions:
-            collected.append(conversions[name](e, path.vertices).strip())
+            converted = conversions[name](e, path.vertices).strip()
+            # only save if we converted something
+            if len(converted) > 0:
+                collected.append(converted)
         else:
             log.debug('Entity type %s not exported!', name)
 
@@ -770,19 +773,27 @@ def export_dxf(path, layers=None):
     footer = TEMPLATES['footer'].substitute()
 
     # filter out empty sections
+    # random whitespace causes AutoCAD to fail to load
+    # although Draftsight, LibreCAD, and Inkscape don't care
+    # what a giant legacy piece of shit
+    # strip out all leading and trailing whitespace
     sections = [i.strip() for i in [header,
                                     entities,
                                     footer]
                 if len(i) > 0]
 
-    # random whitespace causes AutoCAD to fail to load
-    # although Draftsight, LibreCAD, and Inkscape don't care
-    # what a giant legacy piece of shit
-    # strip out all leading and trailing whitespace
     blob = '\n'.join(sections).replace(_SAFESPACE, ' ')
 
-    assert all((len(str.splitlines(i)) % 2) == 0
-               for i in sections)
+    # run additional self- checks
+    if tol.strict:
+        # check that every line pair is (group code, value)
+        lines = str.splitlines(str(blob))
+
+        # should be even number of lines
+        assert (len(lines) % 2) == 0
+
+        # group codes should all be convertable to int and positive
+        assert all(int(i) >= 0 for i in lines[::2])
 
     return blob
 

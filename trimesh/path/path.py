@@ -510,7 +510,10 @@ class Path(object):
         unique, inverse = grouping.unique_rows(self.vertices,
                                                digits=digits)
         self.vertices = self.vertices[unique]
-        for entity in self.entities:
+
+        entities_ok = np.ones(len(self.entities), dtype=np.bool)
+
+        for index, entity in enumerate(self.entities):
             # what kind of entity are we dealing with
             kind = type(entity).__name__
 
@@ -523,10 +526,21 @@ class Path(object):
             # have multiple references to the same vertex
             points = grouping.merge_runs(inverse[entity.points])
             # if there are three points and two are identical fix it
-            if kind == 'Line' and len(points) == 3 and points[0] == points[-1]:
-                points = points[:2]
+            if kind == 'Line':
+                if len(points) == 3 and points[0] == points[-1]:
+                    points = points[:2]
+                elif len(points) < 2:
+                    # lines need two or more vertices
+                    entities_ok[index] = False
+            elif kind == 'Arc' and len(points) != 3:
+                # three point arcs need three points
+                entities_ok[index] = False
+
             # store points in entity
             entity.points = points
+
+        # remove degenerate entities
+        self.entities = self.entities[entities_ok]
 
     def replace_vertex_references(self, mask):
         """
