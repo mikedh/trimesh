@@ -34,7 +34,7 @@ def validate_polygon(obj):
 
     Parameters
     -------------
-    obj : shapely.geomtry.Polygon, str (wkb), or (n, 2) float
+    obj : shapely.geometry.Polygon, str (wkb), or (n, 2) float
       Object which might be a polygon
 
     Returns
@@ -960,7 +960,7 @@ def camera_marker(camera, marker_height=0.4, origin_size=None):
     meshes[0].apply_transform(camera.transform)
 
     try:
-        # path is a soft dependancy
+        # path is a soft dependency
         from .path.io.load import load_path
     except ImportError:
         # they probably don't have shapely installed
@@ -988,7 +988,9 @@ def camera_marker(camera, marker_height=0.4, origin_size=None):
 
     # create line segments for the FOV visualization
     # a segment from the origin to each bound of the FOV
-    segments = np.column_stack((np.zeros_like(points), points)).reshape((-1, 3))
+    segments = np.column_stack(
+        (np.zeros_like(points), points)).reshape(
+        (-1, 3))
 
     # add a loop for the outside of the FOV then reshape
     # the whole thing into multiple line segments

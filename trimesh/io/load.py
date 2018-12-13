@@ -471,7 +471,8 @@ def parse_file_args(file_obj,
             elif 'https://' in file_obj or 'http://' in file_obj:
                 # we've been passed a URL, warn to use explicit function
                 # and don't do network calls via magical pipeline
-                raise ValueError('use load_remote to load URL: {}'.format(file_obj))
+                raise ValueError(
+                    'use load_remote to load URL: {}'.format(file_obj))
             elif file_type is None:
                 raise ValueError('string is not a file: {}'.format(file_obj))
 

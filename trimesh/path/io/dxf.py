@@ -742,7 +742,7 @@ def export_dxf(path, layers=None):
                    'Arc': convert_arc,
                    'Bezier': convert_generic,
                    'BSpline': convert_bspline}
-    entities_str = ''
+    collected = []
     for e, layer in zip(path.entities, path.layers):
         name = type(e).__name__
         # only export specified layers
@@ -750,9 +750,14 @@ def export_dxf(path, layers=None):
             if not layer in layers:
                 continue
         if name in conversions:
-            entities_str += conversions[name](e, path.vertices)
+            converted = conversions[name](e, path.vertices).strip()
+            # only save if we converted something
+            if len(converted) > 0:
+                collected.append(converted)
         else:
             log.debug('Entity type %s not exported!', name)
+
+    entities_str = '\n'.join(collected)
 
     hsub = {'BOUNDS_MIN': format_points([path.bounds[0]]),
             'BOUNDS_MAX': format_points([path.bounds[1]]),
@@ -768,17 +773,27 @@ def export_dxf(path, layers=None):
     footer = TEMPLATES['footer'].substitute()
 
     # filter out empty sections
-    sections = [i for i in [header,
-                            entities,
-                            footer]
-                if len(i) > 0]
-
     # random whitespace causes AutoCAD to fail to load
     # although Draftsight, LibreCAD, and Inkscape don't care
     # what a giant legacy piece of shit
     # strip out all leading and trailing whitespace
-    blob = '\n'.join(sections).replace(
-        ' ', '').replace(_SAFESPACE, ' ')
+    sections = [i.strip() for i in [header,
+                                    entities,
+                                    footer]
+                if len(i) > 0]
+
+    blob = '\n'.join(sections).replace(_SAFESPACE, ' ')
+
+    # run additional self- checks
+    if tol.strict:
+        # check that every line pair is (group code, value)
+        lines = str.splitlines(str(blob))
+
+        # should be even number of lines
+        assert (len(lines) % 2) == 0
+
+        # group codes should all be convertable to int and positive
+        assert all(int(i) >= 0 for i in lines[::2])
 
     return blob
 

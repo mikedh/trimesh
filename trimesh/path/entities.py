@@ -219,7 +219,7 @@ class Text(Entity):
         self.vector = vector
         self.normal = normal
 
-        # how high is the text entitiy
+        # how high is the text entity
         self.height = height
 
         # None or (2,) str

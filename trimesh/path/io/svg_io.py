@@ -61,6 +61,7 @@ def _svg_path_convert(paths):
                                    svg_line.point(1.0)])
         if not starting:
             points[0] = vertices[-1]
+
         entities.append(entities_mod.Line(np.arange(2) + len(vertices)))
         vertices.extend(points)
 

@@ -729,25 +729,35 @@ def edges_to_coo(edges, count=None, data=None):
 def smoothed(mesh, angle):
     """
     Return a non- watertight version of the mesh which will
-    render nicely with smooth shading.
+    render nicely with smooth shading by disconnecting faces
+    at sharp angles to each other.
 
     Parameters
     ---------
-    mesh:  Trimesh object
-    angle: float, angle in radians, adjacent faces which have normals
-           below this angle will be smoothed.
+    mesh :  trimesh.Trimesh
+      Source geometry
+    angle : float
+      Angle in radians, adjacent faces which have normals
+      below this angle will be smoothed
 
     Returns
     ---------
-    smooth: Trimesh object
+    smooth : trimesh.Trimesh
+      Geometry with disconnected face patches
     """
+    # if the mesh has no adjacent faces return a copy
     if len(mesh.face_adjacency) == 0:
-        return mesh
+        return mesh.copy()
+
+    # face pairs below angle threshold
     angle_ok = mesh.face_adjacency_angles <= angle
+    # subset of face adjacency
     adjacency = mesh.face_adjacency[angle_ok]
+    # list of connected groups of faces
     components = connected_components(adjacency,
                                       min_len=1,
                                       nodes=np.arange(len(mesh.faces)))
+    # get a submesh as a single appended Trimesh
     smooth = mesh.submesh(components,
                           only_watertight=False,
                           append=True)
@@ -758,14 +768,18 @@ def is_watertight(edges, edges_sorted=None):
     """
     Parameters
     ---------
-    edges:        (n, 2) int, set of vertex indices
-    edges_sorted: (n, 2) int, vertex indices sorted on axis 1
+    edges : (n, 2) int
+      List of vertex indices
+    edges_sorted : (n, 2) int
+      Pass vertex indices sorted on axis 1 as a speedup
 
     Returns
     ---------
-    watertight: boolean, whether every edge is shared by an even
-                number of faces
-    winding:    boolean, whether every shared edge is reversed
+    watertight : boolean
+      Whether every edge is shared by an even
+      number of faces
+    winding : boolean
+      Whether every shared edge is reversed
     """
     # passing edges_sorted is a speedup only
     if edges_sorted is None:

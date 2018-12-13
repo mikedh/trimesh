@@ -21,12 +21,27 @@ class DXFTest(g.unittest.TestCase):
                                 d.area)
             splits.append(s)
 
+            # export the drawing to the file
             d.export(file_obj=temp_name)
-            r = g.trimesh.load(temp_name)
-            assert g.np.isclose(r.area, d.area)
+
+            # export to a string
+            text = d.export(file_type='dxf')
+
+            # DXF files are always pairs of lines
+            assert (len(str.splitlines(str(text))) % 2) == 0
+
+            # reload the file by name and by stream
+            rc = [g.trimesh.load(temp_name),
+                  g.trimesh.load(g.io_wrap(text),
+                                 file_type='dxf')]
+
+            # compare reloaded with original
+            for r in rc:
+                assert g.np.isclose(r.area, d.area)
+                assert g.np.isclose(r.length, d.length)
+                assert len(r.entities) == len(d.entities)
 
         single = g.np.hstack(splits)
-
         for p in single:
             p.vertices /= p.scale
 

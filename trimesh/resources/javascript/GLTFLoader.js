@@ -1046,7 +1046,7 @@ THREE.GLTFLoader = (function() {
     774: THREE.DstColorFactor,
     775: THREE.OneMinusDstColorFactor,
     776: THREE.SrcAlphaSaturateFactor
-    // The followings are not supported by Three.js yet
+    // The following are not supported by Three.js yet
     //32769: CONSTANT_COLOR,
     //32770: ONE_MINUS_CONSTANT_COLOR,
     //32771: CONSTANT_ALPHA,
