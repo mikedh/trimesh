@@ -52,18 +52,22 @@ def load_off(file_obj, **kwargs):
     return kwargs
 
 
-def load_msgpack(blob, file_type=None):
+def load_msgpack(blob, **kwargs):
     """
-    Load a dict packed with msgpack into kwargs for Trimesh constructor
+    Load a dict packed with msgpack into kwargs for
+    a Trimesh constructor
 
     Parameters
     ----------
-    blob: msgpack packed dict with keys for 'vertices' and 'faces'
-    file_type: not used
+    blob : bytes
+      msgpack packed dict containing
+      keys 'vertices' and 'faces'
 
     Returns
     ----------
-    loaded: kwargs for Trimesh constructor (aka mesh=trimesh.Trimesh(**loaded))
+    loaded : dict
+     Keyword args for Trimesh constructor, aka
+     mesh=trimesh.Trimesh(**loaded)
     """
 
     import msgpack
@@ -75,10 +79,14 @@ def load_msgpack(blob, file_type=None):
     return loaded
 
 
-def load_dict(data, file_type=None):
+def load_dict(data, **kwargs):
     """
     Load multiple input types into kwargs for a Trimesh constructor.
-    Tries to extract keys ['faces', 'vertices', 'face_normals', 'vertex_normals'].
+    Tries to extract keys:
+    'faces'
+    'vertices'
+    'face_normals'
+    'vertex_normals'
 
     Parameters
     ----------
