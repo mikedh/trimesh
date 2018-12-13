@@ -985,7 +985,9 @@ def camera_marker(camera, marker_height=0.4, origin_size=None):
 
     # create line segments for the FOV visualization
     # a segment from the origin to each bound of the FOV
-    segments = np.column_stack((np.zeros_like(points), points)).reshape((-1, 3))
+    segments = np.column_stack(
+        (np.zeros_like(points), points)).reshape(
+        (-1, 3))
 
     # add a loop for the outside of the FOV then reshape
     # the whole thing into multiple line segments
