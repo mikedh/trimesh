@@ -10,6 +10,7 @@ import collections
 from .. import rendering
 from ..transformations import Arcball
 from ..util import log
+from ..visual import to_rgba
 
 # smooth only when fewer faces than this
 _SMOOTH_MAX_FACES = 100000
@@ -27,13 +28,43 @@ class SceneViewer(pyglet.window.Window):
                  callback=None,
                  callback_period=None,
                  **kwargs):
+        """
+        Create a window that will display a trimesh.Scene object
+        in an OpenGL context via pyglet.
 
+        Parameters
+        ---------------
+        scene : trimesh.scene.Scene
+          Scene with geometry and transforms
+        smooth : bool
+          If True try to smooth shade things
+        flags : dict
+          If passed apply keys to self.view:
+          ['cull', 'wireframe', etc]
+        visible : bool
+          Display window or not
+        resolution : (2,) int
+          Initial resolution of window
+        start_loop : bool
+          Call pyglet.app.run() at the end of init
+        callback : function
+          A function which can be called periodically to
+          update things in the scene
+        callback_period : float
+          How often to call the callback, in seconds
+        kwargs : dict
+          Additional arguments to pass, including
+          'background' for to set background color
+        """
         self.scene = self._scene = scene
         self.callback = callback
         self.callback_period = callback_period
         self.scene._redraw = self._redraw
         self.reset_view(flags=flags)
         self.batch = pyglet.graphics.Batch()
+
+        # store kwargs
+        self.kwargs = kwargs
 
         # store a vertexlist for an axis marker
         self._axis = None
@@ -162,8 +193,21 @@ class SceneViewer(pyglet.window.Window):
         """
         Perform the magic incantations to create an OpenGL scene.
         """
-        # the background color
-        gl.glClearColor(.97, .97, .97, 1.0)
+
+        # default background color is white-ish
+        background = [.99, .99, .99, 1.0]
+        # if user passed a background color use it
+        if 'background' in self.kwargs:
+            try:
+                # convert to (4,) uint8 RGBA
+                background = to_rgba(self.kwargs['background'])
+                # convert to 0.0 - 1.0 float
+                background = background.astype(np.float64) / 255.0
+            except BaseException:
+                log.error('background color wrong!',
+                          exc_info=True)
+        # apply the background color
+        gl.glClearColor(*background)
 
         max_depth = (np.abs(self.scene.bounds).max(axis=1) ** 2).sum() ** .5
         max_depth = np.clip(max_depth, 500.00, np.inf)
