@@ -8,10 +8,18 @@ or texture images.
 import os
 import trimesh
 
+# URL parsing for remote resources
+try:
+    # python 3
+    from urllib.parse import urlparse, urljoin
+except ImportError:
+    # python 2
+    from urlparse import urlparse, urljoin
+
 
 class Resolver(object):
-    def get(self, name):
-        raise NotImplementedError('you need to implement a get method!')
+    def __init__(self, *args, **kwargs):
+        raise NotImplementedError('you need to implement a resolver!')
 
 
 class FilePathResolver(Resolver):
@@ -108,3 +116,56 @@ class ZipResolver(Resolver):
         self.archive[name].seek(0)
 
         return data
+
+
+class WebResolver(Resolver):
+    """
+    Resolve assets from a remote URL.
+    """
+
+    def __init__(self, url):
+        """
+        Resolve assets from a base URL.
+
+        Parameters
+        --------------
+        url : str
+          Location where a mesh was stored or
+          directory where mesh was stored
+        """
+        if hasattr(url, 'decode'):
+            url = url.decode('utf-8')
+
+        # parse string into namedtuple
+        parsed = urlparse(url)
+
+        # we want a base url where the mesh was located
+        path = parsed.path
+        if path[-1] != '/':
+            # clip off last item
+            path = '/'.join(path.split('/')[:-1]) + '/'
+
+        # store the base url
+        self.base_url = '{scheme}://{netloc}/{path}'.format(
+            scheme=parsed.scheme,
+            netloc=parsed.netloc,
+            path=path)
+
+    def get(self, name):
+        """
+        Get a resource from the remote site.
+
+        Parameters
+        -------------
+        name : str
+          Asset name, i.e. 'quadknot.obj.mtl'
+        """
+        # do import here to keep soft dependancy
+        import requests
+
+        # append base url to requested name
+        url = urljoin(self.base_url, name)
+        # fetch the data from the remote url
+        response = requests.get(url)
+        # return the bytes of the response
+        return response.content

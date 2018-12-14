@@ -219,6 +219,7 @@ class VisualTest(g.unittest.TestCase):
 
         g.np.testing.assert_allclose(colors, colors_expected, rtol=0, atol=0)
 
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()

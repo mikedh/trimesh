@@ -21,6 +21,17 @@ class TextureTest(g.unittest.TestCase):
         g.np.testing.assert_allclose(colors, colors_expected, rtol=0, atol=0)
 
     def test_fuze(self):
+
+        with g.serve_meshes() as address:
+            # see if web resolvers work
+            tex = g.trimesh.io.load.load_remote(
+                url=address + '/fuze.obj')
+
+            # this test should change when texture is actually implemented
+            assert tex.visual.kind == 'vertex'
+            # should be actual colors defined
+            assert tex.visual.vertex_colors.ptp(axis=0).ptp() != 0
+
         # obj with texture, assets should be loaded
         # through a FilePathResolver
         m = g.get_mesh('fuze.obj')
@@ -37,11 +48,12 @@ class TextureTest(g.unittest.TestCase):
         # zip files get loaded into a scene
         assert len(scene.geometry) == 1
         m = next(iter(scene.geometry.values()))
-        
+
         # this test should change when texture is actually implemented
         assert m.visual.kind == 'vertex'
         # should be actual colors defined
         assert m.visual.vertex_colors.ptp(axis=0).ptp() != 0
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

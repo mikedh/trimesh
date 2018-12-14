@@ -308,9 +308,14 @@ def load_remote(url, **kwargs):
     response = requests.get(url)
     # wrap as file object
     file_obj = util.wrap_as_stream(response.content)
+
+    # so loaders can access textures/etc
+    resolver = visual.resolvers.WebResolver(url)
+
     # actually load
     loaded = load(file_obj=file_obj,
                   file_type=url,
+                  resolver=resolver,
                   **kwargs)
     return loaded
 
