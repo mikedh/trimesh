@@ -75,7 +75,7 @@ def parse_mtl(mtl):
             'map_Kd': None}
 
     # use universal newline splitting
-    for line in str.splitlines(mtl.strip()):
+    for line in str.splitlines(str(mtl).strip()):
         # clean leading/trailing whitespace and split
         line_split = line.strip().split()
         # needs to be at least two values
@@ -180,9 +180,8 @@ def load_wavefront(file_obj, resolver=None, **kwargs):
                     # save vertex texture with correct ordering
                     loaded['metadata']['vertex_texture'] = texture[vert_order]
                 except ValueError:
-                    log.warning(
-                        'Texture information seems broken: %s' % file_obj.name
-                    )
+                    log.warning('texture information seems broken'.format(
+                                file_obj.name))
 
             # build face groups information
             # faces didn't move around so we don't have to reindex
@@ -272,18 +271,18 @@ def load_wavefront(file_obj, resolver=None, **kwargs):
 
             # the name of the referenced material file
             mtl_name = line_split[1]
-            # bytes containing MTL data
             try:
+                # fetch bytes containing MTL data
                 mtl_data = resolver.get(mtl_name)
-            except:
-                log.error('unable to load material:', mtl_name)
+                # load into a dict
+                mtllib = parse_mtl(mtl_data)
+                # save new materials
+                if 'newmtl' in mtllib:
+                    mtllibs[mtllib['newmtl']] = mtllib
+            except BaseException:
+                log.error('unable to load material: {}'.format(mtl_name),
+                          exc_info=True)
                 continue
-
-            # loaded into a dict
-            mtllib = parse_mtl(mtl_data)
-
-            if 'newmtl' in mtllib:
-                mtllibs[mtllib['newmtl']] = mtllib
 
         elif line_split[0] == 'usemtl':
             current['usemtl'].append(line_split[1])
