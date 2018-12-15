@@ -206,8 +206,13 @@ def load_wavefront(file_obj, resolver=None, **kwargs):
                 vertex_colors = np.zeros((0, 4), dtype=np.uint8)
                 for usemtl, findices in usemtl_to_findices.items():
                     uv = texture[findices]
-                    vertex_colors_i = _get_vertex_colors(
-                        uv=uv, mtllib=mtllibs[usemtl], resolver=resolver)
+                    try:
+                        vertex_colors_i = _get_vertex_colors(
+                            uv=uv, mtllib=mtllibs[usemtl], resolver=resolver)
+                    except BaseException:
+                        log.error('failed to load texture: {}'.format(usemtl),
+                                  exc_info=True)
+                        vertex_colors_i = None
                     if vertex_colors_i is None:
                         vertex_colors_i = np.full(
                             (len(uv), 4), (102, 102, 102, 255), dtype=np.uint8)
