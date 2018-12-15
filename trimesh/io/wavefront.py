@@ -1,3 +1,4 @@
+import collections
 import os.path
 
 import numpy as np
@@ -12,7 +13,7 @@ from .. import util
 from .. import visual
 
 
-def _get_vertex_colors(uv, mtllibs, resolver):
+def _get_vertex_colors(uv, mtllib, resolver):
     """
     Turn loaded UV and materials into vertex colors.
 
@@ -20,7 +21,7 @@ def _get_vertex_colors(uv, mtllibs, resolver):
     ------------
     uv : (n, 2) float
       Texture coordinates
-    mttlibs : list of dict
+    mttlib : dict
       Material data including image names
     resolver : trimesh.visual.resolvers.Resolver
       Object to load data referenced by name
@@ -34,21 +35,21 @@ def _get_vertex_colors(uv, mtllibs, resolver):
         log.warning('pillow is required to load texture')
         return
 
-    success = False
-    vertex_colors = np.zeros((len(uv), 4), dtype=np.uint8)
+    if np.isnan(uv).all() and mtllib['Kd']:
+        color = np.array(mtllib['Kd'], dtype=np.float64)
+        if len(color) == 3:
+            color = np.hstack((color, [1]))
+        color = (color * 255).astype(np.uint8)
+        vertex_colors = np.full((len(uv), 4), color, dtype=np.uint8)
+        return vertex_colors
 
-    for mtl in mtllibs:
-        # get the data for the image
-        texture_data = resolver.get(mtl['map_Kd'])
-        # load the actual image
-        texture = Image.open(util.wrap_as_stream(texture_data))
-        # append the loaded colors
-        vertex_colors += visual.uv_to_color(uv, texture)
-        success = True
+    # get the data for the image
+    texture_data = resolver.get(mtllib['map_Kd'])
+    # load the actual image
+    texture = Image.open(util.wrap_as_stream(texture_data))
+    # append the loaded colors
+    vertex_colors = visual.uv_to_color(uv, texture)
 
-    # nothing actually loaded
-    if not success:
-        return
     return vertex_colors
 
 
@@ -63,16 +64,15 @@ def parse_mtl(mtl):
 
     Returns
     ------------
-    data : dict
-      Has keys map_Kd
+    mtllibs : list of dict
+      Each dict has keys: newmtl, map_Kd, Kd
     """
     # decode bytes if necessary
     if hasattr(mtl, 'decode'):
         mtl = mtl.decode('utf-8')
 
-    # initial data layout
-    data = {'newmtl': None,
-            'map_Kd': None}
+    mtllib = None
+    mtllibs = []
 
     # use universal newline splitting
     for line in str.splitlines(str(mtl).strip()):
@@ -82,10 +82,21 @@ def parse_mtl(mtl):
         if len(line_split) <= 1:
             continue
         # store the keys
-        if line_split[0] in data:
-            data[line_split[0]] = line_split[1]
+        key = line_split[0]
+        if key == 'newmtl':
+            if mtllib:
+                mtllibs.append(mtllib)
+            mtllib = {'newmtl': line_split[1],
+                      'map_Kd': None,
+                      'Kd': None}
+        elif key == 'map_Kd':
+            mtllib[key] = line_split[1]
+        elif key == 'Kd':
+            mtllib[key] = [float(x) for x in line_split[1:]]
+    if mtllib:
+        mtllibs.append(mtllib)
 
-    return data
+    return mtllibs
 
 
 def load_wavefront(file_obj, resolver=None, **kwargs):
@@ -175,13 +186,11 @@ def load_wavefront(file_obj, resolver=None, **kwargs):
                 texture = np.array(current['vt'], dtype=np.float64)
                 # make sure vertex texture is the right shape
                 # AKA (len(vertices), dimension)
-                try:
-                    texture = texture.reshape((len(vertices), -1))
-                    # save vertex texture with correct ordering
-                    loaded['metadata']['vertex_texture'] = texture[vert_order]
-                except ValueError:
-                    log.warning('texture information seems broken'.format(
-                                file_obj.name))
+                texture = texture.reshape((len(vertices), -1))
+                texture = texture[vert_order]
+                texture = texture[~np.any(np.isnan(texture), axis=1)]
+                # save vertex texture with correct ordering
+                loaded['metadata']['vertex_texture'] = texture
 
             # build face groups information
             # faces didn't move around so we don't have to reindex
@@ -193,23 +202,24 @@ def load_wavefront(file_obj, resolver=None, **kwargs):
                 loaded['metadata']['face_groups'] = face_groups
 
             if len(current['usemtl']) > 0:
-                current_mtllibs = [mtllibs[k] for k in current['usemtl']
-                                   if k in mtllibs]
-                try:
-                    vertex_colors = _get_vertex_colors(
-                        uv=loaded['metadata']['vertex_texture'],
-                        mtllibs=current_mtllibs,
-                        resolver=resolver)
-                    loaded['vertex_colors'] = vertex_colors
-                    loaded['metadata']['mtllibs'] = current_mtllibs
-                except BaseException:
-                    log.error('failed to load texture!', exc_info=True)
+                texture = np.array(current['vt'], dtype=np.float64)
+                vertex_colors = np.zeros((0, 4), dtype=np.uint8)
+                for usemtl, findices in usemtl_to_findices.items():
+                    uv = texture[findices]
+                    vertex_colors_i = _get_vertex_colors(
+                        uv=uv, mtllib=mtllibs[usemtl], resolver=resolver)
+                    if vertex_colors_i is None:
+                        vertex_colors_i = np.full(
+                            (len(uv), 4), (102, 102, 102, 255), dtype=np.uint8)
+                    vertex_colors = np.r_[vertex_colors, vertex_colors_i]
+                loaded['vertex_colors'] = vertex_colors[vert_order]
 
             # this mesh is done so append the loaded mesh kwarg dict
             meshes.append(loaded)
 
     attribs = {k: [] for k in ['v', 'vt', 'vn']}
     current = {k: [] for k in ['v', 'vt', 'vn', 'f', 'g', 'usemtl']}
+    usemtl_to_findices = collections.defaultdict(list)  # usemtl to 'f' indices
     mtllibs = {}
     # remap vertex indexes {str key: int index}
     remap = {}
@@ -224,8 +234,12 @@ def load_wavefront(file_obj, resolver=None, **kwargs):
             # v, vt, or vn
             # vertex, vertex texture, or vertex normal
             # only parse 3 values, ignore colors
-            attribs[line_split[0]].append([float(x)
-                                           for x in line_split[1:4]])
+            value = [float(x) for x in line_split[1:4]]
+            # vt: u [v] [w]  # v, w is optional and default value is 0
+            if line_split[0] == 'vt' and len(value) != 3:
+                for _ in range(3 - len(value)):
+                    value.append(0)
+            attribs[line_split[0]].append(value)
         elif line_split[0] == 'f':
             # a face
             ft = line_split[1:]
@@ -246,9 +260,16 @@ def load_wavefront(file_obj, resolver=None, **kwargs):
                     if len(f_split) > 1 and f_split[1] != '':
                         current['vt'].append(
                             attribs['vt'][int(f_split[1]) - 1])
+                    else:
+                        current['vt'].append([np.nan, np.nan, np.nan])
                     if len(f_split) > 2:
                         current['vn'].append(
                             attribs['vn'][int(f_split[2]) - 1])
+                    else:
+                        current['vn'].append([np.nan, np.nan, np.nan])
+                    if len(current['usemtl']) > 0:
+                        usemtl_to_findices[current['usemtl'][-1]].append(
+                            len(current['vt']) - 1)
                 current['f'].append(remap[f])
         elif line_split[0] == 'o':
             # defining a new object
@@ -274,10 +295,9 @@ def load_wavefront(file_obj, resolver=None, **kwargs):
             try:
                 # fetch bytes containing MTL data
                 mtl_data = resolver.get(mtl_name)
-                # load into a dict
-                mtllib = parse_mtl(mtl_data)
-                # save new materials
-                if 'newmtl' in mtllib:
+                # load into a list of dict
+                for mtllib in parse_mtl(mtl_data):
+                    # save new materials
                     mtllibs[mtllib['newmtl']] = mtllib
             except BaseException:
                 log.error('unable to load material: {}'.format(mtl_name),
