@@ -215,7 +215,7 @@ def load_wavefront(file_obj, resolver=None, **kwargs):
                         vertex_colors_i = None
                     if vertex_colors_i is None:
                         vertex_colors_i = np.full(
-                            (len(uv), 4), (102, 102, 102, 255), dtype=np.uint8)
+                            (len(uv), 4), visual.DEFAULT_COLOR, dtype=np.uint8)
                     vertex_colors = np.r_[vertex_colors, vertex_colors_i]
                 loaded['vertex_colors'] = vertex_colors[vert_order]
 
