@@ -204,7 +204,8 @@ def load_wavefront(file_obj, resolver=None, **kwargs):
             if len(current['usemtl']) > 0:
                 texture = np.array(current['vt'], dtype=np.float64)
                 vertex_colors = np.zeros((0, 4), dtype=np.uint8)
-                for usemtl, findices in usemtl_to_findices.items():
+                for usemtl in current['usemtl']:
+                    findices = usemtl_to_findices[usemtl]
                     uv = texture[findices]
                     try:
                         vertex_colors_i = _get_vertex_colors(
@@ -281,6 +282,7 @@ def load_wavefront(file_obj, resolver=None, **kwargs):
             append_mesh()
             # reset current to empty lists
             current = {k: [] for k in current.keys()}
+            usemtl_to_findices = collections.defaultdict(list)
             remap = {}
             next_idx = 0
             group_idx = 0
