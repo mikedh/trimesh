@@ -19,16 +19,22 @@ def uv_to_color(uv, image):
     colors : (n, 4) float
       RGBA color at each of the UV coordinates
     """
-    # https://shapenet.org/qaforum/index.php?qa=15&qa_1=why-is-the-texture-coordinate-in-the-obj-file-not-in-the-range  # NOQA
-    if not (uv.min() >= 0 and uv.max() <= 1):
-        uv = uv - np.floor(uv)
+    uv = np.asanyarray(uv, dtype=np.float64)
 
+    # find pixel positions from UV coordinates
     x = (uv[:, 0] * (image.width - 1)).round().astype(int)
     y = ((1 - uv[:, 1]) * (image.height - 1)).round().astype(int)
 
+    # wrap to image size in the manner of GL_REPEAT
+    x %= image.width
+    y %= image.height
+
+    # access colors from pixel locations
     image = np.asarray(image)
     colors = image[y, x]
-    if colors.ndim == 1:  # gray scale
+
+    # handle gray scale
+    if colors.ndim == 1:
         colors = np.repeat(colors[:, None], 3, axis=1)
     # now ndim == 2
     if colors.shape[1] == 3:
