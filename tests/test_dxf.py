@@ -21,12 +21,27 @@ class DXFTest(g.unittest.TestCase):
                                 d.area)
             splits.append(s)
 
+            # export the drawing to the file
             d.export(file_obj=temp_name)
-            r = g.trimesh.load(temp_name)
-            assert g.np.isclose(r.area, d.area)
+
+            # export to a string
+            text = d.export(file_type='dxf')
+
+            # DXF files are always pairs of lines
+            assert (len(str.splitlines(str(text))) % 2) == 0
+
+            # reload the file by name and by stream
+            rc = [g.trimesh.load(temp_name),
+                  g.trimesh.load(g.io_wrap(text),
+                                 file_type='dxf')]
+
+            # compare reloaded with original
+            for r in rc:
+                assert g.np.isclose(r.area, d.area)
+                assert g.np.isclose(r.length, d.length)
+                assert len(r.entities) == len(d.entities)
 
         single = g.np.hstack(splits)
-
         for p in single:
             p.vertices /= p.scale
 
@@ -138,6 +153,37 @@ class DXFTest(g.unittest.TestCase):
         assert len(spans) == 6
         # all arcs should be 180 degree slot end caps
         assert g.np.allclose(spans, g.np.pi)
+
+    def test_text(self):
+        # load file with a single text entity
+        original = g.get_mesh('2D/text.dxf')
+
+        # export then reload
+        roundtrip = g.trimesh.load(
+            file_obj=g.io_wrap(original.export(file_type='dxf')),
+            file_type='dxf')
+
+        for d in [original, roundtrip]:
+            # should contain a single Text entity
+            assert len(d.entities) == 1
+
+            # shouldn't crash anything
+            assert len(d.polygons_closed) == 0
+            assert len(d.polygons_full) == 0
+            assert len(d.discrete) == 0
+            assert len(d.paths) == 0
+
+            # make sure it preserved case and special chars
+            assert d.entities[0].text == "HEY WHAT's poppin"
+
+            # height should 1.0
+            assert g.np.isclose(d.entities[0].height, 1.0)
+
+            # get the 2D rotation of the text
+            angle = d.entities[0].angle(d.vertices)
+
+            # angle should be 30 degrees
+            assert g.np.isclose(angle, g.np.radians(30.0))
 
 
 if __name__ == '__main__':

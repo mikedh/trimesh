@@ -100,7 +100,7 @@ class VectorTests(g.unittest.TestCase):
             # Y should not have moved
             assert g.np.allclose(d.bounds[:, 1], ori[:, 1])
 
-            if len(d.vertices) < 150:
+            if len(d.polygons_full) > 0 and len(d.vertices) < 150:
                 g.log.info('Checking medial axis on %s',
                            d.metadata['file_name'])
                 m = d.medial_axis()
@@ -125,9 +125,10 @@ class VectorTests(g.unittest.TestCase):
                    g.trimesh.util.is_instance_named(i, 'Line'))
         assert p.is_closed
         p.entities = p.entities[:-1]
-        self.assertFalse(p.is_closed)
+        assert not p.is_closed
 
-        p.fill_gaps()
+        # fill gaps of any distance
+        p.fill_gaps(g.np.inf)
         assert p.is_closed
 
     def test_edges(self):
@@ -149,11 +150,13 @@ class VectorTests(g.unittest.TestCase):
         group = g.trimesh.grouping.group_rows(edges, require_count=1)
 
         # run the polygon conversion
-        polygon = g.trimesh.path.polygons.edges_to_polygons(edges=edges[group],
-                                                            vertices=vertices)
+        polygon = g.trimesh.path.polygons.edges_to_polygons(
+            edges=edges[group],
+            vertices=vertices)
 
         assert len(polygon) == 1
-        assert g.np.isclose(polygon[0].area, m.facets_area[index])
+        assert g.np.isclose(polygon[0].area,
+                            m.facets_area[index])
 
         # try transforming the polygon around
         M = g.np.eye(3)
@@ -323,27 +326,6 @@ class SplitTest(g.unittest.TestCase):
                 assert len(s.paths) == len(s.discrete)
                 assert s.path_valid.sum() == len(s.polygons_closed)
                 check_Path2D(s)
-
-
-class ExportTest(g.unittest.TestCase):
-
-    def test_svg(self):
-        for d in g.get_2D():
-            # export as svg string
-            exported = d.export(file_type='svg')
-            # load the exported SVG
-            stream = g.trimesh.util.wrap_as_stream(exported)
-            loaded = g.trimesh.load(stream, file_type='svg')
-
-            # we only have line and arc primitives as SVG
-            # export and import
-            if all(i.__class__.__name__ in ['Line', 'Arc']
-                   for i in d.entities):
-                # perimeter should stay the same-ish
-                # on export/inport
-                assert g.np.isclose(d.length,
-                                    loaded.length,
-                                    rtol=.01)
 
 
 class SectionTest(g.unittest.TestCase):

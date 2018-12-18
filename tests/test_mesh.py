@@ -11,10 +11,13 @@ class MeshTests(g.unittest.TestCase):
         formats = g.trimesh.available_formats()
         assert all(isinstance(i, str) for i in formats)
         assert all(len(i) > 0 for i in formats)
-        assert all(i in formats for i in ['stl', 'ply', 'off', 'obj'])
+        assert all(i in formats
+                   for i in ['stl', 'ply', 'off', 'obj'])
 
         for mesh in g.get_meshes(raise_error=True):
-            g.log.info('Testing %s', mesh.metadata['file_name'])
+            # log file name for debugging
+            file_name = mesh.metadata['file_name']
+            g.log.info('Testing %s', file_name)
 
             start = {mesh.md5(), mesh.crc()}
             assert len(mesh.faces) > 0
@@ -75,6 +78,37 @@ class MeshTests(g.unittest.TestCase):
             assert hasattr(r, 'intersection')
             g.log.info('Triangles tree ok')
 
+            # face angles should have same
+            assert mesh.face_angles.shape == mesh.faces.shape
+            assert len(mesh.vertices) == len(mesh.vertex_defects)
+            assert len(mesh.principal_inertia_components) == 3
+
+            # we should have built up a bunch of stuff into
+            # our cache, so make sure all numpy arrays cached are
+            # finite
+            for name, cached in mesh._cache.cache.items():
+                # only check numpy arrays
+                if not isinstance(cached, g.np.ndarray):
+                    continue
+
+                # only check int, float, and bool
+                if cached.dtype.kind not in 'ibf':
+                    continue
+
+                # there should never be NaN values
+                if g.np.isnan(cached).any():
+                    raise ValueError('NaN values in %s/%s',
+                                     file_name, name)
+
+                # fields allowed to have infinite values
+                if name in ['face_adjacency_radius']:
+                    continue
+
+                # make sure everything is finite
+                if not g.np.isfinite(cached).all():
+                    raise ValueError('inf values in %s/%s',
+                                     file_name, name)
+
             # some memory issues only show up when you copy the mesh a bunch
             # specifically, if you cache c- objects then deepcopy the mesh this
             # generally segfaults randomly
@@ -107,6 +141,19 @@ class MeshTests(g.unittest.TestCase):
         for v_i, neighs in enumerate(neighbors):
             for n in neighs:
                 assert ([v_i, n] in elist or [n, v_i] in elist)
+
+    def test_validate(self):
+        """
+        Make sure meshes with validation work
+        """
+        m = g.get_mesh('featuretype.STL', validate=True)
+
+        assert m._validate
+        assert m.is_volume
+
+        len_pre = len(m.vertices)
+        m.remove_unreferenced_vertices()
+        assert len(m.vertices) == len_pre
 
 
 if __name__ == '__main__':

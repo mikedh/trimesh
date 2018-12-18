@@ -4,8 +4,8 @@ inertia.py
 
 Functions for dealing with inertia tensors.
 
-Results validated against known geometries and for internal
-consistency.
+Results validated against known geometries and checked for
+internal consistency.
 """
 
 import numpy as np
@@ -23,14 +23,19 @@ def cylinder_inertia(mass, radius, height, transform=None):
 
     Parameters
     ------------
-    mass:      float, mass of cylinder
-    radius:    float, radius of cylinder
-    height:    float, height of cylinder
-    transform: (4,4) float, transformation of cylinder
+    mass : float
+      Mass of cylinder
+    radius : float
+      Radius of cylinder
+    height : float
+      Height of cylinder
+    transform : (4,4) float
+      Transformation of cylinder
 
     Returns
     ------------
-    inertia: (3,3) float, inertia tensor
+    inertia : (3,3) float
+      Inertia tensor
     """
     h2, r2 = height ** 2, radius ** 2
     diagonal = np.array([((mass * h2) / 12) + ((mass * r2) / 4),
@@ -50,12 +55,15 @@ def sphere_inertia(mass, radius):
 
     Parameters
     ------------
-    mass:      float, mass of sphere
-    radius:    float, radius of sphere
+    mass : float
+      Mass of sphere
+    radius : float
+      Radius of sphere
 
     Returns
     ------------
-    inertia: (3,3) float, inertia tensor
+    inertia : (3, 3) float
+      Inertia tensor
     """
     inertia = (2.0 / 5.0) * (radius ** 2) * mass * np.eye(3)
     return inertia
@@ -68,21 +76,28 @@ def principal_axis(inertia):
 
     Parameters
     ------------
-    inertia: (3,3) float, inertia tensor
+    inertia : (3,3) float
+      Inertia tensor
 
     Returns
     ------------
-    components: (3,) float, principal components of inertia
-    vectors:    (3,3) float, row vectors pointing along
-                             the principal axes of inertia
+    components : (3,) float
+      Principal components of inertia
+    vectors : (3,3) float
+      Row vectors pointing along the
+      principal axes of inertia
     """
     inertia = np.asanyarray(inertia, dtype=np.float64)
     if inertia.shape != (3, 3):
         raise ValueError('inertia tensor must be (3,3)!')
 
+    # you could any of the following to calculate this:
+    # np.linalg.svd, np.linalg.eig, np.linalg.eigh
+    # moment of inertia is square symmetric matrix
+    # eigh has the best numeric precision in tests
     components, vectors = np.linalg.eigh(inertia * negate_nondiagonal)
 
-    # eig returns them as column vectors, change them to row vectors
+    # eigh returns them as column vectors, change them to row vectors
     vectors = vectors.T
 
     return components, vectors
@@ -97,13 +112,17 @@ def transform_inertia(transform, inertia_tensor):
 
     Parameters
     ------------
-    transform:      (3,3) or (4,4) float, transformation matrix
-    inertia_tensor: (3,3) float, inertia tensor
+    transform : (3, 3) or (4, 4) float
+      Transformation matrix
+    inertia_tensor : (3, 3) float
+      Inertia tensor
 
     Returns
     ------------
-    transformed: (3,3) float, inertia tensor in new frame
+    transformed : (3, 3) float
+      Inertia tensor in new frame
     """
+    # check inputs and extract rotation
     transform = np.asanyarray(transform, dtype=np.float64)
     if transform.shape == (4, 4):
         rotation = transform[:3, :3]
@@ -129,12 +148,17 @@ def radial_symmetry(mesh):
 
     Returns
     -----------
-    symmetry: None         No rotational symmetry
-              'radial'     Symmetric around an axis
-              'spherical'  Symmetric around a point
-    axis:     None, or (3,)   float
-    section:  None, or (3, 2) float
+    symmetry : None or str
+         None         No rotational symmetry
+         'radial'     Symmetric around an axis
+         'spherical'  Symmetric around a point
+    axis : None or (3,) float
+      Rotation axis or point
+    section : None or (3, 2) float
+      If radial symmetry provide vectors
+      to get cross section
     """
+
     # if not a volume this is meaningless
     if not mesh.is_volume:
         return None, None, None

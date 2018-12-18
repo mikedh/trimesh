@@ -9,6 +9,7 @@ import collections
 
 from .. import rendering
 from ..transformations import Arcball
+from ..util import log
 
 # smooth only when fewer faces than this
 _SMOOTH_MAX_FACES = 100000
@@ -27,16 +28,36 @@ class SceneViewer(pyglet.window.Window):
                  callback_period=None,
                  **kwargs):
 
-        self.scene = scene
+        self.scene = self._scene = scene
         self.callback = callback
         self.callback_period = callback_period
         self.scene._redraw = self._redraw
         self.reset_view(flags=flags)
         self.batch = pyglet.graphics.Batch()
 
+        # store a vertexlist for an axis marker
+        self._axis = None
+        # store scene geometry as vertex lists
         self.vertex_list = {}
+        # store geometry hashes
         self.vertex_list_hash = {}
+        # store geometry rendering mode
         self.vertex_list_mode = {}
+
+        if scene.camera is not None:
+            if resolution is not None:
+                if not np.allclose(resolution, scene.camera.resolution,
+                                   rtol=0, atol=0):
+                    log.warning(
+                        'resolution is overwritten by Camera: '
+                        '{} -> {}'.format(resolution,
+                                          scene.camera.resolution)
+                    )
+                    resolution = scene.camera.resolution
+
+        if 'camera' not in scene.graph:
+            # if the camera hasn't been set, set it now
+            scene.set_camera()
 
         try:
             # try enabling antialiasing
@@ -58,10 +79,7 @@ class SceneViewer(pyglet.window.Window):
                                               width=resolution[0],
                                               height=resolution[1])
 
-        if 'camera' not in scene.graph:
-            # if the camera hasn't been set, set it now
-            scene.set_camera()
-
+        # add scene geometry to viewer geometry
         for name, mesh in scene.geometry.items():
             self.add_geometry(name=name,
                               geometry=mesh,
@@ -95,6 +113,18 @@ class SceneViewer(pyglet.window.Window):
                 self.add_geometry(name, mesh)
 
     def add_geometry(self, name, geometry, **kwargs):
+        """
+        Add a geometry to the viewer.
+
+        Parameters
+        --------------
+        name : hashable
+          Name that references geometry
+        geometry : Trimesh, Path2D, Path3D, PointCloud
+          Geometry to display in the viewer window
+        kwargs **
+          Passed to rendering.convert_to_vertexlist
+        """
         # convert geometry to constructor args
         args = rendering.convert_to_vertexlist(geometry, **kwargs)
         # create the indexed vertex list
@@ -106,10 +136,11 @@ class SceneViewer(pyglet.window.Window):
 
     def reset_view(self, flags=None):
         """
-        Set view to base view.
+        Set view to the default view.
         """
-        self.view = {'wireframe': False,
-                     'cull': True,
+        self.view = {'cull': True,
+                     'axis': False,
+                     'wireframe': False,
                      'translation': np.zeros(3),
                      'center': self.scene.centroid,
                      'scale': self.scene.scale,
@@ -128,7 +159,12 @@ class SceneViewer(pyglet.window.Window):
             pass
 
     def init_gl(self):
+        """
+        Perform the magic incantations to create an OpenGL scene.
+        """
+        # the background color
         gl.glClearColor(.97, .97, .97, 1.0)
+
         max_depth = (np.abs(self.scene.bounds).max(axis=1) ** 2).sum() ** .5
         max_depth = np.clip(max_depth, 500.00, np.inf)
         gl.glDepthRange(0.0, max_depth)
@@ -182,23 +218,71 @@ class SceneViewer(pyglet.window.Window):
         gl.glPointSize(4)
 
     def toggle_culling(self):
+        """
+        Toggle backface culling on or off. It is on by default
+        but if you are dealing with non- watertight meshes you
+        probably want to be able to see the back sides.
+        """
         self.view['cull'] = not self.view['cull']
         self.update_flags()
 
     def toggle_wireframe(self):
+        """
+        Toggle unfilled wireframe mode on or off, good for
+        looking inside meshes. Off by default.
+        """
         self.view['wireframe'] = not self.view['wireframe']
         self.update_flags()
 
+    def toggle_axis(self):
+        """
+        Toggle a rendered XYZ/RGB axis marker on, world frame,
+        or every frame. Off by default
+        """
+        # cycle through three axis states
+        states = [False, 'world', 'all']
+        # the state after toggling
+        index = (states.index(self.view['axis']) + 1) % len(states)
+        # update state to next index
+        self.view['axis'] = states[index]
+        # perform gl actions
+        self.update_flags()
+
     def update_flags(self):
+        """
+        Check the view flags and call what is needed with gl
+        to handle it correctly.
+        """
+        # view mode, filled vs wirefrom
         if self.view['wireframe']:
             gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
         else:
             gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
 
+        # backface culling on or off
         if self.view['cull']:
             gl.glEnable(gl.GL_CULL_FACE)
         else:
             gl.glDisable(gl.GL_CULL_FACE)
+
+        # case where we WANT an axis and NO vertexlist
+        # is stored internally
+        if self.view['axis'] and self._axis is None:
+            from .. import creation
+            # create an axis marker sized relative to the scene
+            axis = creation.axis(origin_size=self.scene.scale / 100)
+            # create ordered args for a vertex list
+            args = rendering.mesh_to_vertexlist(axis)
+            # store the axis as a reference
+            self._axis = self.batch.add_indexed(*args)
+
+        # case where we DON'T want an axis but a vertexlist
+        # IS stored internally
+        elif not self.view['axis'] and self._axis is not None:
+            # remove the axis from the rendering batch
+            self._axis.delete()
+            # set the reference to None
+            self._axis = None
 
     def on_resize(self, width, height):
         try:
@@ -212,7 +296,13 @@ class SceneViewer(pyglet.window.Window):
         gl.glViewport(0, 0, width, height)
         gl.glMatrixMode(gl.GL_PROJECTION)
         gl.glLoadIdentity()
-        gl.gluPerspective(60.,
+
+        if self.scene.camera is None:
+            fovY = 60.0
+        else:
+            fovY = self.scene.camera.fov[1]
+
+        gl.gluPerspective(fovY,
                           width / float(height),
                           .01,
                           self.scene.scale * 5.0)
@@ -224,11 +314,10 @@ class SceneViewer(pyglet.window.Window):
         self.view['ball'].down([x, -y])
 
     def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
-        delta = np.array([dx, dy], dtype=np.float) / [self.width, self.height]
-
         # left mouse button, with control key down (pan)
         if ((buttons == pyglet.window.mouse.LEFT) and
                 (modifiers & pyglet.window.key.MOD_CTRL)):
+            delta = [dx / self.width, dy / self.height]
             self.view['translation'][0:2] += delta
 
         # left mouse button, no modifier keys pressed (rotate)
@@ -246,6 +335,8 @@ class SceneViewer(pyglet.window.Window):
             self.reset_view()
         elif symbol == pyglet.window.key.C:
             self.toggle_culling()
+        elif symbol == pyglet.window.key.A:
+            self.toggle_axis()
         elif symbol == pyglet.window.key.Q:
             self.close()
         elif symbol == pyglet.window.key.LEFT:
@@ -283,28 +374,45 @@ class SceneViewer(pyglet.window.Window):
         count_original = len(node_names)
         count = -1
 
+        # if we are rendering an axis marker at the world
+        if self._axis:
+            # we stored it as a vertex list
+            self._axis.draw(mode=gl.GL_TRIANGLES)
+
         while len(node_names) > 0:
             count += 1
             current_node = node_names.popleft()
 
+            # get the transform from world to geometry and mesh name
             transform, geometry_name = self.scene.graph[current_node]
 
+            # if no geometry at this frame continue without rendering
             if geometry_name is None:
                 continue
 
+            # get a reference to the mesh so we can check transparency
             mesh = self.scene.geometry[geometry_name]
-
-            if (hasattr(mesh, 'visual') and
-                    mesh.visual.transparency):
-                # put the current item onto the back of the queue
-                if count < count_original:
-                    node_names.append(current_node)
-                    continue
 
             # add a new matrix to the model stack
             gl.glPushMatrix()
             # transform by the nodes transform
             gl.glMultMatrixf(rendering.matrix_to_gl(transform))
+
+            # draw an axis marker for each mesh frame
+            if self.view['axis'] == 'all':
+                self._axis.draw(mode=gl.GL_TRIANGLES)
+
+            # transparent things must be drawn last
+            if (hasattr(mesh, 'visual') and mesh.visual.transparency):
+                # put the current item onto the back of the queue
+                if count < count_original:
+                    # add the node to be drawn last
+                    node_names.append(current_node)
+                    # pop the matrix stack for now
+                    gl.glPopMatrix()
+                    # come back to this mesh later
+                    continue
+
             # get the mode of the current geometry
             mode = self.vertex_list_mode[geometry_name]
             # draw the mesh with its transform applied
@@ -364,19 +472,26 @@ def geometry_hash(geometry):
     return md5
 
 
-def render_scene(scene, resolution=(1080, 1080), visible=True, **kwargs):
+def render_scene(scene,
+                 resolution=(1080, 1080),
+                 visible=True,
+                 **kwargs):
     """
     Render a preview of a scene to a PNG.
 
     Parameters
     ------------
-    scene:      trimesh.Scene object
-    resolution: (2,) int, resolution in pixels
-    kwargs:     passed to SceneViewer
+    scene : trimesh.Scene
+      Geometry to be rendered
+    resolution : (2,) int
+      Resolution in pixels
+    kwargs : **
+      Passed to SceneViewer
 
     Returns
     ---------
-    render: bytes, image in PNG format
+    render : bytes
+      Image in PNG format
     """
     window = SceneViewer(scene,
                          start_loop=False,

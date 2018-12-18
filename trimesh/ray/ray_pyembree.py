@@ -306,7 +306,8 @@ class _EmbreeWrap(object):
         scaled = (scaled - self.origin) * self.scale
 
         self.scene = rtcore_scene.EmbreeScene()
-        mesh = TriangleMesh(
+        # assign the geometry to the scene
+        TriangleMesh(
             scene=self.scene,
             vertices=scaled.astype(_embree_dtype),
             indices=faces.astype(np.int32))

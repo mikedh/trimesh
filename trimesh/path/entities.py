@@ -172,10 +172,227 @@ class Entity(object):
 
     def _bytes(self):
         # give consistent ordering of points for hash
-        direction = [1, -1][int(self.points[0] > self.points[-1])]
-        hashable = (self.__class__.__name__.encode('utf-8') +
-                    self.points[::direction].tobytes())
-        return hashable
+        if self.points[0] > self.points[-1]:
+            return (self.__class__.__name__.encode('utf-8') +
+                    self.points.tobytes())
+        else:
+            return (self.__class__.__name__.encode('utf-8') +
+                    self.points[::-1].tobytes())
+
+
+class Text(Entity):
+    """
+    Text to annotate a 2D or 3D path.
+    """
+
+    def __init__(self,
+                 origin,
+                 text,
+                 height=None,
+                 vector=None,
+                 normal=None,
+                 align=None):
+        """
+        An entity for text labels.
+
+        Parameters
+        --------------
+        origin : int
+          Index of a single vertex for text origin
+        text : str
+          The text to label
+        height : float or None
+          The height of text
+        vector : int or None
+          An vertex index for which direction text
+          is written along unitized: vector - origin
+        normal : int or None
+          A vertex index for the plane normal:
+          vector is along unitized: normal - origin
+        align : (2,) str or None
+          Where to draw from for [horizontal, vertical]:
+              'center', 'left', 'right'
+        """
+        # where is text placed
+        self.origin = origin
+
+        self.vector = vector
+        self.normal = normal
+
+        # how high is the text entity
+        self.height = height
+
+        # None or (2,) str
+        if align is None:
+            # if not set make everything centered
+            align = ['center', 'center']
+        elif util.is_string(align):
+            # if only one is passed set for both
+            # horizontal and vertical
+            align = [align, align]
+        elif len(align) != 2:
+            # otherwise raise rror
+            raise ValueError('align must be (2,) str')
+
+        if any(i not in ['left', 'right', 'center']
+               for i in align):
+            print('nah')
+
+        self.align = align
+
+        # make sure text is a string
+        if hasattr(text, 'decode'):
+            self.text = text.decode('utf-8')
+        else:
+            self.text = str(text)
+
+    @property
+    def origin(self):
+        """
+        The origin point of the text.
+
+        Returns
+        -----------
+        origin : int
+          Index of vertices
+        """
+        return self.points[0]
+
+    @origin.setter
+    def origin(self, value):
+        value = int(value)
+        if not hasattr(self, 'points') or self.points.ptp() == 0:
+            self.points = np.ones(3, dtype=np.int64) * value
+        else:
+            self.points[0] = value
+
+    @property
+    def vector(self):
+        """
+        A point representing the text direction
+        along the vector: vertices[vector] - vertices[origin]
+
+        Returns
+        ----------
+        vector : int
+          Index of vertex
+        """
+        return self.points[1]
+
+    @vector.setter
+    def vector(self, value):
+        if value is None:
+            return
+        self.points[1] = int(value)
+
+    @property
+    def normal(self):
+        """
+        A point representing the plane normal along the
+        vector: vertices[normal] - vertices[origin]
+
+        Returns
+        ------------
+        normal : int
+          Index of vertex
+        """
+        return self.points[2]
+
+    @normal.setter
+    def normal(self, value):
+        if value is None:
+            return
+        self.points[2] = int(value)
+
+    def plot(self, vertices, show=False):
+        """
+        Plot the text using matplotlib.
+
+        Parameters
+        --------------
+        vertices : (n, 2) float
+          Vertices in space
+        show : bool
+          If True, call plt.show()
+        """
+        if vertices.shape[1] != 2:
+            raise ValueError('only for 2D points!')
+
+        import matplotlib.pyplot as plt
+
+        # if self.height is None:
+        #    height = 24
+        # else:
+        #    height=self.height
+
+        #from IPython import embed
+        # embed()
+
+        # get rotation angle in degrees
+        angle = np.degrees(self.angle(vertices))
+
+        plt.text(*vertices[self.origin],
+                 s=self.text,
+                 rotation=angle,
+                 ha=self.align[0],
+                 va=self.align[1],
+                 size=18)
+
+        if show:
+            plt.show()
+
+    def angle(self, vertices):
+        """
+        If Text is 2D, get the rotation angle in radians.
+
+        Parameters
+        -----------
+        vertices : (n, 2) float
+          Vertices in space referenced by self.points
+
+        Returns
+        ---------
+        angle : float
+          Rotation angle in radians
+        """
+
+        if vertices.shape[1] != 2:
+            raise ValueError('angle only valid for 2D points!')
+
+        # get the vector from origin
+        direction = vertices[self.vector] - vertices[self.origin]
+        # get the rotation angle in radians
+        angle = np.arctan2(*direction[::-1])
+
+        return angle
+
+    def length(self, vertices):
+        return 0.0
+
+    def discrete(self, *args, **kwargs):
+        return []
+
+    @property
+    def closed(self):
+        return False
+
+    @property
+    def is_valid(self):
+        return True
+
+    @property
+    def nodes(self):
+        return []
+
+    @property
+    def end_points(self):
+        return []
+
+    def _bytes(self):
+        data = b''.join([b'Text',
+                         self.points.tobytes(),
+                         self.text.encode('utf-8')])
+        return data
 
 
 class Line(Entity):
@@ -230,6 +447,13 @@ class Line(Entity):
         exploded = [Line(i) for i in points]
         return exploded
 
+    def _bytes(self):
+        # give consistent ordering of points for hash
+        if self.points[0] > self.points[-1]:
+            return b'Line' + self.points.tobytes()
+        else:
+            return b'Line' + self.points[::-1].tobytes()
+
 
 class Arc(Entity):
 
@@ -273,11 +497,11 @@ class Arc(Entity):
         return len(np.unique(self.points)) == 3
 
     def _bytes(self):
-        direction = [1, -1][int(self.points[0] > self.points[-1])]
-        hashable = (self.__class__.__name__.encode('utf-8') +
-                    bytes(bool(self.closed)) +
-                    self.points[::direction].tobytes())
-        return hashable
+        # give consistent ordering of points for hash
+        if self.points[0] > self.points[-1]:
+            return b'Arc' + bytes(self.closed) + self.points.tobytes()
+        else:
+            return b'Arc' + bytes(self.closed) + self.points[::-1].tobytes()
 
     def discrete(self, vertices, scale=1.0):
         """
@@ -352,10 +576,10 @@ class Curve(Entity):
     """
     @property
     def nodes(self):
-        return [[self.points[0],
-                 self.points[1]],
-                [self.points[1],
-                 self.points[-1]]]
+        # a point midway through the curve
+        mid = self.points[len(self.points) // 2]
+        return [[self.points[0], mid],
+                [mid, self.points[-1]]]
 
 
 class Bezier(Curve):
@@ -428,11 +652,15 @@ class BSpline(Curve):
         return self._orient(discrete)
 
     def _bytes(self):
-        direction = [1, -1][int(self.points[0] > self.points[-1])]
-        hashable = (self.__class__.__name__.encode('utf-8') +
-                    self.knots[::direction].tobytes() +
-                    self.points[::direction].tobytes())
-        return hashable
+        # give consistent ordering of points for hash
+        if self.points[0] > self.points[-1]:
+            return (b'BSpline' +
+                    self.knots.tobytes() +
+                    self.points.tobytes())
+        else:
+            return (b'BSpline' +
+                    self.knots[::-1].tobytes() +
+                    self.points[::-1].tobytes())
 
     def to_dict(self):
         """

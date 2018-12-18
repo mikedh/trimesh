@@ -1807,24 +1807,96 @@ def unique_id(length=12, increment=0):
 
 def generate_basis(z):
     """
-    Generate an arbitrary basis (coordinate frame)
-    from the given z-axis.
+    Generate an arbitrary basis (also known as a coordinate frame)
+    from a given z-axis vector.
 
     Parameters
     ----------
-    z: (3,) float, a positive z-axis vector.
+    z: (3,) float
+      A vector along the positive z-axis
 
     Returns
     -------
-    x: (3,) float, the x axis
-    y: (3,) float, the y axis
-    z: (3,) float, the z axis
+    x : (3,) float
+      Vector along x axis
+    y : (3,) float
+      Vector along y axis
+    z : (3,) float
+      Vector along z axis
     """
-    z = z / np.linalg.norm(z)
+    # get a copy of input vector
+    z = np.array(z, dtype=np.float64, copy=True)
+    # must be a 3D vector
+    if z.shape != (3,):
+        raise ValueError('z must be (3,) float!')
+
+    # normalize vector in- place
+    z /= np.linalg.norm(z)
+    # X as arbitrary perpendicular vector
     x = np.array([-z[1], z[0], 0.0])
-    if np.linalg.norm(x) == 0.0:
+    # avoid degenerate case
+    if np.isclose(np.linalg.norm(x), 0.0):
+        # Z is already along Z [0, 0, 1]
+        # so a perpendicular X is just X
         x = np.array([1.0, 0.0, 0.0])
-    x = x / np.linalg.norm(x)
+    else:
+        # otherwise normalize X in- place
+        x /= np.linalg.norm(x)
+    # get perpendicular Y with cross product
     y = np.cross(z, x)
-    result = np.array([x, y, z])
+    # append result values into vector
+    result = np.array([x, y, z], dtype=np.float64)
+
     return result
+
+
+def unique_bincount(values,
+                    minlength,
+                    return_inverse=True):
+    """
+    For arrays of integers find unique values using bin counting.
+    Roughly 20x faster for correct input than np.unique
+
+    Parameters
+    --------------
+    values : (n,) int
+      Values to find unique members of
+    minlength : int
+      Maximum value that will occur in values (values.max())
+    return_inverse : bool
+      If True, return an inverse such that unique[inverse] == values
+
+    Returns
+    ------------
+    unique : (m,) int
+      Unique values in original array
+    inverse : (n,) int
+      An array such that unique[inverse] == values
+      Only returned if return_inverse is True
+    """
+    values = np.asanyarray(values)
+    if len(values.shape) != 1 or values.dtype.kind != 'i':
+        raise ValueError('input must be 1D integers!')
+
+    try:
+        # count the number of occurrences of each value
+        counts = np.bincount(values, minlength=minlength)
+    except TypeError:
+        # casting failed on 32 bit windows
+        log.error('casting failed!', exc_info=True)
+        # fall back to numpy unique
+        return np.unique(values, return_inverse=return_inverse)
+
+    # which bins are occupied at all
+    unique_bin = counts > 0
+
+    # which values are unique
+    # indexes correspond to original values
+    unique = np.where(unique_bin)[0]
+
+    if return_inverse:
+        # find the inverse to reconstruct original
+        inverse = (np.cumsum(unique_bin) - 1)[values]
+        return unique, inverse
+
+    return unique

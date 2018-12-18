@@ -145,8 +145,8 @@ def face_ordering(mesh):
     the triangle is SML or SLM, and 0 if M == L.
 
     The reason this is useful as it as a rare property that is
-    invarient to translation and rotation but changes when a
-    mesh is reflected or inverted. It is NOT invarient to
+    invariant to translation and rotation but changes when a
+    mesh is reflected or inverted. It is NOT invariant to
     different tesselations of the same surface.
 
     Parameters
@@ -168,7 +168,7 @@ def face_ordering(mesh):
     small = norms.argmin(axis=1)
 
     # the ordered index for the medium and large edge norm
-    # aranged to reference flattened norms for indexing
+    # arranged to reference flattened norms for indexing
     MLidx = np.column_stack((small + 1, small + 2)) % 3
     MLidx += (np.arange(len(small)) * 3).reshape((-1, 1))
 

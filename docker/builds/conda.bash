@@ -1,7 +1,9 @@
 set -xe
 
 cd
-wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh  --no-check-certificate --quiet -O miniconda.sh
+wget https://repo.anaconda.com/miniconda/Miniconda3-4.5.4-Linux-x86_64.sh --quiet -O miniconda.sh
+echo "80ecc86f8c2f131c5170e43df489514f80e3971dd105c075935470bbf2476dea  miniconda.sh" | sha256sum --check
+
 bash miniconda.sh -b -p ~/conda
 rm miniconda.sh
 

@@ -23,6 +23,7 @@ from .util import concatenate
 
 from .. import util
 from .. import units
+from .. import graph
 from .. import caching
 from .. import grouping
 from .. import transformations
@@ -117,7 +118,7 @@ class Path(object):
         ---------
         layers: (len(entities), ) list of str
         """
-        layer = [None] * len(self.entities)
+        layer = ['NONE'] * len(self.entities)
         for i, e in enumerate(self.entities):
             if hasattr(e, 'layer'):
                 layer[i] = str(e.layer)
@@ -132,11 +133,10 @@ class Path(object):
         crc: int, CRC of entity points and vertices
         """
         # first CRC the points in every entity
-        target = caching.crc32(bytes().join(
-            e._bytes()
-            for e in self.entities))
+        target = caching.crc32(bytes().join(e._bytes()
+                                            for e in self.entities))
         # add the CRC for the vertices
-        target += self.vertices.crc()
+        target ^= self.vertices.crc()
         return target
 
     def md5(self):
@@ -147,11 +147,12 @@ class Path(object):
         ------------
         md5: str, two appended MD5 hashes
         """
+        # first MD5 the points in every entity
+        target = '{}{}'.format(
+            util.md5_object(bytes().join(e._bytes()
+                                         for e in self.entities)),
+            self.vertices.md5())
 
-        target = util.md5_object(bytes().join(
-            e._bytes()
-            for e in self.entities))
-        target += self.vertices.md5()
         return target
 
     @caching.cache_decorator
@@ -287,32 +288,57 @@ class Path(object):
             new_entities.extend(entity.explode())
         self.entities = np.array(new_entities)
 
-    def fill_gaps(self, max_distance=np.inf):
+    def fill_gaps(self, max_distance=None):
         """
-        Find vertices with degree 1 and try to connect them to other
-        vertices of degree 1, in place.
+        Find vertices with degree 1 and try to connect them to
+        other vertices of degree 1, in place.
 
         Parameters
         ----------
-        max_distance: float, connect vertices up to this distance.
-                      Default is infinity, but something like path.scale/100
-                      may make more sense.
+        max_distance : float
+          Connect vertices up to this distance.
+          Default is path.scale / 1000.0
         """
 
+        # which vertices are only connected to one entity
         broken = np.array(
-            [k for k, v in dict(self.vertex_graph.degree()).items() if v == 1])
+            [k for k, v in
+             dict(self.vertex_graph.degree()).items() if v == 1])
+
+        # of there is only one broken end we can't do anything
         if len(broken) < 2:
             return
 
+        # find pairs of close vertices
         distance, node = KDTree(self.vertices[broken]).query(
             self.vertices[broken], k=2)
 
-        edges = broken[node]
-        ok = np.logical_and(distance[:, 1] < max_distance, [
-                            not self.vertex_graph.has_edge(*i) for i in edges])
+        # set a scale- relative max distance
+        if max_distance is None:
+            max_distance = self.scale / 1000.0
 
-        self.entities = np.append(self.entities,
-                                  [entities.Line(i) for i in edges[ok]])
+        # change edges into a (n, 2) int
+        # that references self.vertices
+        edges = np.sort(broken[node], axis=1)
+        # remove duplicate edges
+        unique = grouping.unique_rows(edges)[0]
+        # apply the unique mask
+        edges = edges[unique]
+        distance = distance[unique]
+
+        # make sure edge doesn't exist and distance between
+        # vertices is the maximum allowable
+        ok = np.logical_and(distance[:, 1] < max_distance,
+                            [not self.vertex_graph.has_edge(*i) for i in edges])
+
+        # the vertices we want to merge
+        merge = edges[ok]
+        # do the merge with a mask
+        mask = np.arange(len(self.vertices))
+        mask[merge[:, 0]] = merge[:, 1]
+
+        # apply the mask to the
+        self.replace_vertex_references(mask)
 
     @property
     def is_closed(self):
@@ -323,7 +349,9 @@ class Path(object):
         -----------
         closed: every entity is connected at its ends
         """
-        closed = all(i == 2 for i in dict(self.vertex_graph.degree()).values())
+        closed = all(i == 2 for i in
+                     dict(self.vertex_graph.degree()).values())
+
         return closed
 
     @caching.cache_decorator
@@ -335,6 +363,21 @@ class Path(object):
         """
         graph, closed = traversal.vertex_graph(self.entities)
         return graph
+
+    @caching.cache_decorator
+    def vertex_nodes(self):
+        """
+        Get a list of which vertex indices are nodes,
+        which are either endpoints or points where the
+        entity makes a direction change.
+
+        Returns
+        --------------
+        nodes : (n, 2) int
+          Indexes of self.vertices which are nodes
+        """
+        nodes = np.vstack([e.nodes for e in self.entities])
+        return nodes
 
     def apply_transform(self, transform):
         """
@@ -467,21 +510,37 @@ class Path(object):
         unique, inverse = grouping.unique_rows(self.vertices,
                                                digits=digits)
         self.vertices = self.vertices[unique]
-        for entity in self.entities:
+
+        entities_ok = np.ones(len(self.entities), dtype=np.bool)
+
+        for index, entity in enumerate(self.entities):
             # what kind of entity are we dealing with
             kind = type(entity).__name__
+
+            # entities that don't need runs merged
             # don't screw up control- point- knot relationship
-            if kind in 'BSpline Bezier':
+            if kind in 'BSpline Bezier Text':
                 entity.points = inverse[entity.points]
                 continue
             # if we merged duplicate vertices, the entity may
             # have multiple references to the same vertex
             points = grouping.merge_runs(inverse[entity.points])
             # if there are three points and two are identical fix it
-            if kind == 'Line' and len(points) == 3 and points[0] == points[-1]:
-                points = points[:2]
+            if kind == 'Line':
+                if len(points) == 3 and points[0] == points[-1]:
+                    points = points[:2]
+                elif len(points) < 2:
+                    # lines need two or more vertices
+                    entities_ok[index] = False
+            elif kind == 'Arc' and len(points) != 3:
+                # three point arcs need three points
+                entities_ok[index] = False
+
             # store points in entity
             entity.points = points
+
+        # remove degenerate entities
+        self.entities = self.entities[entities_ok]
 
     def replace_vertex_references(self, mask):
         """
@@ -489,11 +548,13 @@ class Path(object):
 
         Parameters
         ------------
-        mask: (len(self.vertices), ) int, contains new vertex indexes
+        mask : (len(self.vertices), ) int
+          Contains new vertex indexes
 
         Alters
         ------------
-        entity.points in self.entities: replaced by mask[entity.points]
+        entity.points in self.entities
+          Replaced by mask[entity.points]
         """
         for entity in self.entities:
             entity.points = mask[entity.points]
@@ -795,12 +856,6 @@ class Path3D(Path):
             # apply the height adjustment to_3D
             to_3D = np.dot(to_3D, adjust)
 
-            # do a check on to_3D
-            # flat[:,2] = 0
-            # a = transformations.transform_points(flat[referenced],
-            #                                     to_3D)
-            # assert np.allclose(self.vertices[referenced], a)
-
         # copy metadata to new object
         metadata = copy.deepcopy(self.metadata)
         # store transform we used to move it onto the plane
@@ -862,14 +917,14 @@ class Path3D(Path):
 
 class Path2D(Path):
 
-    def show(self):
+    def show(self, annotations=True):
         """
         Plot the current Path2D object using matplotlib.
         """
         if self.is_closed:
-            self.plot_discrete(show=True)
+            self.plot_discrete(show=True, annotations=annotations)
         else:
-            self.plot_entities(show=True)
+            self.plot_entities(show=True, annotations=annotations)
 
     def _process_functions(self):
         """
@@ -1057,7 +1112,7 @@ class Path2D(Path):
         ---------
         area: float, total area of polygons minus interiors
         """
-        area = sum(i.area for i in self.polygons_full)
+        area = float(sum(i.area for i in self.polygons_full))
         return area
 
     @caching.cache_decorator
@@ -1228,7 +1283,7 @@ class Path2D(Path):
         """
         return traversal.split(self)
 
-    def plot_discrete(self, show=False):
+    def plot_discrete(self, show=False, annotations=True):
         """
         Plot the closed curves of the path.
         """
@@ -1239,11 +1294,18 @@ class Path2D(Path):
         for i, points in enumerate(self.discrete):
             color = ['g', 'k'][i in self.root]
             axis.plot(*points.T, color=color)
+
+        if annotations:
+            for e in self.entities:
+                if not hasattr(e, 'plot'):
+                    continue
+                e.plot(self.vertices)
+
         if show:
             plt.show()
         return axis
 
-    def plot_entities(self, show=False, color=None):
+    def plot_entities(self, show=False, annotations=True, color=None):
         """
         Plot the entities of the path, with no notion of topology
         """
@@ -1257,6 +1319,9 @@ class Path2D(Path):
                    'BSpline0': {'color': 'm', 'linewidth': 1},
                    'BSpline1': {'color': 'm', 'linewidth': 1}}
         for entity in self.entities:
+            if annotations and hasattr(entity, 'plot'):
+                entity.plot(self.vertices)
+                continue
             discrete = entity.discrete(self.vertices)
             e_key = entity.__class__.__name__ + str(int(entity.closed))
             fmt = eformat[e_key]

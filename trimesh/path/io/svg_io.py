@@ -61,6 +61,7 @@ def _svg_path_convert(paths):
                                    svg_line.point(1.0)])
         if not starting:
             points[0] = vertices[-1]
+
         entities.append(entities_mod.Line(np.arange(2) + len(vertices)))
         vertices.extend(points)
 
@@ -111,14 +112,21 @@ def _svg_path_convert(paths):
     return loaded
 
 
-def export_svg(drawing, return_path=False, **kwargs):
+def export_svg(drawing,
+               return_path=False,
+               layers=None,
+               **kwargs):
     """
     Export a Path2D object into an SVG file.
 
     Parameters
     -----------
-    drawing: Path2D object
-    return_path: bool, if True return only path string
+    drawing : Path2D
+     Source geometry
+    return_path : bool
+      If True return only path string
+    layers : None, or [str]
+      Only export specified layers
 
     Returns
     -----------
@@ -183,43 +191,86 @@ def export_svg(drawing, return_path=False, **kwargs):
         curve as a polyline
         """
         discrete = entity.discrete(points)
+        # if entity contains no geometry return
+        if len(discrete) == 0:
+            return ''
+        # are we reversing the entity
         if reverse:
             discrete = discrete[::-1]
+        # the format string for the SVG path
         template = ' M {},{} ' + (' L {},{}' * (len(discrete) - 1))
+        # apply the data from the discrete curve
         result = template.format(*discrete.reshape(-1))
         return result
 
-    def convert_path(path, reverse=False, close=True):
+    def convert_path(path,
+                     reverse=False,
+                     close=True):
+        """
+        Convert a list of entity indices to SVG.
+
+        Parameters
+        ----------------
+        path : [int]
+          List of entity indices
+        reverse : bool
+          Reverse exported path
+        close : bool
+          If True, connect last vertex to first
+
+        Returns
+        -------------
+        as_svg : str
+          SVG path string of input path
+        """
+        # if we are only exporting some layers check here
+        if layers is not None:
+            # only export if every entity is on layer whitelist
+            if not all(drawing.layers[i] in layers for i in path):
+                return ''
+
         path = path[::(reverse * -2) + 1]
         converted = []
         for i, entity_id in enumerate(path):
+            # the entity object
             entity = drawing.entities[entity_id]
+            # the class name of the entity
             etype = entity.__class__.__name__
             if etype in converters:
-                converted.append(converters[etype](entity, reverse))
+                # export the exact version of the entity
+                converted.append(converters[etype](entity,
+                                                   reverse))
             else:
-                converted.append(svg_discrete(entity, reverse))
+                # just export the polyline version of the entity
+                converted.append(svg_discrete(entity,
+                                              reverse))
 
         # remove leading and trailing whitespace
-        converted = ' '.join(converted) + ' '
-        return converted
+        as_svg = ' '.join(converted) + ' '
+        return as_svg
 
     # only converters where we want to do something
     # other than export a curve as a polyline
     converters = {'Arc': svg_arc}
 
-    path_str = ''
-    for path_index, path in enumerate(drawing.paths):
-        reverse = not (path_index in drawing.root)
-        path_str += convert_path(path,
-                                 reverse=reverse,
-                                 close=True)
-    # entities which haven't been included in a closed path
-    path_str += convert_path(drawing.dangling,
-                             reverse=False,
-                             close=False)
-    path_str = path_str.strip()
+    converted = []
+    for index, path in enumerate(drawing.paths):
+        # holes are determined by winding
+        # trimesh makes all paths clockwise
+        reverse = not (index in drawing.root)
+        converted.append(convert_path(path,
+                                      reverse=reverse,
+                                      close=True))
 
+    # entities which haven't been included in a closed path
+    converted.append(convert_path(drawing.dangling,
+                                  reverse=False,
+                                  close=False))
+
+    # append list of converted into a string
+    path_str = ''.join(converted).strip()
+
+    # return path string without XML wrapping
     if return_path:
         return path_str
 

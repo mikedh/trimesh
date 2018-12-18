@@ -219,7 +219,7 @@ def oriented_bounds(obj, angle_digits=1, ordered=True):
     return to_origin, min_extents
 
 
-def minimum_cylinder(obj, sample_count=10, angle_tol=.001):
+def minimum_cylinder(obj, sample_count=6, angle_tol=.001):
     """
     Find the approximate minimum volume cylinder which contains
     a mesh or a a list of points.
@@ -277,7 +277,7 @@ def minimum_cylinder(obj, sample_count=10, angle_tol=.001):
         height = projected[:, 2].ptp()
 
         try:
-            center_2D, radius = nsphere.minimum_nsphere(projected[:, 0:2])
+            center_2D, radius = nsphere.minimum_nsphere(projected[:, :2])
         except BaseException:
             # in degenerate cases return as infinite volume
             return np.inf
@@ -297,11 +297,17 @@ def minimum_cylinder(obj, sample_count=10, angle_tol=.001):
 
     # sample a hemisphere so local hill climbing can do its thing
     samples = util.grid_linspace([[0, 0], [np.pi, np.pi]], sample_count)
-    # add the principal inertia vectors if we have a mesh
+
+    # if it's rotationally symmetric the bounding cylinder
+    # is almost certainly along one of the PCI vectors
+    # if hasattr(obj, 'symmetry_axis') and obj.symmetry_axis is not None:
+    #    samples = util.vector_to_spherical(obj.principal_inertia_vectors)
     if hasattr(obj, 'principal_inertia_vectors'):
+        # add the principal inertia vectors if we have a mesh
         samples = np.vstack(
-            (samples, util.vector_to_spherical(
-                obj.principal_inertia_vectors)))
+            (samples,
+             util.vector_to_spherical(obj.principal_inertia_vectors)))
+
     tic = [time.time()]
     # the projected volume at each sample
     volumes = np.array([volume_from_angles(i) for i in samples])
@@ -314,7 +320,7 @@ def minimum_cylinder(obj, sample_count=10, angle_tol=.001):
     step = 2 * np.pi / sample_count
     bounds = [(best[0] - step, best[0] + step),
               (best[1] - step, best[1] + step)]
-    # run the optimization
+    # run the local optimization
     r = optimize.minimize(volume_from_angles,
                           best,
                           tol=angle_tol,

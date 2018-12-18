@@ -256,6 +256,41 @@ class CompressTests(unittest.TestCase):
             assert result == value
 
 
+class UniqueTests(unittest.TestCase):
+
+    def test_unique(self):
+
+        options = [np.array([0, 1, 2, 3, 1, 3, 10, 20]),
+                   np.arange(100),
+                   np.array([], dtype=np.int64),
+                   (np.random.random(1000) * 10).astype(int)]
+
+        for values in options:
+            if len(values) > 0:
+                minlength = values.max()
+            else:
+                minlength = 10
+
+            # try our unique bincount function
+            unique, inverse = g.trimesh.util.unique_bincount(values,
+                                                             minlength=minlength,
+                                                             return_inverse=True)
+            # make sure inverse is correct
+            assert (unique[inverse] == values).all()
+
+            # get the truth
+            truth_unique, truth_inverse = np.unique(values,
+                                                    return_inverse=True)
+            # make sure truth is doing what we think
+            assert (truth_unique[truth_inverse] == values).all()
+
+            # make sure we have same number of values
+            assert len(truth_unique) == len(unique)
+
+            # make sure all values are identical
+            assert set(truth_unique) == set(unique)
+
+
 if __name__ == '__main__':
     trimesh.util.attach_to_log()
     unittest.main()

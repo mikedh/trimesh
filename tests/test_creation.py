@@ -28,18 +28,53 @@ class CreationTest(g.unittest.TestCase):
     def test_soup(self):
         count = 100
         mesh = g.trimesh.creation.random_soup(face_count=count)
-        self.assertTrue(len(mesh.faces) == count)
-        self.assertTrue(len(mesh.face_adjacency) == 0)
-        self.assertTrue(len(mesh.split(only_watertight=True)) == 0)
-        self.assertTrue(len(mesh.split(only_watertight=False)) == count)
+        assert len(mesh.faces) == count
+        assert len(mesh.face_adjacency) == 0
+        assert len(mesh.split(only_watertight=True)) == 0
+        assert len(mesh.split(only_watertight=False)) == count
 
-    def test_uv(self):
-        sphere = g.trimesh.creation.uv_sphere()
-        self.assertTrue(sphere.is_watertight)
-        self.assertTrue(sphere.is_winding_consistent)
+    def test_spheres(self):
+        # test generation of UV spheres and icospheres
+        for sphere in [g.trimesh.creation.uv_sphere(),
+                       g.trimesh.creation.icosphere()]:
+            assert sphere.is_volume
+            assert sphere.is_convex
+            assert sphere.is_watertight
+            assert sphere.is_winding_consistent
+            # all vertices should have radius of exactly 1.0
+            radii = g.np.linalg.norm(
+                sphere.vertices - sphere.center_mass, axis=1)
+            assert g.np.allclose(radii, 1.0)
+
+    def test_camera_marker(self):
+        """
+        Create a marker including FOV for a camera object
+        """
+        camera = g.trimesh.scene.Camera(resolution=(320, 240), fov=(60, 45))
+        meshes = g.trimesh.creation.camera_marker(
+            camera=camera, marker_height=0.04)
+        assert isinstance(meshes, list)
+        # all meshes should be viewable type
+        for mesh in meshes:
+            assert isinstance(mesh, (g.trimesh.Trimesh,
+                                     g.trimesh.path.Path3D))
+
+    def test_axis(self):
+        # specify the size of the origin radius
+        origin_size = 0.04
+        # specify the length of the cylinders
+        axis_length = 0.4
+
+        # construct a visual axis
+        axis = g.trimesh.creation.axis(origin_size=origin_size,
+                                       axis_length=axis_length)
+
+        # AABB should be origin radius + cylinder length
+        assert g.np.allclose(origin_size + axis_length,
+                             axis.bounding_box.primitive.extents,
+                             rtol=.01)
 
     def test_path_sweep(self):
-
         if len(self.engines) == 0:
             return
 
@@ -65,7 +100,7 @@ class CreationTest(g.unittest.TestCase):
 
         # Extrude
         mesh = g.trimesh.creation.sweep_polygon(poly, path)
-        self.assertTrue(mesh.is_volume)
+        assert mesh.is_volume
 
     def test_annulus(self):
         """
@@ -102,7 +137,8 @@ class CreationTest(g.unittest.TestCase):
             assert g.np.logical_or(g.np.isclose(radii, 1.0),
                                    g.np.isclose(radii, 2.0)).all()
             # all heights should be at +/- height/2.0
-            assert g.np.allclose(g.np.abs(g.np.dot(a.vertices, axis[2])), 0.5)
+            assert g.np.allclose(g.np.abs(g.np.dot(a.vertices,
+                                                   axis[2])), 0.5)
 
     def test_triangulate(self):
         """
