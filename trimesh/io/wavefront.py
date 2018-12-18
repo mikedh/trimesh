@@ -183,10 +183,13 @@ def load_wavefront(file_obj, resolver=None, **kwargs):
 
             # handle vertex texture
             if len(current['vt']) > 0:
-                texture = np.full((len(current['vt_given']), 3),
+                texture = np.full((len(current['vt_ok']), 3),
                                   np.nan,
                                   dtype=np.float64)
-                texture[current['vt_given']] = current['vt']
+                # make sure mask is numpy array for older numpy
+                vt_ok = np.asanyarray(current['vt_ok'], dtype=np.bool)
+
+                texture[vt_ok] = current['vt']
                 texture = texture[vert_order]
                 texture = texture[~np.any(np.isnan(texture), axis=1)]
                 # save vertex texture with correct ordering
@@ -201,11 +204,13 @@ def load_wavefront(file_obj, resolver=None, **kwargs):
                     face_groups[start_f:] = idx
                 loaded['metadata']['face_groups'] = face_groups
 
-            if len(current['usemtl']) > 0 and np.sum(current['vt_given']) > 0:
-                texture = np.full((len(current['vt_given']), 3),
+            if len(current['usemtl']) > 0 and np.sum(current['vt_ok']) > 0:
+                texture = np.full((len(current['vt_ok']), 3),
                                   np.nan,
                                   dtype=np.float64)
-                texture[current['vt_given']] = current['vt']
+                # make sure mask is numpy array for older numpy
+                vt_ok = np.asanyarray(current['vt_ok'], dtype=np.bool)
+                texture[vt_ok] = current['vt']
 
                 vertex_colors = np.zeros((0, 4), dtype=np.uint8)
                 for usemtl in current['usemtl']:
@@ -228,8 +233,9 @@ def load_wavefront(file_obj, resolver=None, **kwargs):
             meshes.append(loaded)
 
     attribs = {k: [] for k in ['v', 'vt', 'vn']}
-    current = {k: [] for k in ['v', 'vt', 'vn', 'f', 'g', 'usemtl',
-                               'vt_given', 'vn_given']}
+    current = {k: [] for k in ['v', 'vt', 'vn',
+                               'f', 'g', 'usemtl',
+                               'vt_ok', 'vn_ok']}
     usemtl_to_findices = collections.defaultdict(list)  # usemtl to 'f' indices
     mtllibs = {}
     # remap vertex indexes {str key: int index}
@@ -271,18 +277,18 @@ def load_wavefront(file_obj, resolver=None, **kwargs):
                     if len(f_split) > 1 and f_split[1] != '':
                         current['vt'].append(
                             attribs['vt'][int(f_split[1]) - 1])
-                        current['vt_given'].append(True)
+                        current['vt_ok'].append(True)
                     else:
-                        current['vt_given'].append(False)
+                        current['vt_ok'].append(False)
                     if len(f_split) > 2:
                         current['vn'].append(
                             attribs['vn'][int(f_split[2]) - 1])
-                        current['vn_given'].append(True)
+                        current['vn_ok'].append(True)
                     else:
-                        current['vn_given'].append(False)
+                        current['vn_ok'].append(False)
                     if len(current['usemtl']) > 0:
-                        usemtl_to_findices[current['usemtl'][-1]].append(
-                            len(current['vt']) - 1)
+                        usemtl_to_findices[current['usemtl']
+                                           [-1]].append(len(current['vt']) - 1)
                 current['f'].append(remap[f])
         elif line_split[0] == 'o':
             # defining a new object
