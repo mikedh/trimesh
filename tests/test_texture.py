@@ -23,24 +23,32 @@ class TextureTest(g.unittest.TestCase):
 
     def test_fuze(self):
 
+        def check_fuze(fuze):
+            # TODO
+            # this test should change when texture is actually implemented
+            assert fuze.visual.kind == 'vertex'
+            # should be actual colors defined
+            assert fuze.visual.vertex_colors.ptp(axis=0).ptp() != 0
+
         with g.serve_meshes() as address:
             # see if web resolvers work
             tex = g.trimesh.io.load.load_remote(
                 url=address + '/fuze.obj')
+            check_fuze(tex)
 
-            # this test should change when texture is actually implemented
-            assert tex.visual.kind == 'vertex'
-            # should be actual colors defined
-            assert tex.visual.vertex_colors.ptp(axis=0).ptp() != 0
+            # see if web+zip resolvers work
+            scene = g.trimesh.io.load.load_remote(
+                url=address + '/fuze.zip')
+
+            # zip files get loaded into a scene
+            assert len(scene.geometry) == 1
+            # scene should just be a fuze bottle
+            check_fuze(next(iter(scene.geometry.values())))
 
         # obj with texture, assets should be loaded
         # through a FilePathResolver
         m = g.get_mesh('fuze.obj')
-
-        # this test should change when texture is actually implemented
-        assert m.visual.kind == 'vertex'
-        # should be actual colors defined
-        assert m.visual.vertex_colors.ptp(axis=0).ptp() != 0
+        check_fuze(tex)
 
         # obj with texture, assets should be loaded
         # through a ZipResolver into a scene
@@ -50,10 +58,7 @@ class TextureTest(g.unittest.TestCase):
         assert len(scene.geometry) == 1
         m = next(iter(scene.geometry.values()))
 
-        # this test should change when texture is actually implemented
-        assert m.visual.kind == 'vertex'
-        # should be actual colors defined
-        assert m.visual.vertex_colors.ptp(axis=0).ptp() != 0
+        check_fuze(m)
 
 
 if __name__ == '__main__':
