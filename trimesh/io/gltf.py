@@ -591,7 +591,7 @@ def _read_buffers(header, buffers):
         color = None
         kwargs = collections.defaultdict(list)
         for p in m['primitives']:
-            if p['mode'] != 4:
+            if 'mode' in p and p['mode'] != 4:
                 continue
 
             faces = access[p['indices']].reshape((-1, 3))
@@ -604,8 +604,10 @@ def _read_buffers(header, buffers):
                 color = colors[p['material']]
             else:
                 color = [128, 128, 128, 255]
+
             # stack colors to line up with faces
             kwargs['face_colors'].append(np.tile(color, (len(faces), 1)))
+
         # re- index faces
         (kwargs['vertices'],
          kwargs['faces']) = util.append_faces(kwargs['vertices'],

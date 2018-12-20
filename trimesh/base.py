@@ -1491,7 +1491,8 @@ class Trimesh(Geometry):
         # use native python sum in tight loop as opposed to array.sum()
         # as in this case the lower function call overhead of
         # native sum provides roughly a 50% speedup
-        areas = np.array([sum(area_faces[i]) for i in self.facets],
+        areas = np.array([sum(area_faces[i])
+                          for i in self.facets],
                          dtype=np.float64)
         return areas
 
@@ -1508,8 +1509,12 @@ class Trimesh(Geometry):
         if len(self.facets) == 0:
             return np.array([])
 
+        area_faces = self.area_faces
+        # sum the area of each group of faces represented by facets
+
         # the face index of the first face in each facet
-        index = np.array([i[0] for i in self.facets])
+        index = np.array([i[area_faces[i].argmax()]
+                          for i in self.facets])
         # (n,3) float, unit normal vectors of facet plane
         normals = self.face_normals[index]
         # (n,3) float, points on facet plane
