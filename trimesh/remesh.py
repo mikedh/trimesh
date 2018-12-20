@@ -19,21 +19,25 @@ def subdivide(vertices, faces, face_index=None):
 
     Parameters
     ----------
-    vertices: (n,3) float, vertices
-    faces:    (n,3) int,   indexes of vertices which make up triangular faces
-    face_index: faces to subdivide.
-                if None: all faces of mesh will be subdivided
-                if (n,) int array of indices: only specified faces will be
-                   subdivided. Note that in this case the mesh will generally
-                   no longer be manifold, as the additional vertex on the midpoint
-                   will not be used by the adjacent faces to the faces specified,
-                   and an additional postprocessing step will be required to
-                   make resulting mesh watertight
+    vertices : (n, 3) float
+      Vertices in space
+    faces : (n, 3) int
+      Indexes of vertices which make up triangular faces
+    face_index : faces to subdivide.
+      if None: all faces of mesh will be subdivided
+      if (n,) int array of indices: only specified faces will be
+            subdivided. Note that in this case the mesh will generally
+            no longer be manifold, as the additional vertex on the midpoint
+            will not be used by the adjacent faces to the faces specified,
+            and an additional postprocessing step will be required to
+            make resulting mesh watertight
 
     Returns
     ----------
-    new_vertices: (n,3) float, vertices
-    new_faces:    (n,3) int,   remeshed faces
+    new_vertices : (n, 3) float
+      Vertices in space
+    new_faces : (n, 3) int
+      Remeshed faces
     """
     if face_index is None:
         face_index = np.arange(len(faces))
