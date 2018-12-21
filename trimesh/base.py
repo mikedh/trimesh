@@ -1769,7 +1769,7 @@ class Trimesh(Geometry):
           Curve of intersection
         """
         # turn line segments into Path2D/Path3D objects
-        from .io.load import load_path
+        from .exchange.load import load_path
 
         # return a single cross section in 3D
         lines, face_index = intersections.mesh_plane(
@@ -1816,7 +1816,7 @@ class Trimesh(Geometry):
           to return 2D section back into 3D space.
         """
         # turn line segments into Path2D/Path3D objects
-        from .io.load import load_path
+        from .exchange.load import load_path
         # do a multiplane intersection
         lines, transforms, faces = intersections.mesh_multiplane(
             mesh=self,
@@ -2139,8 +2139,8 @@ class Trimesh(Geometry):
         path : Path3D
           Curve in 3D of the outline
         """
-        from .path.io.misc import faces_to_path
-        from .path.io.load import _create_path
+        from .path.exchange.misc import faces_to_path
+        from .path.exchange.load import _create_path
 
         path = _create_path(**faces_to_path(self,
                                             face_ids,

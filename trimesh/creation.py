@@ -961,7 +961,7 @@ def camera_marker(camera, marker_height=0.4, origin_size=None):
 
     try:
         # path is a soft dependency
-        from .path.io.load import load_path
+        from .path.exchange.load import load_path
     except ImportError:
         # they probably don't have shapely installed
         log.warning('unable to create FOV visualization!',

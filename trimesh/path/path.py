@@ -35,7 +35,7 @@ from . import polygons
 from . import segments
 from . import traversal
 
-from .io.export import export_path
+from .exchange.export import export_path
 
 try:
     # try running shapely speedups

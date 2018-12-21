@@ -21,7 +21,7 @@ from .xml_based import _xml_loaders
 
 
 try:
-    from ..path.io.load import load_path, path_formats
+    from ..path.exchange.load import load_path, path_formats
 except BaseException as E:
     # save a traceback to see why path didn't import
     _path_exception = E
