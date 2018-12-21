@@ -15,7 +15,7 @@ class URDFTest(g.unittest.TestCase):
         # so we don't have a pyglet import attempt
         # unless we explicitly ask for it (like during
         # a viewer show() call)
-        from trimesh.io import urdf
+        from trimesh.exchange import urdf
 
         mesh = g.get_mesh('featuretype.STL')
 
