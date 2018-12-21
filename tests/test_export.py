@@ -256,10 +256,10 @@ class ExportTest(g.unittest.TestCase):
 
     def test_parse_file_args(self):
         """
-        Test the magical trimesh.io.load.parse_file_args
+        Test the magical trimesh.exchange.load.parse_file_args
         """
         # it's wordy
-        f = g.trimesh.io.load.parse_file_args
+        f = g.trimesh.exchange.load.parse_file_args
 
         # a path that doesn't exist
         nonexists = '/banana{}'.format(g.np.random.random())
@@ -288,7 +288,7 @@ class ExportTest(g.unittest.TestCase):
             raise ValueError('should have raised exception!')
 
         # nonexistant file with extension passed should return
-        # file name anyway, maybe something else can handle i
+        # file name anyway, maybe something else can handle it
         args = f(file_obj=nonexists, file_type='.ObJ')
         assert len(args) == 4
         # should have cleaned up case
