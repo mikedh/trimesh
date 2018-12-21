@@ -3,13 +3,12 @@ import pyglet.gl as gl
 
 import numpy as np
 
-import tempfile
 import platform
 import collections
 
 from .. import rendering
 from ..transformations import Arcball
-from ..util import log
+from ..util import log, BytesIO
 from ..visual import to_rgba
 
 # smooth only when fewer faces than this
@@ -466,13 +465,17 @@ class SceneViewer(pyglet.window.Window):
 
     def save_image(self, file_obj):
         """
-        Save the current color buffer to a file object, in PNG format.
+        Save the current color buffer to a file object
+        in PNG format.
 
         Parameters
         -------------
         file_obj: file name, or file- like object
         """
-        colorbuffer = pyglet.image.get_buffer_manager().get_color_buffer()
+        manager = pyglet.image.get_buffer_manager()
+        colorbuffer = manager.get_color_buffer()
+
+        # if passed a string save by name
         if hasattr(file_obj, 'write'):
             colorbuffer.save(file=file_obj)
         else:
@@ -554,10 +557,11 @@ def render_scene(scene,
         window.dispatch_event('on_draw')
         window.flip()
 
-    with tempfile.TemporaryFile() as file_obj:
-        window.save_image(file_obj)
-        file_obj.seek(0)
-        render = file_obj.read()
+    # save the color buffer data to memory
+    file_obj = BytesIO()
+    window.save_image(file_obj)
+    file_obj.seek(0)
+    render = file_obj.read()
     window.close()
-
+    
     return render

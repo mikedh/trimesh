@@ -10,7 +10,7 @@ from .. import transformations
 
 from .. import bounds as bounds_module
 
-from ..io import gltf
+from ..exchange import gltf
 from ..parent import Geometry
 
 from .transforms import TransformForest

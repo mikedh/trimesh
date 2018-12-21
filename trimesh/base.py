@@ -38,7 +38,7 @@ from . import decomposition
 from . import intersections
 from . import transformations
 
-from .io.export import export_mesh
+from .exchange.export import export_mesh
 from .constants import log, log_time, tol
 
 from .scene import Scene

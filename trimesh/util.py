@@ -27,9 +27,12 @@ PY3 = version_info.major >= 3
 if PY3:
     # for type checking
     basestring = str
+    # Python 3
     from io import BytesIO, StringIO
 else:
+    # Python 2
     from StringIO import StringIO
+    BytesIO = StringIO
 
 log = logging.getLogger('trimesh')
 log.addHandler(logging.NullHandler())

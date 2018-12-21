@@ -24,11 +24,11 @@ from .transformations import transform_points
 from .constants import tol
 
 # loaders
-from .io.load import (load_remote, 
-                      load_mesh,
-                      load_path,
-                      load,
-                      available_formats)
+from .exchange.load import (load_remote, 
+                            load_mesh,
+                            load_path,
+                            load,
+                            available_formats)
 
 # avoid a circular import in trimesh.base
 from . import primitives
