@@ -32,12 +32,12 @@ class TextureTest(g.unittest.TestCase):
 
         with g.serve_meshes() as address:
             # see if web resolvers work
-            tex = g.trimesh.io.load.load_remote(
+            tex = g.trimesh.exchange.load.load_remote(
                 url=address + '/fuze.obj')
             check_fuze(tex)
 
             # see if web+zip resolvers work
-            scene = g.trimesh.io.load.load_remote(
+            scene = g.trimesh.exchange.load.load_remote(
                 url=address + '/fuze.zip')
 
             # zip files get loaded into a scene

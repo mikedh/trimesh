@@ -18,9 +18,9 @@ from .constants import log
 from .util import is_sequence
 
 try:
-    # xxhash is roughly 5x faster than adler32 but is only
+    # xxhash is roughly 5x faster than zlib.adler32 but is only
     # packaged in easy wheels on linux (`pip install xxhash`)
-    # so keep it as a soft dependency
+    # so we keep it a soft dependency
     import xxhash
     hasX = True
 except ImportError:
@@ -36,15 +36,20 @@ def tracked_array(array, dtype=None):
 
     Parameters
     ------------
-    array: array- like object to be turned into a TrackedArray
-    dtype: which dtype to use for the array
+    array : array- like object
+      To be turned into a TrackedArray
+    dtype : np.dtype
+      Which dtype to use for the array
 
     Returns
     ------------
-    tracked: TrackedArray, of input array data
+    tracked : TrackedArray
+      Contains input array data
     """
+    # make sure it is contiguous then view it as our subclass
     tracked = np.ascontiguousarray(array,
                                    dtype=dtype).view(TrackedArray)
+    # should always be contiguous here
     assert tracked.flags['C_CONTIGUOUS']
 
     return tracked
@@ -58,12 +63,15 @@ def cache_decorator(function):
 
     Parameters
     ------------
-    function : class method
-                 This is used as a decorator:
-                   @cache_decorator
-                   def foo(self, things):
-                      return 'happy days'
+    function : method
+      This is used as a decorator:
+      ```
+      @cache_decorator
+      def foo(self, things):
+        return 'happy days'
+      ```
     """
+
     # use wraps to preseve docstring
     @wraps(function)
     def get_cached(*args, **kwargs):

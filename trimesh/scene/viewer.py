@@ -563,5 +563,5 @@ def render_scene(scene,
     file_obj.seek(0)
     render = file_obj.read()
     window.close()
-    
+
     return render

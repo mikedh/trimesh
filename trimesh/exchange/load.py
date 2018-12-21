@@ -240,7 +240,7 @@ def load_compressed(file_obj, file_type=None, mixed=False):
 
     # so loaders can access textures/etc
     resolver = visual.resolvers.ZipResolver(files)
-    
+
     # try to save the files with meaningful metadata
     if 'file_path' in metadata:
         archive_name = metadata['file_path']

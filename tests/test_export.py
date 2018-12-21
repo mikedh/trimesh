@@ -7,7 +7,8 @@ except BaseException:
 class ExportTest(g.unittest.TestCase):
 
     def test_export(self):
-        export_types = list(g.trimesh.io.export._mesh_exporters.keys())
+        export_types = list(
+            g.trimesh.exchange.export._mesh_exporters.keys())
         for mesh in g.get_meshes(8):
             for file_type in export_types:
                 export = mesh.export(file_type=file_type)
