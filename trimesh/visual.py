@@ -42,8 +42,7 @@ class ColorVisuals(object):
     def __init__(self,
                  mesh=None,
                  face_colors=None,
-                 vertex_colors=None,
-                 **kwargs):
+                 vertex_colors=None):
         """
         Store color information about a mesh.
 

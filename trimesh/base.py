@@ -15,7 +15,7 @@ from . import units
 from . import poses
 from . import graph
 from . import voxel
-from . import visual
+from . import visual as visual_module
 from . import sample
 from . import repair
 from . import convex
@@ -59,7 +59,7 @@ class Trimesh(Geometry):
                  validate=False,
                  use_embree=True,
                  initial_cache={},
-                 **kwargs):
+                 visual=None):
         """
         A Trimesh object contains a triangular 3D mesh.
 
@@ -90,7 +90,7 @@ class Trimesh(Geometry):
         initial_cache:  dict, a way to pass things to the cache in case expensive
                         things were calculated before creating the mesh object.
 
-        **kwargs:       stored in self._kwargs if needed later
+        visual:         ColorVisuals, if not None, it is set to self.visual.
         """
 
         # self._data stores information about the mesh which
@@ -122,14 +122,13 @@ class Trimesh(Geometry):
             self.faces = faces
 
         # hold visual information about the mesh (vertex and face colors)
-        if 'visual' in kwargs and kwargs['visual'] is not None:
-            self.visual = kwargs['visual']
+        if visual is None:
+            self.visual = visual_module.create_visual(
+                face_colors=face_colors,
+                vertex_colors=vertex_colors,
+                mesh=self)
         else:
-            self.visual = visual.create_visual(face_colors=face_colors,
-                                               vertex_colors=vertex_colors,
-                                               metadata=metadata,
-                                               mesh=self,
-                                               **kwargs)
+            self.visual = visual
         # add a back reference to this mesh for its visual property object
         self.visual.mesh = self
 
@@ -175,9 +174,6 @@ class Trimesh(Geometry):
         # if validate, will remove degenerate and duplicate faces
         if process or validate:
             self.process()
-
-        # store all passed kwargs for debugging purposes
-        self._kwargs = kwargs
 
     def process(self):
         """
