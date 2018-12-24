@@ -15,7 +15,6 @@ from . import units
 from . import poses
 from . import graph
 from . import voxel
-from . import visual as visual_module
 from . import sample
 from . import repair
 from . import convex
@@ -38,6 +37,7 @@ from . import decomposition
 from . import intersections
 from . import transformations
 
+from .visual import create_visual
 from .io.export import export_mesh
 from .constants import log, log_time, tol
 
@@ -59,7 +59,8 @@ class Trimesh(Geometry):
                  validate=False,
                  use_embree=True,
                  initial_cache={},
-                 visual=None):
+                 visual=None,
+                 **kwargs):
         """
         A Trimesh object contains a triangular 3D mesh.
 
@@ -123,7 +124,7 @@ class Trimesh(Geometry):
 
         # hold visual information about the mesh (vertex and face colors)
         if visual is None:
-            self.visual = visual_module.create_visual(
+            self.visual = create_visual(
                 face_colors=face_colors,
                 vertex_colors=vertex_colors,
                 mesh=self)
@@ -174,6 +175,9 @@ class Trimesh(Geometry):
         # if validate, will remove degenerate and duplicate faces
         if process or validate:
             self.process()
+
+        # store any passed kwargs
+        self._kwargs = kwargs
 
     def process(self):
         """
