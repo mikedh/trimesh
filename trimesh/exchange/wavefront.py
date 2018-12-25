@@ -306,10 +306,6 @@ def load_wavefront(file_obj, resolver=None, **kwargs):
             current['g'].append((group_idx, len(current['f']) // 3))
         elif line_split[0] == 'mtllib':
 
-            # a resolver to load files
-            if resolver is None:
-                resolver = visual.resolvers.FilePathResolver(file_obj.name)
-
             # the name of the referenced material file
             mtl_name = line_split[1]
             try:

@@ -31,7 +31,7 @@ ply_dtypes = {'char': 'i1',
               'double': 'f8'}
 
 
-def load_ply(file_obj, *args, **kwargs):
+def load_ply(file_obj, resolver,  *args, **kwargs):
     """
     Load a PLY file from an open file object.
 
@@ -47,7 +47,7 @@ def load_ply(file_obj, *args, **kwargs):
     """
 
     # OrderedDict which is populated from the header
-    elements, is_ascii = read_ply_header(file_obj)
+    elements, is_ascii, textures = read_ply_header(file_obj)
 
     # functions will fill in elements from file_obj
     if is_ascii:
@@ -177,22 +177,33 @@ def read_ply_header(file_obj):
 
     Parameters
     -----------
-    file_obj: open file object, positioned at the start of the file
+    file_obj : open file object
+      Positioned at the start of the file
 
     Returns
     -----------
-    elements: OrderedDict object, with fields and data types populated
-    is_ascii: bool, whether the data is ASCII or binary
+    elements : collections.OrderedDict
+      Fields and data types populated
+    is_ascii : bool
+      Whether the data is ASCII or binary
+    textures : list of str
+      File names of TextureFile
     """
 
     if 'ply' not in str(file_obj.readline()):
-        raise ValueError('This aint a ply file')
+        raise ValueError('not a ply file!')
 
+    # collect the encoding: binary or ASCII
     encoding = file_obj.readline().decode('utf-8').strip().lower()
-    encoding_ascii = 'ascii' in encoding
+    is_ascii = 'ascii' in encoding
 
+    # big or little endian
     endian = ['<', '>'][int('big' in encoding)]
     elements = collections.OrderedDict()
+
+    # store file names of TextureFiles in the header
+    textures = []
+    
 
     while True:
         line = file_obj.readline()
@@ -200,18 +211,27 @@ def read_ply_header(file_obj):
             raise ValueError("Header not terminated properly!")
         line = line.decode('utf-8').strip().split()
 
+        # we're done
         if 'end_header' in line:
             break
 
+        # elements are groups of properties
         if 'element' in line[0]:
+            # we got a new element so add it
             name, length = line[1:]
-            elements[name] = {'length': int(length),
-                              'properties': collections.OrderedDict()}
+            elements[name] = {
+                'length': int(length),
+                'properties': collections.OrderedDict()}
+        # a property is a member of an element
         elif 'property' in line[0]:
+            # is the property a simple single value, like:
+            # `propert float x`
             if len(line) == 3:
                 dtype, field = line[1:]
                 elements[name]['properties'][
                     str(field)] = endian + ply_dtypes[dtype]
+            # is the property a painful list, like:
+            # `property list uchar int vertex_indices`
             elif 'list' in line[1]:
                 dtype_count, dtype, field = line[2:]
                 elements[name]['properties'][
@@ -221,7 +241,14 @@ def read_ply_header(file_obj):
                     ', ($LIST,)' +
                     endian +
                     ply_dtypes[dtype])
-    return elements, encoding_ascii
+        # referenced as a file name
+        elif 'TextureFile' in line:
+            # textures come listed like:
+            # `comment TextureFile fuze_uv.jpg`
+            file_name = line[line.index('TextureFile') + 1]
+            textures.append(file_name)
+                
+    return elements, is_ascii, textures
 
 
 def elements_to_kwargs(elements):

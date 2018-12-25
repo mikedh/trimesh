@@ -108,10 +108,13 @@ def load(file_obj,
 
     # parse the file arguments into clean loadable form
     (file_obj,  # file- like object
-     file_type,  # str, what kind of file
+     file_type, # str, what kind of file
      metadata,  # dict, any metadata from file name
-     opened     # bool, did we open the file ourselves
-     ) = parse_file_args(file_obj, file_type)
+     opened,    # bool, did we open the file ourselves
+     resolver   # object to load referenced resources
+     ) = parse_file_args(file_obj=file_obj,
+                         file_type=file_type,
+                         resolver=resolver)
 
     if isinstance(file_obj, dict):
         # if we've been passed a dict treat it as kwargs
@@ -155,7 +158,10 @@ def load(file_obj,
 
 
 @log_time
-def load_mesh(file_obj, file_type=None, resolver=None, **kwargs):
+def load_mesh(file_obj,
+              file_type=None,
+              resolver=None,
+              **kwargs):
     """
     Load a mesh file into a Trimesh object
 
@@ -171,11 +177,16 @@ def load_mesh(file_obj, file_type=None, resolver=None, **kwargs):
           depending on the file format.
 
     """
-    # turn a string into a file obj and type
-    (file_obj,
-     file_type,
-     metadata,
-     opened) = parse_file_args(file_obj, file_type)
+
+    # parse the file arguments into clean loadable form
+    (file_obj,  # file- like object
+     file_type, # str, what kind of file
+     metadata,  # dict, any metadata from file name
+     opened,    # bool, did we open the file ourselves
+     resolver   # object to load referenced resources
+     ) = parse_file_args(file_obj=file_obj,
+                         file_type=file_type,
+                         resolver=resolver)
 
     # make sure we keep passed kwargs to loader
     # but also make sure loader keys override passed keys
@@ -206,7 +217,10 @@ def load_mesh(file_obj, file_type=None, resolver=None, **kwargs):
     return loaded
 
 
-def load_compressed(file_obj, file_type=None, mixed=False):
+def load_compressed(file_obj,
+                    file_type=None,
+                    resolver=None,
+                    mixed=False):
     """
     Given a compressed archive load all the geometry that
     we can from it.
@@ -226,12 +240,17 @@ def load_compressed(file_obj, file_type=None, mixed=False):
     scene : trimesh.Scene
       Geometry loaded in to a Scene object
     """
-    # turn a string into a file obj and type
-    (file_obj,
-     file_type,
-     metadata,
-     opened) = parse_file_args(file_obj, file_type)
 
+    # parse the file arguments into clean loadable form
+    (file_obj,  # file- like object
+     file_type, # str, what kind of file
+     metadata,  # dict, any metadata from file name
+     opened,    # bool, did we open the file ourselves
+     resolver   # object to load referenced resources
+     ) = parse_file_args(file_obj=file_obj,
+                         file_type=file_type,
+                         resolver=resolver)
+    
     # a dict of 'name' : file-like object
     files = util.decompress(file_obj=file_obj,
                             file_type=file_type)
@@ -393,6 +412,7 @@ def load_kwargs(*args, **kwargs):
 
 def parse_file_args(file_obj,
                     file_type,
+                    resolver=None,
                     **kwargs):
     """
     Given a file_obj and a file_type try to turn them into a file-like
@@ -459,13 +479,19 @@ def parse_file_args(file_obj,
         except BaseException:
             exists = False
 
+        # file obj is a string which exists on filesystm
         if exists:
+            # if not passed create a resolver to find other files
+            if resolver is None:
+                resolver = visual.resolvers.FilePathResolver(file_path)
+            # save the file name and path to metadata
             metadata['file_path'] = file_path
             metadata['file_name'] = os.path.basename(file_obj)
             # if file_obj is a path that exists use extension as file_type
             if file_type is None:
-                file_type = util.split_extension(file_path,
-                                                 special=['tar.gz', 'tar.bz2'])
+                file_type = util.split_extension(
+                    file_path,
+                    special=['tar.gz', 'tar.bz2'])
             file_obj = open(file_path, 'rb')
             opened = True
         else:
@@ -491,11 +517,17 @@ def parse_file_args(file_obj,
             metadata['file_path'] = file_type
         metadata['file_name'] = os.path.basename(file_type)
         file_type = util.split_extension(file_type)
-
+        if resolver is None and os.path.exists(file_type):
+            resolver = visual.resolvers.FilePathResolver(file_type)
+        
     # all our stored extensions reference in lower case
     file_type = file_type.lower()
 
-    return file_obj, file_type, metadata, opened
+    # if we still have no resolver try using file_obj name
+    if resolver is None and hasattr(file_obj, 'name') and len(file_obj.name) > 0:
+        resolver = visual.resolvers.FilePathResolver(file_obj.name)
+
+    return file_obj, file_type, metadata, opened, resolver
 
 
 compressed_loaders = {'zip': load_compressed,
