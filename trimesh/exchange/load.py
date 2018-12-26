@@ -108,7 +108,7 @@ def load(file_obj,
 
     # parse the file arguments into clean loadable form
     (file_obj,  # file- like object
-     file_type, # str, what kind of file
+     file_type,  # str, what kind of file
      metadata,  # dict, any metadata from file name
      opened,    # bool, did we open the file ourselves
      resolver   # object to load referenced resources
@@ -180,7 +180,7 @@ def load_mesh(file_obj,
 
     # parse the file arguments into clean loadable form
     (file_obj,  # file- like object
-     file_type, # str, what kind of file
+     file_type,  # str, what kind of file
      metadata,  # dict, any metadata from file name
      opened,    # bool, did we open the file ourselves
      resolver   # object to load referenced resources
@@ -243,14 +243,14 @@ def load_compressed(file_obj,
 
     # parse the file arguments into clean loadable form
     (file_obj,  # file- like object
-     file_type, # str, what kind of file
+     file_type,  # str, what kind of file
      metadata,  # dict, any metadata from file name
      opened,    # bool, did we open the file ourselves
      resolver   # object to load referenced resources
      ) = parse_file_args(file_obj=file_obj,
                          file_type=file_type,
                          resolver=resolver)
-    
+
     # a dict of 'name' : file-like object
     files = util.decompress(file_obj=file_obj,
                             file_type=file_type)
@@ -519,12 +519,13 @@ def parse_file_args(file_obj,
         file_type = util.split_extension(file_type)
         if resolver is None and os.path.exists(file_type):
             resolver = visual.resolvers.FilePathResolver(file_type)
-        
+
     # all our stored extensions reference in lower case
     file_type = file_type.lower()
 
     # if we still have no resolver try using file_obj name
-    if resolver is None and hasattr(file_obj, 'name') and len(file_obj.name) > 0:
+    if resolver is None and hasattr(
+            file_obj, 'name') and len(file_obj.name) > 0:
         resolver = visual.resolvers.FilePathResolver(file_obj.name)
 
     return file_obj, file_type, metadata, opened, resolver

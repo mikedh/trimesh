@@ -9,6 +9,7 @@ import tempfile
 import json
 
 from .. import util
+from .. import visual
 
 from ..resources import get_resource
 
@@ -31,7 +32,7 @@ ply_dtypes = {'char': 'i1',
               'double': 'f8'}
 
 
-def load_ply(file_obj, resolver,  *args, **kwargs):
+def load_ply(file_obj, resolver, *args, **kwargs):
     """
     Load a PLY file from an open file object.
 
@@ -47,7 +48,7 @@ def load_ply(file_obj, resolver,  *args, **kwargs):
     """
 
     # OrderedDict which is populated from the header
-    elements, is_ascii, textures = read_ply_header(file_obj)
+    elements, is_ascii, texture_names = parse_header(file_obj)
 
     # functions will fill in elements from file_obj
     if is_ascii:
@@ -55,7 +56,10 @@ def load_ply(file_obj, resolver,  *args, **kwargs):
     else:
         ply_binary(elements, file_obj)
 
-    kwargs = elements_to_kwargs(elements)
+    textures = visual.texture.load(names=texture_names,
+                                   resolver=resolver)
+    kwargs = elements_to_kwargs(elements, textures=textures)
+
     return kwargs
 
 
@@ -170,7 +174,7 @@ def export_ply(mesh,
     return export
 
 
-def read_ply_header(file_obj):
+def parse_header(file_obj):
     """
     Read the ASCII header of a PLY file, and leave the file object
     at the position of the start of data but past the header.
@@ -203,7 +207,6 @@ def read_ply_header(file_obj):
 
     # store file names of TextureFiles in the header
     textures = []
-    
 
     while True:
         line = file_obj.readline()
@@ -247,11 +250,11 @@ def read_ply_header(file_obj):
             # `comment TextureFile fuze_uv.jpg`
             file_name = line[line.index('TextureFile') + 1]
             textures.append(file_name)
-                
+
     return elements, is_ascii, textures
 
 
-def elements_to_kwargs(elements):
+def elements_to_kwargs(elements, textures=None):
     """
     Given an elements data structure, extract the keyword
     arguments that a Trimesh object constructor will expect.
@@ -265,6 +268,8 @@ def elements_to_kwargs(elements):
     kwargs: dict, with keys for Trimesh constructor.
             eg: mesh = trimesh.Trimesh(**kwargs)
     """
+
+    kwargs = {'ply_data': elements}
     vertices = np.column_stack([elements['vertex']['data'][i]
                                 for i in 'xyz'])
     if not util.is_shape(vertices, (-1, 3)):
@@ -289,41 +294,53 @@ def elements_to_kwargs(elements):
                 faces = face_data[i]
                 break
     elif isinstance(face_data, np.ndarray):
-        blob = elements['face']['data']
+        face_blob = elements['face']['data']
         # some exporters set this name to 'vertex_index'
         # and some others use 'vertex_indices' but we really
         # don't care about the name unless there are multiple
-        if len(blob.dtype.names) == 1:
-            name = blob.dtype.names[0]
-        elif len(blob.dtype.names) > 1:
-            for i in blob.dtype.names:
+        if len(face_blob.dtype.names) == 1:
+            name = face_blob.dtype.names[0]
+        elif len(face_blob.dtype.names) > 1:
+            for i in face_blob.dtype.names:
                 if i in index_names:
                     name = i
                     break
-        faces = elements['face']['data'][name]['f1']
+        faces = face_blob[name]['f1']
+
+        try:
+            td = face_blob['texcoord']['f1']
+
+            uv = np.zeros((len(vertices), 2), dtype=np.float64)
+            uv[faces.reshape(-1)] = td.reshape((-1, 2))
+
+            kwargs['visual'] = visual.texture.TextureVisuals(
+                vertex_uv=uv,
+                textures=textures)
+
+        except KeyError:
+            pass
 
     # kwargs for Trimesh or PointCloud
-    result = {'faces': faces,
-              'vertices': vertices,
-              'ply_data': elements}
+    kwargs.update({'faces': faces,
+                   'vertices': vertices})
 
     # if both vertex and face color are defined pick the one
     # with the most going on
     colors = []
     signal = []
-    if result['faces'] is not None:
+    if kwargs['faces'] is not None:
         f_color, f_signal = element_colors(elements['face'])
         colors.append({'face_colors': f_color})
         signal.append(f_signal)
-    if result['vertices'] is not None:
+    if kwargs['vertices'] is not None:
         v_color, v_signal = element_colors(elements['vertex'])
         colors.append({'vertex_colors': v_color})
         signal.append(v_signal)
 
     # add the winning colors to the result
-    result.update(colors[np.argmax(signal)])
+    kwargs.update(colors[np.argmax(signal)])
 
-    return result
+    return kwargs
 
 
 def element_colors(element):

@@ -43,12 +43,12 @@ def _get_vertex_colors(uv, mtllib, resolver):
         vertex_colors = np.full((len(uv), 4), color, dtype=np.uint8)
         return vertex_colors
 
-    # get the data for the image
-    texture_data = resolver.get(mtllib['map_Kd'])
     # load the actual image
-    texture = Image.open(util.wrap_as_stream(texture_data))
-    # append the loaded colors
-    vertex_colors = visual.uv_to_color(uv, texture)
+    texture_image = visual.texture.load(names=[mtllib['map_Kd']],
+                                        resolver=resolver)
+
+    vertex_colors = visual.uv_to_color(
+        uv, next(iter(texture_image.values())))
 
     return vertex_colors
 

@@ -1,6 +1,63 @@
 import numpy as np
 
-from .color import to_rgba
+from . import color
+
+from .. import util
+
+
+class TextureVisuals(object):
+    def __init__(self,
+                 vertex_uv=None,
+                 textures=None):
+        """
+        Store vertex texture
+        """
+
+        self.vertex_uv = vertex_uv
+        self.textures = textures
+
+    def to_color(self):
+        viz = color.ColorVisuals(vertex_colors=uv_to_color(
+            self.vertex_uv, next(iter(self.textures.values()))))
+        return viz
+
+    def update_vertices(self, mask):
+        """
+        Apply a mask to remove or duplicate vertex properties.
+        """
+        self.vertex_uv = self.vertex_uv[mask]
+
+    def update_faces(self, mask):
+        """
+        Apply a mask to remove or duplicate face properties
+        """
+        pass
+
+
+def load(names, resolver):
+    """
+    Load named textures using a resolver into a PIL image.
+
+    Parameters
+    --------------
+    names : list of str
+      Name of texture files
+    resolver : Resolver
+      Object to get raw data of texture file
+
+    Returns
+    ---------------
+    textures : dict
+      name : PIL.Image
+    """
+    # import here for soft dependency
+    import PIL
+    textures = {}
+    for name in names:
+        data = resolver.get(name)
+        image = PIL.Image.open(util.wrap_as_stream(data))
+        textures[name] = image
+    return textures
 
 
 def uv_to_color(uv, image):
@@ -21,22 +78,21 @@ def uv_to_color(uv, image):
     """
     uv = np.asanyarray(uv, dtype=np.float64)
 
-    # find pixel positions from UV coordinates
-    x = (uv[:, 0] * (image.width - 1)).round().astype(int)
-    y = ((1 - uv[:, 1]) * (image.height - 1)).round().astype(int)
+    # get texture image pixel positions of UV coordinates
+    x = (uv[:, 0] * (image.width - 1)).round().astype(np.int64)
+    y = ((1 - uv[:, 1]) * (image.height - 1)).round().astype(np.int64)
 
     # wrap to image size in the manner of GL_REPEAT
     x %= image.width
     y %= image.height
 
     # access colors from pixel locations
-    image = np.asarray(image)
-    colors = image[y, x]
+    colors = np.asarray(image)[y, x]
 
-    # handle gray scale
+    # handle greyscale
     if colors.ndim == 1:
         colors = np.repeat(colors[:, None], 3, axis=1)
     # now ndim == 2
     if colors.shape[1] == 3:
-        colors = to_rgba(colors)  # rgb -> rgba
+        colors = color.to_rgba(colors)  # rgb -> rgba
     return colors

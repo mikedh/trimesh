@@ -48,10 +48,13 @@ class ColorVisuals(object):
 
         Parameters
         ----------
-        mesh:          Trimesh object that these visual properties
-                       are associated with
-        face_ colors:  (n,3|4) or (3,) or (4,) uint8, colors per-face
-        vertex_colors: (n,3|4) or (3,) or (4,) uint8, colors per-vertex
+        mesh : Trimesh
+          Object that these visual properties
+          are associated with
+        face_ colors :  (n,3|4) or (3,) or (4,) uint8
+          Colors per-face
+        vertex_colors : (n,3|4) or (3,) or (4,) uint8
+          Colors per-vertex
         """
         self.mesh = mesh
         self._data = caching.DataStore()

@@ -130,8 +130,6 @@ class Trimesh(Geometry):
                 mesh=self)
         else:
             self.visual = visual
-        # add a back reference to this mesh for its visual property object
-        self.visual.mesh = self
 
         # normals are accessed through setters/properties and are regenerated
         # if dimensions are inconsistent, but can be set by the constructor
@@ -1748,6 +1746,34 @@ class Trimesh(Geometry):
         smoothed = graph.smoothed(self, angle)
         self.visual._cache['smoothed'] = smoothed
         return smoothed
+
+    @property
+    def visual(self):
+        """
+        Get the stored visuals for the current mesh.
+
+        Returns
+        -------------
+        visual : ColorVisuals or TextureVisuals
+          Contains visual information about the mesh
+        """
+        if hasattr(self, '_visual'):
+            return self._visual
+        return None
+
+    @visual.setter
+    def visual(self, value):
+        """
+        When setting a visual object, always make sure
+        that `visual.mesh` points back to the source mesh.
+
+        Parameters
+        --------------
+        visual : ColorVisuals or TextureVisuals
+          Contains visual information about the mesh
+        """
+        value.mesh = self
+        self._visual = value
 
     def section(self,
                 plane_normal,
