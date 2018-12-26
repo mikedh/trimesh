@@ -1,7 +1,6 @@
 import numpy as np
 
 from . import color
-
 from .. import util
 
 
@@ -33,6 +32,30 @@ class TextureVisuals(object):
         """
         pass
 
+
+class Material(object):
+    pass
+
+
+class PBRMaterial(Material):
+    """
+    Create a material for physically based rendering.
+    """
+    def __init__(self,
+                 name=None,
+                 emissiveFactor=None,
+                 emissiveTexture=None,
+                 normalTexture=None,
+                 occlusionTexture=None,
+                 pbrBaseColorTexture=None,
+                 pbrMetallicRoughnessTexture=None):
+        
+        self.emissiveFactor=emissiveFactor
+        self.emissiveTexture=emissiveTexture
+        self.normalTexture=normalTexture
+        self.occlusionTexture=occlusionTexture
+        self.pbrBaseColorTexture=pbrBaseColorTexture
+        self.pbrMetallicRoughnessTexture=pbrMetallicRoughnessTexture
 
 def load(names, resolver):
     """

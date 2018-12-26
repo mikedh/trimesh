@@ -6,9 +6,8 @@ Tools to load assets referenced in meshes, like MTL files
 or texture images.
 """
 import os
-import trimesh
 
-# URL parsing for remote resources
+# URL parsing for remote resources via WebResolver
 try:
     # python 3
     from urllib.parse import urlparse, urljoin

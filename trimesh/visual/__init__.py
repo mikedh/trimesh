@@ -13,7 +13,7 @@ from .color import (ColorVisuals,
                     DEFAULT_COLOR,
                     linear_color_map)
 
-from .texture import uv_to_color
+from .texture import uv_to_color, TextureVisuals
 
 from . import color
 from . import texture
@@ -21,7 +21,11 @@ from . import resolvers
 
 # explicitly list imports in __all__
 # as otherwise flake8 gets mad
-__all__ = [ColorVisuals,
+__all__ = [color,
+           texture,
+           resolvers,
+           TextureVisuals,
+           ColorVisuals,
            random_color,
            to_rgba,
            create_visual,

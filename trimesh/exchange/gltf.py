@@ -12,6 +12,7 @@ import collections
 import numpy as np
 
 from .. import util
+from .. import visual
 from .. import rendering
 
 # magic numbers which have meaning in GLTF
@@ -105,15 +106,17 @@ def export_glb(scene, include_normals=False):
 
     Parameters
     ------------
-    scene: trimesh.Scene object
+    scene: trimesh.Scene
+      Input geometry
 
     Returns
     ----------
-    exported: bytes, exported result
+    exported : bytes
+      Exported result in GLB 2.0
     """
 
-    tree, buffer_items = _create_gltf_structure(scene,
-                                                include_normals=include_normals)
+    tree, buffer_items = _create_gltf_structure(
+        scene, include_normals=include_normals)
 
     # A bufferView is a slice of a file
     views = []
@@ -177,7 +180,7 @@ def load_glb(file_obj, **passed):
     Parameters
     ------------
     file_obj : file- like object
-       Containing GLB data
+      Containing GLB data
 
     Returns
     ------------
@@ -376,7 +379,7 @@ def _append_mesh(mesh,
         _byte_pad(mesh.faces.astype(uint32).tobytes()))
 
     # the vertex accessor
-    tree['accessors'].append({
+    tree["accessors"].append({
         "bufferView": len(buffer_items),
         "componentType": 5126,
         "count": len(mesh.vertices),
@@ -392,11 +395,12 @@ def _append_mesh(mesh,
     # not screw up the indexes of accessors or buffers
     if mesh.visual.kind is not None:
         # make sure colors are RGBA, this should always be true
-        assert mesh.visual.vertex_colors.shape == (len(mesh.vertices), 4)
+        assert (mesh.visual.vertex_colors.shape ==
+                (len(mesh.vertices), 4))
 
         # add the reference for vertex color
-        tree['meshes'][-1]['primitives'][0]['attributes']['COLOR_0'] = len(
-            tree['accessors'])
+        tree['meshes'][-1]['primitives'][0][
+            'attributes']['COLOR_0'] = len(tree['accessors'])
 
         color_data = _byte_pad(
             mesh.visual.vertex_colors.astype(
@@ -422,8 +426,8 @@ def _append_mesh(mesh,
 
     if include_normals:
         # add the reference for vertex color
-        tree['meshes'][-1]['primitives'][0]['attributes']['NORMAL'] = len(
-            tree['accessors'])
+        tree['meshes'][-1]['primitives'][0][
+            'attributes']['NORMAL'] = len(tree['accessors'])
 
         normal_data = _byte_pad(
             mesh.vertex_normals.astype(
@@ -566,24 +570,44 @@ def _read_buffers(header, buffers):
         length = np.dtype(dtype).itemsize * a['count'] * per_count
         end = start + length
 
-        array = np.frombuffer(data[start:end], dtype=dtype).reshape(shape)
+        array = np.frombuffer(data[start:end],
+                              dtype=dtype).reshape(shape)
 
         assert len(array) == a['count']
         access.append(array)
 
+    # load any images
+    images = None
+    if 'images' in header:
+        import PIL
+
+        # images are referenced by index
+        images = [None] * len(header['images'])
+
+        for i, img in enumerate(header['images']):
+            # get the bytes representing an image
+            blob = views[img['bufferView']]
+            # i.e. 'image/jpeg'
+            # mime = img['mimeType']
+            # load the buffer into a PIL image
+            images[i] = PIL.Image.open(
+                util.wrap_as_stream(blob))
+
     # turn materials into a simple list of colors if populated
-    colors = []
+
+    materials = []
     if 'materials' in header:
         for mat in header['materials']:
-            # get the base color of the material
-            try:
-                color = np.array(mat['pbrMetallicRoughness']['baseColorFactor'],
-                                 dtype='<f8')
-            except BaseException:
-                color = np.array([.5, .5, .5, 1])
-
-            # convert float 0-1 colors to uint8 colors and append
-            colors.append((color * 255).astype(uint8))
+            pbr = {}
+            for k, v in mat.items():
+                if not isinstance(v, dict):
+                    pbr[k] = v
+                    continue
+                if 'index' not in v:
+                    continue
+                idx = header['textures'][v['index']]['source']
+                pbr[k] = images[idx]
+            materials.append(visual.texture.PBRMaterial(**pbr))
 
     # load data from accessors into Trimesh objects
     meshes = collections.OrderedDict()
@@ -591,29 +615,30 @@ def _read_buffers(header, buffers):
         color = None
         kwargs = collections.defaultdict(list)
         for p in m['primitives']:
+            # if we don't have a triangular mesh continue
+            # if not specified assume it is a mesh
             if 'mode' in p and p['mode'] != 4:
                 continue
 
+            # get faces from accessors and reshape
             faces = access[p['indices']].reshape((-1, 3))
+            # get vertices from acessors
             verts = access[p['attributes']['POSITION']]
 
             kwargs['faces'].append(faces)
             kwargs['vertices'].append(verts)
 
-            if 'material' in p:
-                color = colors[p['material']]
-            else:
-                color = [128, 128, 128, 255]
+            if 'TEXCOORD_0' in p['attributes']:
+                uv = access[p['attributes']['TEXCOORD_0']]
+                kwargs['vertex_uv'].append(uv)
 
-            # stack colors to line up with faces
-            kwargs['face_colors'].append(np.tile(color, (len(faces), 1)))
+            if 'material' in p:
+                kwargs['materials'].append(['material'])
 
         # re- index faces
         (kwargs['vertices'],
-         kwargs['faces']) = util.append_faces(kwargs['vertices'],
-                                              kwargs['faces'])
-        # stack colors
-        kwargs['face_colors'] = np.vstack(kwargs['face_colors'])
+         kwargs['faces']) = util.append_faces(
+             kwargs['vertices'], kwargs['faces'])
 
         # try loading units from the GLTF extra
         if 'extras' in m and 'units' in m['extras']:

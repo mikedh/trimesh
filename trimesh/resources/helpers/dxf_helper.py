@@ -60,7 +60,8 @@ def read_files(path):
     template = {}
     for file_name in os.listdir(path):
         with open(os.path.join(path, file_name), 'r') as f:
-            template[file_name] = replace_whitespace(f.read(), insert=True)
+            template[file_name] = replace_whitespace(
+                f.read(), insert=True)
 
     return template
 
@@ -77,4 +78,5 @@ if __name__ == '__main__':
         t = get_json()
         write_files(t)
     else:
-        print("run with 'read_json' to dump JSON to files or 'dump_json' to dump files to JSON")
+        print("run with 'read_json' to dump JSON to files")
+        print("Or 'dump_json' to dump files to JSON")

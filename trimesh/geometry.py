@@ -1,9 +1,7 @@
 import numpy as np
 
-from .transformations import rotation_matrix
-from .constants import tol, log
-
 from . import util
+from .constants import tol, log
 
 try:
     from scipy.sparse import coo_matrix

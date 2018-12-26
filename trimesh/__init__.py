@@ -20,14 +20,14 @@ from .scene.scene import Scene
 from .util import unitize
 from .transformations import transform_points
 
-# general tolerances
+# general numeric tolerances
 from .constants import tol
 
-# loaders
-from .exchange.load import (load_remote,
+# loader functions
+from .exchange.load import (load,
                             load_mesh,
                             load_path,
-                            load,
+                            load_remote,
                             available_formats)
 
 # avoid a circular import in trimesh.base
@@ -44,6 +44,7 @@ __all__ = [__version__,
            load,
            load_mesh,
            load_path,
+           load_remote,
            primitives,
            transform_points,
            available_formats]

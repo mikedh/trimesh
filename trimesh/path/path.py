@@ -23,7 +23,6 @@ from .util import concatenate
 
 from .. import util
 from .. import units
-from .. import graph
 from .. import caching
 from .. import grouping
 from .. import transformations

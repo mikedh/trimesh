@@ -1,5 +1,4 @@
 import collections
-import os.path
 
 import numpy as np
 
@@ -8,9 +7,10 @@ try:
 except ImportError:
     Image = None
 
-from ..constants import log
 from .. import util
 from .. import visual
+
+from ..constants import log
 
 
 def _get_vertex_colors(uv, mtllib, resolver):
@@ -204,30 +204,36 @@ def load_wavefront(file_obj, resolver=None, **kwargs):
                     face_groups[start_f:] = idx
                 loaded['metadata']['face_groups'] = face_groups
 
-            if len(current['usemtl']) > 0 and np.sum(current['vt_ok']) > 0:
+            if len(current['usemtl']) > 0 and any(current['vt_ok']):
                 texture = np.full((len(current['vt_ok']), 3),
                                   np.nan,
                                   dtype=np.float64)
                 # make sure mask is numpy array for older numpy
-                vt_ok = np.asanyarray(current['vt_ok'], dtype=np.bool)
+                vt_ok = np.asanyarray(current['vt_ok'],
+                                      dtype=np.bool)
                 texture[vt_ok] = current['vt']
 
-                vertex_colors = np.zeros((0, 4), dtype=np.uint8)
                 for usemtl in current['usemtl']:
-                    findices = usemtl_to_findices[usemtl]
-                    uv = texture[findices]
                     try:
-                        vertex_colors_i = _get_vertex_colors(
-                            uv=uv, mtllib=mtllibs[usemtl], resolver=resolver)
+                        findices = usemtl_to_findices[usemtl]
+                        uv = texture[findices]
+                        # what is the file name of the texture image
+                        file_name = mtllibs[usemtl]['map_Kd']
+                        # get the texture image as a PIL image
+                        images = visual.texture.load(
+                            [file_name],
+                            resolver=resolver)
+                        # create a texture object
+                        loaded['visual'] = visual.texture.TextureVisuals(
+                            vertex_uv=uv, textures=images)
                     except BaseException:
-                        log.error('failed to load texture: {}'.format(usemtl),
-                                  exc_info=True)
-                        vertex_colors_i = None
-                    if vertex_colors_i is None:
-                        vertex_colors_i = np.full(
-                            (len(uv), 4), visual.DEFAULT_COLOR, dtype=np.uint8)
-                    vertex_colors = np.r_[vertex_colors, vertex_colors_i]
-                loaded['vertex_colors'] = vertex_colors[vert_order]
+
+                        log.error('failed to load texture: {}'.format(
+                            usemtl), exc_info=True)
+
+            # apply the vertex order to the visual object
+            if 'visual' in loaded:
+                loaded['visual'].update_vertices(vert_order)
 
             # this mesh is done so append the loaded mesh kwarg dict
             meshes.append(loaded)
@@ -236,7 +242,8 @@ def load_wavefront(file_obj, resolver=None, **kwargs):
     current = {k: [] for k in ['v', 'vt', 'vn',
                                'f', 'g', 'usemtl',
                                'vt_ok', 'vn_ok']}
-    usemtl_to_findices = collections.defaultdict(list)  # usemtl to 'f' indices
+    # usemtl to 'f' indices
+    usemtl_to_findices = collections.defaultdict(list)
     mtllibs = {}
     # remap vertex indexes {str key: int index}
     remap = {}
