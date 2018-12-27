@@ -864,7 +864,8 @@ class Path3D(Path):
         # and XY values of vertices projected onto the plane
         planar = Path2D(entities=copy.deepcopy(self.entities),
                         vertices=flat[:, :2],
-                        metadata=metadata)
+                        metadata=metadata,
+                        process=False)
 
         return planar, to_3D
 

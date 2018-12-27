@@ -15,7 +15,8 @@ class TextureTest(g.unittest.TestCase):
         n_vertices = 100
         uv = g.np.array([[0.25, 0.2], [0.4, 0.5]], dtype=float)
         texture = g.np.arange(96, dtype=g.np.uint8).reshape(8, 4, 3)
-        colors = g.trimesh.visual.uv_to_color(uv, PIL.Image.fromarray(texture))
+        colors = g.trimesh.visual.uv_to_color(
+            uv, PIL.Image.fromarray(texture))
 
         colors_expected = [[75, 76, 77, 255], [51, 52, 53, 255]]
 
@@ -24,11 +25,15 @@ class TextureTest(g.unittest.TestCase):
     def test_fuze(self):
 
         def check_fuze(fuze):
-            # TODO
-            # this test should change when texture is actually implemented
-            assert fuze.visual.kind == 'vertex'
+            # these loaded fuze bottles should have textures
+            assert isinstance(
+                fuze.visual, g.trimesh.visual.TextureVisuals)
+
+            # convert TextureVisuals to ColorVisuals
+            viz = fuze.visual.to_color()
+            assert viz.kind == 'vertex'
             # should be actual colors defined
-            assert fuze.visual.vertex_colors.ptp(axis=0).ptp() != 0
+            assert viz.vertex_colors.ptp(axis=0).ptp() != 0
 
         with g.serve_meshes() as address:
             # see if web resolvers work
@@ -58,6 +63,10 @@ class TextureTest(g.unittest.TestCase):
         assert len(scene.geometry) == 1
         m = next(iter(scene.geometry.values()))
 
+        check_fuze(m)
+
+        # the PLY should have textures defined
+        m = g.get_mesh('fuze.ply')
         check_fuze(m)
 
 

@@ -309,15 +309,15 @@ def elements_to_kwargs(elements, textures=None):
 
         try:
             td = face_blob['texcoord']['f1']
-
             uv = np.zeros((len(vertices), 2), dtype=np.float64)
             uv[faces.reshape(-1)] = td.reshape((-1, 2))
 
             kwargs['visual'] = visual.texture.TextureVisuals(
                 vertex_uv=uv,
                 textures=textures)
-
-        except KeyError:
+        except (ValueError, KeyError):
+            # accessing numpy arrays with named fields
+            # incorrectly is a valueerror
             pass
 
     # kwargs for Trimesh or PointCloud
