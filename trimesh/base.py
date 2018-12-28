@@ -2584,7 +2584,7 @@ class Trimesh(Geometry):
         # copy vertex and face data
         copied._data.data = copy.deepcopy(self._data.data)
         # copy visual information
-        copied.visual._data.data = copy.deepcopy(self.visual._data.data)
+        copied.visual = self.visual.copy()
         # get metadata
         copied.metadata = copy.deepcopy(self.metadata)
         # get center_mass and density

@@ -15,6 +15,8 @@ from .. import util
 from .. import visual
 from .. import rendering
 
+from ..constants import log
+
 # magic numbers which have meaning in GLTF
 # most are uint32's of UTF-8 text
 _magic = {'gltf': 1179937895,
@@ -541,26 +543,35 @@ def _parse_materials(header, views):
 
     Returns
     ------------
-    materials : dict
-      {name : trimesh.visual.texture.Material}
+    materials : list
+      List of trimesh.visual.texture.Material objects
     """
+    try:
+        import PIL
+    except ImportError:
+        log.warning('unable to load textures without pillow!')
+        return []
+
     # load any images
     images = None
     if 'images' in header:
-        import PIL
         # images are referenced by index
         images = [None] * len(header['images'])
-
+        # loop through images
         for i, img in enumerate(header['images']):
             # get the bytes representing an image
             blob = views[img['bufferView']]
             # i.e. 'image/jpeg'
             # mime = img['mimeType']
-            # load the buffer into a PIL image
-            images[i] = PIL.Image.open(
-                util.wrap_as_stream(blob))
+            try:
+                # load the buffer into a PIL image
+                images[i] = PIL.Image.open(
+                    util.wrap_as_stream(blob))
+            except BaseException:
+                log.error('failed to load image!',
+                          exc_info=True)
 
-    # turn materials into a simple list of colors if populated
+    # store materials which reference images
     materials = []
     if 'materials' in header:
         for mat in header['materials']:
@@ -582,7 +593,6 @@ def _parse_materials(header, views):
                     idx = header['textures'][v['index']]['source']
                     # store the actual image as the value
                     pbr[k] = images[idx]
-
             # create a PBR material object for the GLTF material
             materials.append(visual.texture.PBRMaterial(**pbr))
 
@@ -642,65 +652,50 @@ def _read_buffers(header, buffers, passed):
     # load images and textures into material objects
     materials = _parse_materials(header, views)
 
+    mesh_op = collections.defaultdict(list)
     # load data from accessors into Trimesh objects
     meshes = collections.OrderedDict()
     for index, m in enumerate(header['meshes']):
         color = None
-        kwargs = collections.defaultdict(list)
 
-        for p in m['primitives']:
+        metadata = {}
+        # try loading units from the GLTF extra
+        if 'extras' in m and 'units' in m['extras']:
+            try:
+                units = str(m['extras']['units'])
+                metadata = {'units': units}
+            except BaseException:
+                pass
+
+        for j, p in enumerate(m['primitives']):
             # if we don't have a triangular mesh continue
             # if not specified assume it is a mesh
             if 'mode' in p and p['mode'] != 4:
                 continue
 
+            # store those units
+            kwargs = {'metadata': metadata}
             # get faces from accessors and reshape
-            faces = access[p['indices']].reshape((-1, 3))
+            kwargs['faces'] = access[p['indices']].reshape((-1, 3))
             # get vertices from acessors
-            verts = access[p['attributes']['POSITION']]
+            kwargs['vertices'] = access[p['attributes']['POSITION']]
 
-            kwargs['faces'].append(faces)
-            kwargs['vertices'].append(verts)
-
+            # do we have UV coordinates
             if 'TEXCOORD_0' in p['attributes']:
                 if 'material' not in p:
                     log.warning('texcoord without material!')
                 else:
-                    # (n, 2) float, we will append at the end
-                    kwargs['uv'].append(access[p['attributes']['TEXCOORD_0']])
-                    # materials are referenced by index
-                    # store only the latest
-                    material = materials[p['material']]
+                    # create a texture visual
+                    kwargs['visual'] = visual.texture.TextureVisuals(
+                        uv=access[p['attributes']['TEXCOORD_0']],
+                        material=materials[p['material']])
 
-        # re- index faces to appended vertices
-        (kwargs['vertices'],
-         kwargs['faces']) = util.append_faces(
-             kwargs['vertices'], kwargs['faces'])
-
-        # if we stored UV coordinates, stack them into single (n, 2)
-        if 'uv' in kwargs:
-            try:
-                # store visual object for mesh constructor
-                # remove uv coordinate sequence from kwargs
-                kwargs['visual'] = visual.texture.TextureVisuals(
-                    uv=np.vstack(kwargs.pop('uv')),
-                    material=material)
-            except BaseException:
-                log.error('failed to create TextureVisuals!',
-                          exc_info=True)
-
-        # try loading units from the GLTF extra
-        if 'extras' in m and 'units' in m['extras']:
-            try:
-                units = str(m['extras']['units'])
-                kwargs['metadata'] = {'units': units}
-            except BaseException:
-                pass
-
-        if 'name' in m:
-            meshes[m['name']] = kwargs
-        else:
-            meshes[index] = kwargs
+            # create a unique mesh name per- primitive
+            name = m['name']
+            if len(m['primitives']) > 1:
+                name += '_{}'.format(j)
+            meshes[name] = kwargs
+            mesh_op[index].append(name)
 
     # make it easier to reference nodes
     nodes = header['nodes']
@@ -733,9 +728,6 @@ def _read_buffers(header, buffers, passed):
         if 'children' in nodes[root]:
             queue.extend([root, c] for c in
                          nodes[root]['children'])
-    # meshes are listed by index rather than name
-    # replace the index with a nicer name
-    mesh_names = list(meshes.keys())
 
     # go through the nodes tree to populate
     # kwargs for scene graph loader
@@ -762,8 +754,11 @@ def _read_buffers(header, buffers, passed):
             kwargs['matrix'] = np.eye(4)
 
         if 'mesh' in child:
-            kwargs['geometry'] = mesh_names[child['mesh']]
-        graph.append(kwargs)
+            for name in mesh_op[child['mesh']]:
+                kwargs['geometry'] = name
+                graph.append(kwargs.copy())
+        else:
+            graph.append(kwargs)
 
     # kwargs to be loaded
     result = {'class': 'Scene',

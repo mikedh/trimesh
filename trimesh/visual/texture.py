@@ -1,5 +1,7 @@
 import numpy as np
 
+import copy
+
 from . import color
 from .. import util
 
@@ -23,6 +25,19 @@ class TextureVisuals(object):
         else:
             # may be None
             self.material = material
+
+    def copy(self):
+        """
+        Return a copy of the current TextureVisuals object.
+
+        Returns
+        ----------
+        copied : TextureVisuals
+          Contains the same information as self
+        """
+        copied = TextureVisuals(uv=self.uv.copy(),
+                                material=copy.deepcopy(self.material))
+        return copied
 
     def to_color(self):
         """

@@ -367,7 +367,9 @@ class EnforcedForest(nx.DiGraph):
                         'Multiple edge path exists between nodes!')
                 self.disconnect_path(path)
                 changed = True
-            except (nx.NetworkXError, nx.NetworkXNoPath, nx.NetworkXException):
+            except (nx.NetworkXError,
+                    nx.NetworkXNoPath,
+                    nx.NetworkXException):
                 pass
         self._undirected.add_edge(u, v)
         super(self.__class__, self).add_edge(u, v, *args, **kwargs)

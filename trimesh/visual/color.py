@@ -26,6 +26,7 @@ Rules
 
 import numpy as np
 
+import copy
 import colorsys
 import collections
 
@@ -141,6 +142,19 @@ class ColorVisuals(object):
             # bitwise xor combines hashes better than a sum
             result ^= self.mesh.crc()
         return result
+
+    def copy(self):
+        """
+        Return a copy of the current ColorVisuals object.
+
+        Returns
+        ----------
+        copied : ColorVisuals
+          Contains the same information as self
+        """
+        copied = ColorVisuals()
+        copied._data.data = copy.deepcopy(self._data.data)
+        return copied
 
     @property
     def face_colors(self):
