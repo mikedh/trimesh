@@ -192,7 +192,8 @@ def load_mesh(file_obj,
     # but also make sure loader keys override passed keys
     results = mesh_loaders[file_type](file_obj,
                                       file_type=file_type,
-                                      resolver=resolver)
+                                      resolver=resolver,
+                                      **kwargs)
 
     if util.is_file(file_obj):
         file_obj.close()

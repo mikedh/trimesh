@@ -172,7 +172,7 @@ def export_glb(scene, include_normals=False):
     return exported
 
 
-def load_glb(file_obj, **passed):
+def load_glb(file_obj, **mesh_kwargs):
     """
     Load a GLTF file in the binary GLB format into a trimesh.Scene.
 
@@ -247,7 +247,7 @@ def load_glb(file_obj, **passed):
     # that can be used to instantiate a trimesh.Scene object
     kwargs = _read_buffers(header=header,
                            buffers=buffers,
-                           passed=passed)
+                           mesh_kwargs=mesh_kwargs)
     return kwargs
 
 
@@ -475,7 +475,10 @@ def _byte_pad(data, bound=4):
     return data
 
 
-def _append_path(path, name, tree, buffer_items):
+def _append_path(path,
+                 name,
+                 tree,
+                 buffer_items):
     """
     Append a 2D or 3D path to the scene structure and put the
     data into buffer_items.
@@ -532,7 +535,7 @@ def _append_path(path, name, tree, buffer_items):
 def _parse_materials(header, views):
     """
     Convert materials and images stored in a GLTF header
-    to PBRMaterial objects.
+    and buffer views to PBRMaterial objects.
 
     Parameters
     ------------
@@ -599,7 +602,9 @@ def _parse_materials(header, views):
     return materials
 
 
-def _read_buffers(header, buffers, passed):
+def _read_buffers(header,
+                  buffers,
+                  mesh_kwargs):
     """
     Given a list of binary data and a layout, return the
     kwargs to create a scene object.
@@ -610,6 +615,8 @@ def _read_buffers(header, buffers, passed):
       With GLTF keys
     buffers : list of bytes
       Stored data
+    passed : dict
+      Kwargs for mesh constructors
 
     Returns
     -----------
@@ -656,8 +663,7 @@ def _read_buffers(header, buffers, passed):
     # load data from accessors into Trimesh objects
     meshes = collections.OrderedDict()
     for index, m in enumerate(header['meshes']):
-        color = None
-
+   
         metadata = {}
         # try loading units from the GLTF extra
         if 'extras' in m and 'units' in m['extras']:
@@ -674,7 +680,10 @@ def _read_buffers(header, buffers, passed):
                 continue
 
             # store those units
-            kwargs = {'metadata': metadata}
+            kwargs = {'metadata': {}}
+            kwargs.update(mesh_kwargs)
+            kwargs['metadata'].update(metadata)
+
             # get faces from accessors and reshape
             kwargs['faces'] = access[p['indices']].reshape((-1, 3))
             # get vertices from acessors
@@ -749,17 +758,26 @@ def _read_buffers(header, buffers, passed):
         # parent -> child relationships have matrix stored in child
         # for the transform from parent to child
         if 'matrix' in child:
-            kwargs['matrix'] = np.array(child['matrix']).reshape((4, 4)).T
+            kwargs['matrix'] = np.array(
+                child['matrix'],
+                dtype=np.float64).reshape((4, 4)).T
         else:
             kwargs['matrix'] = np.eye(4)
 
+        # always store the transform without geometry
+        graph.append(kwargs.copy())
+            
         if 'mesh' in child:
-            for name in mesh_op[child['mesh']]:
+            geometries = mesh_op[child['mesh']]
+            for name in geometries:
                 kwargs['geometry'] = name
+                # store nodes with geometry with unique name
+                kwargs['frame_to'] = '{}_{}'.format(
+                    name, util.unique_id(
+                        length=6,
+                        increment=len(graph)).upper())
                 graph.append(kwargs.copy())
-        else:
-            graph.append(kwargs)
-
+        
     # kwargs to be loaded
     result = {'class': 'Scene',
               'geometry': meshes,
