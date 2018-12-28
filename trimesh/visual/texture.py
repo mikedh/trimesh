@@ -6,25 +6,48 @@ from .. import util
 
 class TextureVisuals(object):
     def __init__(self,
-                 vertex_uv=None,
-                 textures=None):
+                 uv,
+                 material=None,
+                 image=None):
         """
-        Store vertex texture
+        Store a material and UV coordinates for a mesh.
+        If passed just UV coordinates and a single image it will
+        create a SimpleMaterial for the image.
         """
+        # should be (n, 2) float, where (n == len(mesh.vertices))
+        self.uv = np.asanyarray(uv, dtype=np.float64)
 
-        self.vertex_uv = vertex_uv
-        self.textures = textures
+        # if an image is passed create a SimpleMaterial
+        if material is None and image is not None:
+            self.material = SimpleMaterial(image=image)
+        else:
+            # may be None
+            self.material = material
 
     def to_color(self):
-        viz = color.ColorVisuals(vertex_colors=uv_to_color(
-            self.vertex_uv, next(iter(self.textures.values()))))
-        return viz
+        """
+        Convert textured visuals to a ColorVisuals with vertex
+        color calculated from texture.
+
+        Returns
+        -----------
+        vis : trimesh.visuals.ColorVisuals
+          Contains vertex color from texture
+        """
+        # find the color at each UV coordinate
+        colors = self.material.to_color(self.uv)
+        # create ColorVisuals from result
+        vis = color.ColorVisuals(vertex_colors=colors)
+        return vis
+
+    def face_subset(self, face_index):
+        pass
 
     def update_vertices(self, mask):
         """
         Apply a mask to remove or duplicate vertex properties.
         """
-        self.vertex_uv = self.vertex_uv[mask]
+        self.uv = self.uv[mask]
 
     def update_faces(self, mask):
         """
@@ -37,25 +60,51 @@ class Material(object):
     pass
 
 
+class SimpleMaterial(Material):
+    """
+    Hold a single image texture.
+    """
+
+    def __init__(self, image):
+        self.image = image
+
+    def to_color(self, uv):
+        return uv_to_color(uv, self.image)
+
+
 class PBRMaterial(Material):
     """
-    Create a material for physically based rendering.
+    Create a material for physically based rendering as
+    specified by GLTF 2.0:
+    https://git.io/fhkPZ
+
+    Parameters with `Texture` in them must be PIL.Image objects
     """
+
     def __init__(self,
                  name=None,
                  emissiveFactor=None,
                  emissiveTexture=None,
                  normalTexture=None,
                  occlusionTexture=None,
-                 pbrBaseColorTexture=None,
-                 pbrMetallicRoughnessTexture=None):
-        
-        self.emissiveFactor=emissiveFactor
-        self.emissiveTexture=emissiveTexture
-        self.normalTexture=normalTexture
-        self.occlusionTexture=occlusionTexture
-        self.pbrBaseColorTexture=pbrBaseColorTexture
-        self.pbrMetallicRoughnessTexture=pbrMetallicRoughnessTexture
+                 baseColorTexture=None,
+                 baseColorFactor=None,
+                 metallicFactor=None,
+                 roughnessFactor=None,
+                 metallicRoughnessTexture=None):
+
+        # (3,) float
+        self.emissiveFactor = emissiveFactor
+        # image
+        self.emissiveTexture = emissiveTexture
+        self.normalTexture = normalTexture
+        self.occlusionTexture = occlusionTexture
+        self.baseColorTexture = baseColorTexture
+        self.metallicRoughnessTexture = metallicRoughnessTexture
+
+    def to_color(self, uv):
+        return uv_to_color(uv=uv, image=self.baseColorTexture)
+
 
 def load(names, resolver):
     """

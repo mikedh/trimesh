@@ -313,8 +313,8 @@ def elements_to_kwargs(elements, textures=None):
             uv[faces.reshape(-1)] = td.reshape((-1, 2))
 
             kwargs['visual'] = visual.texture.TextureVisuals(
-                vertex_uv=uv,
-                textures=textures)
+                uv=uv,
+                image=next(iter(textures.values())))
         except (ValueError, KeyError):
             # accessing numpy arrays with named fields
             # incorrectly is a valueerror

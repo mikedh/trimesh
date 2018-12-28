@@ -13,46 +13,6 @@ from .. import visual
 from ..constants import log
 
 
-def _get_vertex_colors(uv, mtllib, resolver):
-    """
-    Turn loaded UV and materials into vertex colors.
-
-    Parameters
-    ------------
-    uv : (n, 2) float
-      Texture coordinates
-    mttlib : dict
-      Material data including image names
-    resolver : trimesh.visual.resolvers.Resolver
-      Object to load data referenced by name
-
-    Returns
-    -----------
-    colors : (n, 4) float or None
-      Loaded RGBA colors
-    """
-    if Image is None:
-        log.warning('pillow is required to load texture')
-        return
-
-    if np.isnan(uv).all() and mtllib['Kd']:
-        color = np.array(mtllib['Kd'], dtype=np.float64)
-        if len(color) == 3:
-            color = np.hstack((color, [1]))
-        color = (color * 255).astype(np.uint8)
-        vertex_colors = np.full((len(uv), 4), color, dtype=np.uint8)
-        return vertex_colors
-
-    # load the actual image
-    texture_image = visual.texture.load(names=[mtllib['map_Kd']],
-                                        resolver=resolver)
-
-    vertex_colors = visual.uv_to_color(
-        uv, next(iter(texture_image.values())))
-
-    return vertex_colors
-
-
 def parse_mtl(mtl):
     """
     Parse a loaded MTL file.
@@ -220,12 +180,12 @@ def load_wavefront(file_obj, resolver=None, **kwargs):
                         # what is the file name of the texture image
                         file_name = mtllibs[usemtl]['map_Kd']
                         # get the texture image as a PIL image
-                        images = visual.texture.load(
+                        image = visual.texture.load(
                             [file_name],
-                            resolver=resolver)
+                            resolver=resolver)[file_name]
                         # create a texture object
                         loaded['visual'] = visual.texture.TextureVisuals(
-                            vertex_uv=uv, textures=images)
+                            uv=uv, image=image)
                     except BaseException:
 
                         log.error('failed to load texture: {}'.format(

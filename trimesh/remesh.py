@@ -13,7 +13,9 @@ from . import util
 from . import grouping
 
 
-def subdivide(vertices, faces, face_index=None):
+def subdivide(vertices,
+              faces,
+              face_index=None):
     """
     Subdivide a mesh into smaller triangles.
 

@@ -244,7 +244,8 @@ def load_glb(file_obj, **passed):
     # turn the layout header and data into kwargs
     # that can be used to instantiate a trimesh.Scene object
     kwargs = _read_buffers(header=header,
-                           buffers=buffers)
+                           buffers=buffers,
+                           passed=passed)
     return kwargs
 
 
@@ -526,7 +527,69 @@ def _append_path(path, name, tree, buffer_items):
         _byte_pad(vxlist[4][1].astype(float32).tobytes()))
 
 
-def _read_buffers(header, buffers):
+def _parse_materials(header, views):
+    """
+    Convert materials and images stored in a GLTF header
+    to PBRMaterial objects.
+
+    Parameters
+    ------------
+    header : dict
+      Contains layout of file
+    views : (n,) bytes
+      Raw data
+
+    Returns
+    ------------
+    materials : dict
+      {name : trimesh.visual.texture.Material}
+    """
+    # load any images
+    images = None
+    if 'images' in header:
+        import PIL
+        # images are referenced by index
+        images = [None] * len(header['images'])
+
+        for i, img in enumerate(header['images']):
+            # get the bytes representing an image
+            blob = views[img['bufferView']]
+            # i.e. 'image/jpeg'
+            # mime = img['mimeType']
+            # load the buffer into a PIL image
+            images[i] = PIL.Image.open(
+                util.wrap_as_stream(blob))
+
+    # turn materials into a simple list of colors if populated
+    materials = []
+    if 'materials' in header:
+        for mat in header['materials']:
+            # flatten key structure so we can loop it
+            loopable = mat.copy()
+            # this key stores another dict of crap
+            if 'pbrMetallicRoughness' in loopable:
+                # add keys of keys to top level dict
+                loopable.update(
+                    loopable.pop('pbrMetallicRoughness'))
+
+            # save flattened keys we can use for kwargs
+            pbr = {}
+            for k, v in loopable.items():
+                if not isinstance(v, dict):
+                    pbr[k] = v
+                elif 'index' in v:
+                    # get the index of image for texture
+                    idx = header['textures'][v['index']]['source']
+                    # store the actual image as the value
+                    pbr[k] = images[idx]
+
+            # create a PBR material object for the GLTF material
+            materials.append(visual.texture.PBRMaterial(**pbr))
+
+    return materials
+
+
+def _read_buffers(header, buffers, passed):
     """
     Given a list of binary data and a layout, return the
     kwargs to create a scene object.
@@ -576,44 +639,15 @@ def _read_buffers(header, buffers):
         assert len(array) == a['count']
         access.append(array)
 
-    # load any images
-    images = None
-    if 'images' in header:
-        import PIL
-
-        # images are referenced by index
-        images = [None] * len(header['images'])
-
-        for i, img in enumerate(header['images']):
-            # get the bytes representing an image
-            blob = views[img['bufferView']]
-            # i.e. 'image/jpeg'
-            # mime = img['mimeType']
-            # load the buffer into a PIL image
-            images[i] = PIL.Image.open(
-                util.wrap_as_stream(blob))
-
-    # turn materials into a simple list of colors if populated
-
-    materials = []
-    if 'materials' in header:
-        for mat in header['materials']:
-            pbr = {}
-            for k, v in mat.items():
-                if not isinstance(v, dict):
-                    pbr[k] = v
-                    continue
-                if 'index' not in v:
-                    continue
-                idx = header['textures'][v['index']]['source']
-                pbr[k] = images[idx]
-            materials.append(visual.texture.PBRMaterial(**pbr))
+    # load images and textures into material objects
+    materials = _parse_materials(header, views)
 
     # load data from accessors into Trimesh objects
     meshes = collections.OrderedDict()
     for index, m in enumerate(header['meshes']):
         color = None
         kwargs = collections.defaultdict(list)
+
         for p in m['primitives']:
             # if we don't have a triangular mesh continue
             # if not specified assume it is a mesh
@@ -629,16 +663,31 @@ def _read_buffers(header, buffers):
             kwargs['vertices'].append(verts)
 
             if 'TEXCOORD_0' in p['attributes']:
-                uv = access[p['attributes']['TEXCOORD_0']]
-                kwargs['vertex_uv'].append(uv)
+                if 'material' not in p:
+                    log.warning('texcoord without material!')
+                else:
+                    # (n, 2) float, we will append at the end
+                    kwargs['uv'].append(access[p['attributes']['TEXCOORD_0']])
+                    # materials are referenced by index
+                    # store only the latest
+                    material = materials[p['material']]
 
-            if 'material' in p:
-                kwargs['materials'].append(['material'])
-
-        # re- index faces
+        # re- index faces to appended vertices
         (kwargs['vertices'],
          kwargs['faces']) = util.append_faces(
              kwargs['vertices'], kwargs['faces'])
+
+        # if we stored UV coordinates, stack them into single (n, 2)
+        if 'uv' in kwargs:
+            try:
+                # store visual object for mesh constructor
+                # remove uv coordinate sequence from kwargs
+                kwargs['visual'] = visual.texture.TextureVisuals(
+                    uv=np.vstack(kwargs.pop('uv')),
+                    material=material)
+            except BaseException:
+                log.error('failed to create TextureVisuals!',
+                          exc_info=True)
 
         # try loading units from the GLTF extra
         if 'extras' in m and 'units' in m['extras']:
