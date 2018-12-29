@@ -11,6 +11,17 @@ class GLTFTest(g.unittest.TestCase):
         for name, model in scene.geometry.items():
             assert model.is_volume
 
+    def test_cesium(self):
+        """
+        A GLTF with a multi- primitive mesh
+        """
+        s = g.get_mesh('CesiumMilkTruck.glb')
+
+        # should be one Trimesh object per GLTF "primitive"
+        assert len(s.geometry) == 4
+        # every geometry displayed once, except wheels twice
+        assert len(s.graph.nodes_geometry) == 5
+
     def test_units(self):
         """
         Trimesh will store units as a GLTF extra if they are defined,

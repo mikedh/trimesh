@@ -14,6 +14,7 @@ import numpy as np
 from .. import util
 from .. import visual
 from .. import rendering
+from .. import transformations
 
 from ..constants import log
 
@@ -659,7 +660,7 @@ def _read_buffers(header,
     # load images and textures into material objects
     materials = _parse_materials(header, views)
 
-    mesh_op = collections.defaultdict(list)
+    mesh_prim = collections.defaultdict(list)
     # load data from accessors into Trimesh objects
     meshes = collections.OrderedDict()
     for index, m in enumerate(header['meshes']):
@@ -704,7 +705,7 @@ def _read_buffers(header,
             if len(m['primitives']) > 1:
                 name += '_{}'.format(j)
             meshes[name] = kwargs
-            mesh_op[index].append(name)
+            mesh_prim[index].append(name)
 
     # make it easier to reference nodes
     nodes = header['nodes']
@@ -729,15 +730,11 @@ def _read_buffers(header,
     # unvisited, pairs of node indexes
     queue = collections.deque()
 
-    # the index of the node which is the root of the tree
+    # start the traversal from the base frame to the roots
     for root in header['scenes'][header['scene']]['nodes']:
         # add transform from base frame to these root nodes
         queue.append([base_frame, root])
-        # add any children to the queue
-        if 'children' in nodes[root]:
-            queue.extend([root, c] for c in
-                         nodes[root]['children'])
-
+            
     # go through the nodes tree to populate
     # kwargs for scene graph loader
     while len(queue) > 0:
@@ -745,6 +742,7 @@ def _read_buffers(header,
         a, b = queue.pop()
 
         # dict of child node
+        # parent = nodes[a]
         child = nodes[b]
         # add edges of children to be processed
         if 'children' in child:
@@ -762,22 +760,38 @@ def _read_buffers(header,
                 child['matrix'],
                 dtype=np.float64).reshape((4, 4)).T
         else:
+            # if no matrix
             kwargs['matrix'] = np.eye(4)
 
-        # always store the transform without geometry
-        graph.append(kwargs.copy())
+        """
+        # GLTF applies these in order T * R * S
+        if 'translation' in child:
+            kwargs['matrix'] = np.dot(
+                kwargs['matrix'],
+                transformations.translation_matrix(
+        child['translation']))
+        if 'rotation' in child:
+            # rotations are stored as (4,) unit quaternions
+            quat = np.reshape(child['rotation'], -1)
+            kwargs['matrix'] = np.dot(
+                kwargs['matrix'],
+                transformations.quaternion_matrix(quat))
+        """
             
+        # append the nodes for connectivity without the mesh
+        graph.append(kwargs.copy())
         if 'mesh' in child:
-            geometries = mesh_op[child['mesh']]
+            # append a new node per- geometry instance
+            geometries = mesh_prim[child['mesh']]
             for name in geometries:
                 kwargs['geometry'] = name
-                # store nodes with geometry with unique name
                 kwargs['frame_to'] = '{}_{}'.format(
                     name, util.unique_id(
                         length=6,
                         increment=len(graph)).upper())
+                # append the edge with the mesh frame
                 graph.append(kwargs.copy())
-        
+
     # kwargs to be loaded
     result = {'class': 'Scene',
               'geometry': meshes,
