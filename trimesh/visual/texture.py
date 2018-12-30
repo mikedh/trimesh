@@ -35,8 +35,10 @@ class TextureVisuals(object):
         copied : TextureVisuals
           Contains the same information as self
         """
-        copied = TextureVisuals(uv=self.uv.copy(),
-                                material=copy.deepcopy(self.material))
+        copied = TextureVisuals(
+            uv=self.uv.copy(),
+            material=copy.deepcopy(self.material))
+
         return copied
 
     def to_color(self):
@@ -77,7 +79,7 @@ class Material(object):
 
 class SimpleMaterial(Material):
     """
-    Hold a single image texture.
+    Hold a single image.
     """
 
     def __init__(self, image):
@@ -110,15 +112,21 @@ class PBRMaterial(Material):
 
         # (3,) float
         self.emissiveFactor = emissiveFactor
-        # image
-        self.emissiveTexture = emissiveTexture
+
+        # float
+        self.metallicFactor = metallicFactor
+        self.roughnessFactor = roughnessFactor
+        
+        # PIL image
         self.normalTexture = normalTexture
+        self.emissiveTexture = emissiveTexture
         self.occlusionTexture = occlusionTexture
         self.baseColorTexture = baseColorTexture
         self.metallicRoughnessTexture = metallicRoughnessTexture
 
     def to_color(self, uv):
-        return uv_to_color(uv=uv, image=self.baseColorTexture)
+        return uv_to_color(
+            uv=uv, image=self.baseColorTexture)
 
 
 def load(names, resolver):
@@ -163,23 +171,23 @@ def uv_to_color(uv, image):
     colors : (n, 4) float
       RGBA color at each of the UV coordinates
     """
+    # UV coordinates should be (n, 2) float
     uv = np.asanyarray(uv, dtype=np.float64)
 
     # get texture image pixel positions of UV coordinates
-    x = (uv[:, 0] * (image.width - 1)).round().astype(np.int64)
-    y = ((1 - uv[:, 1]) * (image.height - 1)).round().astype(np.int64)
+    x = (uv[:, 0] * (image.width - 1))
+    y = ((1 - uv[:, 1]) * (image.height - 1))
 
-    # wrap to image size in the manner of GL_REPEAT
-    x %= image.width
-    y %= image.height
-
+    # convert to in and wrap to image
+    # size in the manner of GL_REPEAT
+    x = x.round().astype(np.int64) % image.width
+    y = y.round().astype(np.int64) % image.height
+    
     # access colors from pixel locations
-    colors = np.asarray(image)[y, x]
+    # make sure image is RGBA before getting values
+    colors = np.asarray(image.convert('RGBA'))[y, x]
 
-    # handle greyscale
-    if colors.ndim == 1:
-        colors = np.repeat(colors[:, None], 3, axis=1)
-    # now ndim == 2
-    if colors.shape[1] == 3:
-        colors = color.to_rgba(colors)  # rgb -> rgba
+    # conversion to RGBA should have corrected shape
+    assert colors.ndim == 2 and colors.shape[1] == 4
+    
     return colors

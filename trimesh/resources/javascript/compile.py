@@ -23,8 +23,8 @@ def minify(path):
     """
 
     if 'http' in path:
-        data = requests.get(path).content.decode('ascii',
-                                                 errors='ignore')
+        data = requests.get(path).content.decode(
+            'ascii', errors='ignore')
     else:
         with open(path, 'rb') as f:
             # some of these assholes use unicode spaces -_-
