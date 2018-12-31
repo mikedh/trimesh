@@ -10,7 +10,7 @@ class GLTFTest(g.unittest.TestCase):
         scene = g.get_mesh('Duck.glb')
 
         assert len(scene.geometry) == 1
-        
+
         for name, model in scene.geometry.items():
             assert model.is_volume
 
@@ -24,10 +24,9 @@ class GLTFTest(g.unittest.TestCase):
         # every geometry displayed once, except wheels twice
         assert len(s.graph.nodes_geometry) == 5
 
-        
     def test_units(self):
         """
-        Trimesh will store units as a GLTF extra if they 
+        Trimesh will store units as a GLTF extra if they
         are defined so check that.
         """
         original = g.get_mesh('pins.glb')

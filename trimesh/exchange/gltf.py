@@ -664,7 +664,7 @@ def _read_buffers(header,
     # load data from accessors into Trimesh objects
     meshes = collections.OrderedDict()
     for index, m in enumerate(header['meshes']):
-   
+
         metadata = {}
         # try loading units from the GLTF extra
         if 'extras' in m and 'units' in m['extras']:
@@ -701,7 +701,12 @@ def _read_buffers(header,
                         material=materials[p['material']])
 
             # create a unique mesh name per- primitive
-            name = m['name']
+            if 'name' in m:
+                name = m['name']
+            else:
+                name = 'GLTF_geometry'
+
+            # each primitive gets it's own Trimesh object
             if len(m['primitives']) > 1:
                 name += '_{}'.format(j)
             meshes[name] = kwargs
@@ -734,7 +739,7 @@ def _read_buffers(header,
     for root in header['scenes'][header['scene']]['nodes']:
         # add transform from base frame to these root nodes
         queue.append([base_frame, root])
-            
+
     # go through the nodes tree to populate
     # kwargs for scene graph loader
     while len(queue) > 0:
@@ -777,7 +782,7 @@ def _read_buffers(header,
                 kwargs['matrix'],
                 transformations.quaternion_matrix(quat))
         """
-            
+
         # append the nodes for connectivity without the mesh
         graph.append(kwargs.copy())
         if 'mesh' in child:

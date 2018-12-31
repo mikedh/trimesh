@@ -9,16 +9,17 @@ class VisualTest(g.unittest.TestCase):
     def test_visual(self):
         mesh = g.get_mesh('featuretype.STL')
 
-        self.assertFalse(mesh.visual.defined)
+        # stl shouldn't have any visual properties defined
+        assert not mesh.visual.defined
 
         for facet in mesh.facets:
             mesh.visual.face_colors[facet] = g.trimesh.visual.random_color()
 
-        self.assertTrue(mesh.visual.defined)
-        self.assertFalse(mesh.visual.transparency)
+        assert mesh.visual.defined
+        assert not mesh.visual.transparency
 
         mesh.visual.face_colors[0] = [10, 10, 10, 130]
-        self.assertTrue(mesh.visual.transparency)
+        assert mesh.visual.transparency
 
     def test_concatenate(self):
         a = g.get_mesh('ballA.off')
@@ -26,7 +27,7 @@ class VisualTest(g.unittest.TestCase):
 
         a.visual.face_colors = [255, 0, 0]
         r = a + b
-        self.assertTrue(any(r.visual.face_colors.ptp(axis=0) > 1))
+        assert any(r.visual.face_colors.ptp(axis=0) > 1)
 
     def test_data_model(self):
         """
@@ -129,11 +130,16 @@ class VisualTest(g.unittest.TestCase):
         s = m.smoothed()
         # every color should be default color
         assert s.visual.face_colors.ptp(axis=0).max() == 0
-        # set some faces to a different color
-        faces = m.facets[m.facets_area.argmax()]
-        m.visual.face_colors[faces] = [255, 0, 0, 255]
+
+        # set one face to a different color
+        m.visual.face_colors[0] = [255, 0, 0, 255]
+
         # cache should be dumped yo
         s1 = m.smoothed()
+        if s1.visual.face_colors.ptp(axis=0).max() == 0:
+            from IPython import embed
+            embed()
+
         assert s1.visual.face_colors.ptp(axis=0).max() != 0
 
         # do the same check on vertex color

@@ -262,7 +262,7 @@ class ExportTest(g.unittest.TestCase):
         f = g.trimesh.exchange.load.parse_file_args
 
         RET_COUNT = 5
-        
+
         # a path that doesn't exist
         nonexists = '/banana{}'.format(g.np.random.random())
         assert not g.os.path.exists(nonexists)

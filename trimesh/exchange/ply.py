@@ -32,7 +32,7 @@ ply_dtypes = {'char': 'i1',
               'double': 'f8'}
 
 
-def load_ply(file_obj, resolver, *args, **kwargs):
+def load_ply(file_obj, resolver=None, *args, **kwargs):
     """
     Load a PLY file from an open file object.
 

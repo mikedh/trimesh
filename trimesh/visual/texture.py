@@ -4,6 +4,7 @@ import copy
 
 from . import color
 from .. import util
+from .. import caching
 
 
 class TextureVisuals(object):
@@ -16,6 +17,10 @@ class TextureVisuals(object):
         If passed just UV coordinates and a single image it will
         create a SimpleMaterial for the image.
         """
+
+        self._data = caching.DataStore()
+        self._cache = caching.Cache(self._data.fast_hash)
+
         # should be (n, 2) float, where (n == len(mesh.vertices))
         self.uv = np.asanyarray(uv, dtype=np.float64)
 
@@ -25,6 +30,12 @@ class TextureVisuals(object):
         else:
             # may be None
             self.material = material
+
+    def _verify_crc(self):
+        self._cache.verify()
+
+    def crc(self):
+        return self._data.crc()
 
     def copy(self):
         """
@@ -116,7 +127,7 @@ class PBRMaterial(Material):
         # float
         self.metallicFactor = metallicFactor
         self.roughnessFactor = roughnessFactor
-        
+
         # PIL image
         self.normalTexture = normalTexture
         self.emissiveTexture = emissiveTexture
@@ -182,12 +193,12 @@ def uv_to_color(uv, image):
     # size in the manner of GL_REPEAT
     x = x.round().astype(np.int64) % image.width
     y = y.round().astype(np.int64) % image.height
-    
+
     # access colors from pixel locations
     # make sure image is RGBA before getting values
     colors = np.asarray(image.convert('RGBA'))[y, x]
 
     # conversion to RGBA should have corrected shape
     assert colors.ndim == 2 and colors.shape[1] == 4
-    
+
     return colors
