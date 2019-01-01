@@ -86,7 +86,15 @@ def mesh_to_vertexlist(mesh,
         normals = mesh.vertex_normals.reshape(-1).tolist()
         faces = mesh.faces.reshape(-1).tolist()
         vertices = mesh.vertices.reshape(-1).tolist()
-        color_gl = uv_to_gl(mesh.visual.uv)
+
+        uv = mesh.visual.uv
+        # if someone passed UVR cut it off
+        if uv.shape[1] != 2:
+            uv = uv[:, :2]
+        # texcoord as (2,) float
+        color_gl = ('t2f/static',
+                    uv.astype(np.float64).reshape(-1).tolist())
+
     elif smooth and len(mesh.faces) < smooth_threshold:
         # if we have a small number of faces smooth the mesh
         mesh = mesh.smoothed()
@@ -228,8 +236,6 @@ def colors_to_gl(colors, count):
 
     return colors_type, colors
 
-def uv_to_gl(uv):
-    return 't2f/static', uv.astype(np.float64).reshape(-1).tolist()
 
 def material_to_texture(material):
     if hasattr(material, 'image'):
@@ -242,6 +248,8 @@ def material_to_texture(material):
         img.save(f, format='png'); f.seek(0)
         # filename used for format guess
         gl_image = pyglet.image.load(filename='.png', file=f)
+
+    # turn image into pyglet texture
     texture = gl_image.get_texture()
 
     return  texture

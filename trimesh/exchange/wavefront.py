@@ -176,7 +176,7 @@ def load_wavefront(file_obj, resolver=None, **kwargs):
                 for usemtl in current['usemtl']:
                     try:
                         findices = usemtl_to_findices[usemtl]
-                        uv = texture[findices][:, :2]
+                        uv = texture[findices]
                         # what is the file name of the texture image
                         file_name = mtllibs[usemtl]['map_Kd']
                         # get the texture image as a PIL image

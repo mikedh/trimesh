@@ -59,7 +59,8 @@ class Trimesh(Geometry):
                  validate=False,
                  use_embree=True,
                  initial_cache={},
-                 visual=None):
+                 visual=None,
+                 **kwargs):
         """
         A Trimesh object contains a triangular 3D mesh.
 
@@ -173,6 +174,9 @@ class Trimesh(Geometry):
         if process or validate:
             self.process()
 
+        # save reference to kwargs
+        self._kwargs = kwargs
+            
     def process(self):
         """
         Do the bare minimum processing to make a mesh useful.
@@ -278,7 +282,7 @@ class Trimesh(Geometry):
         values = np.asanyarray(values, dtype=np.int64)
         # automatically triangulate quad faces
         if util.is_shape(values, (-1, 4)):
-            log.info('Triangulating quad faces')
+            log.info('triangulating quad faces')
             values = geometry.triangulate_quads(values)
         self._data['faces'] = values
 

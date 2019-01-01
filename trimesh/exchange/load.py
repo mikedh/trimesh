@@ -377,6 +377,7 @@ def load_kwargs(*args, **kwargs):
             isinstance(kwargs['faces'], dict)):
             return Trimesh(**misc.load_dict(kwargs))
         elif kwargs['faces'] is None:
+            # vertices without faces returns a PointCloud
             return PointCloud(**kwargs)
         else:
             return Trimesh(**kwargs)
@@ -396,20 +397,20 @@ def load_kwargs(*args, **kwargs):
             isinstance(args[0], dict)):
         kwargs = args[0]
 
+    # function : list of expected keys
     handlers = {handle_scene: ('graph', 'geometry'),
                 handle_trimesh_kwargs: ('vertices', 'faces'),
                 handle_trimesh_export: ('file_type', 'data')}
 
-    # make sure certain keys are removed before object creation
-    for key in ['class', 'file_type', 'resolver']:
-        if key in kwargs:
-            kwargs.pop(key)
-
+    # loop through handler functions and expected key
     handler = None
-    for k, v in handlers.items():
-        if all(i in kwargs for i in v):
-            handler = k
+    for func, expected in handlers.items():
+        if all(i in kwargs for i in expected):
+            # all expected kwargs exist
+            handler = func
+            # exit the loop as we found one
             break
+
     if handler is None:
         raise ValueError('unable to determine type!')
 
