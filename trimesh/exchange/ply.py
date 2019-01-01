@@ -395,7 +395,7 @@ def ply_ascii(elements, file_obj):
     """
 
     # get the file contents as a string
-    text = file_obj.read().decode('utf-8')
+    text = str(file_obj.read().decode('utf-8'))
 
     # split by newlines
     lines = str.splitlines(text)
