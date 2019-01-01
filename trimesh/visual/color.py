@@ -182,6 +182,11 @@ class ColorVisuals(object):
                 (3,) int, set the whole mesh this color
                 (4,) int, set the whole mesh this color
         """
+        if values is None:
+            if 'face_colors' in self._data:
+                self._data.data.pop('face_colors')
+            return
+
         colors = to_rgba(values)
 
         if (self.mesh is not None and
@@ -220,6 +225,11 @@ class ColorVisuals(object):
                 (3,) int, set the whole mesh this color
                 (4,) int, set the whole mesh this color
         """
+        if values is None:
+            if 'vertex_colors' in self._data:
+                self._data.data.pop('vertex_colors')
+            return
+
         # make sure passed values are numpy array
         values = np.asanyarray(values)
         # Ensure the color shape is sane

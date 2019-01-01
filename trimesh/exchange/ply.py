@@ -287,14 +287,20 @@ def elements_to_kwargs(elements, textures=None):
     # what keys do in-the-wild exporters use for vertices
     index_names = ['vertex_index',
                    'vertex_indices']
-
+    texcoord = None
+    
     if util.is_shape(face_data, (-1, (3, 4))):
         faces = face_data
     elif isinstance(face_data, dict):
+        # get vertex indexes
         for i in index_names:
             if i in face_data:
                 faces = face_data[i]
                 break
+        # if faces have UV coordinates defined use them
+        if 'texcoord' in face_data:
+            texcoord = face_data['texcoord']
+
     elif isinstance(face_data, np.ndarray):
         face_blob = elements['face']['data']
         # some exporters set this name to 'vertex_index'
@@ -312,18 +318,19 @@ def elements_to_kwargs(elements, textures=None):
         faces = face_blob[name]['f1']
 
         try:
-            td = face_blob['texcoord']['f1']
-            uv = np.zeros((len(vertices), 2), dtype=np.float64)
-            uv[faces.reshape(-1)] = td.reshape((-1, 2))
-            
-            kwargs['visual'] = visual.texture.TextureVisuals(
-                uv=uv,
-                image=next(iter(textures.values())))
-
+            texcoord = face_blob['texcoord']['f1']
         except (ValueError, KeyError):
             # accessing numpy arrays with named fields
-            # incorrectly is a valueerror
+            # incorrectly is a ValueError
             pass
+
+    if texcoord is not None:
+        uv = np.zeros((len(vertices), 2), dtype=np.float64)
+        uv[faces.reshape(-1)] = texcoord.reshape((-1, 2))
+            
+        kwargs['visual'] = visual.texture.TextureVisuals(
+            uv=uv,
+            image=next(iter(textures.values())))
 
     # kwargs for Trimesh or PointCloud
     kwargs.update({'faces': faces,
@@ -387,12 +394,20 @@ def ply_ascii(elements, file_obj):
               of the data section (past the header)
     """
 
-    # list of strings, split by newlines and spaces
-    blob = file_obj.read().decode('utf-8')
-    # numpy array with string type
-    raw = np.array(blob.split())
+    # get the file contents as a string
+    text = file_obj.read().decode('utf-8')
+
+    # split by newlines
+    lines = str.splitlines(text)
+
+    # get each line as an array split by whitespace
+    array = np.array([np.fromstring(i, sep=' ')
+                      for i in lines])
+    
+    # store the line position in the file
     position = 0
 
+    # loop through data we need
     for key, values in elements.items():
         # will store (start, end) column index of data
         columns = collections.deque()
@@ -403,39 +418,33 @@ def ply_ascii(elements, file_obj):
             if '$LIST' in dtype:
                 # if an element contains a list property handle it here
 
-                # the first value is a count, followed by data
-                list_count = int(raw[position + rows])
-
+                row = array[position]
+                list_count = int(row[rows])
+                
                 # ignore the count and take the data
                 columns.append([rows + 1,
                                 rows + 1 + list_count])
                 rows += list_count + 1
                 # change the datatype to just the dtype for data
+
                 values['properties'][name] = dtype.split('($LIST,)')[-1]
             else:
                 # a single column data field
                 columns.append([rows, rows + 1])
                 rows += 1
 
-        # total flat count of values
-        count = values['length'] * rows
-        # reshape the data into the specified rows
-        data = raw[position:position + count].reshape((-1, rows))
-
-        # store columns we care about by name and convert to specified data
-        # type
-        elements[key]['data'] = {n: data[:, c[0]:c[1]].astype(dt) for n, dt, c in zip(
+        # get the lines as a 2D numpy array
+        data = np.vstack(array[position:position+values['length']])
+        # offset position in file
+        position += values['length']
+        
+        # store columns we care about by name and convert to data type
+        elements[key]['data'] = {n: data[:, c[0]:c[1]].astype(dt)
+                                 for n, dt, c in zip(
             values['properties'].keys(),    # field name
             values['properties'].values(),  # data type of field
             columns)}                       # list of (start, end) column indexes
-
-        # move up our position in the file based on how many
-        # values we just read
-        position += count
-
-    if position != len(raw):
-        raise ValueError('File was unexpected length!')
-
+   
 
 def ply_binary(elements, file_obj):
     """

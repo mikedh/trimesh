@@ -169,14 +169,19 @@ class SceneViewer(pyglet.window.Window):
         # save the rendering mode from the constructor args
         self.vertex_list_mode[name] = args[1]
 
+        # if a geometry has a texture defined convert it to opengl form and save
         if hasattr(geometry, 'visual') and hasattr(geometry.visual, 'material'):
             self.textures[name] = rendering.material_to_texture(geometry.visual.material)
-
-        print(self.textures)
 
     def reset_view(self, flags=None):
         """
         Set view to the default view.
+
+        Parameters
+        --------------
+        flags : None or dict
+          If any view key passed override the default
+          e.g. {'cull': False}
         """
         self.view = {'cull': True,
                      'axis': False,
@@ -188,9 +193,12 @@ class SceneViewer(pyglet.window.Window):
                      'ball': Arcball()}
 
         try:
+            # place the arcball (rotation widget) in the center of the view
             self.view['ball'].place([self.width / 2.0,
                                      self.height / 2.0],
                                     (self.width + self.height) / 2.0)
+
+            # if any flags are passed override defaults
             if isinstance(flags, dict):
                 for k, v in flags.items():
                     if k in self.view:
@@ -298,7 +306,7 @@ class SceneViewer(pyglet.window.Window):
     def toggle_axis(self):
         """
         Toggle a rendered XYZ/RGB axis marker on, world frame,
-        or every frame. Off by default
+        or every frame. Off by default.
         """
         # cycle through three axis states
         states = [False, 'world', 'all']
@@ -356,6 +364,7 @@ class SceneViewer(pyglet.window.Window):
         except BaseException:
             # older versions of pyglet may not have this
             pass
+
         # set the new viewport size
         gl.glViewport(0, 0, width, height)
         gl.glMatrixMode(gl.GL_PROJECTION)
