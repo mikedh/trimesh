@@ -59,8 +59,7 @@ class Trimesh(Geometry):
                  validate=False,
                  use_embree=True,
                  initial_cache={},
-                 visual=None,
-                 **kwargs):
+                 visual=None):
         """
         A Trimesh object contains a triangular 3D mesh.
 
@@ -173,9 +172,6 @@ class Trimesh(Geometry):
         # if validate, will remove degenerate and duplicate faces
         if process or validate:
             self.process()
-
-        # store any passed kwargs
-        self._kwargs = kwargs
 
     def process(self):
         """

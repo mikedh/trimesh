@@ -76,7 +76,7 @@ class SceneViewer(pyglet.window.Window):
 
         # name : texture
         self.textures = {}
-        
+
         if scene.camera is not None:
             if resolution is not None:
                 if not np.allclose(resolution, scene.camera.resolution,
@@ -174,13 +174,13 @@ class SceneViewer(pyglet.window.Window):
 
         print(self.textures)
 
-        
     def reset_view(self, flags=None):
         """
         Set view to the default view.
         """
         self.view = {'cull': True,
                      'axis': False,
+                     'fullscreen': False,
                      'wireframe': False,
                      'translation': np.zeros(3),
                      'center': self.scene.centroid,
@@ -271,7 +271,6 @@ class SceneViewer(pyglet.window.Window):
         gl.glLineWidth(1.5)
         gl.glPointSize(4)
 
-        
     def toggle_culling(self):
         """
         Toggle backface culling on or off. It is on by default
@@ -287,6 +286,13 @@ class SceneViewer(pyglet.window.Window):
         looking inside meshes. Off by default.
         """
         self.view['wireframe'] = not self.view['wireframe']
+        self.update_flags()
+
+    def toggle_fullscreen(self):
+        """
+        Toggle betwen fullscreen and windowed mode.
+        """
+        self.view['fullscreen'] = not self.view['fullscreen']
         self.update_flags()
 
     def toggle_axis(self):
@@ -313,6 +319,9 @@ class SceneViewer(pyglet.window.Window):
             gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
         else:
             gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
+
+        # fullscreen or windowed
+        self.set_fullscreen(fullscreen=self.view['fullscreen'])
 
         # backface culling on or off
         if self.view['cull']:
@@ -394,6 +403,10 @@ class SceneViewer(pyglet.window.Window):
             self.toggle_axis()
         elif symbol == pyglet.window.key.Q:
             self.close()
+        elif symbol == pyglet.window.key.M:
+            self.maximize()
+        elif symbol == pyglet.window.key.F:
+            self.toggle_fullscreen()
         elif symbol == pyglet.window.key.LEFT:
             self.view['ball'].down([0, 0])
             self.view['ball'].drag([-magnitude, 0])
@@ -468,13 +481,13 @@ class SceneViewer(pyglet.window.Window):
                     # come back to this mesh later
                     continue
 
-            # 
+            #
             texture = None
             if geometry_name in self.textures:
                 texture = self.textures[geometry_name]
                 gl.glEnable(texture.target)
                 gl.glBindTexture(texture.target, texture.id)
-                
+
             # get the mode of the current geometry
             mode = self.vertex_list_mode[geometry_name]
             # draw the mesh with its transform applied
@@ -484,7 +497,7 @@ class SceneViewer(pyglet.window.Window):
 
             if texture is not None:
                 gl.glDisable(texture.target)
-            
+
     def save_image(self, file_obj):
         """
         Save the current color buffer to a file object

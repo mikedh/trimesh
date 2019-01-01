@@ -269,15 +269,17 @@ def elements_to_kwargs(elements, textures=None):
             eg: mesh = trimesh.Trimesh(**kwargs)
     """
 
-    kwargs = {'ply_data': elements}
+    kwargs = {'metadata': {'ply_raw': elements}}
+    
     vertices = np.column_stack([elements['vertex']['data'][i]
                                 for i in 'xyz'])
+
     if not util.is_shape(vertices, (-1, 3)):
         raise ValueError('Vertices were not (n,3)!')
 
     try:
         face_data = elements['face']['data']
-    except KeyError:
+    except (KeyError, ValueError):
         # some PLY files only include vertices
         face_data = None
         faces = None

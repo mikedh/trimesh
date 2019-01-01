@@ -142,7 +142,7 @@ print(mesh.bounding_box_oriented.volume,
 
 ## Viewer
 
-Trimesh includes an optional pyglet- based viewer for debugging/inspecting. In the mesh view window:
+Trimesh includes an optional `pyglet` based viewer for debugging and inspecting. In the mesh view window (opened with `mesh.show()`) the following can be used:
 
 * `mouse click + drag` rotates the view
 * `ctl + mouse click + drag` pans the view
@@ -150,7 +150,11 @@ Trimesh includes an optional pyglet- based viewer for debugging/inspecting. In t
 * `z` returns to the base view
 * `w` toggles wireframe mode
 * `c` toggles backface culling
-* `a` toggles an XYZ-RGB axis marker for the world or every mesh (keep pressing)
+* `f` toggles between fullscreen and windowed mode
+* `m` maximizes the window
+* `a` toggles an XYZ-RGB axis marker between: off, at world frame, or at every frame
+
+`jupyter` users get automatic in-line previews using `three.js` to display the mesh or scene.
 
 ## Containers
    

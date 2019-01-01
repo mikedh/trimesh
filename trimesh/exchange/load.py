@@ -374,7 +374,7 @@ def load_kwargs(*args, **kwargs):
         or PointCloud object.
         """
         if (isinstance(kwargs['vertices'], dict) or
-                isinstance(kwargs['faces'], dict)):
+            isinstance(kwargs['faces'], dict)):
             return Trimesh(**misc.load_dict(kwargs))
         elif kwargs['faces'] is None:
             return PointCloud(**kwargs)
@@ -399,6 +399,11 @@ def load_kwargs(*args, **kwargs):
     handlers = {handle_scene: ('graph', 'geometry'),
                 handle_trimesh_kwargs: ('vertices', 'faces'),
                 handle_trimesh_export: ('file_type', 'data')}
+
+    # make sure certain keys are removed before object creation
+    for key in ['class', 'file_type', 'resolver']:
+        if key in kwargs:
+            kwargs.pop(key)
 
     handler = None
     for k, v in handlers.items():
