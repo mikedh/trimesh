@@ -74,6 +74,9 @@ class SceneViewer(pyglet.window.Window):
         # store geometry rendering mode
         self.vertex_list_mode = {}
 
+        # name : texture
+        self.textures = {}
+        
         if scene.camera is not None:
             if resolution is not None:
                 if not np.allclose(resolution, scene.camera.resolution,
@@ -114,6 +117,8 @@ class SceneViewer(pyglet.window.Window):
             self.add_geometry(name=name,
                               geometry=mesh,
                               smooth=bool(smooth))
+
+        # call after geometry is added
         self.init_gl()
         self.set_size(*resolution)
         self.update_flags()
@@ -164,6 +169,12 @@ class SceneViewer(pyglet.window.Window):
         # save the rendering mode from the constructor args
         self.vertex_list_mode[name] = args[1]
 
+        if hasattr(geometry, 'visual') and hasattr(geometry.visual, 'material'):
+            self.textures[name] = rendering.material_to_texture(geometry.visual.material)
+
+        print(self.textures)
+
+        
     def reset_view(self, flags=None):
         """
         Set view to the default view.
@@ -260,6 +271,7 @@ class SceneViewer(pyglet.window.Window):
         gl.glLineWidth(1.5)
         gl.glPointSize(4)
 
+        
     def toggle_culling(self):
         """
         Toggle backface culling on or off. It is on by default
@@ -456,6 +468,13 @@ class SceneViewer(pyglet.window.Window):
                     # come back to this mesh later
                     continue
 
+            # 
+            texture = None
+            if geometry_name in self.textures:
+                texture = self.textures[geometry_name]
+                gl.glEnable(texture.target)
+                gl.glBindTexture(texture.target, texture.id)
+                
             # get the mode of the current geometry
             mode = self.vertex_list_mode[geometry_name]
             # draw the mesh with its transform applied
@@ -463,6 +482,9 @@ class SceneViewer(pyglet.window.Window):
             # pop the matrix stack as we drew what we needed to draw
             gl.glPopMatrix()
 
+            if texture is not None:
+                gl.glDisable(texture.target)
+            
     def save_image(self, file_obj):
         """
         Save the current color buffer to a file object

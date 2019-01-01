@@ -176,7 +176,7 @@ def load_wavefront(file_obj, resolver=None, **kwargs):
                 for usemtl in current['usemtl']:
                     try:
                         findices = usemtl_to_findices[usemtl]
-                        uv = texture[findices]
+                        uv = texture[findices][:, :2]
                         # what is the file name of the texture image
                         file_name = mtllibs[usemtl]['map_Kd']
                         # get the texture image as a PIL image
@@ -187,7 +187,6 @@ def load_wavefront(file_obj, resolver=None, **kwargs):
                         loaded['visual'] = visual.texture.TextureVisuals(
                             uv=uv, image=image)
                     except BaseException:
-
                         log.error('failed to load texture: {}'.format(
                             usemtl), exc_info=True)
 

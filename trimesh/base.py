@@ -1943,15 +1943,19 @@ class Trimesh(Geometry):
 
     def unmerge_vertices(self):
         """
-        Removes all face references so that every face contains three
-        unique vertex indices and no faces are adjacent.
+        Removes all face references so that every face contains
+        three unique vertex indices and no faces are adjacent.
         """
-        vertices = self.vertices[self.faces].reshape((-1, 3))
-        faces = np.arange(len(vertices),
-                          dtype=np.int64).reshape((-1, 3))
+        #vertices = self.vertices[self.faces].reshape((-1, 3))
+        faces = np.arange(len(self.faces) * 3,
+                          dtype=np.int64).reshape((-1, 3)) 
 
+        # use update_vertices to apply mask to
+        # all properties that are per-vertex
+        self.update_vertices(self.faces.reshape(-1))
+        # set faces to incrementing indexes
         self.faces = faces
-        self.vertices = vertices
+        # keep face normals as the haven't changed
         self._cache.clear(exclude=['face_normals'])
 
     def apply_translation(self, translation):

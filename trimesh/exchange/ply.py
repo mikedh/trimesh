@@ -301,20 +301,23 @@ def elements_to_kwargs(elements, textures=None):
         if len(face_blob.dtype.names) == 1:
             name = face_blob.dtype.names[0]
         elif len(face_blob.dtype.names) > 1:
+            # loop through options
             for i in face_blob.dtype.names:
                 if i in index_names:
                     name = i
                     break
+        # get faces
         faces = face_blob[name]['f1']
 
         try:
             td = face_blob['texcoord']['f1']
             uv = np.zeros((len(vertices), 2), dtype=np.float64)
             uv[faces.reshape(-1)] = td.reshape((-1, 2))
-
+            
             kwargs['visual'] = visual.texture.TextureVisuals(
                 uv=uv,
                 image=next(iter(textures.values())))
+
         except (ValueError, KeyError):
             # accessing numpy arrays with named fields
             # incorrectly is a valueerror
