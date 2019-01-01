@@ -695,9 +695,13 @@ def _read_buffers(header,
                 if 'material' not in p:
                     log.warning('texcoord without material!')
                 else:
+                    # move Y origin from top (GLTF) to bottom (us)
+                    uv = access[p['attributes']['TEXCOORD_0']].copy()
+                    uv[:, 1] = 1.0 - uv[:, 1]
+
                     # create a texture visual
                     kwargs['visual'] = visual.texture.TextureVisuals(
-                        uv=access[p['attributes']['TEXCOORD_0']],
+                        uv=uv,
                         material=materials[p['material']])
 
             # create a unique mesh name per- primitive
