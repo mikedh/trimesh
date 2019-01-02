@@ -3,16 +3,22 @@ import numpy as np
 from distutils.spawn import find_executable
 from string import Template
 
-import collections
-import subprocess
-import tempfile
 import json
+import tempfile
+import subprocess
+import collections
 
 from .. import util
 from .. import visual
 from .. import grouping
 
+from ..constants import log
 from ..resources import get_resource
+
+try:
+    import PIL
+except ImportError:
+    pass
 
 # from ply specification, and additional dtypes found in the wild
 ply_dtypes = {'char': 'i1',
@@ -33,13 +39,24 @@ ply_dtypes = {'char': 'i1',
               'double': 'f8'}
 
 
-def load_ply(file_obj, resolver=None, *args, **kwargs):
+def load_ply(file_obj,
+             resolver=None,
+             fix_texture=True,
+             *args,
+             **kwargs):
     """
     Load a PLY file from an open file object.
 
     Parameters
     ---------
     file_obj : an open file- like object
+      Source data, ASCII or binary PLY
+    resolver : trimesh.visual.resolvers.Resolver
+      Object which can resolve assets
+    fix_texture : bool
+      If True, will re- index vertices and faces
+      so vertices with different UV coordinates
+      are disconnected.
 
     Returns
     ---------
@@ -49,7 +66,7 @@ def load_ply(file_obj, resolver=None, *args, **kwargs):
     """
 
     # OrderedDict which is populated from the header
-    elements, is_ascii, texture_names = parse_header(file_obj)
+    elements, is_ascii, image_name = parse_header(file_obj)
 
     # functions will fill in elements from file_obj
     if is_ascii:
@@ -57,9 +74,19 @@ def load_ply(file_obj, resolver=None, *args, **kwargs):
     else:
         ply_binary(elements, file_obj)
 
-    textures = visual.texture.load(names=texture_names,
-                                   resolver=resolver)
-    kwargs = elements_to_kwargs(elements, textures=textures)
+    # try to load the referenced image
+    image = None
+    if image_name is not None:
+        try:
+            data = resolver.get(image_name)
+            image = PIL.Image.open(util.wrap_as_stream(data))
+        except BaseException:
+            log.warning('unable to load image!',
+                        exc_info=True)
+
+    kwargs = elements_to_kwargs(elements,
+                                fix_texture=fix_texture,
+                                image=image)
 
     return kwargs
 
@@ -191,8 +218,8 @@ def parse_header(file_obj):
       Fields and data types populated
     is_ascii : bool
       Whether the data is ASCII or binary
-    textures : list of str
-      File names of TextureFile
+    image_name : None or str
+      File name of TextureFile
     """
 
     if 'ply' not in str(file_obj.readline()):
@@ -206,8 +233,8 @@ def parse_header(file_obj):
     endian = ['<', '>'][int('big' in encoding)]
     elements = collections.OrderedDict()
 
-    # store file names of TextureFiles in the header
-    textures = []
+    # store file name of TextureFiles in the header
+    image_name = None
 
     while True:
         line = file_obj.readline()
@@ -249,13 +276,14 @@ def parse_header(file_obj):
         elif 'TextureFile' in line:
             # textures come listed like:
             # `comment TextureFile fuze_uv.jpg`
-            file_name = line[line.index('TextureFile') + 1]
-            textures.append(file_name)
+            index = line.index('TextureFile') + 1
+            if index < len(line):
+                image_name = line[index]
 
-    return elements, is_ascii, textures
+    return elements, is_ascii, image_name
 
 
-def elements_to_kwargs(elements, textures=None):
+def elements_to_kwargs(elements, fix_texture, image):
     """
     Given an elements data structure, extract the keyword
     arguments that a Trimesh object constructor will expect.
@@ -329,29 +357,41 @@ def elements_to_kwargs(elements, textures=None):
     # slightly annoying, as we have to then figure out
     # which vertices have the same position but different UV
     expected = (faces.shape[0], faces.shape[1] * 2)
-    if texcoord is not None and texcoord.shape == expected:
-        # reshape to correspond with flattened faces
-        uv = texcoord.reshape((-1, 2))
+    if (image is not None and
+        texcoord is not None and
+            texcoord.shape == expected):
 
         # vertices with the same position but different
         # UV coordinates can't be merged without it
         # looking like it went through a woodchipper
-        # round UV to OOM 10^4 as they are pixel coordinates
-        # and more precision is not necessary or desirable
-        search = np.column_stack((
-            vertices[faces.reshape(-1)],
-            (uv * 1e4).round()))
+        # in- the- wild PLY comes with things merged that
+        # probably shouldn't be so disconnect vertices
+        if fix_texture:
+            # reshape to correspond with flattened faces
+            uv = texcoord.reshape((-1, 2))
 
-        # find vertices which have the same position AND UV
-        unique, inverse = grouping.unique_rows(search)
+            # round UV to OOM 10^4 as they are pixel coordinates
+            # and more precision is not necessary or desirable
+            search = np.column_stack((
+                vertices[faces.reshape(-1)],
+                (uv * 1e4).round()))
 
-        # set vertices, faces, and UV to the new values
-        vertices = search[:, :3][unique]
-        faces = inverse.reshape((-1, 3))
-        uv = uv[unique]
+            # find vertices which have the same position AND UV
+            unique, inverse = grouping.unique_rows(search)
+
+            # set vertices, faces, and UV to the new values
+            vertices = search[:, :3][unique]
+            faces = inverse.reshape((-1, 3))
+            uv = uv[unique]
+        else:
+            # don't alter vertices, UV will look like crap
+            # if it was exported with vertices merged
+            uv = np.zeros((len(vertices), 2))
+            uv[faces.reshape(-1)] = texcoord.reshape((-1, 2))
+
         # create the visuals object for the texture
         kwargs['visual'] = visual.texture.TextureVisuals(
-            uv=uv, image=next(iter(textures.values())))
+            uv=uv, image=image)
 
     # kwargs for Trimesh or PointCloud
     kwargs.update({'faces': faces,

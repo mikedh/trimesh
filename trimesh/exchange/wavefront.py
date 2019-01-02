@@ -3,9 +3,9 @@ import collections
 import numpy as np
 
 try:
-    from PIL import Image
+    import PIL
 except ImportError:
-    Image = None
+    pass
 
 from .. import util
 from .. import visual
@@ -179,16 +179,17 @@ def load_wavefront(file_obj, resolver=None, **kwargs):
                         uv = texture[findices]
                         # what is the file name of the texture image
                         file_name = mtllibs[usemtl]['map_Kd']
-                        # get the texture image as a PIL image
-                        image = visual.texture.load(
-                            [file_name],
-                            resolver=resolver)[file_name]
+                        # get the data as bytes
+                        file_data = resolver.get(file_name)
+                        # load the bytes into a PIL image
+                        image = PIL.Image.open(
+                            util.wrap_as_stream(file_data))
                         # create a texture object
                         loaded['visual'] = visual.texture.TextureVisuals(
                             uv=uv, image=image)
                     except BaseException:
-                        log.error('failed to load texture: {}'.format(
-                            usemtl), exc_info=True)
+                        log.error('failed to load texture: {}'.format(usemtl),
+                                  exc_info=True)
 
             # apply the vertex order to the visual object
             if 'visual' in loaded:

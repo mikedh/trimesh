@@ -190,32 +190,6 @@ class PBRMaterial(Material):
             uv=uv, image=self.baseColorTexture)
 
 
-def load(names, resolver):
-    """
-    Load named textures using a resolver into a PIL image.
-
-    Parameters
-    --------------
-    names : list of str
-      Name of texture files
-    resolver : Resolver
-      Object to get raw data of texture file
-
-    Returns
-    ---------------
-    textures : dict
-      name : PIL.Image
-    """
-    # import here for soft dependency
-    import PIL
-    textures = {}
-    for name in names:
-        data = resolver.get(name)
-        image = PIL.Image.open(util.wrap_as_stream(data))
-        textures[name] = image
-    return textures
-
-
 def uv_to_color(uv, image):
     """
     Get the color in a texture image.

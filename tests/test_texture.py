@@ -89,6 +89,15 @@ class TextureTest(g.unittest.TestCase):
         m = g.get_mesh('fuze_ascii.ply', process=False)
         check_fuze(m)
 
+        # load without doing the vertex separation
+        # will look like garbage but represents original
+        # and skips "disconnect vertices with different UV"
+        b = g.get_mesh('fuze.ply',
+                       process=False,
+                       fix_texture=False)
+        assert len(b.vertices) == 502
+        assert len(b.visual.uv) == 502
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
