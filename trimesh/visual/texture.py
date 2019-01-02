@@ -13,8 +13,10 @@ class TextureVisuals(object):
                  material=None,
                  image=None):
         """
-        Store a material and UV coordinates for a mesh.
-        If passed just UV coordinates and a single image it will
+        Store a single material and per-vertex UV coordinates
+        for a mesh.
+
+        If passed UV coordinates and a single image it will
         create a SimpleMaterial for the image.
 
         Parameters
@@ -27,7 +29,7 @@ class TextureVisuals(object):
           Can be passed to automatically create material
         """
 
-        # store values we care about and hash
+        # store values we care about enough to hash
         self._data = caching.DataStore()
         # cache calculated values
         self._cache = caching.Cache(self._data.fast_hash)
@@ -140,7 +142,7 @@ class Material(object):
 
 class SimpleMaterial(Material):
     """
-    Hold a single image.
+    Hold a single image texture.
     """
 
     def __init__(self, image):

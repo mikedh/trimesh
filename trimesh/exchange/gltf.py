@@ -395,11 +395,18 @@ def _append_mesh(mesh,
     buffer_items.append(
         _byte_pad(mesh.vertices.astype(float32).tobytes()))
 
+    # for now cheap hack to display
+    # crappy version of textured meshes
+    if hasattr(mesh.visual, 'uv'):
+        visual = mesh.visual.to_color()
+    else:
+        visual = mesh.visual
+
     # make sure to append colors after other stuff to
     # not screw up the indexes of accessors or buffers
-    if mesh.visual.kind is not None:
+    if visual.kind is not None:
         # make sure colors are RGBA, this should always be true
-        assert (mesh.visual.vertex_colors.shape ==
+        assert (visual.vertex_colors.shape ==
                 (len(mesh.vertices), 4))
 
         # add the reference for vertex color
@@ -407,7 +414,7 @@ def _append_mesh(mesh,
             'attributes']['COLOR_0'] = len(tree['accessors'])
 
         color_data = _byte_pad(
-            mesh.visual.vertex_colors.astype(
+            visual.vertex_colors.astype(
                 uint8).tobytes())
 
         # the vertex color accessor data
