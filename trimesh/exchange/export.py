@@ -172,7 +172,7 @@ def export_dict(mesh, encoding=None):
     meta_keys = ['units', 'file_name', 'file_path']
     metadata = {k: v for k, v in mesh.metadata.items()
                 if k in meta_keys}
-    
+
     export = {'metadata': metadata,
               'faces': encode(mesh.faces),
               'face_normals': encode(mesh.face_normals),

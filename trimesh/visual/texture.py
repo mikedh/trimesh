@@ -51,7 +51,7 @@ class TextureVisuals(object):
     def crc(self):
         """
         Get a CRC of the stored data.
-        
+
         Returns
         --------------
         crc : int
@@ -75,14 +75,14 @@ class TextureVisuals(object):
     def uv(self, values):
         """
         Set the UV coordinates.
-        
+
         Parameters
         --------------
         values : (n, 2) float
           Pixel locations on a texture per- vertex
         """
         self._data['uv'] = np.asanyarray(values, dtype=np.float64)
-    
+
     def copy(self):
         """
         Return a copy of the current TextureVisuals object.
@@ -116,7 +116,7 @@ class TextureVisuals(object):
 
     def face_subset(self, face_index):
         """
-        Get a copy of 
+        Get a copy of
         """
         return self.copy()
 

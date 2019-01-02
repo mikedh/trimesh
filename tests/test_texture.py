@@ -21,7 +21,6 @@ class TextureTest(g.unittest.TestCase):
         colors_expected = [[75, 76, 77, 255], [51, 52, 53, 255]]
 
         assert (colors == colors_expected).all()
-        
 
     def test_fuze(self):
 
@@ -39,22 +38,27 @@ class TextureTest(g.unittest.TestCase):
             # UV coordinates should be unmerged correctly
             assert len(fuze.visual.uv) == 664
 
+            # UV coordinates shouldn't be all zero- ish
+            assert fuze.visual.uv[:, :2].ptp(axis=0).min() > 0.1
+
             # vertices should correspond with UV
             assert fuze.vertices.shape == (664, 3)
-            
+
             # convert TextureVisuals to ColorVisuals
             viz = fuze.visual.to_color()
             assert viz.kind == 'vertex'
+
             # should be actual colors defined
             assert viz.vertex_colors.ptp(axis=0).ptp() != 0
 
+        # create a local web server to test remote assets
         with g.serve_meshes() as address:
             # see if web resolvers work
             tex = g.trimesh.exchange.load.load_remote(
                 url=address + '/fuze.obj', process=False)
             check_fuze(tex)
 
-            # see if web+zip resolvers work
+            # see if web + zip resolvers work
             scene = g.trimesh.exchange.load.load_remote(
                 url=address + '/fuze.zip', process=False)
 
@@ -75,11 +79,14 @@ class TextureTest(g.unittest.TestCase):
         # zip files get loaded into a scene
         assert len(scene.geometry) == 1
         m = next(iter(scene.geometry.values()))
-
         check_fuze(m)
 
         # the PLY should have textures defined
         m = g.get_mesh('fuze.ply', process=False)
+        check_fuze(m)
+
+        # ASCII PLY should have textures defined
+        m = g.get_mesh('fuze_ascii.ply', process=False)
         check_fuze(m)
 
 

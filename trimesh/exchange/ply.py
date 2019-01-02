@@ -271,7 +271,7 @@ def elements_to_kwargs(elements, textures=None):
     """
 
     kwargs = {'metadata': {'ply_raw': elements}}
-    
+
     vertices = np.column_stack([elements['vertex']['data'][i]
                                 for i in 'xyz'])
 
@@ -289,7 +289,7 @@ def elements_to_kwargs(elements, textures=None):
     index_names = ['vertex_index',
                    'vertex_indices']
     texcoord = None
-    
+
     if util.is_shape(face_data, (-1, (3, 4))):
         faces = face_data
     elif isinstance(face_data, dict):
@@ -424,7 +424,7 @@ def ply_ascii(elements, file_obj):
     # get each line as an array split by whitespace
     array = np.array([np.fromstring(i, sep=' ')
                       for i in lines])
-    
+
     # store the line position in the file
     position = 0
 
@@ -441,7 +441,7 @@ def ply_ascii(elements, file_obj):
 
                 row = array[position]
                 list_count = int(row[rows])
-                
+
                 # ignore the count and take the data
                 columns.append([rows + 1,
                                 rows + 1 + list_count])
@@ -455,17 +455,17 @@ def ply_ascii(elements, file_obj):
                 rows += 1
 
         # get the lines as a 2D numpy array
-        data = np.vstack(array[position:position+values['length']])
+        data = np.vstack(array[position:position + values['length']])
         # offset position in file
         position += values['length']
-        
+
         # store columns we care about by name and convert to data type
         elements[key]['data'] = {n: data[:, c[0]:c[1]].astype(dt)
                                  for n, dt, c in zip(
             values['properties'].keys(),    # field name
             values['properties'].values(),  # data type of field
             columns)}                       # list of (start, end) column indexes
-   
+
 
 def ply_binary(elements, file_obj):
     """

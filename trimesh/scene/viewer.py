@@ -169,9 +169,12 @@ class SceneViewer(pyglet.window.Window):
         # save the rendering mode from the constructor args
         self.vertex_list_mode[name] = args[1]
 
-        # if a geometry has a texture defined convert it to opengl form and save
-        if hasattr(geometry, 'visual') and hasattr(geometry.visual, 'material'):
-            self.textures[name] = rendering.material_to_texture(geometry.visual.material)
+        # if a geometry has a texture defined convert it to opengl form and
+        # save
+        if hasattr(geometry, 'visual') and hasattr(
+                geometry.visual, 'material'):
+            self.textures[name] = rendering.material_to_texture(
+                geometry.visual.material)
 
     def reset_view(self, flags=None):
         """
@@ -356,7 +359,6 @@ class SceneViewer(pyglet.window.Window):
             # set the reference to None
             self._axis = None
 
-            
     def on_resize(self, width, height):
         try:
             # for high DPI screens viewport size
@@ -481,7 +483,8 @@ class SceneViewer(pyglet.window.Window):
                 self._axis.draw(mode=gl.GL_TRIANGLES)
 
             # transparent things must be drawn last
-            if (hasattr(mesh.visual, 'transparency') and mesh.visual.transparency):
+            if (hasattr(mesh.visual, 'transparency')
+                    and mesh.visual.transparency):
                 # put the current item onto the back of the queue
                 if count < count_original:
                     # add the node to be drawn last

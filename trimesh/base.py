@@ -176,7 +176,7 @@ class Trimesh(Geometry):
 
         # save reference to kwargs
         self._kwargs = kwargs
-            
+
     def process(self):
         """
         Do the bare minimum processing to make a mesh useful.
@@ -1722,7 +1722,7 @@ class Trimesh(Geometry):
     @log_time
     def smoothed(self, angle=.4):
         """
-        Return a version of the current mesh which will render 
+        Return a version of the current mesh which will render
         nicely, without changing source mesh.
 
         Parameters
@@ -1949,7 +1949,7 @@ class Trimesh(Geometry):
         """
         #vertices = self.vertices[self.faces].reshape((-1, 3))
         faces = np.arange(len(self.faces) * 3,
-                          dtype=np.int64).reshape((-1, 3)) 
+                          dtype=np.int64).reshape((-1, 3))
 
         # use update_vertices to apply mask to
         # all properties that are per-vertex

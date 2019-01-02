@@ -697,9 +697,9 @@ def _read_buffers(header,
                 else:
                     # flip UV's top- bottom to move origin to lower-left:
                     # https://github.com/KhronosGroup/glTF/issues/1021
-                    uv=access[p['attributes']['TEXCOORD_0']].copy()
+                    uv = access[p['attributes']['TEXCOORD_0']].copy()
                     uv[:, 1] = 1.0 - uv[:, 1]
-                
+
                     # create a texture visual
                     kwargs['visual'] = visual.texture.TextureVisuals(
                         uv=uv,

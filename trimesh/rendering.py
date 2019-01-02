@@ -90,7 +90,7 @@ def mesh_to_vertexlist(mesh,
 
         # get the per- vertex UV coordinates
         uv = mesh.visual.uv
-        # if someone passed (n, 3) UVR cut it off here 
+        # if someone passed (n, 3) UVR cut it off here
         if uv.shape[1] > 2:
             uv = uv[:, :2]
         # texcoord as (2,) float
@@ -252,17 +252,19 @@ def material_to_texture(material):
         img = material.image
     else:
         img = material.baseColorTexture
-        
+
     with util.BytesIO() as f:
         # export PIL image as PNG
-        img.save(f, format='png'); f.seek(0)
+        img.save(f, format='png')
+        f.seek(0)
         # filename used for format guess
         gl_image = pyglet.image.load(filename='.png', file=f)
 
     # turn image into pyglet texture
     texture = gl_image.get_texture()
 
-    return  texture
+    return texture
+
 
 def matrix_to_gl(matrix):
     """

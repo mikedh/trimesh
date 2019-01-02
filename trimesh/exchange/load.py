@@ -376,7 +376,7 @@ def load_kwargs(*args, **kwargs):
         or PointCloud object.
         """
         if (isinstance(kwargs['vertices'], dict) or
-            isinstance(kwargs['faces'], dict)):
+                isinstance(kwargs['faces'], dict)):
             return Trimesh(**misc.load_dict(kwargs))
         elif kwargs['faces'] is None:
             # vertices without faces returns a PointCloud
