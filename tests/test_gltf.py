@@ -9,10 +9,23 @@ class GLTFTest(g.unittest.TestCase):
     def test_duck(self):
         scene = g.get_mesh('Duck.glb')
 
+        # should have one mesh
         assert len(scene.geometry) == 1
+        # should be watertight
+        assert next(iter(scene.geometry.values())).is_volume
 
-        for name, model in scene.geometry.items():
-            assert model.is_volume
+        # make sure export doesn't crash
+        export = scene.export('glb')
+        assert len(export) > 0
+
+    def test_tex_export(self):
+        # load textured PLY
+        mesh = g.get_mesh('fuze.ply')
+        assert hasattr(mesh.visual, 'uv')
+
+        # make sure export as GLB doesn't crash
+        export = mesh.scene().export(file_type='glb')
+        assert len(export) > 0
 
     def test_cesium(self):
         """
@@ -23,6 +36,10 @@ class GLTFTest(g.unittest.TestCase):
         assert len(s.geometry) == 4
         # every geometry displayed once, except wheels twice
         assert len(s.graph.nodes_geometry) == 5
+
+        # make sure export doesn't crash
+        export = s.export('glb')
+        assert len(export) > 0
 
     def test_units(self):
         """
