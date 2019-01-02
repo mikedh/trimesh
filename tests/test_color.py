@@ -136,10 +136,6 @@ class VisualTest(g.unittest.TestCase):
 
         # cache should be dumped yo
         s1 = m.smoothed()
-        if s1.visual.face_colors.ptp(axis=0).max() == 0:
-            from IPython import embed
-            embed()
-
         assert s1.visual.face_colors.ptp(axis=0).max() != 0
 
         # do the same check on vertex color
@@ -183,7 +179,7 @@ class VisualTest(g.unittest.TestCase):
         values = g.np.array([-1.0, 0.0, 1.0, 2.0])
         # should clamp
         colors = g.trimesh.visual.linear_color_map(values)
-        print(colors)
+
         assert g.np.allclose(colors[0], [255, 0, 0, 255])
         assert g.np.allclose(colors[1], [255, 0, 0, 255])
         assert g.np.allclose(colors[2], [0, 255, 0, 255])

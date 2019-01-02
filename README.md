@@ -14,7 +14,7 @@ Pull requests are appreciated and responded to promptly! If you'd like to contri
 ## Basic Installation
 
 The minimal requirements to import trimesh are
-[`numpy`](http://www.numpy.org/), [`scipy`](http://www.scipy.org) and [`networkx`](https://networkx.github.io). Installing other packages mentioned adds functionality but is **not required**.
+[numpy](http://www.numpy.org/), [scipy](http://www.scipy.org) and [networkx](https://networkx.github.io). Installing other packages mentioned adds functionality but is **not required**.
 
 For the easiest install with only these minimal dependencies:
 
