@@ -50,6 +50,31 @@ class TextureVisuals(object):
         """
         self._cache.verify()
 
+    @property
+    def kind(self):
+        """
+        Return the type of visual data stored
+
+        Returns
+        ----------
+        kind : str
+          What type of visuals are defined
+        """
+        return 'texture'
+
+    @property
+    def defined(self):
+        """
+        Check if any data is stored
+
+        Returns
+        ----------
+        defined : bool
+          Are UV coordinates and images set?
+        """
+        ok = self.material is not None and self.uv is not None
+        return ok
+
     def crc(self):
         """
         Get a CRC of the stored data.
