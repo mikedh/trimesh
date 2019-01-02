@@ -565,8 +565,7 @@ class Scene(Geometry):
                             break
                 else:
                     # if file_type is not a dict, try to export everything in the
-                    # scene as that value (probably a single string, like
-                    # 'ply')
+                    # the scene as that value like 'ply'
                     export_type = file_type
                 exported = {'data': geometry.export(file_type=export_type),
                             'file_type': export_type}

@@ -16,27 +16,73 @@ class TextureVisuals(object):
         Store a material and UV coordinates for a mesh.
         If passed just UV coordinates and a single image it will
         create a SimpleMaterial for the image.
+
+        Parameters
+        --------------
+        uv : (n, 2) float
+          UV coordinates for the mesh
+        material : Material
+          Store images and properties
+        image : PIL.Image
+          Can be passed to automatically create material
         """
 
+        # store values we care about and hash
         self._data = caching.DataStore()
+        # cache calculated values
         self._cache = caching.Cache(self._data.fast_hash)
 
-        # should be (n, 2) float, where (n == len(mesh.vertices))
-        self.uv = np.asanyarray(uv, dtype=np.float64)
+        # should be (n, 2) float
+        self.uv = uv
 
-        # if an image is passed create a SimpleMaterial
         if material is None and image is not None:
+            # if an image is passed create a SimpleMaterial
             self.material = SimpleMaterial(image=image)
         else:
             # may be None
             self.material = material
 
     def _verify_crc(self):
+        """
+        Dump the cache if anything in self._data has changed.
+        """
         self._cache.verify()
 
     def crc(self):
+        """
+        Get a CRC of the stored data.
+        
+        Returns
+        --------------
+        crc : int
+          Hash of items in self._data
+        """
         return self._data.crc()
 
+    @property
+    def uv(self):
+        """
+        Get the stored UV coordinates.
+
+        Returns
+        ------------
+        uv : (n, 2) float
+          Pixel position per- vertex
+        """
+        return self._data['uv']
+
+    @uv.setter
+    def uv(self, values):
+        """
+        Set the UV coordinates.
+        
+        Parameters
+        --------------
+        values : (n, 2) float
+          Pixel locations on a texture per- vertex
+        """
+        self._data['uv'] = np.asanyarray(values, dtype=np.float64)
+    
     def copy(self):
         """
         Return a copy of the current TextureVisuals object.
@@ -44,7 +90,7 @@ class TextureVisuals(object):
         Returns
         ----------
         copied : TextureVisuals
-          Contains the same information as self
+          Contains the same information in a new object
         """
         copied = TextureVisuals(
             uv=self.uv.copy(),
@@ -69,7 +115,10 @@ class TextureVisuals(object):
         return vis
 
     def face_subset(self, face_index):
-        pass
+        """
+        Get a copy of 
+        """
+        return self.copy()
 
     def update_vertices(self, mask):
         """
@@ -85,7 +134,8 @@ class TextureVisuals(object):
 
 
 class Material(object):
-    pass
+    def __init__(self, *args, **kwargs):
+        raise NotImplementedError('material must be subclassed!')
 
 
 class SimpleMaterial(Material):
@@ -196,7 +246,7 @@ def uv_to_color(uv, image):
 
     # access colors from pixel locations
     # make sure image is RGBA before getting values
-    colors = np.asarray(image.convert('RGBA'))[y, x]
+    colors = np.asanyarray(image.convert('RGBA'))[y, x]
 
     # conversion to RGBA should have corrected shape
     assert colors.ndim == 2 and colors.shape[1] == 4

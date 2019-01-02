@@ -985,7 +985,7 @@ class Trimesh(Geometry):
         distance : float or None
           If specified overrides tol.merge
         """
-        grouping.merge_vertices_hash(self, distance=distance)
+        grouping.merge_vertices(self, distance=distance)
 
     def update_vertices(self, mask, inverse=None):
         """
