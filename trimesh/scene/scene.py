@@ -809,16 +809,16 @@ class Scene(Geometry):
 
         if viewer is None:
             # check to see if we are in a notebook or not
-            from .viewerJS import in_notebook
+            from ..viewer import in_notebook
             viewer = ['gl', 'notebook'][int(in_notebook())]
 
         if viewer == 'gl':
             # this imports pyglet, and will raise an ImportError
             # if pyglet is not available
-            from .viewer import SceneViewer
+            from ..viewer import SceneViewer
             return SceneViewer(self, **kwargs)
         elif viewer == 'notebook':
-            from .viewerJS import scene_to_notebook
+            from ..viewer import scene_to_notebook
             return scene_to_notebook(self, **kwargs)
         else:
             raise ValueError('viewer must be "gl", "notebook", or None')
