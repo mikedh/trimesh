@@ -328,7 +328,7 @@ class SceneViewer(pyglet.window.Window):
         else:
             gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
 
-        # fullscreen or windowed
+        # set fullscreen or windowed
         self.set_fullscreen(fullscreen=self.view['fullscreen'])
 
         # backface culling on or off
@@ -356,6 +356,7 @@ class SceneViewer(pyglet.window.Window):
             # set the reference to None
             self._axis = None
 
+            
     def on_resize(self, width, height):
         try:
             # for high DPI screens viewport size

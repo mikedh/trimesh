@@ -1722,8 +1722,8 @@ class Trimesh(Geometry):
     @log_time
     def smoothed(self, angle=.4):
         """
-        Return a version of the current mesh which will render nicely.
-        Does not change current mesh in any way.
+        Return a version of the current mesh which will render 
+        nicely, without changing source mesh.
 
         Parameters
         -------------
@@ -1743,6 +1743,7 @@ class Trimesh(Geometry):
         cached = self.visual._cache['smoothed']
         if cached is not None:
             return cached
+
         smoothed = graph.smoothed(self, angle)
         self.visual._cache['smoothed'] = smoothed
         return smoothed

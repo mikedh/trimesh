@@ -239,7 +239,7 @@ def uv_to_color(uv, image):
     x = (uv[:, 0] * (image.width - 1))
     y = ((1 - uv[:, 1]) * (image.height - 1))
 
-    # convert to in and wrap to image
+    # convert to int and wrap to image
     # size in the manner of GL_REPEAT
     x = x.round().astype(np.int64) % image.width
     y = y.round().astype(np.int64) % image.height

@@ -221,7 +221,8 @@ def load_mesh(file_obj,
 def load_compressed(file_obj,
                     file_type=None,
                     resolver=None,
-                    mixed=False):
+                    mixed=False,
+                    **kwargs):
     """
     Given a compressed archive load all the geometry that
     we can from it.
@@ -293,7 +294,8 @@ def load_compressed(file_obj,
         geometry = load(file_obj=data,
                         file_type=compressed_type,
                         resolver=resolver,
-                        metadata=metadata)
+                        metadata=metadata,
+                        **kwargs)
         geometries.append(geometry)
 
     # if we opened the file in this function

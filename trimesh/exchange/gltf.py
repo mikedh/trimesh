@@ -569,11 +569,8 @@ def _parse_materials(header, views):
             # mime = img['mimeType']
             try:
                 # load the buffer into a PIL image
-                # flip top- bottom to move origin to lower-left:
-                # https://github.com/KhronosGroup/glTF/issues/1021
                 images[i] = PIL.Image.open(
-                    util.wrap_as_stream(blob)).transpose(
-                        PIL.Image.FLIP_TOP_BOTTOM)
+                    util.wrap_as_stream(blob))
             except BaseException:
                 log.error('failed to load image!',
                           exc_info=True)
@@ -698,9 +695,14 @@ def _read_buffers(header,
                 if 'material' not in p:
                     log.warning('texcoord without material!')
                 else:
+                    # flip UV's top- bottom to move origin to lower-left:
+                    # https://github.com/KhronosGroup/glTF/issues/1021
+                    uv=access[p['attributes']['TEXCOORD_0']].copy()
+                    uv[:, 1] = 1.0 - uv[:, 1]
+                
                     # create a texture visual
                     kwargs['visual'] = visual.texture.TextureVisuals(
-                        uv=access[p['attributes']['TEXCOORD_0']],
+                        uv=uv,
                         material=materials[p['material']])
 
             # create a unique mesh name per- primitive
