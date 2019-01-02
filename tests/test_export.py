@@ -9,7 +9,12 @@ class ExportTest(g.unittest.TestCase):
     def test_export(self):
         export_types = list(
             g.trimesh.exchange.export._mesh_exporters.keys())
-        for mesh in g.get_meshes(8):
+
+        meshes = list(g.get_meshes(8))
+        # make sure we've got something with texture
+        meshes.append(g.get_mesh('fuze.obj'))
+
+        for mesh in meshes:
             for file_type in export_types:
                 export = mesh.export(file_type=file_type)
                 if export is None:
