@@ -483,7 +483,8 @@ class SceneViewer(pyglet.window.Window):
                 self._axis.draw(mode=gl.GL_TRIANGLES)
 
             # transparent things must be drawn last
-            if (hasattr(mesh.visual, 'transparency')
+            if (hasattr(mesh, 'visual') and
+                hasattr(mesh.visual, 'transparency')
                     and mesh.visual.transparency):
                 # put the current item onto the back of the queue
                 if count < count_original:
