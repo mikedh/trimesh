@@ -2,8 +2,6 @@ import os
 
 import numpy as np
 
-from .. import io
-
 from ..constants import log
 from ..decomposition import convex_decomposition
 from ..version import __version__ as trimesh_version
@@ -32,7 +30,8 @@ def export_urdf(mesh,
     """
 
     import lxml.etree as et
-
+    # TODO: fix circular import
+    from .export import export_mesh
     # Extract the save directory and the file name
     fullpath = os.path.abspath(directory)
     name = os.path.basename(fullpath)
@@ -72,7 +71,7 @@ def export_urdf(mesh,
         piece_name = '{}_convex_piece_{}'.format(name, i)
         piece_filename = '{}.obj'.format(piece_name)
         piece_filepath = os.path.join(fullpath, piece_filename)
-        io.export.export_mesh(piece, piece_filepath)
+        export_mesh(piece, piece_filepath)
 
         # Set the mass properties of the piece
         piece.center_mass = mesh.center_mass

@@ -164,7 +164,16 @@ def export_dict(mesh, encoding=None):
             return util.array_to_encoded(item,
                                          dtype=dtype,
                                          encoding=encoding)
-    export = {'metadata': util.tolist(mesh.metadata),
+
+    # metadata keys we explicitly want to preserve
+    # sometimes there are giant datastructures we don't
+    # care about in metadata which causes exports to be
+    # extremely slow, so skip all but known good keys
+    meta_keys = ['units', 'file_name', 'file_path']
+    metadata = {k: v for k, v in mesh.metadata.items()
+                if k in meta_keys}
+
+    export = {'metadata': metadata,
               'faces': encode(mesh.faces),
               'face_normals': encode(mesh.face_normals),
               'vertices': encode(mesh.vertices)}

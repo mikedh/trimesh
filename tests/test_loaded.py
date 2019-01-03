@@ -26,7 +26,7 @@ class LoaderTest(g.unittest.TestCase):
         """
         # get a unit cube from localhost
         with g.serve_meshes() as address:
-            mesh = g.trimesh.io.load.load_remote(
+            mesh = g.trimesh.exchange.load.load_remote(
                 url=address + '/unit_cube.STL')
 
         assert g.np.isclose(mesh.volume, 1.0)

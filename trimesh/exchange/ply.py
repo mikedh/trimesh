@@ -3,14 +3,22 @@ import numpy as np
 from distutils.spawn import find_executable
 from string import Template
 
-import collections
-import subprocess
-import tempfile
 import json
+import tempfile
+import subprocess
+import collections
 
 from .. import util
+from .. import visual
+from .. import grouping
 
+from ..constants import log
 from ..resources import get_resource
+
+try:
+    import PIL
+except ImportError:
+    pass
 
 # from ply specification, and additional dtypes found in the wild
 ply_dtypes = {'char': 'i1',
@@ -31,13 +39,24 @@ ply_dtypes = {'char': 'i1',
               'double': 'f8'}
 
 
-def load_ply(file_obj, *args, **kwargs):
+def load_ply(file_obj,
+             resolver=None,
+             fix_texture=True,
+             *args,
+             **kwargs):
     """
     Load a PLY file from an open file object.
 
     Parameters
     ---------
     file_obj : an open file- like object
+      Source data, ASCII or binary PLY
+    resolver : trimesh.visual.resolvers.Resolver
+      Object which can resolve assets
+    fix_texture : bool
+      If True, will re- index vertices and faces
+      so vertices with different UV coordinates
+      are disconnected.
 
     Returns
     ---------
@@ -47,7 +66,7 @@ def load_ply(file_obj, *args, **kwargs):
     """
 
     # OrderedDict which is populated from the header
-    elements, is_ascii = read_ply_header(file_obj)
+    elements, is_ascii, image_name = parse_header(file_obj)
 
     # functions will fill in elements from file_obj
     if is_ascii:
@@ -55,7 +74,20 @@ def load_ply(file_obj, *args, **kwargs):
     else:
         ply_binary(elements, file_obj)
 
-    kwargs = elements_to_kwargs(elements)
+    # try to load the referenced image
+    image = None
+    if image_name is not None:
+        try:
+            data = resolver.get(image_name)
+            image = PIL.Image.open(util.wrap_as_stream(data))
+        except BaseException:
+            log.warning('unable to load image!',
+                        exc_info=True)
+
+    kwargs = elements_to_kwargs(elements,
+                                fix_texture=fix_texture,
+                                image=image)
+
     return kwargs
 
 
@@ -170,29 +202,39 @@ def export_ply(mesh,
     return export
 
 
-def read_ply_header(file_obj):
+def parse_header(file_obj):
     """
     Read the ASCII header of a PLY file, and leave the file object
     at the position of the start of data but past the header.
 
     Parameters
     -----------
-    file_obj: open file object, positioned at the start of the file
+    file_obj : open file object
+      Positioned at the start of the file
 
     Returns
     -----------
-    elements: OrderedDict object, with fields and data types populated
-    is_ascii: bool, whether the data is ASCII or binary
+    elements : collections.OrderedDict
+      Fields and data types populated
+    is_ascii : bool
+      Whether the data is ASCII or binary
+    image_name : None or str
+      File name of TextureFile
     """
 
     if 'ply' not in str(file_obj.readline()):
-        raise ValueError('This aint a ply file')
+        raise ValueError('not a ply file!')
 
+    # collect the encoding: binary or ASCII
     encoding = file_obj.readline().decode('utf-8').strip().lower()
-    encoding_ascii = 'ascii' in encoding
+    is_ascii = 'ascii' in encoding
 
+    # big or little endian
     endian = ['<', '>'][int('big' in encoding)]
     elements = collections.OrderedDict()
+
+    # store file name of TextureFiles in the header
+    image_name = None
 
     while True:
         line = file_obj.readline()
@@ -200,18 +242,27 @@ def read_ply_header(file_obj):
             raise ValueError("Header not terminated properly!")
         line = line.decode('utf-8').strip().split()
 
+        # we're done
         if 'end_header' in line:
             break
 
+        # elements are groups of properties
         if 'element' in line[0]:
+            # we got a new element so add it
             name, length = line[1:]
-            elements[name] = {'length': int(length),
-                              'properties': collections.OrderedDict()}
+            elements[name] = {
+                'length': int(length),
+                'properties': collections.OrderedDict()}
+        # a property is a member of an element
         elif 'property' in line[0]:
+            # is the property a simple single value, like:
+            # `propert float x`
             if len(line) == 3:
                 dtype, field = line[1:]
                 elements[name]['properties'][
                     str(field)] = endian + ply_dtypes[dtype]
+            # is the property a painful list, like:
+            # `property list uchar int vertex_indices`
             elif 'list' in line[1]:
                 dtype_count, dtype, field = line[2:]
                 elements[name]['properties'][
@@ -221,10 +272,18 @@ def read_ply_header(file_obj):
                     ', ($LIST,)' +
                     endian +
                     ply_dtypes[dtype])
-    return elements, encoding_ascii
+        # referenced as a file name
+        elif 'TextureFile' in line:
+            # textures come listed like:
+            # `comment TextureFile fuze_uv.jpg`
+            index = line.index('TextureFile') + 1
+            if index < len(line):
+                image_name = line[index]
+
+    return elements, is_ascii, image_name
 
 
-def elements_to_kwargs(elements):
+def elements_to_kwargs(elements, fix_texture, image):
     """
     Given an elements data structure, extract the keyword
     arguments that a Trimesh object constructor will expect.
@@ -238,14 +297,18 @@ def elements_to_kwargs(elements):
     kwargs: dict, with keys for Trimesh constructor.
             eg: mesh = trimesh.Trimesh(**kwargs)
     """
+
+    kwargs = {'metadata': {'ply_raw': elements}}
+
     vertices = np.column_stack([elements['vertex']['data'][i]
                                 for i in 'xyz'])
+
     if not util.is_shape(vertices, (-1, 3)):
         raise ValueError('Vertices were not (n,3)!')
 
     try:
         face_data = elements['face']['data']
-    except KeyError:
+    except (KeyError, ValueError):
         # some PLY files only include vertices
         face_data = None
         faces = None
@@ -253,50 +316,104 @@ def elements_to_kwargs(elements):
     # what keys do in-the-wild exporters use for vertices
     index_names = ['vertex_index',
                    'vertex_indices']
+    texcoord = None
 
     if util.is_shape(face_data, (-1, (3, 4))):
         faces = face_data
     elif isinstance(face_data, dict):
+        # get vertex indexes
         for i in index_names:
             if i in face_data:
                 faces = face_data[i]
                 break
+        # if faces have UV coordinates defined use them
+        if 'texcoord' in face_data:
+            texcoord = face_data['texcoord']
+
     elif isinstance(face_data, np.ndarray):
-        blob = elements['face']['data']
+        face_blob = elements['face']['data']
         # some exporters set this name to 'vertex_index'
         # and some others use 'vertex_indices' but we really
         # don't care about the name unless there are multiple
-        if len(blob.dtype.names) == 1:
-            name = blob.dtype.names[0]
-        elif len(blob.dtype.names) > 1:
-            for i in blob.dtype.names:
+        if len(face_blob.dtype.names) == 1:
+            name = face_blob.dtype.names[0]
+        elif len(face_blob.dtype.names) > 1:
+            # loop through options
+            for i in face_blob.dtype.names:
                 if i in index_names:
                     name = i
                     break
-        faces = elements['face']['data'][name]['f1']
+        # get faces
+        faces = face_blob[name]['f1']
+
+        try:
+            texcoord = face_blob['texcoord']['f1']
+        except (ValueError, KeyError):
+            # accessing numpy arrays with named fields
+            # incorrectly is a ValueError
+            pass
+
+    # PLY stores texture coordinates per- face which is
+    # slightly annoying, as we have to then figure out
+    # which vertices have the same position but different UV
+    expected = (faces.shape[0], faces.shape[1] * 2)
+    if (image is not None and
+        texcoord is not None and
+            texcoord.shape == expected):
+
+        # vertices with the same position but different
+        # UV coordinates can't be merged without it
+        # looking like it went through a woodchipper
+        # in- the- wild PLY comes with things merged that
+        # probably shouldn't be so disconnect vertices
+        if fix_texture:
+            # reshape to correspond with flattened faces
+            uv = texcoord.reshape((-1, 2))
+
+            # round UV to OOM 10^4 as they are pixel coordinates
+            # and more precision is not necessary or desirable
+            search = np.column_stack((
+                vertices[faces.reshape(-1)],
+                (uv * 1e4).round()))
+
+            # find vertices which have the same position AND UV
+            unique, inverse = grouping.unique_rows(search)
+
+            # set vertices, faces, and UV to the new values
+            vertices = search[:, :3][unique]
+            faces = inverse.reshape((-1, 3))
+            uv = uv[unique]
+        else:
+            # don't alter vertices, UV will look like crap
+            # if it was exported with vertices merged
+            uv = np.zeros((len(vertices), 2))
+            uv[faces.reshape(-1)] = texcoord.reshape((-1, 2))
+
+        # create the visuals object for the texture
+        kwargs['visual'] = visual.texture.TextureVisuals(
+            uv=uv, image=image)
 
     # kwargs for Trimesh or PointCloud
-    result = {'faces': faces,
-              'vertices': vertices,
-              'ply_data': elements}
+    kwargs.update({'faces': faces,
+                   'vertices': vertices})
 
     # if both vertex and face color are defined pick the one
     # with the most going on
     colors = []
     signal = []
-    if result['faces'] is not None:
+    if kwargs['faces'] is not None:
         f_color, f_signal = element_colors(elements['face'])
         colors.append({'face_colors': f_color})
         signal.append(f_signal)
-    if result['vertices'] is not None:
+    if kwargs['vertices'] is not None:
         v_color, v_signal = element_colors(elements['vertex'])
         colors.append({'vertex_colors': v_color})
         signal.append(v_signal)
 
     # add the winning colors to the result
-    result.update(colors[np.argmax(signal)])
+    kwargs.update(colors[np.argmax(signal)])
 
-    return result
+    return kwargs
 
 
 def element_colors(element):
@@ -338,12 +455,20 @@ def ply_ascii(elements, file_obj):
               of the data section (past the header)
     """
 
-    # list of strings, split by newlines and spaces
-    blob = file_obj.read().decode('utf-8')
-    # numpy array with string type
-    raw = np.array(blob.split())
+    # get the file contents as a string
+    text = str(file_obj.read().decode('utf-8'))
+
+    # split by newlines
+    lines = str.splitlines(text)
+
+    # get each line as an array split by whitespace
+    array = np.array([np.fromstring(i, sep=' ')
+                      for i in lines])
+
+    # store the line position in the file
     position = 0
 
+    # loop through data we need
     for key, values in elements.items():
         # will store (start, end) column index of data
         columns = collections.deque()
@@ -354,38 +479,32 @@ def ply_ascii(elements, file_obj):
             if '$LIST' in dtype:
                 # if an element contains a list property handle it here
 
-                # the first value is a count, followed by data
-                list_count = int(raw[position + rows])
+                row = array[position]
+                list_count = int(row[rows])
 
                 # ignore the count and take the data
                 columns.append([rows + 1,
                                 rows + 1 + list_count])
                 rows += list_count + 1
                 # change the datatype to just the dtype for data
+
                 values['properties'][name] = dtype.split('($LIST,)')[-1]
             else:
                 # a single column data field
                 columns.append([rows, rows + 1])
                 rows += 1
 
-        # total flat count of values
-        count = values['length'] * rows
-        # reshape the data into the specified rows
-        data = raw[position:position + count].reshape((-1, rows))
+        # get the lines as a 2D numpy array
+        data = np.vstack(array[position:position + values['length']])
+        # offset position in file
+        position += values['length']
 
-        # store columns we care about by name and convert to specified data
-        # type
-        elements[key]['data'] = {n: data[:, c[0]:c[1]].astype(dt) for n, dt, c in zip(
+        # store columns we care about by name and convert to data type
+        elements[key]['data'] = {n: data[:, c[0]:c[1]].astype(dt)
+                                 for n, dt, c in zip(
             values['properties'].keys(),    # field name
             values['properties'].values(),  # data type of field
             columns)}                       # list of (start, end) column indexes
-
-        # move up our position in the file based on how many
-        # values we just read
-        position += count
-
-    if position != len(raw):
-        raise ValueError('File was unexpected length!')
 
 
 def ply_binary(elements, file_obj):
@@ -491,7 +610,8 @@ def export_draco(mesh):
 
     Returns
     ----------
-    data : str or bytes, data
+    data : str or bytes
+      DRC file bytes
     """
     with tempfile.NamedTemporaryFile(suffix='.ply') as temp_ply:
         temp_ply.write(export_ply(mesh))
@@ -511,18 +631,19 @@ def export_draco(mesh):
     return data
 
 
-def load_draco(file_obj, file_type=None):
+def load_draco(file_obj, **kwargs):
     """
     Load a mesh from Google's Draco format.
 
     Parameters
     ----------
-    file_obj  : open file- like object
-    file_type : unused
+    file_obj  : file- like object
+      Contains data
 
     Returns
     ----------
-    kwargs : dict, kwargs to construct a Trimesh object
+    kwargs : dict
+      Keyword arguments to construct a Trimesh object
     """
 
     with tempfile.NamedTemporaryFile(suffix='.drc') as temp_drc:

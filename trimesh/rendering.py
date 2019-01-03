@@ -80,8 +80,27 @@ def mesh_to_vertexlist(mesh,
     args : (7,) tuple
       Args for vertex list constructor
     """
-    if smooth and len(mesh.faces) < smooth_threshold:
-        # if we have a small number of faces smooth the mesh
+
+    if hasattr(mesh.visual, 'uv'):
+        # if the mesh has texture defined pass it to pyglet
+        vertex_count = len(mesh.vertices)
+        normals = mesh.vertex_normals.reshape(-1).tolist()
+        faces = mesh.faces.reshape(-1).tolist()
+        vertices = mesh.vertices.reshape(-1).tolist()
+
+        # get the per- vertex UV coordinates
+        uv = mesh.visual.uv
+        # if someone passed (n, 3) UVR cut it off here
+        if uv.shape[1] > 2:
+            uv = uv[:, :2]
+        # texcoord as (2,) float
+        color_gl = ('t2f/static',
+                    uv.astype(np.float64).reshape(-1).tolist())
+
+    elif smooth and len(mesh.faces) < smooth_threshold:
+        # if we have a small number of faces and colors defined
+        # smooth the  mesh by merging vertices of faces below
+        # the threshold angle
         mesh = mesh.smoothed()
         vertex_count = len(mesh.vertices)
         normals = mesh.vertex_normals.reshape(-1).tolist()
@@ -90,13 +109,19 @@ def mesh_to_vertexlist(mesh,
         color_gl = colors_to_gl(mesh.visual.vertex_colors,
                                 vertex_count)
     else:
+        # we don't have textures or want to smooth so
+        # send a polygon soup of disconnected triangles to opengl
         vertex_count = len(mesh.triangles) * 3
-        normals = np.tile(mesh.face_normals, (1, 3)).reshape(-1).tolist()
+        normals = np.tile(mesh.face_normals,
+                          (1, 3)).reshape(-1).tolist()
         vertices = mesh.triangles.reshape(-1).tolist()
         faces = np.arange(vertex_count).tolist()
-        colors = np.tile(mesh.visual.face_colors, (1, 3)).reshape((-1, 4))
+        colors = np.tile(mesh.visual.face_colors,
+                         (1, 3)).reshape((-1, 4))
         color_gl = colors_to_gl(colors, vertex_count)
 
+    # create the ordered tuple for pyglet, use like:
+    # `batch.add_indexed(*args)`
     args = (vertex_count,    # number of vertices
             GL_TRIANGLES,    # mode
             group,           # group
@@ -220,6 +245,25 @@ def colors_to_gl(colors, count):
         colors_type = 'c3f/static'
 
     return colors_type, colors
+
+
+def material_to_texture(material):
+    if hasattr(material, 'image'):
+        img = material.image
+    else:
+        img = material.baseColorTexture
+
+    with util.BytesIO() as f:
+        # export PIL image as PNG
+        img.save(f, format='png')
+        f.seek(0)
+        # filename used for format guess
+        gl_image = pyglet.image.load(filename='.png', file=f)
+
+    # turn image into pyglet texture
+    texture = gl_image.get_texture()
+
+    return texture
 
 
 def matrix_to_gl(matrix):

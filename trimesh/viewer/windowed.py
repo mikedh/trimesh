@@ -3,13 +3,13 @@ import pyglet.gl as gl
 
 import numpy as np
 
-import tempfile
 import platform
 import collections
 
 from .. import rendering
 from ..transformations import Arcball
-from ..util import log
+from ..util import log, BytesIO
+from ..visual import to_rgba
 
 # smooth only when fewer faces than this
 _SMOOTH_MAX_FACES = 100000
@@ -27,13 +27,43 @@ class SceneViewer(pyglet.window.Window):
                  callback=None,
                  callback_period=None,
                  **kwargs):
+        """
+        Create a window that will display a trimesh.Scene object
+        in an OpenGL context via pyglet.
 
+        Parameters
+        ---------------
+        scene : trimesh.scene.Scene
+          Scene with geometry and transforms
+        smooth : bool
+          If True try to smooth shade things
+        flags : dict
+          If passed apply keys to self.view:
+          ['cull', 'wireframe', etc]
+        visible : bool
+          Display window or not
+        resolution : (2,) int
+          Initial resolution of window
+        start_loop : bool
+          Call pyglet.app.run() at the end of init
+        callback : function
+          A function which can be called periodically to
+          update things in the scene
+        callback_period : float
+          How often to call the callback, in seconds
+        kwargs : dict
+          Additional arguments to pass, including
+          'background' for to set background color
+        """
         self.scene = self._scene = scene
         self.callback = callback
         self.callback_period = callback_period
         self.scene._redraw = self._redraw
         self.reset_view(flags=flags)
         self.batch = pyglet.graphics.Batch()
+
+        # store kwargs
+        self.kwargs = kwargs
 
         # store a vertexlist for an axis marker
         self._axis = None
@@ -43,6 +73,9 @@ class SceneViewer(pyglet.window.Window):
         self.vertex_list_hash = {}
         # store geometry rendering mode
         self.vertex_list_mode = {}
+
+        # name : texture
+        self.textures = {}
 
         if scene.camera is not None:
             if resolution is not None:
@@ -84,6 +117,8 @@ class SceneViewer(pyglet.window.Window):
             self.add_geometry(name=name,
                               geometry=mesh,
                               smooth=bool(smooth))
+
+        # call after geometry is added
         self.init_gl()
         self.set_size(*resolution)
         self.update_flags()
@@ -134,12 +169,26 @@ class SceneViewer(pyglet.window.Window):
         # save the rendering mode from the constructor args
         self.vertex_list_mode[name] = args[1]
 
+        # if a geometry has a texture defined convert it to opengl form and
+        # save
+        if hasattr(geometry, 'visual') and hasattr(
+                geometry.visual, 'material'):
+            self.textures[name] = rendering.material_to_texture(
+                geometry.visual.material)
+
     def reset_view(self, flags=None):
         """
         Set view to the default view.
+
+        Parameters
+        --------------
+        flags : None or dict
+          If any view key passed override the default
+          e.g. {'cull': False}
         """
         self.view = {'cull': True,
                      'axis': False,
+                     'fullscreen': False,
                      'wireframe': False,
                      'translation': np.zeros(3),
                      'center': self.scene.centroid,
@@ -147,9 +196,12 @@ class SceneViewer(pyglet.window.Window):
                      'ball': Arcball()}
 
         try:
+            # place the arcball (rotation widget) in the center of the view
             self.view['ball'].place([self.width / 2.0,
                                      self.height / 2.0],
                                     (self.width + self.height) / 2.0)
+
+            # if any flags are passed override defaults
             if isinstance(flags, dict):
                 for k, v in flags.items():
                     if k in self.view:
@@ -162,8 +214,21 @@ class SceneViewer(pyglet.window.Window):
         """
         Perform the magic incantations to create an OpenGL scene.
         """
-        # the background color
-        gl.glClearColor(.97, .97, .97, 1.0)
+
+        # default background color is white-ish
+        background = [.99, .99, .99, 1.0]
+        # if user passed a background color use it
+        if 'background' in self.kwargs:
+            try:
+                # convert to (4,) uint8 RGBA
+                background = to_rgba(self.kwargs['background'])
+                # convert to 0.0 - 1.0 float
+                background = background.astype(np.float64) / 255.0
+            except BaseException:
+                log.error('background color wrong!',
+                          exc_info=True)
+        # apply the background color
+        gl.glClearColor(*background)
 
         max_depth = (np.abs(self.scene.bounds).max(axis=1) ** 2).sum() ** .5
         max_depth = np.clip(max_depth, 500.00, np.inf)
@@ -234,10 +299,17 @@ class SceneViewer(pyglet.window.Window):
         self.view['wireframe'] = not self.view['wireframe']
         self.update_flags()
 
+    def toggle_fullscreen(self):
+        """
+        Toggle betwen fullscreen and windowed mode.
+        """
+        self.view['fullscreen'] = not self.view['fullscreen']
+        self.update_flags()
+
     def toggle_axis(self):
         """
         Toggle a rendered XYZ/RGB axis marker on, world frame,
-        or every frame. Off by default
+        or every frame. Off by default.
         """
         # cycle through three axis states
         states = [False, 'world', 'all']
@@ -258,6 +330,9 @@ class SceneViewer(pyglet.window.Window):
             gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
         else:
             gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
+
+        # set fullscreen or windowed
+        self.set_fullscreen(fullscreen=self.view['fullscreen'])
 
         # backface culling on or off
         if self.view['cull']:
@@ -292,6 +367,7 @@ class SceneViewer(pyglet.window.Window):
         except BaseException:
             # older versions of pyglet may not have this
             pass
+
         # set the new viewport size
         gl.glViewport(0, 0, width, height)
         gl.glMatrixMode(gl.GL_PROJECTION)
@@ -339,6 +415,10 @@ class SceneViewer(pyglet.window.Window):
             self.toggle_axis()
         elif symbol == pyglet.window.key.Q:
             self.close()
+        elif symbol == pyglet.window.key.M:
+            self.maximize()
+        elif symbol == pyglet.window.key.F:
+            self.toggle_fullscreen()
         elif symbol == pyglet.window.key.LEFT:
             self.view['ball'].down([0, 0])
             self.view['ball'].drag([-magnitude, 0])
@@ -403,7 +483,9 @@ class SceneViewer(pyglet.window.Window):
                 self._axis.draw(mode=gl.GL_TRIANGLES)
 
             # transparent things must be drawn last
-            if (hasattr(mesh, 'visual') and mesh.visual.transparency):
+            if (hasattr(mesh, 'visual') and
+                hasattr(mesh.visual, 'transparency')
+                    and mesh.visual.transparency):
                 # put the current item onto the back of the queue
                 if count < count_original:
                     # add the node to be drawn last
@@ -413,6 +495,13 @@ class SceneViewer(pyglet.window.Window):
                     # come back to this mesh later
                     continue
 
+            #
+            texture = None
+            if geometry_name in self.textures:
+                texture = self.textures[geometry_name]
+                gl.glEnable(texture.target)
+                gl.glBindTexture(texture.target, texture.id)
+
             # get the mode of the current geometry
             mode = self.vertex_list_mode[geometry_name]
             # draw the mesh with its transform applied
@@ -420,15 +509,22 @@ class SceneViewer(pyglet.window.Window):
             # pop the matrix stack as we drew what we needed to draw
             gl.glPopMatrix()
 
+            if texture is not None:
+                gl.glDisable(texture.target)
+
     def save_image(self, file_obj):
         """
-        Save the current color buffer to a file object, in PNG format.
+        Save the current color buffer to a file object
+        in PNG format.
 
         Parameters
         -------------
         file_obj: file name, or file- like object
         """
-        colorbuffer = pyglet.image.get_buffer_manager().get_color_buffer()
+        manager = pyglet.image.get_buffer_manager()
+        colorbuffer = manager.get_color_buffer()
+
+        # if passed a string save by name
         if hasattr(file_obj, 'write'):
             colorbuffer.save(file=file_obj)
         else:
@@ -510,10 +606,11 @@ def render_scene(scene,
         window.dispatch_event('on_draw')
         window.flip()
 
-    with tempfile.TemporaryFile() as file_obj:
-        window.save_image(file_obj)
-        file_obj.seek(0)
-        render = file_obj.read()
+    # save the color buffer data to memory
+    file_obj = BytesIO()
+    window.save_image(file_obj)
+    file_obj.seek(0)
+    render = file_obj.read()
     window.close()
 
     return render

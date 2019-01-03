@@ -320,7 +320,7 @@ def medial_axis(polygon,
     """
     from scipy.spatial import Voronoi
     from .path import Path2D
-    from .io.misc import edges_to_path
+    from .exchange.misc import edges_to_path
 
     if resolution is None:
         resolution = .01

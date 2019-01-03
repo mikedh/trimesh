@@ -14,7 +14,7 @@ Pull requests are appreciated and responded to promptly! If you'd like to contri
 ## Basic Installation
 
 The minimal requirements to import trimesh are
-[`numpy`](http://www.numpy.org/), [`scipy`](http://www.scipy.org) and [`networkx`](https://networkx.github.io). Installing other packages mentioned adds functionality but is **not required**.
+[numpy](http://www.numpy.org/), [scipy](http://www.scipy.org) and [networkx](https://networkx.github.io). Installing other packages mentioned adds functionality but is **not required**.
 
 For the easiest install with only these minimal dependencies:
 
@@ -109,18 +109,19 @@ print(mesh.bounding_box_oriented.volume,
 
 * Import meshes from binary/ASCII STL, Wavefront OBJ, ASCII OFF, binary/ASCII PLY, GLTF/GLB 2.0, 3MF, XAML, 3DXML, etc.
 * Import and export 2D or 3D vector paths from/to DXF or SVG files
-* Export meshes as binary STL, binary PLY, ASCII OFF, GLTF/GLB 2.0, COLLADA, dictionaries, JSON- serializable dictionaries (base64 encoded arrays), MSGPACK- serializable dictionaries (binary string arrays)
+* Export meshes as binary STL, binary PLY, ASCII OFF, GLTF/GLB 2.0, COLLADA, etc.
 * Preview meshes using pyglet
 * Preview meshes in- line in jupyter notebooks using three.js
-* Automatic hashing of numpy arrays for change tracking (MD5, zlib CRC, and xxhash)
-* Internal caching of computed values validated using numpy hashes
+* Automatic hashing of numpy arrays storing key data for change tracking using MD5, zlib CRC, or xxhash
+* Internal caching of computed values validated from hashes
 * Fast loading of binary files through importers written by defining custom numpy dtypes
 * Calculate things like face adjacencies, face angles, vertex defects, etc.
 * Calculate cross sections (IE the slicing operation used in 3D printing)
+* Slice meshes with one or multiple planes, and return the resulting surface
 * Split mesh based on face connectivity using networkx, graph-tool, or scipy.sparse
 * Calculate mass properties, including volume, center of mass, moment of inertia, and principal components of inertia
 * Fix triangle winding and normals to be consistent 
-* Find convex hulls of meshes 
+* Convex hulls of meshes 
 * Compute a rotation/translation/tessellation invariant identifier for meshes
 * Determine duplicate meshes from identifier
 * Determine if a mesh is watertight, convex, etc.
@@ -142,7 +143,7 @@ print(mesh.bounding_box_oriented.volume,
 
 ## Viewer
 
-Trimesh includes an optional pyglet- based viewer for debugging/inspecting. In the mesh view window:
+Trimesh includes an optional `pyglet` based viewer for debugging and inspecting. In the mesh view window, opened with `mesh.show()`, the following commands can be used:
 
 * `mouse click + drag` rotates the view
 * `ctl + mouse click + drag` pans the view
@@ -150,7 +151,11 @@ Trimesh includes an optional pyglet- based viewer for debugging/inspecting. In t
 * `z` returns to the base view
 * `w` toggles wireframe mode
 * `c` toggles backface culling
-* `a` toggles an XYZ-RGB axis marker for the world or every mesh (keep pressing)
+* `f` toggles between fullscreen and windowed mode
+* `m` maximizes the window
+* `a` toggles an XYZ-RGB axis marker between: off, at world frame, or at every frame
+
+If called from inside a `jupyter` notebook, `mesh.show()` displays an in-line preview using `three.js` to display the mesh or scene.
 
 ## Containers
    

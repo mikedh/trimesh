@@ -2,7 +2,7 @@ import tempfile
 import numpy as np
 
 
-def load_pyassimp(file_obj, file_type=None):
+def load_pyassimp(file_obj, file_type=None, resolver=None):
     """
     Use the pyassimp library to load a mesh, from a file object and type,
     or filename (if file_obj is a string)
@@ -26,8 +26,8 @@ def load_pyassimp(file_obj, file_type=None):
                 'vertex_colors': colors}
 
     if not hasattr(file_obj, 'read'):
-        # if there is no read attribute, we assume we've been passed a file
-        # name
+        # if there is no read attribute
+        # we assume we've been passed a file name
         file_type = (str(file_obj).split('.')[-1]).lower()
         file_obj = open(file_obj, 'rb')
 
@@ -38,7 +38,7 @@ def load_pyassimp(file_obj, file_type=None):
     return meshes
 
 
-def load_cyassimp(file_obj, file_type=None):
+def load_cyassimp(file_obj, file_type=None, resolver=None):
     """
     Load a file using the cyassimp bindings.
 
@@ -124,7 +124,7 @@ _assimp_formats = [
 _assimp_loaders = {}
 
 
-# try importing both assimp bindings, but prefer cyassimp
+# try importing both assimp bindings but prefer cyassimp
 loader = None
 try:
     import pyassimp

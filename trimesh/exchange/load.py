@@ -1,8 +1,7 @@
-import numpy as np
-
 import os
 
 from .. import util
+from .. import visual
 
 from ..base import Trimesh
 from ..points import PointCloud
@@ -22,7 +21,7 @@ from .xml_based import _xml_loaders
 
 
 try:
-    from ..path.io.load import load_path, path_formats
+    from ..path.exchange.load import load_path, path_formats
 except BaseException as E:
     # save a traceback to see why path didn't import
     _path_exception = E
@@ -66,14 +65,17 @@ def available_formats():
         Extensions of available loaders
         i.e. 'stl', 'ply', 'dxf', etc.
     """
+    loaders = mesh_formats()
+    loaders.extend(path_formats())
+    loaders.extend(compressed_loaders.keys())
 
-    loaders = np.hstack((list(compressed_loaders.keys()),
-                         mesh_formats(),
-                         path_formats()))
     return loaders
 
 
-def load(file_obj, file_type=None, **kwargs):
+def load(file_obj,
+         file_type=None,
+         resolver=None,
+         **kwargs):
     """
     Load a mesh or vectorized path into objects:
     Trimesh, Path2D, Path3D, Scene
@@ -81,14 +83,18 @@ def load(file_obj, file_type=None, **kwargs):
     Parameters
     ---------
     file_obj : str, or file- like object
-        The source of the data to be loadeded
+      The source of the data to be loadeded
     file_type: str
-         What kind of file type do we have (eg: 'stl')
+      What kind of file type do we have (eg: 'stl')
+    resolver : trimesh.visual.Resolver
+      Object to load referenced assets like materials and textures
+    kwargs : **
+      Passed to geometry __init__
 
     Returns
     ---------
     geometry : Trimesh, Path2D, Path3D, Scene
-        Loaded geometry as trimesh classes
+      Loaded geometry as trimesh classes
     """
     # check to see if we're trying to load something
     # that is already a native trimesh object
@@ -104,8 +110,11 @@ def load(file_obj, file_type=None, **kwargs):
     (file_obj,  # file- like object
      file_type,  # str, what kind of file
      metadata,  # dict, any metadata from file name
-     opened     # bool, did we open the file ourselves
-     ) = parse_file_args(file_obj, file_type)
+     opened,    # bool, did we open the file ourselves
+     resolver   # object to load referenced resources
+     ) = parse_file_args(file_obj=file_obj,
+                         file_type=file_type,
+                         resolver=resolver)
 
     if isinstance(file_obj, dict):
         # if we've been passed a dict treat it as kwargs
@@ -120,6 +129,7 @@ def load(file_obj, file_type=None, **kwargs):
         # mesh loaders use mesh loader
         loaded = load_mesh(file_obj,
                            file_type=file_type,
+                           resolver=resolver,
                            **kwargs)
     elif file_type in compressed_loaders:
         # for archives, like ZIP files
@@ -148,7 +158,10 @@ def load(file_obj, file_type=None, **kwargs):
 
 
 @log_time
-def load_mesh(file_obj, file_type=None, **kwargs):
+def load_mesh(file_obj,
+              file_type=None,
+              resolver=None,
+              **kwargs):
     """
     Load a mesh file into a Trimesh object
 
@@ -164,16 +177,23 @@ def load_mesh(file_obj, file_type=None, **kwargs):
           depending on the file format.
 
     """
-    # turn a string into a file obj and type
-    (file_obj,
-     file_type,
-     metadata,
-     opened) = parse_file_args(file_obj, file_type)
+
+    # parse the file arguments into clean loadable form
+    (file_obj,  # file- like object
+     file_type,  # str, what kind of file
+     metadata,  # dict, any metadata from file name
+     opened,    # bool, did we open the file ourselves
+     resolver   # object to load referenced resources
+     ) = parse_file_args(file_obj=file_obj,
+                         file_type=file_type,
+                         resolver=resolver)
 
     # make sure we keep passed kwargs to loader
     # but also make sure loader keys override passed keys
     results = mesh_loaders[file_type](file_obj,
-                                      file_type=file_type)
+                                      file_type=file_type,
+                                      resolver=resolver,
+                                      **kwargs)
 
     if util.is_file(file_obj):
         file_obj.close()
@@ -198,7 +218,11 @@ def load_mesh(file_obj, file_type=None, **kwargs):
     return loaded
 
 
-def load_compressed(file_obj, file_type=None, mixed=False):
+def load_compressed(file_obj,
+                    file_type=None,
+                    resolver=None,
+                    mixed=False,
+                    **kwargs):
     """
     Given a compressed archive load all the geometry that
     we can from it.
@@ -218,17 +242,25 @@ def load_compressed(file_obj, file_type=None, mixed=False):
     scene : trimesh.Scene
       Geometry loaded in to a Scene object
     """
-    # turn a string into a file obj and type
-    (file_obj,
-     file_type,
-     metadata,
-     opened) = parse_file_args(file_obj, file_type)
+
+    # parse the file arguments into clean loadable form
+    (file_obj,  # file- like object
+     file_type,  # str, what kind of file
+     metadata,  # dict, any metadata from file name
+     opened,    # bool, did we open the file ourselves
+     resolver   # object to load referenced resources
+     ) = parse_file_args(file_obj=file_obj,
+                         file_type=file_type,
+                         resolver=resolver)
 
     # a dict of 'name' : file-like object
     files = util.decompress(file_obj=file_obj,
                             file_type=file_type)
     # store loaded geometries as a list
     geometries = []
+
+    # so loaders can access textures/etc
+    resolver = visual.resolvers.ZipResolver(files)
 
     # try to save the files with meaningful metadata
     if 'file_path' in metadata:
@@ -261,7 +293,9 @@ def load_compressed(file_obj, file_type=None, mixed=False):
         # load the individual geometry
         geometry = load(file_obj=data,
                         file_type=compressed_type,
-                        metadata=metadata)
+                        resolver=resolver,
+                        metadata=metadata,
+                        **kwargs)
         geometries.append(geometry)
 
     # if we opened the file in this function
@@ -296,9 +330,14 @@ def load_remote(url, **kwargs):
     response = requests.get(url)
     # wrap as file object
     file_obj = util.wrap_as_stream(response.content)
+
+    # so loaders can access textures/etc
+    resolver = visual.resolvers.WebResolver(url)
+
     # actually load
     loaded = load(file_obj=file_obj,
                   file_type=url,
+                  resolver=resolver,
                   **kwargs)
     return loaded
 
@@ -340,6 +379,7 @@ def load_kwargs(*args, **kwargs):
                 isinstance(kwargs['faces'], dict)):
             return Trimesh(**misc.load_dict(kwargs))
         elif kwargs['faces'] is None:
+            # vertices without faces returns a PointCloud
             return PointCloud(**kwargs)
         else:
             return Trimesh(**kwargs)
@@ -359,15 +399,20 @@ def load_kwargs(*args, **kwargs):
             isinstance(args[0], dict)):
         kwargs = args[0]
 
+    # function : list of expected keys
     handlers = {handle_scene: ('graph', 'geometry'),
                 handle_trimesh_kwargs: ('vertices', 'faces'),
                 handle_trimesh_export: ('file_type', 'data')}
 
+    # loop through handler functions and expected key
     handler = None
-    for k, v in handlers.items():
-        if all(i in kwargs for i in v):
-            handler = k
+    for func, expected in handlers.items():
+        if all(i in kwargs for i in expected):
+            # all expected kwargs exist
+            handler = func
+            # exit the loop as we found one
             break
+
     if handler is None:
         raise ValueError('unable to determine type!')
 
@@ -376,6 +421,7 @@ def load_kwargs(*args, **kwargs):
 
 def parse_file_args(file_obj,
                     file_type,
+                    resolver=None,
                     **kwargs):
     """
     Given a file_obj and a file_type try to turn them into a file-like
@@ -442,13 +488,19 @@ def parse_file_args(file_obj,
         except BaseException:
             exists = False
 
+        # file obj is a string which exists on filesystm
         if exists:
+            # if not passed create a resolver to find other files
+            if resolver is None:
+                resolver = visual.resolvers.FilePathResolver(file_path)
+            # save the file name and path to metadata
             metadata['file_path'] = file_path
             metadata['file_name'] = os.path.basename(file_obj)
             # if file_obj is a path that exists use extension as file_type
             if file_type is None:
-                file_type = util.split_extension(file_path,
-                                                 special=['tar.gz', 'tar.bz2'])
+                file_type = util.split_extension(
+                    file_path,
+                    special=['tar.gz', 'tar.bz2'])
             file_obj = open(file_path, 'rb')
             opened = True
         else:
@@ -474,11 +526,18 @@ def parse_file_args(file_obj,
             metadata['file_path'] = file_type
         metadata['file_name'] = os.path.basename(file_type)
         file_type = util.split_extension(file_type)
+        if resolver is None and os.path.exists(file_type):
+            resolver = visual.resolvers.FilePathResolver(file_type)
 
     # all our stored extensions reference in lower case
     file_type = file_type.lower()
 
-    return file_obj, file_type, metadata, opened
+    # if we still have no resolver try using file_obj name
+    if resolver is None and hasattr(
+            file_obj, 'name') and len(file_obj.name) > 0:
+        resolver = visual.resolvers.FilePathResolver(file_obj.name)
+
+    return file_obj, file_type, metadata, opened, resolver
 
 
 compressed_loaders = {'zip': load_compressed,

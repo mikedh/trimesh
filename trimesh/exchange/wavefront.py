@@ -1,10 +1,65 @@
+import collections
+
 import numpy as np
 
-from ..constants import log
+try:
+    import PIL
+except ImportError:
+    pass
+
 from .. import util
+from .. import visual
+
+from ..constants import log
 
 
-def load_wavefront(file_obj, **kwargs):
+def parse_mtl(mtl):
+    """
+    Parse a loaded MTL file.
+
+    Parameters
+    -------------
+    mtl : str or bytes
+      Data from an MTL file
+
+    Returns
+    ------------
+    mtllibs : list of dict
+      Each dict has keys: newmtl, map_Kd, Kd
+    """
+    # decode bytes if necessary
+    if hasattr(mtl, 'decode'):
+        mtl = mtl.decode('utf-8')
+
+    mtllib = None
+    mtllibs = []
+
+    # use universal newline splitting
+    for line in str.splitlines(str(mtl).strip()):
+        # clean leading/trailing whitespace and split
+        line_split = line.strip().split()
+        # needs to be at least two values
+        if len(line_split) <= 1:
+            continue
+        # store the keys
+        key = line_split[0]
+        if key == 'newmtl':
+            if mtllib:
+                mtllibs.append(mtllib)
+            mtllib = {'newmtl': line_split[1],
+                      'map_Kd': None,
+                      'Kd': None}
+        elif key == 'map_Kd':
+            mtllib[key] = line_split[1]
+        elif key == 'Kd':
+            mtllib[key] = [float(x) for x in line_split[1:]]
+    if mtllib:
+        mtllibs.append(mtllib)
+
+    return mtllibs
+
+
+def load_wavefront(file_obj, resolver=None, **kwargs):
     """
     Loads an ascii Wavefront OBJ file_obj into kwargs
     for the Trimesh constructor.
@@ -17,12 +72,16 @@ def load_wavefront(file_obj, **kwargs):
     Parameters
     ----------
     file_obj : file object
-                   Containing a wavefront file
+      Containing a wavefront file
+    resolver : trimesh.visual.Resolver or None
+      For loading referenced files, like MTL or textures
+    kwargs : **
+      Passed to trimesh.Trimesh.__init__
 
     Returns
     ----------
     loaded : dict
-                kwargs for Trimesh constructor
+      kwargs for Trimesh constructor
     """
 
     # make sure text is UTF-8 with only \n newlines
@@ -84,17 +143,17 @@ def load_wavefront(file_obj, **kwargs):
 
             # handle vertex texture
             if len(current['vt']) > 0:
-                texture = np.array(current['vt'], dtype=np.float64)
-                # make sure vertex texture is the right shape
-                # AKA (len(vertices), dimension)
-                try:
-                    texture = texture.reshape((len(vertices), -1))
-                    # save vertex texture with correct ordering
-                    loaded['metadata']['vertex_texture'] = texture[vert_order]
-                except ValueError:
-                    log.warning(
-                        'Texture information seems broken: %s' % file_obj.name
-                    )
+                texture = np.full((len(current['vt_ok']), 3),
+                                  np.nan,
+                                  dtype=np.float64)
+                # make sure mask is numpy array for older numpy
+                vt_ok = np.asanyarray(current['vt_ok'], dtype=np.bool)
+
+                texture[vt_ok] = current['vt']
+                texture = texture[vert_order]
+                texture = texture[~np.any(np.isnan(texture), axis=1)]
+                # save vertex texture with correct ordering
+                loaded['metadata']['vertex_texture'] = texture
 
             # build face groups information
             # faces didn't move around so we don't have to reindex
@@ -105,11 +164,47 @@ def load_wavefront(file_obj, **kwargs):
                     face_groups[start_f:] = idx
                 loaded['metadata']['face_groups'] = face_groups
 
-            # we're done, append the loaded mesh kwarg dict
+            if len(current['usemtl']) > 0 and any(current['vt_ok']):
+                texture = np.full((len(current['vt_ok']), 3),
+                                  np.nan,
+                                  dtype=np.float64)
+                # make sure mask is numpy array for older numpy
+                vt_ok = np.asanyarray(current['vt_ok'],
+                                      dtype=np.bool)
+                texture[vt_ok] = current['vt']
+
+                for usemtl in current['usemtl']:
+                    try:
+                        findices = usemtl_to_findices[usemtl]
+                        uv = texture[findices]
+                        # what is the file name of the texture image
+                        file_name = mtllibs[usemtl]['map_Kd']
+                        # get the data as bytes
+                        file_data = resolver.get(file_name)
+                        # load the bytes into a PIL image
+                        image = PIL.Image.open(
+                            util.wrap_as_stream(file_data))
+                        # create a texture object
+                        loaded['visual'] = visual.texture.TextureVisuals(
+                            uv=uv, image=image)
+                    except BaseException:
+                        log.error('failed to load texture: {}'.format(usemtl),
+                                  exc_info=True)
+
+            # apply the vertex order to the visual object
+            if 'visual' in loaded:
+                loaded['visual'].update_vertices(vert_order)
+
+            # this mesh is done so append the loaded mesh kwarg dict
             meshes.append(loaded)
 
     attribs = {k: [] for k in ['v', 'vt', 'vn']}
-    current = {k: [] for k in ['v', 'vt', 'vn', 'f', 'g']}
+    current = {k: [] for k in ['v', 'vt', 'vn',
+                               'f', 'g', 'usemtl',
+                               'vt_ok', 'vn_ok']}
+    # usemtl to 'f' indices
+    usemtl_to_findices = collections.defaultdict(list)
+    mtllibs = {}
     # remap vertex indexes {str key: int index}
     remap = {}
     next_idx = 0
@@ -123,8 +218,12 @@ def load_wavefront(file_obj, **kwargs):
             # v, vt, or vn
             # vertex, vertex texture, or vertex normal
             # only parse 3 values, ignore colors
-            attribs[line_split[0]].append([float(x)
-                                           for x in line_split[1:4]])
+            value = [float(x) for x in line_split[1:4]]
+            # vt: u [v] [w]  # v, w is optional and default value is 0
+            if line_split[0] == 'vt' and len(value) != 3:
+                for _ in range(3 - len(value)):
+                    value.append(0)
+            attribs[line_split[0]].append(value)
         elif line_split[0] == 'f':
             # a face
             ft = line_split[1:]
@@ -145,15 +244,25 @@ def load_wavefront(file_obj, **kwargs):
                     if len(f_split) > 1 and f_split[1] != '':
                         current['vt'].append(
                             attribs['vt'][int(f_split[1]) - 1])
+                        current['vt_ok'].append(True)
+                    else:
+                        current['vt_ok'].append(False)
                     if len(f_split) > 2:
                         current['vn'].append(
                             attribs['vn'][int(f_split[2]) - 1])
+                        current['vn_ok'].append(True)
+                    else:
+                        current['vn_ok'].append(False)
+                    if len(current['usemtl']) > 0:
+                        usemtl_to_findices[current['usemtl']
+                                           [-1]].append(len(current['vt']) - 1)
                 current['f'].append(remap[f])
         elif line_split[0] == 'o':
             # defining a new object
             append_mesh()
             # reset current to empty lists
             current = {k: [] for k in current.keys()}
+            usemtl_to_findices = collections.defaultdict(list)
             remap = {}
             next_idx = 0
             group_idx = 0
@@ -162,6 +271,24 @@ def load_wavefront(file_obj, **kwargs):
             # defining a new group
             group_idx += 1
             current['g'].append((group_idx, len(current['f']) // 3))
+        elif line_split[0] == 'mtllib':
+
+            # the name of the referenced material file
+            mtl_name = line_split[1]
+            try:
+                # fetch bytes containing MTL data
+                mtl_data = resolver.get(mtl_name)
+                # load into a list of dict
+                for mtllib in parse_mtl(mtl_data):
+                    # save new materials
+                    mtllibs[mtllib['newmtl']] = mtllib
+            except BaseException:
+                log.error('unable to load material: {}'.format(mtl_name),
+                          exc_info=True)
+                continue
+
+        elif line_split[0] == 'usemtl':
+            current['usemtl'].append(line_split[1])
 
     if next_idx > 0:
         append_mesh()

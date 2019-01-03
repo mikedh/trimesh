@@ -16,17 +16,17 @@ except ImportError:
     log.warning('Scipy unavailable')
 
 
-def merge_vertices_hash(mesh, distance=None):
+def merge_vertices(mesh, distance=None):
     """
     Removes duplicate vertices, based on integer hashes of
     each row.
 
     Parameters
     -------------
-    mesh     : Trimesh object
-                 Mesh to merge vertices of
-    distance : float, or None
-                If not specified uses tol.merge
+    mesh : Trimesh object
+      Mesh to merge vertices on
+    distance : float or None
+      If not specified uses tol.merge
     """
     if distance is not None:
         digits = util.decimal_to_digits(distance)

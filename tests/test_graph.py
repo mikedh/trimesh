@@ -36,35 +36,35 @@ class GraphTest(g.unittest.TestCase):
         for engine in self.engines:
             # without requiring watertight the split should be into every face
             split = soup.split(only_watertight=False, engine=engine)
-            self.assertTrue(len(split) == len(soup.faces))
+            assert len(split) == len(soup.faces)
 
             # with watertight there should be an empty list
             split = soup.split(only_watertight=True, engine=engine)
-            self.assertTrue(len(split) == 0)
+            assert len(split) == 0
 
             split = mult.split(only_watertight=False, engine=engine)
-            self.assertTrue(len(split) >= 119)
+            assert len(split) >= 119
 
             split = mult.split(only_watertight=True, engine=engine)
-            self.assertTrue(len(split) >= 117)
+            assert len(split) >= 117
 
             # random triangles should have no facets
             facets = g.trimesh.graph.facets(mesh=soup, engine=engine)
-            self.assertTrue(len(facets) == 0)
+            assert len(facets) == 0
 
             facets = g.trimesh.graph.facets(mesh=mult, engine=engine)
-            self.assertTrue(all(len(i) >= 2 for i in facets))
-            self.assertTrue(len(facets) >= 8654)
+            assert all(len(i) >= 2 for i in facets)
+            assert len(facets) >= 8654
 
             split = sing.split(only_watertight=False, engine=engine)
-            self.assertTrue(len(split) == 1)
-            self.assertTrue(split[0].is_watertight)
-            self.assertTrue(split[0].is_winding_consistent)
+            assert len(split) == 1
+            assert split[0].is_watertight
+            assert split[0].is_winding_consistent
 
             split = sing.split(only_watertight=True, engine=engine)
-            self.assertTrue(len(split) == 1)
-            self.assertTrue(split[0].is_watertight)
-            self.assertTrue(split[0].is_winding_consistent)
+            assert len(split) == 1
+            assert split[0].is_watertight
+            assert split[0].is_winding_consistent
 
     def test_vertex_adjacency_graph(self):
         f = g.trimesh.graph.vertex_adjacency_graph
@@ -72,7 +72,7 @@ class GraphTest(g.unittest.TestCase):
         # a mesh with a single watertight body
         sing = g.get_mesh('featuretype.STL')
         vert_adj_g = f(sing)
-        self.assertTrue(len(sing.vertices) == len(vert_adj_g))
+        assert len(sing.vertices) == len(vert_adj_g)
 
     def test_engine_time(self):
         for mesh in g.get_meshes():

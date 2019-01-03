@@ -27,9 +27,12 @@ PY3 = version_info.major >= 3
 if PY3:
     # for type checking
     basestring = str
+    # Python 3
     from io import BytesIO, StringIO
 else:
+    # Python 2
     from StringIO import StringIO
+    BytesIO = StringIO
 
 log = logging.getLogger('trimesh')
 log.addHandler(logging.NullHandler())
@@ -1208,30 +1211,30 @@ def concatenate(a, b=None):
     # stack meshes into flat list
     meshes = np.append(a, b)
 
-    # Extract the trimesh type to avoid a circular import,
+    # extract the trimesh type to avoid a circular import
     # and assert that both inputs are Trimesh objects
     trimesh_type = type_named(meshes[0], 'Trimesh')
 
     # append faces and vertices of meshes
     vertices, faces = append_faces(
-        [i.vertices.copy() for i in meshes],
-        [i.faces.copy() for i in meshes])
+        [m.vertices.copy() for m in meshes],
+        [m.faces.copy() for m in meshes])
 
-    visuals = None
+    # only save face normals if already calculated
     face_normals = None
+    if all('face_normals' in m._cache for m in meshes):
+        face_normals = np.vstack([m.face_normals
+                                  for m in meshes])
 
-    if all('face_normals' in i._cache for i in meshes):
-        face_normals = np.vstack(
-            [i.face_normals for i in meshes])
-    if any(i.visual.defined for i in meshes):
-        visuals = meshes[0].visual.concatenate(
-            [i.visual for i in meshes[1:]])
+    # concatenate visuals
+    visual = meshes[0].visual.concatenate(
+        [m.visual for m in meshes[1:]])
 
     # create the mesh object
     mesh = trimesh_type(vertices=vertices,
                         faces=faces,
                         face_normals=face_normals,
-                        visual=visuals,
+                        visual=visual,
                         process=False)
 
     return mesh
@@ -1280,10 +1283,10 @@ def submesh(mesh,
     original_faces = mesh.faces.view(np.ndarray)
     original_vertices = mesh.vertices.view(np.ndarray)
 
-    faces = collections.deque()
-    vertices = collections.deque()
-    normals = collections.deque()
-    visuals = collections.deque()
+    faces = []
+    vertices = []
+    normals = []
+    visuals = []
 
     # for reindexing faces
     mask = np.arange(len(original_vertices))
@@ -1307,13 +1310,19 @@ def submesh(mesh,
     # to avoid a circular import
     trimesh_type = type_named(mesh, 'Trimesh')
     if append:
-        visuals = np.array(visuals)
+        if all(hasattr(i, 'concatenate')
+               for i in visuals):
+            visuals = np.array(visuals)
+            visual = visuals[0].concatenate(visuals[1:])
+        else:
+            visual = None
+
         vertices, faces = append_faces(vertices, faces)
         appended = trimesh_type(
             vertices=vertices,
             faces=faces,
             face_normals=np.vstack(normals),
-            visual=visuals[0].concatenate(visuals[1:]),
+            visual=visual,
             process=False)
         return appended
 

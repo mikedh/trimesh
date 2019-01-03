@@ -8,21 +8,51 @@ class GLTFTest(g.unittest.TestCase):
 
     def test_duck(self):
         scene = g.get_mesh('Duck.glb')
-        for name, model in scene.geometry.items():
-            assert model.is_volume
+
+        # should have one mesh
+        assert len(scene.geometry) == 1
+        # should be watertight
+        assert next(iter(scene.geometry.values())).is_volume
+
+        # make sure export doesn't crash
+        export = scene.export('glb')
+        assert len(export) > 0
+
+    def test_tex_export(self):
+        # load textured PLY
+        mesh = g.get_mesh('fuze.ply')
+        assert hasattr(mesh.visual, 'uv')
+
+        # make sure export as GLB doesn't crash
+        export = mesh.scene().export(file_type='glb')
+        assert len(export) > 0
+
+    def test_cesium(self):
+        """
+        A GLTF with a multi- primitive mesh
+        """
+        s = g.get_mesh('CesiumMilkTruck.glb')
+        # should be one Trimesh object per GLTF "primitive"
+        assert len(s.geometry) == 4
+        # every geometry displayed once, except wheels twice
+        assert len(s.graph.nodes_geometry) == 5
+
+        # make sure export doesn't crash
+        export = s.export('glb')
+        assert len(export) > 0
 
     def test_units(self):
         """
-        Trimesh will store units as a GLTF extra if they are defined,
-        so check that.
+        Trimesh will store units as a GLTF extra if they
+        are defined so check that.
         """
         original = g.get_mesh('pins.glb')
 
         # export it as a a GLB file
         export = original.export('glb')
-        kwargs = g.trimesh.io.gltf.load_glb(
+        kwargs = g.trimesh.exchange.gltf.load_glb(
             g.trimesh.util.wrap_as_stream(export))
-        reloaded = g.trimesh.io.load.load_kwargs(kwargs)
+        reloaded = g.trimesh.exchange.load.load_kwargs(kwargs)
 
         # make assertions on original and reloaded
         for scene in [original, reloaded]:

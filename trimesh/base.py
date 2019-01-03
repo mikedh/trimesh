@@ -38,7 +38,7 @@ from . import intersections
 from . import transformations
 
 from .visual import create_visual
-from .io.export import export_mesh
+from .exchange.export import export_mesh
 from .constants import log, log_time, tol
 
 from .scene import Scene
@@ -130,8 +130,6 @@ class Trimesh(Geometry):
                 mesh=self)
         else:
             self.visual = visual
-        # add a back reference to this mesh for its visual property object
-        self.visual.mesh = self
 
         # normals are accessed through setters/properties and are regenerated
         # if dimensions are inconsistent, but can be set by the constructor
@@ -176,7 +174,7 @@ class Trimesh(Geometry):
         if process or validate:
             self.process()
 
-        # store any passed kwargs
+        # save reference to kwargs
         self._kwargs = kwargs
 
     def process(self):
@@ -284,7 +282,7 @@ class Trimesh(Geometry):
         values = np.asanyarray(values, dtype=np.int64)
         # automatically triangulate quad faces
         if util.is_shape(values, (-1, 4)):
-            log.info('Triangulating quad faces')
+            log.info('triangulating quad faces')
             values = geometry.triangulate_quads(values)
         self._data['faces'] = values
 
@@ -987,7 +985,7 @@ class Trimesh(Geometry):
         distance : float or None
           If specified overrides tol.merge
         """
-        grouping.merge_vertices_hash(self, distance=distance)
+        grouping.merge_vertices(self, distance=distance)
 
     def update_vertices(self, mask, inverse=None):
         """
@@ -1491,7 +1489,8 @@ class Trimesh(Geometry):
         # use native python sum in tight loop as opposed to array.sum()
         # as in this case the lower function call overhead of
         # native sum provides roughly a 50% speedup
-        areas = np.array([sum(area_faces[i]) for i in self.facets],
+        areas = np.array([sum(area_faces[i])
+                          for i in self.facets],
                          dtype=np.float64)
         return areas
 
@@ -1508,8 +1507,12 @@ class Trimesh(Geometry):
         if len(self.facets) == 0:
             return np.array([])
 
+        area_faces = self.area_faces
+        # sum the area of each group of faces represented by facets
+
         # the face index of the first face in each facet
-        index = np.array([i[0] for i in self.facets])
+        index = np.array([i[area_faces[i].argmax()]
+                          for i in self.facets])
         # (n,3) float, unit normal vectors of facet plane
         normals = self.face_normals[index]
         # (n,3) float, points on facet plane
@@ -1719,8 +1722,8 @@ class Trimesh(Geometry):
     @log_time
     def smoothed(self, angle=.4):
         """
-        Return a version of the current mesh which will render nicely.
-        Does not change current mesh in any way.
+        Return a version of the current mesh which will render
+        nicely, without changing source mesh.
 
         Parameters
         -------------
@@ -1740,9 +1743,38 @@ class Trimesh(Geometry):
         cached = self.visual._cache['smoothed']
         if cached is not None:
             return cached
+
         smoothed = graph.smoothed(self, angle)
         self.visual._cache['smoothed'] = smoothed
         return smoothed
+
+    @property
+    def visual(self):
+        """
+        Get the stored visuals for the current mesh.
+
+        Returns
+        -------------
+        visual : ColorVisuals or TextureVisuals
+          Contains visual information about the mesh
+        """
+        if hasattr(self, '_visual'):
+            return self._visual
+        return None
+
+    @visual.setter
+    def visual(self, value):
+        """
+        When setting a visual object, always make sure
+        that `visual.mesh` points back to the source mesh.
+
+        Parameters
+        --------------
+        visual : ColorVisuals or TextureVisuals
+          Contains visual information about the mesh
+        """
+        value.mesh = self
+        self._visual = value
 
     def section(self,
                 plane_normal,
@@ -1764,7 +1796,7 @@ class Trimesh(Geometry):
           Curve of intersection
         """
         # turn line segments into Path2D/Path3D objects
-        from .io.load import load_path
+        from .exchange.load import load_path
 
         # return a single cross section in 3D
         lines, face_index = intersections.mesh_plane(
@@ -1811,7 +1843,7 @@ class Trimesh(Geometry):
           to return 2D section back into 3D space.
         """
         # turn line segments into Path2D/Path3D objects
-        from .io.load import load_path
+        from .exchange.load import load_path
         # do a multiplane intersection
         lines, transforms, faces = intersections.mesh_multiplane(
             mesh=self,
@@ -1912,15 +1944,19 @@ class Trimesh(Geometry):
 
     def unmerge_vertices(self):
         """
-        Removes all face references so that every face contains three
-        unique vertex indices and no faces are adjacent.
+        Removes all face references so that every face contains
+        three unique vertex indices and no faces are adjacent.
         """
-        vertices = self.vertices[self.faces].reshape((-1, 3))
-        faces = np.arange(len(vertices),
+        #vertices = self.vertices[self.faces].reshape((-1, 3))
+        faces = np.arange(len(self.faces) * 3,
                           dtype=np.int64).reshape((-1, 3))
 
+        # use update_vertices to apply mask to
+        # all properties that are per-vertex
+        self.update_vertices(self.faces.reshape(-1))
+        # set faces to incrementing indexes
         self.faces = faces
-        self.vertices = vertices
+        # keep face normals as the haven't changed
         self._cache.clear(exclude=['face_normals'])
 
     def apply_translation(self, translation):
@@ -2134,8 +2170,8 @@ class Trimesh(Geometry):
         path : Path3D
           Curve in 3D of the outline
         """
-        from .path.io.misc import faces_to_path
-        from .path.io.load import _create_path
+        from .path.exchange.misc import faces_to_path
+        from .path.exchange.load import _create_path
 
         path = _create_path(**faces_to_path(self,
                                             face_ids,
@@ -2553,7 +2589,7 @@ class Trimesh(Geometry):
         # copy vertex and face data
         copied._data.data = copy.deepcopy(self._data.data)
         # copy visual information
-        copied.visual._data.data = copy.deepcopy(self.visual._data.data)
+        copied.visual = self.visual.copy()
         # get metadata
         copied.metadata = copy.deepcopy(self.metadata)
         # get center_mass and density

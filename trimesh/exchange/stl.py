@@ -18,7 +18,7 @@ _stl_dtype_header = np.dtype([('header', np.void, 80),
                               ('face_count', '<i4')])
 
 
-def load_stl(file_obj, file_type=None):
+def load_stl(file_obj, file_type=None, **kwargs):
     """
     Load an STL file from a file object.
 

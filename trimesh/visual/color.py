@@ -26,12 +26,13 @@ Rules
 
 import numpy as np
 
+import copy
 import colorsys
 import collections
 
-from . import util
-from . import caching
-from . import grouping
+from .. import util
+from .. import caching
+from .. import grouping
 
 
 class ColorVisuals(object):
@@ -48,10 +49,13 @@ class ColorVisuals(object):
 
         Parameters
         ----------
-        mesh:          Trimesh object that these visual properties
-                       are associated with
-        face_ colors:  (n,3|4) or (3,) or (4,) uint8, colors per-face
-        vertex_colors: (n,3|4) or (3,) or (4,) uint8, colors per-vertex
+        mesh : Trimesh
+          Object that these visual properties
+          are associated with
+        face_ colors :  (n,3|4) or (3,) or (4,) uint8
+          Colors per-face
+        vertex_colors : (n,3|4) or (3,) or (4,) uint8
+          Colors per-vertex
         """
         self.mesh = mesh
         self._data = caching.DataStore()
@@ -99,9 +103,7 @@ class ColorVisuals(object):
         ---------
         defined: bool, are colors defined or not.
         """
-        defined = (not self._data.is_empty() and
-                   self.kind is not None)
-        return defined
+        return self.kind is not None
 
     @property
     def kind(self):
@@ -139,6 +141,19 @@ class ColorVisuals(object):
             result ^= self.mesh.crc()
         return result
 
+    def copy(self):
+        """
+        Return a copy of the current ColorVisuals object.
+
+        Returns
+        ----------
+        copied : ColorVisuals
+          Contains the same information as self
+        """
+        copied = ColorVisuals()
+        copied._data.data = copy.deepcopy(self._data.data)
+        return copied
+
     @property
     def face_colors(self):
         """
@@ -167,6 +182,11 @@ class ColorVisuals(object):
                 (3,) int, set the whole mesh this color
                 (4,) int, set the whole mesh this color
         """
+        if values is None:
+            if 'face_colors' in self._data:
+                self._data.data.pop('face_colors')
+            return
+
         colors = to_rgba(values)
 
         if (self.mesh is not None and
@@ -205,6 +225,11 @@ class ColorVisuals(object):
                 (3,) int, set the whole mesh this color
                 (4,) int, set the whole mesh this color
         """
+        if values is None:
+            if 'vertex_colors' in self._data:
+                self._data.data.pop('vertex_colors')
+            return
+
         # make sure passed values are numpy array
         values = np.asanyarray(values)
         # Ensure the color shape is sane
@@ -415,7 +440,8 @@ class ColorVisuals(object):
 
         Parameters
         -----------
-        other: ColorVisuals object
+        other : ColorVisuals
+          Object to append
         *args: ColorVisuals objects
 
         Returns
@@ -423,7 +449,9 @@ class ColorVisuals(object):
         result: ColorVisuals object containing information from current
                 object and others in the order it was passed.
         """
-        result = concatenate_visuals(self, other, *args)
+        # avoid a circular import
+        from . import objects
+        result = objects.concatenate(self, other, *args)
         return result
 
     def __add__(self, other):
@@ -454,23 +482,6 @@ class ColorVisuals(object):
         mask = np.asanyarray(mask)
         if key in self._data:
             self._data[key] = self._data[key][mask]
-
-
-def create_visual(**kwargs):
-    """
-    Create Visuals object from keyword arguments.
-
-    Parameters
-    ----------
-    face_colors   :   (n,3|4) uint8, colors
-    vertex_colors : (n,3|4) uint8, colors
-    mesh:          Trimesh object
-
-    Returns
-    ----------
-    visuals: ColorVisuals object.
-    """
-    return ColorVisuals(**kwargs)
 
 
 def to_rgba(colors, dtype=np.uint8):
@@ -536,44 +547,6 @@ def hex_to_rgba(color):
         raise ValueError('Only RGB supported')
 
     return rgba
-
-
-def concatenate_visuals(visuals, *args):
-    """
-    Concatenate multiple visual objects.
-
-    Parameters
-    ----------
-    visuals: ColorVisuals object, or list of same
-    *args:  ColorVisuals object, or list of same
-
-    Returns
-    ----------
-    concat: ColorVisuals object
-    """
-    # get a flat list of ColorVisuals objects
-    visuals = np.append(visuals, args)
-
-    # get the type of visuals (vertex or face) removing undefined
-    modes = {v.kind for v in visuals}.difference({None})
-    if len(modes) == 0:
-        # none of the visuals have anything defined
-        return ColorVisuals()
-    else:
-        # if we have visuals with different modes defined
-        # arbitrarily get one of them
-        mode = modes.pop()
-
-    # a linked list to store colors before stacking
-    colors = collections.deque()
-    # a string to evaluate which returns the colors we want
-    append = 'v.{}_colors'.format(mode)
-    for v in visuals:
-        # use an eval so we can use the object property
-        colors.append(eval(append))
-    # use an eval so we can use the constructor
-    concat = eval('ColorVisuals({}_colors=np.vstack(colors))'.format(mode))
-    return concat
 
 
 def random_color(dtype=np.uint8):

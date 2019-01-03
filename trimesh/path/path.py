@@ -23,7 +23,6 @@ from .util import concatenate
 
 from .. import util
 from .. import units
-from .. import graph
 from .. import caching
 from .. import grouping
 from .. import transformations
@@ -35,7 +34,7 @@ from . import polygons
 from . import segments
 from . import traversal
 
-from .io.export import export_path
+from .exchange.export import export_path
 
 try:
     # try running shapely speedups
@@ -865,7 +864,8 @@ class Path3D(Path):
         # and XY values of vertices projected onto the plane
         planar = Path2D(entities=copy.deepcopy(self.entities),
                         vertices=flat[:, :2],
-                        metadata=metadata)
+                        metadata=metadata,
+                        process=False)
 
         return planar, to_3D
 
