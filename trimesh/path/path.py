@@ -29,7 +29,6 @@ from .. import transformations
 
 from . import raster
 from . import simplify
-from . import entities
 from . import polygons
 from . import segments
 from . import traversal

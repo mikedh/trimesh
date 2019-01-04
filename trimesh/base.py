@@ -1947,7 +1947,7 @@ class Trimesh(Geometry):
         Removes all face references so that every face contains
         three unique vertex indices and no faces are adjacent.
         """
-        #vertices = self.vertices[self.faces].reshape((-1, 3))
+        # new faces are incrementing so every vertex is unique
         faces = np.arange(len(self.faces) * 3,
                           dtype=np.int64).reshape((-1, 3))
 

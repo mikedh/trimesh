@@ -7,8 +7,6 @@ Deal with re- triangulation of existing meshes.
 
 import numpy as np
 
-import collections
-
 from . import util
 from . import grouping
 

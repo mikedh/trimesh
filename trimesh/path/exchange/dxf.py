@@ -747,7 +747,7 @@ def export_dxf(path, layers=None):
         name = type(e).__name__
         # only export specified layers
         if layers is not None:
-            if not layer in layers:
+            if layer not in layers:
                 continue
         if name in conversions:
             converted = conversions[name](e, path.vertices).strip()

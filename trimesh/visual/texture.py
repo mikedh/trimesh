@@ -3,7 +3,6 @@ import numpy as np
 import copy
 
 from . import color
-from .. import util
 from .. import caching
 
 

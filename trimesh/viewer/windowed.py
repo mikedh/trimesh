@@ -1,3 +1,13 @@
+"""
+windowed.py
+---------------
+
+Provides a pyglet- based windowed viewer to preview
+Trimesh, Scene, PointCloud, and Path objects.
+
+Works on all major platforms: Windows, Linux, and OSX.
+"""
+
 import pyglet
 import pyglet.gl as gl
 

@@ -27,9 +27,9 @@ def _cloture(exc):
     return failed
 
 
-# try importing windowed which will fail
-# if we can't create an openGL context
 try:
+    # try importing windowed which will fail
+    # if we can't create an openGL context
     from .windowed import (SceneViewer,
                            render_scene)
 except BaseException as E:

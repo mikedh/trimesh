@@ -1,8 +1,9 @@
 """
-viewerJS.py
+notebook.py
 -------------
 
-Render trimesh.Scene objects using three.js
+Render trimesh.Scene objects in HTML
+and jupyter notebooks using three.js
 """
 import os
 import base64

@@ -14,7 +14,6 @@ import numpy as np
 from .. import util
 from .. import visual
 from .. import rendering
-from .. import transformations
 
 from ..constants import log
 

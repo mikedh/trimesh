@@ -28,7 +28,6 @@ import numpy as np
 
 import copy
 import colorsys
-import collections
 
 from .. import util
 from .. import caching

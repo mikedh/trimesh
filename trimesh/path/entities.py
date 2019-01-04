@@ -320,14 +320,6 @@ class Text(Entity):
 
         import matplotlib.pyplot as plt
 
-        # if self.height is None:
-        #    height = 24
-        # else:
-        #    height=self.height
-
-        #from IPython import embed
-        # embed()
-
         # get rotation angle in degrees
         angle = np.degrees(self.angle(vertices))
 

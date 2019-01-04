@@ -116,41 +116,49 @@ def load(file_obj,
                          file_type=file_type,
                          resolver=resolver)
 
-    if isinstance(file_obj, dict):
-        # if we've been passed a dict treat it as kwargs
-        kwargs.update(file_obj)
-        loaded = load_kwargs(kwargs)
-    elif file_type in path_formats():
-        # path formats get loaded with path loader
-        loaded = load_path(file_obj,
-                           file_type=file_type,
-                           **kwargs)
-    elif file_type in mesh_loaders:
-        # mesh loaders use mesh loader
-        loaded = load_mesh(file_obj,
-                           file_type=file_type,
-                           resolver=resolver,
-                           **kwargs)
-    elif file_type in compressed_loaders:
-        # for archives, like ZIP files
-        loaded = load_compressed(file_obj,
-                                 file_type=file_type,
-                                 **kwargs)
-    else:
-        if file_type in ['svg', 'dxf']:
-            # call the dummy function to raise the import error
-            # this prevents the exception from being super opaque
-            load_path()
+    try:
+        if isinstance(file_obj, dict):
+            # if we've been passed a dict treat it as kwargs
+            kwargs.update(file_obj)
+            loaded = load_kwargs(kwargs)
+        elif file_type in path_formats():
+            # path formats get loaded with path loader
+            loaded = load_path(file_obj,
+                               file_type=file_type,
+                               **kwargs)
+        elif file_type in mesh_loaders:
+            # mesh loaders use mesh loader
+            loaded = load_mesh(file_obj,
+                               file_type=file_type,
+                               resolver=resolver,
+                               **kwargs)
+        elif file_type in compressed_loaders:
+            # for archives, like ZIP files
+            loaded = load_compressed(file_obj,
+                                     file_type=file_type,
+                                     **kwargs)
         else:
-            raise ValueError('File type: %s not supported',
-                             file_type)
+            if file_type in ['svg', 'dxf']:
+                # call the dummy function to raise the import error
+                # this prevents the exception from being super opaque
+                load_path()
+            else:
+                raise ValueError('File type: %s not supported',
+                                 file_type)
+    except BaseException as E:
+        # close any opened files
+        if opened:
+            file_obj.close()
+        # log the error and then re- raise now that we've cleaned up
+        log.error('failed to load!', exc_info=True)
+        raise E
 
+    # add load metadata ('file_name') to each loaded geometry
     for i in util.make_sequence(loaded):
-        # check to make sure loader actually loaded something
         i.metadata.update(metadata)
 
-    # if we opened the file in this function from a file name
-    # clean up after ourselves by closing it
+    # if we opened the file in this function ourselves from a
+    # file name clean up after ourselves by closing it
     if opened:
         file_obj.close()
 
