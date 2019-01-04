@@ -175,6 +175,38 @@ class SceneTests(g.unittest.TestCase):
         assert len(s.geometry) == 3
         assert len(s.graph.nodes_geometry) == 29
 
+    def test_camera(self):
+        # try adding a camera to a scene
+        scene = g.get_mesh('cycloidal.3DXML')
+
+        # shouldn't have been loaded with camera transform
+        assert 'camera' not in scene.graph
+        # set camera transform
+        scene.set_camera()
+        assert 'camera' in scene.graph
+        # transform returned should be (4, 4) float
+        assert scene.graph['camera'][0].shape == (4, 4)
+
+    def test_tri(self):
+        scene = g.get_mesh('cycloidal.3DXML')
+
+        # scene should have triangles
+        assert g.trimesh.util.is_shape(scene.triangles, (-1, 3, 3))
+        assert len(scene.triangles_node) == len(scene.triangles)
+
+        # node name of inserted 2D geometry
+        node = scene.add_geometry(g.get_mesh('2D/wrench.dxf'))
+        # should be in the graph
+        assert node in scene.graph.nodes
+        # should have geometry defined
+        assert node in scene.graph.nodes_geometry
+
+        # 2D geometry has no triangles
+        assert node not in scene.triangles_node
+        # every geometry node except the one 2D thing
+        # we inserted should be in triangles_node
+        assert len(set(scene.triangles_node)) == len(scene.graph.nodes_geometry) - 1
+
     def test_empty(self):
         m = g.get_mesh('bunny.ply')
 
