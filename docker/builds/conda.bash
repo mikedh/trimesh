@@ -1,13 +1,18 @@
 set -xe
 
 cd
+# get versioned miniconda installer via HTTPS
 wget https://repo.anaconda.com/miniconda/Miniconda3-4.5.4-Linux-x86_64.sh --quiet -O miniconda.sh
+# check hash of file
 echo "80ecc86f8c2f131c5170e43df489514f80e3971dd105c075935470bbf2476dea  miniconda.sh" | sha256sum --check
-
+# run miniconda install
 bash miniconda.sh -b -p ~/conda
 rm miniconda.sh
 
+# make sure conda bin is in front of PATH so we get correct pip
 export PATH="~/conda/bin:$PATH"
+
+# create a conda env
 conda config --set always_yes yes --set changeps1 no
 conda create -q -n denv python=3.6
 
@@ -22,8 +27,8 @@ conda config --add channels conda-forge
 # pyembree is used for fast ray tests
 conda install scikit-image pyembree 
 
-# install most trimesh requirements with built components 
-#conda install -c conda-forge shapely rtree numpy scipy
+# actually install trimesh and pytest
+pip install trimesh[all] pytest
 
 # remove archives
 conda clean --all -y

@@ -18,13 +18,13 @@ RUN useradd -m -s /bin/bash user
 RUN chown -R user:user /tmp
 USER user
 
-# install a conda env
+# install a conda env and trimesh
 COPY docker/builds/conda.bash /tmp/
-RUN bash /tmp/conda.bash
-
-# install python requirements
+# copy local trimesh for install script
 COPY . /tmp/trimesh
-RUN /home/user/conda/bin/pip install /tmp/trimesh[all] pytest
+
+# do conda and trimesh install
+RUN bash /tmp/conda.bash
 
 # add user python to path 
 ENV PATH="/home/user/conda/bin:$PATH"
@@ -36,4 +36,5 @@ ENV XVFB_WHD="1920x1080x24"\
     GALLIUM_DRIVER="llvmpipe"
 
 # make sure build fails if tests are failing
+# suppress warnings as some of our deps spawn 10,000 useless warnings
 RUN pytest -p no:warnings /tmp/trimesh/tests

@@ -145,13 +145,10 @@ def load(file_obj,
             else:
                 raise ValueError('File type: %s not supported',
                                  file_type)
-    except BaseException as E:
-        # close any opened files
+    finally:
+        # close any opened files even if we crashed out
         if opened:
             file_obj.close()
-        # log the error and then re- raise now that we've cleaned up
-        log.error('failed to load!', exc_info=True)
-        raise E
 
     # add load metadata ('file_name') to each loaded geometry
     for i in util.make_sequence(loaded):
@@ -196,32 +193,34 @@ def load_mesh(file_obj,
                          file_type=file_type,
                          resolver=resolver)
 
-    # make sure we keep passed kwargs to loader
-    # but also make sure loader keys override passed keys
-    results = mesh_loaders[file_type](file_obj,
-                                      file_type=file_type,
-                                      resolver=resolver,
-                                      **kwargs)
+    try:
+        # make sure we keep passed kwargs to loader
+        # but also make sure loader keys override passed keys
+        results = mesh_loaders[file_type](file_obj,
+                                          file_type=file_type,
+                                          resolver=resolver,
+                                          **kwargs)
 
-    if util.is_file(file_obj):
-        file_obj.close()
+        if util.is_file(file_obj):
+            file_obj.close()
 
-    log.debug('loaded mesh using %s',
-              mesh_loaders[file_type].__name__)
+        log.debug('loaded mesh using %s',
+                  mesh_loaders[file_type].__name__)
 
-    if not isinstance(results, list):
-        results = [results]
+        if not isinstance(results, list):
+            results = [results]
 
-    loaded = []
-    for result in results:
-        kwargs.update(result)
-        loaded.append(load_kwargs(kwargs))
-        loaded[-1].metadata.update(metadata)
-    if len(loaded) == 1:
-        loaded = loaded[0]
-
-    if opened:
-        file_obj.close()
+        loaded = []
+        for result in results:
+            kwargs.update(result)
+            loaded.append(load_kwargs(kwargs))
+            loaded[-1].metadata.update(metadata)
+        if len(loaded) == 1:
+            loaded = loaded[0]
+    finally:
+        # if we failed to load close file
+        if opened:
+            file_obj.close()
 
     return loaded
 
@@ -261,55 +260,56 @@ def load_compressed(file_obj,
                          file_type=file_type,
                          resolver=resolver)
 
-    # a dict of 'name' : file-like object
-    files = util.decompress(file_obj=file_obj,
-                            file_type=file_type)
-    # store loaded geometries as a list
-    geometries = []
+    try:
+        # a dict of 'name' : file-like object
+        files = util.decompress(file_obj=file_obj,
+                                file_type=file_type)
+        # store loaded geometries as a list
+        geometries = []
 
-    # so loaders can access textures/etc
-    resolver = visual.resolvers.ZipResolver(files)
+        # so loaders can access textures/etc
+        resolver = visual.resolvers.ZipResolver(files)
 
-    # try to save the files with meaningful metadata
-    if 'file_path' in metadata:
-        archive_name = metadata['file_path']
-    else:
-        archive_name = 'archive'
-
-    # populate our available formats
-    if mixed:
-        available = available_formats()
-    else:
-        # all types contained in ZIP archive
-        contains = set(util.split_extension(n).lower()
-                       for n in files.keys())
-        # if there are no mesh formats available
-        if contains.isdisjoint(mesh_formats()):
-            available = path_formats()
+        # try to save the files with meaningful metadata
+        if 'file_path' in metadata:
+            archive_name = metadata['file_path']
         else:
-            available = mesh_formats()
+            archive_name = 'archive'
 
-    for name, data in files.items():
-        # only load formats that we support
-        compressed_type = util.split_extension(name).lower()
-        if compressed_type not in available:
-            # don't raise an exception, just try the next one
-            continue
-        # store the file name relative to the archive
-        metadata['file_name'] = (archive_name + '/' +
-                                 os.path.basename(name))
-        # load the individual geometry
-        geometry = load(file_obj=data,
-                        file_type=compressed_type,
-                        resolver=resolver,
-                        metadata=metadata,
-                        **kwargs)
-        geometries.append(geometry)
+        # populate our available formats
+        if mixed:
+            available = available_formats()
+        else:
+            # all types contained in ZIP archive
+            contains = set(util.split_extension(n).lower()
+                           for n in files.keys())
+            # if there are no mesh formats available
+            if contains.isdisjoint(mesh_formats()):
+                available = path_formats()
+            else:
+                available = mesh_formats()
 
-    # if we opened the file in this function
-    # clean up after ourselves
-    if opened:
-        file_obj.close()
+        for name, data in files.items():
+            # only load formats that we support
+            compressed_type = util.split_extension(name).lower()
+            if compressed_type not in available:
+                # don't raise an exception, just try the next one
+                continue
+            # store the file name relative to the archive
+            metadata['file_name'] = (archive_name + '/' +
+                                     os.path.basename(name))
+            # load the individual geometry
+            geometry = load(file_obj=data,
+                            file_type=compressed_type,
+                            resolver=resolver,
+                            metadata=metadata,
+                            **kwargs)
+            geometries.append(geometry)
+    finally:
+        # if we opened the file in this function
+        # clean up after ourselves
+        if opened:
+            file_obj.close()
 
     # append meshes or scenes into a single Scene object
     result = append_scenes(geometries)
@@ -484,8 +484,7 @@ def parse_file_args(file_obj,
         metadata.update(kwargs['metadata'])
 
     if util.is_file(file_obj) and file_type is None:
-        raise ValueError(
-            'File type must be specified when passing file objects!')
+        raise ValueError('file_type must be set when passing file objects!')
     if util.is_string(file_obj):
         try:
             # os.path.isfile will return False incorrectly
@@ -509,6 +508,7 @@ def parse_file_args(file_obj,
                 file_type = util.split_extension(
                     file_path,
                     special=['tar.gz', 'tar.bz2'])
+            # actually open the file
             file_obj = open(file_path, 'rb')
             opened = True
         else:
@@ -541,8 +541,9 @@ def parse_file_args(file_obj,
     file_type = file_type.lower()
 
     # if we still have no resolver try using file_obj name
-    if resolver is None and hasattr(
-            file_obj, 'name') and len(file_obj.name) > 0:
+    if (resolver is None and
+        hasattr(file_obj, 'name') and
+            len(file_obj.name) > 0):
         resolver = visual.resolvers.FilePathResolver(file_obj.name)
 
     return file_obj, file_type, metadata, opened, resolver

@@ -152,7 +152,8 @@ Trimesh includes an optional `pyglet` based viewer for debugging and inspecting.
 * `c` toggles backface culling
 * `f` toggles between fullscreen and windowed mode
 * `m` maximizes the window
-* `a` toggles an XYZ-RGB axis marker between: off, at world frame, or at every frame
+* `q` closes the window
+* `a` toggles an XYZ-RGB axis marker between three states: off, at world frame, or at every frame
 
 If called from inside a `jupyter` notebook, `mesh.show()` displays an in-line preview using `three.js` to display the mesh or scene.
 
