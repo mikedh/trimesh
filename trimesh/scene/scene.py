@@ -589,7 +589,7 @@ class Scene(Geometry):
         -----------
         png: bytes, render of scene in PNG form
         """
-        from .viewer import render_scene
+        from ..viewer import render_scene
         png = render_scene(scene=self,
                            resolution=resolution,
                            **kwargs)
