@@ -792,7 +792,7 @@ def export_dxf(path, layers=None):
         # should be even number of lines
         assert (len(lines) % 2) == 0
 
-        # group codes should all be convertable to int and positive
+        # group codes should all be convertible to int and positive
         assert all(int(i) >= 0 for i in lines[::2])
 
     return blob

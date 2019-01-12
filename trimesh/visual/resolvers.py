@@ -159,7 +159,7 @@ class WebResolver(Resolver):
         name : str
           Asset name, i.e. 'quadknot.obj.mtl'
         """
-        # do import here to keep soft dependancy
+        # do import here to keep soft dependency
         import requests
 
         # append base url to requested name

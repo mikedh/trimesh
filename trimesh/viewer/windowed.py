@@ -311,7 +311,7 @@ class SceneViewer(pyglet.window.Window):
 
     def toggle_fullscreen(self):
         """
-        Toggle betwen fullscreen and windowed mode.
+        Toggle between fullscreen and windowed mode.
         """
         self.view['fullscreen'] = not self.view['fullscreen']
         self.update_flags()

@@ -124,7 +124,7 @@ def subdivide_to_size(vertices,
                                 dtype=np.float64,
                                 copy=True)
 
-    # loop through interation cap
+    # loop through iteration cap
     for i in range(max_iter + 1):
         # (n, 3, 3) float triangle soup
         triangles = current_vertices[current_faces]
