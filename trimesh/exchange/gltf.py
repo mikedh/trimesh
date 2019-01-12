@@ -633,7 +633,10 @@ def _read_buffers(header,
     # split buffer data into buffer views
     views = []
     for view in header['bufferViews']:
-        start = view['byteOffset']
+        if 'byteOffset' in view:
+            start = view['byteOffset']
+        else:
+            start = 0
         end = start + view['byteLength']
         views.append(buffers[view['buffer']][start:end])
         assert len(views[-1]) == view['byteLength']
