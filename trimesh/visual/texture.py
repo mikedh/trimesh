@@ -197,6 +197,9 @@ class PBRMaterial(Material):
                  roughnessFactor=None,
                  metallicRoughnessTexture=None):
 
+        # (4,) float
+        self.baseColorFactor = baseColorFactor
+
         # (3,) float
         self.emissiveFactor = emissiveFactor
 
