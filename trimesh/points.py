@@ -377,6 +377,9 @@ class PointCloud(Geometry):
         """
         return self.vertices.shape
 
+    def copy(self):
+        raise NotImplementedError
+
     def md5(self):
         """
         Get an MD5 hash of the current vertices.
@@ -415,6 +418,12 @@ class PointCloud(Geometry):
         """
         self.vertices = transformations.transform_points(self.vertices,
                                                          matrix=transform)
+
+    def apply_translation(self, translation):
+        raise NotImplementedError
+
+    def apply_scale(self, scale):
+        raise NotImplementedError
 
     @property
     def bounds(self):

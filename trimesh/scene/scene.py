@@ -65,6 +65,15 @@ class Scene(Geometry):
 
         self.camera = None
 
+    def apply_transform(self, transform):
+        raise NotImplementedError
+
+    def apply_translation(self, translation):
+        raise NotImplementedError
+
+    def apply_scale(self, scale):
+        raise NotImplementedError
+
     def add_geometry(self,
                      geometry,
                      node_name=None,

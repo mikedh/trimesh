@@ -4,12 +4,42 @@ parent.py
 
 The base class for Trimesh, PointCloud, and Scene objects
 """
+import abc
+
 import numpy as np
 
 from . import caching
 
 
-class Geometry(object):
+class Geometry(metaclass=abc.ABCMeta):
+    @abc.abstractproperty
+    def bounds(self):
+        pass
+
+    @abc.abstractproperty
+    def extents(self):
+        pass
+
+    @abc.abstractmethod
+    def apply_transform(self):
+        pass
+
+    @abc.abstractmethod
+    def apply_translation(self):
+        pass
+
+    @abc.abstractmethod
+    def apply_scale(self):
+        pass
+
+    @abc.abstractmethod
+    def copy(self):
+        pass
+
+    @abc.abstractmethod
+    def show(self):
+        pass
+
     @caching.cache_decorator
     def bounding_box(self):
         """
