@@ -4,6 +4,8 @@ points.py
 
 Functions dealing with (n, d) points.
 """
+import copy
+
 import numpy as np
 
 from .constants import tol
@@ -378,7 +380,31 @@ class PointCloud(Geometry):
         return self.vertices.shape
 
     def copy(self):
-        raise NotImplementedError
+        """
+        Safely get a copy of the current point cloud.
+
+        Copied objects will have emptied caches to avoid memory
+        issues and so may be slow on initial operations until
+        caches are regenerated.
+
+        Current object will *not* have its cache cleared.
+
+        Returns
+        ---------
+        copied : trimesh.PointCloud
+          Copy of current point cloud
+        """
+        copied = PointCloud()
+
+        # copy vertex and face data
+        copied._data.data = copy.deepcopy(self._data.data)
+        # get metadata
+        copied.metadata = copy.deepcopy(self.metadata)
+
+        # make sure cache is set from here
+        copied._cache.clear()
+
+        return copied
 
     def md5(self):
         """
@@ -420,10 +446,39 @@ class PointCloud(Geometry):
                                                          matrix=transform)
 
     def apply_translation(self, translation):
-        raise NotImplementedError
+        """
+        Translate the current mesh.
 
-    def apply_scale(self, scale):
-        raise NotImplementedError
+        Parameters
+        ----------
+        translation : (3,) float
+          Translation in XYZ
+        """
+        translation = np.asanyarray(translation, dtype=np.float64)
+        if translation.shape != (3,):
+            raise ValueError('Translation must be (3,)!')
+
+        matrix = np.eye(4)
+        matrix[:3, 3] = translation
+        self.apply_transform(matrix)
+
+    def apply_scale(self, scaling):
+        """
+        Scale the mesh equally on all axis.
+
+        Parameters
+        ----------
+        scaling : float
+          Scale factor to apply to the mesh
+        """
+        scaling = float(scaling)
+        if not np.isfinite(scaling):
+            raise ValueError('Scaling factor must be finite number!')
+
+        matrix = np.eye(4)
+        matrix[:3, :3] *= scaling
+        # apply_transform will work nicely even on negative scales
+        self.apply_transform(matrix)
 
     @property
     def bounds(self):
