@@ -4,12 +4,86 @@ parent.py
 
 The base class for Trimesh, PointCloud, and Scene objects
 """
+import abc
+import sys
+
 import numpy as np
 
 from . import caching
 
 
-class Geometry(object):
+if sys.version_info >= (3, 4):
+    ABC = abc.ABC
+else:
+    ABC = abc.ABCMeta('ABC', (), {})
+
+
+class Geometry(ABC):
+
+    """Parent of geometry classes.
+
+    The `Geometry` object is the parent object of geometry classes, including:
+    Trimesh, PointCloud, and Scene objects.
+
+    By decorating a method with `abc.abstractmethod` it just means the objects
+    that inherit from `Geometry` MUST implement those methods.
+    """
+
+    @abc.abstractproperty
+    def bounds(self):
+        pass
+
+    @abc.abstractproperty
+    def extents(self):
+        pass
+
+    @abc.abstractmethod
+    def apply_transform(self):
+        pass
+
+    def apply_translation(self, translation):
+        """
+        Translate the current mesh.
+
+        Parameters
+        ----------
+        translation : (3,) float
+          Translation in XYZ
+        """
+        translation = np.asanyarray(translation, dtype=np.float64)
+        if translation.shape != (3,):
+            raise ValueError('Translation must be (3,)!')
+
+        matrix = np.eye(4)
+        matrix[:3, 3] = translation
+        self.apply_transform(matrix)
+
+    def apply_scale(self, scaling):
+        """
+        Scale the mesh equally on all axis.
+
+        Parameters
+        ----------
+        scaling : float
+          Scale factor to apply to the mesh
+        """
+        scaling = float(scaling)
+        if not np.isfinite(scaling):
+            raise ValueError('Scaling factor must be finite number!')
+
+        matrix = np.eye(4)
+        matrix[:3, :3] *= scaling
+        # apply_transform will work nicely even on negative scales
+        self.apply_transform(matrix)
+
+    @abc.abstractmethod
+    def copy(self):
+        pass
+
+    @abc.abstractmethod
+    def show(self):
+        pass
+
     @caching.cache_decorator
     def bounding_box(self):
         """

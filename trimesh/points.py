@@ -4,6 +4,8 @@ points.py
 
 Functions dealing with (n, d) points.
 """
+import copy
+
 import numpy as np
 
 from .constants import tol
@@ -376,6 +378,33 @@ class PointCloud(Geometry):
           Shape of vertex array
         """
         return self.vertices.shape
+
+    def copy(self):
+        """
+        Safely get a copy of the current point cloud.
+
+        Copied objects will have emptied caches to avoid memory
+        issues and so may be slow on initial operations until
+        caches are regenerated.
+
+        Current object will *not* have its cache cleared.
+
+        Returns
+        ---------
+        copied : trimesh.PointCloud
+          Copy of current point cloud
+        """
+        copied = PointCloud()
+
+        # copy vertex and face data
+        copied._data.data = copy.deepcopy(self._data.data)
+        # get metadata
+        copied.metadata = copy.deepcopy(self.metadata)
+
+        # make sure cache is set from here
+        copied._cache.clear()
+
+        return copied
 
     def md5(self):
         """
