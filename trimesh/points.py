@@ -445,41 +445,6 @@ class PointCloud(Geometry):
         self.vertices = transformations.transform_points(self.vertices,
                                                          matrix=transform)
 
-    def apply_translation(self, translation):
-        """
-        Translate the current mesh.
-
-        Parameters
-        ----------
-        translation : (3,) float
-          Translation in XYZ
-        """
-        translation = np.asanyarray(translation, dtype=np.float64)
-        if translation.shape != (3,):
-            raise ValueError('Translation must be (3,)!')
-
-        matrix = np.eye(4)
-        matrix[:3, 3] = translation
-        self.apply_transform(matrix)
-
-    def apply_scale(self, scaling):
-        """
-        Scale the mesh equally on all axis.
-
-        Parameters
-        ----------
-        scaling : float
-          Scale factor to apply to the mesh
-        """
-        scaling = float(scaling)
-        if not np.isfinite(scaling):
-            raise ValueError('Scaling factor must be finite number!')
-
-        matrix = np.eye(4)
-        matrix[:3, :3] *= scaling
-        # apply_transform will work nicely even on negative scales
-        self.apply_transform(matrix)
-
     @property
     def bounds(self):
         """
