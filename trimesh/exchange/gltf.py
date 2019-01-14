@@ -14,6 +14,7 @@ import numpy as np
 from .. import util
 from .. import visual
 from .. import rendering
+from .. import transformations
 
 from ..constants import log
 
@@ -779,23 +780,24 @@ def _read_buffers(header,
                 child['matrix'],
                 dtype=np.float64).reshape((4, 4)).T
         else:
-            # if no matrix
+            # if no matrix set identity
             kwargs['matrix'] = np.eye(4)
 
-        """
-        # GLTF applies these in order T * R * S
+        # Now apply keyword translations
+        # GLTF applies these in order: T * R * S
         if 'translation' in child:
             kwargs['matrix'] = np.dot(
                 kwargs['matrix'],
-                transformations.translation_matrix(
-        child['translation']))
+                transformations.translation_matrix(child['translation']))
         if 'rotation' in child:
-            # rotations are stored as (4,) unit quaternions
-            quat = np.reshape(child['rotation'], -1)
+            # GLTF rotations are stored as (4,) XYZW unit quaternions
+            # we need to re- order to our quaternion style, WXYZ
+            quat = np.reshape(child['rotation'], 4)[[3, 0, 1, 2]]
+
+            # add the rotation to the matrix
             kwargs['matrix'] = np.dot(
                 kwargs['matrix'],
                 transformations.quaternion_matrix(quat))
-        """
 
         # append the nodes for connectivity without the mesh
         graph.append(kwargs.copy())
