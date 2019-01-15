@@ -921,7 +921,7 @@ class Trimesh(Geometry):
         # make sure we have populated unique edges
         populate = self.edges_unique
         # we are relying on the fact that edges are stacked in triplets
-        result = self._cache['edges_unique_inv'].reshape((-1, 3))
+        result = self._cache['edges_unique_inverse'].reshape((-1, 3))
         return result
 
     @caching.cache_decorator
