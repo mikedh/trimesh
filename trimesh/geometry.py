@@ -96,7 +96,7 @@ def align_vectors(a, b, return_angle=False):
         # (3,) vector perpendicular to both a and b
         w = np.cross(a, b)
 
-        # a scalar
+        # a float between 0.5 and 1.0
         c = 1.0 / (1.0 + dot)
 
         # (3, 3) skew- symmetric matrix from the (3,) vector w
