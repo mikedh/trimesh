@@ -67,7 +67,7 @@ install:
 - conda config --add channels conda-forge
 - conda update -q conda
 - conda info -a
-- conda create -q -n test-environment python=$PYTHON_VERSION nomkl numpy scipy
+- conda create -q -n test-environment python=$PYTHON_VERSION nomkl numpy==1.15.4 scipy
 - source activate test-environment
 
 # make sure we parked our car in the right spot
@@ -100,7 +100,7 @@ script:
 - pip install -q xxhash || true
 # triangle is compiled, sometimes fails 
 # on Python 3.7, and is a soft dependency
-- pip install -q triangle || true
+- pip install -q triangle==20170429 || true
 
 # run main tests
 # -W default means that warnings only prints the
