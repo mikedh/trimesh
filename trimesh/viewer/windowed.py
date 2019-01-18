@@ -154,7 +154,7 @@ class SceneViewer(pyglet.window.Window):
         if self.callback is not None:
             self.callback(self.scene)
         for name, mesh in self.scene.geometry.items():
-            if self.vertex_list_hash[name] != geometry_hash(mesh):
+            if self.vertex_list_hash.get(name, None) != geometry_hash(mesh):
                 self.add_geometry(name, mesh)
 
     def add_geometry(self, name, geometry, **kwargs):
