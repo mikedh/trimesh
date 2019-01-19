@@ -340,8 +340,15 @@ def triangulate_polygon(polygon,
             result = triangulate(arg, triangle_args)
             return result['vertices'], result['triangles']
     except ImportError:
-        # no triangle, so move on to meshpy
+        # no `triangle` so move on to `meshpy`
         pass
+    except BaseException as E:
+        # if we see an exception log it and move on
+        log.error('failed to triangulate using triangle!',
+                  exc_info=True)
+        # if we are running unit tests exit here and fail
+        if tol.strict:
+            raise E
 
     # do the import here, as sometimes this import can segfault
     # which is not catchable with a try/except block

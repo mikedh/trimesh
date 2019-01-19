@@ -494,17 +494,23 @@ class Path(object):
         self.apply_transform(matrix)
         return matrix
 
-    def merge_vertices(self):
+    def merge_vertices(self, digits=None):
         """
         Merges vertices which are identical and replace references.
 
+        Parameters
+        --------------
+        digits : None, or int
+          How many digits to consider when merging vertices
         Alters
         -----------
-        self.entities: entity.points re- referenced
-        self.vertices: duplicates removed
+        self.entities : entity.points re- referenced
+        self.vertices : duplicates removed
         """
-        digits = util.decimal_to_digits(tol.merge * self.scale,
-                                        min_digits=1)
+        if digits is None:
+            digits = util.decimal_to_digits(tol.merge * self.scale,
+                                            min_digits=1)
+
         unique, inverse = grouping.unique_rows(self.vertices,
                                                digits=digits)
         self.vertices = self.vertices[unique]
