@@ -1,0 +1,124 @@
+# we are using miniconda python
+language: generic
+sudo: required
+dist: trusty
+
+matrix:
+  include:
+    - env: PYTHON_VERSION=2.7
+    - env: PYTHON_VERSION=3.4
+    - env: PYTHON_VERSION=3.5
+    - env: PYTHON_VERSION=3.6
+    - env: PYTHON_VERSION=3.7
+
+before_deploy:
+- pip install -q -r docs/requirements.txt
+- python docs/build.py
+
+# extract the current trimesh version from the version file
+- export TM_VERSION=`python -c "exec(open('trimesh/version.py','r').read()); print(__version__)"`
+
+# tag the release and if it's already tagged chill
+- git tag $TM_VERSION || true
+
+deploy:
+- provider: pypi
+  user: mikedh
+  on:
+    condition: $PYTHON_VERSION = '3.6'
+    branch: master
+  password:
+    secure: MmFES9M+UZbfpQsWeSVlhgUcdbpCymaeJwExxcyJbkKKWdRoZLRusqCmTdQ7Rai8DxH++ooqgEnHwq+D9e/8Y0jbbFBScPbJVeNFj1B4xV36NlyV8A0027/UTuhvkhoUv/xP6mN4TfuC3tWEj5m20DQlibjjxS154r/BlA6/kic=
+
+- provider: pages
+  skip-cleanup: true
+  github-token: $GITHUB_TOKEN 
+  keep-history: false
+  target-branch: gh-pages
+  local-dir: docs/html
+  on:
+    condition: $PYTHON_VERSION = '3.6'
+    branch: master
+
+- provider: releases
+  api_key: $GITHUB_TOKEN
+  skip_cleanup: false
+  # only release the README github will create source
+  # tarballs which are what people would want anyway
+  file: "README.md"
+  on:
+    condition: $PYTHON_VERSION = '3.6'
+    branch: master
+
+before_install:
+- sudo apt-get -qq update
+- sudo apt-get -qq -y install openscad blender meshlab xvfb pandoc
+- sudo wget https://github.com/mikedh/v-hacd-1/raw/master/bin/linux/testVHACD --quiet
+  -P /usr/bin
+- sudo chmod +x /usr/bin/testVHACD
+
+install:
+- if [[ "$PYTHON_VERSION" == "2.7" ]]; then wget --quiet https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
+  -O miniconda.sh; else wget --quiet https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
+  -O miniconda.sh; fi
+- bash miniconda.sh -b -p $HOME/miniconda
+- export PATH="$HOME/miniconda/bin:$PATH"
+- conda config --set always_yes yes --set changeps1 no
+- conda config --add channels conda-forge
+- conda update -q conda
+- conda info -a
+- conda create -q -n test-environment python=$PYTHON_VERSION nomkl numpy scipy
+- source activate test-environment
+
+# make sure we parked our car in the right spot
+- python -c "import os,sys;assert '{}.{}'.format(*sys.version_info[:2])==os.environ['PYTHON_VERSION']"
+
+# only install the basic version of the library to make sure
+# trimesh imports and functions with only the minimal install
+- pip install .
+
+# install testing stuff
+- pip install -q pytest pytest-cov coveralls
+
+script:
+
+# try simple tests with only minimal deps
+- python -c "import trimesh"
+- pytest  -p no:warnings tests/test_inertia.py
+
+# shapely/rtree are easiest to get from conda
+- conda install -q scikit-image rtree shapely
+
+# pyembree and python-fcl not available everywhere
+- if [[ "$PYTHON_VERSION" == "3.6" ]]; then conda install pyembree; fi;
+- if [[ "$PYTHON_VERSION" == "3.6" ]]; then pip install python-fcl; fi;
+
+# install most deps here
+- pip install -q .[easy]
+
+# xxhash only has linux wheels and is a soft dependancy
+- pip install -q xxhash || true
+# triangle is compiled, sometimes fails 
+# on Python 3.7, and is a soft dependency
+- pip install -q triangle || true
+
+# run main tests
+# -W default means that warnings only prints the
+# first instance of a warning rather than all of them
+- pytest -W default --cov=trimesh tests/
+
+# downgrade networkx from 2.x to 1.x to make sure our
+# graph operations work on both versions of their API
+- pip install -q -Iv networkx==1.11
+# print version for logs
+- python -c "import networkx; print('::NX_VERSION::', networkx.__version__)"
+# will print tons of depreciation warnings we don't care about 
+- pytest -p no:warnings tests/test_graph.py tests/test_scene.py
+
+# make sure examples still work
+- cd examples
+- set -xe; for f in *py*; do python ../tests/notebooks.py exec "$f"; done
+- cd ..
+
+after_success:
+- coveralls
