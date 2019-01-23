@@ -49,7 +49,7 @@ trimesh.constants.tol_path.strict = True
 
 
 try:
-    from shapely.geometry import Point, Polygon
+    from shapely.geometry import Point, Polygon, LineString
     has_path = True
 except ImportError:
     has_path = False

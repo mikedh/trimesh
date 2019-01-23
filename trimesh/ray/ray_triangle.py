@@ -302,8 +302,11 @@ def ray_bounds(ray_origins,
     ray_bounding: (n) set of AABB of rays passing through volume
     """
 
+    ray_origins = np.asanyarray(ray_origins, dtype=np.float64)
+    ray_directions = np.asanyarray(ray_directions, dtype=np.float64)
+
     # bounding box we are testing against
-    bounds = np.array(bounds)
+    bounds = np.asanyarray(bounds)
 
     # find the primary axis of the vector
     axis = np.abs(ray_directions).argmax(axis=1)

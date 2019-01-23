@@ -167,8 +167,6 @@ class ExportTest(g.unittest.TestCase):
         # the loader may reorder vertices, so we shouldn't check direct
         # equality
         assert m.vertex_normals.shape == reconstructed.vertex_normals.shape
-        assert m.metadata['vertex_texture'].shape == reconstructed.metadata[
-            'vertex_texture'].shape
 
     def test_obj_order(self):
         """

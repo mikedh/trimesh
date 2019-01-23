@@ -141,20 +141,6 @@ def load_wavefront(file_obj, resolver=None, **kwargs):
                                    dtype=np.float64).reshape((-1, 3))
                 loaded['vertex_normals'] = normals[vert_order]
 
-            # handle vertex texture
-            if len(current['vt']) > 0:
-                texture = np.full((len(current['vt_ok']), 3),
-                                  np.nan,
-                                  dtype=np.float64)
-                # make sure mask is numpy array for older numpy
-                vt_ok = np.asanyarray(current['vt_ok'], dtype=np.bool)
-
-                texture[vt_ok] = current['vt']
-                texture = texture[vert_order]
-                texture = texture[~np.any(np.isnan(texture), axis=1)]
-                # save vertex texture with correct ordering
-                loaded['metadata']['vertex_texture'] = texture
-
             # build face groups information
             # faces didn't move around so we don't have to reindex
             if len(current['g']) > 0:
@@ -193,7 +179,12 @@ def load_wavefront(file_obj, resolver=None, **kwargs):
 
             # apply the vertex order to the visual object
             if 'visual' in loaded:
-                loaded['visual'].update_vertices(vert_order)
+                try:
+                    loaded['visual'].update_vertices(vert_order)
+                except BaseException:
+                    log.error('failed to update vertices',
+                              exc_info=True)
+                    loaded.pop('visual')
 
             # this mesh is done so append the loaded mesh kwarg dict
             meshes.append(loaded)

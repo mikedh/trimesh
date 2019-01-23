@@ -156,7 +156,8 @@ def load_dxf(file_obj, **kwargs):
 
         # 70 is the closed flag for polylines
         # if the closed flag is set make sure to close
-        if ('70' in e and int(e['70'][0]) & 1):
+        is_closed = '70' in e and int(e['70'][0]) & 1
+        if is_closed:
             lines = np.vstack((lines, lines[:1]))
 
         # 42 is the vertex bulge flag for LWPOLYLINE entities
@@ -171,19 +172,30 @@ def load_dxf(file_obj, **kwargs):
             # A bulge of 0 indicates a straight segment, and a
             # bulge of 1 is a semicircle.
             log.debug('polyline bulge: {}'.format(e['42']))
+            # the actual bulge float values
+            bulge = np.array(e['42'], dtype=np.float64)
+
             # what position were vertices stored at
             vid = np.nonzero(chunk[:, 0] == '10')[0]
             # what position were bulges stored at in the chunk
             bid = np.nonzero(chunk[:, 0] == '42')[0]
+
+            if not is_closed:
+                bid_ok = bid < vid.max()
+                bid = bid[bid_ok]
+                bulge = bulge[bid_ok]
+
             # which vertex index is bulge value associated with
             bulge_idx = np.searchsorted(vid, bid)
-
-            # the actual bulge float values
-            bulge = np.array(e['42'], dtype=np.float64)
             # use bulge to calculate included angle of the arc
             angle = np.arctan(bulge) * 4.0
+
             # the indexes making up a bulged segment
             tid = np.column_stack((bulge_idx, bulge_idx - 1))
+
+            # if it's a closed segment modulus to start vertex
+            if is_closed:
+                tid %= len(lines)
             # the vector connecting the two ends of the arc
             vector = lines[tid[:, 0]] - lines[tid[:, 1]]
             # the length of the connector segment
@@ -214,7 +226,7 @@ def load_dxf(file_obj, **kwargs):
 
             # if we're in strict mode make sure our arcs
             # have the same magnitude as the input data
-            if tol.strict:
+            if True or tol.strict:
                 from .. import arc as arcmod
                 check_angle = [arcmod.arc_center(i)['span']
                                for i in three]
@@ -443,7 +455,8 @@ def load_dxf(file_obj, **kwargs):
     polyline = None
 
     # loop through chunks of entity information
-    for index in np.array_split(np.arange(len(entity_blob)), inflection):
+    for index in np.array_split(np.arange(len(entity_blob)),
+                                inflection):
 
         # if there is only a header continue
         if len(index) < 1:

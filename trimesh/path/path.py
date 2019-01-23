@@ -28,6 +28,7 @@ from .. import grouping
 from .. import transformations
 
 from . import raster
+from . import repair
 from . import simplify
 from . import polygons
 from . import segments
@@ -75,7 +76,7 @@ class Path(object):
           Run simple cleanup or not
         """
 
-        self.entities = np.array(entities)
+        self.entities = entities
         self.vertices = vertices
         self.metadata = dict()
 
@@ -85,8 +86,8 @@ class Path(object):
         self._cache = caching.Cache(id_function=self.crc)
 
         if process:
-            # literally nothing will work if vertices aren't
-            # merged properly
+            # literally nothing will work if vertices
+            # aren't merged properly
             self.merge_vertices()
 
     def process(self):
@@ -106,6 +107,14 @@ class Path(object):
     @vertices.setter
     def vertices(self, values):
         self._vertices = caching.tracked_array(values)
+
+    @property
+    def entities(self):
+        return self._entities
+
+    @entities.setter
+    def entities(self, values):
+        self._entities = np.asanyarray(values)
 
     @property
     def layers(self):
@@ -286,57 +295,17 @@ class Path(object):
             new_entities.extend(entity.explode())
         self.entities = np.array(new_entities)
 
-    def fill_gaps(self, max_distance=None):
+    def fill_gaps(self, distance=0.025):
         """
-        Find vertices with degree 1 and try to connect them to
-        other vertices of degree 1, in place.
+        Find vertices without degree 2 and try to connect to
+        other vertices. Operations are done in-place.
 
         Parameters
         ----------
-        max_distance : float
-          Connect vertices up to this distance.
-          Default is path.scale / 1000.0
+        distance : float
+          Connect vertices up to this distance
         """
-
-        # which vertices are only connected to one entity
-        broken = np.array(
-            [k for k, v in
-             dict(self.vertex_graph.degree()).items() if v == 1])
-
-        # of there is only one broken end we can't do anything
-        if len(broken) < 2:
-            return
-
-        # find pairs of close vertices
-        distance, node = KDTree(self.vertices[broken]).query(
-            self.vertices[broken], k=2)
-
-        # set a scale- relative max distance
-        if max_distance is None:
-            max_distance = self.scale / 1000.0
-
-        # change edges into a (n, 2) int
-        # that references self.vertices
-        edges = np.sort(broken[node], axis=1)
-        # remove duplicate edges
-        unique = grouping.unique_rows(edges)[0]
-        # apply the unique mask
-        edges = edges[unique]
-        distance = distance[unique]
-
-        # make sure edge doesn't exist and distance between
-        # vertices is the maximum allowable
-        ok = np.logical_and(distance[:, 1] < max_distance,
-                            [not self.vertex_graph.has_edge(*i) for i in edges])
-
-        # the vertices we want to merge
-        merge = edges[ok]
-        # do the merge with a mask
-        mask = np.arange(len(self.vertices))
-        mask[merge[:, 0]] = merge[:, 1]
-
-        # apply the mask to the
-        self.replace_vertex_references(mask)
+        repair.fill_gaps(self, distance=distance)
 
     @property
     def is_closed(self):

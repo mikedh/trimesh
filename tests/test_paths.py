@@ -106,6 +106,9 @@ class VectorTests(g.unittest.TestCase):
                 m = d.medial_axis()
                 assert len(m.entities) > 0
 
+            # shouldn't crash
+            d.fill_gaps()
+
             # transform to first quadrant
             d.rezero()
             # run process manually
@@ -208,6 +211,16 @@ class VectorTests(g.unittest.TestCase):
                 g.Point([(i + 2) * 2, 0]).buffer(1.0))
             s = path.sample(count=count)
             assert s.shape[1] == 2
+
+
+class UpstreamTests(g.unittest.TestCase):
+    def test_shapely(self):
+        """
+        conda installs of shapely started returning NaN on
+        valid input so make sure our builds fail in that case
+        """
+        l = g.LineString([[0, 0], [1, 0]])
+        assert g.np.isclose(l.length, 1.0)
 
 
 class ArcTests(g.unittest.TestCase):

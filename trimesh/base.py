@@ -372,6 +372,16 @@ class Trimesh(Geometry):
                 log.warning('face_normals all zero, ignoring!')
                 return
 
+            # make sure the first few normals match the first few triangles
+            check, valid = triangles.normals(
+                self.vertices.view(np.ndarray)[self.faces[:20]])
+            compare = np.zeros((len(valid), 3))
+            compare[valid] = check
+
+            if not np.allclose(compare, values[:20]):
+                log.warning('face_normals didn\'t match triangles, ignoring!')
+                return
+
         self._cache['face_normals'] = values
 
     @property

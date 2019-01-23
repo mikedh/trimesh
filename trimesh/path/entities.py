@@ -362,7 +362,7 @@ class Text(Entity):
         return 0.0
 
     def discrete(self, *args, **kwargs):
-        return []
+        return np.array([])
 
     @property
     def closed(self):
@@ -374,11 +374,11 @@ class Text(Entity):
 
     @property
     def nodes(self):
-        return []
+        return np.array([])
 
     @property
     def end_points(self):
-        return []
+        return np.array([])
 
     def _bytes(self):
         data = b''.join([b'Text',

@@ -1909,3 +1909,30 @@ def unique_bincount(values,
         return unique, inverse
 
     return unique
+
+
+def isclose(a, b, atol):
+    """
+    A replacement for np.isclose that does fewer checks
+    and validation and as a result is roughly 4x faster.
+
+    Note that this is used in tight loops, and as such
+    a and b MUST be np.ndarray, not list or "array-like"
+
+    Parameters
+    ----------
+    a : np.ndarray
+      To be compared
+    b : np.ndarray
+      To be compared
+    atol : float
+      Acceptable distance between `a` and `b` to be "close"
+
+    Returns
+    -----------
+    close : np.ndarray, bool
+      Per- element closeness
+    """
+    diff = a - b
+    close = np.logical_and(diff > -atol, diff < atol)
+    return close
