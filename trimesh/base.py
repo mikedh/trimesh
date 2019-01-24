@@ -66,32 +66,32 @@ class Trimesh(Geometry):
 
         Parameters
         ----------
-        vertices:       (n,3) float set of vertex locations
-
-        faces:          (m,3) int set of triangular faces
-                              (quad faces will be triangulated)
-
-        face_normals:   (m,3) float set of normal vectors for faces.
-
-        vertex_normals: (n,3) float set of normal vectors for vertices
-
-        metadata:       dict, any metadata about the mesh
-
-        process:        bool, if True, Nan and Inf values will be removed
-                        immediately and vertices will be merged
-
-        validate:       bool, if True, degenerate and duplicate faces will be
-                        removed immediately, and some functions will alter
-                        the mesh to ensure consistent results.
-
-        use_embree:     bool, if True try to use pyembree raytracer.
-                        If pyembree is not available it will automatically fall
-                        back to a much slower rtree/numpy implementation
-
-        initial_cache:  dict, a way to pass things to the cache in case expensive
-                        things were calculated before creating the mesh object.
-
-        visual:         ColorVisuals, if not None, it is set to self.visual.
+        vertices : (n, 3) float
+          Array of vertex locations
+        faces : (m, 3) or (m, 4) int
+          Array of triangular or quad faces (triangulated on load)
+        face_normals : (m, 3) float
+          Array of normal vectors corresponding to faces
+        vertex_normals : (n, 3) float
+          Array of normal vectors for vertices
+        metadata : dict
+          Any metadata about the mesh
+        process : bool
+          if True, Nan and Inf values will be removed
+          immediately and vertices will be merged
+        validate : bool
+          If True, degenerate and duplicate faces will be
+          removed immediately, and some functions will alter
+          the mesh to ensure consistent results.
+        use_embree : bool
+          If True try to use pyembree raytracer.
+          If pyembree is not available it will automatically fall
+          back to a much slower rtree/numpy implementation
+        initial_cache : dict
+          A way to pass things to the cache in case expensive
+          things were calculated before creating the mesh object.
+        visual : ColorVisuals or TextureVisuals
+          Assigned to self.visual
         """
 
         # self._data stores information about the mesh which
@@ -298,8 +298,9 @@ class Trimesh(Geometry):
           dtype : bool
           shape : (len(self.vertices), len(self.faces))
         """
-        sparse = geometry.index_sparse(column_count=len(self.vertices),
-                                       indices=self.faces)
+        sparse = geometry.index_sparse(
+            column_count=len(self.vertices),
+            indices=self.faces)
         return sparse
 
     @property

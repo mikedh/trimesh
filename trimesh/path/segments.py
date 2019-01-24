@@ -11,6 +11,8 @@ from .. import util
 from .. import grouping
 from .. import geometry
 
+from ..constants import tol
+
 
 def segments_to_parameters(segments):
     """
@@ -231,3 +233,123 @@ def unique(segments, digits=5):
     unique = segments[index[0]]
 
     return unique
+
+
+def overlap(origins, vectors, params):
+    """
+    Find the overlap of two parallel line segments.
+
+    Parameters
+    ------------
+    origins : (2, 3) float
+       Origin points of lines in space
+    vectors : (2, 3) float
+       Unit direction vectors of lines
+    params : (2, 2) float
+       Two (start, end) distance pairs
+
+    Returns
+    ------------
+    length : float
+       Overlapping length
+    overlap : (n, 2, 3) float
+       Line segments for overlapping distance
+    """
+    # copy inputs and make sure shape is correct
+    origins = np.array(origins).reshape((2, 3))
+    vectors = np.array(vectors).reshape((2, 3))
+    params = np.array(params).reshape((2, 2))
+
+    if tol.strict:
+        # convert input to parameters before flipping
+        # to make sure we didn't screw it up
+        truth = parameters_to_segments(origins,
+                                       vectors,
+                                       params)
+
+    # this function only works on parallel lines
+    dot = np.dot(*vectors)
+    assert np.isclose(np.abs(dot), 1.0, atol=.01)
+
+    # if two vectors are reversed
+    if dot < 0.0:
+        # reverse direction vector
+        vectors[1] *= -1.0
+        # negate parameters
+        params[1] *= -1.0
+
+    if tol.strict:
+        # do a check to make sure our reversal didn't
+        # inadvertently give us incorrect segments
+        assert np.allclose(truth,
+                           parameters_to_segments(origins,
+                                                  vectors,
+                                                  params))
+
+    # merge the parameter ranges
+    ok, new_range = range_union(*params)
+
+    if not ok:
+        return 0.0, np.array([])
+
+    # create the overlapping segment pairs (2, 2, 3)
+    segments = np.array([o + v * new_range.reshape((-1, 1))
+                         for o, v in zip(origins, vectors)])
+    # get the length of the new range
+    length = new_range.ptp()
+
+    return length, segments
+
+
+def range_union(a, b, digits=8):
+    """
+    Given a pair of ranges, merge them in to
+    one range if they overlap at all
+
+    Parameters
+    --------------
+    a : (2, ) float
+      Start and end of a 1D interval
+    b : (2, ) float
+      Start and end of a 1D interval
+
+    Returns
+    --------------
+    is_overlapping : bool
+      Indicates if the ranges overlap at all
+    new_range : (2, ) float or empty array
+      The merged range from the two inputs
+    """
+    # make sure ranges are sorted
+    a = np.sort(a).reshape(2)
+    b = np.sort(b).reshape(2)
+
+    # compare in fixed point as integers
+    a_int = (a * 10**digits).astype(np.int64)
+    b_int = (b * 10**digits).astype(np.int64)
+
+    # A fully overlaps B
+    if a_int[0] <= b_int[0] and a_int[1] >= b_int[1]:
+        # the intersection of the two ranges is B
+        return True, b
+
+    # B fully overlaps A
+    if a_int[0] >= b_int[0] and a_int[1] <= b_int[1]:
+        # the intersection of the two ranges is A
+        return True, a
+
+    # A starts B ends
+    # A0   B0     A1        B1
+    if (a_int[0] <= b_int[0] and
+        b_int[0] < a_int[1] and
+            a_int[1] < b_int[1]):
+        return True, np.array([b[0], a[1]])
+
+    # B starts A ends
+    # B0  A0    B1 A1
+    if (b_int[0] <= a_int[0] and
+        a_int[0] < b_int[1] and
+            b_int[1] < a_int[1]):
+        return True, np.array([a[0], b[1]])
+
+    return False, []

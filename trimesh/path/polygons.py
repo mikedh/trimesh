@@ -213,21 +213,25 @@ def transform_polygon(polygon, matrix):
     return result
 
 
-def plot_polygon(polygon, show=True):
+def plot_polygon(polygon, show=True, **kwargs):
     """
     Plot a shapely polygon using matplotlib.
 
     Parameters
     ------------
-    polygon: shapely.geometry.Polygon object
-    show:    bool, if True will display immediately
+    polygon : shapely.geometry.Polygon
+      Polygon to be plotted
+    show : bool
+      If True will display immediately
+    **kwargs
+      Passed to plt.plot
     """
     import matplotlib.pyplot as plt
 
     def plot_single(single):
-        plt.plot(*single.exterior.xy, color='b')
+        plt.plot(*single.exterior.xy, **kwargs)
         for interior in single.interiors:
-            plt.plot(*interior.xy, color='r')
+            plt.plot(*interior.xy, **kwargs)
     # make aspect ratio non- stupid
     plt.axes().set_aspect('equal', 'datalim')
     if util.is_sequence(polygon):
