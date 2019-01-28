@@ -99,12 +99,19 @@ class ZipResolver(Resolver):
         data : bytes
           Loaded data from asset
         """
+        # not much we can do with that
+        if name is None:
+            return
+
         # if name isn't in archive try some similar values
         if name not in self.archive:
             if hasattr(name, 'decode'):
                 name = name.decode('utf-8')
             # try with cleared whitespace, split paths
-            for option in [name, name.strip(), name.split('/')[-1]]:
+            for option in [name,
+                           name.lstrip('./'),
+                           name.strip(),
+                           name.split('/')[-1]]:
                 if option in self.archive:
                     name = option
                     break

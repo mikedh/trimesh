@@ -1958,21 +1958,30 @@ def transform_around(matrix, point):
     return result
 
 
-def planar_matrix(offset=[0.0, 0.0],
-                  theta=0.0,
+def planar_matrix(offset=None,
+                  theta=None,
                   point=None):
     """
     2D homogeonous transformation matrix
 
     Parameters
     ----------
-    offset: (2,) float, XY offset
-    theta:  float, rotation around Z in radians
-    point:  (2, ) float, point to rotate around
+    offset : (2,) float
+      XY offset
+    theta : float
+      Rotation around Z in radians
+    point :  (2, ) float
+      point to rotate around
+
     Returns
     ----------
-    matrix: (3,3) homogenous 2D transformation matrix
+    matrix : (3, 3) flat
+      Homogenous 2D transformation matrix
     """
+    if offset is None:
+        offset = [0.0, 0.0]
+    if theta is None:
+        theta = 0.0
     offset = np.asanyarray(offset, dtype=np.float64)
     theta = float(theta)
     if not np.isfinite(theta):

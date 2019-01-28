@@ -299,12 +299,20 @@ def load_compressed(file_obj,
             metadata['file_name'] = (archive_name + '/' +
                                      os.path.basename(name))
             # load the individual geometry
-            geometry = load(file_obj=data,
-                            file_type=compressed_type,
-                            resolver=resolver,
-                            metadata=metadata,
-                            **kwargs)
-            geometries.append(geometry)
+            loaded = load(file_obj=data,
+                          file_type=compressed_type,
+                          resolver=resolver,
+                          metadata=metadata,
+                          **kwargs)
+
+            # some loaders return multiple geometries
+            if util.is_sequence(loaded):
+                # if the loader has returned a list of meshes
+                geometries.extend(loaded)
+            else:
+                # if the loader has returned a single geometry
+                geometries.append(loaded)
+
     finally:
         # if we opened the file in this function
         # clean up after ourselves

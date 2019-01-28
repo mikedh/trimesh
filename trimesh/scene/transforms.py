@@ -214,16 +214,11 @@ class TransformForest(object):
         ------------
         nodes_geometry: (m,) array, of node names
         """
-        nodes = self.transforms.nodes()
-        if len(nodes) == 0:
-            return np.array([])
 
-        nodes_geometry = []
-        for n in nodes:
-            if (n in nodes and
-                    'geometry' in self.transforms.node[n]):
-                nodes_geometry.append(n)
-        return np.array(nodes_geometry)
+        nodes = [n for n in self.transforms.nodes()
+                 if 'geometry' in self.transforms.node[n]]
+
+        return nodes
 
     def get(self,
             frame_to,

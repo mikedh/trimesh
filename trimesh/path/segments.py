@@ -10,6 +10,7 @@ import numpy as np
 from .. import util
 from .. import grouping
 from .. import geometry
+from .. import interval
 
 from ..constants import tol
 
@@ -287,7 +288,7 @@ def overlap(origins, vectors, params):
                                                   params))
 
     # merge the parameter ranges
-    ok, new_range = range_union(*params)
+    ok, new_range = interval.intersection(*params)
 
     if not ok:
         return 0.0, np.array([])
@@ -299,57 +300,3 @@ def overlap(origins, vectors, params):
     length = new_range.ptp()
 
     return length, segments
-
-
-def range_union(a, b, digits=8):
-    """
-    Given a pair of ranges, merge them in to
-    one range if they overlap at all
-
-    Parameters
-    --------------
-    a : (2, ) float
-      Start and end of a 1D interval
-    b : (2, ) float
-      Start and end of a 1D interval
-
-    Returns
-    --------------
-    is_overlapping : bool
-      Indicates if the ranges overlap at all
-    new_range : (2, ) float or empty array
-      The merged range from the two inputs
-    """
-    # make sure ranges are sorted
-    a = np.sort(a).reshape(2)
-    b = np.sort(b).reshape(2)
-
-    # compare in fixed point as integers
-    a_int = (a * 10**digits).astype(np.int64)
-    b_int = (b * 10**digits).astype(np.int64)
-
-    # A fully overlaps B
-    if a_int[0] <= b_int[0] and a_int[1] >= b_int[1]:
-        # the intersection of the two ranges is B
-        return True, b
-
-    # B fully overlaps A
-    if a_int[0] >= b_int[0] and a_int[1] <= b_int[1]:
-        # the intersection of the two ranges is A
-        return True, a
-
-    # A starts B ends
-    # A0   B0     A1        B1
-    if (a_int[0] <= b_int[0] and
-        b_int[0] < a_int[1] and
-            a_int[1] < b_int[1]):
-        return True, np.array([b[0], a[1]])
-
-    # B starts A ends
-    # B0  A0    B1 A1
-    if (b_int[0] <= a_int[0] and
-        a_int[0] < b_int[1] and
-            b_int[1] < a_int[1]):
-        return True, np.array([a[0], b[1]])
-
-    return False, []
