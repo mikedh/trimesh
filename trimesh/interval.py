@@ -1,5 +1,5 @@
 """
-intervals.py
+interval.py
 --------------
 
 Deal with 1D intervals which are defined by:
@@ -10,6 +10,32 @@ import numpy as np
 
 
 def check(a, b, digits):
+    """
+    Check input ranges, convert them to vector form,
+    and get a fixed precision integer version of them.
+
+    Parameters
+    --------------
+    a : (2, ) or (2, n) float
+      Start and end of a 1D interval
+    b : (2, ) or (2, n) float
+      Start and end of a 1D interval
+    digits : int
+      How many digits to consider
+
+    Returns
+    --------------
+    a : (2, n) float
+      Ranges as vector
+    b : (2, n) float
+      Ranges as vector
+    a_int : (2, n) int64
+      Ranges rounded to digits, as vector
+    b_int : (2, n) int64
+      Ranges rounded to digits, as vector
+    is_1D : bool
+      If True, input was single pair of ranges
+    """
     a = np.array(a, dtype=np.float64)
     b = np.array(b, dtype=np.float64)
 
@@ -28,8 +54,8 @@ def check(a, b, digits):
     b.sort(axis=1)
 
     # compare in fixed point as integers
-    a_int = (a * 10**digits).astype(np.int64)
-    b_int = (b * 10**digits).astype(np.int64)
+    a_int = (a * 10**digits).round().astype(np.int64)
+    b_int = (b * 10**digits).round().astype(np.int64)
 
     return a, b, a_int, b_int, is_1D
 
@@ -56,7 +82,6 @@ def intersection(a, b, digits=8):
       The unioned range from the two inputs,
       or both of the original ranges if not overlapping
     """
-
     # check shape and convert
     a, b, a_int, b_int, is_1D = check(a, b, digits)
 
