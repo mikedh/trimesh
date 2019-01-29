@@ -1,29 +1,45 @@
+import copy
 import tempfile
+
 import numpy as np
 
 
-def load_pyassimp(file_obj, file_type=None, resolver=None, **kwargs):
+def load_pyassimp(file_obj,
+                  file_type=None,
+                  resolver=None,
+                  **kwargs):
     """
-    Use the pyassimp library to load a mesh, from a file object and type,
-    or filename (if file_obj is a string)
+    Use the pyassimp library to load a mesh from a file object
+    and type or file name if file_obj is a string
 
     Parameters
     ---------
-    file_obj: file object, or str of file path
-    file_type: str, file extension (aka 'stl')
+    file_obj: str, or file object
+      File path or object containing mesh data
+    file_type : str
+      File extension, aka 'stl'
+    resolver : trimesh.visual.resolvers.Resolver
+      Used to load referenced data (like texture files)
+    kwargs : dict
+      Passed through to mesh constructor
 
     Returns
     ---------
-    meshes: (n,) list of dicts, which contain kwargs for Trimesh constructor
+    meshes : (n,) list of dict
+      Contain kwargs for Trimesh constructor
     """
 
     def LPMesh_to_Trimesh(lp):
         colors = (np.reshape(lp.colors, (-1, 4))
                   [:, 0:3] * 255).astype(np.uint8)
-        return {'vertices': lp.vertices,
-                'vertex_normals': lp.normals,
-                'faces': lp.faces,
-                'vertex_colors': colors}
+        # pass kwargs through to mesh constructor
+        mesh_kwargs = copy.deepcopy(kwargs)
+        # add data from the LP_Mesh
+        mesh_kwargs.update({'vertices': lp.vertices,
+                            'vertex_normals': lp.normals,
+                            'faces': lp.faces,
+                            'vertex_colors': colors})
+        return mesh_kwargs
 
     if not hasattr(file_obj, 'read'):
         # if there is no read attribute
@@ -31,14 +47,20 @@ def load_pyassimp(file_obj, file_type=None, resolver=None, **kwargs):
         file_type = (str(file_obj).split('.')[-1]).lower()
         file_obj = open(file_obj, 'rb')
 
-    scene = pyassimp.load(file_obj, file_type=file_type)
+    # load the scene
+    scene = pyassimp.load(file_obj,
+                          file_type=file_type)
     meshes = [LPMesh_to_Trimesh(i) for i in scene.meshes]
+
     pyassimp.release(scene)
 
     return meshes
 
 
-def load_cyassimp(file_obj, file_type=None, resolver=None, **kwargs):
+def load_cyassimp(file_obj,
+                  file_type=None,
+                  resolver=None,
+                  **kwargs):
     """
     Load a file using the cyassimp bindings.
 
@@ -47,26 +69,41 @@ def load_cyassimp(file_obj, file_type=None, resolver=None, **kwargs):
 
     Parameters
     ---------
-    file_obj: file object, or str
-    file_type: str, file extension (aka 'stl')
+    file_obj: str, or file object
+      File path or object containing mesh data
+    file_type : str
+      File extension, aka 'stl'
+    resolver : trimesh.visual.resolvers.Resolver
+      Used to load referenced data (like texture files)
+    kwargs : dict
+      Passed through to mesh constructor
 
     Returns
     ---------
-    meshes: (n,) list of dicts, which contain kwargs for Trimesh constructor
+    meshes : (n,) list of dict
+      Contain kwargs for Trimesh constructor
     """
 
     if hasattr(file_obj, 'read'):
         # if it has a read attribute it is probably a file object
-        with tempfile.NamedTemporaryFile(suffix=str(file_type)) as file_temp:
+        with tempfile.NamedTemporaryFile(
+                suffix=str(file_type)) as file_temp:
+
             file_temp.write(file_obj.read())
-            scene = cyassimp.AIImporter(file_temp.name.encode('utf-8'))
+            # file name should be bytes
+            scene = cyassimp.AIImporter(
+                file_temp.name.encode('utf-8'))
             scene.build_scene()
     else:
         scene = cyassimp.AIImporter(file_obj.encode('utf-8'))
         scene.build_scene()
 
-    meshes = [{'vertices': i.points,
-               'faces': i.trilist} for i in scene.meshes]
+    meshes = []
+    for m in scene.meshes:
+        mesh_kwargs = kwargs.copy()
+        mesh_kwargs.update({'vertices': i.points,
+                            'faces': i.trilist})
+        meshes.append(mesh_kwargs)
 
     if len(meshes) == 1:
         return meshes[0]
