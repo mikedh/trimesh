@@ -2,7 +2,7 @@ import tempfile
 import numpy as np
 
 
-def load_pyassimp(file_obj, file_type=None, resolver=None):
+def load_pyassimp(file_obj, file_type=None, resolver=None, **kwargs):
     """
     Use the pyassimp library to load a mesh, from a file object and type,
     or filename (if file_obj is a string)
@@ -38,7 +38,7 @@ def load_pyassimp(file_obj, file_type=None, resolver=None):
     return meshes
 
 
-def load_cyassimp(file_obj, file_type=None, resolver=None):
+def load_cyassimp(file_obj, file_type=None, resolver=None, **kwargs):
     """
     Load a file using the cyassimp bindings.
 
