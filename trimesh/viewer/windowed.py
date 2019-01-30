@@ -36,6 +36,7 @@ class SceneViewer(pyglet.window.Window):
                  start_loop=True,
                  callback=None,
                  callback_period=None,
+                 caption=None,
                  **kwargs):
         """
         Create a window that will display a trimesh.Scene object
@@ -113,14 +114,16 @@ class SceneViewer(pyglet.window.Window):
                                               visible=visible,
                                               resizable=True,
                                               width=resolution[0],
-                                              height=resolution[1])
+                                              height=resolution[1],
+                                              caption=caption)
         except pyglet.window.NoSuchConfigException:
             conf = gl.Config(double_buffer=True)
             super(SceneViewer, self).__init__(config=conf,
                                               resizable=True,
                                               visible=visible,
                                               width=resolution[0],
-                                              height=resolution[1])
+                                              height=resolution[1],
+                                              caption=caption)
 
         # add scene geometry to viewer geometry
         for name, mesh in scene.geometry.items():
