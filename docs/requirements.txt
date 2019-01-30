@@ -7,3 +7,4 @@ recommonmark
 sphinx
 jupyter
 sphinx_rtd_theme
+pyopenssl
