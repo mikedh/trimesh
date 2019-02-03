@@ -491,7 +491,6 @@ def closest_point(triangles, points):
     closest: (n,3) float, point on each triangle closest to each point
     """
 
-
     # establish that input triangles and points are sane
     triangles = np.asanyarray(triangles, dtype=np.float64)
     points = np.asanyarray(points, dtype=np.float64)
@@ -499,7 +498,6 @@ def closest_point(triangles, points):
         raise ValueError('triangles shape incorrect')
     if not util.is_shape(points, (len(triangles), 3)):
         raise ValueError('triangles and points must correspond')
-
 
     # convert points to barycentric coordinates
     barycentric = points_to_barycentric(triangles, points)
@@ -529,11 +527,10 @@ def closest_point(triangles, points):
     # 2 negative, 1 positive: closest point is positive vertex
     # 1 negative, 2 positive: closest point is on edge between 2 positive
     # 0 negative, 3 positive: closest point is @ barycentric coord
-    #case_vertex = np.bitwise_and(positive_sum == 1, True ^ case_obtuse)
     case_vertex = positive_sum == 1
     case_edge = positive_sum == 2
     case_barycentric = positive_sum == 3
-    
+
     # closest points to triangle
     closest = np.zeros(points.shape, dtype=np.float64)
 
@@ -560,7 +557,7 @@ def closest_point(triangles, points):
     # our point needs to be on the edge, so the distance along the edge
     # should be clipped to be between 0.0 and 1.0
     edge_distance = np.clip(edge_distance, 0.0, 1.0)
-    
+
     projection = edges[:, 0] + (edge_distance * AB)
     closest[case_edge] = projection
 
