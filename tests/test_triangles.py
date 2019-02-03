@@ -34,19 +34,26 @@ class TrianglesTest(g.unittest.TestCase):
         self.assertTrue((comparison < 1e-8).all())
         g.log.info('finished closest check on %d triangles', len(closest))
 
-    def test_explicit_edge_case(self):
-        # taken from a real scenario where I encountered the issue
-        ABC = g.np.float32([[0.51729788, 0.9469626 , 0.76545976],
-                            [0.28239584, 0.22104536, 0.68622209],
-                            [0.1671392 , 0.39244247, 0.61805235]])
-        D = g.np.float32([0.02292462, 0.75669649, 0.20354384])
-        # point D projected on ABC plane is not in ABC triangle
+    def test_closest_obtuse(self):
+        # simple triangle in the xy-plane with an obtuse corner at vertex A
+        ABC = g.np.float32([[0,0,0], [2,0,0], [-2,1,0]])
+        D = g.np.float32([1, -1, 0])
 
-        mesh = g.trimesh.Trimesh(ABC, [[0,1,2]])
-        tm_dist = abs(mesh.nearest.signed_distance([D]))
-        # closest point is on edge AC but C is returned as closest point
+        # ground truth: closest point from D is the center of the AB edge: (1,0,0)
+        gt_closest = g.np.float32([1,0,0])
+        tm_closest = g.trimesh.triangles.closest_point([ABC], [D])[0]
 
-        norm = lambda v: g.np.sqrt(g.np.dot(v,v))
+        self.assertTrue(g.np.linalg.norm(gt_closest - tm_closest) < g.tol.merge)
+
+
+        # create a circle of points around the triangle
+        # with a radius so that all points are outside of the triangle
+        radius = 3
+        nPtsOnCircle = 100
+        alphas = g.np.linspace(g.np.pi/nPtsOnCircle, g.np.pi*2-g.np.pi/nPtsOnCircle, nPtsOnCircle)
+        ptsOnCircle = g.np.transpose([g.np.cos(alphas), g.np.sin(alphas), g.np.zeros(nPtsOnCircle)]) * radius
+
+        norm = lambda v: g.np.sqrt(g.np.einsum('...i,...i', v, v))
         distToLine = lambda o, v, p: norm((o-p)-g.np.dot(o-p,v)*v)
 
         def distPointToEdge(U, V, P): # edge [U, V], point P
@@ -54,16 +61,23 @@ class TrianglesTest(g.unittest.TestCase):
             UtoP = P - U
             VtoP = P - V
     
-            if g.np.dot(UtoV, UtoP) <= 0:       # P is 'behind' U
+            if g.np.dot(UtoV, UtoP) <= 0:
+                # P is 'behind' U
                 return norm(UtoP)
-            elif g.np.dot(-UtoV, VtoP) <= 0:    # P is 'behind' V
+            elif g.np.dot(-UtoV, VtoP) <= 0:
+                # P is 'behind' V
                 return norm(VtoP)
-            else:                               # P is 'between' U and V
+            else:
+                # P is 'between' U and V
                 return distToLine(U, UtoV/norm(UtoV), P)
 
-        gt_dist = g.np.float32([distPointToEdge(ABC[i], ABC[(i+1)%3], D) for i in range(3)]).min()
-        
-        assert abs(gt_dist - tm_dist) < g.tol.merge
+        # get closest points from trimesh and compute distances to the circle points
+        tm_dists = norm(ptsOnCircle - g.trimesh.triangles.closest_point([ABC]*nPtsOnCircle, ptsOnCircle))
+        # compute naive point-to-edge distances for all points and take the min of the three edges
+        gt_dists = g.np.float32([[distPointToEdge(ABC[i], ABC[(i+1)%3], pt) for i in range(3)] for pt in ptsOnCircle]).min(axis=1)
+        diff_dists = tm_dists - gt_dists
+
+        self.assertTrue(g.np.dot(diff_dists, diff_dists) < g.tol.merge)
 
     def test_degenerate(self):
         tri = [[[0, 0, 0],

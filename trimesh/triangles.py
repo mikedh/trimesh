@@ -73,6 +73,25 @@ def normals(triangles=None, crosses=None):
     return unit, valid
 
 
+def angles(triangles):
+    """
+    Calculates the angles of input triangles
+
+    Parameters
+    ------------
+    triangles:   (n, 3, 3) float, vertex positions
+
+    Returns
+    ------------
+    angles: (n, 3) float, angles at vertex positions (radian)
+    """
+    ABCs = util.unitize((triangles - np.roll(triangles, -1, axis=1)).reshape(-1,3))
+    inner1d = lambda us, vs: np.einsum('...i,...i', us, vs)
+    return np.arccos([inner1d(ABCs[::3], -ABCs[2::3]),      # AB o AC
+                      inner1d(-ABCs[::3], ABCs[1::3]),      # BA o BC
+                      inner1d(ABCs[2::3], -ABCs[1::3])]).T  # CA o CB
+
+
 def all_coplanar(triangles):
     """
     Check to see if a list of triangles are all coplanar
@@ -472,6 +491,7 @@ def closest_point(triangles, points):
     closest: (n,3) float, point on each triangle closest to each point
     """
 
+
     # establish that input triangles and points are sane
     triangles = np.asanyarray(triangles, dtype=np.float64)
     points = np.asanyarray(points, dtype=np.float64)
@@ -480,20 +500,40 @@ def closest_point(triangles, points):
     if not util.is_shape(points, (len(triangles), 3)):
         raise ValueError('triangles and points must correspond')
 
+
     # convert points to barycentric coordinates
     barycentric = points_to_barycentric(triangles, points)
 
     # signs of barycentric coordinates
     positive = barycentric > -tol.zero
+
+    # compute angles at the triangles corners and check for obtuse tringles
+    corner_angles = angles(triangles)
+    corners_obtuse = corner_angles >= np.pi/2 - tol.merge
+
+    # the case selection below is not really correct for points outside of a triangle
+    # but for most triangles the clipping at the end will fix this
+    # however obtuse triangles require special care
+    # if the obtuse corner is the only one with a positive barycentric coordinate
+    positive_and_obtuse = np.sum(positive * corners_obtuse, axis=1) == 1
+
+    # these cases do not belong in case_vertex so we hack the 'positive' mask
+    # the case_edge treatment requires another vertex (one neighbor of the pos. obtuse corner)
+    # we identify this neighbor as the one with the larger barycentric coordinate (both < 0)
+    # use argsort: the pos. corner is index 2, the larger of the two neg. neighbors is index 1
+    bary_coord_idxs = np.argsort(barycentric[positive_and_obtuse], axis=1)
+    positive[positive_and_obtuse, bary_coord_idxs[:,1]] = True
+    
     positive_sum = positive.sum(axis=1)
     # cases for signs of barycentric coordinates:
     # 2 negative, 1 positive: closest point is positive vertex
     # 1 negative, 2 positive: closest point is on edge between 2 positive
     # 0 negative, 3 positive: closest point is @ barycentric coord
+    #case_vertex = np.bitwise_and(positive_sum == 1, True ^ case_obtuse)
     case_vertex = positive_sum == 1
     case_edge = positive_sum == 2
     case_barycentric = positive_sum == 3
-
+    
     # closest points to triangle
     closest = np.zeros(points.shape, dtype=np.float64)
 
@@ -520,7 +560,7 @@ def closest_point(triangles, points):
     # our point needs to be on the edge, so the distance along the edge
     # should be clipped to be between 0.0 and 1.0
     edge_distance = np.clip(edge_distance, 0.0, 1.0)
-
+    
     projection = edges[:, 0] + (edge_distance * AB)
     closest[case_edge] = projection
 
