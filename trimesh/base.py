@@ -2492,7 +2492,7 @@ class Trimesh(Geometry):
         angles : (n, 3) float
           Angle at each vertex of a face
         """
-        angles = curvature.face_angles(self)
+        angles = triangles.angles(self.triangles)
         return angles
 
     @caching.cache_decorator

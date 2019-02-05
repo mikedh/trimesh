@@ -72,25 +72,37 @@ def normals(triangles=None, crosses=None):
     unit, valid = util.unitize(crosses, check_valid=True)
     return unit, valid
 
-
 def angles(triangles):
     """
-    Calculates the angles of input triangles
+    Calculates the angles of input triangles.
 
     Parameters
     ------------
-    triangles:   (n, 3, 3) float, vertex positions
+    triangles : (n, 3, 3) float
+      Vertex positions
 
     Returns
     ------------
-    angles: (n, 3) float, angles at vertex positions (radian)
+    angles : (n, 3) float
+      Angles at vertex positions, in radians
     """
-    ABCs = util.unitize((triangles - np.roll(triangles, -1, axis=1)).reshape(-1,3))
-    inner1d = lambda us, vs: np.einsum('...i,...i', us, vs)
-    return np.arccos([inner1d(ABCs[::3], -ABCs[2::3]),      # AB o AC
-                      inner1d(-ABCs[::3], ABCs[1::3]),      # BA o BC
-                      inner1d(ABCs[2::3], -ABCs[1::3])]).T  # CA o CB
 
+    # get a vector for each edge of the triangle
+    u = triangles[:, 1] - triangles[:, 0]
+    v = triangles[:, 2] - triangles[:, 0]
+    w = triangles[:, 2] - triangles[:, 1]
+
+    # normalize each vector in place
+    u /= np.linalg.norm(u, axis=1, keepdims=True)
+    v /= np.linalg.norm(v, axis=1, keepdims=True)
+    w /= np.linalg.norm(w, axis=1, keepdims=True)
+
+    # run the cosine and an einsum that definitly does something
+    a = np.arccos(np.clip(np.einsum('ij, ij->i', u, v), -1, 1))
+    b = np.arccos(np.clip(np.einsum('ij, ij->i', -u, w), -1, 1))
+    c = np.pi - a - b
+
+    return np.vstack([a, b, c]).T
 
 def all_coplanar(triangles):
     """
@@ -406,7 +418,9 @@ def barycentric_to_points(triangles, barycentric):
     return points
 
 
-def points_to_barycentric(triangles, points, method='cramer'):
+def points_to_barycentric(triangles,
+                          points,
+                          method='cramer'):
     """
     Find the barycentric coordinates of points relative to triangles.
 
@@ -419,16 +433,20 @@ def points_to_barycentric(triangles, points, method='cramer'):
 
     Parameters
     -----------
-    triangles: (n,3,3) float, triangles in space
-    points:    (n,3) float, point in space associated with a triangle
-    method:    str, which method to compute the barycentric coordinates with. Options:
-               -'cross': uses a method using cross products, roughly 2x slower but
-                         different numerical robustness properties
-               -anything else: uses a cramer's rule solution
+    triangles : (n, 3, 3) float
+      Triangles vertices in space
+    points : (n, 3) float
+      Point in space associated with a triangle
+    method :  str
+      Which method to compute the barycentric coordinates with:
+        - 'cross': uses a method using cross products, roughly 2x slower but
+                  different numerical robustness properties
+        - anything else: uses a cramer's rule solution
 
     Returns
     -----------
-    barycentric: (n,3) float, barycentric
+    barycentric : (n, 3) float
+      Barycentric coordinates of each point
     """
 
     def method_cross():
@@ -507,14 +525,14 @@ def closest_point(triangles, points):
 
     # compute angles at the triangles corners and check for obtuse tringles
     corner_angles = angles(triangles)
-    corners_obtuse = corner_angles >= np.pi/2 - tol.merge
+    corners_obtuse = corner_angles >= np.pi/2 + tol.merge
 
     # the case selection below is not really correct for points outside of a triangle
     # but for most triangles the clipping at the end will fix this
     # however obtuse triangles require special care
     # if the obtuse corner is the only one with a positive barycentric coordinate
     positive_and_obtuse = np.sum(positive * corners_obtuse, axis=1) == 1
-
+    
     # these cases do not belong in case_vertex so we hack the 'positive' mask
     # the case_edge treatment requires another vertex (one neighbor of the pos. obtuse corner)
     # we identify this neighbor as the one with the larger barycentric coordinate (both < 0)
@@ -544,7 +562,6 @@ def closest_point(triangles, points):
         triangles[case_barycentric] *
         barycentric[case_barycentric].reshape((-1, 3, 1))).sum(axis=1)
 
-    # if case_edge.any():
     # case where the closest point lies on the edge of a triangle
     # we have to find the closest point on a line
     edges = triangles[case_edge][positive[case_edge]].reshape((-1, 2, 3))
