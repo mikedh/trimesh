@@ -18,11 +18,13 @@ def cross(triangles):
 
     Parameters
     --------------
-    triangles: (n, 3, 3) float, vertices of triangles
+    triangles: (n, 3, 3) float
+      Vertices of triangles
 
     Returns
     --------------
-    crosses: (n, 3) float, cross product of two edge vectors
+    crosses : (n, 3) float
+      Cross product of two edge vectors
     """
     vectors = np.diff(triangles, axis=1)
     crosses = np.cross(vectors[:, 0], vectors[:, 1])
@@ -35,8 +37,10 @@ def area(triangles=None, crosses=None, sum=False):
 
     Parameters
     ----------
-    triangles: vertices of triangles (n,3,3)
-    sum:       bool, return summed area or individual triangle area
+    triangles : (n, 3, 3) float
+      Vertices of triangles
+    sum : bool
+      Return summed area or individual triangle area
 
     Returns
     ----------
@@ -58,19 +62,24 @@ def normals(triangles=None, crosses=None):
 
     Parameters
     ------------
-    triangles:   (n, 3, 3) float, vertex positions
-    crosses:     (n, 3) float, cross products of edge vectors
+    triangles : (n, 3, 3) float
+      Vertex positions
+    crosses : (n, 3) float
+      Cross products of edge vectors
 
     Returns
     ------------
-    normals: (m, 3) float, normal vectors
-    valid:   (n,)   bool, valid
+    normals : (m, 3) float
+      Normal vectors
+    valid : (n,) bool
+      Was the face nonzero area or not
     """
     if crosses is None:
         crosses = cross(triangles)
     # unitize the cross product vectors
     unit, valid = util.unitize(crosses, check_valid=True)
     return unit, valid
+
 
 def angles(triangles):
     """
@@ -97,12 +106,13 @@ def angles(triangles):
     v /= np.linalg.norm(v, axis=1, keepdims=True)
     w /= np.linalg.norm(w, axis=1, keepdims=True)
 
-    # run the cosine and an einsum that definitly does something
+    # run the cosine and an einsum that definitely does something
     a = np.arccos(np.clip(np.einsum('ij, ij->i', u, v), -1, 1))
     b = np.arccos(np.clip(np.einsum('ij, ij->i', -u, w), -1, 1))
     c = np.pi - a - b
 
-    return np.vstack([a, b, c]).T
+    return np.column_stack([a, b, c])
+
 
 def all_coplanar(triangles):
     """
@@ -110,11 +120,13 @@ def all_coplanar(triangles):
 
     Parameters
     ----------------
-    triangles: (n, 3, 3) float, vertices of triangles
+    triangles: (n, 3, 3) float
+      Vertices of triangles
 
     Returns
     ---------------
-    all_coplanar, bool, True if all triangles are coplanar
+    all_coplanar : bool
+      True if all triangles are coplanar
     """
     triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
@@ -131,8 +143,8 @@ def all_coplanar(triangles):
 
 def any_coplanar(triangles):
     """
-    Given a list of triangles, if the FIRST triangle is coplanar with ANY
-    of the following triangles, return True.
+    For a list of triangles if the FIRST triangle is coplanar
+    with ANY of the following triangles, return True.
     Otherwise, return False.
     """
     triangles = np.asanyarray(triangles, dtype=np.float64)
@@ -162,15 +174,21 @@ def mass_properties(triangles,
 
     Parameters
     ----------
-    triangles:    (n,3,3) float, triangles in space
-    crosses:      (n,) float, cross products of triangles
-    density:      float, optional override for density
-    center_mass:  (3,) float, optional override for center mass
-    skip_inertia: bool, if True will not return moments matrix
+    triangles : (n, 3, 3) float
+      Triangle vertices in space
+    crosses : (n,) float
+      Optional cross products of triangles
+    density : float
+      Optional override for density
+    center_mass :  (3,) float
+      Optional override for center mass
+    skip_inertia : bool
+      if True will not return moments matrix
 
     Returns
     ---------
-    info: dict, mass properties
+    info : dict
+      Mass properties
     """
     triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
@@ -260,12 +278,15 @@ def windings_aligned(triangles, normals_compare):
 
     Parameters
     ----------
-    triangles: (n,3,3) list of vertex locations
-    normals_compare: (n,3) list of normals
+    triangles : (n, 3, 3) float
+      Vertex locations in space
+    normals_compare : (n, 3) float
+      List of normals to compare
 
     Returns
     ----------
-    aligned: (n) bool list, are normals aligned with triangles
+    aligned : (n,) bool
+      Are normals aligned with triangles
     """
     triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
@@ -499,86 +520,113 @@ def closest_point(triangles, points):
     Return the closest point on the surface of each triangle for a
     list of corresponding points.
 
+    Implements the method from "Real Time Collision Detection" and
+    uses the same variable names as 'ClosestPtPointTriangle' to avoid
+    being any more confusing.
+
+    Note that you could get a speedup by more carefully masking for
+    reducing the number of operations, but it is already pretty fast and
+    it becomes so confusing that I haven't bothered here.
+
     Parameters
     ----------
-    triangles: (n,3,3) float, triangles in space
-    points:    (n,3)   float, points in space
+    triangles : (n, 3, 3) float
+      Triangle vertices in space
+    points : (n, 3) float
+      Points in space
 
     Returns
     ----------
-    closest: (n,3) float, point on each triangle closest to each point
+    closest : (n, 3) float
+      Point on each triangle closest to each point
     """
 
-    # establish that input triangles and points are sane
+    # check input triangles and points
     triangles = np.asanyarray(triangles, dtype=np.float64)
     points = np.asanyarray(points, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
         raise ValueError('triangles shape incorrect')
     if not util.is_shape(points, (len(triangles), 3)):
-        raise ValueError('triangles and points must correspond')
+        raise ValueError('need same number of triangles and points!')
 
-    # convert points to barycentric coordinates
-    barycentric = points_to_barycentric(triangles, points)
+    # store the location of the closest point
+    result = np.zeros_like(points)
+    # which points still need to be handled
+    remain = np.ones(len(points), dtype=np.bool)
 
-    # signs of barycentric coordinates
-    positive = barycentric > -tol.zero
+    # get the three points of each triangle
+    # use the same notation as RTCD to avoid confusion
+    a = triangles[:, 0, :]
+    b = triangles[:, 1, :]
+    c = triangles[:, 2, :]
 
-    # compute angles at the triangles corners and check for obtuse tringles
-    corner_angles = angles(triangles)
-    corners_obtuse = corner_angles >= np.pi/2 + tol.merge
+    # check if P is in vertex region outside A
+    ab = b - a
+    ac = c - a
+    ap = points - a
+    d1 = util.diagonal_dot(ab, ap)
+    d2 = util.diagonal_dot(ac, ap)
 
-    # the case selection below is not really correct for points outside of a triangle
-    # but for most triangles the clipping at the end will fix this
-    # however obtuse triangles require special care
-    # if the obtuse corner is the only one with a positive barycentric coordinate
-    positive_and_obtuse = np.sum(positive * corners_obtuse, axis=1) == 1
-    
-    # these cases do not belong in case_vertex so we hack the 'positive' mask
-    # the case_edge treatment requires another vertex (one neighbor of the pos. obtuse corner)
-    # we identify this neighbor as the one with the larger barycentric coordinate (both < 0)
-    # use argsort: the pos. corner is index 2, the larger of the two neg. neighbors is index 1
-    bary_coord_idxs = np.argsort(barycentric[positive_and_obtuse], axis=1)
-    positive[positive_and_obtuse, bary_coord_idxs[:,1]] = True
-    
-    positive_sum = positive.sum(axis=1)
-    # cases for signs of barycentric coordinates:
-    # 2 negative, 1 positive: closest point is positive vertex
-    # 1 negative, 2 positive: closest point is on edge between 2 positive
-    # 0 negative, 3 positive: closest point is @ barycentric coord
-    case_vertex = positive_sum == 1
-    case_edge = positive_sum == 2
-    case_barycentric = positive_sum == 3
+    # is the point at A
+    is_a = np.logical_and(d1 < tol.zero, d2 < tol.zero)
+    if is_a.any():
+        result[is_a] = a[is_a]
+        remain[is_a] = False
 
-    # closest points to triangle
-    closest = np.zeros(points.shape, dtype=np.float64)
+    # check if P in vertex region outside B
+    bp = points - b
+    d3 = util.diagonal_dot(ab, bp)
+    d4 = util.diagonal_dot(ac, bp)
+    # do the logic check
+    is_b = (d3 > -tol.zero) & (d4 <= d3) & remain
+    if is_b.any():
+        result[is_b] = b[is_b]
+        remain[is_b] = False
 
-    # case where nearest point is a triangle vertex
-    # just take that vertex
-    closest[case_vertex] = triangles[case_vertex][positive[case_vertex]]
+    # check if P in edge region of AB, if so return projection of P onto A
+    vc = (d1 * d4) - (d3 * d2)
+    is_ab = (vc < tol.zero) & (d1 > -tol.zero) & (d3 < tol.zero) & remain
+    if is_ab.any():
+        v = (d1[is_ab] / (d1[is_ab] - d3[is_ab])).reshape((-1, 1))
+        result[is_ab] = a[is_ab] + (v * ab[is_ab])
+        remain[is_ab] = False
 
-    # case where projection is inside the triangle
-    # just evaluate the barycentric coordinates
-    closest[case_barycentric] = (
-        triangles[case_barycentric] *
-        barycentric[case_barycentric].reshape((-1, 3, 1))).sum(axis=1)
+    # check if P in vertex region outside C
+    cp = points - c
+    d5 = util.diagonal_dot(ab, cp)
+    d6 = util.diagonal_dot(ac, cp)
+    is_c = (d6 > -tol.zero) & (d5 <= d6) & remain
+    if is_c.any():
+        result[is_c] = c[is_c]
+        remain[is_c] = False
 
-    # case where the closest point lies on the edge of a triangle
-    # we have to find the closest point on a line
-    edges = triangles[case_edge][positive[case_edge]].reshape((-1, 2, 3))
-    # for a line defined by A and B, and a point in space P
-    AB = np.diff(edges, axis=1).reshape((-1, 3))
-    AP = points[case_edge] - edges[:, 0]
-    # point projected onto line segment divided by line segment length squared
-    edge_distance = (util.diagonal_dot(AP, AB) /
-                     util.diagonal_dot(AB, AB)).reshape((-1, 1))
-    # our point needs to be on the edge, so the distance along the edge
-    # should be clipped to be between 0.0 and 1.0
-    edge_distance = np.clip(edge_distance, 0.0, 1.0)
+    # check if P in edge region of AC, if so return projection of P onto AC
+    vb = (d5 * d2) - (d1 * d6)
+    is_ac = (vb < tol.zero) & (d2 > -tol.zero) & (d6 < tol.zero) & remain
+    if is_ac.any():
+        w = (d2[is_ac] / (d2[is_ac] - d6[is_ac])).reshape((-1, 1))
+        result[is_ac] = a[is_ac] + w * ac[is_ac]
+        remain[is_ac] = False
 
-    projection = edges[:, 0] + (edge_distance * AB)
-    closest[case_edge] = projection
+    # check if P in edge region of BC, if so return projection of P onto BC
+    va = (d3 * d6) - (d5 * d4)
+    is_bc = (va < tol.zero) & ((d4 - d3) > -tol.zero) & ((d5 - d6) > -tol.zero) & remain
+    if is_bc.any():
+        d43 = d4[is_bc] - d3[is_bc]
+        w = (d43 / (d43 + (d5[is_bc] - d6[is_bc]))).reshape((-1, 1))
+        result[is_bc] = b[is_bc] + w * (c[is_bc] - b[is_bc])
+        remain[is_bc] = False
 
-    return closest
+    # any remaining points must be inside face region
+    if remain.any():
+        # point is inside face region
+        denom = 1.0 / (va[remain] + vb[remain] + vc[remain])
+        v = (vb[remain] * denom).reshape((-1, 1))
+        w = (vc[remain] * denom).reshape((-1, 1))
+        # compute Q through its barycentric coordinates
+        result[remain] = a[remain] + (ab[remain] * v) + (ac[remain] * w)
+
+    return result
 
 
 def to_kwargs(triangles):

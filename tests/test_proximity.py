@@ -80,23 +80,25 @@ class NearestTest(g.unittest.TestCase):
             t = g.trimesh.util.spherical_to_vector(s)
             return t
 
-        # generate some repeatable random triangles
+        # generate some pseudorandom triangles
+        # use our random to avoid spurious failures
         triangles = g.random((100, 3, 3)) - 0.5
         # put them on- plane
         triangles[:, :, 2] = 0.0
-        
+
         # make one of the triangles equilaterial
         triangles[-1] = points_on_circle(3)
-        
+
         # a circle of points surrounding the triangle
         query = points_on_circle(63) * 2
         # set the points up in space
         query[:, 2] = 10
-        # a circle of points inside the triangle
-        #query = g.np.vstack((query, query * .1))
+        # a circle of points inside-ish the triangle
+        query = g.np.vstack((query, query * .1))
 
+        # loop through each triangle
         for triangle in triangles:
-            
+            # create a mesh with one triangle
             mesh = g.Trimesh(**g.trimesh.triangles.to_kwargs([triangle]))
 
             result, result_distance, result_tid = fun(mesh, query)
@@ -105,32 +107,23 @@ class NearestTest(g.unittest.TestCase):
             polygon_buffer = polygon.buffer(1e-5)
 
             # all of the points returned should be on the triangle we're querying
-            broken = g.np.array([not polygon_buffer.intersects(
-                g.Point(i)) for i in result[:, 0:2]])
+            assert all(polygon_buffer.intersects(
+                g.Point(i)) for i in result[:, 0:2])
 
-            # see what distance shapely thinks the nearest point is for the 2D triangle
-            # and the query points
-            distance_shapely = g.np.array(
-                [polygon.distance(g.Point(i)) for i in query[:, 0:2]])
+            # see what distance shapely thinks the nearest point
+            # is for the 2D triangle and the query points
+            distance_shapely = g.np.array([polygon.distance(g.Point(i))
+                                           for i in query[:, :2]])
 
             # see what distance our function returned for the nearest point
-            distance_ours = ((query[:, 0:2] - result[:, 0:2])
+            distance_ours = ((query[:, :2] - result[:, :2])
                              ** 2).sum(axis=1) ** .5
 
             # how far was our distance from the one shapely gave
             distance_test = g.np.abs(distance_shapely - distance_ours)
 
-            assert not broken.any()
-
-            print(distance_test.max())
-            if distance_test.max() > g.trimesh.constants.tol.merge:
-                from IPython import embed
-                import matplotlib.pyplot as plt
-
-                
-                embed()
-            
-            assert distance_test.max() < g.trimesh.constants.tol.merge
+            # we should have calculated the same distance as shapely
+            assert g.np.allclose(distance_ours, distance_shapely)
 
         return result, result_distance
 

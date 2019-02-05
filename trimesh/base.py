@@ -2125,18 +2125,18 @@ class Trimesh(Geometry):
 
     def outline(self, face_ids=None, **kwargs):
         """
-        Given a set of face ids, find the outline of the faces,
-        and return it as a Path3D.
+        Given a list of face indexes find the outline of those
+        faces and return it as a Path3D.
 
         The outline is defined here as every edge which is only
         included by a single triangle.
 
-        Note that this implies a non-watertight section,
-        and the 'outline' of a watertight mesh is an empty path.
+        Note that this implies a non-watertight mesh as the
+        outline of a watertight mesh is an empty path.
 
         Parameters
         ----------
-        face_ids : (n) int
+        face_ids : (n,) int
           Indices to compute the outline of.
           If None, outline of full mesh will be computed.
         **kwargs: passed to Path3D constructor
