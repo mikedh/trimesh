@@ -476,92 +476,60 @@ def points_to_barycentric(triangles, points, method='cramer'):
     return method_cramer()
 
 
-def closest_point(triangles, points):
-    """
-    Return the closest point on the surface of each triangle for a
-    list of corresponding points.
+def closest_point(ABCs, Ds, returnDists = False):
+    #from numpy.core.umath_tests import inner1d # fast but deprecated in future numpy versions
+    inner1d = lambda u, v: (u * v).sum(axis=1)
+    simpleCross = lambda a, b: np.array([a[:,1]*b[:,2]-a[:,2]*b[:,1],a[:,2]*b[:,0]-a[:,0]*b[:,2],a[:,0]*b[:,1]-a[:,1]*b[:,0]]).T
 
-    Parameters
-    ----------
-    triangles: (n,3,3) float, triangles in space
-    points:    (n,3)   float, points in space
+    closestPts = np.empty_like(Ds)
 
-    Returns
-    ----------
-    closest: (n,3) float, point on each triangle closest to each point
-    """
+    # edge vectors AB, BC, CA
+    eVecsABC = ABCs[:,[1,2,0]] - ABCs
 
-    # establish that input triangles and points are sane
-    triangles = np.asanyarray(triangles, dtype=np.float64)
-    points = np.asanyarray(points, dtype=np.float64)
-    if not util.is_shape(triangles, (-1, 3, 3)):
-        raise ValueError('triangles shape incorrect')
-    if not util.is_shape(points, (len(triangles), 3)):
-        raise ValueError('triangles and points must correspond')
+    # normals of all triangles
+    normalsABC = simpleCross(eVecsABC[:,0], eVecsABC[:,1])
+    normalsABC /= np.sqrt(np.sum(normalsABC**2,axis=1)).reshape(-1,1)
 
-    # convert points to barycentric coordinates
-    barycentric = points_to_barycentric(triangles, points)
+    # project points into triangle planes
+    distsToPlanes = inner1d(ABCs[:,0] - Ds, normalsABC)
+    DsInPlane = Ds + normalsABC * distsToPlanes.reshape(-1,1)
 
-    # signs of barycentric coordinates
-    positive = barycentric > -tol.zero
+    # (in plane) vectors from each ABC vertex to the projected points
+    inPlaneVecs = np.repeat(DsInPlane.reshape(-1,1,3), 3, axis=1) - ABCs
 
-    # compute angles at the triangles corners and check for obtuse tringles
-    corner_angles = angles(triangles)
-    corners_obtuse = corner_angles >= np.pi/2 - tol.merge
+    # by the right-hand rule: edge-vectors (index finger) x normal (middle finger)
+    # compute the r-vectors (thumb) pointing away from the triangle
+    rVecsABC = simpleCross(eVecsABC.reshape(-1,3), np.repeat(normalsABC, 3, axis=0))
+    distsToEdgeLines = inner1d(rVecsABC, inPlaneVecs.reshape(-1,3)).reshape(-1,3)
 
-    # the case selection below is not really correct for points outside of a triangle
-    # but for most triangles the clipping at the end will fix this
-    # however obtuse triangles require special care
-    # if the obtuse corner is the only one with a positive barycentric coordinate
-    positive_and_obtuse = np.sum(positive * corners_obtuse, axis=1) == 1
+    # separate points on the inside/outside of the triange with the dot-product signs
+    case_inside = np.all(distsToEdgeLines <= 0, axis=1)
+    case_outside = True ^ case_inside
 
-    # these cases do not belong in case_vertex so we hack the 'positive' mask
-    # the case_edge treatment requires another vertex (one neighbor of the pos. obtuse corner)
-    # we identify this neighbor as the one with the larger barycentric coordinate (both < 0)
-    # use argsort: the pos. corner is index 2, the larger of the two neg. neighbors is index 1
-    bary_coord_idxs = np.argsort(barycentric[positive_and_obtuse], axis=1)
-    positive[positive_and_obtuse, bary_coord_idxs[:,1]] = True
-    
-    positive_sum = positive.sum(axis=1)
-    # cases for signs of barycentric coordinates:
-    # 2 negative, 1 positive: closest point is positive vertex
-    # 1 negative, 2 positive: closest point is on edge between 2 positive
-    # 0 negative, 3 positive: closest point is @ barycentric coord
-    case_vertex = positive_sum == 1
-    case_edge = positive_sum == 2
-    case_barycentric = positive_sum == 3
+    # distances and points of in-triangle projections are already there
+    closestPts[case_inside] = DsInPlane[case_inside]
 
-    # closest points to triangle
-    closest = np.zeros(points.shape, dtype=np.float64)
+    # with the max. positive to-edge-distance we select vertex U of the triangle,
+    # the corresponding edge from U to V, and vector from U to the projection of D
+    # https://ggbm.at/qfxsevaq    
+    vIdxs = np.argmax(distsToEdgeLines[case_outside], axis=1)
+    uvVecs = eVecsABC[case_outside, vIdxs]
+    udVecs = inPlaneVecs[case_outside, vIdxs]
 
-    # case where nearest point is a triangle vertex
-    # just take that vertex
-    closest[case_vertex] = triangles[case_vertex][positive[case_vertex]]
+    # the closest point is on the line of U and V but clipped to the edge's extent
+    UtoVscale = np.clip(inner1d(udVecs, uvVecs) / inner1d(uvVecs, uvVecs), 0, 1)
 
-    # case where projection is inside the triangle
-    # just evaluate the barycentric coordinates
-    closest[case_barycentric] = (
-        triangles[case_barycentric] *
-        barycentric[case_barycentric].reshape((-1, 3, 1))).sum(axis=1)
+    # compute the closest points on edge UV
+    closestPts[case_outside] = ABCs[case_outside,vIdxs] + uvVecs * UtoVscale.reshape(-1,1)
 
-    # if case_edge.any():
-    # case where the closest point lies on the edge of a triangle
-    # we have to find the closest point on a line
-    edges = triangles[case_edge][positive[case_edge]].reshape((-1, 2, 3))
-    # for a line defined by A and B, and a point in space P
-    AB = np.diff(edges, axis=1).reshape((-1, 3))
-    AP = points[case_edge] - edges[:, 0]
-    # point projected onto line segment divided by line segment length squared
-    edge_distance = (util.diagonal_dot(AP, AB) /
-                     util.diagonal_dot(AB, AB)).reshape((-1, 1))
-    # our point needs to be on the edge, so the distance along the edge
-    # should be clipped to be between 0.0 and 1.0
-    edge_distance = np.clip(edge_distance, 0.0, 1.0)
+    # we can recycle some distances if required
+    if returnDists:
+        closestDists = np.empty(len(Ds), np.float32)
+        closestDists[case_inside] = np.abs(distsToPlanes[case_inside])
+        closestDists[case_outside] = np.sqrt(np.sum((Ds[case_outside] - closestPts[case_outside])**2, axis=1))
+        return closestDists
 
-    projection = edges[:, 0] + (edge_distance * AB)
-    closest[case_edge] = projection
-
-    return closest
+    return closestPts
 
 
 def to_kwargs(triangles):
