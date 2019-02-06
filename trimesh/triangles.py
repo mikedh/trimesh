@@ -476,7 +476,29 @@ def points_to_barycentric(triangles, points, method='cramer'):
     return method_cramer()
 
 
-def closest_point(ABCs, Ds, returnDists = False):
+def closest_point(triangles, points):
+    """
+    Return the closest point on the surface of each triangle for a
+    list of corresponding points.
+    
+    Parameters
+    ----------
+    triangles: (n,3,3) float, triangles in space
+    points:    (n,3)   float, points in space
+
+    Returns
+    ----------
+    closest: (n,3) float, point on each triangle closest to each point
+    """
+
+    # establish that input triangles and points are sane
+    ABCs = np.asanyarray(triangles, dtype=np.float64)
+    Ds = np.asanyarray(points, dtype=np.float64)
+    if not util.is_shape(ABCs, (-1, 3, 3)):
+        raise ValueError('triangles shape incorrect')
+    if not util.is_shape(Ds, (len(ABCs), 3)):
+        raise ValueError('triangles and points must correspond')
+
     #from numpy.core.umath_tests import inner1d # fast but deprecated in future numpy versions
     inner1d = lambda u, v: (u * v).sum(axis=1)
     simpleCross = lambda a, b: np.array([a[:,1]*b[:,2]-a[:,2]*b[:,1],a[:,2]*b[:,0]-a[:,0]*b[:,2],a[:,0]*b[:,1]-a[:,1]*b[:,0]]).T
@@ -503,7 +525,7 @@ def closest_point(ABCs, Ds, returnDists = False):
     distsToEdgeLines = inner1d(rVecsABC, inPlaneVecs.reshape(-1,3)).reshape(-1,3)
 
     # separate points on the inside/outside of the triange with the dot-product signs
-    case_inside = np.all(distsToEdgeLines <= 0, axis=1)
+    case_inside = np.all(distsToEdgeLines <= tol.merge, axis=1)
     case_outside = True ^ case_inside
 
     # distances and points of in-triangle projections are already there
@@ -512,22 +534,15 @@ def closest_point(ABCs, Ds, returnDists = False):
     # with the max. positive to-edge-distance we select vertex U of the triangle,
     # the corresponding edge from U to V, and vector from U to the projection of D
     # https://ggbm.at/qfxsevaq    
-    vIdxs = np.argmax(distsToEdgeLines[case_outside], axis=1)
-    uvVecs = eVecsABC[case_outside, vIdxs]
-    udVecs = inPlaneVecs[case_outside, vIdxs]
+    uIdxs = np.argmax(distsToEdgeLines[case_outside], axis=1)
+    uvVecs = eVecsABC[case_outside, uIdxs]
+    udVecs = inPlaneVecs[case_outside, uIdxs]
 
     # the closest point is on the line of U and V but clipped to the edge's extent
     UtoVscale = np.clip(inner1d(udVecs, uvVecs) / inner1d(uvVecs, uvVecs), 0, 1)
 
     # compute the closest points on edge UV
-    closestPts[case_outside] = ABCs[case_outside,vIdxs] + uvVecs * UtoVscale.reshape(-1,1)
-
-    # we can recycle some distances if required
-    if returnDists:
-        closestDists = np.empty(len(Ds), np.float32)
-        closestDists[case_inside] = np.abs(distsToPlanes[case_inside])
-        closestDists[case_outside] = np.sqrt(np.sum((Ds[case_outside] - closestPts[case_outside])**2, axis=1))
-        return closestDists
+    closestPts[case_outside] = ABCs[case_outside,uIdxs] + uvVecs * UtoVscale.reshape(-1,1)
 
     return closestPts
 
