@@ -111,6 +111,11 @@ def export_collada(mesh, digits=8):
     template_string = get_resource('collada.dae.template')
     template = Template(template_string)
 
+    # try to extract colors
+    colors = np.array([])
+    if mesh.visual.defined and mesh.visual.kind == 'vertex':
+        colors = mesh.visual.vertex_colors[:,:3] / 255.0
+
     # keys for template
     replacement = {
         'VERTEX': util.array_to_string(mesh.vertices,
@@ -125,8 +130,14 @@ def export_collada(mesh, digits=8):
                                         col_delim=' ',
                                         row_delim=' ',
                                         digits=digits),
+        'COLORS': util.array_to_string(colors,
+                                        col_delim=' ',
+                                        row_delim=' ',
+                                        digits=digits),
         'VCOUNT': str(len(mesh.vertices)),
         'VCOUNTX3': str(len(mesh.vertices) * 3),
+        'CCOUNT': str(len(colors)),
+        'CCOUNTX3': str(len(colors) * 3),
         'FCOUNT': str(len(mesh.faces))}
     dae = template.substitute(replacement)
     return dae

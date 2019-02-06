@@ -30,8 +30,14 @@ def load_pyassimp(file_obj,
     """
 
     def LPMesh_to_Trimesh(lp):
+        # Try to get the vertex colors attribute
         colors = (np.reshape(lp.colors, (-1, 4))
                   [:, 0:3] * 255).astype(np.uint8)
+        # If no vertex colors, try to extract them from the material
+        if len(colors) == 0:
+            if 'diffuse' in lp.material.properties.keys():
+                colors = np.array(lp.material.properties['diffuse'])
+
         # pass kwargs through to mesh constructor
         mesh_kwargs = copy.deepcopy(kwargs)
         # add data from the LP_Mesh
