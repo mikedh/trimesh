@@ -480,7 +480,7 @@ def closest_point(triangles, points):
     """
     Return the closest point on the surface of each triangle for a
     list of corresponding points.
-    
+
     Parameters
     ----------
     triangles: (n,3,3) float, triangles in space
