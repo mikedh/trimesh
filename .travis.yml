@@ -52,7 +52,7 @@ deploy:
 
 before_install:
 - sudo apt-get -qq update
-- sudo apt-get -qq -y install openscad blender meshlab xvfb pandoc
+- sudo apt-get -qq -y install openscad blender meshlab xvfb pandoc libassimp-dev
 - sudo wget https://github.com/mikedh/v-hacd-1/raw/master/bin/linux/testVHACD --quiet
   -P /usr/bin
 - sudo chmod +x /usr/bin/testVHACD
@@ -78,7 +78,7 @@ install:
 - pip install .
 
 # install testing stuff
-- pip install -q pytest pytest-cov coveralls
+- pip install -q pytest pytest-cov coveralls pyassimp==4.1.4
 
 script:
 

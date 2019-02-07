@@ -11,7 +11,6 @@ import numpy as np
 
 from . import caching
 
-
 if sys.version_info >= (3, 4):
     ABC = abc.ABC
 else:

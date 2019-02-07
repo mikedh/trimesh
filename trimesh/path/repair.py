@@ -81,7 +81,7 @@ def fill_gaps(path, distance=.025):
         if line_class is None:
             line_class = path.entities[entity_index].__class__
 
-        # get discrete version of entitity
+        # get discrete version of entity
         points = path.entities[entity_index].discrete(path.vertices)
         # turn connected curve into segments
         seg_idx = util.stack_lines(np.arange(len(points)))
