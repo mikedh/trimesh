@@ -72,9 +72,20 @@
                         </accessor>
                     </technique_common>
                 </source>
+                <source id="shape0-lib-colors" name="colors">
+                    <float_array id="shape0-lib-colors-array" count="$CCOUNTX3">$COLORS</float_array>
+                    <technique_common>
+                        <accessor count="$CCOUNT" source="#shape0-lib-colors-array" stride="3">
+                            <param name="R" type="float"/>
+                            <param name="G" type="float"/>
+                            <param name="B" type="float"/>
+                        </accessor>
+                    </technique_common>
+                </source>
                 <vertices id="shape0-lib-vertices">
                     <input semantic="POSITION" source="#shape0-lib-positions"/>
                     <input semantic="NORMAL"   source="#shape0-lib-normals"/>
+                    <input semantic="COLOR"    source="#shape0-lib-colors"/>
                 </vertices>
                 <triangles count="$FCOUNT">
                     <input offset="0" semantic="VERTEX" source="#shape0-lib-vertices"/>
