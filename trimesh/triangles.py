@@ -522,6 +522,7 @@ def closest_point(triangles, points):
     # by the right-hand rule: edge-vectors (index finger) x normal (middle finger)
     # compute the r-vectors (thumb) pointing away from the triangle
     rVecsABC = simpleCross(eVecsABC.reshape(-1,3), np.repeat(normalsABC, 3, axis=0))
+    rVecsABC /= np.sqrt(np.sum(rVecsABC**2, axis=1)).reshape(-1,1)
     distsToEdgeLines = inner1d(rVecsABC, inPlaneVecs.reshape(-1,3)).reshape(-1,3)
 
     # separate points on the inside/outside of the triange with the dot-product signs
