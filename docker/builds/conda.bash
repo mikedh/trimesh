@@ -28,7 +28,7 @@ conda config --add channels conda-forge
 conda install scikit-image pyembree 
 
 # actually install trimesh and pytest
-pip install trimesh[all] pytest pyassimp==4.1.4
+pip install trimesh[all] pytest pyassimp==4.1.3
 
 # remove archives
 conda clean --all -y
