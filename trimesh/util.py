@@ -535,19 +535,19 @@ def diagonal_dot(a, b):
     In [3]: b = np.random.random((10000, 3))
 
     In [4]: %timeit (a * b).sum(axis=1)
-    1000 loops, best of 3: 181 µs per loop
+    1000 loops, best of 3: 181 us per loop
 
     In [5]: %timeit np.einsum('ij,ij->i', a, b)
-    10000 loops, best of 3: 62.7 µs per loop
+    10000 loops, best of 3: 62.7 us per loop
 
     In [6]: %timeit np.diag(np.dot(a, b.T))
     1 loop, best of 3: 429 ms per loop
 
     In [7]: %timeit np.dot(a * b, np.ones(a.shape[1]))
-    10000 loops, best of 3: 61.3 µs per loop
+    10000 loops, best of 3: 61.3 us per loop
 
     In [8]: %timeit trimesh.util.diagonal_dot(a, b)
-    10000 loops, best of 3: 55.2 µs per loop
+    10000 loops, best of 3: 55.2 us per loop
     ```
 
     Parameters
