@@ -14,7 +14,6 @@ except ImportError:
     pass
 
 
-
 def face_angles_sparse(mesh):
     """
     A sparse matrix representation of the face angles.

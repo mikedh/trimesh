@@ -60,25 +60,31 @@ def nearby_faces(mesh, points):
 
 def closest_point_naive(mesh, points):
     """
-    Given a mesh and a list of points, find the closest point on any triangle.
+    Given a mesh and a list of points find the closest point
+    on any triangle.
 
     Does this by constructing a very large intermediate array and
     comparing every point to every triangle.
 
     Parameters
     ----------
-    triangles : (n,3,3) float, triangles in space
-    points    : (m,3)   float, points in space
+    mesh : Trimesh
+      Takes mesh to have same interfaces as `closest_point`
+    points : (m, 3) float
+      Points in space
 
     Returns
     ----------
-    closest     : (m,3) float, closest point on triangles for each point
-    distance    : (m,)  float, distance
-    triangle_id : (m,)  int, index of triangle containing closest point
+    closest : (m, 3) float
+      Closest point on triangles for each point
+    distance : (m,) float
+      Distances between point and triangle
+    triangle_id : (m,) int
+      Index of triangle containing closest point
     """
-
-    # establish that input triangles and points are sane
+    # get triangles from mesh
     triangles = mesh.triangles.view(np.ndarray)
+    # establish that input points are sane
     points = np.asanyarray(points, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
         raise ValueError('triangles shape incorrect')
@@ -93,6 +99,7 @@ def closest_point_naive(mesh, points):
     # distance squared
     distance_2 = [((i - q)**2).sum(axis=1)
                   for i, q in zip(on_triangle, points)]
+
     triangle_id = np.array([i.argmin() for i in distance_2])
 
     # closest cartesian point

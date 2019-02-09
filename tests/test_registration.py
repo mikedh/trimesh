@@ -69,7 +69,7 @@ class RegistrationTest(g.unittest.TestCase):
         # subdivide until we have more faces than we want
         for i in range(3):
             mesh = mesh.subdivide()
-        # apply tesselation and random noise
+        # apply tessellation and random noise
         mesh = mesh.permutate.noise(noise)
         # randomly rotation with translation
         transform = g.trimesh.transformations.random_rotation_matrix()

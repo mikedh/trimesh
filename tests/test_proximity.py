@@ -125,6 +125,31 @@ class NearestTest(g.unittest.TestCase):
             # we should have calculated the same distance as shapely
             assert g.np.allclose(distance_ours, distance_shapely)
 
+        # now check to make sure closest point doesn't depend on
+        # the frame, IE the results should be the same after
+        # any rigid transform
+        # chop query off to same length as triangles
+        assert len(query) > len(triangles)
+        query = query[:len(triangles)]
+        # run the closest point query as a corresponding query
+        close = g.trimesh.triangles.closest_point(triangles=triangles,
+                                                  points=query)
+        # distance between closest point and query point
+        # this should stay the same regardless of frame
+        distance = g.np.linalg.norm(close - query, axis=1)
+        for T in g.transforms:
+            # transform the query points
+            points = g.trimesh.transform_points(query, T)
+            # transform the triangles we're checking
+            tri = g.trimesh.transform_points(
+                triangles.reshape((-1, 3)), T).reshape((-1, 3, 3))
+            # run the closest point check
+            check = g.trimesh.triangles.closest_point(triangles=tri,
+                                                      points=points)
+            check_distance = g.np.linalg.norm(check - points, axis=1)
+            # should be the same in any frame
+            assert g.np.allclose(check_distance, distance)
+
         return result, result_distance
 
     def test_coplanar_signed_distance(self):

@@ -3,6 +3,8 @@ import tempfile
 
 import numpy as np
 
+from .. import util
+
 
 def load_pyassimp(file_obj,
                   file_type=None,
@@ -32,7 +34,7 @@ def load_pyassimp(file_obj,
     def LPMesh_to_Trimesh(lp):
         # Try to get the vertex colors attribute
         colors = (np.reshape(lp.colors, (-1, 4))
-                  [:, 0:3] * 255).astype(np.uint8)
+                  [:, :3] * 255).round().astype(np.uint8)
         # If no vertex colors, try to extract them from the material
         if len(colors) == 0:
             if 'diffuse' in lp.material.properties.keys():
@@ -47,18 +49,33 @@ def load_pyassimp(file_obj,
                             'vertex_colors': colors})
         return mesh_kwargs
 
+    opened = False
     if not hasattr(file_obj, 'read'):
         # if there is no read attribute
         # we assume we've been passed a file name
         file_type = (str(file_obj).split('.')[-1]).lower()
         file_obj = open(file_obj, 'rb')
+        opened = True
+    elif not hasattr(file_obj, 'mode') or file_obj.mode != 'rb':
+        # assimp will crash on anything that isn't binary
+        # so if we have a text mode file or anything else
+        # grab the data, encode as bytes, and then use stream
+        data = file_obj.read()
+        if hasattr(data, 'encode'):
+            data = data.encode('utf-8')
+        file_obj = util.wrap_as_stream(data)
 
     # load the scene
     scene = pyassimp.load(file_obj,
                           file_type=file_type)
     meshes = [LPMesh_to_Trimesh(i) for i in scene.meshes]
 
+    # release the loaded mesh
     pyassimp.release(scene)
+
+    # if we opened the file in this function close it
+    if opened:
+        file_obj.close()
 
     return meshes
 

@@ -521,23 +521,54 @@ def diagonal_dot(a, b):
     """
     Dot product by row of a and b.
 
-    Same as np.diag(np.dot(a, b.T)) but without the monstrous
-    intermediate matrix.
+    There are a lot of ways to do this though
+    performance varies very widely. This method
+    uses the dot product to sum the row and avoids
+    function calls if at all possible.
 
-    Also equivalent to:
-    np.einsum('ij,ij->i', a, b)
+    Comparing performance of some equivalent versions:
+    ```
+    In [1]: import numpy as np; import trimesh
+
+    In [2]: a = np.random.random((10000, 3))
+
+    In [3]: b = np.random.random((10000, 3))
+
+    In [4]: %timeit (a * b).sum(axis=1)
+    1000 loops, best of 3: 181 µs per loop
+
+    In [5]: %timeit np.einsum('ij,ij->i', a, b)
+    10000 loops, best of 3: 62.7 µs per loop
+
+    In [6]: %timeit np.diag(np.dot(a, b.T))
+    1 loop, best of 3: 429 ms per loop
+
+    In [7]: %timeit np.dot(a * b, np.ones(a.shape[1]))
+    10000 loops, best of 3: 61.3 µs per loop
+
+    In [8]: %timeit trimesh.util.diagonal_dot(a, b)
+    10000 loops, best of 3: 55.2 µs per loop
+    ```
 
     Parameters
     ------------
-    a: (m, d) array
-    b: (m, d) array
+    a : (m, d) float
+      First array
+    b : (m, d) float
+      Second array
 
     Returns
     -------------
-    result: (m, d) array
+    result : (m,) float
+      Dot product of each row
     """
-    result = (np.asanyarray(a) *
-              np.asanyarray(b)).sum(axis=1)
+    # make sure `a` is numpy array
+    # doing it for `a` will force the multiplication to
+    # convert `b` if necessary and avoid function call otherwise
+    a = np.asanyarray(a)
+    # 3x faster than (a * b).sum(axis=1)
+    # avoiding np.ones saves 5-10% sometimes
+    result = np.dot(a * b, [1.0] * a.shape[1])
     return result
 
 

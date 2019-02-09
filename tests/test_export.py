@@ -246,7 +246,7 @@ class ExportTest(g.unittest.TestCase):
     def test_gltf_path(self):
         """
         Check to make sure GLTF exports of Path2D and Path3D
-        objects don't immediatly crash.
+        objects don't immediately crash.
         """
         path2D = g.get_mesh('2D/wrench.dxf')
         path3D = path2D.to_3D()
@@ -284,7 +284,7 @@ class ExportTest(g.unittest.TestCase):
         assert len(args) == RET_COUNT
         assert args[1] == 'obj'
 
-        # with a nonexistant file and no extension it should raise
+        # with a nonexistent file and no extension it should raise
         try:
             args = f(file_obj=nonexists, file_type=None)
         except ValueError as E:
@@ -292,7 +292,7 @@ class ExportTest(g.unittest.TestCase):
         else:
             raise ValueError('should have raised exception!')
 
-        # nonexistant file with extension passed should return
+        # nonexistent file with extension passed should return
         # file name anyway, maybe something else can handle it
         args = f(file_obj=nonexists, file_type='.ObJ')
         assert len(args) == RET_COUNT

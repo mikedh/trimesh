@@ -554,6 +554,10 @@ def closest_point(triangles, points):
     # which points still need to be handled
     remain = np.ones(len(points), dtype=np.bool)
 
+    # if we dot product this against a (n, 3)
+    # it is equivalent but faster than array.sum(axis=1)
+    ones = [1.0, 1.0, 1.0]
+
     # get the three points of each triangle
     # use the same notation as RTCD to avoid confusion
     a = triangles[:, 0, :]
@@ -564,8 +568,10 @@ def closest_point(triangles, points):
     ab = b - a
     ac = c - a
     ap = points - a
-    d1 = util.diagonal_dot(ab, ap)
-    d2 = util.diagonal_dot(ac, ap)
+    # this is a faster equivalent of:
+    # util.diagonal_dot(ab, ap)
+    d1 = np.dot(ab * ap, ones)
+    d2 = np.dot(ac * ap, ones)
 
     # is the point at A
     is_a = np.logical_and(d1 < tol.zero, d2 < tol.zero)
@@ -575,8 +581,9 @@ def closest_point(triangles, points):
 
     # check if P in vertex region outside B
     bp = points - b
-    d3 = util.diagonal_dot(ab, bp)
-    d4 = util.diagonal_dot(ac, bp)
+    d3 = np.dot(ab * bp, ones)
+    d4 = np.dot(ac * bp, ones)
+
     # do the logic check
     is_b = (d3 > -tol.zero) & (d4 <= d3) & remain
     if is_b.any():
@@ -593,8 +600,8 @@ def closest_point(triangles, points):
 
     # check if P in vertex region outside C
     cp = points - c
-    d5 = util.diagonal_dot(ab, cp)
-    d6 = util.diagonal_dot(ac, cp)
+    d5 = np.dot(ab * cp, ones)
+    d6 = np.dot(ac * cp, ones)
     is_c = (d6 > -tol.zero) & (d5 <= d6) & remain
     if is_c.any():
         result[is_c] = c[is_c]

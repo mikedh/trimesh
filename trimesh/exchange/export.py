@@ -113,8 +113,9 @@ def export_collada(mesh, digits=8):
 
     # try to extract colors
     colors = np.array([])
-    if mesh.visual.defined and mesh.visual.kind == 'vertex':
-        colors = mesh.visual.vertex_colors[:,:3] / 255.0
+    if mesh.visual.kind == 'vertex':
+        # get colors as 0.0-1.0 float RGB
+        colors = mesh.visual.vertex_colors[:, :3] / 255.0
 
     # keys for template
     replacement = {
@@ -131,9 +132,9 @@ def export_collada(mesh, digits=8):
                                         row_delim=' ',
                                         digits=digits),
         'COLORS': util.array_to_string(colors,
-                                        col_delim=' ',
-                                        row_delim=' ',
-                                        digits=digits),
+                                       col_delim=' ',
+                                       row_delim=' ',
+                                       digits=digits),
         'VCOUNT': str(len(mesh.vertices)),
         'VCOUNTX3': str(len(mesh.vertices) * 3),
         'CCOUNT': str(len(colors)),
