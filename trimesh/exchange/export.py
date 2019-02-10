@@ -8,7 +8,7 @@ from .wavefront import _obj_exporters
 from .urdf import export_urdf
 from .stl import export_stl, export_stl_ascii
 from .ply import _ply_exporters
-from .collada import _collada_exporters
+from .dae import _collada_exporters
 
 
 def export_mesh(mesh, file_obj, file_type=None, **kwargs):

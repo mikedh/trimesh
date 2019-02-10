@@ -11,7 +11,7 @@ from ..constants import log_time, log
 from . import misc
 from .ply import _ply_loaders
 from .stl import _stl_loaders
-from .collada import _collada_loaders
+from .dae import _collada_loaders
 from .misc import _misc_loaders
 from .gltf import _gltf_loaders
 from .assimp import _assimp_loaders
