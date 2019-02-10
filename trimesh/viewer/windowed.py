@@ -186,8 +186,9 @@ class SceneViewer(pyglet.window.Window):
         # save
         if hasattr(geometry, 'visual') and hasattr(
                 geometry.visual, 'material'):
-            self.textures[name] = rendering.material_to_texture(
-                geometry.visual.material)
+            tex = rendering.material_to_texture(geometry.visual.material)
+            if tex is not None:
+                self.textures[name] = tex
 
     def reset_view(self, flags=None):
         """

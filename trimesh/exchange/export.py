@@ -8,6 +8,7 @@ from .wavefront import _obj_exporters
 from .urdf import export_urdf
 from .stl import export_stl, export_stl_ascii
 from .ply import _ply_exporters
+from .collada import _collada_exporters
 
 
 def export_mesh(mesh, file_obj, file_type=None, **kwargs):
@@ -40,7 +41,14 @@ def export_mesh(mesh, file_obj, file_type=None, **kwargs):
     if not (file_type in _mesh_exporters):
         raise ValueError('%s exporter not available!', file_type)
 
-    log.debug('Exporting %d faces as %s', len(mesh.faces), file_type.upper())
+    if isinstance(mesh, list) or isinstance(mesh, tuple):
+        faces = 0
+        for m in mesh:
+            faces += len(m.faces)
+        log.debug('Exporting %d meshes with a total of %d faces as %s',
+                  len(mesh), faces, file_type.upper())
+    else:
+        log.debug('Exporting %d faces as %s', len(mesh.faces), file_type.upper())
     export = _mesh_exporters[file_type](mesh, **kwargs)
 
     if hasattr(file_obj, 'write'):
@@ -86,62 +94,6 @@ def export_off(mesh, digits=10):
                                    col_delim=' ',
                                    row_delim='\n')
     return export
-
-
-def export_collada(mesh, digits=8):
-    """
-    Export a mesh as a COLLADA file.
-
-    Parameters
-    --------------
-    mesh   : Trimesh object
-               Mesh to be exported
-    digits : int
-              Number of ASCII digits to include for
-              floating point variables
-
-    Returns
-    ------------
-    dae : str
-            Mesh as a COLLADA file
-    """
-    from ..resources import get_resource
-    from string import Template
-
-    template_string = get_resource('collada.dae.template')
-    template = Template(template_string)
-
-    # try to extract colors
-    colors = np.array([])
-    if mesh.visual.kind == 'vertex':
-        # get colors as 0.0-1.0 float RGB
-        colors = mesh.visual.vertex_colors[:, :3] / 255.0
-
-    # keys for template
-    replacement = {
-        'VERTEX': util.array_to_string(mesh.vertices,
-                                       col_delim=' ',
-                                       row_delim=' ',
-                                       digits=digits),
-        'FACES': util.array_to_string(mesh.faces,
-                                      col_delim=' ',
-                                      row_delim=' ',
-                                      digits=digits),
-        'NORMALS': util.array_to_string(mesh.vertex_normals,
-                                        col_delim=' ',
-                                        row_delim=' ',
-                                        digits=digits),
-        'COLORS': util.array_to_string(colors,
-                                       col_delim=' ',
-                                       row_delim=' ',
-                                       digits=digits),
-        'VCOUNT': str(len(mesh.vertices)),
-        'VCOUNTX3': str(len(mesh.vertices) * 3),
-        'CCOUNT': str(len(colors)),
-        'CCOUNTX3': str(len(colors) * 3),
-        'FCOUNT': str(len(mesh.faces))}
-    dae = template.substitute(replacement)
-    return dae
 
 
 def export_dict64(mesh):
@@ -214,7 +166,6 @@ _mesh_exporters = {'stl': export_stl,
                    'dict': export_dict,
                    'json': export_json,
                    'off': export_off,
-                   'dae': export_collada,
                    'dict64': export_dict64,
                    'msgpack': export_msgpack,
                    'collada': export_collada,
@@ -222,3 +173,4 @@ _mesh_exporters = {'stl': export_stl,
 
 _mesh_exporters.update(_ply_exporters)
 _mesh_exporters.update(_obj_exporters)
+_mesh_exporters.update(_collada_exporters)
