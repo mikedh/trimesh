@@ -185,7 +185,7 @@ def _parse_material(effect):
     baseColorTexture = None
     if isinstance(effect.diffuse, collada.material.Map):
         baseColorTexture = effect.diffuse.sampler.surface.img.pilimage
-    else:
+    elif effect.diffuse is not None:
         baseColorFactor = effect.diffuse
 
     # Compute emission color
@@ -193,12 +193,13 @@ def _parse_material(effect):
     emissiveTexture = None
     if isinstance(effect.emission, collada.material.Map):
         emissiveTexture = effect.diffuse.sampler.surface.img.pilimage
-    else:
+    elif effect.emission is not None:
         emissiveFactor = effect.emission[:3]
 
     # Compute roughness
     roughnessFactor = 1.0
-    if not isinstance(effect.shininess, collada.material.Map):
+    if (not isinstance(effect.shininess, collada.material.Map)
+        and effect.shininess is not None):
         roughnessFactor = np.sqrt(2.0 / (2.0 + effect.shininess))
 
     # Compute metallic factor
