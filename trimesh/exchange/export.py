@@ -168,7 +168,6 @@ _mesh_exporters = {'stl': export_stl,
                    'off': export_off,
                    'dict64': export_dict64,
                    'msgpack': export_msgpack,
-                   'collada': export_collada,
                    'stl_ascii': export_stl_ascii}
 
 _mesh_exporters.update(_ply_exporters)
