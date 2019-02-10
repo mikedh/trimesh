@@ -1,3 +1,4 @@
+import copy
 import io
 import uuid
 
@@ -30,8 +31,15 @@ def load_collada(file_obj, **kwargs):
     # Get meshes
     meshes = []
     c = collada.Collada(file_obj)
+
+    # Create material map
+    material_map = {}
+    for m in c.materials:
+        effect = m.effect
+        material_map[m.id] = _parse_material(effect)
+
     for node in c.scene.nodes:
-        _parse_node(node, np.eye(4), meshes)
+        _parse_node(node, np.eye(4), material_map, meshes)
     return meshes
 
 def export_collada(mesh, **kwargs):
@@ -79,8 +87,11 @@ def export_collada(mesh, **kwargs):
             input_list.addInput(2, 'TEXCOORD', '#texcoords-array')
             arrays.append(texcoords)
         if colors is not None:
+            idx = 2
+            if uv:
+                idx = 3
             colors = collada.source.FloatSource('colors-array', colors.flatten(), ('R', 'G', 'B'))
-            input_list.addInput(3, 'COLOR', '#colors-array')
+            input_list.addInput(idx, 'COLOR', '#colors-array')
             arrays.append(colors)
         geom = collada.geometry.Geometry(
             c, uuid.uuid4().hex, uuid.uuid4().hex, arrays
@@ -105,21 +116,13 @@ def export_collada(mesh, **kwargs):
     b.seek(0)
     return b.read()
 
-def _parse_node(node, parent_matrix, meshes):
+def _parse_node(node, parent_matrix, material_map, meshes):
     """Recursively parse COLLADA scene nodes.
     """
 
     # Parse mesh node
     if isinstance(node, collada.scene.GeometryNode):
         geometry = node.geometry
-        material_nodes = node.materials
-
-        # Create material map
-        material_map = {}
-        for n in material_nodes:
-            s = n.symbol
-            effect = n.target.effect
-            material_map[s] = _parse_material(effect)
 
         # Iterate over primitives of geometry
         for primitive in geometry.primitives:
@@ -153,7 +156,7 @@ def _parse_node(node, parent_matrix, meshes):
                 # Get UV coordinates if possible
                 vis = None
                 if colors is None and primitive.material in material_map:
-                    material = material_map[primitive.material]
+                    material = copy.copy(material_map[primitive.material])
                     uv = None
                     if len(primitive.texcoordset) > 0:
                         texcoord = primitive.texcoordset[0]
@@ -174,7 +177,7 @@ def _parse_node(node, parent_matrix, meshes):
     elif isinstance(node, collada.scene.Node):
         if node.children is not None:
             for c in node.children:
-                _parse_node(c, node.matrix, meshes)
+                _parse_node(c, node.matrix, material_map, meshes)
 
 def _parse_material(effect):
     """Turn a COLLADA effect into a trimesh material.
@@ -228,11 +231,13 @@ def _unparse_material(material):
         diffuse = material.baseColorFactor
         if diffuse is not None:
             diffuse = list(diffuse)
+
         emission = material.emissiveFactor
         if emission is not None:
             emission = [*emission, 1.0]
         else:
             emission = list(emission)
+
         shininess = material.roughnessFactor
         if shininess is not None:
             shininess = 2.0 / shininess**2 - 2.0
