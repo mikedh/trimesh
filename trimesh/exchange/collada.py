@@ -126,6 +126,8 @@ def _parse_node(node, parent_matrix, material_map, meshes):
 
         # Iterate over primitives of geometry
         for primitive in geometry.primitives:
+            if isinstance(primitive, collada.polylist.Polylist):
+                primitive = primitive.triangleset()
             if isinstance(primitive, collada.triangleset.TriangleSet):
                 vertex = primitive.vertex
                 vertex_index = primitive.vertex_index
