@@ -236,9 +236,7 @@ def _unparse_material(material):
 
         emission = material.emissiveFactor
         if emission is not None:
-            emission = [*emission, 1.0]
-        else:
-            emission = list(emission)
+            emission = [float(emission[0]), float(emission[1]), float(emission[2]), 1.0]
 
         shininess = material.roughnessFactor
         if shininess is not None:
