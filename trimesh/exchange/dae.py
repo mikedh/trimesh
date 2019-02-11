@@ -8,12 +8,20 @@ try:
     import collada
 except BaseException:
     pass
+except ImportError:
+    pass
 
+try:
+    import PIL
+except ImportError:
+    pass
+
+from .. import util
 from .. import visual
 
 from ..constants import log
 
-def load_collada(file_obj, **kwargs):
+def load_collada(file_obj, resolver=None, **kwargs):
     """Load a COLLADA (.dae) file into a list of trimesh kwargs.
 
     Parameters
@@ -34,14 +42,14 @@ def load_collada(file_obj, **kwargs):
     meshes = []
     c = collada.Collada(file_obj)
 
-    # Create material map
+    # Create material map from Material ID to trimesh material
     material_map = {}
     for m in c.materials:
         effect = m.effect
-        material_map[m.id] = _parse_material(effect)
+        material_map[m.id] = _parse_material(effect, resolver)
 
     for node in c.scene.nodes:
-        _parse_node(node, np.eye(4), material_map, meshes)
+        _parse_node(node, np.eye(4), material_map, meshes, resolver)
     return meshes
 
 
@@ -124,13 +132,23 @@ def export_collada(mesh, **kwargs):
     return b.read()
 
 
-def _parse_node(node, parent_matrix, material_map, meshes):
+def _parse_node(node, parent_matrix, material_map, meshes, resolver=None):
     """Recursively parse COLLADA scene nodes.
     """
 
     # Parse mesh node
     if isinstance(node, collada.scene.GeometryNode):
         geometry = node.geometry
+
+        # Create local material map from material symbol to actual material
+        local_material_map = {}
+        for mn in node.materials:
+            symbol = mn.symbol
+            m = mn.target
+            if m.id in material_map:
+                local_material_map[symbol] = material_map[m.id]
+            else:
+                local_material_map[symbol] = _parse_material(m, resolver)
 
         # Iterate over primitives of geometry
         for primitive in geometry.primitives:
@@ -166,8 +184,8 @@ def _parse_node(node, parent_matrix, material_map, meshes):
 
                 # Get UV coordinates if possible
                 vis = None
-                if colors is None and primitive.material in material_map:
-                    material = copy.copy(material_map[primitive.material])
+                if colors is None and primitive.material in local_material_map:
+                    material = copy.copy(local_material_map[primitive.material])
                     uv = None
                     if len(primitive.texcoordset) > 0:
                         texcoord = primitive.texcoordset[0]
@@ -175,7 +193,6 @@ def _parse_node(node, parent_matrix, material_map, meshes):
                         uv = texcoord[texcoord_index].reshape(
                             (len(texcoord_index) * 3, 2))
                     vis = visual.texture.TextureVisuals(uv=uv, material=material)
-
 
                 meshes.append({
                     'vertices': vertices,
@@ -189,10 +206,19 @@ def _parse_node(node, parent_matrix, material_map, meshes):
     elif isinstance(node, collada.scene.Node):
         if node.children is not None:
             for c in node.children:
-                _parse_node(c, node.matrix, material_map, meshes)
+                _parse_node(c, node.matrix, material_map, meshes, resolver=None)
 
 
-def _parse_material(effect):
+def _load_texture(file_name, resolver):
+    """
+    Load a texture from a file into a PIL image.
+    """
+    file_data = resolver.get(file_name)
+    image = PIL.Image.open(util.wrap_as_stream(file_data))
+    return image
+
+
+def _parse_material(effect, resolver):
     """
     Turn a COLLADA effect into a trimesh material.
     """
@@ -202,7 +228,8 @@ def _parse_material(effect):
     baseColorTexture = None
     if isinstance(effect.diffuse, collada.material.Map):
         try:
-            baseColorTexture = effect.diffuse.sampler.surface.image.pilimage
+            baseColorTexture = _load_texture(
+                effect.diffuse.sampler.surface.image.path, resolver)
         except BaseException:
             log.warning('unable to load base texture',
                         exc_info=True)
@@ -214,7 +241,8 @@ def _parse_material(effect):
     emissiveTexture = None
     if isinstance(effect.emission, collada.material.Map):
         try:
-            emissiveTexture = effect.diffuse.sampler.surface.image.pilimage
+            emissiveTexture = _load_texture(
+                effect.diffuse.sampler.surface.image.path, resolver)
         except BaseException:
             log.warning('unable to load emissive texture',
                         exc_info=True)
@@ -234,7 +262,8 @@ def _parse_material(effect):
     normalTexture = None
     if effect.bumpmap is not None:
         try:
-            normalTexture = effect.bumpmap.sampler.surface.image.pilimage
+            normalTexture = _load_texture(
+                effect.bumpmap.sampler.surface.image.path, resolver)
         except:
             log.warning('unable to load bumpmap',
                         exc_info=True)
