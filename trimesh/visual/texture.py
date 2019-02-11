@@ -8,7 +8,7 @@ from .. import caching
 
 class TextureVisuals(object):
     def __init__(self,
-                 uv,
+                 uv=None,
                  material=None,
                  image=None):
         """
@@ -71,7 +71,7 @@ class TextureVisuals(object):
         defined : bool
           Are UV coordinates and images set?
         """
-        ok = self.material is not None and self.uv is not None
+        ok = self.material is not None
         return ok
 
     def crc(self):
@@ -95,7 +95,9 @@ class TextureVisuals(object):
         uv : (n, 2) float
           Pixel position per- vertex
         """
-        return self._data['uv']
+        if 'uv' in self._data:
+            return self._data['uv']
+        return None
 
     @uv.setter
     def uv(self, values):
@@ -107,7 +109,10 @@ class TextureVisuals(object):
         values : (n, 2) float
           Pixel locations on a texture per- vertex
         """
-        self._data['uv'] = np.asanyarray(values, dtype=np.float64)
+        if values is None:
+            self._data.clear()
+        else:
+            self._data['uv'] = np.asanyarray(values, dtype=np.float64)
 
     def copy(self):
         """
@@ -118,8 +123,11 @@ class TextureVisuals(object):
         copied : TextureVisuals
           Contains the same information in a new object
         """
+        uv = self.uv
+        if uv is not None:
+            uv = uv.copy()
         copied = TextureVisuals(
-            uv=self.uv.copy(),
+            uv=uv,
             material=copy.deepcopy(self.material))
 
         return copied
@@ -150,7 +158,8 @@ class TextureVisuals(object):
         """
         Apply a mask to remove or duplicate vertex properties.
         """
-        self.uv = self.uv[mask]
+        if self.uv is not None:
+            self.uv = self.uv[mask]
 
     def update_faces(self, mask):
         """
@@ -215,8 +224,10 @@ class PBRMaterial(Material):
         self.metallicRoughnessTexture = metallicRoughnessTexture
 
     def to_color(self, uv):
-        return uv_to_color(
-            uv=uv, image=self.baseColorTexture)
+        color = uv_to_color(uv=uv, image=self.baseColorTexture)
+        if color is None and self.baseColorFactor is not None:
+            color = self.baseColorFactor.copy()
+        return color
 
 
 def uv_to_color(uv, image):
@@ -235,6 +246,9 @@ def uv_to_color(uv, image):
     colors : (n, 4) float
       RGBA color at each of the UV coordinates
     """
+    if image is None or uv is None:
+        return None
+
     # UV coordinates should be (n, 2) float
     uv = np.asanyarray(uv, dtype=np.float64)
 

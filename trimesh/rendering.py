@@ -81,7 +81,7 @@ def mesh_to_vertexlist(mesh,
       Args for vertex list constructor
     """
 
-    if hasattr(mesh.visual, 'uv'):
+    if hasattr(mesh.visual, 'uv') and mesh.visual.uv is not None:
         # if the mesh has texture defined pass it to pyglet
         vertex_count = len(mesh.vertices)
         normals = mesh.vertex_normals.reshape(-1).tolist()
@@ -252,6 +252,9 @@ def material_to_texture(material):
         img = material.image
     else:
         img = material.baseColorTexture
+
+    if img is None:
+        return None
 
     with util.BytesIO() as f:
         # export PIL image as PNG

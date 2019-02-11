@@ -32,10 +32,34 @@ def merge_vertices(mesh, distance=None):
         digits = util.decimal_to_digits(distance)
     else:
         digits = None
-    # unique rows
-    unique, inverse = unique_rows(mesh.vertices,
-                                  digits=digits)
-    mesh.update_vertices(unique, inverse)
+
+    # UV texture visuals require us to update the vertices and normals
+    # differently
+    if (mesh.visual.defined and mesh.visual.kind == 'texture' and
+            mesh.visual.uv is not None):
+
+        # Merge vertices with identical positions and UVs.
+        # We don't merge vertices just based on position because
+        # that can corrupt textures at seams.
+        unique, inverse = unique_rows(
+            np.hstack((mesh.vertices, mesh.visual.uv)), digits=digits)
+        mesh.update_vertices(unique, inverse)
+
+        # Now, smooth out the vertex normals at the duplicate vertices.
+        # For now, we just use the first vertex's normal in a duplicate group.
+        # It would be better to average these, but that's slower.
+        unique, inverse = unique_rows(mesh.vertices,
+                                    digits=digits)
+        try:
+            mesh.vertex_normals = mesh.vertex_normals[unique[inverse]]
+        except BaseException:
+            pass
+    # In normal usage, just merge vertices that are close.
+    else:
+        # unique rows
+        unique, inverse = unique_rows(mesh.vertices,
+                                    digits=digits)
+        mesh.update_vertices(unique, inverse)
 
 
 def group(values, min_len=0, max_len=np.inf):
