@@ -6,10 +6,12 @@ import numpy as np
 
 try:
     import collada
-except:
+except BaseException:
     pass
 
 from .. import visual
+
+from ..constants import log
 
 def load_collada(file_obj, **kwargs):
     """Load a COLLADA (.dae) file into a list of trimesh kwargs.
@@ -42,6 +44,7 @@ def load_collada(file_obj, **kwargs):
         _parse_node(node, np.eye(4), material_map, meshes)
     return meshes
 
+
 def export_collada(mesh, **kwargs):
     """Export a mesh or a list of meshes as a COLLADA .dae file.
 
@@ -71,26 +74,30 @@ def export_collada(mesh, **kwargs):
                 mat = _unparse_material(m.visual.material)
                 uv = m.visual.uv
             elif m.visual.kind == 'vertex':
-                colors = (m.visual.vertex_colors / 255.0)[:,:3]
+                colors = (m.visual.vertex_colors / 255.0)[:, :3]
         c.effects.append(mat.effect)
         c.materials.append(mat)
 
         # Create geometry object
-        vertices = collada.source.FloatSource('verts-array', m.vertices.flatten(), ('X', 'Y', 'Z'))
-        normals = collada.source.FloatSource('normals-array', m.vertex_normals.flatten(), ('X', 'Y', 'Z'))
+        vertices = collada.source.FloatSource(
+            'verts-array', m.vertices.flatten(), ('X', 'Y', 'Z'))
+        normals = collada.source.FloatSource(
+            'normals-array', m.vertex_normals.flatten(), ('X', 'Y', 'Z'))
         input_list = collada.source.InputList()
         input_list.addInput(0, 'VERTEX', '#verts-array')
         input_list.addInput(1, 'NORMAL', '#normals-array')
         arrays = [vertices, normals]
         if uv is not None:
-            texcoords = collada.source.FloatSource('texcoords-array', uv.flatten(), ('U', 'V'))
+            texcoords = collada.source.FloatSource(
+                'texcoords-array', uv.flatten(), ('U', 'V'))
             input_list.addInput(2, 'TEXCOORD', '#texcoords-array')
             arrays.append(texcoords)
         if colors is not None:
             idx = 2
             if uv:
                 idx = 3
-            colors = collada.source.FloatSource('colors-array', colors.flatten(), ('R', 'G', 'B'))
+            colors = collada.source.FloatSource('colors-array',
+                colors.flatten(), ('R', 'G', 'B'))
             input_list.addInput(idx, 'COLOR', '#colors-array')
             arrays.append(colors)
         geom = collada.geometry.Geometry(
@@ -116,6 +123,7 @@ def export_collada(mesh, **kwargs):
     b.seek(0)
     return b.read()
 
+
 def _parse_node(node, parent_matrix, material_map, meshes):
     """Recursively parse COLLADA scene nodes.
     """
@@ -131,29 +139,30 @@ def _parse_node(node, parent_matrix, material_map, meshes):
             if isinstance(primitive, collada.triangleset.TriangleSet):
                 vertex = primitive.vertex
                 vertex_index = primitive.vertex_index
-                vertices = vertex[vertex_index].reshape(len(vertex_index)*3,3)
+                vertices = vertex[vertex_index].reshape(len(vertex_index) * 3, 3)
 
                 # Get normals if present
                 normals = None
                 if primitive.normal is not None:
                     normal = primitive.normal
                     normal_index = primitive.normal_index
-                    normals = normal[normal_index].reshape(len(normal_index)*3,3)
+                    normals = normal[normal_index].reshape(len(normal_index) * 3, 3)
 
                 # Get colors if present
                 colors = None
                 s = primitive.sources
                 if ('COLOR' in s and len(s['COLOR']) > 0 and len(primitive.index) > 0):
                     color = s['COLOR'][0][4].data
-                    color_index = primitive.index[:,:,s['COLOR'][0][0]]
-                    colors = color[color_index].reshape(len(color_index)*3,3)
+                    color_index = primitive.index[:, :, s['COLOR'][0][0]]
+                    colors = color[color_index].reshape(len(color_index) * 3, 3)
 
-                faces = np.arange(vertices.shape[0]).reshape(vertices.shape[0]//3,3)
+                faces = np.arange(vertices.shape[0]).reshape(vertices.shape[0] // 3, 3)
 
                 # Transform by parent matrix value
-                vertices = np.dot(parent_matrix[:3,:3], vertices.T).T + parent_matrix[:3,3]
+                vertices = np.dot(parent_matrix[:3, :3],
+                                  vertices.T).T + parent_matrix[:3, 3]
                 if normals is not None:
-                    normals = np.dot(parent_matrix[:3,:3], normals.T).T
+                    normals = np.dot(parent_matrix[:3, :3], normals.T).T
 
                 # Get UV coordinates if possible
                 vis = None
@@ -163,12 +172,13 @@ def _parse_node(node, parent_matrix, material_map, meshes):
                     if len(primitive.texcoordset) > 0:
                         texcoord = primitive.texcoordset[0]
                         texcoord_index = primitive.texcoord_indexset[0]
-                        uv = texcoord[texcoord_index].reshape((len(texcoord_index)*3,2))
+                        uv = texcoord[texcoord_index].reshape(
+                            (len(texcoord_index) * 3, 2))
                     vis = visual.texture.TextureVisuals(uv=uv, material=material)
 
 
                 meshes.append({
-                    'vertices' : vertices,
+                    'vertices': vertices,
                     'faces': faces,
                     'vertex_normals': normal,
                     'vertex_colors': colors,
@@ -181,15 +191,21 @@ def _parse_node(node, parent_matrix, material_map, meshes):
             for c in node.children:
                 _parse_node(c, node.matrix, material_map, meshes)
 
+
 def _parse_material(effect):
-    """Turn a COLLADA effect into a trimesh material.
+    """
+    Turn a COLLADA effect into a trimesh material.
     """
 
     # Compute base color
     baseColorFactor = np.ones(4)
     baseColorTexture = None
     if isinstance(effect.diffuse, collada.material.Map):
-        baseColorTexture = effect.diffuse.sampler.surface.img.pilimage
+        try:
+            baseColorTexture = effect.diffuse.sampler.surface.image.pilimage
+        except BaseException:
+            log.warning('unable to load base texture',
+                        exc_info=True)
     elif effect.diffuse is not None:
         baseColorFactor = effect.diffuse
 
@@ -197,14 +213,18 @@ def _parse_material(effect):
     emissiveFactor = np.zeros(3)
     emissiveTexture = None
     if isinstance(effect.emission, collada.material.Map):
-        emissiveTexture = effect.diffuse.sampler.surface.img.pilimage
+        try:
+            emissiveTexture = effect.diffuse.sampler.surface.image.pilimage
+        except BaseException:
+            log.warning('unable to load emissive texture',
+                        exc_info=True)
     elif effect.emission is not None:
         emissiveFactor = effect.emission[:3]
 
     # Compute roughness
     roughnessFactor = 1.0
     if (not isinstance(effect.shininess, collada.material.Map)
-        and effect.shininess is not None):
+            and effect.shininess is not None):
         roughnessFactor = np.sqrt(2.0 / (2.0 + effect.shininess))
 
     # Compute metallic factor
@@ -213,7 +233,11 @@ def _parse_material(effect):
     # Compute normal texture
     normalTexture = None
     if effect.bumpmap is not None:
-        normalTexture = effect.bumpmap.sampler.surface.img.pilimage
+        try:
+            normalTexture = effect.bumpmap.sampler.surface.image.pilimage
+        except:
+            log.warning('unable to load bumpmap',
+                        exc_info=True)
 
     return visual.texture.PBRMaterial(
         emissiveFactor=emissiveFactor,
@@ -225,8 +249,10 @@ def _parse_material(effect):
         roughnessFactor=roughnessFactor
     )
 
+
 def _unparse_material(material):
-    """Turn a trimesh material into a COLLADA material.
+    """
+    Turn a trimesh material into a COLLADA material.
     """
     # TODO EXPORT TEXTURES
     if isinstance(material, visual.texture.PBRMaterial):
@@ -236,7 +262,8 @@ def _unparse_material(material):
 
         emission = material.emissiveFactor
         if emission is not None:
-            emission = [float(emission[0]), float(emission[1]), float(emission[2]), 1.0]
+            emission = [float(emission[0]), float(emission[1]),
+                        float(emission[2]), 1.0]
 
         shininess = material.roughnessFactor
         if shininess is not None:
@@ -260,5 +287,5 @@ def _unparse_material(material):
     return material
 
 
-_collada_loaders = { 'dae' : load_collada }
-_collada_exporters = { 'dae' : export_collada }
+_collada_loaders = {'dae': load_collada}
+_collada_exporters = {'dae': export_collada}
