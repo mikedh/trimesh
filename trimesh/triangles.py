@@ -521,12 +521,9 @@ def closest_point(triangles, points):
     list of corresponding points.
 
     Implements the method from "Real Time Collision Detection" and
-    uses the same variable names as 'ClosestPtPointTriangle' to avoid
+    use the same variable names as 'ClosestPtPointTriangle' to avoid
     being any more confusing.
 
-    Note that you could get a speedup by more carefully masking for
-    reducing the number of operations, but it is already pretty fast and
-    it becomes so confusing that I haven't bothered here.
 
     Parameters
     ----------

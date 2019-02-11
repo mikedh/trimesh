@@ -11,12 +11,18 @@ class GLTFTest(g.unittest.TestCase):
 
         # should have one mesh
         assert len(scene.geometry) == 1
-        # should be watertight
-        assert next(iter(scene.geometry.values())).is_volume
 
+        # get the mesh
+        geom = next(iter(scene.geometry.values()))
+        # should not be watertight
+        assert not geom.is_volume
         # make sure export doesn't crash
         export = scene.export('glb')
         assert len(export) > 0
+
+        # if we merge ugly it should now be watertight
+        geom.merge_vertices(textured=False)
+        assert geom.is_volume
 
     def test_tex_export(self):
         # load textured PLY
