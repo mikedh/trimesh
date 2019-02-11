@@ -28,7 +28,9 @@ class Scene(Geometry):
                  geometry=None,
                  base_frame='world',
                  metadata={},
-                 graph=None):
+                 graph=None,
+                 camera=None,
+                 lights=None):
         """
         Create a new Scene object.
 
@@ -63,7 +65,8 @@ class Scene(Geometry):
             # if we've been passed a graph override the default
             self.graph = graph
 
-        self.camera = None
+        self.camera = camera
+        self.lights = lights
 
     def apply_transform(self, transform):
         raise NotImplementedError
@@ -402,7 +405,8 @@ class Scene(Geometry):
                    center=None,
                    camera=None):
         """
-        Add a transform to self.graph for 'camera'
+        Create a camera object for self.camera, and add
+        a transform to self.graph for it.
 
         If arguments are not passed sane defaults will be figured
         out which show the mesh roughly centered.
@@ -465,6 +469,17 @@ class Scene(Geometry):
                           frame_to=self.graph.base_frame,
                           matrix=transform)
 
+    def set_lights(self, count=2):
+        """
+        Create some "best guess" lights for the scene.
+        
+        Parameters
+        ------------
+        count : int
+          Number of lights to create.
+        """
+        pass
+        
     def rezero(self):
         """
         Move the current scene so that the AABB of the whole

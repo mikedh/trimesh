@@ -32,6 +32,25 @@ class AssimpTest(g.unittest.TestCase):
         assert g.np.allclose(m.visual.vertex_colors,
                              [0, 13, 96, 255])
 
+    def test_wam(self):
+        """
+        Load a collada scene with assimp and verify
+        it isn't totally crazy.
+        """
+        # the wam arm
+        path = g.os.path.join(g.dir_models, 'barrett-wam.zae')
+        with open(path, 'rb') as f:
+            archive = g.trimesh.util.decompress(f, file_type='zip')
+
+        # load the WAM arm using pyassimp
+        kwargs = g.trimesh.exchange.assimp.load_pyassimp(
+            archive['barrett-wam.dae'], file_type='dae')
+
+        scene = g.trimesh.exchange.load.load_kwargs(kwargs)
+
+        assert len(scene.geometry) == 8
+        assert len(scene.graph.nodes_geometry) == 8
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

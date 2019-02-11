@@ -32,7 +32,7 @@ class SceneViewer(pyglet.window.Window):
                  smooth=True,
                  flags=None,
                  visible=True,
-                 resolution=(640, 480),
+                 resolution=None,
                  start_loop=True,
                  callback=None,
                  callback_period=None,
@@ -88,16 +88,15 @@ class SceneViewer(pyglet.window.Window):
         # name : texture
         self.textures = {}
 
+        # if the scene has a camera use its resolution
         if scene.camera is not None:
-            if resolution is not None and not np.allclose(
-                    resolution,
-                    scene.camera.resolution,
-                    rtol=0, atol=0):
-                log.warning(
-                    'resolution is overwritten by camera: '
-                    '{} -> {}'.format(resolution,
-                                      scene.camera.resolution))
-                resolution = scene.camera.resolution
+            log.debug('using camera resolution',
+                      scene.camera.resolution)
+            resolution = scene.camera.resolution
+
+        # if resolution isn't defined set a default value
+        if resolution is None:
+            resolution = [640, 480]
 
         if 'camera' not in scene.graph:
             # if the camera hasn't been set, set it now
@@ -156,9 +155,6 @@ class SceneViewer(pyglet.window.Window):
         # call the callback if specified
         if self.callback is not None:
             self.callback(self.scene)
-        for name, mesh in self.scene.geometry.items():
-            if self.vertex_list_hash.get(name, None) != geometry_hash(mesh):
-                self.add_geometry(name, mesh)
 
     def add_geometry(self, name, geometry, **kwargs):
         """
@@ -240,9 +236,11 @@ class SceneViewer(pyglet.window.Window):
             except BaseException:
                 log.error('background color wrong!',
                           exc_info=True)
+
         # apply the background color
         gl.glClearColor(*background)
 
+        # find the maximum depth based on the maximum length of scene's AABB
         max_depth = (np.abs(self.scene.bounds).max(axis=1) ** 2).sum() ** .5
         max_depth = np.clip(max_depth, 500.00, np.inf)
         gl.glDepthRange(0.0, max_depth)
@@ -254,19 +252,27 @@ class SceneViewer(pyglet.window.Window):
         gl.glEnable(gl.GL_DEPTH_TEST)
         gl.glEnable(gl.GL_CULL_FACE)
         gl.glEnable(gl.GL_LIGHTING)
-        gl.glEnable(gl.GL_LIGHT0)
-        gl.glEnable(gl.GL_LIGHT1)
 
-        # put the light at one corner of the scenes AABB
-        gl.glLightfv(gl.GL_LIGHT0,
-                     gl.GL_POSITION,
-                     rendering.vector_to_gl(np.append(self.scene.bounds[1], 0)))
-        gl.glLightfv(gl.GL_LIGHT0, gl.GL_SPECULAR,
-                     rendering.vector_to_gl(.5, .5, 1, 1))
-        gl.glLightfv(gl.GL_LIGHT0, gl.GL_DIFFUSE,
-                     rendering.vector_to_gl(1, 1, 1, .75))
-        gl.glLightfv(gl.GL_LIGHT0, gl.GL_AMBIENT,
-                     rendering.vector_to_gl(.1, .1, .1, .2))
+        if self.scene.lights is not None:
+            # lighting should be iterable, and there should be 7 or fewer
+            for i, light in enumerate(self.scene.lights[:7]):
+                # the index of which light we have
+                lightN = eval('gl.GL_LIGHT{}'.format(i))
+
+        else:
+            # scene has no lights specified, so use default
+            gl.glEnable(gl.GL_LIGHT0)
+
+            # put the light at one corner of the scenes AABB
+            gl.glLightfv(gl.GL_LIGHT0,
+                         gl.GL_POSITION,
+                         rendering.vector_to_gl(np.append(self.scene.bounds[1], 0)))
+            gl.glLightfv(gl.GL_LIGHT0, gl.GL_SPECULAR,
+                         rendering.vector_to_gl(.5, .5, 1, 1))
+            gl.glLightfv(gl.GL_LIGHT0, gl.GL_DIFFUSE,
+                         rendering.vector_to_gl(1, 1, 1, .75))
+            gl.glLightfv(gl.GL_LIGHT0, gl.GL_AMBIENT,
+                         rendering.vector_to_gl(.1, .1, .1, .2))
 
         gl.glColorMaterial(gl.GL_FRONT_AND_BACK, gl.GL_AMBIENT_AND_DIFFUSE)
         gl.glEnable(gl.GL_COLOR_MATERIAL)
@@ -286,28 +292,34 @@ class SceneViewer(pyglet.window.Window):
                        gl.GL_SHININESS,
                        .4 * 128.0)
 
+        # enable blending for transparency
         gl.glEnable(gl.GL_BLEND)
         gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 
+        # make the lines from Path3D objects less ugly
         gl.glEnable(gl.GL_LINE_SMOOTH)
         gl.glHint(gl.GL_LINE_SMOOTH_HINT, gl.GL_NICEST)
-
+        # set the width of lines to 1.5 pixels
         gl.glLineWidth(1.5)
+        # set PointCloud markers to 4 pixels in size
         gl.glPointSize(4)
 
     def toggle_culling(self):
         """
-        Toggle backface culling on or off. It is on by default
-        but if you are dealing with non- watertight meshes you
-        probably want to be able to see the back sides.
+        Toggle back face culling.
+
+        It is on by default but if you are dealing with
+        non- watertight meshes you probably want to be able
+        to see the back sides.
         """
         self.view['cull'] = not self.view['cull']
         self.update_flags()
 
     def toggle_wireframe(self):
         """
-        Toggle unfilled wireframe mode on or off, good for
-        looking inside meshes. Off by default.
+        Toggle wireframe mode
+
+        Good for  looking inside meshes, off by default.
         """
         self.view['wireframe'] = not self.view['wireframe']
         self.update_flags()
@@ -321,8 +333,8 @@ class SceneViewer(pyglet.window.Window):
 
     def toggle_axis(self):
         """
-        Toggle a rendered XYZ/RGB axis marker on, world frame,
-        or every frame. Off by default.
+        Toggle a rendered XYZ/RGB axis marker:
+        off, world frame, every frame
         """
         # cycle through three axis states
         states = [False, 'world', 'all']
@@ -335,8 +347,7 @@ class SceneViewer(pyglet.window.Window):
 
     def update_flags(self):
         """
-        Check the view flags and call what is needed with gl
-        to handle it correctly.
+        Check the view flags, and call required GL functions.
         """
         # view mode, filled vs wirefrom
         if self.view['wireframe']:
@@ -373,6 +384,9 @@ class SceneViewer(pyglet.window.Window):
             self._axis = None
 
     def on_resize(self, width, height):
+        """
+        Handle resized windows.
+        """
         try:
             # for high DPI screens viewport size
             # will be different then the passed size
@@ -400,9 +414,15 @@ class SceneViewer(pyglet.window.Window):
                                 (width + height) / 2)
 
     def on_mouse_press(self, x, y, buttons, modifiers):
+        """
+        Set the start point of the drag.
+        """
         self.view['ball'].down([x, -y])
 
     def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
+        """
+        Pan or rotate the view.
+        """
         # left mouse button, with control key down (pan)
         if ((buttons == pyglet.window.mouse.LEFT) and
                 (modifiers & pyglet.window.key.MOD_CTRL)):
@@ -414,9 +434,15 @@ class SceneViewer(pyglet.window.Window):
             self.view['ball'].drag([x, -y])
 
     def on_mouse_scroll(self, x, y, dx, dy):
+        """
+        Zoom the view.
+        """
         self.view['translation'][2] += float(dy) / self.height
 
     def on_key_press(self, symbol, modifiers):
+        """
+        Call appropriate functions given key presses.
+        """
         magnitude = 10
         if symbol == pyglet.window.key.W:
             self.toggle_wireframe()
@@ -446,6 +472,9 @@ class SceneViewer(pyglet.window.Window):
             self.view['ball'].drag([0, magnitude])
 
     def on_draw(self):
+        """
+        Run the actual draw call.
+        """
         self._update_meshes()
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
         gl.glLoadIdentity()
@@ -508,7 +537,7 @@ class SceneViewer(pyglet.window.Window):
                     # come back to this mesh later
                     continue
 
-            #
+            # if we have texture enable the target texture
             texture = None
             if geometry_name in self.textures:
                 texture = self.textures[geometry_name]
@@ -522,6 +551,7 @@ class SceneViewer(pyglet.window.Window):
             # pop the matrix stack as we drew what we needed to draw
             gl.glPopMatrix()
 
+            # disable texture after using
             if texture is not None:
                 gl.glDisable(texture.target)
 
