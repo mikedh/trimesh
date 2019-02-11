@@ -1,4 +1,4 @@
-from .camera import Camera
+from .cameras import Camera
 
 from .scene import Scene, split_scene
 

@@ -5,7 +5,7 @@ class Camera(object):
 
     def __init__(
             self,
-            resolution,
+            resolution=None,
             focal=None,
             fov=None,
             transform=None):
@@ -33,9 +33,6 @@ class Camera(object):
         if fov is None and focal is None:
             raise ValueError('either focal length or FOV required!')
 
-        # set the passed (2,) int resolution
-        self.resolution = resolution
-
         # set the passed (2,) float focal length
         self.focal = focal
 
@@ -45,6 +42,10 @@ class Camera(object):
         # set the transform from world to this camera
         self.transform = transform
 
+        if resolution is None:
+            resolution = (self.fov * 100.0).astype(np.int64)
+        self.resolution = resolution
+        
     @property
     def resolution(self):
         """

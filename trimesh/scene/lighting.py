@@ -6,6 +6,7 @@ Hold basic information about lights, forked from pyrender:
 https://raw.githubusercontent.com/mmatl/pyrender/master/pyrender/light.py"""
 
 import abc
+import sys
 import numpy as np
 
 if sys.version_info >= (3, 4):

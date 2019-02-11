@@ -13,8 +13,10 @@ from .. import bounds as bounds_module
 from ..exchange import gltf
 from ..parent import Geometry
 
-from .transforms import TransformForest
+from . import cameras
+from . import lighting
 
+from .transforms import TransformForest
 
 class Scene(Geometry):
     """
@@ -403,7 +405,8 @@ class Scene(Geometry):
                    angles=None,
                    distance=None,
                    center=None,
-                   camera=None):
+                   resolution=None,
+                   fov=None):
         """
         Create a camera object for self.camera, and add
         a transform to self.graph for it.
@@ -422,13 +425,9 @@ class Scene(Geometry):
         camera : Camera object
           Object that stores camera parameters
         """
-        # passed camera object
-        if camera is not None:
-            self.graph.update(frame_from='camera',
-                              frame_to=self.graph.base_frame,
-                              matrix=camera.transform)
-            self.camera = camera
-            return
+
+        if fov is None:
+            fov = np.array([60, 45])
 
         # if no geometry nothing to set camera to
         if len(self.geometry) == 0:
@@ -440,9 +439,9 @@ class Scene(Geometry):
 
         # use scene AABB to set standoff distance
         if distance is None:
-            # for a 60.0 degree horizontal FOV
+            # set off of horizontal FOV
             distance = ((self.extents.max() / 2) /
-                        np.tan(np.radians(60.0) / 2.0))
+                        (np.tan(np.radians(fov[0])) / 2.0))
 
         # set with no rotation by default
         if angles is None:
@@ -465,20 +464,33 @@ class Scene(Geometry):
             point=center))
         transform = np.dot(transform, translation)
 
+        camera = cameras.Camera(fov=fov,
+                                transform=transform)
         self.graph.update(frame_from='camera',
                           frame_to=self.graph.base_frame,
                           matrix=transform)
+        self.camera = camera
+        return camera
 
-    def set_lights(self, count=2):
-        """
-        Create some "best guess" lights for the scene.
-        
-        Parameters
-        ------------
-        count : int
-          Number of lights to create.
-        """
-        pass
+    @property
+    def camera(self):
+        if not hasattr(self, '_camera') or self._camera is None:
+            return self.set_camera()
+        return self._camera
+
+    @camera.setter
+    def camera(self, obj):
+        self._camera = obj
+
+    @property
+    def lights(self):
+        if not hasattr(self, '_lights') or self._lights is None:
+            return []
+        return self._lights 
+
+    @lights.setter
+    def lights(self, lights):
+        self._lights = lights
         
     def rezero(self):
         """
