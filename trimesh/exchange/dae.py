@@ -5,9 +5,10 @@ import uuid
 import numpy as np
 
 try:
+    # pip install pycollada
     import collada
 except BaseException:
-    pass
+    collada = None
 except ImportError:
     pass
 
@@ -20,6 +21,7 @@ from .. import util
 from .. import visual
 
 from ..constants import log
+
 
 def load_collada(file_obj, resolver=None, **kwargs):
     """Load a COLLADA (.dae) file into a list of trimesh kwargs.
@@ -105,7 +107,7 @@ def export_collada(mesh, **kwargs):
             if uv:
                 idx = 3
             colors = collada.source.FloatSource('colors-array',
-                colors.flatten(), ('R', 'G', 'B'))
+                                                colors.flatten(), ('R', 'G', 'B'))
             input_list.addInput(idx, 'COLOR', '#colors-array')
             arrays.append(colors)
         geom = collada.geometry.Geometry(
@@ -157,24 +159,30 @@ def _parse_node(node, parent_matrix, material_map, meshes, resolver=None):
             if isinstance(primitive, collada.triangleset.TriangleSet):
                 vertex = primitive.vertex
                 vertex_index = primitive.vertex_index
-                vertices = vertex[vertex_index].reshape(len(vertex_index) * 3, 3)
+                vertices = vertex[vertex_index].reshape(
+                    len(vertex_index) * 3, 3)
 
                 # Get normals if present
                 normals = None
                 if primitive.normal is not None:
                     normal = primitive.normal
                     normal_index = primitive.normal_index
-                    normals = normal[normal_index].reshape(len(normal_index) * 3, 3)
+                    normals = normal[normal_index].reshape(
+                        len(normal_index) * 3, 3)
 
                 # Get colors if present
                 colors = None
                 s = primitive.sources
-                if ('COLOR' in s and len(s['COLOR']) > 0 and len(primitive.index) > 0):
+                if ('COLOR' in s and len(s['COLOR'])
+                        > 0 and len(primitive.index) > 0):
                     color = s['COLOR'][0][4].data
                     color_index = primitive.index[:, :, s['COLOR'][0][0]]
-                    colors = color[color_index].reshape(len(color_index) * 3, 3)
+                    colors = color[color_index].reshape(
+                        len(color_index) * 3, 3)
 
-                faces = np.arange(vertices.shape[0]).reshape(vertices.shape[0] // 3, 3)
+                faces = np.arange(
+                    vertices.shape[0]).reshape(
+                    vertices.shape[0] // 3, 3)
 
                 # Transform by parent matrix value
                 vertices = np.dot(parent_matrix[:3, :3],
@@ -185,14 +193,16 @@ def _parse_node(node, parent_matrix, material_map, meshes, resolver=None):
                 # Get UV coordinates if possible
                 vis = None
                 if colors is None and primitive.material in local_material_map:
-                    material = copy.copy(local_material_map[primitive.material])
+                    material = copy.copy(
+                        local_material_map[primitive.material])
                     uv = None
                     if len(primitive.texcoordset) > 0:
                         texcoord = primitive.texcoordset[0]
                         texcoord_index = primitive.texcoord_indexset[0]
                         uv = texcoord[texcoord_index].reshape(
                             (len(texcoord_index) * 3, 2))
-                    vis = visual.texture.TextureVisuals(uv=uv, material=material)
+                    vis = visual.texture.TextureVisuals(
+                        uv=uv, material=material)
 
                 meshes.append({
                     'vertices': vertices,
@@ -206,7 +216,12 @@ def _parse_node(node, parent_matrix, material_map, meshes, resolver=None):
     elif isinstance(node, collada.scene.Node):
         if node.children is not None:
             for c in node.children:
-                _parse_node(c, node.matrix, material_map, meshes, resolver=None)
+                _parse_node(
+                    c,
+                    node.matrix,
+                    material_map,
+                    meshes,
+                    resolver=None)
 
 
 def _load_texture(file_name, resolver):
@@ -264,7 +279,7 @@ def _parse_material(effect, resolver):
         try:
             normalTexture = _load_texture(
                 effect.bumpmap.sampler.surface.image.path, resolver)
-        except:
+        except BaseException:
             log.warning('unable to load bumpmap',
                         exc_info=True)
 
@@ -316,5 +331,9 @@ def _unparse_material(material):
     return material
 
 
-_collada_loaders = {'dae': load_collada}
-_collada_exporters = {'dae': export_collada}
+# only provide loaders if `pycollada` is installed
+_collada_loaders = {}
+_collada_exporters = {}
+if collada is not None:
+    _collada_loaders['dae'] = load_collada
+    _collada_exporters['dae'] = export_collada
