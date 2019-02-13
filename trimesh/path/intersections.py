@@ -1,6 +1,6 @@
 import numpy as np
 
-from ..util import three_dimensionalize
+from ..util import stack_3D
 from ..constants import tol_path as tol
 
 
@@ -30,8 +30,8 @@ def line_line(origins,
                   else:          None
     """
     # check so we can accept 2D or 3D points
-    is_2D, origins = three_dimensionalize(origins)
-    is_2D, directions = three_dimensionalize(directions)
+    origins, is_2D = stack_3D(origins, return_2D=True)
+    directions, is_2D = stack_3D(directions, return_2D=True)
 
     # unitize direction vectors
     directions /= np.linalg.norm(directions,

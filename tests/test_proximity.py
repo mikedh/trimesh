@@ -106,7 +106,8 @@ class NearestTest(g.unittest.TestCase):
             polygon = g.Polygon(triangle[:, 0:2])
             polygon_buffer = polygon.buffer(1e-5)
 
-            # all of the points returned should be on the triangle we're querying
+            # all of the points returned should be on the triangle we're
+            # querying
             assert all(polygon_buffer.intersects(
                 g.Point(i)) for i in result[:, 0:2])
 

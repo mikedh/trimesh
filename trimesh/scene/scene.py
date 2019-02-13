@@ -18,6 +18,7 @@ from . import lighting
 
 from .transforms import TransformForest
 
+
 class Scene(Geometry):
     """
     A simple scene graph which can be rendered directly via
@@ -433,36 +434,14 @@ class Scene(Geometry):
         if len(self.geometry) == 0:
             return
 
-        # use centroid if no center passed
-        if center is None:
-            center = self.centroid
-
-        # use scene AABB to set standoff distance
-        if distance is None:
-            # set off of horizontal FOV
-            distance = ((self.extents.max() / 2) /
-                        (np.tan(np.radians(fov[0])) / 2.0))
-
         # set with no rotation by default
         if angles is None:
             angles = np.zeros(3)
 
-        translation = np.eye(4)
-        translation[0:3, 3] = center
-        # offset by a distance set by the model size
-        # the FOV is set for the Y axis, we multiply by a lightly
-        # padded aspect ratio to make sure the model is in view
-        translation[2][3] += distance * 1.35
-
-        transform = np.dot(transformations.rotation_matrix(
-            angles[0],
-            [1, 0, 0],
-            point=center),
-            transformations.rotation_matrix(
-            angles[1],
-            [0, 1, 0],
-            point=center))
-        transform = np.dot(transform, translation)
+        rotation = transformations.euler_matrix(*angles)
+        transform = cameras.look_at(self.bounds_corners,
+                                    fov=fov,
+                                    rotation=rotation)
 
         camera = cameras.Camera(fov=fov,
                                 transform=transform)
@@ -474,24 +453,62 @@ class Scene(Geometry):
 
     @property
     def camera(self):
+        """
+        Get the single camera for the scene. If not manually
+        set one will abe automatically generated.
+
+        Returns
+        ----------
+        camera : trimesh.scene.Camera
+          Camera object defined for the scene
+        """
+        # no camera set for the scene yet
         if not hasattr(self, '_camera') or self._camera is None:
+            # will create a camera with everything in view
             return self.set_camera()
+
         return self._camera
 
     @camera.setter
-    def camera(self, obj):
-        self._camera = obj
+    def camera(self, camera):
+        """
+        Set a camera object for the Scene.
+
+        Parameters
+        -----------
+        camera : trimesh.scene.Camera
+          Camera object for the scene
+        """
+        self._camera = camera
 
     @property
     def lights(self):
+        """
+        Get a list of the lights in the scene. If nothing is
+        set it will generate some automatically.
+
+        Returns
+        -------------
+        lights : [trimesh.scene.lighting.Light]
+          Lights in the scene.
+        """
         if not hasattr(self, '_lights') or self._lights is None:
-            return []
-        return self._lights 
+            # do some automatic lighting
+            self._lights = [lighting.PointLight(name='light_0')]
+        return self._lights
 
     @lights.setter
     def lights(self, lights):
+        """
+        Assign a list of light objects to the scene
+
+        Parameters
+        --------------
+        lights : [trimesh.scene.lighting.Light]
+          Lights in the scene.
+        """
         self._lights = lights
-        
+
     def rezero(self):
         """
         Move the current scene so that the AABB of the whole

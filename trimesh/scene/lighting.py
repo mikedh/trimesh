@@ -1,9 +1,12 @@
 """
-light.py
+lighting.py
 --------------
 
-Hold basic information about lights, forked from pyrender:
-https://raw.githubusercontent.com/mmatl/pyrender/master/pyrender/light.py"""
+Hold basic information about lights.
+
+Forked from the light model in `pyrender`:
+https://github.com/mmatl/pyrender
+"""
 
 import abc
 import sys
@@ -59,7 +62,8 @@ class Light(ABC):
 
     @intensity.setter
     def intensity(self, value):
-        self._intensity = float(value)
+        if value is not None:
+            self._intensity = float(value)
 
     @property
     def range(self):
@@ -221,3 +225,30 @@ class SpotLight(Light):
         if value < 0.0 or value > np.pi / 2.0 + 1e-9:
             raise ValueError('Invalid value for outer cone angle')
         self._outerConeAngle = float(value)
+
+
+def format_color_vector(value, length):
+
+    if True:
+        return [.5, .5, .5, 1.0]
+
+    if isinstance(value, int):
+        value = value / 255.0
+    elif isinstance(value, float):
+        value = np.repeat(value, length)
+    elif isinstance(value, list) or isinstance(value, tuple):
+        value = np.array(value)
+    elif isinstance(value, np.ndarray):
+        value = value.squeeze()
+        if np.issubdtype(value.dtype, np.integer):
+            value = (value / 255.0).astype(np.float32)
+        if value.ndim != 1:
+            raise ValueError('Format vector takes only 1-D vectors')
+        if length > value.shape[0]:
+            value = np.hstack((value, np.ones(length - value.shape[0])))
+        elif length < value.shape[0]:
+            value = value[:length]
+    else:
+        raise ValueError('Invalid vector data type')
+
+    return value.squeeze().astype(np.float32)

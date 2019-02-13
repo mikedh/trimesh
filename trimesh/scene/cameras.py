@@ -43,9 +43,10 @@ class Camera(object):
         self.transform = transform
 
         if resolution is None:
-            resolution = (self.fov * 100.0).astype(np.int64)
+            # if unset make resolution 15 pixels per degree
+            resolution = (self.fov * 15.0).astype(np.int64)
         self.resolution = resolution
-        
+
     @property
     def resolution(self):
         """
@@ -221,3 +222,60 @@ class Camera(object):
             self._fov = values
             # fov overrides focal
             self._focal = None
+
+
+def look_at(points, fov, rotation=None):
+    """
+    Generate transform for a camera to keep a list
+    of points in the camera's field of view.
+
+    Parameters
+    -------------
+    points : (n, 3) float
+      Points in space
+    fov : (2,) float
+      Field of view, in DEGREES
+    rotation : None, or (4, 4) float
+      Rotation matrix for initial rotation
+
+    Returns
+    --------------
+    transform : (4, 4) float
+      Transformation matrix with points in view
+    """
+
+    if rotation is None:
+        rotation = np.eye(4)
+    else:
+        rotation = np.asanyarray(rotation, dtype=np.float64)
+    points = np.asanyarray(points, dtype=np.float64)
+
+    # transform points by initial matrix
+    trans = np.dot(
+        rotation,
+        np.column_stack((
+            points, np.ones(len(points)))).T).T[:, :3]
+
+    # find the center of the points AABB
+    center = trans.min(axis=0) + 0.5 * trans.ptp(axis=0)
+    # adjust the points by the center
+    trans -= center
+
+    # find the tan of the frustrum angle
+    # which is half of the field of view
+    tan = np.tan(np.radians(fov / 2.0))
+
+    # find the Z in X and Y using trigonomoetry
+    z = np.array([x / t for x, t in
+                  zip(trans[:, :2].T, tan)])
+    # move the Z to the minimum observed
+    center[2] = -z.min()
+
+    # create a transformation matrix for translation
+    translation = np.eye(4)
+    translation[:3, 3] = center
+
+    # combine translation with the original rotation
+    mat = np.dot(translation, rotation)
+
+    return mat

@@ -39,11 +39,15 @@ class TrianglesTest(g.unittest.TestCase):
         ABC = g.np.float32([[0, 0, 0], [2, 0, 0], [-2, 1, 0]])
         D = g.np.float32([1, -1, 0])
 
-        # ground truth: closest point from D is the center of the AB edge: (1,0,0)
+        # ground truth: closest point from D is the center of the AB edge:
+        # (1,0,0)
         gt_closest = g.np.float32([1, 0, 0])
         tm_closest = g.trimesh.triangles.closest_point([ABC], [D])[0]
 
-        self.assertTrue(g.np.linalg.norm(gt_closest - tm_closest) < g.tol.merge)
+        self.assertTrue(
+            g.np.linalg.norm(
+                gt_closest -
+                tm_closest) < g.tol.merge)
 
         # create a circle of points around the triangle
         # with a radius so that all points are outside of the triangle
@@ -75,7 +79,8 @@ class TrianglesTest(g.unittest.TestCase):
                 # P is 'between' U and V
                 return distToLine(U, UtoV / norm(UtoV), P)
 
-        # get closest points from trimesh and compute distances to the circle points
+        # get closest points from trimesh and compute distances to the circle
+        # points
         tm_dists = norm(
             ptsOnCircle -
             g.trimesh.triangles.closest_point(

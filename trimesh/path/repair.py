@@ -54,7 +54,8 @@ def fill_gaps(path, distance=.025):
         end_points = {tuple(sorted(e.end_points)) for e in path.entities}
         pair_set = {tuple(i) for i in np.sort(broken[pairs], axis=1)}
 
-        # we don't want to connect entities to themselves so do a set difference
+        # we don't want to connect entities to themselves so do a set
+        # difference
         mask = np.array(list(pair_set.difference(end_points)))
 
         if len(mask) > 0:

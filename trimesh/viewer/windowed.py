@@ -88,15 +88,11 @@ class SceneViewer(pyglet.window.Window):
         # name : texture
         self.textures = {}
 
-        # if the scene has a camera use its resolution
-        if scene.camera is not None:
-            log.debug('using camera resolution',
-                      scene.camera.resolution)
-            resolution = scene.camera.resolution
-
         # if resolution isn't defined set a default value
         if resolution is None:
-            resolution = [640, 480]
+            resolution = scene.camera.resolution
+        else:
+            scene.camera.resolution = resolution
 
         if 'camera' not in scene.graph:
             # if the camera hasn't been set, set it now
@@ -222,7 +218,8 @@ class SceneViewer(pyglet.window.Window):
 
     def init_gl(self):
         """
-        Perform the magic incantations to create an OpenGL scene.
+        Perform the magic incantations to create an
+        OpenGL scene using pyglet.
         """
 
         # default background color is white-ish
@@ -235,13 +232,14 @@ class SceneViewer(pyglet.window.Window):
                 # convert to 0.0 - 1.0 float
                 background = background.astype(np.float64) / 255.0
             except BaseException:
-                log.error('background color wrong!',
+                log.error('background color set but wrong!',
                           exc_info=True)
 
         # apply the background color
         gl.glClearColor(*background)
 
-        # find the maximum depth based on the maximum length of scene's AABB
+        # find the maximum depth based on
+        # maximum length of scene AABB
         max_depth = (np.abs(self.scene.bounds).max(axis=1) ** 2).sum() ** .5
         max_depth = np.clip(max_depth, 500.00, np.inf)
         gl.glDepthRange(0.0, max_depth)
@@ -252,42 +250,25 @@ class SceneViewer(pyglet.window.Window):
 
         gl.glEnable(gl.GL_DEPTH_TEST)
         gl.glEnable(gl.GL_CULL_FACE)
-        gl.glEnable(gl.GL_LIGHTING)
 
-        if self.scene.lights is not None:
-            # lighting should be iterable, and there should be 7 or fewer
-            for i, light in enumerate(self.scene.lights[:7]):
-                # the index of which light we have
-                lightN = eval('gl.GL_LIGHT{}'.format(i))
-
-        else:
-            # scene has no lights specified, so use default
-            gl.glEnable(gl.GL_LIGHT0)
-
-            # put the light at one corner of the scenes AABB
-            gl.glLightfv(gl.GL_LIGHT0,
-                         gl.GL_POSITION,
-                         rendering.vector_to_gl(np.append(self.scene.bounds[1], 0)))
-            gl.glLightfv(gl.GL_LIGHT0, gl.GL_SPECULAR,
-                         rendering.vector_to_gl(.5, .5, 1, 1))
-            gl.glLightfv(gl.GL_LIGHT0, gl.GL_DIFFUSE,
-                         rendering.vector_to_gl(1, 1, 1, .75))
-            gl.glLightfv(gl.GL_LIGHT0, gl.GL_AMBIENT,
-                         rendering.vector_to_gl(.1, .1, .1, .2))
-
-        gl.glColorMaterial(gl.GL_FRONT_AND_BACK, gl.GL_AMBIENT_AND_DIFFUSE)
+        # do some openGL things
+        gl.glColorMaterial(gl.GL_FRONT_AND_BACK,
+                           gl.GL_AMBIENT_AND_DIFFUSE)
         gl.glEnable(gl.GL_COLOR_MATERIAL)
         gl.glShadeModel(gl.GL_SMOOTH)
 
         gl.glMaterialfv(gl.GL_FRONT,
                         gl.GL_AMBIENT,
-                        rendering.vector_to_gl(0.192250, 0.192250, 0.192250))
+                        rendering.vector_to_gl(
+                            0.192250, 0.192250, 0.192250))
         gl.glMaterialfv(gl.GL_FRONT,
                         gl.GL_DIFFUSE,
-                        rendering.vector_to_gl(0.507540, 0.507540, 0.507540))
+                        rendering.vector_to_gl(
+                            0.507540, 0.507540, 0.507540))
         gl.glMaterialfv(gl.GL_FRONT,
                         gl.GL_SPECULAR,
-                        rendering.vector_to_gl(.5082730, .5082730, .5082730))
+                        rendering.vector_to_gl(
+                            .5082730, .5082730, .5082730))
 
         gl.glMaterialf(gl.GL_FRONT,
                        gl.GL_SHININESS,
@@ -295,7 +276,8 @@ class SceneViewer(pyglet.window.Window):
 
         # enable blending for transparency
         gl.glEnable(gl.GL_BLEND)
-        gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
+        gl.glBlendFunc(gl.GL_SRC_ALPHA,
+                       gl.GL_ONE_MINUS_SRC_ALPHA)
 
         # make the lines from Path3D objects less ugly
         gl.glEnable(gl.GL_LINE_SMOOTH)
@@ -304,6 +286,49 @@ class SceneViewer(pyglet.window.Window):
         gl.glLineWidth(1.5)
         # set PointCloud markers to 4 pixels in size
         gl.glPointSize(4)
+
+        # set up the viewer lights using self.scene
+        self._init_lighting()
+
+    def _init_lighting(self):
+        """
+        Take the lights defined for the scene and set
+        them up as openGL lights.
+        """
+        gl.glEnable(gl.GL_LIGHTING)
+        # opengl only supports 7 lights?
+        for i, light in enumerate(self.scene.lights[:7]):
+            # the index of which light we have
+            lightN = eval('gl.GL_LIGHT{}'.format(i))
+
+            # TODO: get the transform for the light by name
+            # matrix = self.scene.graph[light.name][0]
+            position = self.scene.bounds[1]
+
+            # convert position to XYZW light position
+            gl_position = rendering.vector_to_gl(
+                np.append(position, 0))
+            # get a (4,) gl_float of light color
+            gl_color = rendering.color_to_gl(light.color)
+
+            # enable the light in question
+            gl.glEnable(lightN)
+
+            # put the light at one corner of the scenes AABB
+            gl.glLightfv(lightN,
+                         gl.GL_POSITION,
+                         gl_position)
+
+            # assign all light colors
+            gl.glLightfv(lightN,
+                         gl.GL_SPECULAR,
+                         gl_color)
+            gl.glLightfv(lightN,
+                         gl.GL_DIFFUSE,
+                         gl_color)
+            gl.glLightfv(lightN,
+                         gl.GL_AMBIENT,
+                         gl_color)
 
     def toggle_culling(self):
         """
@@ -428,7 +453,7 @@ class SceneViewer(pyglet.window.Window):
         if ((buttons == pyglet.window.mouse.LEFT) and
                 (modifiers & pyglet.window.key.MOD_CTRL)):
             delta = [dx / self.width, dy / self.height]
-            self.view['translation'][0:2] += delta
+            self.view['translation'][:2] += delta
 
         # left mouse button, no modifier keys pressed (rotate)
         elif (buttons == pyglet.window.mouse.LEFT):
@@ -581,9 +606,9 @@ def view_to_transform(view):
     calculate a transformation matrix.
     """
     transform = view['ball'].matrix()
-    transform[0:3, 3] = view['center']
-    transform[0:3, 3] -= np.dot(transform[0:3, 0:3], view['center'])
-    transform[0:3, 3] += view['translation'] * view['scale'] * 5.0
+    transform[:3, 3] = view['center']
+    transform[:3, 3] -= np.dot(transform[:3, :3], view['center'])
+    transform[:3, 3] += view['translation'] * view['scale'] * 5.0
     return transform
 
 

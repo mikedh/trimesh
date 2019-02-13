@@ -205,7 +205,8 @@ class SceneTests(g.unittest.TestCase):
         assert node not in scene.triangles_node
         # every geometry node except the one 2D thing
         # we inserted should be in triangles_node
-        assert len(set(scene.triangles_node)) == len(scene.graph.nodes_geometry) - 1
+        assert len(set(scene.triangles_node)) == len(
+            scene.graph.nodes_geometry) - 1
 
     def test_empty(self):
         m = g.get_mesh('bunny.ply')

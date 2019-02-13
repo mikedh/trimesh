@@ -174,13 +174,13 @@ def oriented_bounds(obj, angle_digits=1, ordered=True):
             (vertices, np.ones(len(vertices)))).T).T[:, :3]
 
         height = projected[:, 2].ptp()
-        rotation_2D, box = oriented_bounds_2D(projected[:, 0:2])
+        rotation_2D, box = oriented_bounds_2D(projected[:, :2])
         volume = np.product(box) * height
         if volume < min_volume:
             min_volume = volume
             min_extents = np.append(box, height)
             min_2D = to_2D.copy()
-            rotation_2D[0:2, 2] = 0.0
+            rotation_2D[:2, 2] = 0.0
             rotation_Z = transformations.planar_matrix_to_3D(rotation_2D)
 
     # combine the 2D OBB transformation with the 2D projection transform
@@ -191,7 +191,7 @@ def oriented_bounds(obj, angle_digits=1, ordered=True):
     transformed = transformations.transform_points(vertices,
                                                    to_origin)
     box_center = (transformed.min(axis=0) + transformed.ptp(axis=0) * .5)
-    to_origin[0:3, 3] = -box_center
+    to_origin[:3, 3] = -box_center
 
     # return ordered 3D extents
     if ordered:

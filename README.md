@@ -1,7 +1,9 @@
 [![trimesh](https://trimsh.org/images/logotype-a.svg)](http://trimsh.org)
 
 -----------
-[![Build Status](https://travis-ci.org/mikedh/trimesh.svg?branch=master)](https://travis-ci.org/mikedh/trimesh) [![Build status](https://ci.appveyor.com/api/projects/status/j8h3luwvst1tkghl?svg=true)](https://ci.appveyor.com/project/mikedh/trimesh) [![Coverage Status](https://coveralls.io/repos/github/mikedh/trimesh/badge.svg)](https://coveralls.io/github/mikedh/trimesh) [![PyPI version](https://badge.fury.io/py/trimesh.svg)](https://badge.fury.io/py/trimesh) [![](https://img.shields.io/docker/build/mikedh/trimesh.svg)](https://hub.docker.com/r/mikedh/trimesh/) [![Join the chat at https://gitter.im/trimsh/Lobby](https://badges.gitter.im/trimsh/Lobby.svg)](https://gitter.im/trimsh/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Build Status](https://travis-ci.org/mikedh/trimesh.svg?branch=master)](https://travis-ci.org/mikedh/trimesh) [![Build status](https://ci.appveyor.com/api/projects/status/j8h3luwvst1tkghl/branch/master?svg=true)](https://ci.appveyor.com/project/mikedh/trimesh/branch/master) [![Coverage Status](https://coveralls.io/repos/github/mikedh/trimesh/badge.svg)](https://coveralls.io/github/mikedh/trimesh) [![PyPI version](https://badge.fury.io/py/trimesh.svg)](https://badge.fury.io/py/trimesh) [![](https://img.shields.io/docker/build/mikedh/trimesh.svg)](https://hub.docker.com/r/mikedh/trimesh/) [![Join the chat at https://gitter.im/trimsh/Lobby](https://badges.gitter.im/trimsh/Lobby.svg)](https://gitter.im/trimsh/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
+
 
 Trimesh is a pure Python (2.7- 3.3+) library for loading and using [triangular meshes](https://en.wikipedia.org/wiki/Triangle_mesh) with an emphasis on single- body watertight surfaces. The goal of the library is to provide a full featured and well tested Trimesh object which allows for easy manipulation and analysis, in the style of the Polygon object in the [Shapely library](http://toblerity.org/shapely/manual.html).
 

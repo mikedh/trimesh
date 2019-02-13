@@ -237,7 +237,7 @@ def extrude_triangulation(vertices,
 
     # make sure triangulation winding is pointing up
     normal_test = normals(
-        [util.three_dimensionalize(vertices[faces[0]])[1]])[0]
+        [util.stack_3D(vertices[faces[0]])])[0]
 
     normal_dot = np.dot(normal_test,
                         [0.0, 0.0, np.sign(height)])[0]
@@ -270,7 +270,7 @@ def extrude_triangulation(vertices,
     vertical_faces = vertical_faces.reshape((-1, 3))
 
     # stack the (n,2) vertices with zeros to make them (n, 3)
-    vertices_3D = util.three_dimensionalize(vertices, return_2D=False)
+    vertices_3D = util.stack_3D(vertices)
 
     # a sequence of zero- indexed faces, which will then be appended
     # with offsets to create the final mesh

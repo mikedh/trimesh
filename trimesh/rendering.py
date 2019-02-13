@@ -306,3 +306,28 @@ def vector_to_gl(array, *args):
         array = np.append(array, args)
     vector = (pyglet.gl.GLfloat * len(array))(*array)
     return vector
+
+
+def color_to_gl(color):
+    """
+    Convert an RGB or RGBA color to float colors
+    """
+    color = np.asanyarray(color)
+    if len(color.shape) != 1:
+        raise ValueError('must be single color!')
+
+    # if passed as an int, use max value of dtype
+    if color.dtype.kind in 'ib':
+        # for uint8 this is 255
+        intmax = float(np.iinfo(color.dtype).max)
+        # convert to float and scale by integer range
+        color = color.astype(np.float64) / intmax
+
+    # if we've been passed a single RGB color
+    if len(color) == 3:
+        color = np.append(color, 1.0)
+    elif len(color) != 4:
+        raise ValueError('color must be RGB or RGBA')
+    # convert numpy color to pyglet dtypes
+    color_gl = (pyglet.gl.GLfloat * 4)(*color)
+    return color_gl

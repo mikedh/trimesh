@@ -48,7 +48,9 @@ def export_mesh(mesh, file_obj, file_type=None, **kwargs):
         log.debug('Exporting %d meshes with a total of %d faces as %s',
                   len(mesh), faces, file_type.upper())
     else:
-        log.debug('Exporting %d faces as %s', len(mesh.faces), file_type.upper())
+        log.debug(
+            'Exporting %d faces as %s', len(
+                mesh.faces), file_type.upper())
     export = _mesh_exporters[file_type](mesh, **kwargs)
 
     if hasattr(file_obj, 'write'):
