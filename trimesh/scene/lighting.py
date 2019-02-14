@@ -18,6 +18,8 @@ else:
     ABC = abc.ABCMeta('ABC', (), {})
 
 
+    
+
 class Light(ABC):
     """
     Base class for all light objects.
@@ -29,24 +31,32 @@ class Light(ABC):
     color : (3,) float
         RGB value for the light's color in linear space.
     intensity : float
-        Brightness of light. The units that this is defined in depend on the type of light.
-        point and spot lights use luminous intensity in candela (lm/sr),
-        while directional lights use illuminance in lux (lm/m2).
-    range : float
+        Brightness of light. The units that this is defined in depend
+        on the type of light: point and spot lights use luminous intensity
+        in candela (lm/sr) while directional lights use illuminance 
+        in lux (lm/m2).
+    radius : float
         Cutoff distance at which light's intensity may be considered to
-        have reached zero. Supported only for point and spot lights, must be > 0.
-        If None, the range is assumed to be infinite.
+        have reached zero. Supported only for point and spot lights
+        Must be > 0.0
+        If None, the radius is assumed to be infinite.
     """
 
     def __init__(self,
                  name=None,
                  color=None,
                  intensity=None,
-                 range=None):
-        self.name = name
+                 radius=None):
+
+        # if name is not passed, make it something unique
+        if name is None:
+            self.name = 'light_{}'.format(util.unique_id())
+        else:
+            self.name = name
+
         self.color = color
         self.intensity = intensity
-        self.range = range
+        self.radius = radius
 
     @property
     def color(self):
@@ -66,15 +76,15 @@ class Light(ABC):
             self._intensity = float(value)
 
     @property
-    def range(self):
-        return self._range
+    def radius(self):
+        return self._radius
 
-    @range.setter
-    def range(self, value):
+    @radius.setter
+    def radius(self, value):
         if value is None or value < 0.0:
-            self._range = value
+            self._radius = value
         else:
-            self._range = float(value)
+            self._radius = float(value)
 
 
 class DirectionalLight(Light):
@@ -97,22 +107,22 @@ class DirectionalLight(Light):
         Brightness of light. The units that this is defined in depend on the type of light.
         point and spot lights use luminous intensity in candela (lm/sr),
         while directional lights use illuminance in lux (lm/m2).
-    range : float
+    radius : float
         Cutoff distance at which light's intensity may be considered to
         have reached zero. Supported only for point and spot lights, must be > 0.
-        If None, the range is assumed to be infinite.
+        If None, the radius is assumed to be infinite.
     """
 
     def __init__(self,
                  name=None,
                  color=None,
                  intensity=None,
-                 range=None):
+                 radius=None):
         super(DirectionalLight, self).__init__(
             name=name,
             color=color,
             intensity=intensity,
-            range=range
+            radius=radius
         )
 
 
@@ -135,22 +145,22 @@ class PointLight(Light):
         Brightness of light. The units that this is defined in depend on the type of light.
         point and spot lights use luminous intensity in candela (lm/sr),
         while directional lights use illuminance in lux (lm/m2).
-    range : float
+    radius : float
         Cutoff distance at which light's intensity may be considered to
         have reached zero. Supported only for point and spot lights, must be > 0.
-        If None, the range is assumed to be infinite.
+        If None, the radius is assumed to be infinite.
     """
 
     def __init__(self,
                  name=None,
                  color=None,
                  intensity=None,
-                 range=None):
+                 radius=None):
         super(PointLight, self).__init__(
             name=name,
             color=color,
             intensity=intensity,
-            range=range
+            radius=radius
         )
 
 
@@ -178,10 +188,10 @@ class SpotLight(Light):
         Brightness of light. The units that this is defined in depend on the type of light.
         point and spot lights use luminous intensity in candela (lm/sr),
         while directional lights use illuminance in lux (lm/m2).
-    range : float
+    radius : float
         Cutoff distance at which light's intensity may be considered to
         have reached zero. Supported only for point and spot lights, must be > 0.
-        If None, the range is assumed to be infinite.
+        If None, the radius is assumed to be infinite.
     innerConeAngle : float
         Angle, in radians, from centre of spotlight where falloff begins.
         Must be greater than or equal to `0` and less than `outerConeAngle`.
@@ -194,14 +204,14 @@ class SpotLight(Light):
                  name=None,
                  color=None,
                  intensity=None,
-                 range=None,
+                 radius=None,
                  innerConeAngle=0.0,
                  outerConeAngle=np.pi / 4.0):
         super(SpotLight, self).__init__(
             name=name,
             color=color,
             intensity=intensity,
-            range=range
+            radius=radius
         )
         self.outerConeAngle = outerConeAngle
         self.innerConeAngle = innerConeAngle

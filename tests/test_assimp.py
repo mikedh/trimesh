@@ -5,32 +5,6 @@ except BaseException:
 
 
 class AssimpTest(g.unittest.TestCase):
-    def test_collada(self):
-        # only test if pyassimp is installed
-        try:
-            import pyassimp
-        except ImportError:
-            g.log.error('no pyassimp to test', exc_info=True)
-            return
-
-        m = g.get_mesh('blue_cube.dae')
-
-        assert m.visual.kind == 'vertex'
-
-        # get the export as a string
-        e = m.export(file_type='dae')
-
-        r = g.trimesh.load(file_obj=g.trimesh.util.wrap_as_stream(e),
-                           file_type='dae')
-
-        assert r.visual.kind == 'vertex'
-
-        # test mesh should all have same color
-        assert g.np.allclose(r.visual.vertex_colors,
-                             [0, 13, 96, 255])
-        # original mesh should be all blueish
-        assert g.np.allclose(m.visual.vertex_colors,
-                             [0, 13, 96, 255])
 
     def test_wam(self):
         """
@@ -50,6 +24,9 @@ class AssimpTest(g.unittest.TestCase):
 
         assert len(scene.geometry) == 8
         assert len(scene.graph.nodes_geometry) == 8
+        assert g.np.allclose(g.np.sort(scene.extents),
+                             [0.3476, 0.36, 1.26096],
+                             atol=.001)
 
 
 if __name__ == '__main__':

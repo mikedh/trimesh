@@ -19,6 +19,7 @@ except ImportError:
 
 from .. import util
 from .. import visual
+from .. import transformations
 
 from ..constants import log
 
@@ -41,8 +42,7 @@ def load_collada(file_obj, resolver=None, **kwargs):
     loaded : list of dict
       kwargs for Trimesh constructor
     """
-    # Get meshes
-    meshes = []
+    # load scene using pycollada
     c = collada.Collada(file_obj)
 
     # Create material map from Material ID to trimesh material
@@ -51,13 +51,23 @@ def load_collada(file_obj, resolver=None, **kwargs):
         effect = m.effect
         material_map[m.id] = _parse_material(effect, resolver)
 
+    # name : kwargs
+    meshes = {}
+    # list of dict
+    graph = []
+        
     for node in c.scene.nodes:
         _parse_node(node=node,
                     parent_matrix=np.eye(4),
                     material_map=material_map,
                     meshes=meshes,
+                    graph=graph,
                     resolver=resolver)
-    return meshes
+
+    result = {'class': 'Scene',
+              'graph': graph,
+              'geometry': meshes}
+    return result
 
 
 def export_collada(mesh, **kwargs):
@@ -143,6 +153,7 @@ def _parse_node(node,
                 parent_matrix,
                 material_map,
                 meshes,
+                graph,
                 resolver=None):
     """
     Recursively parse COLLADA scene nodes.
@@ -194,12 +205,6 @@ def _parse_node(node,
                     vertices.shape[0]).reshape(
                     vertices.shape[0] // 3, 3)
 
-                # Transform by parent matrix value
-                vertices = np.dot(parent_matrix[:3, :3],
-                                  vertices.T).T + parent_matrix[:3, 3]
-                if normals is not None:
-                    normals = np.dot(parent_matrix[:3, :3], normals.T).T
-
                 # Get UV coordinates if possible
                 vis = None
                 if colors is None and primitive.material in local_material_map:
@@ -214,24 +219,31 @@ def _parse_node(node,
                     vis = visual.texture.TextureVisuals(
                         uv=uv, material=material)
 
-                meshes.append({
+                meshes[geometry.id] = {
                     'vertices': vertices,
                     'faces': faces,
-                    'vertex_normals': normal,
+                    'vertex_normals': normals,
                     'vertex_colors': colors,
-                    'visual': vis,
-                })
+                    'visual': vis}
 
+                graph.append({'frame_to': id(node),
+                              'matrix':   parent_matrix,
+                              'geometry': geometry.id})
+                
     # Recurse down tree
     elif isinstance(node, collada.scene.Node):
         if node.children is not None:
-            for c in node.children:
+            for child in node.children:
+                # create the new matrix
+                matrix = np.dot(parent_matrix, node.matrix)
+                # parse the child node
                 _parse_node(
-                    c,
-                    node.matrix,
-                    material_map,
-                    meshes,
-                    resolver=None)
+                    node=child,
+                    parent_matrix=matrix,
+                    material_map=material_map,
+                    meshes=meshes,
+                    graph=graph,
+                    resolver=resolver)
 
 
 def _load_texture(file_name, resolver):
