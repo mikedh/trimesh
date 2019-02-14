@@ -107,12 +107,16 @@ def discretize_arc(points,
     discrete : (m, d) float
       Connected points in space
     """
-    is_2D, points, is_2D = util.stack_3D(points, return_2D=True)
+    # make sure points are (n, 3)
+    points, is_2D = util.stack_3D(points, return_2D=True)
+    # find the center of the points
     center_info = arc_center(points)
     center, R, N, angle = (center_info['center'],
                            center_info['radius'],
                            center_info['normal'],
                            center_info['span'])
+
+    # if requested, close arc into a circle
     if close:
         angle = np.pi * 2
 
@@ -132,12 +136,12 @@ def discretize_arc(points,
     t = np.linspace(0, angle, count)
 
     discrete = np.tile(center, (count, 1))
-    discrete += R * np.cos(t).reshape((-1, 1)) * np.tile(V1, (count, 1))
-    discrete += R * np.sin(t).reshape((-1, 1)) * np.tile(V2, (count, 1))
+    discrete += R * np.cos(t).reshape((-1, 1)) * V1
+    discrete += R * np.sin(t).reshape((-1, 1)) * V2
 
+    # do an in-process check to make sure result endpoints
+    # match the endpoints of the source arc
     if not close:
-        # do a check to make sure discrete endpoints
-        # match the endpoints of the source arc
         arc_dist = np.linalg.norm(points[[0, -1]] -
                                   discrete[[0, -1]], axis=1)
         arc_ok = (arc_dist < tol.merge).all()
@@ -159,14 +163,18 @@ def to_threepoint(center, radius, angles=None):
 
     Parameters
     -----------
-    center: (2,) float, center point on the plane
-    radius: float, radius of arc
-    angles: (2,) float, angles in radians to make the arc
-                 if not specified, will default to (0.0, pi)
+    center : (2,) float
+      Center point on the plane
+    radius : float
+      Radius of arc
+    angles : (2,) float
+      Angles in radians for start and end angle
+      if not specified, will default to (0.0, pi)
 
     Returns
     ----------
-    three: (3,2) float, arc control points
+    three : (3, 2) float
+      Arc control points
     """
     # if no angles provided assume we want a half circle
     if angles is None:

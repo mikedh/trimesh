@@ -24,7 +24,8 @@ from ..constants import log
 
 
 def load_collada(file_obj, resolver=None, **kwargs):
-    """Load a COLLADA (.dae) file into a list of trimesh kwargs.
+    """
+    Load a COLLADA (.dae) file into a list of trimesh kwargs.
 
     Parameters
     ----------
@@ -51,7 +52,11 @@ def load_collada(file_obj, resolver=None, **kwargs):
         material_map[m.id] = _parse_material(effect, resolver)
 
     for node in c.scene.nodes:
-        _parse_node(node, np.eye(4), material_map, meshes, resolver)
+        _parse_node(node=node,
+                    parent_matrix=np.eye(4),
+                    material_map=material_map,
+                    meshes=meshes,
+                    resolver=resolver)
     return meshes
 
 
@@ -134,8 +139,13 @@ def export_collada(mesh, **kwargs):
     return b.read()
 
 
-def _parse_node(node, parent_matrix, material_map, meshes, resolver=None):
-    """Recursively parse COLLADA scene nodes.
+def _parse_node(node,
+                parent_matrix,
+                material_map,
+                meshes,
+                resolver=None):
+    """
+    Recursively parse COLLADA scene nodes.
     """
 
     # Parse mesh node
@@ -331,9 +341,47 @@ def _unparse_material(material):
     return material
 
 
+def load_zae(file_obj, resolver=None, **kwargs):
+    """
+    Load a ZAE file, which is just a zipped DAE file.
+
+    Parameters
+    -------------
+    file_obj : file object
+      Contains ZAE data
+    resolver : trimesh.visual.Resolver
+      Resolver to load additional assets
+    kwargs : dict
+      Passed to load_collada
+
+    Returns
+    ------------
+    loaded : dict
+      Results of loading
+    """
+
+    # a dict, {file name : file object}
+    archive = util.decompress(file_obj,
+                              file_type='zip')
+
+    # load the first file with a .dae extension
+    file_name = next(i for i in archive.keys()
+                     if i.lower().endswith('.dae'))
+
+    # a resolver so the loader can load textures / etc
+    resolver = visual.resolvers.ZipResolver(archive)
+
+    # run the regular collada loader
+    loaded = load_collada(archive[file_name],
+                          resolver=resolver,
+                          **kwargs)
+    return loaded
+
+
 # only provide loaders if `pycollada` is installed
 _collada_loaders = {}
 _collada_exporters = {}
 if collada is not None:
     _collada_loaders['dae'] = load_collada
+    _collada_loaders['zae'] = load_zae
     _collada_exporters['dae'] = export_collada
