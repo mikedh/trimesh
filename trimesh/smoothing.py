@@ -91,9 +91,6 @@ def laplacian_calculation(mesh,weight_type):
             # Umbrella 
             elif  weight_type == 2:
                   umb_weights=1.0/np.sum((vert[i]-vert[vert_neigh[i]])**2, axis=1)**0.5; umb_weights/=np.sum(umb_weights)
-            # Vertex Normals 
-            elif  weight_type == 3:
-                  umb_weights=1.0/np.sum((vert_ori[i]-vert_ori[vert_neigh[i]])**2, axis=1)**0.5; umb_weights = 0.8*umb_weights/np.sum(umb_weights) + 0.2*np.ones(n_neigh)/n_neigh
             else:
                   raise IndexError("Select 1 for Equal Weights\n             2 for Umbrella weights")
             
