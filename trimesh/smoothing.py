@@ -40,7 +40,8 @@ def filter_humphrey(mesh,alpha,beta,n_filter,laplacian_operator):
       """
       
       # Number of passes
-      vert_o=mesh.vertices.copy();vert_b=mesh.vertices.copy()
+      vert_o=mesh.vertices.copy()
+      vert_b=mesh.vertices.copy()
       for _ in range(n_filter):
             vert_q=mesh.vertices.copy()
             mesh.vertices=coo_matrix.dot(laplacian_operator, mesh.vertices)
@@ -78,8 +79,9 @@ def laplacian_calculation(mesh,weight_type):
                          = 2 - Umbrella Weights
       Output: Laplacian operator (scipy sparse matrix)
       """
-      vert_neigh=mesh.vertex_neighbors; vert=mesh.vertices; vert_ori=mesh.vertex_normals.copy(); n_vert=len(vert)
-      #row=np.array([]);col=np.array([]);data=np.array([])
+      vert_neigh=mesh.vertex_neighbors
+      vert=mesh.vertices
+      n_vert=len(vert)
       row=n_vert*[False];col=n_vert*[False];data=n_vert*[False]
       for i in range(len(mesh.vertices)):
             n_neigh=len(vert[vert_neigh[i]])
@@ -98,7 +100,8 @@ def laplacian_calculation(mesh,weight_type):
             row[i]=n_neigh*[i]
             col[i]=vert_neigh[i]
             data[i]=list(  umb_weights )
-            
+      
+      # Flatting the lists
       row=np.asarray(list(itertools.chain.from_iterable(row)))
       col=np.asarray(list(itertools.chain.from_iterable(col)))
       data=np.asarray(list(itertools.chain.from_iterable(data)))
