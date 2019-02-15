@@ -55,7 +55,7 @@ def load_collada(file_obj, resolver=None, **kwargs):
     meshes = {}
     # list of dict
     graph = []
-        
+
     for node in c.scene.nodes:
         _parse_node(node=node,
                     parent_matrix=np.eye(4),
@@ -64,9 +64,11 @@ def load_collada(file_obj, resolver=None, **kwargs):
                     graph=graph,
                     resolver=resolver)
 
+    # create kwargs for load_kwargs
     result = {'class': 'Scene',
               'graph': graph,
               'geometry': meshes}
+
     return result
 
 
@@ -227,10 +229,10 @@ def _parse_node(node,
                     'visual': vis}
 
                 graph.append({'frame_to': id(node),
-                              'matrix':   parent_matrix,
+                              'matrix': parent_matrix,
                               'geometry': geometry.id})
-                
-    # Recurse down tree
+
+    # recurse down tree for nodes with children
     elif isinstance(node, collada.scene.Node):
         if node.children is not None:
             for child in node.children:
@@ -244,6 +246,13 @@ def _parse_node(node,
                     meshes=meshes,
                     graph=graph,
                     resolver=resolver)
+
+        elif isinstance(node, colada.scene.CameraNode):
+            # TODO: convert collada cameras to trimesh cameras
+            pass
+        elif isinstance(node, colada.scene.LightNode):
+            # TODO: convert collada lights to trimesh lights
+            pass
 
 
 def _load_texture(file_name, resolver):

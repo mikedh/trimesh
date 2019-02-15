@@ -9,11 +9,12 @@ import numpy as np
 
 try:
     import pyglet
+    from pyglet import gl
     # bring in mode enum
     GL_LINES, GL_POINTS, GL_TRIANGLES = (
-        pyglet.gl.GL_LINES,
-        pyglet.gl.GL_POINTS,
-        pyglet.gl.GL_TRIANGLES)
+        gl.GL_LINES,
+        gl.GL_POINTS,
+        gl.GL_TRIANGLES)
 except BaseException:
     # otherwise provide mode flags
     # this is so we can unit test without pyglet
@@ -174,7 +175,10 @@ def path_to_vertexlist(path, group=None, colors=None, **kwargs):
     return args
 
 
-def points_to_vertexlist(points, colors=None, group=None, **kwargs):
+def points_to_vertexlist(points,
+                         colors=None,
+                         group=None,
+                         **kwargs):
     """
     Convert a numpy array of 3D points to args for
     a vertex list constructor.
@@ -248,6 +252,22 @@ def colors_to_gl(colors, count):
 
 
 def material_to_texture(material):
+    """
+    Convert a trimesh.visual.texture.Material object into
+    a pyglet- compatible texture object.
+
+    Parameters
+    --------------
+    material : trimesh.visual.texture.Material
+      Material to be converted
+
+    Returns
+    ---------------
+    texture : pyglet.image.Texture
+      Texture loaded into pyglet form
+    """
+
+    # try to extract a PIL image from material
     if hasattr(material, 'image'):
         img = material.image
     else:
@@ -256,6 +276,8 @@ def material_to_texture(material):
     if img is None:
         return None
 
+    # use a PNG export to exchange into pyglet
+    # probably a way to do this with a PIL converter
     with util.BytesIO() as f:
         # export PIL image as PNG
         img.save(f, format='png')
@@ -281,7 +303,7 @@ def matrix_to_gl(matrix):
 
     Returns
     -------------
-    glmatrix : (16,) pyglet.gl.GLfloat
+    glmatrix : (16,) gl.GLfloat
       Transform in pyglet format
     """
     matrix = np.asanyarray(matrix, dtype=np.float64)
@@ -291,7 +313,7 @@ def matrix_to_gl(matrix):
     # switch to column major and flatten to (16,)
     column = matrix.T.flatten()
     # convert to GLfloat
-    glmatrix = (pyglet.gl.GLfloat * 16)(*column)
+    glmatrix = (gl.GLfloat * 16)(*column)
 
     return glmatrix
 
@@ -299,12 +321,12 @@ def matrix_to_gl(matrix):
 def vector_to_gl(array, *args):
     """
     Convert an array and an optional set of args into a
-    flat vector of pyglet.gl.GLfloat
+    flat vector of gl.GLfloat
     """
     array = np.array(array)
     if len(args) > 0:
         array = np.append(array, args)
-    vector = (pyglet.gl.GLfloat * len(array))(*array)
+    vector = (gl.GLfloat * len(array))(*array)
     return vector
 
 
@@ -329,5 +351,41 @@ def color_to_gl(color):
     elif len(color) != 4:
         raise ValueError('color must be RGB or RGBA')
     # convert numpy color to pyglet dtypes
-    color_gl = (pyglet.gl.GLfloat * 4)(*color)
+    color_gl = (gl.GLfloat * 4)(*color)
     return color_gl
+
+
+def light_to_gl(light, transform, lightN):
+    """
+    Convert trimesh.scene.lighting.Light objects into
+    args for gl.glLightFv calls
+
+    Parameters
+    --------------
+    light : trimesh.scene.lighting.Light
+      Light object to be converted to GL
+    transform : (4, 4) float
+      Transformation matrix of light
+    lightN : int
+      Result of gl.GL_LIGHT0, gl.GL_LIGHT1, etc
+
+    Returns
+    --------------
+    multiarg : [tuple]
+      List of args to pass to gl.glLightFv eg:
+      [gl.glLightfb(*a) for a in multiarg]
+    """
+
+    # convert to color
+    gl_color = color_to_gl(light.color)
+
+    # cartesian translation from matrix
+    gl_position = vector_to_gl(transform[:3, 3])
+
+    # create the different position and color arguments
+    args = [(lightN, gl.GL_POSITION, gl_position),
+            (lightN, gl.GL_SPECULAR, gl_color),
+            (lightN, gl.GL_DIFFUSE, gl_color),
+            (lightN, gl.GL_AMBIENT, gl_color)]
+
+    return args

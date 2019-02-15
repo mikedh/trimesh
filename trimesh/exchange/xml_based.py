@@ -437,6 +437,7 @@ def print_element(element):
     print(pretty)
     return pretty
 
+
 try:
     from lxml import etree
     _xml_loaders = {'xaml': load_XAML,

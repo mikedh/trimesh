@@ -94,10 +94,6 @@ class SceneViewer(pyglet.window.Window):
         else:
             scene.camera.resolution = resolution
 
-        if 'camera' not in scene.graph:
-            # if the camera hasn't been set, set it now
-            scene.set_camera()
-
         try:
             # try enabling antialiasing
             # if you have a graphics card this will probably work
@@ -288,12 +284,12 @@ class SceneViewer(pyglet.window.Window):
         gl.glPointSize(4)
 
         # set up the viewer lights using self.scene
-        self._init_lighting()
+        self.update_lighting()
 
-    def _init_lighting(self):
+    def update_lighting(self):
         """
-        Take the lights defined for the scene and set
-        them up as openGL lights.
+        Take the lights defined in scene.lights and
+        apply them as openGL lights.
         """
         gl.glEnable(gl.GL_LIGHTING)
         # opengl only supports 7 lights?
@@ -301,34 +297,20 @@ class SceneViewer(pyglet.window.Window):
             # the index of which light we have
             lightN = eval('gl.GL_LIGHT{}'.format(i))
 
-            # TODO: get the transform for the light by name
-            # matrix = self.scene.graph[light.name][0]
-            position = self.scene.bounds[1]
+            # get the transform for the light by name
+            matrix = self.scene.graph[light.name][0]
 
-            # convert position to XYZW light position
-            gl_position = rendering.vector_to_gl(
-                np.append(position, 0))
-            # get a (4,) gl_float of light color
-            gl_color = rendering.color_to_gl(light.color)
+            # convert light object to glLightfv calls
+            multiargs = rendering.light_to_gl(
+                light=light,
+                transform=matrix,
+                lightN=lightN)
 
             # enable the light in question
             gl.glEnable(lightN)
-
-            # put the light at one corner of the scenes AABB
-            gl.glLightfv(lightN,
-                         gl.GL_POSITION,
-                         gl_position)
-
-            # assign all light colors
-            gl.glLightfv(lightN,
-                         gl.GL_SPECULAR,
-                         gl_color)
-            gl.glLightfv(lightN,
-                         gl.GL_DIFFUSE,
-                         gl_color)
-            gl.glLightfv(lightN,
-                         gl.GL_AMBIENT,
-                         gl_color)
+            # run the glLightfv calls
+            for args in multiargs:
+                gl.glLightfv(*args)
 
     def toggle_culling(self):
         """
@@ -426,11 +408,8 @@ class SceneViewer(pyglet.window.Window):
         gl.glMatrixMode(gl.GL_PROJECTION)
         gl.glLoadIdentity()
 
-        if self.scene.camera is None:
-            fovY = 60.0
-        else:
-            fovY = self.scene.camera.fov[1]
-
+        # get field of view from camera
+        fovY = self.scene.camera.fov[1]
         gl.gluPerspective(fovY,
                           width / float(height),
                           .01,
@@ -499,14 +478,16 @@ class SceneViewer(pyglet.window.Window):
 
     def on_draw(self):
         """
-        Run the actual draw call.
+        Run the actual draw calls.
         """
         self._update_meshes()
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
         gl.glLoadIdentity()
 
         # pull the new camera transform from the scene
-        transform_camera, _junk = self.scene.graph['camera']
+        transform_camera = self.scene.graph.get(
+            frame_to='world',
+            frame_from=self.scene.camera.name)[0]
 
         # apply the camera transform to the matrix stack
         gl.glMultMatrixf(rendering.matrix_to_gl(transform_camera))

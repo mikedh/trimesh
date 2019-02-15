@@ -16,7 +16,8 @@ class TrianglesTest(g.unittest.TestCase):
                 for i in range(3):
                     barycentric = g.trimesh.triangles.points_to_barycentric(
                         m.triangles, m.triangles[:, i], method=method)
-                    assert (g.np.abs(barycentric - g.np.roll([1.0, 0, 0], i)) < 1e-8).all()
+                    assert (g.np.abs(barycentric -
+                                     g.np.roll([1.0, 0, 0], i)) < 1e-8).all()
 
                     points = g.trimesh.triangles.barycentric_to_points(
                         m.triangles, barycentric)

@@ -19,7 +19,6 @@ class DAETest(g.unittest.TestCase):
                              [0.3476, 0.36, 1.26096],
                              atol=.001)
 
-        
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

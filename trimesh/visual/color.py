@@ -504,7 +504,7 @@ def to_rgba(colors, dtype=np.uint8):
 
     # integer value for opaque alpha given our datatype
     opaque = np.iinfo(dtype).max
-    
+
     if (colors.dtype.kind == 'f' and
             colors.max() < (1.0 + 1e-8)):
         colors = (colors * opaque).astype(dtype)

@@ -443,13 +443,16 @@ class Scene(Geometry):
                                     fov=fov,
                                     rotation=rotation)
 
-        camera = cameras.Camera(fov=fov,
-                                transform=transform)
-        self.graph.update(frame_from='camera',
-                          frame_to=self.graph.base_frame,
-                          matrix=transform)
-        self.camera = camera
-        return camera
+        if hasattr(self, '_camera') and self._camera is not None:
+            self.camera.fov = fov
+            self.camera._scene = self
+            self.camera.transform = transform
+        else:
+            # create a new camera object
+            self.camera = cameras.Camera(fov=fov,
+                                         scene=self,
+                                         transform=transform)
+        return self.camera
 
     @property
     def camera(self):
@@ -494,7 +497,12 @@ class Scene(Geometry):
         """
         if not hasattr(self, '_lights') or self._lights is None:
             # do some automatic lighting
-            self._lights = [lighting.PointLight(name='light_0')]
+            lights, transforms = lighting.autolight(self)
+            # assign the transforms to the scene graph
+            for L, T in zip(lights, transforms):
+                self.graph[L.name] = T
+            # set the lights
+            self._lights = lights
         return self._lights
 
     @lights.setter

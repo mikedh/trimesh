@@ -12,13 +12,17 @@ import abc
 import sys
 import numpy as np
 
+from .. import util
+from .. import transformations
+
 if sys.version_info >= (3, 4):
     ABC = abc.ABC
 else:
     ABC = abc.ABCMeta('ABC', (), {})
 
+# default RGB light color
+_DEFAULT_RGB = [1.0, 1.0, 1.0]
 
-    
 
 class Light(ABC):
     """
@@ -33,7 +37,7 @@ class Light(ABC):
     intensity : float
         Brightness of light. The units that this is defined in depend
         on the type of light: point and spot lights use luminous intensity
-        in candela (lm/sr) while directional lights use illuminance 
+        in candela (lm/sr) while directional lights use illuminance
         in lux (lm/m2).
     radius : float
         Cutoff distance at which light's intensity may be considered to
@@ -48,10 +52,11 @@ class Light(ABC):
                  intensity=None,
                  radius=None):
 
-        # if name is not passed, make it something unique
         if name is None:
-            self.name = 'light_{}'.format(util.unique_id())
+            # if name is not passed, make it something unique
+            self.name = 'light_{}'.format(util.unique_id(6).upper())
         else:
+            # otherwise assign it
             self.name = name
 
         self.color = color
@@ -64,7 +69,10 @@ class Light(ABC):
 
     @color.setter
     def color(self, value):
-        self._color = format_color_vector(value, 3)
+        if value is None:
+            self._color = _DEFAULT_RGB
+        else:
+            self._color = format_color_vector(value, 3)
 
     @property
     def intensity(self):
@@ -262,3 +270,30 @@ def format_color_vector(value, length):
         raise ValueError('Invalid vector data type')
 
     return value.squeeze().astype(np.float32)
+
+
+def autolight(scene):
+    """
+    Generate a list of lights for a scene that looks okay.
+
+    Parameters
+    --------------
+    scene : trimesh.Scene
+      Scene with geometry
+
+    Returns
+    --------------
+    lights : [Light]
+      List of light objects
+    transforms : (len(lights), 4, 4) float
+      Transformation matrices for light positions.
+    """
+
+    # create two default point lights
+    lights = [PointLight(), PointLight()]
+
+    # create two translation matrices for bounds corners
+    transforms = [transformations.translation_matrix(b)
+                  for b in scene.bounds]
+
+    return lights, transforms
