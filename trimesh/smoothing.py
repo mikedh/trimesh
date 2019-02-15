@@ -1,4 +1,4 @@
-import trimesh, itertools
+import itertools
 from scipy.sparse import coo_matrix
 import numpy as np
 
@@ -41,7 +41,6 @@ def filter_humphrey(mesh,alpha,beta,n_filter,laplacian_operator):
       
       # Number of passes
       vert_o=mesh.vertices.copy()
-      vert_b=mesh.vertices.copy()
       for _ in range(n_filter):
             vert_q=mesh.vertices.copy()
             mesh.vertices=coo_matrix.dot(laplacian_operator, mesh.vertices)
