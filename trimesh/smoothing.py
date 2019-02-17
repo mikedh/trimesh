@@ -16,7 +16,7 @@ def filter_laplacian(mesh,
 
     Articles
     "Improved Laplacian Smoothing of Noisy Surface Meshes"
-    J. Vollmer, R. Mencl, and H. Müller
+    J. Vollmer, R. Mencl, and H. Muller
 
     Parameters
     ------------
@@ -59,7 +59,7 @@ def filter_humphrey(mesh,
 
     Articles
     "Improved Laplacian Smoothing of Noisy Surface Meshes"
-    J. Vollmer, R. Mencl, and H. Müller
+    J. Vollmer, R. Mencl, and H. Muller
 
     Parameters
     ------------
@@ -110,7 +110,7 @@ def filter_taubin(mesh,
 
     Articles
     "Improved Laplacian Smoothing of Noisy Surface Meshes"
-    J. Vollmer, R. Mencl, and H. Müller
+    J. Vollmer, R. Mencl, and H. Muller
 
     Parameters
     ------------
