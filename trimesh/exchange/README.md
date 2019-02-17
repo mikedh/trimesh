@@ -1,4 +1,4 @@
-trimesh.io
+trimesh.exchange
 ============
 
 Mesh importers and exporters.
@@ -30,6 +30,18 @@ In [16]: %timeit ('{}/{}/{}\n' * len(array))[:-1].format(*array.flatten())
 10 loops, best of 3: 34.3 ms per loop
 ```
 - Sometimes you can use sparse matrices to replace a loop and get a huge speedup. [Here's the same algorithm implemented two ways, looping and sparse dot products.](https://github.com/mikedh/trimesh/blob/master/trimesh/geometry.py#L186-L203)
+- In tight loops, `array.sum(axis=1)` often pops up as the slowest thing. This can be replaced with a dot product of ones, which are very optimized can be substantially faster:
+```
+In [1]: import numpy as np
+
+In [2]: a = np.random.random((10000, 3))
+
+In [3]: %timeit a.sum(axis=1)
+10000 loops, best of 3: 157 µs per loop
+
+In [4]: %timeit np.dot(a, [1,1,1])
+10000 loops, best of 3: 25.8 µs per loop
+```
 
 
 ### Don't

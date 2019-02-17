@@ -31,6 +31,7 @@ from . import proximity
 from . import triangles
 from . import collision
 from . import curvature
+from . import smoothing
 from . import comparison
 from . import registration
 from . import decomposition
