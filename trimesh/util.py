@@ -80,7 +80,7 @@ def unitize(vectors,
         # using sqrt and avoiding exponents is slightly faster
         # also dot with ones is faser than .sum(axis=1)
         norm = np.sqrt(np.dot(vectors * vectors,
-                              np.ones(vectors.shape[1])))
+                              [1.0] * vectors.shape[1]))
         # non-zero norms
         valid = norm > threshold
         # in-place reciprocal of nonzero norms

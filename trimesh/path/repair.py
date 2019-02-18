@@ -7,7 +7,6 @@ Try to fix problems with closed regions.
 from . import segments
 
 from .. import util
-from .. import grouping
 
 import numpy as np
 

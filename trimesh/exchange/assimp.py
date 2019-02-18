@@ -199,8 +199,8 @@ def load_cyassimp(file_obj,
     meshes = []
     for m in scene.meshes:
         mesh_kwargs = kwargs.copy()
-        mesh_kwargs.update({'vertices': i.points,
-                            'faces': i.trilist})
+        mesh_kwargs.update({'vertices': m.points,
+                            'faces': m.trilist})
         meshes.append(mesh_kwargs)
 
     if len(meshes) == 1:

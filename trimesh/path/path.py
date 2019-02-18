@@ -30,6 +30,7 @@ from .. import transformations
 from . import raster
 from . import repair
 from . import simplify
+from . import creation
 from . import polygons
 from . import segments
 from . import traversal
