@@ -91,7 +91,7 @@ def rectangle(bounds, **kwargs):
     if bounds.shape == (2,):
         half = np.abs(bounds) / 2.0
         bounds = np.array([-half, half])
-    
+
     # should have one bounds or multiple bounds
     if not (util.is_shape(bounds, (2, 2)) or
             util.is_shape(bounds, (-1, 2, 2))):

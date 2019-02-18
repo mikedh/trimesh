@@ -330,31 +330,6 @@ def vector_to_gl(array, *args):
     return vector
 
 
-def color_to_gl(color):
-    """
-    Convert an RGB or RGBA color to float colors
-    """
-    color = np.asanyarray(color)
-    if len(color.shape) != 1:
-        raise ValueError('must be single color!')
-
-    # if passed as an int, use max value of dtype
-    if color.dtype.kind in 'ib':
-        # for uint8 this is 255
-        intmax = float(np.iinfo(color.dtype).max)
-        # convert to float and scale by integer range
-        color = color.astype(np.float64) / intmax
-
-    # if we've been passed a single RGB color
-    if len(color) == 3:
-        color = np.append(color, 1.0)
-    elif len(color) != 4:
-        raise ValueError('color must be RGB or RGBA')
-    # convert numpy color to pyglet dtypes
-    color_gl = (gl.GLfloat * 4)(*color)
-    return color_gl
-
-
 def light_to_gl(light, transform, lightN):
     """
     Convert trimesh.scene.lighting.Light objects into
@@ -376,8 +351,9 @@ def light_to_gl(light, transform, lightN):
       [gl.glLightfb(*a) for a in multiarg]
     """
 
-    # convert to color
-    gl_color = color_to_gl(light.color)
+    # convert color to opengl
+    gl_color = vector_to_gl(light.color.astype(np.float64) / 255.0)
+    assert len(gl_color) == 4
 
     # cartesian translation from matrix
     gl_position = vector_to_gl(transform[:3, 3])

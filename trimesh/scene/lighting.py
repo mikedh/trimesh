@@ -13,6 +13,7 @@ import sys
 import numpy as np
 
 from .. import util
+from .. import visual
 from .. import transformations
 
 if sys.version_info >= (3, 4):
@@ -20,8 +21,8 @@ if sys.version_info >= (3, 4):
 else:
     ABC = abc.ABCMeta('ABC', (), {})
 
-# default RGB light color
-_DEFAULT_RGB = [1.0, 1.0, 1.0]
+# default light color
+_DEFAULT_RGBA = np.array([80, 80, 80, 255], dtype=np.uint8)
 
 
 class Light(ABC):
@@ -32,8 +33,8 @@ class Light(ABC):
     ----------
     name : str, optional
         Name of the light.
-    color : (3,) float
-        RGB value for the light's color in linear space.
+    color : (4,) uint8
+        RGBA value for the light's color in linear space.
     intensity : float
         Brightness of light. The units that this is defined in depend
         on the type of light: point and spot lights use luminous intensity
@@ -70,9 +71,15 @@ class Light(ABC):
     @color.setter
     def color(self, value):
         if value is None:
-            self._color = _DEFAULT_RGB
+            self._color = _DEFAULT_RGBA
         else:
-            self._color = format_color_vector(value, 3)
+            value = visual.to_rgba(value)
+            if len(value.shape) == 2:
+                value = value[0]
+            if value.shape != (4,):
+                raise ValueError("couldn't convert color to RGBA!")
+            # uint8 RGB color
+            self._color = value
 
     @property
     def intensity(self):
@@ -82,6 +89,8 @@ class Light(ABC):
     def intensity(self, value):
         if value is not None:
             self._intensity = float(value)
+        else:
+            self._intensity = 1.0
 
     @property
     def radius(self):
@@ -109,8 +118,8 @@ class DirectionalLight(Light):
     ----------
     name : str, optional
         Name of the light.
-    color : (3,) float
-        RGB value for the light's color in linear space.
+    color : (4,) unit8
+        RGBA value for the light's color in linear space.
     intensity : float
         Brightness of light. The units that this is defined in depend on the type of light.
         point and spot lights use luminous intensity in candela (lm/sr),
@@ -147,8 +156,8 @@ class PointLight(Light):
     ----------
     name : str, optional
         Name of the light.
-    color : (3,) float
-        RGB value for the light's color in linear space.
+    color : (4,) uint8
+        RGBA value for the light's color in linear space.
     intensity : float
         Brightness of light. The units that this is defined in depend on the type of light.
         point and spot lights use luminous intensity in candela (lm/sr),
@@ -190,8 +199,8 @@ class SpotLight(Light):
     ----------
     name : str, optional
         Name of the light.
-    color : (3,) float
-        RGB value for the light's color in linear space.
+    color : (4,) uint8
+        RGBA value for the light's color in linear space.
     intensity : float
         Brightness of light. The units that this is defined in depend on the type of light.
         point and spot lights use luminous intensity in candela (lm/sr),
@@ -245,36 +254,9 @@ class SpotLight(Light):
         self._outerConeAngle = float(value)
 
 
-def format_color_vector(value, length):
-
-    if True:
-        return [.5, .5, .5, 1.0]
-
-    if isinstance(value, int):
-        value = value / 255.0
-    elif isinstance(value, float):
-        value = np.repeat(value, length)
-    elif isinstance(value, list) or isinstance(value, tuple):
-        value = np.array(value)
-    elif isinstance(value, np.ndarray):
-        value = value.squeeze()
-        if np.issubdtype(value.dtype, np.integer):
-            value = (value / 255.0).astype(np.float32)
-        if value.ndim != 1:
-            raise ValueError('Format vector takes only 1-D vectors')
-        if length > value.shape[0]:
-            value = np.hstack((value, np.ones(length - value.shape[0])))
-        elif length < value.shape[0]:
-            value = value[:length]
-    else:
-        raise ValueError('Invalid vector data type')
-
-    return value.squeeze().astype(np.float32)
-
-
 def autolight(scene):
     """
-    Generate a list of lights for a scene that looks okay.
+    Generate a list of lights for a scene that looks decent.
 
     Parameters
     --------------
