@@ -5,19 +5,15 @@ except BaseException:
 
 
 class DAETest(g.unittest.TestCase):
-    def test_wam(self):
+    def test_duck(self):
         """
         Load a collada scene with pycollada.
         """
 
-        scene = g.get_mesh('barrett-wam.zae')
+        scene = g.get_mesh('duck.dae')
 
-        assert len(scene.geometry) == 8
-        assert len(scene.graph.nodes_geometry) == 8
-
-        assert g.np.allclose(g.np.sort(scene.extents),
-                             [0.3476, 0.36, 1.26096],
-                             atol=.001)
+        assert len(scene.geometry) == 1
+        assert len(scene.graph.nodes_geometry) == 1
 
 
 if __name__ == '__main__':
