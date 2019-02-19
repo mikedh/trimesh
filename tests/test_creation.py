@@ -206,7 +206,7 @@ def check_triangulation(v, f, true_area):
     assert g.trimesh.util.is_shape(f, (-1, 3))
     assert f.dtype.kind == 'i'
 
-    tri = g.trimesh.util.three_dimensionalize(v)[1][f]
+    tri = g.trimesh.util.stack_3D(v)[f]
     area = g.trimesh.triangles.area(tri).sum()
     assert g.np.isclose(area, true_area)
 

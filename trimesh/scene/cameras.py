@@ -101,6 +101,8 @@ class Camera(object):
         transform : (4, 4) float
           Transform from world to camera
         """
+        if self._scene is None:
+            return None
         matrix = self._scene.graph[self.name][0]
         return matrix
 
@@ -116,7 +118,7 @@ class Camera(object):
         transform : (4, 4) float
           Transform from world to camera
         """
-        if values is None:
+        if values is None or self._scene is None:
             return
         matrix = np.asanyarray(values, dtype=np.float64)
         if matrix.shape != (4, 4):
