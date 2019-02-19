@@ -247,10 +247,10 @@ def _parse_node(node,
                     graph=graph,
                     resolver=resolver)
 
-    elif isinstance(node, colada.scene.CameraNode):
+    elif isinstance(node, collada.scene.CameraNode):
         # TODO: convert collada cameras to trimesh cameras
         pass
-    elif isinstance(node, colada.scene.LightNode):
+    elif isinstance(node, collada.scene.LightNode):
         # TODO: convert collada lights to trimesh lights
         pass
 
