@@ -15,14 +15,10 @@ if __name__ == '__main__':
     # scene = trimesh.scene.Scene(mesh)
     scene = mesh.scene()
 
-    # add a base transform for the camera which just
-    # centers the mesh into the FOV of the camera
-    scene.set_camera()
-
     # a 45 degree homogenous rotation matrix around
     # the Y axis at the scene centroid
     rotate = trimesh.transformations.rotation_matrix(
-        angle=np.radians(45.0),
+        angle=np.radians(10.0),
         direction=[0, 1, 0],
         point=scene.centroid)
 
@@ -30,11 +26,11 @@ if __name__ == '__main__':
         trimesh.constants.log.info('Saving image %d', i)
 
         # rotate the camera view transform
-        camera_old, _geometry = scene.graph['camera']
+        camera_old, _geometry = scene.graph[scene.camera.name]
         camera_new = np.dot(camera_old, rotate)
 
         # apply the new transform
-        scene.graph['camera'] = camera_new
+        scene.graph[scene.camera.name] = camera_new
 
         # saving an image requires an opengl context, so if -nw
         # is passed don't save the image
