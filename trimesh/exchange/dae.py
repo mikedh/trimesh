@@ -247,12 +247,12 @@ def _parse_node(node,
                     graph=graph,
                     resolver=resolver)
 
-        elif isinstance(node, colada.scene.CameraNode):
-            # TODO: convert collada cameras to trimesh cameras
-            pass
-        elif isinstance(node, colada.scene.LightNode):
-            # TODO: convert collada lights to trimesh lights
-            pass
+    elif isinstance(node, colada.scene.CameraNode):
+        # TODO: convert collada cameras to trimesh cameras
+        pass
+    elif isinstance(node, colada.scene.LightNode):
+        # TODO: convert collada lights to trimesh lights
+        pass
 
 
 def _load_texture(file_name, resolver):
