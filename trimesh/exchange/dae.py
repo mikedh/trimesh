@@ -85,7 +85,7 @@ def export_collada(mesh, **kwargs):
     export: str, string of COLLADA format output
     """
     meshes = mesh
-    if not isinstance(mesh, list) and not isinstance(mesh, tuple):
+    if not isinstance(mesh, (list, tuple, set, np.ndarray)):
         meshes = [mesh]
 
     c = collada.Collada()
@@ -176,7 +176,7 @@ def _parse_node(node,
                 local_material_map[symbol] = _parse_material(m, resolver)
 
         # Iterate over primitives of geometry
-        for primitive in geometry.primitives:
+        for i, primitive in enumerate(geometry.primitives):
             if isinstance(primitive, collada.polylist.Polylist):
                 primitive = primitive.triangleset()
             if isinstance(primitive, collada.triangleset.TriangleSet):
@@ -221,16 +221,17 @@ def _parse_node(node,
                     vis = visual.texture.TextureVisuals(
                         uv=uv, material=material)
 
-                meshes[geometry.id] = {
+                primid = '{}.{}'.format(geometry.id, i)
+                meshes[primid] = {
                     'vertices': vertices,
                     'faces': faces,
                     'vertex_normals': normals,
                     'vertex_colors': colors,
                     'visual': vis}
 
-                graph.append({'frame_to': id(node),
+                graph.append({'frame_to': primid,
                               'matrix': parent_matrix,
-                              'geometry': geometry.id})
+                              'geometry': primid})
 
     # recurse down tree for nodes with children
     elif isinstance(node, collada.scene.Node):
