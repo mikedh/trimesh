@@ -967,7 +967,7 @@ def camera_marker(camera,
     camera_transform = camera.transform
     if camera_transform is None:
         camera_transform = np.eye(4)
-    
+
     # append the visualizations to an array
     meshes = [axis(origin_size=marker_height / 10.0)]
     meshes[0].apply_transform(camera_transform)

@@ -267,32 +267,24 @@ def look_at(points, fov, rotation=None):
         rotation = np.asanyarray(rotation, dtype=np.float64)
     points = np.asanyarray(points, dtype=np.float64)
 
-    # transform points by initial matrix
-    trans = np.dot(
-        rotation,
-        np.column_stack((
-            points, np.ones(len(points)))).T).T[:, :3]
+    # Transform points to camera frame (just use the rotation part)
+    rinv = rotation[:3, :3].T
+    points_c = rinv.dot(points.T).T
 
-    # find the center of the points AABB
-    center = trans.min(axis=0) + 0.5 * trans.ptp(axis=0)
-    # adjust the points by the center
-    trans -= center
+    # Find the center of the points' AABB in camera frame
+    center_c = points_c.min(axis=0) + 0.5 * points_c.ptp(axis=0)
 
-    # find the tan of the frustrum angle
-    # which is half of the field of view
-    tan = np.tan(np.radians(fov / 2.0))
+    # Re-center the points around the camera-frame origin
+    points_c -= center_c
 
-    # find the Z in X and Y using trigonomoetry
-    z = np.array([x / t for x, t in
-                  zip(trans[:, :2].T, tan)])
-    # move the Z to the minimum observed
-    center[2] = -z.min()
+    # Find the minimum distance for the camera from the origin
+    # so that all points fit in the view frustrum
+    tfov = np.tan(np.radians(fov) / 2.0)
+    dist = np.max(np.abs(points_c[:, :2]) / tfov + points_c[:, 2][:, np.newaxis])
 
-    # create a transformation matrix for translation
-    translation = np.eye(4)
-    translation[:3, 3] = center
+    # set the pose translation
+    center_w = rotation[:3, :3].dot(center_c)
+    cam_pose = rotation.copy()
+    cam_pose[:3, 3] = center_w + dist * cam_pose[:3, 2]
 
-    # combine translation with the original rotation
-    mat = np.dot(translation, rotation)
-
-    return mat
+    return cam_pose
