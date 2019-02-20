@@ -1811,6 +1811,7 @@ def write_encoded(file_obj,
     else:
         file_obj.write(stuff)
     file_obj.flush()
+    return stuff
 
 
 def unique_id(length=12, increment=0):

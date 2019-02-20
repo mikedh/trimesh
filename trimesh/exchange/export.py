@@ -6,6 +6,7 @@ from .. import util
 
 from .wavefront import _obj_exporters
 from .urdf import export_urdf
+from .gltf import export_glb
 from .stl import export_stl, export_stl_ascii
 from .ply import _ply_exporters
 from .dae import _collada_exporters
@@ -17,14 +18,15 @@ def export_mesh(mesh, file_obj, file_type=None, **kwargs):
 
     Parameters
     ---------
-    file_obj: a filename string or a file-like object
-    file_type: str representing file type (eg: 'stl')
-    process:   boolean flag, whether to process the mesh on load
+    file_obj : str, file-like
+      Where should mesh be exported to
+    file_type : str or None
+      Represents file type (eg: 'stl')
 
-    Returns:
-    mesh: a single Trimesh object, or a list of Trimesh objects,
-          depending on the file format.
-
+    Returns
+    ----------
+    exported : bytes or str
+      Result of exporter
     """
     # if we opened a file object in this function
     # we will want to close it when we're done
@@ -48,9 +50,8 @@ def export_mesh(mesh, file_obj, file_type=None, **kwargs):
         log.debug('Exporting %d meshes with a total of %d faces as %s',
                   len(mesh), faces, file_type.upper())
     else:
-        log.debug(
-            'Exporting %d faces as %s', len(
-                mesh.faces), file_type.upper())
+        log.debug('Exporting %d faces as %s', len(mesh.faces),
+                  file_type.upper())
     export = _mesh_exporters[file_type](mesh, **kwargs)
 
     if hasattr(file_obj, 'write'):
@@ -70,31 +71,28 @@ def export_off(mesh, digits=10):
 
     Parameters
     -----------
-    mesh   : Trimesh object
+    mesh : trimesh.Trimesh
+      Geometry to export
     digits : int
-               number of digits to include on floats
+      Number of digits to include on floats
 
     Returns
     -----------
     export : str
-              OFF format output
+      OFF format output
     """
     # make sure specified digits is an int
     digits = int(digits)
     # prepend a 3 (face count) to each face
-    faces_stacked = np.column_stack((
-        np.ones(len(mesh.faces)) * 3,
-        mesh.faces)).astype(np.int64)
+    faces_stacked = np.column_stack((np.ones(len(mesh.faces)) * 3,
+                                     mesh.faces)).astype(np.int64)
     export = 'OFF\n'
     # the header is vertex count, face count, another number
     export += str(len(mesh.vertices)) + ' ' + str(len(mesh.faces)) + ' 0\n'
-    export += util.array_to_string(mesh.vertices,
-                                   col_delim=' ',
-                                   row_delim='\n',
-                                   digits=digits) + '\n'
-    export += util.array_to_string(faces_stacked,
-                                   col_delim=' ',
-                                   row_delim='\n')
+    export += util.array_to_string(
+        mesh.vertices, col_delim=' ', row_delim='\n', digits=digits) + '\n'
+    export += util.array_to_string(
+        faces_stacked, col_delim=' ', row_delim='\n')
     return export
 
 
@@ -121,28 +119,28 @@ def export_dict(mesh, encoding=None):
     -------------
 
     """
+
     def encode(item, dtype=None):
         if encoding is None:
             return item.tolist()
         else:
             if dtype is None:
                 dtype = item.dtype
-            return util.array_to_encoded(item,
-                                         dtype=dtype,
-                                         encoding=encoding)
+            return util.array_to_encoded(item, dtype=dtype, encoding=encoding)
 
     # metadata keys we explicitly want to preserve
     # sometimes there are giant datastructures we don't
     # care about in metadata which causes exports to be
     # extremely slow, so skip all but known good keys
     meta_keys = ['units', 'file_name', 'file_path']
-    metadata = {k: v for k, v in mesh.metadata.items()
-                if k in meta_keys}
+    metadata = {k: v for k, v in mesh.metadata.items() if k in meta_keys}
 
-    export = {'metadata': metadata,
-              'faces': encode(mesh.faces),
-              'face_normals': encode(mesh.face_normals),
-              'vertices': encode(mesh.vertices)}
+    export = {
+        'metadata': metadata,
+        'faces': encode(mesh.faces),
+        'face_normals': encode(mesh.face_normals),
+        'vertices': encode(mesh.vertices)
+    }
     if mesh.visual.kind == 'face':
         export['face_colors'] = encode(mesh.visual.face_colors)
     elif mesh.visual.kind == 'vertex':
@@ -164,13 +162,16 @@ def export_msgpack(mesh):
     return export
 
 
-_mesh_exporters = {'stl': export_stl,
-                   'dict': export_dict,
-                   'json': export_json,
-                   'off': export_off,
-                   'dict64': export_dict64,
-                   'msgpack': export_msgpack,
-                   'stl_ascii': export_stl_ascii}
+_mesh_exporters = {
+    'stl': export_stl,
+    'dict': export_dict,
+    'json': export_json,
+    'off': export_off,
+    'glb': export_glb,
+    'dict64': export_dict64,
+    'msgpack': export_msgpack,
+    'stl_ascii': export_stl_ascii
+}
 
 _mesh_exporters.update(_ply_exporters)
 _mesh_exporters.update(_obj_exporters)

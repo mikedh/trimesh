@@ -94,7 +94,8 @@ def filter_humphrey(mesh,
         vert_q = vertices.copy()
         vertices = laplacian_operator.dot(vertices)
         vert_b = vertices - (alpha * original + (1.0 - alpha) * vert_q)
-        vertices -= (beta * vert_b + (1.0 - beta) * laplacian_operator.dot(vert_b))
+        vertices -= (beta * vert_b + (1.0 - beta) *
+                     laplacian_operator.dot(vert_b))
 
     # assign modified vertices back to mesh
     mesh.vertices = vertices

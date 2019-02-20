@@ -280,7 +280,8 @@ def look_at(points, fov, rotation=None):
     # Find the minimum distance for the camera from the origin
     # so that all points fit in the view frustrum
     tfov = np.tan(np.radians(fov) / 2.0)
-    dist = np.max(np.abs(points_c[:, :2]) / tfov + points_c[:, 2][:, np.newaxis])
+    dist = np.max(np.abs(points_c[:, :2]) /
+                  tfov + points_c[:, 2][:, np.newaxis])
 
     # set the pose translation
     center_w = rotation[:3, :3].dot(center_c)

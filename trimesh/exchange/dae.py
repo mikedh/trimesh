@@ -73,7 +73,8 @@ def load_collada(file_obj, resolver=None, **kwargs):
 
 
 def export_collada(mesh, **kwargs):
-    """Export a mesh or a list of meshes as a COLLADA .dae file.
+    """
+    Export a mesh or a list of meshes as a COLLADA .dae file.
 
     Parameters
     -----------
