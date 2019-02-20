@@ -30,7 +30,7 @@ class DAETest(g.unittest.TestCase):
 
         scene = g.get_mesh('shoulder.zae')
         assert len(scene.geometry) == 3
-        assert len(scene.nodes_geometry) == 1
+        assert len(scene.graph.nodes_geometry) == 3
 
 
 if __name__ == '__main__':
