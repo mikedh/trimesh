@@ -22,7 +22,7 @@ else:
     ABC = abc.ABCMeta('ABC', (), {})
 
 # default light color
-_DEFAULT_RGBA = np.array([80, 80, 80, 255], dtype=np.uint8)
+_DEFAULT_RGBA = np.array([60, 60, 60, 255], dtype=np.uint8)
 
 
 class Light(ABC):

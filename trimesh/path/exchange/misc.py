@@ -149,8 +149,8 @@ def faces_to_path(mesh, face_ids=None, **kwargs):
             (-1, 6))[face_ids].reshape((-1, 2))
 
     # an edge which occurs onely once is on the boundary
-    unique_edges = grouping.group_rows(edges,
-                                       require_count=1)
+    unique_edges = grouping.group_rows(
+        edges, require_count=1)
 
     kwargs.update(edges_to_path(edges=edges[unique_edges],
                                 vertices=mesh.vertices))

@@ -37,7 +37,7 @@ def arc_center(points):
 
     # find the two edge vectors of the triangle
     edge_direction = np.diff(points, axis=0)
-    edge_midpoints = (edge_direction * .5) + points[:2]
+    edge_midpoints = (edge_direction * 0.5) + points[:2]
 
     # three points define a plane, so we find its normal vector
     plane_normal = np.cross(*edge_direction[::-1])
