@@ -1,13 +1,17 @@
 import numpy as np
 
+from .. import util
+
 
 class Camera(object):
 
     def __init__(
             self,
-            resolution,
+            name=None,
+            resolution=None,
             focal=None,
             fov=None,
+            scene=None,
             transform=None):
         """
         Create a new Camera object that stores camera intrinsic
@@ -17,7 +21,9 @@ class Camera(object):
         TODO: cx and cy that are not half of width and height
 
         Parameters
-        ----------
+        ------------
+        name : str or None
+          Name for camera to be used as node name
         resolution : (2,) int
           Pixel size in (height, width)
         focal : (2,) float
@@ -30,11 +36,15 @@ class Camera(object):
           transformation matrix.
         """
 
+        if name is None:
+            # if name is not passed, make it something unique
+            self.name = 'camera_{}'.format(util.unique_id(6).upper())
+        else:
+            # otherwise assign it
+            self.name = name
+
         if fov is None and focal is None:
             raise ValueError('either focal length or FOV required!')
-
-        # set the passed (2,) int resolution
-        self.resolution = resolution
 
         # set the passed (2,) float focal length
         self.focal = focal
@@ -42,7 +52,14 @@ class Camera(object):
         # set the passed (2,) float FOV in degrees
         self.fov = fov
 
-        # set the transform from world to this camera
+        if resolution is None:
+            # if unset make resolution 15 pixels per degree
+            resolution = (self.fov * 15.0).astype(np.int64)
+        self.resolution = resolution
+
+        # add a back- reference to scene object
+        self._scene = scene
+
         self.transform = transform
 
     @property
@@ -84,7 +101,10 @@ class Camera(object):
         transform : (4, 4) float
           Transform from world to camera
         """
-        return self._transform
+        if self._scene is None:
+            return None
+        matrix = self._scene.graph[self.name][0]
+        return matrix
 
     @transform.setter
     def transform(self, values):
@@ -98,14 +118,13 @@ class Camera(object):
         transform : (4, 4) float
           Transform from world to camera
         """
-        if values is None:
-            self._transform = np.eye(4)
+        if values is None or self._scene is None:
             return
-        values = np.asanyarray(values, dtype=np.float64)
-        if values.shape != (4, 4):
+        matrix = np.asanyarray(values, dtype=np.float64)
+        if matrix.shape != (4, 4):
             raise ValueError('transform must be (4, 4) float!')
         # assign passed values to transform
-        self._transform = values
+        self._scene.graph[self.name] = matrix
 
     @property
     def focal(self):
@@ -220,3 +239,60 @@ class Camera(object):
             self._fov = values
             # fov overrides focal
             self._focal = None
+
+
+def look_at(points, fov, rotation=None):
+    """
+    Generate transform for a camera to keep a list
+    of points in the camera's field of view.
+
+    Parameters
+    -------------
+    points : (n, 3) float
+      Points in space
+    fov : (2,) float
+      Field of view, in DEGREES
+    rotation : None, or (4, 4) float
+      Rotation matrix for initial rotation
+
+    Returns
+    --------------
+    transform : (4, 4) float
+      Transformation matrix with points in view
+    """
+
+    if rotation is None:
+        rotation = np.eye(4)
+    else:
+        rotation = np.asanyarray(rotation, dtype=np.float64)
+    points = np.asanyarray(points, dtype=np.float64)
+
+    # transform points by initial matrix
+    trans = np.dot(
+        rotation,
+        np.column_stack((
+            points, np.ones(len(points)))).T).T[:, :3]
+
+    # find the center of the points AABB
+    center = trans.min(axis=0) + 0.5 * trans.ptp(axis=0)
+    # adjust the points by the center
+    trans -= center
+
+    # find the tan of the frustrum angle
+    # which is half of the field of view
+    tan = np.tan(np.radians(fov / 2.0))
+
+    # find the Z in X and Y using trigonomoetry
+    z = np.array([x / t for x, t in
+                  zip(trans[:, :2].T, tan)])
+    # move the Z to the minimum observed
+    center[2] = -z.min()
+
+    # create a transformation matrix for translation
+    translation = np.eye(4)
+    translation[:3, 3] = center
+
+    # combine translation with the original rotation
+    mat = np.dot(translation, rotation)
+
+    return mat

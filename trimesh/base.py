@@ -986,7 +986,7 @@ class Trimesh(Geometry):
         units._convert_units(self, desired, guess)
         return self
 
-    def merge_vertices(self, distance=None):
+    def merge_vertices(self, digits=None, textured=True):
         """
         If a mesh has vertices that are closer than
         trimesh.constants.tol.merge reindex faces to reference
@@ -994,10 +994,15 @@ class Trimesh(Geometry):
 
         Parameters
         --------------
-        distance : float or None
+        digits : int
           If specified overrides tol.merge
+        textured : bool
+          If True avoids merging vertices with different UV
+          coordinates. No effect on untextured meshes.
         """
-        grouping.merge_vertices(self, distance=distance)
+        grouping.merge_vertices(self,
+                                digits=digits,
+                                textured=textured)
 
     def update_vertices(self, mask, inverse=None):
         """

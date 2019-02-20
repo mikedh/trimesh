@@ -521,12 +521,9 @@ def closest_point(triangles, points):
     list of corresponding points.
 
     Implements the method from "Real Time Collision Detection" and
-    uses the same variable names as 'ClosestPtPointTriangle' to avoid
+    use the same variable names as 'ClosestPtPointTriangle' to avoid
     being any more confusing.
 
-    Note that you could get a speedup by more carefully masking for
-    reducing the number of operations, but it is already pretty fast and
-    it becomes so confusing that I haven't bothered here.
 
     Parameters
     ----------
@@ -592,7 +589,9 @@ def closest_point(triangles, points):
 
     # check if P in edge region of AB, if so return projection of P onto A
     vc = (d1 * d4) - (d3 * d2)
-    is_ab = (vc < tol.zero) & (d1 > -tol.zero) & (d3 < tol.zero) & remain
+    is_ab = ((vc < tol.zero) &
+             (d1 > -tol.zero) &
+             (d3 < tol.zero) & remain)
     if is_ab.any():
         v = (d1[is_ab] / (d1[is_ab] - d3[is_ab])).reshape((-1, 1))
         result[is_ab] = a[is_ab] + (v * ab[is_ab])
@@ -617,7 +616,9 @@ def closest_point(triangles, points):
 
     # check if P in edge region of BC, if so return projection of P onto BC
     va = (d3 * d6) - (d5 * d4)
-    is_bc = (va < tol.zero) & ((d4 - d3) > -tol.zero) & ((d5 - d6) > -tol.zero) & remain
+    is_bc = ((va < tol.zero) &
+             ((d4 - d3) > - tol.zero) &
+             ((d5 - d6) > -tol.zero) & remain)
     if is_bc.any():
         d43 = d4[is_bc] - d3[is_bc]
         w = (d43 / (d43 + (d5[is_bc] - d6[is_bc]))).reshape((-1, 1))

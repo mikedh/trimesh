@@ -5,32 +5,48 @@ except BaseException:
 
 
 class AssimpTest(g.unittest.TestCase):
-    def test_collada(self):
-        # only test if pyassimp is installed
+
+    def test_wam(self):
+        """
+        Load a collada scene with assimp and verify
+        it isn't totally crazy.
+        """
+        # the wam arm, on hold for now
+        """
+        path = g.os.path.join(g.dir_models, 'barrett-wam.zae')
+        with open(path, 'rb') as f:
+            archive = g.trimesh.util.decompress(f, file_type='zip')
+
+        # load the WAM arm using pyassimp
+        kwargs = g.trimesh.exchange.assimp.load_pyassimp(
+            archive['barrett-wam.dae'], file_type='dae')
+
+        scene = g.trimesh.exchange.load.load_kwargs(kwargs)
+
+        assert len(scene.geometry) == 8
+        assert len(scene.graph.nodes_geometry) == 8
+        assert g.np.allclose(g.np.sort(scene.extents),
+                             [0.3476, 0.36, 1.26096],
+                             atol=.001)
+        """
+        pass
+
+    def test_duck(self):
+        # load the duck using pyassimp
         try:
             import pyassimp
         except ImportError:
-            g.log.error('no pyassimp to test', exc_info=True)
             return
 
-        m = g.get_mesh('blue_cube.dae')
+        file_path = g.os.path.join(g.dir_models, 'duck.dae')
+        with open(file_path, 'rb') as f:
+            kwargs = g.trimesh.exchange.assimp.load_pyassimp(
+                f, file_type='dae')
 
-        assert m.visual.kind == 'vertex'
+        scene = g.trimesh.exchange.load.load_kwargs(kwargs)
 
-        # get the export as a string
-        e = m.export(file_type='dae')
-
-        r = g.trimesh.load(file_obj=g.trimesh.util.wrap_as_stream(e),
-                           file_type='dae')
-
-        assert r.visual.kind == 'vertex'
-
-        # test mesh should all have same color
-        assert g.np.allclose(r.visual.vertex_colors,
-                             [0, 13, 96, 255])
-        # original mesh should be all blueish
-        assert g.np.allclose(m.visual.vertex_colors,
-                             [0, 13, 96, 255])
+        assert len(scene.geometry) == 1
+        assert len(scene.graph.nodes_geometry) == 1
 
 
 if __name__ == '__main__':

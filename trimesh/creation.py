@@ -237,7 +237,7 @@ def extrude_triangulation(vertices,
 
     # make sure triangulation winding is pointing up
     normal_test = normals(
-        [util.three_dimensionalize(vertices[faces[0]])[1]])[0]
+        [util.stack_3D(vertices[faces[0]])])[0]
 
     normal_dot = np.dot(normal_test,
                         [0.0, 0.0, np.sign(height)])[0]
@@ -270,7 +270,7 @@ def extrude_triangulation(vertices,
     vertical_faces = vertical_faces.reshape((-1, 3))
 
     # stack the (n,2) vertices with zeros to make them (n, 3)
-    vertices_3D = util.three_dimensionalize(vertices, return_2D=False)
+    vertices_3D = util.stack_3D(vertices)
 
     # a sequence of zero- indexed faces, which will then be appended
     # with offsets to create the final mesh
@@ -943,7 +943,9 @@ def axis(origin_size=0.04,
     return marker
 
 
-def camera_marker(camera, marker_height=0.4, origin_size=None):
+def camera_marker(camera,
+                  marker_height=0.4,
+                  origin_size=None):
     """
     Create a visual marker for a camera object, including an axis and FOV.
 
@@ -962,9 +964,13 @@ def camera_marker(camera, marker_height=0.4, origin_size=None):
       Contains Trimesh and Path3D objects which can be visualized
     """
 
+    camera_transform = camera.transform
+    if camera_transform is None:
+        camera_transform = np.eye(4)
+    
     # append the visualizations to an array
     meshes = [axis(origin_size=marker_height / 10.0)]
-    meshes[0].apply_transform(camera.transform)
+    meshes[0].apply_transform(camera_transform)
 
     try:
         # path is a soft dependency
@@ -985,13 +991,13 @@ def camera_marker(camera, marker_height=0.4, origin_size=None):
     z = marker_height
 
     # combine the points into the vertices of an FOV visualization
-    points = [(0, 0, 0),
-              (-x, -y, z),
-              (x, -y, z),
-              (x, y, z),
-              (-x, y, z)]
-    # apply the camera extrinsic transform
-    points = transformations.transform_points(points, camera.transform)
+    points = transformations.transform_points(
+        [(0, 0, 0),
+         (-x, -y, z),
+         (x, -y, z),
+         (x, y, z),
+         (-x, y, z)],
+        matrix=camera_transform)
 
     # create line segments for the FOV visualization
     # a segment from the origin to each bound of the FOV

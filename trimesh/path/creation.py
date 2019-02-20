@@ -18,16 +18,22 @@ def circle_pattern(pattern_radius,
 
     Parameters
     ------------
-    pattern_radius: float, radius of circle centers
-    circle_radius:  float, the radius of each circle
-    count:          int, number of circles in the pattern
-    center:         (2,) float, center of pattern
-    angle:          float, if defined pattern will span this angle
-                           if not pattern will be evenly spaced
+    pattern_radius : float
+      Radius of circle centers
+    circle_radius : float
+      The radius of each circle
+    count : int
+      Number of circles in the pattern
+    center : (2,) float
+      Center of pattern
+    angle :  float
+      If defined pattern will span this angle
+      If None, pattern will be evenly spaced
 
     Returns
     -------------
-    pattern: Path2D object
+    pattern : trimesh.path.Path2D
+      Path containing circular pattern
     """
     from .path import Path2D
 
@@ -80,6 +86,11 @@ def rectangle(bounds, **kwargs):
 
     # data should be float
     bounds = np.asanyarray(bounds, dtype=np.float64)
+
+    # bounds are extents, re- shape to origin- centered rectangle
+    if bounds.shape == (2,):
+        half = np.abs(bounds) / 2.0
+        bounds = np.array([-half, half])
 
     # should have one bounds or multiple bounds
     if not (util.is_shape(bounds, (2, 2)) or

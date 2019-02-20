@@ -432,7 +432,10 @@ def print_element(element):
     ------------
     element : etree element
     """
-    print(etree.tostring(element, pretty_print=True).decode('utf-8'))
+    pretty = etree.tostring(
+        element, pretty_print=True).decode('utf-8')
+    print(pretty)
+    return pretty
 
 
 try:

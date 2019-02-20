@@ -15,6 +15,8 @@ class ExportTest(g.unittest.TestCase):
         meshes.append(g.get_mesh('fuze.obj'))
 
         for mesh in meshes:
+            # disregard texture
+            mesh.merge_vertices(textured=False)
             for file_type in export_types:
                 export = mesh.export(file_type=file_type)
                 if export is None:
@@ -58,12 +60,18 @@ class ExportTest(g.unittest.TestCase):
                                 mesh.metadata['file_name'])
 
                 if loaded.faces.shape != mesh.faces.shape:
-                    raise ValueError('export cycle {} on {} gave vertices {}->{}!'.format(
+                    raise ValueError('export cycle {} on {} gave faces {}->{}!'.format(
                         file_type,
                         mesh.metadata['file_name'],
                         str(mesh.faces.shape),
                         str(loaded.faces.shape)))
-                assert loaded.vertices.shape == mesh.vertices.shape
+
+                if loaded.vertices.shape != mesh.vertices.shape:
+                    raise ValueError('export cycle {} on {} gave vertices {}->{}!'.format(
+                        file_type,
+                        mesh.metadata['file_name'],
+                        mesh.vertices.shape,
+                        loaded.vertices.shape))
 
                 # try exporting/importing certain file types by name
                 if file_type in ['obj', 'stl', 'ply', 'off']:

@@ -80,7 +80,7 @@ def unitize(vectors,
         # using sqrt and avoiding exponents is slightly faster
         # also dot with ones is faser than .sum(axis=1)
         norm = np.sqrt(np.dot(vectors * vectors,
-                              np.ones(vectors.shape[1])))
+                              [1.0] * vectors.shape[1]))
         # non-zero norms
         valid = norm > threshold
         # in-place reciprocal of nonzero norms
@@ -572,31 +572,35 @@ def diagonal_dot(a, b):
     return result
 
 
-def three_dimensionalize(points, return_2D=True):
+def stack_3D(points, return_2D=False):
     """
-    Given a set of (n,2) or (n,3) points, return them as (n,3) points
+    For a list of (n, 2) or (n, 3) points return them
+    as (n, 3) 3D points, 2D points on the XY plane.
 
     Parameters
     ----------
-    points:    (n, 2) or (n,3) points
-    return_2D: boolean flag
+    points :  (n, 2) or (n, 3) float
+      Points in either 2D or 3D space
+    return_2D : bool
+      Were the original points 2D?
 
     Returns
     ----------
-    if return_2D:
-        is_2D: boolean, True if points were (n,2)
-        points: (n,3) set of points
-    else:
-        points: (n,3) set of points
+    points : (n, 3) float
+      Points in space
+    is_2D : bool
+      Only returned if return_2D
+      If source points were (n, 2) True
     """
-    points = np.asanyarray(points)
+    points = np.asanyarray(points, dtype=np.float64)
     shape = points.shape
 
     if len(shape) != 2:
         raise ValueError('Points must be 2D array!')
 
     if shape[1] == 2:
-        points = np.column_stack((points, np.zeros(len(points))))
+        points = np.column_stack((points,
+                                  np.zeros(len(points))))
         is_2D = True
     elif shape[1] == 3:
         is_2D = False
@@ -604,7 +608,8 @@ def three_dimensionalize(points, return_2D=True):
         raise ValueError('Points must be (n,2) or (n,3)!')
 
     if return_2D:
-        return is_2D, points
+        return points, is_2D
+
     return points
 
 

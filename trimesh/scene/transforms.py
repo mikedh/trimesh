@@ -343,7 +343,7 @@ class EnforcedForest(nx.DiGraph):
         super(self.__class__, self).__init__(*args, **kwargs)
         # keep a second parallel but undirected copy of the graph
         # all of the networkx methods for turning a directed graph
-        # into an undirected graph are quite slow, so we do minor bookkeeping
+        # into an undirected graph are quite slow so we do minor bookkeeping
         self._undirected = nx.Graph()
 
     def add_edge(self, u, v, *args, **kwargs):
@@ -396,7 +396,11 @@ class EnforcedForest(nx.DiGraph):
         self.remove_edges_from(ebunch)
 
     def shortest_path_undirected(self, u, v):
-        path = nx.shortest_path(self._undirected, u, v)
+        try:
+            path = nx.shortest_path(self._undirected, u, v)
+        except BaseException as E:
+            print(u, v)
+            raise E
         return path
 
     def get_edge_data_direction(self, u, v):

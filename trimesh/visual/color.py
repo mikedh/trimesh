@@ -75,7 +75,7 @@ class ColorVisuals(object):
         if vertex_colors is not None:
             self.vertex_colors = vertex_colors
 
-    @property
+    @caching.cache_decorator
     def transparency(self):
         """
         Does the current object contain any transparency.
@@ -498,11 +498,12 @@ def to_rgba(colors, dtype=np.uint8):
     """
     if not util.is_sequence(colors):
         return
+
     # colors as numpy array
     colors = np.asanyarray(colors)
 
-    # integer value for opaque given our datatype
-    opaque = (2**(np.dtype(dtype).itemsize * 8)) - 1
+    # integer value for opaque alpha given our datatype
+    opaque = np.iinfo(dtype).max
 
     if (colors.dtype.kind == 'f' and
             colors.max() < (1.0 + 1e-8)):
@@ -514,9 +515,12 @@ def to_rgba(colors, dtype=np.uint8):
         raise ValueError('colors non- convertible!')
 
     if util.is_shape(colors, (-1, 3)):
-        colors = np.column_stack((colors,
-                                  opaque * np.ones(len(colors)))).astype(dtype)
+        # add an opaque alpha for RGB colors
+        colors = np.column_stack((
+            colors,
+            opaque * np.ones(len(colors)))).astype(dtype)
     elif util.is_shape(colors, (3,)):
+        # if passed a single RGB color add an alpha
         colors = np.append(colors, opaque)
 
     if not (util.is_shape(colors, (4,)) or

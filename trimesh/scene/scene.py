@@ -13,6 +13,9 @@ from .. import bounds as bounds_module
 from ..exchange import gltf
 from ..parent import Geometry
 
+from . import cameras
+from . import lighting
+
 from .transforms import TransformForest
 
 
@@ -28,7 +31,9 @@ class Scene(Geometry):
                  geometry=None,
                  base_frame='world',
                  metadata={},
-                 graph=None):
+                 graph=None,
+                 camera=None,
+                 lights=None):
         """
         Create a new Scene object.
 
@@ -63,7 +68,8 @@ class Scene(Geometry):
             # if we've been passed a graph override the default
             self.graph = graph
 
-        self.camera = None
+        self.camera = camera
+        self.lights = lights
 
     def apply_transform(self, transform):
         raise NotImplementedError
@@ -400,9 +406,11 @@ class Scene(Geometry):
                    angles=None,
                    distance=None,
                    center=None,
-                   camera=None):
+                   resolution=None,
+                   fov=None):
         """
-        Add a transform to self.graph for 'camera'
+        Create a camera object for self.camera, and add
+        a transform to self.graph for it.
 
         If arguments are not passed sane defaults will be figured
         out which show the mesh roughly centered.
@@ -418,52 +426,96 @@ class Scene(Geometry):
         camera : Camera object
           Object that stores camera parameters
         """
-        # passed camera object
-        if camera is not None:
-            self.graph.update(frame_from='camera',
-                              frame_to=self.graph.base_frame,
-                              matrix=camera.transform)
-            self.camera = camera
-            return
+
+        if fov is None:
+            fov = np.array([60, 45])
 
         # if no geometry nothing to set camera to
         if len(self.geometry) == 0:
             return
 
-        # use centroid if no center passed
-        if center is None:
-            center = self.centroid
-
-        # use scene AABB to set standoff distance
-        if distance is None:
-            # for a 60.0 degree horizontal FOV
-            distance = ((self.extents.max() / 2) /
-                        np.tan(np.radians(60.0) / 2.0))
-
         # set with no rotation by default
         if angles is None:
             angles = np.zeros(3)
 
-        translation = np.eye(4)
-        translation[0:3, 3] = center
-        # offset by a distance set by the model size
-        # the FOV is set for the Y axis, we multiply by a lightly
-        # padded aspect ratio to make sure the model is in view
-        translation[2][3] += distance * 1.35
+        rotation = transformations.euler_matrix(*angles)
+        transform = cameras.look_at(self.bounds_corners,
+                                    fov=fov,
+                                    rotation=rotation)
 
-        transform = np.dot(transformations.rotation_matrix(
-            angles[0],
-            [1, 0, 0],
-            point=center),
-            transformations.rotation_matrix(
-            angles[1],
-            [0, 1, 0],
-            point=center))
-        transform = np.dot(transform, translation)
+        if hasattr(self, '_camera') and self._camera is not None:
+            self.camera.fov = fov
+            self.camera._scene = self
+            self.camera.transform = transform
+        else:
+            # create a new camera object
+            self.camera = cameras.Camera(fov=fov,
+                                         scene=self,
+                                         transform=transform)
+        return self.camera
 
-        self.graph.update(frame_from='camera',
-                          frame_to=self.graph.base_frame,
-                          matrix=transform)
+    @property
+    def camera(self):
+        """
+        Get the single camera for the scene. If not manually
+        set one will abe automatically generated.
+
+        Returns
+        ----------
+        camera : trimesh.scene.Camera
+          Camera object defined for the scene
+        """
+        # no camera set for the scene yet
+        if not hasattr(self, '_camera') or self._camera is None:
+            # will create a camera with everything in view
+            return self.set_camera()
+
+        return self._camera
+
+    @camera.setter
+    def camera(self, camera):
+        """
+        Set a camera object for the Scene.
+
+        Parameters
+        -----------
+        camera : trimesh.scene.Camera
+          Camera object for the scene
+        """
+        self._camera = camera
+
+    @property
+    def lights(self):
+        """
+        Get a list of the lights in the scene. If nothing is
+        set it will generate some automatically.
+
+        Returns
+        -------------
+        lights : [trimesh.scene.lighting.Light]
+          Lights in the scene.
+        """
+        if not hasattr(self, '_lights') or self._lights is None:
+            # do some automatic lighting
+            lights, transforms = lighting.autolight(self)
+            # assign the transforms to the scene graph
+            for L, T in zip(lights, transforms):
+                self.graph[L.name] = T
+            # set the lights
+            self._lights = lights
+        return self._lights
+
+    @lights.setter
+    def lights(self, lights):
+        """
+        Assign a list of light objects to the scene
+
+        Parameters
+        --------------
+        lights : [trimesh.scene.lighting.Light]
+          Lights in the scene.
+        """
+        self._lights = lights
 
     def rezero(self):
         """

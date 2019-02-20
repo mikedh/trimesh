@@ -572,7 +572,8 @@ def export_dxf(path, layers=None):
           Points formatted with group code
         """
         points = np.asanyarray(points, dtype=np.float64)
-        three = util.three_dimensionalize(points, return_2D=False)
+        # get points in 3D
+        three = util.stack_3D(points)
         if increment:
             group = np.tile(
                 np.arange(len(three), dtype=np.int).reshape((-1, 1)),

@@ -46,6 +46,7 @@ def filter_laplacian(mesh,
 
     # assign modified vertices back to mesh
     mesh.vertices = vertices
+    return mesh
 
 
 def filter_humphrey(mesh,
@@ -97,6 +98,7 @@ def filter_humphrey(mesh,
 
     # assign modified vertices back to mesh
     mesh.vertices = vertices
+    return mesh
 
 
 def filter_taubin(mesh,
@@ -146,6 +148,7 @@ def filter_taubin(mesh,
 
     # assign updated vertices back to mesh
     mesh.vertices = vertices
+    return mesh
 
 
 def laplacian_calculation(mesh, equal_weight=True):
@@ -172,11 +175,13 @@ def laplacian_calculation(mesh, equal_weight=True):
 
     # stack neighbors to 1D arrays
     col = np.concatenate(neighbors)
-    row = np.concatenate([[i] * len(n) for i, n in enumerate(neighbors)])
+    row = np.concatenate([[i] * len(n)
+                          for i, n in enumerate(neighbors)])
 
     if equal_weight:
         # equal weights for each neighbor
-        data = np.concatenate([[1.0 / len(n)] * len(n) for n in neighbors])
+        data = np.concatenate([[1.0 / len(n)] * len(n)
+                               for n in neighbors])
     else:
         # umbrella weights, distance-weighted
         # use dot product of ones to replace array.sum(axis=1)

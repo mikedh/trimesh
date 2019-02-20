@@ -11,31 +11,71 @@ from . import util
 from .constants import log, tol
 
 try:
-    from scipy.spatial import cKDTree as KDTree
+    from scipy.spatial import cKDTree
 except ImportError:
-    log.warning('Scipy unavailable')
+    log.warning('scipy unavailable')
 
 
-def merge_vertices(mesh, distance=None):
+def merge_vertices(mesh,
+                   digits=None,
+                   textured=True,
+                   uv_digits=4):
     """
-    Removes duplicate vertices, based on integer hashes of
+    Removes duplicate vertices based on integer hashes of
     each row.
 
     Parameters
     -------------
     mesh : Trimesh object
       Mesh to merge vertices on
-    distance : float or None
+    digits : int
+      How many digits to consider for vertices
       If not specified uses tol.merge
+    textured : bool
+      If True, for textured meshes only merge vertices
+      with identical positions AND UV coordinates.
+      No effect on untextured meshes
+    uv_digits : int
+      Number of digits to consider for UV coordinates.
     """
-    if distance is not None:
-        digits = util.decimal_to_digits(distance)
+
+    if not isinstance(digits, int):
+        digits = util.decimal_to_digits(tol.merge)
+
+    # UV texture visuals require us to update the
+    # vertices and normals differently
+    if (textured and
+        mesh.visual.defined and
+        mesh.visual.kind == 'texture' and
+            mesh.visual.uv is not None):
+
+        # get an array with vertices and UV coordinates
+        # converted to integers at requested precision
+        stacked = np.column_stack((
+            mesh.vertices * (10 ** digits),
+            mesh.visual.uv * (10 ** uv_digits))).round().astype(np.int64)
+        # Merge vertices with identical positions and UVs
+        # we don't merge vertices just based on position
+        # because that can corrupt textures at seams.
+        unique, inverse = unique_rows(stacked)
+        mesh.update_vertices(unique, inverse)
+
+        # Now, smooth out the vertex normals at the duplicate vertices.
+        # For now, we just use the first vertex's normal in a duplicate group.
+        # It would be better to average these, but that's slower.
+        unique, inverse = unique_rows(mesh.vertices,
+                                      digits=digits)
+        try:
+            mesh.vertex_normals = mesh.vertex_normals[unique[inverse]]
+        except BaseException:
+            pass
+
+    # In normal usage, just merge vertices that are close.
     else:
-        digits = None
-    # unique rows
-    unique, inverse = unique_rows(mesh.vertices,
-                                  digits=digits)
-    mesh.update_vertices(unique, inverse)
+        # unique rows
+        unique, inverse = unique_rows(mesh.vertices,
+                                      digits=digits)
+        mesh.update_vertices(unique, inverse)
 
 
 def group(values, min_len=0, max_len=np.inf):
@@ -91,14 +131,17 @@ def hashable_rows(data, digits=None):
 
     Parameters
     ---------
-    data:    (n,m) input array
-    digits:  how many digits to add to hash, if data is floating point
-             If none, TOL_MERGE will be turned into a digit count and used.
+    data : (n, m) array
+      Input data
+    digits : int or None
+      How many digits to add to hash if data is floating point
+      If None, tol.merge will be used
 
     Returns
     ---------
-    hashable:  (n) length array of custom data which can be sorted
-                or used as hash keys
+    hashable : (n,) array
+      Custom data type which can be sorted
+      or used as hash keys
     """
     # if there is no data return immediately
     if len(data) == 0:
@@ -143,13 +186,17 @@ def float_to_int(data, digits=None, dtype=np.int32):
 
     Parameters
     -------------
-    data:   (n, d) float, int, or bool data
-    digits: float/int precision for float conversion
-    dtype:  numpy dtype for result
+    data :  (n, d) float, int, or bool
+      Input data
+    digits : float or int
+      Precision for float conversion
+    dtype : numpy.dtype
+      What datatype should result be returned as
 
     Returns
     -------------
-    as_int: data, as integers
+    as_int : (n, d) int
+      Data as integers
     """
     # convert to any numpy array
     data = np.asanyarray(data)
@@ -501,7 +548,7 @@ def group_distance(values, distance):
 
     consumed = np.zeros(len(values),
                         dtype=np.bool)
-    tree = KDTree(values)
+    tree = cKDTree(values)
 
     # (n, d) set of values that are unique
     unique = []
@@ -537,7 +584,7 @@ def clusters(points, radius):
 
     """
     from . import graph
-    tree = KDTree(points)
+    tree = cKDTree(points)
 
     # some versions return pairs as a set of tuples
     pairs = tree.query_pairs(r=radius, output_type='ndarray')

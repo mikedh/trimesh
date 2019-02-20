@@ -16,13 +16,12 @@ class TrianglesTest(g.unittest.TestCase):
                 for i in range(3):
                     barycentric = g.trimesh.triangles.points_to_barycentric(
                         m.triangles, m.triangles[:, i], method=method)
-                    self.assertTrue(
-                        (g.np.abs(barycentric - g.np.roll([1.0, 0, 0], i)) < 1e-8).all())
+                    assert (g.np.abs(barycentric -
+                                     g.np.roll([1.0, 0, 0], i)) < 1e-8).all()
 
                     points = g.trimesh.triangles.barycentric_to_points(
                         m.triangles, barycentric)
-                    self.assertTrue(
-                        (g.np.abs(points - m.triangles[:, i]) < 1e-8).all())
+                    assert (g.np.abs(points - m.triangles[:, i]) < 1e-8).all()
 
     def test_closest(self):
         closest = g.trimesh.triangles.closest_point(
@@ -31,7 +30,7 @@ class TrianglesTest(g.unittest.TestCase):
 
         comparison = (closest - g.data['triangles']['closest']).all()
 
-        self.assertTrue((comparison < 1e-8).all())
+        assert (comparison < 1e-8).all()
         g.log.info('finished closest check on %d triangles', len(closest))
 
     def test_closest_obtuse(self):
@@ -39,11 +38,12 @@ class TrianglesTest(g.unittest.TestCase):
         ABC = g.np.float32([[0, 0, 0], [2, 0, 0], [-2, 1, 0]])
         D = g.np.float32([1, -1, 0])
 
-        # ground truth: closest point from D is the center of the AB edge: (1,0,0)
+        # ground truth: closest point from D is the center of the AB edge:
+        # (1,0,0)
         gt_closest = g.np.float32([1, 0, 0])
         tm_closest = g.trimesh.triangles.closest_point([ABC], [D])[0]
 
-        self.assertTrue(g.np.linalg.norm(gt_closest - tm_closest) < g.tol.merge)
+        assert g.np.linalg.norm(gt_closest - tm_closest) < g.tol.merge
 
         # create a circle of points around the triangle
         # with a radius so that all points are outside of the triangle
@@ -75,7 +75,8 @@ class TrianglesTest(g.unittest.TestCase):
                 # P is 'between' U and V
                 return distToLine(U, UtoV / norm(UtoV), P)
 
-        # get closest points from trimesh and compute distances to the circle points
+        # get closest points from trimesh and compute distances to the circle
+        # points
         tm_dists = norm(
             ptsOnCircle -
             g.trimesh.triangles.closest_point(
@@ -88,7 +89,7 @@ class TrianglesTest(g.unittest.TestCase):
                                   for i in range(3)] for pt in ptsOnCircle]).min(axis=1)
         diff_dists = tm_dists - gt_dists
 
-        self.assertTrue(g.np.dot(diff_dists, diff_dists) < g.tol.merge)
+        assert g.np.dot(diff_dists, diff_dists) < g.tol.merge
 
     def test_degenerate(self):
         tri = [[[0, 0, 0],
@@ -110,8 +111,8 @@ class TrianglesTest(g.unittest.TestCase):
                   True]
 
         r = g.trimesh.triangles.nondegenerate(tri)
-        self.assertTrue(len(r) == len(tri))
-        self.assertTrue((r == tri_gt).all())
+        assert len(r) == len(tri)
+        assert (r == tri_gt).all()
 
 
 if __name__ == '__main__':

@@ -32,7 +32,7 @@ class SceneViewer(pyglet.window.Window):
                  smooth=True,
                  flags=None,
                  visible=True,
-                 resolution=(640, 480),
+                 resolution=None,
                  start_loop=True,
                  callback=None,
                  callback_period=None,
@@ -88,20 +88,11 @@ class SceneViewer(pyglet.window.Window):
         # name : texture
         self.textures = {}
 
-        if scene.camera is not None:
-            if resolution is not None and not np.allclose(
-                    resolution,
-                    scene.camera.resolution,
-                    rtol=0, atol=0):
-                log.warning(
-                    'resolution is overwritten by camera: '
-                    '{} -> {}'.format(resolution,
-                                      scene.camera.resolution))
-                resolution = scene.camera.resolution
-
-        if 'camera' not in scene.graph:
-            # if the camera hasn't been set, set it now
-            scene.set_camera()
+        # if resolution isn't defined set a default value
+        if resolution is None:
+            resolution = scene.camera.resolution
+        else:
+            scene.camera.resolution = resolution
 
         try:
             # try enabling antialiasing
@@ -156,9 +147,6 @@ class SceneViewer(pyglet.window.Window):
         # call the callback if specified
         if self.callback is not None:
             self.callback(self.scene)
-        for name, mesh in self.scene.geometry.items():
-            if self.vertex_list_hash.get(name, None) != geometry_hash(mesh):
-                self.add_geometry(name, mesh)
 
     def add_geometry(self, name, geometry, **kwargs):
         """
@@ -186,8 +174,9 @@ class SceneViewer(pyglet.window.Window):
         # save
         if hasattr(geometry, 'visual') and hasattr(
                 geometry.visual, 'material'):
-            self.textures[name] = rendering.material_to_texture(
-                geometry.visual.material)
+            tex = rendering.material_to_texture(geometry.visual.material)
+            if tex is not None:
+                self.textures[name] = tex
 
     def reset_view(self, flags=None):
         """
@@ -225,7 +214,8 @@ class SceneViewer(pyglet.window.Window):
 
     def init_gl(self):
         """
-        Perform the magic incantations to create an OpenGL scene.
+        Perform the magic incantations to create an
+        OpenGL scene using pyglet.
         """
 
         # default background color is white-ish
@@ -238,11 +228,14 @@ class SceneViewer(pyglet.window.Window):
                 # convert to 0.0 - 1.0 float
                 background = background.astype(np.float64) / 255.0
             except BaseException:
-                log.error('background color wrong!',
+                log.error('background color set but wrong!',
                           exc_info=True)
+
         # apply the background color
         gl.glClearColor(*background)
 
+        # find the maximum depth based on
+        # maximum length of scene AABB
         max_depth = (np.abs(self.scene.bounds).max(axis=1) ** 2).sum() ** .5
         max_depth = np.clip(max_depth, 500.00, np.inf)
         gl.glDepthRange(0.0, max_depth)
@@ -253,61 +246,88 @@ class SceneViewer(pyglet.window.Window):
 
         gl.glEnable(gl.GL_DEPTH_TEST)
         gl.glEnable(gl.GL_CULL_FACE)
-        gl.glEnable(gl.GL_LIGHTING)
-        gl.glEnable(gl.GL_LIGHT0)
-        gl.glEnable(gl.GL_LIGHT1)
 
-        # put the light at one corner of the scenes AABB
-        gl.glLightfv(gl.GL_LIGHT0,
-                     gl.GL_POSITION,
-                     rendering.vector_to_gl(np.append(self.scene.bounds[1], 0)))
-        gl.glLightfv(gl.GL_LIGHT0, gl.GL_SPECULAR,
-                     rendering.vector_to_gl(.5, .5, 1, 1))
-        gl.glLightfv(gl.GL_LIGHT0, gl.GL_DIFFUSE,
-                     rendering.vector_to_gl(1, 1, 1, .75))
-        gl.glLightfv(gl.GL_LIGHT0, gl.GL_AMBIENT,
-                     rendering.vector_to_gl(.1, .1, .1, .2))
-
-        gl.glColorMaterial(gl.GL_FRONT_AND_BACK, gl.GL_AMBIENT_AND_DIFFUSE)
+        # do some openGL things
+        gl.glColorMaterial(gl.GL_FRONT_AND_BACK,
+                           gl.GL_AMBIENT_AND_DIFFUSE)
         gl.glEnable(gl.GL_COLOR_MATERIAL)
         gl.glShadeModel(gl.GL_SMOOTH)
 
         gl.glMaterialfv(gl.GL_FRONT,
                         gl.GL_AMBIENT,
-                        rendering.vector_to_gl(0.192250, 0.192250, 0.192250))
+                        rendering.vector_to_gl(
+                            0.192250, 0.192250, 0.192250))
         gl.glMaterialfv(gl.GL_FRONT,
                         gl.GL_DIFFUSE,
-                        rendering.vector_to_gl(0.507540, 0.507540, 0.507540))
+                        rendering.vector_to_gl(
+                            0.507540, 0.507540, 0.507540))
         gl.glMaterialfv(gl.GL_FRONT,
                         gl.GL_SPECULAR,
-                        rendering.vector_to_gl(.5082730, .5082730, .5082730))
+                        rendering.vector_to_gl(
+                            .5082730, .5082730, .5082730))
 
         gl.glMaterialf(gl.GL_FRONT,
                        gl.GL_SHININESS,
                        .4 * 128.0)
 
+        # enable blending for transparency
         gl.glEnable(gl.GL_BLEND)
-        gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
+        gl.glBlendFunc(gl.GL_SRC_ALPHA,
+                       gl.GL_ONE_MINUS_SRC_ALPHA)
 
+        # make the lines from Path3D objects less ugly
         gl.glEnable(gl.GL_LINE_SMOOTH)
         gl.glHint(gl.GL_LINE_SMOOTH_HINT, gl.GL_NICEST)
-
+        # set the width of lines to 1.5 pixels
         gl.glLineWidth(1.5)
+        # set PointCloud markers to 4 pixels in size
         gl.glPointSize(4)
+
+        # set up the viewer lights using self.scene
+        self.update_lighting()
+
+    def update_lighting(self):
+        """
+        Take the lights defined in scene.lights and
+        apply them as openGL lights.
+        """
+        gl.glEnable(gl.GL_LIGHTING)
+        # opengl only supports 7 lights?
+        for i, light in enumerate(self.scene.lights[:7]):
+            # the index of which light we have
+            lightN = eval('gl.GL_LIGHT{}'.format(i))
+
+            # get the transform for the light by name
+            matrix = self.scene.graph[light.name][0]
+
+            # convert light object to glLightfv calls
+            multiargs = rendering.light_to_gl(
+                light=light,
+                transform=matrix,
+                lightN=lightN)
+
+            # enable the light in question
+            gl.glEnable(lightN)
+            # run the glLightfv calls
+            for args in multiargs:
+                gl.glLightfv(*args)
 
     def toggle_culling(self):
         """
-        Toggle backface culling on or off. It is on by default
-        but if you are dealing with non- watertight meshes you
-        probably want to be able to see the back sides.
+        Toggle back face culling.
+
+        It is on by default but if you are dealing with
+        non- watertight meshes you probably want to be able
+        to see the back sides.
         """
         self.view['cull'] = not self.view['cull']
         self.update_flags()
 
     def toggle_wireframe(self):
         """
-        Toggle unfilled wireframe mode on or off, good for
-        looking inside meshes. Off by default.
+        Toggle wireframe mode
+
+        Good for  looking inside meshes, off by default.
         """
         self.view['wireframe'] = not self.view['wireframe']
         self.update_flags()
@@ -321,8 +341,8 @@ class SceneViewer(pyglet.window.Window):
 
     def toggle_axis(self):
         """
-        Toggle a rendered XYZ/RGB axis marker on, world frame,
-        or every frame. Off by default.
+        Toggle a rendered XYZ/RGB axis marker:
+        off, world frame, every frame
         """
         # cycle through three axis states
         states = [False, 'world', 'all']
@@ -335,8 +355,7 @@ class SceneViewer(pyglet.window.Window):
 
     def update_flags(self):
         """
-        Check the view flags and call what is needed with gl
-        to handle it correctly.
+        Check the view flags, and call required GL functions.
         """
         # view mode, filled vs wirefrom
         if self.view['wireframe']:
@@ -373,6 +392,9 @@ class SceneViewer(pyglet.window.Window):
             self._axis = None
 
     def on_resize(self, width, height):
+        """
+        Handle resized windows.
+        """
         try:
             # for high DPI screens viewport size
             # will be different then the passed size
@@ -386,11 +408,8 @@ class SceneViewer(pyglet.window.Window):
         gl.glMatrixMode(gl.GL_PROJECTION)
         gl.glLoadIdentity()
 
-        if self.scene.camera is None:
-            fovY = 60.0
-        else:
-            fovY = self.scene.camera.fov[1]
-
+        # get field of view from camera
+        fovY = self.scene.camera.fov[1]
         gl.gluPerspective(fovY,
                           width / float(height),
                           .01,
@@ -400,23 +419,35 @@ class SceneViewer(pyglet.window.Window):
                                 (width + height) / 2)
 
     def on_mouse_press(self, x, y, buttons, modifiers):
+        """
+        Set the start point of the drag.
+        """
         self.view['ball'].down([x, -y])
 
     def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
+        """
+        Pan or rotate the view.
+        """
         # left mouse button, with control key down (pan)
         if ((buttons == pyglet.window.mouse.LEFT) and
                 (modifiers & pyglet.window.key.MOD_CTRL)):
             delta = [dx / self.width, dy / self.height]
-            self.view['translation'][0:2] += delta
+            self.view['translation'][:2] += delta
 
         # left mouse button, no modifier keys pressed (rotate)
         elif (buttons == pyglet.window.mouse.LEFT):
             self.view['ball'].drag([x, -y])
 
     def on_mouse_scroll(self, x, y, dx, dy):
+        """
+        Zoom the view.
+        """
         self.view['translation'][2] += float(dy) / self.height
 
     def on_key_press(self, symbol, modifiers):
+        """
+        Call appropriate functions given key presses.
+        """
         magnitude = 10
         if symbol == pyglet.window.key.W:
             self.toggle_wireframe()
@@ -446,12 +477,17 @@ class SceneViewer(pyglet.window.Window):
             self.view['ball'].drag([0, magnitude])
 
     def on_draw(self):
+        """
+        Run the actual draw calls.
+        """
         self._update_meshes()
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
         gl.glLoadIdentity()
 
         # pull the new camera transform from the scene
-        transform_camera, _junk = self.scene.graph['camera']
+        transform_camera = self.scene.graph.get(
+            frame_to='world',
+            frame_from=self.scene.camera.name)[0]
 
         # apply the camera transform to the matrix stack
         gl.glMultMatrixf(rendering.matrix_to_gl(transform_camera))
@@ -508,7 +544,7 @@ class SceneViewer(pyglet.window.Window):
                     # come back to this mesh later
                     continue
 
-            #
+            # if we have texture enable the target texture
             texture = None
             if geometry_name in self.textures:
                 texture = self.textures[geometry_name]
@@ -522,6 +558,7 @@ class SceneViewer(pyglet.window.Window):
             # pop the matrix stack as we drew what we needed to draw
             gl.glPopMatrix()
 
+            # disable texture after using
             if texture is not None:
                 gl.glDisable(texture.target)
 
@@ -550,9 +587,9 @@ def view_to_transform(view):
     calculate a transformation matrix.
     """
     transform = view['ball'].matrix()
-    transform[0:3, 3] = view['center']
-    transform[0:3, 3] -= np.dot(transform[0:3, 0:3], view['center'])
-    transform[0:3, 3] += view['translation'] * view['scale'] * 5.0
+    transform[:3, 3] = view['center']
+    transform[:3, 3] -= np.dot(transform[:3, :3], view['center'])
+    transform[:3, 3] += view['translation'] * view['scale'] * 5.0
     return transform
 
 

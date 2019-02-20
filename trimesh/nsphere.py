@@ -127,7 +127,9 @@ def fit_nsphere(points, prior=None):
         # do the axis sum with a dot
         # this gets called a LOT so worth optimizing
         radii_sq = np.dot((points - center) ** 2, ones)
-        return radii_sq - radii_sq.mean()
+        # residuals are difference between mean
+        # use our sum mean vs .mean() as it is slightly faster
+        return radii_sq - (radii_sq.sum() / len(radii_sq))
 
     if prior is None:
         center_guess = points.mean(axis=0)
