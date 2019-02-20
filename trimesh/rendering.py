@@ -9,6 +9,7 @@ import numpy as np
 
 try:
     import pyglet
+    pyglet.options['shadow_window'] = False
     from pyglet import gl
     # bring in mode enum
     GL_LINES, GL_POINTS, GL_TRIANGLES = (
