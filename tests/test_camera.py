@@ -70,7 +70,7 @@ class CameraTests(g.unittest.TestCase):
             check += points[:, 2].mean()
 
             # Z should be the same as maximum trig option
-            assert g.np.isclose(T[2, 3], check.max())
+            assert np.linalg.inv(T)[2, 3] >= check.max()
 
 
 if __name__ == '__main__':
