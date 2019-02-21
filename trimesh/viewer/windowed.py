@@ -9,6 +9,7 @@ Works on all major platforms: Windows, Linux, and OSX.
 """
 
 import pyglet
+pyglet.options['shadow_window'] = False
 import pyglet.gl as gl
 
 import numpy as np
