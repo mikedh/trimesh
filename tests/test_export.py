@@ -48,10 +48,11 @@ class ExportTest(g.unittest.TestCase):
                                         file_type=file_type)
 
                 # if we exported as GLTF/dae it will come back as a Scene
-                if isinstance(loaded, g.trimesh.Scene) and isinstance(mesh, g.trimesh.Trimesh):
+                if isinstance(loaded, g.trimesh.Scene) and isinstance(
+                        mesh, g.trimesh.Trimesh):
                     assert len(loaded.geometry) == 1
                     loaded = next(iter(loaded.geometry.values()))
-                
+
                 if (not g.trimesh.util.is_shape(loaded._data['faces'], (-1, 3)) or
                     not g.trimesh.util.is_shape(loaded._data['vertices'], (-1, 3)) or
                         loaded.faces.shape != mesh.faces.shape):

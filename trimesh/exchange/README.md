@@ -42,10 +42,33 @@ In [3]: %timeit a.sum(axis=1)
 In [4]: %timeit np.dot(a, [1,1,1])
 10000 loops, best of 3: 25.8 µs per loop
 ```
+- If you can use it, `np.concatenate` is usually faster than `np.vstack`, `np.append`, or `np.column_stack`
+```
+In [3]: seq = [np.random.random((int(np.random.random() * 1000), 3)) for i in range(1000)]
+
+In [7]: %timeit np.vstack(seq)
+100 loops, best of 3: 3.48 ms per loop
+
+In [8]: %timeit np.concatenate(seq)
+100 loops, best of 3: 2.33 ms per loop
+```
+- Sometimes `np.bincount` can be used instead of `np.unique` for a substantial speedup:
+```
+In [45]: a = (np.random.random(1000) * 1000).astype(int)
+
+In [46]: set(np.where(np.bincount(a).astype(np.bool))[0]) == set(np.unique(a))
+Out[46]: True
+
+In [47]: %timeit np.where(np.bincount(a).astype(np.bool))[0]
+100000 loops, best of 3: 5.81 µs per loop
+
+In [48]: %timeit np.unique(a)
+10000 loops, best of 3: 31.8 µs per loop
+```
 
 
-### Don't
-- Loop through potentially giant arrays
+### Try To Avoid
+- Looping through potentially giant arrays
 
 
 ### Dependencies

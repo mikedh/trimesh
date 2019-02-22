@@ -172,16 +172,18 @@ def load_mesh(file_obj,
     Load a mesh file into a Trimesh object
 
     Parameters
-    ---------
-    file_obj:  str or file-like object
-    file_type: str representing file type (eg: 'stl')
-    kwargs:    passed to Trimesh constructor
+    -----------
+    file_obj : str or file object
+      File name or file with mesh data
+    file_type : str or None
+      Which file type, e.g. 'stl'
+    kwargs : dict
+      Passed to Trimesh constructor
 
-    Returns:
+    Returns
     ----------
-    mesh: Trimesh object, or a list of Trimesh objects
-          depending on the file format.
-
+    mesh : trimesh.Trimesh or trimesh.Scene
+      Loaded geometry data
     """
 
     # parse the file arguments into clean loadable form
@@ -558,12 +560,15 @@ def parse_file_args(file_obj,
     return file_obj, file_type, metadata, opened, resolver
 
 
+# loader functions for compressed extensions
 compressed_loaders = {'zip': load_compressed,
                       'tar.bz2': load_compressed,
                       'tar.gz': load_compressed}
+
+# map file_type to loader function
 mesh_loaders = {}
 # assimp has a lot of loaders, but they are all quite slow
-# so we load them first and replace them with native loaders if possible
+# load first and replace with native loaders where possible
 mesh_loaders.update(_assimp_loaders)
 mesh_loaders.update(_stl_loaders)
 mesh_loaders.update(_ctm_loaders)

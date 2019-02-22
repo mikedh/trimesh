@@ -154,16 +154,14 @@ def load_3DXML(file_obj, *args, **kwargs):
     Load a 3DXML scene into kwargs.
 
     Parameters
-    -----------
+    ------------
     file_obj : file object
-                  open, containing 3DXML
+      Open and containing 3DXML data
 
     Returns
     -----------
-    geometries : list of dict
-                     kwargs for Trimesh constructor
-    graph      :  list of dict
-                     kwargs for Scene.graph.update
+    kwargs : dict
+      Can be passed to trimesh.exchange.load.load_kwargs
     """
     archive = util.decompress(file_obj, file_type='zip')
 

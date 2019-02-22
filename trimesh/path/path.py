@@ -315,7 +315,8 @@ class Path(object):
 
         Returns
         -----------
-        closed: every entity is connected at its ends
+        closed : bool
+          Every entity is connected at its ends
         """
         closed = all(i == 2 for i in
                      dict(self.vertex_graph.degree()).values())
@@ -327,7 +328,8 @@ class Path(object):
         """
         Return a networkx.Graph object for the entity connectiviy
 
-        graph: networkx.Graph object, holding vertex indexes
+        graph : networkx.Graph
+          Holds vertex indexes
         """
         graph, closed = traversal.vertex_graph(self.entities)
         return graph
@@ -353,8 +355,8 @@ class Path(object):
 
         Parameters
         -----------
-        transform: (d+1, d+1) float, homogenous transformation
-                                    matrix for (n, d) vertices
+        transform : (d+1, d+1) float
+          Homogenous transformation for vertices
         """
         dimension = self.vertices.shape[1]
         transform = np.asanyarray(transform, dtype=np.float64)
@@ -407,12 +409,12 @@ class Path(object):
 
         Parameters
         -----------
-        transform: (dimension + 1, dimension + 1) float, homogenous
-                   transformation matrix
+        scale : float or (3,) float
+          Scale to be applied to mesh
         """
         dimension = self.vertices.shape[1]
         matrix = np.eye(dimension + 1)
-        matrix[:dimension, :dimension] *= float(scale)
+        matrix[:dimension, :dimension] *= scale
         self.apply_transform(matrix)
 
     def apply_translation(self, offset):
@@ -421,8 +423,8 @@ class Path(object):
 
         Parameters
         -----------
-        transform: (dimension + 1, dimension + 1) float, homogenous
-                   transformation matrix
+        offset : float or (3,) float
+          Translation to be applied to mesh
         """
         # work on 2D and 3D paths
         dimension = self.vertices.shape[1]
@@ -442,7 +444,8 @@ class Path(object):
 
         Parameters
         ------------
-        name: str to apply to each entity
+        name : str
+          Apply layer name to every entity
         """
         for e in self.entities:
             e.layer = name
@@ -454,9 +457,9 @@ class Path(object):
 
         Returns
         -----------
-        matrix: (dimension + 1, dimension + 1) float,
-                    homogenous transformation
-                    that was applied to the current Path object.
+        matrix : (dimension + 1, dimension + 1) float
+          Homogenous transformation that was applied
+          to the current Path object.
         """
         dimension = self.vertices.shape[1]
         matrix = np.eye(dimension + 1)
@@ -472,6 +475,7 @@ class Path(object):
         --------------
         digits : None, or int
           How many digits to consider when merging vertices
+
         Alters
         -----------
         self.entities : entity.points re- referenced
@@ -539,12 +543,14 @@ class Path(object):
 
         Parameters
         -----------
-        entity_ids: (n,) int, indexes of self.entities to remove
+        entity_ids : (n,) int
+          Indexes of self.entities to remove
         """
         if len(entity_ids) == 0:
             return
-        kept = np.setdiff1d(np.arange(len(self.entities)), entity_ids)
-        self.entities = np.array(self.entities)[kept]
+        keep = np.ones(len(self.entities))
+        keep[entity_ids] = False
+        self.entities = self.entities[keep]
 
     def remove_invalid(self):
         """
@@ -569,7 +575,7 @@ class Path(object):
         entity_hashes = np.array([hash(i) for i in self.entities])
         unique, inverse = grouping.unique_rows(entity_hashes)
         if len(unique) != len(self.entities):
-            self.entities = np.array(self.entities)[unique]
+            self.entities = self.entities[unique]
 
     @caching.cache_decorator
     def referenced_vertices(self):
@@ -1184,10 +1190,20 @@ class Path2D(Path):
         if resolution is None:
             resolution = self.scale / 1000.0
 
-        medials = [polygons.medial_axis(i, resolution, clip)
-                   for i in self.polygons_full]
-        medials = np.sum(medials)
-        return medials
+        # convert the edges to Path2D kwargs
+        from .exchange.misc import edges_to_path
+
+        # edges and vertices
+        edge_vert = [polygons.medial_axis(i, resolution, clip)
+                     for i in self.polygons_full]
+        # create a Path2D object for each region
+        medials = [Path2D(**edges_to_path(
+            edges=e, vertices=v)) for e, v in edge_vert]
+
+        # get a single Path2D of medial axis
+        medial = concatenate(medials)
+
+        return medial
 
     def connected_paths(self, path_id, include_self=False):
         """

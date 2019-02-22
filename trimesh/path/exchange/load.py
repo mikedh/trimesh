@@ -97,13 +97,7 @@ def _create_path(entities,
 
     """
     # make sure vertices are numpy array
-    vertices = np.asanyarray(vertices,
-                             dtype=np.float64)
-
-    if len(vertices.shape) != 2:
-        raise ValueError(
-            'vertices must be (n, dimension), not {}'.format(
-                vertices.shape))
+    vertices = np.asanyarray(vertices, dtype=np.float64)
 
     # check dimension of vertices to decide on object type
     if vertices.shape[1] == 2:

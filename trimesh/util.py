@@ -1901,7 +1901,7 @@ def unique_bincount(values,
                     return_inverse=True):
     """
     For arrays of integers find unique values using bin counting.
-    Roughly 20x faster for correct input than np.unique
+    Roughly 10x faster for correct input than np.unique
 
     Parameters
     --------------
@@ -1934,7 +1934,8 @@ def unique_bincount(values,
         return np.unique(values, return_inverse=return_inverse)
 
     # which bins are occupied at all
-    unique_bin = counts > 0
+    # counts are integers so this works
+    unique_bin = counts.astype(np.bool)
 
     # which values are unique
     # indexes correspond to original values

@@ -132,12 +132,12 @@ def fit_nsphere(points, prior=None):
         return radii_sq - (radii_sq.sum() / len(radii_sq))
 
     if prior is None:
-        center_guess = points.mean(axis=0)
+        guess = points.mean(axis=0)
     else:
-        center_guess = np.asanyarray(prior)
+        guess = np.asanyarray(prior)
 
     center_result, return_code = leastsq(residuals,
-                                         center_guess,
+                                         guess,
                                          xtol=1e-8)
 
     if not (return_code in [1, 2, 3, 4]):
