@@ -38,6 +38,7 @@ class SceneViewer(pyglet.window.Window):
                  callback=None,
                  callback_period=None,
                  caption=None,
+                 fixed=None,
                  **kwargs):
         """
         Create a window that will display a trimesh.Scene object
@@ -63,6 +64,9 @@ class SceneViewer(pyglet.window.Window):
           update things in the scene
         callback_period : float
           How often to call the callback, in seconds
+        fixed : None or iterable
+          List of keys in scene.geometry to skip view
+          transform on to keep fixed relative to camera
         kwargs : dict
           Additional arguments to pass, including
           'background' for to set background color
@@ -85,7 +89,8 @@ class SceneViewer(pyglet.window.Window):
         self.vertex_list_hash = {}
         # store geometry rendering mode
         self.vertex_list_mode = {}
-
+        # store meshes that don't rotate relative to viewer
+        self.fixed = fixed
         # name : texture
         self.textures = {}
 
@@ -493,14 +498,16 @@ class SceneViewer(pyglet.window.Window):
         # apply the camera transform to the matrix stack
         gl.glMultMatrixf(rendering.matrix_to_gl(transform_camera))
 
-        # dragging the mouse moves the view transform
+        # dragging the mouse moves the view
         # but doesn't alter the scene
-        transform_view = view_to_transform(self.view)
-        gl.glMultMatrixf(rendering.matrix_to_gl(transform_view))
+        view = view_to_transform(self.view)
+        # add the view transform to the stack
+        gl.glMultMatrixf(rendering.matrix_to_gl(view))
 
         # we want to render fully opaque objects first,
         # followed by objects which have transparency
         node_names = collections.deque(self.scene.graph.nodes_geometry)
+        # how many nodes did we start with
         count_original = len(node_names)
         count = -1
 
@@ -519,6 +526,10 @@ class SceneViewer(pyglet.window.Window):
             # if no geometry at this frame continue without rendering
             if geometry_name is None:
                 continue
+
+            # if a geometry is marked as fixed apply the inverse view transform
+            if self.fixed is not None and geometry_name in self.fixed:
+                transform = np.dot(np.linalg.inv(view), transform)
 
             # get a reference to the mesh so we can check transparency
             mesh = self.scene.geometry[geometry_name]

@@ -67,7 +67,6 @@ def fit_circle_check(points,
     # approximate angle in radians, segments are linear length
     # not arc length but this is close and avoids a cosine
     angle = segment / R
-
     if (angle > tol.seg_angle).any():
         if verbose:
             log.debug('circle fit error: angle %s', str(angle))
@@ -92,6 +91,7 @@ def fit_circle_check(points,
     ends = unitize(vectors[[0, -1]])
     tangent = np.abs(np.arccos(diagonal_dot(radial, ends)))
     tangent = np.abs(tangent - np.pi / 2).max()
+
     if tangent > tol.tangent:
         if verbose:
             log.debug('circle fit error: tangent %f',
