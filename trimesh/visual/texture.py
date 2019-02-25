@@ -204,17 +204,27 @@ class PBRMaterial(Material):
                  baseColorFactor=None,
                  metallicFactor=None,
                  roughnessFactor=None,
-                 metallicRoughnessTexture=None):
+                 metallicRoughnessTexture=None,
+                 doubleSided=False,
+                 alphaMode='OPAQUE',
+                 alphaCutoff=0.5):
+
+        # To to-float conversions
+        if baseColorFactor is not None:
+            baseColorFactor = np.array(baseColorFactor, dtype=np.float)
+        if emissiveFactor is not None:
+            emissiveFactor = np.array(emissiveFactor, dtype=np.float)
 
         # (4,) float
-        self.baseColorFactor = baseColorFactor
+        self.baseColorFactor = color.to_rgba(baseColorFactor)
 
         # (3,) float
-        self.emissiveFactor = emissiveFactor
+        self.emissiveFactor = color.to_rgba(emissiveFactor)
 
         # float
         self.metallicFactor = metallicFactor
         self.roughnessFactor = roughnessFactor
+        self.alphaCutoff = alphaCutoff
 
         # PIL image
         self.normalTexture = normalTexture
@@ -222,6 +232,12 @@ class PBRMaterial(Material):
         self.occlusionTexture = occlusionTexture
         self.baseColorTexture = baseColorTexture
         self.metallicRoughnessTexture = metallicRoughnessTexture
+
+        # bool
+        self.doubleSided = doubleSided
+
+        # str
+        alphaMode = alphaMode
 
     def to_color(self, uv):
         color = uv_to_color(uv=uv, image=self.baseColorTexture)
