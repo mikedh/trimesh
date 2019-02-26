@@ -171,15 +171,15 @@ def load_dxf(file_obj, **kwargs):
             # goes clockwise from the start point to the endpoint.
             # A bulge of 0 indicates a straight segment, and a
             # bulge of 1 is a semicircle.
-            log.debug('polyline bulge: {}'.format(e['42']))
-            # the actual bulge float values
-            bulge = np.array(e['42'], dtype=np.float64)
 
+            # get the actual bulge float values
+            bulge = np.array(e['42'], dtype=np.float64)
             # what position were vertices stored at
             vid = np.nonzero(chunk[:, 0] == '10')[0]
             # what position were bulges stored at in the chunk
             bid = np.nonzero(chunk[:, 0] == '42')[0]
 
+            # filter out endpoint bulge if we're not closed
             if not is_closed:
                 bid_ok = bid < vid.max()
                 bid = bid[bid_ok]
@@ -226,7 +226,7 @@ def load_dxf(file_obj, **kwargs):
 
             # if we're in strict mode make sure our arcs
             # have the same magnitude as the input data
-            if True or tol.strict:
+            if tol.strict:
                 from .. import arc as arcmod
                 check_angle = [arcmod.arc_center(i)['span']
                                for i in three]
