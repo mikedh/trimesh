@@ -1377,7 +1377,7 @@ def submesh(mesh,
     if len(result) > 0 and only_watertight:
         # fill_holes will attempt a repair and returns the
         # watertight status at the end of the repair attempt
-        watertight = np.array([i.fill_holes() and len(i.faces) > 4
+        watertight = np.array([i.fill_holes() and len(i.faces) >= 4
                                for i in result])
         # remove unrepairable meshes
         result = result[watertight]

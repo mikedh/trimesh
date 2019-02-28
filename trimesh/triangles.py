@@ -39,14 +39,15 @@ def area(triangles=None, crosses=None, sum=False):
     ----------
     triangles : (n, 3, 3) float
       Vertices of triangles
+    crosses : (n, 3) float or None
+      As a speedup don't re- compute cross products
     sum : bool
       Return summed area or individual triangle area
 
     Returns
     ----------
-    area:
-        if sum: float, sum area of triangles
-        else:   (n,) float, individual area of triangles
+    area : (n,) float or float
+      Individual or summed area depending on `sum` argument
     """
     if crosses is None:
         crosses = cross(triangles)
@@ -309,11 +310,13 @@ def bounds_tree(triangles):
 
     Parameters
     ---------
-    triangles: (n, 3, 3) list of vertices
+    triangles : (n, 3, 3) float
+      Triangles in space
 
     Returns
     ---------
-    tree: Rtree object
+    tree : rtree.Rtree
+      One node per triangle
     """
     triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
@@ -338,12 +341,15 @@ def nondegenerate(triangles, areas=None, height=None):
 
     Parameters
     ----------
-    triangles: (n, 3, 3) float, list of triangles
-    height:    float, minimum edge of a triangle to be kept
+    triangles : (n, 3, 3) float
+      Triangles in space
+    height : float
+      Minimum edge length of a triangle to keep
 
     Returns
     ----------
-    nondegenerate: (n,) bool array of triangles that have area
+    nondegenerate : (n,) bool
+      True if a triangle meets required minimum height
     """
     triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
@@ -364,16 +370,17 @@ def extents(triangles, areas=None):
     """
     Return the 2D bounding box size of each triangle.
 
-
     Parameters
     ----------
-    triangles: (n, 3, 3) float, list of triangles
-    areas:     (n,) float,      list of triangles area
-
+    triangles : (n, 3, 3) float
+      Triangles in space
+    areas : (n,) float
+      Optional area of input triangles
 
     Returns
     ----------
-    box:       (n,2) float, the size of the 2D oriented bounding box.
+    box :  (n, 2) float
+      The size of each triangle's 2D oriented bounding box
     """
     triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
@@ -411,13 +418,16 @@ def barycentric_to_points(triangles, barycentric):
     to cartesian points.
 
     Parameters
-    ----------
-    triangles:   (n,3,3) float, list of triangles in space
-    barycentric: (n,2) float, barycentric coordinates
+    ------------
+    triangles : (n, 3, 3) float
+      Triangles in space
+    barycentric : (n, 2) float
+      Barycentric coordinates
 
     Returns
     -----------
-    points: (m,3) float, points in space
+    points : (m, 3) float
+      Points in space
     """
     barycentric = np.asanyarray(barycentric, dtype=np.float64)
     triangles = np.asanyarray(triangles, dtype=np.float64)
@@ -521,7 +531,7 @@ def closest_point(triangles, points):
     list of corresponding points.
 
     Implements the method from "Real Time Collision Detection" and
-    use the same variable names as 'ClosestPtPointTriangle' to avoid
+    use the same variable names as "ClosestPtPointTriangle" to avoid
     being any more confusing.
 
 
@@ -639,21 +649,23 @@ def closest_point(triangles, points):
 
 def to_kwargs(triangles):
     """
-    Convert a list of triangles to the kwargs for the Trimesh constructor.
+    Convert a list of triangles to the kwargs for the Trimesh
+    constructor.
 
     Parameters
     ---------
-    triangles: (n,3,3) float, triangles in space
+    triangles : (n, 3, 3) float
+      Triangles in space
 
     Returns
     ---------
-    kwargs: dict, with keys:
-                   'vertices' : (n,3) float
-                   'faces'    : (m,3) int
+    kwargs : dict
+      Keyword arguments for the trimesh.Trimesh constructor
+      Includes keys 'vertices' and 'faces'
 
     Examples
     ---------
-    mesh = trimesh.Trimesh(**trimesh.triangles.to_kwargs(triangles))
+    >>> mesh = trimesh.Trimesh(**trimesh.triangles.to_kwargs(triangles))
     """
     triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):

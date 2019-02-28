@@ -32,6 +32,8 @@ class GraphTest(g.unittest.TestCase):
         mult = g.get_mesh('cycloidal.ply')
         # a mesh with a single watertight body
         sing = g.get_mesh('featuretype.STL')
+        # mesh with a single tetrahedron
+        tet = g.get_mesh('tet.ply')
 
         for engine in self.engines:
             # without requiring watertight the split should be into every face
@@ -65,6 +67,15 @@ class GraphTest(g.unittest.TestCase):
             assert len(split) == 1
             assert split[0].is_watertight
             assert split[0].is_winding_consistent
+
+            # single tetrahedron
+            assert tet.is_volume
+            assert tet.body_count == 1
+            # regardless of method or flag we should have one body result
+            split = tet.split(only_watertight=True, engine=engine)
+            assert len(split) == 1
+            split = tet.split(only_watertight=False, engine=engine)
+            assert len(split) == 1
 
     def test_vertex_adjacency_graph(self):
         f = g.trimesh.graph.vertex_adjacency_graph
