@@ -374,7 +374,7 @@ class SectionTest(g.unittest.TestCase):
 
 class CreationTests(g.unittest.TestCase):
 
-    def test_circle(self):
+    def test_circle_pattern(self):
         from trimesh.path import creation
         pattern = creation.circle_pattern(pattern_radius=1.0,
                                           circle_radius=0.1,
@@ -385,6 +385,22 @@ class CreationTests(g.unittest.TestCase):
 
         # should be a valid Path2D
         check_Path2D(pattern)
+
+    def test_circle(self):
+        from trimesh.path import creation
+        circle = creation.circle(radius=1.0)
+
+        # it's a discrete circle
+        assert g.np.isclose(circle.area, g.np.pi, rtol=0.01)
+        # should be centered at 0
+        assert g.np.allclose(circle.polygons_full[0].centroid, [0.0, 0.0], atol=1e-3)
+
+        assert len(circle.entities) == 1
+        assert len(circle.polygons_closed) == 1
+        assert len(circle.polygons_full) == 1
+
+        # should be a valid Path2D
+        check_Path2D(circle)
 
     def test_rect(self):
         from trimesh.path import creation

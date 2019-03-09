@@ -1105,7 +1105,8 @@ class Path2D(Path):
         --------
         length: float, summed length of every entity
         """
-        length = float(sum(i.length(self.vertices) for i in self.entities))
+        length = float(sum(i.length(self.vertices)
+                           for i in self.entities))
         return length
 
     def extrude(self, height, **kwargs):

@@ -25,6 +25,37 @@ class CreationTest(g.unittest.TestCase):
 
         self.engines = engines
 
+    def test_cylinder(self):
+        # tolerance for cylinders
+        atol = 0.03
+
+        c = g.trimesh.creation.cylinder()
+        assert c.is_volume
+        assert c.body_count == 1
+
+        c = g.trimesh.creation.cylinder(radius=0.5, height=1.0)
+        assert c.is_volume
+        assert c.body_count == 1
+        assert g.np.allclose(c.extents, 1.0, atol=atol)
+
+        # check the "use a segment" feature
+        # passed height should be overridden
+        radius = 0.75
+        offset = 10.0
+        c = g.trimesh.creation.cylinder(
+            radius=radius,
+            height=200,
+            segment=[[0, 0, offset],
+                     [1, 0, offset]])
+        assert c.is_volume
+        assert c.body_count == 1
+        # make sure segment has been applied correctly
+        assert g.np.allclose(
+            c.bounds,
+            [[0, -radius, offset - radius],
+             [1, radius, offset + radius]],
+            atol=atol)
+
     def test_soup(self):
         count = 100
         mesh = g.trimesh.creation.random_soup(face_count=count)

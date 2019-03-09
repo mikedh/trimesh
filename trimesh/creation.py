@@ -8,7 +8,7 @@ Create meshes from primitives, or with operations.
 from .base import Trimesh
 from .constants import log, tol
 from .triangles import normals
-from .geometry import faces_to_edges
+from .geometry import faces_to_edges, align_vectors
 
 from . import util
 from . import grouping
@@ -703,6 +703,7 @@ def capsule(height=1.0,
 def cylinder(radius=1.0,
              height=1.0,
              sections=32,
+             segment=None,
              transform=None,
              **kwargs):
     """
@@ -716,6 +717,10 @@ def cylinder(radius=1.0,
       The height of the cylinder
     sections : int
       How many pie wedges should the cylinder have
+    segment : (2, 3) float
+      Endpoints of axis, overrides transform and height
+    transform : (4, 4) float
+      Transform to apply
     **kwargs:
         passed to Trimesh to create cylinder
 
@@ -724,6 +729,22 @@ def cylinder(radius=1.0,
     cylinder: trimesh.Trimesh
       Resulting mesh of a cylinder
     """
+
+    if segment is not None:
+        segment = np.asanyarray(segment, dtype=np.float64)
+        if segment.shape != (2, 3):
+            raise ValueError('segment must be 2 3D points!')
+        vector = segment[1] - segment[0]
+        # override height with segment length
+        height = np.linalg.norm(vector)
+        # point in middle of line
+        midpoint = segment[0] + (vector * 0.5)
+        # align Z with our desired direction
+        rotation = align_vectors([0, 0, 1], vector)
+        # translate to midpoint of segment
+        translation = transformations.translation_matrix(midpoint)
+        # compound the rotation and translation
+        transform = np.dot(translation, rotation)
 
     # create a 2D pie out of wedges
     theta = np.linspace(0, np.pi * 2, sections)
