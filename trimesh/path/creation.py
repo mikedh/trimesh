@@ -55,9 +55,11 @@ def circle_pattern(pattern_radius,
         three = arc.to_threepoint(angles=[0, np.pi],
                                   center=circle_center,
                                   radius=circle_radius)
-        # add a circle entity
-        ents.append(entities.Arc(points=np.arange(3) + len(verts),
-                                 closed=True))
+        # add a single circle entity
+        ents.append(
+            entities.Arc(
+                points=np.arange(3) + len(vert),
+                closed=True))
         # keep flat array by extend instead of append
         vert.extend(three)
 
