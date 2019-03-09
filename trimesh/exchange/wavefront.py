@@ -133,7 +133,7 @@ def load_wavefront(file_obj, resolver=None, **kwargs):
             # apply the ordering and put into kwarg dict
             loaded = {'vertices': vertices[vert_order],
                       'faces': face_order[faces],
-                      'metadata': {}}
+                      'metadata': {'object_name': object_name}}
 
             # handle vertex normals
             if len(current['vn']) > 0:
@@ -200,6 +200,7 @@ def load_wavefront(file_obj, resolver=None, **kwargs):
     remap = {}
     next_idx = 0
     group_idx = 0
+    object_name = ''
 
     for line in text.split("\n"):
         line_split = line.strip().split()
@@ -257,6 +258,7 @@ def load_wavefront(file_obj, resolver=None, **kwargs):
             remap = {}
             next_idx = 0
             group_idx = 0
+            object_name = line_split[1]
 
         elif line_split[0] == 'g':
             # defining a new group
