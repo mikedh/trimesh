@@ -58,8 +58,8 @@ class Path(object):
     """
 
     def __init__(self,
-                 entities=[],
-                 vertices=[],
+                 entities=None,
+                 vertices=None,
                  metadata=None,
                  process=True):
         """
@@ -107,7 +107,7 @@ class Path(object):
 
     @vertices.setter
     def vertices(self, values):
-        self._vertices = caching.tracked_array(values)
+        self._vertices = caching.tracked_array(values, dtype=np.float64)
 
     @property
     def entities(self):
@@ -115,7 +115,10 @@ class Path(object):
 
     @entities.setter
     def entities(self, values):
-        self._entities = np.asanyarray(values)
+        if values is None:
+            self._entities = np.array([])
+        else:
+            self._entities = np.asanyarray(values)
 
     @property
     def layers(self):
@@ -323,6 +326,18 @@ class Path(object):
 
         return closed
 
+    @property
+    def is_empty(self):
+        """
+        Are any entities defined for the current path.
+
+        Returns
+        ----------
+        empty : bool
+          True if no entities are defined
+        """
+        return len(self.entities) > 0
+
     @caching.cache_decorator
     def vertex_graph(self):
         """
@@ -481,6 +496,8 @@ class Path(object):
         self.entities : entity.points re- referenced
         self.vertices : duplicates removed
         """
+        if len(self.vertices) == 0:
+            return
         if digits is None:
             digits = util.decimal_to_digits(tol.merge * self.scale,
                                             min_digits=1)
@@ -586,7 +603,10 @@ class Path(object):
         -----------
         referenced_vertices: (n,) int, indexes of self.vertices
         """
-        referenced = np.hstack([e.points for e in self.entities])
+        # no entities no reference
+        if len(self.entities) == 0:
+            return np.array([], dtype=np.int64)
+        referenced = np.concatenate([e.points for e in self.entities])
         referenced = np.unique(referenced.astype(np.int64))
 
         return referenced
@@ -784,6 +804,9 @@ class Path3D(Path):
         """
         # which vertices are actually referenced
         referenced = self.referenced_vertices
+        # if nothing is referenced return an empty path
+        if len(referenced) == 0:
+            return Path2D(), np.eye(4)
 
         # no explicit transform passed
         if to_2D is None:

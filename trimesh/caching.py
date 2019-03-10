@@ -46,9 +46,12 @@ def tracked_array(array, dtype=None):
     tracked : TrackedArray
       Contains input array data
     """
+    # if someone passed us None, just create an empty array
+    if array is None:
+        array = []
     # make sure it is contiguous then view it as our subclass
-    tracked = np.ascontiguousarray(array,
-                                   dtype=dtype).view(TrackedArray)
+    tracked = np.ascontiguousarray(
+        array, dtype=dtype).view(TrackedArray)
     # should always be contiguous here
     assert tracked.flags['C_CONTIGUOUS']
 

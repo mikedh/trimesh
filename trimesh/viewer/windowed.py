@@ -123,9 +123,12 @@ class SceneViewer(pyglet.window.Window):
                                               caption=caption)
 
         # add scene geometry to viewer geometry
-        for name, mesh in scene.geometry.items():
+        for name, geom in scene.geometry.items():
+            # if nothing is defined in the geometry skip it
+            if geom.is_empty:
+                continue
             self.add_geometry(name=name,
-                              geometry=mesh,
+                              geometry=geom,
                               smooth=bool(smooth))
 
         # call after geometry is added
@@ -533,6 +536,8 @@ class SceneViewer(pyglet.window.Window):
 
             # get a reference to the mesh so we can check transparency
             mesh = self.scene.geometry[geometry_name]
+            if mesh.is_empty:
+                continue
 
             # add a new matrix to the model stack
             gl.glPushMatrix()

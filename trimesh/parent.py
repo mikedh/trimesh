@@ -40,6 +40,10 @@ class Geometry(ABC):
     def apply_transform(self):
         pass
 
+    @abc.abstractmethod
+    def is_empty(self):
+        pass
+
     def apply_translation(self, translation):
         """
         Translate the current mesh.

@@ -347,16 +347,13 @@ class PointCloud(Geometry):
     in a scene.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, vertices, *args, **kwargs):
         self._data = caching.DataStore()
         self._cache = caching.Cache(self._data.md5)
         self.metadata = {}
 
-        # load vertices from args/kwargs
-        if 'vertices' in kwargs:
-            self.vertices = kwargs['vertices']
-        elif len(args) == 1:
-            self.vertices = args[0]
+        # load vertices
+        self.vertices = vertices
 
         if 'color' in kwargs:
             self.colors = kwargs['color']
@@ -378,6 +375,18 @@ class PointCloud(Geometry):
           Shape of vertex array
         """
         return self.vertices.shape
+
+    @property
+    def is_empty(self):
+        """
+        Are there any vertices defined or not.
+
+        Returns
+        ----------
+        empty : bool
+          True if no vertices defined
+        """
+        return len(self.vertices) == 0
 
     def copy(self):
         """
@@ -496,12 +505,14 @@ class PointCloud(Geometry):
 
     @vertices.setter
     def vertices(self, data):
-        # we want to copy data for new object
-        data = np.array(data, dtype=np.float64, copy=True)
-        if not util.is_shape(data, (-1, 3)):
-            raise ValueError(
-                'point clouds only consist of (n,3) points!')
-        self._data['vertices'] = data
+        if data is None:
+            self._data['vertices'] = None
+        else:
+            # we want to copy data for new object
+            data = np.array(data, dtype=np.float64, copy=True)
+            if not util.is_shape(data, (-1, 3)):
+                raise ValueError('Point clouds must be (n, 3)!')
+            self._data['vertices'] = data
 
     @property
     def colors(self):

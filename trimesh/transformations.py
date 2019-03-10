@@ -2063,19 +2063,23 @@ def transform_points(points,
 
     Parameters
     ----------
-    points    : (n, d) float
-                  Points where d is 2 or 3
-    matrix    : (3,3) or (4,4) float
-                  Homogenous rotation matrix
+    points : (n, d) float
+      Points where d is 2 or 3
+    matrix : (3,3) or (4,4) float
+      Homogenous rotation matrix
     translate : bool
-                  Apply translation from matrix or not
+      Apply translation from matrix or not
 
     Returns
     ----------
     transformed : (n,d) float
-                   Transformed points
+      Transformed points
     """
     points = np.asanyarray(points, dtype=np.float64)
+    # no points no cry
+    if len(points) == 0:
+        return points.copy()
+
     matrix = np.asanyarray(matrix, dtype=np.float64)
     if (len(points.shape) != 2 or
             (points.shape[1] + 1 != matrix.shape[1])):

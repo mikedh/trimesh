@@ -151,7 +151,7 @@ def vector_angle(pairs):
 
     Parameters
     ----------
-    pairs : (n,2,3) float
+    pairs : (n, 2, 3) float
       Unit vector pairs
 
     Returns
@@ -162,6 +162,8 @@ def vector_angle(pairs):
     pairs = np.asanyarray(pairs, dtype=np.float64)
     if len(pairs) == 0:
         return np.array([])
+    elif util.is_shape(pairs, (2, 3)):
+        pairs = pairs.reshape((-1, 2, 3))
     elif not util.is_shape(pairs, (-1, 2, (2, 3))):
         raise ValueError('pairs must be (n,2,(2|3))!')
 
