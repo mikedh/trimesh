@@ -269,6 +269,29 @@ def get_2D(count=None):
             break
 
 
+def check_path2D(path):
+    """
+    Make basic assertions on Path2D objects
+    """
+    # root count should be the same as the closed polygons
+    assert len(path.root) == len(path.polygons_full)
+
+    # make sure polygons are really polygons
+    assert all(type(i).__name__ == 'Polygon'
+               for i in path.polygons_full)
+    assert all(type(i).__name__ == 'Polygon'
+               for i in path.polygons_closed)
+
+    # these should all correspond to each other
+    assert len(path.discrete) == len(path.polygons_closed)
+    assert len(path.discrete) == len(path.paths)
+
+    # make sure None polygons are not referenced in graph
+    assert all(path.polygons_closed[i] is not None
+               for i in path.enclosure_directed.nodes())
+
+
+
 # all the JSON files with truth data
 data = _load_data()
 

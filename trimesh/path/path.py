@@ -336,7 +336,7 @@ class Path(object):
         empty : bool
           True if no entities are defined
         """
-        return len(self.entities) > 0
+        return len(self.entities) == 0
 
     @caching.cache_decorator
     def vertex_graph(self):
