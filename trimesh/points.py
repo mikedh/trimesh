@@ -403,7 +403,7 @@ class PointCloud(Geometry):
         copied : trimesh.PointCloud
           Copy of current point cloud
         """
-        copied = PointCloud()
+        copied = PointCloud(vertices=None)
 
         # copy vertex and face data
         copied._data.data = copy.deepcopy(self._data.data)
