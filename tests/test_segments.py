@@ -31,6 +31,18 @@ class SegmentsTest(g.unittest.TestCase):
             # should be a colinear pair
             assert {0, 1} in [set(i) for i in colinear]
 
+    def test_colinear(self):
+        from trimesh.path import segments
+
+        seg = g.np.column_stack((
+            g.np.zeros((3, 3)),
+            [[0, 1, 0], [0, 1, 0], [0, 2, 0]])).reshape((-1, 2, 3))
+        L = segments.colinear_pairs(seg)
+        assert len(L) == 3
+
+        n = segments.colinear_pairs(seg, length=0.01)
+        assert len(n) == 1
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

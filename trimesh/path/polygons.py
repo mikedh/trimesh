@@ -105,12 +105,15 @@ def edges_to_polygons(edges, vertices):
 
     Parameters
     -----------
-    edges: (n,2) int, indexes of vertices which represent lines
-    vertices: (m,2) float, vertex positions
+    edges : (n, 2) int
+      Indexes of vertices which represent lines
+    vertices : (m, 2) float
+      Vertices in 2D space
 
     Returns
     ----------
-    polygons: (p,) list of shapely.geometry.Polygon objects
+    polygons : (p,) shapely.geometry.Polygon
+      Polygon objects with interiors
     """
 
     # create closed polygon objects

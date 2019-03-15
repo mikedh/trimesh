@@ -37,12 +37,12 @@ def oriented_bounds_2D(points, qhull_options='QbB'):
        by transform
     """
     # make sure input is a numpy array
-    points = np.asanyarray(points)
+    points = np.asanyarray(points, dtype=np.float64)
     # create a convex hull object of our points
     # 'QbB' is a qhull option which has it scale the input to unit
     # box to avoid precision issues with very large/small meshes
-    convex = spatial.ConvexHull(points,
-                                qhull_options=qhull_options)
+    convex = spatial.ConvexHull(
+        points, qhull_options=qhull_options)
 
     # (n,2,3) line segments
     hull_edges = convex.points[convex.simplices]

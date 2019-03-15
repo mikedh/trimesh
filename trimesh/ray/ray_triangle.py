@@ -75,21 +75,27 @@ class RayMeshIntersector(object):
 
         Parameters
         ----------
-        ray_origins:      (m,3) float, ray origin points
-        ray_directions:   (m,3) float, ray direction vectors
+        ray_origins : (m, 3) float
+          Ray origin points
+        ray_directions : (m, 3) float
+          Ray direction vectors
 
         Returns
         ---------
-        locations: (n) sequence of (m,3) intersection points
-        index_ray: (n,) int, list of ray index
-        index_tri: (n,) int, list of triangle (face) indexes
+        locations : (n) sequence of (m,3) float
+          Intersection points
+        index_ray : (n,) int
+          Array of ray indexes
+        index_tri: (n,) int
+          Array of triangle (face) indexes
         """
         (index_tri,
          index_ray,
-         locations) = self.intersects_id(ray_origins=ray_origins,
-                                         ray_directions=ray_directions,
-                                         return_locations=True,
-                                         **kwargs)
+         locations) = self.intersects_id(
+             ray_origins=ray_origins,
+             ray_directions=ray_directions,
+             return_locations=True,
+             **kwargs)
         return locations, index_ray, index_tri
 
     def intersects_any(self,
@@ -145,31 +151,41 @@ def ray_triangle_id(triangles,
 
     Parameters
     ----------
-    triangles:        (n,3,3) float, triangles in space
-    ray_origins:      (m,3) float, ray origin points
-    ray_directions:   (m,3) float, ray direction vectors
-    triangles_normal: (n,3) float, normal vector of triangles, optional
-    tree:             rtree object holding triangle bounds
+    triangles : (n, 3, 3) float
+      Triangles in space
+    ray_origins : (m, 3) float
+      Ray origin points
+    ray_directions : (m, 3) float
+      Ray direction vectors
+    triangles_normal : (n, 3) float
+      Normal vector of triangles, optional
+    tree : rtree.Index
+      Rtree object holding triangle bounds
 
     Returns
     -----------
-    index_triangle: (h,) int,    index of triangles hit
-    index_ray:      (h,) int,    index of ray that hit triangle
-    locations:      (h,3) float, position of intersection in space
+    index_triangle : (h,) int
+      Index of triangles hit
+    index_ray : (h,) int
+      Index of ray that hit triangle
+    locations : (h, 3) float
+      Position of intersection in space
     """
     triangles = np.asanyarray(triangles, dtype=np.float64)
     ray_origins = np.asanyarray(ray_origins, dtype=np.float64)
     ray_directions = np.asanyarray(ray_directions, dtype=np.float64)
 
-    # if we didn't get passed an r-tree for the bounds of each triangle create
-    # one here
+    # if we didn't get passed an r-tree for the bounds of each
+    # triangle create one here
     if tree is None:
         tree = triangles_mod.bounds_tree(triangles)
 
-    # find the list of likely triangles and which ray they correspond to with
-    # rtree queries
+    # find the list of likely triangles and which ray they
+    # correspond with, via rtree queries
     ray_candidates, ray_id = ray_triangle_candidates(
-        ray_origins=ray_origins, ray_directions=ray_directions, tree=tree)
+        ray_origins=ray_origins,
+        ray_directions=ray_directions,
+        tree=tree)
 
     # get subsets which are corresponding rays and triangles
     # (c,3,3) triangle candidates
@@ -181,17 +197,19 @@ def ray_triangle_id(triangles,
     # get the plane origins and normals from the triangle candidates
     plane_origins = triangle_candidates[:, 0, :]
     if triangles_normal is None:
-        plane_normals, triangle_ok = triangles_mod.normals(triangle_candidates)
+        plane_normals, triangle_ok = triangles_mod.normals(
+            triangle_candidates)
         if not triangle_ok.all():
             raise ValueError('Invalid triangles!')
     else:
         plane_normals = triangles_normal[ray_candidates]
 
     # find the intersection location of the rays with the planes
-    location, valid = intersections.planes_lines(plane_origins=plane_origins,
-                                                 plane_normals=plane_normals,
-                                                 line_origins=line_origins,
-                                                 line_directions=line_directions)
+    location, valid = intersections.planes_lines(
+        plane_origins=plane_origins,
+        plane_normals=plane_normals,
+        line_origins=line_origins,
+        line_directions=line_directions)
 
     if (len(triangle_candidates) == 0 or
             not valid.any()):
@@ -339,7 +357,8 @@ def ray_bounds(ray_origins,
         (on_a, on_b)).reshape(
         (-1, 2, ray_directions.shape[1]))
 
-    ray_bounding = np.hstack((on_plane.min(axis=1), on_plane.max(axis=1)))
+    ray_bounding = np.hstack((on_plane.min(axis=1),
+                              on_plane.max(axis=1)))
     # pad the bounding box by TOL_BUFFER
     # not sure if this is necessary, but if the ray is  axis aligned
     # this function will otherwise return zero volume bounding boxes

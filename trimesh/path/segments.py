@@ -89,7 +89,10 @@ def parameters_to_segments(origins, vectors, parameters):
     return segments.reshape((-1, 2, origins.shape[1]))
 
 
-def colinear_pairs(segments, radius=.01, angle=.01):
+def colinear_pairs(segments,
+                   radius=.01,
+                   angle=.01,
+                   length=None):
     """
     Find pairs of segments which are colinear.
 
@@ -103,6 +106,10 @@ def colinear_pairs(segments, radius=.01, angle=.01):
     angle : float
       Maximum angle in radians segments can
       differ and still be considered colinear
+    length : None or float
+      If specified, will additionally require
+      that pairs have a mean vertex distance less
+      than this value from each other to qualify.
 
     Returns
     ------------
@@ -114,7 +121,7 @@ def colinear_pairs(segments, radius=.01, angle=.01):
     # convert segments to parameterized origins
     # which are the closest point on the line to
     # the actual zero- origin
-    origins, vectors, parameters = segments_to_parameters(segments)
+    origins, vectors, param = segments_to_parameters(segments)
 
     # create a kdtree for origins
     tree = spatial.cKDTree(origins)
@@ -130,8 +137,21 @@ def colinear_pairs(segments, radius=.01, angle=.01):
         util.isclose(angles, np.pi, atol=angle),
         util.isclose(angles, 0.0, atol=angle))
 
-    # check angle threshold
+    # apply angle threshold
     colinear = pairs[angle_ok]
+
+    # if length is specified check endpoint proximity
+    if length is not None:
+        # make sure parameter pairs are ordered
+        param.sort(axis=1)
+        # calculate the mean parameter distance for each colinear pair
+        distance = param[colinear].ptp(axis=1).mean(axis=1)
+        # if the MEAN distance is less than specified length consider
+        # the segment to be identical: worst case single- vertex
+        # distance is 2*length
+        identical = distance < length
+        # remove non- identical pairs
+        colinear = colinear[identical]
 
     return colinear
 

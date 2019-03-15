@@ -20,6 +20,9 @@ class Resolver(object):
     def __init__(self, *args, **kwargs):
         raise NotImplementedError('you need to implement a resolver!')
 
+    def __getitem__(self, key):
+        return self.get(key)
+
 
 class FilePathResolver(Resolver):
     """
