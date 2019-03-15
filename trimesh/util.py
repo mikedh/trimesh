@@ -1611,13 +1611,15 @@ def decompress(file_obj, file_type):
 
     Parameters
     -----------
-    file_obj: open file object
-    file_type: str, file extension, 'zip', 'tar.gz', etc
+    file_obj : file-like
+      Containing compressed data
+    file_type : str
+      File extension, 'zip', 'tar.gz', etc
 
     Returns
     ---------
-    decompressed: dict:
-                  {(str, file name) : (file-like object)}
+    decompressed : dict
+      Data from archive in format {file name : file-like}
     """
 
     def is_zip():
@@ -1650,11 +1652,14 @@ def compress(info):
 
     Parameters
     -----------
-    info: dict, {name in archive: bytes or file-like object}
+    info : dict
+      Data to compress in form:
+      {file name in archive: bytes or file-like object}
 
     Returns
     -----------
-    compressed: bytes
+    compressed : bytes
+      Compressed file data
     """
     if PY3:
         file_obj = BytesIO()
@@ -1669,9 +1674,6 @@ def compress(info):
             if hasattr(data, 'read'):
                 # if we were passed a file object, read it
                 data = data.read()
-            if hasattr(data, 'encode'):
-                # if we were passed a string encode it as bytes
-                data = data.encode('utf-8')
             zipper.writestr(name, data)
     file_obj.seek(0)
     compressed = file_obj.read()

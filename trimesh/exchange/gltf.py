@@ -224,10 +224,10 @@ def load_gltf(file_obj=None,
         # otherwise header should be in 'model.gltf'
         data = resolver['model.gltf']
         # old versions of python/json need strings
-        if hasattr(data, 'decode'):
-            data = data.decode('utf-8')
-        # load JSON header
-        tree = json.loads(data)
+        try:
+            tree = json.loads(data)
+        except BaseException:
+            tree = json.loads(data.decode('utf-8'))
 
     # use the resolver to get data from file names
     buffers = [resolver[b['uri']] for b in tree['buffers']]
