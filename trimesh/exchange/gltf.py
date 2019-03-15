@@ -791,11 +791,9 @@ def _read_buffers(header, buffers, mesh_kwargs):
                     # https://github.com/KhronosGroup/glTF/issues/1021
                     uv = access[p["attributes"]["TEXCOORD_0"]].copy()
                     uv[:, 1] = 1.0 - uv[:, 1]
-
                     # create a texture visual
                     kwargs["visual"] = visual.texture.TextureVisuals(
-                        uv=uv, material=materials[p["material"]]
-                    )
+                        uv=uv, material=materials[p["material"]])
 
             # create a unique mesh name per- primitive
             if "name" in m:

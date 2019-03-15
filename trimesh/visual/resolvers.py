@@ -117,11 +117,10 @@ class ZipResolver(Resolver):
                 if option in self.archive:
                     name = option
                     break
-
+        # read file object from beginning
+        self.archive[name].seek(0)
         # data is stored as a file object
         data = self.archive[name].read()
-        # set the file object back to beginning
-        self.archive[name].seek(0)
 
         return data
 
