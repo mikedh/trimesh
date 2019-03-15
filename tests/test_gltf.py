@@ -118,7 +118,7 @@ class GLTFTest(g.unittest.TestCase):
 
         # try loading from a file name
         # will require a file path resolver
-        with g.tempfile.TemporaryDirectory() as d:
+        with g.TemporaryDirectory() as d:
             for file_name, data in export.items():
                 with open(g.os.path.join(d, file_name), 'wb') as f:
                     f.write(data)
