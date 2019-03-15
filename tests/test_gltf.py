@@ -112,9 +112,14 @@ class GLTFTest(g.unittest.TestCase):
         r = g.trimesh.load(file_obj=None,
                            file_type='gltf',
                            resolver=export)
-
         # will assert round trip is roughly equal
         g.scene_equal(r, scene)
+
+        # try loading from a ZIP archive
+        zipped = g.trimesh.util.compress(export)
+        r = g.trimesh.load(
+            file_obj=g.trimesh.util.wrap_as_stream(zipped),
+            file_type='zip')
 
         # try loading from a file name
         # will require a file path resolver

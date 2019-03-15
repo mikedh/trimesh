@@ -196,16 +196,38 @@ def export_glb(scene, extras=None, include_normals=False):
     return exported
 
 
-def load_gltf(file_obj, resolver, **mesh_kwargs):
+def load_gltf(file_obj=None,
+              resolver=None,
+              **mesh_kwargs):
     """
-    GLTF has a hardcoded directory structure.
+    Load a GLTF file, which consists of a directory structure
+    with multiple files.
+
+    Parameters
+    -------------
+    file_obj : None or file-like
+      Object containing header JSON, or None
+    resolver : trimesh.visual.Resolver
+      Object which can be used to load other files by name
+    **mesh_kwargs : dict
+      Passed to mesh constructor
+
+    Returns
+    --------------
+    kwargs : dict
+      Arguments to create scene
     """
     try:
         # see if we've been passed the GLTF header file
         tree = json.load(file_obj)
     except BaseException:
-        # otherwise it should be in 'model.gltf'
-        tree = json.loads(resolver['model.gltf'])
+        # otherwise header should be in 'model.gltf'
+        data = resolver['model.gltf']
+        # old versions of python/json need strings
+        if hasattr(data, 'decode'):
+            data = data.decode('utf-8')
+        # load JSON header
+        tree = json.loads(data)
 
     # use the resolver to get data from file names
     buffers = [resolver[b['uri']] for b in tree['buffers']]
@@ -836,7 +858,8 @@ def _read_buffers(header, buffers, mesh_kwargs):
         # for the transform from parent to child
         if "matrix" in child:
             kwargs["matrix"] = (
-                np.array(child["matrix"], dtype=np.float64).reshape((4, 4)).T
+                np.array(child["matrix"],
+                         dtype=np.float64).reshape((4, 4)).T
             )
         else:
             # if no matrix set identity

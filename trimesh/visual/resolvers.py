@@ -18,7 +18,7 @@ except ImportError:
 
 class Resolver(object):
     def __init__(self, *args, **kwargs):
-        raise NotImplementedError('you need to implement a resolver!')
+        raise NotImplementedError('Use a resolver subclass!')
 
     def __getitem__(self, key):
         return self.get(key)
@@ -38,7 +38,6 @@ class FilePathResolver(Resolver):
         source : str
           File path where mesh was loaded from
         """
-
         # remove everything other than absolute path
         clean = os.path.expanduser(os.path.abspath(str(source)))
 
