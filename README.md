@@ -17,7 +17,7 @@ Pull requests are appreciated and responded to promptly! If you'd like to contri
 The minimal requirements to import trimesh are
 [numpy](http://www.numpy.org/), [scipy](http://www.scipy.org) and [networkx](https://networkx.github.io). Installing other packages mentioned adds functionality but is **not required**.
 
-For the easiest install with only these minimal dependencies:
+For the easiest install with *only* these minimal dependencies `pip` can generally install `trimesh` cleanly on Windows, Linux, and OSX:
 
 ```bash
 pip install trimesh
@@ -28,6 +28,15 @@ For more functionality, like faster ray queries (`pyembree`), vector path handli
 ```bash
 # this will install all soft dependencies available on your current platform
 conda install -c conda-forge trimesh
+```
+
+If you're feeling lucky, you can try:
+```bash
+# will try to install things that aren't too tricky
+pip install trimesh[easy]
+
+# will try to install everything
+pip install trimesh[all]
 ```
 
 Further information is available in the [advanced installation documentation](https://trimsh.org/install.html).
@@ -110,34 +119,34 @@ print(mesh.bounding_box_oriented.volume,
 
 * Import meshes from binary/ASCII STL, Wavefront OBJ, ASCII OFF, binary/ASCII PLY, GLTF/GLB 2.0, 3MF, XAML, 3DXML, etc.
 * Import and export 2D or 3D vector paths from/to DXF or SVG files
-* Export meshes as binary STL, binary PLY, ASCII OFF, GLTF/GLB 2.0, COLLADA, etc.
+* Export meshes as binary STL, binary PLY, ASCII OFF, OBJ, GLTF/GLB 2.0, COLLADA, etc.
 * Preview meshes using pyglet
 * Preview meshes in- line in jupyter notebooks using three.js
 * Automatic hashing of numpy arrays storing key data for change tracking using MD5, zlib CRC, or xxhash
 * Internal caching of computed values validated from hashes
 * Fast loading of binary files through importers written by defining custom numpy dtypes
 * Calculate things like face adjacencies, face angles, vertex defects, etc.
-* Calculate cross sections (IE the slicing operation used in 3D printing)
-* Slice meshes with one or multiple planes, and return the resulting surface
+* Calculate cross sections (i.e. the slicing operation used in 3D printing)
+* Slice meshes with one or multiple arbitrary planes and return the resulting surface
 * Split mesh based on face connectivity using networkx, graph-tool, or scipy.sparse
-* Calculate mass properties, including volume, center of mass, moment of inertia, and principal components of inertia
-* Fix triangle winding and normals to be consistent 
+* Calculate mass properties, including volume, center of mass, moment of inertia, and principal components of inertia vectors and components
+* Repair triangle winding and normals to be consistent 
 * Convex hulls of meshes 
-* Compute a rotation/translation/tessellation invariant identifier for meshes
+* Compute an identifier that is mostly rotation/translation/tessellation invariant
 * Determine duplicate meshes from identifier
 * Determine if a mesh is watertight, convex, etc.
 * Repair single triangle and single quad holes
 * Uniformly sample the surface of a mesh
-* Ray-mesh queries including location, triangle id, etc.
+* Ray-mesh queries including location, triangle index, etc.
 * Boolean operations on meshes (intersection, union, difference) using OpenSCAD or Blender as backend
 * Voxelize watertight meshes
 * Subdivide faces of a mesh
 * Minimum volume oriented bounding boxes for meshes
 * Minimum volume bounding sphere / n-spheres
-* Symbolic integration of function(x,y,z) over a triangle
+* Symbolic integration of function(x,y,z) over a triangles
 * Calculate nearest point on mesh surface and signed distance
 * Determine if a point lies inside or outside of a mesh using signed distance
-* Create primitive objects (Box, Cylinder, Sphere, Extrusion) which are subclassed Trimesh objects and have all the same features (inertia, viewers, etc)
+* Primitive objects (Box, Cylinder, Sphere, Extrusion) which are subclassed Trimesh objects and have all the same features (inertia, viewers, etc)
 * Simple scene graph and transform tree which can be rendered (pyglet window or three.js in a jupyter notebook) or exported.
 * Numerous utility functions, such as transforming points, unitizing vectors, tracking arrays for changes, grouping rows, etc.
 
@@ -157,7 +166,7 @@ Trimesh includes an optional `pyglet` based viewer for debugging and inspecting.
 * `q` closes the window
 * `a` toggles an XYZ-RGB axis marker between three states: off, at world frame, or at every frame
 
-If called from inside a `jupyter` notebook, `mesh.show()` displays an in-line preview using `three.js` to display the mesh or scene.
+If called from inside a `jupyter` notebook, `mesh.show()` displays an in-line preview using `three.js` to display the mesh or scene. For more complete rendering (PBR, better lighting, shaders, better off-screen support, etc) [pyrender](https://github.com/mmatl/pyrender) is designed to interoperate with `trimesh` objects.
 
 ## Containers
    
