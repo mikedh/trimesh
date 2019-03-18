@@ -8,6 +8,7 @@ import copy
 
 import numpy as np
 
+from .constants import log
 from .constants import tol
 from .geometry import plane_transform
 from .parent import Geometry
@@ -347,7 +348,7 @@ class PointCloud(Geometry):
     in a scene.
     """
 
-    def __init__(self, vertices, *args, **kwargs):
+    def __init__(self, vertices, colors=None, *args, **kwargs):
         self._data = caching.DataStore()
         self._cache = caching.Cache(self._data.md5)
         self.metadata = {}
@@ -355,8 +356,19 @@ class PointCloud(Geometry):
         # load vertices
         self.vertices = vertices
 
-        if 'color' in kwargs:
-            self.colors = kwargs['color']
+        if colors is not None:
+            self.colors = colors
+        if colors is None and 'color' in kwargs:
+            log.warning("argument 'color' is deprecated, use 'colors' instead")
+            self.colors = kwargs.pop('color')
+
+        if args:
+            raise TypeError(
+                '__init__() got unexpected arguments: {}'.format(args))
+        if kwargs:
+            raise TypeError(
+                '__init__() got unexpected keyword arguments: {}'
+                .format(kwargs))
 
     def __setitem__(self, *args, **kwargs):
         return self.vertices.__setitem__(*args, **kwargs)
