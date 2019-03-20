@@ -17,6 +17,7 @@ import itertools
 import subprocess
 import contextlib
 import threading
+import warnings
 
 try:
     # Python 3

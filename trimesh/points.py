@@ -5,6 +5,7 @@ points.py
 Functions dealing with (n, d) points.
 """
 import copy
+import warnings
 
 import numpy as np
 
@@ -359,7 +360,9 @@ class PointCloud(Geometry):
         if colors is not None:
             self.colors = colors
         if colors is None and 'color' in kwargs:
-            log.warning("argument 'color' is deprecated, use 'colors' instead")
+            warnings.warn(
+                "argument 'color' is deprecated, use 'colors' instead",
+                DeprecationWarning)
             self.colors = kwargs.pop('color')
 
         if args:
