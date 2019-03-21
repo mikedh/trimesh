@@ -7,8 +7,16 @@ except BaseException:
 class ExportTest(g.unittest.TestCase):
 
     def test_export(self):
-        export_types = list(g.trimesh.io.export._mesh_exporters.keys())
-        for mesh in g.get_meshes(8):
+        export_types = list(
+            g.trimesh.exchange.export._mesh_exporters.keys())
+
+        meshes = list(g.get_meshes(8))
+        # make sure we've got something with texture
+        meshes.append(g.get_mesh('fuze.obj'))
+
+        for mesh in meshes:
+            # disregard texture
+            mesh.merge_vertices(textured=False)
             for file_type in export_types:
                 export = mesh.export(file_type=file_type)
                 if export is None:
@@ -39,6 +47,12 @@ class ExportTest(g.unittest.TestCase):
                 loaded = g.trimesh.load(file_obj=file_obj,
                                         file_type=file_type)
 
+                # if we exported as GLTF/dae it will come back as a Scene
+                if isinstance(loaded, g.trimesh.Scene) and isinstance(
+                        mesh, g.trimesh.Trimesh):
+                    assert len(loaded.geometry) == 1
+                    loaded = next(iter(loaded.geometry.values()))
+
                 if (not g.trimesh.util.is_shape(loaded._data['faces'], (-1, 3)) or
                     not g.trimesh.util.is_shape(loaded._data['vertices'], (-1, 3)) or
                         loaded.faces.shape != mesh.faces.shape):
@@ -52,12 +66,18 @@ class ExportTest(g.unittest.TestCase):
                                 mesh.metadata['file_name'])
 
                 if loaded.faces.shape != mesh.faces.shape:
-                    raise ValueError('export cycle {} on {} gave vertices {}->{}!'.format(
+                    raise ValueError('export cycle {} on {} gave faces {}->{}!'.format(
                         file_type,
                         mesh.metadata['file_name'],
                         str(mesh.faces.shape),
                         str(loaded.faces.shape)))
-                assert loaded.vertices.shape == mesh.vertices.shape
+
+                if loaded.vertices.shape != mesh.vertices.shape:
+                    raise ValueError('export cycle {} on {} gave vertices {}->{}!'.format(
+                        file_type,
+                        mesh.metadata['file_name'],
+                        mesh.vertices.shape,
+                        loaded.vertices.shape))
 
                 # try exporting/importing certain file types by name
                 if file_type in ['obj', 'stl', 'ply', 'off']:
@@ -161,8 +181,6 @@ class ExportTest(g.unittest.TestCase):
         # the loader may reorder vertices, so we shouldn't check direct
         # equality
         assert m.vertex_normals.shape == reconstructed.vertex_normals.shape
-        assert m.metadata['vertex_texture'].shape == reconstructed.metadata[
-            'vertex_texture'].shape
 
     def test_obj_order(self):
         """
@@ -242,7 +260,7 @@ class ExportTest(g.unittest.TestCase):
     def test_gltf_path(self):
         """
         Check to make sure GLTF exports of Path2D and Path3D
-        objects don't immediatly crash.
+        objects don't immediately crash.
         """
         path2D = g.get_mesh('2D/wrench.dxf')
         path3D = path2D.to_3D()
@@ -255,10 +273,12 @@ class ExportTest(g.unittest.TestCase):
 
     def test_parse_file_args(self):
         """
-        Test the magical trimesh.io.load.parse_file_args
+        Test the magical trimesh.exchange.load.parse_file_args
         """
         # it's wordy
-        f = g.trimesh.io.load.parse_file_args
+        f = g.trimesh.exchange.load.parse_file_args
+
+        RET_COUNT = 5
 
         # a path that doesn't exist
         nonexists = '/banana{}'.format(g.np.random.random())
@@ -270,15 +290,15 @@ class ExportTest(g.unittest.TestCase):
 
         # should be able to extract type from passed filename
         args = f(file_obj=exists, file_type=None)
-        assert len(args) == 4
+        assert len(args) == RET_COUNT
         assert args[1] == 'obj'
 
         # should be able to extract correct type from longer name
         args = f(file_obj=exists, file_type='YOYOMA.oBj')
-        assert len(args) == 4
+        assert len(args) == RET_COUNT
         assert args[1] == 'obj'
 
-        # with a nonexistant file and no extension it should raise
+        # with a nonexistent file and no extension it should raise
         try:
             args = f(file_obj=nonexists, file_type=None)
         except ValueError as E:
@@ -286,16 +306,16 @@ class ExportTest(g.unittest.TestCase):
         else:
             raise ValueError('should have raised exception!')
 
-        # nonexistant file with extension passed should return
-        # file name anyway, maybe something else can handle i
+        # nonexistent file with extension passed should return
+        # file name anyway, maybe something else can handle it
         args = f(file_obj=nonexists, file_type='.ObJ')
-        assert len(args) == 4
+        assert len(args) == RET_COUNT
         # should have cleaned up case
         assert args[1] == 'obj'
 
         # make sure overriding type works for string filenames
         args = f(file_obj=exists, file_type='STL')
-        assert len(args) == 4
+        assert len(args) == RET_COUNT
         # should have used manually passed type over .obj
         assert args[1] == 'stl'
 

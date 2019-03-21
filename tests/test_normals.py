@@ -45,10 +45,10 @@ class NormalsTest(g.unittest.TestCase):
         mesh.face_normals = None
         assert mesh.face_normals.shape == mesh.faces.shape
 
-        # we should be able to assign stupid wrong values of the
-        # right shape
+        # we shouldn't be able to assign stupid wrong values
+        # even with nonzero and the right shape
         mesh.face_normals = g.np.ones_like(mesh.faces) * [0.0, 0.0, 1.0]
-        assert g.np.allclose(mesh.face_normals, [0.0, 0.0, 1.0])
+        assert not g.np.allclose(mesh.face_normals, [0.0, 0.0, 1.0])
 
         # setting normals to None should force recompute
         mesh.face_normals = None

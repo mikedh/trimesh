@@ -6,8 +6,8 @@ import copy
 from .util import is_ccw
 from ..util import unitize
 
-from ..grouping import unique_ordered
-from ..constants import tol_path as tol
+from .. import grouping
+from .. import constants
 
 
 def vertex_graph(entities):
@@ -95,7 +95,8 @@ def vertex_to_entity_path(vertex_path,
             msg += '\nentity_path: {}'.format(entity_path)
             msg += '\nentity[a]: {}'.format(entities[ea].points)
             msg += '\nentity[b]: {}'.format(entities[eb].points)
-            raise ValueError(msg)
+            constants.log.warning(msg)
+            return None, None
 
     if vertices is None or vertices.shape[1] != 2:
         ccw_direction = 1
@@ -110,12 +111,13 @@ def vertex_to_entity_path(vertex_path,
     entity_path = []
     # loop through pairs of vertices
     for i in np.arange(len(vertex_path) + 1):
+        # get two wrapped vertex positions
         vertex_path_pos = np.mod(np.arange(2) + i, len(vertex_path))
         vertex_index = vertex_path[vertex_path_pos]
         entity_index = graph.get_edge_data(*vertex_index)['entity_index']
         entity_path.append(entity_index)
     # remove duplicate entities and order CCW
-    entity_path = unique_ordered(entity_path)[::ccw_direction]
+    entity_path = grouping.unique_ordered(entity_path)[::ccw_direction]
     # check to make sure there is more than one entity
     if len(entity_path) == 1:
         # apply CCW reverse in place if necessary
@@ -131,8 +133,9 @@ def vertex_to_entity_path(vertex_path,
     for ea, eb in round_trip:
         da, db = edge_direction(entities[ea].end_points,
                                 entities[eb].end_points)
-        entities[ea].reverse(direction=da)
-        entities[eb].reverse(direction=db)
+        if da is not None:
+            entities[ea].reverse(direction=da)
+            entities[eb].reverse(direction=db)
 
     entity_path = np.array(entity_path)
 
@@ -248,7 +251,7 @@ class PathSample:
         # find the length of each segment
         self._norms = np.linalg.norm(self._vectors, axis=1)
         # unit vectors for each segment
-        nonzero = self._norms > tol.zero
+        nonzero = self._norms > constants.tol_path.zero
         self._unit_vec = self._vectors.copy()
         self._unit_vec[nonzero] /= self._norms[nonzero].reshape((-1, 1))
         # total distance in the path
@@ -282,7 +285,7 @@ class PathSample:
         position = np.searchsorted(self._cum_norm, distance)
         offset = distance - self._cum_norm[position - 1]
 
-        if offset < tol.merge:
+        if offset < constants.tol_path.merge:
             truncated = self._points[:position + 1]
         else:
             vector = unitize(np.diff(self._points[np.arange(2) + position],
@@ -293,7 +296,7 @@ class PathSample:
                                    endpoint))
 
         assert (np.linalg.norm(np.diff(truncated, axis=0),
-                               axis=1).sum() - distance) < tol.merge
+                               axis=1).sum() - distance) < constants.tol_path.merge
 
         return truncated
 
@@ -351,9 +354,9 @@ def resample_path(points,
     resampled = sampler.sample(samples)
 
     check = np.linalg.norm(points[[0, -1]] - resampled[[0, -1]], axis=1)
-    assert check[0] < tol.merge
+    assert check[0] < constants.tol_path.merge
     if count is not None:
-        assert check[1] < tol.merge
+        assert check[1] < constants.tol_path.merge
 
     return resampled
 

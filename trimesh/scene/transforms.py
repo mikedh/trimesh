@@ -10,7 +10,6 @@ from .. import transformations
 
 
 class TransformForest(object):
-
     def __init__(self, base_frame='world'):
         self.transforms = EnforcedForest()
         self.base_frame = base_frame
@@ -20,10 +19,7 @@ class TransformForest(object):
 
         self._cache = caching.Cache(id_function=self.md5)
 
-    def update(self,
-               frame_to,
-               frame_from=None,
-               **kwargs):
+    def update(self, frame_to, frame_from=None, **kwargs):
         """
         Update a transform in the tree.
 
@@ -46,19 +42,17 @@ class TransformForest(object):
             frame_from = self.base_frame
         matrix = kwargs_to_matrix(**kwargs)
 
-        attr = {'matrix': matrix,
-                'time': time.time()}
+        attr = {'matrix': matrix, 'time': time.time()}
 
         if 'geometry' in kwargs:
             attr['geometry'] = kwargs['geometry']
 
-        changed = self.transforms.add_edge(frame_from,
-                                           frame_to,
-                                           **attr)
+        changed = self.transforms.add_edge(frame_from, frame_to, **attr)
         if 'geometry' in kwargs:
-            nx.set_node_attributes(self.transforms,
-                                   name='geometry',
-                                   values={frame_to: kwargs['geometry']})
+            nx.set_node_attributes(
+                self.transforms,
+                name='geometry',
+                values={frame_to: kwargs['geometry']})
         if changed:
             self._paths = {}
         self._updated = time.time()
@@ -97,36 +91,54 @@ class TransformForest(object):
         for node in self.nodes:
             if node == base_frame:
                 continue
-            transform, geometry = self.get(frame_to=node,
-                                           frame_from=base_frame)
-            flat[node] = {'transform': transform.tolist(),
-                          'geometry': geometry}
+            transform, geometry = self.get(
+                frame_to=node, frame_from=base_frame)
+            flat[node] = {
+                'transform': transform.tolist(),
+                'geometry': geometry
+            }
         return flat
 
-    def to_gltf(self, mesh_index):
+    def to_gltf(self, scene):
         """
         Export a transforms as the 'nodes' section of a GLTF dict.
         Flattens tree.
 
         Returns
         --------
-        gltf: dict, with keys:
+        gltf : dict
+          with keys:
                   'nodes': list of dicts
         """
-        gltf = collections.deque()
-        for node in self.nodes_geometry:
+        # geometry is an OrderedDict
+        # {geometry key : index}
+        mesh_index = {name: i for i, name
+                      in enumerate(scene.geometry.keys())}
+        # save the output
+        gltf = collections.deque([])
+        for node in self.nodes:
+            # don't include edge for base frame
             if node == self.base_frame:
                 continue
-            transform, geometry = self.get(frame_to=node,
-                                           frame_from=self.base_frame)
-            if geometry is None:
-                continue
-            gltf.append({'matrix': transform.T.reshape(-1).tolist(),
-                         'mesh': mesh_index[geometry],
-                         'name': node})
+            # get the transform and geometry from the graph
+            transform, geometry = self.get(
+                frame_to=node, frame_from=self.base_frame)
+
+            gltf.append({
+                'matrix': transform.T.reshape(-1).tolist(),
+                'name': node})
+            # assign geometry if it exists
+            if geometry is not None:
+                gltf[-1]['mesh'] = mesh_index[geometry]
+
+            if node == scene.camera.name:
+                gltf[-1]['camera'] = 0
+
         # we have flattened tree, so all nodes will be child of world
-        gltf.appendleft({'name': self.base_frame,
-                         'children': list(range(1, 1 + len(gltf)))})
+        gltf.appendleft({
+            'name': self.base_frame,
+            'children': list(range(1, 1 + len(gltf)))
+        })
         result = {'nodes': list(gltf)}
 
         return result
@@ -151,8 +163,7 @@ class TransformForest(object):
             if 'geometry' in self.transforms.node[b]:
                 c['geometry'] = self.transforms.node[b]['geometry']
             # save the matrix as a float list
-            c['matrix'] = np.asanyarray(c['matrix'],
-                                        dtype=np.float64).tolist()
+            c['matrix'] = np.asanyarray(c['matrix'], dtype=np.float64).tolist()
             export.append((a, b, c))
         return export
 
@@ -214,20 +225,15 @@ class TransformForest(object):
         ------------
         nodes_geometry: (m,) array, of node names
         """
-        nodes = self.transforms.nodes()
-        if len(nodes) == 0:
-            return np.array([])
 
-        nodes_geometry = []
-        for n in nodes:
-            if (n in nodes and
-                    'geometry' in self.transforms.node[n]):
-                nodes_geometry.append(n)
-        return np.array(nodes_geometry)
+        nodes = np.array([
+            n for n in self.transforms.nodes()
+            if 'geometry' in self.transforms.node[n]
+        ])
 
-    def get(self,
-            frame_to,
-            frame_from=None):
+        return nodes
+
+    def get(self, frame_to, frame_from=None):
         """
         Get the transform from one frame to another, assuming they are connected
         in the transform tree.
@@ -303,9 +309,7 @@ class TransformForest(object):
         self._paths = {}
         self._updated = time.time()
 
-    def _get_path(self,
-                  frame_from,
-                  frame_to):
+    def _get_path(self, frame_from, frame_to):
         """
         Find a path between two frames, either from cached paths or
         from the transform graph.
@@ -324,8 +328,8 @@ class TransformForest(object):
         """
         key = (frame_from, frame_to)
         if not (key in self._paths):
-            path = self.transforms.shortest_path_undirected(frame_from,
-                                                            frame_to)
+            path = self.transforms.shortest_path_undirected(
+                frame_from, frame_to)
             self._paths[key] = path
         return self._paths[key]
 
@@ -337,8 +341,7 @@ class EnforcedForest(nx.DiGraph):
     """
 
     def __init__(self, *args, **kwargs):
-        self.flags = {'strict': False,
-                      'assert_forest': False}
+        self.flags = {'strict': False, 'assert_forest': False}
 
         for k, v in self.flags.items():
             if k in kwargs:
@@ -348,7 +351,7 @@ class EnforcedForest(nx.DiGraph):
         super(self.__class__, self).__init__(*args, **kwargs)
         # keep a second parallel but undirected copy of the graph
         # all of the networkx methods for turning a directed graph
-        # into an undirected graph are quite slow, so we do minor bookkeeping
+        # into an undirected graph are quite slow so we do minor bookkeeping
         self._undirected = nx.Graph()
 
     def add_edge(self, u, v, *args, **kwargs):
@@ -399,7 +402,11 @@ class EnforcedForest(nx.DiGraph):
         self.remove_edges_from(ebunch)
 
     def shortest_path_undirected(self, u, v):
-        path = nx.shortest_path(self._undirected, u, v)
+        try:
+            path = nx.shortest_path(self._undirected, u, v)
+        except BaseException as E:
+            print(u, v)
+            raise E
         return path
 
     def get_edge_data_direction(self, u, v):

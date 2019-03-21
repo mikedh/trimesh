@@ -22,6 +22,9 @@ class PermutateTest(g.unittest.TestCase):
             if (close(test.face_adjacency,
                       mesh.face_adjacency) and
                     len(mesh.faces) > MIN_FACES):
+                g.log.error(
+                    'face_adjacency unchanged: {}'.format(
+                        str(test.face_adjacency)))
                 raise ValueError(
                     'face adjacency of %s the same after permutation!',
                     mesh.metadata['file_name'])
@@ -29,15 +32,18 @@ class PermutateTest(g.unittest.TestCase):
             if (close(test.face_adjacency_edges,
                       mesh.face_adjacency_edges) and
                     len(mesh.faces) > MIN_FACES):
+                g.log.error(
+                    'face_adjacency_edges unchanged: {}'.format(
+                        str(test.face_adjacency_edges)))
                 raise ValueError(
                     'face adjacency edges of %s the same after permutation!',
                     mesh.metadata['file_name'])
 
-            self.assertFalse(close(test.faces,
-                                   mesh.faces))
-            self.assertFalse(close(test.vertices,
-                                   mesh.vertices))
-            self.assertFalse(test.md5() == mesh.md5())
+            assert not close(test.faces,
+                             mesh.faces)
+            assert not close(test.vertices,
+                             mesh.vertices)
+            assert not test.md5() == mesh.md5()
 
             # rigid transforms don't change area or volume
             if rigid:
@@ -50,7 +56,7 @@ class PermutateTest(g.unittest.TestCase):
                         test.is_winding_consistent):
                     assert g.np.allclose(mesh.volume, test.volume, rtol=.05)
 
-        for mesh in g.get_meshes():
+        for mesh in g.get_meshes(5):
             if len(mesh.faces) < MIN_FACES:
                 continue
             # warp the mesh to be a unit cube
@@ -74,20 +80,20 @@ class PermutateTest(g.unittest.TestCase):
                 make_assertions(mesh, tessellate, rigid=True)
 
             # make sure permutate didn't alter the original mesh
-            self.assertTrue(original.md5() == mesh.md5())
+            assert original.md5() == mesh.md5()
 
     def test_tesselation(self):
         for mesh in g.get_meshes(5):
             tess = g.trimesh.permutate.tessellation(mesh)
             # print(tess.area-mesh.area)
-            self.assertTrue(abs(tess.area - mesh.area) < g.tol.merge)
+            assert abs(tess.area - mesh.area) < g.tol.merge
             volume_check = abs(tess.volume - mesh.volume) / mesh.scale
-            self.assertTrue(volume_check < g.tol.merge)
-            self.assertTrue(len(mesh.faces) < len(tess.faces))
+            assert volume_check < g.tol.merge
+            assert len(mesh.faces) < len(tess.faces)
             if mesh.is_winding_consistent:
-                self.assertTrue(tess.is_winding_consistent)
+                assert tess.is_winding_consistent
             if mesh.is_watertight:
-                self.assertTrue(tess.is_watertight)
+                assert tess.is_watertight
 
     def test_base(self):
         for mesh in g.get_meshes(1):

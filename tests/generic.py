@@ -1,6 +1,6 @@
 """
-Module which contains all the imports and data available to
-unit tests to reduce the amount of boilerplate.
+Module which contains most imports and data unit tests
+might need, to reduce the amount of boilerplate.
 """
 import os
 import sys
@@ -49,7 +49,7 @@ trimesh.constants.tol_path.strict = True
 
 
 try:
-    from shapely.geometry import Point, Polygon
+    from shapely.geometry import Point, Polygon, LineString
     has_path = True
 except ImportError:
     has_path = False
@@ -267,6 +267,63 @@ def get_2D(count=None):
         # if we don't need every path break
         if len(paths) >= count:
             break
+
+
+def check_path2D(path):
+    """
+    Make basic assertions on Path2D objects
+    """
+    # root count should be the same as the closed polygons
+    assert len(path.root) == len(path.polygons_full)
+
+    # make sure polygons are really polygons
+    assert all(type(i).__name__ == 'Polygon'
+               for i in path.polygons_full)
+    assert all(type(i).__name__ == 'Polygon'
+               for i in path.polygons_closed)
+
+    # these should all correspond to each other
+    assert len(path.discrete) == len(path.polygons_closed)
+    assert len(path.discrete) == len(path.paths)
+
+    # make sure None polygons are not referenced in graph
+    assert all(path.polygons_closed[i] is not None
+               for i in path.enclosure_directed.nodes())
+
+
+def scene_equal(a, b):
+    """
+    Do a simple check on two scenes and assert
+    that they have the same geometry.
+
+    Parameters
+    ------------
+    a : trimesh.Scene
+      Object to be compared
+    b : trimesh.Scene
+      Object to be compared
+    """
+    # should have the same number of geometries
+    assert len(a.geometry) == len(b.geometry)
+    for k, m in a.geometry.items():
+        # each mesh should correspond by name
+        # and have the same volume
+        assert np.isclose(
+            m.volume, b.geometry[k].volume, rtol=0.001)
+
+
+class TemporaryDirectory(object):
+    """
+    Same basic usage as tempfile.TemporaryDirectory
+    but functional in Python 2.7+
+    """
+
+    def __enter__(self):
+        self.path = tempfile.mkdtemp()
+        return self.path
+
+    def __exit__(self, *args, **kwargs):
+        shutil.rmtree(self.path)
 
 
 # all the JSON files with truth data

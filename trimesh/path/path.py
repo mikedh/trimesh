@@ -23,19 +23,19 @@ from .util import concatenate
 
 from .. import util
 from .. import units
-from .. import graph
 from .. import caching
 from .. import grouping
 from .. import transformations
 
 from . import raster
+from . import repair
 from . import simplify
-from . import entities
+from . import creation
 from . import polygons
 from . import segments
 from . import traversal
 
-from .io.export import export_path
+from .exchange.export import export_path
 
 try:
     # try running shapely speedups
@@ -58,8 +58,8 @@ class Path(object):
     """
 
     def __init__(self,
-                 entities=[],
-                 vertices=[],
+                 entities=None,
+                 vertices=None,
                  metadata=None,
                  process=True):
         """
@@ -77,7 +77,7 @@ class Path(object):
           Run simple cleanup or not
         """
 
-        self.entities = np.array(entities)
+        self.entities = entities
         self.vertices = vertices
         self.metadata = dict()
 
@@ -87,8 +87,8 @@ class Path(object):
         self._cache = caching.Cache(id_function=self.crc)
 
         if process:
-            # literally nothing will work if vertices aren't
-            # merged properly
+            # literally nothing will work if vertices
+            # aren't merged properly
             self.merge_vertices()
 
     def process(self):
@@ -107,7 +107,18 @@ class Path(object):
 
     @vertices.setter
     def vertices(self, values):
-        self._vertices = caching.tracked_array(values)
+        self._vertices = caching.tracked_array(values, dtype=np.float64)
+
+    @property
+    def entities(self):
+        return self._entities
+
+    @entities.setter
+    def entities(self, values):
+        if values is None:
+            self._entities = np.array([])
+        else:
+            self._entities = np.asanyarray(values)
 
     @property
     def layers(self):
@@ -288,57 +299,17 @@ class Path(object):
             new_entities.extend(entity.explode())
         self.entities = np.array(new_entities)
 
-    def fill_gaps(self, max_distance=None):
+    def fill_gaps(self, distance=0.025):
         """
-        Find vertices with degree 1 and try to connect them to
-        other vertices of degree 1, in place.
+        Find vertices without degree 2 and try to connect to
+        other vertices. Operations are done in-place.
 
         Parameters
         ----------
-        max_distance : float
-          Connect vertices up to this distance.
-          Default is path.scale / 1000.0
+        distance : float
+          Connect vertices up to this distance
         """
-
-        # which vertices are only connected to one entity
-        broken = np.array(
-            [k for k, v in
-             dict(self.vertex_graph.degree()).items() if v == 1])
-
-        # of there is only one broken end we can't do anything
-        if len(broken) < 2:
-            return
-
-        # find pairs of close vertices
-        distance, node = KDTree(self.vertices[broken]).query(
-            self.vertices[broken], k=2)
-
-        # set a scale- relative max distance
-        if max_distance is None:
-            max_distance = self.scale / 1000.0
-
-        # change edges into a (n, 2) int
-        # that references self.vertices
-        edges = np.sort(broken[node], axis=1)
-        # remove duplicate edges
-        unique = grouping.unique_rows(edges)[0]
-        # apply the unique mask
-        edges = edges[unique]
-        distance = distance[unique]
-
-        # make sure edge doesn't exist and distance between
-        # vertices is the maximum allowable
-        ok = np.logical_and(distance[:, 1] < max_distance,
-                            [not self.vertex_graph.has_edge(*i) for i in edges])
-
-        # the vertices we want to merge
-        merge = edges[ok]
-        # do the merge with a mask
-        mask = np.arange(len(self.vertices))
-        mask[merge[:, 0]] = merge[:, 1]
-
-        # apply the mask to the
-        self.replace_vertex_references(mask)
+        repair.fill_gaps(self, distance=distance)
 
     @property
     def is_closed(self):
@@ -347,19 +318,33 @@ class Path(object):
 
         Returns
         -----------
-        closed: every entity is connected at its ends
+        closed : bool
+          Every entity is connected at its ends
         """
         closed = all(i == 2 for i in
                      dict(self.vertex_graph.degree()).values())
 
         return closed
 
+    @property
+    def is_empty(self):
+        """
+        Are any entities defined for the current path.
+
+        Returns
+        ----------
+        empty : bool
+          True if no entities are defined
+        """
+        return len(self.entities) == 0
+
     @caching.cache_decorator
     def vertex_graph(self):
         """
         Return a networkx.Graph object for the entity connectiviy
 
-        graph: networkx.Graph object, holding vertex indexes
+        graph : networkx.Graph
+          Holds vertex indexes
         """
         graph, closed = traversal.vertex_graph(self.entities)
         return graph
@@ -385,8 +370,8 @@ class Path(object):
 
         Parameters
         -----------
-        transform: (d+1, d+1) float, homogenous transformation
-                                    matrix for (n, d) vertices
+        transform : (d+1, d+1) float
+          Homogenous transformation for vertices
         """
         dimension = self.vertices.shape[1]
         transform = np.asanyarray(transform, dtype=np.float64)
@@ -439,12 +424,12 @@ class Path(object):
 
         Parameters
         -----------
-        transform: (dimension + 1, dimension + 1) float, homogenous
-                   transformation matrix
+        scale : float or (3,) float
+          Scale to be applied to mesh
         """
         dimension = self.vertices.shape[1]
         matrix = np.eye(dimension + 1)
-        matrix[:dimension, :dimension] *= float(scale)
+        matrix[:dimension, :dimension] *= scale
         self.apply_transform(matrix)
 
     def apply_translation(self, offset):
@@ -453,8 +438,8 @@ class Path(object):
 
         Parameters
         -----------
-        transform: (dimension + 1, dimension + 1) float, homogenous
-                   transformation matrix
+        offset : float or (3,) float
+          Translation to be applied to mesh
         """
         # work on 2D and 3D paths
         dimension = self.vertices.shape[1]
@@ -474,7 +459,8 @@ class Path(object):
 
         Parameters
         ------------
-        name: str to apply to each entity
+        name : str
+          Apply layer name to every entity
         """
         for e in self.entities:
             e.layer = name
@@ -486,9 +472,9 @@ class Path(object):
 
         Returns
         -----------
-        matrix: (dimension + 1, dimension + 1) float,
-                    homogenous transformation
-                    that was applied to the current Path object.
+        matrix : (dimension + 1, dimension + 1) float
+          Homogenous transformation that was applied
+          to the current Path object.
         """
         dimension = self.vertices.shape[1]
         matrix = np.eye(dimension + 1)
@@ -496,17 +482,26 @@ class Path(object):
         self.apply_transform(matrix)
         return matrix
 
-    def merge_vertices(self):
+    def merge_vertices(self, digits=None):
         """
         Merges vertices which are identical and replace references.
 
+        Parameters
+        --------------
+        digits : None, or int
+          How many digits to consider when merging vertices
+
         Alters
         -----------
-        self.entities: entity.points re- referenced
-        self.vertices: duplicates removed
+        self.entities : entity.points re- referenced
+        self.vertices : duplicates removed
         """
-        digits = util.decimal_to_digits(tol.merge * self.scale,
-                                        min_digits=1)
+        if len(self.vertices) == 0:
+            return
+        if digits is None:
+            digits = util.decimal_to_digits(tol.merge * self.scale,
+                                            min_digits=1)
+
         unique, inverse = grouping.unique_rows(self.vertices,
                                                digits=digits)
         self.vertices = self.vertices[unique]
@@ -565,12 +560,14 @@ class Path(object):
 
         Parameters
         -----------
-        entity_ids: (n,) int, indexes of self.entities to remove
+        entity_ids : (n,) int
+          Indexes of self.entities to remove
         """
         if len(entity_ids) == 0:
             return
-        kept = np.setdiff1d(np.arange(len(self.entities)), entity_ids)
-        self.entities = np.array(self.entities)[kept]
+        keep = np.ones(len(self.entities))
+        keep[entity_ids] = False
+        self.entities = self.entities[keep]
 
     def remove_invalid(self):
         """
@@ -595,7 +592,7 @@ class Path(object):
         entity_hashes = np.array([hash(i) for i in self.entities])
         unique, inverse = grouping.unique_rows(entity_hashes)
         if len(unique) != len(self.entities):
-            self.entities = np.array(self.entities)[unique]
+            self.entities = self.entities[unique]
 
     @caching.cache_decorator
     def referenced_vertices(self):
@@ -606,7 +603,10 @@ class Path(object):
         -----------
         referenced_vertices: (n,) int, indexes of self.vertices
         """
-        referenced = np.hstack([e.points for e in self.entities])
+        # no entities no reference
+        if len(self.entities) == 0:
+            return np.array([], dtype=np.int64)
+        referenced = np.concatenate([e.points for e in self.entities])
         referenced = np.unique(referenced.astype(np.int64))
 
         return referenced
@@ -804,6 +804,9 @@ class Path3D(Path):
         """
         # which vertices are actually referenced
         referenced = self.referenced_vertices
+        # if nothing is referenced return an empty path
+        if len(referenced) == 0:
+            return Path2D(), np.eye(4)
 
         # no explicit transform passed
         if to_2D is None:
@@ -865,7 +868,8 @@ class Path3D(Path):
         # and XY values of vertices projected onto the plane
         planar = Path2D(entities=copy.deepcopy(self.entities),
                         vertices=flat[:, :2],
-                        metadata=metadata)
+                        metadata=metadata,
+                        process=False)
 
         return planar, to_3D
 
@@ -1124,7 +1128,8 @@ class Path2D(Path):
         --------
         length: float, summed length of every entity
         """
-        length = float(sum(i.length(self.vertices) for i in self.entities))
+        length = float(sum(i.length(self.vertices)
+                           for i in self.entities))
         return length
 
     def extrude(self, height, **kwargs):
@@ -1209,10 +1214,20 @@ class Path2D(Path):
         if resolution is None:
             resolution = self.scale / 1000.0
 
-        medials = [polygons.medial_axis(i, resolution, clip)
-                   for i in self.polygons_full]
-        medials = np.sum(medials)
-        return medials
+        # convert the edges to Path2D kwargs
+        from .exchange.misc import edges_to_path
+
+        # edges and vertices
+        edge_vert = [polygons.medial_axis(i, resolution, clip)
+                     for i in self.polygons_full]
+        # create a Path2D object for each region
+        medials = [Path2D(**edges_to_path(
+            edges=e, vertices=v)) for e, v in edge_vert]
+
+        # get a single Path2D of medial axis
+        medial = concatenate(medials)
+
+        return medial
 
     def connected_paths(self, path_id, include_self=False):
         """

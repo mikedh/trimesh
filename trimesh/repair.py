@@ -43,14 +43,14 @@ def fix_winding(mesh):
     # start a traversal for every connected component
     for components in nx.connected_components(graph_all):
         # get a subgraph for this component
-        graph = graph_all.subgraph(components)
+        g = graph_all.subgraph(components)
         # get the first node in the graph in a way that works on nx's
         # new API and their old API
-        start = next(iter(graph.nodes()))
+        start = next(iter(g.nodes()))
 
         # we traverse every pair of faces in the graph
         # we modify mesh.faces and mesh.face_normals in place
-        for face_pair in nx.bfs_edges(graph, start):
+        for face_pair in nx.bfs_edges(g, start):
             # for each pair of faces, we convert them into edges,
             # find the edge that both faces share and then see if edges
             # are reversed in order as you would expect
@@ -184,14 +184,15 @@ def broken_faces(mesh, color=None):
 
 def fill_holes(mesh):
     """
-    Fill single- triangle holes on triangular meshes by adding new triangles
-    to fill the holes. New triangles will have proper winding and normals,
-    and if face colors exist the color of the last face will be assigned
-    to the new triangles.
+    Fill single- triangle holes on triangular meshes by adding
+    new triangles to fill the holes. New triangles will have
+    proper winding and normals, and if face colors exist the color
+    of the last face will be assigned to the new triangles.
 
     Parameters
     ---------
-    mesh: Trimesh object
+    mesh : trimesh.Trimesh
+      Mesh will be repaired in- place
     """
 
     def hole_to_faces(hole):
@@ -226,9 +227,8 @@ def fill_holes(mesh):
     if mesh.is_watertight:
         return True
 
-    # we know that in a watertight mesh, every edge will be included twice
-    # thus, every edge which appears only once is part of the boundary of a
-    # hole.
+    # we know that in a watertight mesh every edge will be included twice
+    # thus every edge which appears only once is part of a hole boundary
     boundary_groups = group_rows(mesh.edges_sorted, require_count=1)
 
     if len(boundary_groups) < 3:
@@ -239,9 +239,9 @@ def fill_holes(mesh):
     index_as_dict = [{'index': i} for i in boundary_groups]
 
     # we create a graph of the boundary edges, and find cycles.
-    graph = nx.from_edgelist(np.column_stack((boundary_edges,
-                                              index_as_dict)))
-    cycles = np.array(nx.cycle_basis(graph))
+    g = nx.from_edgelist(np.column_stack((boundary_edges,
+                                          index_as_dict)))
+    cycles = np.array(nx.cycle_basis(g))
 
     new_faces = []
     new_vertex = []
@@ -270,7 +270,7 @@ def fill_holes(mesh):
         # we compare the edge from the new face with
         # the boundary edge from the source mesh
         edge_test = face[0:2]
-        edge_boundary = mesh.edges[graph.get_edge_data(*edge_test)['index']]
+        edge_boundary = mesh.edges[g.get_edge_data(*edge_test)['index']]
 
         # in a well construced mesh, the winding is such that adjacent triangles
         # have reversed edges to each other. Here we check to make sure the

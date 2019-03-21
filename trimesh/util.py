@@ -27,9 +27,12 @@ PY3 = version_info.major >= 3
 if PY3:
     # for type checking
     basestring = str
+    # Python 3
     from io import BytesIO, StringIO
 else:
+    # Python 2
     from StringIO import StringIO
+    BytesIO = StringIO
 
 log = logging.getLogger('trimesh')
 log.addHandler(logging.NullHandler())
@@ -77,7 +80,7 @@ def unitize(vectors,
         # using sqrt and avoiding exponents is slightly faster
         # also dot with ones is faser than .sum(axis=1)
         norm = np.sqrt(np.dot(vectors * vectors,
-                              np.ones(vectors.shape[1])))
+                              [1.0] * vectors.shape[1]))
         # non-zero norms
         valid = norm > threshold
         # in-place reciprocal of nonzero norms
@@ -518,51 +521,86 @@ def diagonal_dot(a, b):
     """
     Dot product by row of a and b.
 
-    Same as np.diag(np.dot(a, b.T)) but without the monstrous
-    intermediate matrix.
+    There are a lot of ways to do this though
+    performance varies very widely. This method
+    uses the dot product to sum the row and avoids
+    function calls if at all possible.
 
-    Also equivalent to:
-    np.einsum('ij,ij->i', a, b)
+    Comparing performance of some equivalent versions:
+    ```
+    In [1]: import numpy as np; import trimesh
+
+    In [2]: a = np.random.random((10000, 3))
+
+    In [3]: b = np.random.random((10000, 3))
+
+    In [4]: %timeit (a * b).sum(axis=1)
+    1000 loops, best of 3: 181 us per loop
+
+    In [5]: %timeit np.einsum('ij,ij->i', a, b)
+    10000 loops, best of 3: 62.7 us per loop
+
+    In [6]: %timeit np.diag(np.dot(a, b.T))
+    1 loop, best of 3: 429 ms per loop
+
+    In [7]: %timeit np.dot(a * b, np.ones(a.shape[1]))
+    10000 loops, best of 3: 61.3 us per loop
+
+    In [8]: %timeit trimesh.util.diagonal_dot(a, b)
+    10000 loops, best of 3: 55.2 us per loop
+    ```
 
     Parameters
     ------------
-    a: (m, d) array
-    b: (m, d) array
+    a : (m, d) float
+      First array
+    b : (m, d) float
+      Second array
 
     Returns
     -------------
-    result: (m, d) array
+    result : (m,) float
+      Dot product of each row
     """
-    result = (np.asanyarray(a) *
-              np.asanyarray(b)).sum(axis=1)
+    # make sure `a` is numpy array
+    # doing it for `a` will force the multiplication to
+    # convert `b` if necessary and avoid function call otherwise
+    a = np.asanyarray(a)
+    # 3x faster than (a * b).sum(axis=1)
+    # avoiding np.ones saves 5-10% sometimes
+    result = np.dot(a * b, [1.0] * a.shape[1])
     return result
 
 
-def three_dimensionalize(points, return_2D=True):
+def stack_3D(points, return_2D=False):
     """
-    Given a set of (n,2) or (n,3) points, return them as (n,3) points
+    For a list of (n, 2) or (n, 3) points return them
+    as (n, 3) 3D points, 2D points on the XY plane.
 
     Parameters
     ----------
-    points:    (n, 2) or (n,3) points
-    return_2D: boolean flag
+    points :  (n, 2) or (n, 3) float
+      Points in either 2D or 3D space
+    return_2D : bool
+      Were the original points 2D?
 
     Returns
     ----------
-    if return_2D:
-        is_2D: boolean, True if points were (n,2)
-        points: (n,3) set of points
-    else:
-        points: (n,3) set of points
+    points : (n, 3) float
+      Points in space
+    is_2D : bool
+      Only returned if return_2D
+      If source points were (n, 2) True
     """
-    points = np.asanyarray(points)
+    points = np.asanyarray(points, dtype=np.float64)
     shape = points.shape
 
     if len(shape) != 2:
         raise ValueError('Points must be 2D array!')
 
     if shape[1] == 2:
-        points = np.column_stack((points, np.zeros(len(points))))
+        points = np.column_stack((points,
+                                  np.zeros(len(points))))
         is_2D = True
     elif shape[1] == 3:
         is_2D = False
@@ -570,7 +608,8 @@ def three_dimensionalize(points, return_2D=True):
         raise ValueError('Points must be (n,2) or (n,3)!')
 
     if return_2D:
-        return is_2D, points
+        return points, is_2D
+
     return points
 
 
@@ -1208,30 +1247,30 @@ def concatenate(a, b=None):
     # stack meshes into flat list
     meshes = np.append(a, b)
 
-    # Extract the trimesh type to avoid a circular import,
+    # extract the trimesh type to avoid a circular import
     # and assert that both inputs are Trimesh objects
     trimesh_type = type_named(meshes[0], 'Trimesh')
 
     # append faces and vertices of meshes
     vertices, faces = append_faces(
-        [i.vertices.copy() for i in meshes],
-        [i.faces.copy() for i in meshes])
+        [m.vertices.copy() for m in meshes],
+        [m.faces.copy() for m in meshes])
 
-    visuals = None
+    # only save face normals if already calculated
     face_normals = None
+    if all('face_normals' in m._cache for m in meshes):
+        face_normals = np.vstack([m.face_normals
+                                  for m in meshes])
 
-    if all('face_normals' in i._cache for i in meshes):
-        face_normals = np.vstack(
-            [i.face_normals for i in meshes])
-    if any(i.visual.defined for i in meshes):
-        visuals = meshes[0].visual.concatenate(
-            [i.visual for i in meshes[1:]])
+    # concatenate visuals
+    visual = meshes[0].visual.concatenate(
+        [m.visual for m in meshes[1:]])
 
     # create the mesh object
     mesh = trimesh_type(vertices=vertices,
                         faces=faces,
                         face_normals=face_normals,
-                        visual=visuals,
+                        visual=visual,
                         process=False)
 
     return mesh
@@ -1280,10 +1319,10 @@ def submesh(mesh,
     original_faces = mesh.faces.view(np.ndarray)
     original_vertices = mesh.vertices.view(np.ndarray)
 
-    faces = collections.deque()
-    vertices = collections.deque()
-    normals = collections.deque()
-    visuals = collections.deque()
+    faces = []
+    vertices = []
+    normals = []
+    visuals = []
 
     # for reindexing faces
     mask = np.arange(len(original_vertices))
@@ -1307,13 +1346,19 @@ def submesh(mesh,
     # to avoid a circular import
     trimesh_type = type_named(mesh, 'Trimesh')
     if append:
-        visuals = np.array(visuals)
+        if all(hasattr(i, 'concatenate')
+               for i in visuals):
+            visuals = np.array(visuals)
+            visual = visuals[0].concatenate(visuals[1:])
+        else:
+            visual = None
+
         vertices, faces = append_faces(vertices, faces)
         appended = trimesh_type(
             vertices=vertices,
             faces=faces,
             face_normals=np.vstack(normals),
-            visual=visuals[0].concatenate(visuals[1:]),
+            visual=visual,
             process=False)
         return appended
 
@@ -1332,7 +1377,7 @@ def submesh(mesh,
     if len(result) > 0 and only_watertight:
         # fill_holes will attempt a repair and returns the
         # watertight status at the end of the repair attempt
-        watertight = np.array([i.fill_holes() and len(i.faces) > 4
+        watertight = np.array([i.fill_holes() and len(i.faces) >= 4
                                for i in result])
         # remove unrepairable meshes
         result = result[watertight]
@@ -1566,13 +1611,15 @@ def decompress(file_obj, file_type):
 
     Parameters
     -----------
-    file_obj: open file object
-    file_type: str, file extension, 'zip', 'tar.gz', etc
+    file_obj : file-like
+      Containing compressed data
+    file_type : str
+      File extension, 'zip', 'tar.gz', etc
 
     Returns
     ---------
-    decompressed: dict:
-                  {(str, file name) : (file-like object)}
+    decompressed : dict
+      Data from archive in format {file name : file-like}
     """
 
     def is_zip():
@@ -1605,11 +1652,14 @@ def compress(info):
 
     Parameters
     -----------
-    info: dict, {name in archive: bytes or file-like object}
+    info : dict
+      Data to compress in form:
+      {file name in archive: bytes or file-like object}
 
     Returns
     -----------
-    compressed: bytes
+    compressed : bytes
+      Compressed file data
     """
     if PY3:
         file_obj = BytesIO()
@@ -1624,9 +1674,6 @@ def compress(info):
             if hasattr(data, 'read'):
                 # if we were passed a file object, read it
                 data = data.read()
-            if hasattr(data, 'encode'):
-                # if we were passed a string encode it as bytes
-                data = data.encode('utf-8')
             zipper.writestr(name, data)
     file_obj.seek(0)
     compressed = file_obj.read()
@@ -1766,6 +1813,7 @@ def write_encoded(file_obj,
     else:
         file_obj.write(stuff)
     file_obj.flush()
+    return stuff
 
 
 def unique_id(length=12, increment=0):
@@ -1855,7 +1903,7 @@ def unique_bincount(values,
                     return_inverse=True):
     """
     For arrays of integers find unique values using bin counting.
-    Roughly 20x faster for correct input than np.unique
+    Roughly 10x faster for correct input than np.unique
 
     Parameters
     --------------
@@ -1888,7 +1936,8 @@ def unique_bincount(values,
         return np.unique(values, return_inverse=return_inverse)
 
     # which bins are occupied at all
-    unique_bin = counts > 0
+    # counts are integers so this works
+    unique_bin = counts.astype(np.bool)
 
     # which values are unique
     # indexes correspond to original values
@@ -1900,3 +1949,30 @@ def unique_bincount(values,
         return unique, inverse
 
     return unique
+
+
+def isclose(a, b, atol):
+    """
+    A replacement for np.isclose that does fewer checks
+    and validation and as a result is roughly 4x faster.
+
+    Note that this is used in tight loops, and as such
+    a and b MUST be np.ndarray, not list or "array-like"
+
+    Parameters
+    ----------
+    a : np.ndarray
+      To be compared
+    b : np.ndarray
+      To be compared
+    atol : float
+      Acceptable distance between `a` and `b` to be "close"
+
+    Returns
+    -----------
+    close : np.ndarray, bool
+      Per- element closeness
+    """
+    diff = a - b
+    close = np.logical_and(diff > -atol, diff < atol)
+    return close

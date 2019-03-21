@@ -68,14 +68,15 @@ def minimum_nsphere(obj):
     voronoi = spatial.Voronoi(points, furthest_site=True)
 
     # find the maximum radius^2 point for each of the voronoi vertices
-    # this is worst case quite expensive but we have used quick convex
-    # hull methods to reduce n for this operation
+    # this is worst case quite expensive but we have taken
+    # convex hull to reduce n for this operation
     # we are doing comparisons on the radius squared then rooting once
     try:
         # cdist is massivly faster than looping or tiling methods
         # although it does create a very large intermediate array
-        radii_2 = spatial.distance.cdist(voronoi.vertices, points,
-                                         metric='sqeuclidean').max(axis=1)
+        radii_2 = spatial.distance.cdist(
+            voronoi.vertices, points,
+            metric='sqeuclidean').max(axis=1)
     except MemoryError:
         # log the MemoryError
         log.warning('MemoryError: falling back to slower check!')
@@ -83,15 +84,17 @@ def minimum_nsphere(obj):
         radii_2 = np.array([((points - v) ** 2).sum(axis=1).max()
                             for v in voronoi.vertices])
 
-    # we want the smallest sphere, so we take the min of the radii options
+    # we want the smallest sphere so take the min of the radii
     radii_idx = radii_2.argmin()
 
     # return voronoi radius and center to global scale
     radius_v = np.sqrt(radii_2[radii_idx]) * points_scale
-    center_v = (voronoi.vertices[radii_idx] * points_scale) + points_origin
+    center_v = (voronoi.vertices[radii_idx] *
+                points_scale) + points_origin
 
     if radius_v > fit_R:
         return fit_C, fit_R
+
     return center_v, radius_v
 
 
@@ -101,30 +104,40 @@ def fit_nsphere(points, prior=None):
 
     Parameters
     ---------
-    points: (n,d) set of points
-    prior:  (d,) float, best guess for center of nsphere
+    points : (n, d) float
+      Points in space
+    prior : (d,) float
+      Best guess for center of nsphere
 
     Returns
     ---------
-    center: (d), location of center
-    radius: float, mean radius across circle
-    error:  float, peak to peak value of deviation from mean radius
+    center : (d,) float
+      Location of center
+    radius : float
+      Mean radius across circle
+    error : float
+      Peak to peak value of deviation from mean radius
     """
+    # make sure points are numpy array
     points = np.asanyarray(points, dtype=np.float64)
+    # create ones so we can dot instead of using slower sum
     ones = np.ones(points.shape[1])
 
     def residuals(center):
         # do the axis sum with a dot
+        # this gets called a LOT so worth optimizing
         radii_sq = np.dot((points - center) ** 2, ones)
-        return radii_sq - radii_sq.mean()
+        # residuals are difference between mean
+        # use our sum mean vs .mean() as it is slightly faster
+        return radii_sq - (radii_sq.sum() / len(radii_sq))
 
     if prior is None:
-        center_guess = points.mean(axis=0)
+        guess = points.mean(axis=0)
     else:
-        center_guess = np.asanyarray(prior)
+        guess = np.asanyarray(prior)
 
     center_result, return_code = leastsq(residuals,
-                                         center_guess,
+                                         guess,
                                          xtol=1e-8)
 
     if not (return_code in [1, 2, 3, 4]):

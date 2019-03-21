@@ -8,7 +8,7 @@ Create meshes from primitives, or with operations.
 from .base import Trimesh
 from .constants import log, tol
 from .triangles import normals
-from .geometry import faces_to_edges
+from .geometry import faces_to_edges, align_vectors
 
 from . import util
 from . import grouping
@@ -21,8 +21,11 @@ try:
     # shapely is a soft dependency
     from shapely.geometry import Polygon
     from shapely.wkb import loads as load_wkb
-except ImportError:
-    log.warning('shapely.geometry.Polygon not available!')
+except BaseException:
+    # shapely will sometimes raise OSErrors
+    # on import rather than just ImportError
+    log.warning('shapely.geometry.Polygon not available!',
+                exc_info=True)
 
 
 def validate_polygon(obj):
@@ -234,7 +237,7 @@ def extrude_triangulation(vertices,
 
     # make sure triangulation winding is pointing up
     normal_test = normals(
-        [util.three_dimensionalize(vertices[faces[0]])[1]])[0]
+        [util.stack_3D(vertices[faces[0]])])[0]
 
     normal_dot = np.dot(normal_test,
                         [0.0, 0.0, np.sign(height)])[0]
@@ -267,7 +270,7 @@ def extrude_triangulation(vertices,
     vertical_faces = vertical_faces.reshape((-1, 3))
 
     # stack the (n,2) vertices with zeros to make them (n, 3)
-    vertices_3D = util.three_dimensionalize(vertices, return_2D=False)
+    vertices_3D = util.stack_3D(vertices)
 
     # a sequence of zero- indexed faces, which will then be appended
     # with offsets to create the final mesh
@@ -337,8 +340,15 @@ def triangulate_polygon(polygon,
             result = triangulate(arg, triangle_args)
             return result['vertices'], result['triangles']
     except ImportError:
-        # no triangle, so move on to meshpy
+        # no `triangle` so move on to `meshpy`
         pass
+    except BaseException as E:
+        # if we see an exception log it and move on
+        log.error('failed to triangulate using triangle!',
+                  exc_info=True)
+        # if we are running unit tests exit here and fail
+        if tol.strict:
+            raise E
 
     # do the import here, as sometimes this import can segfault
     # which is not catchable with a try/except block
@@ -693,6 +703,7 @@ def capsule(height=1.0,
 def cylinder(radius=1.0,
              height=1.0,
              sections=32,
+             segment=None,
              transform=None,
              **kwargs):
     """
@@ -706,6 +717,10 @@ def cylinder(radius=1.0,
       The height of the cylinder
     sections : int
       How many pie wedges should the cylinder have
+    segment : (2, 3) float
+      Endpoints of axis, overrides transform and height
+    transform : (4, 4) float
+      Transform to apply
     **kwargs:
         passed to Trimesh to create cylinder
 
@@ -714,6 +729,22 @@ def cylinder(radius=1.0,
     cylinder: trimesh.Trimesh
       Resulting mesh of a cylinder
     """
+
+    if segment is not None:
+        segment = np.asanyarray(segment, dtype=np.float64)
+        if segment.shape != (2, 3):
+            raise ValueError('segment must be 2 3D points!')
+        vector = segment[1] - segment[0]
+        # override height with segment length
+        height = np.linalg.norm(vector)
+        # point in middle of line
+        midpoint = segment[0] + (vector * 0.5)
+        # align Z with our desired direction
+        rotation = align_vectors([0, 0, 1], vector)
+        # translate to midpoint of segment
+        translation = transformations.translation_matrix(midpoint)
+        # compound the rotation and translation
+        transform = np.dot(translation, rotation)
 
     # create a 2D pie out of wedges
     theta = np.linspace(0, np.pi * 2, sections)
@@ -933,7 +964,9 @@ def axis(origin_size=0.04,
     return marker
 
 
-def camera_marker(camera, marker_height=0.4, origin_size=None):
+def camera_marker(camera,
+                  marker_height=0.4,
+                  origin_size=None):
     """
     Create a visual marker for a camera object, including an axis and FOV.
 
@@ -952,13 +985,17 @@ def camera_marker(camera, marker_height=0.4, origin_size=None):
       Contains Trimesh and Path3D objects which can be visualized
     """
 
+    camera_transform = camera.transform
+    if camera_transform is None:
+        camera_transform = np.eye(4)
+
     # append the visualizations to an array
     meshes = [axis(origin_size=marker_height / 10.0)]
-    meshes[0].apply_transform(camera.transform)
+    meshes[0].apply_transform(camera_transform)
 
     try:
         # path is a soft dependency
-        from .path.io.load import load_path
+        from .path.exchange.load import load_path
     except ImportError:
         # they probably don't have shapely installed
         log.warning('unable to create FOV visualization!',
@@ -975,13 +1012,13 @@ def camera_marker(camera, marker_height=0.4, origin_size=None):
     z = marker_height
 
     # combine the points into the vertices of an FOV visualization
-    points = [(0, 0, 0),
-              (-x, -y, z),
-              (x, -y, z),
-              (x, y, z),
-              (-x, y, z)]
-    # apply the camera extrinsic transform
-    points = transformations.transform_points(points, camera.transform)
+    points = transformations.transform_points(
+        [(0, 0, 0),
+         (-x, -y, z),
+         (x, -y, z),
+         (x, y, z),
+         (-x, y, z)],
+        matrix=camera_transform)
 
     # create line segments for the FOV visualization
     # a segment from the origin to each bound of the FOV

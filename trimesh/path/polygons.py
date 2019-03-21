@@ -105,12 +105,15 @@ def edges_to_polygons(edges, vertices):
 
     Parameters
     -----------
-    edges: (n,2) int, indexes of vertices which represent lines
-    vertices: (m,2) float, vertex positions
+    edges : (n, 2) int
+      Indexes of vertices which represent lines
+    vertices : (m, 2) float
+      Vertices in 2D space
 
     Returns
     ----------
-    polygons: (p,) list of shapely.geometry.Polygon objects
+    polygons : (p,) shapely.geometry.Polygon
+      Polygon objects with interiors
     """
 
     # create closed polygon objects
@@ -213,21 +216,25 @@ def transform_polygon(polygon, matrix):
     return result
 
 
-def plot_polygon(polygon, show=True):
+def plot_polygon(polygon, show=True, **kwargs):
     """
     Plot a shapely polygon using matplotlib.
 
     Parameters
     ------------
-    polygon: shapely.geometry.Polygon object
-    show:    bool, if True will display immediately
+    polygon : shapely.geometry.Polygon
+      Polygon to be plotted
+    show : bool
+      If True will display immediately
+    **kwargs
+      Passed to plt.plot
     """
     import matplotlib.pyplot as plt
 
     def plot_single(single):
-        plt.plot(*single.exterior.xy, color='b')
+        plt.plot(*single.exterior.xy, **kwargs)
         for interior in single.interiors:
-            plt.plot(*interior.xy, color='r')
+            plt.plot(*interior.xy, **kwargs)
     # make aspect ratio non- stupid
     plt.axes().set_aspect('equal', 'datalim')
     if util.is_sequence(polygon):
@@ -303,24 +310,21 @@ def medial_axis(polygon,
     Parameters
     ----------
     polygon : shapely.geometry.Polygon
-        The source geometry
+      The source geometry
     resolution : float
-        Distance between each sample on the polygon boundary
-    clip : None, or (2,) float
-        Clip the lower and upper bound of sample count to:
-        [minimum number of samples, maximum number of samples]
-        specifying a very fine resolution can cause the sample count to
-        explode, so clip specifies a minimum and maximum number of samples
-        to use per boundary region. To not clip, this can be specified as:
-        [0, np.inf]
+      Distance between each sample on the polygon boundary
+    clip : None, or (2,) int
+      Clip sample count to min of clip[0] and max of clip[1]
 
     Returns
     ----------
-    medial : Path2D object
+    edges : (n, 2) int
+      Vertex indices representing line segments
+      on the polygon's medial axis
+    vertices : (m, 2) float
+      Vertex positions in space
     """
     from scipy.spatial import Voronoi
-    from .path import Path2D
-    from .io.misc import edges_to_path
 
     if resolution is None:
         resolution = .01
@@ -341,71 +345,8 @@ def medial_axis(polygon,
     ridge = np.asanyarray(voronoi.ridge_vertices, dtype=np.int64)
     # only take ridges where every vertex is contained
     edges = ridge[contains[ridge].all(axis=1)]
-    # line objects from edges
-    medial = Path2D(**edges_to_path(
-        edges=edges,
-        vertices=voronoi.vertices))
 
-    return medial
-
-
-class InversePolygon:
-    """
-    Create an inverse polygon.
-
-    The primary use case is that given a point inside a polygon,
-    you want to find the minimum distance to the boundary of the polygon.
-    """
-
-    def __init__(self, polygon):
-        _DIST_BUFFER = .05
-
-        # create a box around the polygon
-        bounds = (np.array(polygon.bounds))
-        bounds += (_DIST_BUFFER * np.array([-1, -1, 1, 1]))
-        coord_ext = bounds[
-            np.array([2, 1, 2, 3, 0, 3, 0, 1, 2, 1])].reshape((-1, 2))
-        # set the interior of the box to the exterior of the polygon
-        coord_int = [np.array(polygon.exterior.coords)]
-
-        # a box with an exterior- shaped hole in it
-        exterior = Polygon(shell=coord_ext,
-                           holes=coord_int)
-        # make exterior polygons out of all of the interiors
-        interiors = [Polygon(i.coords) for i in polygon.interiors]
-
-        # save these polygons to a flat list
-        self._polygons = np.append(exterior, interiors)
-
-    def distances(self, point):
-        """
-        Find the minimum distances from a point to the exterior and interiors
-
-        Parameters
-        ---------
-        point: (2) list or shapely.geometry.Point
-
-        Returns
-        ---------
-        distances: (n) list of floats
-        """
-        distances = [i.distance(Point(point)) for i in self._polygons]
-        return distances
-
-    def distance(self, point):
-        """
-        Find the minimum distance from a point to the boundary of the polygon.
-
-        Parameters
-        ---------
-        point: (2) list or shapely.geometry.Point
-
-        Returns
-        ---------
-        distance: float
-        """
-        distance = np.min(self.distances(point))
-        return distance
+    return edges, voronoi.vertices
 
 
 def polygon_hash(polygon):

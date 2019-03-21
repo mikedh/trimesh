@@ -101,15 +101,16 @@ class RepairTests(g.unittest.TestCase):
         b = a.copy()
         b.apply_translation([2, 0, 0])
         m = a + b
-
         # should be a volume: watertight, correct winding
         assert m.is_volume
 
-        # flip one face
-        m.faces[:1] = g.np.fliplr(m.faces[:1])
-
-        # flip every face
-        m.invert()
+        # flip one face of A
+        a.faces[:1] = g.np.fliplr(a.faces[:1])
+        # flip every face of A
+        a.invert()
+        # flip one face of B
+        b.faces[:1] = g.np.fliplr(b.faces[:1])
+        m = a + b
 
         # not a volume
         assert not m.is_volume
@@ -126,7 +127,7 @@ class RepairTests(g.unittest.TestCase):
         assert m.is_volume
 
         # mesh should be volume of two boxes, and positive
-        assert g.np.isclose(m.volume, g.np.abs(a.volume * 2.0))
+        assert g.np.isclose(m.volume, 2.0)
 
 
 if __name__ == '__main__':

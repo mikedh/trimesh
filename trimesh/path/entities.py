@@ -320,14 +320,6 @@ class Text(Entity):
 
         import matplotlib.pyplot as plt
 
-        # if self.height is None:
-        #    height = 24
-        # else:
-        #    height=self.height
-
-        #from IPython import embed
-        # embed()
-
         # get rotation angle in degrees
         angle = np.degrees(self.angle(vertices))
 
@@ -370,7 +362,7 @@ class Text(Entity):
         return 0.0
 
     def discrete(self, *args, **kwargs):
-        return []
+        return np.array([])
 
     @property
     def closed(self):
@@ -382,11 +374,11 @@ class Text(Entity):
 
     @property
     def nodes(self):
-        return []
+        return np.array([])
 
     @property
     def end_points(self):
-        return []
+        return np.array([])
 
     def _bytes(self):
         data = b''.join([b'Text',

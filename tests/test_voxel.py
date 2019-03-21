@@ -87,7 +87,7 @@ class VoxelTest(g.unittest.TestCase):
 
         assert len(voxel[0].shape) == 3
 
-        # try it when it definitly doesn't hit anything
+        # try it when it definitely doesn't hit anything
         empty = g.trimesh.voxel.local_voxelize(mesh=mesh,
                                                point=[10, 10, 10],
                                                pitch=.1,

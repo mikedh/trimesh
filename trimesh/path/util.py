@@ -40,6 +40,10 @@ def concatenate(paths):
     -------------
     concat: Path, Path2D, or Path3D object
     """
+    # if only one path object just return copy
+    if len(paths) == 1:
+        return paths[0].copy()
+
     # length of vertex arrays
     vert_len = np.array([len(i.vertices) for i in paths])
     # how much to offset each paths vertex indices by

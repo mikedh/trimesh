@@ -1958,21 +1958,30 @@ def transform_around(matrix, point):
     return result
 
 
-def planar_matrix(offset=[0.0, 0.0],
-                  theta=0.0,
+def planar_matrix(offset=None,
+                  theta=None,
                   point=None):
     """
     2D homogeonous transformation matrix
 
     Parameters
     ----------
-    offset: (2,) float, XY offset
-    theta:  float, rotation around Z in radians
-    point:  (2, ) float, point to rotate around
+    offset : (2,) float
+      XY offset
+    theta : float
+      Rotation around Z in radians
+    point :  (2, ) float
+      point to rotate around
+
     Returns
     ----------
-    matrix: (3,3) homogenous 2D transformation matrix
+    matrix : (3, 3) flat
+      Homogenous 2D transformation matrix
     """
+    if offset is None:
+        offset = [0.0, 0.0]
+    if theta is None:
+        theta = 0.0
     offset = np.asanyarray(offset, dtype=np.float64)
     theta = float(theta)
     if not np.isfinite(theta):
@@ -2054,19 +2063,23 @@ def transform_points(points,
 
     Parameters
     ----------
-    points    : (n, d) float
-                  Points where d is 2 or 3
-    matrix    : (3,3) or (4,4) float
-                  Homogenous rotation matrix
+    points : (n, d) float
+      Points where d is 2 or 3
+    matrix : (3,3) or (4,4) float
+      Homogenous rotation matrix
     translate : bool
-                  Apply translation from matrix or not
+      Apply translation from matrix or not
 
     Returns
     ----------
     transformed : (n,d) float
-                   Transformed points
+      Transformed points
     """
     points = np.asanyarray(points, dtype=np.float64)
+    # no points no cry
+    if len(points) == 0:
+        return points.copy()
+
     matrix = np.asanyarray(matrix, dtype=np.float64)
     if (len(points.shape) != 2 or
             (points.shape[1] + 1 != matrix.shape[1])):

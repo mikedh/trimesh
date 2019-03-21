@@ -4,6 +4,8 @@ points.py
 
 Functions dealing with (n, d) points.
 """
+import copy
+
 import numpy as np
 
 from .constants import tol
@@ -345,16 +347,13 @@ class PointCloud(Geometry):
     in a scene.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, vertices, *args, **kwargs):
         self._data = caching.DataStore()
         self._cache = caching.Cache(self._data.md5)
         self.metadata = {}
 
-        # load vertices from args/kwargs
-        if 'vertices' in kwargs:
-            self.vertices = kwargs['vertices']
-        elif len(args) == 1:
-            self.vertices = args[0]
+        # load vertices
+        self.vertices = vertices
 
         if 'color' in kwargs:
             self.colors = kwargs['color']
@@ -376,6 +375,45 @@ class PointCloud(Geometry):
           Shape of vertex array
         """
         return self.vertices.shape
+
+    @property
+    def is_empty(self):
+        """
+        Are there any vertices defined or not.
+
+        Returns
+        ----------
+        empty : bool
+          True if no vertices defined
+        """
+        return len(self.vertices) == 0
+
+    def copy(self):
+        """
+        Safely get a copy of the current point cloud.
+
+        Copied objects will have emptied caches to avoid memory
+        issues and so may be slow on initial operations until
+        caches are regenerated.
+
+        Current object will *not* have its cache cleared.
+
+        Returns
+        ---------
+        copied : trimesh.PointCloud
+          Copy of current point cloud
+        """
+        copied = PointCloud(vertices=None)
+
+        # copy vertex and face data
+        copied._data.data = copy.deepcopy(self._data.data)
+        # get metadata
+        copied.metadata = copy.deepcopy(self.metadata)
+
+        # make sure cache is set from here
+        copied._cache.clear()
+
+        return copied
 
     def md5(self):
         """
@@ -467,12 +505,14 @@ class PointCloud(Geometry):
 
     @vertices.setter
     def vertices(self, data):
-        # we want to copy data for new object
-        data = np.array(data, dtype=np.float64, copy=True)
-        if not util.is_shape(data, (-1, 3)):
-            raise ValueError(
-                'point clouds only consist of (n,3) points!')
-        self._data['vertices'] = data
+        if data is None:
+            self._data['vertices'] = None
+        else:
+            # we want to copy data for new object
+            data = np.array(data, dtype=np.float64, copy=True)
+            if not util.is_shape(data, (-1, 3)):
+                raise ValueError('Point clouds must be (n, 3)!')
+            self._data['vertices'] = data
 
     @property
     def colors(self):

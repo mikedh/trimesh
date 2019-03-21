@@ -18,11 +18,13 @@ def cross(triangles):
 
     Parameters
     --------------
-    triangles: (n, 3, 3) float, vertices of triangles
+    triangles: (n, 3, 3) float
+      Vertices of triangles
 
     Returns
     --------------
-    crosses: (n, 3) float, cross product of two edge vectors
+    crosses : (n, 3) float
+      Cross product of two edge vectors
     """
     vectors = np.diff(triangles, axis=1)
     crosses = np.cross(vectors[:, 0], vectors[:, 1])
@@ -35,14 +37,17 @@ def area(triangles=None, crosses=None, sum=False):
 
     Parameters
     ----------
-    triangles: vertices of triangles (n,3,3)
-    sum:       bool, return summed area or individual triangle area
+    triangles : (n, 3, 3) float
+      Vertices of triangles
+    crosses : (n, 3) float or None
+      As a speedup don't re- compute cross products
+    sum : bool
+      Return summed area or individual triangle area
 
     Returns
     ----------
-    area:
-        if sum: float, sum area of triangles
-        else:   (n,) float, individual area of triangles
+    area : (n,) float or float
+      Individual or summed area depending on `sum` argument
     """
     if crosses is None:
         crosses = cross(triangles)
@@ -58,13 +63,17 @@ def normals(triangles=None, crosses=None):
 
     Parameters
     ------------
-    triangles:   (n, 3, 3) float, vertex positions
-    crosses:     (n, 3) float, cross products of edge vectors
+    triangles : (n, 3, 3) float
+      Vertex positions
+    crosses : (n, 3) float
+      Cross products of edge vectors
 
     Returns
     ------------
-    normals: (m, 3) float, normal vectors
-    valid:   (n,)   bool, valid
+    normals : (m, 3) float
+      Normal vectors
+    valid : (n,) bool
+      Was the face nonzero area or not
     """
     if crosses is None:
         crosses = cross(triangles)
@@ -73,17 +82,52 @@ def normals(triangles=None, crosses=None):
     return unit, valid
 
 
+def angles(triangles):
+    """
+    Calculates the angles of input triangles.
+
+    Parameters
+    ------------
+    triangles : (n, 3, 3) float
+      Vertex positions
+
+    Returns
+    ------------
+    angles : (n, 3) float
+      Angles at vertex positions, in radians
+    """
+
+    # get a vector for each edge of the triangle
+    u = triangles[:, 1] - triangles[:, 0]
+    v = triangles[:, 2] - triangles[:, 0]
+    w = triangles[:, 2] - triangles[:, 1]
+
+    # normalize each vector in place
+    u /= np.linalg.norm(u, axis=1, keepdims=True)
+    v /= np.linalg.norm(v, axis=1, keepdims=True)
+    w /= np.linalg.norm(w, axis=1, keepdims=True)
+
+    # run the cosine and an einsum that definitely does something
+    a = np.arccos(np.clip(np.einsum('ij, ij->i', u, v), -1, 1))
+    b = np.arccos(np.clip(np.einsum('ij, ij->i', -u, w), -1, 1))
+    c = np.pi - a - b
+
+    return np.column_stack([a, b, c])
+
+
 def all_coplanar(triangles):
     """
     Check to see if a list of triangles are all coplanar
 
     Parameters
     ----------------
-    triangles: (n, 3, 3) float, vertices of triangles
+    triangles: (n, 3, 3) float
+      Vertices of triangles
 
     Returns
     ---------------
-    all_coplanar, bool, True if all triangles are coplanar
+    all_coplanar : bool
+      True if all triangles are coplanar
     """
     triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
@@ -100,8 +144,8 @@ def all_coplanar(triangles):
 
 def any_coplanar(triangles):
     """
-    Given a list of triangles, if the FIRST triangle is coplanar with ANY
-    of the following triangles, return True.
+    For a list of triangles if the FIRST triangle is coplanar
+    with ANY of the following triangles, return True.
     Otherwise, return False.
     """
     triangles = np.asanyarray(triangles, dtype=np.float64)
@@ -131,15 +175,21 @@ def mass_properties(triangles,
 
     Parameters
     ----------
-    triangles:    (n,3,3) float, triangles in space
-    crosses:      (n,) float, cross products of triangles
-    density:      float, optional override for density
-    center_mass:  (3,) float, optional override for center mass
-    skip_inertia: bool, if True will not return moments matrix
+    triangles : (n, 3, 3) float
+      Triangle vertices in space
+    crosses : (n,) float
+      Optional cross products of triangles
+    density : float
+      Optional override for density
+    center_mass :  (3,) float
+      Optional override for center mass
+    skip_inertia : bool
+      if True will not return moments matrix
 
     Returns
     ---------
-    info: dict, mass properties
+    info : dict
+      Mass properties
     """
     triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
@@ -229,12 +279,15 @@ def windings_aligned(triangles, normals_compare):
 
     Parameters
     ----------
-    triangles: (n,3,3) list of vertex locations
-    normals_compare: (n,3) list of normals
+    triangles : (n, 3, 3) float
+      Vertex locations in space
+    normals_compare : (n, 3) float
+      List of normals to compare
 
     Returns
     ----------
-    aligned: (n) bool list, are normals aligned with triangles
+    aligned : (n,) bool
+      Are normals aligned with triangles
     """
     triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
@@ -257,11 +310,13 @@ def bounds_tree(triangles):
 
     Parameters
     ---------
-    triangles: (n, 3, 3) list of vertices
+    triangles : (n, 3, 3) float
+      Triangles in space
 
     Returns
     ---------
-    tree: Rtree object
+    tree : rtree.Rtree
+      One node per triangle
     """
     triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
@@ -286,12 +341,15 @@ def nondegenerate(triangles, areas=None, height=None):
 
     Parameters
     ----------
-    triangles: (n, 3, 3) float, list of triangles
-    height:    float, minimum edge of a triangle to be kept
+    triangles : (n, 3, 3) float
+      Triangles in space
+    height : float
+      Minimum edge length of a triangle to keep
 
     Returns
     ----------
-    nondegenerate: (n,) bool array of triangles that have area
+    nondegenerate : (n,) bool
+      True if a triangle meets required minimum height
     """
     triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
@@ -312,16 +370,17 @@ def extents(triangles, areas=None):
     """
     Return the 2D bounding box size of each triangle.
 
-
     Parameters
     ----------
-    triangles: (n, 3, 3) float, list of triangles
-    areas:     (n,) float,      list of triangles area
-
+    triangles : (n, 3, 3) float
+      Triangles in space
+    areas : (n,) float
+      Optional area of input triangles
 
     Returns
     ----------
-    box:       (n,2) float, the size of the 2D oriented bounding box.
+    box :  (n, 2) float
+      The size of each triangle's 2D oriented bounding box
     """
     triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
@@ -359,13 +418,16 @@ def barycentric_to_points(triangles, barycentric):
     to cartesian points.
 
     Parameters
-    ----------
-    triangles:   (n,3,3) float, list of triangles in space
-    barycentric: (n,2) float, barycentric coordinates
+    ------------
+    triangles : (n, 3, 3) float
+      Triangles in space
+    barycentric : (n, 2) float
+      Barycentric coordinates
 
     Returns
     -----------
-    points: (m,3) float, points in space
+    points : (m, 3) float
+      Points in space
     """
     barycentric = np.asanyarray(barycentric, dtype=np.float64)
     triangles = np.asanyarray(triangles, dtype=np.float64)
@@ -387,7 +449,9 @@ def barycentric_to_points(triangles, barycentric):
     return points
 
 
-def points_to_barycentric(triangles, points, method='cramer'):
+def points_to_barycentric(triangles,
+                          points,
+                          method='cramer'):
     """
     Find the barycentric coordinates of points relative to triangles.
 
@@ -400,16 +464,20 @@ def points_to_barycentric(triangles, points, method='cramer'):
 
     Parameters
     -----------
-    triangles: (n,3,3) float, triangles in space
-    points:    (n,3) float, point in space associated with a triangle
-    method:    str, which method to compute the barycentric coordinates with. Options:
-               -'cross': uses a method using cross products, roughly 2x slower but
-                         different numerical robustness properties
-               -anything else: uses a cramer's rule solution
+    triangles : (n, 3, 3) float
+      Triangles vertices in space
+    points : (n, 3) float
+      Point in space associated with a triangle
+    method :  str
+      Which method to compute the barycentric coordinates with:
+        - 'cross': uses a method using cross products, roughly 2x slower but
+                  different numerical robustness properties
+        - anything else: uses a cramer's rule solution
 
     Returns
     -----------
-    barycentric: (n,3) float, barycentric
+    barycentric : (n, 3) float
+      Barycentric coordinates of each point
     """
 
     def method_cross():
@@ -462,88 +530,142 @@ def closest_point(triangles, points):
     Return the closest point on the surface of each triangle for a
     list of corresponding points.
 
+    Implements the method from "Real Time Collision Detection" and
+    use the same variable names as "ClosestPtPointTriangle" to avoid
+    being any more confusing.
+
+
     Parameters
     ----------
-    triangles: (n,3,3) float, triangles in space
-    points:    (n,3)   float, points in space
+    triangles : (n, 3, 3) float
+      Triangle vertices in space
+    points : (n, 3) float
+      Points in space
 
     Returns
     ----------
-    closest: (n,3) float, point on each triangle closest to each point
+    closest : (n, 3) float
+      Point on each triangle closest to each point
     """
 
-    # establish that input triangles and points are sane
+    # check input triangles and points
     triangles = np.asanyarray(triangles, dtype=np.float64)
     points = np.asanyarray(points, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
         raise ValueError('triangles shape incorrect')
     if not util.is_shape(points, (len(triangles), 3)):
-        raise ValueError('triangles and points must correspond')
+        raise ValueError('need same number of triangles and points!')
 
-    # convert points to barycentric coordinates
-    barycentric = points_to_barycentric(triangles, points)
+    # store the location of the closest point
+    result = np.zeros_like(points)
+    # which points still need to be handled
+    remain = np.ones(len(points), dtype=np.bool)
 
-    # signs of barycentric coordinates
-    positive = barycentric > -tol.zero
-    positive_sum = positive.sum(axis=1)
-    # cases for signs of barycentric coordinates:
-    # 2 negative, 1 positive: closest point is positive vertex
-    # 1 negative, 2 positive: closest point is on edge between 2 positive
-    # 0 negative, 3 positive: closest point is @ barycentric coord
-    case_vertex = positive_sum == 1
-    case_edge = positive_sum == 2
-    case_barycentric = positive_sum == 3
+    # if we dot product this against a (n, 3)
+    # it is equivalent but faster than array.sum(axis=1)
+    ones = [1.0, 1.0, 1.0]
 
-    # closest points to triangle
-    closest = np.zeros(points.shape, dtype=np.float64)
+    # get the three points of each triangle
+    # use the same notation as RTCD to avoid confusion
+    a = triangles[:, 0, :]
+    b = triangles[:, 1, :]
+    c = triangles[:, 2, :]
 
-    # case where nearest point is a triangle vertex
-    # just take that vertex
-    closest[case_vertex] = triangles[case_vertex][positive[case_vertex]]
+    # check if P is in vertex region outside A
+    ab = b - a
+    ac = c - a
+    ap = points - a
+    # this is a faster equivalent of:
+    # util.diagonal_dot(ab, ap)
+    d1 = np.dot(ab * ap, ones)
+    d2 = np.dot(ac * ap, ones)
 
-    # case where projection is inside the triangle
-    # just evaluate the barycentric coordinates
-    closest[case_barycentric] = (
-        triangles[case_barycentric] *
-        barycentric[case_barycentric].reshape((-1, 3, 1))).sum(axis=1)
+    # is the point at A
+    is_a = np.logical_and(d1 < tol.zero, d2 < tol.zero)
+    if is_a.any():
+        result[is_a] = a[is_a]
+        remain[is_a] = False
 
-    # if case_edge.any():
-    # case where the closest point lies on the edge of a triangle
-    # we have to find the closest point on a line
-    edges = triangles[case_edge][positive[case_edge]].reshape((-1, 2, 3))
-    # for a line defined by A and B, and a point in space P
-    AB = np.diff(edges, axis=1).reshape((-1, 3))
-    AP = points[case_edge] - edges[:, 0]
-    # point projected onto line segment divided by line segment length squared
-    edge_distance = (util.diagonal_dot(AP, AB) /
-                     util.diagonal_dot(AB, AB)).reshape((-1, 1))
-    # our point needs to be on the edge, so the distance along the edge
-    # should be clipped to be between 0.0 and 1.0
-    edge_distance = np.clip(edge_distance, 0.0, 1.0)
+    # check if P in vertex region outside B
+    bp = points - b
+    d3 = np.dot(ab * bp, ones)
+    d4 = np.dot(ac * bp, ones)
 
-    projection = edges[:, 0] + (edge_distance * AB)
-    closest[case_edge] = projection
+    # do the logic check
+    is_b = (d3 > -tol.zero) & (d4 <= d3) & remain
+    if is_b.any():
+        result[is_b] = b[is_b]
+        remain[is_b] = False
 
-    return closest
+    # check if P in edge region of AB, if so return projection of P onto A
+    vc = (d1 * d4) - (d3 * d2)
+    is_ab = ((vc < tol.zero) &
+             (d1 > -tol.zero) &
+             (d3 < tol.zero) & remain)
+    if is_ab.any():
+        v = (d1[is_ab] / (d1[is_ab] - d3[is_ab])).reshape((-1, 1))
+        result[is_ab] = a[is_ab] + (v * ab[is_ab])
+        remain[is_ab] = False
+
+    # check if P in vertex region outside C
+    cp = points - c
+    d5 = np.dot(ab * cp, ones)
+    d6 = np.dot(ac * cp, ones)
+    is_c = (d6 > -tol.zero) & (d5 <= d6) & remain
+    if is_c.any():
+        result[is_c] = c[is_c]
+        remain[is_c] = False
+
+    # check if P in edge region of AC, if so return projection of P onto AC
+    vb = (d5 * d2) - (d1 * d6)
+    is_ac = (vb < tol.zero) & (d2 > -tol.zero) & (d6 < tol.zero) & remain
+    if is_ac.any():
+        w = (d2[is_ac] / (d2[is_ac] - d6[is_ac])).reshape((-1, 1))
+        result[is_ac] = a[is_ac] + w * ac[is_ac]
+        remain[is_ac] = False
+
+    # check if P in edge region of BC, if so return projection of P onto BC
+    va = (d3 * d6) - (d5 * d4)
+    is_bc = ((va < tol.zero) &
+             ((d4 - d3) > - tol.zero) &
+             ((d5 - d6) > -tol.zero) & remain)
+    if is_bc.any():
+        d43 = d4[is_bc] - d3[is_bc]
+        w = (d43 / (d43 + (d5[is_bc] - d6[is_bc]))).reshape((-1, 1))
+        result[is_bc] = b[is_bc] + w * (c[is_bc] - b[is_bc])
+        remain[is_bc] = False
+
+    # any remaining points must be inside face region
+    if remain.any():
+        # point is inside face region
+        denom = 1.0 / (va[remain] + vb[remain] + vc[remain])
+        v = (vb[remain] * denom).reshape((-1, 1))
+        w = (vc[remain] * denom).reshape((-1, 1))
+        # compute Q through its barycentric coordinates
+        result[remain] = a[remain] + (ab[remain] * v) + (ac[remain] * w)
+
+    return result
 
 
 def to_kwargs(triangles):
     """
-    Convert a list of triangles to the kwargs for the Trimesh constructor.
+    Convert a list of triangles to the kwargs for the Trimesh
+    constructor.
 
     Parameters
     ---------
-    triangles: (n,3,3) float, triangles in space
+    triangles : (n, 3, 3) float
+      Triangles in space
 
     Returns
     ---------
-    kwargs: dict, with keys:
-                   'vertices' : (n,3) float
-                   'faces'    : (m,3) int
+    kwargs : dict
+      Keyword arguments for the trimesh.Trimesh constructor
+      Includes keys 'vertices' and 'faces'
 
     Examples
     ---------
-    mesh = trimesh.Trimesh(**trimesh.triangles.to_kwargs(triangles))
+    >>> mesh = trimesh.Trimesh(**trimesh.triangles.to_kwargs(triangles))
     """
     triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):

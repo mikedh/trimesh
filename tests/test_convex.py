@@ -63,7 +63,7 @@ class ConvexTest(g.unittest.TestCase):
                      g.trimesh.primitives.Box()]:
             assert prim.is_convex
             # convex things should have hulls of the same volume
-            # convert to mesh to get tesselated volume rather than
+            # convert to mesh to get tessellated volume rather than
             # analytic primitive volume
             tess = prim.to_mesh()
             assert g.np.isclose(tess.convex_hull.volume,

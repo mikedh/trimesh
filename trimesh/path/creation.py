@@ -18,16 +18,22 @@ def circle_pattern(pattern_radius,
 
     Parameters
     ------------
-    pattern_radius: float, radius of circle centers
-    circle_radius:  float, the radius of each circle
-    count:          int, number of circles in the pattern
-    center:         (2,) float, center of pattern
-    angle:          float, if defined pattern will span this angle
-                           if not pattern will be evenly spaced
+    pattern_radius : float
+      Radius of circle centers
+    circle_radius : float
+      The radius of each circle
+    count : int
+      Number of circles in the pattern
+    center : (2,) float
+      Center of pattern
+    angle :  float
+      If defined pattern will span this angle
+      If None, pattern will be evenly spaced
 
     Returns
     -------------
-    pattern: Path2D object
+    pattern : trimesh.path.Path2D
+      Path containing circular pattern
     """
     from .path import Path2D
 
@@ -38,27 +44,68 @@ def circle_pattern(pattern_radius,
     else:
         raise ValueError('angle must be float or int!')
 
-    centers = np.column_stack((np.cos(angles),
-                               np.sin(angles))) * pattern_radius
+    # centers of circles
+    centers = np.column_stack((
+        np.cos(angles), np.sin(angles))) * pattern_radius
 
-    verts = collections.deque()
-    ents = collections.deque()
+    vert = []
+    ents = []
     for circle_center in centers:
         # (3,3) center points of arc
         three = arc.to_threepoint(angles=[0, np.pi],
                                   center=circle_center,
                                   radius=circle_radius)
-        ents.append(entities.Arc(points=np.arange(3) + len(verts),
-                                 closed=True))
+        # add a single circle entity
+        ents.append(
+            entities.Arc(
+                points=np.arange(3) + len(vert),
+                closed=True))
         # keep flat array by extend instead of append
-        verts.extend(three)
+        vert.extend(three)
 
-    # translate vertices to center
-    verts = np.array(verts) + center
+    # translate vertices to pattern center
+    vert = np.array(vert) + center
     pattern = Path2D(entities=ents,
-                     vertices=verts,
+                     vertices=vert,
                      **kwargs)
     return pattern
+
+
+def circle(radius=None, center=None, **kwargs):
+    """
+    Create a Path2D containing a single or multiple rectangles
+    with the specified bounds.
+
+    Parameters
+    --------------
+    bounds : (2, 2) float, or (m, 2, 2) float
+      Minimum XY, Maximum XY
+
+    Returns
+    -------------
+    rect : Path2D
+      Path containing specified rectangles
+    """
+    from .path import Path2D
+
+    if center is None:
+        center = [0.0, 0.0]
+    else:
+        center = np.asanyarray(center, dtype=np.float64)
+    if radius is None:
+        radius = 1.0
+    else:
+        radius = float(radius)
+
+    # (3, 2) float, points on arc
+    three = arc.to_threepoint(angles=[0, np.pi],
+                              center=center,
+                              radius=radius) + center
+
+    result = Path2D(entities=[entities.Arc(points=np.arange(3), closed=True)],
+                    vertices=three,
+                    **kwargs)
+    return result
 
 
 def rectangle(bounds, **kwargs):
@@ -80,6 +127,11 @@ def rectangle(bounds, **kwargs):
 
     # data should be float
     bounds = np.asanyarray(bounds, dtype=np.float64)
+
+    # bounds are extents, re- shape to origin- centered rectangle
+    if bounds.shape == (2,):
+        half = np.abs(bounds) / 2.0
+        bounds = np.array([-half, half])
 
     # should have one bounds or multiple bounds
     if not (util.is_shape(bounds, (2, 2)) or

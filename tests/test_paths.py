@@ -33,7 +33,7 @@ class VectorTests(g.unittest.TestCase):
                 assert g.np.allclose(bl, bp, atol=atol)
 
             # run some checks
-            check_Path2D(d)
+            g.check_path2D(d)
 
             # copying shouldn't touch original file
             copied = d.copy()
@@ -106,6 +106,9 @@ class VectorTests(g.unittest.TestCase):
                 m = d.medial_axis()
                 assert len(m.entities) > 0
 
+            # shouldn't crash
+            d.fill_gaps()
+
             # transform to first quadrant
             d.rezero()
             # run process manually
@@ -130,6 +133,22 @@ class VectorTests(g.unittest.TestCase):
         # fill gaps of any distance
         p.fill_gaps(g.np.inf)
         assert p.is_closed
+
+    def test_empty(self):
+        # make sure empty paths perform as expected
+
+        p = g.trimesh.path.Path2D()
+        assert p.is_empty
+        p = g.trimesh.path.Path3D()
+        assert p.is_empty
+
+        p = g.trimesh.load_path([[[0, 0, 1], [1, 0, 1]]])
+        assert len(p.entities) == 1
+        assert not p.is_empty
+
+        b = p.to_planar()[0]
+        assert len(b.entities) == 1
+        assert not b.is_empty
 
     def test_edges(self):
         """
@@ -210,93 +229,6 @@ class VectorTests(g.unittest.TestCase):
             assert s.shape[1] == 2
 
 
-class ArcTests(g.unittest.TestCase):
-
-    def test_center(self):
-
-        test_points = [[[0, 0], [1.0, 1], [2, 0]]]
-        test_results = [[[1, 0], 1.0]]
-        points = test_points[0]
-        res_center, res_radius = test_results[0]
-        center_info = g.trimesh.path.arc.arc_center(points)
-        C, R, N, angle = (center_info['center'],
-                          center_info['radius'],
-                          center_info['normal'],
-                          center_info['span'])
-
-        assert abs(R - res_radius) < g.tol_path.zero
-        assert g.trimesh.util.euclidean(C, res_center) < g.tol_path.zero
-
-    def test_center_random(self):
-
-        # Test that arc centers work on well formed random points in 2D and 3D
-        min_angle = g.np.radians(2)
-        min_radius = .0001
-        count = 1000
-
-        center_3D = (g.np.random.random((count, 3)) - .5) * 50
-        center_2D = center_3D[:, 0:2]
-        radii = g.np.clip(g.np.random.random(count) * 100, min_angle, g.np.inf)
-
-        angles = g.np.random.random((count, 2)) * \
-            (g.np.pi - min_angle) + min_angle
-        angles = g.np.column_stack((g.np.zeros(count),
-                                    g.np.cumsum(angles, axis=1)))
-
-        points_2D = g.np.column_stack((g.np.cos(angles[:, 0]),
-                                       g.np.sin(angles[:, 0]),
-                                       g.np.cos(angles[:, 1]),
-                                       g.np.sin(angles[:, 1]),
-                                       g.np.cos(angles[:, 2]),
-                                       g.np.sin(angles[:, 2]))).reshape((-1, 6))
-        points_2D *= radii.reshape((-1, 1))
-        points_2D += g.np.tile(center_2D, (1, 3))
-        points_2D = points_2D.reshape((-1, 3, 2))
-        points_3D = g.np.column_stack((points_2D.reshape((-1, 2)),
-                                       g.np.tile(center_3D[:, 2].reshape((-1, 1)),
-                                                 (1, 3)).reshape(-1))).reshape((-1, 3, 3))
-
-        for center, radius, three in zip(center_2D,
-                                         radii,
-                                         points_2D):
-            info = g.trimesh.path.arc.arc_center(three)
-
-            assert g.np.allclose(center, info['center'])
-            assert g.np.allclose(radius, info['radius'])
-
-        for center, radius, three in zip(center_3D,
-                                         radii,
-                                         points_3D):
-            transform = g.trimesh.transformations.random_rotation_matrix()
-            center = g.trimesh.transformations.transform_points([center], transform)[
-                0]
-            three = g.trimesh.transformations.transform_points(
-                three, transform)
-
-            info = g.trimesh.path.arc.arc_center(three)
-
-            assert g.np.allclose(center, info['center'])
-            assert g.np.allclose(radius, info['radius'])
-
-    def test_multiroot(self):
-        """
-        Test a Path2D object containing polygons nested in
-        the interiors of other polygons.
-        """
-        inner = g.trimesh.creation.annulus(r_min=.5, r_max=.6)
-        outer = g.trimesh.creation.annulus(r_min=.9, r_max=1.0)
-        m = inner + outer
-
-        s = m.section(plane_normal=[0, 0, 1],
-                      plane_origin=[0, 0, 0])
-        p = s.to_planar()[0]
-
-        assert len(p.polygons_closed) == 4
-        assert len(p.polygons_full) == 2
-        assert len(p.root) == 2
-        check_Path2D(p)
-
-
 class SplitTest(g.unittest.TestCase):
 
     def test_split(self):
@@ -325,7 +257,7 @@ class SplitTest(g.unittest.TestCase):
                 assert len(s.path_valid) == len(s.paths)
                 assert len(s.paths) == len(s.discrete)
                 assert s.path_valid.sum() == len(s.polygons_closed)
-                check_Path2D(s)
+                g.check_path2D(s)
 
 
 class SectionTest(g.unittest.TestCase):
@@ -356,12 +288,12 @@ class SectionTest(g.unittest.TestCase):
                 polygon.interiors[0].coords)
 
             # should be a valid Path2D
-            check_Path2D(planar)
+            g.check_path2D(planar)
 
 
 class CreationTests(g.unittest.TestCase):
 
-    def test_circle(self):
+    def test_circle_pattern(self):
         from trimesh.path import creation
         pattern = creation.circle_pattern(pattern_radius=1.0,
                                           circle_radius=0.1,
@@ -371,7 +303,25 @@ class CreationTests(g.unittest.TestCase):
         assert len(pattern.polygons_full) == 4
 
         # should be a valid Path2D
-        check_Path2D(pattern)
+        g.check_path2D(pattern)
+
+    def test_circle(self):
+        from trimesh.path import creation
+        circle = creation.circle(radius=1.0)
+
+        # it's a discrete circle
+        assert g.np.isclose(circle.area, g.np.pi, rtol=0.01)
+        # should be centered at 0
+        assert g.np.allclose(
+            circle.polygons_full[0].centroid, [
+                0.0, 0.0], atol=1e-3)
+
+        assert len(circle.entities) == 1
+        assert len(circle.polygons_closed) == 1
+        assert len(circle.polygons_full) == 1
+
+        # should be a valid Path2D
+        g.check_path2D(circle)
 
     def test_rect(self):
         from trimesh.path import creation
@@ -383,7 +333,7 @@ class CreationTests(g.unittest.TestCase):
         assert len(pattern.polygons_full) == 1
         assert g.np.isclose(pattern.area, 6.0)
         # should be a valid Path2D
-        check_Path2D(pattern)
+        g.check_path2D(pattern)
 
         # make 10 untouching rectangles
         pattern = creation.rectangle(
@@ -392,29 +342,7 @@ class CreationTests(g.unittest.TestCase):
         assert len(pattern.polygons_closed) == 10
         assert len(pattern.polygons_full) == 10
         # should be a valid Path2D
-        check_Path2D(pattern)
-
-
-def check_Path2D(path):
-    """
-    Make basic assertions on Path2D objects
-    """
-    # root count should be the same as the closed polygons
-    assert len(path.root) == len(path.polygons_full)
-
-    # make sure polygons are really polygons
-    assert all(type(i).__name__ == 'Polygon'
-               for i in path.polygons_full)
-    assert all(type(i).__name__ == 'Polygon'
-               for i in path.polygons_closed)
-
-    # these should all correspond to each other
-    assert len(path.discrete) == len(path.polygons_closed)
-    assert len(path.discrete) == len(path.paths)
-
-    # make sure None polygons are not referenced in graph
-    assert all(path.polygons_closed[i] is not None
-               for i in path.enclosure_directed.nodes())
+        g.check_path2D(pattern)
 
 
 if __name__ == '__main__':

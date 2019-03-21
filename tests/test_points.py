@@ -62,6 +62,18 @@ class PointsTest(g.unittest.TestCase):
         # cloud should have copied
         assert not g.np.allclose(points[0], [10, 10, 10])
 
+        # check to see if copy works
+        assert g.np.allclose(cloud.vertices,
+                             cloud.copy().vertices)
+
+    def test_empty(self):
+        p = g.trimesh.PointCloud(None)
+        assert p.is_empty
+        assert p.copy().is_empty
+
+        p.vertices = [[0, 1, 2]]
+        assert not p.is_empty
+
     def test_vertex_only(self):
         """
         Test to make sure we can instantiate a mesh with just

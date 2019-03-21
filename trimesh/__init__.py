@@ -7,6 +7,7 @@ meshes with an emphasis on watertight meshes. The goal of the library is to
 provide a fully featured Trimesh object which allows for easy manipulation
 and analysis, in the style of the Polygon object in the Shapely library.
 """
+
 # current version
 from .version import __version__
 
@@ -19,11 +20,15 @@ from .scene.scene import Scene
 from .util import unitize
 from .transformations import transform_points
 
-# general tolerances
+# general numeric tolerances
 from .constants import tol
 
-# loaders
-from .io.load import load_mesh, load_path, load, available_formats
+# loader functions
+from .exchange.load import (load,
+                            load_mesh,
+                            load_path,
+                            load_remote,
+                            available_formats)
 
 # avoid a circular import in trimesh.base
 from . import primitives
@@ -39,6 +44,7 @@ __all__ = [__version__,
            load,
            load_mesh,
            load_path,
+           load_remote,
            primitives,
            transform_points,
            available_formats]

@@ -155,6 +155,44 @@ class MeshTests(g.unittest.TestCase):
         m.remove_unreferenced_vertices()
         assert len(m.vertices) == len_pre
 
+    def test_none(self):
+        """
+        Make sure mesh methods don't return None or crash.
+        """
+        # a radially symmetric mesh with units
+        # should have no properties that are None
+        mesh = g.get_mesh('tube.obj')
+        mesh.units = 'in'
+
+        # loop through string property names
+        for method in dir(mesh):
+            # ignore private- ish methods
+            if method.startswith('_'):
+                continue
+            # a string expression to evaluate
+            expr = 'mesh.{}'.format(method)
+            # get the value of that expression
+            res = eval(expr)
+            # shouldn't be None!
+            if res is None:
+                raise ValueError('"{}" is None!!'.format(expr))
+
+        # check methods in scene objects
+        scene = mesh.scene()
+        # camera will be None unless set
+        blacklist = ['camera']
+        for method in dir(scene):
+            # ignore private- ish methods
+            if method.startswith('_') or method in blacklist:
+                continue
+            # a string expression to evaluate
+            expr = 'scene.{}'.format(method)
+            # get the value of that expression
+            res = eval(expr)
+            # shouldn't be None!
+            if res is None:
+                raise ValueError('"{}" is None!!'.format(expr))
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

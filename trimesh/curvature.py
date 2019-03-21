@@ -14,28 +14,6 @@ except ImportError:
     pass
 
 
-def face_angles(mesh):
-    """
-    Returns the angle at each vertex of a face.
-
-    Returns
-    --------
-    angles: (n, 3) float, angle at each vertex of a face.
-    """
-
-    u = mesh.triangles[:, 1] - mesh.triangles[:, 0]
-    v = mesh.triangles[:, 2] - mesh.triangles[:, 0]
-    w = mesh.triangles[:, 2] - mesh.triangles[:, 1]
-    u /= np.linalg.norm(u, axis=1, keepdims=True)
-    v /= np.linalg.norm(v, axis=1, keepdims=True)
-    w /= np.linalg.norm(w, axis=1, keepdims=True)
-    a = np.arccos(np.clip(np.einsum('ij, ij->i', u, v), -1, 1))
-    b = np.arccos(np.clip(np.einsum('ij, ij->i', -u, w), -1, 1))
-    c = np.pi - a - b
-
-    return np.vstack([a, b, c]).T
-
-
 def face_angles_sparse(mesh):
     """
     A sparse matrix representation of the face angles.

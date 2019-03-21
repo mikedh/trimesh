@@ -31,6 +31,7 @@ from . import proximity
 from . import triangles
 from . import collision
 from . import curvature
+from . import smoothing
 from . import comparison
 from . import registration
 from . import decomposition
@@ -38,7 +39,7 @@ from . import intersections
 from . import transformations
 
 from .visual import create_visual
-from .io.export import export_mesh
+from .exchange.export import export_mesh
 from .constants import log, log_time, tol
 
 from .scene import Scene
@@ -66,32 +67,32 @@ class Trimesh(Geometry):
 
         Parameters
         ----------
-        vertices:       (n,3) float set of vertex locations
-
-        faces:          (m,3) int set of triangular faces
-                              (quad faces will be triangulated)
-
-        face_normals:   (m,3) float set of normal vectors for faces.
-
-        vertex_normals: (n,3) float set of normal vectors for vertices
-
-        metadata:       dict, any metadata about the mesh
-
-        process:        bool, if True, Nan and Inf values will be removed
-                        immediately and vertices will be merged
-
-        validate:       bool, if True, degenerate and duplicate faces will be
-                        removed immediately, and some functions will alter
-                        the mesh to ensure consistent results.
-
-        use_embree:     bool, if True try to use pyembree raytracer.
-                        If pyembree is not available it will automatically fall
-                        back to a much slower rtree/numpy implementation
-
-        initial_cache:  dict, a way to pass things to the cache in case expensive
-                        things were calculated before creating the mesh object.
-
-        visual:         ColorVisuals, if not None, it is set to self.visual.
+        vertices : (n, 3) float
+          Array of vertex locations
+        faces : (m, 3) or (m, 4) int
+          Array of triangular or quad faces (triangulated on load)
+        face_normals : (m, 3) float
+          Array of normal vectors corresponding to faces
+        vertex_normals : (n, 3) float
+          Array of normal vectors for vertices
+        metadata : dict
+          Any metadata about the mesh
+        process : bool
+          if True, Nan and Inf values will be removed
+          immediately and vertices will be merged
+        validate : bool
+          If True, degenerate and duplicate faces will be
+          removed immediately, and some functions will alter
+          the mesh to ensure consistent results.
+        use_embree : bool
+          If True try to use pyembree raytracer.
+          If pyembree is not available it will automatically fall
+          back to a much slower rtree/numpy implementation
+        initial_cache : dict
+          A way to pass things to the cache in case expensive
+          things were calculated before creating the mesh object.
+        visual : ColorVisuals or TextureVisuals
+          Assigned to self.visual
         """
 
         # self._data stores information about the mesh which
@@ -130,8 +131,6 @@ class Trimesh(Geometry):
                 mesh=self)
         else:
             self.visual = visual
-        # add a back reference to this mesh for its visual property object
-        self.visual.mesh = self
 
         # normals are accessed through setters/properties and are regenerated
         # if dimensions are inconsistent, but can be set by the constructor
@@ -176,7 +175,7 @@ class Trimesh(Geometry):
         if process or validate:
             self.process()
 
-        # store any passed kwargs
+        # save reference to kwargs
         self._kwargs = kwargs
 
     def process(self):
@@ -284,7 +283,7 @@ class Trimesh(Geometry):
         values = np.asanyarray(values, dtype=np.int64)
         # automatically triangulate quad faces
         if util.is_shape(values, (-1, 4)):
-            log.info('Triangulating quad faces')
+            log.info('triangulating quad faces')
             values = geometry.triangulate_quads(values)
         self._data['faces'] = values
 
@@ -300,8 +299,9 @@ class Trimesh(Geometry):
           dtype : bool
           shape : (len(self.vertices), len(self.faces))
         """
-        sparse = geometry.index_sparse(column_count=len(self.vertices),
-                                       indices=self.faces)
+        sparse = geometry.index_sparse(
+            column_count=len(self.vertices),
+            indices=self.faces)
         return sparse
 
     @property
@@ -372,6 +372,16 @@ class Trimesh(Geometry):
             # don't set the normals if they are all zero
             if not nonzero.any():
                 log.warning('face_normals all zero, ignoring!')
+                return
+
+            # make sure the first few normals match the first few triangles
+            check, valid = triangles.normals(
+                self.vertices.view(np.ndarray)[self.faces[:20]])
+            compare = np.zeros((len(valid), 3))
+            compare[valid] = check
+
+            if not np.allclose(compare, values[:20]):
+                log.warning('face_normals didn\'t match triangles, ignoring!')
                 return
 
         self._cache['face_normals'] = values
@@ -923,7 +933,7 @@ class Trimesh(Geometry):
         # make sure we have populated unique edges
         populate = self.edges_unique
         # we are relying on the fact that edges are stacked in triplets
-        result = self._cache['edges_unique_inv'].reshape((-1, 3))
+        result = self._cache['edges_unique_inverse'].reshape((-1, 3))
         return result
 
     @caching.cache_decorator
@@ -976,7 +986,7 @@ class Trimesh(Geometry):
         units._convert_units(self, desired, guess)
         return self
 
-    def merge_vertices(self, distance=None):
+    def merge_vertices(self, digits=None, textured=True):
         """
         If a mesh has vertices that are closer than
         trimesh.constants.tol.merge reindex faces to reference
@@ -984,10 +994,15 @@ class Trimesh(Geometry):
 
         Parameters
         --------------
-        distance : float or None
+        digits : int
           If specified overrides tol.merge
+        textured : bool
+          If True avoids merging vertices with different UV
+          coordinates. No effect on untextured meshes.
         """
-        grouping.merge_vertices_hash(self, distance=distance)
+        grouping.merge_vertices(self,
+                                digits=digits,
+                                textured=textured)
 
     def update_vertices(self, mask, inverse=None):
         """
@@ -1491,7 +1506,8 @@ class Trimesh(Geometry):
         # use native python sum in tight loop as opposed to array.sum()
         # as in this case the lower function call overhead of
         # native sum provides roughly a 50% speedup
-        areas = np.array([sum(area_faces[i]) for i in self.facets],
+        areas = np.array([sum(area_faces[i])
+                          for i in self.facets],
                          dtype=np.float64)
         return areas
 
@@ -1508,8 +1524,12 @@ class Trimesh(Geometry):
         if len(self.facets) == 0:
             return np.array([])
 
+        area_faces = self.area_faces
+        # sum the area of each group of faces represented by facets
+
         # the face index of the first face in each facet
-        index = np.array([i[0] for i in self.facets])
+        index = np.array([i[area_faces[i].argmax()]
+                          for i in self.facets])
         # (n,3) float, unit normal vectors of facet plane
         normals = self.face_normals[index]
         # (n,3) float, points on facet plane
@@ -1719,8 +1739,8 @@ class Trimesh(Geometry):
     @log_time
     def smoothed(self, angle=.4):
         """
-        Return a version of the current mesh which will render nicely.
-        Does not change current mesh in any way.
+        Return a version of the current mesh which will render
+        nicely, without changing source mesh.
 
         Parameters
         -------------
@@ -1740,9 +1760,38 @@ class Trimesh(Geometry):
         cached = self.visual._cache['smoothed']
         if cached is not None:
             return cached
+
         smoothed = graph.smoothed(self, angle)
         self.visual._cache['smoothed'] = smoothed
         return smoothed
+
+    @property
+    def visual(self):
+        """
+        Get the stored visuals for the current mesh.
+
+        Returns
+        -------------
+        visual : ColorVisuals or TextureVisuals
+          Contains visual information about the mesh
+        """
+        if hasattr(self, '_visual'):
+            return self._visual
+        return None
+
+    @visual.setter
+    def visual(self, value):
+        """
+        When setting a visual object, always make sure
+        that `visual.mesh` points back to the source mesh.
+
+        Parameters
+        --------------
+        visual : ColorVisuals or TextureVisuals
+          Contains visual information about the mesh
+        """
+        value.mesh = self
+        self._visual = value
 
     def section(self,
                 plane_normal,
@@ -1764,7 +1813,7 @@ class Trimesh(Geometry):
           Curve of intersection
         """
         # turn line segments into Path2D/Path3D objects
-        from .io.load import load_path
+        from .exchange.load import load_path
 
         # return a single cross section in 3D
         lines, face_index = intersections.mesh_plane(
@@ -1811,7 +1860,7 @@ class Trimesh(Geometry):
           to return 2D section back into 3D space.
         """
         # turn line segments into Path2D/Path3D objects
-        from .io.load import load_path
+        from .exchange.load import load_path
         # do a multiplane intersection
         lines, transforms, faces = intersections.mesh_multiplane(
             mesh=self,
@@ -1912,51 +1961,20 @@ class Trimesh(Geometry):
 
     def unmerge_vertices(self):
         """
-        Removes all face references so that every face contains three
-        unique vertex indices and no faces are adjacent.
+        Removes all face references so that every face contains
+        three unique vertex indices and no faces are adjacent.
         """
-        vertices = self.vertices[self.faces].reshape((-1, 3))
-        faces = np.arange(len(vertices),
+        # new faces are incrementing so every vertex is unique
+        faces = np.arange(len(self.faces) * 3,
                           dtype=np.int64).reshape((-1, 3))
 
+        # use update_vertices to apply mask to
+        # all properties that are per-vertex
+        self.update_vertices(self.faces.reshape(-1))
+        # set faces to incrementing indexes
         self.faces = faces
-        self.vertices = vertices
+        # keep face normals as the haven't changed
         self._cache.clear(exclude=['face_normals'])
-
-    def apply_translation(self, translation):
-        """
-        Translate the current mesh.
-
-        Parameters
-        ----------
-        translation : (3,) float
-          Translation in XYZ
-        """
-        translation = np.asanyarray(translation, dtype=np.float64)
-        if translation.shape != (3,):
-            raise ValueError('Translation must be (3,)!')
-
-        matrix = np.eye(4)
-        matrix[:3, 3] = translation
-        self.apply_transform(matrix)
-
-    def apply_scale(self, scaling):
-        """
-        Scale the mesh equally on all axis.
-
-        Parameters
-        ----------
-        scaling : float
-          Scale factor to apply to the mesh
-        """
-        scaling = float(scaling)
-        if not np.isfinite(scaling):
-            raise ValueError('Scaling factor must be finite number!')
-
-        matrix = np.eye(4)
-        matrix[:3, :3] *= scaling
-        # apply_transform will work nicely even on negative scales
-        self.apply_transform(matrix)
 
     def apply_obb(self):
         """
@@ -2113,18 +2131,18 @@ class Trimesh(Geometry):
 
     def outline(self, face_ids=None, **kwargs):
         """
-        Given a set of face ids, find the outline of the faces,
-        and return it as a Path3D.
+        Given a list of face indexes find the outline of those
+        faces and return it as a Path3D.
 
         The outline is defined here as every edge which is only
         included by a single triangle.
 
-        Note that this implies a non-watertight section,
-        and the 'outline' of a watertight mesh is an empty path.
+        Note that this implies a non-watertight mesh as the
+        outline of a watertight mesh is an empty path.
 
         Parameters
         ----------
-        face_ids : (n) int
+        face_ids : (n,) int
           Indices to compute the outline of.
           If None, outline of full mesh will be computed.
         **kwargs: passed to Path3D constructor
@@ -2134,8 +2152,8 @@ class Trimesh(Geometry):
         path : Path3D
           Curve in 3D of the outline
         """
-        from .path.io.misc import faces_to_path
-        from .path.io.load import _create_path
+        from .path.exchange.misc import faces_to_path
+        from .path.exchange.load import _create_path
 
         path = _create_path(**faces_to_path(self,
                                             face_ids,
@@ -2480,7 +2498,7 @@ class Trimesh(Geometry):
         angles : (n, 3) float
           Angle at each vertex of a face
         """
-        angles = curvature.face_angles(self)
+        angles = triangles.angles(self.triangles)
         return angles
 
     @caching.cache_decorator
@@ -2553,7 +2571,7 @@ class Trimesh(Geometry):
         # copy vertex and face data
         copied._data.data = copy.deepcopy(self._data.data)
         # copy visual information
-        copied.visual._data.data = copy.deepcopy(self.visual._data.data)
+        copied.visual = self.visual.copy()
         # get metadata
         copied.metadata = copy.deepcopy(self.metadata)
         # get center_mass and density

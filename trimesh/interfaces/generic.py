@@ -6,7 +6,7 @@ from string import Template
 from tempfile import NamedTemporaryFile
 from subprocess import check_call
 
-from .. import io
+from .. import exchange
 
 
 class MeshScript:
@@ -70,7 +70,7 @@ class MeshScript:
                        stderr=subprocess.STDOUT)
 
         # bring the binaries result back as a set of Trimesh kwargs
-        mesh_results = io.load.load_mesh(self.mesh_post.name)
+        mesh_results = exchange.load.load_mesh(self.mesh_post.name)
 
         return mesh_results
 

@@ -43,6 +43,35 @@ class CameraTests(g.unittest.TestCase):
             fov=None)
         assert np.allclose(camera.fov, fov)
 
+    def test_lookat(self):
+        """
+        Test the "look at points" function
+        """
+        # original points
+        ori = np.array([[-1, -1],
+                        [1, -1],
+                        [1, 1],
+                        [-1, 1]])
+
+        for i in range(10):
+            # set the extents to be random but positive
+            extents = g.random() * 10
+            points = g.trimesh.util.stack_3D(ori.copy() * extents)
+
+            fov = g.np.array([20, 50])
+
+            # offset the points by a random amount
+            offset = (g.random(3) - 0.5) * 100
+            T = g.trimesh.scene.cameras.look_at(points + offset, fov)
+
+            # check using trig
+            check = (points.ptp(axis=0)[:2] / 2.0) / \
+                g.np.tan(np.radians(fov / 2))
+            check += points[:, 2].mean()
+
+            # Z should be the same as maximum trig option
+            assert np.linalg.inv(T)[2, 3] >= check.max()
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

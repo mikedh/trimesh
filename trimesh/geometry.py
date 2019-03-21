@@ -1,9 +1,7 @@
 import numpy as np
 
-from .transformations import rotation_matrix
-from .constants import tol, log
-
 from . import util
+from .constants import tol, log
 
 try:
     from scipy.sparse import coo_matrix
@@ -98,7 +96,7 @@ def align_vectors(a, b, return_angle=False):
         # (3,) vector perpendicular to both a and b
         w = np.cross(a, b)
 
-        # a scalar
+        # a float between 0.5 and 1.0
         c = 1.0 / (1.0 + dot)
 
         # (3, 3) skew- symmetric matrix from the (3,) vector w
@@ -126,11 +124,13 @@ def faces_to_edges(faces, return_index=False):
 
     Parameters
     -----------
-    faces: (n,3) int, vertex indices representing faces
+    faces : (n, 3) int
+      Vertex indices representing faces
 
     Returns
     -----------
-    edges: (n*3, 2) int, vertex indices representing edges
+    edges : (n*3, 2) int
+      Vertex indices representing edges
     """
     faces = np.asanyarray(faces)
 
@@ -151,7 +151,7 @@ def vector_angle(pairs):
 
     Parameters
     ----------
-    pairs : (n,2,3) float
+    pairs : (n, 2, 3) float
       Unit vector pairs
 
     Returns
@@ -162,6 +162,8 @@ def vector_angle(pairs):
     pairs = np.asanyarray(pairs, dtype=np.float64)
     if len(pairs) == 0:
         return np.array([])
+    elif util.is_shape(pairs, (2, 3)):
+        pairs = pairs.reshape((-1, 2, 3))
     elif not util.is_shape(pairs, (-1, 2, (2, 3))):
         raise ValueError('pairs must be (n,2,(2|3))!')
 
@@ -181,11 +183,13 @@ def triangulate_quads(quads):
 
     Parameters
     -----------
-    quads: (n,4) int, vertex indices of quad faces
+    quads: (n, 4) int
+      Vertex indices of quad faces
 
     Returns
     -----------
-    faces: (m,3) int, vertex indices of triangular faces
+    faces : (m, 3) int
+      Vertex indices of triangular faces
     """
     if len(quads) == 0:
         return quads
@@ -204,14 +208,18 @@ def mean_vertex_normals(vertex_count,
 
     Parameters
     -----------
-    vertex_count: int, the number of vertices faces refer to
-    faces:        (n,3) int, list of vertex indices
-    face_normals: (n,3) float, normal vector for each face
+    vertex_count : int
+      The number of vertices faces refer to
+    faces : (n, 3) int
+      List of vertex indices
+    face_normals : (n, 3) float
+      Normal vector for each face
 
     Returns
     -----------
-    vertex_normals: (vertex_count, 3) float normals for every vertex
-                    Uncontained vertices will be zero.
+    vertex_normals : (vertex_count, 3) float
+      Normals for every vertex
+      Vertices unreferenced by faces will be zero.
     """
     def summed_sparse():
         # use a sparse matrix of which face contains each vertex to
