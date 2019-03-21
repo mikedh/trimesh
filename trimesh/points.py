@@ -349,7 +349,7 @@ class PointCloud(Geometry):
     in a scene.
     """
 
-    def __init__(self, vertices, colors=None, *args, **kwargs):
+    def __init__(self, vertices, colors=None, color=None):
         self._data = caching.DataStore()
         self._cache = caching.Cache(self._data.md5)
         self.metadata = {}
@@ -359,19 +359,11 @@ class PointCloud(Geometry):
 
         if colors is not None:
             self.colors = colors
-        if colors is None and 'color' in kwargs:
+        elif color is not None:
             warnings.warn(
                 "argument 'color' is deprecated, use 'colors' instead",
                 DeprecationWarning)
-            self.colors = kwargs.pop('color')
-
-        if args:
-            raise TypeError(
-                '__init__() got unexpected arguments: {}'.format(args))
-        if kwargs:
-            raise TypeError(
-                '__init__() got unexpected keyword arguments: {}'
-                .format(kwargs))
+            self.colors = color
 
     def __setitem__(self, *args, **kwargs):
         return self.vertices.__setitem__(*args, **kwargs)

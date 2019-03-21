@@ -67,16 +67,8 @@ class PointsTest(g.unittest.TestCase):
                              cloud.copy().vertices)
 
     def test_init_arguments(self):
-        # unsupported arguments
         vertices = [[0, 0, 0], [1, 1, 1]]
         colors = [[0, 0, 1.0], [1.0, 0, 0]]
-        # in args
-        self.assertRaises(
-            TypeError, lambda: g.trimesh.PointCloud(vertices, colors, 1))
-        # in kwargs
-        self.assertRaises(
-            TypeError, lambda: g.trimesh.PointCloud(unsupported=1))
-
         # deprecated color -> colors
         with g.warnings.catch_warnings(record=True) as w:
             g.warnings.simplefilter('always')
