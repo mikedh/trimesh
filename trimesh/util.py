@@ -18,6 +18,7 @@ import base64
 import logging
 import hashlib
 import zipfile
+import warnings
 import collections
 
 from sys import version_info
@@ -34,6 +35,7 @@ else:
     from StringIO import StringIO
     BytesIO = StringIO
 
+# create a default logger
 log = logging.getLogger('trimesh')
 log.addHandler(logging.NullHandler())
 
@@ -824,6 +826,7 @@ def attach_to_log(level=logging.DEBUG,
                   handler=None,
                   loggers=None,
                   colors=True,
+                  capture_warnings=True,
                   blacklist=['TerminalIPythonApp',
                              'PYREADLINE',
                              'pyembree',
@@ -841,6 +844,10 @@ def attach_to_log(level=logging.DEBUG,
     colors:    bool, if True try to use colorlog formatter
     blacklist: list of str, names of loggers NOT to attach to
     """
+
+    # make sure we log warnings from the warnings module
+    logging.captureWarnings(capture_warnings)
+
     formatter = logging.Formatter(
         "[%(asctime)s] %(levelname)-7s (%(filename)s:%(lineno)3s) %(message)s",
         "%Y-%m-%d %H:%M:%S")
@@ -868,9 +875,12 @@ def attach_to_log(level=logging.DEBUG,
     handler.setFormatter(formatter)
     handler.setLevel(level)
 
-    # if nothing passed, use all available loggers
+    # if nothing passed use all available loggers
     if loggers is None:
-        loggers = logging.Logger.manager.loggerDict.values()
+        # de- duplicate loggers using a set
+        loggers = set(logging.Logger.manager.loggerDict.values())
+    # add the warnings logging
+    loggers.add(logging.getLogger('py.warnings'))
 
     # disable pyembree warnings
     logging.getLogger('pyembree').disabled = True

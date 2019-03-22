@@ -17,6 +17,13 @@ try:
 except ImportError:
     log.warning('No scipy!')
 
+try:
+    import psutil
+
+    def _MAX_MEMORY(): return psutil.virtual_memory().free / 2.0
+except ImportError:
+    def _MAX_MEMORY(): return 1e9
+
 
 def minimum_nsphere(obj):
     """
@@ -74,9 +81,10 @@ def minimum_nsphere(obj):
     try:
         # cdist is massivly faster than looping or tiling methods
         # although it does create a very large intermediate array
-
-        memory_estimate = len(voronoi.vertices) * len(points) * 8 # bytes
-        if memory_estimate > 1e9:
+        # first, get an order of magnitude memory size estimate
+        # a float64 would be 8 bytes per entry plus overhead
+        memory_estimate = len(voronoi.vertices) * len(points) * 9
+        if memory_estimate > _MAX_MEMORY():
             raise MemoryError
         radii_2 = spatial.distance.cdist(
             voronoi.vertices, points,

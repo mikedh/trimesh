@@ -82,6 +82,7 @@ setup(name='trimesh',
                               'xxhash',
                               'requests',
                               'pycollada',
+                              'psutil',
                               'pillow',
                               'setuptools']}
       )

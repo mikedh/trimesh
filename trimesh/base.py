@@ -462,18 +462,17 @@ class Trimesh(Geometry):
     @caching.cache_decorator
     def bounds(self):
         """
-        The axis aligned bounds of the mesh.
+        The axis aligned bounds of the faces of the mesh.
 
         Returns
         -----------
         bounds : (2, 3) float
           Bounding box with [min, max] coordinates
         """
-        # we use triangles instead of faces because
-        # if there is an unused vertex it will screw up bounds
-        in_mesh = self.triangles.reshape((-1, 3))
-        bounds = np.vstack((in_mesh.min(axis=0),
-                            in_mesh.max(axis=0)))
+        # return bounds including ONLY referenced vertices
+        in_mesh = self.vertices[self.referenced_vertices]
+        bounds = np.array([in_mesh.min(axis=0),
+                           in_mesh.max(axis=0)])
         bounds.flags.writeable = False
         return bounds
 
@@ -502,6 +501,7 @@ class Trimesh(Geometry):
         scale : float
           The length of the meshes AABB diagonal
         """
+        # make sure we are returning python floats
         scale = float((self.extents ** 2).sum() ** .5)
         return scale
 
@@ -630,7 +630,9 @@ class Trimesh(Geometry):
         components : (3,) float
           Principal components of inertia
         """
+        # both components and vectors from inertia matrix
         components, vectors = inertia.principal_axis(self.moment_inertia)
+        # store vectors in cache for later
         self._cache['principal_inertia_vectors'] = vectors
 
         return components

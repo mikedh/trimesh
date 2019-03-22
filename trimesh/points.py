@@ -360,9 +360,11 @@ class PointCloud(Geometry):
         if colors is not None:
             self.colors = colors
         elif color is not None:
-            warnings.warn(
-                "argument 'color' is deprecated, use 'colors' instead",
-                DeprecationWarning)
+            msg = (
+                "'PointCloud(color=__)' is deprecated and will be " +
+                "removed in versions released after 6/1/2019. " +
+                "Use 'PointCloud(colors=__)' instead")
+            warnings.warn(msg, DeprecationWarning)
             self.colors = color
 
     def __setitem__(self, *args, **kwargs):
