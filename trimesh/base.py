@@ -948,9 +948,9 @@ class Trimesh(Geometry):
         euler_number : int
           Topological invariant
         """
-        euler = (self.referenced_vertices.sum() -
-                 len(self.edges_unique) +
-                 len(self.faces))
+        euler = int(self.referenced_vertices.sum() -
+                    len(self.edges_unique) +
+                    len(self.faces))
         return euler
 
     @caching.cache_decorator
