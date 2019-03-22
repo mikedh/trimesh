@@ -178,8 +178,19 @@ class SimpleMaterial(Material):
     Hold a single image texture.
     """
 
-    def __init__(self, image):
+    def __init__(self,
+                 image=None,
+                 diffuse=None,
+                 ambient=None,
+                 specular=None):
+
+        # save image
         self.image = image
+
+        # save material colors
+        self.ambient = ambient
+        self.diffuse = diffuse
+        self.specular = specular
 
     def to_color(self, uv):
         return uv_to_color(uv, self.image)

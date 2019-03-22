@@ -948,8 +948,24 @@ class Trimesh(Geometry):
         euler_number : int
           Topological invariant
         """
-        euler = len(self.vertices) - len(self.edges_unique) + len(self.faces)
+        euler = (self.referenced_vertices.sum() -
+                 len(self.edges_unique) +
+                 len(self.faces))
         return euler
+
+    @caching.cache_decorator
+    def referenced_vertices(self):
+        """
+        Which vertices in the current mesh are referenced by a face.
+
+        Returns
+        -------------
+        referenced : (len(self.vertices),) bool
+          Which vertices are referenced by a face
+        """
+        referenced = np.zeros(len(self.vertices), dtype=np.bool)
+        referenced[self.faces] = True
+        return referenced
 
     @property
     def units(self):
@@ -1027,6 +1043,16 @@ class Trimesh(Geometry):
                 len(mask) == 0 or self.is_empty):
             # mask doesn't remove any vertices so exit early
             return
+
+        # create the inverse mask if not passed
+        if inverse is None:
+            inverse = np.zeros(len(self.vertices), dtype=np.int64)
+            if mask.dtype.kind == 'b':
+                inverse[mask] = np.arange(mask.sum())
+            elif mask.dtype.kind == 'i':
+                inverse[mask] = np.arange(len(mask))
+            else:
+                inverse = None
 
         # re- index faces from inverse
         if inverse is not None and util.is_shape(self.faces, (-1, 3)):

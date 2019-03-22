@@ -204,7 +204,8 @@ def mean_vertex_normals(vertex_count,
                         face_normals,
                         **kwargs):
     """
-    Find vertex normals from the mean of the faces that contain that vertex.
+    Find vertex normals from the mean of the faces that contain
+    that vertex.
 
     Parameters
     -----------

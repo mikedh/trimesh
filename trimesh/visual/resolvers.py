@@ -65,7 +65,8 @@ class FilePathResolver(Resolver):
           Loaded data from asset
         """
         # load the file by path name
-        with open(os.path.join(self.parent, name), 'rb') as f:
+        with open(os.path.join(self.parent,
+                               name.strip()), 'rb') as f:
             data = f.read()
         return data
 
