@@ -76,7 +76,7 @@ def minimum_nsphere(obj):
         # although it does create a very large intermediate array
 
         memory_estimate = len(voronoi.vertices) * len(points) * 8 # bytes
-        if memory_estimate > 2e6:
+        if memory_estimate > 1e6:
             raise MemoryError
         radii_2 = spatial.distance.cdist(
             voronoi.vertices, points,
