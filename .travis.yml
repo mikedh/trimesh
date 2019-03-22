@@ -80,7 +80,10 @@ install:
 - pip install .
 
 # install testing stuff
-- pip install pytest pytest-cov coveralls pyassimp==4.1.3
+- pip install pytest pytest-cov pyassimp==4.1.3
+
+# coveralls started failing to install on Python 3.4 so make it optional
+- pip install coveralls || true
 
 script:
 
