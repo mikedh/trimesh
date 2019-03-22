@@ -74,6 +74,10 @@ def minimum_nsphere(obj):
     try:
         # cdist is massivly faster than looping or tiling methods
         # although it does create a very large intermediate array
+
+        memory_estimate = len(voronoi.vertices) * len(points) * 8 # bytes
+        if memory_estimate > 1e9:
+            raise MemoryError
         radii_2 = spatial.distance.cdist(
             voronoi.vertices, points,
             metric='sqeuclidean').max(axis=1)
