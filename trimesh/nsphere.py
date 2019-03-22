@@ -83,7 +83,7 @@ def minimum_nsphere(obj):
             metric='sqeuclidean').max(axis=1)
     except MemoryError:
         # log the MemoryError
-        log.warning('MemoryError (%s): falling back to slower check!' % memory_estimate)
+        log.warning('MemoryError: falling back to slower check!')
         # fall back to a potentially very slow list comprehension
         radii_2 = np.array([((points - v) ** 2).sum(axis=1).max()
                             for v in voronoi.vertices])
