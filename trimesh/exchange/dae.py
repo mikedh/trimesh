@@ -210,7 +210,7 @@ def _parse_node(node,
 
                 # Get UV coordinates if possible
                 vis = None
-                if colors is None and primitive.material in local_material_map:
+                if primitive.material in local_material_map:
                     material = copy.copy(
                         local_material_map[primitive.material])
                     uv = None
