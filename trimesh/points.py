@@ -5,9 +5,11 @@ points.py
 Functions dealing with (n, d) points.
 """
 import copy
+import warnings
 
 import numpy as np
 
+from .constants import log
 from .constants import tol
 from .geometry import plane_transform
 from .parent import Geometry
@@ -347,7 +349,7 @@ class PointCloud(Geometry):
     in a scene.
     """
 
-    def __init__(self, vertices, *args, **kwargs):
+    def __init__(self, vertices, colors=None, color=None):
         self._data = caching.DataStore()
         self._cache = caching.Cache(self._data.md5)
         self.metadata = {}
@@ -355,8 +357,13 @@ class PointCloud(Geometry):
         # load vertices
         self.vertices = vertices
 
-        if 'color' in kwargs:
-            self.colors = kwargs['color']
+        if colors is not None:
+            self.colors = colors
+        elif color is not None:
+            warnings.warn(
+                "argument 'color' is deprecated, use 'colors' instead",
+                DeprecationWarning)
+            self.colors = color
 
     def __setitem__(self, *args, **kwargs):
         return self.vertices.__setitem__(*args, **kwargs)
