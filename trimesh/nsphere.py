@@ -76,14 +76,14 @@ def minimum_nsphere(obj):
         # although it does create a very large intermediate array
 
         memory_estimate = len(voronoi.vertices) * len(points) * 8 # bytes
-        if memory_estimate > 1e6:
+        if memory_estimate > 1e9:
             raise MemoryError
         radii_2 = spatial.distance.cdist(
             voronoi.vertices, points,
             metric='sqeuclidean').max(axis=1)
     except MemoryError:
         # log the MemoryError
-        log.warning('MemoryError: falling back to slower check!')
+        log.warning('MemoryError (%s): falling back to slower check!' % memory_estimate)
         # fall back to a potentially very slow list comprehension
         radii_2 = np.array([((points - v) ** 2).sum(axis=1).max()
                             for v in voronoi.vertices])
