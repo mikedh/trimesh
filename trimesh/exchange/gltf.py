@@ -783,17 +783,16 @@ def _read_buffers(header, buffers, mesh_kwargs):
             kwargs["vertices"] = access[p["attributes"]["POSITION"]]
 
             # do we have UV coordinates
-            if "TEXCOORD_0" in p["attributes"]:
-                if "material" not in p:
-                    log.warning("texcoord without material!")
-                else:
+            if "material" in p:
+                uv = None
+                if "TEXCOORD_0" in p["attributes"]:
                     # flip UV's top- bottom to move origin to lower-left:
                     # https://github.com/KhronosGroup/glTF/issues/1021
                     uv = access[p["attributes"]["TEXCOORD_0"]].copy()
                     uv[:, 1] = 1.0 - uv[:, 1]
                     # create a texture visual
-                    kwargs["visual"] = visual.texture.TextureVisuals(
-                        uv=uv, material=materials[p["material"]])
+                kwargs["visual"] = visual.texture.TextureVisuals(
+                    uv=uv, material=materials[p["material"]])
 
             # create a unique mesh name per- primitive
             if "name" in m:
