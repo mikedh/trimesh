@@ -3,7 +3,7 @@ import collections
 import numpy as np
 
 try:
-    import PIL
+    import PIL.Image
 except ImportError:
     pass
 
