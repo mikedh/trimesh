@@ -89,7 +89,8 @@ script:
 - pytest  -p no:warnings tests/test_inertia.py
 
 # shapely/rtree are easiest to get from conda
-- conda install -q scikit-image rtree shapely
+# in Python 3.4 conda tries to downgrade Python to 2.7
+- if [[ "$PYTHON_VERSION" != "3.4" ]]; then conda install -q scikit-image rtree shapely; fi;
 
 # pyembree and python-fcl not available everywhere
 - if [[ "$PYTHON_VERSION" == "3.6" ]]; then conda install pyembree; fi;
