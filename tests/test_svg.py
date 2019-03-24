@@ -63,6 +63,40 @@ class ExportTest(g.unittest.TestCase):
 
         assert g.np.isclose(aR.area, a.area)
 
+    def test_trans(self):
+        from trimesh.path.exchange.svg_io import transform_to_matrices as tf
+
+        # empty strings shouldn't have matrix
+        assert len(tf('')) == 0
+
+        # check translate with different whitespace
+        a = tf('translate(1.1, 2.2      )')
+        assert len(a) == 1
+        assert g.np.allclose(a[0],
+                             [[1, 0, 1.1],
+                              [0, 1, 2.2],
+                              [0, 0, 1]])
+        a = tf(' translate(1.1    1.2   )       ')
+        assert len(a) == 1
+        assert g.np.allclose(a[0],
+                             [[1, 0, 1.1],
+                              [0, 1, 1.2],
+                              [0, 0, 1]])
+
+        a = tf(' translate(1.1    1.2   )       ' +
+               'matrix (  {} {} {} {} {} {})'.format(*g.np.arange(6)))
+        assert len(a) == 2
+        # check the translate
+        assert g.np.allclose(a[0],
+                             [[1, 0, 1.1],
+                              [0, 1, 1.2],
+                              [0, 0, 1]])
+        # check the matrix string
+        assert g.np.allclose(a[1],
+                             [[0, 2, 4],
+                              [1, 3, 5],
+                              [0, 0, 1]])
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

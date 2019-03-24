@@ -1331,6 +1331,7 @@ class Path2D(Path):
                    'Arc0': {'color': 'r', 'linewidth': 1},
                    'Arc1': {'color': 'b', 'linewidth': 1},
                    'Bezier0': {'color': 'k', 'linewidth': 1},
+                   'Bezier1': {'color': 'k', 'linewidth': 1},
                    'BSpline0': {'color': 'm', 'linewidth': 1},
                    'BSpline1': {'color': 'm', 'linewidth': 1}}
         for entity in self.entities:

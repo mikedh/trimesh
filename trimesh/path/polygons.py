@@ -46,7 +46,7 @@ def enclosure_tree(polygons):
     for i, polygon in enumerate(polygons):
         # if a polygon is None it means creation
         # failed due to weird geometry so ignore it
-        if polygon is None:
+        if polygon is None or len(polygon.bounds) != 4:
             continue
         # insert polygon bounds into rtree
         tree.insert(i, polygon.bounds)
@@ -54,10 +54,8 @@ def enclosure_tree(polygons):
         contains.add_node(i)
 
     # loop through every polygon
-    for i, polygon in enumerate(polygons):
-        # if polygon creation failed ignore it
-        if polygon is None:
-            continue
+    for i in contains.nodes():
+        polygon = polygons[i]
         # we first query for bounding box intersections from the R-tree
         for j in tree.intersection(polygon.bounds):
             # if we are checking a polygon against itself continue
