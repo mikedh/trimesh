@@ -8,11 +8,12 @@ class ArcTests(g.unittest.TestCase):
 
     def test_center(self):
 
+        from trimesh.path.arc import arc_center
         test_points = [[[0, 0], [1.0, 1], [2, 0]]]
         test_results = [[[1, 0], 1.0]]
         points = test_points[0]
         res_center, res_radius = test_results[0]
-        center_info = g.trimesh.path.arc.arc_center(points)
+        center_info = arc_center(points)
         C, R, N, angle = (center_info['center'],
                           center_info['radius'],
                           center_info['normal'],
@@ -22,7 +23,7 @@ class ArcTests(g.unittest.TestCase):
         assert g.trimesh.util.euclidean(C, res_center) < g.tol_path.zero
 
     def test_center_random(self):
-
+        from trimesh.path.arc import arc_center
         # Test that arc centers work on well formed random points in 2D and 3D
         min_angle = g.np.radians(2)
         min_radius = .0001
@@ -53,7 +54,7 @@ class ArcTests(g.unittest.TestCase):
         for center, radius, three in zip(center_2D,
                                          radii,
                                          points_2D):
-            info = g.trimesh.path.arc.arc_center(three)
+            info = arc_center(three)
 
             assert g.np.allclose(center, info['center'])
             assert g.np.allclose(radius, info['radius'])
@@ -67,7 +68,7 @@ class ArcTests(g.unittest.TestCase):
             three = g.trimesh.transformations.transform_points(
                 three, transform)
 
-            info = g.trimesh.path.arc.arc_center(three)
+            info = arc_center(three)
 
             assert g.np.allclose(center, info['center'])
             assert g.np.allclose(radius, info['radius'])

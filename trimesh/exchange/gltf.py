@@ -453,7 +453,7 @@ def _append_mesh(mesh,
     # we're not doing that as our unit conversions are expensive
     # although that might be better, implicit works for 3DXML
     # https://github.com/KhronosGroup/glTF/tree/master/extensions
-    if mesh.units is not None:
+    if mesh.units is not None and 'meter' not in mesh.units:
         tree["meshes"][-1]["extras"] = {"units": str(mesh.units)}
 
     # accessors refer to data locations
@@ -601,7 +601,7 @@ def _append_path(path, name, tree, buffer_items):
 
     # if units are defined, store them as an extra:
     # https://github.com/KhronosGroup/glTF/tree/master/extensions
-    if path.units is not None:
+    if path.units is not None and 'meter' not in path.units:
         tree["meshes"][-1]["extras"] = {"units": str(path.units)}
 
     tree["accessors"].append(
@@ -765,6 +765,9 @@ def _read_buffers(header, buffers, mesh_kwargs):
                 metadata = {"units": units}
             except BaseException:
                 pass
+        else:
+            # GLTF spec indicates the default units are meters
+            units = 'meters'
 
         for j, p in enumerate(m["primitives"]):
             # if we don't have a triangular mesh continue
