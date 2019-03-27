@@ -51,7 +51,7 @@ deploy:
 
 before_install:
 - sudo apt-get -qq update
-- sudo apt-get -qq -y install openscad blender meshlab xvfb pandoc libassimp-dev
+- sudo apt-get -qq -y install openscad blender meshlab xvfb pandoc libassimp-dev libspatialindex-dev libgeos-dev
 - sudo wget https://github.com/mikedh/v-hacd-1/raw/master/bin/linux/testVHACD --quiet
   -P /usr/bin
 - sudo chmod +x /usr/bin/testVHACD
@@ -90,7 +90,7 @@ script:
 
 # shapely/rtree are easiest to get from conda
 # in Python 3.4 conda tries to downgrade Python to 2.7
-- conda install -q scikit-image libspatialindex geos;
+- conda install -q scikit-image;
 
 # pyembree and python-fcl not available everywhere
 - if [[ "$PYTHON_VERSION" == "3.6" ]]; then conda install pyembree; fi;
