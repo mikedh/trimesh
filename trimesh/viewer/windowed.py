@@ -77,6 +77,7 @@ class SceneViewer(pyglet.window.Window):
         self.scene._redraw = self._redraw
         self.reset_view(flags=flags)
         self.batch = pyglet.graphics.Batch()
+        self._smooth = smooth
 
         # store kwargs
         self.kwargs = kwargs
@@ -123,13 +124,7 @@ class SceneViewer(pyglet.window.Window):
                                               caption=caption)
 
         # add scene geometry to viewer geometry
-        for name, geom in scene.geometry.items():
-            # if nothing is defined in the geometry skip it
-            if geom.is_empty:
-                continue
-            self.add_geometry(name=name,
-                              geometry=geom,
-                              smooth=bool(smooth))
+        self._update_vertex_list()
 
         # call after geometry is added
         self.init_gl()
@@ -152,10 +147,22 @@ class SceneViewer(pyglet.window.Window):
     def _redraw(self):
         self.on_draw()
 
+    def _update_vertex_list(self):
+        # update vertex_list if needed
+        for name, geom in self.scene.geometry.items():
+            if geom.is_empty:
+                continue
+            if geometry_hash(geom) == self.vertex_list_hash.get(name):
+                continue
+            self.add_geometry(name=name,
+                              geometry=geom,
+                              smooth=bool(self._smooth))
+
     def _update_meshes(self):
         # call the callback if specified
         if self.callback is not None:
             self.callback(self.scene)
+            self._update_vertex_list()
 
     def add_geometry(self, name, geometry, **kwargs):
         """
