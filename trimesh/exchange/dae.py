@@ -13,7 +13,7 @@ except ImportError:
     pass
 
 try:
-    import PIL
+    import PIL.Image
 except ImportError:
     pass
 

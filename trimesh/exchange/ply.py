@@ -16,7 +16,7 @@ from ..constants import log
 from ..resources import get_resource
 
 try:
-    import PIL
+    import PIL.Image
 except ImportError:
     pass
 

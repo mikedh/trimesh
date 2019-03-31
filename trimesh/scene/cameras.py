@@ -1,6 +1,9 @@
 import numpy as np
 
 from .. import util
+from .. import transformations
+
+from ..geometry import align_vectors
 
 
 class Camera(object):
@@ -102,7 +105,9 @@ class Camera(object):
           Transform from world to camera
         """
         if self._scene is None:
-            return None
+            util.log.warning(
+                'camera has no scene! returning identity')
+            return np.eye(4)
         matrix = self._scene.graph[self.name][0]
         return matrix
 
@@ -240,6 +245,23 @@ class Camera(object):
             # fov overrides focal
             self._focal = None
 
+    def to_rays(self):
+        """
+        Convert a trimesh.scene.Camera object to ray origins
+        and direction vectors. Will return one ray per pixel,
+        as set in camera.resolution.
+
+        Returns
+        --------------
+        origins : (n, 3) float
+          Ray origins in space
+        vectors : (n, 3) float
+          Ray direction unit vectors
+        angles : (n, 2) float
+          Ray spherical coordinate angles in radians
+        """
+        return camera_to_rays(self)
+
 
 def look_at(points, fov, rotation=None):
     """
@@ -289,3 +311,56 @@ def look_at(points, fov, rotation=None):
     cam_pose[:3, 3] = center_w + dist * cam_pose[:3, 2]
 
     return cam_pose
+
+
+def camera_to_rays(camera):
+    """
+    Convert a trimesh.scene.Camera object to ray origins
+    and direction vectors. Will return one ray per pixel,
+    as set in camera.resolution.
+
+    Parameters
+    --------------
+    camera : trimesh.scene.Camera
+      Camera with transform defined
+
+    Returns
+    --------------
+    origins : (n, 3) float
+      Ray origins in space
+    vectors : (n, 3) float
+      Ray direction unit vectors
+    angles : (n, 2) float
+      Ray spherical coordinate angles in radians
+    """
+    # radians of half the field of view
+    half = np.radians(camera.fov / 2.0)
+    # scale it down by two pixels to keep image under resolution
+    half *= (camera.resolution - 2) / camera.resolution
+
+    # create an evenly spaced list of angles
+    angles = util.grid_linspace(bounds=[-half, half],
+                                count=camera.resolution)
+
+    # turn the angles into unit vectors
+    vectors = util.unitize(np.column_stack((
+        np.sin(angles),
+        np.ones(len(angles)))))
+
+    # flip the camera transform to change sign of Z
+    transform = np.dot(
+        camera.transform,
+        align_vectors([1, 0, 0], [-1, 0, 0]))
+
+    # apply the rotation to the direction vectors
+    vectors = transformations.transform_points(
+        vectors,
+        transform,
+        translate=False)
+
+    # camera origin is single point, extract from transform
+    origin = transformations.translation_from_matrix(transform)
+    # tile it into corresponding list of ray vectorsy
+    origins = np.ones_like(vectors) * origin
+
+    return origins, vectors, angles

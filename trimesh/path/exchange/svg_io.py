@@ -111,7 +111,7 @@ def transform_to_matrices(transform):
             raise ValueError('should always have two components!')
         key, args = line
         # convert string args to array of floats
-        # support either comma or space delimeter
+        # support either comma or space delimiter
         values = np.array([float(i) for i in
                            args.replace(',', ' ').split()])
         if key == 'translate':

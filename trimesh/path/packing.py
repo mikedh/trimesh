@@ -4,9 +4,6 @@ import numpy as np
 from ..constants import log
 from ..constants import tol_path as tol
 
-from .util import concatenate
-from .polygons import polygons_obb
-
 
 class RectangleBin:
     """
@@ -194,6 +191,8 @@ def pack_paths(paths, sheet_size=None):
     inserted : (m,) int
       Indexes of paths inserted into result
     """
+    from .util import concatenate
+
     if sheet_size is not None:
         sheet_size = np.sort(sheet_size)[::-1]
 
@@ -255,6 +254,8 @@ def multipack(polygons,
     packed : (m, 3, 3) float
       Homogeonous transforms from original frame to packed frame
     """
+
+    from .polygons import polygons_obb
 
     if quantity is None:
         quantity = np.ones(len(polygons), dtype=np.int64)

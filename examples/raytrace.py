@@ -7,63 +7,10 @@ rays for image reasons.
 
 Install `pyembree` for a speedup (600k+ rays per second)
 """
-import PIL
+import PIL.Image
 
 import trimesh
 import numpy as np
-
-
-def camera_to_rays(camera):
-    """
-    Convert a trimesh.scene.Camera object to ray origins
-    and direction vectors.
-
-    Parameters
-    --------------
-    camera : trimesh.scene.Camera
-      Camera with transform defined
-
-    Returns
-    --------------
-    origins : (n, 3) float
-      Ray origins in space
-    vectors : (n, 3) float
-      Ray direction unit vectors
-    angles : (n, 2) float
-      Ray spherical coordinate angles in radians
-    """
-    # radians of half the field of view
-    half = np.radians(camera.fov / 2.0)
-    # scale it down by two pixels to keep image under resolution
-    half *= (camera.resolution - 2) / camera.resolution
-    # get FOV angular bounds in radians
-
-    # create an evenly spaced list of angles
-    angles = trimesh.util.grid_linspace(bounds=[-half, half],
-                                        count=camera.resolution)
-
-    # turn the angles into unit vectors
-    vectors = trimesh.unitize(np.column_stack((
-        np.sin(angles),
-        np.ones(len(angles)))))
-
-    # flip the camera transform to change sign of Z
-    transform = np.dot(
-        camera.transform,
-        trimesh.geometry.align_vectors([1, 0, 0], [-1, 0, 0]))
-
-    # apply the rotation to the direction vectors
-    vectors = trimesh.transform_points(vectors,
-                                       transform,
-                                       translate=False)
-
-    # camera origin is single point, extract from transform
-    origin = trimesh.transformations.translation_from_matrix(transform)
-    # tile it into corresponding list of ray vectorsy
-    origins = np.ones_like(vectors) * origin
-
-    return origins, vectors, angles
-
 
 if __name__ == '__main__':
 
@@ -82,7 +29,7 @@ if __name__ == '__main__':
                              scene.camera.resolution.max())
 
     # convert the camera to rays with one ray per pixel
-    origins, vectors, angles = camera_to_rays(scene.camera)
+    origins, vectors, angles = scene.camera.to_rays()
 
     # do the actual ray- mesh queries
     points, index_ray, index_tri = mesh.ray.intersects_location(
@@ -116,3 +63,5 @@ if __name__ == '__main__':
 
     # create a PIL image from the depth queries
     img = PIL.Image.fromarray(a)
+
+    img.show()

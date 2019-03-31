@@ -25,8 +25,9 @@ class MargeTest(g.unittest.TestCase):
         assert m.referenced_vertices.sum() == 8
         copied = m.copy()
 
+        # should remove unreferenced vertices
         m.merge_vertices()
-        assert len(m.vertices) > 1000
+        assert len(m.vertices) == 8
         assert m.is_volume
         assert m.euler_number == 2
         assert m.referenced_vertices.sum() == 8
@@ -41,6 +42,7 @@ class MargeTest(g.unittest.TestCase):
         assert copied.referenced_vertices.sum() == 8
         assert copied.vertices.shape == (10008, 3)
         mask = g.np.nonzero(copied.referenced_vertices)[0]
+
         copied.update_vertices(mask)
         assert len(copied.vertices) == 8
         assert copied.is_volume

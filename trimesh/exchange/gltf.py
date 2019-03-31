@@ -644,7 +644,7 @@ def _parse_materials(header, views):
       List of trimesh.visual.texture.Material objects
     """
     try:
-        import PIL
+        import PIL.Image
     except ImportError:
         log.warning("unable to load textures without pillow!")
         return []

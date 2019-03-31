@@ -1,3 +1,6 @@
+"""
+Load all the meshes we can get our hands on and check things, stuff.
+"""
 try:
     from . import generic as g
 except BaseException:
@@ -131,67 +134,6 @@ class MeshTests(g.unittest.TestCase):
 
             # ...still shouldn't have changed anything
             assert start == {mesh.md5(), mesh.crc()}
-
-    def test_vertex_neighbors(self):
-        m = g.trimesh.primitives.Box()
-        neighbors = m.vertex_neighbors
-        assert len(neighbors) == len(m.vertices)
-        elist = m.edges_unique.tolist()
-
-        for v_i, neighs in enumerate(neighbors):
-            for n in neighs:
-                assert ([v_i, n] in elist or [n, v_i] in elist)
-
-    def test_validate(self):
-        """
-        Make sure meshes with validation work
-        """
-        m = g.get_mesh('featuretype.STL', validate=True)
-
-        assert m._validate
-        assert m.is_volume
-
-        len_pre = len(m.vertices)
-        m.remove_unreferenced_vertices()
-        assert len(m.vertices) == len_pre
-
-    def test_none(self):
-        """
-        Make sure mesh methods don't return None or crash.
-        """
-        # a radially symmetric mesh with units
-        # should have no properties that are None
-        mesh = g.get_mesh('tube.obj')
-        mesh.units = 'in'
-
-        # loop through string property names
-        for method in dir(mesh):
-            # ignore private- ish methods
-            if method.startswith('_'):
-                continue
-            # a string expression to evaluate
-            expr = 'mesh.{}'.format(method)
-            # get the value of that expression
-            res = eval(expr)
-            # shouldn't be None!
-            if res is None:
-                raise ValueError('"{}" is None!!'.format(expr))
-
-        # check methods in scene objects
-        scene = mesh.scene()
-        # camera will be None unless set
-        blacklist = ['camera']
-        for method in dir(scene):
-            # ignore private- ish methods
-            if method.startswith('_') or method in blacklist:
-                continue
-            # a string expression to evaluate
-            expr = 'scene.{}'.format(method)
-            # get the value of that expression
-            res = eval(expr)
-            # shouldn't be None!
-            if res is None:
-                raise ValueError('"{}" is None!!'.format(expr))
 
 
 if __name__ == '__main__':

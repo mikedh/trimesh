@@ -1980,12 +1980,13 @@ class Trimesh(Geometry):
         Remove all vertices in the current mesh which are not
         referenced by a face.
         """
-        # use unique_bincount over np.unique for a 20x speedup
-        unique, inverse = util.unique_bincount(self.faces.reshape(-1),
-                                               minlength=len(self.vertices),
-                                               return_inverse=True)
-        self.faces = inverse.reshape((-1, 3))
-        self.vertices = self.vertices[unique]
+        referenced = np.zeros(len(self.vertices), dtype=np.bool)
+        referenced[self.faces] = True
+
+        inverse = np.zeros(len(self.vertices), dtype=np.int64)
+        inverse[referenced] = np.arange(referenced.sum())
+
+        self.update_vertices(mask=referenced, inverse=inverse)
 
     def unmerge_vertices(self):
         """

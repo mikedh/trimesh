@@ -72,10 +72,26 @@ def merge_vertices(mesh,
 
     # In normal usage, just merge vertices that are close.
     else:
-        # unique rows
-        unique, inverse = unique_rows(mesh.vertices,
-                                      digits=digits)
-        mesh.update_vertices(unique, inverse)
+        # if we have a ton of unreferenced vertices it will
+        # make the group_rows call super slow, so cull first
+        if hasattr(mesh, 'faces') and len(mesh.faces) > 0:
+            referenced = np.zeros(len(mesh.vertices), dtype=np.bool)
+            referenced[mesh.faces] = True
+        else:
+            # this is used for PointCloud objects
+            referenced = np.ones(len(mesh.vertices), dtype=np.bool)
+
+        # check unique rows of referenced vertices
+        u, i = unique_rows(mesh.vertices[referenced],
+                           digits=digits)
+
+        # construct an inverse using the subset
+        inverse = np.zeros(len(mesh.vertices), dtype=np.int64)
+        inverse[referenced] = i
+        # get the vertex mask
+        mask = np.nonzero(referenced)[0][u]
+        # run the update
+        mesh.update_vertices(mask=mask, inverse=inverse)
 
 
 def group(values, min_len=0, max_len=np.inf):
