@@ -267,6 +267,20 @@ class GraphTests(g.unittest.TestCase):
         for i in range(5000):
             g.add_edge(random_chr(), random_chr())
 
+    def test_cache(self):
+        for i in range(10):
+            scene = g.trimesh.Scene()
+            scene.add_geometry(g.trimesh.creation.box())
+
+            scene.set_camera()
+            assert not g.np.allclose(
+                scene.camera.transform,
+                g.np.eye(4))
+            scene.camera.transform = g.np.eye(4)
+            assert g.np.allclose(
+                scene.camera.transform,
+                g.np.eye(4))
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

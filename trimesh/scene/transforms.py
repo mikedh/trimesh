@@ -15,7 +15,7 @@ class TransformForest(object):
         self.base_frame = base_frame
 
         self._paths = {}
-        self._updated = time.time()
+        self._updated = np.random.randint(1e10)
 
         self._cache = caching.Cache(id_function=self.md5)
 
@@ -25,46 +25,64 @@ class TransformForest(object):
 
         Parameters
         ---------
-        frame_from: hashable object, usually a string (eg 'world').
-                    If left as None it will be set to self.base_frame
-        frame_to:   hashable object, usually a string (eg 'mesh_0')
-
-        Additional kwargs (can be used in combinations)
-        ---------
-        matrix:      (4,4) array
-        quaternion:  (4) quaternion
-        axis:        (3) array
-        angle:       float, radians
-        translation: (3) array
-        geometry : Geometry object name
+        frame_from : hashable object
+          Usually a string (eg 'world').
+          If left as None it will be set to self.base_frame
+        frame_to :  hashable object
+          Usually a string (eg 'mesh_0')
+        matrix : (4,4) float
+          Homogenous transformation matrix
+        quaternion :  (4,) float
+          Quaternion ordered [w, x, y, z]
+        axis : (3,) float
+          Axis of rotation
+        angle :  float
+          Angle of rotation, in radians
+        translation : (3,) float
+          Distance to translate
+        geometry : hashable
+          Geometry object name, e.g. 'mesh_0'
         """
-        self._updated = time.time()
+        # save a random number for this update
+        self._updated = np.random.randint(1e10)
 
+        # if no frame specified, use base frame
         if frame_from is None:
             frame_from = self.base_frame
+        # convert various kwargs to a single matrix
         matrix = kwargs_to_matrix(**kwargs)
 
+        # create the edge attributes
         attr = {'matrix': matrix, 'time': time.time()}
-
+        # pass through geometry to edge attribute
         if 'geometry' in kwargs:
             attr['geometry'] = kwargs['geometry']
 
-        changed = self.transforms.add_edge(frame_from, frame_to, **attr)
+        # add the edges
+        changed = self.transforms.add_edge(frame_from,
+                                           frame_to,
+                                           **attr)
+        # set the node attribute with the geometry information
         if 'geometry' in kwargs:
             nx.set_node_attributes(
                 self.transforms,
                 name='geometry',
                 values={frame_to: kwargs['geometry']})
+        # if the edge update changed our structure
+        # dump our cache of shortest paths
         if changed:
             self._paths = {}
 
     def md5(self):
         """
-        MD5 of transforms.
+        "Hash" of transforms
 
-        Currently only hashing update time.
+        Returns
+        -----------
+        md5 : str
+          Approximate hash of transforms
         """
-        result = str(int(self._updated * 1e7)) + str(self.base_frame)
+        result = str(self._updated) + str(self.base_frame)
         return result
 
     def copy(self):
@@ -306,7 +324,7 @@ class TransformForest(object):
         return self.update(key, matrix=value)
 
     def clear(self):
-        self._updated = time.time()
+        self._updated = np.random.randint(1e10)
         self.transforms = EnforcedForest()
         self._paths = {}
 
