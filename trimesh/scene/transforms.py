@@ -38,6 +38,8 @@ class TransformForest(object):
         translation: (3) array
         geometry : Geometry object name
         """
+        self._updated = time.time()
+
         if frame_from is None:
             frame_from = self.base_frame
         matrix = kwargs_to_matrix(**kwargs)
@@ -55,7 +57,6 @@ class TransformForest(object):
                 values={frame_to: kwargs['geometry']})
         if changed:
             self._paths = {}
-        self._updated = time.time()
 
     def md5(self):
         """
@@ -63,7 +64,7 @@ class TransformForest(object):
 
         Currently only hashing update time.
         """
-        result = str(int(self._updated * 1000)) + str(self.base_frame)
+        result = str(int(self._updated * 1e7)) + str(self.base_frame)
         return result
 
     def copy(self):
@@ -305,9 +306,9 @@ class TransformForest(object):
         return self.update(key, matrix=value)
 
     def clear(self):
+        self._updated = time.time()
         self.transforms = EnforcedForest()
         self._paths = {}
-        self._updated = time.time()
 
     def _get_path(self, frame_from, frame_to):
         """
