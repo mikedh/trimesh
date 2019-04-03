@@ -596,7 +596,7 @@ def face_to_vertex_color(mesh, face_colors, dtype=np.uint8):
 
     Parameters
     -----------
-    mesh:        Trimesh object
+    mesh : trimesh.Trimesh object
     face_colors: (n, (3,4)) int, face colors
     dtype:       data type of output
 
@@ -615,18 +615,22 @@ def face_to_vertex_color(mesh, face_colors, dtype=np.uint8):
 
 def colors_to_materials(colors, count=None):
     """
-    Convert a list of colors into a list of unique materials and material
-    indexes.
+    Convert a list of colors into a list of unique materials
+    and material indexes.
 
     Parameters
     -----------
-    colors: (n,(3,4)) colors
-    count:  int, number of entities to apply color to
+    colors : (n, 3) or (n, 4) float
+      RGB or RGBA colors
+    count : int
+      Number of entities to apply color to
 
     Returns
     -----------
-    diffuse: (m,4) int, colors
-    index:   (count,) int, index of each color
+    diffuse : (m, 4) int
+      Colors
+    index : (count,) int
+      Index of each color
     """
 
     # convert RGB to RGBA

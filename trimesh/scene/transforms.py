@@ -8,14 +8,13 @@ import networkx as nx
 from .. import caching
 from .. import transformations
 
-
 class TransformForest(object):
     def __init__(self, base_frame='world'):
         self.transforms = EnforcedForest()
         self.base_frame = base_frame
 
         self._paths = {}
-        self._updated = np.random.randint(1e10)
+        self._updated = np.random.random()
 
         self._cache = caching.Cache(id_function=self.md5)
 
@@ -44,7 +43,7 @@ class TransformForest(object):
           Geometry object name, e.g. 'mesh_0'
         """
         # save a random number for this update
-        self._updated = np.random.randint(1e10)
+        self._updated = np.random.random()
 
         # if no frame specified, use base frame
         if frame_from is None:
@@ -324,7 +323,7 @@ class TransformForest(object):
         return self.update(key, matrix=value)
 
     def clear(self):
-        self._updated = np.random.randint(1e10)
+        self._updated = np.random.random()
         self.transforms = EnforcedForest()
         self._paths = {}
 
