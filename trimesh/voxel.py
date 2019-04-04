@@ -294,7 +294,7 @@ class VoxelMesh(VoxelBase):
         filled: (n, 3) int, filled cells in or on mesh.
         """
         filled = fill_voxelization(self.sparse_surface)
-        return filled
+        return filled+0.5
 
     def as_boxes(self, solid=False):
         """
