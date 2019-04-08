@@ -77,6 +77,11 @@ class CreationTest(g.unittest.TestCase):
                 sphere.vertices - sphere.center_mass, axis=1)
             assert g.np.allclose(radii, 1.0)
 
+        # test additional arguments
+        red_sphere = g.trimesh.creation.icosphere(color=(1., 0, 0))
+        expected = g.np.full((len(red_sphere.faces), 4), (255, 0, 0, 255))
+        g.np.testing.assert_allclose(red_sphere.visual.face_colors, expected)
+
     def test_camera_marker(self):
         """
         Create a marker including FOV for a camera object
