@@ -68,8 +68,8 @@ Documentation in HTML format can be generated with epydoc.
 
 Matrices (M) can be inverted using np.linalg.inv(M), be concatenated using
 np.dot(M0, M1), or transform homogeneous coordinate arrays (v) using
-np.dot(M, v) for shape (4, \*) column vectors, respectively
-np.dot(v, M.T) for shape (\*, 4) row vectors ("array of points").
+np.dot(M, v) for shape (4, *) column vectors, respectively
+np.dot(v, M.T) for shape (*, 4) row vectors ("array of points").
 
 This module follows the "column vectors on the right" and "row major storage"
 (C contiguous) conventions. The translation components are in the right column
@@ -930,7 +930,7 @@ def orthogonalization_matrix(lengths, angles):
 def affine_matrix_from_points(v0, v1, shear=True, scale=True, usesvd=True):
     """Return affine transform matrix to register two point sets.
 
-    v0 and v1 are shape (ndims, \*) arrays of at least ndims non-homogeneous
+    v0 and v1 are shape (ndims, *) arrays of at least ndims non-homogeneous
     coordinates, where ndims is the dimensionality of the coordinate space.
 
     If shear is False, a similarity transformation matrix is returned.
@@ -1035,7 +1035,7 @@ def affine_matrix_from_points(v0, v1, shear=True, scale=True, usesvd=True):
 def superimposition_matrix(v0, v1, scale=False, usesvd=True):
     """Return matrix to transform given 3D point set into second point set.
 
-    v0 and v1 are shape (3, \*) or (4, \*) arrays of at least 3 points.
+    v0 and v1 are shape (3, *) or (4, *) arrays of at least 3 points.
 
     The parameters scale and usesvd are explained in the more general
     affine_matrix_from_points function.
