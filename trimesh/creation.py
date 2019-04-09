@@ -544,7 +544,7 @@ def icosahedron():
     return mesh
 
 
-def icosphere(subdivisions=3, radius=1.0):
+def icosphere(subdivisions=3, radius=1.0, color=None):
     """
     Create an isophere centered at the origin.
 
@@ -556,6 +556,8 @@ def icosphere(subdivisions=3, radius=1.0):
       4 ** subdivisions, so you probably want to keep this under ~5
     radius : float
       Desired radius of sphere
+    color: (3,) float or uint8
+      Desired color of sphere
 
     Returns
     ---------
@@ -574,6 +576,8 @@ def icosphere(subdivisions=3, radius=1.0):
         ico = ico.subdivide()
         refine_spherical()
     ico._validate = True
+    if color is not None:
+        ico.visual.face_colors = color
     return ico
 
 
