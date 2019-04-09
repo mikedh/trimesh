@@ -647,7 +647,7 @@ def _parse_materials(header, views):
         import PIL.Image
     except ImportError:
         log.warning("unable to load textures without pillow!")
-        return []
+        return None
 
     # load any images
     images = None
@@ -758,16 +758,12 @@ def _read_buffers(header, buffers, mesh_kwargs):
     for index, m in enumerate(header["meshes"]):
 
         metadata = {}
-        # try loading units from the GLTF extra
-        if "extras" in m and "units" in m["extras"]:
-            try:
-                units = str(m["extras"]["units"])
-                metadata = {"units": units}
-            except BaseException:
-                pass
-        else:
+        try:
+            # try loading units from the GLTF extra
+            metadata['units'] = str(m["extras"]["units"])
+        except BaseException:
             # GLTF spec indicates the default units are meters
-            units = 'meters'
+            metadata['units'] = 'meters'
 
         for j, p in enumerate(m["primitives"]):
             # if we don't have a triangular mesh continue
@@ -787,15 +783,18 @@ def _read_buffers(header, buffers, mesh_kwargs):
 
             # do we have UV coordinates
             if "material" in p:
-                uv = None
-                if "TEXCOORD_0" in p["attributes"]:
-                    # flip UV's top- bottom to move origin to lower-left:
-                    # https://github.com/KhronosGroup/glTF/issues/1021
-                    uv = access[p["attributes"]["TEXCOORD_0"]].copy()
-                    uv[:, 1] = 1.0 - uv[:, 1]
-                    # create a texture visual
-                kwargs["visual"] = visual.texture.TextureVisuals(
-                    uv=uv, material=materials[p["material"]])
+                if materials is None:
+                    log.warning('no materials! `pip install pillow`')
+                else:
+                    uv = None
+                    if "TEXCOORD_0" in p["attributes"]:
+                        # flip UV's top- bottom to move origin to lower-left:
+                        # https://github.com/KhronosGroup/glTF/issues/1021
+                        uv = access[p["attributes"]["TEXCOORD_0"]].copy()
+                        uv[:, 1] = 1.0 - uv[:, 1]
+                        # create a texture visual
+                    kwargs["visual"] = visual.texture.TextureVisuals(
+                        uv=uv, material=materials[p["material"]])
 
             # create a unique mesh name per- primitive
             if "name" in m:
