@@ -16,7 +16,18 @@ def mesh3D(mesh,id_name_out,max_elm_size=None,mesher_id=1):
         Max_elm_size: float
                       Maximum Characteristic Length of the elements        
         mesher_id: int
-                   1: Delaunay, 4: Frontal, 7: MMG3D, 9: R-tree, 10: HXT
+                   3D unstructured algorithms:
+                    	1: Delaunay, 4: Frontal, 7: MMG3D, 10: HXT
+        The “Delaunay” algorithm is split into three separate steps. 
+            First, an initial mesh of the union of all the volumes in the model is performed, 
+            without inserting points in the volume. The surface mesh is then recovered using H.
+            Si’s boundary recovery algorithm Tetgen/BR. Then a three-dimensional version of the
+            2D Delaunay algorithm described above is applied to insert points in the volume to 
+            respect the mesh size constraints.
+        The “Frontal” algorithm uses J. Schoeberl’s Netgen algorithm.
+        The “HXT” algorithm is a new efficient and parallel reimplementaton of the Delaunay algorithm.
+        The “MMG3D” algorithm (experimental) allows to generate anisotropic tetrahedralizations
+    For Futher details consult Gmsh Reference Manual
     """
 
     #checks mesher selection
