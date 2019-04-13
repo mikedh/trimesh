@@ -1,4 +1,8 @@
-import gmsh, sys, os
+import sys, os
+try:
+    import gmsh
+except ImportError:
+    pass
 
 def mesh3D(mesh,id_name_out,max_elm_size=None,mesher_id=1):
     """
