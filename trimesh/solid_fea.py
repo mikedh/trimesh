@@ -44,6 +44,15 @@ def generate(mesh,id_name_out=None,max_elm_size=None,mesher_id=1):
     # Lengh edge
     if max_elm_size==None:
         max_elm_size=np.sqrt(np.mean(mesh.area_faces))
+    
+    # Check output format
+    if id_name_out != None:
+        is_nastran = ( ".bdf" in id_name_out)
+        is_gmsh = (".msh" in id_name_out)
+        
+        if not is_nastran and not is_gmsh:
+            print("Only Nastran (.bdf) and gmsh (.msh) formats are available")
+            return
 
     #Exports to disk for gmsh to read using a temp file
     with tempfile.NamedTemporaryFile(suffix='.stl') as id_name_in:
