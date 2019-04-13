@@ -332,7 +332,7 @@ def plane_lines(plane_origin,
 
     d = np.divide(t[valid], b[valid])
     intersection = endpoints[0][valid]
-    intersection += np.reshape(d, (-1, 1)) * line_dir[valid]
+    intersection = intersection + np.reshape(d, (-1, 1)) * line_dir[valid]
 
     return intersection, valid
 
