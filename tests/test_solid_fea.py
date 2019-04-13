@@ -1,7 +1,7 @@
 try:
     from . import generic as g
 except BaseException:
-import generic as g
+    import generic as g
 
 try:
     import gmsh
