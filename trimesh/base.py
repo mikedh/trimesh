@@ -59,7 +59,7 @@ class Trimesh(Geometry):
                  process=True,
                  validate=False,
                  use_embree=True,
-                 initial_cache={},
+                 initial_cache=None,
                  visual=None,
                  **kwargs):
         """
@@ -94,6 +94,9 @@ class Trimesh(Geometry):
         visual : ColorVisuals or TextureVisuals
           Assigned to self.visual
         """
+
+        if initial_cache is None:
+            initial_cache = {}
 
         # self._data stores information about the mesh which
         # CANNOT be regenerated.
