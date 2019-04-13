@@ -182,7 +182,8 @@ class SimpleMaterial(Material):
                  image=None,
                  diffuse=None,
                  ambient=None,
-                 specular=None):
+                 specular=None,
+                 **kwargs):
 
         # save image
         self.image = image
@@ -191,6 +192,9 @@ class SimpleMaterial(Material):
         self.ambient = ambient
         self.diffuse = diffuse
         self.specular = specular
+
+        # save other keyword arguments
+        self.kwargs = kwargs
 
     def to_color(self, uv):
         return uv_to_color(uv, self.image)

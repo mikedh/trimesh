@@ -734,7 +734,7 @@ def smoothed(mesh, angle):
 
     Parameters
     ---------
-    mesh :  trimesh.Trimesh
+    mesh : trimesh.Trimesh
       Source geometry
     angle : float
       Angle in radians, adjacent faces which have normals

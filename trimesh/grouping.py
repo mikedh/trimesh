@@ -73,7 +73,7 @@ def merge_vertices(mesh,
     # In normal usage, just merge vertices that are close.
     else:
         # if we have a ton of unreferenced vertices it will
-        # make the group_rows call super slow, so cull first
+        # make the unique_rows call super slow so cull first
         if hasattr(mesh, 'faces') and len(mesh.faces) > 0:
             referenced = np.zeros(len(mesh.vertices), dtype=np.bool)
             referenced[mesh.faces] = True

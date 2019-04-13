@@ -1,5 +1,5 @@
 """
-visual.py
+color.py
 -------------
 
 Hold and deal with visual information about meshes.

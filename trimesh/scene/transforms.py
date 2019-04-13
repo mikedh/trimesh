@@ -8,6 +8,7 @@ import networkx as nx
 from .. import caching
 from .. import transformations
 
+
 class TransformForest(object):
     def __init__(self, base_frame='world'):
         self.transforms = EnforcedForest()

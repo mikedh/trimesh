@@ -102,7 +102,6 @@ class GLTFTest(g.unittest.TestCase):
         m = g.get_mesh('testplate.glb')
         assert m.units == 'meters'
 
-            
     def test_gltf(self):
         # split a multibody mesh into a scene
         scene = g.trimesh.scene.split_scene(

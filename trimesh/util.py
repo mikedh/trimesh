@@ -827,11 +827,7 @@ def attach_to_log(level=logging.DEBUG,
                   loggers=None,
                   colors=True,
                   capture_warnings=True,
-                  blacklist=['TerminalIPythonApp',
-                             'PYREADLINE',
-                             'pyembree',
-                             'shapely.geos',
-                             'shapely.speedups._speedups']):
+                  blacklist=None):
     """
     Attach a stream handler to all loggers.
 
@@ -844,6 +840,15 @@ def attach_to_log(level=logging.DEBUG,
     colors:    bool, if True try to use colorlog formatter
     blacklist: list of str, names of loggers NOT to attach to
     """
+
+    if blacklist is None:
+        blacklist = ['TerminalIPythonApp',
+                     'PYREADLINE',
+                     'pyembree',
+                     'shapely.geos',
+                     'shapely.speedups._speedups',
+                     'parso.cache',
+                     'parso.python.diff']
 
     # make sure we log warnings from the warnings module
     logging.captureWarnings(capture_warnings)
