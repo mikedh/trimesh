@@ -4,7 +4,7 @@ try:
 except ImportError:
     pass
 
-def mesh3D(mesh,id_name_out,max_elm_size=None,mesher_id=1):
+def generate(mesh,id_name_out=None,max_elm_size=None,mesher_id=1):
     """
     Input: 
         trimesh surface mesh 
@@ -41,18 +41,21 @@ def mesh3D(mesh,id_name_out,max_elm_size=None,mesher_id=1):
     else:
         mesher_id=int(mesher_id)
 
-    #Exports to disk for gmsh to read
-    id_name_in="surface_mesh.stl"
-    while os.path.exists(id_name_in):
-        id_name_in= "_"+id_name_in
-    mesh.export(id_name_in)
+    # Lengh edge
+    if max_elm_size==None:
+        max_elm_size=np.sqrt(np.mean(mesh.area_faces))
+
+    #Exports to disk for gmsh to read using a temp file
+    with tempfile.NamedTemporaryFile(suffix='.stl') as id_name_in:
+        pass
+    mesh.export(id_name_in.name)
 
     #starts Gmsh Python API script
     gmsh.initialize(sys.argv)
     gmsh.option.setNumber("General.Terminal", 1)
     gmsh.model.add('Nastran_stl')
 
-    gmsh.merge(id_name_in)
+    gmsh.merge(id_name_in.name)
     dimtag = gmsh.model.getEntities()[0]
     dim=dimtag[0]
     tag=dimtag[1]
@@ -74,3 +77,5 @@ def mesh3D(mesh,id_name_out,max_elm_size=None,mesher_id=1):
 
     if id_name_out != None:
         gmsh.write(id_name_out)
+        
+    gmsh.finalize()
