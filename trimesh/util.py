@@ -1913,59 +1913,6 @@ def generate_basis(z):
     return result
 
 
-def unique_bincount(values,
-                    minlength,
-                    return_inverse=True):
-    """
-    For arrays of integers find unique values using bin counting.
-    Roughly 10x faster for correct input than np.unique
-
-    Parameters
-    --------------
-    values : (n,) int
-      Values to find unique members of
-    minlength : int
-      Maximum value that will occur in values (values.max())
-    return_inverse : bool
-      If True, return an inverse such that unique[inverse] == values
-
-    Returns
-    ------------
-    unique : (m,) int
-      Unique values in original array
-    inverse : (n,) int
-      An array such that unique[inverse] == values
-      Only returned if return_inverse is True
-    """
-    values = np.asanyarray(values)
-    if len(values.shape) != 1 or values.dtype.kind != 'i':
-        raise ValueError('input must be 1D integers!')
-
-    try:
-        # count the number of occurrences of each value
-        counts = np.bincount(values, minlength=minlength)
-    except TypeError:
-        # casting failed on 32 bit windows
-        log.error('casting failed!', exc_info=True)
-        # fall back to numpy unique
-        return np.unique(values, return_inverse=return_inverse)
-
-    # which bins are occupied at all
-    # counts are integers so this works
-    unique_bin = counts.astype(np.bool)
-
-    # which values are unique
-    # indexes correspond to original values
-    unique = np.where(unique_bin)[0]
-
-    if return_inverse:
-        # find the inverse to reconstruct original
-        inverse = (np.cumsum(unique_bin) - 1)[values]
-        return unique, inverse
-
-    return unique
-
-
 def isclose(a, b, atol):
     """
     A replacement for np.isclose that does fewer checks

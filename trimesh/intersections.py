@@ -468,11 +468,29 @@ def slice_faces_plane(vertices,
     # If no faces to cut, the surface is not in contact with this plane.
     # Thus, return a mesh with only the inside faces
     if len(cut_faces_quad) + len(cut_faces_tri) == 0:
-        vert_counts = np.bincount(new_faces.flatten(), minlength=len(vertices))
-        unique_verts = vert_counts > 0
-        unique_inds = np.where(unique_verts)[0]
+
+        if len(new_faces) == 0:
+            # if no new faces at all return empty arrays
+            empty = (np.zeros((0, 3), dtype=np.float64),
+                     np.zeros((0, 3), dtype=np.int64))
+            return empty
+
+        try:
+            # count the number of occurrences of each value
+            counts = np.bincount(new_faces.flatten(), minlength=len(vertices))
+            unique_verts = counts > 0
+            unique_index = np.where(unique_verts)[0]
+        except TypeError:
+            # casting failed on 32 bit windows
+            log.error('casting failed!', exc_info=True)
+            # fall back to numpy unique
+            unique_index = np.unique(new_faces.flatten())
+            # generate a mask for cumsum
+            unique_verts = np.zeros(len(vertices), dtype=np.bool)
+            unique_verts[unique_index] = True
+
         unique_faces = (np.cumsum(unique_verts) - 1)[new_faces]
-        return vertices[unique_inds], unique_faces
+        return vertices[unique_index], unique_faces
 
     # Extract the intersections of each triangle's edges with the plane
     o = cut_triangles                               # origins
@@ -552,9 +570,9 @@ def slice_faces_plane(vertices,
 
     # find the unique indices in the new faces
     # using an integer- only unique function
-    unique, inverse = util.unique_bincount(new_faces.reshape(-1),
-                                           minlength=len(new_vertices),
-                                           return_inverse=True)
+    unique, inverse = grouping.unique_bincount(new_faces.reshape(-1),
+                                               minlength=len(new_vertices),
+                                               return_inverse=True)
 
     # use the unique indexes for our final vertex and faces
     final_vert = new_vertices[unique]

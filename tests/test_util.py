@@ -272,9 +272,10 @@ class UniqueTests(unittest.TestCase):
                 minlength = 10
 
             # try our unique bincount function
-            unique, inverse = g.trimesh.util.unique_bincount(values,
-                                                             minlength=minlength,
-                                                             return_inverse=True)
+            unique, inverse = g.trimesh.grouping.unique_bincount(
+                values,
+                minlength=minlength,
+                return_inverse=True)
             # make sure inverse is correct
             assert (unique[inverse] == values).all()
 

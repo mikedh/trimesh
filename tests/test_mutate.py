@@ -1,41 +1,71 @@
+"""
+test_mutate.py
+---------------
+
+Make sure trimesh operations aren't mutating things
+that they shouldn't be.
+"""
+
 try:
     from . import generic as g
 except BaseException:
     import generic as g
 
-import numpy as np
 
-import trimesh
+def get_readonly(model_name):
+    """
+    Get a mesh and make vertices and faces read only.
 
+    Parameters
+    ------------
+    model_name : str
+     Model name in models directory
 
-def readonly_mesh(model):
-    mesh  = g.get_mesh(model)
-    verts = mesh.vertices
-    faces = mesh.faces
-    verts = np.ndarray(verts.shape, verts.dtype, bytes(verts.tostring()))
-    faces = np.ndarray(faces.shape, faces.dtype, bytes(faces.tostring()))
-    return (trimesh.Trimesh(verts, faces, process=False, validate=False),
-            verts,
-            faces)
+    Returns
+    -----------
+    mesh : trimesh.Trimesh
+      Geometry with read-only data
+    verts : (n, 3) float
+      Read- only vertices
+    faces : (m, 3) int
+      Read- only faces
+    """
+    original = g.get_mesh(model_name)
+    # get the original data from the mesh
+    verts = original.vertices
+    faces = original.faces
+    # use the buffer interface to generate read-only arrays
+    verts = g.np.ndarray(verts.shape, verts.dtype, bytes(verts.tostring()))
+    faces = g.np.ndarray(faces.shape, faces.dtype, bytes(faces.tostring()))
+    # everything should be read only now
+    assert not verts.flags['WRITEABLE']
+    assert not faces.flags['WRITEABLE']
+
+    mesh = g.trimesh.Trimesh(verts, faces, process=False, validate=False)
+    assert not mesh.vertices.flags['WRITEABLE']
+    assert not mesh.faces.flags['WRITEABLE']
+
+    # return the mesh, and read-only vertices and faces
+    return mesh, verts, faces
 
 
 class MutateTests(g.unittest.TestCase):
 
     def test_not_mutated_cube(self):
-        self._test_not_mutated(*readonly_mesh('cube.OBJ'))
+        self._test_not_mutated(*get_readonly('cube.OBJ'))
 
     def test_not_mutated_torus(self):
-        self._test_not_mutated(*readonly_mesh('torus.STL'))
+        self._test_not_mutated(*get_readonly('torus.STL'))
 
     def test_not_mutated_bunny(self):
-        self._test_not_mutated(*readonly_mesh('bunny.ply'))
+        self._test_not_mutated(*get_readonly('bunny.ply'))
 
     def test_not_mutated_teapot(self):
-        self._test_not_mutated(*readonly_mesh('teapot.stl'))
+        self._test_not_mutated(*get_readonly('teapot.stl'))
 
     def _test_not_mutated(self, mesh, verts, faces):
-        verts  = np.copy(verts)
-        faces  = np.copy(faces)
+        verts = g.np.copy(verts)
+        faces = g.np.copy(faces)
         lo, hi = mesh.bounds
 
         mesh.faces_sparse
@@ -112,27 +142,41 @@ class MutateTests(g.unittest.TestCase):
         mesh.copy()
 
         # ray.intersects_id
-        centre              = mesh.vertices.mean(axis=0)
-        origins             = np.random.random((100, 3)) * 1000
-        directions          = np.copy(origins)
-        directions[:50,  :] -= centre
-        directions[ 50:, :] += centre
+        centre = mesh.vertices.mean(axis=0)
+        origins = g.np.random.random((100, 3)) * 1000
+        directions = g.np.copy(origins)
+        directions[:50, :] -= centre
+        directions[50:, :] += centre
         mesh.ray.intersects_id(origins, directions)
 
         # nearest.vertex
-        points = np.random.random((500, 3)) * 100
+        points = g.np.random.random((500, 3)) * 100
         mesh.nearest.vertex(points)
 
         # section
-        origins = np.random.random((500, 3)) * 100
-        normals = np.random.random((500, 3)) * 100
-        heights = np.random.random((50,))    * 100
+        section_count = 20
+        origins = g.np.random.random((section_count, 3)) * 100
+        normals = g.np.random.random((section_count, 3)) * 100
+        heights = g.np.random.random((10,)) * 100
         for o, n in zip(origins, normals):
+            # try slicing at random origin and at center mass
             mesh.slice_plane(o, n)
-            mesh.section(o, n)
-            mesh.section_multiplane(o, n, heights)
+            mesh.slice_plane(mesh.center_mass, n)
 
-        assert not mesh.vertices.flags.writeable
-        assert not mesh.faces   .flags.writeable
-        assert np.all(np.isclose(verts, mesh.vertices))
-        assert np.all(np.isclose(faces, mesh.faces))
+            # section at random origin and center mass
+            mesh.section(o, n)
+            mesh.section(mesh.center_mass, n)
+
+            # same with multiplane
+            mesh.section_multiplane(o, n, heights)
+            mesh.section_multiplane(mesh.center_mass, n, heights)
+
+        assert not mesh.vertices.flags['WRITEABLE']
+        assert not mesh.faces.flags['WRITEABLE']
+        assert g.np.all(g.np.isclose(verts, mesh.vertices))
+        assert g.np.all(g.np.isclose(faces, mesh.faces))
+
+
+if __name__ == '__main__':
+    g.trimesh.util.attach_to_log()
+    g.unittest.main()
