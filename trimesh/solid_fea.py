@@ -35,7 +35,7 @@ def generate(mesh,id_name_out=None,max_elm_size=None,mesher_id=1):
     """
 
     #checks mesher selection
-    if mesher_id not in [1,4,7,9,10]:
+    if mesher_id not in [1,4,7,10]:
         mesher_id=1
         print("Incorrect Selection of Mesher. 1 was selected by default.")
     else:
