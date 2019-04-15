@@ -2,6 +2,7 @@
 Module which contains most imports and data unit tests
 might need, to reduce the amount of boilerplate.
 """
+from distutils.spawn import find_executable
 import os
 import sys
 import json
@@ -331,7 +332,6 @@ class TemporaryDirectory(object):
 data = _load_data()
 
 # find executables to run with subprocess
-from distutils.spawn import find_executable
 # formats supported by meshlab for export tests
 if any(find_executable(i) is None
        for i in ['xfvb-run', 'meshlabserver']):

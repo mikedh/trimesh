@@ -142,7 +142,6 @@ class VoxelTest(g.unittest.TestCase):
                         pitch=pitch,
                         origin=origin)
 
-        
         boxes1 = v.as_boxes()
         boxes2 = voxel.multibox(centers, pitch)
         colors = [g.trimesh.visual.DEFAULT_COLOR] * matrix.sum() * 12

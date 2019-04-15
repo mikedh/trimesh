@@ -115,7 +115,7 @@ class Permutator:
 
     def __init__(self, mesh):
         """
-        A convienence object to get permutated versions of a mesh.
+        A convenience object to get permutated versions of a mesh.
         """
         self._mesh = mesh
 

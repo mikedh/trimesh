@@ -120,6 +120,13 @@ class LoaderTest(g.unittest.TestCase):
         # should be 6 instances around the scene
         assert len(s.graph.nodes_geometry) == 1
 
+    def test_ply_dtype(self):
+        # make sure all ply dtype strings are valid dtypes
+        dtypes = g.trimesh.exchange.ply.dtypes
+        for d in dtypes.values():
+            # will raise if dtype string not valid
+            g.np.dtype(d)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

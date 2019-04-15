@@ -161,7 +161,7 @@ class Voxel(VoxelBase):
         Parameters
         ----------
         colors : (3,) or (4,) float or uint8
-                 (X, Y, Z, 3) or (X, Y, Z, 4) float or uint8 
+                 (X, Y, Z, 3) or (X, Y, Z, 4) float or uint8
          Where matrix.shape == (X, Y, Z)
 
         Returns
@@ -174,17 +174,17 @@ class Voxel(VoxelBase):
             matrix=matrix,
             pitch=self._data['pitch'],
             origin=self._data['origin'])
-         
+
         if colors is not None:
             colors = np.asanyarray(colors)
-            if (colors.ndim == 4 and 
-                colors.shape[:3] == matrix.shape and 
-                colors.shape[3] in [3, 4]):
+            if (colors.ndim == 4 and
+                colors.shape[:3] == matrix.shape and
+                    colors.shape[3] in [3, 4]):
                 colors = colors[matrix > 0]
             elif not (colors.shape == (3,) or colors.shape == (4,)):
                 log.warning('colors incorrect shape!')
                 colors = None
-            
+
         mesh = multibox(centers=centers,
                         pitch=self.pitch,
                         colors=colors)
@@ -826,11 +826,11 @@ def multibox(centers, pitch, colors=None):
             colors = colors[None].repeat(len(centers), axis=0)
         if colors.ndim == 2 and len(colors) == len(centers):
             face_colors = colors.repeat(12, axis=0)
-        
+
     mesh = Trimesh(vertices=v,
                    faces=f,
                    face_colors=face_colors)
-    
+
     return mesh
 
 

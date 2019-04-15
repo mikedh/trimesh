@@ -3,21 +3,27 @@ from logging import getLogger as _getLogger
 from logging import NullHandler as _NullHandler
 
 import numpy as np
-# numerical tolerances for meshes
 
 
-class NumericalToleranceMesh(object):
+class ToleranceMesh(object):
     """
-    tol.zero: consider floating point numbers less than this zero
+    ToleranceMesh objects hold tolerance information about meshes.
 
-    tol.merge: when merging vertices, consider vertices closer than this
-               to be the same vertex. Here we use the same value (1e-8)
-               as SolidWorks uses, according to their documentation.
-
-    tol.planar: the maximum distance from a plane a point can be and
-                still be considered to be on the plane
-
-    tol.facet_threshold: threshold for two facets to be considered coplanar
+    Parameters
+    ----------------
+    tol.zero : float
+      Floating point numbers smaller than this are considered zero
+    tol.merge : float
+      When merging vertices, consider vertices closer than this
+      to be the same vertex. Here we use the same value (1e-8)
+      as SolidWorks uses, according to their documentation.
+    tol.planar : float
+      The maximum distance from a plane a point can be and
+      still be considered to be on the plane
+    tol.facet_threshold : float
+      Threshold for two facets to be considered coplanar
+    tol.strict : bool
+      If True, run additional in- process checks (slower)
     """
 
     def __init__(self, **kwargs):
@@ -37,17 +43,24 @@ class NumericalToleranceMesh(object):
         self.__dict__.update(kwargs)
 
 
-# numerical tolerances for paths
-
-
-class NumericalTolerancePath(object):
+class TolerancePath(object):
     """
-    tol.zero: consider floating point numbers less than this zero
-    tol.merge: when merging vertices, consider vertices closer than this
-               to be the same vertex
-    tol.planar: the maximum distance from a plane a point can be and
-                still be considered to be on the plane
-    tol.seg_frac: when simplifying line segments what percentage of the drawing
+    TolerancePath objects contain tolerance information used in
+    Path objects.
+
+    Parameters
+    ---------------
+    tol.zero : float
+      Floating point numbers smaller than this are considered zero
+    tol.merge : float
+      When merging vertices, consider vertices closer than this
+      to be the same vertex. Here we use the same value (1e-8)
+      as SolidWorks uses, according to their documentation.
+    tol.planar : float
+      The maximum distance from a plane a point can be and
+      still be considered to be on the plane
+    tol.seg_frac : float
+      When simplifying line segments what percentage of the drawing
                   scale can a segment be and have a curve fitted
     tol.seg_angle: when simplifying line segments to arcs, what angle
                    can a segment span to be acceptable.
@@ -84,7 +97,7 @@ class NumericalTolerancePath(object):
         self.__dict__.update(kwargs)
 
 
-class NumericalResolutionPath(object):
+class ResolutionPath(object):
     """
     res.seg_frac: when discretizing curves, what percentage of the drawing
                   scale should we aim to make a single segment
@@ -105,11 +118,11 @@ class NumericalResolutionPath(object):
 
 
 # instantiate mesh tolerances with defaults
-tol = NumericalToleranceMesh()
+tol = ToleranceMesh()
 
 # instantiate path tolerances with defaults
-tol_path = NumericalTolerancePath()
-res_path = NumericalResolutionPath()
+tol_path = TolerancePath()
+res_path = ResolutionPath()
 
 # logging
 log = _getLogger('trimesh')

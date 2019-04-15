@@ -6,6 +6,11 @@ View meshes and scenes via pyglet or inline HTML.
 """
 
 
+from .notebook import (in_notebook,
+                       scene_to_notebook,
+                       scene_to_html)
+
+
 def _cloture(exc):
     """
     Return a function which will accept any arguments
@@ -40,9 +45,6 @@ except BaseException as E:
 
 
 # this is only standard library imports
-from .notebook import (in_notebook,
-                       scene_to_notebook,
-                       scene_to_html)
 
 # explicitly list imports in __all__
 # as otherwise flake8 gets mad

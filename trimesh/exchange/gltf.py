@@ -778,7 +778,7 @@ def _read_buffers(header, buffers, mesh_kwargs):
 
             # get faces from accessors and reshape
             kwargs["faces"] = access[p["indices"]].reshape((-1, 3))
-            # get vertices from acessors
+            # get vertices from accessors
             kwargs["vertices"] = access[p["attributes"]["POSITION"]]
 
             # do we have UV coordinates

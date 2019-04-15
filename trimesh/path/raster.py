@@ -42,7 +42,7 @@ def rasterize(path,
     pitch = float(pitch)
     origin = np.asanyarray(origin, dtype=np.float64)
 
-    # if resolution is None make it larget than path
+    # if resolution is None make it larger than path
     if resolution is None:
         span = np.vstack((path.bounds,
                           origin)).ptp(

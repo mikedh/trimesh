@@ -10,8 +10,8 @@ _search_path = os.environ['PATH']
 if platform.system() == 'Windows':
     # split existing path by delimiter
     _search_path = [i for i in _search_path.split(';') if len(i) > 0]
-    _search_path.append(os.path.normpath('C:\Program Files\OpenSCAD'))
-    _search_path.append(os.path.normpath('C:\Program Files (x86)\OpenSCAD'))
+    _search_path.append(os.path.normpath(r'C:\Program Files\OpenSCAD'))
+    _search_path.append(os.path.normpath(r'C:\Program Files (x86)\OpenSCAD'))
     _search_path = ';'.join(_search_path)
     log.debug('searching for scad in: %s', _search_path)
 

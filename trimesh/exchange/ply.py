@@ -21,22 +21,25 @@ except ImportError:
     pass
 
 # from ply specification, and additional dtypes found in the wild
-ply_dtypes = {'char': 'i1',
-              'uchar': 'u1',
-              'short': 'i2',
-              'ushort': 'u2',
-              'int': 'i4',
-              'int8': 'i1',
-              'int16': 'i2',
-              'int32': 'i4',
-              'uint': 'u4',
-              'uint8': 'u1',
-              'uint16': 'u2',
-              'uint32': 'u4',
-              'float': 'f4',
-              'float16': 'f2',
-              'float32': 'f4',
-              'double': 'f8'}
+dtypes = {'char': '<i1',
+          'uchar': '<u1',
+          'short': '<i2',
+          'ushort': '<u2',
+          'int': '<i4',
+          'int8': '<i1',
+          'int16': '<i2',
+          'int32': '<i4',
+          'int64': '<i8',
+          'uint': '<u4',
+          'uint8': '<u1',
+          'uint16': '<u2',
+          'uint32': '<u4',
+          'uint64': '<u8',
+          'float': '<f4',
+          'float16': '<f2',
+          'float32': '<f4',
+          'float64': '<f8',
+          'double': '<f8'}
 
 
 def load_ply(file_obj,
@@ -260,7 +263,7 @@ def parse_header(file_obj):
             if len(line) == 3:
                 dtype, field = line[1:]
                 elements[name]['properties'][
-                    str(field)] = endian + ply_dtypes[dtype]
+                    str(field)] = endian + dtypes[dtype]
             # is the property a painful list, like:
             # `property list uchar int vertex_indices`
             elif 'list' in line[1]:
@@ -268,10 +271,10 @@ def parse_header(file_obj):
                 elements[name]['properties'][
                     str(field)] = (
                     endian +
-                    ply_dtypes[dtype_count] +
+                    dtypes[dtype_count] +
                     ', ($LIST,)' +
                     endian +
-                    ply_dtypes[dtype])
+                    dtypes[dtype])
         # referenced as a file name
         elif 'TextureFile' in line:
             # textures come listed like:

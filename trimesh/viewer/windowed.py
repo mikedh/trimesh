@@ -8,19 +8,17 @@ Trimesh, Scene, PointCloud, and Path objects.
 Works on all major platforms: Windows, Linux, and OSX.
 """
 
+from ..visual import to_rgba
+from ..util import log, BytesIO
+from ..transformations import Arcball
+from .. import rendering
+import collections
+import platform
+import numpy as np
+import pyglet.gl as gl
 import pyglet
 pyglet.options['shadow_window'] = False
-import pyglet.gl as gl
 
-import numpy as np
-
-import platform
-import collections
-
-from .. import rendering
-from ..transformations import Arcball
-from ..util import log, BytesIO
-from ..visual import to_rgba
 
 # smooth only when fewer faces than this
 _SMOOTH_MAX_FACES = 100000

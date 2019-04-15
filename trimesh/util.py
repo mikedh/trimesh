@@ -1708,7 +1708,7 @@ def split_extension(file_name, special=['tar.bz2', 'tar.gz']):
 
     Returns
     ----------
-    extension: str, last charecters after a period, or
+    extension: str, last characters after a period, or
                a value from 'special'
     """
     file_name = str(file_name)
