@@ -160,27 +160,34 @@ class Voxel(VoxelBase):
 
         Parameters
         ----------
-        colors: (X, Y, Z, 3) or (X, Y, Z, 4) float or uint8,
-            where matrix.shape == (X, Y, Z). Colors of all boxes of matrix.
+        colors : (3,) or (4,) float or uint8
+                 (X, Y, Z, 3) or (X, Y, Z, 4) float or uint8 
+         Where matrix.shape == (X, Y, Z)
 
         Returns
         ---------
-        mesh: Trimesh object made up of one box per filled cell.
+        mesh : trimesh.Trimesh
+          Mesh with one box per filled cell.
         """
         matrix = self._data['matrix']
         centers = matrix_to_points(
             matrix=matrix,
             pitch=self._data['pitch'],
-            origin=self._data['origin'],
-        )
+            origin=self._data['origin'])
+         
         if colors is not None:
-            assert colors.ndim == 4 and \
-                colors.shape[:3] == matrix.shape and \
-                colors.shape[3] in [3, 4], \
-                'colors shape must be (X, Y, Z, 3) or (X, Y, Z, 4) ' \
-                'where matrix.shape == (X, Y, Z)'
-            colors = colors[matrix > 0]
-        mesh = multibox(centers=centers, pitch=self.pitch, colors=colors)
+            colors = np.asanyarray(colors)
+            if (colors.ndim == 4 and 
+                colors.shape[:3] == matrix.shape and 
+                colors.shape[3] in [3, 4]):
+                colors = colors[matrix > 0]
+            elif not (colors.shape == (3,) or colors.shape == (4,)):
+                log.warning('colors incorrect shape!')
+                colors = None
+            
+        mesh = multibox(centers=centers,
+                        pitch=self.pitch,
+                        colors=colors)
         return mesh
 
     def show(self, *args, **kwargs):
@@ -662,6 +669,8 @@ def indices_to_points(indices, pitch, origin):
     pitch = float(pitch)
 
     if indices.shape != (indices.shape[0], 3):
+        from IPython import embed
+        embed()
         raise ValueError('shape of indices must be (q, 3)')
 
     if origin.shape != (3,):
@@ -686,7 +695,9 @@ def matrix_to_points(matrix, pitch, origin):
     points: (q, 3) list of points
     """
     indices = np.column_stack(np.nonzero(matrix))
-    points = indices_to_points(indices=indices, pitch=pitch, origin=origin)
+    points = indices_to_points(indices=indices,
+                               pitch=pitch,
+                               origin=origin)
     return points
 
 
@@ -808,18 +819,19 @@ def multibox(centers, pitch, colors=None):
     f += np.tile(np.arange(len(centers)) * len(b.vertices),
                  (len(b.faces), 1)).T.reshape((-1, 1))
 
-    rough = Trimesh(vertices=v, faces=f)
-
+    face_colors = None
     if colors is not None:
         colors = np.asarray(colors)
         if colors.ndim == 1:
             colors = colors[None].repeat(len(centers), axis=0)
-        assert colors.ndim == 2 and len(colors) == len(centers), \
-            'colors shape must be (n_centers, 3) or (n_centers, 4)'
-        colors = colors.repeat(12, axis=0)
-        rough.visual.face_colors = colors
-
-    return rough
+        if colors.ndim == 2 and len(colors) == len(centers):
+            face_colors = colors.repeat(12, axis=0)
+        
+    mesh = Trimesh(vertices=v,
+                   faces=f,
+                   face_colors=face_colors)
+    
+    return mesh
 
 
 def boolean_sparse(a, b, operation=np.logical_and):

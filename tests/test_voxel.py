@@ -133,35 +133,40 @@ class VoxelTest(g.unittest.TestCase):
 
         pitch = 0.1
         origin = (0, 0, 0)
-        matrix = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]], dtype=bool)
-        centers = voxel.matrix_to_points(matrix, pitch, origin)
-        v = voxel.Voxel(matrix, pitch, origin)
 
+        matrix = g.np.eye(9, dtype=g.np.bool).reshape((-1, 3, 3))
+        centers = voxel.matrix_to_points(matrix=matrix,
+                                         pitch=pitch,
+                                         origin=origin)
+        v = voxel.Voxel(matrix=matrix,
+                        pitch=pitch,
+                        origin=origin)
+
+        
         boxes1 = v.as_boxes()
-        boxes2 = v.multibox(centers, pitch)
+        boxes2 = voxel.multibox(centers, pitch)
         colors = [g.trimesh.visual.DEFAULT_COLOR] * matrix.sum() * 12
         for boxes in [boxes1, boxes2]:
             g.np.testing.assert_allclose(
-                boxes.visual.face_colors, colors, atol=0, rtol=0
-            )
+                boxes.visual.face_colors, colors, atol=0, rtol=0)
 
-        colors = [255, 0, 0, 255]
-        boxes1 = v.as_boxes(colors=colors)
-        boxes2 = v.multibox(centers, pitch, colors)
-        colors = [colors] * len(centers) * 12
+        # check assigning a single color
+        color = [255, 0, 0, 255]
+        boxes1 = v.as_boxes(colors=color)
+        boxes2 = voxel.multibox(centers=centers,
+                                pitch=pitch,
+                                colors=color)
+        colors = g.np.array([color] * len(centers) * 12)
         for boxes in [boxes1, boxes2]:
             g.np.testing.assert_allclose(
-                boxes.visual.face_colors, colors, atol=0, rtol=0
-            )
+                boxes.visual.face_colors, colors, atol=0, rtol=0)
 
-        colors = [[255, 0, 0, 255]] * len(centers)
-        boxes1 = v.as_boxes(colors=colors)
-        boxes2 = voxel.multibox(centers, pitch, colors)
-        colors = colors * 12
-        for boxes in [boxes1, boxes2]:
-            g.np.testing.assert_allclose(
-                boxes.visual.face_colors, colors, atol=0, rtol=0
-            )
+        # check matrix colors
+        colors = color * g.np.ones(g.np.append(v.shape, 4),
+                                   dtype=g.np.uint8)
+        boxes = v.as_boxes(colors=colors)
+        assert g.np.allclose(
+            boxes.visual.face_colors, color, atol=0, rtol=0)
 
 
 if __name__ == '__main__':
