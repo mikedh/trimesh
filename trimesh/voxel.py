@@ -153,21 +153,34 @@ class Voxel(VoxelBase):
     def matrix(self):
         return self._data['matrix']
 
-    def as_boxes(self):
+    def as_boxes(self, colors=None):
         """
         A rough Trimesh representation of the voxels with a box
         for each filled voxel.
+
+        Parameters
+        ----------
+        colors: (X, Y, Z, 3) or (X, Y, Z, 4) float or uint8,
+            where matrix.shape == (X, Y, Z). Colors of all boxes of matrix.
 
         Returns
         ---------
         mesh: Trimesh object made up of one box per filled cell.
         """
+        matrix = self._data['matrix']
         centers = matrix_to_points(
-            matrix=self._data['matrix'],
+            matrix=matrix,
             pitch=self._data['pitch'],
             origin=self._data['origin'],
         )
-        mesh = multibox(centers=centers, pitch=self.pitch)
+        if colors is not None:
+            assert colors.ndim == 4 and \
+                colors.shape[:3] == matrix.shape and \
+                colors.shape[3] in [3, 4], \
+                'colors shape must be (X, Y, Z, 3) or (X, Y, Z, 4) ' \
+                'where matrix.shape == (X, Y, Z)'
+            colors = colors[matrix > 0]
+        mesh = multibox(centers=centers, pitch=self.pitch, colors=colors)
         return mesh
 
     def show(self, *args, **kwargs):
@@ -767,7 +780,7 @@ def sparse_to_matrix(sparse):
     return dense
 
 
-def multibox(centers, pitch):
+def multibox(centers, pitch, colors=None):
     """
     Return a Trimesh object with a box at every center.
 
@@ -777,6 +790,7 @@ def multibox(centers, pitch):
     -----------
     centers: (n,3) float, center of boxes that are occupied
     pitch:   float, the edge length of a voxel
+    colors: (3,) or (4,) or (n,3) or (n, 4) float, color of boxes
 
     Returns
     ---------
@@ -795,6 +809,15 @@ def multibox(centers, pitch):
                  (len(b.faces), 1)).T.reshape((-1, 1))
 
     rough = Trimesh(vertices=v, faces=f)
+
+    if colors is not None:
+        colors = np.asarray(colors)
+        if colors.ndim == 1:
+            colors = colors[None].repeat(len(centers), axis=0)
+        assert colors.ndim == 2 and len(colors) == len(centers), \
+            'colors shape must be (n_centers, 3) or (n_centers, 4)'
+        colors = colors.repeat(12, axis=0)
+        rough.visual.face_colors = colors
 
     return rough
 
