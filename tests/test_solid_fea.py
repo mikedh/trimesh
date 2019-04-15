@@ -15,7 +15,7 @@ def test_generate():
     m = g.trimesh.creation.icosahedron()
     
     try:
-        generate(m)
+        g.trimesh.solid_fea.generate(m)
         assert True
     except:
         assert False
