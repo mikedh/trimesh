@@ -1016,13 +1016,13 @@ def camera_marker(camera,
     z = marker_height
 
     # combine the points into the vertices of an FOV visualization
-    points = transformations.transform_points(
+    points = np.array(
         [(0, 0, 0),
          (-x, -y, z),
          (x, -y, z),
          (x, y, z),
          (-x, y, z)],
-        matrix=camera_transform)
+        dtype=float)
 
     # create line segments for the FOV visualization
     # a segment from the origin to each bound of the FOV
@@ -1036,7 +1036,9 @@ def camera_marker(camera,
                           points[[1, 2,
                                   2, 3,
                                   3, 4,
-                                  4, 1]])).reshape((-1, 2, 3))
+                                  4, 1]]))
+    segments = transformations.transform_points(
+        segments, matrix=camera_transform).reshape((-1, 2, 3))
 
     # add a single Path3D object for all line segments
     meshes.append(load_path(segments))
