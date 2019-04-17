@@ -1036,11 +1036,10 @@ def camera_marker(camera,
                           points[[1, 2,
                                   2, 3,
                                   3, 4,
-                                  4, 1]]))
-    segments = transformations.transform_points(
-        segments, matrix=camera_transform).reshape((-1, 2, 3))
+                                  4, 1]])).reshape((-1, 2, 3))
 
     # add a single Path3D object for all line segments
     meshes.append(load_path(segments))
+    meshes[-1].apply_transform(camera_transform)
 
     return meshes
