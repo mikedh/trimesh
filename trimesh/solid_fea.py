@@ -16,7 +16,14 @@ def generate(mesh,id_name_out=None,max_elm_size=None,mesher_id=1):
         mesh: trimesh class
         id_name_out: string
                      file name of volume mesh
-                     Formats *.bdf (Nastran) and *.msh (Gmsh) are supported
+                     Formats:
+                        *.bdf -> Nastran
+                        *.msh -> Gmsh)
+                        *.inp -> Abaqus
+                        *.ir3 -> Iridum
+                        *.diff -> Diffpack 3D
+                        *.mesh -> INRIA Medit
+                        ... others format check GMSH DOCS
         Max_elm_size: float
                       Maximum Characteristic Length of the elements        
         mesher_id: int
