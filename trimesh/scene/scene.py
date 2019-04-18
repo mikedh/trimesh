@@ -110,7 +110,13 @@ class Scene(Geometry):
         elif util.is_sequence(geometry):
             # if passed a sequence add all elements
             for value in geometry:
-                self.add_geometry(value)
+                self.add_geometry(
+                    geometry=value,
+                    node_name=node_name,
+                    geom_name=geom_name,
+                    parent_node_name=parent_node_name,
+                    transform=transform,
+                )
             return
 
         elif isinstance(geometry, dict):
