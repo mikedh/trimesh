@@ -12,6 +12,7 @@ from ..visual import to_rgba
 from ..util import log, BytesIO
 from ..transformations import Arcball
 from .. import rendering
+from .trackball import Trackball
 import collections
 import platform
 import numpy as np
@@ -73,6 +74,7 @@ class SceneViewer(pyglet.window.Window):
         self.callback = callback
         self.callback_period = callback_period
         self.scene._redraw = self._redraw
+        self._initial_camera_transform = scene.camera.transform
         self.reset_view(flags=flags)
         self.batch = pyglet.graphics.Batch()
         self._smooth = smooth
@@ -202,21 +204,20 @@ class SceneViewer(pyglet.window.Window):
           If any view key passed override the default
           e.g. {'cull': False}
         """
-        self.view = {'cull': True,
-                     'axis': False,
-                     'fullscreen': False,
-                     'wireframe': False,
-                     'translation': np.zeros(3),
-                     'center': self.scene.centroid,
-                     'scale': self.scene.scale,
-                     'ball': Arcball()}
+        self.view = {
+            'cull': True,
+            'axis': False,
+            'fullscreen': False,
+            'wireframe': False,
+            'ball': Trackball(
+                pose=self._initial_camera_transform,
+                size=self.scene.camera.resolution,
+                scale=self.scene.scale,
+                target=self.scene.centroid,
+            ),
+        }
 
         try:
-            # place the arcball (rotation widget) in the center of the view
-            self.view['ball'].place([self.width / 2.0,
-                                     self.height / 2.0],
-                                    (self.width + self.height) / 2.0)
-
             # if any flags are passed override defaults
             if isinstance(flags, dict):
                 for k, v in flags.items():
@@ -429,34 +430,42 @@ class SceneViewer(pyglet.window.Window):
                           .01,
                           self.scene.scale * 5.0)
         gl.glMatrixMode(gl.GL_MODELVIEW)
-        self.view['ball'].place([width / 2, height / 2],
-                                (width + height) / 2)
+
+        self.scene.camera.resolution = (width, height)
+        self.view['ball'].resize(self.scene.camera.resolution)
 
     def on_mouse_press(self, x, y, buttons, modifiers):
         """
         Set the start point of the drag.
         """
-        self.view['ball'].down([x, -y])
+        self.view['ball'].set_state(Trackball.STATE_ROTATE)
+        if (buttons == pyglet.window.mouse.LEFT):
+            ctrl = (modifiers & pyglet.window.key.MOD_CTRL)
+            shift = (modifiers & pyglet.window.key.MOD_SHIFT)
+            if (ctrl and shift):
+                self.view['ball'].set_state(Trackball.STATE_ZOOM)
+            elif shift:
+                self.view['ball'].set_state(Trackball.STATE_ROLL)
+            elif ctrl:
+                self.view['ball'].set_state(Trackball.STATE_PAN)
+        elif (buttons == pyglet.window.mouse.MIDDLE):
+            self.view['ball'].set_state(Trackball.STATE_PAN)
+        elif (buttons == pyglet.window.mouse.RIGHT):
+            self.view['ball'].set_state(Trackball.STATE_ZOOM)
+
+        self.view['ball'].down(np.array([x, y]))
 
     def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
         """
         Pan or rotate the view.
         """
-        # left mouse button, with control key down (pan)
-        if ((buttons == pyglet.window.mouse.LEFT) and
-                (modifiers & pyglet.window.key.MOD_CTRL)):
-            delta = [dx / self.width, dy / self.height]
-            self.view['translation'][:2] += delta
-
-        # left mouse button, no modifier keys pressed (rotate)
-        elif (buttons == pyglet.window.mouse.LEFT):
-            self.view['ball'].drag([x, -y])
+        self.view['ball'].drag(np.array([x, y]))
 
     def on_mouse_scroll(self, x, y, dx, dy):
         """
         Zoom the view.
         """
-        self.view['translation'][2] += float(dy) / self.height
+        self.view['ball'].scroll(dy)
 
     def on_key_press(self, symbol, modifiers):
         """
@@ -498,6 +507,9 @@ class SceneViewer(pyglet.window.Window):
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
         gl.glLoadIdentity()
 
+        # change camera transform based on the trackball on viewer
+        self.scene.camera.transform = self.view['ball'].pose.copy()
+
         # pull the new camera transform from the scene
         transform_camera = self.scene.graph.get(
             frame_to='world',
@@ -505,12 +517,6 @@ class SceneViewer(pyglet.window.Window):
 
         # apply the camera transform to the matrix stack
         gl.glMultMatrixf(rendering.matrix_to_gl(transform_camera))
-
-        # dragging the mouse moves the view
-        # but doesn't alter the scene
-        view = view_to_transform(self.view)
-        # add the view transform to the stack
-        gl.glMultMatrixf(rendering.matrix_to_gl(view))
 
         # we want to render fully opaque objects first,
         # followed by objects which have transparency
@@ -601,18 +607,6 @@ class SceneViewer(pyglet.window.Window):
             colorbuffer.save(file=file_obj)
         else:
             colorbuffer.save(filename=file_obj)
-
-
-def view_to_transform(view):
-    """
-    Given a dictionary containing view parameters,
-    calculate a transformation matrix.
-    """
-    transform = view['ball'].matrix()
-    transform[:3, 3] = view['center']
-    transform[:3, 3] -= np.dot(transform[:3, :3], view['center'])
-    transform[:3, 3] += view['translation'] * view['scale'] * 5.0
-    return transform
 
 
 def geometry_hash(geometry):
