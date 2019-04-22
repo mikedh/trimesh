@@ -192,7 +192,9 @@ class SceneWidget(glooey.Widget):
             )
 
     def do_draw(self):
-        self.scene.camera.resolution = (self.rect.width, self.rect.height)
+        resolution = (self.rect.width, self.rect.height)
+        if not (resolution == self.scene.camera.resolution).all():
+            self.scene.camera.resolution = resolution
 
         node_names = self.scene.graph.nodes_geometry
         for node_name in node_names:
@@ -213,8 +215,6 @@ class SceneWidget(glooey.Widget):
 
     def on_mouse_press(self, x, y, buttons, modifiers):
         SceneViewer.on_mouse_press(self, x, y, buttons, modifiers)
-        if self.scene_group:
-            self.scene.camera.transform = self.view['ball'].pose
         self._draw()
 
     def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
@@ -228,14 +228,10 @@ class SceneWidget(glooey.Widget):
             self.view['ball'].down(np.array([x, y]))
 
         SceneViewer.on_mouse_drag(self, x, y, dx, dy, buttons, modifiers)
-        if self.scene_group:
-            self.scene.camera.transform = self.view['ball'].pose
         self._draw()
 
     def on_mouse_scroll(self, x, y, dx, dy):
         SceneViewer.on_mouse_scroll(self, x, y, dx, dy)
-        if self.scene_group:
-            self.scene.camera.transform = self.view['ball'].pose
         self._draw()
 
     def _update_node(self, node_name, geometry_name, geometry, transform):
