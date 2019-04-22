@@ -67,7 +67,8 @@ setup(name='trimesh',
                                'requests',
                                'xxhash',
                                'pycollada',
-                               'colorlog'],
+                               'colorlog',
+                               'glooey'],
                       'all': ['lxml',
                               'pyglet',
                               'shapely',
@@ -84,5 +85,6 @@ setup(name='trimesh',
                               'pycollada',
                               'psutil',
                               'pillow',
-                              'setuptools']}
+                              'setuptools',
+                              'glooey']}
       )

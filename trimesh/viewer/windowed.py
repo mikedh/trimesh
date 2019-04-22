@@ -247,12 +247,26 @@ class SceneViewer(pyglet.window.Window):
                 log.error('background color set but wrong!',
                           exc_info=True)
 
-        # apply the background color
+        self._gl_set_background(background)
+        self._gl_enable_depth(self.scene)
+        self._gl_enable_color_material()
+        self._gl_enable_blending()
+        self._gl_enable_smooth_lines()
+        self._gl_enable_lighting(self.scene)
+
+    @staticmethod
+    def _gl_set_background(background):
         gl.glClearColor(*background)
 
+    @staticmethod
+    def _gl_unset_background():
+        gl.glClearColor(*[0, 0, 0, 0])
+
+    @staticmethod
+    def _gl_enable_depth(scene):
         # find the maximum depth based on
         # maximum length of scene AABB
-        max_depth = (np.abs(self.scene.bounds).max(axis=1) ** 2).sum() ** .5
+        max_depth = (np.abs(scene.bounds).max(axis=1) ** 2).sum() ** .5
         max_depth = np.clip(max_depth, 500.00, np.inf)
         gl.glDepthRange(0.0, max_depth)
 
@@ -263,6 +277,8 @@ class SceneViewer(pyglet.window.Window):
         gl.glEnable(gl.GL_DEPTH_TEST)
         gl.glEnable(gl.GL_CULL_FACE)
 
+    @staticmethod
+    def _gl_enable_color_material():
         # do some openGL things
         gl.glColorMaterial(gl.GL_FRONT_AND_BACK,
                            gl.GL_AMBIENT_AND_DIFFUSE)
@@ -286,11 +302,15 @@ class SceneViewer(pyglet.window.Window):
                        gl.GL_SHININESS,
                        .4 * 128.0)
 
+    @staticmethod
+    def _gl_enable_blending():
         # enable blending for transparency
         gl.glEnable(gl.GL_BLEND)
         gl.glBlendFunc(gl.GL_SRC_ALPHA,
                        gl.GL_ONE_MINUS_SRC_ALPHA)
 
+    @staticmethod
+    def _gl_enable_smooth_lines():
         # make the lines from Path3D objects less ugly
         gl.glEnable(gl.GL_LINE_SMOOTH)
         gl.glHint(gl.GL_LINE_SMOOTH_HINT, gl.GL_NICEST)
@@ -299,22 +319,20 @@ class SceneViewer(pyglet.window.Window):
         # set PointCloud markers to 4 pixels in size
         gl.glPointSize(4)
 
-        # set up the viewer lights using self.scene
-        self.update_lighting()
-
-    def update_lighting(self):
+    @staticmethod
+    def _gl_enable_lighting(scene):
         """
         Take the lights defined in scene.lights and
         apply them as openGL lights.
         """
         gl.glEnable(gl.GL_LIGHTING)
         # opengl only supports 7 lights?
-        for i, light in enumerate(self.scene.lights[:7]):
+        for i, light in enumerate(scene.lights[:7]):
             # the index of which light we have
             lightN = eval('gl.GL_LIGHT{}'.format(i))
 
             # get the transform for the light by name
-            matrix = self.scene.graph[light.name][0]
+            matrix = scene.graph[light.name][0]
 
             # convert light object to glLightfv calls
             multiargs = rendering.light_to_gl(
