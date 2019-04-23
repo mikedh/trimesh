@@ -22,16 +22,18 @@ def to_volume(mesh,
         pip install gmsh-sdk
 
     Algorithm details, although check gmsh docs for more information:
-    The “Delaunay” algorithm is split into three separate steps.
+    The "Delaunay" algorithm is split into three separate steps.
     First, an initial mesh of the union of all the volumes in the model is performed,
     without inserting points in the volume. The surface mesh is then recovered using H.
-    Si’s boundary recovery algorithm Tetgen/BR. Then a three-dimensional version of the
+    Si's boundary recovery algorithm Tetgen/BR. Then a three-dimensional version of the
     2D Delaunay algorithm described above is applied to insert points in the volume to
     respect the mesh size constraints.
 
-    The “Frontal” algorithm uses J. Schoeberl’s Netgen algorithm.
-    The “HXT” algorithm is a new efficient and parallel reimplementaton of the Delaunay algorithm.
-    The “MMG3D” algorithm (experimental) allows to generate anisotropic tetrahedralizations
+    The Frontal" algorithm uses J. Schoeberl's Netgen algorithm.
+    The "HXT" algorithm is a new efficient and parallel reimplementaton
+    of the Delaunay algorithm.
+    The "MMG3D" algorithm (experimental) allows to generate
+    anisotropic tetrahedralizations
 
 
     Parameters
