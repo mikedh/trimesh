@@ -1,5 +1,5 @@
-import sys
 import os
+import sys
 import json
 import inspect
 import subprocess
@@ -123,10 +123,7 @@ def render_examples(out_dir, in_dir=None, ext='ipynb'):
         render_notebook(nb_path, html_path)
 
 
-if __name__ == '__main__':
-    """
-    Load and run a notebook if a file name is passed
-    """
+def main():
 
     # examples which we're not going to run in CI
     # widget.py opens a window and does a bunch of openGL stuff
@@ -139,7 +136,8 @@ if __name__ == '__main__':
         # exec the script passed
         file_name = sys.argv[sys.argv.index("exec") + 1].strip()
         # we want to skip some of these examples in CI
-        if 'ci' in sys.argv and file_name in ci_blacklist:
+        if 'ci' in sys.argv and os.path.basename(file_name) in ci_blacklist:
+            print(file_name, 'in CI blacklist: skipping!')
             return
 
         if (file_name.endswith('ipynb') and
@@ -153,3 +151,10 @@ if __name__ == '__main__':
                 script = exclude_calls(file_obj.read().split('\n'))
             print('\nloaded {}:\n'.format(file_name))
             exec(script)
+
+        
+if __name__ == '__main__':
+    """
+    Load and run a notebook if a file name is passed
+    """
+    main()
