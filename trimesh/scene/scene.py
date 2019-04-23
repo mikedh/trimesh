@@ -447,7 +447,8 @@ class Scene(Geometry):
         rotation = transformations.euler_matrix(*angles)
         transform = cameras.look_at(self.bounds_corners,
                                     fov=fov,
-                                    rotation=rotation)
+                                    rotation=rotation,
+                                    distance=distance)
 
         if hasattr(self, '_camera') and self._camera is not None:
             self.camera.fov = fov

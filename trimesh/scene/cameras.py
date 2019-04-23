@@ -308,7 +308,7 @@ class Camera(object):
         return camera_to_rays(self)
 
 
-def look_at(points, fov, rotation=None):
+def look_at(points, fov, rotation=None, distance=None):
     """
     Generate transform for a camera to keep a list
     of points in the camera's field of view.
@@ -347,13 +347,15 @@ def look_at(points, fov, rotation=None):
     # Find the minimum distance for the camera from the origin
     # so that all points fit in the view frustrum
     tfov = np.tan(np.radians(fov) / 2.0)
-    dist = np.max(np.abs(points_c[:, :2]) /
-                  tfov + points_c[:, 2][:, np.newaxis])
+
+    if distance is None:
+        distance = np.max(np.abs(points_c[:, :2]) /
+                          tfov + points_c[:, 2][:, np.newaxis])
 
     # set the pose translation
     center_w = rotation[:3, :3].dot(center_c)
     cam_pose = rotation.copy()
-    cam_pose[:3, 3] = center_w + dist * cam_pose[:3, 2]
+    cam_pose[:3, 3] = center_w + distance * cam_pose[:3, 2]
 
     return cam_pose
 
