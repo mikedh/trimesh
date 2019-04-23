@@ -44,11 +44,18 @@ except BaseException as E:
     render_scene = _cloture(E)
 
 
+try:
+    from .widget import SceneWidget
+except BaseException as E:
+    SceneWidget = _cloture(E)
+
+
 # this is only standard library imports
 
 # explicitly list imports in __all__
 # as otherwise flake8 gets mad
-__all__ = [SceneViewer,
+__all__ = [SceneWidget,
+           SceneViewer,
            render_scene,
            in_notebook,
            scene_to_notebook,

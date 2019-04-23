@@ -1,5 +1,5 @@
-import sys
 import os
+import sys
 import json
 import inspect
 import subprocess
@@ -123,24 +123,39 @@ def render_examples(out_dir, in_dir=None, ext='ipynb'):
         render_notebook(nb_path, html_path)
 
 
-if __name__ == '__main__':
-    """
-    Load and run a notebook if a file name is passed
-    """
+def main():
+
+    # examples which we're not going to run in CI
+    # widget.py opens a window and does a bunch of openGL stuff
+    ci_blacklist = ['widget.py']
+
     if "examples" in sys.argv:
         out_path = sys.argv[sys.argv.index("examples") + 1]
         render_examples(out_path)
     elif "exec" in sys.argv:
         # exec the script passed
-        file_name = sys.argv[sys.argv.index("exec") + 1]
+        file_name = sys.argv[sys.argv.index("exec") + 1].strip()
+        # we want to skip some of these examples in CI
+        if 'ci' in sys.argv and os.path.basename(file_name) in ci_blacklist:
+            print(file_name, 'in CI blacklist: skipping!')
+            return
+
         if (file_name.endswith('ipynb') and
                 os.path.exists(file_name)):
             with open(file_name, 'r') as file_obj:
                 script = load_notebook(file_obj)
             print('\nloaded {}:\n'.format(file_name))
-            exec(script)
+            print('script:\n\n{}\n'.format(script))
+            exec(script, globals())
         elif file_name.endswith('.py'):
             with open(file_name, 'r') as file_obj:
                 script = exclude_calls(file_obj.read().split('\n'))
             print('\nloaded {}:\n'.format(file_name))
-            exec(script)
+            exec(script, globals())
+
+
+if __name__ == '__main__':
+    """
+    Load and run a notebook if a file name is passed
+    """
+    main()

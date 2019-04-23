@@ -481,9 +481,10 @@ def box(extents=None, transform=None, **kwargs):
 
     Returns
     ------------
-    box : trimesh.Trimesh
-      Cuboid geometry in space
+    geometry : trimesh.Trimesh
+      Mesh of a cuboid
     """
+    # vertices of the cube
     vertices = [0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1,
                 1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1]
     vertices = np.array(vertices,
@@ -491,6 +492,7 @@ def box(extents=None, transform=None, **kwargs):
                         dtype=np.float64).reshape((-1, 3))
     vertices -= 0.5
 
+    # resize cube based on passed extents
     if extents is not None:
         extents = np.asanyarray(extents, dtype=np.float64)
         if extents.shape != (3,):
@@ -513,6 +515,8 @@ def box(extents=None, transform=None, **kwargs):
                   face_normals=face_normals,
                   process=False,
                   **kwargs)
+
+    # do the transform here to preserve face normals
     if transform is not None:
         box.apply_transform(transform)
 

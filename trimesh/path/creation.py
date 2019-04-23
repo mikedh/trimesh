@@ -2,6 +2,7 @@ from . import arc
 from . import entities
 
 from .. import util
+from .. import transformations
 
 import collections
 import numpy as np
@@ -157,3 +158,49 @@ def rectangle(bounds, **kwargs):
                   **kwargs)
 
     return rect
+
+
+def box_outline(extents=None, transform=None, **kwargs):
+    """
+    Return a cuboid.
+
+    Parameters
+    ------------
+    extents : float, or (3,) float
+      Edge lengths
+    transform: (4, 4) float
+      Transformation matrix
+    **kwargs:
+        passed to Trimesh to create box
+
+    Returns
+    ------------
+    geometry : trimesh.Path3D
+      Path outline of a cuboid geometry
+    """
+    from .exchange.load import load_path
+
+    # create vertices for the box
+    vertices = [0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1,
+                1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1]
+    vertices = np.array(vertices,
+                        order='C',
+                        dtype=np.float64).reshape((-1, 3))
+    vertices -= 0.5
+
+    # resize the vertices based on passed size
+    if extents is not None:
+        extents = np.asanyarray(extents, dtype=np.float64)
+        if extents.shape != (3,):
+            raise ValueError('Extents must be (3,)!')
+        vertices *= extents
+
+    # apply transform if passed
+    if transform is not None:
+        vertices = transformations.transform_points(vertices, transform)
+
+    # vertex indices
+    indices = [0, 1, 3, 2, 0, 4, 5, 7, 6, 4, 0, 2, 6, 7, 3, 1, 5]
+    outline = load_path(vertices[indices])
+
+    return outline

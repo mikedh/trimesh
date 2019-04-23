@@ -84,5 +84,6 @@ setup(name='trimesh',
                               'pycollada',
                               'psutil',
                               'pillow',
-                              'setuptools']}
+                              'setuptools',
+                              'glooey']}
       )

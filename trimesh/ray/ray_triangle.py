@@ -35,7 +35,7 @@ class RayMeshIntersector(object):
         Find the intersections between the current mesh and a list of rays.
 
         Parameters
-        ----------
+        ------------
         ray_origins:      (m,3) float, ray origin points
         ray_directions:   (m,3) float, ray direction vectors
         multiple_hits:    bool, consider multiple hits of each ray or not
@@ -74,7 +74,7 @@ class RayMeshIntersector(object):
         will be counted twice.
 
         Parameters
-        ----------
+        ------------
         ray_origins : (m, 3) float
           Ray origin points
         ray_directions : (m, 3) float
@@ -106,7 +106,7 @@ class RayMeshIntersector(object):
         Find out if each ray hit any triangle on the mesh.
 
         Parameters
-        ----------
+        ------------
         ray_origins:      (m,3) float, ray origin points
         ray_directions:   (m,3) float, ray direction vectors
 
@@ -129,7 +129,7 @@ class RayMeshIntersector(object):
         If the point is on the surface of the mesh, behavior is undefined.
 
         Parameters
-        ---------
+        ------------
         points: (n,3) points in space
 
         Returns
@@ -150,7 +150,7 @@ def ray_triangle_id(triangles,
     Find the intersections between a group of triangles and rays
 
     Parameters
-    ----------
+    -------------
     triangles : (n, 3, 3) float
       Triangles in space
     ray_origins : (m, 3) float
@@ -272,7 +272,7 @@ def ray_triangle_candidates(ray_origins,
     passes through the volume occupied by the tree
 
     Parameters
-    ----------
+    ------------
     ray_origins:      (m,3) float, ray origin points
     ray_directions:   (m,3) float, ray direction vectors
     tree:             rtree object, contains AABB of each triangle
@@ -309,7 +309,7 @@ def ray_bounds(ray_origins,
     of the rays as they pass through the volume.
 
     Parameters
-    ---------
+    ------------
     ray_origins:      (m,3) float, ray origin points
     ray_directions:   (m,3) float, ray direction vectors
     bounds:           (2,3) bounding box (min, max)

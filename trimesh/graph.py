@@ -826,14 +826,18 @@ def multigraph_paths(G, source, cutoff=None):
 
     Parameters
     ---------------
-    G: networkx.MultiDiGraph
-    source: str, node to start off
-    cutoff: int, number of nodes to visit
-                 if None, will
+    G : networkx.MultiDiGraph
+      Graph to evaluate
+    source : hashable
+      Node to start traversal at
+    cutoff : int
+      Number of nodes to visit
+      If None will visit all nodes
 
     Returns
     ----------
-    traversals: (n,) list of [(node, edge instance index), ] paths
+    traversals : (n,) list of [(node, edge instance index), ] paths
+      Traversals of the multigraph
     """
     if cutoff is None:
         cutoff = (len(G.edges()) * len(G.nodes())) + 1

@@ -138,6 +138,22 @@ class VoxelBase(object):
 
 class Voxel(VoxelBase):
 
+    """
+    Voxel representation with matrix, pitch and origin.
+
+    All voxels are referenced by the center of their cell box, for example,
+    the ``origin`` exactly matches the center of the first voxel.
+
+    Parameters
+    ----------
+    matrix: (X, Y, Z)
+        Matrix that is interpreted as boolean to represent filled voxels.
+    pitch: float
+        Scale of each voxel.
+    origin: (3,) float
+        The center of the first voxel.
+    """
+
     def __init__(self, matrix, pitch, origin):
         super(Voxel, self).__init__()
 
@@ -646,7 +662,7 @@ def points_to_indices(points, pitch, origin):
     if origin.shape != (3,):
         raise ValueError('shape of origin must be (3,)')
 
-    indices = np.round((points - origin) / pitch + 0.5).astype(int)
+    indices = np.round((points - origin) / pitch).astype(int)
     return indices
 
 
@@ -676,7 +692,7 @@ def indices_to_points(indices, pitch, origin):
     if origin.shape != (3,):
         raise ValueError('shape of origin must be (3,)')
 
-    points = (indices - 0.5) * pitch + origin
+    points = indices * pitch + origin
     return points
 
 
