@@ -120,7 +120,7 @@ script:
 
 # make sure examples still work
 - cd examples
-- set -xe; for f in *py*; do python ../tests/notebooks.py exec "$f"; done
+- set -xe; for f in *py*; do python ../tests/notebooks.py ci exec "$f"; done
 - cd ..
 
 after_success:

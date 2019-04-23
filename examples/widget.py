@@ -1,4 +1,6 @@
-"""Glooey widget example. Only runs with python>=3.6"""
+"""
+Glooey widget example. Only runs with python>=3.6
+"""
 
 import pathlib
 
@@ -15,6 +17,14 @@ here = pathlib.Path(__file__).resolve().parent
 
 
 def create_scene1():
+    """
+    Create a scene with a Fuze bottle, some cubes, and an axis.
+
+    Returns
+    ----------
+    scene : trimesh.Scene
+      Object with geometry
+    """
     scene = trimesh.Scene()
 
     # plane
@@ -59,13 +69,16 @@ def create_scene1():
 
 
 def create_scene2():
+    """
+    Create a scene with a bunch of small icospheres
+    """
     scene = trimesh.Scene()
 
-    geom = trimesh.creation.box((0.6, 0.6, 0.6), face=False, edge=True)
+    geom = trimesh.path.creation.box_outline((0.6, 0.6, 0.6))
     scene.add_geometry(geom)
 
-    for _ in range(128):
-        geom = trimesh.creation.icosphere(radius=0.01)
+    for _ in range(50):
+        geom = trimesh.creation.icosphere(radius=0.01, subdivisions=2)
         geom.visual.face_colors = np.random.uniform(0, 1, (3,))
         eye = np.random.uniform(-0.3, 0.3, (3,))
         transform = tf.translation_matrix(eye)
@@ -76,15 +89,18 @@ def create_scene2():
     return scene
 
 
-def main():
+if __name__ == '__main__':
     np.random.seed(0)
 
+    # create a pyglet window
     window = pyglet.window.Window(width=1280, height=480)
+    # create a glooey interface using the window
     gui = glooey.Gui(window)
 
     hbox = glooey.HBox()
     hbox.set_padding(5)
 
+    # define a callback which will spin the scene
     def callback():
         if not hasattr(widget1, '_angles'):
             widget1._angles = [np.deg2rad(45), 0, 0]
@@ -92,17 +108,21 @@ def main():
         widget1.scene.set_camera(angles=widget1._angles, distance=1)
         widget1._draw()
 
+    # make a widget with one scene
     scene = create_scene1()
     widget1 = trimesh.viewer.SceneWidget(scene)
     hbox.add(widget1)
 
+    # make a widget with the other scene
     scene = create_scene2()
     widget2 = trimesh.viewer.SceneWidget(scene)
     hbox.add(widget2)
 
+    # add the boxes with the widgets to the gui
     gui.add(hbox)
 
-    pyglet.clock.schedule_interval(lambda dt: callback(), 1 / 100)
+    # schedule a callback to spin the scene
+    pyglet.clock.schedule_interval(lambda dt: callback(), 1 / 20)
 
     @window.event
     def on_key_press(symbol, modifiers):
@@ -110,7 +130,3 @@ def main():
             window.close()
 
     pyglet.app.run()
-
-
-if __name__ == '__main__':
-    main()

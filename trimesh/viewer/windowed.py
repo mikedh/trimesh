@@ -75,7 +75,10 @@ class SceneViewer(pyglet.window.Window):
         self.callback = callback
         self.callback_period = callback_period
         self.scene._redraw = self._redraw
-        self._initial_camera_transform = scene.camera.transform
+
+        # save initial camera transform
+        self._initial_camera_transform = scene.camera.transform.copy()
+
         self.reset_view(flags=flags)
         self.batch = pyglet.graphics.Batch()
         self._smooth = smooth

@@ -1,3 +1,11 @@
+"""
+widget.py
+-------------
+
+A widget which can visualize trimesh.Scene objects in a glooey window.
+
+Check out an example in `examples/widget.py`
+"""
 import glooey
 import numpy as np
 import pyglet
@@ -140,8 +148,8 @@ class SceneWidget(glooey.Widget):
     @property
     def scene_group(self):
         if self._scene_group is None:
-            pixel_per_point = np.array(self.window.get_viewport_size()) / \
-                np.array(self.window.get_size())
+            pixel_per_point = (np.array(self.window.get_viewport_size()) /
+                               np.array(self.window.get_size()))
             self._scene_group = SceneGroup(
                 rect=self.rect,
                 scene=self.scene,
@@ -157,9 +165,7 @@ class SceneWidget(glooey.Widget):
                 pose=self._initial_camera_transform,
                 size=self.scene.camera.resolution,
                 scale=self.scene.scale,
-                target=self.scene.centroid,
-            ),
-        }
+                target=self.scene.centroid)}
 
     def do_claim(self):
         return 0, 0
@@ -181,15 +187,13 @@ class SceneWidget(glooey.Widget):
                 mesh_group = MeshGroup(
                     transform=transform,
                     texture=self.textures.get(geometry_name),
-                    parent=self.scene_group,
-                )
+                    parent=self.scene_group)
                 self.mesh_group[node_name] = mesh_group
             self.batch.migrate(
                 vertex_list,
                 gl.GL_TRIANGLES,
                 mesh_group,
-                self.batch,
-            )
+                self.batch)
 
     def do_draw(self):
         resolution = (self.rect.width, self.rect.height)
@@ -252,8 +256,7 @@ class SceneWidget(glooey.Widget):
             mesh_group = MeshGroup(
                 transform=transform,
                 texture=self.textures.get(geometry_name),
-                parent=self.scene_group,
-            )
+                parent=self.scene_group)
             self.mesh_group[node_name] = mesh_group
 
         if self.vertex_list_hash.get(geometry_name) != geometry_hash_new:

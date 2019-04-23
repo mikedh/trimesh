@@ -159,6 +159,7 @@ def rectangle(bounds, **kwargs):
 
     return rect
 
+
 def box_outline(extents=None, transform=None, **kwargs):
     """
     Return a cuboid.
@@ -197,10 +198,9 @@ def box_outline(extents=None, transform=None, **kwargs):
     # apply transform if passed
     if transform is not None:
         vertices = transformations.transform_points(vertices, transform)
-        
+
     # vertex indices
     indices = [0, 1, 3, 2, 0, 4, 5, 7, 6, 4, 0, 2, 6, 7, 3, 1, 5]
     outline = load_path(vertices[indices])
 
     return outline
-    

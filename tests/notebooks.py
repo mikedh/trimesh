@@ -127,12 +127,21 @@ if __name__ == '__main__':
     """
     Load and run a notebook if a file name is passed
     """
+
+    # examples which we're not going to run in CI
+    # widget.py opens a window and does a bunch of openGL stuff
+    ci_blacklist = ['widget.py']
+
     if "examples" in sys.argv:
         out_path = sys.argv[sys.argv.index("examples") + 1]
         render_examples(out_path)
     elif "exec" in sys.argv:
         # exec the script passed
-        file_name = sys.argv[sys.argv.index("exec") + 1]
+        file_name = sys.argv[sys.argv.index("exec") + 1].strip()
+        # we want to skip some of these examples in CI
+        if 'ci' in sys.argv and file_name in ci_blacklist:
+            return
+
         if (file_name.endswith('ipynb') and
                 os.path.exists(file_name)):
             with open(file_name, 'r') as file_obj:
