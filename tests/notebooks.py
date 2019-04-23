@@ -153,7 +153,7 @@ def main():
             print('\nloaded {}:\n'.format(file_name))
             exec(script, globals())
 
-        
+
 if __name__ == '__main__':
     """
     Load and run a notebook if a file name is passed
