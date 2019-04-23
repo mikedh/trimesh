@@ -163,7 +163,7 @@ if __name__ == '__main__':
 
     """
     OBJ is a free form hippy hot tub of a format which allows pretty much anything. Unfortunatly, for this reason it is extremely popular.
-
+ 
     Our current loader supports a lot of things and is vectorized in a bunch of nice places and is decently performant. However, it is pretty convoluted and is tough to "grok" enough to develop on.
 
  This PR includes a mostly fresh pass at an OBJ loader. In my testing on large files, it was roughly 3x faster than the previous loader. Most of the gains are from doing string preprocessing operations, and processing only relevant substrings as much as possible, through `str.find` and `str.rfind`. For small meshes, it is similar or slightly slower than the old loader.
@@ -191,10 +191,9 @@ if __name__ == '__main__':
 
     
     name = 'models/fuze.obj'
-    #name = 'src.obj'
-    #name = 'model.obj'
+    name = 'src.obj'
     #name = 'models/cube_compressed.obj'
-    #name = 'model.obj'
+    name = 'model.obj'
     
     with open(name, 'r') as f:
         text = f.read()
@@ -265,6 +264,18 @@ if __name__ == '__main__':
     v_list = words[v_idx + np.arange(1, 4)].ravel().tolist()
     # run the conversion using built- in functions then re-numpy it
     v = np.array(list(map(float, v_list)), dtype=np.float64).reshape((-1, 3))
+
+    # vertex colors are stored right after the vertices
+    vc = None
+    try:
+        # try just one line, which will raise before
+        # we try to do the whole array
+        words[v_idx[0] + np.arange(4, 7)].astype(np.float64)
+        # we made it past one line, try to get a color for every vertex
+        vc_list = words[v_idx + np.arange(4, 7)].ravel().tolist()
+        vc = np.array(list(map(float, vc_list)), dtype=np.float64).reshape((-1, 3))
+    except BaseException:
+        pass
 
     vt = None
     if vt_end >= 0:
