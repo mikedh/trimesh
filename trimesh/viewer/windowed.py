@@ -74,7 +74,6 @@ class SceneViewer(pyglet.window.Window):
         self.callback = callback
         self.callback_period = callback_period
         self.scene._redraw = self._redraw
-        self._initial_camera_transform = scene.camera.transform
         self.reset_view(flags=flags)
         self.batch = pyglet.graphics.Batch()
         self._smooth = smooth
@@ -204,13 +203,16 @@ class SceneViewer(pyglet.window.Window):
           If any view key passed override the default
           e.g. {'cull': False}
         """
+        # reset camera view
+        self.scene.set_camera()
+
         self.view = {
             'cull': True,
             'axis': False,
             'fullscreen': False,
             'wireframe': False,
             'ball': Trackball(
-                pose=self._initial_camera_transform,
+                pose=self.scene.camera.transform,
                 size=self.scene.camera.resolution,
                 scale=self.scene.scale,
                 target=self.scene.centroid,
