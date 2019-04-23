@@ -474,10 +474,12 @@ class Trimesh(Geometry):
         """
         # return bounds including ONLY referenced vertices
         in_mesh = self.vertices[self.referenced_vertices]
-        bounds = np.array([in_mesh.min(axis=0),
-                           in_mesh.max(axis=0)])
-        bounds.flags.writeable = False
-        return bounds
+        # get mesh bounds with min and max
+        mesh_bounds = np.array([in_mesh.min(axis=0),
+                                in_mesh.max(axis=0)])
+        # should not be mutable
+        mesh_bounds.flags.writeable = False
+        return mesh_bounds
 
     @caching.cache_decorator
     def extents(self):

@@ -9,7 +9,6 @@ import warnings
 
 import numpy as np
 
-from .constants import log
 from .constants import tol
 from .geometry import plane_transform
 from .parent import Geometry

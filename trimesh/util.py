@@ -18,7 +18,6 @@ import base64
 import logging
 import hashlib
 import zipfile
-import warnings
 import collections
 
 from sys import version_info

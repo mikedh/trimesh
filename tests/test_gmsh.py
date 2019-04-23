@@ -8,6 +8,7 @@ try:
 except ImportError:
     gmsh = None
 
+
 class GMSHTest(g.unittest.TestCase):
     def test_generate(self):
         # don't test gmsh if not installed
@@ -17,6 +18,7 @@ class GMSHTest(g.unittest.TestCase):
         m = g.trimesh.creation.icosahedron()
         result = g.trimesh.interfaces.gmsh.to_volume(m)
         assert len(result) > 0
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

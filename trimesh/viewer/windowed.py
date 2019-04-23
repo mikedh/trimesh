@@ -7,17 +7,18 @@ Trimesh, Scene, PointCloud, and Path objects.
 
 Works on all major platforms: Windows, Linux, and OSX.
 """
+import platform
+import collections
+import numpy as np
+
+import pyglet
+import pyglet.gl as gl
 
 from ..visual import to_rgba
-from ..util import log, BytesIO
-from ..transformations import Arcball
+from ..util import log
 from .. import rendering
 from .trackball import Trackball
-import collections
-import platform
-import numpy as np
-import pyglet.gl as gl
-import pyglet
+
 pyglet.options['shadow_window'] = False
 
 
@@ -543,7 +544,11 @@ class SceneViewer(pyglet.window.Window):
 
             # if a geometry is marked as fixed apply the inverse view transform
             if self.fixed is not None and geometry_name in self.fixed:
-                transform = np.dot(np.linalg.inv(view), transform)
+                # remove altered camera transform from fixed geometry
+                transform_fix = np.linalg.inv(
+                    np.dot(self._initial_camera_transform, transform_camera))
+                # apply the transform so the fixed geometry doesn't move
+                transform = np.dot(transform, transform_fix)
 
             # get a reference to the mesh so we can check transparency
             mesh = self.scene.geometry[geometry_name]
@@ -671,6 +676,8 @@ def render_scene(scene,
         window.dispatch_events()
         window.dispatch_event('on_draw')
         window.flip()
+
+    from ..util import BytesIO
 
     # save the color buffer data to memory
     file_obj = BytesIO()

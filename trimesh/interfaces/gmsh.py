@@ -9,6 +9,7 @@ try:
 except ImportError:
     gmsh = None
 
+
 def to_volume(mesh,
               file_name=None,
               max_element=None,
@@ -19,19 +20,19 @@ def to_volume(mesh,
     An easy way to install the gmsh sdk is through the gmsh-sdk
     package on pypi, which downloads and sets up gmsh:
         pip install gmsh-sdk
-    
+
     Algorithm details, although check gmsh docs for more information:
-    The “Delaunay” algorithm is split into three separate steps. 
-    First, an initial mesh of the union of all the volumes in the model is performed, 
+    The “Delaunay” algorithm is split into three separate steps.
+    First, an initial mesh of the union of all the volumes in the model is performed,
     without inserting points in the volume. The surface mesh is then recovered using H.
     Si’s boundary recovery algorithm Tetgen/BR. Then a three-dimensional version of the
-    2D Delaunay algorithm described above is applied to insert points in the volume to 
+    2D Delaunay algorithm described above is applied to insert points in the volume to
     respect the mesh size constraints.
-    
+
     The “Frontal” algorithm uses J. Schoeberl’s Netgen algorithm.
     The “HXT” algorithm is a new efficient and parallel reimplementaton of the Delaunay algorithm.
     The “MMG3D” algorithm (experimental) allows to generate anisotropic tetrahedralizations
-    
+
 
     Parameters
     --------------
@@ -52,17 +53,17 @@ def to_volume(mesh,
 
     """
 
-    #checks mesher selection
-    if mesher_id not in [1,4,7,10]:
+    # checks mesher selection
+    if mesher_id not in [1, 4, 7, 10]:
         raise ValueError('unavilable mesher selected!')
     else:
-        mesher_id=int(mesher_id)
+        mesher_id = int(mesher_id)
 
     # set max element length to a best guess if not specified
     if max_element is None:
         max_element = np.sqrt(np.mean(mesh.area_faces))
-    
-    if file_name != None:
+
+    if file_name is not None:
         # check extensions to make sure it is supported format
         if not any(file_name.lower().endswith(e) for e in ['.bdf', 'msh']):
             raise ValueError('Only Nastran (.bdf) and gmsh (.msh) formats are available!')
@@ -79,21 +80,21 @@ def to_volume(mesh,
 
     gmsh.merge(mesh_file.name)
     dimtag = gmsh.model.getEntities()[0]
-    dim=dimtag[0]
-    tag=dimtag[1]
+    dim = dimtag[0]
+    tag = dimtag[1]
 
-    surf_loop=gmsh.model.geo.addSurfaceLoop([tag])
+    surf_loop = gmsh.model.geo.addSurfaceLoop([tag])
     gmsh.model.geo.addVolume([surf_loop])
     gmsh.model.geo.synchronize()
 
     # We can then generate a 3D mesh...
-    gmsh.option.setNumber("Mesh.Algorithm3D",mesher_id)
+    gmsh.option.setNumber("Mesh.Algorithm3D", mesher_id)
     gmsh.option.setNumber("Mesh.CharacteristicLengthMax", max_element)
     gmsh.model.mesh.generate(3)
 
     dimtag2 = gmsh.model.getEntities()[1]
-    dim2=dimtag2[0]
-    tag2=dimtag2[1]
+    dim2 = dimtag2[0]
+    tag2 = dimtag2[1]
     p2 = gmsh.model.addPhysicalGroup(dim2, [tag2])
     gmsh.model.setPhysicalName(dim, p2, 'Nastran_bdf')
 
