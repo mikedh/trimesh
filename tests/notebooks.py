@@ -145,12 +145,13 @@ def main():
             with open(file_name, 'r') as file_obj:
                 script = load_notebook(file_obj)
             print('\nloaded {}:\n'.format(file_name))
-            exec(script)
+            print('script:\n\n{}\n'.format(script))
+            exec(script, globals())
         elif file_name.endswith('.py'):
             with open(file_name, 'r') as file_obj:
                 script = exclude_calls(file_obj.read().split('\n'))
             print('\nloaded {}:\n'.format(file_name))
-            exec(script)
+            exec(script, globals())
 
         
 if __name__ == '__main__':
