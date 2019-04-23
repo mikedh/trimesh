@@ -646,7 +646,7 @@ def points_to_indices(points, pitch, origin):
     if origin.shape != (3,):
         raise ValueError('shape of origin must be (3,)')
 
-    indices = np.round((points - origin) / pitch + 0.5).astype(int)
+    indices = np.round((points - origin) / pitch).astype(int)
     return indices
 
 
@@ -676,7 +676,7 @@ def indices_to_points(indices, pitch, origin):
     if origin.shape != (3,):
         raise ValueError('shape of origin must be (3,)')
 
-    points = (indices - 0.5) * pitch + origin
+    points = indices * pitch + origin
     return points
 
 
