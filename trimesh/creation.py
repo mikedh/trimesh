@@ -466,7 +466,7 @@ def _polygon_to_kwargs(polygon):
     return result
 
 
-def box(extents=None, transform=None, **kwargs):
+def box(extents=None, transform=None, face=True, edge=False, **kwargs):
     """
     Return a cuboid.
 
@@ -476,13 +476,17 @@ def box(extents=None, transform=None, **kwargs):
       Edge lengths
     transform: (4, 4) float
       Transformation matrix
+    face: bool
+      Flag to visualize faces with Trimesh (default: True)
+    edge: bool
+      Flag to visualize edges with Path3D (default: False)
     **kwargs:
         passed to Trimesh to create box
 
     Returns
     ------------
-    box : trimesh.Trimesh
-      Cuboid geometry in space
+    geometry : trimesh.Trimesh, trimesh.Path3D, or list of trimesh.Geometry
+      Cuboid geometry in space based on ``face`` and ``edge`` flags.
     """
     vertices = [0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1,
                 1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1]
@@ -516,7 +520,24 @@ def box(extents=None, transform=None, **kwargs):
     if transform is not None:
         box.apply_transform(transform)
 
-    return box
+    geometry = []
+    if face:
+        geometry.append(box)
+    if edge:
+        try:
+            # path is a soft dependency
+            from .path.exchange.load import load_path
+            indices = [0, 1, 3, 2, 0, 4, 5, 7, 6, 4, 0, 2, 6, 7, 3, 1, 5]
+            edge = load_path(box.vertices[indices])
+            geometry.append(edge)
+        except ImportError:
+            # they probably don't have shapely installed
+            log.warning('unable to create FOV visualization!',
+                        exc_info=True)
+    if len(geometry) == 1:
+        geometry = geometry[0]
+
+    return geometry
 
 
 def icosahedron():
