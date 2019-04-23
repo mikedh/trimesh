@@ -1,4 +1,4 @@
-numpydoc
+numpydoc==0.8.0
 pypandoc
 numpy
 scipy
