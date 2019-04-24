@@ -1120,6 +1120,19 @@ class Path2D(Path):
         return area
 
     @caching.cache_decorator
+    def centroid(self):
+        """
+        Return the centroid of the path object.
+
+        Returns
+        -----------
+        centroid : (d,) float
+          Approximate centroid of the path
+        """
+        centroid = self.vertices.mean(axis=0)
+        return centroid
+
+    @caching.cache_decorator
     def length(self):
         """
         The total discretized length of every entity.
