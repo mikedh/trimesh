@@ -30,9 +30,9 @@ from .. import transformations
 from . import raster
 from . import repair
 from . import simplify
-from . import creation
+from . import creation  # NOQA
 from . import polygons
-from . import segments
+from . import segments  # NOQA
 from . import traversal
 
 from .exchange.export import export_path
@@ -890,7 +890,7 @@ class Path3D(Path):
            If False will not execute matplotlib.pyplot.show
         """
         import matplotlib.pyplot as plt
-        from mpl_toolkits.mplot3d import Axes3D
+        from mpl_toolkits.mplot3d import Axes3D  # NOQA
         fig = plt.figure()
         axis = fig.add_subplot(111, projection='3d')
         for discrete in self.discrete:
@@ -909,7 +909,7 @@ class Path3D(Path):
            If False will not execute matplotlib.pyplot.show
         """
         import matplotlib.pyplot as plt
-        from mpl_toolkits.mplot3d import Axes3D
+        from mpl_toolkits.mplot3d import Axes3D  # NOQA
         fig = plt.figure()
         axis = fig.add_subplot(111, projection='3d')
         for entity in self.entities:
@@ -1408,7 +1408,7 @@ class Path2D(Path):
         ---------
         root: (n,) int, list of indexes
         """
-        populate = self.enclosure_directed
+        populate = self.enclosure_directed  # NOQA
         return self._cache['root']
 
     @caching.cache_decorator

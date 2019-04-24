@@ -4,7 +4,6 @@ from . import entities
 from .. import util
 from .. import transformations
 
-import collections
 import numpy as np
 
 

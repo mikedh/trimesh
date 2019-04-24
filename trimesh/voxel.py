@@ -293,7 +293,7 @@ class VoxelMesh(VoxelBase):
         ------------
         origin: (3,) float, point in space
         """
-        populate = self.sparse_surface
+        populate = self.sparse_surface  # NOQA
         return self._cache['origin']
 
     @caching.cache_decorator

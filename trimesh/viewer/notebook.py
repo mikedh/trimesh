@@ -88,7 +88,7 @@ def in_notebook():
     """
     try:
         # function returns IPython context, but only in IPython
-        ipy = get_ipython()
+        ipy = get_ipython()  # NOQA
         # we only want to render rich output in notebooks
         # in terminals we definitely do not want to output HTML
         name = str(ipy.__class__).lower()

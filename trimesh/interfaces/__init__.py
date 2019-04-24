@@ -1,3 +1,5 @@
+# flake8: noqa
+
 from . import gmsh
 from . import scad
 from . import blender

@@ -356,7 +356,7 @@ class Scene(Geometry):
         triangles_index : (len(self.triangles),)
             Node name for each triangle
         """
-        populate = self.triangles
+        populate = self.triangles  # NOQA
         return self._cache['triangles_node']
 
     @caching.cache_decorator
