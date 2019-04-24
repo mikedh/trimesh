@@ -1,7 +1,8 @@
 """
-Glooey widget example. Only runs with python>=3.6
+Glooey widget example. Only runs with python>=3.6 (because of Glooey).
 """
 
+import io
 import pathlib
 
 import glooey
@@ -11,12 +12,13 @@ import pyglet
 import trimesh
 import trimesh.viewer
 import trimesh.transformations as tf
+import PIL.Image
 
 
 here = pathlib.Path(__file__).resolve().parent
 
 
-def create_scene1():
+def create_scene():
     """
     Create a scene with a Fuze bottle, some cubes, and an axis.
 
@@ -68,65 +70,90 @@ def create_scene1():
     return scene
 
 
-def create_scene2():
+class Application:
+
     """
-    Create a scene with a bunch of small icospheres
+    Example application that includes moving camera, scene and image update.
     """
-    scene = trimesh.Scene()
 
-    geom = trimesh.path.creation.box_outline((0.6, 0.6, 0.6))
-    scene.add_geometry(geom)
+    def __init__(self):
+        # create window with padding
+        self.width, self.height = 480 * 3, 360
+        window = self._create_window(width=self.width, height=self.height)
 
-    for _ in range(50):
-        geom = trimesh.creation.icosphere(radius=0.01, subdivisions=2)
-        geom.visual.face_colors = np.random.uniform(0, 1, (3,))
-        eye = np.random.uniform(-0.3, 0.3, (3,))
-        transform = tf.translation_matrix(eye)
-        scene.add_geometry(geom, transform=transform)
+        gui = glooey.Gui(window)
 
-    scene.set_camera(angles=[np.deg2rad(60), 0, 0], distance=1.5)
+        hbox = glooey.HBox()
+        hbox.set_padding(5)
 
-    return scene
+        # scene widget for changing camera location
+        scene = create_scene()
+        self.scene_widget1 = trimesh.viewer.SceneWidget(scene)
+        self.scene_widget1._angles = [np.deg2rad(45), 0, 0]
+        hbox.add(self.scene_widget1)
+
+        # scene widget for changing scene
+        scene = trimesh.Scene()
+        geom = trimesh.path.creation.box_outline((0.6, 0.6, 0.6))
+        scene.add_geometry(geom)
+        self.scene_widget2 = trimesh.viewer.SceneWidget(scene)
+        hbox.add(self.scene_widget2)
+
+        # integrate with other widget than SceneWidget
+        self.image_widget = glooey.Image()
+        hbox.add(self.image_widget)
+
+        gui.add(hbox)
+
+        pyglet.clock.schedule_interval(self.callback, 1. / 20)
+        pyglet.app.run()
+
+    def callback(self, dt):
+        # change camera location
+        self.scene_widget1._angles[2] += np.deg2rad(1)
+        self.scene_widget1.scene.set_camera(self.scene_widget1._angles)
+
+        # change scene
+        if len(self.scene_widget2.scene.graph.nodes) < 100:
+            geom = trimesh.creation.icosphere(radius=0.01)
+            geom.visual.face_colors = np.random.uniform(0, 1, (3,))
+            geom.apply_translation(np.random.uniform(-0.3, 0.3, (3,)))
+            self.scene_widget2.scene.add_geometry(geom)
+            self.scene_widget2._draw()
+
+        # change image
+        image = np.random.randint(0,
+                                  255,
+                                  (self.height - 10, self.width // 3 - 10, 3),
+                                  dtype=np.uint8)
+        with io.BytesIO() as f:
+            PIL.Image.fromarray(image).save(f, format='JPEG')
+            self.image_widget.image = pyglet.image.load(filename=None, file=f)
+
+    def _create_window(self, width, height):
+        try:
+            config = pyglet.gl.Config(sample_buffers=1,
+                                      samples=4,
+                                      depth_size=24,
+                                      double_buffer=True)
+            window = pyglet.window.Window(config=config,
+                                          width=width,
+                                          height=height)
+        except pyglet.window.NoSuchConfigException:
+            config = pyglet.gl.Config(double_buffer=True)
+            window = pyglet.window.Window(config=config,
+                                          width=width,
+                                          height=height)
+
+        @window.event
+        def on_key_press(symbol, modifiers):
+            if modifiers == 0:
+                if symbol == pyglet.window.key.Q:
+                    window.close()
+
+        return window
 
 
 if __name__ == '__main__':
     np.random.seed(0)
-
-    # create a pyglet window
-    window = pyglet.window.Window(width=1280, height=480)
-    # create a glooey interface using the window
-    gui = glooey.Gui(window)
-
-    hbox = glooey.HBox()
-    hbox.set_padding(5)
-
-    # define a callback which will spin the scene
-    def callback():
-        if not hasattr(widget1, '_angles'):
-            widget1._angles = [np.deg2rad(45), 0, 0]
-        widget1._angles[2] += np.deg2rad(1)
-        widget1.scene.set_camera(angles=widget1._angles, distance=1)
-        widget1._draw()
-
-    # make a widget with one scene
-    scene = create_scene1()
-    widget1 = trimesh.viewer.SceneWidget(scene)
-    hbox.add(widget1)
-
-    # make a widget with the other scene
-    scene = create_scene2()
-    widget2 = trimesh.viewer.SceneWidget(scene)
-    hbox.add(widget2)
-
-    # add the boxes with the widgets to the gui
-    gui.add(hbox)
-
-    # schedule a callback to spin the scene
-    pyglet.clock.schedule_interval(lambda dt: callback(), 1 / 20)
-
-    @window.event
-    def on_key_press(symbol, modifiers):
-        if symbol == pyglet.window.key.Q:
-            window.close()
-
-    pyglet.app.run()
+    Application()
