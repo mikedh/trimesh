@@ -121,7 +121,8 @@ class DirectionalLight(Light):
     color : (4,) unit8
         RGBA value for the light's color in linear space.
     intensity : float
-        Brightness of light. The units that this is defined in depend on the type of light.
+        Brightness of light. The units that this is defined in depend
+        on the type of light.
         point and spot lights use luminous intensity in candela (lm/sr),
         while directional lights use illuminance in lux (lm/m2).
     radius : float
@@ -159,7 +160,8 @@ class PointLight(Light):
     color : (4,) uint8
         RGBA value for the light's color in linear space.
     intensity : float
-        Brightness of light. The units that this is defined in depend on the type of light.
+        Brightness of light. The units that this is defined in depend
+        on the type of light.
         point and spot lights use luminous intensity in candela (lm/sr),
         while directional lights use illuminance in lux (lm/m2).
     radius : float
@@ -202,7 +204,8 @@ class SpotLight(Light):
     color : (4,) uint8
         RGBA value for the light's color in linear space.
     intensity : float
-        Brightness of light. The units that this is defined in depend on the type of light.
+        Brightness of light. The units that this is defined in depend
+        on the type of light.
         point and spot lights use luminous intensity in candela (lm/sr),
         while directional lights use illuminance in lux (lm/m2).
     radius : float

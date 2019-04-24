@@ -82,7 +82,17 @@ install:
 # coveralls started failing to install on Python 3.4 so make it optional
 - pip install coveralls || true
 
+# install style checkers
+- pip install -U autopep8 flake8
+
 script:
+# style check
+- flake8 --max-line-length=90 trimesh/
+# - flake8 --max-line-length=90 example/
+# - flake8 --max-line-length=90 tests/
+- autopep8 --recursive --aggressive --diff --exit-code trimesh/
+# - autopep8 --recursive --aggressive --diff --exit-code examples/
+# - autopep8 --recursive --aggressive --diff --exit-code tests/
 
 # try simple tests with only minimal deps
 - python -c "import trimesh"

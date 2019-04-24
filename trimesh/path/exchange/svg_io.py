@@ -1,7 +1,6 @@
 import numpy as np
 
 from string import Template
-from collections import deque
 
 from .. import entities as entities_mod
 from ..arc import arc_center
@@ -50,7 +49,7 @@ def svg_to_path(file_obj, file_type=None):
             if 'transform' in current.attrib:
                 mat = transform_to_matrices(current.attrib['transform'])
                 matrices.extend(mat)
-                #cached[current] = mat
+                # cached[current] = mat
             current = current.getparent()
             if current is None:
                 break
@@ -207,7 +206,7 @@ def _svg_path_convert(paths):
                                    svg_cubic.control2,
                                    svg_cubic.end])
         if starting:
-                # return every vertex and use it
+            # return every vertex and use it
             return (entities_mod.Bezier(np.arange(4) + len(vertices)), points)
         else:
             # we are not starting so use the last referenced vertex as the
