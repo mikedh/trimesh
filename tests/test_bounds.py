@@ -174,7 +174,7 @@ class BoundsTest(g.unittest.TestCase):
     def test_bounding_egg(self):
         # create a distorted sphere mesh
         # center mass will be offset along Z
-        i = trimesh.creation.icosphere()
+        i = g.trimesh.creation.icosphere()
         mask = i.vertices[:, 2] > 0.0
         i.vertices[:, 2][mask] *= 4.0
 
