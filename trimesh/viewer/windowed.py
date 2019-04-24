@@ -507,7 +507,7 @@ class SceneViewer(pyglet.window.Window):
         elif symbol == pyglet.window.key.A:
             self.toggle_axis()
         elif symbol == pyglet.window.key.Q:
-            self.close()
+            self.on_close()
         elif symbol == pyglet.window.key.M:
             self.maximize()
         elif symbol == pyglet.window.key.F:
