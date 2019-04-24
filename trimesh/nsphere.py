@@ -39,13 +39,15 @@ def minimum_nsphere(obj):
 
     Parameters
     ----------
-    obj: Trimesh object OR
-         (n,d) float, set of points
+    obj : (n, d) float or trimesh.Trimesh
+      Points or mesh to find minimum bounidng nsphere
 
     Returns
     ----------
-    center: (d) float, center of n- sphere
-    radius: float, radius of n-sphere
+    center : (d,) float
+      Center of fitted n- sphere
+    radius : float
+      Radius of fitted n-sphere
     """
     # reduce the input points or mesh to the vertices of the convex hull
     # since we are computing the furthest site voronoi diagram this reduces
@@ -170,11 +172,13 @@ def is_nsphere(points):
 
     Parameters
     -----------
-    points: (n,dimension) float, points in space
+    points : (n, dimension) float
+      Points in space
 
     Returns
     -----------
-    check: bool, True if input points are on an nsphere
+    check : bool
+      True if input points are on an nsphere
     """
     center, radius, error = fit_nsphere(points)
     check = error < tol.merge

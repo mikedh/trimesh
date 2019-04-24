@@ -812,7 +812,7 @@ def bulge_to_arcs(lines,
     is_closed : bool
       Is segment closed
     metadata : None, or dict
-      Entitiy metadata to add
+      Entity metadata to add
 
     Returns
     ---------------

@@ -119,6 +119,7 @@ class BoundsTest(g.unittest.TestCase):
 
     def test_cylinder(self):
         """
+        Check bounding cylinders on basically a cuboid
         """
         # not rotationally symmetric
         mesh = g.get_mesh('featuretype.STL')
@@ -127,9 +128,9 @@ class BoundsTest(g.unittest.TestCase):
         radius = 1.0
 
         # spherical coordinates to loop through
-        sphere = g.trimesh.util.grid_linspace([[0, 0],
-                                               [g.np.pi * 2, g.np.pi * 2]],
-                                              5)
+        sphere = g.trimesh.util.grid_linspace(
+            [[0, 0], [g.np.pi * 2, g.np.pi * 2]], 5)
+
         for s in sphere:
             T = g.trimesh.transformations.spherical_matrix(*s)
             p = g.trimesh.creation.cylinder(radius=radius,
@@ -149,6 +150,26 @@ class BoundsTest(g.unittest.TestCase):
             assert g.np.isclose(mesh.bounding_cylinder.volume,
                                 copied.bounding_cylinder.volume,
                                 rtol=.05)
+
+    def test_random_cylinder(self):
+        """
+        Check exact cylinders with the bounding cylinder function.
+        """
+        for i in range(20):
+            # create a random cylinder
+            c = g.trimesh.creation.cylinder(
+                radius=1.0, height=10).permutate.transform()
+            # bounding primitive should have same height and radius
+            assert g.np.isclose(
+                c.bounding_cylinder.primitive.height, 10, rtol=1e-6)
+            assert g.np.isclose(
+                c.bounding_cylinder.primitive.radius, 1, rtol=1e-6)
+            # mesh is a cylinder, so center mass of bounding cylinder
+            # should be exactly the same as the mesh center mass
+            assert g.np.allclose(
+                c.center_mass,
+                c.bounding_cylinder.center_mass,
+                rtol=1e-6)
 
     def test_obb_order(self):
         # make sure our sorting and transform flipping of

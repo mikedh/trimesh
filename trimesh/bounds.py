@@ -6,6 +6,7 @@ from .constants import log
 from . import util
 from . import convex
 from . import nsphere
+from . import geometry
 from . import grouping
 from . import triangles
 from . import transformations
@@ -291,6 +292,34 @@ def minimum_cylinder(obj, sample_count=6, angle_tol=.001):
             return transform, radius, height
         return volume
 
+    # We've been passed a mesh with radial symmetry
+    # Use center mass and symmetry axis and go home early
+    if hasattr(obj, 'symmetry') and obj.symmetry == 'radial':
+        if obj.is_watertight:
+            # set origin to center of mass
+            origin = obj.center_mass
+        else:
+            # convex hull should be watertight
+            origin = obj.convex_hull.center_mass
+
+        # will align symmetry axis with Z and move origin to zero
+        to_2D = geometry.plane_transform(
+            origin=origin,
+            normal=obj.symmetry_axis)
+
+        on_plane = transformations.transform_points(
+            obj.vertices, to_2D)
+
+        # radius is maximum radius
+        radius = (on_plane[:, :2] ** 2).sum(axis=1).max() ** .5
+        # height is overall Z span
+        height = on_plane[:, 2].ptp()
+        # save to kwargs
+        result = {'height': height,
+                  'radius': radius,
+                  'transform': np.linalg.inv(to_2D)}
+        return result
+
     hull = convex.hull_points(obj)
     if not util.is_shape(hull, (-1, 3)):
         raise ValueError('Input must be reducable to 3D points!')
@@ -300,8 +329,6 @@ def minimum_cylinder(obj, sample_count=6, angle_tol=.001):
 
     # if it's rotationally symmetric the bounding cylinder
     # is almost certainly along one of the PCI vectors
-    # if hasattr(obj, 'symmetry_axis') and obj.symmetry_axis is not None:
-    #    samples = util.vector_to_spherical(obj.principal_inertia_vectors)
     if hasattr(obj, 'principal_inertia_vectors'):
         # add the principal inertia vectors if we have a mesh
         samples = np.vstack(
