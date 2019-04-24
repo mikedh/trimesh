@@ -171,6 +171,28 @@ class BoundsTest(g.unittest.TestCase):
                 c.bounding_cylinder.center_mass,
                 rtol=1e-6)
 
+    def test_bounding_egg(self):
+        # create a distorted sphere mesh
+        # center mass will be offset along Z
+        i = trimesh.creation.icosphere()
+        mask = i.vertices[:, 2] > 0.0
+        i.vertices[:, 2][mask] *= 4.0
+
+        # get a copy with a random transform
+        p = i.permutate.transform()
+        assert p.symmetry == 'radial'
+
+        # find the bounding cylinder with this random transform
+        r = p.bounding_cylinder
+
+        # transformed height should match source mesh
+        assert np.isclose(i.vertices[:, 2].ptp(),
+                          r.primitive.height,
+                          rtol=1e-6)
+        # slightly inflated cylinder should contain all
+        # vertices of the source mesh
+        assert r.buffer(0.01).contains(p.vertices).all()
+
     def test_obb_order(self):
         # make sure our sorting and transform flipping of
         # OBB extents are working by checking against a box

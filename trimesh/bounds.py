@@ -292,34 +292,39 @@ def minimum_cylinder(obj, sample_count=6, angle_tol=.001):
             return transform, radius, height
         return volume
 
-    # We've been passed a mesh with radial symmetry
-    # Use center mass and symmetry axis and go home early
+    # we've been passed a mesh with radial symmetry
+    # use center mass and symmetry axis and go home early
     if hasattr(obj, 'symmetry') and obj.symmetry == 'radial':
+        # find our origin
         if obj.is_watertight:
             # set origin to center of mass
             origin = obj.center_mass
         else:
             # convex hull should be watertight
             origin = obj.convex_hull.center_mass
-
         # will align symmetry axis with Z and move origin to zero
         to_2D = geometry.plane_transform(
             origin=origin,
             normal=obj.symmetry_axis)
-
+        # transform vertices to plane to check
         on_plane = transformations.transform_points(
             obj.vertices, to_2D)
-
-        # radius is maximum radius
-        radius = (on_plane[:, :2] ** 2).sum(axis=1).max() ** .5
-        # height is overall Z span
+        # cylinder height is overall Z span
         height = on_plane[:, 2].ptp()
-        # save to kwargs
+        # center mass is correct on plane, but position
+        # along symmetry axis may be wrong so slide it
+        slide = transformations.translation_matrix(
+            [0, 0, (height / 2.0) - on_plane[:, 2].max()])
+        to_2D = np.dot(slide, to_2D)
+        # radius is maximum radius
+        radius = (on_plane[:, :2] ** 2).sum(axis=1).max() ** 0.5
+        # save kwargs
         result = {'height': height,
                   'radius': radius,
                   'transform': np.linalg.inv(to_2D)}
         return result
 
+    # get the points on the convex hull of the result
     hull = convex.hull_points(obj)
     if not util.is_shape(hull, (-1, 3)):
         raise ValueError('Input must be reducable to 3D points!')
