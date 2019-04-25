@@ -448,7 +448,8 @@ class Scene(Geometry):
         transform = cameras.look_at(self.bounds_corners,
                                     fov=fov,
                                     rotation=rotation,
-                                    distance=distance)
+                                    distance=distance,
+                                    center=center)
 
         if hasattr(self, '_camera') and self._camera is not None:
             self.camera.fov = fov

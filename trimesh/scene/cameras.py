@@ -308,7 +308,7 @@ class Camera(object):
         return camera_to_rays(self)
 
 
-def look_at(points, fov, rotation=None, distance=None):
+def look_at(points, fov, rotation=None, distance=None, center=None):
     """
     Generate transform for a camera to keep a list
     of points in the camera's field of view.
@@ -321,6 +321,8 @@ def look_at(points, fov, rotation=None, distance=None):
       Field of view, in DEGREES
     rotation : None, or (4, 4) float
       Rotation matrix for initial rotation
+    center : None, or (3,) float
+      Center of field of view.
 
     Returns
     --------------
@@ -338,8 +340,12 @@ def look_at(points, fov, rotation=None, distance=None):
     rinv = rotation[:3, :3].T
     points_c = rinv.dot(points.T).T
 
-    # Find the center of the points' AABB in camera frame
-    center_c = points_c.min(axis=0) + 0.5 * points_c.ptp(axis=0)
+    if center is None:
+        # Find the center of the points' AABB in camera frame
+        center_c = points_c.min(axis=0) + 0.5 * points_c.ptp(axis=0)
+    else:
+        # Transform center to camera frame
+        center_c = rinv.dot(center)
 
     # Re-center the points around the camera-frame origin
     points_c -= center_c
