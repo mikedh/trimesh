@@ -186,9 +186,9 @@ class BoundsTest(g.unittest.TestCase):
         r = p.bounding_cylinder
 
         # transformed height should match source mesh
-        assert np.isclose(i.vertices[:, 2].ptp(),
-                          r.primitive.height,
-                          rtol=1e-6)
+        assert g.np.isclose(i.vertices[:, 2].ptp(),
+                            r.primitive.height,
+                            rtol=1e-6)
         # slightly inflated cylinder should contain all
         # vertices of the source mesh
         assert r.buffer(0.01).contains(p.vertices).all()
