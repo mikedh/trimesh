@@ -97,10 +97,10 @@ class PermutateTest(g.unittest.TestCase):
 
     def test_base(self):
         for mesh in g.get_meshes(1):
-            tess = mesh.permutate.tessellation()
+            tess = mesh.permutate.tessellation()  # NOQA
             noise = mesh.permutate.noise()
-            noise = mesh.permutate.noise(magnitude=mesh.scale / 10)
-            transform = mesh.permutate.transform()
+            noise = mesh.permutate.noise(magnitude=mesh.scale / 10)  # NOQA
+            transform = mesh.permutate.transform()  # NOQA
 
 
 if __name__ == '__main__':

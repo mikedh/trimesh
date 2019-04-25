@@ -35,7 +35,7 @@ class CameraTests(g.unittest.TestCase):
         fov = (60, 40)
         camera = g.trimesh.scene.Camera(
             resolution=resolution,
-            focal=None,
+            focal=focal,
             fov=fov)
         assert np.allclose(camera.fov, fov)
         camera = g.trimesh.scene.Camera(

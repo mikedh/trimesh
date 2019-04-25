@@ -48,17 +48,17 @@ class BoundsTest(g.unittest.TestCase):
                                       rtol=1e-3,
                                       atol=1e-3)
                 if not close:
-                    #m.visual.face_colors = [200, 0, 0, 100]
-                    #(m + m.bounding_box_oriented).show()
-                    #from IPython import embed
+                    # m.visual.face_colors = [200, 0, 0, 100]
+                    # (m + m.bounding_box_oriented).show()
+                    # from IPython import embed
                     # embed()
                     raise ValueError('OBB extents incorrect:\n{}\n{}'.format(
                         str(m.bounding_box.extents),
                         str(m.bounding_box_oriented.extents)))
 
-            c = m.bounding_cylinder
-            s = m.bounding_sphere
-            p = m.bounding_primitive
+            c = m.bounding_cylinder  # NOQA
+            s = m.bounding_sphere  # NOQA
+            p = m.bounding_primitive  # NOQA
 
     def test_obb_points(self):
         """

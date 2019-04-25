@@ -3,10 +3,7 @@ try:
 except BaseException:
     import generic as g
 
-import time
-#import psutil
 import timeit
-import subprocess
 
 
 def typical_application():
@@ -34,12 +31,12 @@ def typical_application():
             continue
 
         faces = mesh.facets[mesh.facets_area.argmax()]
-        outline = mesh.outline(faces)
-        smoothed = mesh.smoothed()
+        outline = mesh.outline(faces)  # NOQA
+        smoothed = mesh.smoothed()  # NOQA
 
         assert mesh.volume > 0.0
 
-        section = mesh.section(plane_normal=[0, 0, 1],
+        section = mesh.section(plane_normal=[0, 0, 1],  # NOQA
                                plane_origin=mesh.centroid)
 
         sample = mesh.sample(1000)
@@ -99,6 +96,8 @@ def establish_baseline(*args, counts=[390, 3820, 1710]):
 
 
 def machine_info():
+    import psutil
+
     info = {}
 
     freq = psutil.cpu_freq()
@@ -112,7 +111,7 @@ def machine_info():
 
 if __name__ == '__main__':
 
-    #baseline = establish_baseline()
+    # baseline = establish_baseline()
 
     '''
     file_names = ['ballA.off',
@@ -160,7 +159,7 @@ except BaseException: import generic as g;'
     result['baseline'] = baseline.tolist()
     result['timestamp'] = time.time()
     result['timings'] = timings
-    '''
+    '''  # NOQA
 
     import pyinstrument
 

@@ -4,7 +4,7 @@ except BaseException:
     import generic as g
 
 try:
-    import meshpy
+    import meshpy  # NOQA
     has_meshpy = True
 except ImportError:
     g.log.warning('No meshpy! Not testing extrude primitives!')
@@ -105,7 +105,7 @@ class PrimitiveTest(g.unittest.TestCase):
 
             # check that overload of dir worked
             assert len([i
-                        for i in dir(primitive.primitive) if not '_' in i]) > 0
+                        for i in dir(primitive.primitive) if '_' not in i]) > 0
 
             if hasattr(primitive, 'direction'):
                 assert primitive.direction.shape == (3,)

@@ -12,7 +12,7 @@ class UnitsTest(g.unittest.TestCase):
         fake_units = 'blorbs'
         fake_units = 'in'
         try:
-            c = g.trimesh.units.unit_conversion('inches',
+            c = g.trimesh.units.unit_conversion('inches',  # NOQA
                                                 fake_units)
             assert False
         except BaseException:

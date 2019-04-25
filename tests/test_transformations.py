@@ -117,7 +117,7 @@ class TransformTest(g.unittest.TestCase):
         R1 = rotation_matrix(-angle, -direc, point)
         assert g.trimesh.transformations.is_same_transform(R0, R1)
 
-        I = g.np.identity(4, g.np.float64)
+        I = g.np.identity(4, g.np.float64)  # NOQA
         assert g.np.allclose(I, rotation_matrix(g.np.pi * 2, direc))
 
         assert g.np.allclose(

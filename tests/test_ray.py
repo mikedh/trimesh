@@ -37,7 +37,7 @@ class RayTests(g.unittest.TestCase):
             ray_origins[:, 2] = -5
 
             # force ray object to allocate tree before timing it
-            #tree = sphere.ray.tree
+            # tree = sphere.ray.tree
             tic = [g.time.time()]
             sphere.ray.intersects_id(ray_origins, ray_directions)
             tic.append(g.time.time())
@@ -56,7 +56,7 @@ class RayTests(g.unittest.TestCase):
             mesh = g.get_mesh('unit_cube.STL', use_embree=use_embree)
             g.log.info('Contains test ray engine: ' + str(mesh.ray.__class__))
 
-            test_on = mesh.ray.contains_points(mesh.vertices)
+            test_on = mesh.ray.contains_points(mesh.vertices)  # NOQA
             test_in = mesh.ray.contains_points(mesh.vertices * (1.0 / scale))
             assert test_in.all()
 

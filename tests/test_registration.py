@@ -39,7 +39,7 @@ class RegistrationTest(g.unittest.TestCase):
         # create random points in space
         points_a = (g.np.random.random((1000, 3)) - .5) * 1000
         # create a random transform
-        #matrix = g.trimesh.transformations.random_rotation_matrix()
+        # matrix = g.trimesh.transformations.random_rotation_matrix()
         # create a small transform
         # ICP will not work at all with large transforms
         matrix = g.trimesh.transformations.rotation_matrix(

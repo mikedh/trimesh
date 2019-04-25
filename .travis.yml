@@ -88,11 +88,11 @@ install:
 script:
 # style check
 - flake8 trimesh/
-# - flake8 example/
-# - flake8 tests/
+- flake8 example/
+- flake8 tests/
 - autopep8 --recursive --aggressive --diff --exit-code trimesh/
-# - autopep8 --recursive --aggressive --diff --exit-code examples/
-# - autopep8 --recursive --aggressive --diff --exit-code tests/
+- autopep8 --recursive --aggressive --diff --exit-code examples/
+- autopep8 --recursive --aggressive --diff --exit-code tests/
 
 # try simple tests with only minimal deps
 - python -c "import trimesh"

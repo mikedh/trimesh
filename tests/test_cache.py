@@ -94,11 +94,11 @@ class CacheTest(g.unittest.TestCase):
         modified.append([int(a.md5(), 16),
                          a.crc(),
                          a.fast_hash()])
-        b = a[[0, 1, 2]]
+        b = a[[0, 1, 2]]  # NOQA
         modified.append([int(a.md5(), 16),
                          a.crc(),
                          a.fast_hash()])
-        c = a[1:]
+        c = a[1:]  # NOQA
         modified.append([int(a.md5(), 16),
                          a.crc(),
                          a.fast_hash()])
