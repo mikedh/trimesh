@@ -79,8 +79,8 @@ class VectorTests(g.unittest.TestCase):
             assert isinstance(export_dict, dict)
             assert len(to_dict) == len(export_dict)
 
-            export_svg = d.export(file_type='svg')
-            simple = d.simplify()
+            export_svg = d.export(file_type='svg')  # NOQA
+            simple = d.simplify()  # NOQA
             split = d.split()
             g.log.info('Split %s into %d bodies, checking identifiers',
                        d.metadata['file_name'],

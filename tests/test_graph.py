@@ -89,8 +89,8 @@ class GraphTest(g.unittest.TestCase):
         for mesh in g.get_meshes():
             tic = [g.time.time()]
             for engine in self.engines:
-                split = mesh.split(engine=engine, only_watertight=False)
-                facets = g.trimesh.graph.facets(mesh=mesh, engine=engine)
+                split = mesh.split(engine=engine, only_watertight=False)  # NOQA
+                facets = g.trimesh.graph.facets(mesh=mesh, engine=engine)  # NOQA
                 tic.append(g.time.time())
 
             tic_diff = g.np.diff(tic)
@@ -118,10 +118,10 @@ class GraphTest(g.unittest.TestCase):
                           edges=edges)
 
     def test_watertight(self):
-        m = g.get_mesh('shared.STL')
-        #assert m.is_watertight
-        #assert m.is_winding_consistent
-        #assert m.is_volume
+        m = g.get_mesh('shared.STL')  # NOQA
+        # assert m.is_watertight
+        # assert m.is_winding_consistent
+        # assert m.is_volume
 
     def test_traversals(self):
         """

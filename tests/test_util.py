@@ -145,7 +145,7 @@ class IOTest(unittest.TestCase):
 
     def test_dae(self):
         a = g.get_mesh('ballA.off')
-        r = a.export(file_type='dae')
+        r = a.export(file_type='dae')  # NOQA
 
 
 class ContainsTest(unittest.TestCase):

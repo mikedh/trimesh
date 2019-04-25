@@ -1,3 +1,4 @@
+# flake8: noqa
 """
 Module which contains most imports and data unit tests
 might need, to reduce the amount of boilerplate.

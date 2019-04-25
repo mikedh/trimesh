@@ -12,7 +12,7 @@ class TextureTest(g.unittest.TestCase):
         except ImportError:
             return
 
-        n_vertices = 100
+        # n_vertices = 100
         uv = g.np.array([[0.25, 0.2], [0.4, 0.5]], dtype=float)
         texture = g.np.arange(96, dtype=g.np.uint8).reshape(8, 4, 3)
         colors = g.trimesh.visual.uv_to_color(

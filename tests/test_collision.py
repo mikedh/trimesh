@@ -28,14 +28,14 @@ class CollisionTest(g.unittest.TestCase):
         m.add_object('cube1', cube, tf1)
 
         ret = m.in_collision_single(cube)
-        assert ret == True
+        assert ret is True
 
         ret, names, data = m.in_collision_single(cube,
                                                  tf1,
                                                  return_names=True,
                                                  return_data=True)
 
-        assert ret == True
+        assert ret is True
         assert all(len(i.point) == 3 for i in data)
 
         if 'cube1' not in names:
@@ -46,33 +46,33 @@ class CollisionTest(g.unittest.TestCase):
                                                  tf2,
                                                  return_names=True,
                                                  return_data=True)
-        assert ret == False
+        assert ret is False
         assert len(names) == 0
         assert all(len(i.point) == 3 for i in data)
 
         # Test internal collision checking and object
         # addition/removal/modification
         ret = m.in_collision_internal()
-        assert ret == False
+        assert ret is False
 
         m.add_object('cube2', cube, tf1)
         ret, names = m.in_collision_internal(return_names=True)
-        assert ret == True
+        assert ret is True
         assert ('cube1', 'cube2') in names
         assert ('cube0', 'cube1') not in names
         assert ('cube2', 'cube1') not in names
 
         m.set_transform('cube2', tf2)
         ret = m.in_collision_internal()
-        assert ret == False
+        assert ret is False
 
         m.set_transform('cube2', tf1)
         ret = m.in_collision_internal()
-        assert ret == True
+        assert ret is True
 
         m.remove_object('cube2')
         ret = m.in_collision_internal()
-        assert ret == False
+        assert ret is False
 
         # Test manager-to-manager collision checking
         m = g.trimesh.collision.CollisionManager()
@@ -83,15 +83,15 @@ class CollisionTest(g.unittest.TestCase):
         n.add_object('cube0', cube, tf2)
 
         ret = m.in_collision_other(n)
-        assert ret == False
+        assert ret is False
 
         n.add_object('cube3', cube, tf1)
 
         ret = m.in_collision_other(n)
-        assert ret == True
+        assert ret is True
 
         ret, names = m.in_collision_other(n, return_names=True)
-        assert ret == True
+        assert ret is True
         assert ('cube1', 'cube3') in names
         assert ('cube3', 'cube1') not in names
 
@@ -179,7 +179,7 @@ class CollisionTest(g.unittest.TestCase):
 
     def test_scene(self):
         try:
-            import fcl
+            import fcl  # NOQA
         except ImportError:
             return
         scene = g.get_mesh('cycloidal.3DXML')

@@ -3,8 +3,6 @@ try:
 except BaseException:
     import generic as g
 
-import numpy as np
-
 
 class LightTests(g.unittest.TestCase):
 

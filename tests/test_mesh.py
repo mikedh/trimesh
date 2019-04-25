@@ -58,17 +58,17 @@ class MeshTests(g.unittest.TestCase):
                 outline = mesh.outline(faces)
                 # check to make sure we can generate closed paths
                 # on a Path3D object
-                test = outline.paths
+                test = outline.paths  # NOQA
 
-            smoothed = mesh.smoothed()
+            smoothed = mesh.smoothed()  # NOQA
 
             assert mesh.volume > 0.0
 
-            section = mesh.section(plane_normal=[0, 0, 1],
+            section = mesh.section(plane_normal=[0, 0, 1],  # NOQA
                                    plane_origin=mesh.centroid)
 
             sample = mesh.sample(1000)
-            even_sample = g.trimesh.sample.sample_surface_even(mesh, 100)
+            even_sample = g.trimesh.sample.sample_surface_even(mesh, 100)  # NOQA
             assert sample.shape == (1000, 3)
             g.log.info('finished testing meshes')
 
@@ -120,8 +120,8 @@ class MeshTests(g.unittest.TestCase):
             for i in range(copy_count):
                 copied = mesh.copy()
                 assert copied.is_empty == mesh.is_empty
-                #t = copied.triangles_tree
-                c = copied.kdtree
+                # t = copied.triangles_tree
+                c = copied.kdtree  # NOQA
                 copied.apply_transform(
                     g.trimesh.transformations.rotation_matrix(
                         g.np.degrees(i),

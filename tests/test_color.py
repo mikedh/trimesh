@@ -61,7 +61,7 @@ class VisualTest(g.unittest.TestCase):
         m.visual.face_colors[0] = test_color
         # the operation should have moved the colors into data but
         # the object ID should be the same as on creation
-        #assert id(m.visual.face_colors) == initial_id
+        # assert id(m.visual.face_colors) == initial_id
         # the color assignment inside the array should have worked
         assert (m.visual.face_colors[0] == test_color).all()
         # the rest of the colors should be unchanged
@@ -74,7 +74,7 @@ class VisualTest(g.unittest.TestCase):
         # set all face colors to test color
         m.visual.face_colors = test_color
         assert (m.visual.face_colors == test_color).all()
-        #assert len(m.visual._cache) == 0
+        # assert len(m.visual._cache) == 0
         # should be just material and face information
         assert len(m.visual._data.data) >= 1
         assert m.visual.kind == 'face'
@@ -213,7 +213,7 @@ class VisualTest(g.unittest.TestCase):
         except ImportError:
             return
 
-        n_vertices = 100
+        # n_vertices = 100
         uv = g.np.array([[0.25, 0.2], [0.4, 0.5]], dtype=float)
         texture = g.np.arange(96, dtype=g.np.uint8).reshape(8, 4, 3)
         colors = g.trimesh.visual.uv_to_color(uv, PIL.Image.fromarray(texture))

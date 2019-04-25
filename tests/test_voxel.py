@@ -88,14 +88,14 @@ class VoxelTest(g.unittest.TestCase):
         assert len(voxel[0].shape) == 3
 
         # try it when it definitely doesn't hit anything
-        empty = g.trimesh.voxel.local_voxelize(mesh=mesh,
+        empty = g.trimesh.voxel.local_voxelize(mesh=mesh,  # NOQA
                                                point=[10, 10, 10],
                                                pitch=.1,
                                                radius=5,
                                                fill=True)
 
         # try it when it is in the center of a volume
-        center = g.trimesh.voxel.local_voxelize(mesh=mesh,
+        center = g.trimesh.voxel.local_voxelize(mesh=mesh,  # NOQA
                                                 point=[0, 0, 0],
                                                 pitch=.1,
                                                 radius=2,

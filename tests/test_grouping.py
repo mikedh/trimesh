@@ -92,9 +92,9 @@ class GroupTests(g.unittest.TestCase):
     def test_cluster(self):
         a = (g.np.random.random((10000, 3)) * 5).astype(int)
 
-        r = g.trimesh.grouping.clusters(a, .01)
+        r = g.trimesh.grouping.clusters(a, .01)  # NOQA
 
-        r = g.trimesh.grouping.group_distance(a, .01)
+        r = g.trimesh.grouping.group_distance(a, .01)  # NOQA
 
     def test_unique_float(self):
 

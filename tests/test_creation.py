@@ -12,13 +12,13 @@ class CreationTest(g.unittest.TestCase):
         # pip install triangle
         engines = []
         try:
-            import meshpy
+            import meshpy  # NOQA
             engines.append('meshpy')
         except ImportError:
             g.log.error("no meshpy: skipping")
 
         try:
-            from triangle import triangulate
+            from triangle import triangulate  # NOQA
             engines.append('triangle')
         except ImportError:
             g.log.error('no triangle: skipping')
