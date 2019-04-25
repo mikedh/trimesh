@@ -73,6 +73,11 @@ class CameraTests(g.unittest.TestCase):
             # Z should be the same as maximum trig option
             assert np.linalg.inv(T)[2, 3] >= check.max()
 
+        # just run to test other arguments
+        # TODO(unknown): find the way to test it correctly
+        g.trimesh.scene.cameras.look_at(points, fov, center=points[0])
+        g.trimesh.scene.cameras.look_at(points, fov, distance=1)
+
     def test_scene(self):
         """
         Check camera transforms in different cases
