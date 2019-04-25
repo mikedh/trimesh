@@ -91,10 +91,8 @@ class GroupTests(g.unittest.TestCase):
 
     def test_cluster(self):
         a = (g.np.random.random((10000, 3)) * 5).astype(int)
-
-        r = g.trimesh.grouping.clusters(a, .01)  # NOQA
-
-        r = g.trimesh.grouping.group_distance(a, .01)  # NOQA
+        assert len(g.trimesh.grouping.clusters(a, .01)) > 0
+        assert len(g.trimesh.grouping.group_distance(a, .01)) > 0
 
     def test_unique_float(self):
 
@@ -104,9 +102,8 @@ class GroupTests(g.unittest.TestCase):
         unique = g.trimesh.grouping.unique_float(t)
         assert g.np.allclose(unique, a)
 
-        unique, index, inverse = g.trimesh.grouping.unique_float(t,
-                                                                 return_index=True,
-                                                                 return_inverse=True)
+        unique, index, inverse = g.trimesh.grouping.unique_float(
+            t, return_index=True, return_inverse=True)
         assert g.np.allclose(unique[inverse], t)
         assert g.np.allclose(unique, t[index])
 

@@ -66,9 +66,12 @@ def to_volume(mesh,
 
     if file_name is not None:
         # check extensions to make sure it is supported format
-        if not any(file_name.lower().endswith(e) for e in ['.bdf', '.msh','.inp','.diff','.mesh']):
-            raise ValueError('Only Nastran (.bdf), Gmsh (.msh), Abaqus (*.inp), '+
-                             'Diffpack (*.diff) and Inria Medit (*.mesh) formats are available!')
+        if not any(file_name.lower().endswith(e)
+                   for e in ['.bdf', '.msh', '.inp', '.diff', '.mesh']):
+            raise ValueError(
+                'Only Nastran (.bdf), Gmsh (.msh), Abaqus (*.inp), ' +
+                'Diffpack (*.diff) and Inria Medit (*.mesh) formats ' +
+                'are available!')
 
     # exports to disk for gmsh to read using a temp file
     mesh_file = tempfile.NamedTemporaryFile(suffix='.stl', delete=False)

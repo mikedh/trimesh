@@ -89,8 +89,8 @@ class GraphTest(g.unittest.TestCase):
         for mesh in g.get_meshes():
             tic = [g.time.time()]
             for engine in self.engines:
-                split = mesh.split(engine=engine, only_watertight=False)  # NOQA
-                facets = g.trimesh.graph.facets(mesh=mesh, engine=engine)  # NOQA
+                mesh.split(engine=engine, only_watertight=False)
+                g.trimesh.graph.facets(mesh=mesh, engine=engine)
                 tic.append(g.time.time())
 
             tic_diff = g.np.diff(tic)

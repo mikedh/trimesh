@@ -10,7 +10,6 @@ def typical_application():
     # make sure we can load everything we think we can
     # while getting a list of meshes to run tests on
     meshes = g.get_meshes(raise_error=True)
-    g.log.info('Running tests on %d meshes', len(meshes))
 
     for mesh in meshes:
         g.log.info('Testing %s', mesh.metadata['file_name'])
@@ -47,7 +46,7 @@ def typical_application():
 
 
 def establish_baseline(*args, counts=[390, 3820, 1710]):
-    '''
+    """
     Try to establish a baseline of how fast a computer is so
     we can normalize our tests to be meaningful even on garbage CI VM's.
 
@@ -59,12 +58,14 @@ def establish_baseline(*args, counts=[390, 3820, 1710]):
 
     Arguments
     ----------
-    counts: (3,) int, number of iterations for each of the three tests
+    counts: (3,) int
+      Number of iterations for each of the three tests
 
     Returns
-    ---------
-    times: (3,) float, seconds for each of the three tests
-    '''
+    ----------------
+    times : dict
+      Minimum times for each test
+    """
 
     setup = 'import numpy as np'
 
@@ -79,87 +80,40 @@ def establish_baseline(*args, counts=[390, 3820, 1710]):
     # try a list comprehension with some stuff in it
     loop = '[i * 3.14 for i in np.arange(10**3) if i % 7 == 0]'
 
-    time_dot = min(timeit.repeat(dot,
-                                 setup,
-                                 number=counts[0]))
-    time_cross = min(timeit.repeat(cross,
-                                   setup,
-                                   number=counts[1]))
-    time_loop = min(timeit.repeat(loop,
-                                  setup,
-                                  number=counts[2]))
-    times = g.np.array([time_dot,
-                        time_cross,
-                        time_loop])
+    times = {}
+    times['dot'] = min(timeit.repeat(dot,
+                                     setup,
+                                     number=counts[0]))
+    times['cross'] = min(timeit.repeat(cross,
+                                       setup,
+                                       number=counts[1]))
+    times['loop'] = min(timeit.repeat(loop,
+                                      setup,
+                                      number=counts[2]))
 
     return times
 
 
 def machine_info():
+    """
+    Get information about the current machine
+
+    Returns
+    ------------
+    info : dict
+      Contains information about machine
+    """
     import psutil
-
     info = {}
-
-    freq = psutil.cpu_freq()
     info['cpu_count'] = psutil.cpu_count()
-    info['cpu_freq'] = {'min': freq.min,
-                        'max': freq.max,
-                        'current': freq.current}
 
     return info
 
 
 if __name__ == '__main__':
 
-    # baseline = establish_baseline()
-
-    '''
-    file_names = ['ballA.off',
-                  'cycloidal.ply',
-                  'featuretype.STL',
-                  'angle_block.STL',
-                  'soup.stl',
-                  'bun_zipper_res2.ply']
-
-    setup = 'try: from . import generic as g
-except BaseException: import generic as g;'
-    setup += 'm=g.get_mesh(\'{}\');'
-
-    # test a dot product with itself
-    dot = '\n'.join(('a = np.arange(3*10**3,dtype=np.float64).reshape((-1,3))',
-                     'b = np.dot(a, a.T)'))
-
-    tests = {
-        'section': 'r=m.section(plane_normal=[0,0,1],plane_origin=m.centroid)'}
-
-    clear = '\n'.join(['\nn=m.face_normals',
-                       'c=m.centroid',
-                       'm._cache.clear()',
-                       'm._cache[\'face_normals\']=n',
-                       'm._cache[\'centroid\']=c'])
-
-    tests = {'section': clear + 'r=m.section(plane_normal=[0,0,1],plane_origin=m.centroid)',
-             'bounding_box_oriented': clear + 'r=m.bounding_box_oriented'}
-
-    timings = g.collections.defaultdict(dict)
-
-    iterations = 10
-    repeats = 3
-    for file_name in file_names:
-        for test_name, test_string in tests.items():
-            time_min = min(timeit.repeat(test_string,
-                                         setup.format(file_name),
-                                         repeat=repeats,
-                                         number=iterations))
-            timings[test_name][file_name] = time_min / iterations
-
-    result = {}
-
-    result['cpu_info'] = subprocess.check_output(['cat', '/proc/cpuinfo'])
-    result['baseline'] = baseline.tolist()
-    result['timestamp'] = time.time()
-    result['timings'] = timings
-    '''  # NOQA
+    info = machine_info()
+    info['baseline'] = establish_baseline()
 
     import pyinstrument
 
