@@ -45,7 +45,7 @@ def typical_application():
         assert len(ident) > 0
 
 
-def establish_baseline(*args, counts=[390, 3820, 1710]):
+def establish_baseline(counts=[390, 3820, 1710]):
     """
     Try to establish a baseline of how fast a computer is so
     we can normalize our tests to be meaningful even on garbage CI VM's.
