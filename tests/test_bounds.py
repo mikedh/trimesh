@@ -22,8 +22,8 @@ class BoundsTest(g.unittest.TestCase):
                 # if we succeed in the meshes original orientation
                 matrix = g.np.eye(4)
                 if i > 0:
-                    matrix = g.trimesh.transformations.random_rotation_matrix()
-                    matrix[0:3, 3] = (g.np.random.random(3) - .5) * 100
+                    # get repeatable transforms
+                    matrix = g.transforms[i]
                     m.apply_transform(matrix)
 
                 box_ext = m.bounding_box_oriented.primitive.extents.copy()

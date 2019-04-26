@@ -90,9 +90,14 @@ class GroupTests(g.unittest.TestCase):
         self.assertTrue(u.size == 11)
 
     def test_cluster(self):
-        a = (g.np.random.random((10000, 3)) * 5).astype(int)
-        assert len(g.trimesh.grouping.clusters(a, .01)) > 0
-        assert len(g.trimesh.grouping.group_distance(a, .01)) > 0
+        # create some random points stacked with some zeros to cluster
+        points = g.np.vstack(((
+            g.np.random.random((10000, 3)) * 5).astype(g.np.int64),
+            g.np.zeros((100, 3))))
+        # should be at least one cluster
+        assert len(g.trimesh.grouping.clusters(points, .01)) > 0
+        # should be at least one group
+        assert len(g.trimesh.grouping.group_distance(points, .01)) > 0
 
     def test_unique_float(self):
 

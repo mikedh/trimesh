@@ -2,8 +2,6 @@ import numpy as np
 
 import collections
 
-from .constants import log
-
 _fcl_exists = True
 try:
     import fcl  # pip install python-fcl
