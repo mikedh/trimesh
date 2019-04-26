@@ -36,7 +36,6 @@ else:
 
 # create a default logger
 log = logging.getLogger('trimesh')
-log.addHandler(logging.NullHandler())
 
 # include constants here so we don't have to import
 # a floating point threshold for 0.0
