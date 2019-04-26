@@ -2,11 +2,11 @@ import numpy as np
 
 import collections
 
-_fcl_exists = True
 try:
-    import fcl  # pip install python-fcl
+    # pip install python-fcl
+    import fcl
 except BaseException:
-    _fcl_exists = False
+    fcl = None
 
 
 class ContactData(object):
@@ -144,7 +144,7 @@ class CollisionManager(object):
         """
         Initialize a mesh-mesh collision manager.
         """
-        if not _fcl_exists:
+        if fcl is None:
             raise ValueError('No FCL Available!')
         # {name: {geom:, obj}}
         self._objs = {}

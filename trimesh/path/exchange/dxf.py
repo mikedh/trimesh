@@ -824,6 +824,15 @@ def bulge_to_arcs(lines,
     # make sure lines are 2D array
     lines = np.asanyarray(lines, dtype=np.float64)
 
+    # make sure inputs are numpy arrays
+    bulge = np.asanyarray(bulge, dtype=np.float64)
+    bulge_idx = np.asanyarray(bulge_idx, dtype=np.int64)
+
+    # filter out zero- bulged polylines
+    ok = np.abs(bulge) > 1e-5
+    bulge = bulge[ok]
+    bulge_idx = bulge_idx[ok]
+
     # metadata to apply to new entities
     if metadata is None:
         metadata = {}
@@ -842,8 +851,10 @@ def bulge_to_arcs(lines,
     # if it's a closed segment modulus to start vertex
     if is_closed:
         tid %= len(lines)
+
     # the vector connecting the two ends of the arc
     vector = lines[tid[:, 0]] - lines[tid[:, 1]]
+
     # the length of the connector segment
     length = (np.linalg.norm(vector, axis=1))
 
