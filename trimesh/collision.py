@@ -8,7 +8,6 @@ _fcl_exists = True
 try:
     import fcl  # pip install python-fcl
 except BaseException:
-    log.warning('No FCL -- collision checking will not work')
     _fcl_exists = False
 
 
