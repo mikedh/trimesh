@@ -19,6 +19,7 @@ except ImportError:
 
 try:
     import psutil
+
     def _MAX_MEMORY():
         # if we have psutil check actual free memory when called
         return psutil.virtual_memory().free / 2.0
