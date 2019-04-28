@@ -48,7 +48,7 @@ def load_gmsh(file_name, gmsh_args=None):
             ("Mesh.MinimumCirclePoints", 32)]
     # add passed argument tuples last so we can override defaults
     if gmsh_args is not None:
-        args.update(gmsh_args)
+        args.extend(gmsh_args)
 
     # formats GMSH can load
     supported = ['.brep', '.stp', '.step', '.igs', '.iges',
