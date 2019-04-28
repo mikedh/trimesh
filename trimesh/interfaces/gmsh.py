@@ -8,6 +8,74 @@ try:
 except ImportError:
     gmsh = None
 
+def from_volume(file_name,max_element=1.):
+    """
+    Returns a surface mesh from CAD model in Open Cascade
+    Breap (.brep), Step (.stp or .step) and Iges formats
+    Or returns a surface mesh from 3D volume mesh using gmsh.
+    An easy way to install the gmsh sdk is through the gmsh-sdk
+    package on pypi, which downloads and sets up gmsh:
+        pip install gmsh-sdk
+  
+    Parameters
+    --------------
+    
+    file_name : str
+      Location of the file to be imported
+    max_element : float or None
+      Maximum length of an element in the volume mesh
+
+    Returns
+    ------------
+    mesh : trimesh.Trimesh
+      Surface mesh of input geometry
+    """
+
+
+    # check extensions to make sure it is supported format
+    if file_name is not None:
+        if not any(file_name.lower().endswith(e)
+                   for e in ['.brep','.stp','.step','.igs','.iges','.bdf', '.msh', '.inp', '.diff', '.mesh']):
+            raise ValueError(
+                'Geo Formats:\n'+
+                'Only Open Cascade Breap (.brep), Step (.stp or .step) and Iges (.igs or .iges)'+
+                'Mesh Fomats:\n'+
+                'Only Nastran (.bdf), Gmsh (.msh), Abaqus (*.inp), ' +
+                'Diffpack (*.diff) and Inria Medit (*.mesh) formats ' +
+                'are available!')
+    else:
+        raise ValueError('No import since no file was provided!')
+        
+    gmsh.initialize(sys.argv)
+    gmsh.option.setNumber("General.Terminal", 1)
+    gmsh.model.add('Surface_Mesh_Generation')
+    gmsh.open(file_name)
+        
+    if any(file_name.lower().endswith(e) for e in ['.brep','.stp','.step','.igs','.iges']):
+        
+        gmsh.model.geo.synchronize()
+        # Let gmsh decide between MeshAdapt and Delaunay. There are others but no quads is wanted
+        # For instance,  planes are meshed using Delaunay and cyclinders are meshed using MeshAdapt
+        gmsh.option.setNumber("Mesh.Algorithm", 2)
+        gmsh.option.setNumber("Mesh.CharacteristicLengthMax", max_element)
+        gmsh.model.mesh.generate(2)
+
+        out_data = tempfile.NamedTemporaryFile(suffix='.stl', delete=False)
+        # windows gets mad if two processes try to open the same file
+        out_data.close()
+        gmsh.write(out_data.name)
+        mesh=trimesh.load(out_data.name)
+    
+    else:
+        gmsh.plugin.run("NewView")
+        gmsh.plugin.run("Skin")
+        out_data = tempfile.NamedTemporaryFile(suffix='.stl', delete=False)
+        # windows gets mad if two processes try to open the same file
+        out_data.close()
+        gmsh.view.write(1, out_data.name)
+        mesh=trimesh.load(out_data.name)
+   
+    return mesh
 
 def to_volume(mesh,
               file_name=None,
