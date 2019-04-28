@@ -22,9 +22,8 @@ from .geometry import faces_to_edges
 try:
     from graph_tool import Graph as GTGraph
     from graph_tool.topology import label_components
-    _has_gt = True
 except ImportError:
-    _has_gt = False
+    pass
 
 try:
     from scipy.sparse import csgraph, coo_matrix
