@@ -8,7 +8,7 @@ class GraphTest(g.unittest.TestCase):
 
     def setUp(self):
         self.engines = ['scipy', 'networkx']
-        if g.trimesh.graph._has_gt:
+        if hasattr(g.trimesh.graph, 'GTGraph'):
             self.engines.append('graphtool')
         else:
             g.log.warning('No graph-tool to test!')
