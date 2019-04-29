@@ -110,6 +110,8 @@ def angles(triangles):
     # run the cosine and an einsum that definitely does something
     a = np.arccos(np.clip(np.einsum('ij, ij->i', u, v), -1, 1))
     b = np.arccos(np.clip(np.einsum('ij, ij->i', -u, w), -1, 1))
+    a=np.nan_to_num(a)
+    b=np.nan_to_num(b)
     c = np.pi - a - b
 
     return np.column_stack([a, b, c])
