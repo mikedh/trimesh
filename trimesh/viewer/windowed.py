@@ -167,6 +167,7 @@ class SceneViewer(pyglet.window.Window):
         if self.callback is not None:
             self.callback(self.scene)
             self._update_vertex_list()
+            self._update_perspective(self.width, self.height)
 
     def add_geometry(self, name, geometry, **kwargs):
         """
@@ -428,10 +429,7 @@ class SceneViewer(pyglet.window.Window):
             # set the reference to None
             self._axis = None
 
-    def on_resize(self, width, height):
-        """
-        Handle resized windows.
-        """
+    def _update_perspective(self, width, height):
         try:
             # for high DPI screens viewport size
             # will be different then the passed size
@@ -453,6 +451,13 @@ class SceneViewer(pyglet.window.Window):
                           self.scene.scale * 5.0)
         gl.glMatrixMode(gl.GL_MODELVIEW)
 
+        return width, height
+
+    def on_resize(self, width, height):
+        """
+        Handle resized windows.
+        """
+        width, height = self._update_perspective(width, height)
         self.scene.camera.resolution = (width, height)
         self.view['ball'].resize(self.scene.camera.resolution)
         self.scene.camera.transform = self.view['ball'].pose
