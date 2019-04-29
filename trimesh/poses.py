@@ -10,8 +10,11 @@ import numpy as np
 from .triangles import points_to_barycentric
 
 
-def compute_stable_poses(mesh, center_mass=None,
-                         sigma=0.0, n_samples=1, threshold=0.0):
+def compute_stable_poses(mesh,
+                         center_mass=None,
+                         sigma=0.0,
+                         n_samples=1,
+                         threshold=0.0):
     """
     Computes stable orientations of a mesh and their quasi-static probabilites.
 
@@ -32,24 +35,30 @@ def compute_stable_poses(mesh, center_mass=None,
 
     Parameters
     ----------
-    mesh:      Trimesh object, the target mesh
-    com:       (3,) float,     the object center of mass (if None, this method
-                               assumes uniform density and watertightness and
-                               computes a center of mass explicitly)
-    sigma:     float,          the covariance for the multivariate gaussian used
-                               to sample center of mass locations
-    n_samples: int,            the number of samples of the center of mass loc
-    threshold: float,          the probability value at which to threshold
-                               returned stable poses
+    mesh : trimesh.Trimesh
+      The target mesh
+    com : (3,) float
+      Rhe object center of mass. If None, this method
+      assumes uniform density and watertightness and
+      computes a center of mass explicitly
+    sigma : float
+      Rhe covariance for the multivariate gaussian used
+      to sample center of mass locations
+    n_samples : int
+      The number of samples of the center of mass location
+    threshold : float
+      The probability value at which to threshold
+      returned stable poses
 
     Returns
     -------
-    transforms: list of (4,4) floats, the homogenous matrices that transform the
-                                     object to rest in a stable pose, with the
-                                     new z-axis pointing upwards from the table
-                                     and the object just touching the table.
-
-    probs:      list of floats,       a probability in (0, 1) for each pose
+    transforms : (n, 4, 4) float
+      The homogenous matrices that transform the
+      object to rest in a stable pose, with the
+      new z-axis pointing upwards from the table
+      and the object just touching the table.
+    probs : (n,) float
+      Probability in (0, 1) for each pose
     """
 
     # save convex hull mesh to avoid a cache check
@@ -227,13 +236,16 @@ def _create_topple_graph(cvh_mesh, com):
 
     Parameters
     ----------
-    cvh_mesh: Trimesh object, the convex hull of the target shape
-    com:      (3,) float, the 3D location of the target shape's center of mass
+    cvh_mesh : trimesh.Trimesh
+      Rhe convex hull of the target shape
+    com : (3,) float
+      The 3D location of the target shape's center of mass
 
     Returns
     -------
-    graph: networkx.DiGraph(), graph representing static probabilities and toppling
-                               order for the convex hull
+    graph : networkx.DiGraph
+      Graph representing static probabilities and toppling
+      order for the convex hull
     """
     adj_graph = nx.Graph()
     topple_graph = nx.DiGraph()
