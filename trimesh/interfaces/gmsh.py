@@ -1,4 +1,3 @@
-import sys
 import tempfile
 
 import numpy as np
@@ -41,8 +40,8 @@ def load_gmsh(file_name, gmsh_args=None):
     from ..exchange.stl import load_stl
 
     # start with default args for the meshing step
-    # Mesh.Algorithm=2 MeshAdapt/Delaunay, there are others but they may incude quads
-    # With this planes are meshed using Delaunay and cyclinders are meshed using MeshAdapt
+    # Mesh.Algorithm=2 MeshAdapt/Delaunay, there are others but they may include quads
+    # With this planes are meshed using Delaunay and cylinders are meshed using MeshAdapt
     args = [("Mesh.Algorithm", 2),
             ("Mesh.CharacteristicLengthFromCurvature", 1),
             ("Mesh.MinimumCirclePoints", 32)]
