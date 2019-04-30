@@ -260,6 +260,9 @@ class SceneWidget(glooey.Widget):
             self.mesh_group[node_name] = mesh_group
 
         if self.vertex_list_hash.get(geometry_name) != geometry_hash_new:
+            if geometry_name in self.vertex_list:
+                self.vertex_list[geometry_name].delete()
+
             # convert geometry to constructor args
             args = rendering.convert_to_vertexlist(geometry, group=mesh_group)
             # create the indexed vertex list
