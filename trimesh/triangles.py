@@ -97,6 +97,8 @@ def angles(triangles):
       Angles at vertex positions in radians
       Degenerate angles will be returned as zero
     """
+    # copy triangles so we can unitize in-place
+    triangles = np.array(triangles, dtype=np.float64)
 
     # get a unit vector for each edge of the triangle
     u = triangles[:, 1] - triangles[:, 0]
@@ -104,9 +106,9 @@ def angles(triangles):
     w = triangles[:, 2] - triangles[:, 1]
 
     # norm per- row of each vector
-    u /= util.row_norm(u)
-    v /= util.row_norm(v)
-    w /= util.row_norm(w)
+    u /= util.row_norm(u).reshape((-1, 1))
+    v /= util.row_norm(v).reshape((-1, 1))
+    w /= util.row_norm(w).reshape((-1, 1))
 
     # run the cosine and per- row dot product
     a = np.arccos(np.clip(util.diagonal_dot(u, v), -1, 1))
