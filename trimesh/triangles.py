@@ -94,25 +94,29 @@ def angles(triangles):
     Returns
     ------------
     angles : (n, 3) float
-      Angles at vertex positions, in radians
+      Angles at vertex positions in radians
+      Degenerate angles will be returned as zero
     """
 
-    # get a vector for each edge of the triangle
+    # get a unit vector for each edge of the triangle
     u = triangles[:, 1] - triangles[:, 0]
     v = triangles[:, 2] - triangles[:, 0]
     w = triangles[:, 2] - triangles[:, 1]
 
-    # normalize each vector in place
-    u /= np.linalg.norm(u, axis=1, keepdims=True)
-    v /= np.linalg.norm(v, axis=1, keepdims=True)
-    w /= np.linalg.norm(w, axis=1, keepdims=True)
+    # norm per- row of each vector
+    u /= util.row_norm(u)
+    v /= util.row_norm(v)
+    w /= util.row_norm(w)
 
-    # run the cosine and an einsum that definitely does something
-    a = np.arccos(np.clip(np.einsum('ij, ij->i', u, v), -1, 1))
-    b = np.arccos(np.clip(np.einsum('ij, ij->i', -u, w), -1, 1))
+    # run the cosine and per- row dot product
+    a = np.arccos(np.clip(util.diagonal_dot(u, v), -1, 1))
+    b = np.arccos(np.clip(util.diagonal_dot(-u, w), -1, 1))
     c = np.pi - a - b
 
-    return np.column_stack([a, b, c])
+    # convert NaN to 0.0
+    result = np.nan_to_num(np.column_stack([a, b, c]))
+
+    return result
 
 
 def all_coplanar(triangles):

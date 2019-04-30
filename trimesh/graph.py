@@ -177,7 +177,7 @@ def face_adjacency_radius(mesh):
             vectors, edges_vec).reshape(
             (-1, 1)) * edges_vec))
     # the length of the perpendicular projection
-    span = np.linalg.norm(perp, axis=1)
+    span = util.row_norm(perp)
 
     # complete the values for non- infinite radii
     radii = np.ones(len(mesh.face_adjacency)) * np.inf

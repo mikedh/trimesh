@@ -16,6 +16,8 @@ variables:
 steps:
 - script: |
     docker build -t $(dockerId)/$(imageName) .
-    docker login --username $(dockerId) --password $(dockerHubPass)
+    docker login -u $(dockerId) -p $pass
     docker push $(dockerId)/$(imageName):latest
+  env:
+    pass: $(dockerPassword)
   displayName: 'docker build'

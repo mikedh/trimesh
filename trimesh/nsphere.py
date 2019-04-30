@@ -7,6 +7,7 @@ circles, spheres, hyperspheres, etc.
 """
 import numpy as np
 
+from . import util
 from . import convex
 
 from .constants import log, tol
@@ -161,7 +162,7 @@ def fit_nsphere(points, prior=None):
     if not (return_code in [1, 2, 3, 4]):
         raise ValueError('Least square fit failed!')
 
-    radii = np.linalg.norm(points - center_result, axis=1)
+    radii = util.row_norm(points - center_result)
     radius = radii.mean()
     error = radii.ptp()
     return center_result, radius, error

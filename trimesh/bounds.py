@@ -50,11 +50,11 @@ def oriented_bounds_2D(points, qhull_options='QbB'):
     # (n,2) points on the convex hull
     hull_points = convex.points[convex.vertices]
 
-    # direction of the edges of the hull polygon
-    edge_vectors = np.diff(hull_edges, axis=1).reshape((-1, 2))
+    # unit vector direction of the edges of the hull polygon
+    # filter out zero- magnitude edges via check_valid
+    edge_vectors, _ = util.unitize(np.diff(hull_edges, axis=1).reshape((-1, 2)),
+                                   check_valid=True)
 
-    # unitize vectors
-    edge_vectors /= np.linalg.norm(edge_vectors, axis=1).reshape((-1, 1))
     # create a set of perpendicular vectors
     perp_vectors = np.fliplr(edge_vectors) * [-1.0, 1.0]
 

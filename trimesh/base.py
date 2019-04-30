@@ -841,7 +841,7 @@ class Trimesh(Geometry):
           Length of each unique edge
         """
         vector = np.subtract(*self.vertices[self.edges_unique.T])
-        length = np.linalg.norm(vector, axis=1)
+        length = util.row_norm(vector)
         return length
 
     @caching.cache_decorator
