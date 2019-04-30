@@ -537,7 +537,7 @@ class PointCloud(Geometry):
     @colors.setter
     def colors(self, data):
         data = np.asanyarray(data)
-        if data.shape == (4,):
+        if data.shape in [(3,), (4,)]:
             data = np.tile(data, (len(self.vertices), 1))
         self._data['colors'] = data
 
