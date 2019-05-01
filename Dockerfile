@@ -36,5 +36,6 @@ ENV XVFB_WHD="1920x1080x24"\
     GALLIUM_DRIVER="llvmpipe"
 
 # make sure build fails if tests are failing
-# suppress warnings as some of our deps spawn 10,000 useless warnings
-RUN pytest -p no:warnings /tmp/trimesh/tests
+# -p no:warnings suppresses 10,000 useless upstream warnings
+# -p no:alldep means that tests will fail if a dependancy is missing
+RUN pytest -p no:warnings -p no:alldep /tmp/trimesh/tests
