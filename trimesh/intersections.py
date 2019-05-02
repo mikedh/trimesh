@@ -644,7 +644,7 @@ def slice_mesh_plane(mesh,
                                             plane_normal=normal,
                                             plane_origin=origin,
                                             **kwargs)
-        
+
     # create a mesh from the sliced result
     new_mesh = Trimesh(vertices=vertices,
                        faces=faces,
