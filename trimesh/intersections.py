@@ -592,18 +592,22 @@ def slice_mesh_plane(mesh,
     Parameters
     ---------
     mesh : Trimesh object
-        Source mesh to slice
+      Source mesh to slice
     plane_normal : (3,) float
-        Normal vector of plane to intersect with mesh
+      Normal vector of plane to intersect with mesh
     plane_origin:  (3,) float
-        Point on plane to intersect with mesh
+      Point on plane to intersect with mesh
+    cap: bool
+      If True, cap the result with a triangulated polygon
+
     cached_dots : (n, 3) float
         If an external function has stored dot
         products pass them here to avoid recomputing
+
     Returns
     ----------
     new_mesh : Trimesh object
-        Sliced mesh
+      Sliced mesh
     """
     # check input for none
     if mesh is None:
@@ -640,7 +644,7 @@ def slice_mesh_plane(mesh,
                                             plane_normal=normal,
                                             plane_origin=origin,
                                             **kwargs)
-
+        
     # create a mesh from the sliced result
     new_mesh = Trimesh(vertices=vertices,
                        faces=faces,
