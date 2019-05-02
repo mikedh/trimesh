@@ -448,7 +448,7 @@ class SceneViewer(pyglet.window.Window):
         gl.gluPerspective(fovY,
                           width / float(height),
                           .01,
-                          self.scene.scale * 5.0)
+                          1000.)
         gl.glMatrixMode(gl.GL_MODELVIEW)
 
         return width, height

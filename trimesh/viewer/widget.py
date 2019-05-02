@@ -57,7 +57,7 @@ class SceneGroup(pyglet.graphics.Group):
         gl.glPushMatrix()
         gl.glLoadIdentity()
         near = 0.01
-        far = self.scene.scale * 5.0
+        far = 1000.
         gl.gluPerspective(self.scene.camera.fov[1], width / height, near, far)
         gl.glMatrixMode(gl.GL_MODELVIEW)
 
