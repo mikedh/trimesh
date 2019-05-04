@@ -295,7 +295,7 @@ class TransformForest(object):
         if len(transforms) == 0:
             transform = np.eye(4)
         elif len(transforms) == 1:
-            transform = transforms[0]
+            transform = np.asanyarray(transforms[0], dtype=np.float64)
         else:
             transform = util.multi_dot(transforms)
 
@@ -465,10 +465,9 @@ def kwargs_to_matrix(**kwargs):
     """
     Turn a set of keyword arguments into a transformation matrix.
     """
-    matrix = np.eye(4)
     if 'matrix' in kwargs:
         # a matrix takes precedence over other options
-        matrix = kwargs['matrix']
+        matrix = np.asanyarray(kwargs['matrix'], dtype=np.float64)
     elif 'quaternion' in kwargs:
         matrix = transformations.quaternion_matrix(kwargs['quaternion'])
     elif ('axis' in kwargs) and ('angle' in kwargs):
