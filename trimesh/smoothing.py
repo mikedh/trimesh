@@ -6,6 +6,8 @@ try:
 except ImportError:
     pass
 
+from . import triangles
+
 
 def filter_laplacian(mesh,
                      lamb=0.5,
@@ -21,6 +23,7 @@ def filter_laplacian(mesh,
     2 - "Implicit Fairing of Irregular Meshes using Diffusion
        and Curvature Flow". M. Desbrun,  M. Meyer,
        P. Schroder, A.H.B. Caltech
+
     Parameters
     ------------
     mesh : trimesh.Trimesh
@@ -45,23 +48,23 @@ def filter_laplacian(mesh,
     if laplacian_operator is None:
         laplacian_operator = laplacian_calculation(mesh)
 
-    # Set volume constraint
-    if volume_constraint == True:
-        v_ini = mesh.volume
+    # save initial volume
+    if volume_constraint:
+        vol_ini = mesh.volume
 
-    # get mesh vertices as vanilla numpy array
+    # get mesh vertices and faces as vanilla numpy array
     vertices = mesh.vertices.copy().view(np.ndarray)
+    faces = mesh.faces.copy().view(np.ndarray)
 
     # Set matrix for linear system of equations
-    if implicit_time_integration == True:
+    if implicit_time_integration:
         dlap = laplacian_operator.shape[0]
         AA = eye(dlap) + lamb * (eye(dlap) - laplacian_operator)
 
     # Number of passes
     for _index in range(iterations):
         # Classic Explicit Time Integration - Article 1
-        if implicit_time_integration == False:
-            #dot = coo_matrix.dot(laplacian_operator, vertices) - vertices
+        if not implicit_time_integration:
             dot = laplacian_operator.dot(vertices) - vertices
             vertices += lamb * dot
 
@@ -69,10 +72,13 @@ def filter_laplacian(mesh,
         else:
             vertices = spsolve(AA, vertices)
 
-        # Volume constraint
-        if volume_constraint == True:
-            vol = mass_properties(mesh.triangles, skip_inertia=True)["volume"]
-            vertices *= ((v_ini / vol)**(1. / 3.))
+        # volume constraint
+        if volume_constraint:
+            # find the volume with new vertex positions
+            vol_new = triangles.mass_properties(
+                vertices[faces], skip_inertia=True)["volume"]
+            # scale by volume ratio
+            vertices *= ((vol_ini / vol_new) ** (1.0 / 3.0))
 
     # assign modified vertices back to mesh
     mesh.vertices = vertices
