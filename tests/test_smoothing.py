@@ -51,7 +51,7 @@ class SmoothTest(g.unittest.TestCase):
         g.trimesh.smoothing.filter_laplacian(q, 0.5, 10, True, True, lap)
         g.trimesh.smoothing.filter_humphrey(f, 0.1, 0.5, 10, lap)
         g.trimesh.smoothing.filter_taubin(d, 0.5, 0.53, 10, lap)
-        
+
         assert s.is_volume
         assert q.is_volume
         assert f.is_volume

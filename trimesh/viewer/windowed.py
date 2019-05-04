@@ -332,7 +332,7 @@ class SceneViewer(pyglet.window.Window):
             lightN = eval('gl.GL_LIGHT{}'.format(i))
 
             # get the transform for the light by name
-            matrix = scene.graph[light.name][0]
+            matrix = scene.graph.get(light.name)[0]
 
             # convert light object to glLightfv calls
             multiargs = rendering.light_to_gl(
@@ -535,6 +535,7 @@ class SceneViewer(pyglet.window.Window):
         """
         Run the actual draw calls.
         """
+
         self._update_meshes()
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
         gl.glLoadIdentity()
@@ -564,7 +565,7 @@ class SceneViewer(pyglet.window.Window):
             current_node = node_names.popleft()
 
             # get the transform from world to geometry and mesh name
-            transform, geometry_name = self.scene.graph[current_node]
+            transform, geometry_name = self.scene.graph.get(current_node)
 
             # if no geometry at this frame continue without rendering
             if geometry_name is None:
