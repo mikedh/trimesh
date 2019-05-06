@@ -401,7 +401,7 @@ def load_kwargs(*args, **kwargs):
             # vertices without faces returns a PointCloud
             return PointCloud(vertices=kwargs['vertices'],
                 color=(kwargs['color'] if 'color' in kwargs else None),
-                colors=(kwargs['colors'] if 'colors' in kwargs else None))
+                colors=(kwargs['vertex_colors'] if 'vertex_colors' in kwargs else None))
         else:
             return Trimesh(**kwargs)
 
