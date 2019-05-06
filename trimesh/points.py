@@ -351,7 +351,12 @@ class PointCloud(Geometry):
     def __init__(self, vertices, colors=None, color=None, metadata=None):
         self._data = caching.DataStore()
         self._cache = caching.Cache(self._data.md5)
-        self.metadata = {}
+        
+        # store metadata about the mesh in a dictionary
+        self.metadata = dict()
+        # update the mesh metadata with passed metadata
+        if isinstance(metadata, dict):
+            self.metadata.update(metadata)
 
         # load vertices
         self.vertices = vertices
