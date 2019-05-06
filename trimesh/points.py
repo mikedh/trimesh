@@ -348,7 +348,7 @@ class PointCloud(Geometry):
     in a scene.
     """
 
-    def __init__(self, vertices, colors=None, color=None):
+    def __init__(self, vertices, colors=None, color=None, metadata=None):
         self._data = caching.DataStore()
         self._cache = caching.Cache(self._data.md5)
         self.metadata = {}
