@@ -359,42 +359,43 @@ def elements_to_kwargs(elements, fix_texture, image):
     # PLY stores texture coordinates per- face which is
     # slightly annoying, as we have to then figure out
     # which vertices have the same position but different UV
-    expected = (faces.shape[0], faces.shape[1] * 2)
-    if (image is not None and
-        texcoord is not None and
-            texcoord.shape == expected):
+    if faces is not None:
+        expected = (faces.shape[0], faces.shape[1] * 2)
+        if (image is not None and
+            texcoord is not None and
+                texcoord.shape == expected):
 
-        # vertices with the same position but different
-        # UV coordinates can't be merged without it
-        # looking like it went through a woodchipper
-        # in- the- wild PLY comes with things merged that
-        # probably shouldn't be so disconnect vertices
-        if fix_texture:
-            # reshape to correspond with flattened faces
-            uv = texcoord.reshape((-1, 2))
+            # vertices with the same position but different
+            # UV coordinates can't be merged without it
+            # looking like it went through a woodchipper
+            # in- the- wild PLY comes with things merged that
+            # probably shouldn't be so disconnect vertices
+            if fix_texture:
+                # reshape to correspond with flattened faces
+                uv = texcoord.reshape((-1, 2))
 
-            # round UV to OOM 10^4 as they are pixel coordinates
-            # and more precision is not necessary or desirable
-            search = np.column_stack((
-                vertices[faces.reshape(-1)],
-                (uv * 1e4).round()))
+                # round UV to OOM 10^4 as they are pixel coordinates
+                # and more precision is not necessary or desirable
+                search = np.column_stack((
+                    vertices[faces.reshape(-1)],
+                    (uv * 1e4).round()))
 
-            # find vertices which have the same position AND UV
-            unique, inverse = grouping.unique_rows(search)
+                # find vertices which have the same position AND UV
+                unique, inverse = grouping.unique_rows(search)
 
-            # set vertices, faces, and UV to the new values
-            vertices = search[:, :3][unique]
-            faces = inverse.reshape((-1, 3))
-            uv = uv[unique]
-        else:
-            # don't alter vertices, UV will look like crap
-            # if it was exported with vertices merged
-            uv = np.zeros((len(vertices), 2))
-            uv[faces.reshape(-1)] = texcoord.reshape((-1, 2))
+                # set vertices, faces, and UV to the new values
+                vertices = search[:, :3][unique]
+                faces = inverse.reshape((-1, 3))
+                uv = uv[unique]
+            else:
+                # don't alter vertices, UV will look like crap
+                # if it was exported with vertices merged
+                uv = np.zeros((len(vertices), 2))
+                uv[faces.reshape(-1)] = texcoord.reshape((-1, 2))
 
-        # create the visuals object for the texture
-        kwargs['visual'] = visual.texture.TextureVisuals(
-            uv=uv, image=image)
+            # create the visuals object for the texture
+            kwargs['visual'] = visual.texture.TextureVisuals(
+                uv=uv, image=image)
 
     # kwargs for Trimesh or PointCloud
     kwargs.update({'faces': faces,
