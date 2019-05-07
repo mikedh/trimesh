@@ -541,9 +541,7 @@ class SceneViewer(pyglet.window.Window):
         gl.glLoadIdentity()
 
         # pull the new camera transform from the scene
-        transform_camera = self.scene.graph.get(
-            frame_to='world',
-            frame_from=self.scene.camera.name)[0]
+        transform_camera = np.linalg.inv(self.scene.camera.transform)
 
         # apply the camera transform to the matrix stack
         gl.glMultMatrixf(rendering.matrix_to_gl(transform_camera))
