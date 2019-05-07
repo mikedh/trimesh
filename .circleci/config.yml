@@ -27,3 +27,20 @@ jobs:
       - run:
           name: run tests
           command: pytest -W default tests
+
+  dockerImage:
+    working_directory: ~/repo
+    docker:
+      - image: docker:17.05.0-ce-git
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Build Docker Image
+          command: |
+            docker build . -t "mikedh/trimesh"
+      - deploy:
+          name: Push To DockerHub
+          command: |
+            docker login --username ${DOCKER_USER} --password ${DOCKER_PASS}
+            docker push "mikedh/trimesh"
