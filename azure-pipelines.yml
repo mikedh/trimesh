@@ -11,11 +11,11 @@ pool:
 
 variables:
   imageName: 'trimesh'
-  dockerId: 'mikedh'
+  DOCKER_USER: 'mikedh'
 
 steps:
 - script: |
-    echo $(dockerHubPass) | docker login -u $(dockerId) --password-stdin
+    docker login -u $(dockerId) -p $(DOCKER_PASS)
     docker build -t $(dockerId)/$(imageName) .
     docker push $(dockerId)/$(imageName):latest
   displayName: 'docker build'
