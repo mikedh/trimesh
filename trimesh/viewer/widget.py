@@ -227,8 +227,8 @@ class SceneWidget(glooey.Widget):
         y_prev = y - dy
         left, bottom = self.rect.left, self.rect.bottom
         width, height = self.rect.width, self.rect.height
-        if not (left <= x_prev <= left + width) or \
-                not (bottom <= y_prev <= bottom + height):
+        if not (left < x_prev <= left + width) or \
+                not (bottom < y_prev <= bottom + height):
             self.view['ball'].down(np.array([x, y]))
 
         SceneViewer.on_mouse_drag(self, x, y, dx, dy, buttons, modifiers)
