@@ -13,12 +13,12 @@ variables:
   imageName: 'trimesh'
   dockerId: 'mikedh'
 
-env:
-  dockerPass: $(DOCKER_PASS)
-
 steps:
 - script: |
-    docker login -u $(dockerId) -p $env:dockerPass
+    # exit on failure
+    set -xe
+    # use powershell macro to access secret
+    Write-Host "docker login -u $(dockerId) -p $(DOCKER_PASS)"
     docker build -t $(dockerId)/$(imageName) .
     docker push $(dockerId)/$(imageName):latest
   displayName: 'docker build'
