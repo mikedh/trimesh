@@ -11,7 +11,7 @@ pool:
 
 variables:
   imageName: 'trimesh'
-  DOCKER_USER: 'mikedh'
+  dockerId: 'mikedh'
 
 steps:
 - script: |
