@@ -68,7 +68,10 @@ class Scene(Geometry):
             # if we've been passed a graph override the default
             self.graph = graph
 
-        self.camera = camera
+        if camera is not None:
+            self.camera = camera
+            self.camera.scene = self
+
         self.lights = lights
 
     def apply_transform(self, transform):
