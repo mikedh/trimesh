@@ -13,9 +13,12 @@ variables:
   imageName: 'trimesh'
   dockerId: 'mikedh'
 
+env:
+  dockerPass: $(DOCKER_PASS)
+
 steps:
 - script: |
-    docker login -u $(dockerId) -p $(DOCKER_PASS)
+    docker login -u $(dockerId) -p $env:dockerPass
     docker build -t $(dockerId)/$(imageName) .
     docker push $(dockerId)/$(imageName):latest
   displayName: 'docker build'
