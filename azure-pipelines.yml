@@ -17,8 +17,9 @@ steps:
 - script: |
     # exit on failure
     set -xe
-    # pass secret as input
-    bash -c "docker login -u $(dockerId) -p $(DOCKER_PASS)"
+    docker login -u $(dockerId) -p $(pswd)
     docker build -t $(dockerId)/$(imageName) .
     docker push $(dockerId)/$(imageName):latest
   displayName: 'docker build'
+  env:
+    pswd: $(DOCKER_PASS)        # Define dockerPassword in
