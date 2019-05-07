@@ -17,8 +17,8 @@ steps:
 - script: |
     # exit on failure
     set -xe
-    # use powershell macro to access secret
-    Write-Host "docker login -u $(dockerId) -p $(DOCKER_PASS)"
+    # pass secret as input
+    bash -c "docker login -u $(dockerId) -p $(DOCKER_PASS)"
     docker build -t $(dockerId)/$(imageName) .
     docker push $(dockerId)/$(imageName):latest
   displayName: 'docker build'
