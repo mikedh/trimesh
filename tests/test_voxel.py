@@ -58,7 +58,7 @@ class VoxelTest(g.unittest.TestCase):
         Test marching cubes on a matrix
         """
         try:
-            from skimage import measure # NOQA
+            from skimage import measure  # NOQA
         except ImportError:
             g.log.warn('no skimage, skipping marching cubes test')
             return
@@ -82,7 +82,7 @@ class VoxelTest(g.unittest.TestCase):
         Try marching cubes on points
         """
         try:
-            from skimage import measure # NOQA
+            from skimage import measure  # NOQA
         except ImportError:
             g.log.warn('no skimage, skipping marching cubes test')
             return
