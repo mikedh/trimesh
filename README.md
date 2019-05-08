@@ -53,7 +53,11 @@ import trimesh
 # attach to logger so trimesh messages will be printed to console
 trimesh.util.attach_to_log()
 
-# load a file by name or from a buffer
+# mesh objects can be created from existing faces and vertex data
+mesh = trimesh.Trimesh(vertices=[[0, 0, 0], [0, 0, 1], [0, 1, 0]],
+                       faces=[[0, 1, 2]])
+
+# mesh objects can be loaded from a file name or from a buffer
 mesh = trimesh.load('../models/featuretype.STL')
 
 # is the current mesh watertight?
@@ -80,14 +84,14 @@ mesh.split()
 
 # facets are groups of coplanar adjacent faces
 # set each facet to a random color
-# colors are 8 bit RGBA by default (n,4) np.uint8
+# colors are 8 bit RGBA by default (n, 4) np.uint8
 for facet in mesh.facets:
     mesh.visual.face_colors[facet] = trimesh.visual.random_color()
 
 # preview mesh in an opengl window if you installed pyglet with pip
 mesh.show()
 
-# transform method can be passed a (4,4) matrix and will cleanly apply the transform
+# transform method can be passed a (4, 4) matrix and will cleanly apply the transform
 mesh.apply_transform(trimesh.transformations.random_rotation_matrix())
 
 # axis aligned bounding box is available
