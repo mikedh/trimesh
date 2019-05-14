@@ -39,9 +39,13 @@ def arc_center(points):
     edge_direction = np.diff(points, axis=0)
     edge_midpoints = (edge_direction * 0.5) + points[:2]
 
-    # three points define a plane, so we find its normal vector
-    plane_normal = np.cross(*edge_direction[::-1])
-    plane_normal /= np.linalg.norm(plane_normal)
+    if is_2D:
+        # if points were 2D originally we can skip the cross product
+        plane_normal = np.array([0.0, 0.0, 1.0], dtype=np.float64)
+    else:
+        # three points define a plane, so find normal vector with cross
+        plane_normal = np.cross(*edge_direction[::-1])
+        plane_normal /= np.linalg.norm(plane_normal)
 
     # unit vector along edges
     vector_edge = util.unitize(edge_direction)
@@ -49,13 +53,14 @@ def arc_center(points):
     # perpendicular cector to each segment
     vector_perp = util.unitize(np.cross(vector_edge, plane_normal))
 
-    # run the line- line intersection to find the point
+    # run the line-line intersection to find the point
     intersects, center = line_line(origins=edge_midpoints,
                                    directions=vector_perp,
                                    plane_normal=plane_normal)
 
     if not intersects:
-        raise ValueError('Segments do not intersect!')
+        raise ValueError('segments do not intersect:\n{}'.format(
+            str(points)))
 
     # radius is euclidean distance
     radius = ((points[0] - center) ** 2).sum() ** .5

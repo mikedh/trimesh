@@ -140,10 +140,11 @@ class Entity(object):
 
         Returns
         ---------
-        length: float, total length of entity
+        length : float
+          Total length of entity
         """
-        length = ((np.diff(self.discrete(vertices),
-                           axis=0)**2).sum(axis=1)**.5).sum()
+        diff = np.diff(self.discrete(vertices), axis=0) ** 2
+        length = (np.dot(diff, [1] * vertices.shape[1]) ** 0.5).sum()
         return length
 
     def explode(self):

@@ -205,7 +205,8 @@ def mass_properties(triangles,
         crosses = cross(triangles)
 
     # these are the subexpressions of the integral
-    f1 = triangles.sum(axis=1)
+    # this is equvilant but 7x faster than triangles.sum(axis=1)
+    f1 = triangles[:, 0, :] + triangles[:, 1, :] + triangles[:, 2, :]
 
     # for the the first vertex of every triangle:
     # triangles[:,0,:] will give rows like [[x0, y0, z0], ...]
@@ -230,12 +231,14 @@ def mass_properties(triangles,
     integral[4:7] = (crosses * f3).T
     for i in range(3):
         triangle_i = np.mod(i + 1, 3)
-        integral[i + 7] = crosses[:, i] * ((triangles[:, 0, triangle_i] * g0[:, i]) +
-                                           (triangles[:, 1, triangle_i] * g1[:, i]) +
-                                           (triangles[:, 2, triangle_i] * g2[:, i]))
+        integral[i + 7] = crosses[:, i] * (
+            (triangles[:, 0, triangle_i] * g0[:, i]) +
+            (triangles[:, 1, triangle_i] * g1[:, i]) +
+            (triangles[:, 2, triangle_i] * g2[:, i]))
 
-    coefficients = 1.0 / np.array([6, 24, 24, 24, 60, 60, 60, 120, 120, 120],
-                                  dtype=np.float64)
+    coefficients = 1.0 / np.array(
+        [6, 24, 24, 24, 60, 60, 60, 120, 120, 120],
+        dtype=np.float64)
     integrated = integral.sum(axis=1) * coefficients
 
     volume = integrated[0]
