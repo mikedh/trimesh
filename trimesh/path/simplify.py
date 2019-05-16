@@ -6,8 +6,10 @@ import collections
 from . import arc
 from . import entities
 
+from .. import util
+
 from ..nsphere import fit_nsphere
-from ..util import unitize, diagonal_dot
+
 from ..constants import log
 from ..constants import tol_path as tol
 
@@ -62,7 +64,7 @@ def fit_circle_check(points,
         return None
 
     vectors = np.diff(points, axis=0)
-    segment = np.linalg.norm(vectors, axis=1)
+    segment = util.row_norm(vectors)
 
     # approximate angle in radians, segments are linear length
     # not arc length but this is close and avoids a cosine
@@ -87,9 +89,9 @@ def fit_circle_check(points,
     # check to make sure the line segments on the ends are actually
     # tangent with the candidate circle fit
     mid_pt = points[[0, -2]] + (vectors[[0, -1]] * .5)
-    radial = unitize(mid_pt - C)
-    ends = unitize(vectors[[0, -1]])
-    tangent = np.abs(np.arccos(diagonal_dot(radial, ends)))
+    radial = util.unitize(mid_pt - C)
+    ends = util.unitize(vectors[[0, -1]])
+    tangent = np.abs(np.arccos(util.diagonal_dot(radial, ends)))
     tangent = np.abs(tangent - np.pi / 2).max()
 
     if tangent > tol.tangent:
@@ -175,7 +177,7 @@ def merge_colinear(points, scale):
     # the vector from one point to the next
     direction = points[1:] - points[:-1]
     # the length of the direction vector
-    direction_norm = np.linalg.norm(direction, axis=1)
+    direction_norm = util.row_norm(direction)
     # make sure points don't have zero length
     direction_ok = direction_norm > tol.merge
 
@@ -189,14 +191,14 @@ def merge_colinear(points, scale):
     # and direction vectors A-B, B-C, etc
     # these will be perpendicular to the vectors A-C, B-D, etc
     perp = (points[2:] - points[:-2]).T[::-1].T
-    perp_norm = np.linalg.norm(perp, axis=1)
+    perp_norm = util.row_norm(perp)
     perp_nonzero = perp_norm > tol.merge
     perp[perp_nonzero] /= perp_norm[perp_nonzero].reshape((-1, 1))
 
     # find the projection of each direction vector
     # onto the perpendicular vector
-    projection = np.abs(diagonal_dot(perp,
-                                     direction[:-1]))
+    projection = np.abs(util.diagonal_dot(perp,
+                                          direction[:-1]))
 
     projection_ratio = np.max((projection / direction_norm[1:],
                                projection / direction_norm[:-1]), axis=0)

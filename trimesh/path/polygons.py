@@ -1,7 +1,7 @@
 import numpy as np
 import networkx as nx
 
-from shapely.geometry import Polygon, Point
+from shapely.geometry import Polygon
 from shapely import vectorized
 
 from rtree import Rtree

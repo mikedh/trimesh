@@ -54,23 +54,52 @@ class VoxelTest(g.unittest.TestCase):
                        v.volume)
 
     def test_marching(self):
+        """
+        Test marching cubes on a matrix
+        """
         try:
-            # make sure offset is correct
-            matrix = g.np.ones((3, 3, 3), dtype=g.np.bool)
-            mesh = g.trimesh.voxel.matrix_to_marching_cubes(
-                matrix=matrix,
-                pitch=1.0,
-                origin=g.np.zeros(3))
-            assert mesh.is_watertight
-
-            mesh = g.trimesh.voxel.matrix_to_marching_cubes(
-                matrix=matrix,
-                pitch=3.0,
-                origin=g.np.zeros(3))
-            assert mesh.is_watertight
-
+            from skimage import measure  # NOQA
         except ImportError:
-            g.log.info('no skimage, skipping marching cubes test')
+            g.log.warn('no skimage, skipping marching cubes test')
+            return
+
+        # make sure offset is correct
+        matrix = g.np.ones((3, 3, 3), dtype=g.np.bool)
+        mesh = g.trimesh.voxel.matrix_to_marching_cubes(
+            matrix=matrix,
+            pitch=1.0,
+            origin=g.np.zeros(3))
+        assert mesh.is_watertight
+
+        mesh = g.trimesh.voxel.matrix_to_marching_cubes(
+            matrix=matrix,
+            pitch=3.0,
+            origin=g.np.zeros(3))
+        assert mesh.is_watertight
+
+    def test_marching_points(self):
+        """
+        Try marching cubes on points
+        """
+        try:
+            from skimage import measure  # NOQA
+        except ImportError:
+            g.log.warn('no skimage, skipping marching cubes test')
+            return
+
+        # get some points on the surface of an icosahedron
+        points = g.trimesh.creation.icosahedron().sample(1000)
+        # make the pitch proportional to scale
+        pitch = points.ptp(axis=0).min() / 10
+        # run marching cubes
+        mesh = g.trimesh.voxel.points_to_marching_cubes(
+            points=points, pitch=pitch)
+
+        # mesh should have faces
+        assert len(mesh.faces) > 0
+        # mesh should be roughly centered
+        assert (mesh.bounds[0] < -.5).all()
+        assert (mesh.bounds[1] > .5).all()
 
     def test_local(self):
         """
@@ -79,27 +108,32 @@ class VoxelTest(g.unittest.TestCase):
         mesh = g.trimesh.creation.box()
 
         # it should have some stuff
-        voxel = g.trimesh.voxel.local_voxelize(mesh=mesh,
-                                               point=[.5, .5, .5],
-                                               pitch=.1,
-                                               radius=5,
-                                               fill=True)
+        voxel = g.trimesh.voxel.local_voxelize(
+            mesh=mesh,
+            point=[.5, .5, .5],
+            pitch=.1,
+            radius=5,
+            fill=True)
 
         assert len(voxel[0].shape) == 3
 
         # try it when it definitely doesn't hit anything
-        empty = g.trimesh.voxel.local_voxelize(mesh=mesh,
-                                               point=[10, 10, 10],
-                                               pitch=.1,
-                                               radius=5,
-                                               fill=True)
+        empty = g.trimesh.voxel.local_voxelize(
+            mesh=mesh,
+            point=[10, 10, 10],
+            pitch=.1,
+            radius=5,
+            fill=True)
+        # shouldn't have hit anything
+        assert len(empty[0]) == 0
 
         # try it when it is in the center of a volume
-        center = g.trimesh.voxel.local_voxelize(mesh=mesh,
-                                                point=[0, 0, 0],
-                                                pitch=.1,
-                                                radius=2,
-                                                fill=True)
+        g.trimesh.voxel.local_voxelize(
+            mesh=mesh,
+            point=[0, 0, 0],
+            pitch=.1,
+            radius=2,
+            fill=True)
 
     def test_points_to_from_indices(self):
         # indices = (points - origin) / pitch
@@ -109,9 +143,9 @@ class VoxelTest(g.unittest.TestCase):
         indices = [[0, 0, 0], [0, 6, 4]]
 
         # points -> indices
-        indices2 = g.trimesh.voxel.points_to_indices(points=points,
-                                                     origin=origin,
-                                                     pitch=pitch)
+        indices2 = g.trimesh.voxel.points_to_indices(
+            points=points, origin=origin, pitch=pitch)
+
         g.np.testing.assert_allclose(indices, indices2, atol=0, rtol=0)
 
         # indices -> points

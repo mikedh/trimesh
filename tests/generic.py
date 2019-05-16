@@ -1,3 +1,4 @@
+# flake8: noqa
 """
 Module which contains most imports and data unit tests
 might need, to reduce the amount of boilerplate.
@@ -49,6 +50,9 @@ from trimesh.base import Trimesh
 trimesh.constants.tol.strict = True
 trimesh.constants.tol_path.strict = True
 
+# should we require all soft dependencies
+# this is set in the docker images to catch missing packages
+all_dep = 'alldep' in ''.join(sys.argv)
 
 try:
     from shapely.geometry import Point, Polygon, LineString

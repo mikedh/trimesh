@@ -1,5 +1,3 @@
-import os
-import sys
 import tempfile
 
 import numpy as np
@@ -8,6 +6,96 @@ try:
     import gmsh
 except ImportError:
     gmsh = None
+
+
+def load_gmsh(file_name, gmsh_args=None):
+    """
+    Returns a surface mesh from CAD model in Open Cascade
+    Breap (.brep), Step (.stp or .step) and Iges formats
+    Or returns a surface mesh from 3D volume mesh using gmsh.
+
+    For a list of possible options to pass to GMSH, check:
+    http://gmsh.info/doc/texinfo/gmsh.html
+
+    An easy way to install the GMSH SDK is through the `gmsh-sdk`
+    package on PyPi, which downloads and sets up gmsh:
+        >>> pip install gmsh-sdk
+
+    Parameters
+    --------------
+    file_name : str
+      Location of the file to be imported
+    gmsh_args : (n, 2) list
+      List of (parameter, value) pairs to be passed to
+      gmsh.option.setNumber
+    max_element : float or None
+      Maximum length of an element in the volume mesh
+
+    Returns
+    ------------
+    mesh : trimesh.Trimesh
+      Surface mesh of input geometry
+    """
+    # use STL as an intermediate format
+    from ..exchange.stl import load_stl
+
+    # start with default args for the meshing step
+    # Mesh.Algorithm=2 MeshAdapt/Delaunay, there are others but they may include quads
+    # With this planes are meshed using Delaunay and cylinders are meshed using MeshAdapt
+    args = [("Mesh.Algorithm", 2),
+            ("Mesh.CharacteristicLengthFromCurvature", 1),
+            ("Mesh.MinimumCirclePoints", 32)]
+    # add passed argument tuples last so we can override defaults
+    if gmsh_args is not None:
+        args.extend(gmsh_args)
+
+    # formats GMSH can load
+    supported = ['.brep', '.stp', '.step', '.igs', '.iges',
+                 '.bdf', '.msh', '.inp', '.diff', '.mesh']
+
+    # check extensions to make sure it is supported format
+    if file_name is not None:
+        if not any(file_name.lower().endswith(e)
+                   for e in supported):
+            raise ValueError(
+                'Supported formats are: BREP (.brep), STEP (.stp or .step), ' +
+                'IGES (.igs or .iges), Nastran (.bdf), Gmsh (.msh), Abaqus (*.inp), ' +
+                'Diffpack (*.diff), Inria Medit (*.mesh)')
+    else:
+        raise ValueError('No import since no file was provided!')
+
+    # if we initialize with sys.argv it could be anything
+    gmsh.initialize()
+    gmsh.option.setNumber("General.Terminal", 1)
+    gmsh.model.add('Surface_Mesh_Generation')
+    gmsh.open(file_name)
+
+    # create a temporary file for the results
+    out_data = tempfile.NamedTemporaryFile(suffix='.stl', delete=False)
+    # windows gets mad if two processes try to open the same file
+    out_data.close()
+
+    # we have to mesh the surface as these are analytic BREP formats
+    if any(file_name.lower().endswith(e)
+           for e in ['.brep', '.stp', '.step', '.igs', '.iges']):
+        gmsh.model.geo.synchronize()
+        # loop through our numbered args which do things, stuff
+        for arg in args:
+            gmsh.option.setNumber(*arg)
+        # generate the mesh
+        gmsh.model.mesh.generate(2)
+        # write to the temporary file
+        gmsh.write(out_data.name)
+    else:
+        gmsh.plugin.run("NewView")
+        gmsh.plugin.run("Skin")
+        gmsh.view.write(1, out_data.name)
+
+    # load the data from the temporary outfile
+    with open(out_data.name, 'rb') as f:
+        kwargs = load_stl(f)
+
+    return kwargs
 
 
 def to_volume(mesh,
@@ -67,8 +155,12 @@ def to_volume(mesh,
 
     if file_name is not None:
         # check extensions to make sure it is supported format
-        if not any(file_name.lower().endswith(e) for e in ['.bdf', 'msh']):
-            raise ValueError('Only Nastran (.bdf) and gmsh (.msh) formats are available!')
+        if not any(file_name.lower().endswith(e)
+                   for e in ['.bdf', '.msh', '.inp', '.diff', '.mesh']):
+            raise ValueError(
+                'Only Nastran (.bdf), Gmsh (.msh), Abaqus (*.inp), ' +
+                'Diffpack (*.diff) and Inria Medit (*.mesh) formats ' +
+                'are available!')
 
     # exports to disk for gmsh to read using a temp file
     mesh_file = tempfile.NamedTemporaryFile(suffix='.stl', delete=False)
@@ -76,7 +168,7 @@ def to_volume(mesh,
     mesh.export(mesh_file.name)
 
     # starts Gmsh Python API script
-    gmsh.initialize(sys.argv)
+    gmsh.initialize()
     gmsh.option.setNumber("General.Terminal", 1)
     gmsh.model.add('Nastran_stl')
 

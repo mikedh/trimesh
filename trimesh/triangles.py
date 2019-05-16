@@ -94,25 +94,31 @@ def angles(triangles):
     Returns
     ------------
     angles : (n, 3) float
-      Angles at vertex positions, in radians
+      Angles at vertex positions in radians
+      Degenerate angles will be returned as zero
     """
+    # copy triangles so we can unitize in-place
+    triangles = np.array(triangles, dtype=np.float64)
 
-    # get a vector for each edge of the triangle
+    # get a unit vector for each edge of the triangle
     u = triangles[:, 1] - triangles[:, 0]
     v = triangles[:, 2] - triangles[:, 0]
     w = triangles[:, 2] - triangles[:, 1]
 
-    # normalize each vector in place
-    u /= np.linalg.norm(u, axis=1, keepdims=True)
-    v /= np.linalg.norm(v, axis=1, keepdims=True)
-    w /= np.linalg.norm(w, axis=1, keepdims=True)
+    # norm per- row of each vector
+    u /= util.row_norm(u).reshape((-1, 1))
+    v /= util.row_norm(v).reshape((-1, 1))
+    w /= util.row_norm(w).reshape((-1, 1))
 
-    # run the cosine and an einsum that definitely does something
-    a = np.arccos(np.clip(np.einsum('ij, ij->i', u, v), -1, 1))
-    b = np.arccos(np.clip(np.einsum('ij, ij->i', -u, w), -1, 1))
+    # run the cosine and per- row dot product
+    a = np.arccos(np.clip(util.diagonal_dot(u, v), -1, 1))
+    b = np.arccos(np.clip(util.diagonal_dot(-u, w), -1, 1))
     c = np.pi - a - b
 
-    return np.column_stack([a, b, c])
+    # convert NaN to 0.0
+    result = np.nan_to_num(np.column_stack([a, b, c]))
+
+    return result
 
 
 def all_coplanar(triangles):
@@ -199,7 +205,8 @@ def mass_properties(triangles,
         crosses = cross(triangles)
 
     # these are the subexpressions of the integral
-    f1 = triangles.sum(axis=1)
+    # this is equvilant but 7x faster than triangles.sum(axis=1)
+    f1 = triangles[:, 0, :] + triangles[:, 1, :] + triangles[:, 2, :]
 
     # for the the first vertex of every triangle:
     # triangles[:,0,:] will give rows like [[x0, y0, z0], ...]
@@ -224,12 +231,14 @@ def mass_properties(triangles,
     integral[4:7] = (crosses * f3).T
     for i in range(3):
         triangle_i = np.mod(i + 1, 3)
-        integral[i + 7] = crosses[:, i] * ((triangles[:, 0, triangle_i] * g0[:, i]) +
-                                           (triangles[:, 1, triangle_i] * g1[:, i]) +
-                                           (triangles[:, 2, triangle_i] * g2[:, i]))
+        integral[i + 7] = crosses[:, i] * (
+            (triangles[:, 0, triangle_i] * g0[:, i]) +
+            (triangles[:, 1, triangle_i] * g1[:, i]) +
+            (triangles[:, 2, triangle_i] * g2[:, i]))
 
-    coefficients = 1.0 / np.array([6, 24, 24, 24, 60, 60, 60, 120, 120, 120],
-                                  dtype=np.float64)
+    coefficients = 1.0 / np.array(
+        [6, 24, 24, 24, 60, 60, 60, 120, 120, 120],
+        dtype=np.float64)
     integrated = integral.sum(axis=1) * coefficients
 
     volume = integrated[0]

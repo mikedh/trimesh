@@ -4,8 +4,8 @@ import networkx as nx
 import copy
 
 from .util import is_ccw
-from ..util import unitize
 
+from .. import util
 from .. import grouping
 from .. import constants
 
@@ -249,7 +249,7 @@ class PathSample:
         # find the direction of each segment
         self._vectors = np.diff(self._points, axis=0)
         # find the length of each segment
-        self._norms = np.linalg.norm(self._vectors, axis=1)
+        self._norms = util.row_norm(self._vectors)
         # unit vectors for each segment
         nonzero = self._norms > constants.tol_path.zero
         self._unit_vec = self._vectors.copy()
@@ -288,15 +288,19 @@ class PathSample:
         if offset < constants.tol_path.merge:
             truncated = self._points[:position + 1]
         else:
-            vector = unitize(np.diff(self._points[np.arange(2) + position],
-                                     axis=0).reshape(-1))
+            vector = util.unitize(np.diff(self._points[np.arange(2) + position],
+                                          axis=0).reshape(-1))
             vector *= offset
             endpoint = self._points[position] + vector
             truncated = np.vstack((self._points[:position + 1],
                                    endpoint))
 
-        assert (np.linalg.norm(np.diff(truncated, axis=0),
-                               axis=1).sum() - distance) < constants.tol_path.merge
+        assert (
+            util.row_norm(
+                np.diff(
+                    truncated,
+                    axis=0)).sum() -
+            distance) < constants.tol_path.merge
 
         return truncated
 
@@ -353,7 +357,7 @@ def resample_path(points,
 
     resampled = sampler.sample(samples)
 
-    check = np.linalg.norm(points[[0, -1]] - resampled[[0, -1]], axis=1)
+    check = util.row_norm(points[[0, -1]] - resampled[[0, -1]])
     assert check[0] < constants.tol_path.merge
     if count is not None:
         assert check[1] < constants.tol_path.merge

@@ -2,7 +2,7 @@
 # transformations.py
 
 # Modified for inclusion in the `trimesh` library
-# github.com/mikedh/trimesh
+# https://github.com/mikedh/trimesh
 # -----------------------------------------------------------------------
 #
 # Copyright (c) 2006-2017, Christoph Gohlke

@@ -238,7 +238,7 @@ class ExportTest(g.unittest.TestCase):
         assert mesh.visual.kind == 'vertex'
 
         as_dict = mesh.to_dict()
-        back = g.trimesh.Trimesh(**as_dict)
+        back = g.trimesh.Trimesh(**as_dict)  # NOQA
 
     def test_scene(self):
         # get a multi- mesh scene with a transform tree

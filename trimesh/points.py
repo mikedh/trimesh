@@ -321,7 +321,7 @@ def plot_points(points, show=True):
       If False, will not show until plt.show() is called
     """
     import matplotlib.pyplot as plt
-    from mpl_toolkits.mplot3d import Axes3D
+    from mpl_toolkits.mplot3d import Axes3D  # NOQA
 
     points = np.asanyarray(points, dtype=np.float64)
 
@@ -537,7 +537,7 @@ class PointCloud(Geometry):
     @colors.setter
     def colors(self, data):
         data = np.asanyarray(data)
-        if data.shape == (4,):
+        if data.shape in [(3,), (4,)]:
             data = np.tile(data, (len(self.vertices), 1))
         self._data['colors'] = data
 

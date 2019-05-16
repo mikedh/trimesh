@@ -18,7 +18,7 @@ class NearestTest(g.unittest.TestCase):
         points = g.trimesh.sample.sample_surface_sphere(100) * 2
 
         # use the triangles from the unit sphere
-        triangles = sphere.triangles
+        triangles = sphere.triangles  # NOQA
 
         # do the check
         closest, distance, tid = g.trimesh.proximity.closest_point_naive(
@@ -70,9 +70,9 @@ class NearestTest(g.unittest.TestCase):
             log_msg)
 
     def check_nearest_point_function(self, fun):
-        def plot_tri(tri, color='g'):
-            plottable = g.np.vstack((tri, tri[0]))
-            plt.plot(plottable[:, 0], plottable[:, 1], color=color)
+        # def plot_tri(tri, color='g'):
+        #     plottable = g.np.vstack((tri, tri[0]))
+        #     plt.plot(plottable[:, 0], plottable[:, 1], color=color)
 
         def points_on_circle(count):
             theta = g.np.linspace(0, g.np.pi * 2, count + 1)[:count]
@@ -121,7 +121,7 @@ class NearestTest(g.unittest.TestCase):
                              ** 2).sum(axis=1) ** .5
 
             # how far was our distance from the one shapely gave
-            distance_test = g.np.abs(distance_shapely - distance_ours)
+            distance_test = g.np.abs(distance_shapely - distance_ours)  # NOQA
 
             # we should have calculated the same distance as shapely
             assert g.np.allclose(distance_ours, distance_shapely)

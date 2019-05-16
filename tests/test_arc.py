@@ -14,7 +14,7 @@ class ArcTests(g.unittest.TestCase):
         points = test_points[0]
         res_center, res_radius = test_results[0]
         center_info = arc_center(points)
-        C, R, N, angle = (center_info['center'],
+        C, R, N, angle = (center_info['center'],  # NOQA
                           center_info['radius'],
                           center_info['normal'],
                           center_info['span'])
@@ -26,7 +26,6 @@ class ArcTests(g.unittest.TestCase):
         from trimesh.path.arc import arc_center
         # Test that arc centers work on well formed random points in 2D and 3D
         min_angle = g.np.radians(2)
-        min_radius = .0001
         count = 1000
 
         center_3D = (g.np.random.random((count, 3)) - .5) * 50

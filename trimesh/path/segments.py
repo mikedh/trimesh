@@ -44,7 +44,7 @@ def segments_to_parameters(segments):
     # make the initial origin one of the end points
     endpoint = segments[:, 0]
     vectors = segments[:, 1] - endpoint
-    vectors_norm = np.linalg.norm(vectors, axis=1)
+    vectors_norm = util.row_norm(vectors)
     vectors /= vectors_norm.reshape((-1, 1))
 
     # find the point along the line nearest the origin

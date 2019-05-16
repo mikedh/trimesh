@@ -39,34 +39,35 @@ def arc_center(points):
     edge_direction = np.diff(points, axis=0)
     edge_midpoints = (edge_direction * 0.5) + points[:2]
 
-    # three points define a plane, so we find its normal vector
+    # three points define a plane, so find signed normal
     plane_normal = np.cross(*edge_direction[::-1])
     plane_normal /= np.linalg.norm(plane_normal)
 
     # unit vector along edges
-    vector_edge = (edge_direction /
-                   np.linalg.norm(edge_direction, axis=1).reshape((-1, 1)))
+    vector_edge = util.unitize(edge_direction)
 
     # perpendicular cector to each segment
-    vector_perp = np.cross(vector_edge, plane_normal)
-    vector_perp /= np.linalg.norm(vector_perp, axis=1).reshape((-1, 1))
+    vector_perp = util.unitize(np.cross(vector_edge, plane_normal))
 
-    # run the line- line intersection to find the point
+    # run the line-line intersection to find the point
     intersects, center = line_line(origins=edge_midpoints,
                                    directions=vector_perp,
                                    plane_normal=plane_normal)
 
     if not intersects:
-        raise ValueError('Segments do not intersect!')
+        raise ValueError('segments do not intersect:\n{}'.format(
+            str(points)))
 
     # radius is euclidean distance
     radius = ((points[0] - center) ** 2).sum() ** .5
 
     # vectors from points on arc to center point
-    vector = points - center
-    vector /= np.linalg.norm(vector, axis=1).reshape((-1, 1))
+    vector = util.unitize(points - center)
 
+    # find the angle between the first and last vector
     angle = np.arccos(np.clip(np.dot(*vector[[0, 2]]), -1.0, 1.0))
+    # if the angle is nonzero and vectors are opposite directions
+    # it means we have a long arc rather than the short path
     large_arc = (abs(angle) > tol.zero and
                  np.dot(*edge_direction) < 0.0)
     if large_arc:
@@ -142,8 +143,7 @@ def discretize_arc(points,
     # do an in-process check to make sure result endpoints
     # match the endpoints of the source arc
     if not close:
-        arc_dist = np.linalg.norm(points[[0, -1]] -
-                                  discrete[[0, -1]], axis=1)
+        arc_dist = util.row_norm(points[[0, -1]] - discrete[[0, -1]])
         arc_ok = (arc_dist < tol.merge).all()
         if not arc_ok:
             log.warn(

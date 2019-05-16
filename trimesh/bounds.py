@@ -6,6 +6,7 @@ from .constants import log
 from . import util
 from . import convex
 from . import nsphere
+from . import geometry
 from . import grouping
 from . import triangles
 from . import transformations
@@ -49,11 +50,11 @@ def oriented_bounds_2D(points, qhull_options='QbB'):
     # (n,2) points on the convex hull
     hull_points = convex.points[convex.vertices]
 
-    # direction of the edges of the hull polygon
-    edge_vectors = np.diff(hull_edges, axis=1).reshape((-1, 2))
+    # unit vector direction of the edges of the hull polygon
+    # filter out zero- magnitude edges via check_valid
+    edge_vectors, _ = util.unitize(np.diff(hull_edges, axis=1).reshape((-1, 2)),
+                                   check_valid=True)
 
-    # unitize vectors
-    edge_vectors /= np.linalg.norm(edge_vectors, axis=1).reshape((-1, 1))
     # create a set of perpendicular vectors
     perp_vectors = np.fliplr(edge_vectors) * [-1.0, 1.0]
 
@@ -291,6 +292,39 @@ def minimum_cylinder(obj, sample_count=6, angle_tol=.001):
             return transform, radius, height
         return volume
 
+    # we've been passed a mesh with radial symmetry
+    # use center mass and symmetry axis and go home early
+    if hasattr(obj, 'symmetry') and obj.symmetry == 'radial':
+        # find our origin
+        if obj.is_watertight:
+            # set origin to center of mass
+            origin = obj.center_mass
+        else:
+            # convex hull should be watertight
+            origin = obj.convex_hull.center_mass
+        # will align symmetry axis with Z and move origin to zero
+        to_2D = geometry.plane_transform(
+            origin=origin,
+            normal=obj.symmetry_axis)
+        # transform vertices to plane to check
+        on_plane = transformations.transform_points(
+            obj.vertices, to_2D)
+        # cylinder height is overall Z span
+        height = on_plane[:, 2].ptp()
+        # center mass is correct on plane, but position
+        # along symmetry axis may be wrong so slide it
+        slide = transformations.translation_matrix(
+            [0, 0, (height / 2.0) - on_plane[:, 2].max()])
+        to_2D = np.dot(slide, to_2D)
+        # radius is maximum radius
+        radius = (on_plane[:, :2] ** 2).sum(axis=1).max() ** 0.5
+        # save kwargs
+        result = {'height': height,
+                  'radius': radius,
+                  'transform': np.linalg.inv(to_2D)}
+        return result
+
+    # get the points on the convex hull of the result
     hull = convex.hull_points(obj)
     if not util.is_shape(hull, (-1, 3)):
         raise ValueError('Input must be reducable to 3D points!')
@@ -300,8 +334,6 @@ def minimum_cylinder(obj, sample_count=6, angle_tol=.001):
 
     # if it's rotationally symmetric the bounding cylinder
     # is almost certainly along one of the PCI vectors
-    # if hasattr(obj, 'symmetry_axis') and obj.symmetry_axis is not None:
-    #    samples = util.vector_to_spherical(obj.principal_inertia_vectors)
     if hasattr(obj, 'principal_inertia_vectors'):
         # add the principal inertia vectors if we have a mesh
         samples = np.vstack(

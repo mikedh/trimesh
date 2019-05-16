@@ -1,6 +1,7 @@
 import numpy as np
 
-from ..util import stack_3D
+from .. import util
+
 from ..constants import tol_path as tol
 
 
@@ -30,12 +31,11 @@ def line_line(origins,
                   else:          None
     """
     # check so we can accept 2D or 3D points
-    origins, is_2D = stack_3D(origins, return_2D=True)
-    directions, is_2D = stack_3D(directions, return_2D=True)
+    origins, is_2D = util.stack_3D(origins, return_2D=True)
+    directions, is_2D = util.stack_3D(directions, return_2D=True)
 
     # unitize direction vectors
-    directions /= np.linalg.norm(directions,
-                                 axis=1).reshape((-1, 1))
+    directions /= util.row_norm(directions).reshape((-1, 1))
 
     # exit if values are parallel
     if np.sum(np.abs(np.diff(directions,

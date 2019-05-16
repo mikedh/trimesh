@@ -57,7 +57,7 @@ class SceneGroup(pyglet.graphics.Group):
         gl.glPushMatrix()
         gl.glLoadIdentity()
         near = 0.01
-        far = self.scene.scale * 5.0
+        far = 1000.
         gl.gluPerspective(self.scene.camera.fov[1], width / height, near, far)
         gl.glMatrixMode(gl.GL_MODELVIEW)
 
@@ -78,7 +78,7 @@ class SceneGroup(pyglet.graphics.Group):
         self._set_view()
 
         SceneViewer._gl_set_background(self._background)
-        SceneViewer._gl_enable_depth(self.scene)
+        SceneViewer._gl_enable_depth()
         SceneViewer._gl_enable_color_material()
         SceneViewer._gl_enable_blending()
         SceneViewer._gl_enable_smooth_lines()
@@ -227,8 +227,8 @@ class SceneWidget(glooey.Widget):
         y_prev = y - dy
         left, bottom = self.rect.left, self.rect.bottom
         width, height = self.rect.width, self.rect.height
-        if not (left <= x_prev <= left + width) or \
-                not (bottom <= y_prev <= bottom + height):
+        if not (left < x_prev <= left + width) or \
+                not (bottom < y_prev <= bottom + height):
             self.view['ball'].down(np.array([x, y]))
 
         SceneViewer.on_mouse_drag(self, x, y, dx, dy, buttons, modifiers)
@@ -260,6 +260,9 @@ class SceneWidget(glooey.Widget):
             self.mesh_group[node_name] = mesh_group
 
         if self.vertex_list_hash.get(geometry_name) != geometry_hash_new:
+            if geometry_name in self.vertex_list:
+                self.vertex_list[geometry_name].delete()
+
             # convert geometry to constructor args
             args = rendering.convert_to_vertexlist(geometry, group=mesh_group)
             # create the indexed vertex list

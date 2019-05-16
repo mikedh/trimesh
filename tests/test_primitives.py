@@ -4,7 +4,7 @@ except BaseException:
     import generic as g
 
 try:
-    import meshpy
+    import meshpy  # NOQA
     has_meshpy = True
 except ImportError:
     g.log.warning('No meshpy! Not testing extrude primitives!')
@@ -105,7 +105,7 @@ class PrimitiveTest(g.unittest.TestCase):
 
             # check that overload of dir worked
             assert len([i
-                        for i in dir(primitive.primitive) if not '_' in i]) > 0
+                        for i in dir(primitive.primitive) if '_' not in i]) > 0
 
             if hasattr(primitive, 'direction'):
                 assert primitive.direction.shape == (3,)
@@ -176,6 +176,21 @@ class PrimitiveTest(g.unittest.TestCase):
                              start)
         assert g.np.allclose(box.extents,
                              start)
+
+    def test_cyl_buffer(self):
+        # test our inflation of cylinder primitives
+        c = g.trimesh.primitives.Cylinder(
+            radius=1.0,
+            height=10.0,
+            transform=g.trimesh.transformations.random_rotation_matrix())
+        # inflate cylinder
+        b = c.buffer(1.0)
+        assert g.np.isclose(b.primitive.height, 12.0)
+        assert g.np.isclose(b.primitive.radius, 2.0)
+        # should contain all vertices of source mesh
+        assert b.contains(c.vertices).all()
+        # should contain line segment
+        assert b.contains(c.segment).all()
 
 
 if __name__ == '__main__':

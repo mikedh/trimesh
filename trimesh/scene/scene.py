@@ -356,7 +356,7 @@ class Scene(Geometry):
         triangles_index : (len(self.triangles),)
             Node name for each triangle
         """
-        populate = self.triangles
+        populate = self.triangles  # NOQA
         return self._cache['triangles_node']
 
     @caching.cache_decorator
@@ -448,7 +448,8 @@ class Scene(Geometry):
         transform = cameras.look_at(self.bounds_corners,
                                     fov=fov,
                                     rotation=rotation,
-                                    distance=distance)
+                                    distance=distance,
+                                    center=center)
 
         if hasattr(self, '_camera') and self._camera is not None:
             self.camera.fov = fov

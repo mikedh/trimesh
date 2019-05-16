@@ -38,7 +38,8 @@ class HemisphereTests(g.unittest.TestCase):
 
             # after resigning, negative vectors should equal positive
             check = (abs(g.np.diff(resigned.reshape((-1, 2, dimension)),
-                                   axis=1).sum(axis=2)) < g.trimesh.constants.tol.zero).all()
+                                   axis=1).sum(axis=2)) <
+                     g.trimesh.constants.tol.zero).all()
             assert check
 
             a, s = g.trimesh.util.vector_hemisphere(v, return_sign=True)

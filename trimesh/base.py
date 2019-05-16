@@ -1,3 +1,4 @@
+# flake8: noqa
 """
 github.com/mikedh/trimesh
 ----------------------------
@@ -840,7 +841,7 @@ class Trimesh(Geometry):
           Length of each unique edge
         """
         vector = np.subtract(*self.vertices[self.edges_unique.T])
-        length = np.linalg.norm(vector, axis=1)
+        length = util.row_norm(vector)
         return length
 
     @caching.cache_decorator
@@ -2402,7 +2403,7 @@ class Trimesh(Geometry):
         result = self.export(file_type='dict')
         return result
 
-    def convex_decomposition(self, engine=None, maxhulls=20, **kwargs):
+    def convex_decomposition(self, maxhulls=20, **kwargs):
         """
         Compute an approximate convex decomposition of a mesh.
 
@@ -2433,8 +2434,6 @@ class Trimesh(Geometry):
         ----------
         maxhulls :  int
           Maximum number of convex hulls to return
-        engine : string
-          Which backend to use. Valid choice is 'vhacd'.
         **kwargs :  testVHACD keyword arguments
 
         Returns
@@ -2443,7 +2442,6 @@ class Trimesh(Geometry):
           List of convex meshes that approximate the original
         """
         result = decomposition.convex_decomposition(self,
-                                                    engine=engine,
                                                     maxhulls=maxhulls,
                                                     **kwargs)
         return result

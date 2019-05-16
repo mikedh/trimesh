@@ -22,9 +22,8 @@ from .geometry import faces_to_edges
 try:
     from graph_tool import Graph as GTGraph
     from graph_tool.topology import label_components
-    _has_gt = True
 except ImportError:
-    _has_gt = False
+    pass
 
 try:
     from scipy.sparse import csgraph, coo_matrix
@@ -178,7 +177,7 @@ def face_adjacency_radius(mesh):
             vectors, edges_vec).reshape(
             (-1, 1)) * edges_vec))
     # the length of the perpendicular projection
-    span = np.linalg.norm(perp, axis=1)
+    span = util.row_norm(perp)
 
     # complete the values for non- infinite radii
     radii = np.ones(len(mesh.face_adjacency)) * np.inf

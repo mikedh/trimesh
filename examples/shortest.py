@@ -8,7 +8,6 @@ of the mesh.
 """
 
 import trimesh
-import numpy as np
 
 import networkx as nx
 

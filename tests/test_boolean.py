@@ -21,7 +21,9 @@ class BooleanTest(g.unittest.TestCase):
                    ('scad', g.trimesh.interfaces.scad.exists)]
 
         for engine, exists in engines:
-            if not exists:
+            # if we have all_dep set it means we should fail if
+            # engine is not installed so don't continue
+            if not exists and not g.all_dep:
                 g.log.warning('skipping boolean engine %s', engine)
                 continue
 

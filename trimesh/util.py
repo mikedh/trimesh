@@ -36,7 +36,6 @@ else:
 
 # create a default logger
 log = logging.getLogger('trimesh')
-log.addHandler(logging.NullHandler())
 
 # include constants here so we don't have to import
 # a floating point threshold for 0.0
@@ -571,6 +570,32 @@ def diagonal_dot(a, b):
     # avoiding np.ones saves 5-10% sometimes
     result = np.dot(a * b, [1.0] * a.shape[1])
     return result
+
+
+def row_norm(data):
+    """
+    Compute the norm per- row of a numpy array.
+
+    This is identical to np.linalg.norm(data, axis=1) but roughly
+    three times faster due to being less general.
+
+    In [3]: %timeit trimesh.util.row_norm(a)
+    76.3 us +/- 651 ns per loop
+
+    In [4]: %timeit np.linalg.norm(a, axis=1)
+    220 us +/- 5.41 us per loop
+
+    Parameters
+    -------------
+    data : (n, d) float
+      Input 2D data to calculate per- row norm of
+
+    Returns
+    -------------
+    norm : (n,) float
+      Norm of each row of input array
+    """
+    return np.sqrt(np.dot(data ** 2, [1] * data.shape[1]))
 
 
 def stack_3D(points, return_2D=False):

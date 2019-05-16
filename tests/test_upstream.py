@@ -17,8 +17,8 @@ class UpstreamTests(g.unittest.TestCase):
         conda installs of shapely started returning NaN on
         valid input so make sure our builds fail in that case
         """
-        l = g.LineString([[0, 0], [1, 0]])
-        assert g.np.isclose(l.length, 1.0)
+        string = g.LineString([[0, 0], [1, 0]])
+        assert g.np.isclose(string.length, 1.0)
 
 
 if __name__ == '__main__':

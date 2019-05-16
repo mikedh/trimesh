@@ -79,7 +79,7 @@ def export_urdf(mesh,
 
         link_name = 'link_{}'.format(piece_name)
         geom_name = '{}'.format(piece_filename)
-        I = [['{:.2E}'.format(y) for y in x]
+        I = [['{:.2E}'.format(y) for y in x]  # NOQA
              for x in piece.moment_inertia]
 
         # Write the link out to the XML Tree

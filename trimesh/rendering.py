@@ -307,16 +307,10 @@ def matrix_to_gl(matrix):
     glmatrix : (16,) gl.GLfloat
       Transform in pyglet format
     """
-    matrix = np.asanyarray(matrix, dtype=np.float64)
-    if matrix.shape != (4, 4):
-        raise ValueError('matrix must be (4,4)!')
 
-    # switch to column major and flatten to (16,)
-    column = matrix.T.flatten()
-    # convert to GLfloat
-    glmatrix = (gl.GLfloat * 16)(*column)
-
-    return glmatrix
+    # convert to GLfloat, switch to column major and flatten to (16,)
+    return (gl.GLfloat * 16)(*np.asanyarray(
+        matrix, dtype=np.float32).T.ravel())
 
 
 def vector_to_gl(array, *args):

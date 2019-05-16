@@ -34,7 +34,7 @@ class AssimpTest(g.unittest.TestCase):
     def test_duck(self):
         # load the duck using pyassimp
         try:
-            import pyassimp
+            import pyassimp  # NOQA
         except ImportError:
             return
 

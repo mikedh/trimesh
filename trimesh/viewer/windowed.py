@@ -167,6 +167,7 @@ class SceneViewer(pyglet.window.Window):
         if self.callback is not None:
             self.callback(self.scene)
             self._update_vertex_list()
+            self._update_perspective(self.width, self.height)
 
     def add_geometry(self, name, geometry, **kwargs):
         """
@@ -251,7 +252,7 @@ class SceneViewer(pyglet.window.Window):
                           exc_info=True)
 
         self._gl_set_background(background)
-        self._gl_enable_depth(self.scene)
+        self._gl_enable_depth()
         self._gl_enable_color_material()
         self._gl_enable_blending()
         self._gl_enable_smooth_lines()
@@ -266,12 +267,8 @@ class SceneViewer(pyglet.window.Window):
         gl.glClearColor(*[0, 0, 0, 0])
 
     @staticmethod
-    def _gl_enable_depth(scene):
-        # find the maximum depth based on
-        # maximum length of scene AABB
-        max_depth = (np.abs(scene.bounds).max(axis=1) ** 2).sum() ** .5
-        max_depth = np.clip(max_depth, 500.00, np.inf)
-        gl.glDepthRange(0.0, max_depth)
+    def _gl_enable_depth():
+        gl.glDepthRange(0.0, 1000.0)
 
         gl.glClearDepth(1.0)
         gl.glEnable(gl.GL_DEPTH_TEST)
@@ -335,7 +332,7 @@ class SceneViewer(pyglet.window.Window):
             lightN = eval('gl.GL_LIGHT{}'.format(i))
 
             # get the transform for the light by name
-            matrix = scene.graph[light.name][0]
+            matrix = scene.graph.get(light.name)[0]
 
             # convert light object to glLightfv calls
             multiargs = rendering.light_to_gl(
@@ -428,10 +425,7 @@ class SceneViewer(pyglet.window.Window):
             # set the reference to None
             self._axis = None
 
-    def on_resize(self, width, height):
-        """
-        Handle resized windows.
-        """
+    def _update_perspective(self, width, height):
         try:
             # for high DPI screens viewport size
             # will be different then the passed size
@@ -450,9 +444,16 @@ class SceneViewer(pyglet.window.Window):
         gl.gluPerspective(fovY,
                           width / float(height),
                           .01,
-                          self.scene.scale * 5.0)
+                          1000.)
         gl.glMatrixMode(gl.GL_MODELVIEW)
 
+        return width, height
+
+    def on_resize(self, width, height):
+        """
+        Handle resized windows.
+        """
+        width, height = self._update_perspective(width, height)
         self.scene.camera.resolution = (width, height)
         self.view['ball'].resize(self.scene.camera.resolution)
         self.scene.camera.transform = self.view['ball'].pose
@@ -507,7 +508,7 @@ class SceneViewer(pyglet.window.Window):
         elif symbol == pyglet.window.key.A:
             self.toggle_axis()
         elif symbol == pyglet.window.key.Q:
-            self.close()
+            self.on_close()
         elif symbol == pyglet.window.key.M:
             self.maximize()
         elif symbol == pyglet.window.key.F:
@@ -534,14 +535,13 @@ class SceneViewer(pyglet.window.Window):
         """
         Run the actual draw calls.
         """
+
         self._update_meshes()
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
         gl.glLoadIdentity()
 
         # pull the new camera transform from the scene
-        transform_camera = self.scene.graph.get(
-            frame_to='world',
-            frame_from=self.scene.camera.name)[0]
+        transform_camera = np.linalg.inv(self.scene.camera.transform)
 
         # apply the camera transform to the matrix stack
         gl.glMultMatrixf(rendering.matrix_to_gl(transform_camera))
@@ -563,7 +563,7 @@ class SceneViewer(pyglet.window.Window):
             current_node = node_names.popleft()
 
             # get the transform from world to geometry and mesh name
-            transform, geometry_name = self.scene.graph[current_node]
+            transform, geometry_name = self.scene.graph.get(current_node)
 
             # if no geometry at this frame continue without rendering
             if geometry_name is None:

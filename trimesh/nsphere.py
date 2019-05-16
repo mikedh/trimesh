@@ -7,6 +7,7 @@ circles, spheres, hyperspheres, etc.
 """
 import numpy as np
 
+from . import util
 from . import convex
 
 from .constants import log, tol
@@ -19,12 +20,13 @@ except ImportError:
 
 try:
     import psutil
-    # if we have psutil check actual free memory
 
     def _MAX_MEMORY():
+        # if we have psutil check actual free memory when called
         return psutil.virtual_memory().free / 2.0
 except ImportError:
     def _MAX_MEMORY():
+        # use a best guess estimate
         return 1e9
 
 
@@ -39,13 +41,15 @@ def minimum_nsphere(obj):
 
     Parameters
     ----------
-    obj: Trimesh object OR
-         (n,d) float, set of points
+    obj : (n, d) float or trimesh.Trimesh
+      Points or mesh to find minimum bounidng nsphere
 
     Returns
     ----------
-    center: (d) float, center of n- sphere
-    radius: float, radius of n-sphere
+    center : (d,) float
+      Center of fitted n- sphere
+    radius : float
+      Radius of fitted n-sphere
     """
     # reduce the input points or mesh to the vertices of the convex hull
     # since we are computing the furthest site voronoi diagram this reduces
@@ -158,7 +162,7 @@ def fit_nsphere(points, prior=None):
     if not (return_code in [1, 2, 3, 4]):
         raise ValueError('Least square fit failed!')
 
-    radii = np.linalg.norm(points - center_result, axis=1)
+    radii = util.row_norm(points - center_result)
     radius = radii.mean()
     error = radii.ptp()
     return center_result, radius, error
@@ -170,11 +174,13 @@ def is_nsphere(points):
 
     Parameters
     -----------
-    points: (n,dimension) float, points in space
+    points : (n, dimension) float
+      Points in space
 
     Returns
     -----------
-    check: bool, True if input points are on an nsphere
+    check : bool
+      True if input points are on an nsphere
     """
     center, radius, error = fit_nsphere(points)
     check = error < tol.merge

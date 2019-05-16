@@ -22,8 +22,8 @@ class BoundsTest(g.unittest.TestCase):
                 # if we succeed in the meshes original orientation
                 matrix = g.np.eye(4)
                 if i > 0:
-                    matrix = g.trimesh.transformations.random_rotation_matrix()
-                    matrix[0:3, 3] = (g.np.random.random(3) - .5) * 100
+                    # get repeatable transforms
+                    matrix = g.transforms[i]
                     m.apply_transform(matrix)
 
                 box_ext = m.bounding_box_oriented.primitive.extents.copy()
@@ -48,17 +48,17 @@ class BoundsTest(g.unittest.TestCase):
                                       rtol=1e-3,
                                       atol=1e-3)
                 if not close:
-                    #m.visual.face_colors = [200, 0, 0, 100]
-                    #(m + m.bounding_box_oriented).show()
-                    #from IPython import embed
+                    # m.visual.face_colors = [200, 0, 0, 100]
+                    # (m + m.bounding_box_oriented).show()
+                    # from IPython import embed
                     # embed()
                     raise ValueError('OBB extents incorrect:\n{}\n{}'.format(
                         str(m.bounding_box.extents),
                         str(m.bounding_box_oriented.extents)))
 
-            c = m.bounding_cylinder
-            s = m.bounding_sphere
-            p = m.bounding_primitive
+            c = m.bounding_cylinder  # NOQA
+            s = m.bounding_sphere  # NOQA
+            p = m.bounding_primitive  # NOQA
 
     def test_obb_points(self):
         """
@@ -119,6 +119,7 @@ class BoundsTest(g.unittest.TestCase):
 
     def test_cylinder(self):
         """
+        Check bounding cylinders on basically a cuboid
         """
         # not rotationally symmetric
         mesh = g.get_mesh('featuretype.STL')
@@ -127,9 +128,9 @@ class BoundsTest(g.unittest.TestCase):
         radius = 1.0
 
         # spherical coordinates to loop through
-        sphere = g.trimesh.util.grid_linspace([[0, 0],
-                                               [g.np.pi * 2, g.np.pi * 2]],
-                                              5)
+        sphere = g.trimesh.util.grid_linspace(
+            [[0, 0], [g.np.pi * 2, g.np.pi * 2]], 5)
+
         for s in sphere:
             T = g.trimesh.transformations.spherical_matrix(*s)
             p = g.trimesh.creation.cylinder(radius=radius,
@@ -149,6 +150,48 @@ class BoundsTest(g.unittest.TestCase):
             assert g.np.isclose(mesh.bounding_cylinder.volume,
                                 copied.bounding_cylinder.volume,
                                 rtol=.05)
+
+    def test_random_cylinder(self):
+        """
+        Check exact cylinders with the bounding cylinder function.
+        """
+        for i in range(20):
+            # create a random cylinder
+            c = g.trimesh.creation.cylinder(
+                radius=1.0, height=10).permutate.transform()
+            # bounding primitive should have same height and radius
+            assert g.np.isclose(
+                c.bounding_cylinder.primitive.height, 10, rtol=1e-6)
+            assert g.np.isclose(
+                c.bounding_cylinder.primitive.radius, 1, rtol=1e-6)
+            # mesh is a cylinder, so center mass of bounding cylinder
+            # should be exactly the same as the mesh center mass
+            assert g.np.allclose(
+                c.center_mass,
+                c.bounding_cylinder.center_mass,
+                rtol=1e-6)
+
+    def test_bounding_egg(self):
+        # create a distorted sphere mesh
+        # center mass will be offset along Z
+        i = g.trimesh.creation.icosphere()
+        mask = i.vertices[:, 2] > 0.0
+        i.vertices[:, 2][mask] *= 4.0
+
+        # get a copy with a random transform
+        p = i.permutate.transform()
+        assert p.symmetry == 'radial'
+
+        # find the bounding cylinder with this random transform
+        r = p.bounding_cylinder
+
+        # transformed height should match source mesh
+        assert g.np.isclose(i.vertices[:, 2].ptp(),
+                            r.primitive.height,
+                            rtol=1e-6)
+        # slightly inflated cylinder should contain all
+        # vertices of the source mesh
+        assert r.buffer(0.01).contains(p.vertices).all()
 
     def test_obb_order(self):
         # make sure our sorting and transform flipping of

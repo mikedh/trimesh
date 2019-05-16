@@ -1,8 +1,8 @@
 from time import time as time_function
-from logging import getLogger as _getLogger
-from logging import NullHandler as _NullHandler
 
 import numpy as np
+
+from .util import log
 
 
 class ToleranceMesh(object):
@@ -123,10 +123,6 @@ tol = ToleranceMesh()
 # instantiate path tolerances with defaults
 tol_path = TolerancePath()
 res_path = ResolutionPath()
-
-# logging
-log = _getLogger('trimesh')
-log.addHandler(_NullHandler())
 
 
 def log_time(method):

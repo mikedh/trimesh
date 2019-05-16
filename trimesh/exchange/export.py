@@ -5,7 +5,7 @@ from ..constants import log
 from .. import util
 
 from .wavefront import _obj_exporters
-from .urdf import export_urdf
+from .urdf import export_urdf  # NOQA
 from .gltf import export_glb
 from .stl import export_stl, export_stl_ascii
 from .ply import _ply_exporters

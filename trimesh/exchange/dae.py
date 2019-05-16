@@ -19,7 +19,6 @@ except ImportError:
 
 from .. import util
 from .. import visual
-from .. import transformations
 
 from ..constants import log
 

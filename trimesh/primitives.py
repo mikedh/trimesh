@@ -189,11 +189,15 @@ class Cylinder(_Primitive):
         Create a Cylinder Primitive, a subclass of Trimesh.
 
         Parameters
-        ----------
-        radius: float, radius of cylinder
-        height: float, height of cylinder
-        transform: (4,4) float, transformation matrix
-        sections: int, number of facets in circle
+        -------------
+        radius : float
+          Radius of cylinder
+        height : float
+          Height of cylinder
+        transform : (4, 4) float
+          Homogenous transformation matrix
+        sections : int
+          Number of facets in circle
         """
         super(Cylinder, self).__init__(*args, **kwargs)
 
@@ -212,9 +216,11 @@ class Cylinder(_Primitive):
 
         Returns
         ---------
-        volume: float, volume of the cylinder
+        volume : float
+          Volume of the cylinder
         """
-        volume = (np.pi * self.primitive.radius ** 2) * self.primitive.height
+        volume = ((np.pi * self.primitive.radius ** 2) *
+                  self.primitive.height)
         return volume
 
     @caching.cache_decorator
@@ -227,10 +233,11 @@ class Cylinder(_Primitive):
         tensor: (3,3) float, 3D inertia tensor
         """
 
-        tensor = inertia.cylinder_inertia(mass=self.volume,
-                                          radius=self.primitive.radius,
-                                          height=self.primitive.height,
-                                          transform=self.primitive.transform)
+        tensor = inertia.cylinder_inertia(
+            mass=self.volume,
+            radius=self.primitive.radius,
+            height=self.primitive.height,
+            transform=self.primitive.transform)
         return tensor
 
     @property
@@ -245,8 +252,51 @@ class Cylinder(_Primitive):
         axis = np.dot(self.primitive.transform, [0, 0, 1, 0])[:3]
         return axis
 
+    @property
+    def segment(self):
+        """
+        A line segment which if inflated by cylinder radius
+        would represent the cylinder primitive.
+
+        Returns
+        -------------
+        segment : (2, 3) float
+          Points representing a single line segment
+        """
+        # half the height
+        half = self.primitive.height / 2.0
+        # apply the transform to the Z- aligned segment
+        points = np.dot(
+            self.primitive.transform,
+            np.transpose([[0, 0, -half, 1], [0, 0, half, 1]])).T[:, :3]
+        return points
+
+    def buffer(self, distance):
+        """
+        Return a cylinder primitive which covers the source cylinder
+        by distance: radius is inflated by distance, height by twice
+        the distance.
+
+        Parameters
+        ------------
+        distance : float
+          Distance to inflate cylinder radius and height
+
+        Returns
+        -------------
+        buffered : Cylinder
+         Cylinder primitive inflated by distance
+        """
+        distance = float(distance)
+
+        buffered = Cylinder(
+            height=self.primitive.height + distance * 2,
+            radius=self.primitive.radius + distance,
+            transform=self.primitive.transform.copy())
+        return buffered
+
     def _create_mesh(self):
-        log.info('Creating cylinder mesh with r=%f, h=%f and %d sections',
+        log.info('Creating cylinder mesh with r=%f, h=%f %d sections',
                  self.primitive.radius,
                  self.primitive.height,
                  self.primitive.sections)
@@ -442,15 +492,18 @@ class Box(_Primitive):
 
         Parameters
         -------------
-        count: int, number of samples to return
+        count : int
+          Number of samples to return
 
         Returns
         ----------
-        samples: (count,3) float, points inside the volume
+        samples : (count, 3) float
+          Points inside the volume
         """
-        samples = sample.volume_rectangular(extents=self.primitive.extents,
-                                            count=count,
-                                            transform=self.primitive.transform)
+        samples = sample.volume_rectangular(
+            extents=self.primitive.extents,
+            count=count,
+            transform=self.primitive.transform)
         return samples
 
     def sample_grid(self, count=None, step=None):
@@ -461,12 +514,15 @@ class Box(_Primitive):
 
         Parameters
         -----------
-        count: int   or (3,) int,   if specified samples are spaced with np.linspace
-        step:  float or (3,) float, if specified samples are spaced with np.arange
+        count : int or (3,) int
+          If specified samples are spaced with np.linspace
+        step : float or (3,) float
+          If specified samples are spaced with np.arange
 
         Returns
         -----------
-        grid: (n,3) float, points inside the box
+        grid : (n, 3) float
+          Points inside the box
         """
 
         if (count is not None and

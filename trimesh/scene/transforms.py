@@ -5,19 +5,23 @@ import collections
 import numpy as np
 import networkx as nx
 
+from .. import util
 from .. import caching
 from .. import transformations
 
 
 class TransformForest(object):
     def __init__(self, base_frame='world'):
+        # a graph structure, subclass of networkx DiGraph
         self.transforms = EnforcedForest()
+        # hashable, the base or root frame
         self.base_frame = base_frame
 
+        # save paths, keyed with tuple (from, to)
         self._paths = {}
-        self._updated = np.random.random()
-
-        self._cache = caching.Cache(id_function=self.md5)
+        # cache transformation matrices keyed with tuples
+        self._updated = str(np.random.random())
+        self._cache = caching.Cache(self.md5)
 
     def update(self, frame_to, frame_from=None, **kwargs):
         """
@@ -43,8 +47,9 @@ class TransformForest(object):
         geometry : hashable
           Geometry object name, e.g. 'mesh_0'
         """
-        # save a random number for this update
-        self._updated = np.random.random()
+
+        self._updated = str(np.random.random())
+        self._cache.clear()
 
         # if no frame specified, use base frame
         if frame_from is None:
@@ -74,16 +79,7 @@ class TransformForest(object):
             self._paths = {}
 
     def md5(self):
-        """
-        "Hash" of transforms
-
-        Returns
-        -----------
-        md5 : str
-          Approximate hash of transforms
-        """
-        result = str(self._updated) + str(self.base_frame)
-        return result
+        return self._updated
 
     def copy(self):
         """
@@ -247,8 +243,7 @@ class TransformForest(object):
 
         nodes = np.array([
             n for n in self.transforms.nodes()
-            if 'geometry' in self.transforms.node[n]
-        ])
+            if 'geometry' in self.transforms.node[n]])
 
         return nodes
 
@@ -261,33 +256,48 @@ class TransformForest(object):
 
         Parameters
         ---------
-        frame_from: hashable object, usually a string (eg 'world').
-                    If left as None it will be set to self.base_frame
-        frame_to:   hashable object, usually a string (eg 'mesh_0')
+        frame_to : hashable
+          Node name, usually a string (eg 'mesh_0')
+        frame_from : hashable
+          Node name, usually a string (eg 'world').
+          If None it will be set to self.base_frame
 
         Returns
         ---------
-        transform:  (4,4) homogenous transformation matrix
+        transform : (4, 4) float
+          Homogenous transformation matrix
         """
 
         if frame_from is None:
             frame_from = self.base_frame
 
-        cache_key = str(frame_from) + ':' + str(frame_to)
+        # look up transform to see if we have it already
+        cache_key = (frame_from, frame_to)
         cached = self._cache[cache_key]
         if cached is not None:
             return cached
 
-        transform = np.eye(4)
+        # get the path in the graph
         path = self._get_path(frame_from, frame_to)
 
+        # collect transforms along the path
+        transforms = []
+
         for i in range(len(path) - 1):
+            # get the matrix and edge direction
             data, direction = self.transforms.get_edge_data_direction(
                 path[i], path[i + 1])
             matrix = data['matrix']
             if direction < 0:
                 matrix = np.linalg.inv(matrix)
-            transform = np.dot(transform, matrix)
+            transforms.append(matrix)
+        # do all dot products at the end
+        if len(transforms) == 0:
+            transform = np.eye(4)
+        elif len(transforms) == 1:
+            transform = np.asanyarray(transforms[0], dtype=np.float64)
+        else:
+            transform = util.multi_dot(transforms)
 
         geometry = None
         if 'geometry' in self.transforms.node[frame_to]:
@@ -324,9 +334,10 @@ class TransformForest(object):
         return self.update(key, matrix=value)
 
     def clear(self):
-        self._updated = np.random.random()
         self.transforms = EnforcedForest()
         self._paths = {}
+        self._updated = str(np.random.random())
+        self._cache.clear()
 
     def _get_path(self, frame_from, frame_to):
         """
@@ -345,11 +356,15 @@ class TransformForest(object):
         path: (n) list of frame keys
               eg, ['mesh_finger', 'mesh_hand', 'world']
         """
+        # store paths keyed as a tuple
         key = (frame_from, frame_to)
-        if not (key in self._paths):
+        if key not in self._paths:
+            # get the actual shortest paths
             path = self.transforms.shortest_path_undirected(
                 frame_from, frame_to)
+            # store path to avoid recomputing
             self._paths[key] = path
+            return path
         return self._paths[key]
 
 
@@ -450,10 +465,9 @@ def kwargs_to_matrix(**kwargs):
     """
     Turn a set of keyword arguments into a transformation matrix.
     """
-    matrix = np.eye(4)
     if 'matrix' in kwargs:
         # a matrix takes precedence over other options
-        matrix = kwargs['matrix']
+        matrix = np.asanyarray(kwargs['matrix'], dtype=np.float64)
     elif 'quaternion' in kwargs:
         matrix = transformations.quaternion_matrix(kwargs['quaternion'])
     elif ('axis' in kwargs) and ('angle' in kwargs):
