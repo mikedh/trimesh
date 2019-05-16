@@ -236,7 +236,8 @@ def load_gltf(file_obj=None,
     # that can be used to instantiate a trimesh.Scene object
     kwargs = _read_buffers(header=tree,
                            buffers=buffers,
-                           mesh_kwargs=mesh_kwargs)
+                           mesh_kwargs=mesh_kwargs,
+                           resolver=resolver)
     return kwargs
 
 
@@ -626,7 +627,7 @@ def _append_path(path, name, tree, buffer_items):
         vxlist[4][1].astype(float32).tobytes()))
 
 
-def _parse_materials(header, views):
+def _parse_materials(header, views, resolver=None):
     """
     Convert materials and images stored in a GLTF header
     and buffer views to PBRMaterial objects.
@@ -657,7 +658,14 @@ def _parse_materials(header, views):
         # loop through images
         for i, img in enumerate(header["images"]):
             # get the bytes representing an image
-            blob = views[img["bufferView"]]
+            if 'bufferView' in img:
+                blob = views[img["bufferView"]]
+            elif 'uri' in img:
+                blob = resolver.get(img['uri'])
+            else:
+                log.warning('unable to load image from: {}'.format(
+                    img.keys()))
+                continue
             # i.e. 'image/jpeg'
             # mime = img['mimeType']
             try:
@@ -693,7 +701,7 @@ def _parse_materials(header, views):
     return materials
 
 
-def _read_buffers(header, buffers, mesh_kwargs):
+def _read_buffers(header, buffers, mesh_kwargs, resolver=None):
     """
     Given a list of binary data and a layout, return the
     kwargs to create a scene object.
@@ -750,7 +758,8 @@ def _read_buffers(header, buffers, mesh_kwargs):
         access.append(array)
 
     # load images and textures into material objects
-    materials = _parse_materials(header, views)
+    materials = _parse_materials(
+        header, views=views, resolver=resolver)
 
     mesh_prim = collections.defaultdict(list)
     # load data from accessors into Trimesh objects
