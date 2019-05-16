@@ -39,13 +39,9 @@ def arc_center(points):
     edge_direction = np.diff(points, axis=0)
     edge_midpoints = (edge_direction * 0.5) + points[:2]
 
-    if is_2D:
-        # if points were 2D originally we can skip the cross product
-        plane_normal = np.array([0.0, 0.0, 1.0], dtype=np.float64)
-    else:
-        # three points define a plane, so find normal vector with cross
-        plane_normal = np.cross(*edge_direction[::-1])
-        plane_normal /= np.linalg.norm(plane_normal)
+    # three points define a plane, so find signed normal
+    plane_normal = np.cross(*edge_direction[::-1])
+    plane_normal /= np.linalg.norm(plane_normal)
 
     # unit vector along edges
     vector_edge = util.unitize(edge_direction)
