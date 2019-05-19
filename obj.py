@@ -197,7 +197,6 @@ def _parse_faces(lines):
 
     # shape into triangles and switch to 0-indexed
     faces = np.array(v, dtype=np.int64).reshape((-1, 3)) - 1
-
     faces_tex, normals = None, None
     if len(vt) == len(v):
         faces_tex = np.array(vt, dtype=np.int64).reshape((-1, 3)) - 1
@@ -241,7 +240,7 @@ if __name__ == '__main__':
     #name = 'src.obj'
     ##name = 'models/cube_compressed.obj'
     #name = 'model.obj'
-    #name = 'airplane/models/model_normalized.obj'
+    name = 'airplane/models/model_normalized.obj'
 
     with open(name, 'r') as f:
         text = f.read()
@@ -468,15 +467,16 @@ if __name__ == '__main__':
         if faces_tex is not None:
             # texture is referencing vt
             faces, mask_v, mask_vt = unmerge(faces=faces, faces_tex=faces_tex)
-            uv = vt[mask_vt]
-            v = v[mask_v]
-            visual = trimesh.visual.TextureVisuals(
-                uv=uv, material=materials[material])
 
-        kwargs.append({'vertices': v,
-                       'vertex_normals': normals,
-                       'visual': visual,
-                       'faces': faces})
+            try:
+                visual = trimesh.visual.TextureVisuals(
+                    uv=vt[mask_vt], material=materials[material])
+            except BaseException:
+                visual = None
+            kwargs.append({'vertices': v[mask_v],
+                           'vertex_normals': normals,
+                           'visual': visual,
+                           'faces': faces})
 
     tic.append(time.time())
 
@@ -491,4 +491,4 @@ if __name__ == '__main__':
     print('\n\nOld loader: {:0.3f} ms\nNew loader: {:0.3f} ms\nImprovement: {factor:0.3f}x'.format(
         *np.diff(tic) * 1000, factor=np.divide(*np.diff(tic))))
 
-    m = trimesh.Trimesh(**kwargs[0])
+    m = trimesh.Scene([trimesh.Trimesh(**k) for k in kwargs])
