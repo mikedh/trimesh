@@ -32,6 +32,9 @@ if PY3:
 else:
     # Python 2
     from StringIO import StringIO
+    # monkey patch StringIO so `with` statements work
+    StringIO.__enter__ = lambda a: a
+    StringIO.__exit__ = lambda a, b, c, d: a.close()
     BytesIO = StringIO
 
 # create a default logger
