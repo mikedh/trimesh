@@ -93,7 +93,7 @@ def parse_mtl(mtl, resolver=None):
 
 def unmerge(faces, faces_tex):
     """
-    Textured meshes in OBJ come with faces referencing vertex
+    Textured meshes can come with faces referencing vertex
     indices (`v`) and an array the same shape which references
     vertex texture indices (`vt`).
 
@@ -102,7 +102,16 @@ def unmerge(faces, faces_tex):
     faces : (n, d) int
       References vertex indices
     faces_tex : (n, d) int
+      References a list of UV coordinates
 
+    Returns
+    -------------
+    new_faces : (m, d) int
+      New faces for masked vertices
+    mask_v : (p,) int
+      A mask to apply to vertices
+    mask_vt : (p,) int
+      A mask to apply to vt array to get matching UV coordinates
     """
     # stack into pairs of (vertex index, texture index)
     stack = np.column_stack((faces.reshape(-1),
@@ -229,17 +238,19 @@ if __name__ == '__main__':
     - [ ] Face groups `g`
     - [ ] Smoothing groups `s`
     - [x] Useable kwargs
-    - [ ] Usable kwargs with texture
+    - [x] Usable kwargs with texture
+    - [ ] Uses names from OBJ in scene
 
-    Splitting
-    ------------
-    - Every `usemtl` or `o` tag will split faces into a *new mesh*
+    Splitting And Return Type
+    ----------------------------
+    Rather than return a single mesh, this returns a scene containing
+    a new mesh split at every `usemtl` or `o` tag.
     """
 
     name = 'models/fuze.obj'
     #name = 'src.obj'
     ##name = 'models/cube_compressed.obj'
-    #name = 'model.obj'
+    name = 'model.obj'
     name = 'airplane/models/model_normalized.obj'
 
     with open(name, 'r') as f:
@@ -254,6 +265,7 @@ if __name__ == '__main__':
 
     tic = [time.time()]
 
+    # benchmark against the old loader
     with open(name, 'r') as f:
         r = trimesh.exchange.wavefront.load_wavefront(f)
     tic.append(time.time())
@@ -261,6 +273,7 @@ if __name__ == '__main__':
     pr = cProfile.Profile()
     pr.enable()
 
+    # create a fun little resolver
     resolver = trimesh.visual.resolvers.FilePathResolver(name)
 
     # Load Materials
