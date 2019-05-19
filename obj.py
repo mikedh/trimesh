@@ -10,7 +10,6 @@ from trimesh import visual
 from trimesh.constants import log
 
 
-
 TOL_ZERO = 1e-12
 
 
@@ -38,7 +37,7 @@ def parse_mtl(mtl, resolver=None):
     materials = {}
     # use universal newline splitting
     lines = str.splitlines(str(mtl).strip())
-    
+
     for line in lines:
         # split by white space
         split = line.strip().split()
@@ -68,7 +67,7 @@ def parse_mtl(mtl, resolver=None):
                 # an image file name
                 material['image'] = Image.open(
                     util.wrap_as_stream(file_data))
-            except:
+            except BaseException:
                 log.warning('failed to load image', exc_info=True)
 
         elif key in ['Kd', 'Ka', 'Ks']:
@@ -79,7 +78,7 @@ def parse_mtl(mtl, resolver=None):
             try:
                 # diffuse, ambient, and specular float RGB
                 material[mapped[key]] = [float(x) for x in split[1:]]
-            except:
+            except BaseException:
                 log.warning('failed to convert color!', exc_info=True)
 
         elif material is not None:
@@ -92,6 +91,55 @@ def parse_mtl(mtl, resolver=None):
     return materials
 
 
+def unmerge(faces, faces_tex):
+    """
+    Textured meshes in OBJ come with faces referencing vertex
+    indices (`v`) and an array the same shape which references
+    vertex texture indices (`vt`).
+
+    Parameters
+    -------------
+    faces : (n, d) int
+      References vertex indices
+    faces_tex : (n, d) int
+
+    """
+    # stack into pairs of (vertex index, texture index)
+    stack = np.column_stack((faces.reshape(-1),
+                             faces_tex.reshape(-1)))
+    # find unique pairs: we're trying to avoid merging
+    # vertices that have the same position but different
+    # texture coordinates
+    unique, inverse = trimesh.grouping.unique_rows(stack)
+
+    # only take the unique pairts
+    pairs = stack[unique]
+    # try to maintain original vertex order
+    order = pairs[:, 0].argsort()
+    # apply the order to the pairs
+    pairs = pairs[order]
+
+    # the mask for vertices, and mask for vt to generate uv coordinates
+    mask_v, mask_uv = pairs.T
+
+    # we re-ordered the vertices to try to maintain
+    # the original vertex order as much as possible
+    # so to reconstruct the faces we need to remap
+    remap = np.zeros(len(order), dtype=np.int64)
+    remap[order] = np.arange(len(order))
+
+    # the faces are just the inverse with the new order
+    new_faces = remap[inverse].reshape((-1, 3))
+
+    # we should NOT have messed up the faces
+    # note: this is EXTREMELY slow due to the numerous
+    # float comparisons so only use in unit tests
+    if True or trimesh.tol.strict:
+        assert np.allclose(v[faces], v[mask_v][new_faces])
+
+    return new_faces, mask_v, mask_uv
+
+
 def _parse_faces(lines):
     """
     Use a slow but more flexible looping method to process
@@ -101,7 +149,7 @@ def _parse_faces(lines):
     -------------
     lines : (n,) str
       List of lines with face information
-    
+
     Returns
     -------------
     faces : (m, 3) int
@@ -110,7 +158,7 @@ def _parse_faces(lines):
 
     # collect vertex, texture, and vertex normal indexes
     v, vt, vn = [], [], []
-    
+
     # loop through every line starting with a face
     for line in lines:
         # remove leading newlines then
@@ -139,36 +187,36 @@ def _parse_faces(lines):
             # faster to try/except than check in loop
             try:
                 vt.append(int(split[1]))
-            except:
+            except BaseException:
                 pass
             try:
                 # vertex normal is the third index
                 vn.append(int(split[2]))
-            except:
+            except BaseException:
                 pass
 
-    # shape into triangles and switch to 0-indexed 
+    # shape into triangles and switch to 0-indexed
     faces = np.array(v, dtype=np.int64).reshape((-1, 3)) - 1
 
-    texture, normals = None, None
+    faces_tex, normals = None, None
     if len(vt) == len(v):
-        texture = np.array(vt, dtype=np.int64).reshape((-1, 3)) - 1
+        faces_tex = np.array(vt, dtype=np.int64).reshape((-1, 3)) - 1
     if len(vn) == len(v):
         normals = np.array(vn, dtype=np.int64).reshape((-1, 3)) - 1
-        
-    return faces, texture, normals
-    
+
+    return faces, faces_tex, normals
+
 
 if __name__ == '__main__':
 
     """
     OBJ is a free form hippy hot tub of a format which allows pretty much anything. Unfortunatly, for this reason it is extremely popular.
- 
+
     Our current loader supports a lot of things and is vectorized in a bunch of nice places and is decently performant. However, it is pretty convoluted and is tough to "grok" enough to develop on.
 
  This PR includes a mostly fresh pass at an OBJ loader. In my testing on large files, it was roughly 3x faster than the previous loader. Most of the gains are from doing string preprocessing operations, and processing only relevant substrings as much as possible, through `str.find` and `str.rfind`. For small meshes, it is similar or slightly slower than the old loader.
 
-    There is also a fallback method which loops through every face. 
+    There is also a fallback method which loops through every face.
 
     Scope
     -------------
@@ -181,28 +229,30 @@ if __name__ == '__main__':
     - [x] Multiple objects (`o`)
     - [ ] Face groups `g`
     - [ ] Smoothing groups `s`
-    - [x] Useable kwargs 
+    - [x] Useable kwargs
     - [ ] Usable kwargs with texture
-    
+
     Splitting
     ------------
     - Every `usemtl` or `o` tag will split faces into a *new mesh*
     """
 
-    
     name = 'models/fuze.obj'
-    name = 'src.obj'
-    #name = 'models/cube_compressed.obj'
-    name = 'model.obj'
-    
+    #name = 'src.obj'
+    ##name = 'models/cube_compressed.obj'
+    #name = 'model.obj'
+    #name = 'airplane/models/model_normalized.obj'
+
     with open(name, 'r') as f:
         text = f.read()
 
     import time
     import trimesh
-    import cProfile, pstats, io
+    import cProfile
+    import pstats
+    import io
     trimesh.util.attach_to_log()
-    
+
     tic = [time.time()]
 
     with open(name, 'r') as f:
@@ -214,19 +264,19 @@ if __name__ == '__main__':
 
     resolver = trimesh.visual.resolvers.FilePathResolver(name)
 
-    ### Load Materials
+    # Load Materials
     materials = None
     mtl_position = text.find('mtllib')
     if mtl_position >= 0:
         # take the line of the material file after `mtllib`
         # which should be the file location of the .mtl file
-        mtl_path = text[mtl_position+6:text.find('\n', mtl_position)]
+        mtl_path = text[mtl_position + 6:text.find('\n', mtl_position)]
         # use the resolver to get the data, then parse the MTL
         material_kwargs = parse_mtl(resolver[mtl_path], resolver=resolver)
         materials = {k: visual.texture.SimpleMaterial(**v)
                      for k, v in material_kwargs.items()}
-        
-    ### Load Vertices
+
+    # Load Vertices
     # aggressivly reduce blob to only part with vertices
     # the first position of a vertex in the text blob
     v_start = text.find('\nv ') - 3
@@ -236,20 +286,20 @@ if __name__ == '__main__':
     vt_start = text.find('\nvt ', 0, v_start) - 4
     start = min(i for i in [v_start, vt_start, vn_start] if i > 0)
     # search for the first newline past the last vertex
-    v_end   = text.find('\n', text.rfind('\nv ')+3)
+    v_end = text.find('\n', text.rfind('\nv ') + 3)
     # we only need to search from the last
     # vertex up until the end of the file
-    vt_end = text.find('\n', text.rfind('\nvt ', v_end)+4)
-    vn_end = text.find('\n', text.rfind('\nvn ', v_end)+4)
+    vt_end = text.find('\n', text.rfind('\nvt ', v_end) + 4)
+    vn_end = text.find('\n', text.rfind('\nvn ', v_end) + 4)
     # take the last position of any vertex property
     end = max(i for i in [v_end, vt_end, vn_end] if i > 0)
-    # make a giant string numpy array of each "word" 
+    # make a giant string numpy array of each "word"
     words = np.array(text[start:end].split())
 
     # find indexes of the three values after a "vertex" key
     # this strategy avoids having to loop through the giant
     # vertex array but does discard vertex colors if specified
-    v_idx = np.nonzero(words == 'v')[0].reshape((-1,1))
+    v_idx = np.nonzero(words == 'v')[0].reshape((-1, 1))
     # do the type conversion with built- in map/list/float
     # vs np.astype, which is roughly 2x slower and these
     # are some of the most expensive operations in the whole loader
@@ -280,19 +330,19 @@ if __name__ == '__main__':
     vt = None
     if vt_end >= 0:
         # if we have vertex textures specified convert to numpy array
-        vt_idx = np.nonzero(words == 'vt')[0].reshape((-1,1))
+        vt_idx = np.nonzero(words == 'vt')[0].reshape((-1, 1))
         vt_list = words[vt_idx + np.arange(1, 3)].ravel().tolist()
         vt = np.array(list(map(float, vt_list)), dtype=np.float64).reshape((-1, 2))
 
     vn = None
     if vn_end >= 0:
         # if we have vertex normals specified convert to numpy array
-        vn_idx = np.nonzero(words == 'vn')[0].reshape((-1,1))
+        vn_idx = np.nonzero(words == 'vn')[0].reshape((-1, 1))
         if len(vn_idx) == len(v):
             vn_list = words[vn_idx + np.arange(1, 4)].ravel().tolist()
             vn = np.array(list(map(float, vn_list)), dtype=np.float64).reshape((-1, 3))
-        
-    ### Pre-Process Face Text
+
+    # Pre-Process Face Text
     # Rather than looking at each line in a loop we're
     # going to split lines by directives which indicate
     # a new mesh, specifically 'usemtl' and 'o' keys
@@ -356,12 +406,11 @@ if __name__ == '__main__':
             f_idx = m_chunk.find('\nf ')
             if f_idx >= 0:
                 face_tuples.append(
-                   (current_material,
-                    current_object,
-                    m_chunk[f_idx:]))
-    
+                    (current_material,
+                     current_object,
+                     m_chunk[f_idx:]))
 
-    ### Load Faces
+    # Load Faces
     # now we have clean- ish faces grouped by material and object
     # so now we have to turn them into numpy arrays and kwargs
     # for trimesh mesh and scene objects
@@ -381,7 +430,7 @@ if __name__ == '__main__':
         # processes the whole string at once into a 1D array
         # also wavefront is 1- indexed (vs 0- indexed) so offset
         array = np.fromstring(
-            joined, sep = ' ', dtype=np.int64) - 1
+            joined, sep=' ', dtype=np.int64) - 1
 
         # get the number of columns rounded and converted to int
         columns = int(np.round(
@@ -400,11 +449,11 @@ if __name__ == '__main__':
             if columns == 6:
                 # if we have two values per vertex the second
                 # one is index of texture coordinate (`vt`)
-                texture = array[:, index + 1]
+                faces_tex = array[:, index + 1]
             elif columns == 9:
                 # if we have three values per vertex
                 # second value is always texture
-                texture = array[:, index + 1]
+                faces_tex = array[:, index + 1]
                 # third value is reference to vertex normal (`vn`)
                 normals = array[:, index + 2]
         else:
@@ -413,22 +462,24 @@ if __name__ == '__main__':
             log.warning('inconsistent faces!')
             # TODO: allow fallback, and find a mesh we can test it on
             assert False
-            faces, texture, normals = _parse_faces(face_lines)
+            faces, faces_tex, normals = _parse_faces(face_lines)
 
         visual = None
-        if texture is not None:
+        if faces_tex is not None:
+            # texture is referencing vt
+            faces, mask_v, mask_vt = unmerge(faces=faces, faces_tex=faces_tex)
+            uv = vt[mask_vt]
+            v = v[mask_v]
             visual = trimesh.visual.TextureVisuals(
-                uv=texture, material=materials[material])
+                uv=uv, material=materials[material])
 
         kwargs.append({'vertices': v,
                        'vertex_normals': normals,
                        'visual': visual,
                        'faces': faces})
-            
+
     tic.append(time.time())
 
-
-    
     # ... do something ...
     pr.disable()
     s = io.StringIO()
@@ -436,7 +487,8 @@ if __name__ == '__main__':
     ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
     ps.print_stats()
     print(s.getvalue())
-    
-    
+
     print('\n\nOld loader: {:0.3f} ms\nNew loader: {:0.3f} ms\nImprovement: {factor:0.3f}x'.format(
-        *np.diff(tic)*1000, factor=np.divide(*np.diff(tic))))
+        *np.diff(tic) * 1000, factor=np.divide(*np.diff(tic))))
+
+    m = trimesh.Trimesh(**kwargs[0])

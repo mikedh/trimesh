@@ -47,7 +47,7 @@ def merge_vertices(mesh,
     if (textured and
         mesh.visual.defined and
         mesh.visual.kind == 'texture' and
-            mesh.visual.uv is not None):
+        mesh.visual.uv is not None):
 
         # get an array with vertices and UV coordinates
         # converted to integers at requested precision
@@ -92,7 +92,6 @@ def merge_vertices(mesh,
         mask = np.nonzero(referenced)[0][u]
         # run the update
         mesh.update_vertices(mask=mask, inverse=inverse)
-
 
 def group(values, min_len=0, max_len=np.inf):
     """
