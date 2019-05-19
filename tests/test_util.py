@@ -208,14 +208,26 @@ class MassTests(unittest.TestCase):
 class IOWrapTests(unittest.TestCase):
 
     def test_io_wrap(self):
+
+        util = g.trimesh.util
+
+        # check wrap_as_stream
         test_b = g.np.random.random(1).tostring()
         test_s = 'this is a test yo'
+        res_b = util.wrap_as_stream(test_b).read()
+        res_s = util.wrap_as_stream(test_s).read()
+        assert res_b == test_b
+        assert res_s == test_s
 
-        res_b = g.trimesh.util.wrap_as_stream(test_b).read()
-        res_s = g.trimesh.util.wrap_as_stream(test_s).read()
+        # check __enter__ and __exit__
+        hi = 'hi'.encode('utf-8')
+        with util.BytesIO(hi) as f:
+            assert f.read() == hi
 
-        self.assertTrue(res_b == test_b)
-        self.assertTrue(res_s == test_s)
+        # check __enter__ and __exit__
+        hi = 'hi'
+        with util.StringIO(hi) as f:
+            assert f.read() == hi
 
     def test_file_hash(self):
         data = g.np.random.random(10).tostring()
