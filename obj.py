@@ -212,6 +212,29 @@ def _parse_faces(lines):
 
 
 def load_obj(file_obj, resolver=None):
+    """
+    Load a Wavefront OBJ file into kwargs for a trimesh.Scene
+    object.
+
+    Parameters
+    --------------
+    file_obj : file like object
+      Contains OBJ data
+    resolver : trimesh.visual.resolvers.Resolver
+      Allow assets such as referenced textures and
+      material files to be loaded
+
+    Returns
+    -------------
+    kwargs : dict
+      Keyword arguments which can be loaded by
+      trimesh.exchange.load.load_kwargs into a trimesh.Scene
+    """
+
+    # get text as string blob
+    text = file_obj.read()
+    if hasattr(text, 'decode'):
+        text = text.decode('utf-8')
 
     # Load Materials
     materials = None
@@ -363,7 +386,7 @@ def load_obj(file_obj, resolver=None):
     # now we have clean- ish faces grouped by material and object
     # so now we have to turn them into numpy arrays and kwargs
     # for trimesh mesh and scene objects
-    kwargs = []
+    geometry = {}
     for material, obj, chunk in face_tuples:
         # do wangling in string form
         # we need to only take the face line before a newline
@@ -394,6 +417,8 @@ def load_obj(file_obj, resolver=None):
             # slice the faces out of the blob array
             faces = array[:, index]
 
+            # TODO: probably need to support 8 and 12 columns for quads
+            # or do something more general
             faces_tex, normals = None, None
             if columns == 6:
                 # if we have two values per vertex the second
@@ -449,15 +474,24 @@ def load_obj(file_obj, resolver=None):
                             exc_info=True)
                 visual = None
             # mask vertices and use new faces
-            kwargs.append({'vertices': v[mask_v],
-                           'vertex_normals': normals,
-                           'visual': visual,
-                           'faces': new_faces})
+            geometry[util.unique_id()] = {'vertices': v[mask_v],
+                                          'vertex_normals': normals,
+                                          'visual': visual,
+                                          'faces': new_faces}
         else:
             # otherwise just use unmasked vertices
-            kwargs.append({'vertices': v,
-                           'faces': faces,
-                           'vertex_normals': normals})
+            geometry[util.unique_id()] = {'vertices': v,
+                                          'faces': faces,
+                                          'vertex_normals': normals}
+
+    # add an identity transform for every geometry
+    graph = [{'geometry': k, 'frame_to': k, 'matrix': np.eye(4)}
+             for k in geometry.keys()]
+
+    # convert to scene kwargs
+    kwargs = {'geometry': geometry,
+              'graph': graph}
+
     return kwargs
 
 
@@ -504,9 +538,6 @@ if __name__ == '__main__':
     name = 'model.obj'
     name = 'airplane/models/model_normalized.obj'
 
-    with open(name, 'r') as f:
-        text = f.read()
-
     import time
     import trimesh
     import cProfile
@@ -517,8 +548,8 @@ if __name__ == '__main__':
     tic = [time.time()]
 
     # benchmark against the old loader
-    with open(name, 'r') as f:
-        r = trimesh.exchange.wavefront.load_wavefront(f)
+    # with open(name, 'r') as f:
+    #    r = trimesh.exchange.wavefront.load_wavefront(f)
     tic.append(time.time())
 
     #pr = cProfile.Profile()
@@ -527,8 +558,9 @@ if __name__ == '__main__':
     # create a fun little resolver
     resolver = trimesh.visual.resolvers.FilePathResolver(name)
 
-    # run the new loader
-    n = load_obj(f, resolver)
+    # use the new loader
+    with open(name, 'r') as f:
+        n = load_obj(f, resolver)
 
     tic.append(time.time())
 
@@ -541,7 +573,8 @@ if __name__ == '__main__':
     print(s.getvalue())
     """
 
-    m = trimesh.Scene([trimesh.Trimesh(**k) for k in n])
+    # create a scene using the loaded kwargs
+    s = trimesh.exchange.load.load_kwargs(n)
 
     print('\n\nOld loader: {:0.3f} ms\nNew loader: {:0.3f} ms\nImprovement: {factor:0.3f}x'.format(
         *np.diff(tic) * 1000, factor=np.divide(*np.diff(tic))))
