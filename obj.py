@@ -7,7 +7,8 @@ except ImportError:
 
 import trimesh
 from trimesh import util
-from trimesh.visual.texture import SimpleMaterial
+from trimesh.visual.texture import unmerge_faces_tex
+from trimesh.visual.material import SimpleMaterial
 from trimesh.constants import log
 
 trimesh.constants.tol.strict = True
@@ -92,57 +93,6 @@ def parse_mtl(mtl, resolver=None):
 
     return materials
 
-
-def unmerge(faces, faces_tex):
-    """
-    Textured meshes can come with faces referencing vertex
-    indices (`v`) and an array the same shape which references
-    vertex texture indices (`vt`).
-
-    Parameters
-    -------------
-    faces : (n, d) int
-      References vertex indices
-    faces_tex : (n, d) int
-      References a list of UV coordinates
-
-    Returns
-    -------------
-    new_faces : (m, d) int
-      New faces for masked vertices
-    mask_v : (p,) int
-      A mask to apply to vertices
-    mask_vt : (p,) int
-      A mask to apply to vt array to get matching UV coordinates
-    """
-    # stack into pairs of (vertex index, texture index)
-    stack = np.column_stack((faces.reshape(-1),
-                             faces_tex.reshape(-1)))
-    # find unique pairs: we're trying to avoid merging
-    # vertices that have the same position but different
-    # texture coordinates
-    unique, inverse = trimesh.grouping.unique_rows(stack)
-
-    # only take the unique pairts
-    pairs = stack[unique]
-    # try to maintain original vertex order
-    order = pairs[:, 0].argsort()
-    # apply the order to the pairs
-    pairs = pairs[order]
-
-    # the mask for vertices, and mask for vt to generate uv coordinates
-    mask_v, mask_uv = pairs.T
-
-    # we re-ordered the vertices to try to maintain
-    # the original vertex order as much as possible
-    # so to reconstruct the faces we need to remap
-    remap = np.zeros(len(order), dtype=np.int64)
-    remap[order] = np.arange(len(order))
-
-    # the faces are just the inverse with the new order
-    new_faces = remap[inverse].reshape((-1, 3))
-
-    return new_faces, mask_v, mask_uv
 
 
 def _parse_faces(lines):
@@ -458,7 +408,8 @@ def load_obj(file_obj, resolver=None):
         visual = None
         if faces_tex is not None:
             # texture is referencing vt
-            new_faces, mask_v, mask_vt = unmerge(faces=faces, faces_tex=faces_tex)
+            new_faces, mask_v, mask_vt = unmerge_faces_tex(
+                faces=faces, faces_tex=faces_tex)
 
             # we should NOT have messed up the faces
             # note: this is EXTREMELY slow due to the numerous
