@@ -5,10 +5,12 @@ try:
 except ImportError:
     Image = None
 
+import trimesh
 from trimesh import util
-from trimesh import visual
+from trimesh.visual.texture import SimpleMaterial
 from trimesh.constants import log
 
+trimesh.constants.tol.strict = True
 
 TOL_ZERO = 1e-12
 
@@ -140,12 +142,6 @@ def unmerge(faces, faces_tex):
     # the faces are just the inverse with the new order
     new_faces = remap[inverse].reshape((-1, 3))
 
-    # we should NOT have messed up the faces
-    # note: this is EXTREMELY slow due to the numerous
-    # float comparisons so only use in unit tests
-    if True or trimesh.tol.strict:
-        assert np.allclose(v[faces], v[mask_v][new_faces])
-
     return new_faces, mask_v, mask_uv
 
 
@@ -215,66 +211,7 @@ def _parse_faces(lines):
     return faces, faces_tex, normals
 
 
-if __name__ == '__main__':
-
-    """
-    OBJ is a free form hippy hot tub of a format which allows pretty much anything. Unfortunatly, for this reason it is extremely popular.
-
-    Our current loader supports a lot of things and is vectorized in a bunch of nice places and is decently performant. However, it is pretty convoluted and is tough to "grok" enough to develop on.
-
- This PR includes a mostly fresh pass at an OBJ loader. In my testing on large files, it was roughly 3x faster than the previous loader. Most of the gains are from doing string preprocessing operations, and processing only relevant substrings as much as possible, through `str.find` and `str.rfind`. For small meshes, it is similar or slightly slower than the old loader.
-
-    There is also a fallback method which loops through every face.
-
-    Scope
-    -------------
-    - [x] Load vertices (`v`)
-    - [ ] Vertex colors (on the same line as `v`)
-    - [x] Vertex normals (`vn`)
-    - [x] Vertex texture coordinates (`vt`)
-    - [x] Triangular and quad faces
-    - [x] Multiple materials
-    - [x] Multiple objects (`o`)
-    - [ ] Face groups `g`
-    - [ ] Smoothing groups `s`
-    - [x] Useable kwargs
-    - [x] Usable kwargs with texture
-    - [ ] Uses names from OBJ in scene
-
-    Splitting And Return Type
-    ----------------------------
-    Rather than return a single mesh, this returns a scene containing
-    a new mesh split at every `usemtl` or `o` tag.
-    """
-
-    name = 'models/fuze.obj'
-    #name = 'src.obj'
-    ##name = 'models/cube_compressed.obj'
-    name = 'model.obj'
-    name = 'airplane/models/model_normalized.obj'
-
-    with open(name, 'r') as f:
-        text = f.read()
-
-    import time
-    import trimesh
-    import cProfile
-    import pstats
-    import io
-    trimesh.util.attach_to_log()
-
-    tic = [time.time()]
-
-    # benchmark against the old loader
-    with open(name, 'r') as f:
-        r = trimesh.exchange.wavefront.load_wavefront(f)
-    tic.append(time.time())
-
-    pr = cProfile.Profile()
-    pr.enable()
-
-    # create a fun little resolver
-    resolver = trimesh.visual.resolvers.FilePathResolver(name)
+def load_obj(file_obj, resolver=None):
 
     # Load Materials
     materials = None
@@ -285,7 +222,7 @@ if __name__ == '__main__':
         mtl_path = text[mtl_position + 6:text.find('\n', mtl_position)]
         # use the resolver to get the data, then parse the MTL
         material_kwargs = parse_mtl(resolver[mtl_path], resolver=resolver)
-        materials = {k: visual.texture.SimpleMaterial(**v)
+        materials = {k: SimpleMaterial(**v)
                      for k, v in material_kwargs.items()}
 
     # Load Vertices
@@ -457,11 +394,27 @@ if __name__ == '__main__':
             # slice the faces out of the blob array
             faces = array[:, index]
 
-            texture, normals = None, None
+            faces_tex, normals = None, None
             if columns == 6:
                 # if we have two values per vertex the second
                 # one is index of texture coordinate (`vt`)
-                faces_tex = array[:, index + 1]
+
+                # count how many delimeters are in the first face line
+                # to see if our second value is texture or normals
+                count = face_lines[0].count('/')
+                if count == columns:
+                    # case where each face line looks like:
+                    # ' 75//139 76//141 77//141'
+                    # which is vertex/nothing/normal
+                    normals = array[:, index + 1]
+                elif count == int(columns / 2):
+                    # case where each face line looks like:
+                    # '75/139 76/141 77/141'
+                    # which is vertex/texture
+                    faces_tex = array[:, index + 1]
+                else:
+                    log.warning('face lines are weird: {}'.format(
+                        face_lines[0]))
             elif columns == 9:
                 # if we have three values per vertex
                 # second value is always texture
@@ -476,32 +429,119 @@ if __name__ == '__main__':
             assert False
             faces, faces_tex, normals = _parse_faces(face_lines)
 
+        # try to get usable texture
         visual = None
         if faces_tex is not None:
             # texture is referencing vt
-            faces, mask_v, mask_vt = unmerge(faces=faces, faces_tex=faces_tex)
+            new_faces, mask_v, mask_vt = unmerge(faces=faces, faces_tex=faces_tex)
+
+            # we should NOT have messed up the faces
+            # note: this is EXTREMELY slow due to the numerous
+            # float comparisons so only use in unit tests
+            if trimesh.tol.strict:
+                assert np.allclose(v[faces], v[mask_v][new_faces])
 
             try:
                 visual = trimesh.visual.TextureVisuals(
                     uv=vt[mask_vt], material=materials[material])
             except BaseException:
+                log.warning('visual creation failed for submesh!',
+                            exc_info=True)
                 visual = None
+            # mask vertices and use new faces
             kwargs.append({'vertices': v[mask_v],
                            'vertex_normals': normals,
                            'visual': visual,
-                           'faces': faces})
+                           'faces': new_faces})
+        else:
+            # otherwise just use unmasked vertices
+            kwargs.append({'vertices': v,
+                           'faces': faces,
+                           'vertex_normals': normals})
+    return kwargs
+
+
+if __name__ == '__main__':
+
+    """
+    OBJ is a free form hippy hot tub of a format which allows pretty much anything.
+    Unfortunatly, for this reason it is extremely popular.
+
+    Our current loader supports a lot of things and is vectorized in a bunch of nice
+    places and is decently performant. However, it is pretty convoluted and is tough
+    to "grok" enough to develop on.
+
+    This PR includes a mostly fresh pass at an OBJ loader. In my testing on large files,
+    it was roughly 3x faster than the previous loader. Most of the gains are from doing
+    string preprocessing operations, and processing only relevant substrings as much as
+    possible, through `str.find` and `str.rfind`. For small meshes, it is similar or
+    slightly slower than the old loader.
+
+    There is also a fallback method which loops through every face.
+
+    Scope
+    -------------
+    - [x] Load vertices (`v`)
+    - [ ] Vertex colors (on the same line as `v`)
+    - [x] Vertex normals (`vn`)
+    - [x] Vertex texture coordinates (`vt`)
+    - [x] Triangular and quad faces
+    - [x] Multiple materials
+    - [x] Multiple objects (`o`)
+    - [ ] Face groups `g`
+    - [ ] Smoothing groups `s`
+    - [x] Useable kwargs
+    - [x] Usable kwargs with texture
+    - [ ] Uses names from OBJ in scene
+
+    Splitting And Return Type
+    ----------------------------
+    Rather than return a single mesh, this returns a scene containing
+    a new mesh split at every `usemtl` or `o` tag.
+    """
+
+    name = 'models/fuze.obj'
+    name = 'model.obj'
+    name = 'airplane/models/model_normalized.obj'
+
+    with open(name, 'r') as f:
+        text = f.read()
+
+    import time
+    import trimesh
+    import cProfile
+    import pstats
+    import io
+    trimesh.util.attach_to_log()
+
+    tic = [time.time()]
+
+    # benchmark against the old loader
+    with open(name, 'r') as f:
+        r = trimesh.exchange.wavefront.load_wavefront(f)
+    tic.append(time.time())
+
+    #pr = cProfile.Profile()
+    # pr.enable()
+
+    # create a fun little resolver
+    resolver = trimesh.visual.resolvers.FilePathResolver(name)
+
+    # run the new loader
+    n = load_obj(f, resolver)
 
     tic.append(time.time())
 
-    # ... do something ...
+    """
     pr.disable()
     s = io.StringIO()
     sortby = 'cumulative'
     ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
     ps.print_stats()
     print(s.getvalue())
+    """
+
+    m = trimesh.Scene([trimesh.Trimesh(**k) for k in n])
 
     print('\n\nOld loader: {:0.3f} ms\nNew loader: {:0.3f} ms\nImprovement: {factor:0.3f}x'.format(
         *np.diff(tic) * 1000, factor=np.divide(*np.diff(tic))))
-
-    m = trimesh.Scene([trimesh.Trimesh(**k) for k in kwargs])
