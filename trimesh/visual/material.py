@@ -4,6 +4,9 @@ material.py
 
 Store visual materials as objects.
 """
+import numpy as np
+
+from . import color
 
 
 class Material(object):

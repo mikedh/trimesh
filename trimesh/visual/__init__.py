@@ -19,6 +19,7 @@ from .objects import create_visual, concatenate
 from . import color
 from . import texture
 from . import objects
+from . import material
 from . import resolvers
 
 
