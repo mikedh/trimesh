@@ -211,7 +211,7 @@ class VoxelTest(g.unittest.TestCase):
     def test_is_filled(self):
         """More rigorous test of Voxel.is_filled."""
         n = 10
-        matrix = g.np.random.uniform(size=(n+1,)*3) > 0.5
+        matrix = g.np.random.uniform(size=(n + 1,) * 3) > 0.5
         not_matrix = g.np.logical_not(matrix)
         pitch = 1. / n
         origin = g.np.random.uniform(size=(3,))
