@@ -37,8 +37,7 @@ class VoxelTest(g.unittest.TestCase):
 
                 assert len(v.sparse_solid) > len(v.sparse_surface)
 
-                for p in v.points:
-                    assert v.is_filled(p)
+                assert g.np.all(v.is_filled(v.points))
 
                 outside = m.bounds[1] + m.scale
                 assert not v.is_filled(outside)
@@ -208,6 +207,30 @@ class VoxelTest(g.unittest.TestCase):
         boxes = v.as_boxes(colors=colors)
         assert g.np.allclose(
             boxes.visual.face_colors, color, atol=0, rtol=0)
+
+    def test_is_filled(self):
+        """More rigorous test of Voxel.is_filled."""
+        n = 10
+        matrix = g.np.random.uniform(size=(n+1,)*3) > 0.5
+        not_matrix = g.np.logical_not(matrix)
+        pitch = 1. / n
+        origin = g.np.random.uniform(size=(3,))
+        vox = g.trimesh.voxel.Voxel(matrix, pitch, origin)
+        not_vox = g.trimesh.voxel.Voxel(not_matrix, pitch, origin)
+        for a, b in ((vox, not_vox), (not_vox, vox)):
+            points = a.points
+            # slight jitter - shouldn't change indices
+            points += (g.np.random.uniform(size=points.shape) - 1) * 0.4*pitch
+            g.np.random.shuffle(points)
+
+            # all points are filled, and no empty points are filled
+            self.assertTrue(g.np.all(a.is_filled(points)))
+            self.assertFalse(g.np.any(b.is_filled(points)))
+
+            # test different number of dimensions
+            points = g.np.stack([points, points[-1::-1]], axis=1)
+            self.assertTrue(g.np.all(a.is_filled(points)))
+            self.assertFalse(g.np.any(b.is_filled(points)))
 
 
 if __name__ == '__main__':
