@@ -220,7 +220,8 @@ class VoxelTest(g.unittest.TestCase):
         for a, b in ((vox, not_vox), (not_vox, vox)):
             points = a.points
             # slight jitter - shouldn't change indices
-            points += (g.np.random.uniform(size=points.shape) - 1) * 0.4*pitch
+            points += (
+                g.np.random.uniform(size=points.shape) - 1) * 0.4 * pitch
             g.np.random.shuffle(points)
 
             # all points are filled, and no empty points are filled
