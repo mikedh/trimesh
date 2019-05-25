@@ -10,8 +10,11 @@ from . import util
 from . import remesh
 from . import caching
 from . import grouping
+from .exchange import rle
 
 from .constants import log, log_time
+
+_axis_index = {'x': 0, 'y': 1, 'z': 2}
 
 
 class VoxelBase(object):
@@ -19,6 +22,13 @@ class VoxelBase(object):
     def __init__(self, *args, **kwargs):
         self._data = caching.DataStore()
         self._cache = caching.Cache(id_function=self._data.crc)
+
+    def transpose(self, axis_order='xzy'):
+        axis_perm = tuple(_axis_index.get(a, a) for a in axis_order)
+        if axis_perm == (0, 1, 2):
+            return self
+        else:
+            return VoxelTranspose(self, axis_perm)
 
     @caching.cache_decorator
     def marching_cubes(self):
@@ -134,6 +144,67 @@ class VoxelBase(object):
         else:
             is_filled = False
         return is_filled
+
+
+class VoxelTranspose(VoxelBase):
+    """Lazily transposed voxel."""
+    def __init__(self, base, axis_perm):
+        axis_perm = tuple(axis_perm)
+        if not (all(isinstance(a, int) for a in axis_perm) and
+                len(axis_perm) == 3):
+            raise ValueError('axis_order must be ints or x/y/z chars')
+        if len(set(axis_perm)) != 3:
+            raise ValueError('axis_order must contain unique entries')
+        self._axis_perm = axis_perm
+        self._base = base
+
+    def _permute(self, data):
+        return data[..., self._axis_perm]
+
+    @property
+    def marching_cubes(self):
+        from .base import Trimesh
+        base = self._base.marching_cubes
+        return Trimesh(
+            vertices=self._permute(base.vertices), faces=base.faces)
+
+    @property
+    def pitch(self):
+        return self._base.pitch
+
+    @property
+    def shape(self):
+        s = self._base.shape
+        return tuple(s[p] for p in self._axis_perm)
+
+    @property
+    def filled_count(self):
+        return self._base.filled_count
+
+    @property
+    def volume(self):
+        return self._base.volume
+
+    @property
+    def points(self):
+        return self._permute(self._base.points)
+
+    def point_to_index(self, point):
+        return self._base.point_to_index(self._permute(point))
+
+    def is_filled(self, point):
+        return self._base.is_filled(self._permute(point))
+
+    @property
+    def origin(self):
+        return self._permute(self._base.origin)
+
+    @property
+    def matrix(self):
+        return self._base.matrix.transpose(self._axis_perm)
+
+    def to_dense(self):
+        return Voxel(self.matrix, self.pitch, self.origin)
 
 
 class Voxel(VoxelBase):
@@ -362,6 +433,80 @@ class VoxelMesh(VoxelBase):
         and show that via its built- in preview method.
         """
         self.as_boxes(solid=solid).show()
+
+
+class VoxelRle(VoxelBase):
+    """Run-length-encoded voxel."""
+    def __init__(self, rle_data, pitch, origin, shape, axis_order='xyz'):
+        super(VoxelRle, self).__init__()
+        self._data['rle_data'] = rle_data
+        self._data['pitch'] = pitch
+        self._data['origin'] = origin
+        self._shape = tuple(shape)
+        self._axis_order = axis_order
+        self._axis_perm = tuple(_axis_index[a] for a in axis_order)
+        if not (
+                all(isinstance(s, int) for s in self._shape) and
+                len(self._shape) == 3):
+            raise ValueError(
+                'shape must be a 3-tuple of ints, got %s' % str(self._shape))
+
+    @property
+    def axis_order(self):
+        return self._axis_order
+
+    def _reorder(self, data):
+        return data[..., self._axis_perm]
+
+    @caching.cache_decorator
+    def filled_count(self):
+        return np.sum(self.rle_data[1::2])
+
+    @property
+    def rle_data(self):
+        return self._data['rle_data']
+
+    @property
+    def origin(self):
+        return self._data['origin']
+
+    @property
+    def shape(self):
+        return self._shape
+
+    def is_filled(self, point):
+        point = np.asanyarray(point)
+        out_shape = point.shape[:-1]
+        point = point.reshape(-1, 3)
+        index = np.asanyarray(self.point_to_index(point))
+        in_range = np.logical_and(
+            np.all(index < np.array(self.shape), axis=-1),
+            np.all(index >= 0, axis=-1))
+        is_filled = np.zeros_like(in_range)
+        flat_index = np.ravel_multi_index(index[in_range].T, self.shape)
+        is_filled[in_range] = rle.gather_1d(self.rle_data, flat_index)
+        return is_filled.reshape(out_shape)
+
+    @caching.cache_decorator
+    def points(self):
+        return rle_to_points(
+            rle_data=self.rle_data, shape=self.shape,
+            pitch=self.pitch, origin=self.origin)
+
+    @caching.cache_decorator
+    def matrix(self):
+        return rle.rle_to_dense(self.rle_data).reshape(self.shape)
+
+    def to_dense(self):
+        """Convert to a Voxel representation based on a dense matrix."""
+        return Voxel(matrix=self.matrix, pitch=self.pitch, origin=self.origin)
+
+    @staticmethod
+    def from_binvox_data(rle, shape, translate, scale, axis_order='xzy'):
+        assert(shape[0] == shape[1] == shape[2])
+        pitch = float(scale)/(shape[0] - 1)
+        origin = translate
+        return VoxelRle(rle, pitch, origin, shape).transpose(axis_order)
 
 
 @log_time
@@ -945,3 +1090,9 @@ def boolean_sparse(a, b, operation=np.logical_and):
     coords = np.column_stack(applied.coords) + origin
 
     return coords
+
+
+def rle_to_points(rle_data, shape, pitch, origin):
+    dense_1d = rle.rle_to_sparse(rle_data)
+    dense_3d = np.unravel_index(dense_1d, shape)
+    return indices_to_points(dense_3d, pitch, origin)
