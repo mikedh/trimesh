@@ -209,6 +209,45 @@ class VoxelTest(g.unittest.TestCase):
         assert g.np.allclose(
             boxes.visual.face_colors, color, atol=0, rtol=0)
 
+    def _test_equiv(self, v0, v1, query_points):
+        def array_as_set(array2d):
+            return set(tuple(x) for x in array2d)
+
+        self.assertEqual(v0.shape, v1.shape)
+        self.assertEqual(v0.filled_count, v1.filled_count)
+        self.assertEqual(v0.volume, v1.volume)
+        g.np.testing.assert_equal(v0.matrix, v1.matrix)
+        # points will be in different order, but should contain same coords
+        g.np.testing.assert_equal(
+            array_as_set(v0.points), array_as_set(v1.points))
+        g.np.testing.assert_equal(v0.origin, v1.origin)
+        g.np.testing.assert_equal(v0.pitch, v1.pitch)
+        for qp in query_points:
+            g.np.testing.assert_equal(
+                v0.point_to_index(qp), v1.point_to_index(qp))
+            g.np.testing.assert_equal(v0.is_filled(qp), v1.is_filled(qp))
+
+    def test_transposed(self):
+        voxel = g.trimesh.voxel
+        matrix = g.np.random.uniform(size=(3, 4, 5)) > 0.5
+        axes = g.np.array((2, 0, 1))
+        origin = g.np.array([0, 1, 2])
+        v = voxel.Voxel(matrix, pitch=1.0, origin=origin)
+        vt = v.transpose(axes)
+        vt2 = voxel.Voxel(
+            matrix.transpose(axes), pitch=1.0, origin=origin[axes])
+        query_points = g.np.random.uniform(size=(20, 3), high=5)
+        self._test_equiv(vt, vt2, query_points)
+        self._test_equiv(vt.to_dense(), vt2.to_dense(), query_points)
+        axes2 = g.np.array((1, 0, 2))
+        self._test_equiv(
+            vt.transpose(axes2), vt2.transpose(axes2), query_points)
+        vt3 = voxel.Voxel(
+            matrix.transpose(axes).transpose(axes2),
+            pitch=1.0,
+            origin=origin[axes][axes2])
+        self._test_equiv(vt.transpose(axes2), vt3, query_points)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

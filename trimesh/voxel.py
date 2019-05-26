@@ -10,11 +10,16 @@ from . import util
 from . import remesh
 from . import caching
 from . import grouping
-from .exchange import rle
+from . import rle
 
 from .constants import log, log_time
 
-_axis_index = {'x': 0, 'y': 1, 'z': 2}
+
+def _tuple(axes):
+    if isinstance(axes, np.ndarray):
+        return tuple(a.item() for a in axes)
+    else:
+        return tuple(axes)
 
 
 class VoxelBase(object):
@@ -23,12 +28,12 @@ class VoxelBase(object):
         self._data = caching.DataStore()
         self._cache = caching.Cache(id_function=self._data.crc)
 
-    def transpose(self, axis_order='xzy'):
-        axis_perm = tuple(_axis_index.get(a, a) for a in axis_order)
-        if axis_perm == (0, 1, 2):
+    def transpose(self, axes):
+        axes = _tuple(axes)
+        if axes == (0, 1, 2):
             return self
         else:
-            return VoxelTranspose(self, axis_perm)
+            return VoxelTranspose(self, axes)
 
     @caching.cache_decorator
     def marching_cubes(self):
@@ -145,37 +150,59 @@ class VoxelBase(object):
             is_filled = False
         return is_filled
 
+    def to_dense(self):
+        return Voxel(self.matrix, self.pitch, self.origin)
+
 
 class VoxelTranspose(VoxelBase):
     """Lazily transposed voxel."""
-    def __init__(self, base, axis_perm):
-        axis_perm = tuple(axis_perm)
-        if not (all(isinstance(a, int) for a in axis_perm) and
-                len(axis_perm) == 3):
-            raise ValueError('axis_order must be ints or x/y/z chars')
-        if len(set(axis_perm)) != 3:
-            raise ValueError('axis_order must contain unique entries')
-        self._axis_perm = axis_perm
+    def __init__(self, base, axes):
+        axes = _tuple(axes)
+        if not (all(isinstance(a, int) for a in axes) and
+                len(axes) == 3):
+            raise ValueError('axes must be ints')
+        axes_set = set(axes)
+        if len(set(axes)) != 3:
+            raise ValueError(
+                'axes must contain unique entries, got %s' % str(axes))
+        if not all(i in axes_set for i in range(3)):
+            raise ValueError('axes must be a permutation of (0, 1, 2)')
+        self._axes = axes
         self._base = base
 
-    def _permute(self, data):
-        return data[..., self._axis_perm]
+    def _permute(self, data, axis=-1):
+        return np.take(data, self._axes, axis=axis)
+
+    def _permute_inv(self, data):
+        out = np.empty_like(data)
+        out[..., self._axes] = data
+        return out
+
+    def _permute_tuple(self, data):
+        """Same as _permute with `axis==0`, but works on lists/tuples."""
+        return tuple(data[p] for p in self._axes)
 
     @property
     def marching_cubes(self):
         from .base import Trimesh
         base = self._base.marching_cubes
+        # permuted vertex normals might be off by -1 for some `axes`?
         return Trimesh(
-            vertices=self._permute(base.vertices), faces=base.faces)
+            vertices=self._permute(base.vertices), faces=base.faces,
+            # vertex_normals=self._permute(base.vertex_normals)
+        )
 
     @property
     def pitch(self):
         return self._base.pitch
 
     @property
+    def origin(self):
+        return self._permute(self._base.origin)
+
+    @property
     def shape(self):
-        s = self._base.shape
-        return tuple(s[p] for p in self._axis_perm)
+        return self._permute_tuple(self._base.shape)
 
     @property
     def filled_count(self):
@@ -190,25 +217,30 @@ class VoxelTranspose(VoxelBase):
         return self._permute(self._base.points)
 
     def point_to_index(self, point):
-        return self._base.point_to_index(self._permute(point))
+        return self._permute(
+            self._base.point_to_index(self._permute_inv(point)))
 
     def is_filled(self, point):
-        return self._base.is_filled(self._permute(point))
-
-    @property
-    def origin(self):
-        return self._permute(self._base.origin)
+        return self._base.is_filled(self._permute_inv(point))
 
     @property
     def matrix(self):
-        return self._base.matrix.transpose(self._axis_perm)
+        return self._base.matrix.transpose(self._axes)
 
-    def to_dense(self):
-        return Voxel(self.matrix, self.pitch, self.origin)
+    def transpose(self, axes):
+        axes = tuple(self._axes[a] for a in axes)
+        return self._base.transpose(axes)
+
+    @property
+    def base(self):
+        return self._base
+
+    @property
+    def transpose_axes(self):
+        return self._axes
 
 
 class Voxel(VoxelBase):
-
     """
     Voxel representation with matrix, pitch and origin.
 
@@ -283,6 +315,9 @@ class Voxel(VoxelBase):
         and show that via its built- in preview method.
         """
         return self.as_boxes().show(*args, **kwargs)
+
+    def to_dense(self):
+        return self
 
 
 class VoxelMesh(VoxelBase):
@@ -437,26 +472,12 @@ class VoxelMesh(VoxelBase):
 
 class VoxelRle(VoxelBase):
     """Run-length-encoded voxel."""
-    def __init__(self, rle_data, pitch, origin, shape, axis_order='xyz'):
+    def __init__(self, rle_data, pitch, origin, shape):
         super(VoxelRle, self).__init__()
         self._data['rle_data'] = rle_data
         self._data['pitch'] = pitch
         self._data['origin'] = origin
         self._shape = tuple(shape)
-        self._axis_order = axis_order
-        self._axis_perm = tuple(_axis_index[a] for a in axis_order)
-        if not (
-                all(isinstance(s, int) for s in self._shape) and
-                len(self._shape) == 3):
-            raise ValueError(
-                'shape must be a 3-tuple of ints, got %s' % str(self._shape))
-
-    @property
-    def axis_order(self):
-        return self._axis_order
-
-    def _reorder(self, data):
-        return data[..., self._axis_perm]
 
     @caching.cache_decorator
     def filled_count(self):
@@ -502,11 +523,44 @@ class VoxelRle(VoxelBase):
         return Voxel(matrix=self.matrix, pitch=self.pitch, origin=self.origin)
 
     @staticmethod
-    def from_binvox_data(rle, shape, translate, scale, axis_order='xzy'):
-        assert(shape[0] == shape[1] == shape[2])
+    def from_binvox_data(
+            rle_data, shape, translate, scale, encoded_axes='xzy'):
+        """
+        Factory for building from data associated with binvox files.
+
+        Args:
+            rle_data: run-length-encoded representation of flat voxel values.
+                See `trimesh.rle` documentation for description of encoding.
+            shape: shape of voxel grid.
+            translate: alias for `origin` in trimesh terminology
+            scale: side length of entire voxel grid. Note this is different
+                to `pitch` in trimesh terminology, which relates to the side
+                length of an individual voxel.
+            encoded_axes: iterable with values in ('x', 'y', 'z', 0, 1, 2),
+                where
+                x \equiv 0, y \equiv 1, z \equiv 2
+                denoting the order of axes in the encoded data. binvox by
+                default saves in xzy order, but using `xyz` (or (0, 1, 2)) will
+                be faster in some circumstances.
+
+        Returns:
+            `VoxelBase` instance: `VoxelRle` or `VoxelTranspose` instance if
+            `axis_order` isn't quivalent to 'xyz' or (0, 1, 2).
+        """
+        # shape must be uniform else scale is ambiguous
+        if not (shape[0] == shape[1] == shape[2]):
+            raise ValueError(
+                'trimesh only supports uniform scaling, so required binvox with '
+                'uniform shapes')
         pitch = float(scale)/(shape[0] - 1)
         origin = translate
-        return VoxelRle(rle, pitch, origin, shape).transpose(axis_order)
+        indices = {'x': 0, 'y': 1, 'z': 2}
+        axes = tuple(indices.get(a, a) for a in encoded_axes)
+        # invert - axes is the order of the encoded data
+        axes = np.array(axes)
+        axes_out = np.empty_like(axes)
+        axes_out[axes] = axes
+        return VoxelRle(rle_data, pitch, origin, shape).transpose(axes)
 
 
 @log_time
