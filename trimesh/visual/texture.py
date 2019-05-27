@@ -172,7 +172,7 @@ class TextureVisuals(object):
         pass
 
 
-def unmerge_faces_tex(faces, faces_tex):
+def unmerge_faces(faces, faces_tex):
     """
     Textured meshes can come with faces referencing vertex
     indices (`v`) and an array the same shape which references
@@ -222,44 +222,3 @@ def unmerge_faces_tex(faces, faces_tex):
     new_faces = remap[inverse].reshape((-1, 3))
 
     return new_faces, mask_v, mask_uv
-
-
-def uv_to_color(uv, image):
-    """
-    Get the color in a texture image.
-
-    Parameters
-    -------------
-    uv : (n, 2) float
-      UV coordinates on texture image
-    image : PIL.Image
-      Texture image
-
-    Returns
-    ----------
-    colors : (n, 4) float
-      RGBA color at each of the UV coordinates
-    """
-    if image is None or uv is None:
-        return None
-
-    # UV coordinates should be (n, 2) float
-    uv = np.asanyarray(uv, dtype=np.float64)
-
-    # get texture image pixel positions of UV coordinates
-    x = (uv[:, 0] * (image.width - 1))
-    y = ((1 - uv[:, 1]) * (image.height - 1))
-
-    # convert to int and wrap to image
-    # size in the manner of GL_REPEAT
-    x = x.round().astype(np.int64) % image.width
-    y = y.round().astype(np.int64) % image.height
-
-    # access colors from pixel locations
-    # make sure image is RGBA before getting values
-    colors = np.asanyarray(image.convert('RGBA'))[y, x]
-
-    # conversion to RGBA should have corrected shape
-    assert colors.ndim == 2 and colors.shape[1] == 4
-
-    return colors

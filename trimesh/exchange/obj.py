@@ -1,19 +1,15 @@
 import numpy as np
 
 try:
-    from PIL import Image
+    import PIL.Image as Image
 except ImportError:
-    Image = None
+    pass
 
-import trimesh
-from trimesh import util
-from trimesh.visual.texture import unmerge_faces_tex
-from trimesh.visual.material import SimpleMaterial
-from trimesh.constants import log
+from .. import util
+from ..visual.texture import unmerge_faces, TextureVisuals
+from ..visual.material import SimpleMaterial
 
-trimesh.constants.tol.strict = True
-
-TOL_ZERO = 1e-12
+from ..constants import log, tol
 
 
 def parse_mtl(mtl, resolver=None):
@@ -53,8 +49,6 @@ def parse_mtl(mtl, resolver=None):
         if key == 'newmtl':
             # material name extracted from line like:
             # newmtl material_0
-            name = split[1]
-
             if material is not None:
                 # save the old material by old name and remove key
                 materials[material.pop('newmtl')] = material
@@ -92,7 +86,6 @@ def parse_mtl(mtl, resolver=None):
         materials[material.pop('newmtl')] = material
 
     return materials
-
 
 
 def _parse_faces(lines):
@@ -161,7 +154,7 @@ def _parse_faces(lines):
     return faces, faces_tex, normals
 
 
-def load_obj(file_obj, resolver=None):
+def load_obj(file_obj, resolver=None, **kwargs):
     """
     Load a Wavefront OBJ file into kwargs for a trimesh.Scene
     object.
@@ -238,6 +231,7 @@ def load_obj(file_obj, resolver=None):
     v = np.array(list(map(float, v_list)), dtype=np.float64).reshape((-1, 3))
 
     # vertex colors are stored right after the vertices
+    """
     vc = None
     try:
         # try just one line, which will raise before
@@ -248,6 +242,7 @@ def load_obj(file_obj, resolver=None):
         vc = np.array(list(map(float, vc_list)), dtype=np.float64).reshape((-1, 3))
     except BaseException:
         pass
+    """
 
     vt = None
     if vt_end >= 0:
@@ -345,7 +340,6 @@ def load_obj(file_obj, resolver=None):
         # this operation is the only one that is O(len(faces))
         # [i[:i.find('\n')] ... requires a conditional
         face_lines = [i.split('\n')[0] for i in chunk.split('\nf ')[1:]]
-
         # then we are going to replace all slashes with spaces
         joined = ' '.join(face_lines).replace('/', ' ')
         # the fastest way to get to a numpy array
@@ -374,7 +368,7 @@ def load_obj(file_obj, resolver=None):
                 # if we have two values per vertex the second
                 # one is index of texture coordinate (`vt`)
 
-                # count how many delimeters are in the first face line
+                # count how many delimiters are in the first face line
                 # to see if our second value is texture or normals
                 count = face_lines[0].count('/')
                 if count == columns:
@@ -404,128 +398,117 @@ def load_obj(file_obj, resolver=None):
             assert False
             faces, faces_tex, normals = _parse_faces(face_lines)
 
+        if v is not None and vn is not None and len(v) == len(vn):
+            from IPython import embed
+            embed()
         # try to get usable texture
         visual = None
         if faces_tex is not None:
-            # texture is referencing vt
-            new_faces, mask_v, mask_vt = unmerge_faces_tex(
+            # convert faces referencing vertices and
+            # faces referencing vertex texture to new faces
+            # where each face
+            new_faces, mask_v, mask_vt = unmerge_faces(
                 faces=faces, faces_tex=faces_tex)
 
             # we should NOT have messed up the faces
             # note: this is EXTREMELY slow due to the numerous
             # float comparisons so only use in unit tests
-            if trimesh.tol.strict:
+            if tol.strict:
                 assert np.allclose(v[faces], v[mask_v][new_faces])
 
             try:
-                visual = trimesh.visual.TextureVisuals(
+                visual = TextureVisuals(
                     uv=vt[mask_vt], material=materials[material])
             except BaseException:
                 log.warning('visual creation failed for submesh!',
                             exc_info=True)
                 visual = None
             # mask vertices and use new faces
-            geometry[util.unique_id()] = {'vertices': v[mask_v],
-                                          'vertex_normals': normals,
-                                          'visual': visual,
-                                          'faces': new_faces}
+            mesh = kwargs.copy()
+            mesh.update({'vertices': v[mask_v],
+                         'vertex_normals': normals,
+                         'visual': visual,
+                         'faces': new_faces})
+            geometry[util.unique_id()] = mesh
         else:
             # otherwise just use unmasked vertices
-            geometry[util.unique_id()] = {'vertices': v,
-                                          'faces': faces,
-                                          'vertex_normals': normals}
-
+            mesh = kwargs.copy()
+            mesh.update({'vertices': v,
+                         'faces': faces,
+                         'vertex_normals': normals})
+            geometry[util.unique_id()] = mesh
     # add an identity transform for every geometry
     graph = [{'geometry': k, 'frame_to': k, 'matrix': np.eye(4)}
              for k in geometry.keys()]
 
     # convert to scene kwargs
-    kwargs = {'geometry': geometry,
+    result = {'geometry': geometry,
               'graph': graph}
 
-    return kwargs
+    return result
 
 
-if __name__ == '__main__':
-
+def export_obj(mesh,
+               include_normals=True,
+               include_texture=True):
     """
-    OBJ is a free form hippy hot tub of a format which allows pretty much anything.
-    Unfortunatly, for this reason it is extremely popular.
+    Export a mesh as a Wavefront OBJ file
 
-    Our current loader supports a lot of things and is vectorized in a bunch of nice
-    places and is decently performant. However, it is pretty convoluted and is tough
-    to "grok" enough to develop on.
+    Parameters
+    -----------
+    mesh: Trimesh object
 
-    This PR includes a mostly fresh pass at an OBJ loader. In my testing on large files,
-    it was roughly 3x faster than the previous loader. Most of the gains are from doing
-    string preprocessing operations, and processing only relevant substrings as much as
-    possible, through `str.find` and `str.rfind`. For small meshes, it is similar or
-    slightly slower than the old loader.
-
-    There is also a fallback method which loops through every face.
-
-    Scope
-    -------------
-    - [x] Load vertices (`v`)
-    - [ ] Vertex colors (on the same line as `v`)
-    - [x] Vertex normals (`vn`)
-    - [x] Vertex texture coordinates (`vt`)
-    - [x] Triangular and quad faces
-    - [x] Multiple materials
-    - [x] Multiple objects (`o`)
-    - [ ] Face groups `g`
-    - [ ] Smoothing groups `s`
-    - [x] Useable kwargs
-    - [x] Usable kwargs with texture
-    - [ ] Uses names from OBJ in scene
-
-    Splitting And Return Type
-    ----------------------------
-    Rather than return a single mesh, this returns a scene containing
-    a new mesh split at every `usemtl` or `o` tag.
+    Returns
+    -----------
+    export: str, string of OBJ format output
     """
+    # store the multiple options for formatting
+    # a vertex index for a face
+    face_formats = {('v',): '{}',
+                    ('v', 'vn'): '{}//{}',
+                    ('v', 'vt'): '{}/{}',
+                    ('v', 'vn', 'vt'): '{}/{}/{}'}
+    # we are going to reference face_formats with this
+    face_type = ['v']
 
-    name = 'models/fuze.obj'
-    name = 'model.obj'
-    name = 'airplane/models/model_normalized.obj'
+    export = 'v '
+    export += util.array_to_string(mesh.vertices,
+                                   col_delim=' ',
+                                   row_delim='\nv ',
+                                   digits=8) + '\n'
 
-    import time
-    import trimesh
-    import cProfile
-    import pstats
-    import io
-    trimesh.util.attach_to_log()
+    if include_normals and 'vertex_normals' in mesh._cache:
+        # if vertex normals are stored in cache export them
+        # these will have been autogenerated if they have ever been called
+        face_type.append('vn')
+        export += 'vn '
+        export += util.array_to_string(mesh.vertex_normals,
+                                       col_delim=' ',
+                                       row_delim='\nvn ',
+                                       digits=8) + '\n'
 
-    tic = [time.time()]
+    if (include_texture and
+        'vertex_texture' in mesh.metadata and
+            len(mesh.metadata['vertex_texture']) == len(mesh.vertices)):
+        # if vertex texture exists and is the right shape export here
+        face_type.append('vt')
+        export += 'vt '
+        export += util.array_to_string(mesh.metadata['vertex_texture'],
+                                       col_delim=' ',
+                                       row_delim='\nvt ',
+                                       digits=8) + '\n'
 
-    # benchmark against the old loader
-    # with open(name, 'r') as f:
-    #    r = trimesh.exchange.wavefront.load_wavefront(f)
-    tic.append(time.time())
+    # the format for a single vertex reference of a face
+    face_format = face_formats[tuple(face_type)]
+    faces = 'f ' + util.array_to_string(mesh.faces + 1,
+                                        col_delim=' ',
+                                        row_delim='\nf ',
+                                        value_format=face_format)
+    # add the exported faces to the export
+    export += faces
 
-    #pr = cProfile.Profile()
-    # pr.enable()
+    return export
 
-    # create a fun little resolver
-    resolver = trimesh.visual.resolvers.FilePathResolver(name)
 
-    # use the new loader
-    with open(name, 'r') as f:
-        n = load_obj(f, resolver)
-
-    tic.append(time.time())
-
-    """
-    pr.disable()
-    s = io.StringIO()
-    sortby = 'cumulative'
-    ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
-    ps.print_stats()
-    print(s.getvalue())
-    """
-
-    # create a scene using the loaded kwargs
-    s = trimesh.exchange.load.load_kwargs(n)
-
-    print('\n\nOld loader: {:0.3f} ms\nNew loader: {:0.3f} ms\nImprovement: {factor:0.3f}x'.format(
-        *np.diff(tic) * 1000, factor=np.divide(*np.diff(tic))))
+_obj_loaders = {'obj': load_obj}
+_obj_exporters = {'obj': export_obj}

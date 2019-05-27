@@ -38,7 +38,7 @@ class SimpleMaterial(Material):
         self.kwargs = kwargs
 
     def to_color(self, uv):
-        return uv_to_color(uv, self.image)
+        return color.uv_to_color(uv, self.image)
 
 
 class PBRMaterial(Material):
@@ -96,7 +96,7 @@ class PBRMaterial(Material):
         alphaMode = alphaMode
 
     def to_color(self, uv):
-        color = uv_to_color(uv=uv, image=self.baseColorTexture)
-        if color is None and self.baseColorFactor is not None:
-            color = self.baseColorFactor.copy()
-        return color
+        colors = color.uv_to_color(uv=uv, image=self.baseColorTexture)
+        if colors is None and self.baseColorFactor is not None:
+            colors = self.baseColorFactor.copy()
+        return colors
