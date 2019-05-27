@@ -99,41 +99,45 @@ class VoxelBase(object):
 
     def point_to_index(self, point):
         """
-        Convert a point to an index in the matrix array.
+        Convert points to indices in the matrix array.
 
         Parameters
         ----------
-        point: (3,) float, point in space
+        point: (..., 3) float, point in space
 
         Returns
         ---------
-        index: (3,) int tuple, index in self.matrix
+        index: (..., 3) int array of indices into self.matrix
         """
-        indices = points_to_indices(points=[point],
-                                    pitch=self.pitch,
-                                    origin=self.origin)
-        index = tuple(indices[0])
-        return index
+        return points_to_indices(points=point,
+                                 pitch=self.pitch,
+                                 origin=self.origin)
 
     def is_filled(self, point):
         """
-        Query a point to see if the voxel cell it lies in is filled or not.
+        Query points to see if the voxel cells they lie in are filled or not.
 
         Parameters
         ----------
-        point: (3,) float, point in space
+        point: (..., 3) float, point(s) in space
 
         Returns
         ---------
-        is_filled: bool, is cell occupied or not
+        is_filled: (...,) bool, is cell occupied or not for each point
         """
+        point = np.asanyarray(point)
+        out_shape = point.shape[:-1]
+        point = point.reshape(-1, 3)
         index = self.point_to_index(point)
-        in_range = (np.array(index) < np.array(self.shape)).all()
-        if in_range:
-            is_filled = self.matrix[index]
-        else:
-            is_filled = False
-        return is_filled
+        in_range = np.logical_and(
+            np.all(index < np.array(self.shape), axis=-1),
+            np.all(index >= 0, axis=-1))
+
+        is_filled = np.zeros_like(in_range)
+        # get flat indices of those points in range
+        flat_index = np.ravel_multi_index(index[in_range].T, self.shape)
+        is_filled[in_range] = self.matrix.flat[flat_index]
+        return is_filled.reshape(out_shape)
 
 
 class Voxel(VoxelBase):
@@ -645,11 +649,11 @@ def fill_voxelization(occupied):
 
 def points_to_indices(points, pitch, origin):
     """
-    Convert center points of an (n,m,p) matrix into its indices.
+    Convert points in voxel-space to indices of  an (n,m,p) matrix.
 
     Parameters
     ----------
-    points : (q, 3) float
+    points : (..., 3) float
       Center points of voxel matrix (n,m,p)
     pitch : float
       What pitch was the voxel matrix computed with
@@ -658,15 +662,15 @@ def points_to_indices(points, pitch, origin):
 
     Returns
     ----------
-    indices : (q, 3) int
-      List of indices
+    indices : (..., 3) int
+      numpy array of indices. Leading dims are the same as points
     """
     points = np.asanyarray(points, dtype=np.float64)
     origin = np.asanyarray(origin, dtype=np.float64)
     pitch = float(pitch)
 
-    if points.shape != (points.shape[0], 3):
-        raise ValueError('shape of points must be (q, 3)')
+    if points.shape[-1] != 3:
+        raise ValueError('final dim of points must be 3')
 
     if origin.shape != (3,):
         raise ValueError('shape of origin must be (3,)')
@@ -681,22 +685,22 @@ def indices_to_points(indices, pitch, origin):
 
     Parameters
     ----------
-    indices: (q, 3) int, index of voxel matrix (n,m,p)
+    indices: (..., 3) int, index of voxel matrix (n,m,p)
     pitch: float, what pitch was the voxel matrix computed with
     origin: (3,) float, what is the origin of the voxel matrix
 
     Returns
     ----------
-    points: (q, 3) float, list of points
+    points: (..., 3) float, list of points
     """
     indices = np.asanyarray(indices, dtype=np.float64)
     origin = np.asanyarray(origin, dtype=np.float64)
     pitch = float(pitch)
 
-    if indices.shape != (indices.shape[0], 3):
+    if indices.shape[-1] != 3:
         from IPython import embed
         embed()
-        raise ValueError('shape of indices must be (q, 3)')
+        raise ValueError('final dim of indices must be 3')
 
     if origin.shape != (3,):
         raise ValueError('shape of origin must be (3,)')
