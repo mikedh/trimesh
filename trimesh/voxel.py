@@ -113,32 +113,31 @@ class VoxelBase(object):
 
     def point_to_index(self, point):
         """
-        Convert a point to an index in the matrix array.
+        Convert points to indices in the matrix array.
 
         Parameters
         ----------
-        point: (3,) float, point in space
+        point: (..., 3) float, point in space
 
         Returns
         ---------
-        index: (3,) int tuple, index in self.matrix
+        index: (..., 3) int array of indices into self.matrix
         """
-        return points_to_indices(
-            points=point,
-            pitch=self.pitch,
-            origin=self.origin)
+        return points_to_indices(points=point,
+                                 pitch=self.pitch,
+                                 origin=self.origin)
 
     def is_filled(self, point):
         """
-        Query a point to see if the voxel cell it lies in is filled or not.
+        Query points to see if the voxel cells they lie in are filled or not.
 
         Parameters
         ----------
-        point: (3,) float, point in space
+        point: (..., 3) float, point(s) in space
 
         Returns
         ---------
-        is_filled: bool, is cell occupied or not
+        is_filled: (...,) bool, is cell occupied or not for each point
         """
         point = np.asanyarray(point)
         out_shape = point.shape[:-1]
@@ -869,11 +868,11 @@ def fill_voxelization(occupied):
 
 def points_to_indices(points, pitch, origin):
     """
-    Convert center points of an (n,m,p) matrix into its indices.
+    Convert points in voxel-space to indices of  an (n,m,p) matrix.
 
     Parameters
     ----------
-    points : (q, 3) float
+    points : (..., 3) float
       Center points of voxel matrix (n,m,p)
     pitch : float
       What pitch was the voxel matrix computed with
@@ -882,15 +881,15 @@ def points_to_indices(points, pitch, origin):
 
     Returns
     ----------
-    indices : (q, 3) int
-      List of indices
+    indices : (..., 3) int
+      numpy array of indices. Leading dims are the same as points
     """
     points = np.asanyarray(points, dtype=np.float64)
     origin = np.asanyarray(origin, dtype=np.float64)
     pitch = float(pitch)
 
     if points.shape[-1] != 3:
-        raise ValueError('shape of points must be (..., 3)')
+        raise ValueError('final dim of points must be 3')
 
     if origin.shape != (3,):
         raise ValueError('shape of origin must be (3,)')
@@ -905,25 +904,22 @@ def indices_to_points(indices, pitch, origin):
 
     Parameters
     ----------
-    indices: (q, 3) int, index of voxel matrix (n,m,p)
+    indices: (..., 3) int, index of voxel matrix (n,m,p)
     pitch: float, what pitch was the voxel matrix computed with
     origin: (3,) float, what is the origin of the voxel matrix
 
     Returns
     ----------
-    points: (q, 3) float, list of points
+    points: (..., 3) float, list of points
     """
     indices = np.asanyarray(indices, dtype=np.float64)
     origin = np.asanyarray(origin, dtype=np.float64)
     pitch = float(pitch)
 
-    if indices.shape != (indices.shape[0], 3):
-        try:
-            from IPython import embed
-            embed()
-        except ModuleNotFoundError:
-            pass
-        raise ValueError('shape of indices must be (q, 3)')
+    if indices.shape[-1] != 3:
+        from IPython import embed
+        embed()
+        raise ValueError('final dim of indices must be 3')
 
     if origin.shape != (3,):
         raise ValueError('shape of origin must be (3,)')

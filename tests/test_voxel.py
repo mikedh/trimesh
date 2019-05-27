@@ -208,10 +208,78 @@ class VoxelTest(g.unittest.TestCase):
         assert g.np.allclose(
             boxes.visual.face_colors, color, atol=0, rtol=0)
 
-    def _test_equiv(self, v0, v1, query_points):
+    def test_is_filled(self):
+        """More rigorous test of Voxel.is_filled."""
+        n = 10
+        matrix = g.np.random.uniform(size=(n + 1,) * 3) > 0.5
+        not_matrix = g.np.logical_not(matrix)
+        pitch = 1. / n
+        origin = g.np.random.uniform(size=(3,))
+        vox = g.trimesh.voxel.Voxel(matrix, pitch, origin)
+        not_vox = g.trimesh.voxel.Voxel(not_matrix, pitch, origin)
+        for a, b in ((vox, not_vox), (not_vox, vox)):
+            points = a.points
+            # slight jitter - shouldn't change indices
+            points += (
+                g.np.random.uniform(size=points.shape) - 1) * 0.4 * pitch
+            g.np.random.shuffle(points)
+
+            # all points are filled, and no empty points are filled
+            assert g.np.all(a.is_filled(points))
+            assert not g.np.any(b.is_filled(points))
+
+            # test different number of dimensions
+            points = g.np.stack([points, points[-1::-1]], axis=1)
+            assert g.np.all(a.is_filled(points))
+            assert not g.np.any(b.is_filled(points))
+
+    def test_vox_sphere(self):
+        # should be filled from 0-9
+        matrix = g.np.ones((10, 10, 10))
+        vox = g.trimesh.voxel.Voxel(
+            matrix, pitch=0.1, origin=[0, 0, 0])
+        # epsilon from zero
+        eps = 1e-4
+        # should all be contained
+        grid = g.trimesh.util.grid_linspace(
+            [[eps] * 3, [9 - eps] * 3], 11) * vox.pitch
+        assert vox.is_filled(grid).all()
+
+        # push it outside the filled area
+        grid += 1.0
+        assert not vox.is_filled(grid).any()
+
+    def _test_equiv(self, v0, v1, query_points=None):
+        """
+        Test whether or not two `VoxelBase` representation are consistent.
+
+        Tests consistency of:
+            shape
+            filled_count
+            volume
+            matrix
+            points
+            origin
+            pitch
+
+        If query_points is provided, also tests
+            is_filled
+            point_to_index
+
+        Args:
+            v0: `VoxelBase` instance
+            v1: `VoxelBase` instance
+            query_points: (optional) points as which `point_to_index` and
+            `is_filled` are tested for consistency.
+        """
         def array_as_set(array2d):
             return set(tuple(x) for x in array2d)
 
+        # all points are filled
+        assert g.np.all(v0.is_filled(v1.points))
+        assert g.np.any(v1.is_filled(v0.points))
+
+        # test different number of dimensions
         self.assertEqual(v0.shape, v1.shape)
         self.assertEqual(v0.filled_count, v1.filled_count)
         self.assertEqual(v0.volume, v1.volume)
@@ -221,10 +289,13 @@ class VoxelTest(g.unittest.TestCase):
             array_as_set(v0.points), array_as_set(v1.points))
         g.np.testing.assert_equal(v0.origin, v1.origin)
         g.np.testing.assert_equal(v0.pitch, v1.pitch)
-        for qp in query_points:
+        if query_points is not None:
             g.np.testing.assert_equal(
-                v0.point_to_index(qp), v1.point_to_index(qp))
-            g.np.testing.assert_equal(v0.is_filled(qp), v1.is_filled(qp))
+                v0.point_to_index(query_points),
+                v1.point_to_index(query_points))
+            g.np.testing.assert_equal(
+                v0.is_filled(query_points),
+                v1.is_filled(query_points))
 
     def test_transposed(self):
         voxel = g.trimesh.voxel
@@ -247,7 +318,7 @@ class VoxelTest(g.unittest.TestCase):
             origin=origin[axes][axes2])
         self._test_equiv(vt.transpose(axes2), vt3, query_points)
 
-    def test_rle(self):
+    def test_voxel_rle(self):
         from trimesh import rle
         np = g.np
         voxel = g.trimesh.voxel
