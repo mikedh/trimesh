@@ -225,13 +225,29 @@ class VoxelTest(g.unittest.TestCase):
             g.np.random.shuffle(points)
 
             # all points are filled, and no empty points are filled
-            self.assertTrue(g.np.all(a.is_filled(points)))
-            self.assertFalse(g.np.any(b.is_filled(points)))
+            assert g.np.all(a.is_filled(points))
+            assert not g.np.any(b.is_filled(points))
 
             # test different number of dimensions
             points = g.np.stack([points, points[-1::-1]], axis=1)
-            self.assertTrue(g.np.all(a.is_filled(points)))
-            self.assertFalse(g.np.any(b.is_filled(points)))
+            assert g.np.all(a.is_filled(points))
+            assert not g.np.any(b.is_filled(points))
+
+    def test_vox_sphere(self):
+        # should be filled from 0-9
+        matrix = g.np.ones((10, 10, 10))
+        vox = g.trimesh.voxel.Voxel(
+            matrix, pitch=0.1, origin=[0, 0, 0])
+        # epsilon from zero
+        eps = 1e-4
+        # should all be contained
+        grid = g.trimesh.util.grid_linspace(
+            [[eps] * 3, [9 - eps] * 3], 11) * vox.pitch
+        assert vox.is_filled(grid).all()
+
+        # push it outside the filled area
+        grid += 1.0
+        assert not vox.is_filled(grid).any()
 
 
 if __name__ == '__main__':
