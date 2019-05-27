@@ -72,6 +72,7 @@ scale {scale}
 data
 '''
 
+
 def binvox_header(shape, translate, scale):
     """Get a binvox header string.
 

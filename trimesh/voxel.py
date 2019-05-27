@@ -10,7 +10,6 @@ from . import util
 from . import remesh
 from . import caching
 from . import grouping
-from . import rle
 
 from .constants import log, log_time
 
@@ -124,11 +123,10 @@ class VoxelBase(object):
         ---------
         index: (3,) int tuple, index in self.matrix
         """
-        indices = points_to_indices(points=[point],
-                                    pitch=self.pitch,
-                                    origin=self.origin)
-        index = tuple(indices[0])
-        return index
+        return points_to_indices(
+            points=point,
+            pitch=self.pitch,
+            origin=self.origin)
 
     def is_filled(self, point):
         """
@@ -142,13 +140,19 @@ class VoxelBase(object):
         ---------
         is_filled: bool, is cell occupied or not
         """
+        point = np.asanyarray(point)
+        out_shape = point.shape[:-1]
+        point = point.reshape(-1, 3)
         index = self.point_to_index(point)
-        in_range = (np.array(index) < np.array(self.shape)).all()
-        if in_range:
-            is_filled = self.matrix[index]
-        else:
-            is_filled = False
-        return is_filled
+        in_range = np.logical_and(
+            np.all(index < np.array(self.shape), axis=-1),
+            np.all(index >= 0, axis=-1))
+
+        is_filled = np.zeros_like(in_range)
+        # get flat indices of those points in range
+        flat_index = np.ravel_multi_index(index[in_range].T, self.shape)
+        is_filled[in_range] = self.matrix.flat[flat_index]
+        return is_filled.reshape(out_shape)
 
     def to_dense(self):
         return Voxel(self.matrix, self.pitch, self.origin)
@@ -472,16 +476,29 @@ class VoxelMesh(VoxelBase):
 
 class VoxelRle(VoxelBase):
     """Run-length-encoded voxel."""
-    def __init__(self, rle_data, pitch, origin, shape):
+    def __init__(self, rle, pitch, origin, shape):
+        """
+        Args:
+            rle: `trimesh.rle.RunLengthEncoding` instance denoting 1D
+                representation in `x, y, z` ordering.
+            pitch: length of each voxel side length
+            origin: length 3 float
+            shape: shape of voxel
+        """
         super(VoxelRle, self).__init__()
-        self._data['rle_data'] = rle_data
+        self._data['rle_data'] = rle._data
+        self._rle = rle
         self._data['pitch'] = pitch
         self._data['origin'] = origin
         self._shape = tuple(shape)
 
     @caching.cache_decorator
     def filled_count(self):
-        return np.sum(self.rle_data[1::2])
+        return self._rle.sum()
+
+    @property
+    def rle(self):
+        return self._rle
 
     @property
     def rle_data(self):
@@ -504,19 +521,21 @@ class VoxelRle(VoxelBase):
             np.all(index < np.array(self.shape), axis=-1),
             np.all(index >= 0, axis=-1))
         is_filled = np.zeros_like(in_range)
-        flat_index = np.ravel_multi_index(index[in_range].T, self.shape)
-        is_filled[in_range] = rle.gather_1d(self.rle_data, flat_index)
+        if np.any(in_range):
+            flat_index = np.ravel_multi_index(index[in_range].T, self.shape)
+            is_filled[in_range] = self._rle.gather(flat_index)
         return is_filled.reshape(out_shape)
 
     @caching.cache_decorator
     def points(self):
-        return rle_to_points(
-            rle_data=self.rle_data, shape=self.shape,
-            pitch=self.pitch, origin=self.origin)
+        indices_1d = self._rle.sparse_indices()
+        indices_3d = np.stack(
+            np.unravel_index(indices_1d, self.shape), axis=-1)
+        return indices_to_points(indices_3d, self.pitch, self.origin)
 
     @caching.cache_decorator
     def matrix(self):
-        return rle.rle_to_dense(self.rle_data).reshape(self.shape)
+        return self._rle.to_dense().reshape(self.shape)
 
     def to_dense(self):
         """Convert to a Voxel representation based on a dense matrix."""
@@ -529,7 +548,8 @@ class VoxelRle(VoxelBase):
         Factory for building from data associated with binvox files.
 
         Args:
-            rle_data: run-length-encoded representation of flat voxel values.
+            rle_data: numpy array representing run-length-encoded of flat voxel
+                values, or a `trimesh.rle.RunLengthEncoding` object.
                 See `trimesh.rle` documentation for description of encoding.
             shape: shape of voxel grid.
             translate: alias for `origin` in trimesh terminology
@@ -537,8 +557,7 @@ class VoxelRle(VoxelBase):
                 to `pitch` in trimesh terminology, which relates to the side
                 length of an individual voxel.
             encoded_axes: iterable with values in ('x', 'y', 'z', 0, 1, 2),
-                where
-                x \equiv 0, y \equiv 1, z \equiv 2
+                where x => 0, y => 1, z => 2
                 denoting the order of axes in the encoded data. binvox by
                 default saves in xzy order, but using `xyz` (or (0, 1, 2)) will
                 be faster in some circumstances.
@@ -548,10 +567,15 @@ class VoxelRle(VoxelBase):
             `axis_order` isn't quivalent to 'xyz' or (0, 1, 2).
         """
         # shape must be uniform else scale is ambiguous
+        from . import rle
         if not (shape[0] == shape[1] == shape[2]):
             raise ValueError(
-                'trimesh only supports uniform scaling, so required binvox with '
-                'uniform shapes')
+                'trimesh only supports uniform scaling, so required binvox '
+                'with uniform shapes')
+        if isinstance(rle_data, rle.RunLengthEncoding):
+            rle_obj = rle_data
+        else:
+            rle_obj = rle.RunLengthEncoding(rle_data)
         pitch = float(scale)/(shape[0] - 1)
         origin = translate
         indices = {'x': 0, 'y': 1, 'z': 2}
@@ -560,7 +584,8 @@ class VoxelRle(VoxelBase):
         axes = np.array(axes)
         axes_out = np.empty_like(axes)
         axes_out[axes] = axes
-        return VoxelRle(rle_data, pitch, origin, shape).transpose(axes)
+
+        return VoxelRle(rle_obj, pitch, origin, shape).transpose(axes)
 
 
 @log_time
@@ -864,8 +889,8 @@ def points_to_indices(points, pitch, origin):
     origin = np.asanyarray(origin, dtype=np.float64)
     pitch = float(pitch)
 
-    if points.shape != (points.shape[0], 3):
-        raise ValueError('shape of points must be (q, 3)')
+    if points.shape[-1] != 3:
+        raise ValueError('shape of points must be (..., 3)')
 
     if origin.shape != (3,):
         raise ValueError('shape of origin must be (3,)')
@@ -893,8 +918,11 @@ def indices_to_points(indices, pitch, origin):
     pitch = float(pitch)
 
     if indices.shape != (indices.shape[0], 3):
-        from IPython import embed
-        embed()
+        try:
+            from IPython import embed
+            embed()
+        except ModuleNotFoundError:
+            pass
         raise ValueError('shape of indices must be (q, 3)')
 
     if origin.shape != (3,):
@@ -1144,9 +1172,3 @@ def boolean_sparse(a, b, operation=np.logical_and):
     coords = np.column_stack(applied.coords) + origin
 
     return coords
-
-
-def rle_to_points(rle_data, shape, pitch, origin):
-    dense_1d = rle.rle_to_sparse(rle_data)
-    dense_3d = np.unravel_index(dense_1d, shape)
-    return indices_to_points(dense_3d, pitch, origin)

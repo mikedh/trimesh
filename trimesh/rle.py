@@ -37,7 +37,11 @@ handled carefully. For example, the `uint8` encoding of 300 zeros
 
 * RLE: `[0, 255, 0, 45]`  (`0` repeated `255` times + `0` repeated `45` times)
 * BRLE: `[255, 0, 45, 0]` (`255` zeros + `0` ones + `45` zeros + `0` ones)
+
+This module contains implementations of various RLE/BRLE operations and
+`RunLengthEncoding` and `BinaryRunLengthEncoding` classes.
 """
+import functools
 import numpy as np
 
 
@@ -217,14 +221,17 @@ def brle_to_dense(brle_data, vals=None):
         vals = np.asarray(vals)
         if vals.shape != (2,):
             raise ValueError("vals.shape must be (2,), got %s" % (vals.shape))
-    ft = np.repeat(_ft[np.newaxis, :], len(brle_data) // 2, axis=0).flatten()
-    return np.repeat(ft, brle_data).flatten()
+    ft = np.repeat(
+        _ft[np.newaxis, :], (len(brle_data)+1) // 2, axis=0).flatten()
+    return np.repeat(ft[:len(brle_data)], brle_data).flatten()
 
 
-def rle_to_dense(rle_data):
+def rle_to_dense(rle_data, dtype=None):
     """Get the dense decoding of the associated run length encoded data."""
-    values, counts = np.reshape(rle_data, (-1, 2)).T
-    return np.repeat(values, counts)
+    values, counts = np.split(np.reshape(rle_data, (-1, 2)), 2, axis=-1)
+    if dtype is not None:
+        values = values.astype(values)
+    return np.repeat(np.squeeze(values, axis=-1), np.squeeze(counts, axis=-1))
 
 
 def dense_to_rle(dense_data, dtype=np.int64):
@@ -277,19 +284,21 @@ def merge_rle_lengths(values, lengths):
     ret_values = []
     ret_lengths = []
     curr = None
-    for v, l in zip(values, lengths):
-        if l == 0:
+    for value, length in zip(values, lengths):
+        if length == 0:
             continue
-        if v == curr:
-            ret_lengths[-1] += l
+        if value == curr:
+            ret_lengths[-1] += length
         else:
-            curr = v
-            ret_lengths.append(int(l))
-            ret_values.append(v)
+            curr = value
+            ret_lengths.append(int(length))
+            ret_values.append(value)
     return ret_values, ret_lengths
 
 
 def brle_to_rle(brle, dtype=np.int64):
+    if len(brle) % 2 == 1:
+        brle = np.concatenate([brle, [0]])
     lengths = brle
     values = np.tile(_ft, len(brle) // 2)
     return rle_to_rle(
@@ -309,28 +318,42 @@ def rle_to_rle(rle, dtype=np.int64):
 
     Checks for possible merges and required splits.
     """
-    v, l = np.reshape(rle, (-1, 2)).T
-    v, l = merge_rle_lengths(v, l)
-    v, l = split_long_rle_lengths(v, l, dtype=dtype)
-    return np.stack((v, l), axis=1).flatten()
+    values, lengths = np.reshape(rle, (-1, 2)).T
+    values, lengths = merge_rle_lengths(values, lengths)
+    values, lengths = split_long_rle_lengths(values, lengths, dtype=dtype)
+    return np.stack((values, lengths), axis=1).flatten()
 
 
-def sorted_gather_1d(raw_data, ordered_indices):
+def _unsorted_gatherer(indices, sorted_gather_fn):
+    if not isinstance(indices, np.ndarray):
+        indices = np.array(indices, copy=False)
+    order = np.argsort(indices)
+    ordered_indices = indices[order]
+
+    def f(data, dtype=None):
+        ans = np.empty(len(order), dtype=dtype or getattr(data, 'dtype', None))
+        ans[order] = tuple(sorted_gather_fn(data, ordered_indices))
+        return ans
+
+    return f
+
+
+def sorted_rle_gather_1d(rle_data, ordered_indices):
     """
-    Gather raw_data at ordered_indices.
+    Gather brle_data at ordered_indices.
 
-    This is equivalent to `rle_to_dense(raw_data)[ordered_indices]` but avoids
+    This is equivalent to `rle_to_dense(brle_data)[ordered_indices]` but avoids
     the decoding.
 
     Args:
-        raw_data: iterable of run-length-encoded data.
+        brle_data: iterable of run-length-encoded data.
         ordered_indices: iterable of ints in ascending order.
 
     Returns:
-        `raw_data` iterable of values at the dense indices, same length as
+        `brle_data` iterable of values at the dense indices, same length as
         ordered indices.
     """
-    data_iter = iter(raw_data)
+    data_iter = iter(rle_data)
     index_iter = iter(ordered_indices)
     index = next(index_iter)
     start = 0
@@ -351,7 +374,38 @@ def sorted_gather_1d(raw_data, ordered_indices):
             break
 
 
-def gatherer_1d(indices):
+def rle_mask(rle_data, mask):
+    data_iter = iter(rle_data)
+    mask_iter = iter(mask)
+    while True:
+        try:
+            value = next(data_iter)
+            count = next(data_iter)
+        except StopIteration:
+            break
+        for c in range(count):
+            m = next(mask_iter)
+            if m:
+                yield value
+
+
+def brle_mask(rle_data, mask):
+    data_iter = iter(rle_data)
+    mask_iter = iter(mask)
+    value = True
+    while True:
+        try:
+            value = not value
+            count = next(data_iter)
+        except StopIteration:
+            break
+        for c in range(count):
+            m = next(mask_iter)
+            if m:
+                yield value
+
+
+def rle_gatherer_1d(indices):
     """
     Get a gather function at the given indices.
 
@@ -359,7 +413,7 @@ def gatherer_1d(indices):
     gathering at the same indices on different RLE data this can save the
     sorting process.
 
-    If only gathering on a single RLE iterable, use `gather_1d`.
+    If only gathering on a single RLE iterable, use `rle_gather_1d`.
 
     Args:
         indices: iterable of integers
@@ -369,20 +423,10 @@ def gatherer_1d(indices):
         `values` will have the same length as `indices` and dtype provided,
         or rle_data.dtype if no dtype is provided.
     """
-    if not isinstance(indices, np.ndarray):
-        indices = np.array(indices, copy=False)
-    order = np.argsort(indices)
-    ordered_indices = indices[order]
-
-    def f(data, dtype=None):
-        ans = np.empty(len(order), dtype=dtype or data.dtype)
-        ans[order] = tuple(sorted_gather_1d(data, ordered_indices))
-        return ans
-
-    return f
+    return _unsorted_gatherer(indices, sorted_rle_gather_1d)
 
 
-def gather_1d(rle_data, indices, dtype=None):
+def rle_gather_1d(rle_data, indices, dtype=None):
     """
     Gather RLE data values at the provided dense indices.
 
@@ -400,10 +444,98 @@ def gather_1d(rle_data, indices, dtype=None):
         numpy array, dense data at indices, same length as indices and dtype as
         rle_data
     """
-    return gatherer_1d(indices)(rle_data, dtype=dtype)
+    return rle_gatherer_1d(indices)(rle_data, dtype=dtype)
 
 
-def reverse(rle_data):
+def sorted_brle_gather_1d(brle_data, ordered_indices):
+    """
+    Gather brle_data at ordered_indices.
+
+    This is equivalent to `brle_to_dense(brle_data)[ordered_indices]` but
+    avoids the decoding.
+
+    Args:
+        raw_data: iterable of run-length-encoded data.
+        ordered_indices: iterable of ints in ascending order.
+
+    Returns:
+        `raw_data` iterable of values at the dense indices, same length as
+        ordered indices.
+    """
+    data_iter = iter(brle_data)
+    index_iter = iter(ordered_indices)
+    index = next(index_iter)
+    start = 0
+    value = True
+    while True:
+        while start <= index:
+            try:
+                value = not value
+                start += next(data_iter)
+            except StopIteration:
+                raise IndexError(
+                    'Index %d out of range of raw_values length %d'
+                    % (index, start))
+        try:
+            while index < start:
+                yield value
+                index = next(index_iter)
+        except StopIteration:
+            break
+
+
+def brle_gatherer_1d(indices):
+    """
+    Get a gather function at the given indices.
+
+    Because gathering on BRLE data requires sorting, for instances where
+    gathering at the same indices on different RLE data this can save the
+    sorting process.
+
+    If only gathering on a single RLE iterable, use `brle_gather_1d`.
+
+    Args:
+        indices: iterable of integers
+
+    Returns:
+        gather function, mapping `(rle_data, dtype=None) -> values`.
+        `values` will have the same length as `indices` and dtype provided,
+        or rle_data.dtype if no dtype is provided.
+    """
+    return functools.partial(
+        _unsorted_gatherer(indices, sorted_brle_gather_1d), dtype=np.bool)
+
+
+def brle_gather_1d(brle_data, indices, dtype=None):
+    """
+    Gather BRLE data values at the provided dense indices.
+
+    This is equivalent to `rle_to_dense(rle_data)[indices]` but the
+    implementation does not require the construction of the dense array.
+
+    If indices is known to be in order, use `sorted_brle_gather_1d`.
+
+    Args:
+        rle_data: run length encoded data
+        indices: dense indices
+        dtype: numpy dtype. If not provided, uses rle_data.dtype
+
+    Returns:
+        numpy array, dense data at indices, same length as indices and dtype as
+        rle_data
+    """
+    return brle_gatherer_1d(indices)(brle_data, dtype=dtype)
+
+
+def brle_reverse(brle_data):
+    """Equivalent to dense_to_brle(brle_to_dense(brle_data)[-1::-1])."""
+    if len(brle_data) % 2 == 0:
+        brle_data = np.concatenate([brle_data, [0]], axis=0)
+    end = -1 if brle_data[-1] == 0 else None
+    return brle_data[-1:end:-1]
+
+
+def rle_reverse(rle_data):
     """Get the rle encoding of the reversed dense array."""
     if not isinstance(rle_data, np.ndarray):
         rle_data = np.array(rle_data, copy=False)
@@ -415,6 +547,7 @@ def reverse(rle_data):
 def rle_to_sparse(rle_data):
     """Get dense indices associated with non-zeros."""
     indices = []
+    values = []
     it = iter(rle_data)
     index = 0
     try:
@@ -423,9 +556,112 @@ def rle_to_sparse(rle_data):
             counts = next(it)
             end = index + counts
             if value:
-                indices.append(np.arange(index, end, dtype=np.int32))
+                indices.append(np.arange(index, end, dtype=np.int64))
+                values.append(np.repeat(value, counts))
             index = end
     except StopIteration:
         pass
     indices = np.concatenate(indices)
-    return indices
+    values = np.concatenate(values)
+    return indices, values
+
+
+def brle_to_sparse(brle_data, dtype=np.int64):
+    ends = np.cumsum(brle_data)
+    indices = [np.arange(s, e, dtype=dtype) for s, e in
+               zip(ends[::2], ends[1::2])]
+    return np.concatenate(indices)
+
+
+class RunLengthEncoding(object):
+    def __init__(self, data):
+        data = np.asanyarray(data, dtype=getattr(data, 'dtype', np.int64))
+        if len(data.shape) != 1 or not isinstance(data, np.ndarray):
+            raise ValueError('data must be 1D numpy array')
+        self._data = data
+
+    def sum(self):
+        return (self._data[::2] * self._data[1::2]).sum()
+
+    @staticmethod
+    def from_dense(dense_data, dtype=np.int64):
+        return RunLengthEncoding(dense_to_rle(dense_data, dtype=dtype))
+
+    @staticmethod
+    def from_rle(rle_data, dtype=None):
+        if dtype != rle_data.dtype:
+            rle_data = rle_to_rle(rle_data, dtype=dtype)
+        return RunLengthEncoding(rle_data)
+
+    @staticmethod
+    def from_brle(brle_data, dtype=None):
+        return RunLengthEncoding(brle_to_rle(brle_data, dtype=dtype))
+
+    def dense_length(self):
+        return rle_length(self._data)
+
+    def reverse(self):
+        return rle_reverse(self._data)
+
+    def sparse_indices(self):
+        return rle_to_sparse(self._data)[0]
+
+    def to_dense(self):
+        return rle_to_dense(self._data)
+
+    def gather(self, indices, dtype=None):
+        return rle_gather_1d(self._data, indices, dtype=dtype)
+
+    def sorted_gather(self, ordered_indices, dtype=None):
+        return np.array(
+            tuple(sorted_rle_gather_1d(self._data, ordered_indices)),
+            dtype=dtype)
+
+    def mask(self, mask, dtype=None):
+        return np.array(tuple(rle_mask(self._data, mask)), dtype=dtype)
+
+    def get_value(self, index):
+        for value in self.sorted_gather((index,)):
+            return value
+
+
+class BinaryRunLengthEncoding(RunLengthEncoding):
+    @staticmethod
+    def from_dense(dense_data, dtype=np.int64):
+        return BinaryRunLengthEncoding(dense_to_brle(dense_data, dtype))
+
+    @staticmethod
+    def from_rle(rle_data, dtype=None):
+        return BinaryRunLengthEncoding(rle_to_brle(rle_data, dtype=dtype))
+
+    @staticmethod
+    def from_brle(brle_data, dtype=None):
+        if dtype != brle_data.dtype:
+            brle_data = brle_to_brle(brle_data, dtype=dtype)
+        return BinaryRunLengthEncoding(brle_data)
+
+    def sum(self):
+        return self._data[1::2].sum()
+
+    def dense_length(self):
+        return brle_length(self._data)
+
+    def reverse(self):
+        return brle_reverse(self._data)
+
+    def sparse_indices(self):
+        return brle_to_sparse(self._data)
+
+    def to_dense(self):
+        return brle_to_dense(self._data)
+
+    def gather(self, indices, dtype=np.bool):
+        return brle_gather_1d(self._data, indices, dtype=dtype)
+
+    def sorted_gather(self, ordered_indices, dtype=np.bool):
+        return np.array(
+            tuple(sorted_brle_gather_1d(self._data, ordered_indices)),
+            dtype=dtype)
+
+    def mask(self, mask, dtype=np.bool):
+        return np.array(tuple(brle_mask(self._data, mask)), dtype=dtype)

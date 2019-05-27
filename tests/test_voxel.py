@@ -37,8 +37,7 @@ class VoxelTest(g.unittest.TestCase):
 
                 assert len(v.sparse_solid) > len(v.sparse_surface)
 
-                for p in v.points:
-                    assert v.is_filled(p)
+                assert g.np.all(v.is_filled(v.points))
 
                 outside = m.bounds[1] + m.scale
                 assert not v.is_filled(outside)
@@ -247,6 +246,26 @@ class VoxelTest(g.unittest.TestCase):
             pitch=1.0,
             origin=origin[axes][axes2])
         self._test_equiv(vt.transpose(axes2), vt3, query_points)
+
+    def test_rle(self):
+        from trimesh import rle
+        np = g.np
+        voxel = g.trimesh.voxel
+        pitch = 1
+        shape = (4, 4, 4)
+        origin = g.np.zeros((3,))
+        rle_obj = rle.RunLengthEncoding(np.array([
+            0, 8, 1, 40, 0, 16], dtype=np.uint8))
+        brle_obj = rle.BinaryRunLengthEncoding(np.array([
+            8, 40, 16], dtype=np.uint8))
+        v_rle = voxel.VoxelRle(rle_obj, pitch, origin, shape)
+        self.assertEqual(v_rle.filled_count, 40)
+        np.testing.assert_equal(
+            v_rle.matrix, np.reshape([0]*8 + [1]*40 + [0]*16, shape))
+
+        v_brle = voxel.VoxelRle(brle_obj, pitch, origin, shape)
+        query_points = np.random.uniform(size=(100, 3), high=4)
+        self._test_equiv(v_rle, v_brle, query_points)
 
 
 if __name__ == '__main__':
