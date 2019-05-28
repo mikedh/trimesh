@@ -82,8 +82,8 @@ def load_stl_binary(file_obj):
     try:
         # save the header block as a string
         # there could be any garbage in there so wrap in try
-        metadata = {'header':
-                    bytes(header['header'][0]).decode('utf-8').strip()}
+        metadata = {
+            'header': bytes(header['header'][0]).decode('utf-8').strip()}
     except BaseException:
         metadata = {}
 
@@ -115,6 +115,10 @@ def load_stl_binary(file_obj):
     # all of our vertices will be loaded in order
     # so faces are just sequential indices reshaped.
     faces = np.arange(header['face_count'] * 3).reshape((-1, 3))
+
+    # there are two bytes per triangle saved for anything
+    # this sometimes used for face color
+    metadata['face_attributes'] = blob['attributes']
 
     result = {'vertices': blob['vertices'].reshape((-1, 3)),
               'face_normals': blob['normals'].reshape((-1, 3)),
