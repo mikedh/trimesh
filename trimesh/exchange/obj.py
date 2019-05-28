@@ -122,7 +122,8 @@ def _parse_faces(lines):
                      split[3],
                      split[0]]
         elif len(split) != 3:
-            log.warning('only triangle and quad faces supported!')
+            log.warning(
+                'face not triangle or quad, not: {}'.format(len(split)))
             continue
 
         # f is like: '76/558/76'
@@ -363,7 +364,7 @@ def load_obj(file_obj, resolver=None, **kwargs):
 
             # TODO: probably need to support 8 and 12 columns for quads
             # or do something more general
-            faces_tex, normals = None, None
+            faces_tex, normal_idx = None, None
             if columns == 6:
                 # if we have two values per vertex the second
                 # one is index of texture coordinate (`vt`)
@@ -375,7 +376,7 @@ def load_obj(file_obj, resolver=None, **kwargs):
                     # case where each face line looks like:
                     # ' 75//139 76//141 77//141'
                     # which is vertex/nothing/normal
-                    normals = array[:, index + 1]
+                    normal_idx = array[:, index + 1]
                 elif count == int(columns / 2):
                     # case where each face line looks like:
                     # '75/139 76/141 77/141'
@@ -389,18 +390,20 @@ def load_obj(file_obj, resolver=None, **kwargs):
                 # second value is always texture
                 faces_tex = array[:, index + 1]
                 # third value is reference to vertex normal (`vn`)
-                normals = array[:, index + 2]
+                normal_idx = array[:, index + 2]
         else:
             # if we had something annoying like mixed in quads
             # or faces that differ per-line we have to loop
-            log.warning('inconsistent faces!')
+            log.warning(
+                'faces are mixed tri/quad/*, try to not do this!')
             # TODO: allow fallback, and find a mesh we can test it on
-            assert False
-            faces, faces_tex, normals = _parse_faces(face_lines)
+            faces, faces_tex, normal_idx = _parse_faces(face_lines)
 
-        if v is not None and vn is not None and len(v) == len(vn):
-            from IPython import embed
-            embed()
+        # TODO: where we should have usable face normals
+        vertex_normals = None
+        # if v is not None and vn is not None and len(v) == len(vn):
+        #    vertex_normals =
+
         # try to get usable texture
         visual = None
         if faces_tex is not None:
@@ -426,7 +429,7 @@ def load_obj(file_obj, resolver=None, **kwargs):
             # mask vertices and use new faces
             mesh = kwargs.copy()
             mesh.update({'vertices': v[mask_v],
-                         'vertex_normals': normals,
+                         'vertex_normals': vertex_normals,
                          'visual': visual,
                          'faces': new_faces})
             geometry[util.unique_id()] = mesh
@@ -435,7 +438,7 @@ def load_obj(file_obj, resolver=None, **kwargs):
             mesh = kwargs.copy()
             mesh.update({'vertices': v,
                          'faces': faces,
-                         'vertex_normals': normals})
+                         'vertex_normals': vertex_normals})
             geometry[util.unique_id()] = mesh
     # add an identity transform for every geometry
     graph = [{'geometry': k, 'frame_to': k, 'matrix': np.eye(4)}
