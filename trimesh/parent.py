@@ -37,7 +37,7 @@ class Geometry(ABC):
         pass
 
     @abc.abstractmethod
-    def apply_transform(self):
+    def apply_transform(self, matrix):
         pass
 
     @abc.abstractmethod
@@ -59,7 +59,7 @@ class Geometry(ABC):
 
         matrix = np.eye(4)
         matrix[:3, 3] = translation
-        self.apply_transform(matrix)
+        return self.apply_transform(matrix)
 
     def apply_scale(self, scaling):
         """
@@ -77,7 +77,7 @@ class Geometry(ABC):
         matrix = np.eye(4)
         matrix[:3, :3] *= scaling
         # apply_transform will work nicely even on negative scales
-        self.apply_transform(matrix)
+        return self.apply_transform(matrix)
 
     @abc.abstractmethod
     def copy(self):

@@ -5,7 +5,7 @@ except BaseException:
 
 from io import BytesIO
 from trimesh.exchange import binvox
-from trimesh import rle
+from trimesh.voxel import runlength as rl
 from trimesh import voxel as v
 
 
@@ -14,11 +14,11 @@ class BinvoxTest(g.unittest.TestCase):
         np = g.np
         dense = np.random.uniform(size=(4, 4, 4)) > 0.8
         shape = dense.shape
-        rle_data = rle.dense_to_rle(
+        rl_data = rl.dense_to_rle(
             dense.transpose((0, 2, 1)).flatten(), dtype=np.uint8)
         translate = np.array([2, 5, 10], dtype=np.float32)
         scale = 3.6
-        base = v.VoxelRle.from_binvox_data(rle_data, shape, translate, scale)
+        base = v.VoxelRle.from_binvox_data(rl_data, shape, translate, scale)
         np.testing.assert_equal(base.matrix.astype(np.bool), dense)
         file_obj = BytesIO(binvox.export_binvox(base))
         file_obj.seek(0)
