@@ -153,7 +153,7 @@ class DenseEncoding(Encoding):
                     'DenseEncoding data should be a numpy array, got object of'
                     ' type %s' % type(data))
             data = caching.tracked_array(data)
-        super().__init__(data=data)
+        super(DenseEncoding, self).__init__(data=data)
 
     @property
     def dtype(self):
@@ -224,7 +224,7 @@ class DenseEncoding(Encoding):
 # class SparseEncoding(Encoding):
 #     def __init__(self, indices, values, shape):
 #         data = caching.DataStore()
-#         super().__init__(data)
+#         super(SparseEncoding, self).__init__(data)
 #         data['indices'] = indices
 #         data['values'] = values
 #         self._shape = shape
@@ -294,7 +294,7 @@ class RunLengthEncoding(Encoding):
     """
 
     def __init__(self, data, dtype=None):
-        super().__init__(data=caching.tracked_array(data))
+        super(RunLengthEncoding, self).__init__(data=caching.tracked_array(data))
         if dtype is None:
             dtype = self._data.dtype
         if len(self._data.shape) != 1:
@@ -411,7 +411,7 @@ class BinaryRunLengthEncoding(RunLengthEncoding):
     """
 
     def __init__(self, data):
-        super().__init__(data=data, dtype=bool)
+        super(BinaryRunLengthEncoding, self).__init__(data=data, dtype=bool)
 
     @staticmethod
     def from_dense(dense_data, encoding_dtype=np.int64):
@@ -589,7 +589,7 @@ class ShapedEncoding(LazyIndexMap):
                 encoding = encoding.flat
         else:
             raise ValueError('encoding must be an Encoding')
-        super().__init__(data=encoding)
+        super(ShapedEncoding, self).__init__(data=encoding)
         self._shape = tuple(shape)
         nn = self._shape.count(-1)
         size = np.prod(self._shape)
@@ -650,7 +650,7 @@ class TransposedEncoding(LazyIndexMap):
             raise ValueError(
                 'base_encoding has %d ndims - cannot transpose with perm %s'
                 % (base_encoding.ndims, str(perm)))
-        super().__init__(base_encoding)
+        super(TransposedEncoding, self).__init__(base_encoding)
         perm = np.array(perm, dtype=np.int64)
         if not all(i in perm for i in range(base_encoding.ndims)):
             raise ValueError('perm %s is not a valid permutation' % str(perm))
@@ -721,7 +721,7 @@ class FlippedEncoding(LazyIndexMap):
         if len(set(self._axes)) != len(self._axes):
             raise ValueError(
                 "Axes cannot contain duplicates, got %s" % str(self._axes))
-        super().__init__(encoding)
+        super(FlippedEncoding, self).__init__(encoding)
         if not all(0 <= a < self._data.ndims for a in axes):
             raise ValueError(
                 'Invalid axes %s for %d-d encoding'
