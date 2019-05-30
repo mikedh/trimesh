@@ -1,9 +1,9 @@
 """OO interfaces to encodings for ND arrays wich caching."""
 import numpy as np
 import abc
+import sys
 from . import runlength as rl
 from .. import caching
-
 # TODO Sparse Encoding
 # Options:
 # - scipy.sparse.coo_matrix - how to generalize to nd?
@@ -13,8 +13,13 @@ from .. import caching
 #   - efficient DataStore implementation?
 #   - deterministic index ordering?
 
+if sys.version_info >= (3, 4):
+    ABC = abc.ABC
+else:
+    ABC = abc.ABCMeta('ABC', (), {})
 
-class Encoding(abc.ABC):
+
+class Encoding(ABC):
     def __init__(self, data):
         self._data = data
         self._cache = caching.Cache(id_function=data.crc)
