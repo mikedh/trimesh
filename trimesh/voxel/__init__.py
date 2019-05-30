@@ -1,12 +1,8 @@
 from .base import Voxel
-from .base import VoxelBase
-from .base import VoxelMesh
-from .base import VoxelRle
+from .creation import MeshVoxelizer
 
 
 __all__ = [
     'Voxel',
-    'VoxelBase',
-    'VoxelMesh',
-    'VoxelRle',
+    'MeshVoxelizer',
 ]

@@ -4,7 +4,9 @@ from ..constants import log_time
 from .. import remesh
 from .. import grouping
 from .. import util
+from .. import caching
 from . import ops
+from . import base
 
 
 @log_time
@@ -217,3 +219,137 @@ def voxelize_ray(mesh,
     voxels -= origin
 
     return voxels, origin
+
+
+class MeshVoxelizer(object):
+    def __init__(self, mesh, pitch, max_iter=10, method='subdivide'):
+        self._data = caching.DataStore()
+        self._cache = caching.Cache(id_function=self._data.crc)
+        self._data['mesh'] = mesh
+        self._data['pitch'] = pitch
+        self._data['max_iter'] = max_iter
+        self._method = method
+
+    @property
+    def pitch(self):
+        return float(self._data['pitch'])
+
+    @property
+    def max_iter(self):
+        return int(self._data['max_iter'])
+
+    @property
+    def mesh(self):
+        return self._data['mesh']
+
+    @property
+    def method(self):
+        return self._method
+
+    @property
+    def origin(self):
+        """
+        The origin of the voxel array.
+
+        Returns
+        ------------
+        origin: (3,) float, point in space
+        """
+        populate = self.sparse_surface  # NOQA
+        return self._cache['origin']
+
+    def copy(self):
+        return MeshVoxelizer(
+            mesh=self.mesh.copy(),
+            pitch=self.pitch,
+            max_iter=self.max_iter,
+            method=self.method)
+
+    @caching.cache_decorator
+    def matrix_surface(self):
+        """
+        The voxels on the surface of the mesh as a 3D matrix.
+
+        Returns
+        ---------
+        matrix: self.shape np.bool, if a cell is True it is occupied
+        """
+        matrix = ops.sparse_to_matrix(self.sparse_surface)
+        return matrix
+
+    @caching.cache_decorator
+    def matrix_solid(self):
+        """
+        The voxels in a mesh as a 3D matrix.
+
+        Returns
+        ---------
+        matrix: self.shape np.bool, if a cell is True it is occupied
+        """
+        matrix = ops.sparse_to_matrix(self.sparse_solid)
+        return matrix
+
+    @caching.cache_decorator
+    def voxel_surface(self):
+        return self.voxelize_matrix(self.matrix_surface)
+
+    @caching.cache_decorator
+    def voxel_solid(self):
+        return self.voxelize_matrix(self.matrix_solid)
+
+    @property
+    def matrix(self):
+        """
+        A matrix representation of the surface voxels.
+
+        In the future this is planned to return a filled voxel matrix
+        if the source mesh is watertight, and a surface voxelization
+        otherwise.
+
+        Returns
+        ---------
+        matrix: self.shape np.bool, cell occupancy
+        """
+        if self._data['mesh'].is_watertight:
+            return self.matrix_solid
+        return self.matrix_surface
+
+    @caching.cache_decorator
+    def sparse_surface(self):
+        """
+        Filled cells on the surface of the mesh.
+
+        Returns
+        ----------------
+        voxels: (n, 3) int, filled cells on mesh surface
+        """
+        if self._method == 'ray':
+            func = voxelize_ray
+        elif self._method == 'subdivide':
+            func = voxelize_subdivide
+        else:
+            raise ValueError('voxelization method incorrect')
+
+        voxels, origin = func(
+            mesh=self._data['mesh'],
+            pitch=self._data['pitch'],
+            max_iter=self._data['max_iter'][0])
+        self._cache['origin'] = origin
+
+        return voxels
+
+    @caching.cache_decorator
+    def sparse_solid(self):
+        """
+        Filled cells inside and on the surface of mesh
+
+        Returns
+        ----------------
+        filled: (n, 3) int, filled cells in or on mesh.
+        """
+        filled = ops.fill_voxelization(self.sparse_surface)
+        return filled + 0.5
+
+    def voxelize_matrix(self, matrix):
+        return base.Voxel(
+            matrix).apply_scale(self.pitch).apply_translation(self.origin)

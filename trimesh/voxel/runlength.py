@@ -38,8 +38,7 @@ handled carefully. For example, the `uint8` encoding of 300 zeros
 * RLE: `[0, 255, 0, 45]`  (`0` repeated `255` times + `0` repeated `45` times)
 * BRLE: `[255, 0, 45, 0]` (`255` zeros + `0` ones + `45` zeros + `0` ones)
 
-This module contains implementations of various RLE/BRLE operations and
-`RunLengthEncoding` and `BinaryRunLengthEncoding` classes.
+This module contains implementations of various RLE/BRLE operations.
 """
 import functools
 import numpy as np
@@ -168,7 +167,7 @@ def split_long_brle_lengths(lengths, dtype=np.int64):
         nl = len(lengths)
         repeats = np.asarray(lengths) // max_val
         remainders = (lengths % max_val).astype(dtype)
-        lengths = np.empty(shape=(np.sum(repeats)*2 + nl,), dtype=dtype)
+        lengths = np.empty(shape=(np.sum(repeats) * 2 + nl,), dtype=dtype)
         np.concatenate(
             [np.array([max_val, 0] * repeat + [remainder], dtype=dtype)
              for repeat, remainder in zip(repeats, remainders)], out=lengths)
@@ -222,7 +221,7 @@ def brle_to_dense(brle_data, vals=None):
         if vals.shape != (2,):
             raise ValueError("vals.shape must be (2,), got %s" % (vals.shape))
     ft = np.repeat(
-        _ft[np.newaxis, :], (len(brle_data)+1) // 2, axis=0).flatten()
+        _ft[np.newaxis, :], (len(brle_data) + 1) // 2, axis=0).flatten()
     return np.repeat(ft[:len(brle_data)], brle_data).flatten()
 
 
@@ -230,7 +229,7 @@ def rle_to_dense(rle_data, dtype=None):
     """Get the dense decoding of the associated run length encoded data."""
     values, counts = np.split(np.reshape(rle_data, (-1, 2)), 2, axis=-1)
     if dtype is not None:
-        values = values.astype(values)
+        values = np.asanyarray(values, dtype=dtype)
     return np.repeat(np.squeeze(values, axis=-1), np.squeeze(counts, axis=-1))
 
 
@@ -273,7 +272,7 @@ def split_long_rle_lengths(values, lengths, dtype=np.int64):
         lengths = np.empty(len(repeats), dtype=dtype)
         lengths.fill(max_length)
         lengths = np.repeat(lengths, repeats)
-        lengths[np.cumsum(repeats)-1] = remainder
+        lengths[np.cumsum(repeats) - 1] = remainder
     elif lengths.dtype != dtype:
         lengths = lengths.astype(dtype)
     return values, lengths
@@ -573,95 +572,56 @@ def brle_to_sparse(brle_data, dtype=np.int64):
     return np.concatenate(indices)
 
 
-class RunLengthEncoding(object):
-    def __init__(self, data):
-        data = np.asanyarray(data, dtype=getattr(data, 'dtype', np.int64))
-        if len(data.shape) != 1 or not isinstance(data, np.ndarray):
-            raise ValueError('data must be 1D numpy array')
-        self._data = data
+def rle_strip(rle_data):
+    """
+    Remove leading and trailing zeros.
 
-    def sum(self):
-        return (self._data[::2] * self._data[1::2]).sum()
+    Returns:
+    stripped_rle_data: rle data without any leading or trailing zeros
+    padding: 2-element dense padding
+    """
+    rle_data = np.reshape(rle_data, (-1, 2))
+    start = 0
+    for i, (val, count) in enumerate(rle_data):
+        if val and count > 0:
+            break
+        else:
+            start += count
 
-    @staticmethod
-    def from_dense(dense_data, dtype=np.int64):
-        return RunLengthEncoding(dense_to_rle(dense_data, dtype=dtype))
-
-    @staticmethod
-    def from_rle(rle_data, dtype=None):
-        if dtype != rle_data.dtype:
-            rle_data = rle_to_rle(rle_data, dtype=dtype)
-        return RunLengthEncoding(rle_data)
-
-    @staticmethod
-    def from_brle(brle_data, dtype=None):
-        return RunLengthEncoding(brle_to_rle(brle_data, dtype=dtype))
-
-    def dense_length(self):
-        return rle_length(self._data)
-
-    def reverse(self):
-        return rle_reverse(self._data)
-
-    def sparse_indices(self):
-        return rle_to_sparse(self._data)[0]
-
-    def to_dense(self):
-        return rle_to_dense(self._data)
-
-    def gather(self, indices, dtype=None):
-        return rle_gather_1d(self._data, indices, dtype=dtype)
-
-    def sorted_gather(self, ordered_indices, dtype=None):
-        return np.array(
-            tuple(sorted_rle_gather_1d(self._data, ordered_indices)),
-            dtype=dtype)
-
-    def mask(self, mask, dtype=None):
-        return np.array(tuple(rle_mask(self._data, mask)), dtype=dtype)
-
-    def get_value(self, index):
-        for value in self.sorted_gather((index,)):
-            return value
+    end = 0
+    for j, (val, count) in enumerate(rle_data[::-1]):
+        if val and count > 0:
+            break
+        else:
+            end += count
+    rle_data = rle_data[i:None if j == 0 else -j].reshape((-1,))
+    return rle_data, (start, end)
 
 
-class BinaryRunLengthEncoding(RunLengthEncoding):
-    @staticmethod
-    def from_dense(dense_data, dtype=np.int64):
-        return BinaryRunLengthEncoding(dense_to_brle(dense_data, dtype))
+def brle_strip(brle_data):
+    """
+    Remove leading and trailing zeros.
 
-    @staticmethod
-    def from_rle(rle_data, dtype=None):
-        return BinaryRunLengthEncoding(rle_to_brle(rle_data, dtype=dtype))
-
-    @staticmethod
-    def from_brle(brle_data, dtype=None):
-        if dtype != brle_data.dtype:
-            brle_data = brle_to_brle(brle_data, dtype=dtype)
-        return BinaryRunLengthEncoding(brle_data)
-
-    def sum(self):
-        return self._data[1::2].sum()
-
-    def dense_length(self):
-        return brle_length(self._data)
-
-    def reverse(self):
-        return brle_reverse(self._data)
-
-    def sparse_indices(self):
-        return brle_to_sparse(self._data)
-
-    def to_dense(self):
-        return brle_to_dense(self._data)
-
-    def gather(self, indices, dtype=np.bool):
-        return brle_gather_1d(self._data, indices, dtype=dtype)
-
-    def sorted_gather(self, ordered_indices, dtype=np.bool):
-        return np.array(
-            tuple(sorted_brle_gather_1d(self._data, ordered_indices)),
-            dtype=dtype)
-
-    def mask(self, mask, dtype=np.bool):
-        return np.array(tuple(brle_mask(self._data, mask)), dtype=dtype)
+    Returns:
+    stripped_brle_data: rle data without any leading or trailing zeros
+    padding: 2-element dense padding
+    """
+    start = 0
+    val = True
+    for i, count in enumerate(brle_data):
+        val = not val
+        if val and count > 0:
+            break
+        else:
+            start += count
+    end = 0
+    val = bool(len(brle_data) % 2)
+    for j, count in enumerate(brle_data[::-1]):
+        val = not val
+        if val and count > 0:
+            break
+        else:
+            end += count
+    brle_data = brle_data[i:None if j == 0 else -j]
+    brle_data = np.concatenate([[0], brle_data])
+    return brle_data, (start, end)

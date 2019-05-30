@@ -72,7 +72,7 @@ def fill_voxelization(occupied):
     return filled
 
 
-def matrix_to_marching_cubes(matrix):
+def matrix_to_marching_cubes(matrix, pitch=1.0):
     """
     Convert an (n,m,p) matrix into a mesh, using marching_cubes.
 
@@ -88,7 +88,7 @@ def matrix_to_marching_cubes(matrix):
       the marching cubes algorithm in skimage
     """
     from skimage import measure
-    from .base import Trimesh
+    from ..base import Trimesh
 
     matrix = np.asanyarray(matrix, dtype=np.bool)
 
@@ -108,9 +108,12 @@ def matrix_to_marching_cubes(matrix):
         func = measure.marching_cubes
 
     # Run marching cubes.
+    pitch = np.asanyarray(pitch)
+    if pitch.size == 1:
+        pitch = (pitch,) * 3
     meshed = func(volume=rev_matrix,
                   level=.5,  # it is a boolean voxel grid
-                  )
+                  spacing=pitch)
 
     # allow results from either marching cubes function in skimage
     # binaries available for python 3.3 and 3.4 appear to use the classic
@@ -162,7 +165,7 @@ def sparse_to_matrix(sparse):
     return dense
 
 
-def points_to_marching_cubes(points):
+def points_to_marching_cubes(points, pitch=1.0):
     """
     Mesh points by assuming they fill a voxel box, and then
     running marching cubes on them
@@ -179,11 +182,12 @@ def points_to_marching_cubes(points):
     """
     # make sure inputs are as expected
     points = np.asanyarray(points, dtype=np.float64)
+    pitch = np.asanyarray(pitch, dtype=float)
 
     # find the minimum value of points for origin
     origin = points.min(axis=0)
     # convert points to occupied voxel cells
-    index = (points - origin).round().astype(np.int64)
+    index = ((points - origin) / pitch).round().astype(np.int64)
 
     # convert voxel indices to a matrix
     matrix = sparse_to_matrix(index)
@@ -195,7 +199,7 @@ def points_to_marching_cubes(points):
     return mesh
 
 
-def multibox(centers, pitch, colors=None):
+def multibox(centers, colors=None):
     """
     Return a Trimesh object with a box at every center.
 
@@ -214,7 +218,16 @@ def multibox(centers, pitch, colors=None):
     from .. import primitives
     from ..base import Trimesh
 
-    b = primitives.Box(extents=[pitch, pitch, pitch])
+    b = primitives.Box()
+
+    # v = np.expand_dims(centers, axis=0)
+    # v = v + np.expand_dims(b.vertices, axis=1)
+    # v = v.reshape((-1, 3))
+
+    # vertices_per_box = len(b.vertices)
+    # f = np.expand_dims(np.arange(len(centers)) * vertices_per_box, axis=0)
+    # f = f + np.expand_dims(np.arange(vertices_per_box), axis=1)
+    # f = f.reshape((-1, 3))
 
     v = np.tile(centers, (1, len(b.vertices))).reshape((-1, 3))
     v += np.tile(b.vertices, (len(centers), 1))
@@ -285,20 +298,22 @@ def boolean_sparse(a, b, operation=np.logical_and):
 
 
 def strip_array(data):
-    ndims = len(data.shape)
+    shape = data.shape
+    ndims = len(shape)
     padding = []
-    for dim in range(ndims):
-        filled = np.any(
-            dim, axis=tuple(range(dim)) + tuple(range(dim+1, ndims)))
+    slices = []
+    for dim, size in enumerate(shape):
+        axis = tuple(range(dim)) + tuple(range(dim + 1, ndims))
+        filled = np.any(data, axis=axis)
         indices, = np.nonzero(filled)
-        start = indices[0]
-        end = indices[-1]
-        padding.append([start, end])
-        data = data[start:end]
-    return data, np.array(padding, int)
+        pad_left = indices[0]
+        pad_right = indices[-1]
+        padding.append([pad_left, pad_right])
+        slices.append(slice(pad_left, pad_right))
+    return data[tuple(slices)], np.array(padding, int)
 
 
-def indices_to_points(indices, pitch, origin):
+def indices_to_points(indices, pitch=None, origin=None):
     """
     Convert indices of an (n,m,p) matrix into a set of voxel center points.
 
@@ -312,23 +327,25 @@ def indices_to_points(indices, pitch, origin):
     ----------
     points: (q, 3) float, list of points
     """
-    indices = np.asanyarray(indices, dtype=np.float64)
-    origin = np.asanyarray(origin, dtype=np.float64)
-    pitch = float(pitch)
-
-    if indices.shape != (indices.shape[0], 3):
+    indices = np.asanyarray(indices)
+    if indices.shape[1:] != (3,):
         from IPython import embed
         embed()
         raise ValueError('shape of indices must be (q, 3)')
 
-    if origin.shape != (3,):
-        raise ValueError('shape of origin must be (3,)')
+    points = np.array(indices, dtype=np.float64)
+    if pitch is not None:
+        points *= float(pitch)
+    if origin is not None:
+        origin = np.asanyarray(origin)
+        if origin.shape != (3,):
+            raise ValueError('shape of origin must be (3,)')
+        points += origin
 
-    points = indices * pitch + origin
     return points
 
 
-def matrix_to_points(matrix, pitch, origin):
+def matrix_to_points(matrix, pitch=None, origin=None):
     """
     Convert an (n,m,p) matrix into a set of points for each voxel center.
 
@@ -349,7 +366,7 @@ def matrix_to_points(matrix, pitch, origin):
     return points
 
 
-def points_to_indices(points, pitch, origin):
+def points_to_indices(points, pitch=None, origin=None):
     """
     Convert center points of an (n,m,p) matrix into its indices.
 
@@ -367,15 +384,20 @@ def points_to_indices(points, pitch, origin):
     indices : (q, 3) int
       List of indices
     """
-    points = np.asanyarray(points, dtype=np.float64)
-    origin = np.asanyarray(origin, dtype=np.float64)
-    pitch = float(pitch)
-
+    points = np.array(points, dtype=np.float64)
     if points.shape != (points.shape[0], 3):
         raise ValueError('shape of points must be (q, 3)')
 
-    if origin.shape != (3,):
-        raise ValueError('shape of origin must be (3,)')
+    if origin is not None:
+        origin = np.asanyarray(origin)
+        if origin.shape != (3,):
+            raise ValueError('shape of origin must be (3,)')
+        points -= origin
+    if pitch is not None:
+        points /= pitch
 
-    indices = np.round((points - origin) / pitch).astype(int)
+    origin = np.asanyarray(origin, dtype=np.float64)
+    pitch = float(pitch)
+
+    indices = np.round(points).astype(int)
     return indices

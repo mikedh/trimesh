@@ -2144,7 +2144,8 @@ class Trimesh(Geometry):
         log.debug('mesh transformed by matrix')
         return self
 
-    def voxelized(self, pitch, **kwargs):
+    def voxelized(
+            self, pitch, solid=False, max_iter=10, method='subdivide'):
         """
         Return a Voxel object representing the current mesh
         discretized into voxels at the specified pitch
@@ -2153,16 +2154,19 @@ class Trimesh(Geometry):
         ----------
         pitch : float
           The edge length of a single voxel
+        solid: whether to get solid matrix or surface
+        kwargs: passed to voxel.MeshVoxelizer
 
         Returns
         ----------
         voxelized : Voxel object
           Representing the current mesh
         """
-        voxelized = voxel.VoxelMesh(self,
-                                    pitch=pitch,
-                                    **kwargs)
-        return voxelized
+        # Should we cache voxelizer?
+        voxelizer = voxel.MeshVoxelizer(
+            self, pitch=pitch, max_iter=max_iter, method=method)
+        matrix = voxelizer.matrix_solid if solid else voxelizer.matrix_surface
+        return voxelizer.voxelize_matrix(matrix)
 
     def outline(self, face_ids=None, **kwargs):
         """

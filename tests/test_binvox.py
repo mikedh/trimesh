@@ -12,29 +12,35 @@ from trimesh import voxel as v
 class BinvoxTest(g.unittest.TestCase):
     def test_load_save_invariance(self):
         np = g.np
-        dense = np.random.uniform(size=(4, 4, 4)) > 0.8
+        n = 4
+        dense = np.random.uniform(size=(n,) * 3) > 0.8
+        dense[0, 0, 0] = dense[-1, -1, -1] = 1  # ensure extent test works
         shape = dense.shape
-        rl_data = rl.dense_to_rle(
-            dense.transpose((0, 2, 1)).flatten(), dtype=np.uint8)
+        rl_data = rl.dense_to_rle(dense.flatten(), dtype=np.uint8)
         translate = np.array([2, 5, 10], dtype=np.float32)
-        scale = 3.6
-        base = v.VoxelRle.from_binvox_data(rl_data, shape, translate, scale)
-        np.testing.assert_equal(base.matrix.astype(np.bool), dense)
+        scale = 5.
+        base = binvox.voxel_from_binvox(
+            rl_data, shape, translate, scale, axis_order='xzy')
+        s = scale / (n - 1)
+        np.testing.assert_equal(base.transform.matrix, np.array([
+            [s, 0, 0, 2],
+            [0, s, 0, 5],
+            [0, 0, s, 10],
+            [0, 0, 0, 1]
+        ]))
+        dense = dense.transpose((0, 2, 1))
+        np.testing.assert_allclose(base.bounds, [translate, translate + scale])
+        np.testing.assert_equal(base.encoding.dense, dense)
+
         file_obj = BytesIO(binvox.export_binvox(base))
         file_obj.seek(0)
         loaded = binvox.load_binvox(file_obj)
-        np.testing.assert_equal(loaded.matrix.astype(np.bool), dense)
-        self.assertTrue(isinstance(base, v.VoxelTranspose))
-        self.assertTrue(isinstance(loaded, v.VoxelTranspose))
-        self.assertTrue(isinstance(base.base, v.VoxelRle))
-        self.assertTrue(isinstance(loaded.base, v.VoxelRle))
-        np.testing.assert_equal(base.transpose_axes, loaded.transpose_axes)
-        bb = base.base
-        lb = loaded.base
-        np.testing.assert_equal(bb.rle_data, lb.rle_data)
-        np.testing.assert_equal(bb.shape, lb.shape)
-        np.testing.assert_equal(bb.pitch, lb.pitch)
-        np.testing.assert_equal(bb.origin, lb.origin)
+        np.testing.assert_equal(loaded.encoding.dense, base.encoding.dense)
+        self.assertTrue(isinstance(base, v.Voxel))
+        self.assertTrue(isinstance(loaded, v.Voxel))
+        np.testing.assert_equal(
+            base.transform.matrix, loaded.transform.matrix)
+        np.testing.assert_equal(base.shape, loaded.shape)
 
 
 if __name__ == '__main__':

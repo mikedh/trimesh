@@ -16,42 +16,41 @@ class VoxelTest(g.unittest.TestCase):
                   g.trimesh.primitives.Box(),
                   g.trimesh.primitives.Sphere()]:
             for pitch in [.1, .1 - g.tol.merge]:
-                v = m.voxelized(pitch)
-                assert len(v.matrix.shape) == 3
-                assert v.shape == v.matrix.shape
-                assert v.volume > 0.0
+                voxelizer = creation.MeshVoxelizer(m, pitch)
+                surface = voxelizer.voxel_surface
+                solid = voxelizer.voxel_solid
 
-                assert v.origin.shape == (3,)
-                assert isinstance(v.pitch, float)
-                assert g.np.isfinite(v.pitch)
+                assert len(surface.encoding.dense.shape) == 3
+                assert surface.shape == surface.encoding.dense.shape
+                assert surface.volume > 0.0
 
-                assert isinstance(v.filled_count, int)
-                assert v.filled_count > 0
+                assert isinstance(surface.filled_count, int)
+                assert surface.filled_count > 0
 
-                box = v.as_boxes(solid=False)
-                boxF = v.as_boxes(solid=True)
+                box_surface = surface.as_boxes()
+                box_solid = solid.as_boxes()
 
-                assert isinstance(box, g.trimesh.Trimesh)
-                assert abs(boxF.volume - v.volume) < g.tol.merge
+                assert isinstance(box_surface, g.trimesh.Trimesh)
+                assert abs(box_solid.volume - solid.volume) < g.tol.merge
 
-                assert g.trimesh.util.is_shape(v.points, (-1, 3))
-
-                assert len(v.sparse_solid) > len(v.sparse_surface)
-
-                assert g.np.all(v.is_filled(v.points))
-
+                assert g.trimesh.util.is_shape(surface.sparse_indices, (-1, 3))
+                assert len(solid.sparse_indices) >= len(surface.sparse_indices)
+                assert solid.sparse_indices.shape == solid.points.shape
                 outside = m.bounds[1] + m.scale
-                assert not v.is_filled(outside)
+                for vox in surface, solid:
+                    assert vox.sparse_indices.shape == vox.points.shape
+                    assert g.np.all(vox.is_filled(vox.points))
+                    assert not vox.is_filled(outside)
 
                 try:
-                    cubes = v.marching_cubes
+                    cubes = surface.marching_cubes
                     assert cubes.area > 0.0
                 except ImportError:
                     g.log.info('no skimage, skipping marching cubes test')
 
             g.log.info('Mesh volume was %f, voxelized volume was %f',
                        m.volume,
-                       v.volume)
+                       surface.volume)
 
     def test_marching(self):
         """
@@ -68,10 +67,7 @@ class VoxelTest(g.unittest.TestCase):
         mesh = ops.matrix_to_marching_cubes(matrix=matrix)
         assert mesh.is_watertight
 
-        mesh = ops.matrix_to_marching_cubes(
-            matrix=matrix,
-            pitch=3.0,
-            origin=g.np.zeros(3))
+        mesh = ops.matrix_to_marching_cubes(matrix=matrix).apply_scale(3.0)
         assert mesh.is_watertight
 
     def test_marching_points(self):
@@ -89,7 +85,7 @@ class VoxelTest(g.unittest.TestCase):
         # make the pitch proportional to scale
         pitch = points.ptp(axis=0).min() / 10
         # run marching cubes
-        mesh = g.trimesh.voxel.points_to_marching_cubes(
+        mesh = ops.points_to_marching_cubes(
             points=points, pitch=pitch)
 
         # mesh should have faces
@@ -162,19 +158,17 @@ class VoxelTest(g.unittest.TestCase):
 
     def test_as_boxes(self):
         voxel = g.trimesh.voxel
-        from trimesh.voxel.ops import matrix_to_points
 
         pitch = 0.1
-        origin = (0, 0, 0)
+        origin = (0, 0, 1)
 
         matrix = g.np.eye(9, dtype=g.np.bool).reshape((-1, 3, 3))
-        centers = matrix_to_points(
+        centers = ops.matrix_to_points(
             matrix=matrix, pitch=pitch, origin=origin)
-        v = voxel.Voxel(matrix=matrix).apply_scale(
-            pitch).apply_translation(origin)
+        v = voxel.Voxel(matrix).apply_scale(pitch).apply_translation(origin)
 
         boxes1 = v.as_boxes()
-        boxes2 = voxel.multibox(centers, pitch)
+        boxes2 = ops.multibox(centers).apply_scale(pitch)
         colors = [g.trimesh.visual.DEFAULT_COLOR] * matrix.sum() * 12
         for boxes in [boxes1, boxes2]:
             g.np.testing.assert_allclose(
@@ -183,9 +177,8 @@ class VoxelTest(g.unittest.TestCase):
         # check assigning a single color
         color = [255, 0, 0, 255]
         boxes1 = v.as_boxes(colors=color)
-        boxes2 = voxel.multibox(centers=centers,
-                                pitch=pitch,
-                                colors=color)
+        boxes2 = ops.multibox(
+            centers=centers, colors=color).apply_scale(pitch)
         colors = g.np.array([color] * len(centers) * 12)
         for boxes in [boxes1, boxes2]:
             g.np.testing.assert_allclose(
@@ -228,12 +221,13 @@ class VoxelTest(g.unittest.TestCase):
     def test_vox_sphere(self):
         # should be filled from 0-9
         matrix = g.np.ones((10, 10, 10))
-        vox = g.trimesh.voxel.Voxel(matrix).apply_scale(0.1)
+        scale = 0.1
+        vox = g.trimesh.voxel.Voxel(matrix).apply_scale(scale)
         # epsilon from zero
         eps = 1e-4
         # should all be contained
         grid = g.trimesh.util.grid_linspace(
-            [[eps] * 3, [9 - eps] * 3], 11) * vox.pitch
+            [[eps] * 3, [9 - eps] * 3], 11) * scale
         assert vox.is_filled(grid).all()
 
         # push it outside the filled area
@@ -255,12 +249,13 @@ class VoxelTest(g.unittest.TestCase):
 
         If query_points is provided, also tests
             is_filled
-            point_to_index
+            points_to_indices
+            indices_to_points
 
         Args:
             v0: `VoxelBase` instance
             v1: `VoxelBase` instance
-            query_points: (optional) points as which `point_to_index` and
+            query_points: (optional) points as which `points_to_indices` and
             `is_filled` are tested for consistency.
         """
         def array_as_set(array2d):
@@ -274,56 +269,40 @@ class VoxelTest(g.unittest.TestCase):
         self.assertEqual(v0.shape, v1.shape)
         self.assertEqual(v0.filled_count, v1.filled_count)
         self.assertEqual(v0.volume, v1.volume)
-        g.np.testing.assert_equal(v0.matrix, v1.matrix)
+        g.np.testing.assert_equal(v0.encoding.dense, v1.encoding.dense)
         # points will be in different order, but should contain same coords
         g.np.testing.assert_equal(
             array_as_set(v0.points), array_as_set(v1.points))
-        g.np.testing.assert_equal(v0.origin, v1.origin)
-        g.np.testing.assert_equal(v0.pitch, v1.pitch)
+        # g.np.testing.assert_equal(v0.origin, v1.origin)
+        # g.np.testing.assert_equal(v0.pitch, v1.pitch)
         if query_points is not None:
-            g.np.testing.assert_equal(
-                v0.point_to_index(query_points),
-                v1.point_to_index(query_points))
+            indices0 = v0.points_to_indices(query_points)
+            indices1 = v1.points_to_indices(query_points)
+            g.np.testing.assert_equal(indices0, indices1)
+            g.np.testing.assert_allclose(
+                v0.points_to_indices(v0.indices_to_points(indices0)), indices0)
+            g.np.testing.assert_allclose(
+                v1.points_to_indices(v1.indices_to_points(indices1)), indices1)
             g.np.testing.assert_equal(
                 v0.is_filled(query_points),
                 v1.is_filled(query_points))
 
-    # def test_transposed(self):
-    #     voxel = g.trimesh.voxel
-    #     matrix = g.np.random.uniform(size=(3, 4, 5)) > 0.5
-    #     axes = g.np.array((2, 0, 1))
-    #     origin = g.np.array([0, 1, 2])
-    #     v = voxel.Voxel(matrix, pitch=1.0, origin=origin)
-    #     vt = v.transpose(axes)
-    #     vt2 = voxel.Voxel(
-    #         matrix.transpose(axes), pitch=1.0, origin=origin[axes])
-    #     query_points = g.np.random.uniform(size=(20, 3), high=5)
-    #     self._test_equiv(vt, vt2, query_points)
-    #     self._test_equiv(vt.to_dense(), vt2.to_dense(), query_points)
-    #     axes2 = g.np.array((1, 0, 2))
-    #     self._test_equiv(
-    #         vt.transpose(axes2), vt2.transpose(axes2), query_points)
-    #     vt3 = voxel.Voxel(
-    #         matrix.transpose(axes).transpose(axes2),
-    #         pitch=1.0,
-    #         origin=origin[axes][axes2])
-    #     self._test_equiv(vt.transpose(axes2), vt3, query_points)
-
     def test_voxel_rle(self):
-        from trimesh.voxel import runlength as rl
+        from trimesh.voxel import encoding as enc
         np = g.np
         voxel = g.trimesh.voxel
         shape = (4, 4, 4)
-        rle_obj = rl.RunLengthEncoding(np.array([
-            0, 8, 1, 40, 0, 16], dtype=np.uint8))
-        brle_obj = rl.BinaryRunLengthEncoding(np.array([
+        rle_obj = enc.RunLengthEncoding(np.array([
+            0, 8, 1, 40, 0, 16], dtype=np.uint8), dtype=bool)
+        brle_obj = enc.BinaryRunLengthEncoding(np.array([
             8, 40, 16], dtype=np.uint8))
-        v_rle = voxel.VoxelRle(rle_obj, shape)
+        v_rle = voxel.Voxel(rle_obj.reshape(shape))
         self.assertEqual(v_rle.filled_count, 40)
         np.testing.assert_equal(
-            v_rle.matrix, np.reshape([0]*8 + [1]*40 + [0]*16, shape))
+            v_rle.encoding.dense,
+            np.reshape([0] * 8 + [1] * 40 + [0] * 16, shape))
 
-        v_brle = voxel.VoxelRle(brle_obj, shape)
+        v_brle = voxel.Voxel(brle_obj.reshape(shape))
         query_points = np.random.uniform(size=(100, 3), high=4)
         self._test_equiv(v_rle, v_brle, query_points)
 

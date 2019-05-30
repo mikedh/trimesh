@@ -84,9 +84,7 @@ def binvox_header(shape, translate, scale):
     Returns:
         string including "data\n" line.
     """
-    sx, sy, sz = shape
-    if not all(isinstance(s, int) for s in shape):
-        raise ValueError('All shape elements must be ints')
+    sx, sy, sz = (int(s) for s in shape)
     tx, ty, tz = translate
     return _binvox_header.format(
         sx=sx, sy=sy, sz=sz, tx=tx, ty=ty, tz=tz, scale=scale)
@@ -112,54 +110,117 @@ def binvox_bytes(rle_data, shape, translate=(0, 0, 0), scale=1):
     return header + rle_data.tostring()
 
 
-def load_binvox(file_obj, resolver=None, encoded_axes='xzy', **kwargs):
+def voxel_from_binvox(
+        rle_data, shape, translate=None, scale=1.0, axis_order='xzy'):
+    """
+    Factory for building from data associated with binvox files.
+
+    Args:
+        rle_data: numpy array representing run-length-encoded of flat voxel
+            values, or a `trimesh.rle.RunLengthEncoding` object.
+            See `trimesh.rle` documentation for description of encoding.
+        shape: shape of voxel grid.
+        translate: alias for `origin` in trimesh terminology
+        scale: side length of entire voxel grid. Note this is different
+            to `pitch` in trimesh terminology, which relates to the side
+            length of an individual voxel.
+        encoded_axes: iterable with values in ('x', 'y', 'z', 0, 1, 2),
+            where x => 0, y => 1, z => 2
+            denoting the order of axes in the encoded data. binvox by
+            default saves in xzy order, but using `xyz` (or (0, 1, 2)) will
+            be faster in some circumstances.
+
+    Returns:
+        `Voxel` instance
+    """
+    # shape must be uniform else scale is ambiguous
+    from ..voxel import encoding as enc
+    from .. import voxel as v
+    from .. import transformations
+    if isinstance(rle_data, enc.RunLengthEncoding):
+        encoding = rle_data
+    else:
+        encoding = enc.RunLengthEncoding(rle_data, dtype=bool)
+
+    # translate = np.asanyarray(translate) * scale)
+    # translate = [0, 0, 0]
+    transform = transformations.scale_and_translate(
+        scale=scale / (np.array(shape) - 1),
+        translate=translate)
+
+    if axis_order == 'xzy':
+        perm = (0, 2, 1)
+        shape = tuple(shape[p] for p in perm)
+        encoding = encoding.reshape(shape).transpose(perm)
+    elif axis_order is None or axis_order == 'xyz':
+        encoding = encoding.reshape(shape)
+    else:
+        raise ValueError(
+            "Invalid axis_order '%s': must be None, 'xyz' or 'xzy'")
+
+    assert(encoding.shape == shape)
+    return v.Voxel(encoding, transform)
+
+
+def load_binvox(file_obj, resolver=None, axis_order='xzy', **kwargs):
     """Load trimesh `Voxel` instance from file.
 
     Args:
         file_obj: file-like object with `read` and `readline` methods.
         resolve: unused
-        encoded_axes: order of axes in encoded data. binvox default is
+        axis_order: order of axes in encoded data. binvox default is
             'xzy', but 'xyz' may be faster results where this is not relevant.
         **kwargs: unused
 
     Returns:
         `trimesh.voxel.VoxelBase` instance.
     """
-    from .. import voxel
     data = parse_binvox(file_obj)
-    return voxel.VoxelRle.from_binvox_data(
+    return voxel_from_binvox(
         rle_data=data.rle_data,
         shape=data.shape,
         translate=data.translate,
         scale=data.scale,
-        encoded_axes=encoded_axes)
+        axis_order=axis_order)
 
 
-def export_binvox(voxel, encoded_axes='xzy'):
+def export_binvox(voxel, axis_order='xzy'):
     """Export `trimesh.voxel.VoxelBase` instance to bytes
 
     Args:
         voxel: `trimesh.voxel.VoxelBase` instance. Assumes axis ordering of
             `xyz` and encodes in binvox default `xzy` ordering.
-        encoded_axes: iterable of elements in ('x', 'y', 'z', 0, 1, 2)
+        axis_order: iterable of elements in ('x', 'y', 'z', 0, 1, 2), the order
+            of axes to encode data (standard is 'xzy' for binvox). `voxel`
+            data is assumed to be in order 'xyz'.
 
     Returns:
         bytes representation according to binvox spec
     """
-    indices = {'x': 0, 'y': 1, 'z': 2}
-    axes = tuple(indices.get(a, a) for a in encoded_axes)
-    if not (len(axes) == 3 and all(i in axes for i in range(3))):
-        raise ValueError('Invalid encoded_axes %s' % (encoded_axes))
-    voxel = voxel.transpose(axes)
-    rle_data = getattr(voxel, 'rle_data', None)
-    if rle_data is None:
-        from .. import rle
-        rle_data = rle.dense_to_rle(voxel.matrix, dtype=np.uint8)
-    shape = voxel.shape
-    if not (shape[0] == shape[1] == shape[2]):
+    transform = voxel.transform
+    translate = transform.matrix[:3, 3]
+    encoding = voxel.encoding
+
+    tol = 1e-12
+    i, j = np.where(np.abs(transform.matrix[:3, :3]) > tol)
+    scales = transform.matrix[i, j] * (np.array(voxel.shape) - 1)
+
+    if not np.all(i == j) or np.any(scales) < 0:
+        # TODO: refactor transpose/reflection in transform into
+        # transpose/flip in encoding
         raise ValueError(
-            'trimesh only supports uniform scaling, so required binvox '
-            'with uniform shapes')
+            'Invalid transformation matrix for exporting to binvox - '
+            'no rotation/shear/reflection allowed.')
+
+    if not np.all(np.abs(scales[1:] - scales[0]) < tol):
+        raise ValueError(
+            'Invalid transformation matrix for exporting to binvox - '
+            'only uniform scales allowed')
+    scale = scales[0]
+    if axis_order == 'xzy':
+        encoding = encoding.transpose((0, 2, 1))
+    elif axis_order != 'xyz':
+        raise ValueError('Invalid axis_order: must be one of ("xyz", "xzy")')
+    rle_data = encoding.flat.run_length_data(dtype=np.uint8)
     return binvox_bytes(
-        rle_data, shape=voxel.shape, translate=voxel.origin,
-        scale=voxel.pitch * (shape[0] - 1))
+        rle_data, shape=voxel.shape, translate=translate, scale=scale)

@@ -692,7 +692,7 @@ def grid_linspace(bounds, count):
         count = np.tile(count, bounds.shape[1])
 
     grid_elements = [np.linspace(*b, num=c) for b, c in zip(bounds.T, count)]
-    grid = np.vstack(np.meshgrid(*grid_elements)
+    grid = np.vstack(np.meshgrid(*grid_elements, indexing='ij')
                      ).reshape(bounds.shape[1], -1).T
     return grid
 

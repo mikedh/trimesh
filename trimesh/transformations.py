@@ -2126,3 +2126,21 @@ def is_rigid(matrix):
                    matrix[:3, :3].T)
 
     return np.allclose(check, np.eye(3))
+
+
+def scale_and_translate(scale=None, translate=None):
+    """
+    Optimized version of `compose_matrix` for just scaling then translating.
+
+    Scalar args are broadcast to arrays of shape (3,)
+
+    Args:
+        scale: scalar or length-3 array
+        translate: scalar or length-3 array
+    """
+    M = np.eye(4)
+    if np.any(scale != 1):
+        M[:3, :3] *= scale
+    if translate is not None:
+        M[:3, 3] = translate
+    return M
