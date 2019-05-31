@@ -2,11 +2,6 @@ import tempfile
 
 import numpy as np
 
-try:
-    import gmsh
-except ImportError:
-    gmsh = None
-
 
 def load_gmsh(file_name, gmsh_args=None):
     """
@@ -38,6 +33,8 @@ def load_gmsh(file_name, gmsh_args=None):
     """
     # use STL as an intermediate format
     from ..exchange.stl import load_stl
+    # do import here to avoid very occasional segfaults
+    import gmsh
 
     # start with default args for the meshing step
     # Mesh.Algorithm=2 MeshAdapt/Delaunay, there are others but they may include quads
@@ -142,6 +139,8 @@ def to_volume(mesh,
       MSH data, only returned if file_name is None
 
     """
+    # do import here to avoid very occasional segfaults
+    import gmsh
 
     # checks mesher selection
     if mesher_id not in [1, 4, 7, 10]:
