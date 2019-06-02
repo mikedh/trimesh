@@ -56,6 +56,8 @@ class Trimesh(Geometry):
                  vertex_normals=None,
                  face_colors=None,
                  vertex_colors=None,
+                 face_attributes=None,
+                 vertex_attributes=None,
                  metadata=None,
                  process=True,
                  validate=False,
@@ -173,6 +175,16 @@ class Trimesh(Geometry):
         # Set the default center of mass and density
         self._density = 1.0
         self._center_mass = None
+
+        # store per-face and per-vertex attributes which will
+        # be updated when an update_faces call is made
+        self.face_attributes = {}
+        self.vertex_attributes = {}
+        # use update to copy items
+        if face_attributes is not None:
+            self.face_attributes.update(face_attributes)
+        if vertex_attributes is not None:
+            self.vertex_attributes.update(vertex_attributes)
 
         # process will remove NaN and Inf values and merge vertices
         # if validate, will remove degenerate and duplicate faces
@@ -1071,6 +1083,19 @@ class Trimesh(Geometry):
         # get the normals from cache before dumping
         cached_normals = self._cache['vertex_normals']
 
+        # apply to face_attributes
+        count = len(self.vertices)
+        for key, value in self.vertex_attributes.items():
+            try:
+                # covers un-len'd objects as well
+                if len(value) != count:
+                    raise TypeError()
+            except TypeError:
+
+                continue
+            # apply the mask to the attribute
+            self.vertex_attributes[key] = value[mask]
+
         # actually apply the mask
         self.vertices = self.vertices[mask]
 
@@ -1106,14 +1131,28 @@ class Trimesh(Geometry):
         cached_normals = self._cache['face_normals']
 
         faces = self._data['faces']
-        # if Trimesh has been subclassed and faces have been moved from data
-        # to cache, get faces from cache.
+        # if Trimesh has been subclassed and faces have been moved
+        # from data to cache, get faces from cache.
         if not util.is_shape(faces, (-1, 3)):
             faces = self._cache['faces']
 
+        # apply to face_attributes
+        count = len(self.faces)
+        for key, value in self.face_attributes.items():
+            try:
+                # covers un-len'd objects as well
+                if len(value) != count:
+                    raise TypeError()
+            except TypeError:
+
+                continue
+            # apply the mask to the attribute
+            self.face_attributes[key] = value[mask]
+
         # actually apply the mask
         self.faces = faces[mask]
-        # apply the mask to the visual object
+
+        # apply to face colors
         self.visual.update_faces(mask)
 
         # if our normals were the correct shape apply them

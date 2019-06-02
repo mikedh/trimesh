@@ -117,12 +117,11 @@ def load_stl_binary(file_obj):
     faces = np.arange(header['face_count'] * 3).reshape((-1, 3))
 
     # there are two bytes per triangle saved for anything
-    # this sometimes used for face color
-    metadata['face_attributes'] = blob['attributes']
-
+    # which is sometimes used for face color
     result = {'vertices': blob['vertices'].reshape((-1, 3)),
               'face_normals': blob['normals'].reshape((-1, 3)),
               'faces': faces,
+              'face_attributes': {'stl': blob['attributes']},
               'metadata': metadata}
     return result
 
