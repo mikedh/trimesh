@@ -274,12 +274,14 @@ class ColorVisuals(object):
         colors: (count, 4) uint8, RGBA colors
         """
 
-        if name == 'face':
-            count = len(self.mesh.faces)
-        elif name == 'vertex':
-            count = len(self.mesh.vertices)
-        else:
-            count = None
+        count = None
+        try:
+            if name == 'face':
+                count = len(self.mesh.faces)
+            elif name == 'vertex':
+                count = len(self.mesh.vertices)
+        except BaseException:
+            pass
 
         # the face or vertex colors
         key_colors = str(name) + '_colors'
