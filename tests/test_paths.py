@@ -118,14 +118,14 @@ class VectorTests(g.unittest.TestCase):
         p = g.get_mesh('2D/LM2.dxf')
         assert p.is_closed
         assert any(len(i.points) > 2 for i in p.entities if
-                   g.trimesh.util.is_instance_named(i, 'Line'))
+                   isinstance(i, g.trimesh.path.entities.Line))
 
         assert len(p.layers) == len(p.entities)
         assert len(g.np.unique(p.layers)) > 1
 
         p.explode()
         assert all(len(i.points) == 2 for i in p.entities if
-                   g.trimesh.util.is_instance_named(i, 'Line'))
+                   isinstance(i, g.trimesh.path.entities.Line))
         assert p.is_closed
         p.entities = p.entities[:-1]
         assert not p.is_closed
@@ -133,6 +133,25 @@ class VectorTests(g.unittest.TestCase):
         # fill gaps of any distance
         p.fill_gaps(g.np.inf)
         assert p.is_closed
+
+    def test_text(self):
+        """
+        Do some checks on Text entities
+        """
+        p = g.get_mesh('2D/LM2.dxf')
+        p.explode()
+        # get some text entities
+        text = [e for e in p.entities if
+                isinstance(e, g.trimesh.path.entities.Text)]
+        assert len(text) > 1
+
+        # loop through each of them
+        for t in text:
+            # a spurious error we were seeing in CI
+            if g.trimesh.util.is_instance_named(t, 'Line'):
+                raise ValueError(
+                    'type bases:',
+                    [i.__name__ for i in g.trimesh.util.type_bases(t)])
 
     def test_empty(self):
         # make sure empty paths perform as expected
