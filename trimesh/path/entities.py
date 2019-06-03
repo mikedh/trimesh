@@ -23,17 +23,25 @@ class Entity(object):
                  closed=None,
                  layer=None,
                  **kwargs):
-
+        # points always reference vertex indices and are int
         self.points = np.asanyarray(points, dtype=np.int64)
+        # save explicit closed
         if closed is not None:
             self.closed = closed
+        # save the passed layer
         self.layer = layer
+        # save any other kwargs for general use
         self.kwargs = kwargs
 
     def to_dict(self):
         """
         Returns a dictionary with all of the information
         about the entity.
+
+        Returns
+        -----------
+        as_dict : dict
+          Has keys 'type', 'points', 'closed'
         """
         return {'type': self.__class__.__name__,
                 'points': self.points.tolist(),
@@ -44,6 +52,11 @@ class Entity(object):
         """
         If the first point is the same as the end point
         the entity is closed
+
+        Returns
+        -----------
+        closed : bool
+          Is the entity closed or not?
         """
         closed = (len(self.points) > 2 and
                   self.points[0] == self.points[-1])
@@ -84,8 +97,10 @@ class Entity(object):
         in self.points aren't the endpoints of the curve you need to
         implement this function for your class.
 
-        self.points = [0,1,2]
-        returns:      [0,2]
+        Returns
+        -------------
+        ends : (2,) int
+          Indices of the two end points of the entity
         """
         return self.points[[0, -1]]
 
@@ -104,6 +119,12 @@ class Entity(object):
     def reverse(self, direction=-1):
         """
         Reverse the current entity in place.
+
+        Parameters
+        ----------------
+        direction : int
+          If positive will not touch direction
+          If negative will reverse self.points
         """
         if direction < 0:
             self._direction = -1
@@ -112,7 +133,17 @@ class Entity(object):
 
     def _orient(self, curve):
         """
-        Reverse a curve if a flag is set
+        Reverse a curve if a flag is set.
+
+        Parameters
+        --------------
+        curve : (n, dimension) float
+          Curve made up of line segments in space
+
+        Returns
+        ------------
+        orient : (n, dimension) float
+          Original curve, but possibly reversed
         """
         if hasattr(self, '_direction') and self._direction < 0:
             return curve[::-1]
@@ -124,11 +155,13 @@ class Entity(object):
 
         Parameters
         -----------
-        vertices: (n,dimension) float, vertices in space
+        vertices : (n, dimension) float
+          Vertices in space
 
         Returns
         -----------
-        bounds: (2, dimension) float, (min, max) coordinate of AABB
+        bounds : (2, dimension) float
+          Coordinates of AABB, in (min, max) form
         """
         bounds = np.array([vertices[self.points].min(axis=0),
                            vertices[self.points].max(axis=0)])
@@ -137,6 +170,11 @@ class Entity(object):
     def length(self, vertices):
         """
         Return the total length of the entity.
+
+        Parameters
+        --------------
+        vertices : (n, dimension) float
+          Vertices in space
 
         Returns
         ---------
@@ -150,12 +188,22 @@ class Entity(object):
     def explode(self):
         """
         Split the entity into multiple entities.
+
+        Returns
+        ------------
+        explode : list of Entity
+          Current entity split into multiple entities if necessary
         """
-        return [self]
+        return [self.copy()]
 
     def copy(self):
         """
         Return a copy of the current entity.
+
+        Returns
+        ------------
+        copied : Entity
+          Copy of current entity
         """
         return copy.deepcopy(self)
 
@@ -172,6 +220,14 @@ class Entity(object):
         return hashed
 
     def _bytes(self):
+        """
+        Get hashable bytes that define the current entity.
+
+        Returns
+        ------------
+        data : bytes
+          Hashable data defining the current entity
+        """
         # give consistent ordering of points for hash
         if self.points[0] > self.points[-1]:
             return (self.__class__.__name__.encode('utf-8') +
@@ -324,6 +380,7 @@ class Text(Entity):
         # get rotation angle in degrees
         angle = np.degrees(self.angle(vertices))
 
+        # TODO: handle text size better
         plt.text(*vertices[self.origin],
                  s=self.text,
                  rotation=angle,
@@ -434,10 +491,12 @@ class Line(Entity):
         ----------
         exploded: (n,) Line entities
         """
+        # copy over the current layer
+        layer = self.layer
         points = np.column_stack((
             self.points,
             self.points)).ravel()[1:-1].reshape((-1, 2))
-        exploded = [Line(i) for i in points]
+        exploded = [Line(i, layer=layer) for i in points]
         return exploded
 
     def _bytes(self):
@@ -509,7 +568,8 @@ class Arc(Entity):
 
         Returns
         -------------
-        discrete: (m, dimension) float, linear path in space
+        discrete : (m, dimension) float
+          Path in space made up of line segments
         """
         discrete = discretize_arc(vertices[self.points],
                                   close=self.closed,
@@ -523,12 +583,12 @@ class Arc(Entity):
         Parameters
         -------------
         vertices : (n, dimension) float
-            Vertices in space
+          Vertices in space
 
         Returns
         -------------
-        info: dict, with keys: 'radius'
-                               'center'
+        info : dict
+          With keys: 'radius', 'center'
         """
         info = arc_center(vertices[self.points])
         return info
@@ -539,11 +599,13 @@ class Arc(Entity):
 
         Parameters
         -----------
-        vertices: (n,dimension) float, vertices in space
+        vertices: (n, dimension) float
+          Vertices in space
 
         Returns
         -----------
-        bounds: (2, dimension) float, (min, max) coordinate of AABB
+        bounds : (2, dimension) float
+          Coordinates of AABB in (min, max) form
         """
         if util.is_shape(vertices, (-1, 2)) and self.closed:
             # if we have a closed arc (a circle), we can return the actual bounds

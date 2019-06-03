@@ -117,21 +117,35 @@ class VectorTests(g.unittest.TestCase):
     def test_poly(self):
         p = g.get_mesh('2D/LM2.dxf')
         assert p.is_closed
-        assert any(len(i.points) > 2 for i in p.entities if
-                   isinstance(i, g.trimesh.path.entities.Line))
 
+        # one of the lines should be a polyline
+        assert any(len(e.points) > 2 for e in p.entities if
+                   isinstance(e, g.trimesh.path.entities.Line))
+
+        # layers should match entity count
         assert len(p.layers) == len(p.entities)
         assert len(g.np.unique(p.layers)) > 1
 
+        count = len(p.entities)
+
         p.explode()
+        # explode should have created new entities
+        assert len(p.entities) > count
+        # explode should have added some new layers
+        assert len(p.entities) == len(p.layers)
+        # all line segments should have two points now
         assert all(len(i.points) == 2 for i in p.entities if
                    isinstance(i, g.trimesh.path.entities.Line))
+        # should still be closed
         assert p.is_closed
+        # chop off the last entity
         p.entities = p.entities[:-1]
+        # should no longer be closed
         assert not p.is_closed
 
         # fill gaps of any distance
         p.fill_gaps(g.np.inf)
+        # should have fixed this puppy
         assert p.is_closed
 
     def test_text(self):

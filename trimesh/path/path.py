@@ -292,12 +292,17 @@ class Path(object):
 
     def explode(self):
         """
-        Turn every multi- segment entity into single segment entities, in- place
+        Turn every multi- segment entity into single segment
+        entities in- place.
         """
-        new_entities = collections.deque()
+        new_entities = []
         for entity in self.entities:
+            # explode into multiple entities
             new_entities.extend(entity.explode())
-        self.entities = np.array(new_entities)
+        # avoid setter and assign new entities
+        self._entities = np.array(new_entities)
+        # explicitly clear cache
+        self._cache.clear()
 
     def fill_gaps(self, distance=0.025):
         """
