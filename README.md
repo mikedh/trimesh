@@ -123,7 +123,10 @@ print(mesh.bounding_box_oriented.volume,
 
 * Import meshes from binary/ASCII STL, Wavefront OBJ, ASCII OFF, binary/ASCII PLY, GLTF/GLB 2.0, 3MF, XAML, 3DXML, etc.
 * Import and export 2D or 3D vector paths from/to DXF or SVG files
+* Import geometry files (i.e. BREP (.brep), STEP (.stp or .step), 'IGES (.igs or .iges), etc.) via Gmsh SDK
+* Import skin of 3D FE Models (i.e. Abaqus (*.inp), Nastran (*.bdf), etc.) via Gmsh SDK
 * Export meshes as binary STL, binary PLY, ASCII OFF, OBJ, GLTF/GLB 2.0, COLLADA, etc.
+* Export mesh as FE Models (i.e. Abaqus (*.inp), Nastran (*.bdf), etc.) via Gmsh SDK
 * Preview meshes using pyglet
 * Preview meshes in- line in jupyter notebooks using three.js
 * Automatic hashing of numpy arrays storing key data for change tracking using MD5, zlib CRC, or xxhash
@@ -144,6 +147,8 @@ print(mesh.bounding_box_oriented.volume,
 * Ray-mesh queries including location, triangle index, etc.
 * Boolean operations on meshes (intersection, union, difference) using OpenSCAD or Blender as backend
 * Voxelize watertight meshes
+* Volume mesh generation (TETgen) using Gmsh SDK
+* Smooth watertight meshes using laplacian smoothing algorithms (Classic, Taubin, Humphrey)
 * Subdivide faces of a mesh
 * Minimum volume oriented bounding boxes for meshes
 * Minimum volume bounding sphere / n-spheres
