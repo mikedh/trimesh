@@ -4,9 +4,9 @@ from ..constants import log_time
 from .. import remesh
 from .. import grouping
 from .. import util
-from .. import caching
-from . import ops
+from .. import transformations as tr
 from . import base
+from . import encoding as enc
 
 
 @log_time
@@ -27,9 +27,7 @@ def voxelize_subdivide(mesh,
 
     Returns
     -----------
-    voxels_sparse:   (n,3) int, (m,n,p) indexes of filled cells
-    origin_position: (3,) float, position of the voxel
-                                 grid origin in space
+    Voxel instance representing the voxelized mesh.
     """
     max_edge = pitch / edge_factor
 
@@ -62,9 +60,10 @@ def voxelize_subdivide(mesh,
     origin_index = occupied_index.min(axis=0)
     origin_position = origin_index * pitch
 
-    voxels_sparse = (occupied_index - origin_index)
-
-    return voxels_sparse, origin_position
+    return base.Voxel(
+        enc.SparseBinaryEncoding(occupied_index - origin_index),
+        transform_matrix=tr.scale_and_translate(
+            scale=pitch, translate=origin_position))
 
 
 def local_voxelize(mesh,
@@ -93,10 +92,8 @@ def local_voxelize(mesh,
 
     Returns
     -----------
-    voxels : (m, m, m) bool
-      Array of local voxels where m=2*radius+1
-    origin_position : (3,) float
-      Position of the voxel grid origin in space
+    voxels : Voxel instance with resolution (m, m, m) where m=2*radius+1
+        or None if the volume is empty
     """
     from scipy import ndimage
 
@@ -116,15 +113,20 @@ def local_voxelize(mesh,
 
     # didn't hit anything so exit
     if len(faces) == 0:
-        return np.array([], dtype=np.bool), np.zeros(3)
+        # encoding = enc.SparseBinaryEncoding(
+        #     np.empty(shape=(0, 3), dtype=int), shape=(1, 1, 1))
+        # return base.Voxel(encoding)
+        return None
 
     local = mesh.submesh([[f] for f in faces], append=True)
 
     # Translate mesh so point is at 0,0,0
     local.apply_translation(-point)
 
-    sparse, origin = voxelize_subdivide(local, pitch, **kwargs)
-    matrix = ops.sparse_to_matrix(sparse)
+    # sparse, origin = voxelize_subdivide(local, pitch, **kwargs)
+    vox = voxelize_subdivide(local, pitch, **kwargs)
+    origin = vox.transform_matrix[:3, 3]
+    matrix = vox.encoding.dense
 
     # Find voxel index for point
     center = np.round(-origin / pitch).astype(np.int64)
@@ -147,8 +149,9 @@ def local_voxelize(mesh,
     if fill:
         regions, n = ndimage.measurements.label(~voxels)
         distance = ndimage.morphology.distance_transform_cdt(~voxels)
-        representatives = [np.unravel_index((distance * (regions == i)).argmax(),
-                                            distance.shape) for i in range(1, n + 1)]
+        representatives = [
+            np.unravel_index((distance * (regions == i)).argmax(),
+                             distance.shape) for i in range(1, n + 1)]
         contains = mesh.contains(
             np.asarray(representatives) *
             pitch +
@@ -160,14 +163,13 @@ def local_voxelize(mesh,
 
         voxels = np.logical_or(voxels, internal)
 
-    return voxels, local_origin
+    return base.Voxel(voxels, tr.translation_matrix(local_origin))
 
 
 @log_time
 def voxelize_ray(mesh,
                  pitch,
-                 per_cell=[2, 2],
-                 **kwargs):
+                 per_cell=[2, 2]):
     """
     Voxelize a mesh using ray queries.
 
@@ -182,10 +184,7 @@ def voxelize_ray(mesh,
 
     Returns
     -------------
-    voxels : (n, 3) int
-                 Voxel positions
-    origin : (3, ) int
-                 Origin of voxels
+    Voxel instance representing the voxelized mesh.
     """
     # how many rays per cell
     per_cell = np.array(per_cell).astype(np.int).reshape(2)
@@ -215,141 +214,58 @@ def voxelize_ray(mesh,
     voxels = np.round(hits / pitch).astype(np.int64)
 
     # offset voxels by min, so matrix isn't huge
-    origin = voxels.min(axis=0)
-    voxels -= origin
+    origin_index = voxels.min(axis=0)
+    voxels -= origin_index
+    encoding = enc.SparseBinaryEncoding(voxels)
+    origin_position = origin_index * pitch
+    return base.Voxel(
+        encoding,
+        tr.scale_and_translate(scale=pitch, translate=origin_position))
 
-    return voxels, origin
+
+@log_time
+def voxelize_binvox(mesh, pitch, **binvoxer_kwargs):
+    """
+    Voxelize via binvox tool.
+
+    Parameters
+    --------------
+    mesh: Trimesh object to voxelize
+    pitch: side length of each voxel
+    **binvoxer_kwargs: passed to `trimesh.exchange.binvox.Binvoxer`
+        (cannot contain `dim`)
+    """
+    from ..exchange import binvox
+    dimension = int(np.ceil(np.max(mesh.extents) / pitch))
+    binvoxer = binvox.Binvoxer(dimension=dimension, **binvoxer_kwargs)
+    return binvox.voxelize_mesh(mesh, binvoxer)
 
 
-class MeshVoxelizer(object):
-    def __init__(self, mesh, pitch, max_iter=10, method='subdivide'):
-        self._data = caching.DataStore()
-        self._cache = caching.Cache(id_function=self._data.crc)
-        self._data['mesh'] = mesh
-        self._data['pitch'] = pitch
-        self._data['max_iter'] = max_iter
-        self._method = method
+voxelizers = util.FunctionRegistry(
+    ray=voxelize_ray,
+    subdivide=voxelize_subdivide,
+    binvox=voxelize_binvox)
 
-    @property
-    def pitch(self):
-        return float(self._data['pitch'])
 
-    @property
-    def max_iter(self):
-        return int(self._data['max_iter'])
+def voxelize(mesh, pitch, key='subdivide', **kwargs):
+    """
+    Voxelize the given mesh using the keyed implementation.
 
-    @property
-    def mesh(self):
-        return self._data['mesh']
+    See `voxelizers` for available implementations or to add your own, e.g. via
+    `voxelizers['custom_key'] = custom_fn`.
 
-    @property
-    def method(self):
-        return self._method
+    `custom_fn` should have signature `(mesh, pitch, **kwargs) -> Voxel`
+    and should not modify encoding.
 
-    @property
-    def origin(self):
-        """
-        The origin of the voxel array.
+    Parameters
+    --------------
+    mesh: Trimesh object (left unchanged).
+    pitch: float, side length of each voxel.
+    key: implementation key. Must be in `fillers`.
+    **kwargs: additional kwargs passed ot the keyed implementation.
 
-        Returns
-        ------------
-        origin: (3,) float, point in space
-        """
-        populate = self.sparse_surface  # NOQA
-        return self._cache['origin']
-
-    def copy(self):
-        return MeshVoxelizer(
-            mesh=self.mesh.copy(),
-            pitch=self.pitch,
-            max_iter=self.max_iter,
-            method=self.method)
-
-    @caching.cache_decorator
-    def matrix_surface(self):
-        """
-        The voxels on the surface of the mesh as a 3D matrix.
-
-        Returns
-        ---------
-        matrix: self.shape np.bool, if a cell is True it is occupied
-        """
-        matrix = ops.sparse_to_matrix(self.sparse_surface)
-        return matrix
-
-    @caching.cache_decorator
-    def matrix_solid(self):
-        """
-        The voxels in a mesh as a 3D matrix.
-
-        Returns
-        ---------
-        matrix: self.shape np.bool, if a cell is True it is occupied
-        """
-        matrix = ops.sparse_to_matrix(self.sparse_solid)
-        return matrix
-
-    @caching.cache_decorator
-    def voxel_surface(self):
-        return self.voxelize_matrix(self.matrix_surface)
-
-    @caching.cache_decorator
-    def voxel_solid(self):
-        return self.voxelize_matrix(self.matrix_solid)
-
-    @property
-    def matrix(self):
-        """
-        A matrix representation of the surface voxels.
-
-        In the future this is planned to return a filled voxel matrix
-        if the source mesh is watertight, and a surface voxelization
-        otherwise.
-
-        Returns
-        ---------
-        matrix: self.shape np.bool, cell occupancy
-        """
-        if self._data['mesh'].is_watertight:
-            return self.matrix_solid
-        return self.matrix_surface
-
-    @caching.cache_decorator
-    def sparse_surface(self):
-        """
-        Filled cells on the surface of the mesh.
-
-        Returns
-        ----------------
-        voxels: (n, 3) int, filled cells on mesh surface
-        """
-        if self._method == 'ray':
-            func = voxelize_ray
-        elif self._method == 'subdivide':
-            func = voxelize_subdivide
-        else:
-            raise ValueError('voxelization method incorrect')
-
-        voxels, origin = func(
-            mesh=self._data['mesh'],
-            pitch=self._data['pitch'],
-            max_iter=self._data['max_iter'][0])
-        self._cache['origin'] = origin
-
-        return voxels
-
-    @caching.cache_decorator
-    def sparse_solid(self):
-        """
-        Filled cells inside and on the surface of mesh
-
-        Returns
-        ----------------
-        filled: (n, 3) int, filled cells in or on mesh.
-        """
-        filled = ops.fill_voxelization(self.sparse_surface)
-        return filled + 0.5
-
-    def voxelize_matrix(self, matrix):
-        return base.Voxel(
-            matrix).apply_scale(self.pitch).apply_translation(self.origin)
+    Returns
+    --------------
+    A Voxel instance.
+    """
+    return voxelizers(key, mesh, pitch, **kwargs)

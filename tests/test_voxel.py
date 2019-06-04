@@ -4,6 +4,8 @@ except BaseException:
     import generic as g
 from trimesh.voxel import ops
 from trimesh.voxel import creation
+from trimesh.primitives import Sphere
+import numpy as np
 
 
 class VoxelTest(g.unittest.TestCase):
@@ -16,41 +18,44 @@ class VoxelTest(g.unittest.TestCase):
                   g.trimesh.primitives.Box(),
                   g.trimesh.primitives.Sphere()]:
             for pitch in [.1, .1 - g.tol.merge]:
-                voxelizer = creation.MeshVoxelizer(m, pitch)
-                surface = voxelizer.voxel_surface
-                solid = voxelizer.voxel_solid
+                surface = m.voxelized(pitch=pitch)
+                for fill_method in ('base', 'orthographic'):
+                    solid = surface.copy().fill(key=fill_method)
 
-                assert len(surface.encoding.dense.shape) == 3
-                assert surface.shape == surface.encoding.dense.shape
-                assert surface.volume > 0.0
+                    assert len(surface.encoding.dense.shape) == 3
+                    assert surface.shape == surface.encoding.dense.shape
+                    assert surface.volume > 0.0
 
-                assert isinstance(surface.filled_count, int)
-                assert surface.filled_count > 0
+                    assert isinstance(surface.filled_count, int)
+                    assert surface.filled_count > 0
 
-                box_surface = surface.as_boxes()
-                box_solid = solid.as_boxes()
+                    box_surface = surface.as_boxes()
+                    box_solid = solid.as_boxes()
 
-                assert isinstance(box_surface, g.trimesh.Trimesh)
-                assert abs(box_solid.volume - solid.volume) < g.tol.merge
+                    assert isinstance(box_surface, g.trimesh.Trimesh)
+                    assert abs(box_solid.volume - solid.volume) < g.tol.merge
 
-                assert g.trimesh.util.is_shape(surface.sparse_indices, (-1, 3))
-                assert len(solid.sparse_indices) >= len(surface.sparse_indices)
-                assert solid.sparse_indices.shape == solid.points.shape
-                outside = m.bounds[1] + m.scale
-                for vox in surface, solid:
-                    assert vox.sparse_indices.shape == vox.points.shape
-                    assert g.np.all(vox.is_filled(vox.points))
-                    assert not vox.is_filled(outside)
+                    assert g.trimesh.util.is_shape(
+                        surface.sparse_indices, (-1, 3))
+                    assert len(
+                        solid.sparse_indices) >= len(
+                        surface.sparse_indices)
+                    assert solid.sparse_indices.shape == solid.points.shape
+                    outside = m.bounds[1] + m.scale
+                    for vox in surface, solid:
+                        assert vox.sparse_indices.shape == vox.points.shape
+                        assert g.np.all(vox.is_filled(vox.points))
+                        assert not vox.is_filled(outside)
 
-                try:
-                    cubes = surface.marching_cubes
-                    assert cubes.area > 0.0
-                except ImportError:
-                    g.log.info('no skimage, skipping marching cubes test')
+                    try:
+                        cubes = surface.marching_cubes
+                        assert cubes.area > 0.0
+                    except ImportError:
+                        g.log.info('no skimage, skipping marching cubes test')
 
-            g.log.info('Mesh volume was %f, voxelized volume was %f',
-                       m.volume,
-                       surface.volume)
+                    g.log.info('Mesh volume was %f, voxelized volume was %f',
+                               m.volume,
+                               surface.volume)
 
     def test_marching(self):
         """
@@ -108,7 +113,7 @@ class VoxelTest(g.unittest.TestCase):
             radius=5,
             fill=True)
 
-        assert len(voxel[0].shape) == 3
+        assert len(voxel.shape) == 3
 
         # try it when it definitely doesn't hit anything
         empty = creation.local_voxelize(
@@ -118,7 +123,7 @@ class VoxelTest(g.unittest.TestCase):
             radius=5,
             fill=True)
         # shouldn't have hit anything
-        assert len(empty[0]) == 0
+        assert empty is None
 
         # try it when it is in the center of a volume
         creation.local_voxelize(
@@ -305,6 +310,34 @@ class VoxelTest(g.unittest.TestCase):
         v_brle = voxel.Voxel(brle_obj.reshape(shape))
         query_points = np.random.uniform(size=(100, 3), high=4)
         self._test_equiv(v_rle, v_brle, query_points)
+
+    def test_hollow(self):
+        filled = Sphere().voxelized(pitch=0.1, key='binvox', exact=True)
+        hollow = filled.copy().hollow()
+        self.assertLess(hollow.filled_count, filled.filled_count)
+        self.assertGreater(hollow.filled_count, 0)
+
+    def test_fill(self):
+        from trimesh.voxel.morphology import fillers
+        hollow = Sphere().voxelized(pitch=0.1).hollow()
+
+        for key in fillers:
+            filled = hollow.copy().fill(key)
+            self.assertLess(hollow.filled_count, filled.filled_count)
+
+    def test_strip(self):
+        octant = Sphere().voxelized(pitch=0.1, key='binvox', exact=True)
+        dense = octant.encoding.dense.copy()
+        nx, ny, nz = octant.shape
+        dense[:nx // 2] = 0
+        dense[:, :ny // 2] = 0
+        dense[:, :, nz // 2:] = 0
+        octant.encoding = dense
+        stripped = octant.copy().strip()
+        self.assertEqual(octant.filled_count, stripped.filled_count)
+        self.assertEqual(octant.volume, stripped.volume)
+        np.testing.assert_allclose(octant.points, stripped.points)
+        self.assertGreater(octant.encoding.size, stripped.encoding.size)
 
 
 if __name__ == '__main__':

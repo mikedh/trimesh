@@ -22,7 +22,7 @@ class BinvoxTest(g.unittest.TestCase):
         base = binvox.voxel_from_binvox(
             rl_data, shape, translate, scale, axis_order='xzy')
         s = scale / (n - 1)
-        np.testing.assert_equal(base.transform.matrix, np.array([
+        np.testing.assert_equal(base.transform_matrix, np.array([
             [s, 0, 0, 2],
             [0, s, 0, 5],
             [0, 0, s, 10],
@@ -39,7 +39,7 @@ class BinvoxTest(g.unittest.TestCase):
         self.assertTrue(isinstance(base, v.Voxel))
         self.assertTrue(isinstance(loaded, v.Voxel))
         np.testing.assert_equal(
-            base.transform.matrix, loaded.transform.matrix)
+            base.transform_matrix, loaded.transform_matrix)
         np.testing.assert_equal(base.shape, loaded.shape)
 
 

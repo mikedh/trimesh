@@ -8,24 +8,17 @@ Forked from the light model in `pyrender`:
 https://github.com/mmatl/pyrender
 """
 
-import abc
-import sys
 import numpy as np
 
 from .. import util
 from .. import visual
 from .. import transformations
 
-if sys.version_info >= (3, 4):
-    ABC = abc.ABC
-else:
-    ABC = abc.ABCMeta('ABC', (), {})
-
 # default light color
 _DEFAULT_RGBA = np.array([60, 60, 60, 255], dtype=np.uint8)
 
 
-class Light(ABC):
+class Light(util.ABC):
     """
     Base class for all light objects.
 

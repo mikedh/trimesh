@@ -1,37 +1,63 @@
-
 import numpy as np
 
 from .. import util
 from ..constants import log
 
 
-def fill_voxelization(occupied):
+def fill_orthographic(dense):
+    shape = dense.shape
+    indices = np.stack(
+        np.meshgrid(*(np.arange(s) for s in shape), indexing='ij'),
+        axis=-1)
+    empty = np.logical_not(dense)
+
+    def fill_axis(axis):
+        base_local_indices = indices[..., axis]
+        local_indices = base_local_indices.copy()
+        local_indices[empty] = shape[axis]
+        mins = np.min(local_indices, axis=axis, keepdims=True)
+        local_indices = base_local_indices.copy()
+        local_indices[empty] = -1
+        maxs = np.max(local_indices, axis=axis, keepdims=True)
+
+        return np.logical_and(
+            base_local_indices >= mins,
+            base_local_indices <= maxs,
+        )
+
+    filled = fill_axis(axis=0)
+    for axis in range(1, len(shape)):
+        filled = np.logical_and(filled, fill_axis(axis))
+    return filled
+
+
+def fill_base(sparse_indices):
     """
     Given a sparse surface voxelization, fill in between columns.
 
     Parameters
     --------------
-    occupied: (n, 3) int, location of filled cells
+    sparse_indices: (n, 3) int, location of filled cells
 
     Returns
     --------------
     filled: (m, 3) int, location of filled cells
     """
     # validate inputs
-    occupied = np.asanyarray(occupied, dtype=np.int64)
-    if not util.is_shape(occupied, (-1, 3)):
+    sparse_indices = np.asanyarray(sparse_indices, dtype=np.int64)
+    if not util.is_shape(sparse_indices, (-1, 3)):
         raise ValueError('incorrect shape')
 
     # create grid and mark inner voxels
-    max_value = occupied.max() + 3
+    max_value = sparse_indices.max() + 3
 
     grid = np.zeros((max_value,
                      max_value,
                      max_value),
-                    dtype=np.int64)
-    voxels_sparse = np.add(occupied, 1)
+                    bool)
+    voxels_sparse = np.add(sparse_indices, 1)
 
-    grid.__setitem__(tuple(voxels_sparse.T), 1)
+    grid[tuple(voxels_sparse.T)] = 1
 
     for i in range(max_value):
         check_dir2 = False
@@ -63,13 +89,13 @@ def fill_voxelization(occupied):
                 grid[i, idx[s]:idx[s + 3], k] = 1
 
     # generate new voxels
-    idx = np.where(grid == 1)
-    filled = np.array([[idx[0][i] - 1,
-                        idx[1][i] - 1,
-                        idx[2][i] - 1]
-                       for i in range(len(idx[0]))])
+    filled = np.column_stack(np.where(grid))
+    filled -= 1
 
     return filled
+
+
+fill_voxelization = fill_base
 
 
 def matrix_to_marching_cubes(matrix, pitch=1.0):

@@ -41,7 +41,8 @@ def load_gmsh(file_name, gmsh_args=None):
 
     # start with default args for the meshing step
     # Mesh.Algorithm=2 MeshAdapt/Delaunay, there are others but they may include quads
-    # With this planes are meshed using Delaunay and cylinders are meshed using MeshAdapt
+    # With this planes are meshed using Delaunay and cylinders are meshed
+    # using MeshAdapt
     args = [("Mesh.Algorithm", 2),
             ("Mesh.CharacteristicLengthFromCurvature", 1),
             ("Mesh.MinimumCirclePoints", 32)]

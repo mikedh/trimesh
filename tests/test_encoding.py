@@ -13,11 +13,15 @@ rle = enc.RunLengthEncoding.from_dense(
 brle = enc.BinaryRunLengthEncoding.from_dense(
     dense_data.reshape((-1,))).reshape(shape)
 dense = enc.DenseEncoding(dense_data)
+indices = np.column_stack(np.where(dense_data))
+values = np.ones(shape=(indices.shape[0],), dtype=bool)
+sparse = enc.SparseEncoding(indices, values, shape)
 
 encodings = (
     dense,
     rle,
     brle,
+    sparse,
 )
 
 

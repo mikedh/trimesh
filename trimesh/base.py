@@ -169,6 +169,9 @@ class Trimesh(Geometry):
         # update the mesh metadata with passed metadata
         if isinstance(metadata, dict):
             self.metadata.update(metadata)
+        elif metadata is not None:
+            raise ValueError(
+                'metadata should be a dict or None, got %s' % str(metadata))
 
         # Set the default center of mass and density
         self._density = 1.0
@@ -270,7 +273,7 @@ class Trimesh(Geometry):
         faces : (n,3) int
           Representing triangles which reference self.vertices
         """
-        return self._data['faces']
+        return self._data.get('faces', np.empty(shape=(0, 3), dtype=int))
 
     @faces.setter
     def faces(self, values):
@@ -282,8 +285,10 @@ class Trimesh(Geometry):
         values : (n, 3) int
           Indexes of self.vertices
         """
-        if values is None:
-            values = []
+        if values is None or len(values) == 0:
+            if 'faces' in self._data:
+                del self._data['faces']
+            return
         values = np.asanyarray(values, dtype=np.int64)
         # automatically triangulate quad faces
         if util.is_shape(values, (-1, 4)):
@@ -2053,8 +2058,8 @@ class Trimesh(Geometry):
 
         # exit early if we've been passed an identity matrix
         # np.allclose is surprisingly slow so do this test
-        elif np.abs(matrix - np.eye(4)).max() < 1e-8:
-            log.debug('apply_tranform passed identity matrix')
+        elif util.allclose(matrix, np.eye(4), 1e-8):
+            log.debug('apply_transform passed identity matrix')
             return
 
         # new vertex positions
@@ -2144,8 +2149,7 @@ class Trimesh(Geometry):
         log.debug('mesh transformed by matrix')
         return self
 
-    def voxelized(
-            self, pitch, solid=False, max_iter=10, method='subdivide'):
+    def voxelized(self, pitch, key='subdivide', **kwargs):
         """
         Return a Voxel object representing the current mesh
         discretized into voxels at the specified pitch
@@ -2154,19 +2158,17 @@ class Trimesh(Geometry):
         ----------
         pitch : float
           The edge length of a single voxel
-        solid: whether to get solid matrix or surface
-        kwargs: passed to voxel.MeshVoxelizer
+        key: implementation key. See `trimesh.voxel.creation.voxelizers`
+        **kwargs: additional kwargs passed to the keyed implementation.
 
         Returns
         ----------
         voxelized : Voxel object
           Representing the current mesh
         """
-        # Should we cache voxelizer?
-        voxelizer = voxel.MeshVoxelizer(
-            self, pitch=pitch, max_iter=max_iter, method=method)
-        matrix = voxelizer.matrix_solid if solid else voxelizer.matrix_surface
-        return voxelizer.voxelize_matrix(matrix)
+        from .voxel import creation
+        return creation.voxelize(
+            mesh=self, pitch=pitch, key=key, **kwargs)
 
     def outline(self, face_ids=None, **kwargs):
         """

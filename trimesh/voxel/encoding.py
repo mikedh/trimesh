@@ -1,25 +1,23 @@
 """OO interfaces to encodings for ND arrays wich caching."""
 import numpy as np
+from scipy import sparse as sp
 import abc
-import sys
 from . import runlength as rl
 from .. import caching
-# TODO Sparse Encoding
-# Options:
-# - scipy.sparse.coo_matrix - how to generalize to nd?
-# - https://pypi.org/project/sparse/0.1.1/ -
-# - separate indices / values - see commented out implementation below
-# - {index: value} dict
-#   - efficient DataStore implementation?
-#   - deterministic index ordering?
-
-if sys.version_info >= (3, 4):
-    ABC = abc.ABC
-else:
-    ABC = abc.ABCMeta('ABC', (), {})
+from ..util import ABC
 
 
 class Encoding(ABC):
+    """
+    Base class for objects that implement a specific subset of of ndarray ops.
+
+    This presents a unified interface for various different ways of encoding
+    conceptually dense arrays and to interoperate between them.
+
+    Example implementations are ND sparse arrays, run length encoded arrays
+    and dense encodings (wrappers around np.ndarrays).
+    """
+
     def __init__(self, data):
         self._data = data
         self._cache = caching.Cache(id_function=data.crc)
@@ -87,10 +85,10 @@ class Encoding(ABC):
             axis = tuple(range(dim)) + tuple(range(dim + 1, ndims))
             filled = np.any(dense, axis=axis)
             indices, = np.nonzero(filled)
-            pad_left = indices[0]
-            pad_right = indices[-1]
-            padding.append([pad_left, pad_right])
-            slices.append(slice(pad_left, pad_right))
+            lower = indices.min()
+            upper = indices.max() + 1
+            padding.append([lower, size - upper])
+            slices.append(slice(lower, upper))
         return DenseEncoding(dense[tuple(slices)]), np.array(padding, int)
 
     def _flip(self, axes):
@@ -221,70 +219,135 @@ class DenseEncoding(Encoding):
         return DenseEncoding(self._data.copy())
 
 
-# class SparseEncoding(Encoding):
-#     def __init__(self, indices, values, shape):
-#         data = caching.DataStore()
-#         super(SparseEncoding, self).__init__(data)
-#         data['indices'] = indices
-#         data['values'] = values
-#         self._shape = shape
+class SparseEncoding(Encoding):
+    """
+    `Encoding` implementation based on an ND sparse implementation.
 
-#     @property
-#     def sparse_indices(self):
-#         return self._data['indices']
+    Since the scipy.sparse implementations are for 2D arrays only, this
+    implementation uses a single-column CSC matrix with index
+    raveling/unraveling.
+    """
 
-#     @property
-#     def sparse_values(self):
-#         return self._data['values']
+    def __init__(self, indices, values, shape=None):
+        """
+        Parameters
+        ------------
+        indices: (m, n)-sized int array of indices
+        values: (m, n)-sized dtype array of values at the specified indices
+        shape: (n,) iterable of integers. If None, the maximum value of indices
+            + 1 is used.
+        """
+        data = caching.DataStore()
+        super(SparseEncoding, self).__init__(data)
+        data['indices'] = indices
+        data['values'] = values
+        indices = data['indices']
+        if len(indices.shape) != 2:
+            raise ValueError(
+                'indices must be 2D, got shaped %s' % str(indices.shape))
+        if data['values'].shape != (indices.shape[0],):
+            raise ValueError(
+                'values and indices shapes inconsistent: %s and %s'
+                % (data['values'], data['indices']))
+        if shape is None:
+            self._shape = tuple(data['indices'].max(axis=0) + 1)
+        else:
+            self._shape = tuple(shape)
+            if not np.all(indices < self._shape):
+                raise ValueError('all indices must be less than shape')
+        if not np.all(indices >= 0):
+            raise ValueError('all indices must be non-negative')
 
-#     @property
-#     def dtype(self):
-#         return self.sparse_values.dtype
+    def copy(self):
+        return SparseEncoding(
+            indices=self.sparse_indices.copy(),
+            values=self.sparse_values.copy(),
+            shape=self.shape)
 
-#     @caching.cache_decorator
-#     def sum(self):
-#         return self.sparse_values.sum()
+    @property
+    def sparse_indices(self):
+        return self._data['indices']
 
-#     @property
-#     def ndims(self):
-#         return self.sparse_indices.shape[-1]
+    @property
+    def sparse_values(self):
+        return self._data['values']
 
-#     def shape(self):
-#         return self._shape
+    @property
+    def dtype(self):
+        return self.sparse_values.dtype
 
-#     @property
-#     def size(self):
-#         return self.sparse_values.size
+    @caching.cache_decorator
+    def sum(self):
+        return self.sparse_values.sum()
 
-#     @property
-#     def sparse_components(self):
-#         return self.sparse_indices, self.sparse_values
+    @property
+    def ndims(self):
+        return self.sparse_indices.shape[-1]
 
-#     @caching.cache_decorator
-#     def dense(self):
-#         out = np.zeros(self.shape, dtype=self.dtype)
-#         for i, v in zip(*self.sparse_components):
-#             out[tuple(i)] = v
-#         return out
+    @property
+    def shape(self):
+        return self._shape
 
-#     def gather(self, indices):
-#         raise NotImplementedError('TODO')
+    @property
+    def size(self):
+        return np.prod(self.shape)
 
-#     def mask(self, mask):
-#         if isinstance(mask, np.ndarray):
-#             mask = DenseEncoding(mask)
-#         mask_indices = set(mask.sparse_indices)
-#         indices, values = self.sparse_components
-#         mask = [tuple(i) in mask_indices for i in indices]
-#         return SparseEncoding(indices[mask], values[mask], self.shape)
+    @property
+    def sparse_components(self):
+        return self.sparse_indices, self.sparse_values
 
-#     def get_value(self, index):
-#         for i, value_index in enumerate(self.sparse_indices):
-#             if np.all(index == value_index):
-#                 if index.size > 1:
-#                     index = tuple(index)
-#                 return self.sparse_values[index]
-#         return np.zeros((), dtype=self.dtype)
+    @caching.cache_decorator
+    def dense(self):
+        sparse = self._csc
+        # sparse.todense gives an `np.matrix` which cannot be reshaped
+        dense = np.empty(shape=sparse.shape, dtype=sparse.dtype)
+        sparse.todense(out=dense)
+        return np.reshape(dense, self.shape)
+
+    @caching.cache_decorator
+    def _csc(self):
+        values = self.sparse_values
+        indices = self._flat_indices(self.sparse_indices)
+        indptr = [0, len(indices)]
+        return sp.csc_matrix((values, indices, indptr), shape=(self.size, 1))
+
+    def _flat_indices(self, indices):
+        assert(indices.shape[1] == 3 and len(indices.shape) == 2)
+        return np.ravel_multi_index(indices.T, self.shape)
+
+    def _shaped_indices(self, flat_indices):
+        return np.column_stack(np.unravel_index(flat_indices, self.shape))
+
+    def gather_nd(self, indices):
+        indices = self._flat_indices(indices)
+        out = np.empty(shape=(indices.shape[0], 1), dtype=self.dtype)
+        self._csc[indices].todense(out=out)
+        return out.squeeze(axis=-1)
+
+    def mask(self, mask):
+        i, _ = np.where(self._csc[mask.reshape((-1,))])
+        return self._shaped_indices(i)
+
+    def get_value(self, index):
+        return self._gather_nd(np.expand_dims(index, axis=0))[0]
+
+
+def SparseBinaryEncoding(indices, shape=None):
+    """
+    Convenient factory constructor for SparseEncodings with values all ones.
+
+    Parameters
+    ------------
+    indices: (m, n) sparse indices into conceptual rank-n array
+    shape: length n iterable or None. If None, maximum of indices along first
+        axis + 1 is used
+
+    Returns
+    ------------
+    rank n bool `SparseEncoding` with True values at each index.
+    """
+    return SparseEncoding(
+        indices, np.ones(shape=(indices.shape[0],), dtype=bool), shape)
 
 
 class RunLengthEncoding(Encoding):
@@ -294,7 +357,15 @@ class RunLengthEncoding(Encoding):
     """
 
     def __init__(self, data, dtype=None):
-        super(RunLengthEncoding, self).__init__(data=caching.tracked_array(data))
+        """
+        Parameters
+        ------------
+        data: run length encoded data.
+        dtype: dtype of encoded data. Each second value of data is cast will be
+            cast to this dtype if provided.
+        """
+        super(RunLengthEncoding, self).__init__(
+            data=caching.tracked_array(data))
         if dtype is None:
             dtype = self._data.dtype
         if len(self._data.shape) != 1:
@@ -395,7 +466,7 @@ class RunLengthEncoding(Encoding):
             return np.asanyarray(value, dtype=self._dtype)
 
     def copy(self):
-        return RunLengthEncoding(self._data.copy())
+        return RunLengthEncoding(self._data.copy(), dtype=self.dtype)
 
     def run_length_data(self, dtype=np.int64):
         return rl.rle_to_rle(self._data, dtype=dtype)
@@ -411,6 +482,11 @@ class BinaryRunLengthEncoding(RunLengthEncoding):
     """
 
     def __init__(self, data):
+        """
+        Parameters
+        ------------
+        data: binary run length encoded data.
+        """
         super(BinaryRunLengthEncoding, self).__init__(data=data, dtype=bool)
 
     @staticmethod

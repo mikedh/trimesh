@@ -11,6 +11,8 @@ or imported inside of a function
 
 import numpy as np
 
+import abc
+import collections
 import time
 import copy
 import json
@@ -18,12 +20,18 @@ import base64
 import logging
 import hashlib
 import zipfile
-import collections
+import sys
+import tempfile
+import shutil
 
-from sys import version_info
+
+if sys.version_info >= (3, 4):
+    ABC = abc.ABC
+else:
+    ABC = abc.ABCMeta('ABC', (), {})
 
 # a flag we can check elsewhere for Python 3
-PY3 = version_info.major >= 3
+PY3 = sys.version_info.major >= 3
 if PY3:
     # for type checking
     basestring = str
@@ -665,7 +673,7 @@ def grid_arange(bounds, step):
         step = np.tile(step, bounds.shape[1])
 
     grid_elements = [np.arange(*b, step=s) for b, s in zip(bounds.T, step)]
-    grid = np.vstack(np.meshgrid(*grid_elements)
+    grid = np.vstack(np.meshgrid(*grid_elements, indexing='ij')
                      ).reshape(bounds.shape[1], -1).T
     return grid
 
@@ -1965,3 +1973,82 @@ def isclose(a, b, atol):
     diff = a - b
     close = np.logical_and(diff > -atol, diff < atol)
     return close
+
+
+def allclose(a, b, atol):
+    """
+    A replacement for np.allclose that does few checks
+    and validation and as a result is faster.
+
+        Note that this is used in tight loops, and as such
+    a and b MUST be np.ndarray, not list or "array-like"
+
+    Parameters
+    ----------
+    a : np.ndarray
+      To be compared
+    b : np.ndarray
+      To be compared
+    atol : float
+      Acceptable distance between `a` and `b` to be "close"
+
+    Returns
+    -----------
+    bool indicating if all elements are within `atol`.
+    """
+    return np.abs(a - b).max() < atol
+
+
+class FunctionRegistry(collections.Mapping):
+    """
+    Non-overwritable mapping of string keys to functions.
+
+    This allows external packages to register additional implementations
+    of common functionality without risk of breaking implementations provided
+    by trimesh.
+
+    See trimesh.voxel.morphology for example usage.
+    """
+
+    def __init__(self, **kwargs):
+        self._dict = {}
+        for k, v in kwargs.items():
+            self[k] = v
+
+    def __getitem__(self, key):
+        return self._dict[key]
+
+    def __setitem__(self, key, value):
+        if not isinstance(key, str):
+            raise ValueError('key must be a string, got %s' % str(key))
+        if key in self:
+            raise KeyError('Cannot set new value to existing key %s' % key)
+        if not callable(value):
+            raise ValueError('Cannot set value which is not callable.')
+        self._dict[key] = value
+
+    def __iter__(self):
+        return iter(self._dict)
+
+    def __len__(self):
+        return len(self._dict)
+
+    def __contains__(self, key):
+        return key in self._dict
+
+    def __call__(self, key, *args, **kwargs):
+        return self[key](*args, **kwargs)
+
+
+class TemporaryDirectory(object):
+    """
+    Same basic usage as tempfile.TemporaryDirectory
+    but functional in Python 2.7+
+    """
+
+    def __enter__(self):
+        self.path = tempfile.mkdtemp()
+        return self.path
+
+    def __exit__(self, *args, **kwargs):
+        shutil.rmtree(self.path)

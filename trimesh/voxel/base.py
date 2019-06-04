@@ -12,182 +12,108 @@ from ..constants import log
 from ..parent import Geometry
 from .. import transformations as tr
 from . import encoding as enc
+from .. import util
+from . import morphology
 
 
-# def scale_and_translate(scale=None, translate=None):
-#     transform = IDENTITY_TRANSFORM
-#     if scale is not None:
-#         transform = transform.apply_scale(scale)
-#     if translate is not None:
-#         transform = transform.apply_translation(translate)
-#     return transform
-
-
-class Transformation(object):
+class _Transform(object):
     def __init__(self, matrix):
-        self._data = caching.tracked_array(matrix)
-        if not (matrix.shape == (4, 4) and np.all(matrix[3] == (0, 0, 0, 1))):
-            raise ValueError(
-                'matrix is not a valid homogeneous transformation matrix')
+        if matrix.shape != (4, 4):
+            raise ValueError('matrix must be 4x4, got %s' % str(matrix.shape))
+        if not np.all(matrix[3, :] == [0, 0, 0, 1]):
+            raise ValueError('matrix not a valid transformation matrix')
+        self._data = caching.tracked_array(matrix, dtype=float)
         self._cache = caching.Cache(id_function=self._data.crc)
         self._inverse = None
 
-    def crc(self):
-        return self._data.crc()
+    identity_tol = 1e-8
 
     def md5(self):
         return self._data.md5()
 
-    @caching.cache_decorator
-    def volume(self):
-        return np.linalg.det(self.matrix[:3, :3])
-
-    def transform_points(self, points):
-        return tr.transform_points(
-            points.reshape(-1, 3), self._data).reshape(points.shape)
+    def crc(self):
+        return self._data.crc()
 
     @property
     def translation(self):
-        return self.matrix[:3, 3]
+        return self._data[:3, 3]
+
+    @property
+    def matrix(self):
+        return self._data
+
+    @matrix.setter
+    def matrix(self, data):
+        np.copyto(self._data, data.astype(float))
+
+    @caching.cache_decorator
+    def scale(self):
+        matrix = self.matrix
+        scale = matrix[0, 0]
+        if not util.allclose(matrix[:3, :3], scale * np.eye(3), scale * 1e-6):
+            raise RuntimeError(
+                'scale ill-defined because transform_matrix features '
+                'a shear, rotation or non-uniform scaling')
+        return scale
+
+    @caching.cache_decorator
+    def unit_volume(self):
+        """Volume of a transformed unit cube."""
+        return np.linalg.det(self._data[:3, :3])
 
     def apply_transform(self, matrix):
-        return Transformation.from_matrix(np.matmul(matrix, self.matrix))
+        self.matrix = matrix @ self.matrix
+        return self
 
     def apply_translation(self, translation):
-        if np.all(np.asanyarray(translation) == 0):
-            return self
-        matrix = self.matrix.copy()
-        matrix[:3, 3] += translation
-        return Transformation.from_matrix(matrix)
+        self.matrix[:3, 3] += translation
+        return self
 
     def apply_scale(self, scale):
-        if np.all(np.asanyarray(scale) == 1):
-            return self
-        matrix = self.matrix.copy()
-        matrix[:3] *= np.expand_dims(scale, axis=-1)
-        return Transformation.from_matrix(matrix)
+        self.matrix[:3] *= scale
+        return self
+
+    def transform_points(self, points):
+        if self.is_identity:
+            return points
+        return tr.transform_points(
+            points.reshape(-1, 3), self.matrix).reshape(points.shape)
+
+    def copy(self):
+        return _Transform(self._data.copy())
 
     @property
     def inverse(self):
         if self._inverse is None:
-            self._inverse = InverseTransformation(np.linalg.inv(self.matrix))
+            self._inverse = _Transform(np.linalg.inv(self.matrix))
+            self._inverse._inverse = self
         return self._inverse
 
-    @property
-    def matrix(self):
-        return self._data
-
-    @staticmethod
-    def from_translation(translation):
-        if np.all(np.asanyarray(translation) == 0):
-            return IDENTITY_TRANSFORM
-        return Transformation(tr.translation_matrix(translation))
-
-    @staticmethod
-    def from_scale(scale):
-        if np.all(np.asanyarray(scale) == 1):
-            return IDENTITY_TRANSFORM
-        return Transformation(tr.scale_matrix(scale))
-
-    @staticmethod
-    def from_matrix(matrix):
-        matrix = np.asanyarray(matrix)
-        if matrix.shape == (3, 3):
-            actual = np.zeros((4, 4))
-            actual[:3, :3] = matrix
-            actual[3, 3] = 1
-            matrix = actual
-        if np.all(matrix == _eye):
-            return IDENTITY_TRANSFORM
-        return Transformation(matrix)
-
-    def copy(self):
-        return Transformation(self._data.copy())
-
-
-class InverseTransformation(Transformation):
-    def __init__(self, base):
-        self._data = base
-        self._cache = caching.Cache(id_function=base.crc)
-
-    def crc(self):
-        return self._data.crc()
-
-    def md5(self):
-        return self._data.md5()
-
     @caching.cache_decorator
-    def matrix(self):
-        return np.linalg.inv(self._data.matrix)
-
-    @property
-    def inverse(self):
-        return self._data
-
-    @caching.cache_decorator
-    def volume(self):
-        return 1. / self.inverse.volume
-
-    def copy(self):
-        return self._data.copy().inverse
-
-
-class _IdentityTransformation(Transformation):
-    def __init__(self):
-        pass
-
-    def crc(self):
-        return _eye_crc
-
-    def md5(self):
-        return _eye_md5
-
-    @property
-    def matrix(self):
-        return _eye
-
-    @property
-    def volume(self):
-        return 1.0
-
-    def transform_points(self, points):
-        return points
-
-    def apply_transform(self, transform):
-        return transform
-
-    def apply_translation(self, translation):
-        return Transformation.from_translation(translation)
-
-    def apply_scale(self, scale):
-        return Transformation.from_scale(scale)
-
-    @property
-    def inverse(self):
-        return self
-
-    def copy(self):
-        return self
-
-
-_eye = np.eye(4)
-_eye.flags.writeable = False
-_eye = caching.tracked_array(_eye)
-_eye_crc = _eye.crc()
-_eye_md5 = _eye.md5()
-IDENTITY_TRANSFORM = _IdentityTransformation()
+    def is_identity(self):
+        return util.allclose(self.matrix, np.eye(4), 1e-8)
 
 
 class Voxel(Geometry):
-    def __init__(self, encoding, transform=IDENTITY_TRANSFORM):
+    def __init__(self, encoding, transform_matrix=None, metadata=None):
+        if transform_matrix is None:
+            transform_matrix = np.eye(4)
         if isinstance(encoding, np.ndarray):
             encoding = enc.DenseEncoding(encoding.astype(bool))
         if encoding.dtype != bool:
             raise ValueError('encoding must have dtype bool')
         self._data = caching.DataStore()
-        self._data['encoding'] = encoding
+        self.encoding = encoding
+        self._data['transform'] = _Transform(transform_matrix)
         self._cache = caching.Cache(id_function=self._data.crc)
-        self.transform = transform
+
+        self.metadata = dict()
+        # update the mesh metadata with passed metadata
+        if isinstance(metadata, dict):
+            self.metadata.update(metadata)
+        elif metadata is not None:
+            raise ValueError(
+                'metadata should be a dict or None, got %s' % str(metadata))
 
     def md5(self):
         return self._data.md5()
@@ -203,41 +129,71 @@ class Voxel(Geometry):
         See `trimesh.voxel.encoding` for implementations."""
         return self._data['encoding']
 
+    @encoding.setter
+    def encoding(self, encoding):
+        if isinstance(encoding, np.ndarray):
+            encoding = enc.DenseEncoding(encoding)
+        elif not isinstance(encoding, enc.Encoding):
+            raise ValueError(
+                'encoding must be an Encoding, got %s' % str(encoding))
+        if len(encoding.shape) != 3:
+            raise ValueError(
+                'encoding must be rank 3, got shape %s' % str(encoding.shape))
+        if encoding.dtype != bool:
+            raise ValueError(
+                'encoding must be binary, got %s' % encoding.dtype)
+        self._data['encoding'] = encoding
+
     @property
-    def transform(self):
+    def _transform(self):
         return self._data['transform']
 
-    @transform.setter
-    def transform(self, transform):
-        if transform is None:
-            transform = IDENTITY_TRANSFORM
-        elif isinstance(transform, np.ndarray):
-            transform = Transformation.from_matrix(transform)
-        elif not isinstance(transform, Transformation):
-            raise ValueError(
-                'transform must be a matrix or Transformation, got %s'
-                % str(transform))
-        self._data['transform'] = transform
+    @property
+    def transform_matrix(self):
+        return self._transform.matrix
+
+    @transform_matrix.setter
+    def transform_matrix(self, matrix):
+        self._transform.matrix = matrix
+
+    @property
+    def translation(self):
+        return self._transform.translation
+
+    @property
+    def origin(self):
+        # DEPRECATED. Use translation instead
+        return self.translation
+
+    @property
+    def scale(self):
+        return self._transform.scale
+
+    @property
+    def pitch(self):
+        # DEPRECATED. Use scale
+        return self.scale
+
+    @property
+    def element_volume(self):
+        return self._transform.unit_volume
 
     def apply_transform(self, matrix):
-        transform = self.transform.apply_transform(matrix)
-        return Voxel(self.encoding, transform)
+        self._transform.apply_transform(matrix)
+        return self
 
-    @caching.cache_decorator
-    def stripped(self):
+    def strip(self):
         """
-        Get a `Voxel` instance with empty planes from each face removed.
+        Mutate self by stripping leading/trailing planes of zeros.
 
-        Returns:
-            translated `Voxel` instance with a base matrix with
-            leading/trailing planes of zeros removed.
+        Returns
+        --------
+        self after mutation occurs in-place
         """
         encoding, padding = self.encoding.stripped
-        # ops.strip_array(self.encoding.dense)
-        transform = self.transform
-        translation = (
-            self.indices_to_points(padding[:, 0]) - transform.translation)
-        return Voxel(encoding, transform.apply_translation(translation))
+        self.encoding = encoding
+        self._transform.matrix[:3, 3] = self.indices_to_points(padding[:, 0])
+        return self
 
     @caching.cache_decorator
     def bounds(self):
@@ -287,6 +243,41 @@ class Voxel(Geometry):
         is_filled[in_range] = self.encoding.gather_nd(indices[in_range])
         return is_filled
 
+    def fill(self, key='holes', **kwargs):
+        """
+        Mutates self by filling in the encoding according to `morphology.fill`.
+
+        Parameters
+        ----------
+        key: implementation key, one of `trimesh.voxel.morphology.fill.fillers`
+            keys
+        **kwargs: additional kwargs passed to the keyed implementation
+
+        Returns
+        ----------
+        self after replacing encoding with a filled version.
+        """
+        self.encoding = morphology.fill(self.encoding, key=key, **kwargs)
+        return self
+
+    def hollow(self, structure=None):
+        """
+        Mutates self by removing internal voxels leaving only surface elements.
+
+        Surviving elements are those in encoding that are adjacent to an empty
+        voxel, where adjacency is controlled by `structure`.
+
+        Parameters
+        ----------
+        structure: adjacency structure. If None, square connectivity is used.
+
+        Returns
+        ----------
+        self after replacing encoding with a surface version.
+        """
+        self.encoding = morphology.surface(self.encoding)
+        return self
+
     @caching.cache_decorator
     def marching_cubes(self):
         """
@@ -294,7 +285,7 @@ class Voxel(Geometry):
 
         No effort was made to clean or smooth the result in any way;
         it is merely the result of applying the scikit-image
-        measure.marching_cubes function to self.matrix.
+        measure.marching_cubes function to self.encoding.dense.
 
         Returns
         ---------
@@ -313,8 +304,7 @@ class Voxel(Geometry):
         ---------
         volume: float, volume of filled cells
         """
-        volume = self.filled_count * self.transform.volume
-        return volume
+        return self.filled_count * self.element_volume
 
     @caching.cache_decorator
     def points(self):
@@ -325,7 +315,7 @@ class Voxel(Geometry):
         ----------
         points: (self.filled, 3) float, list of points
         """
-        return self.transform.transform_points(
+        return self._transform.transform_points(
             self.sparse_indices.astype(float))
 
     @property
@@ -366,9 +356,8 @@ class Voxel(Geometry):
 
         mesh = ops.multibox(
             centers=self.sparse_indices.astype(float), colors=colors)
-        transform = self.transform
-        if transform is not IDENTITY_TRANSFORM:
-            mesh = mesh.apply_transform(transform.matrix)
+
+        mesh = mesh.apply_transform(self.transform_matrix)
         return mesh
 
     def points_to_indices(self, points):
@@ -383,11 +372,11 @@ class Voxel(Geometry):
         ---------
         indices: (..., 3) int array of indices into self.encoding
         """
-        points = self.transform.inverse.transform_points(points)
+        points = self._transform.inverse.transform_points(points)
         return np.round(points).astype(int)
 
     def indices_to_points(self, indices):
-        return self.transform.transform_points(indices.astype(float))
+        return self._transform.transform_points(indices.astype(float))
 
     def show(self, *args, **kwargs):
         """
@@ -397,24 +386,19 @@ class Voxel(Geometry):
         return self.as_boxes(kwargs.pop('colors', None)).show(*args, **kwargs)
 
     def copy(self):
-        return Voxel(self.encoding.copy(), self.transform.copy())
+        return Voxel(self.encoding.copy(), self._transform.matrix.copy())
 
-    def revoxelize(self, shape):
+    def revoxelized(self, shape):
         """Create a new Voxel object without rotations or shearing."""
         from .. import util
         shape = tuple(shape)
         bounds = self.bounds.copy()
         extents = self.extents
-        # the following is necessary if grid_linspace changes aren't accepted
-        # x, y, z = (
-        #     np.linspace(bounds[0, i], bounds[1, i], s)
-        #     for i, s in enumerate(shape))
-        # points = np.stack(np.meshgrid(x, y, z, indexing='ij'), axis=-1)
         points = util.grid_linspace(bounds, shape).reshape(shape + (3,))
         dense = self.is_filled(points)
         scale = extents / np.asanyarray(shape)
         translate = bounds[0]
         return Voxel(
             dense,
-            transform=tr.scale_and_translate(scale, translate)
+            transform_matrix=tr.scale_and_translate(scale, translate)
         )

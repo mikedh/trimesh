@@ -2,9 +2,12 @@
 
 https://www.patrickmin.com/binvox/binvox.html
 """
-
+import os
+import subprocess
 import numpy as np
 import collections
+from .. import util
+
 Binvox = collections.namedtuple(
     'Binvox', ['rle_data', 'shape', 'translate', 'scale'])
 
@@ -162,7 +165,8 @@ def voxel_from_binvox(
     return v.Voxel(encoding, transform)
 
 
-def load_binvox(file_obj, resolver=None, axis_order='xzy', **kwargs):
+def load_binvox(
+        file_obj, resolver=None, axis_order='xzy', file_type=None, **kwargs):
     """Load trimesh `Voxel` instance from file.
 
     Args:
@@ -175,6 +179,9 @@ def load_binvox(file_obj, resolver=None, axis_order='xzy', **kwargs):
     Returns:
         `trimesh.voxel.VoxelBase` instance.
     """
+    if file_type is not None and file_type != 'binvox':
+        raise ValueError(
+            'file_type must be None or binvox, got %s' % file_type)
     data = parse_binvox(file_obj)
     return voxel_from_binvox(
         rle_data=data.rle_data,
@@ -197,26 +204,13 @@ def export_binvox(voxel, axis_order='xzy'):
     Returns:
         bytes representation according to binvox spec
     """
-    transform = voxel.transform
-    translate = transform.matrix[:3, 3]
+    translate = voxel.translation
+    scale = voxel.scale * ((np.max(voxel.shape) - 1))
     encoding = voxel.encoding
 
-    tol = 1e-12
-    i, j = np.where(np.abs(transform.matrix[:3, :3]) > tol)
-    scales = transform.matrix[i, j] * (np.array(voxel.shape) - 1)
-
-    if not np.all(i == j) or np.any(scales) < 0:
-        # TODO: refactor transpose/reflection in transform into
-        # transpose/flip in encoding
-        raise ValueError(
-            'Invalid transformation matrix for exporting to binvox - '
-            'no rotation/shear/reflection allowed.')
-
-    if not np.all(np.abs(scales[1:] - scales[0]) < tol):
-        raise ValueError(
-            'Invalid transformation matrix for exporting to binvox - '
-            'only uniform scales allowed')
-    scale = scales[0]
+    if scale < 0:
+        encoding = encoding.flip((0, 1, 2))
+        scale = -scale
     if axis_order == 'xzy':
         encoding = encoding.transpose((0, 2, 1))
     elif axis_order != 'xyz':
@@ -224,3 +218,280 @@ def export_binvox(voxel, axis_order='xzy'):
     rle_data = encoding.flat.run_length_data(dtype=np.uint8)
     return binvox_bytes(
         rle_data, shape=voxel.shape, translate=translate, scale=scale)
+
+
+class Binvoxer(object):
+    """
+    Interface for binvox CL tool.
+
+    This class is responsible purely for making calls to the CL tool. It
+    makes no attempt to integrate with the rest of trimesh at all.
+
+    Constructor args configure command line options.
+
+    `Binvoxer.__call__` operates on the path to a mode file.
+
+    If using this interface in published works, please cite the references
+    below.
+
+    See CL tool website for further details.
+
+    https://www.patrickmin.com/binvox/
+
+    @article{nooruddin03,
+        author = {Fakir S. Nooruddin and Greg Turk},
+        title = {Simplification and Repair of Polygonal Models Using Volumetric
+                 Techniques},
+        journal = {IEEE Transactions on Visualization and Computer Graphics},
+        volume = {9},
+        number = {2},
+        pages = {191--205},
+        year = {2003}
+    }
+
+    @Misc{binvox,
+        author = {Patrick Min},
+        title =  {binvox},
+        howpublished = {{\tt http://www.patrickmin.com/binvox} or
+                        {\tt https://www.google.com/search?q=binvox}},
+        year =  {2004 - 2019},
+        note = {Accessed: yyyy-mm-dd}
+    }
+    """
+
+    SUPPORTED_INPUT_TYPES = (
+        'ug',
+        'obj',
+        'off',
+        'dfx',
+        'xgl',
+        'pov',
+        'brep',
+        'ply',
+        'jot',
+    )
+
+    SUPPORTED_OUTPUT_TYPES = (
+        'binvox',
+        'hips',
+        'mira',
+        'vtk',
+        'raw',
+        'schematic',
+        'msh',
+    )
+
+    def __init__(
+        self,
+        dimension=32,
+        file_type='binvox',
+        z_buffer_carving=True,
+        z_buffer_voting=True,
+        dilated_carving=False,
+        exact=False,
+        bounding_box=None,
+        remove_internal=False,
+        center=False,
+        rotate_x=0,
+        rotate_z=0,
+        wireframe=False,
+        fit=False,
+        block_id=None,
+        use_material_block_id=False,
+        use_offscreen_pbuffer=True,
+        downsample_factor=None,
+        downsample_threshold=None,
+        binvox_path=None,
+        verbose=False,
+    ):
+        """
+        Configure the voxelizer.
+
+        Parameters
+        ------------
+        dimension: voxel grid size (max 1024 when not using exact)
+        file_type: output file time. Supported types are:
+            'binvox'
+            'hips'
+            'mira'
+            'vtk'
+            'raw'
+            'schematic'
+            'msh'
+        z_buffer_carving: use z buffer based carving. At least one of
+            `z_buffer_carving` and `z_buffer_voting` must be True.
+        z_buffer_voting: use z-buffer based parity voting method.
+        dilated_carving: stop carving 1 voxel before intersection.
+        exact: any voxel with part of a triangle gets set. Does not use
+            graphics card.
+        bounding_box: 6-element float list/tuple of min, max values,
+            (minx, miny, minz, maxx, maxy, maxz)
+        remove_internal: remove internal voxels if True. Note there is some odd
+            behaviour if boundary voxels are occupied.
+        center: center model inside unit cube.
+        rotate_x: number of 90 degree ccw rotations around x-axis before
+            voxelizing.
+        rotate_z: number of 90 degree cw rotations around z-axis before
+            voxelizing.
+        wireframe: also render the model in wireframe (helps with thin parts).
+        fit: only write voxels in the voxel bounding box.
+        block_id: when converting to schematic, use this as the block ID.
+        use_matrial_block_id: when converting from obj to schematic, parse
+            block ID from material spec "usemtl blockid_<id>" (ids 1-255 only).
+        use_offscreen_pbuffer: use offscreen pbuffer instead of onscreen
+            window.
+        downsample_factor: downsample voxels by this factor in each dimension.
+            Must be a power of 2 or None. If not None/1 and `core dumped`
+            errors occur, try slightly adjusting dimensions.
+        downsample_threshold: when downsampling, destination voxel is on if
+            more than this number of voxels are on.
+        verbose: if False, silences stdout/stderr from subprocess call.
+        """
+        if binvox_path is None:
+            binvox_path = os.path.join(
+                os.path.dirname(__file__), 'bin', 'binvox')
+        if dimension > 1024 and not exact:
+            raise ValueError(
+                'Maximum dimension using exact is 1024, got %d' % dimension)
+        if file_type not in Binvoxer.SUPPORTED_OUTPUT_TYPES:
+            raise ValueError(
+                'file_type %s not in set of supported output types %s' %
+                (file_type, str(Binvoxer.SUPPORTED_OUTPUT_TYPES)))
+        args = [binvox_path, '-d', str(dimension), '-t', file_type]
+        if exact:
+            args.append('-e')
+        if z_buffer_carving:
+            if z_buffer_voting:
+                pass
+            else:
+                args.append('-c')
+        elif z_buffer_voting:
+            args.append('-v')
+        else:
+            raise ValueError(
+                'At least one of `z_buffer_carving` or `z_buffer_voting` must '
+                'be True')
+        if dilated_carving:
+            args.append('-dc')
+
+        # Additional parameters
+        if bounding_box is not None:
+            if len(bounding_box) != 6:
+                raise ValueError('bounding_box must have 6 elements')
+            args.append('-bb')
+            args.extend('%.f' % b for b in bounding_box)
+        if remove_internal:
+            args.append('-ri')
+        if center:
+            args.append('-cb')
+        args.extend(('-rotx',) * rotate_x)
+        args.extend(('-rotz',) * rotate_z)
+        if wireframe:
+            args.append('-aw')
+        if fit:
+            args.append('-fit')
+        if block_id is not None:
+            args.extend(('-bi', block_id))
+        if use_material_block_id:
+            args.append('-mb')
+        if use_offscreen_pbuffer:
+            args.append('-pb')
+        if downsample_factor is not None:
+            times = np.log2(downsample_factor)
+            if int(times) != times:
+                raise ValueError(
+                    'downsample_factor must be a power of 2, got %d'
+                    % downsample_factor)
+            args.extend(('-down',) * int(times))
+        if downsample_threshold is not None:
+            args.extend(('-dmin', str(downsample_threshold)))
+        args.append('PATH')
+        self._args = args
+        self._file_type = file_type
+        self._kwargs = {} if verbose else dict(
+            # stderr=subprocess.DEVNULL,  # suppress stderr when not verbose?
+            stdout=subprocess.DEVNULL)
+
+    @property
+    def file_type(self):
+        return self._file_type
+
+    def __call__(self, path, overwrite=False):
+        """
+        Create an voxel file in the same directory as model at `path`.
+
+        Parameters
+        ------------
+        path: string path to model file. Supported types:
+            'ug'
+            'obj'
+            'off'
+            'dfx'
+            'xgl'
+            'pov'
+            'brep'
+            'ply'
+            'jot' (polygongs only)
+        overwrite: if False, checks the output path (head.file_type) is empty
+            before running. If True and a file exists, raises an IOError.
+
+        Returns
+        ------------
+        string path to voxel file. File type give by file_type in constructor.
+        """
+        head, ext = os.path.splitext(path)
+        ext = ext[1:].lower()
+        if ext not in Binvoxer.SUPPORTED_INPUT_TYPES:
+            raise ValueError(
+                'file_type %s not in set of supported input types %s' %
+                (ext, str(Binvoxer.SUPPORTED_INPUT_TYPES)))
+        out_path = '%s.%s' % (head, self._file_type)
+        if os.path.isfile(out_path) and not overwrite:
+            raise IOError(
+                'Attempted to voxelize object a %s, but there is already a '
+                'file at output path %s' % (path, out_path))
+        self._args[-1] = path
+        _ = subprocess.check_call(
+            self._args, **self._kwargs)
+        return out_path
+
+
+def voxelize_mesh(mesh, binvoxer=None, export_type='off', **binvoxer_kwargs):
+    """
+    Interface for voxelizing Trimesh object via the binvox tool.
+
+    Implementation simply saved the mesh in the specified export_type then
+    runs the `Binvoxer.__call__` (using either the supplied `binvoxer` or
+    creating one via `binvoxer_kwargs`)
+
+    Parameters
+    ------------
+    mesh: Trimesh object to voxelize.
+    binvoxer: optional Binvoxer instance.
+    export_type: file type to export mesh as temporarily for Binvoxer to
+        operate on.
+    **binvoxer_kwargs: kwargs for creating a new Binvoxer instance. If binvoxer
+        if provided, this must be empty.
+
+    Returns
+    ------------
+    `Voxel` object resulting.
+    """
+    if binvoxer is None:
+        binvoxer = Binvoxer(**binvoxer_kwargs)
+    elif len(binvoxer_kwargs) > 0:
+        raise ValueError('Cannot provide binvoxer and binvoxer_kwargs')
+    if binvoxer.file_type != 'binvox':
+        raise ValueError(
+            'Only "binvox" binvoxer `file_type` currently supported')
+    with util.TemporaryDirectory() as folder:
+        model_path = os.path.join(folder, 'model.%s' % export_type)
+        with open(model_path, 'wb') as fp:
+            mesh.export(fp, file_type=export_type)
+        out_path = binvoxer(model_path)
+        with open(out_path, 'rb') as fp:
+            out_model = load_binvox(fp)
+    return out_model
+
+
+_binvox_loaders = {'binvox': load_binvox}

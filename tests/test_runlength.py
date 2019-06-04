@@ -210,8 +210,6 @@ class RleTest(g.unittest.TestCase):
                 ([0, 3], [0, 3], (0, 0)),
         ):
             actual_brle, actual_padding = rl.brle_strip(brle_data)
-            print(actual_brle)
-            print(actual_padding)
             np.testing.assert_equal(actual_brle, expected_brle)
             np.testing.assert_equal(actual_padding, expected_padding)
 

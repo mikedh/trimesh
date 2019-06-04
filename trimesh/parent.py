@@ -5,16 +5,11 @@ parent.py
 The base class for Trimesh, PointCloud, and Scene objects
 """
 import abc
-import sys
 
 import numpy as np
 
 from . import caching
-
-if sys.version_info >= (3, 4):
-    ABC = abc.ABC
-else:
-    ABC = abc.ABCMeta('ABC', (), {})
+from .util import ABC
 
 
 class Geometry(ABC):
