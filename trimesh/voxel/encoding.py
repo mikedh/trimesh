@@ -331,6 +331,25 @@ class SparseEncoding(Encoding):
     def get_value(self, index):
         return self._gather_nd(np.expand_dims(index, axis=0))[0]
 
+    @caching.cache_decorator
+    def stripped(self):
+        """
+        Get encoding with all zeros stripped from the start/end of each axis.
+
+        Returns:
+            encoding: SparseEncoding with same values but indices shifted down
+                by padding[:, 0]
+            padding: (n, 2) array of ints denoting padding at the start/end
+                that was stripped
+        """
+        indices = self.sparse_indices
+        pad_left = np.min(indices, axis=0)
+        pad_right = np.max(indices, axis=0)
+        pad_right *= -1
+        pad_right += self.shape
+        padding = np.column_stack((pad_left, pad_right))
+        return SparseEncoding(indices - pad_left, self.sparse_values), padding
+
 
 def SparseBinaryEncoding(indices, shape=None):
     """

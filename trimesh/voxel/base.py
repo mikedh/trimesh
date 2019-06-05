@@ -24,7 +24,6 @@ class _Transform(object):
             raise ValueError('matrix not a valid transformation matrix')
         self._data = caching.tracked_array(matrix, dtype=float)
         self._cache = caching.Cache(id_function=self._data.crc)
-        self._inverse = None
 
     identity_tol = 1e-8
 
@@ -62,7 +61,7 @@ class _Transform(object):
         return np.linalg.det(self._data[:3, :3])
 
     def apply_transform(self, matrix):
-        self.matrix = matrix @ self.matrix
+        self.matrix = np.matmul(matrix, self.matrix)
         return self
 
     def apply_translation(self, translation):
@@ -79,15 +78,20 @@ class _Transform(object):
         return tr.transform_points(
             points.reshape(-1, 3), self.matrix).reshape(points.shape)
 
+    def inverse_transform_points(self, points):
+        if self.is_identity:
+            return points
+        return tr.transform_points(
+            points.reshape(-1, 3), self.inverse_matrix).reshape(points.shape)
+
+    @caching.cache_decorator
+    def inverse_matrix(self):
+        inv = np.linalg.inv(self.matrix)
+        inv.flags.writeable = False
+        return inv
+
     def copy(self):
         return _Transform(self._data.copy())
-
-    @property
-    def inverse(self):
-        if self._inverse is None:
-            self._inverse = _Transform(np.linalg.inv(self.matrix))
-            self._inverse._inverse = self
-        return self._inverse
 
     @caching.cache_decorator
     def is_identity(self):
@@ -372,7 +376,7 @@ class Voxel(Geometry):
         ---------
         indices: (..., 3) int array of indices into self.encoding
         """
-        points = self._transform.inverse.transform_points(points)
+        points = self._transform.inverse_transform_points(points)
         return np.round(points).astype(int)
 
     def indices_to_points(self, indices):

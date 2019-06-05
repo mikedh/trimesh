@@ -149,6 +149,31 @@ class EncodingTest(g.unittest.TestCase):
         for encoding in encodings:
             self._test_composite(encoding, dense_data)
 
+    def test_dense_stripped(self):
+        base_shape = (5, 5, 5)
+        dense = np.ones(base_shape, dtype=bool)
+        padding = [[2, 2], [2, 2], [2, 2]]
+        dense = np.pad(dense, padding, mode='constant')
+        encoding = enc.DenseEncoding(dense)
+        stripped, calculated_padding = encoding.stripped
+        np.testing.assert_equal(calculated_padding, padding)
+        np.testing.assert_equal(stripped.shape, base_shape)
+        np.testing.assert_equal(stripped.dense, 1)
+
+    def test_sparse_stripped(self):
+        box = g.trimesh.primitives.Box()
+        box.apply_translation([0.5, 0.5, 0.5])  # center at origin
+        box.apply_scale(5)                      # 0 -> 5
+        expected_sparse_indices = np.array(box.vertices)
+        box.apply_translation([2, 2, 2])        # 2 -> 7
+        sparse = np.array(box.vertices, dtype=int)
+        encoding = enc.SparseBinaryEncoding(sparse, shape=(9, 9, 9))
+        stripped, calculated_padding = encoding.stripped
+        np.testing.assert_equal(
+            stripped.sparse_indices, expected_sparse_indices)
+        np.testing.assert_equal(
+            calculated_padding, 2*np.ones((3, 2), dtype=int))
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
