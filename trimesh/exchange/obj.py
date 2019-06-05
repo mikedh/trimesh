@@ -229,10 +229,10 @@ def load_obj(file_obj, resolver=None, **kwargs):
     # get vertices as list of strings
     v_list = words[v_idx + np.arange(1, 4)].ravel().tolist()
     # run the conversion using built- in functions then re-numpy it
-    v = np.array(list(map(float, v_list)), dtype=np.float64).reshape((-1, 3))
+    v = np.array(list(map(float, v_list)),
+                 dtype=np.float64).reshape((-1, 3))
 
     # vertex colors are stored right after the vertices
-    """
     vc = None
     try:
         # try just one line, which will raise before
@@ -240,17 +240,19 @@ def load_obj(file_obj, resolver=None, **kwargs):
         words[v_idx[0] + np.arange(4, 7)].astype(np.float64)
         # we made it past one line, try to get a color for every vertex
         vc_list = words[v_idx + np.arange(4, 7)].ravel().tolist()
-        vc = np.array(list(map(float, vc_list)), dtype=np.float64).reshape((-1, 3))
+        vc = np.array(list(map(float, vc_list)),
+                      dtype=np.float64).reshape(v.shape)
     except BaseException:
+        # we don't have colors of correct shape
         pass
-    """
 
     vt = None
     if vt_end >= 0:
         # if we have vertex textures specified convert to numpy array
         vt_idx = np.nonzero(words == 'vt')[0].reshape((-1, 1))
         vt_list = words[vt_idx + np.arange(1, 3)].ravel().tolist()
-        vt = np.array(list(map(float, vt_list)), dtype=np.float64).reshape((-1, 2))
+        vt = np.array(list(map(float, vt_list)),
+                      dtype=np.float64).reshape((-1, 2))
 
     vn = None
     if vn_end >= 0:
@@ -258,7 +260,8 @@ def load_obj(file_obj, resolver=None, **kwargs):
         vn_idx = np.nonzero(words == 'vn')[0].reshape((-1, 1))
         if len(vn_idx) == len(v):
             vn_list = words[vn_idx + np.arange(1, 4)].ravel().tolist()
-            vn = np.array(list(map(float, vn_list)), dtype=np.float64).reshape((-1, 3))
+            vn = np.array(list(map(float, vn_list)),
+                          dtype=np.float64).reshape((-1, 3))
 
     # Pre-Process Face Text
     # Rather than looking at each line in a loop we're
