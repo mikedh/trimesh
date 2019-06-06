@@ -90,8 +90,14 @@ class Camera(object):
         values = np.asanyarray(values, dtype=np.int64)
         if values.shape != (2,):
             raise ValueError('resolution must be (2,) float')
-        # assign passed values to focal length
+        values.flags.writeable = False
         self._resolution = values
+        # unset computed value that depends on the other plus resolution
+        if self._focal_computed:
+            self._focal = None
+        else:
+            # fov must be computed
+            self._fov = None
 
     @property
     def scene(self):
@@ -169,6 +175,7 @@ class Camera(object):
         matrix = np.asanyarray(values, dtype=np.float64)
         if matrix.shape != (4, 4):
             raise ValueError('transform must be (4, 4) float!')
+        matrix.flags.writeable = False
         if self._scene is None:
             # if no scene, save transform locally
             self._transform = matrix
@@ -188,10 +195,10 @@ class Camera(object):
         """
         if self._focal is None:
             # calculate focal length from FOV
-            focal = [(px / 2.0) / np.tan(np.radians(fov / 2.0))
-                     for px, fov in zip(self._resolution, self.fov)]
-            # store as correct dtype
-            self._focal = np.asanyarray(focal, dtype=np.float64)
+            focal = (
+              self._resolution / (2.0 * np.tan(np.radians(self._fov / 2.0))))
+            focal.flags.writeable = False
+            self._focal = focal
 
         return self._focal
 
@@ -208,9 +215,14 @@ class Camera(object):
         if values is None:
             self._focal = None
         else:
+            # flag this as not computed (hence fov must be)
+            # this is necessary so changes to resolution can reset the
+            # computed quantity without changing the explicitly set quantity
+            self._focal_computed = False
             values = np.asanyarray(values, dtype=np.float64)
             if values.shape != (2,):
-                raise ValueError('focal length must be (2,) int')
+                raise ValueError('focal length must be (2,) float')
+            values.flags.writeable = False
             # assign passed values to focal length
             self._focal = values
             # focal overrides FOV
@@ -229,8 +241,7 @@ class Camera(object):
         K = np.eye(3, dtype=np.float64)
         K[0, 0] = self.focal[0]
         K[1, 1] = self.focal[1]
-        K[0, 2] = self.resolution[0] / 2.0
-        K[1, 2] = self.resolution[1] / 2.0
+        K[:2, 2] = self.resolution / 2.0
         return K
 
     @K.setter
@@ -249,8 +260,7 @@ class Camera(object):
         # set focal length from matrix
         self.focal = [values[0, 0], values[1, 1]]
         # set resolution from matrix
-        self.resolution = [values[0, 2] * 2,
-                           values[1, 2] * 2]
+        self.resolution = values[:2, 2] * 2
 
     @property
     def fov(self):
@@ -263,9 +273,9 @@ class Camera(object):
           XY field of view in degrees
         """
         if self._fov is None:
-            fov = [2.0 * np.degrees(np.arctan((px / 2.0) / f))
-                   for px, f in zip(self._resolution, self._focal)]
-            fov = np.asanyarray(fov, dtype=np.float64)
+            fov = 2.0 * np.degrees(
+                np.arctan((self._resolution / 2.0) / self._focal))
+            fov.flags.writeable = False
             self._fov = fov
         return self._fov
 
@@ -282,9 +292,14 @@ class Camera(object):
         if values is None:
             self._fov = None
         else:
+            # flag this as computed (hence fov must not be)
+            # this is necessary so changes to resolution can reset the
+            # computed quantity without changing the explicitly set quantity
+            self._focal_computed = True
             values = np.asanyarray(values, dtype=np.float64)
             if values.shape != (2,):
                 raise ValueError('focal length must be (2,) int')
+            values.flags.writeable = False
             # assign passed values to FOV
             self._fov = values
             # fov overrides focal
