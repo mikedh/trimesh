@@ -44,6 +44,42 @@ class CameraTests(g.unittest.TestCase):
             fov=None)
         assert np.allclose(camera.fov, fov)
 
+    def test_focal_updates_on_resolution_change(self):
+        """Test changing resolution with set fov updates focal."""
+        base_res = (320, 240)
+        updated_res = (640, 480)
+        fov = (60, 40)
+        base_cam = g.trimesh.scene.Camera(
+            resolution=base_res,
+            fov=fov)
+        base_focal = base_cam.focal
+        base_cam.resolution = updated_res
+        assert base_cam.focal is not base_focal
+        new_cam = g.trimesh.scene.Camera(
+            resolution=updated_res,
+            fov=fov,
+        )
+        np.testing.assert_allclose(base_cam.focal, new_cam.focal)
+
+    def test_fov_updates_on_resolution_change(self):
+        """Test changing resolution with set focal updates fov."""
+        base_res = (320, 240)
+        updated_res = (640, 480)
+        focal = (100, 100)
+        base_cam = g.trimesh.scene.Camera(
+            resolution=base_res,
+            focal=focal)
+        base_fov = base_cam.fov
+        base_cam.resolution = updated_res
+        assert base_cam.fov is not base_fov
+        new_cam = g.trimesh.scene.Camera(
+            resolution=updated_res,
+            focal=focal,
+        )
+        np.testing.assert_allclose(base_cam.fov, new_cam.fov)
+
+
+
     def test_lookat(self):
         """
         Test the "look at points" function
