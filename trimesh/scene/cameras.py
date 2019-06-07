@@ -49,6 +49,9 @@ class Camera(object):
         if fov is None and focal is None:
             raise ValueError('either focal length or FOV required!')
 
+        # store whether or not we computed the focal length
+        self._focal_computed = False
+
         # set the passed (2,) float focal length
         self.focal = focal
 

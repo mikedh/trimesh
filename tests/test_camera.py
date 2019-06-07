@@ -45,24 +45,47 @@ class CameraTests(g.unittest.TestCase):
         assert np.allclose(camera.fov, fov)
 
     def test_focal_updates_on_resolution_change(self):
-        """Test changing resolution with set fov updates focal."""
+        """
+        Test changing resolution with set fov updates focal.
+        """
         base_res = (320, 240)
         updated_res = (640, 480)
         fov = (60, 40)
+
+        # start with initial data
         base_cam = g.trimesh.scene.Camera(
             resolution=base_res,
             fov=fov)
+        # update both focal length and resolution
         base_focal = base_cam.focal
         base_cam.resolution = updated_res
-        assert base_cam.focal is not base_focal
+
+        assert not g.np.allclose(base_cam.focal,
+                                 base_focal)
+
+        # try the same thing in reverse order
+        base_cam = g.trimesh.scene.Camera(
+            resolution=base_res,
+            fov=fov)
+        # update both focal length and resolution
+        base_cam.resolution = updated_res
+        base_focal = base_cam.focal
+        # TODO: this should pass as a minor order change
+        # should not break our bookkeeping
+        # assert not g.np.allclose(base_cam.focal,
+        #                          base_focal)
+
+        # camera created with same arguments should
+        # have the same values
         new_cam = g.trimesh.scene.Camera(
             resolution=updated_res,
-            fov=fov,
-        )
-        np.testing.assert_allclose(base_cam.focal, new_cam.focal)
+            fov=fov)
+        assert g.np.allclose(base_cam.focal, new_cam.focal)
 
     def test_fov_updates_on_resolution_change(self):
-        """Test changing resolution with set focal updates fov."""
+        """
+        Test changing resolution with set focal updates fov.
+        """
         base_res = (320, 240)
         updated_res = (640, 480)
         focal = (100, 100)
