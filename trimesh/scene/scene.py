@@ -455,11 +455,14 @@ class Scene(Geometry):
             self.camera.fov = fov
             self.camera._scene = self
             self.camera.transform = transform
+            if resolution is not None:
+                self.camera.resolution = resolution
         else:
             # create a new camera object
             self.camera = cameras.Camera(fov=fov,
                                          scene=self,
-                                         transform=transform)
+                                         transform=transform,
+                                         resolution=resolution)
         return self.camera
 
     @property
