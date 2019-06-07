@@ -78,8 +78,6 @@ class CameraTests(g.unittest.TestCase):
         )
         np.testing.assert_allclose(base_cam.fov, new_cam.fov)
 
-
-
     def test_lookat(self):
         """
         Test the "look at points" function

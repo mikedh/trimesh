@@ -196,7 +196,7 @@ class Camera(object):
         if self._focal is None:
             # calculate focal length from FOV
             focal = (
-              self._resolution / (2.0 * np.tan(np.radians(self._fov / 2.0))))
+                self._resolution / (2.0 * np.tan(np.radians(self._fov / 2.0))))
             focal.flags.writeable = False
             self._focal = focal
 
