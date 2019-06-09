@@ -1582,6 +1582,8 @@ class Trimesh(Geometry):
         areas = np.array([sum(area_faces[i])
                           for i in self.facets],
                          dtype=np.float64)
+        # don't allow in-place operations or reassignment
+        areas.flags['WRITEABLE'] = False
         return areas
 
     @caching.cache_decorator
@@ -2259,6 +2261,8 @@ class Trimesh(Geometry):
         """
         area_faces = triangles.area(crosses=self.triangles_cross,
                                     sum=False)
+        # disallow in-place modifications
+        area_faces.flags['WRITEABLE'] = False
         return area_faces
 
     @caching.cache_decorator
@@ -2390,6 +2394,7 @@ class Trimesh(Geometry):
           Identifying properties of the current mesh
         """
         identifier = comparison.identifier_simple(self)
+        identifier.flags['WRITEABLE'] = False
         return identifier
 
     @caching.cache_decorator
@@ -2602,6 +2607,7 @@ class Trimesh(Geometry):
           Vertex defect at the every vertex
         """
         defects = curvature.vertex_defects(self)
+        defects.flags['WRITEABLE'] = False
         return defects
 
     @caching.cache_decorator

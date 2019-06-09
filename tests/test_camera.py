@@ -63,18 +63,6 @@ class CameraTests(g.unittest.TestCase):
         assert not g.np.allclose(base_cam.focal,
                                  base_focal)
 
-        # try the same thing in reverse order
-        base_cam = g.trimesh.scene.Camera(
-            resolution=base_res,
-            fov=fov)
-        # update both focal length and resolution
-        base_cam.resolution = updated_res
-        base_focal = base_cam.focal
-        # TODO: this should pass as a minor order change
-        # should not break our bookkeeping
-        # assert not g.np.allclose(base_cam.focal,
-        #                          base_focal)
-
         # camera created with same arguments should
         # have the same values
         new_cam = g.trimesh.scene.Camera(
