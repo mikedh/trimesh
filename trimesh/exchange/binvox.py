@@ -1,12 +1,17 @@
 """Parsing functions for Binvox files.
 
 https://www.patrickmin.com/binvox/binvox.html
+
+Exporting meshes as binvox files requires binvox CL tool to be on your path.
 """
 import os
 import subprocess
 import numpy as np
 import collections
 from .. import util
+from distutils.spawn import find_executable
+
+binvox_encoder = find_executable('binvox')
 
 Binvox = collections.namedtuple(
     'Binvox', ['rle_data', 'shape', 'translate', 'scale'])
@@ -79,13 +84,15 @@ data
 def binvox_header(shape, translate, scale):
     """Get a binvox header string.
 
-    Args:
-        shape: length 3 iterable of ints denoting shape of voxel grid.
-        translate: length 3 iterable of floats denoting translation.
-        scale: num length of entire voxel grid.
+    Parameters
+    --------
+    shape: length 3 iterable of ints denoting shape of voxel grid.
+    translate: length 3 iterable of floats denoting translation.
+    scale: num length of entire voxel grid.
 
-    Returns:
-        string including "data\n" line.
+    Returns
+    --------
+    string including "data\n" line.
     """
     sx, sy, sz = (int(s) for s in shape)
     tx, ty, tz = translate
@@ -94,16 +101,18 @@ def binvox_header(shape, translate, scale):
 
 
 def binvox_bytes(rle_data, shape, translate=(0, 0, 0), scale=1):
-    """Get a binary representation of binvoxe data.
+    """Get a binary representation of binvox data.
 
-    Args:
-        rle_data: run-length encoded numpy array.
-        shape: length 3 iterable of ints denoting shape of voxel grid.
-        translate: length 3 iterable of floats denoting translation.
-        scale: num length of entire voxel grid.
+    Parameters
+    --------
+    rle_data: run-length encoded numpy array.
+    shape: length 3 iterable of ints denoting shape of voxel grid.
+    translate: length 3 iterable of floats denoting translation.
+    scale: num length of entire voxel grid.
 
-    Returns:
-        bytes representation, suitable for writing to binary file
+    Returns
+    --------
+    bytes representation, suitable for writing to binary file
     """
     if rle_data.dtype != np.uint8:
         raise ValueError(
@@ -118,23 +127,25 @@ def voxel_from_binvox(
     """
     Factory for building from data associated with binvox files.
 
-    Args:
-        rle_data: numpy array representing run-length-encoded of flat voxel
-            values, or a `trimesh.rle.RunLengthEncoding` object.
-            See `trimesh.rle` documentation for description of encoding.
-        shape: shape of voxel grid.
-        translate: alias for `origin` in trimesh terminology
-        scale: side length of entire voxel grid. Note this is different
-            to `pitch` in trimesh terminology, which relates to the side
-            length of an individual voxel.
-        encoded_axes: iterable with values in ('x', 'y', 'z', 0, 1, 2),
-            where x => 0, y => 1, z => 2
-            denoting the order of axes in the encoded data. binvox by
-            default saves in xzy order, but using `xyz` (or (0, 1, 2)) will
-            be faster in some circumstances.
+    Parameters
+    ---------
+    rle_data: numpy array representing run-length-encoded of flat voxel
+        values, or a `trimesh.rle.RunLengthEncoding` object.
+        See `trimesh.rle` documentation for description of encoding.
+    shape: shape of voxel grid.
+    translate: alias for `origin` in trimesh terminology
+    scale: side length of entire voxel grid. Note this is different
+        to `pitch` in trimesh terminology, which relates to the side
+        length of an individual voxel.
+    encoded_axes: iterable with values in ('x', 'y', 'z', 0, 1, 2),
+        where x => 0, y => 1, z => 2
+        denoting the order of axes in the encoded data. binvox by
+        default saves in xzy order, but using `xyz` (or (0, 1, 2)) will
+        be faster in some circumstances.
 
-    Returns:
-        `Voxel` instance
+    Returns
+    ---------
+    `VoxelGrid` instance
     """
     # shape must be uniform else scale is ambiguous
     from ..voxel import encoding as enc
@@ -162,22 +173,24 @@ def voxel_from_binvox(
             "Invalid axis_order '%s': must be None, 'xyz' or 'xzy'")
 
     assert(encoding.shape == shape)
-    return v.Voxel(encoding, transform)
+    return v.VoxelGrid(encoding, transform)
 
 
 def load_binvox(
         file_obj, resolver=None, axis_order='xzy', file_type=None, **kwargs):
-    """Load trimesh `Voxel` instance from file.
+    """Load trimesh `VoxelGrid` instance from file.
 
-    Args:
-        file_obj: file-like object with `read` and `readline` methods.
-        resolve: unused
-        axis_order: order of axes in encoded data. binvox default is
-            'xzy', but 'xyz' may be faster results where this is not relevant.
-        **kwargs: unused
+    Parameters
+    ---------
+    file_obj: file-like object with `read` and `readline` methods.
+    resolve: unused
+    axis_order: order of axes in encoded data. binvox default is
+        'xzy', but 'xyz' may be faster results where this is not relevant.
+    **kwargs: unused
 
-    Returns:
-        `trimesh.voxel.VoxelBase` instance.
+    Returns
+    ---------
+    `trimesh.voxel.VoxelGrid` instance.
     """
     if file_type is not None and file_type != 'binvox':
         raise ValueError(
@@ -192,10 +205,10 @@ def load_binvox(
 
 
 def export_binvox(voxel, axis_order='xzy'):
-    """Export `trimesh.voxel.VoxelBase` instance to bytes
+    """Export `trimesh.voxel.VoxelGrid` instance to bytes
 
     Args:
-        voxel: `trimesh.voxel.VoxelBase` instance. Assumes axis ordering of
+        voxel: `trimesh.voxel.VoxelGrid` instance. Assumes axis ordering of
             `xyz` and encodes in binvox default `xzy` ordering.
         axis_order: iterable of elements in ('x', 'y', 'z', 0, 1, 2), the order
             of axes to encode data (standard is 'xzy' for binvox). `voxel`
@@ -205,12 +218,13 @@ def export_binvox(voxel, axis_order='xzy'):
         bytes representation according to binvox spec
     """
     translate = voxel.translation
-    scale = voxel.scale * ((np.max(voxel.shape) - 1))
-    encoding = voxel.encoding
-
-    if scale < 0:
-        encoding = encoding.flip((0, 1, 2))
-        scale = -scale
+    scale = voxel.scale * ((np.array(voxel.shape) - 1))
+    neg_scale, = np.where(scale < 0)
+    encoding = voxel.encoding.flip(neg_scale)
+    scale = np.abs(scale)
+    if not util.allclose(scale[0], scale[1:], 1e-6 * scale[0] + 1e-8):
+        raise ValueError('Can only export binvox with uniform scale')
+    scale = scale[0]
     if axis_order == 'xzy':
         encoding = encoding.transpose((0, 2, 1))
     elif axis_order != 'xyz':
@@ -301,8 +315,8 @@ class Binvoxer(object):
         use_offscreen_pbuffer=True,
         downsample_factor=None,
         downsample_threshold=None,
-        binvox_path=None,
         verbose=False,
+        binvox_path=binvox_encoder,
     ):
         """
         Configure the voxelizer.
@@ -346,10 +360,15 @@ class Binvoxer(object):
         downsample_threshold: when downsampling, destination voxel is on if
             more than this number of voxels are on.
         verbose: if False, silences stdout/stderr from subprocess call.
+        binvox_path: path to binvox executable. The default looks for an
+            executable called `binvox` on your `PATH`.
         """
-        if binvox_path is None:
-            binvox_path = os.path.join(
-                os.path.dirname(__file__), 'bin', 'binvox')
+        if binvox_encoder is None:
+            raise IOError(
+                'No `binvox_path` provided, and no binvox executable found '
+                'on PATH. \nPlease go to https://www.patrickmin.com/binvox/ and '
+                'download the appropriate version.')
+
         if dimension > 1024 and not exact:
             raise ValueError(
                 'Maximum dimension using exact is 1024, got %d' % dimension)
@@ -475,7 +494,7 @@ def voxelize_mesh(mesh, binvoxer=None, export_type='off', **binvoxer_kwargs):
 
     Returns
     ------------
-    `Voxel` object resulting.
+    `VoxelGrid` object resulting.
     """
     if binvoxer is None:
         binvoxer = Binvoxer(**binvoxer_kwargs)

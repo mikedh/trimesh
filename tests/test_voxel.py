@@ -8,7 +8,7 @@ from trimesh.primitives import Sphere
 import numpy as np
 
 
-class VoxelTest(g.unittest.TestCase):
+class VoxelGridTest(g.unittest.TestCase):
 
     def test_voxel(self):
         """
@@ -20,7 +20,7 @@ class VoxelTest(g.unittest.TestCase):
             for pitch in [.1, .1 - g.tol.merge]:
                 surface = m.voxelized(pitch=pitch)
                 for fill_method in ('base', 'orthographic'):
-                    solid = surface.copy().fill(key=fill_method)
+                    solid = surface.copy().fill(method=fill_method)
 
                     assert len(surface.encoding.dense.shape) == 3
                     assert surface.shape == surface.encoding.dense.shape
@@ -170,7 +170,8 @@ class VoxelTest(g.unittest.TestCase):
         matrix = g.np.eye(9, dtype=g.np.bool).reshape((-1, 3, 3))
         centers = ops.matrix_to_points(
             matrix=matrix, pitch=pitch, origin=origin)
-        v = voxel.Voxel(matrix).apply_scale(pitch).apply_translation(origin)
+        v = voxel.VoxelGrid(matrix).apply_scale(
+            pitch).apply_translation(origin)
 
         boxes1 = v.as_boxes()
         boxes2 = ops.multibox(centers).apply_scale(pitch)
@@ -197,15 +198,15 @@ class VoxelTest(g.unittest.TestCase):
             boxes.visual.face_colors, color, atol=0, rtol=0)
 
     def test_is_filled(self):
-        """More rigorous test of Voxel.is_filled."""
+        """More rigorous test of VoxelGrid.is_filled."""
         n = 10
         matrix = g.np.random.uniform(size=(n + 1,) * 3) > 0.5
         not_matrix = g.np.logical_not(matrix)
         pitch = 1. / n
         origin = g.np.random.uniform(size=(3,))
-        vox = g.trimesh.voxel.Voxel(matrix)
+        vox = g.trimesh.voxel.VoxelGrid(matrix)
         vox = vox.apply_scale(pitch).apply_translation(origin)
-        not_vox = g.trimesh.voxel.Voxel(not_matrix)
+        not_vox = g.trimesh.voxel.VoxelGrid(not_matrix)
         not_vox = not_vox.apply_scale(pitch).apply_translation(origin)
         for a, b in ((vox, not_vox), (not_vox, vox)):
             points = a.points
@@ -227,7 +228,7 @@ class VoxelTest(g.unittest.TestCase):
         # should be filled from 0-9
         matrix = g.np.ones((10, 10, 10))
         scale = 0.1
-        vox = g.trimesh.voxel.Voxel(matrix).apply_scale(scale)
+        vox = g.trimesh.voxel.VoxelGrid(matrix).apply_scale(scale)
         # epsilon from zero
         eps = 1e-4
         # should all be contained
@@ -241,7 +242,7 @@ class VoxelTest(g.unittest.TestCase):
 
     def _test_equiv(self, v0, v1, query_points=None):
         """
-        Test whether or not two `VoxelBase` representation are consistent.
+        Test whether or not two `VoxelGrid` representation are consistent.
 
         Tests consistency of:
             shape
@@ -257,11 +258,12 @@ class VoxelTest(g.unittest.TestCase):
             points_to_indices
             indices_to_points
 
-        Args:
-            v0: `VoxelBase` instance
-            v1: `VoxelBase` instance
-            query_points: (optional) points as which `points_to_indices` and
-            `is_filled` are tested for consistency.
+        Parameters
+        ----------
+        v0: `VoxelGrid` instance
+        v1: `VoxelGrid` instance
+        query_points: (optional) points as which `points_to_indices` and
+        `is_filled` are tested for consistency.
         """
         def array_as_set(array2d):
             return set(tuple(x) for x in array2d)
@@ -301,18 +303,18 @@ class VoxelTest(g.unittest.TestCase):
             0, 8, 1, 40, 0, 16], dtype=np.uint8), dtype=bool)
         brle_obj = enc.BinaryRunLengthEncoding(np.array([
             8, 40, 16], dtype=np.uint8))
-        v_rle = voxel.Voxel(rle_obj.reshape(shape))
+        v_rle = voxel.VoxelGrid(rle_obj.reshape(shape))
         self.assertEqual(v_rle.filled_count, 40)
         np.testing.assert_equal(
             v_rle.encoding.dense,
             np.reshape([0] * 8 + [1] * 40 + [0] * 16, shape))
 
-        v_brle = voxel.Voxel(brle_obj.reshape(shape))
+        v_brle = voxel.VoxelGrid(brle_obj.reshape(shape))
         query_points = np.random.uniform(size=(100, 3), high=4)
         self._test_equiv(v_rle, v_brle, query_points)
 
     def test_hollow(self):
-        filled = Sphere().voxelized(pitch=0.1, key='binvox', exact=True)
+        filled = Sphere().voxelized(pitch=0.1, method='binvox', exact=True)
         hollow = filled.copy().hollow()
         self.assertLess(hollow.filled_count, filled.filled_count)
         self.assertGreater(hollow.filled_count, 0)
@@ -326,7 +328,7 @@ class VoxelTest(g.unittest.TestCase):
             self.assertLess(hollow.filled_count, filled.filled_count)
 
     def test_strip(self):
-        octant = Sphere().voxelized(pitch=0.1, key='binvox', exact=True)
+        octant = Sphere().voxelized(pitch=0.1, method='binvox', exact=True)
         dense = octant.encoding.dense.copy()
         nx, ny, nz = octant.shape
         dense[:nx // 2] = 0

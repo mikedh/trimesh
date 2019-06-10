@@ -1996,7 +1996,7 @@ def allclose(a, b, atol):
     -----------
     bool indicating if all elements are within `atol`.
     """
-    return np.abs(a - b).max() < atol
+    return np.all(np.abs(a - b).max() < atol)
 
 
 class FunctionRegistry(collections.Mapping):

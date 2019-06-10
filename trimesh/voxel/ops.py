@@ -105,7 +105,7 @@ def matrix_to_marching_cubes(matrix, pitch=1.0):
     Parameters
     -----------
     matrix : (n, m, p) bool
-      Voxel matrix
+      Occupancy array
 
     Returns
     ----------

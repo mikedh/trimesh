@@ -27,7 +27,7 @@ def voxelize_subdivide(mesh,
 
     Returns
     -----------
-    Voxel instance representing the voxelized mesh.
+    VoxelGrid instance representing the voxelized mesh.
     """
     max_edge = pitch / edge_factor
 
@@ -60,7 +60,7 @@ def voxelize_subdivide(mesh,
     origin_index = occupied_index.min(axis=0)
     origin_position = origin_index * pitch
 
-    return base.Voxel(
+    return base.VoxelGrid(
         enc.SparseBinaryEncoding(occupied_index - origin_index),
         transform_matrix=tr.scale_and_translate(
             scale=pitch, translate=origin_position))
@@ -92,7 +92,7 @@ def local_voxelize(mesh,
 
     Returns
     -----------
-    voxels : Voxel instance with resolution (m, m, m) where m=2*radius+1
+    voxels : VoxelGrid instance with resolution (m, m, m) where m=2*radius+1
         or None if the volume is empty
     """
     from scipy import ndimage
@@ -113,9 +113,6 @@ def local_voxelize(mesh,
 
     # didn't hit anything so exit
     if len(faces) == 0:
-        # encoding = enc.SparseBinaryEncoding(
-        #     np.empty(shape=(0, 3), dtype=int), shape=(1, 1, 1))
-        # return base.Voxel(encoding)
         return None
 
     local = mesh.submesh([[f] for f in faces], append=True)
@@ -163,7 +160,7 @@ def local_voxelize(mesh,
 
         voxels = np.logical_or(voxels, internal)
 
-    return base.Voxel(voxels, tr.translation_matrix(local_origin))
+    return base.VoxelGrid(voxels, tr.translation_matrix(local_origin))
 
 
 @log_time
@@ -184,7 +181,7 @@ def voxelize_ray(mesh,
 
     Returns
     -------------
-    Voxel instance representing the voxelized mesh.
+    VoxelGrid instance representing the voxelized mesh.
     """
     # how many rays per cell
     per_cell = np.array(per_cell).astype(np.int).reshape(2)
@@ -218,7 +215,7 @@ def voxelize_ray(mesh,
     voxels -= origin_index
     encoding = enc.SparseBinaryEncoding(voxels)
     origin_position = origin_index * pitch
-    return base.Voxel(
+    return base.VoxelGrid(
         encoding,
         tr.scale_and_translate(scale=pitch, translate=origin_position))
 
@@ -247,25 +244,25 @@ voxelizers = util.FunctionRegistry(
     binvox=voxelize_binvox)
 
 
-def voxelize(mesh, pitch, key='subdivide', **kwargs):
+def voxelize(mesh, pitch, method='subdivide', **kwargs):
     """
-    Voxelize the given mesh using the keyed implementation.
+    Voxelize the given mesh using the specified implementation.
 
     See `voxelizers` for available implementations or to add your own, e.g. via
     `voxelizers['custom_key'] = custom_fn`.
 
-    `custom_fn` should have signature `(mesh, pitch, **kwargs) -> Voxel`
+    `custom_fn` should have signature `(mesh, pitch, **kwargs) -> VoxelGrid`
     and should not modify encoding.
 
     Parameters
     --------------
     mesh: Trimesh object (left unchanged).
     pitch: float, side length of each voxel.
-    key: implementation key. Must be in `fillers`.
-    **kwargs: additional kwargs passed ot the keyed implementation.
+    method: implementation method. Must be in `fillers`.
+    **kwargs: additional kwargs passed ot the specified implementation.
 
     Returns
     --------------
-    A Voxel instance.
+    A VoxelGrid instance.
     """
-    return voxelizers(key, mesh, pitch, **kwargs)
+    return voxelizers(method, mesh=mesh, pitch=pitch, **kwargs)

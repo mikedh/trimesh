@@ -1,5 +1,5 @@
-from .base import Voxel
+from .base import VoxelGrid
 
 __all__ = [
-    'Voxel',
+    'VoxelGrid',
 ]

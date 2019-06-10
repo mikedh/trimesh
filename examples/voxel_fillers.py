@@ -15,12 +15,14 @@ def show(surface, filled, label):
 
 # remove_internal produced unexpected results when boundary pixels are occupied
 # not useful very often, but handy to demonstrate filling algorithms.
-surface = mesh.voxelized(pitch=0.2, key='binvox', remove_internal=True)
+surface = mesh.voxelized(
+    pitch=0.2, method='binvox', remove_internal=True)
 for impl in fillers:
-    show(surface, surface.copy().fill(key=impl), impl)
+    show(surface, surface.copy().fill(method=impl), impl)
 
 
-filled = mesh.voxelized(pitch=0.05, key='binvox', exact=True).fill(key='holes')
+filled = mesh.voxelized(
+    pitch=0.05, method='binvox', exact=True).fill(method='holes')
 hollow = filled.copy().hollow()
 print('filled volume, hollow_volume')
 print(filled.volume, hollow.volume)

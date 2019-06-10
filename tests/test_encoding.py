@@ -172,7 +172,7 @@ class EncodingTest(g.unittest.TestCase):
         np.testing.assert_equal(
             stripped.sparse_indices, expected_sparse_indices)
         np.testing.assert_equal(
-            calculated_padding, 2*np.ones((3, 2), dtype=int))
+            calculated_padding, 2 * np.ones((3, 2), dtype=int))
 
 
 if __name__ == '__main__':

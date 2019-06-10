@@ -114,9 +114,9 @@ fillers = util.FunctionRegistry(
 )
 
 
-def fill(encoding, key='base', **kwargs):
+def fill(encoding, method='base', **kwargs):
     """
-    Fill the given encoding using the keyed implementation.
+    Fill the given encoding using the specified implementation.
 
     See `fillers` for available implementations or to add your own, e.g. via
     `fillers['custom_key'] = custom_fn`.
@@ -127,14 +127,14 @@ def fill(encoding, key='base', **kwargs):
     Parameters
     --------------
     encoding: Encoding object (left unchanged).
-    key: key present in `fillers`.
-    **kwargs: additional kwargs passed ot the keyed implementation.
+    mathod: mathod present in `fillers`.
+    **kwargs: additional kwargs passed ot the specified implementation.
 
     Returns
     --------------
     A new filled Encoding object.
     """
-    return fillers(key, encoding, **kwargs)
+    return fillers(method, encoding=encoding, **kwargs)
 
 
 def binary_dilation(encoding, **kwargs):

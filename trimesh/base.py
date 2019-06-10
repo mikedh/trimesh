@@ -2149,26 +2149,26 @@ class Trimesh(Geometry):
         log.debug('mesh transformed by matrix')
         return self
 
-    def voxelized(self, pitch, key='subdivide', **kwargs):
+    def voxelized(self, pitch, method='subdivide', **kwargs):
         """
-        Return a Voxel object representing the current mesh
+        Return a VoxelGrid object representing the current mesh
         discretized into voxels at the specified pitch
 
         Parameters
         ----------
         pitch : float
           The edge length of a single voxel
-        key: implementation key. See `trimesh.voxel.creation.voxelizers`
-        **kwargs: additional kwargs passed to the keyed implementation.
+        method: implementation key. See `trimesh.voxel.creation.voxelizers`
+        **kwargs: additional kwargs passed to the specified implementation.
 
         Returns
         ----------
-        voxelized : Voxel object
+        voxelized : VoxelGrid object
           Representing the current mesh
         """
         from .voxel import creation
         return creation.voxelize(
-            mesh=self, pitch=pitch, key=key, **kwargs)
+            mesh=self, pitch=pitch, method=method, **kwargs)
 
     def outline(self, face_ids=None, **kwargs):
         """

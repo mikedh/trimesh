@@ -17,6 +17,8 @@ from . import morphology
 
 
 class _Transform(object):
+    """Class for caching metadata associated with 4x4 transformations."""
+
     def __init__(self, matrix):
         if matrix.shape != (4, 4):
             raise ValueError('matrix must be 4x4, got %s' % str(matrix.shape))
@@ -24,8 +26,6 @@ class _Transform(object):
             raise ValueError('matrix not a valid transformation matrix')
         self._data = caching.tracked_array(matrix, dtype=float)
         self._cache = caching.Cache(id_function=self._data.crc)
-
-    identity_tol = 1e-8
 
     def md5(self):
         return self._data.md5()
@@ -48,12 +48,22 @@ class _Transform(object):
     @caching.cache_decorator
     def scale(self):
         matrix = self.matrix
-        scale = matrix[0, 0]
-        if not util.allclose(matrix[:3, :3], scale * np.eye(3), scale * 1e-6):
+        scale = np.diag(matrix[:3, :3])
+        if not util.allclose(
+                matrix[:3, :3], scale * np.eye(3), scale * 1e-6 + 1e-8):
             raise RuntimeError(
                 'scale ill-defined because transform_matrix features '
-                'a shear, rotation or non-uniform scaling')
+                'a shear or rotation')
         return scale
+
+    @caching.cache_decorator
+    def pitch(self):
+        scale = self.scale
+        if not util.allclose(
+                scale[0], scale[1:], np.max(np.abs(scale)) * 1e-6 + 1e-8):
+            raise RuntimeError(
+                'pitch ill-defined because transform_matrix features '
+                'non-uniform scaling.')
 
     @caching.cache_decorator
     def unit_volume(self):
@@ -61,24 +71,40 @@ class _Transform(object):
         return np.linalg.det(self._data[:3, :3])
 
     def apply_transform(self, matrix):
+        """Mutate the transform in-place and return self."""
         self.matrix = np.matmul(matrix, self.matrix)
         return self
 
     def apply_translation(self, translation):
+        """Mutate the transform in-place and return self."""
         self.matrix[:3, 3] += translation
         return self
 
     def apply_scale(self, scale):
+        """Mutate the transform in-place and return self."""
         self.matrix[:3] *= scale
         return self
 
     def transform_points(self, points):
+        """
+        Apply the transformation to points (not in-place).
+
+        Parameters
+        ----------
+        points: (..., 3) float coordinates
+
+        Returns
+        ----------
+        transformed points of the same shape as points, or the original points
+        (i.e. not coppied) if this is an identity transform.
+        """
         if self.is_identity:
             return points
         return tr.transform_points(
             points.reshape(-1, 3), self.matrix).reshape(points.shape)
 
     def inverse_transform_points(self, points):
+        """Apply the inverse transformation to points (not in-place)."""
         if self.is_identity:
             return points
         return tr.transform_points(
@@ -95,10 +121,11 @@ class _Transform(object):
 
     @caching.cache_decorator
     def is_identity(self):
+        """Flags this transformation being sufficiently close to eye(4)."""
         return util.allclose(self.matrix, np.eye(4), 1e-8)
 
 
-class Voxel(Geometry):
+class VoxelGrid(Geometry):
     def __init__(self, encoding, transform_matrix=None, metadata=None):
         if transform_matrix is None:
             transform_matrix = np.eye(4)
@@ -128,9 +155,10 @@ class Voxel(Geometry):
     @property
     def encoding(self):
         """
-        `Encoding` object providing the base occupancy grid.
+        `Encoding` object providing the occupancy grid.
 
-        See `trimesh.voxel.encoding` for implementations."""
+        See `trimesh.voxel.encoding` for implementations.
+        """
         return self._data['encoding']
 
     @encoding.setter
@@ -154,29 +182,44 @@ class Voxel(Geometry):
 
     @property
     def transform_matrix(self):
+        """4x4 homogeneous transformation matrix."""
         return self._transform.matrix
 
     @transform_matrix.setter
     def transform_matrix(self, matrix):
+        """4x4 homogeneous transformation matrix."""
         self._transform.matrix = matrix
 
     @property
     def translation(self):
+        """Location of voxel at [0, 0, 0]."""
         return self._transform.translation
 
     @property
     def origin(self):
+        """Deprecated. Use `self.translation`."""
         # DEPRECATED. Use translation instead
         return self.translation
 
     @property
     def scale(self):
+        """
+        3-element float representing per-axis scale.
+
+        Raises a `RuntimeError` if `self.transform_matrix` has rotation or
+        shear components.
+        """
         return self._transform.scale
 
     @property
     def pitch(self):
-        # DEPRECATED. Use scale
-        return self.scale
+        """
+        Uniform scaling factor representing the side length of each voxel.
+
+        Raises a `RuntimeError` if `self.transformation` has rotation or shear
+        components of has non-uniform scaling.
+        """
+        return self._transform.pitch
 
     @property
     def element_volume(self):
@@ -219,10 +262,12 @@ class Voxel(Geometry):
 
     @property
     def shape(self):
+        """3-tuple of ints denoting shape of occupancy grid."""
         return self.encoding.shape
 
     @caching.cache_decorator
     def filled_count(self):
+        """int, number of occupied voxels in the grid."""
         return self.encoding.sum.item()
 
     def is_filled(self, point):
@@ -247,21 +292,21 @@ class Voxel(Geometry):
         is_filled[in_range] = self.encoding.gather_nd(indices[in_range])
         return is_filled
 
-    def fill(self, key='holes', **kwargs):
+    def fill(self, method='holes', **kwargs):
         """
         Mutates self by filling in the encoding according to `morphology.fill`.
 
         Parameters
         ----------
-        key: implementation key, one of `trimesh.voxel.morphology.fill.fillers`
-            keys
+        method: implementation key, one of
+            `trimesh.voxel.morphology.fill.fillers` keys
         **kwargs: additional kwargs passed to the keyed implementation
 
         Returns
         ----------
         self after replacing encoding with a filled version.
         """
-        self.encoding = morphology.fill(self.encoding, key=key, **kwargs)
+        self.encoding = morphology.fill(self.encoding, method=method, **kwargs)
         return self
 
     def hollow(self, structure=None):
@@ -324,6 +369,7 @@ class Voxel(Geometry):
 
     @property
     def sparse_indices(self):
+        """(n, 3) int array of sparse indices of occupied voxels."""
         return self.encoding.sparse_indices
 
     def as_boxes(self, colors=None):
@@ -390,10 +436,21 @@ class Voxel(Geometry):
         return self.as_boxes(kwargs.pop('colors', None)).show(*args, **kwargs)
 
     def copy(self):
-        return Voxel(self.encoding.copy(), self._transform.matrix.copy())
+        return VoxelGrid(self.encoding.copy(), self._transform.matrix.copy())
 
     def revoxelized(self, shape):
-        """Create a new Voxel object without rotations or shearing."""
+        """
+        Create a new VoxelGrid without rotations, reflections or shearing.
+
+        Parameters
+        ----------
+        shape: 3-tuple of ints denoting the shape of the returned VoxelGrid.
+
+        Returns
+        ----------
+        VoxelGrid of the given shape with (possibly non-uniform) scale and
+        translation transformation matrix.
+        """
         from .. import util
         shape = tuple(shape)
         bounds = self.bounds.copy()
@@ -402,7 +459,7 @@ class Voxel(Geometry):
         dense = self.is_filled(points)
         scale = extents / np.asanyarray(shape)
         translate = bounds[0]
-        return Voxel(
+        return VoxelGrid(
             dense,
             transform_matrix=tr.scale_and_translate(scale, translate)
         )

@@ -34,7 +34,7 @@ if isinstance(chair_mesh, (list, tuple)):
 binvox_path = os.path.join(dir_models, '%s.binvox' % base_name)
 chair_voxels = trimesh.load(binvox_path)
 
-chair_voxels = v.Voxel(
+chair_voxels = v.VoxelGrid(
     chair_voxels.encoding.dense, chair_voxels.transform_matrix)
 
 print('white: voxelized chair (binvox, exact)')
@@ -57,7 +57,7 @@ show(chair_mesh, revox, colors=(0, 1, 1, 0.3))
 
 values = chair_voxels.encoding.dense.copy()
 values[:values.shape[0] // 2] = 0
-stripped = v.Voxel(values, chair_voxels.transform_matrix.copy()).strip()
+stripped = v.VoxelGrid(values, chair_voxels.transform_matrix.copy()).strip()
 print('yellow: stripped halved voxel grid. Transform is updated appropriately')
 show(chair_mesh, stripped, colors=(1, 1, 0, 0.3))
 
@@ -74,29 +74,29 @@ print('blue: transformed voxels. Transformation is lazy, and each voxel is '
 show(transformed_chair_mesh, chair_voxels, colors=(0, 0, 1, 0.3))
 
 
-voxelized = chair_mesh.voxelized(pitch=0.02, key='subdivide').fill()
-print('green: subdivided. Poor performance on thin structures')
+voxelized = chair_mesh.voxelized(pitch=0.02, method='subdivide').fill()
+print('green: subdivided')
 show(chair_mesh, voxelized, colors=(0, 1, 0, 0.3))
 
-voxelized = chair_mesh.voxelized(pitch=0.02, key='ray')
+voxelized = chair_mesh.voxelized(pitch=0.02, method='ray')
 print('red: ray. Poor performance on thin structures')
 show(chair_mesh, voxelized, colors=(1, 0, 0, 0.3))
 
-voxelized = chair_mesh.voxelized(pitch=0.02, key='binvox')
+voxelized = chair_mesh.voxelized(pitch=0.02, method='binvox')
 print('red: binvox (default). Poor performance on thin structures')
 show(chair_mesh, voxelized, colors=(1, 0, 0, 0.3))
 
-voxelized = chair_mesh.voxelized(pitch=0.02, key='binvox', wireframe=True)
+voxelized = chair_mesh.voxelized(pitch=0.02, method='binvox', wireframe=True)
 print('green: binvox (wireframe). Still doesn\'t capture all thin structures')
 show(chair_mesh, voxelized, colors=(0, 1, 0, 0.3))
 
-voxelized = chair_mesh.voxelized(pitch=0.02, key='binvox', exact=True)
+voxelized = chair_mesh.voxelized(pitch=0.02, method='binvox', exact=True)
 print('blue: binvox (exact). Does a good job')
 show(chair_mesh, voxelized, colors=(0, 0, 1, 0.3))
 
 voxelized = chair_mesh.voxelized(
     pitch=0.02,
-    key='binvox',
+    method='binvox',
     exact=True,
     downsample_factor=2,
     downsample_threshold=1,
@@ -104,13 +104,13 @@ voxelized = chair_mesh.voxelized(
 print('red: binvox (exact downsampled) surface')
 show(chair_mesh, voxelized, colors=(1, 0, 0, 0.3))
 
-chair_voxels = chair_mesh.voxelized(pitch=0.02, key='binvox', exact=True)
+chair_voxels = chair_mesh.voxelized(pitch=0.02, method='binvox', exact=True)
 
-voxelized = chair_voxels.copy().fill(key='base')
+voxelized = chair_voxels.copy().fill(method='base')
 print('blue: binvox (exact) filled (base). Gets a bit overly excited')
 show(chair_mesh, voxelized, colors=(0, 0, 1, 0.3))
 
-voxelized = chair_voxels.copy().fill(key='orthographic')
+voxelized = chair_voxels.copy().fill(method='orthographic')
 print('green: binvox (exact) filled (orthographic). '
       'Doesn\'t do much as should be expected')
 show(chair_mesh, voxelized, colors=(0, 1, 0, 0.3))

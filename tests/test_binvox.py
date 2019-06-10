@@ -32,12 +32,17 @@ class BinvoxTest(g.unittest.TestCase):
         np.testing.assert_allclose(base.bounds, [translate, translate + scale])
         np.testing.assert_equal(base.encoding.dense, dense)
 
+        if binvox.binvox_encoder is None:
+            g.log.warning(
+                'No binvox encoder found, skipping binvox export tests')
+            return
+
         file_obj = BytesIO(binvox.export_binvox(base))
         file_obj.seek(0)
         loaded = binvox.load_binvox(file_obj)
         np.testing.assert_equal(loaded.encoding.dense, base.encoding.dense)
-        self.assertTrue(isinstance(base, v.Voxel))
-        self.assertTrue(isinstance(loaded, v.Voxel))
+        self.assertTrue(isinstance(base, v.VoxelGrid))
+        self.assertTrue(isinstance(loaded, v.VoxelGrid))
         np.testing.assert_equal(
             base.transform_matrix, loaded.transform_matrix)
         np.testing.assert_equal(base.shape, loaded.shape)
