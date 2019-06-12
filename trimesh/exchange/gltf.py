@@ -7,6 +7,7 @@ as GL_TRIANGLES, and trimesh.Path2D/Path3D as GL_LINES
 """
 
 import json
+import base64
 import collections
 
 import numpy as np
@@ -25,19 +26,19 @@ _magic = {"gltf": 1179937895,
           "bin": 5130562}
 
 # GLTF data type codes: little endian numpy dtypes
-_types = {5120: "<i1",
-          5121: "<u1",
-          5122: "<i2",
-          5123: "<u2",
-          5125: "<u4",
-          5126: "<f4"}
+_dtypes = {5120: "<i1",
+           5121: "<u1",
+           5122: "<i2",
+           5123: "<u2",
+           5125: "<u4",
+           5126: "<f4"}
 
 # GLTF data formats: numpy shapes
 _shapes = {
-    "SCALAR": -1,
-    "VEC2": (-1, 2),
-    "VEC3": (-1, 3),
-    "VEC4": (-1, 4),
+    "SCALAR": 1,
+    "VEC2": (2),
+    "VEC3": (3),
+    "VEC4": (4),
     "MAT2": (2, 2),
     "MAT3": (3, 3),
     "MAT4": (4, 4),
@@ -229,8 +230,9 @@ def load_gltf(file_obj=None,
         except BaseException:
             tree = json.loads(data.decode('utf-8'))
 
-    # use the resolver to get data from file names
-    buffers = [resolver[b['uri']] for b in tree['buffers']]
+    # use the URI and resolver to get data from file names
+    buffers = [_uri_to_bytes(uri=b['uri'], resolver=resolver)
+               for b in tree['buffers']]
 
     # turn the layout header and data into kwargs
     # that can be used to instantiate a trimesh.Scene object
@@ -316,6 +318,31 @@ def load_glb(file_obj, resolver=None, **mesh_kwargs):
                            buffers=buffers,
                            mesh_kwargs=mesh_kwargs)
     return kwargs
+
+
+def _uri_to_bytes(uri, resolver):
+    """
+    Take a dictionary with a URI and load it as
+    a filename or as base64
+
+    Parameters
+    --------------
+    uri : string
+      Usually a filename or something "data:object/stuff,base64,AAB..."
+    resolver : trimesh.visual.Resolver
+      A resolver to load referenced assets
+
+    Returns
+    ---------------
+    data : bytes
+      Loaded data ferom URI
+    """
+    # see if the URI has base64 data
+    index = uri.find('base64,')
+    if index < 0:
+        return resolver[uri]
+    # strip off leading index and then decode into bytes
+    return base64.b64decode(uri[index + 7:])
 
 
 def _mesh_to_material(mesh, metallic=0.0, rough=0.0):
@@ -661,7 +688,8 @@ def _parse_materials(header, views, resolver=None):
             if 'bufferView' in img:
                 blob = views[img["bufferView"]]
             elif 'uri' in img:
-                blob = resolver.get(img['uri'])
+                # will get bytes from filesystem or base64 URI
+                blob = _uri_to_bytes(uri=img['uri'], resolver=resolver)
             else:
                 log.warning('unable to load image from: {}'.format(
                     img.keys()))
@@ -732,30 +760,40 @@ def _read_buffers(header, buffers, mesh_kwargs, resolver=None):
 
         assert len(views[i]) == view["byteLength"]
 
-    # load data from buffers and bufferviews into numpy arrays
+    # load data from buffers into numpy arrays
     # using the layout described by accessors
-    access = []
-    for a in header["accessors"]:
-        data = views[a["bufferView"]]
-        dtype = _types[a["componentType"]]
-        shape = _shapes[a["type"]]
+    access = [None] * len(header['accessors'])
+    for index, a in enumerate(header["accessors"]):
+        # number of items
+        count = a['count']
+        # what is the datatype
+        dtype = _dtypes[a["componentType"]]
 
-        # is the accessor offset in a buffer
-        if "byteOffset" in a:
-            start = a["byteOffset"]
+        # basically how many columns
+        per_item = _shapes[a["type"]]
+        # use reported count to
+        shape = np.append(count, per_item)
+        # number of items when flattened
+        # i.e. a (4, 4) MAT4 has 16
+        per_count = np.abs(np.product(per_item))
+
+        if 'bufferView' in a:
+            data = views[a["bufferView"]]
+            # is the accessor offset in a buffer
+            if "byteOffset" in a:
+                start = a["byteOffset"]
+            else:
+                # otherwise assume we start at first bytes
+                start = 0
+            # length is the number of bytes per item times total
+            length = np.dtype(dtype).itemsize * count * per_count
+            # load the bytes data into correct dtype and shape
+            access[index] = np.frombuffer(
+                data[start:start + length], dtype=dtype).reshape(shape)
         else:
-            start = 0
-        # basically the number of columns
-        per_count = np.abs(np.product(shape))
-        # length is the number of bytes per item times total
-        length = np.dtype(dtype).itemsize * a["count"] * per_count
-        end = start + length
-
-        array = np.frombuffer(
-            data[start:end], dtype=dtype).reshape(shape)
-
-        assert len(array) == a["count"]
-        access.append(array)
+            # a "sparse" accessor should be initialized as zeros
+            access[index] = np.zeros(
+                count * per_count, dtype=dtype).reshape(shape)
 
     # load images and textures into material objects
     materials = _parse_materials(
@@ -785,10 +823,17 @@ def _read_buffers(header, buffers, mesh_kwargs, resolver=None):
             kwargs.update(mesh_kwargs)
             kwargs["metadata"].update(metadata)
 
-            # get faces from accessors and reshape
-            kwargs["faces"] = access[p["indices"]].reshape((-1, 3))
             # get vertices from accessors
             kwargs["vertices"] = access[p["attributes"]["POSITION"]]
+
+            # get faces from accessors
+            if 'indices' in p:
+                kwargs["faces"] = access[p["indices"]].reshape((-1, 3))
+            else:
+                # indices are apparently optional and we are supposed to
+                # do the same thing as webGL drawArrays?
+                kwargs['faces'] = np.arange(len(kwargs['vertices']),
+                                            dtype=np.int64).reshape((-1, 3))
 
             # do we have UV coordinates
             if "material" in p:
@@ -840,8 +885,15 @@ def _read_buffers(header, buffers, mesh_kwargs, resolver=None):
     # unvisited, pairs of node indexes
     queue = collections.deque()
 
+    if 'scene' in header:
+        # specify the index of scenes if specified
+        scene_index = header['scene']
+    else:
+        # otherwise just use the first index
+        scene_index = 0
+
     # start the traversal from the base frame to the roots
-    for root in header["scenes"][header["scene"]]["nodes"]:
+    for root in header["scenes"][scene_index]["nodes"]:
         # add transform from base frame to these root nodes
         queue.append([base_frame, root])
 
@@ -865,10 +917,8 @@ def _read_buffers(header, buffers, mesh_kwargs, resolver=None):
         # parent -> child relationships have matrix stored in child
         # for the transform from parent to child
         if "matrix" in child:
-            kwargs["matrix"] = (
-                np.array(child["matrix"],
-                         dtype=np.float64).reshape((4, 4)).T
-            )
+            kwargs["matrix"] = np.array(child["matrix"],
+                                        dtype=np.float64).reshape((4, 4)).T
         else:
             # if no matrix set identity
             kwargs["matrix"] = np.eye(4)
@@ -878,8 +928,8 @@ def _read_buffers(header, buffers, mesh_kwargs, resolver=None):
         if "translation" in child:
             kwargs["matrix"] = np.dot(
                 kwargs["matrix"],
-                transformations.translation_matrix(child["translation"]),
-            )
+                transformations.translation_matrix(child["translation"]))
+
         if "rotation" in child:
             # GLTF rotations are stored as (4,) XYZW unit quaternions
             # we need to re- order to our quaternion style, WXYZ
@@ -887,14 +937,13 @@ def _read_buffers(header, buffers, mesh_kwargs, resolver=None):
 
             # add the rotation to the matrix
             kwargs["matrix"] = np.dot(
-                kwargs["matrix"], transformations.quaternion_matrix(quat)
-            )
+                kwargs["matrix"], transformations.quaternion_matrix(quat))
 
         if "scale" in child:
+            # add scale to the matrix
             kwargs["matrix"] = np.dot(
                 kwargs["matrix"],
-                np.diag(np.concatenate((child['scale'], [1.0])))
-            )
+                np.diag(np.concatenate((child['scale'], [1.0]))))
 
         # append the nodes for connectivity without the mesh
         graph.append(kwargs.copy())
