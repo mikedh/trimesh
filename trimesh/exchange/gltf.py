@@ -890,6 +890,12 @@ def _read_buffers(header, buffers, mesh_kwargs, resolver=None):
                 kwargs["matrix"], transformations.quaternion_matrix(quat)
             )
 
+        if "scale" in child:
+            kwargs["matrix"] = np.dot(
+                kwargs["matrix"],
+                np.diag(np.concatenate((child['scale'], [1.0])))
+            )
+
         # append the nodes for connectivity without the mesh
         graph.append(kwargs.copy())
         if "mesh" in child:
