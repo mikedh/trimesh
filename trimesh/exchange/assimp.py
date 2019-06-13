@@ -264,13 +264,13 @@ loader = None
 try:
     import pyassimp
     loader = load_pyassimp
-except ImportError:
+except BaseException:
     pass
 
 try:
     import cyassimp
     loader = load_cyassimp
-except ImportError:
+except BaseException:
     pass
 
 
