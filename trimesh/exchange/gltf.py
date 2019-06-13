@@ -302,7 +302,8 @@ def load_glb(file_obj, resolver=None, **mesh_kwargs):
             # read the whole file
             break
 
-        chunk_length, chunk_type = np.frombuffer(chunk_head, dtype="<u4")
+        chunk_length, chunk_type = np.frombuffer(
+            chunk_head, dtype="<u4")
         # make sure we have the right data type
         if chunk_type != _magic["bin"]:
             raise ValueError("not binary GLTF!")
@@ -322,26 +323,30 @@ def load_glb(file_obj, resolver=None, **mesh_kwargs):
 
 def _uri_to_bytes(uri, resolver):
     """
-    Take a dictionary with a URI and load it as
+    Take a URI string and load it as a
     a filename or as base64
 
     Parameters
     --------------
     uri : string
-      Usually a filename or something "data:object/stuff,base64,AAB..."
+      Usually a filename or something like:
+      "data:object/stuff,base64,AABA112A..."
     resolver : trimesh.visual.Resolver
       A resolver to load referenced assets
 
     Returns
     ---------------
     data : bytes
-      Loaded data ferom URI
+      Loaded data from URI
     """
     # see if the URI has base64 data
     index = uri.find('base64,')
     if index < 0:
+        # string didn't contain the base64 header
+        # so return the result from the resolver
         return resolver[uri]
-    # strip off leading index and then decode into bytes
+    # we have a base64 header so strip off
+    # leading index and then decode into bytes
     return base64.b64decode(uri[index + 7:])
 
 
@@ -374,8 +379,7 @@ def _mesh_to_material(mesh, metallic=0.0, rough=0.0):
         "pbrMetallicRoughness": {
             "baseColorFactor": color.tolist(),
             "metallicFactor": metallic,
-            "roughnessFactor": rough}
-    }
+            "roughnessFactor": rough}}
 
     return material
 
@@ -572,7 +576,7 @@ def _append_mesh(mesh,
 
 def _byte_pad(data, bound=4):
     """
-    GLTF wants chunks aligned with 4- byte boundaries
+    GLTF wants chunks aligned with 4 byte boundaries
     so this function will add padding to the end of a
     chunk of bytes so that it aligns with a specified
     boundary size
@@ -591,8 +595,11 @@ def _byte_pad(data, bound=4):
     """
     bound = int(bound)
     if len(data) % bound != 0:
+        # extra bytes to pad with
         pad = bytes(bound - (len(data) % bound))
+        # combine the two
         result = bytes().join([data, pad])
+        # we should always divide evenly
         assert (len(result) % bound) == 0
         return result
 
@@ -768,22 +775,22 @@ def _read_buffers(header, buffers, mesh_kwargs, resolver=None):
         count = a['count']
         # what is the datatype
         dtype = _dtypes[a["componentType"]]
-
         # basically how many columns
         per_item = _shapes[a["type"]]
-        # use reported count to
+        # use reported count to generate shape
         shape = np.append(count, per_item)
         # number of items when flattened
         # i.e. a (4, 4) MAT4 has 16
         per_count = np.abs(np.product(per_item))
 
         if 'bufferView' in a:
+            # data was stored in a buffer view so get raw bytes
             data = views[a["bufferView"]]
             # is the accessor offset in a buffer
             if "byteOffset" in a:
                 start = a["byteOffset"]
             else:
-                # otherwise assume we start at first bytes
+                # otherwise assume we start at first byte
                 start = 0
             # length is the number of bytes per item times total
             length = np.dtype(dtype).itemsize * count * per_count
@@ -803,7 +810,6 @@ def _read_buffers(header, buffers, mesh_kwargs, resolver=None):
     # load data from accessors into Trimesh objects
     meshes = collections.OrderedDict()
     for index, m in enumerate(header["meshes"]):
-
         metadata = {}
         try:
             # try loading units from the GLTF extra
@@ -832,8 +838,9 @@ def _read_buffers(header, buffers, mesh_kwargs, resolver=None):
             else:
                 # indices are apparently optional and we are supposed to
                 # do the same thing as webGL drawArrays?
-                kwargs['faces'] = np.arange(len(kwargs['vertices']),
-                                            dtype=np.int64).reshape((-1, 3))
+                kwargs['faces'] = np.arange(
+                    len(kwargs['vertices']),
+                    dtype=np.int64).reshape((-1, 3))
 
             # do we have UV coordinates
             if "material" in p:
