@@ -4,7 +4,7 @@ from . import util
 from .constants import tol, log
 
 try:
-    from scipy.sparse import coo_matrix
+    from scipy.sparse import coo_matrix, identity
 except ImportError:
     log.warning('scipy.sparse.coo_matrix unavailable')
 
@@ -197,6 +197,81 @@ def triangulate_quads(quads):
     faces = np.vstack((quads[:, [0, 1, 2]],
                        quads[:, [2, 3, 0]]))
     return faces
+
+
+def vertex_face_indices(vertex_count,
+                        faces,
+                        **kwargs):
+    """
+    Find vertex face indices from the faces array of vertices
+
+    Parameters
+    -----------
+    vertex_count : int
+      The number of vertices faces refer to
+    faces : (n, 3) int
+      List of vertex indices
+
+    Returns
+    -----------
+    vertex_faces : (vertex_count, ) int
+      Face indices for every vertex
+      Array padded with -1 in each row for all vertices with fewer
+      face indices than the max number of face indices.
+    """
+
+    def sorted_sparse():
+        # use a sparse matrix of which face contains each vertex to
+        # sort the face indices by vertex index
+        # allow cached sparse matrix to be passed
+        if 'sparse' in kwargs:
+            sparse = kwargs['sparse']
+        else:
+            sparse = index_sparse(vertex_count, faces)
+
+        y = identity(len(faces), dtype=int)
+        sorted_faces = sparse.dot(y).nonzero()
+        return sorted_faces
+
+    def sorted_loop():
+        # loop through every vertex, in tests was ~130x slower than
+        # doing this with a sparse matrix
+        sorted_faces = (np.zeros(faces.size), np.zeros(faces.size))
+        for v in np.arange(vertex_count):
+            v_slice = np.arange(vertex_starts[v], vertex_starts[v] + vertex_counts[v])
+            sorted_faces[0][v_slice] = v
+            sorted_faces[1][v_slice] = np.flip(np.where(faces.flatten() == v)[0] // 3, axis=0)
+        return sorted_faces
+
+    # Create 2d array with row for each vertex and
+    # length of max number of faces for a vertex
+    try:
+        vertex_counts = np.bincount(faces.flatten())
+    except TypeError:
+        # casting failed on 32 bit Windows
+        log.error('casting failed!', exc_info=True)
+        # fall back to np.unique (about 35x slower in testing than bincount)
+        _, vertex_counts = np.unique(faces.flatten(), return_counts=True)
+
+    vertex_starts = np.cumsum(vertex_counts)
+    vertex_starts = np.roll(vertex_starts, 1)
+    vertex_starts[0] = 0
+    vertex_faces = np.arange(np.max(vertex_counts)) + vertex_starts[:, None]
+
+    try:
+        sorted_faces = sorted_sparse()
+    except BaseException:
+        log.warning(
+            'unable to generate sparse matrix! Falling back!',
+            exc_info=True)
+        sorted_faces = sorted_loop()
+
+    # Mask each row with number of faces for that vertex and fill with face indices
+    # The rest of the row is filled with -1 to pad to the max length
+    vertex_faces = -(vertex_faces >= (vertex_starts + vertex_counts)[:, None]).astype(int)
+    vertex_faces[vertex_faces == 0] = sorted_faces[1]
+
+    return vertex_faces
 
 
 def mean_vertex_normals(vertex_count,
