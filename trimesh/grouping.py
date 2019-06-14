@@ -265,8 +265,9 @@ def unique_ordered(data):
 
 
 def unique_bincount(values,
-                    minlength,
-                    return_inverse=True):
+                    minlength=0,
+                    return_inverse=False,
+                    return_counts=False):
     """
     For arrays of integers find unique values using bin counting.
     Roughly 10x faster for correct input than np.unique
@@ -279,14 +280,19 @@ def unique_bincount(values,
       Maximum value that will occur in values (values.max())
     return_inverse : bool
       If True, return an inverse such that unique[inverse] == values
+    return_counts : bool
+      If True, also return the number of times each unique item appears in values
 
     Returns
     ------------
     unique : (m,) int
       Unique values in original array
-    inverse : (n,) int
+    inverse : (n,) int, optional
       An array such that unique[inverse] == values
       Only returned if return_inverse is True
+    counts : (m,) int, optional
+      An array holding the counts of each unique item in values
+      Only returned if return_counts is True
     """
     values = np.asanyarray(values)
     if len(values.shape) != 1 or values.dtype.kind != 'i':
@@ -299,7 +305,9 @@ def unique_bincount(values,
         # casting failed on 32 bit windows
         log.error('casting failed!', exc_info=True)
         # fall back to numpy unique
-        return np.unique(values, return_inverse=return_inverse)
+        return np.unique(values,
+                         return_inverse=return_inverse,
+                         return_counts=return_counts)
 
     # which bins are occupied at all
     # counts are integers so this works
@@ -308,13 +316,20 @@ def unique_bincount(values,
     # which values are unique
     # indexes correspond to original values
     unique = np.where(unique_bin)[0]
+    ret = (unique,)
 
     if return_inverse:
         # find the inverse to reconstruct original
         inverse = (np.cumsum(unique_bin) - 1)[values]
-        return unique, inverse
+        ret += (inverse,)
 
-    return unique
+    if return_counts:
+        unique_counts = counts[unique]
+        ret += (unique_counts,)
+
+    if len(ret) == 1:
+        return ret[0]
+    return ret
 
 
 def merge_runs(data, digits=None):
