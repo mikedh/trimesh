@@ -7,7 +7,8 @@ except BaseException:
 class RayTests(g.unittest.TestCase):
 
     def test_rays(self):
-        meshes = [g.get_mesh(**k) for k in g.data['ray_data']['load_kwargs']]
+        meshes = [g.get_mesh(**k)
+                  for k in g.data['ray_data']['load_kwargs']]
         rays = g.data['ray_data']['rays']
         names = [m.metadata['file_name'] for m in meshes]
 
@@ -17,14 +18,14 @@ class RayTests(g.unittest.TestCase):
         for m in meshes:
             name = m.metadata['file_name']
             hit_any.append(m.ray.intersects_any(**rays[name]))
-            hit_loc.append(len(m.ray.intersects_location(**rays[name])[0]))
+            hit_loc.append(m.ray.intersects_location(**rays[name])[0])
             hit_id.append(m.ray.intersects_id(**rays[name]))
         hit_any = g.np.array(hit_any, dtype=g.np.int)
 
         for i in g.trimesh.grouping.group(
                 g.np.unique(names, return_inverse=True)[1]):
             broken = hit_any[i].astype(g.np.int).ptp(axis=0).sum()
-            self.assertTrue(broken == 0)
+            assert broken == 0
 
     def test_rps(self):
         for use_embree in [True, False]:
@@ -39,16 +40,45 @@ class RayTests(g.unittest.TestCase):
             # force ray object to allocate tree before timing it
             # tree = sphere.ray.tree
             tic = [g.time.time()]
-            sphere.ray.intersects_id(ray_origins, ray_directions)
+            a = sphere.ray.intersects_id(
+                ray_origins, ray_directions)
             tic.append(g.time.time())
-            sphere.ray.intersects_location(ray_origins, ray_directions)
+            b = sphere.ray.intersects_location(
+                ray_origins, ray_directions)
             tic.append(g.time.time())
+
+            # make sure ray functions always return numpy arrays
+            assert all(len(i.shape) >= 0 for i in a)
+            assert all(len(i.shape) >= 0 for i in b)
 
             rps = dimension[0] / g.np.diff(tic)
 
             g.log.info('Measured %s rays/second with embree %d',
                        str(rps),
                        use_embree)
+
+    def test_empty(self):
+        """
+        Test queries with no hits
+        """
+        for use_embree in [True, False]:
+            dimension = (100, 3)
+            sphere = g.get_mesh('unit_sphere.STL',
+                                use_embree=use_embree)
+            # should never hit the sphere
+            ray_origins = g.np.random.random(dimension)
+            ray_directions = g.np.tile([0, 1, 0], (dimension[0], 1))
+            ray_origins[:, 2] = -5
+
+            # make sure ray functions always return numpy arrays
+            # these functions return multiple results all of which
+            # should always be a numpy array
+            assert all(len(i.shape) >= 0 for i in
+                       sphere.ray.intersects_id(
+                           ray_origins, ray_directions))
+            assert all(len(i.shape) >= 0 for i in
+                       sphere.ray.intersects_location(
+                           ray_origins, ray_directions))
 
     def test_contains(self):
         scale = 1.5
