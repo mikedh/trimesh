@@ -409,14 +409,22 @@ def camera_to_rays(camera):
     # scale it down by two pixels to keep image under resolution
     half *= (camera.resolution - 2) / camera.resolution
 
-    # create an evenly spaced list of angles
-    angles = util.grid_linspace(bounds=[-half, half],
-                                count=camera.resolution)
+    bottom_right = np.sin(half)
+    top_left = -bottom_right  # np.sin(-half)
 
-    # turn the angles into unit vectors
-    vectors = util.unitize(np.column_stack((
-        np.sin(angles),
-        np.ones(len(angles)))))
+    xy = util.grid_linspace(
+        bounds=[top_left, bottom_right], count=camera.resolution)
+    vectors = util.unitize(np.column_stack((xy, np.ones_like(xy[:, :1]))))
+    angles = np.arcsin(xy)
+
+    # # create an evenly spaced list of angles
+    # angles = util.grid_linspace(bounds=[-half, half],
+    #                             count=camera.resolution)
+
+    # # turn the angles into unit vectors
+    # vectors = util.unitize(np.column_stack((
+    #     np.sin(angles),
+    #     np.ones(len(angles)))))
 
     # flip the camera transform to change sign of Z
     transform = np.dot(
@@ -431,7 +439,7 @@ def camera_to_rays(camera):
 
     # camera origin is single point, extract from transform
     origin = transformations.translation_from_matrix(transform)
-    # tile it into corresponding list of ray vectorsy
+    # tile it into corresponding list of ray vectors
     origins = np.ones_like(vectors) * origin
 
     return origins, vectors, angles

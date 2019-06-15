@@ -116,7 +116,8 @@ class TrianglesTest(g.unittest.TestCase):
 
     def test_zero_angle(self):
         # a zero- area triangle
-        tris = g.np.array([[[0, 0, 0], [1, 0, 0], [1, 0, 0]]], dtype=g.np.float64)
+        tris = g.np.array(
+            [[[0, 0, 0], [1, 0, 0], [1, 0, 0]]], dtype=g.np.float64)
         angles = g.trimesh.triangles.angles(tris)
         # degenerate angles should be zero, not NaN
         assert g.np.allclose(angles, 0.0)

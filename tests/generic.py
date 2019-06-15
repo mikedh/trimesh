@@ -318,19 +318,7 @@ def scene_equal(a, b):
             m.volume, b.geometry[k].volume, rtol=0.001)
 
 
-class TemporaryDirectory(object):
-    """
-    Same basic usage as tempfile.TemporaryDirectory
-    but functional in Python 2.7+
-    """
-
-    def __enter__(self):
-        self.path = tempfile.mkdtemp()
-        return self.path
-
-    def __exit__(self, *args, **kwargs):
-        shutil.rmtree(self.path)
-
+TemporaryDirectory = trimesh.util.TemporaryDirectory
 
 # all the JSON files with truth data
 data = _load_data()

@@ -102,8 +102,8 @@ class _Primitive(Trimesh):
         if matrix.shape != (4, 4):
             raise ValueError('Transformation matrix must be (4,4)!')
 
-        if np.allclose(matrix, np.eye(4)):
-            log.debug('apply_tranform received identity matrix')
+        if util.allclose(matrix, np.eye(4), 1e-8):
+            log.debug('apply_transform received identity matrix')
             return
 
         new_transform = np.dot(matrix, self.primitive.transform)

@@ -6,6 +6,7 @@ Functions and classes that help with tracking changes in ndarrays
 and clearing cached values based on those changes.
 """
 
+import collections
 import numpy as np
 
 import zlib
@@ -479,7 +480,7 @@ class Cache:
         self.id_current = self._id_function()
 
 
-class DataStore:
+class DataStore(collections.Mapping):
     """
     A class to store multiple numpy arrays and track them all
     for changes.
@@ -489,6 +490,12 @@ class DataStore:
 
     def __init__(self):
         self.data = {}
+
+    def __iter__(self):
+        return iter(self.data)
+
+    def __delitem__(self, key):
+        del self.data[key]
 
     @property
     def mutable(self):
@@ -530,10 +537,7 @@ class DataStore:
         self.data = {}
 
     def __getitem__(self, key):
-        try:
-            return self.data[key]
-        except KeyError:
-            return np.empty((0,))
+        return self.data[key]
 
     def __setitem__(self, key, data):
         """
@@ -551,9 +555,6 @@ class DataStore:
 
     def __len__(self):
         return len(self.data)
-
-    def values(self):
-        return self.data.values()
 
     def update(self, values):
         if not isinstance(values, dict):

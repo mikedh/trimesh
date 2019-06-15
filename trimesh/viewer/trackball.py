@@ -1,4 +1,5 @@
-# Copied from https://github.com/mmatl/pyrender/blob/master/pyrender/trackball.py
+# Copied from
+# https://github.com/mmatl/pyrender/blob/master/pyrender/trackball.py
 
 # MIT License
 #
