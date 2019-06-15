@@ -177,6 +177,18 @@ Trimesh includes an optional `pyglet` based viewer for debugging and inspecting.
 
 If called from inside a `jupyter` notebook, `mesh.show()` displays an in-line preview using `three.js` to display the mesh or scene. For more complete rendering (PBR, better lighting, shaders, better off-screen support, etc) [pyrender](https://github.com/mmatl/pyrender) is designed to interoperate with `trimesh` objects.
 
+
+## Which Mesh Format Should I Use?
+
+There are a lot of mesh formats out there, and you are usually constrained by the other software in your pipeline. However, if you have a choice and you just need simple vertices and faces, binary `PLY` is the best option. It has a header format which is [sensible and easy to parse](http://paulbourke.net/dataformats/ply/), followed by a compact binary blob.
+
+If you'd like something more powerful, including instancing, colors, textures, and more, `GLB` is the best choice. GLTF/GLB is an [extremely well-specified](https://github.com/KhronosGroup/glTF/tree/master/specification/2.0) modern format that is easy and fast to parse (JSON header describing data in a binary blob), has a sensible hierarchical scene graph, a great looking modern physically based material system, support in [dozens-to-hundreds of libraries](https://github.com/KhronosGroup/glTF/issues/1058), and a coveted [John Carmack endorsment](https://www.khronos.org/news/press/significant-gltf-momentum-for-efficient-transmission-of-3d-scenes-models).
+
+In the wild, `STL` files are perhaps the most common format, as they are basically just a list of triangles. They are very robust and very simple, and are a fine choice for basic geometry.
+
+If texture or color is required, often the default choice in the wild is Wavefront `OBJ`. It *is* a bad choice. OBJ doesn't have a specification, so every importer and exporter implements things slightly differently (including us :). It also allows unfortunate things like arbitrary sized polygons, has a face representation which is easy to mess up, references other files for materials and textures, arbitrarily interleaves data, and is slow and painful to parse. 
+
+
 ## Containers
    
 If you want to deploy something in a container that uses trimesh, automated builds containing trimesh and its dependencies are available on Docker Hub:

@@ -739,4 +739,45 @@ def interpolate(values, color_map=None, dtype=np.uint8):
     return rgba
 
 
+def uv_to_color(uv, image):
+    """
+    Get the color in a texture image.
+
+    Parameters
+    -------------
+    uv : (n, 2) float
+      UV coordinates on texture image
+    image : PIL.Image
+      Texture image
+
+    Returns
+    ----------
+    colors : (n, 4) float
+      RGBA color at each of the UV coordinates
+    """
+    if image is None or uv is None:
+        return None
+
+    # UV coordinates should be (n, 2) float
+    uv = np.asanyarray(uv, dtype=np.float64)
+
+    # get texture image pixel positions of UV coordinates
+    x = (uv[:, 0] * (image.width - 1))
+    y = ((1 - uv[:, 1]) * (image.height - 1))
+
+    # convert to int and wrap to image
+    # size in the manner of GL_REPEAT
+    x = x.round().astype(np.int64) % image.width
+    y = y.round().astype(np.int64) % image.height
+
+    # access colors from pixel locations
+    # make sure image is RGBA before getting values
+    colors = np.asanyarray(image.convert('RGBA'))[y, x]
+
+    # conversion to RGBA should have corrected shape
+    assert colors.ndim == 2 and colors.shape[1] == 4
+
+    return colors
+
+
 DEFAULT_COLOR = np.array([102, 102, 102, 255], dtype=np.uint8)

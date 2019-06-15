@@ -50,7 +50,7 @@ setup(name='trimesh',
       author='Michael Dawson-Haggerty',
       author_email='mikedh@kerfed.com',
       license='MIT',
-      url='http://github.com/mikedh/trimesh',
+      url='https://github.com/mikedh/trimesh',
       keywords='graphics mesh geometry 3D',
       classifiers=[
           'Development Status :: 4 - Beta',

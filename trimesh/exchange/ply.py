@@ -370,22 +370,25 @@ def elements_to_kwargs(elements, fix_texture, image):
         # in- the- wild PLY comes with things merged that
         # probably shouldn't be so disconnect vertices
         if fix_texture:
+            # do import here
+            from ..visual.texture import unmerge_faces_tex
+
             # reshape to correspond with flattened faces
-            uv = texcoord.reshape((-1, 2))
+            uv_all = texcoord.reshape((-1, 2))
+            # UV coordinates defined for every triangle have
+            # duplicates which can be merged so figure out
+            # which UV coordinates are the same here
+            unique, inverse = grouping.unique_rows(uv_all)
 
-            # round UV to OOM 10^4 as they are pixel coordinates
-            # and more precision is not necessary or desirable
-            search = np.column_stack((
-                vertices[faces.reshape(-1)],
-                (uv * 1e4).round()))
-
-            # find vertices which have the same position AND UV
-            unique, inverse = grouping.unique_rows(search)
-
-            # set vertices, faces, and UV to the new values
-            vertices = search[:, :3][unique]
-            faces = inverse.reshape((-1, 3))
-            uv = uv[unique]
+            # use the indices of faces and face textures
+            # to only merge vertices where the position
+            # AND uv coordinate are the same
+            faces, mask_v, mask_vt = unmerge_faces_tex(
+                faces, inverse.reshape(faces.shape))
+            # apply the mask to get resulting vertices
+            vertices = vertices[mask_v]
+            # apply the mask to get UV coordinates
+            uv = uv_all[unique][mask_vt]
         else:
             # don't alter vertices, UV will look like crap
             # if it was exported with vertices merged
