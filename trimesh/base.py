@@ -458,6 +458,27 @@ class Trimesh(Geometry):
             sparse=self.faces_sparse)
         return vertex_normals
 
+    @caching.cache_decorator
+    def vertex_faces(self):
+        """
+        A representation of the face indices that correspond to each vertex.
+
+        Returns
+        ----------
+        vertex_faces : (n,m) int
+          Each row contains the face indices that correspond to the given vertex,
+          padded with -1 up to the max number of faces corresponding to any one vertex
+          Where n == len(self.vertices), m == max number of faces for a single vertex
+        """
+        # make sure we have faces_sparse
+        assert hasattr(self.faces_sparse, 'dot')
+        vertex_faces = geometry.vertex_face_indices(
+            vertex_count=len(self.vertices),
+            faces=self.faces,
+            sparse=self.faces_sparse
+        )
+        return vertex_faces
+
     @vertex_normals.setter
     def vertex_normals(self, values):
         """

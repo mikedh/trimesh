@@ -284,16 +284,22 @@ class UniqueTests(unittest.TestCase):
                 minlength = 10
 
             # try our unique bincount function
-            unique, inverse = g.trimesh.grouping.unique_bincount(
+            unique, inverse, counts = g.trimesh.grouping.unique_bincount(
                 values,
                 minlength=minlength,
-                return_inverse=True)
+                return_inverse=True,
+                return_counts=True)
             # make sure inverse is correct
             assert (unique[inverse] == values).all()
 
+            # make sure that the number of counts matches
+            # the number of unique values
+            assert (len(unique) == len(counts))
+
             # get the truth
-            truth_unique, truth_inverse = np.unique(values,
-                                                    return_inverse=True)
+            truth_unique, truth_inverse, truth_counts = np.unique(values,
+                                                                  return_inverse=True,
+                                                                  return_counts=True)
             # make sure truth is doing what we think
             assert (truth_unique[truth_inverse] == values).all()
 
@@ -302,6 +308,9 @@ class UniqueTests(unittest.TestCase):
 
             # make sure all values are identical
             assert set(truth_unique) == set(unique)
+
+            # make sure that the truth counts are identical to our counts
+            assert np.all(truth_counts == counts)
 
 
 if __name__ == '__main__':
