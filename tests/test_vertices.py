@@ -22,8 +22,8 @@ class VerticesTest(g.unittest.TestCase):
                 assert (f in m.vertex_faces[v_inds[1]])
                 assert (f in m.vertex_faces[v_inds[2]])
 
-            # Choose some random vertices and make sure their face indices
-            # are correct
+            # choose some random vertices and make sure their
+            # face indices are correct
             rand_vertices = g.np.random.randint(low=0, high=len(m.vertices), size=100)
             for v in rand_vertices:
                 v_faces = g.np.flip(g.np.where(m.faces == v)[0], axis=0)
@@ -31,10 +31,10 @@ class VerticesTest(g.unittest.TestCase):
 
             # Intentionally cause fallback to looping over vertices and make sure we
             # get the same result
-            loop_vertex_faces = g.trimesh.geometry.vertex_face_indices(len(m.vertices), 
-                                                                       m.faces, 
+            loop_vertex_faces = g.trimesh.geometry.vertex_face_indices(len(m.vertices),
+                                                                       m.faces,
                                                                        sparse=None)
-            assert (g.np.all(loop_vertex_faces == m.vertex_faces))
+            assert (loop_vertex_faces == m.vertex_faces).all()
 
 
 if __name__ == '__main__':
