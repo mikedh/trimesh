@@ -40,7 +40,7 @@ class OBJTest(g.unittest.TestCase):
         scene = g.get_mesh('two_objects.obj')
         assert len(scene.geometry) == 2
 
-        for mesh in scene:
+        for mesh in scene.geometry.values():
             # make sure some data got loaded
             assert g.trimesh.util.is_shape(mesh.faces, (-1, 3))
             assert g.trimesh.util.is_shape(mesh.vertices, (-1, 3))
@@ -94,6 +94,19 @@ class OBJTest(g.unittest.TestCase):
 
         assert g.np.allclose(g.np.abs(mesh.vertex_normals).sum(axis=1),
                              1.0)
+
+    def test_vertex_color(self):
+        # get a box mesh
+        mesh = g.trimesh.creation.box()
+        # set each vertex to a unique random color
+        mesh.visual.vertex_colors = [g.trimesh.visual.random_color()
+                                     for _ in range(len(mesh.vertices))]
+        # export and then reload the file as OBJ
+        rec = g.trimesh.load(
+            g.trimesh.util.wrap_as_stream(mesh.export(file_type='obj')),
+            file_type='obj')
+        # assert colors have survived the export cycle
+        assert (mesh.visual.vertex_colors == rec.visual.vertex_colors).all()
 
 
 if __name__ == '__main__':

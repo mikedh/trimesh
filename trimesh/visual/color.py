@@ -530,6 +530,33 @@ def to_rgba(colors, dtype=np.uint8):
     return colors
 
 
+def to_float(colors):
+    """
+    Convert integer colors to 0.0 - 1.0 floating point colors
+
+    Parameters
+    -------------
+    colors : (n, d) int
+      Integer colors
+
+    Returns
+    -------------
+    as_float : (n, d) float
+      Float colors 0.0 - 1.0
+    """
+
+    # colors as numpy array
+    colors = np.asanyarray(colors)
+    if colors.dtype.kind == 'f':
+        return colors
+    elif colors.dtype.kind == 'i':
+        # integer value for opaque alpha given our datatype
+        opaque = np.iinfo(colors.dtype).max
+        return colors.astype(np.float64) / opaque
+    else:
+        raise ValueError('only works on int or float colors!')
+
+
 def hex_to_rgba(color):
     """
     Turn a string hex color to a (4,) RGBA color.

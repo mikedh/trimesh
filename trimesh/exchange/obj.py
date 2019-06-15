@@ -6,6 +6,8 @@ except ImportError:
     pass
 
 from .. import util
+
+from ..visual.color import to_float
 from ..visual.texture import unmerge_faces, TextureVisuals
 from ..visual.material import SimpleMaterial
 
@@ -443,6 +445,10 @@ def load_obj(file_obj, resolver=None, **kwargs):
                          'faces': faces,
                          'vertex_normals': vertex_normals})
             geometry[util.unique_id()] = mesh
+
+    if len(geometry) == 1:
+        return next(iter(geometry.values()))
+
     # add an identity transform for every geometry
     graph = [{'geometry': k, 'frame_to': k, 'matrix': np.eye(4)}
              for k in geometry.keys()]
@@ -456,7 +462,8 @@ def load_obj(file_obj, resolver=None, **kwargs):
 
 def export_obj(mesh,
                include_normals=True,
-               include_texture=True):
+               include_texture=True,
+               include_color=True):
     """
     Export a mesh as a Wavefront OBJ file
 
@@ -477,8 +484,16 @@ def export_obj(mesh,
     # we are going to reference face_formats with this
     face_type = ['v']
 
+    # OBJ sometimes :eyeroll: includes vertex color as RGB elements on the same line
+    if include_color and mesh.visual.kind in ['vertex', 'face']:
+        v_blob = np.column_stack((
+            mesh.vertices,
+            to_float(mesh.visual.vertex_colors[:, :3])))
+    else:
+        v_blob = mesh.vertices
+
     export = 'v '
-    export += util.array_to_string(mesh.vertices,
+    export += util.array_to_string(v_blob,
                                    col_delim=' ',
                                    row_delim='\nv ',
                                    digits=8) + '\n'
