@@ -26,7 +26,7 @@ class VerticesTest(g.unittest.TestCase):
             # face indices are correct
             rand_vertices = g.np.random.randint(low=0, high=len(m.vertices), size=100)
             for v in rand_vertices:
-                v_faces = g.np.flip(g.np.where(m.faces == v)[0], axis=0)
+                v_faces = g.np.where(m.faces == v)[0][::-1]
                 assert (g.np.all(v_faces == m.vertex_faces[v][m.vertex_faces[v] >= 0]))
 
             # Intentionally cause fallback to looping over vertices and make sure we
