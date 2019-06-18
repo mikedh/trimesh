@@ -1,3 +1,5 @@
+import copy
+
 import numpy as np
 
 from .. import util
@@ -67,6 +69,12 @@ class Camera(object):
         self.scene = scene
         # set transform
         self.transform = transform
+
+    def copy(self):
+        """
+        Get a copy of the current camera.
+        """
+        return copy.deepcopy(self)
 
     @property
     def resolution(self):
