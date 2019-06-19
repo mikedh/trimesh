@@ -166,6 +166,7 @@ class SceneWidget(glooey.Widget):
                 size=self.scene.camera.resolution,
                 scale=self.scene.scale,
                 target=self.scene.centroid)}
+        self.scene.camera.transform = self.view['ball'].pose
 
     def do_claim(self):
         return 0, 0
