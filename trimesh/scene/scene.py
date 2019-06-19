@@ -438,8 +438,11 @@ class Scene(Geometry):
 
         # if no geometry nothing to set camera to
         if len(self.geometry) == 0:
-            return
-
+            self._camera = cameras.Camera(
+                fov=fov,
+                scene=self,
+                transform=np.eye(4))
+            return self._camera
         # set with no rotation by default
         if angles is None:
             angles = np.zeros(3)
@@ -452,18 +455,18 @@ class Scene(Geometry):
                                     center=center)
 
         if hasattr(self, '_camera') and self._camera is not None:
-            self.camera.fov = fov
-            self.camera._scene = self
-            self.camera.transform = transform
+            self._camera.fov = fov
+            self._camera._scene = self
+            self._camera.transform = transform
             if resolution is not None:
-                self.camera.resolution = resolution
+                self._camera.resolution = resolution
         else:
             # create a new camera object
-            self.camera = cameras.Camera(fov=fov,
-                                         scene=self,
-                                         transform=transform,
-                                         resolution=resolution)
-        return self.camera
+            self._camera = cameras.Camera(fov=fov,
+                                          scene=self,
+                                          transform=transform,
+                                          resolution=resolution)
+        return self._camera
 
     @property
     def camera(self):
@@ -480,6 +483,7 @@ class Scene(Geometry):
         if not hasattr(self, '_camera') or self._camera is None:
             # will create a camera with everything in view
             return self.set_camera()
+        assert self._camera is not None
 
         return self._camera
 
@@ -493,6 +497,10 @@ class Scene(Geometry):
         camera : trimesh.scene.Camera
           Camera object for the scene
         """
+        if camera is None:
+            return
+        # assign the scene reference here
+        camera.scene = self
         self._camera = camera
 
     @property
@@ -618,8 +626,7 @@ class Scene(Geometry):
                          'Path2D': 'dxf'}
 
         # if the mesh has an export method use it
-        # otherwise put the mesh
-        # itself into the export object
+        # otherwise put the mesh itself into the export object
         for geometry_name, geometry in self.geometry.items():
             if hasattr(geometry, 'export'):
                 if isinstance(file_type, dict):
@@ -854,10 +861,17 @@ class Scene(Geometry):
         # use the geometries copy method to
         # allow them to handle references to unpickle-able objects
         geometry = {n: g.copy() for n, g in self.geometry.items()}
+
+        if not hasattr(self, '_camera') or self._camera is None:
+            # if no camera set don't include it
+            camera = None
+        else:
+            # otherwise get a copy of the camera
+            camera = self.camera.copy()
         # create a new scene with copied geometry and graph
         copied = Scene(geometry=geometry,
                        graph=self.graph.copy(),
-                       camera=self.camera.copy())
+                       camera=camera)
         return copied
 
     def show(self, viewer=None, **kwargs):

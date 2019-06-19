@@ -74,16 +74,19 @@ class Camera(object):
         """
         Safely get a copy of the current camera.
         """
-        scene = None if self.scene is None else self.scene.copy()
-        transform = None if self.transform is None else self.transform.copy()
+
+        if self.transform is None:
+            transform = None
+        else:
+            transform = copy.deepcopy(self.transform)
+
+        # do not include scene reference
         return Camera(
             name=copy.deepcopy(self.name),
             resolution=copy.deepcopy(self.resolution),
             focal=copy.deepcopy(self.focal),
             fov=copy.deepcopy(self.fov),
-            scene=scene,
-            transform=transform,
-        )
+            transform=transform)
 
     @property
     def resolution(self):
