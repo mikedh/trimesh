@@ -14,29 +14,24 @@ Pull requests are appreciated and responded to promptly! If you'd like to contri
 
 ## Basic Installation
 
-The minimal requirements to import trimesh are
-[numpy](http://www.numpy.org/), [scipy](http://www.scipy.org) and [networkx](https://networkx.github.io). Installing other packages mentioned adds functionality but is **not required**.
+Keeping `trimesh` easy to install is a core goal, thus the *only* hard dependancy is [numpy](http://www.numpy.org/). Installing other packages adds functionality but is **not required**.
 
-For the easiest install with *only* these minimal dependencies `pip` can generally install `trimesh` cleanly on Windows, Linux, and OSX:
+For the easiest install with *only* `numpy`, `pip` can generally install `trimesh` cleanly on Windows, Linux, and OSX:
 
 ```bash
 pip install trimesh
 ```
 
-For more functionality, like faster ray queries (`pyembree`), vector path handling (`shapely` and `rtree`), preview windows (`pyglet`), faster cache checks (`xxhash`) and more, the easiest way to get a full `trimesh` install is a [conda environment](https://conda.io/miniconda.html):
+For more functionality, like convex hulls (`scipy`), graph operations (`networkx`), faster ray queries (`pyembree`), vector path handling (`shapely` and `rtree`), preview windows (`pyglet`), faster cache checks (`xxhash`) and more, the easiest way to get a full `trimesh` install is a [conda environment](https://conda.io/miniconda.html):
 
 ```bash
 # this will install all soft dependencies available on your current platform
 conda install -c conda-forge trimesh
 ```
 
-If you're feeling lucky, you can try:
+To install `trimesh` with all the soft dependancies which install cleanly on Windows, Linux, and OSX using `pip`:
 ```bash
-# will try to install things that aren't too tricky
 pip install trimesh[easy]
-
-# will try to install everything
-pip install trimesh[all]
 ```
 
 Further information is available in the [advanced installation documentation](https://trimsh.org/install.html).

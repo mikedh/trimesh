@@ -18,6 +18,8 @@ if os.path.exists('README.md'):
 # "easy" requirements should install without compiling
 # anything on Windows, Linux, and Mac, for Python 2.7-3.4+
 requirements_easy = set([
+    'scipy',     # provide convex hulls, fast graph ops, etc
+    'networkx',  # provide slow graph ops with a nice API
     'lxml',      # handle XML better and faster than built- in XML
     'pyglet',    # render preview windows nicely
     'shapely',   # handle 2D polygons robustly
@@ -77,9 +79,7 @@ setup(name='trimesh',
           'trimesh.interfaces'],
       package_data={'trimesh': ['resources/*.template',
                                 'resources/*.json']},
-      install_requires=['numpy',
-                        'scipy',
-                        'networkx'],
+      install_requires=['numpy'],
       extras_require={'test': ['pytest',
                                'pytest-cov',
                                'pyinstrument',
