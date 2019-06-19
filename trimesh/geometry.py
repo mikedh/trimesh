@@ -240,7 +240,7 @@ def vertex_face_indices(vertex_count,
         for v in np.arange(vertex_count):
             v_slice = np.arange(vertex_starts[v], vertex_starts[v] + vertex_counts[v])
             sorted_faces[0][v_slice] = v
-            sorted_faces[1][v_slice] = np.flip(np.where(faces.flatten() == v)[0] // 3, axis=0)
+            sorted_faces[1][v_slice] = (np.where(faces.flatten() == v)[0] // 3)[::-1]
         return sorted_faces
 
     # Create 2d array with row for each vertex and

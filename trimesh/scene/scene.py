@@ -856,7 +856,8 @@ class Scene(Geometry):
         geometry = {n: g.copy() for n, g in self.geometry.items()}
         # create a new scene with copied geometry and graph
         copied = Scene(geometry=geometry,
-                       graph=self.graph.copy())
+                       graph=self.graph.copy(),
+                       camera=self.camera.copy())
         return copied
 
     def show(self, viewer=None, **kwargs):
