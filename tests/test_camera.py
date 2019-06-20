@@ -144,14 +144,6 @@ class CameraTests(g.unittest.TestCase):
         # set transform with no scene
         camera.transform = matrix
         assert g.np.allclose(camera.transform, matrix)
-        # add a scene reference later
-        assert camera.scene is None
-        scene = g.trimesh.Scene()
-        camera.scene = scene
-        # should have transferred the local transform to both
-        # the scene graph as well as the returned value
-        assert g.np.allclose(camera.transform, matrix)
-        assert g.np.allclose(scene.graph[camera.name][0], matrix)
 
         # should be setting it correctly still
         matrix = g.trimesh.transformations.random_rotation_matrix()

@@ -16,7 +16,6 @@ class Camera(object):
             resolution=None,
             focal=None,
             fov=None,
-            scene=None,
             transform=None):
         """
         Create a new Camera object that stores camera intrinsic
@@ -65,8 +64,6 @@ class Camera(object):
             resolution = (self.fov * 15.0).astype(np.int64)
         self.resolution = resolution
 
-        # add a back- reference to scene object
-        self.scene = scene
         # set transform
         self.transform = transform
 
@@ -80,7 +77,6 @@ class Camera(object):
         else:
             transform = copy.deepcopy(self.transform)
 
-        # do not include scene reference
         return Camera(
             name=copy.deepcopy(self.name),
             resolution=copy.deepcopy(self.resolution),
@@ -123,43 +119,6 @@ class Camera(object):
             self._fov = None
 
     @property
-    def scene(self):
-        """
-        Get a reference to the scene that this camera is in.
-
-        Returns
-        -------------
-        scene : None, or trimesh.Scene
-          Scene where this camera is attached
-        """
-        return self._scene
-
-    @scene.setter
-    def scene(self, value):
-        """
-        Set the reference to the scene that this camera is in.
-
-        Parameters
-        -------------
-        scene : None, or trimesh.Scene
-          Scene where this camera is attached
-        """
-
-        # save the scene reference
-        self._scene = value
-
-        # check if we have local not None transform
-        # an if we can apply it to the scene graph
-        # also check here that scene is a real scene
-        if (hasattr(self, '_transform') and
-            self._transform is not None and
-                hasattr(value, 'graph')):
-            # set scene transform to locally saved transform
-            self._scene.graph[self.name] = self._transform
-            # set local transform to None
-            self._transform = None
-
-    @property
     def transform(self):
         """
         Get the (4, 4) homogeneous transformation from the
@@ -170,16 +129,11 @@ class Camera(object):
         transform : (4, 4) float
           Transform from world to camera
         """
-        # no scene set
-        if self._scene is None:
-            # no transform saved locally
-            if not hasattr(self, '_transform') or self._transform is None:
-                return np.eye(4)
-            # transform saved locally
-            return self._transform
-
-        # get the transform from the scene
-        return self._scene.graph[self.name][0]
+        # no transform saved locally
+        if not hasattr(self, '_transform') or self._transform is None:
+            return np.eye(4)
+        # transform saved locally
+        return self._transform
 
     @transform.setter
     def transform(self, values):
@@ -199,12 +153,7 @@ class Camera(object):
         if matrix.shape != (4, 4):
             raise ValueError('transform must be (4, 4) float!')
         matrix.flags.writeable = False
-        if self._scene is None:
-            # if no scene, save transform locally
-            self._transform = matrix
-        else:
-            # assign passed values to transform
-            self._scene.graph[self.name] = matrix
+        self._transform = matrix
 
     @property
     def focal(self):

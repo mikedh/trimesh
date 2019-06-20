@@ -440,7 +440,6 @@ class Scene(Geometry):
         if len(self.geometry) == 0:
             self._camera = cameras.Camera(
                 fov=fov,
-                scene=self,
                 transform=np.eye(4))
             return self._camera
         # set with no rotation by default
@@ -463,7 +462,6 @@ class Scene(Geometry):
         else:
             # create a new camera object
             self._camera = cameras.Camera(fov=fov,
-                                          scene=self,
                                           transform=transform,
                                           resolution=resolution)
         return self._camera
@@ -499,8 +497,6 @@ class Scene(Geometry):
         """
         if camera is None:
             return
-        # assign the scene reference here
-        camera.scene = self
         self._camera = camera
 
     @property
