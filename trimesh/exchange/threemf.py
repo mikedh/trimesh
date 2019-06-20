@@ -25,8 +25,17 @@ def load_3MF(file_obj,
     """
     # dict, {name in archive: BytesIo}
     archive = util.decompress(file_obj, file_type='zip')
-    # load the XML into an LXML tree
-    tree = etree.XML(archive['3D/3dmodel.model'].read())
+    # get model file
+    model = archive['3D/3dmodel.model']
+
+    # read root attributes only from XML first
+    event, root = next(etree.iterparse(model, tag=('{*}model'), events=('start',)))
+    # collect unit information from the tree
+    if 'unit' in root.attrib:
+        metadata = {'units': root.attrib['unit']}
+    else:
+        # the default units, defined by the specification
+        metadata = {'units': 'millimeters'}
 
     # { mesh id : mesh name}
     id_name = {}
@@ -37,60 +46,66 @@ def load_3MF(file_obj,
     # components are objects that contain other objects
     # {id : [other ids]}
     components = collections.defaultdict(list)
-
-    for obj in tree.iter('{*}object'):
-        # id is mandatory
-        index = obj.attrib['id']
-        # not required, so use a get call which will return None
-        # if the tag isn't populated
-        if 'name' in obj.attrib:
-            name = obj.attrib['name']
-        else:
-            name = str(index)
-        # store the name by index
-        id_name[index] = name
-
-        # if the object has actual geometry data, store it
-        for mesh in obj.iter('{*}mesh'):
-            vertices = mesh.find('{*}vertices')
-            vertices = np.array([[i.attrib['x'],
-                                  i.attrib['y'],
-                                  i.attrib['z']] for
-                                 i in vertices.iter('{*}vertex')],
-                                dtype=np.float64)
-            v_seq[index] = vertices
-
-            faces = mesh.find('{*}triangles')
-            faces = np.array([[i.attrib['v1'],
-                               i.attrib['v2'],
-                               i.attrib['v3']] for
-                              i in faces.iter('{*}triangle')],
-                             dtype=np.int64)
-            f_seq[index] = faces
-
-        # components are references to other geometries
-        for c in obj.iter('{*}component'):
-            mesh_index = c.attrib['objectid']
-            transform = _attrib_to_transform(c.attrib)
-            components[index].append((mesh_index, transform))
-
     # load information about the scene graph
     # each instance is a single geometry
     build_items = []
-    # scene graph information stored here, aka "build" the scene
-    build = tree.find('{*}build')
-    for item in build.iter('{*}item'):
-        # get a transform from the item's attributes
-        transform = _attrib_to_transform(item.attrib)
-        # the index of the geometry this item instantiates
-        build_items.append((item.attrib['objectid'], transform))
 
-    # collect unit information from the tree
-    if 'unit' in tree.attrib:
-        metadata = {'units': tree.attrib['unit']}
-    else:
-        # the default units, defined by the specification
-        metadata = {'units': 'millimeters'}
+    # iterate the XML object and build elements with an LXML iterator
+    # loaded elements are cleared to avoid ballooning memory
+    model.seek(0)
+    for event, obj in etree.iterparse(model, tag=('{*}object', '{*}build')):
+        # parse objects
+        if 'object' in obj.tag:
+            # id is mandatory
+            index = obj.attrib['id']
+            # not required, so use a get call which will return None
+            # if the tag isn't populated
+            if 'name' in obj.attrib:
+                name = obj.attrib['name']
+            else:
+                name = str(index)
+            # store the name by index
+            id_name[index] = name
+
+            # if the object has actual geometry data, store it
+            for mesh in obj.iter('{*}mesh'):
+                vertices = mesh.find('{*}vertices')
+                v_seq[index] = np.array([[i.attrib['x'],
+                                          i.attrib['y'],
+                                          i.attrib['z']] for
+                                         i in vertices.iter('{*}vertex')],
+                                        dtype=np.float64)
+                vertices.clear()
+                vertices.getparent().remove(vertices)
+
+                faces = mesh.find('{*}triangles')
+                f_seq[index] = np.array([[i.attrib['v1'],
+                                          i.attrib['v2'],
+                                          i.attrib['v3']] for
+                                         i in faces.iter('{*}triangle')],
+                                        dtype=np.int64)
+                faces.clear()
+                faces.getparent().remove(faces)
+
+            # components are references to other geometries
+            for c in obj.iter('{*}component'):
+                mesh_index = c.attrib['objectid']
+                transform = _attrib_to_transform(c.attrib)
+                components[index].append((mesh_index, transform))
+
+        # parse build
+        if 'build' in obj.tag:
+            # scene graph information stored here, aka "build" the scene
+            for item in obj.iter('{*}item'):
+                # get a transform from the item's attributes
+                transform = _attrib_to_transform(item.attrib)
+                # the index of the geometry this item instantiates
+                build_items.append((item.attrib['objectid'], transform))
+
+        # free resources
+        obj.clear()
+        obj.getparent().remove(obj)
+        del obj
 
     # have one mesh per 3MF object
     # one mesh per geometry ID, store as kwargs for the object
