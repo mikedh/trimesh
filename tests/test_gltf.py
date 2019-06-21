@@ -151,6 +151,7 @@ class GLTFTest(g.unittest.TestCase):
         # make basic assertions
         g.scene_equal(scene, reloaded)
 
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()
