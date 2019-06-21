@@ -863,9 +863,14 @@ def _read_buffers(header, buffers, mesh_kwargs, resolver=None):
             else:
                 name = "GLTF_geometry"
 
+                # make name unique across multiple meshes
+                if len(header["meshes"]) > 1:
+                    name += "_{}".format(index)
+
             # each primitive gets it's own Trimesh object
             if len(m["primitives"]) > 1:
                 name += "_{}".format(j)
+
             meshes[name] = kwargs
             mesh_prim[index].append(name)
 

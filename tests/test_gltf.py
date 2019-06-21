@@ -136,6 +136,20 @@ class GLTFTest(g.unittest.TestCase):
             # will assert round trip is roughly equal
             g.scene_equal(rd, scene)
 
+    def test_gltf_pole(self):
+        scene = g.get_mesh('simple_pole.glb')
+
+        # should have multiple primitives
+        assert len(scene.geometry) == 11
+
+        export = scene.export('glb')
+        assert len(export) > 0
+        # check a roundtrip
+        reloaded = g.trimesh.load(
+            g.trimesh.util.wrap_as_stream(export),
+            file_type='glb')
+        # make basic assertions
+        g.scene_equal(scene, reloaded)
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
