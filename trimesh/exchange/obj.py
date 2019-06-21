@@ -190,10 +190,15 @@ def load_obj(file_obj, resolver=None, **kwargs):
         # which should be the file location of the .mtl file
         mtl_path = text[mtl_position + 6:text.find('\n', mtl_position)]
         # use the resolver to get the data, then parse the MTL
-        material_kwargs = parse_mtl(resolver[mtl_path], resolver=resolver)
-        materials = {k: SimpleMaterial(**v)
-                     for k, v in material_kwargs.items()}
-
+        try:
+            material_kwargs = parse_mtl(resolver[mtl_path], resolver=resolver)
+            materials = {k: SimpleMaterial(**v)
+                         for k, v in material_kwargs.items()}
+        except BaseException:
+            # usually the resolver couldn't find the asset
+            log.warning('unable to load materials', exc_info=True)
+            materials = {}
+            
     # Load Vertices
     # aggressivly reduce blob to only part with vertices
     # the first position of a vertex in the text blob
