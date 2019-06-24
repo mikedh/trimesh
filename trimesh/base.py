@@ -2122,7 +2122,7 @@ class Trimesh(Geometry):
         # np.allclose is surprisingly slow so do this test
         elif util.allclose(matrix, np.eye(4), 1e-8):
             log.debug('apply_transform passed identity matrix')
-            return
+            return self
 
         # new vertex positions
         new_vertices = transformations.transform_points(
