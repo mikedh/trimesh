@@ -8,9 +8,12 @@ import os
 import subprocess
 import numpy as np
 import collections
-from .. import util
+
 from distutils.spawn import find_executable
 
+from .. import util
+
+# find the executable
 binvox_encoder = find_executable('binvox')
 
 Binvox = collections.namedtuple(

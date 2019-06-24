@@ -314,7 +314,13 @@ class VoxelGridTest(g.unittest.TestCase):
         self._test_equiv(v_rle, v_brle, query_points)
 
     def test_hollow(self):
-        filled = Sphere().voxelized(pitch=0.1, method='binvox', exact=True)
+        if not g.has_binvox:
+            g.log.warning('no binvox to test!')
+            return
+
+        filled = Sphere().voxelized(pitch=0.1,
+                                    method='binvox',
+                                    exact=True)
         hollow = filled.copy().hollow()
         self.assertLess(hollow.filled_count, filled.filled_count)
         self.assertGreater(hollow.filled_count, 0)
@@ -328,7 +334,13 @@ class VoxelGridTest(g.unittest.TestCase):
             self.assertLess(hollow.filled_count, filled.filled_count)
 
     def test_strip(self):
-        octant = Sphere().voxelized(pitch=0.1, method='binvox', exact=True)
+        if not g.has_binvox:
+            g.log.warning('no binvox to test!')
+            return
+
+        octant = Sphere().voxelized(pitch=0.1,
+                                    method='binvox',
+                                    exact=True)
         dense = octant.encoding.dense.copy()
         nx, ny, nz = octant.shape
         dense[:nx // 2] = 0

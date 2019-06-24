@@ -198,7 +198,7 @@ def load_obj(file_obj, resolver=None, **kwargs):
             # usually the resolver couldn't find the asset
             log.warning('unable to load materials', exc_info=True)
             materials = {}
-            
+
     # Load Vertices
     # aggressivly reduce blob to only part with vertices
     # the first position of a vertex in the text blob
@@ -246,9 +246,11 @@ def load_obj(file_obj, resolver=None, **kwargs):
         # we try to do the whole array
         words[v_idx[0] + np.arange(4, 7)].astype(np.float64)
         # we made it past one line, try to get a color for every vertex
-        vc_list = words[v_idx + np.arange(4, 7)].ravel().tolist()
-        vc = np.array(list(map(float, vc_list)),
-                      dtype=np.float64).reshape(v.shape)
+        vc_list = words[v_idx + np.arange(4, 7)].ravel()
+        if len(vc_list) == len(v):
+            # only get vertex colors if they have the correct shape
+            vc = np.array(list(map(float, vc_list.tolist())),
+                          dtype=np.float64).reshape(v.shape)
     except BaseException:
         # we don't have colors of correct shape
         pass
@@ -409,11 +411,6 @@ def load_obj(file_obj, resolver=None, **kwargs):
             # TODO: allow fallback, and find a mesh we can test it on
             faces, faces_tex, normal_idx = _parse_faces(face_lines)
 
-        # TODO: where we should have usable face normals
-        vertex_normals = None
-        # if v is not None and vn is not None and len(v) == len(vn):
-        #    vertex_normals =
-
         # try to get usable texture
         visual = None
         if faces_tex is not None:
@@ -439,16 +436,30 @@ def load_obj(file_obj, resolver=None, **kwargs):
             # mask vertices and use new faces
             mesh = kwargs.copy()
             mesh.update({'vertices': v[mask_v],
-                         'vertex_normals': vertex_normals,
                          'visual': visual,
                          'faces': new_faces})
+            # if we have vertex colors pass them
+            if vc is not None:
+                mesh['vertex_colors'] = vc[mask_v]
+            # if we have vertex normals pass them
+            if vn is not None:
+                mesh['vertex_normals'] = vn[mask_v]
+
             geometry[util.unique_id()] = mesh
         else:
             # otherwise just use unmasked vertices
             mesh = kwargs.copy()
             mesh.update({'vertices': v,
-                         'faces': faces,
-                         'vertex_normals': vertex_normals})
+                         'vertex_normals': vn,
+                         'faces': faces})
+
+            # if we have vertex colors pass them
+            if vc is not None:
+                mesh['vertex_colors'] = vc
+            # if we have vertex normals pass them
+            if vn is not None:
+                mesh['vertex_normals'] = vn
+
             geometry[util.unique_id()] = mesh
 
     if len(geometry) == 1:

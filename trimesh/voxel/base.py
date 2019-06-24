@@ -6,136 +6,29 @@ Convert meshes to a simple voxel data structure and back again.
 """
 import numpy as np
 
-from .. import caching
 from . import ops
+from . import transforms
+from . import morphology
+from . import encoding as enc
+
+from .. import caching
+from .. import transformations as tr
+
 from ..constants import log
 from ..parent import Geometry
-from .. import transformations as tr
-from . import encoding as enc
-from .. import util
-from . import morphology
-
-
-class _Transform(object):
-    """Class for caching metadata associated with 4x4 transformations."""
-
-    def __init__(self, matrix):
-        if matrix.shape != (4, 4):
-            raise ValueError('matrix must be 4x4, got %s' % str(matrix.shape))
-        if not np.all(matrix[3, :] == [0, 0, 0, 1]):
-            raise ValueError('matrix not a valid transformation matrix')
-        self._data = caching.tracked_array(matrix, dtype=float)
-        self._cache = caching.Cache(id_function=self._data.crc)
-
-    def md5(self):
-        return self._data.md5()
-
-    def crc(self):
-        return self._data.crc()
-
-    @property
-    def translation(self):
-        return self._data[:3, 3]
-
-    @property
-    def matrix(self):
-        return self._data
-
-    @matrix.setter
-    def matrix(self, data):
-        np.copyto(self._data, data.astype(float))
-
-    @caching.cache_decorator
-    def scale(self):
-        matrix = self.matrix
-        scale = np.diag(matrix[:3, :3])
-        if not util.allclose(
-                matrix[:3, :3], scale * np.eye(3), scale * 1e-6 + 1e-8):
-            raise RuntimeError(
-                'scale ill-defined because transform_matrix features '
-                'a shear or rotation')
-        return scale
-
-    @caching.cache_decorator
-    def pitch(self):
-        scale = self.scale
-        if not util.allclose(
-                scale[0], scale[1:], np.max(np.abs(scale)) * 1e-6 + 1e-8):
-            raise RuntimeError(
-                'pitch ill-defined because transform_matrix features '
-                'non-uniform scaling.')
-
-    @caching.cache_decorator
-    def unit_volume(self):
-        """Volume of a transformed unit cube."""
-        return np.linalg.det(self._data[:3, :3])
-
-    def apply_transform(self, matrix):
-        """Mutate the transform in-place and return self."""
-        self.matrix = np.matmul(matrix, self.matrix)
-        return self
-
-    def apply_translation(self, translation):
-        """Mutate the transform in-place and return self."""
-        self.matrix[:3, 3] += translation
-        return self
-
-    def apply_scale(self, scale):
-        """Mutate the transform in-place and return self."""
-        self.matrix[:3] *= scale
-        return self
-
-    def transform_points(self, points):
-        """
-        Apply the transformation to points (not in-place).
-
-        Parameters
-        ----------
-        points: (..., 3) float coordinates
-
-        Returns
-        ----------
-        transformed points of the same shape as points, or the original points
-        (i.e. not coppied) if this is an identity transform.
-        """
-        if self.is_identity:
-            return points
-        return tr.transform_points(
-            points.reshape(-1, 3), self.matrix).reshape(points.shape)
-
-    def inverse_transform_points(self, points):
-        """Apply the inverse transformation to points (not in-place)."""
-        if self.is_identity:
-            return points
-        return tr.transform_points(
-            points.reshape(-1, 3), self.inverse_matrix).reshape(points.shape)
-
-    @caching.cache_decorator
-    def inverse_matrix(self):
-        inv = np.linalg.inv(self.matrix)
-        inv.flags.writeable = False
-        return inv
-
-    def copy(self):
-        return _Transform(self._data.copy())
-
-    @caching.cache_decorator
-    def is_identity(self):
-        """Flags this transformation being sufficiently close to eye(4)."""
-        return util.allclose(self.matrix, np.eye(4), 1e-8)
 
 
 class VoxelGrid(Geometry):
-    def __init__(self, encoding, transform_matrix=None, metadata=None):
-        if transform_matrix is None:
-            transform_matrix = np.eye(4)
+    def __init__(self, encoding, transform=None, metadata=None):
+        if transform is None:
+            transform = np.eye(4)
         if isinstance(encoding, np.ndarray):
             encoding = enc.DenseEncoding(encoding.astype(bool))
         if encoding.dtype != bool:
             raise ValueError('encoding must have dtype bool')
         self._data = caching.DataStore()
         self.encoding = encoding
-        self._data['transform'] = _Transform(transform_matrix)
+        self._data['transform'] = transforms.Transform(transform)
         self._cache = caching.Cache(id_function=self._data.crc)
 
         self.metadata = dict()
@@ -181,12 +74,12 @@ class VoxelGrid(Geometry):
         return self._data['transform']
 
     @property
-    def transform_matrix(self):
+    def transform(self):
         """4x4 homogeneous transformation matrix."""
         return self._transform.matrix
 
-    @transform_matrix.setter
-    def transform_matrix(self, matrix):
+    @transform.setter
+    def transform(self, matrix):
         """4x4 homogeneous transformation matrix."""
         self._transform.matrix = matrix
 
@@ -206,7 +99,7 @@ class VoxelGrid(Geometry):
         """
         3-element float representing per-axis scale.
 
-        Raises a `RuntimeError` if `self.transform_matrix` has rotation or
+        Raises a `RuntimeError` if `self.transform` has rotation or
         shear components.
         """
         return self._transform.scale
@@ -276,11 +169,11 @@ class VoxelGrid(Geometry):
 
         Parameters
         ----------
-        point: (..., 3) float, point(s) in space
+        point: (n, 3) float, point(s) in space
 
         Returns
         ---------
-        is_filled: (...,) bool, is cell occupied or not for each point
+        is_filled: (n,) bool, is cell occupied or not for each point
         """
         point = np.asanyarray(point)
         indices = self.points_to_indices(point)
@@ -407,7 +300,7 @@ class VoxelGrid(Geometry):
         mesh = ops.multibox(
             centers=self.sparse_indices.astype(float), colors=colors)
 
-        mesh = mesh.apply_transform(self.transform_matrix)
+        mesh = mesh.apply_transform(self.transform)
         return mesh
 
     def points_to_indices(self, points):
@@ -416,11 +309,11 @@ class VoxelGrid(Geometry):
 
         Parameters
         ----------
-        points: (..., 3) float, point in space
+        points: (n, 3) float, point in space
 
         Returns
         ---------
-        indices: (..., 3) int array of indices into self.encoding
+        indices: (n, 3) int array of indices into self.encoding
         """
         points = self._transform.inverse_transform_points(points)
         return np.round(points).astype(int)
@@ -461,5 +354,4 @@ class VoxelGrid(Geometry):
         translate = bounds[0]
         return VoxelGrid(
             dense,
-            transform_matrix=tr.scale_and_translate(scale, translate)
-        )
+            transform=tr.scale_and_translate(scale, translate))

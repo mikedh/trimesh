@@ -62,7 +62,7 @@ def voxelize_subdivide(mesh,
 
     return base.VoxelGrid(
         enc.SparseBinaryEncoding(occupied_index - origin_index),
-        transform_matrix=tr.scale_and_translate(
+        transform=tr.scale_and_translate(
             scale=pitch, translate=origin_position))
 
 
@@ -122,7 +122,7 @@ def local_voxelize(mesh,
 
     # sparse, origin = voxelize_subdivide(local, pitch, **kwargs)
     vox = voxelize_subdivide(local, pitch, **kwargs)
-    origin = vox.transform_matrix[:3, 3]
+    origin = vox.transform[:3, 3]
     matrix = vox.encoding.dense
 
     # Find voxel index for point
@@ -227,10 +227,13 @@ def voxelize_binvox(mesh, pitch, **binvoxer_kwargs):
 
     Parameters
     --------------
-    mesh: Trimesh object to voxelize
-    pitch: side length of each voxel
-    **binvoxer_kwargs: passed to `trimesh.exchange.binvox.Binvoxer`
-        (cannot contain `dim`)
+    mesh : trimesh.Trimesh
+      Mesh to voxelize
+    pitch : float
+      Side length of each voxel
+    **binvoxer_kwargs:
+      Passed to `trimesh.exchange.binvox.Binvoxer`
+      Cannot contain `dim`
     """
     from ..exchange import binvox
     dimension = int(np.ceil(np.max(mesh.extents) / pitch))

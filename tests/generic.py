@@ -60,6 +60,9 @@ try:
 except ImportError:
     has_path = False
 
+# find_executable for binvox
+has_binvox = trimesh.exchange.binvox.binvox_encoder is not None
+
 # Python version as an array, i.e. [3, 6]
 python_version = np.array([sys.version_info.major,
                            sys.version_info.minor])
