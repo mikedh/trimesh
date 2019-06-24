@@ -401,7 +401,7 @@ class Binvoxer(object):
             if len(bounding_box) != 6:
                 raise ValueError('bounding_box must have 6 elements')
             args.append('-bb')
-            args.extend('%.f' % b for b in bounding_box)
+            args.extend(str(b) for b in bounding_box)
         if remove_internal:
             args.append('-ri')
         if center:
