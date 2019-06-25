@@ -14,7 +14,7 @@ Pull requests are appreciated and responded to promptly! If you'd like to contri
 
 ## Basic Installation
 
-Keeping `trimesh` easy to install is a core goal, thus the *only* hard dependancy is [numpy](http://www.numpy.org/). Installing other packages adds functionality but is *not required*. For the easiest install with *only* `numpy`, `pip` can generally install `trimesh` cleanly on Windows, Linux, and OSX:
+Keeping `trimesh` easy to install is a core goal, thus the *only* hard dependancy is [numpy](http://www.numpy.org/). Installing other packages adds functionality but is not required. For the easiest install with just numpy, `pip` can generally install `trimesh` cleanly on Windows, Linux, and OSX:
 
 ```bash
 pip install trimesh
