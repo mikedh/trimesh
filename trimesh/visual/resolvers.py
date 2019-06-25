@@ -171,9 +171,20 @@ class WebResolver(Resolver):
         # do import here to keep soft dependency
         import requests
 
-        # append base url to requested name
-        url = urljoin(self.base_url, name)
+        # remove leading and trailing whitespace
+        name = name.strip()
         # fetch the data from the remote url
-        response = requests.get(url)
+        response = requests.get(urljoin(
+            self.base_url, name))
+
+        if response.status_code != 200:
+            # try to strip off filesystem crap
+            response = requests.get(urljoin(
+                self.base_url,
+                name.lstrip('./')))
+
+        if response.status_code == '404':
+            raise ValueError(response.content)
+
         # return the bytes of the response
         return response.content
