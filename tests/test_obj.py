@@ -55,10 +55,13 @@ class OBJTest(g.unittest.TestCase):
         # Note 'process=False' to avoid merging vertices
         scene = g.get_mesh('joined_tetrahedra.obj', process=False)
         assert len(scene.geometry) == 2
-        assert g.trimesh.util.is_shape(scene.geometry[0].faces, (4, 3))
-        assert g.trimesh.util.is_shape(scene.geometry[0].vertices, (9, 3))
-        assert g.trimesh.util.is_shape(scene.geometry[1].faces, (4, 3))
-        assert g.trimesh.util.is_shape(scene.geometry[1].vertices, (9, 3))
+
+        geom = list(scene.geometry.values())
+
+        assert g.trimesh.util.is_shape(geom[0].faces, (4, 3))
+        assert g.trimesh.util.is_shape(geom[0].vertices, (9, 3))
+        assert g.trimesh.util.is_shape(geom[1].faces, (4, 3))
+        assert g.trimesh.util.is_shape(geom[1].vertices, (9, 3))
 
     def test_obj_simple_order(self):
         # test a simple wavefront model without split indexes

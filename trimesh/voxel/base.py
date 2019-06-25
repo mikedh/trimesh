@@ -165,15 +165,18 @@ class VoxelGrid(Geometry):
 
     def is_filled(self, point):
         """
-        Query points to see if the voxel cells they lie in are filled or not.
+        Query points to see if the voxel cells they lie in are
+        filled or not.
 
         Parameters
         ----------
-        point: (n, 3) float, point(s) in space
+        point : (n, 3) float
+          Points in space
 
         Returns
         ---------
-        is_filled: (n,) bool, is cell occupied or not for each point
+        is_filled : (n,) bool
+          Is cell occupied or not for each point
         """
         point = np.asanyarray(point)
         indices = self.points_to_indices(point)
@@ -265,7 +268,7 @@ class VoxelGrid(Geometry):
         """(n, 3) int array of sparse indices of occupied voxels."""
         return self.encoding.sparse_indices
 
-    def as_boxes(self, colors=None):
+    def as_boxes(self, colors=None, **kwargs):
         """
         A rough Trimesh representation of the voxels with a box
         for each filled voxel.
@@ -326,10 +329,12 @@ class VoxelGrid(Geometry):
         Convert the current set of voxels into a trimesh for visualization
         and show that via its built- in preview method.
         """
-        return self.as_boxes(kwargs.pop('colors', None)).show(*args, **kwargs)
+        return self.as_boxes(kwargs.pop(
+            'colors', None)).show(*args, **kwargs)
 
     def copy(self):
-        return VoxelGrid(self.encoding.copy(), self._transform.matrix.copy())
+        return VoxelGrid(self.encoding.copy(),
+                         self._transform.matrix.copy())
 
     def revoxelized(self, shape):
         """

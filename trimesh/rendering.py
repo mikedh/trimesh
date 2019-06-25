@@ -54,6 +54,10 @@ def convert_to_vertexlist(geometry, **kwargs):
     elif util.is_instance_named(geometry, 'ndarray'):
         # (n,2) or (n,3) points
         return points_to_vertexlist(geometry, **kwargs)
+    elif util.is_instance_named(geometry, 'VoxelGrid'):
+        # for voxels view them as a bunch of boxes
+        return mesh_to_vertexlist(geometry.as_boxes(**kwargs),
+                                  **kwargs)
     else:
         raise ValueError('Geometry passed is not a viewable type!')
 

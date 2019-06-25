@@ -66,15 +66,21 @@ class Encoding(ABC):
     def copy(self):
         pass
 
+    @property
+    def is_empty(self):
+        return False
+
     @caching.cache_decorator
     def stripped(self):
         """
-        Get encoding with all zeros stripped from the start/end of each axis.
+        Get encoding with all zeros stripped from the start and end
+        of each axis.
 
-        Returns:
-            encoding:
-            padding: (n, 2) array of ints denoting padding at the start/end
-                that was stripped
+        Returns
+        ------------
+        encoding: ?
+        padding : (n, 2) int
+          Padding at the start and end that was stripped
         """
         dense = self.dense
         shape = dense.shape
