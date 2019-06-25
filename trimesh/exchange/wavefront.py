@@ -174,7 +174,7 @@ def load_wavefront(file_obj, resolver=None, **kwargs):
                         loaded['visual'] = visual.texture.TextureVisuals(
                             uv=uv, image=image)
                     except BaseException:
-                        log.error('failed to load texture: {}'.format(usemtl),
+                        log.debug('failed to load texture: {}'.format(usemtl),
                                   exc_info=True)
 
             # apply the vertex order to the visual object
@@ -276,7 +276,7 @@ def load_wavefront(file_obj, resolver=None, **kwargs):
                     # save new materials
                     mtllibs[mtllib['newmtl']] = mtllib
             except BaseException:
-                log.error('unable to load material: {}'.format(mtl_name),
+                log.debug('unable to load material: {}'.format(mtl_name),
                           exc_info=True)
                 continue
 
