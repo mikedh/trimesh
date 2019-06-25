@@ -1,5 +1,4 @@
-from time import time as time_function
-
+import time
 import numpy as np
 
 from .util import log
@@ -133,11 +132,11 @@ def log_time(method):
     """
 
     def timed(*args, **kwargs):
-        tic = time_function()
+        tic = time.time()
         result = method(*args, **kwargs)
         log.debug('%s executed in %.4f seconds.',
                   method.__name__,
-                  time_function() - tic)
+                  time.time() - tic)
         return result
     timed.__name__ = method.__name__
     timed.__doc__ = method.__doc__

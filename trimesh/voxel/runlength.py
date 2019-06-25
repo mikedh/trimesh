@@ -163,7 +163,7 @@ def split_long_brle_lengths(lengths, dtype=np.int64):
     max_val = np.iinfo(dtype).max
     bad_length_mask = lengths > max_val
     if np.any(bad_length_mask):
-        # there are some bad lenghs
+        # there are some bad lengths
         nl = len(lengths)
         repeats = np.asarray(lengths) // max_val
         remainders = (lengths % max_val).astype(dtype)

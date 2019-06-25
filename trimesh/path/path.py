@@ -3,9 +3,7 @@ path.py
 
 A library designed to work with vector paths.
 """
-
 import numpy as np
-import networkx as nx
 
 import copy
 import collections
@@ -45,6 +43,13 @@ try:
         speedups.enable()
 except BaseException:
     pass
+
+try:
+    import networkx as nx
+except BaseException as E:
+    # create a dummy module which will raise the ImportError
+    # or other exception only when someone tries to use networkx
+    nx = util.ExceptionModule(E)
 
 
 class Path(object):

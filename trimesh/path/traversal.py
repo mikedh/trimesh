@@ -1,13 +1,18 @@
-import numpy as np
-import networkx as nx
-
 import copy
+import numpy as np
 
 from .util import is_ccw
 
 from .. import util
 from .. import grouping
 from .. import constants
+
+try:
+    import networkx as nx
+except BaseException as E:
+    # create a dummy module which will raise the ImportError
+    # or other exception only when someone tries to use networkx
+    nx = util.ExceptionModule(E)
 
 
 def vertex_graph(entities):

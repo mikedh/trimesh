@@ -10,7 +10,6 @@ backends.
 """
 
 import numpy as np
-import networkx as nx
 import collections
 
 from . import util
@@ -27,8 +26,16 @@ except ImportError:
 
 try:
     from scipy.sparse import csgraph, coo_matrix
-except ImportError:
-    log.warning('no scipy')
+except ImportError as E:
+    csgraph = util.exception_closure(E)
+    coo_matrix = util.exception_closure(E)
+
+try:
+    import networkx as nx
+except BaseException as E:
+    # create a dummy module which will raise the ImportError
+    # or other exception only when someone tries to use networkx
+    nx = util.ExceptionModule(E)
 
 
 def face_adjacency(faces=None,

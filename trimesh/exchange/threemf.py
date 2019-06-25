@@ -1,12 +1,17 @@
-import numpy as np
-import networkx as nx
-
 import collections
+import numpy as np
 
 from .. import util
 from .. import graph
 
 from ..constants import log
+
+try:
+    import networkx as nx
+except BaseException as E:
+    # create a dummy module which will raise the ImportError
+    # or other exception only when someone tries to use networkx
+    nx = util.ExceptionModule(E)
 
 
 def load_3MF(file_obj,

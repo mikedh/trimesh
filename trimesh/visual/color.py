@@ -549,7 +549,7 @@ def to_float(colors):
     colors = np.asanyarray(colors)
     if colors.dtype.kind == 'f':
         return colors
-    elif colors.dtype.kind == 'i':
+    elif colors.dtype.kind in 'iu':
         # integer value for opaque alpha given our datatype
         opaque = np.iinfo(colors.dtype).max
         return colors.astype(np.float64) / opaque

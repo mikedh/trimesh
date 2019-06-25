@@ -21,25 +21,26 @@ except ImportError:
     pass
 
 # from ply specification, and additional dtypes found in the wild
-dtypes = {'char': 'i1',
-          'uchar': 'u1',
-          'short': 'i2',
-          'ushort': 'u2',
-          'int': 'i4',
-          'int8': 'i1',
-          'int16': 'i2',
-          'int32': 'i4',
-          'int64': 'i8',
-          'uint': 'u4',
-          'uint8': 'u1',
-          'uint16': 'u2',
-          'uint32': 'u4',
-          'uint64': 'u8',
-          'float': 'f4',
-          'float16': 'f2',
-          'float32': 'f4',
-          'float64': 'f8',
-          'double': 'f8'}
+dtypes = {
+    'char': 'i1',
+    'uchar': 'u1',
+    'short': 'i2',
+    'ushort': 'u2',
+    'int': 'i4',
+    'int8': 'i1',
+    'int16': 'i2',
+    'int32': 'i4',
+    'int64': 'i8',
+    'uint': 'u4',
+    'uint8': 'u1',
+    'uint16': 'u2',
+    'uint32': 'u4',
+    'uint64': 'u8',
+    'float': 'f4',
+    'float16': 'f2',
+    'float32': 'f4',
+    'float64': 'f8',
+    'double': 'f8'}
 
 
 def load_ply(file_obj,
@@ -371,7 +372,7 @@ def elements_to_kwargs(elements, fix_texture, image):
         # probably shouldn't be so disconnect vertices
         if fix_texture:
             # do import here
-            from ..visual.texture import unmerge_faces_tex
+            from ..visual.texture import unmerge_faces
 
             # reshape to correspond with flattened faces
             uv_all = texcoord.reshape((-1, 2))
@@ -383,7 +384,7 @@ def elements_to_kwargs(elements, fix_texture, image):
             # use the indices of faces and face textures
             # to only merge vertices where the position
             # AND uv coordinate are the same
-            faces, mask_v, mask_vt = unmerge_faces_tex(
+            faces, mask_v, mask_vt = unmerge_faces(
                 faces, inverse.reshape(faces.shape))
             # apply the mask to get resulting vertices
             vertices = vertices[mask_v]

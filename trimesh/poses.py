@@ -4,10 +4,17 @@ poses.py
 
 Find stable orientations of meshes.
 """
-import networkx as nx
 import numpy as np
 
 from .triangles import points_to_barycentric
+
+try:
+    import networkx as nx
+except BaseException as E:
+    # create a dummy module which will raise the ImportError
+    # or other exception only when someone tries to use networkx
+    from .util import ExceptionModule
+    nx = ExceptionModule(E)
 
 
 def compute_stable_poses(mesh,

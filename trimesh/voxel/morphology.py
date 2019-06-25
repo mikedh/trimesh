@@ -127,8 +127,8 @@ def fill(encoding, method='base', **kwargs):
     Parameters
     --------------
     encoding: Encoding object (left unchanged).
-    mathod: mathod present in `fillers`.
-    **kwargs: additional kwargs passed ot the specified implementation.
+    method: method present in `fillers`.
+    **kwargs: additional kwargs passed to the specified implementation.
 
     Returns
     --------------

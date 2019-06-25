@@ -22,7 +22,7 @@ class VHACDTest(g.unittest.TestCase):
         decomposed = mesh.convex_decomposition(maxhulls=10)
 
         # it should return the correct number of meshes
-        assert len(decomposed) == 10
+        assert len(decomposed.geometry) == 10
 
         # make sure everything is convex
         # also this will fail if the type is returned incorrectly

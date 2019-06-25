@@ -1,4 +1,4 @@
-"""OO interfaces to encodings for ND arrays wich caching."""
+"""OO interfaces to encodings for ND arrays which caching."""
 import numpy as np
 from scipy import sparse as sp
 import abc

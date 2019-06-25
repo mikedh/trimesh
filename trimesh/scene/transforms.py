@@ -1,13 +1,19 @@
-import time
 import copy
+import time
 import collections
 
 import numpy as np
-import networkx as nx
 
 from .. import util
 from .. import caching
 from .. import transformations
+
+try:
+    import networkx as nx
+except BaseException as E:
+    # create a dummy module which will raise the ImportError
+    # or other exception only when someone tries to use networkx
+    nx = util.ExceptionModule(E)
 
 
 class TransformForest(object):

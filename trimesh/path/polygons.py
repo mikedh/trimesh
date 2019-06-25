@@ -1,5 +1,4 @@
 import numpy as np
-import networkx as nx
 
 from shapely.geometry import Polygon
 from shapely import vectorized
@@ -16,6 +15,13 @@ from ..constants import log
 from ..transformations import transform_points
 
 from .traversal import resample_path
+
+try:
+    import networkx as nx
+except BaseException as E:
+    # create a dummy module which will raise the ImportError
+    # or other exception only when someone tries to use networkx
+    nx = util.ExceptionModule(E)
 
 
 def enclosure_tree(polygons):

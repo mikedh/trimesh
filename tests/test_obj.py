@@ -11,6 +11,7 @@ class OBJTest(g.unittest.TestCase):
         # it has mixed triangles, quads, and 16 element faces -_-
         # this should test the non- vectorized load path
         m = g.get_mesh('rabbit.obj')
+        assert len(m.faces) > 0
 
     def test_obj_groups(self):
         # a wavefront file with groups defined
