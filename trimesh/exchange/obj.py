@@ -382,8 +382,14 @@ def load_obj(file_obj, resolver=None, **kwargs):
         if len(array) == (columns * len(face_lines)):
             # reshape to columns
             array = array.reshape((-1, columns))
-            # faces are going to be the first value
-            index = np.arange(3) * int(columns / 3.0)
+            # how many elements are in the first line of faces
+            # i.e '13/1/13 14/1/14 2/1/2 1/2/1' is 4
+            group_count = len(face_lines[0].strip().split())
+            # how many elements are there for each vertex reference
+            # i.e. '12/1/13' is 3
+            per_ref = int(columns / group_count)
+            # create an index mask we can use to slice vertex references
+            index = np.arange(group_count) * per_ref
             # slice the faces out of the blob array
             faces = array[:, index]
 
