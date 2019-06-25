@@ -26,11 +26,11 @@ class VHACDTest(g.unittest.TestCase):
 
         # make sure everything is convex
         # also this will fail if the type is returned incorrectly
-        assert all(i.is_convex for i in decomposed)
+        assert all(i.is_convex for i in decomposed.geometry.values())
 
         # make sure every result is actually a volume
         # ie watertight, consistent winding, positive nonzero volume
-        assert all(i.is_volume for i in decomposed)
+        assert all(i.is_volume for i in decomposed.geometry.values())
 
 
 if __name__ == '__main__':

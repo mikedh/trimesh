@@ -239,6 +239,13 @@ def load_obj(file_obj, resolver=None, **kwargs):
     v = np.array(list(map(float, v_list)),
                  dtype=np.float64).reshape((-1, 3))
 
+    # check will generally only be run in unit tests
+    # so we are allowed to do things that are slow
+    if tol.strict:
+        # check to make sure our subsetting
+        # didn't miss any vertices
+        assert len(v) == text.count('\nv ')
+
     # vertex colors are stored right after the vertices
     vc = None
     try:
@@ -284,7 +291,9 @@ def load_obj(file_obj, resolver=None, **kwargs):
         current = text.find(st, 0, f_start)
         if current < 0:
             continue
-        current += len(st)
+        # subtract the length of the key from the position
+        # to make sure it's included in the slice of text
+        current -= len(st)
         if current < f_start:
             f_start = current
     # index in blob of the newline after the last face
@@ -296,6 +305,10 @@ def load_obj(file_obj, resolver=None, **kwargs):
     else:
         # no newline after last face
         f_chunk = text[f_start:]
+
+    if tol.strict:
+        # check to make sure our subsetting didn't miss any faces
+        assert f_chunk.count('\nf ') == text.count('\nf ')
 
     # start with undefined objects and material
     current_object = None

@@ -1,5 +1,7 @@
 set -xe
 
+# remove any copies
+rm -f testVHACD
 # grab the VHACD (convex segmenter) binary
 wget https://github.com/mikedh/v-hacd-1/raw/master/bin/linux/testVHACD
 # check the hash of the downloaded file
