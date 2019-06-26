@@ -98,12 +98,8 @@ script:
 - python -c "import trimesh"
 - pytest  -p no:warnings tests/test_inertia.py
 
-# shapely/rtree are easiest to get from conda
-# in Python 3.4 conda tries to downgrade Python to 2.7
-- conda install -q scikit-image;
-
-# pyembree and python-fcl not available everywhere
-- if [[ "$PYTHON_VERSION" == "3.6" ]]; then conda install pyembree; fi;
+# pyembree, scikit-image, python-fcl not available everywhere
+- if [[ "$PYTHON_VERSION" == "3.6" ]]; then conda install pyembree scikit-image; fi;
 - if [[ "$PYTHON_VERSION" == "3.6" ]]; then pip install python-fcl; fi;
 
 # install most deps here
