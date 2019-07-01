@@ -491,12 +491,13 @@ def to_rgba(colors, dtype=np.uint8):
 
     Parameters
     ----------
-    colors: (n,[3|4]) list of RGB or RGBA colors
+    colors : (n, 3) or (n, 4) array
+      RGB or RGBA colors
 
     Returns
     ----------
-    colors: (n,4) list of RGBA colors
-            (4,)  single RGBA color
+    colors : (n, 4) list of RGBA colors
+             (4,)  single RGBA color
     """
     if not util.is_sequence(colors):
         return
@@ -508,7 +509,7 @@ def to_rgba(colors, dtype=np.uint8):
     opaque = np.iinfo(dtype).max
 
     if (colors.dtype.kind == 'f' and colors.max() < (1.0 + 1e-8)):
-        colors = (colors * opaque).astype(dtype)
+        colors = (colors * opaque).round().astype(dtype)
     elif (colors.max() <= opaque):
         colors = colors.astype(dtype)
     else:

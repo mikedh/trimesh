@@ -263,10 +263,10 @@ def load_obj(file_obj, resolver=None, **kwargs):
         # we try to do the whole array
         words[v_idx[0] + np.arange(4, 7)].astype(np.float64)
         # we made it past one line, try to get a color for every vertex
-        vc_list = words[v_idx + np.arange(4, 7)].ravel()
+        vc_list = words[v_idx + np.arange(4, 7)]
         if len(vc_list) == len(v):
             # only get vertex colors if they have the correct shape
-            vc = np.array(list(map(float, vc_list.tolist())),
+            vc = np.array(list(map(float, vc_list.ravel().tolist())),
                           dtype=np.float64).reshape(v.shape)
     except BaseException:
         # we don't have colors of correct shape
@@ -410,7 +410,6 @@ def load_obj(file_obj, resolver=None, **kwargs):
             if columns == 6:
                 # if we have two values per vertex the second
                 # one is index of texture coordinate (`vt`)
-
                 # count how many delimiters are in the first face line
                 # to see if our second value is texture or normals
                 count = face_lines[0].count('/')
