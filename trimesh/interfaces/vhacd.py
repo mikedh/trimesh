@@ -26,6 +26,20 @@ exists = _vhacd_executable is not None
 
 
 def convex_decomposition(mesh, **kwargs):
+    """
+    Run VHACD to generate an approximate convex decomposition
+    of a single mesh.
+
+    Parameters
+    --------------
+    mesh : trimesh.Trimesh
+      Mesh to be decomposed into convex components
+
+    Returns
+    ------------
+    meshes : (n,) trimesh.Trimesh
+      List of convex meshes
+    """
     if not exists:
         raise ValueError('No vhacd available!')
 
@@ -40,4 +54,9 @@ def convex_decomposition(mesh, **kwargs):
                     script='',
                     tmpfile_ext='obj') as vhacd:
         result = vhacd.run(_vhacd_executable + argstring)
+
+    # if we got a scene back return a list of meshes
+    if hasattr(result, 'geometry') and isinstance(result.geometry, dict):
+        return list(result.geometry.values())
+
     return result
