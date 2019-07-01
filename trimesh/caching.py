@@ -499,16 +499,36 @@ class DataStore(collections.Mapping):
 
     @property
     def mutable(self):
+        """
+        Is data allowed to be altered or not.
+
+        Returns
+        -----------
+        is_mutable : bool
+          Can data be altered in the DataStore
+        """
         if not hasattr(self, '_mutable'):
             self._mutable = True
         return self._mutable
 
     @mutable.setter
     def mutable(self, value):
-        value = bool(value)
-        for i in self.data.value():
-            i.flags.writeable = value
-        self._mutable = value
+        """
+        Is data allowed to be altered or not.
+
+        Parameters
+        ------------
+        is_mutable : bool
+          Should data be allowed to be altered
+        """
+        # make sure passed value is a bool
+        is_mutable = bool(value)
+        # apply the flag to any data stored
+        for n, i in self.data.items():
+            i.flags['WRITEABLE'] = is_mutable
+            print(n, i.flags['WRITEABLE'])
+        # save the mutable setting
+        self._mutable = is_mutable
 
     def is_empty(self):
         """
@@ -516,7 +536,8 @@ class DataStore(collections.Mapping):
 
         Returns
         ----------
-        empty: bool, False if there are items in the DataStore
+        empty : bool
+          False if there are items in the DataStore
         """
         if len(self.data) == 0:
             return True
@@ -543,12 +564,17 @@ class DataStore(collections.Mapping):
         """
         Store an item in the DataStore
         """
+        if not self.mutable:
+            raise ValueError('DataStore is configured immutable!')
         if hasattr(data, 'md5'):
             # don't bother to re-track TrackedArray
-            self.data[key] = data
+            tracked = data
         else:
             # otherwise wrap data
-            self.data[key] = tracked_array(data)
+            tracked = tracked_array(data)
+        # apply our mutability setting
+        tracked.flags['WRITEABLE'] = self.mutable
+        self.data[key] = tracked
 
     def __contains__(self, key):
         return key in self.data
