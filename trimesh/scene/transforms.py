@@ -376,7 +376,7 @@ class TransformForest(object):
         return self._paths[key]
 
 
-class EnforcedForest(_ForestParent)
+class EnforcedForest(_ForestParent):
     """
     A subclass of networkx.DiGraph that will raise an error if an
     edge is added which would make the DiGraph not a forest or tree.

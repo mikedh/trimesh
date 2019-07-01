@@ -27,7 +27,7 @@
 """
 import numpy as np
 
-import trimesh.transformations as transformations
+from .. import transformations
 
 
 class Trackball(object):
