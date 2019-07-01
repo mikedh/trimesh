@@ -433,7 +433,7 @@ def load_obj(file_obj, resolver=None, **kwargs):
             faces, faces_tex, normal_idx = _parse_faces(face_lines)
 
         name = current_object
-        if len(name) == 0 or name in geometry:
+        if name is None or len(name) == 0 or name in geometry:
             name = '{}_{}'.format(name, util.unique_id())
 
         # try to get usable texture
