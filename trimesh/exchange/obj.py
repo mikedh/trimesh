@@ -179,10 +179,16 @@ def load_obj(file_obj, resolver=None, **kwargs):
       trimesh.exchange.load.load_kwargs into a trimesh.Scene
     """
 
+    # salty log messages
+    log.warning('OBJ is an awful format; have you considered PLY?')
+
     # get text as string blob
     text = file_obj.read()
     if hasattr(text, 'decode'):
         text = text.decode('utf-8')
+    # add leading and trailing newlines so we can use the
+    # same logic even if they jump directly in to data lines
+    text = '\n{}\n'.format(text.strip().replace('\r\n', '\n'))
 
     # Load Materials
     materials = None
@@ -191,9 +197,11 @@ def load_obj(file_obj, resolver=None, **kwargs):
         # take the line of the material file after `mtllib`
         # which should be the file location of the .mtl file
         mtl_path = text[mtl_position + 6:text.find('\n', mtl_position)]
-        # use the resolver to get the data, then parse the MTL
         try:
-            material_kwargs = parse_mtl(resolver[mtl_path], resolver=resolver)
+            # use the resolver to get the data
+            material_kwargs = parse_mtl(resolver[mtl_path],
+                                        resolver=resolver)
+            # turn parsed file into material objects
             materials = {k: SimpleMaterial(**v)
                          for k, v in material_kwargs.items()}
         except BaseException:
@@ -204,12 +212,12 @@ def load_obj(file_obj, resolver=None, **kwargs):
     # Load Vertices
     # aggressivly reduce blob to only part with vertices
     # the first position of a vertex in the text blob
-    v_start = text.find('\nv ') - 3
+    v_start = text.find('\nv ')
     # we only need to search from the start of the file
     # up to the location of out our first vertex
-    vn_start = text.find('\nvn ', 0, v_start) - 4
-    vt_start = text.find('\nvt ', 0, v_start) - 4
-    start = min(i for i in [v_start, vt_start, vn_start] if i > 0)
+    vn_start = text.find('\nvn ', 0, v_start)
+    vt_start = text.find('\nvt ', 0, v_start)
+    start = min(i for i in [v_start, vt_start, vn_start] if i >= 0)
     # search for the first newline past the last vertex
     v_end = text.find('\n', text.rfind('\nv ') + 3)
     # we only need to search from the last
@@ -290,12 +298,13 @@ def load_obj(file_obj, resolver=None, **kwargs):
     f_start = len(text)
     # first index of material, object, face, group, or smoother
     for st in starters:
-        current = text.find(st, 0, f_start)
-        if current < 0:
+        search = text.find(st, 0, f_start)
+        # if not contained find will return -1
+        if search < 0:
             continue
         # subtract the length of the key from the position
         # to make sure it's included in the slice of text
-        current -= len(st)
+        current = search
         if current < f_start:
             f_start = current
     # index in blob of the newline after the last face
@@ -450,6 +459,8 @@ def load_obj(file_obj, resolver=None, **kwargs):
             # float comparisons so only use in unit tests
             if tol.strict:
                 assert np.allclose(v[faces], v[mask_v][new_faces])
+                # faces should all be in bounds of vertives
+                assert new_faces.max() < len(v[mask_v])
 
             try:
                 visual = TextureVisuals(
@@ -477,6 +488,10 @@ def load_obj(file_obj, resolver=None, **kwargs):
             mesh.update({'vertices': v,
                          'vertex_normals': vn,
                          'faces': faces})
+
+            # check to make sure indexes are in bounds
+            if tol.strict:
+                assert faces.max() < len(v)
 
             # if we have vertex colors pass them
             if vc is not None:

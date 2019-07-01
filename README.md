@@ -173,15 +173,15 @@ If called from inside a `jupyter` notebook, `mesh.show()` displays an in-line pr
 
 ## Which Mesh Format Should I Use?
 
-Quick recommendation: `GLB`, `PLY`, or `STL`. Avoid `OBJ`.
+Quick recommendation: `GLB`, `PLY`, or `STL`. If you can, avoid `OBJ`.
 
-There are a lot of mesh formats out there, and you are often constrained by the other software in your pipeline. However, if you have a choice of formats and you just need simple vertices and faces, binary `PLY` is the best option. It has a header format which is [sensible and easy to parse](http://paulbourke.net/dataformats/ply/), followed by a compact binary blob.
+There are a lot of mesh formats out there and you are usually constrained by the other software in your pipeline. If you have a choice of formats, binary `PLY` is a great option. It has a header format which is [sensible and easy to parse](http://paulbourke.net/dataformats/ply/), followed by a compact binary blob.
 
-If you'd like something more powerful, including instancing, colors, textures, and more, `GLB` is the best choice. GLTF/GLB is an [extremely well-specified](https://github.com/KhronosGroup/glTF/tree/master/specification/2.0) modern format that is easy and fast to parse: it has a JSON header describing data in a binary blob. It has a simple hierarchical scene graph, a great looking modern physically based material system, support in [dozens-to-hundreds of libraries](https://github.com/KhronosGroup/glTF/issues/1058), and a coveted [John Carmack endorsment](https://www.khronos.org/news/press/significant-gltf-momentum-for-efficient-transmission-of-3d-scenes-models).
+If you'd like something more powerful, including instancing, colors, textures, and more, `GLB` is a terrific choice. GLTF/GLB is an [extremely well specified](https://github.com/KhronosGroup/glTF/tree/master/specification/2.0) modern format that is easy and fast to parse: it has a JSON header describing data in a binary blob. It has a simple hierarchical scene graph, a great looking modern physically based material system, support in [dozens-to-hundreds of libraries](https://github.com/KhronosGroup/glTF/issues/1058), and a coveted [John Carmack endorsment](https://www.khronos.org/news/press/significant-gltf-momentum-for-efficient-transmission-of-3d-scenes-models).
 
-In the wild, `STL` files are perhaps the most common format, as they are just a list of triangles. They are very robust and very simple, and are a fine choice for basic geometry.
+In the wild, `STL` files are perhaps the most common format, as they are just a list of triangles. They are very robust and very simple, and are an excellent choice for basic geometry.
 
-If texture or color is required, often the default choice is Wavefront `OBJ`. **`OBJ` is a bad choice**. OBJ doesn't have a specification, so every importer and exporter implements things slightly differently (including us). It also allows unfortunate things like arbitrary sized polygons, has a face representation which is easy to mess up, references other files for materials and textures, arbitrarily interleaves data, and is slow and painful to parse.
+If texture or color is required many people choose Wavefront `OBJ`. **`OBJ` is a bad choice**. OBJ doesn't have a specification so every importer and exporter implements things slightly differently (including us). It also allows unfortunate things like arbitrary sized polygons, has a face representation which is easy to mess up, references other files for materials and textures, arbitrarily interleaves data, and is slow and extremely painful to parse.
 
 
 ## Containers
