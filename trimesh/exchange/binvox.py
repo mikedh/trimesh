@@ -73,10 +73,9 @@ def parse_binvox(fp, writeable=False):
     data = fp.read()
     if hasattr(data, 'encode'):
         data = data.encode()
+    rle_data = np.frombuffer(data, dtype=np.uint8)
     if writeable:
-        rle_data = np.fromstring(data, dtype=np.uint8)
-    else:
-        rle_data = np.frombuffer(data, dtype=np.uint8)
+        rle_data = rle_data.copy()
     return Binvox(rle_data, shape, translate, scale)
 
 
