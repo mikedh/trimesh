@@ -508,7 +508,7 @@ class DataStore(collections.Mapping):
           Can data be altered in the DataStore
         """
         if not hasattr(self, '_mutable'):
-            self._mutable = True
+            return True
         return self._mutable
 
     @mutable.setter
@@ -564,16 +564,21 @@ class DataStore(collections.Mapping):
         """
         Store an item in the DataStore
         """
+        # we shouldn't allow setting on immutable datastores
         if not self.mutable:
             raise ValueError('DataStore is configured immutable!')
+
         if hasattr(data, 'md5'):
             # don't bother to re-track TrackedArray
             tracked = data
         else:
             # otherwise wrap data
             tracked = tracked_array(data)
-        # apply our mutability setting
-        tracked.flags['WRITEABLE'] = self.mutable
+
+        if hasattr(self, '_mutable'):
+            # apply our mutability setting only if it was explicitly set
+            tracked.flags['WRITEABLE'] = self.mutable
+        # store data
         self.data[key] = tracked
 
     def __contains__(self, key):
