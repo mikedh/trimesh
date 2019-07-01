@@ -12,6 +12,7 @@ import collections
 from distutils.spawn import find_executable
 
 from .. import util
+from ..base import Trimesh
 
 # find the executable
 binvox_encoder = find_executable('binvox')
@@ -499,6 +500,8 @@ def voxelize_mesh(mesh, binvoxer=None, export_type='off', **binvoxer_kwargs):
     ------------
     `VoxelGrid` object resulting.
     """
+    if not isinstance(mesh, Trimesh):
+        raise ValueError('mesh must be Trimesh instace, got %s' % str(mesh))
     if binvoxer is None:
         binvoxer = Binvoxer(**binvoxer_kwargs)
     elif len(binvoxer_kwargs) > 0:
