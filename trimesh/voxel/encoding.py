@@ -145,7 +145,14 @@ class Encoding(ABC):
 
     def _transpose(self, perm):
         return TransposedEncoding(self, perm)
-
+    
+    @property
+    def mutable(self):
+        return self._data.mutable
+    
+    @mutable.setter
+    def mutable(self, value):
+        self._data.mutable = value
 
 class DenseEncoding(Encoding):
     """Simple `Encoding` implementation based on a numpy ndarray."""
