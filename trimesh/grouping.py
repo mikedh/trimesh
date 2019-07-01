@@ -8,12 +8,16 @@ Functions for grouping values and rows.
 import numpy as np
 
 from . import util
+from . import exceptions
+
 from .constants import log, tol
 
 try:
     from scipy.spatial import cKDTree
-except ImportError:
-    log.warning('scipy unavailable')
+except BaseException as E:
+    # wrapping just ImportError fails in some cases
+    # will raise the error when someone tries to use KDtree
+    cKDTree = exceptions.exception_closure(E)
 
 
 def merge_vertices(mesh,

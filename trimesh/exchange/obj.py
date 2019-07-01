@@ -22,6 +22,8 @@ def parse_mtl(mtl, resolver=None):
     -------------
     mtl : str or bytes
       Data from an MTL file
+    resolver : trimesh.visual.Resolver
+      Fetch assets by name from files, web, or other
 
     Returns
     ------------
@@ -358,7 +360,7 @@ def load_obj(file_obj, resolver=None, **kwargs):
     # so now we have to turn them into numpy arrays and kwargs
     # for trimesh mesh and scene objects
     geometry = {}
-    for material, obj, chunk in face_tuples:
+    for material, current_object, chunk in face_tuples:
         # do wangling in string form
         # we need to only take the face line before a newline
         # using builtin functions in a list comprehension
@@ -430,6 +432,10 @@ def load_obj(file_obj, resolver=None, **kwargs):
             # TODO: allow fallback, and find a mesh we can test it on
             faces, faces_tex, normal_idx = _parse_faces(face_lines)
 
+        name = current_object
+        if len(name) == 0 or name in geometry:
+            name = '{}_{}'.format(name, util.unique_id())
+
         # try to get usable texture
         visual = None
         if faces_tex is not None:
@@ -464,7 +470,7 @@ def load_obj(file_obj, resolver=None, **kwargs):
             if vn is not None:
                 mesh['vertex_normals'] = vn[mask_v]
 
-            geometry[util.unique_id()] = mesh
+            geometry[name] = mesh
         else:
             # otherwise just use unmasked vertices
             mesh = kwargs.copy()
@@ -478,8 +484,7 @@ def load_obj(file_obj, resolver=None, **kwargs):
             # if we have vertex normals pass them
             if vn is not None:
                 mesh['vertex_normals'] = vn
-
-            geometry[util.unique_id()] = mesh
+            geometry[name] = mesh
 
     if len(geometry) == 1:
         return next(iter(geometry.values()))

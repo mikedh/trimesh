@@ -6,15 +6,17 @@ import numpy as np
 
 from .. import util
 from .. import caching
+from .. import exceptions
 from .. import transformations
 
 try:
     import networkx as nx
+    _ForestParent = nx.DiGraph
 except BaseException as E:
     # create a dummy module which will raise the ImportError
     # or other exception only when someone tries to use networkx
-    nx = util.ExceptionModule(E)
-
+    nx = exceptions.ExceptionModule(E)
+    _ForestParent = object
 
 class TransformForest(object):
     def __init__(self, base_frame='world'):
@@ -374,7 +376,7 @@ class TransformForest(object):
         return self._paths[key]
 
 
-class EnforcedForest(nx.DiGraph):
+class EnforcedForest(_ForestParent)
     """
     A subclass of networkx.DiGraph that will raise an error if an
     edge is added which would make the DiGraph not a forest or tree.
@@ -458,13 +460,6 @@ class EnforcedForest(nx.DiGraph):
             raise ValueError('Edge does not exist!')
         data = self.get_edge_data(*[u, v][::direction])
         return data, direction
-
-
-def path_to_edges(path):
-    """
-    Turn an (n) path into a (2(n-1)) set of edges
-    """
-    return np.column_stack((path, path)).reshape(-1)[1:-1].reshape((-1, 2))
 
 
 def kwargs_to_matrix(**kwargs):

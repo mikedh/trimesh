@@ -10,7 +10,7 @@ from .notebook import (in_notebook,
                        scene_to_notebook,
                        scene_to_html)
 
-from ..util import exception_closure
+from .. import exceptions
 
 try:
     # try importing windowed which will fail
@@ -20,14 +20,14 @@ try:
 except BaseException as E:
     # if windowed failed to import only raise
     # the exception if someone tries to use them
-    SceneViewer = exception_closure(E)
-    render_scene = exception_closure(E)
+    SceneViewer = exceptions.closure(E)
+    render_scene = exceptions.closure(E)
 
 
 try:
     from .widget import SceneWidget
 except BaseException as E:
-    SceneWidget = exception_closure(E)
+    SceneWidget = exceptions.closure(E)
 
 
 # this is only standard library imports

@@ -14,6 +14,7 @@ import collections
 
 from . import util
 from . import grouping
+from . import exceptions
 
 from .constants import log, tol
 from .geometry import faces_to_edges
@@ -27,15 +28,15 @@ except ImportError:
 try:
     from scipy.sparse import csgraph, coo_matrix
 except ImportError as E:
-    csgraph = util.exception_closure(E)
-    coo_matrix = util.exception_closure(E)
+    csgraph = exceptions.closure(E)
+    coo_matrix = exceptions.closure(E)
 
 try:
     import networkx as nx
 except BaseException as E:
     # create a dummy module which will raise the ImportError
     # or other exception only when someone tries to use networkx
-    nx = util.ExceptionModule(E)
+    nx = exceptions.ExceptionModule(E)
 
 
 def face_adjacency(faces=None,
