@@ -205,7 +205,7 @@ def load_3MF(file_obj,
 
 def _attrib_to_transform(attrib):
     """
-    Extract a homogenous transform from a dictionary.
+    Extract a homogeneous transform from a dictionary.
 
     Parameters
     ------------

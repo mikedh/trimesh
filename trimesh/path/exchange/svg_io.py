@@ -114,7 +114,7 @@ def transform_to_matrices(transform):
         values = np.array([float(i) for i in
                            args.replace(',', ' ').split()])
         if key == 'translate':
-            # convert translation to a (3, 3) homogenous matrix
+            # convert translation to a (3, 3) homogeneous matrix
             matrices.append(np.eye(3))
             matrices[-1][:2, 2] = values
         elif key == 'matrix':

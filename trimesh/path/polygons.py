@@ -188,14 +188,14 @@ def polygon_obb(polygon):
 
 def transform_polygon(polygon, matrix):
     """
-    Transform a polygon by a a 2D homogenous transform.
+    Transform a polygon by a a 2D homogeneous transform.
 
     Parameters
     -------------
     polygon : shapely.geometry.Polygon
                  2D polygon to be transformed.
     matrix  : (3, 3) float
-                 2D homogenous transformation.
+                 2D homogeneous transformation.
 
     Returns
     --------------

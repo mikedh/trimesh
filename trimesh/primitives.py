@@ -96,7 +96,7 @@ class _Primitive(Trimesh):
 
         Parameters
         -----------
-        matrix: (4,4) float, homogenous transformation
+        matrix: (4,4) float, homogeneous transformation
         """
         matrix = np.asanyarray(matrix, order='C', dtype=np.float64)
         if matrix.shape != (4, 4):
@@ -195,7 +195,7 @@ class Cylinder(_Primitive):
         height : float
           Height of cylinder
         transform : (4, 4) float
-          Homogenous transformation matrix
+          Homogeneous transformation matrix
         sections : int
           Number of facets in circle
         """
@@ -390,7 +390,7 @@ class Sphere(_Primitive):
 
         Parameters
         ------------
-        matrix: (4,4) float, homogenous transformation
+        matrix: (4,4) float, homogeneous transformation
         """
         matrix = np.asanyarray(matrix, dtype=np.float64)
         if matrix.shape != (4, 4):

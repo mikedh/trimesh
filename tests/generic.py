@@ -67,7 +67,7 @@ has_binvox = trimesh.exchange.binvox.binvox_encoder is not None
 python_version = np.array([sys.version_info.major,
                            sys.version_info.minor])
 
-# some repeatable homogenous transforms to use in tests
+# some repeatable homogeneous transforms to use in tests
 transforms = [trimesh.transformations.euler_matrix(np.pi / 4, i, 0)
               for i in np.linspace(0.0, np.pi * 2.0, 100)]
 # should be a (100, 4, 4) float

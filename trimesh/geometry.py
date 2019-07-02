@@ -51,7 +51,7 @@ def align_vectors(a, b, return_angle=False):
     Returns
     -------------
     transform : (4, 4) float
-      Homogenous transform from a to b
+      Homogeneous transform from a to b
     angle : float
       Angle between vectors in radians
       Only returned if return_angle
@@ -108,7 +108,7 @@ def align_vectors(a, b, return_angle=False):
         # (3, 3) rotation from a to b
         rotation = np.eye(3) + wx + (np.dot(wx, wx) * c)
 
-    # put rotation into homogenous transformation matrix
+    # put rotation into homogeneous transformation matrix
     transform = np.eye(4)
     transform[:3, :3] = rotation
 

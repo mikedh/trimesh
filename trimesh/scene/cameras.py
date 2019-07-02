@@ -162,7 +162,7 @@ class Camera(object):
     @property
     def transform(self):
         """
-        Get the (4, 4) homogenous transformation from the
+        Get the (4, 4) homogeneous transformation from the
         world frame to this camera object.
 
         Returns
@@ -185,7 +185,7 @@ class Camera(object):
     def transform(self, values):
         """
 
-        Set the (4, 4) homogenous transformation from the
+        Set the (4, 4) homogeneous transformation from the
         world frame to this camera object.
 
         Parameters

@@ -44,7 +44,7 @@ class TransformForest(object):
         frame_to :  hashable object
           Usually a string (eg 'mesh_0')
         matrix : (4,4) float
-          Homogenous transformation matrix
+          Homogeneous transformation matrix
         quaternion :  (4,) float
           Quaternion ordered [w, x, y, z]
         axis : (3,) float
@@ -274,7 +274,7 @@ class TransformForest(object):
         Returns
         ---------
         transform : (4, 4) float
-          Homogenous transformation matrix
+          Homogeneous transformation matrix
         """
 
         if frame_from is None:

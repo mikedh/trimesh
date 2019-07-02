@@ -382,7 +382,7 @@ class Path(object):
         Parameters
         -----------
         transform : (d+1, d+1) float
-          Homogenous transformation for vertices
+          Homogeneous transformation for vertices
         """
         dimension = self.vertices.shape[1]
         transform = np.asanyarray(transform, dtype=np.float64)
@@ -457,7 +457,7 @@ class Path(object):
         # make sure offset is correct length and type
         offset = np.array(
             offset, dtype=np.float64).reshape(dimension)
-        # create a homogenous transform
+        # create a homogeneous transform
         matrix = np.eye(dimension + 1)
         # apply the offset
         matrix[:dimension, dimension] = offset
@@ -484,7 +484,7 @@ class Path(object):
         Returns
         -----------
         matrix : (dimension + 1, dimension + 1) float
-          Homogenous transformation that was applied
+          Homogeneous transformation that was applied
           to the current Path object.
         """
         dimension = self.vertices.shape[1]
@@ -795,7 +795,7 @@ class Path3D(Path):
         Parameters
         -----------
         to_2D: (4,4) float
-            Homogenous transformation matrix to apply,
+            Homogeneous transformation matrix to apply,
             If not passed a plane will be fitted to vertices.
         normal: (3,) float, or None
            Approximate normal of direction of plane

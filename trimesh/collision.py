@@ -175,7 +175,7 @@ class CollisionManager(object):
         mesh : Trimesh object
           The geometry of the collision object
         transform : (4,4) float
-          Homogenous transform matrix for the object
+          Homogeneous transform matrix for the object
         """
 
         # if no transform passed, assume identity transform
@@ -232,7 +232,7 @@ class CollisionManager(object):
         name : str
           An identifier for the object already in the manager
         transform : (4,4) float
-          A new homogenous transform matrix for the object
+          A new homogeneous transform matrix for the object
         """
         if name in self._objs:
             o = self._objs[name]['obj']
@@ -253,7 +253,7 @@ class CollisionManager(object):
         mesh : Trimesh object
           The geometry of the collision object
         transform : (4,4) float
-          Homogenous transform matrix
+          Homogeneous transform matrix
         return_names : bool
           If true, a set is returned containing the names
           of all objects in collision with the object
@@ -452,7 +452,7 @@ class CollisionManager(object):
         mesh : Trimesh object
           The geometry of the collision object
         transform : (4,4) float
-          Homogenous transform matrix for the object
+          Homogeneous transform matrix for the object
         return_names : bool
           If true, return name of the closest object
         return_data : bool

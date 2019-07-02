@@ -21,7 +21,7 @@ class Transform(object):
         Parameters
         -----------
         matrix : (4, 4) float
-          Homogenous transformation matrix
+          Homogeneous transformation matrix
         """
         matrix = np.asanyarray(matrix, dtype=np.float64)
         if matrix.shape != (4, 4):
@@ -72,7 +72,7 @@ class Transform(object):
     @property
     def matrix(self):
         """
-        Get the homogenous transformation matrix.
+        Get the homogeneous transformation matrix.
 
         Returns
         -------------
@@ -84,7 +84,7 @@ class Transform(object):
     @matrix.setter
     def matrix(self, data):
         """
-        Set the homogenous transformation matrix.
+        Set the homogeneous transformation matrix.
 
         Parameters
         -------------

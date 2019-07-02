@@ -111,7 +111,7 @@ def volume_rectangular(extents,
     count : int
       Number of points to return
     transform : (4, 4) float
-      Homogenous transformation matrix
+      Homogeneous transformation matrix
 
     Returns
     ---------

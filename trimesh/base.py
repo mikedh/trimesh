@@ -707,7 +707,7 @@ class Trimesh(Geometry):
         Returns
         ----------
         transform : (4, 4) float
-          Homogenous transformation matrix
+          Homogeneous transformation matrix
         """
         order = np.argsort(self.principal_inertia_components)[1:][::-1]
         vectors = self.principal_inertia_vectors[order]
@@ -1775,10 +1775,10 @@ class Trimesh(Geometry):
         This method samples the location of the center of mass from a multivariate
         gaussian (mean at com, cov equal to identity times sigma) over n_samples.
         For each sample, it computes the stable resting poses of the mesh on a
-        a planar workspace and evaulates the probabilities of landing in
+        a planar workspace and evaluates the probabilities of landing in
         each pose if the object is dropped onto the table randomly.
 
-        This method returns the 4x4 homogenous transform matrices that place
+        This method returns the 4x4 homogeneous transform matrices that place
         the shape against the planar surface with the z-axis pointing upwards
         and a list of the probabilities for each pose.
         The transforms and probabilties that are returned are sorted, with the
@@ -1802,7 +1802,7 @@ class Trimesh(Geometry):
         Returns
         -------
         transforms : (n, 4, 4) float
-          The homogenous matrices that transform the
+          The homogeneous matrices that transform the
           object to rest in a stable pose, with the
           new z-axis pointing upwards from the table
           and the object just touching the table.
@@ -2098,7 +2098,7 @@ class Trimesh(Geometry):
 
     def apply_transform(self, matrix):
         """
-        Transform mesh by a homogenous transformation matrix.
+        Transform mesh by a homogeneous transformation matrix.
 
         Does the bookkeeping to avoid recomputing things so this function
         should be used rather than directly modifying self.vertices
@@ -2107,14 +2107,14 @@ class Trimesh(Geometry):
         Parameters
         ----------
         matrix : (4, 4) float
-          Homogenous transformation matrix
+          Homogeneous transformation matrix
         """
         # get c-order float64 matrix
         matrix = np.asanyarray(matrix,
                                order='C',
                                dtype=np.float64)
 
-        # only support homogenous transformations
+        # only support homogeneous transformations
         if matrix.shape != (4, 4):
             raise ValueError('Transformation matrix must be (4,4)!')
 

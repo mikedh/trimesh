@@ -4,13 +4,16 @@ exceptions.py
 
 Handle things related to exceptions.
 """
+
+
 class ExceptionModule(object):
     """
     Create a dummy module which will raise an exception when attributes
     are accessed.
 
     For soft dependencies we want to survive failing to import but
-    we would like to raise an appropriate error so it is easy to debug.
+    we would like to raise an appropriate error when the functionality is
+    actually requested, so the user gets an easily debuggable message.
     """
 
     def __init__(self, exc):

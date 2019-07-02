@@ -30,10 +30,10 @@ def compute_stable_poses(mesh,
     equal to and identity matrix times sigma, over n_samples.
 
     For each sample, it computes the stable resting poses of the mesh on a
-    a planar workspace and evaulates the probabilities of landing in
+    a planar workspace and evaluates the probabilities of landing in
     each pose if the object is dropped onto the table randomly.
 
-    This method returns the 4x4 homogenous transform matrices that place
+    This method returns the 4x4 homogeneous transform matrices that place
     the shape against the planar surface with the z-axis pointing upwards
     and a list of the probabilities for each pose.
 
@@ -60,7 +60,7 @@ def compute_stable_poses(mesh,
     Returns
     -------
     transforms : (n, 4, 4) float
-      The homogenous matrices that transform the
+      The homogeneous matrices that transform the
       object to rest in a stable pose, with the
       new z-axis pointing upwards from the table
       and the object just touching the table.

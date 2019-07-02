@@ -1553,7 +1553,7 @@ def bounds_tree(bounds):
 
     properties = rtree.index.Property(dimension=dimension)
     if rtree_stream_ok:
-        # stream load was verified working on inport above
+        # stream load was verified working on import above
         tree = rtree.index.Index(zip(np.arange(len(bounds)),
                                      bounds,
                                      [None] * len(bounds)),

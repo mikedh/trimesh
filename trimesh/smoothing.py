@@ -35,7 +35,7 @@ def filter_laplacian(mesh,
     implicit_time_integration: boolean
     if False: explicit time integration
         -lamb <= 1.0 - Stability Limit (Article 1)
-    if True: implict time integration
+    if True: implicit time integration
         -lamb no limit (Article 2)
     iterations : int
     Number of passes to run filter
@@ -68,7 +68,7 @@ def filter_laplacian(mesh,
             dot = laplacian_operator.dot(vertices) - vertices
             vertices += lamb * dot
 
-        # Implict Time Integration - Article 2
+        # Implicit Time Integration - Article 2
         else:
             vertices = spsolve(AA, vertices)
 
