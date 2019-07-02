@@ -7,6 +7,8 @@ Functions to convert trimesh objects to pyglet/opengl objects.
 
 import numpy as np
 
+from . import util
+
 try:
     import pyglet
     pyglet.options['shadow_window'] = False
@@ -20,8 +22,6 @@ except BaseException:
     # otherwise provide mode flags
     # this is so we can unit test without pyglet
     GL_POINTS, GL_LINES, GL_TRIANGLES = (0, 1, 4)
-
-from . import util
 
 
 def convert_to_vertexlist(geometry, **kwargs):

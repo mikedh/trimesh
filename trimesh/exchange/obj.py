@@ -14,151 +14,6 @@ from ..visual.material import SimpleMaterial
 from ..constants import log, tol
 
 
-def parse_mtl(mtl, resolver=None):
-    """
-    Parse a loaded MTL file.
-
-    Parameters
-    -------------
-    mtl : str or bytes
-      Data from an MTL file
-    resolver : trimesh.visual.Resolver
-      Fetch assets by name from files, web, or other
-
-    Returns
-    ------------
-    mtllibs : list of dict
-      Each dict has keys: newmtl, map_Kd, Kd
-    """
-    # decode bytes into string if necessary
-    if hasattr(mtl, 'decode'):
-        mtl = mtl.decode('utf-8')
-
-    # current material
-    material = None
-    # materials referenced by name
-    materials = {}
-    # use universal newline splitting
-    lines = str.splitlines(str(mtl).strip())
-
-    for line in lines:
-        # split by white space
-        split = line.strip().split()
-        # needs to be at least two values
-        if len(split) <= 1:
-            continue
-        # the first value is the parameter name
-        key = split[0]
-        # start a new material
-        if key == 'newmtl':
-            # material name extracted from line like:
-            # newmtl material_0
-            if material is not None:
-                # save the old material by old name and remove key
-                materials[material.pop('newmtl')] = material
-
-            # start a fresh new material
-            material = {'newmtl': split[1]}
-
-        elif key == 'map_Kd':
-            # represents the file name of the texture image
-            try:
-                file_data = resolver.get(split[1])
-                # load the bytes into a PIL image
-                # an image file name
-                material['image'] = Image.open(
-                    util.wrap_as_stream(file_data))
-            except BaseException:
-                log.warning('failed to load image', exc_info=True)
-
-        elif key in ['Kd', 'Ka', 'Ks']:
-            # remap to kwargs for SimpleMaterial
-            mapped = {'Kd': 'diffuse',
-                      'Ka': 'ambient',
-                      'Ks': 'specular'}
-            try:
-                # diffuse, ambient, and specular float RGB
-                material[mapped[key]] = [float(x) for x in split[1:]]
-            except BaseException:
-                log.warning('failed to convert color!', exc_info=True)
-
-        elif material is not None:
-            # save any other unspecified keys
-            material[key] = split[1:]
-    # reached EOF so save any existing materials
-    if material:
-        materials[material.pop('newmtl')] = material
-
-    return materials
-
-
-def _parse_faces(lines):
-    """
-    Use a slow but more flexible looping method to process
-    face lines as a fallback option to faster vectorized methods.
-
-    Parameters
-    -------------
-    lines : (n,) str
-      List of lines with face information
-
-    Returns
-    -------------
-    faces : (m, 3) int
-      Clean numpy array of face triangles
-    """
-
-    # collect vertex, texture, and vertex normal indexes
-    v, vt, vn = [], [], []
-
-    # loop through every line starting with a face
-    for line in lines:
-        # remove leading newlines then
-        # take first bit before newline then split by whitespace
-        split = line.strip().split('\n')[0].split()
-        # split into: ['76/558/76', '498/265/498', '456/267/456']
-        if len(split) == 4:
-            # triangulate quad face
-            split = [split[0],
-                     split[1],
-                     split[2],
-                     split[2],
-                     split[3],
-                     split[0]]
-        elif len(split) != 3:
-            log.warning(
-                'face not triangle or quad, not: {}'.format(len(split)))
-            continue
-
-        # f is like: '76/558/76'
-        for f in split:
-            # vertex, vertex texture, vertex normal
-            split = f.split('/')
-            # we always have a vertex reference
-            v.append(int(split[0]))
-
-            # faster to try/except than check in loop
-            try:
-                vt.append(int(split[1]))
-            except BaseException:
-                pass
-            try:
-                # vertex normal is the third index
-                vn.append(int(split[2]))
-            except BaseException:
-                pass
-
-    # shape into triangles and switch to 0-indexed
-    faces = np.array(v, dtype=np.int64).reshape((-1, 3)) - 1
-    faces_tex, normals = None, None
-    if len(vt) == len(v):
-        faces_tex = np.array(vt, dtype=np.int64).reshape((-1, 3)) - 1
-    if len(vn) == len(v):
-        normals = np.array(vn, dtype=np.int64).reshape((-1, 3)) - 1
-
-    return faces, faces_tex, normals
-
-
 def load_obj(file_obj, resolver=None, **kwargs):
     """
     Load a Wavefront OBJ file into kwargs for a trimesh.Scene
@@ -179,9 +34,6 @@ def load_obj(file_obj, resolver=None, **kwargs):
       trimesh.exchange.load.load_kwargs into a trimesh.Scene
     """
 
-    # salty log messages
-    log.warning('OBJ is an awful format; have you considered PLY?')
-
     # get text as string blob
     text = file_obj.read()
     if hasattr(text, 'decode'):
@@ -201,7 +53,7 @@ def load_obj(file_obj, resolver=None, **kwargs):
             # use the resolver to get the data
             material_kwargs = parse_mtl(resolver[mtl_path],
                                         resolver=resolver)
-            # turn parsed file into material objects
+            # turn parsed kwargs into material objects
             materials = {k: SimpleMaterial(**v)
                          for k, v in material_kwargs.items()}
         except BaseException:
@@ -229,13 +81,12 @@ def load_obj(file_obj, resolver=None, **kwargs):
     # make a giant string numpy array of each "word"
     words = np.array(text[start:end].split())
 
-    # find indexes of the three values after a "vertex" key
-    # this strategy avoids having to loop through the giant
-    # vertex array but does discard vertex colors if specified
+    # find indexes of the "vertex" keys
+    # this avoids having to loop through the giant vertex array
     v_idx = np.nonzero(words == 'v')[0].reshape((-1, 1))
     # do the type conversion with built- in map/list/float
     # vs np.astype, which is roughly 2x slower and these
-    # are some of the most expensive operations in the whole loader
+    # are the most expensive operations in the whole loader
     # due to the fact that they are executed on every vertex
     # In [17]: %timeit np.array(list(map(float, a.ravel().tolist())),
     #                           dtype=np.float64)
@@ -462,24 +313,31 @@ def load_obj(file_obj, resolver=None, **kwargs):
                 assert new_faces.max() < len(v[mask_v])
 
             try:
-                visual = TextureVisuals(
-                    uv=vt[mask_vt], material=materials[material])
+                # survive index errors as sometimes we
+                # want materials without UV coordinates
+                uv = vt[mask_vt]
             except BaseException:
-                log.warning('visual creation failed for submesh!',
-                            exc_info=True)
+                uv = None
+
+            if material in materials:
+                visual = TextureVisuals(
+                    uv=uv, material=materials[material])
+            else:
+                log.warning('specified material not loaded!')
                 visual = None
             # mask vertices and use new faces
             mesh = kwargs.copy()
             mesh.update({'vertices': v[mask_v],
                          'visual': visual,
                          'faces': new_faces})
-            # if we have vertex colors pass them
             if vc is not None:
+                # if we have vertex colors pass them
                 mesh['vertex_colors'] = vc[mask_v]
-            # if we have vertex normals pass them
             if vn is not None:
+                # if we have vertex normals pass them
                 mesh['vertex_normals'] = vn[mask_v]
 
+            # store geometry by name
             geometry[name] = mesh
         else:
             # otherwise just use unmasked vertices
@@ -514,6 +372,151 @@ def load_obj(file_obj, resolver=None, **kwargs):
     return result
 
 
+def parse_mtl(mtl, resolver=None):
+    """
+    Parse a loaded MTL file.
+
+    Parameters
+    -------------
+    mtl : str or bytes
+      Data from an MTL file
+    resolver : trimesh.visual.Resolver
+      Fetch assets by name from files, web, or other
+
+    Returns
+    ------------
+    mtllibs : list of dict
+      Each dict has keys: newmtl, map_Kd, Kd
+    """
+    # decode bytes into string if necessary
+    if hasattr(mtl, 'decode'):
+        mtl = mtl.decode('utf-8')
+
+    # current material
+    material = None
+    # materials referenced by name
+    materials = {}
+    # use universal newline splitting
+    lines = str.splitlines(str(mtl).strip())
+
+    for line in lines:
+        # split by white space
+        split = line.strip().split()
+        # needs to be at least two values
+        if len(split) <= 1:
+            continue
+        # the first value is the parameter name
+        key = split[0]
+        # start a new material
+        if key == 'newmtl':
+            # material name extracted from line like:
+            # newmtl material_0
+            if material is not None:
+                # save the old material by old name and remove key
+                materials[material.pop('newmtl')] = material
+
+            # start a fresh new material
+            material = {'newmtl': split[1]}
+
+        elif key == 'map_Kd':
+            # represents the file name of the texture image
+            try:
+                file_data = resolver.get(split[1])
+                # load the bytes into a PIL image
+                # an image file name
+                material['image'] = Image.open(
+                    util.wrap_as_stream(file_data))
+            except BaseException:
+                log.warning('failed to load image', exc_info=True)
+
+        elif key in ['Kd', 'Ka', 'Ks']:
+            # remap to kwargs for SimpleMaterial
+            mapped = {'Kd': 'diffuse',
+                      'Ka': 'ambient',
+                      'Ks': 'specular'}
+            try:
+                # diffuse, ambient, and specular float RGB
+                material[mapped[key]] = [float(x) for x in split[1:]]
+            except BaseException:
+                log.warning('failed to convert color!', exc_info=True)
+
+        elif material is not None:
+            # save any other unspecified keys
+            material[key] = split[1:]
+    # reached EOF so save any existing materials
+    if material:
+        materials[material.pop('newmtl')] = material
+
+    return materials
+
+
+def _parse_faces(lines):
+    """
+    Use a slow but more flexible looping method to process
+    face lines as a fallback option to faster vectorized methods.
+
+    Parameters
+    -------------
+    lines : (n,) str
+      List of lines with face information
+
+    Returns
+    -------------
+    faces : (m, 3) int
+      Clean numpy array of face triangles
+    """
+
+    # collect vertex, texture, and vertex normal indexes
+    v, vt, vn = [], [], []
+
+    # loop through every line starting with a face
+    for line in lines:
+        # remove leading newlines then
+        # take first bit before newline then split by whitespace
+        split = line.strip().split('\n')[0].split()
+        # split into: ['76/558/76', '498/265/498', '456/267/456']
+        if len(split) == 4:
+            # triangulate quad face
+            split = [split[0],
+                     split[1],
+                     split[2],
+                     split[2],
+                     split[3],
+                     split[0]]
+        elif len(split) != 3:
+            log.warning(
+                'face not triangle or quad, not: {}'.format(len(split)))
+            continue
+
+        # f is like: '76/558/76'
+        for f in split:
+            # vertex, vertex texture, vertex normal
+            split = f.split('/')
+            # we always have a vertex reference
+            v.append(int(split[0]))
+
+            # faster to try/except than check in loop
+            try:
+                vt.append(int(split[1]))
+            except BaseException:
+                pass
+            try:
+                # vertex normal is the third index
+                vn.append(int(split[2]))
+            except BaseException:
+                pass
+
+    # shape into triangles and switch to 0-indexed
+    faces = np.array(v, dtype=np.int64).reshape((-1, 3)) - 1
+    faces_tex, normals = None, None
+    if len(vt) == len(v):
+        faces_tex = np.array(vt, dtype=np.int64).reshape((-1, 3)) - 1
+    if len(vn) == len(v):
+        normals = np.array(vn, dtype=np.int64).reshape((-1, 3)) - 1
+
+    return faces, faces_tex, normals
+
+
 def export_obj(mesh,
                include_normals=True,
                include_texture=True,
@@ -523,14 +526,16 @@ def export_obj(mesh,
 
     Parameters
     -----------
-    mesh: Trimesh object
+    mesh : trimesh.Trimesh
+      Mesh to be exported
 
     Returns
     -----------
-    export: str, string of OBJ format output
+    export : str
+      OBJ format output
     """
     # store the multiple options for formatting
-    # a vertex index for a face
+    # vertex indexes for faces
     face_formats = {('v',): '{}',
                     ('v', 'vn'): '{}//{}',
                     ('v', 'vt'): '{}/{}',
@@ -538,23 +543,25 @@ def export_obj(mesh,
     # we are going to reference face_formats with this
     face_type = ['v']
 
-    # OBJ sometimes :eyeroll: includes vertex color as RGB elements on the same line
+    # OBJ includes vertex color as RGB elements on the same line
     if include_color and mesh.visual.kind in ['vertex', 'face']:
+        # create a stacked blob with position and color
         v_blob = np.column_stack((
             mesh.vertices,
             to_float(mesh.visual.vertex_colors[:, :3])))
     else:
+        # otherwise just export vertices
         v_blob = mesh.vertices
 
-    export = 'v '
-    export += util.array_to_string(v_blob,
-                                   col_delim=' ',
-                                   row_delim='\nv ',
-                                   digits=8) + '\n'
+    # add the first vertex key and convert the array
+    export = 'v ' + util.array_to_string(v_blob,
+                                         col_delim=' ',
+                                         row_delim='\nv ',
+                                         digits=8) + '\n'
 
+    # only include vertex normals if they're already stored
     if include_normals and 'vertex_normals' in mesh._cache:
         # if vertex normals are stored in cache export them
-        # these will have been autogenerated if they have ever been called
         face_type.append('vn')
         export += 'vn '
         export += util.array_to_string(mesh.vertex_normals,
