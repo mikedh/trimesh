@@ -61,15 +61,18 @@ def rle_to_brle(rle, dtype=None):
 
     e.g. the RLE encoding of [4, 4, 4, 1, 1, 6] is [4, 3, 1, 2, 6, 1].
 
-    Args:
-        rle: run length encoded data
+    Parameters
+    ----------
+    rle: run length encoded data
 
-    Returns:
-        equivalent binary run length encoding. a list if dtype is None,
-            otherwise brle_to_brle is called on that list before returning.
+    Returns
+    ----------
+    equivalent binary run length encoding. a list if dtype is None,
+        otherwise brle_to_brle is called on that list before returning.
 
-    Raises:
-        ValueError if any of the even counts of `rle` are not zero or 1.
+    Raises
+    ----------
+    ValueError if any of the even counts of `rle` are not zero or 1.
     """
     curr_val = 0
     out = [0]
@@ -88,45 +91,30 @@ def rle_to_brle(rle, dtype=None):
         out.append(0)
     if dtype is not None:
         out = brle_to_brle(out, dtype=dtype)
-    out = maybe_pad_brle(out)
     return out
 
 
 def brle_logical_not(brle):
-    """Get the BRLE encoding of the `logical_not`ed dense form of `brle`.
+    """
+    Get the BRLE encoding of the `logical_not`ed dense form of `brle`.
 
     Equivalent to `dense_to_brle(np.logical_not(brle_to_dense(brle)))` but
     highly optimized - just pads brle with a 0 on each end (or strips is
     existing endpoints are both zero).
 
-    Args:
-        brle: rank 1 int array of
+    Parameters
+    ----------
+    brle: rank 1 int array of binary run length encoded data
+
+    Returns
+    ----------
+    rank 1 int array of binary run length encoded data corresponding to
+    element-wise not of the input.
     """
     if brle[0] or brle[-1]:
         return np.pad(brle, [1, 1], mode='constant')
     else:
         return brle[1:-1]
-
-
-def maybe_pad_brle(lengths, start_value=False):
-    """Get a potentially padded version of lengths.
-
-    Args:
-        lengths: rank 1 int array
-        start_value: bool indicating value corresponding to the first value of
-            lengths
-
-    Returns:
-        rank 1 array of same dtype as lengths, with an extra zero at the front
-            if `start_value`, and an extra zero at the end if the resulting array
-            would not have an even number of elements.
-    """
-    pad_left = int(start_value)
-    pad_right = (len(lengths) + pad_left) % 2
-    if pad_left + pad_right > 0:
-        return np.pad(lengths, [pad_left, pad_right], mode='constant')
-    else:
-        return lengths
 
 
 def merge_brle_lengths(lengths):
@@ -145,11 +133,12 @@ def merge_brle_lengths(lengths):
                 accumulating = True
             else:
                 out.append(int(length))
-    return maybe_pad_brle(out)
+    return out
 
 
 def split_long_brle_lengths(lengths, dtype=np.int64):
-    """Split lengths that exceed max dtype value.
+    """
+    Split lengths that exceed max dtype value.
 
     Lengths `l` are converted into [max_val, 0] * l // max_val + [l % max_val]
 
@@ -182,12 +171,18 @@ def dense_to_brle(dense_data, dtype=np.int64):
     """
     Get the binary run length encoding of `dense_data`.
 
-    Args:
-        dense_data: rank 1 bool array of data to encode.
-        dtype: numpy int type.
+    Parameters
+    ----------
+    dense_data: rank 1 bool array of data to encode.
+    dtype: numpy int type.
 
-    Returns:
-        Binary run length encoded rank 1 array of dtype `dtype`.
+    Returns
+    ----------
+    Binary run length encoded rank 1 array of dtype `dtype`.
+
+    Raises
+    ----------
+    ValuError if dense_data is not a rank 1 bool array.
     """
     if dense_data.dtype != np.bool:
         raise ValueError("`dense_data` must be bool")
@@ -197,7 +192,9 @@ def dense_to_brle(dense_data, dtype=np.int64):
     starts = np.r_[0, np.flatnonzero(dense_data[1:] != dense_data[:-1]) + 1]
     lengths = np.diff(np.r_[starts, n])
     lengths = split_long_brle_lengths(lengths, dtype=dtype)
-    return maybe_pad_brle(lengths, dense_data[0])
+    if dense_data[0]:
+        lengths = np.pad(lengths, [1, 0], mode='constant')
+    return lengths
 
 
 _ft = np.array([False, True], dtype=np.bool)
@@ -206,13 +203,19 @@ _ft = np.array([False, True], dtype=np.bool)
 def brle_to_dense(brle_data, vals=None):
     """Decode binary run length encoded data to dense.
 
-    Args:
-        brle_data: BRLE counts of False/True values
-        vals: if not `None`, a length 2 array/list/tuple with False/True substitute
-            values, e.g. brle_to_dense([2, 3, 1, 0], [7, 9]) == [7, 7, 9, 9, 9, 7]
+    Parameters
+    ----------
+    brle_data: BRLE counts of False/True values
+    vals: if not `None`, a length 2 array/list/tuple with False/True substitute
+        values, e.g. brle_to_dense([2, 3, 1, 0], [7, 9]) == [7, 7, 9, 9, 9, 7]
 
-    Returns:
-        rank 1 dense data of dtype `bool if vals is None else vals.dtype`
+    Returns
+    ----------
+    rank 1 dense data of dtype `bool if vals is None else vals.dtype`
+
+    Raises
+    ----------
+    ValueError if vals it not None and shape is not (2,)
     """
     if vals is None:
         vals = _ft
@@ -252,15 +255,16 @@ def split_long_rle_lengths(values, lengths, dtype=np.int64):
     split_long_rle_lengths([5, 300, 2, 12], np.uint8) == [5, 255, 5, 45, 2, 12]
     ```
 
-    Args:
-        values: values column of run length encoding, or `rle[::2]`
-        lengths: counts in run length encoding, or `rle[1::2]`
-        dtype: numpy data type indicating the maximum value.
+    Parameters
+    ----------
+    values: values column of run length encoding, or `rle[::2]`
+    lengths: counts in run length encoding, or `rle[1::2]`
+    dtype: numpy data type indicating the maximum value.
 
-    Returns:
-        values, lengths associated with the appropriate splits. `lengths` will
-        be of type `dtype`, while `values` will be the same as the value passed
-        in.
+    Returns
+    ----------
+    values, lengths associated with the appropriate splits. `lengths` will be
+    of type `dtype`, while `values` will be the same as the value passed in.
     """
     max_length = np.iinfo(dtype).max
     lengths = np.asarray(lengths)
@@ -305,7 +309,8 @@ def brle_to_rle(brle, dtype=np.int64):
 
 
 def brle_to_brle(brle, dtype=np.int64):
-    """Almost the identity function.
+    """
+    Almost the identity function.
 
     Checks for possible merges and required splits.
     """
@@ -313,7 +318,8 @@ def brle_to_brle(brle, dtype=np.int64):
 
 
 def rle_to_rle(rle, dtype=np.int64):
-    """Almost the identity function.
+    """
+    Almost the identity function.
 
     Checks for possible merges and required splits.
     """
@@ -344,13 +350,15 @@ def sorted_rle_gather_1d(rle_data, ordered_indices):
     This is equivalent to `rle_to_dense(brle_data)[ordered_indices]` but avoids
     the decoding.
 
-    Args:
-        brle_data: iterable of run-length-encoded data.
-        ordered_indices: iterable of ints in ascending order.
+    Parameters
+    ----------
+    brle_data: iterable of run-length-encoded data.
+    ordered_indices: iterable of ints in ascending order.
 
-    Returns:
-        `brle_data` iterable of values at the dense indices, same length as
-        ordered indices.
+    Returns
+    ----------
+    `brle_data` iterable of values at the dense indices, same length as
+    ordered indices.
     """
     data_iter = iter(rle_data)
     index_iter = iter(ordered_indices)
@@ -374,6 +382,18 @@ def sorted_rle_gather_1d(rle_data, ordered_indices):
 
 
 def rle_mask(rle_data, mask):
+    """
+    Perform masking of the input run-length data.
+
+    Parameters
+    ----------
+    rle_data: iterable of run length encoded data
+    mask: iterable of bools corresponding to the dense mask.
+
+    Returns
+    ----------
+    iterable of dense values of rle_data wherever mask is True.
+    """
     data_iter = iter(rle_data)
     mask_iter = iter(mask)
     while True:
@@ -389,6 +409,18 @@ def rle_mask(rle_data, mask):
 
 
 def brle_mask(rle_data, mask):
+    """
+    Perform masking of the input binary run-length data.
+
+    Parameters
+    ----------
+    brle_data: iterable of binary run length encoded data
+    mask: iterable of bools corresponding to the dense mask.
+
+    Returns
+    ----------
+    iterable dense values of brle_data wherever mask is True.
+    """
     data_iter = iter(rle_data)
     mask_iter = iter(mask)
     value = True
@@ -398,7 +430,7 @@ def brle_mask(rle_data, mask):
             count = next(data_iter)
         except StopIteration:
             break
-        for c in range(count):
+        for _ in range(count):
             m = next(mask_iter)
             if m:
                 yield value
@@ -414,13 +446,15 @@ def rle_gatherer_1d(indices):
 
     If only gathering on a single RLE iterable, use `rle_gather_1d`.
 
-    Args:
-        indices: iterable of integers
+    Parameters
+    ----------
+    indices: iterable of integers
 
-    Returns:
-        gather function, mapping `(rle_data, dtype=None) -> values`.
-        `values` will have the same length as `indices` and dtype provided,
-        or rle_data.dtype if no dtype is provided.
+    Returns
+    ----------
+    gather function, mapping `(rle_data, dtype=None) -> values`.
+    `values` will have the same length as `indices` and dtype provided,
+    or rle_data.dtype if no dtype is provided.
     """
     return _unsorted_gatherer(indices, sorted_rle_gather_1d)
 
@@ -434,14 +468,16 @@ def rle_gather_1d(rle_data, indices, dtype=None):
 
     If indices is known to be in order, use `sorted_gather_1d`.
 
-    Args:
-        rle_data: run length encoded data
-        indices: dense indices
-        dtype: numpy dtype. If not provided, uses rle_data.dtype
+    Parameters
+    ----------
+    rle_data: run length encoded data
+    indices: dense indices
+    dtype: numpy dtype. If not provided, uses rle_data.dtype
 
-    Returns:
-        numpy array, dense data at indices, same length as indices and dtype as
-        rle_data
+    Returns
+    ----------
+    numpy array, dense data at indices, same length as indices and dtype as
+    rle_data
     """
     return rle_gatherer_1d(indices)(rle_data, dtype=dtype)
 
@@ -453,13 +489,15 @@ def sorted_brle_gather_1d(brle_data, ordered_indices):
     This is equivalent to `brle_to_dense(brle_data)[ordered_indices]` but
     avoids the decoding.
 
-    Args:
-        raw_data: iterable of run-length-encoded data.
-        ordered_indices: iterable of ints in ascending order.
+    Parameters
+    ----------
+    raw_data: iterable of run-length-encoded data.
+    ordered_indices: iterable of ints in ascending order.
 
-    Returns:
-        `raw_data` iterable of values at the dense indices, same length as
-        ordered indices.
+    Returns
+    ----------
+    `raw_data` iterable of values at the dense indices, same length as
+    ordered indices.
     """
     data_iter = iter(brle_data)
     index_iter = iter(ordered_indices)
@@ -493,19 +531,21 @@ def brle_gatherer_1d(indices):
 
     If only gathering on a single RLE iterable, use `brle_gather_1d`.
 
-    Args:
-        indices: iterable of integers
+    Parameters
+    ----------
+    indices: iterable of integers
 
-    Returns:
-        gather function, mapping `(rle_data, dtype=None) -> values`.
-        `values` will have the same length as `indices` and dtype provided,
-        or rle_data.dtype if no dtype is provided.
+    Returns
+    ----------
+    gather function, mapping `(rle_data, dtype=None) -> values`.
+    `values` will have the same length as `indices` and dtype provided,
+    or rle_data.dtype if no dtype is provided.
     """
     return functools.partial(
         _unsorted_gatherer(indices, sorted_brle_gather_1d), dtype=np.bool)
 
 
-def brle_gather_1d(brle_data, indices, dtype=None):
+def brle_gather_1d(brle_data, indices):
     """
     Gather BRLE data values at the provided dense indices.
 
@@ -514,16 +554,17 @@ def brle_gather_1d(brle_data, indices, dtype=None):
 
     If indices is known to be in order, use `sorted_brle_gather_1d`.
 
-    Args:
-        rle_data: run length encoded data
-        indices: dense indices
-        dtype: numpy dtype. If not provided, uses rle_data.dtype
+    Parameters
+    ----------
+    rle_data: run length encoded data
+    indices: dense indices
 
-    Returns:
-        numpy array, dense data at indices, same length as indices and dtype as
-        rle_data
+    Returns
+    ----------
+    numpy array, dense data at indices, same length as indices and dtype as
+    rle_data
     """
-    return brle_gatherer_1d(indices)(brle_data, dtype=dtype)
+    return brle_gatherer_1d(indices)(brle_data)
 
 
 def brle_reverse(brle_data):
@@ -580,9 +621,15 @@ def rle_strip(rle_data):
     """
     Remove leading and trailing zeros.
 
-    Returns:
-    stripped_rle_data: rle data without any leading or trailing zeros
-    padding: 2-element dense padding
+    Parameters
+    ----------
+    rle_data: run length encoded data
+
+    Returns
+    ----------
+    (stripped_rle_data, padding)
+        stripped_rle_data: rle data without any leading or trailing zeros
+        padding: 2-element dense padding
     """
     rle_data = np.reshape(rle_data, (-1, 2))
     start = 0
@@ -606,7 +653,13 @@ def brle_strip(brle_data):
     """
     Remove leading and trailing zeros.
 
-    Returns:
+    Parameters
+    ----------
+    brle_data: binary run length encoded data.
+
+    Returns
+    ----------
+    (stripped_brle_data, padding)
     stripped_brle_data: rle data without any leading or trailing zeros
     padding: 2-element dense padding
     """

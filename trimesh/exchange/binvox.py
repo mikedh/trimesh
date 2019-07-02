@@ -12,6 +12,7 @@ import collections
 from distutils.spawn import find_executable
 
 from .. import util
+from ..base import Trimesh
 
 # find the executable
 binvox_encoder = find_executable('binvox')
@@ -53,7 +54,7 @@ def parse_binvox_header(fp):
     return shape, translate, scale
 
 
-def parse_binvox(fp):
+def parse_binvox(fp, writeable=False):
     """Read a binvox file.
 
     Spec at https://www.patrickmin.com/binvox/binvox.html
@@ -73,6 +74,8 @@ def parse_binvox(fp):
     if hasattr(data, 'encode'):
         data = data.encode()
     rle_data = np.frombuffer(data, dtype=np.uint8)
+    if writeable:
+        rle_data = rle_data.copy()
     return Binvox(rle_data, shape, translate, scale)
 
 
@@ -180,7 +183,7 @@ def voxel_from_binvox(
 
 
 def load_binvox(
-        file_obj, resolver=None, axis_order='xzy', file_type=None, **kwargs):
+        file_obj, resolver=None, axis_order='xzy', file_type=None):
     """Load trimesh `VoxelGrid` instance from file.
 
     Parameters
@@ -189,7 +192,6 @@ def load_binvox(
     resolve: unused
     axis_order: order of axes in encoded data. binvox default is
         'xzy', but 'xyz' may be faster results where this is not relevant.
-    **kwargs: unused
 
     Returns
     ---------
@@ -198,7 +200,7 @@ def load_binvox(
     if file_type is not None and file_type != 'binvox':
         raise ValueError(
             'file_type must be None or binvox, got %s' % file_type)
-    data = parse_binvox(file_obj)
+    data = parse_binvox(file_obj, writeable=True)
     return voxel_from_binvox(
         rle_data=data.rle_data,
         shape=data.shape,
@@ -499,6 +501,8 @@ def voxelize_mesh(mesh, binvoxer=None, export_type='off', **binvoxer_kwargs):
     ------------
     `VoxelGrid` object resulting.
     """
+    if not isinstance(mesh, Trimesh):
+        raise ValueError('mesh must be Trimesh instace, got %s' % str(mesh))
     if binvoxer is None:
         binvoxer = Binvoxer(**binvoxer_kwargs)
     elif len(binvoxer_kwargs) > 0:

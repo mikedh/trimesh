@@ -147,6 +147,15 @@ class TrackedArray(np.ndarray):
             obj._modified_c = True
             obj._modified_m = True
             obj._modified_x = True
+    
+    @property
+    def mutable(self):
+        return self.flags['WRITEABLE']
+
+    @mutable.setter
+    def mutable(self, value):
+        # self.flags['WRITEABLE'] = value
+        self.flags.writeable = value
 
     def md5(self):
         """
@@ -525,8 +534,9 @@ class DataStore(collections.Mapping):
         is_mutable = bool(value)
         # apply the flag to any data stored
         for n, i in self.data.items():
-            i.flags['WRITEABLE'] = is_mutable
-            print(n, i.flags['WRITEABLE'])
+            i.mutable = value
+            # i.flags['WRITEABLE'] = is_mutable
+            # print(n, i.flags['WRITEABLE'])
         # save the mutable setting
         self._mutable = is_mutable
 
@@ -574,10 +584,11 @@ class DataStore(collections.Mapping):
         else:
             # otherwise wrap data
             tracked = tracked_array(data)
+        # apply our mutability setting
 
         if hasattr(self, '_mutable'):
             # apply our mutability setting only if it was explicitly set
-            tracked.flags['WRITEABLE'] = self.mutable
+            tracked.mutable = self.mutable
         # store data
         self.data[key] = tracked
 

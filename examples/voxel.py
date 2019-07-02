@@ -27,15 +27,15 @@ def show(chair_mesh, chair_voxels, colors=(1, 1, 1, 0.3)):
 
 base_name = 'chair_model'
 chair_mesh = trimesh.load(os.path.join(dir_models, '%s.obj' % base_name))
-if isinstance(chair_mesh, (list, tuple)):
+if isinstance(chair_mesh, trimesh.scene.Scene):
     chair_mesh = trimesh.util.concatenate([
-        trimesh.Trimesh(mesh.vertices, mesh.faces) for mesh in chair_mesh])
+        trimesh.Trimesh(mesh.vertices, mesh.faces)
+        for mesh in chair_mesh.geometry.values()])
 
 binvox_path = os.path.join(dir_models, '%s.binvox' % base_name)
 chair_voxels = trimesh.load(binvox_path)
 
-chair_voxels = v.VoxelGrid(
-    chair_voxels.encoding.dense, chair_voxels.transform_matrix)
+chair_voxels = v.VoxelGrid(chair_voxels.encoding.dense, chair_voxels.transform)
 
 print('white: voxelized chair (binvox, exact)')
 show(
@@ -57,7 +57,7 @@ show(chair_mesh, revox, colors=(0, 1, 1, 0.3))
 
 values = chair_voxels.encoding.dense.copy()
 values[:values.shape[0] // 2] = 0
-stripped = v.VoxelGrid(values, chair_voxels.transform_matrix.copy()).strip()
+stripped = v.VoxelGrid(values, chair_voxels.transform.copy()).strip()
 print('yellow: stripped halved voxel grid. Transform is updated appropriately')
 show(chair_mesh, stripped, colors=(1, 1, 0, 0.3))
 

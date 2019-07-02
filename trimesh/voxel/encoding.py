@@ -145,7 +145,14 @@ class Encoding(ABC):
 
     def _transpose(self, perm):
         return TransposedEncoding(self, perm)
-
+    
+    @property
+    def mutable(self):
+        return self._data.mutable
+    
+    @mutable.setter
+    def mutable(self, value):
+        self._data.mutable = value
 
 class DenseEncoding(Encoding):
     """Simple `Encoding` implementation based on a numpy ndarray."""
@@ -325,11 +332,11 @@ class SparseEncoding(Encoding):
         return np.column_stack(np.unravel_index(flat_indices, self.shape))
 
     def gather_nd(self, indices):
-        indices = self._flat_indices(indices)
-        out = np.empty(shape=(indices.shape[0], 1), dtype=self.dtype)
-        self._csc[indices].todense(out=out)
-        return out.squeeze(axis=-1)
-
+        mat = self._csc[self._flat_indices(indices)].todense()
+        # mat is a np matrix, which stays rank 2 after squeeze
+        # np.asarray changes this to a standard rank 2 array.
+        return np.asarray(mat).squeeze(axis=-1)
+        
     def mask(self, mask):
         i, _ = np.where(self._csc[mask.reshape((-1,))])
         return self._shaped_indices(i)
@@ -571,7 +578,7 @@ class BinaryRunLengthEncoding(RunLengthEncoding):
         return rl.brle_to_dense(self._data)
 
     def gather(self, indices):
-        return rl.brle_gather_1d(self._data, indices, dtype=bool)
+        return rl.brle_gather_1d(self._data, indices)
 
     def gather_nd(self, indices):
         indices = np.squeeze(indices)
