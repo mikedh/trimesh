@@ -18,6 +18,7 @@ except BaseException as E:
     nx = exceptions.ExceptionModule(E)
     _ForestParent = object
 
+
 class TransformForest(object):
     def __init__(self, base_frame='world'):
         # a graph structure, subclass of networkx DiGraph

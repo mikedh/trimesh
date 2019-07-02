@@ -145,14 +145,15 @@ class Encoding(ABC):
 
     def _transpose(self, perm):
         return TransposedEncoding(self, perm)
-    
+
     @property
     def mutable(self):
         return self._data.mutable
-    
+
     @mutable.setter
     def mutable(self, value):
         self._data.mutable = value
+
 
 class DenseEncoding(Encoding):
     """Simple `Encoding` implementation based on a numpy ndarray."""
@@ -336,7 +337,7 @@ class SparseEncoding(Encoding):
         # mat is a np matrix, which stays rank 2 after squeeze
         # np.asarray changes this to a standard rank 2 array.
         return np.asarray(mat).squeeze(axis=-1)
-        
+
     def mask(self, mask):
         i, _ = np.where(self._csc[mask.reshape((-1,))])
         return self._shaped_indices(i)

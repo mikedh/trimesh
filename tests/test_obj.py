@@ -9,7 +9,7 @@ class OBJTest(g.unittest.TestCase):
     def test_rabbit(self):
         # A BSD-licensed test model from pyglet
         # it has mixed triangles, quads, and 16 element faces -_-
-        # this should test the non- vectorized load path
+        # this should test the non-vectorized load path
         m = g.get_mesh('rabbit.obj')
         assert len(m.geometry) > 0
 
@@ -22,10 +22,11 @@ class OBJTest(g.unittest.TestCase):
         assert g.trimesh.util.is_shape(mesh.vertices, (-1, 3))
 
         # make sure groups are the right length
-        assert len(mesh.metadata['face_groups']) == len(mesh.faces)
+        # TODO: we do not support face groups now
+        # assert len(mesh.metadata['face_groups']) == len(mesh.faces)
 
         # check to make sure there is signal not just zeros
-        assert mesh.metadata['face_groups'].ptp() > 0
+        # assert mesh.metadata['face_groups'].ptp() > 0
 
     def test_obj_quad(self):
         mesh = g.get_mesh('quadknot.obj')

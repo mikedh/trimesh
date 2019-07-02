@@ -1,4 +1,9 @@
+"""
+exceptions.py
+----------------
 
+Handle things related to exceptions.
+"""
 class ExceptionModule(object):
     """
     Create a dummy module which will raise an exception when attributes

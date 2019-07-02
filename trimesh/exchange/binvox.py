@@ -502,7 +502,7 @@ def voxelize_mesh(mesh, binvoxer=None, export_type='off', **binvoxer_kwargs):
     `VoxelGrid` object resulting.
     """
     if not isinstance(mesh, Trimesh):
-        raise ValueError('mesh must be Trimesh instace, got %s' % str(mesh))
+        raise ValueError('mesh must be Trimesh instance, got %s' % str(mesh))
     if binvoxer is None:
         binvoxer = Binvoxer(**binvoxer_kwargs)
     elif len(binvoxer_kwargs) > 0:

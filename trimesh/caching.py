@@ -88,24 +88,31 @@ def cache_decorator(function):
         name = function.__name__
         # do the dump logic ourselves to avoid
         # verifying cache twice per call
+
+        tic = [time.time()]
         self._cache.verify()
-        # access cache dict to avoid automatic verification
+        tic.append(time.time())
+        # access cache dict to avoid automatic validation
+        # since we already called cache.verify manually
         if name in self._cache.cache:
             # already stored so return value
             return self._cache.cache[name]
 
-        # time execution
-        tic = time.time()
         # value not in cache so execute the function
         value = function(*args, **kwargs)
+        tic.append(time.time())
         # store the value
         self._cache.cache[name] = value
         # debug log execution time
         # this is nice for debugging as you can see when
         # cache is getting dumped all the time
-        log.debug('%s was not in cache, executed in %.6f',
+        tic_check = tic[1] - tic[0]
+        tic_exec = tic[2] - tic[1]
+
+        log.debug('`%s` executed in: %.6f, ratio to cache.verify: %.2f',
                   name,
-                  time.time() - tic)
+                  tic_exec,
+                  tic_exec / tic_check)
         return value
 
     # all cached values are also properties
@@ -147,7 +154,7 @@ class TrackedArray(np.ndarray):
             obj._modified_c = True
             obj._modified_m = True
             obj._modified_x = True
-    
+
     @property
     def mutable(self):
         return self.flags['WRITEABLE']
@@ -362,7 +369,7 @@ class TrackedArray(np.ndarray):
         fast_hash = crc
 
 
-class Cache:
+class Cache(object):
     """
     Class to cache values which will be stored until the
     result of an ID function changes.

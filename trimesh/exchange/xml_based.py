@@ -12,7 +12,8 @@ try:
 except BaseException as E:
     # create a dummy module which will raise the ImportError
     # or other exception only when someone tries to use networkx
-    nx = util.ExceptionModule(E)
+    from ..exceptions import ExceptionModule
+    nx = ExceptionModule(E)
 
 
 def load_XAML(file_obj, *args, **kwargs):
