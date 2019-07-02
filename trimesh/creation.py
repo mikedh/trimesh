@@ -30,6 +30,7 @@ except BaseException as E:
     Polygon = exceptions.closure(E)
     load_wkb = exceptions.closure(E)
 
+
 def validate_polygon(obj):
     """
     Make sure an input can be returned as a valid polygon.
