@@ -19,9 +19,9 @@ from . import triangles
 
 try:
     from scipy import spatial
-except ImportError:
-    log.warning('Scipy import failed!')
-
+except ImportError as E:
+    from .exceptions import ExceptionModule
+    spatial = ExceptionModule(E)
 
 def convex_hull(obj, qhull_options='QbB Pp QJn'):
     """

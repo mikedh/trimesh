@@ -509,12 +509,11 @@ def pairwise(iterable):
 
 
 try:
-    # prefer the faster numpy version
+    # prefer the faster numpy version of multi_dot
     # only included in recent- ish version of numpy
     multi_dot = np.linalg.multi_dot
 except AttributeError:
-    log.warning('np.linalg.multi_dot not available, falling back')
-
+    log.warning('np.linalg.multi_dot not available, using fallback')
     def multi_dot(arrays):
         """
         Compute the dot product of two or more arrays in a single function call.
@@ -522,7 +521,7 @@ except AttributeError:
         provided for backwards compatibility with ancient versions of numpy.
         """
         arrays = np.asanyarray(arrays)
-        result = arrays[0]
+        result = arrays[0].copy()
         for i in arrays[1:]:
             result = np.dot(result, i)
         return result

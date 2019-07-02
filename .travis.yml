@@ -86,15 +86,16 @@ install:
 - pip install -U autopep8 flake8
 
 script:
-# style check
+# style checks
 - flake8 trimesh/
 - flake8 example/
 - flake8 tests/
+# will error on non-pep8 formatting
 - autopep8 --recursive --aggressive --diff --exit-code trimesh/
 - autopep8 --recursive --aggressive --diff --exit-code examples/
 - autopep8 --recursive --aggressive --diff --exit-code tests/
 
-# try simple tests with only minimal deps
+# try simple tests with only minimal install (just numpy)
 - python -c "import trimesh"
 - pytest  -p no:warnings tests/test_inertia.py
 
@@ -119,12 +120,12 @@ script:
 # downgrade networkx from 2.x to 1.x to make sure our
 # graph operations work on both versions of their API
 - pip install -q -Iv networkx==1.11
-# print version for logs
-- python -c "import networkx; print('::NX_VERSION::', networkx.__version__)"
+# fail if it didn't install old networkx for some reason
+- python -c "import networkx; assert networkx.__version__ == '1.11')"
 # will print tons of depreciation warnings we don't care about 
 - pytest -p no:warnings tests/test_graph.py tests/test_scene.py
 
-# make sure examples still work
+# make sure examples still work by running them all
 - cd examples
 - set -xe; for f in *py*; do python ../tests/notebooks.py ci exec "$f"; done
 - cd ..

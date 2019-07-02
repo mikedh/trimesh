@@ -21,12 +21,14 @@ try:
     # shapely is a soft dependency
     from shapely.geometry import Polygon
     from shapely.wkb import loads as load_wkb
-except BaseException:
+except BaseException as E:
     # shapely will sometimes raise OSErrors
     # on import rather than just ImportError
-    log.warning('shapely.geometry.Polygon not available!',
-                exc_info=True)
-
+    from . import exceptions
+    # re-raise the exception when someone tries
+    # to use the module that they don't have
+    Polygon = exceptions.closure(E)
+    load_wkb = exceptions.closure(E)
 
 def validate_polygon(obj):
     """
