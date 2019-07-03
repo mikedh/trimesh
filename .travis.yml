@@ -95,9 +95,11 @@ script:
 - autopep8 --recursive --aggressive --diff --exit-code examples/
 - autopep8 --recursive --aggressive --diff --exit-code tests/
 
-# try simple tests with only minimal install (just numpy)
+# try simple tests that should succeed with only numpy
 - python -c "import trimesh"
-- pytest  -p no:warnings tests/test_inertia.py
+# grep will print all lines that don't start with a #
+# i.e. filter out comments then print out a list of basic tests to run
+- cd tests; pytest  -p no:warnings `grep -v '^#' basic.list`; cd ..
 
 # pyembree, scikit-image, python-fcl not available everywhere
 - if [[ "$PYTHON_VERSION" == "3.6" ]]; then conda install pyembree scikit-image; fi;
