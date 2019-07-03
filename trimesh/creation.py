@@ -996,13 +996,8 @@ def camera_marker(camera,
       Contains Trimesh and Path3D objects which can be visualized
     """
 
-    camera_transform = camera.transform
-    if camera_transform is None:
-        camera_transform = np.eye(4)
-
     # append the visualizations to an array
     meshes = [axis(origin_size=marker_height / 10.0)]
-    meshes[0].apply_transform(camera_transform)
 
     try:
         # path is a soft dependency
@@ -1047,6 +1042,5 @@ def camera_marker(camera,
 
     # add a single Path3D object for all line segments
     meshes.append(load_path(segments))
-    meshes[-1].apply_transform(camera_transform)
 
     return meshes
