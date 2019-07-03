@@ -7,6 +7,7 @@ wget https://repo.anaconda.com/miniconda/Miniconda3-4.5.4-Linux-x86_64.sh --quie
 echo "80ecc86f8c2f131c5170e43df489514f80e3971dd105c075935470bbf2476dea  miniconda.sh" | sha256sum --check
 # run miniconda install
 bash miniconda.sh -b -p ~/conda
+# delete installer
 rm miniconda.sh
 
 # make sure conda bin is in front of PATH so we get correct pip
@@ -15,11 +16,6 @@ export PATH="~/conda/bin:$PATH"
 # create a conda env
 conda config --set always_yes yes --set changeps1 no
 conda create -q -n denv python=3.6
-
-# make sure pip/conda is the latest
-pip install --upgrade pip
-conda update -n base conda
-
 # add conda-forge as remote channel
 conda config --add channels conda-forge
 
