@@ -274,11 +274,11 @@ class GraphTests(g.unittest.TestCase):
 
             scene.set_camera()
             assert not g.np.allclose(
-                scene.camera.transform,
+                scene.camera_transform,
                 g.np.eye(4))
-            scene.camera.transform = g.np.eye(4)
+            scene.camera_transform = g.np.eye(4)
             assert g.np.allclose(
-                scene.camera.transform,
+                scene.camera_transform,
                 g.np.eye(4))
 
 
