@@ -110,12 +110,6 @@ class RleTest(g.unittest.TestCase):
         np.testing.assert_equal(
             dense_notted, np.logical_not(dense_original))
 
-    def test_maybe_pad_brle(self):
-        np.testing.assert_equal(rl.maybe_pad_brle([5], 0), [5, 0])
-        np.testing.assert_equal(rl.maybe_pad_brle([5], 1), [0, 5])
-        np.testing.assert_equal(rl.maybe_pad_brle([5, 3], 0), [5, 3])
-        np.testing.assert_equal(rl.maybe_pad_brle([5, 3], 1), [0, 5, 3, 0])
-
     def test_merge_brle_lengths(self):
         np.testing.assert_equal(
             rl.merge_brle_lengths([10, 0, 10, 2]), [20, 2])
@@ -148,8 +142,10 @@ class RleTest(g.unittest.TestCase):
             [1, 5, 0, 2])
 
     def test_dense_to_brle(self):
+        # should be an (300, 200, 1000) array
         x = np.array([False] * 300 + [True] * 200 + [False] * 1000)
-        np.testing.assert_equal(rl.dense_to_brle(x), [300, 200, 1000, 0])
+        np.testing.assert_equal(rl.dense_to_brle(x),
+                                [300, 200, 1000, 0])
         np.testing.assert_equal(
             rl.dense_to_brle(x, np.uint8),
             [255, 0, 45, 200, 255, 0, 255, 0, 255, 0, 235, 0])

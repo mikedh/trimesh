@@ -55,15 +55,18 @@ def rle_length(rle):
 
 
 def rle_to_brle(rle, dtype=None):
-    """Convert run length encoded (RLE) value/counts to BRLE.
+    """
+    Convert run length encoded (RLE) value/counts to BRLE.
 
-    RLE data is stored in a rank 1 array with each pair giving (value, count)
+    RLE data is stored in a rank 1 array with each pair giving:
+    (value, count)
 
     e.g. the RLE encoding of [4, 4, 4, 1, 1, 6] is [4, 3, 1, 2, 6, 1].
 
     Parameters
     ----------
-    rle: run length encoded data
+    rle : (n,) int
+      Run length encoded data
 
     Returns
     ----------
@@ -72,7 +75,8 @@ def rle_to_brle(rle, dtype=None):
 
     Raises
     ----------
-    ValueError if any of the even counts of `rle` are not zero or 1.
+    ValueError
+      If any of the even counts of `rle` are not zero or 1.
     """
     curr_val = 0
     out = [0]
@@ -248,7 +252,8 @@ def dense_to_rle(dense_data, dtype=np.int64):
 
 
 def split_long_rle_lengths(values, lengths, dtype=np.int64):
-    """Split long lengths in the associated run length encoding.
+    """
+    Split long lengths in the associated run length encoding.
 
     e.g.
     ```python

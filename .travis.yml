@@ -121,7 +121,7 @@ script:
 # graph operations work on both versions of their API
 - pip install -q -Iv networkx==1.11
 # fail if it didn't install old networkx for some reason
-- python -c "import networkx; assert networkx.__version__ == '1.11')"
+- python -c "import networkx; assert networkx.__version__ == '1.11'"
 # will print tons of depreciation warnings we don't care about 
 - pytest -p no:warnings tests/test_graph.py tests/test_scene.py
 
