@@ -320,7 +320,7 @@ def load_obj(file_obj, resolver=None, **kwargs):
             except BaseException:
                 uv = None
 
-            if material in materials:
+            if materials is not None and material in materials:
                 visual = TextureVisuals(
                     uv=uv, material=materials[material])
             else:
