@@ -127,15 +127,17 @@ def load_obj(file_obj, resolver=None, **kwargs):
     if vt_end >= 0:
         # if we have vertex textures specified convert to numpy array
         vt_idx = np.nonzero(words == 'vt')[0].reshape((-1, 1))
-        vt_list = words[vt_idx + np.arange(1, 3)].ravel().tolist()
-        vt = np.array(list(map(float, vt_list)),
-                      dtype=np.float64).reshape((-1, 2))
+        # only bother if we got the right number of indexes
+        if len(vt_idx) > 0:
+            vt_list = words[vt_idx + np.arange(1, 3)].ravel().tolist()
+            vt = np.array(list(map(float, vt_list)),
+                          dtype=np.float64).reshape((-1, 2))
 
     vn = None
     if vn_end >= 0:
         # if we have vertex normals specified convert to numpy array
         vn_idx = np.nonzero(words == 'vn')[0].reshape((-1, 1))
-        if len(vn_idx) == len(v):
+        if len(vn_idx) > 0:
             vn_list = words[vn_idx + np.arange(1, 4)].ravel().tolist()
             vn = np.array(list(map(float, vn_list)),
                           dtype=np.float64).reshape((-1, 3))
@@ -301,13 +303,12 @@ def load_obj(file_obj, resolver=None, **kwargs):
             # convert faces referencing vertices and
             # faces referencing vertex texture to new faces
             # where each face
-            new_faces, mask_v, mask_vt = unmerge_faces(
-                faces=faces, faces_tex=faces_tex)
+            new_faces, mask_v, mask_vt = unmerge_faces(faces, faces_tex)
 
-            # we should NOT have messed up the faces
-            # note: this is EXTREMELY slow due to the numerous
-            # float comparisons so only use in unit tests
             if tol.strict:
+                # we should NOT have messed up the faces
+                # note: this is EXTREMELY slow due to all the
+                # float comparisons so only run this in unit tests
                 assert np.allclose(v[faces], v[mask_v][new_faces])
                 # faces should all be in bounds of vertives
                 assert new_faces.max() < len(v[mask_v])
@@ -327,7 +328,7 @@ def load_obj(file_obj, resolver=None, **kwargs):
                 visual = None
             # mask vertices and use new faces
             mesh = kwargs.copy()
-            mesh.update({'vertices': v[mask_v],
+            mesh.update({'vertices': v[mask_v].copy(),
                          'visual': visual,
                          'faces': new_faces})
             if vc is not None:
@@ -342,7 +343,7 @@ def load_obj(file_obj, resolver=None, **kwargs):
         else:
             # otherwise just use unmasked vertices
             mesh = kwargs.copy()
-            mesh.update({'vertices': v,
+            mesh.update({'vertices': v.copy(),
                          'vertex_normals': vn,
                          'faces': faces})
 
@@ -354,8 +355,16 @@ def load_obj(file_obj, resolver=None, **kwargs):
             if vc is not None:
                 mesh['vertex_colors'] = vc
             # if we have vertex normals pass them
-            if vn is not None:
-                mesh['vertex_normals'] = vn
+
+            if vn is not None and np.shape(normal_idx) == faces.shape:
+                # do the crazy unmerging logic for split indices
+                new_faces, mask_v, mask_vn = unmerge_faces(
+                    faces, normal_idx)
+
+                mesh['vertex_normals'] = vn[mask_vn]
+                mesh['vertices'] = mesh['vertices'][mask_v]
+                mesh['faces'] = new_faces
+
             geometry[name] = mesh
 
     if len(geometry) == 1:

@@ -170,6 +170,14 @@ Trimesh includes an optional `pyglet` based viewer for debugging and inspecting.
 
 If called from inside a `jupyter` notebook, `mesh.show()` displays an in-line preview using `three.js` to display the mesh or scene. For more complete rendering (PBR, better lighting, shaders, better off-screen support, etc) [pyrender](https://github.com/mmatl/pyrender) is designed to interoperate with `trimesh` objects.
 
+## Interoperability
+
+You can check out the [Github network](https://github.com/mikedh/trimesh/network/dependents) to see things using trimesh. A select few:
+
+[pyrender](https://github.com/mmatl/pyrender) Render scenes using nice PBR materials in Python
+[urdfpy](https://github.com/mmatl/urdfpy) Load URDF robot descriptions
+[vtkplotter](https://github.com/marcomusy/vtkplotter) Visualize meshes interactively.
+[fsleyes](https://users.fmrib.ox.ac.uk/~paulmc/fsleyes/userdoc/latest/quick_start.html) An MRI image viewer
 
 ## Which Mesh Format Should I Use?
 

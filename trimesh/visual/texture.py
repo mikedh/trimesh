@@ -172,7 +172,7 @@ class TextureVisuals(object):
         pass
 
 
-def unmerge_faces(faces, faces_tex):
+def unmerge_faces(faces, *args):
     """
     Textured meshes can come with faces referencing vertex
     indices (`v`) and an array the same shape which references
@@ -182,8 +182,9 @@ def unmerge_faces(faces, faces_tex):
     -------------
     faces : (n, d) int
       References vertex indices
-    faces_tex : (n, d) int
-      References a list of UV coordinates
+    *args : (n, d) int
+      Various references of corresponding values
+      This is usually UV coordinates or normal indexes
 
     Returns
     -------------
@@ -191,12 +192,18 @@ def unmerge_faces(faces, faces_tex):
       New faces for masked vertices
     mask_v : (p,) int
       A mask to apply to vertices
-    mask_vt : (p,) int
+    mask_* : (p,) int
       A mask to apply to vt array to get matching UV coordinates
+      Returns as many of these as args were passed
     """
     # stack into pairs of (vertex index, texture index)
-    stack = np.column_stack((faces.reshape(-1),
-                             faces_tex.reshape(-1)))
+    stackable = [np.asanyarray(faces).reshape(-1)]
+    # append multiple args to the correlated stack
+    # this is usually UV coordinates (vt) and normals (vn)
+    for arg in args:
+        stackable.append(np.asanyarray(arg).reshape(-1))
+    # unify them into rows of a numpy array
+    stack = np.column_stack(stackable)
     # find unique pairs: we're trying to avoid merging
     # vertices that have the same position but different
     # texture coordinates
@@ -209,9 +216,6 @@ def unmerge_faces(faces, faces_tex):
     # apply the order to the pairs
     pairs = pairs[order]
 
-    # the mask for vertices, and mask for vt to generate uv coordinates
-    mask_v, mask_uv = pairs.T
-
     # we re-ordered the vertices to try to maintain
     # the original vertex order as much as possible
     # so to reconstruct the faces we need to remap
@@ -221,4 +225,8 @@ def unmerge_faces(faces, faces_tex):
     # the faces are just the inverse with the new order
     new_faces = remap[inverse].reshape((-1, 3))
 
-    return new_faces, mask_v, mask_uv
+    # the mask for vertices and masks for other args
+    result = [new_faces]
+    result.extend(pairs.T)
+
+    return result
