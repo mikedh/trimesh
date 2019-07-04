@@ -37,8 +37,7 @@ if __name__ == '__main__':
             # increment the file name
             file_name = 'render_' + str(i) + '.png'
             # save a render of the object as a png
-            png = scene.save_image(resolution=[1920, 1080],
-                                   visible=True)
+            png = scene.save_image(resolution=[1920, 1080], visible=True)
             with open(file_name, 'wb') as f:
                 f.write(png)
                 f.close()
