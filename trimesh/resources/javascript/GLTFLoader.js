@@ -2101,7 +2101,7 @@ THREE.GLTFLoader = ( function () {
 	 * Assigns final material to a Mesh, Line, or Points instance. The instance
 	 * already has a material (generated from the glTF material options alone)
 	 * but reuse of the same glTF material may require multiple threejs materials
-	 * to accomodate different primitive types, defines, etc. New materials will
+	 * to accommodate different primitive types, defines, etc. New materials will
 	 * be created if necessary, and reused from a cache.
 	 * @param  {THREE.Object3D} mesh Mesh, Line, or Points instance.
 	 */
@@ -3037,7 +3037,7 @@ THREE.GLTFLoader = ( function () {
 	 */
 	GLTFParser.prototype.loadScene = function () {
 
-		// scene node hierachy builder
+		// scene node hierarchy builder
 
 		function buildNodeHierachy( nodeId, parentObject, json, parser ) {
 
@@ -3112,7 +3112,7 @@ THREE.GLTFLoader = ( function () {
 
 			} ).then( function ( node ) {
 
-				// build node hierachy
+				// build node hierarchy
 
 				parentObject.add( node );
 

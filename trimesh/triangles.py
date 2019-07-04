@@ -301,7 +301,7 @@ def windings_aligned(triangles, normals_compare):
     triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3), allow_zeros=True):
         raise ValueError(
-          'triangles must have shape (n, 3, 3), got %s' % str(triangles.shape))
+            'triangles must have shape (n, 3, 3), got %s' % str(triangles.shape))
 
     calculated, valid = normals(triangles)
     difference = util.diagonal_dot(calculated,

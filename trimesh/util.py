@@ -247,7 +247,7 @@ def is_shape(obj, shape, allow_zeros=False):
        Any tuple term will be evaluated as an OR
     allow_zeros: bool
         if False, zeros do not math negatives in shape.
-    
+
     Returns
     ---------
     shape_ok: bool, True if shape of obj matches query shape
