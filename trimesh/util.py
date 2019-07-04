@@ -230,7 +230,7 @@ def is_sequence(obj):
     return seq
 
 
-def is_shape(obj, shape):
+def is_shape(obj, shape, allow_zeros=False):
     """
     Compare the shape of a numpy.ndarray to a target shape,
     with any value less than zero being considered a wildcard
@@ -245,7 +245,9 @@ def is_shape(obj, shape):
     shape : list or tuple
        Any negative term will be considered a wildcard
        Any tuple term will be evaluated as an OR
-
+    allow_zeros: bool
+        if False, zeros do not math negatives in shape.
+    
     Returns
     ---------
     shape_ok: bool, True if shape of obj matches query shape
@@ -294,7 +296,7 @@ def is_shape(obj, shape):
 
         # check if current field is a wildcard
         if target < 0:
-            if i == 0:
+            if i == 0 and not allow_zeros:
                 # if a dimension is 0, we don't allow
                 # that to match to a wildcard
                 # it would have to be explicitly called out as 0
