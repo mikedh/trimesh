@@ -29,7 +29,7 @@ if __name__ == '__main__':
                              scene.camera.resolution.max())
 
     # convert the camera to rays with one ray per pixel
-    origins, vectors, angles = scene.camera.to_rays()
+    origins, vectors, angles = scene.camera.to_rays(scene.camera_transform)
 
     # do the actual ray- mesh queries
     points, index_ray, index_tri = mesh.ray.intersects_location(

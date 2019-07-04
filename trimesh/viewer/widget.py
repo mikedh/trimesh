@@ -89,7 +89,7 @@ class SceneGroup(pyglet.graphics.Group):
         gl.glPushMatrix()
         gl.glLoadIdentity()
         gl.glMultMatrixf(
-            rendering.matrix_to_gl(np.linalg.inv(self.scene.camera.transform)))
+            rendering.matrix_to_gl(np.linalg.inv(self.scene.camera_transform)))
 
     def unset_state(self):
         gl.glPopMatrix()
@@ -138,7 +138,7 @@ class SceneWidget(glooey.Widget):
         self.vertex_list_hash = {}
         self.textures = {}
 
-        self._initial_camera_transform = self.scene.camera.transform
+        self._initial_camera_transform = self.scene.camera_transform
         self.reset_view()
 
         self._background = kwargs.pop('background', None)
@@ -166,7 +166,7 @@ class SceneWidget(glooey.Widget):
                 size=self.scene.camera.resolution,
                 scale=self.scene.scale,
                 target=self.scene.centroid)}
-        self.scene.camera.transform = self.view['ball'].pose
+        self.scene.camera_transform = self.view['ball'].pose
 
     def do_claim(self):
         return 0, 0

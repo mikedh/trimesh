@@ -123,53 +123,6 @@ class CameraTests(g.unittest.TestCase):
         g.trimesh.scene.cameras.look_at(points, fov, center=points[0])
         g.trimesh.scene.cameras.look_at(points, fov, distance=1)
 
-    def test_scene(self):
-        """
-        Check camera transforms in different cases
-
-        - with no scene, should return identity and be settable
-        - with scene, should use node name and set scene.graph
-        - if scene is added later should set correctly set transform
-        """
-        fov = (60, 40)
-        resolution = (320, 240)
-        # create camera with no scene
-        camera = g.trimesh.scene.Camera(
-            resolution=resolution,
-            fov=fov)
-
-        matrix = g.trimesh.transformations.random_rotation_matrix()
-        # no transform set, should be identity
-        assert g.np.allclose(camera.transform, np.eye(4))
-        # set transform with no scene
-        camera.transform = matrix
-        assert g.np.allclose(camera.transform, matrix)
-        # add a scene reference later
-        assert camera.scene is None
-        scene = g.trimesh.Scene()
-        camera.scene = scene
-        # should have transferred the local transform to both
-        # the scene graph as well as the returned value
-        assert g.np.allclose(camera.transform, matrix)
-        assert g.np.allclose(scene.graph[camera.name][0], matrix)
-
-        # should be setting it correctly still
-        matrix = g.trimesh.transformations.random_rotation_matrix()
-        camera.transform = matrix
-        assert g.np.allclose(camera.transform, matrix)
-        assert g.np.allclose(scene.graph[camera.name][0], matrix)
-
-        # create camera with scene and transform set on creation
-        scene = g.trimesh.Scene()
-        matrix = g.trimesh.transformations.random_rotation_matrix()
-        camera = g.trimesh.scene.Camera(
-            resolution=resolution,
-            fov=fov,
-            scene=scene,
-            transform=matrix)
-        assert g.np.allclose(camera.transform, matrix)
-        assert g.np.allclose(scene.graph[camera.name][0], matrix)
-
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
