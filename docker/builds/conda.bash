@@ -10,21 +10,21 @@ bash miniconda.sh -b -p ~/conda
 # delete installer
 rm miniconda.sh
 
-# make sure conda bin is in front of PATH so we get correct pip
+# make sure conda base
 export PATH="~/conda/bin:$PATH"
-
-# create a conda env
 conda config --set always_yes yes --set changeps1 no
-conda create -q -n denv python=3.6
 # add conda-forge as remote channel
 conda config --add channels conda-forge
 
-# scikit-image is used for marching cubes
 # pyembree is used for fast ray tests
-conda install scikit-image pyembree 
+# this will also install numpy from conda
+# conda/numpy is compiled with intel's MKL
+conda install pyembree 
 
-# actually install trimesh and pytest
-pip install trimesh[all] pytest pyassimp==4.1.3
+# install trimesh from repo version
+cd /tmp/trimesh
+# include all soft dependencies
+pip install .[all,test] pyassimp==4.1.3
 
 # remove archives
-conda clean --all -y
+# conda clean --all
