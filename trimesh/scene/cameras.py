@@ -15,9 +15,7 @@ class Camera(object):
             name=None,
             resolution=None,
             focal=None,
-            fov=None,
-            scene=None,
-            transform=None):
+            fov=None):
         """
         Create a new Camera object that stores camera intrinsic
         and extrinsic parameters.
@@ -36,9 +34,6 @@ class Camera(object):
           but not both.  focal = (K[0][0], K[1][1])
         fov : (2,) float
           Field of view (fovx, fovy) in degrees
-        transform : (4, 4) float
-          Camera transform, extrinsic homogoenous
-          transformation matrix.
         """
 
         if name is None:
@@ -65,28 +60,15 @@ class Camera(object):
             resolution = (self.fov * 15.0).astype(np.int64)
         self.resolution = resolution
 
-        # add a back- reference to scene object
-        self.scene = scene
-        # set transform
-        self.transform = transform
-
     def copy(self):
         """
         Safely get a copy of the current camera.
         """
-
-        if self.transform is None:
-            transform = None
-        else:
-            transform = copy.deepcopy(self.transform)
-
-        # do not include scene reference
         return Camera(
             name=copy.deepcopy(self.name),
             resolution=copy.deepcopy(self.resolution),
             focal=copy.deepcopy(self.focal),
-            fov=copy.deepcopy(self.fov),
-            transform=transform)
+            fov=copy.deepcopy(self.fov))
 
     @property
     def resolution(self):
@@ -121,90 +103,6 @@ class Camera(object):
         else:
             # fov must be computed
             self._fov = None
-
-    @property
-    def scene(self):
-        """
-        Get a reference to the scene that this camera is in.
-
-        Returns
-        -------------
-        scene : None, or trimesh.Scene
-          Scene where this camera is attached
-        """
-        return self._scene
-
-    @scene.setter
-    def scene(self, value):
-        """
-        Set the reference to the scene that this camera is in.
-
-        Parameters
-        -------------
-        scene : None, or trimesh.Scene
-          Scene where this camera is attached
-        """
-
-        # save the scene reference
-        self._scene = value
-
-        # check if we have local not None transform
-        # an if we can apply it to the scene graph
-        # also check here that scene is a real scene
-        if (hasattr(self, '_transform') and
-            self._transform is not None and
-                hasattr(value, 'graph')):
-            # set scene transform to locally saved transform
-            self._scene.graph[self.name] = self._transform
-            # set local transform to None
-            self._transform = None
-
-    @property
-    def transform(self):
-        """
-        Get the (4, 4) homogeneous transformation from the
-        world frame to this camera object.
-
-        Returns
-        ------------
-        transform : (4, 4) float
-          Transform from world to camera
-        """
-        # no scene set
-        if self._scene is None:
-            # no transform saved locally
-            if not hasattr(self, '_transform') or self._transform is None:
-                return np.eye(4)
-            # transform saved locally
-            return self._transform
-
-        # get the transform from the scene
-        return self._scene.graph[self.name][0]
-
-    @transform.setter
-    def transform(self, values):
-        """
-
-        Set the (4, 4) homogeneous transformation from the
-        world frame to this camera object.
-
-        Parameters
-        ------------
-        transform : (4, 4) float
-          Transform from world to camera
-        """
-        if values is None:
-            return
-        matrix = np.asanyarray(values, dtype=np.float64)
-        if matrix.shape != (4, 4):
-            raise ValueError('transform must be (4, 4) float!')
-        matrix.flags.writeable = False
-        if self._scene is None:
-            # if no scene, save transform locally
-            self._transform = matrix
-        else:
-            # assign passed values to transform
-            self._scene.graph[self.name] = matrix
 
     @property
     def focal(self):
@@ -328,11 +226,16 @@ class Camera(object):
             # fov overrides focal
             self._focal = None
 
-    def to_rays(self):
+    def to_rays(self, transform):
         """
         Convert a trimesh.scene.Camera object to ray origins
         and direction vectors. Will return one ray per pixel,
         as set in camera.resolution.
+
+        Parameters
+        ----------
+        transform : (4, 4) float
+          Camera transform in the base frame
 
         Returns
         --------------
@@ -343,7 +246,7 @@ class Camera(object):
         angles : (n, 2) float
           Ray spherical coordinate angles in radians
         """
-        return camera_to_rays(self)
+        return camera_to_rays(self, transform)
 
 
 def look_at(points, fov, rotation=None, distance=None, center=None):
@@ -404,7 +307,7 @@ def look_at(points, fov, rotation=None, distance=None, center=None):
     return cam_pose
 
 
-def camera_to_rays(camera):
+def camera_to_rays(camera, transform):
     """
     Convert a trimesh.scene.Camera object to ray origins
     and direction vectors. Will return one ray per pixel,
@@ -414,6 +317,8 @@ def camera_to_rays(camera):
     --------------
     camera : trimesh.scene.Camera
       Camera with transform defined
+    transform : (4, 4) float
+      Camera transform in the base frame
 
     Returns
     --------------
@@ -448,7 +353,7 @@ def camera_to_rays(camera):
 
     # flip the camera transform to change sign of Z
     transform = np.dot(
-        camera.transform,
+        transform,
         align_vectors([1, 0, 0], [-1, 0, 0]))
 
     # apply the rotation to the direction vectors
