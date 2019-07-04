@@ -37,7 +37,7 @@ def load_notebook(file_obj):
 
 def exclude_calls(
         lines,
-        exclude=['%matplotlib', '%pylab', 'show', 'plt', 'save_image']):
+        exclude=['%matplotlib', '%pylab', 'show', 'plt', 'save_image', '?']):
     """
     Exclude certain calls based on substrings, replacing
     them with pass statements.
@@ -153,7 +153,7 @@ def main():
         file_name = sys.argv[sys.argv.index("exec") + 1].strip()
         # we want to skip some of these examples in CI
         if 'ci' in sys.argv and os.path.basename(file_name) in ci_blacklist:
-            print(file_name, 'in CI blacklist: skipping!')
+            print('{} in CI blacklist: skipping!'.format(file_name))
             return
 
         # skip files that don't exist

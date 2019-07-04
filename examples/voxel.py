@@ -6,6 +6,7 @@ import os
 import numpy as np
 import inspect
 import trimesh
+
 from trimesh.exchange.binvox import voxelize_mesh
 from trimesh import voxel as v
 
@@ -26,7 +27,6 @@ def show(chair_mesh, chair_voxels, colors=(1, 1, 1, 0.3)):
 
 
 if __name__ == '__main__':
-
     base_name = 'chair_model'
     chair_mesh = trimesh.load(os.path.join(dir_models, '%s.obj' % base_name))
     if isinstance(chair_mesh, trimesh.scene.Scene):

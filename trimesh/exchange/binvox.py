@@ -69,10 +69,11 @@ def parse_binvox(fp, writeable=False):
     Raises:
         `IOError` if invalid binvox file.
     """
+    # get the header info
     shape, translate, scale = parse_binvox_header(fp)
+    # get the rest of the file
     data = fp.read()
-    if hasattr(data, 'encode'):
-        data = data.encode()
+    # convert to numpy array
     rle_data = np.frombuffer(data, dtype=np.uint8)
     if writeable:
         rle_data = rle_data.copy()
@@ -432,9 +433,8 @@ class Binvoxer(object):
         args.append('PATH')
         self._args = args
         self._file_type = file_type
-        self._kwargs = {} if verbose else dict(
-            # stderr=subprocess.DEVNULL,  # suppress stderr when not verbose?
-            stdout=subprocess.DEVNULL)
+
+        self.verbose = verbose
 
     @property
     def file_type(self):
@@ -475,8 +475,14 @@ class Binvoxer(object):
                 'Attempted to voxelize object a %s, but there is already a '
                 'file at output path %s' % (path, out_path))
         self._args[-1] = path
-        _ = subprocess.check_call(
-            self._args, **self._kwargs)
+
+        # generalizes to python2 and python3
+        # will capture terminal output into variable rather than printing
+        verbosity = subprocess.check_output(self._args)
+        # if requested print ourselves
+        if self.verbose:
+            print(verbosity)
+
         return out_path
 
 

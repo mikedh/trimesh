@@ -43,12 +43,12 @@ def load_obj(file_obj, resolver=None, **kwargs):
     text = '\n{}\n'.format(text.strip().replace('\r\n', '\n'))
 
     # Load Materials
-    materials = None
+    materials = {}
     mtl_position = text.find('mtllib')
     if mtl_position >= 0:
         # take the line of the material file after `mtllib`
         # which should be the file location of the .mtl file
-        mtl_path = text[mtl_position + 6:text.find('\n', mtl_position)]
+        mtl_path = text[mtl_position + 6:text.find('\n', mtl_position)].strip()
         try:
             # use the resolver to get the data
             material_kwargs = parse_mtl(resolver[mtl_path],
@@ -56,10 +56,13 @@ def load_obj(file_obj, resolver=None, **kwargs):
             # turn parsed kwargs into material objects
             materials = {k: SimpleMaterial(**v)
                          for k, v in material_kwargs.items()}
-        except BaseException:
+        except IOError:
             # usually the resolver couldn't find the asset
-            log.warning('unable to load materials', exc_info=True)
-            materials = {}
+            log.warning('unable to load materials from: {}'.format(mtl_path))
+        except BaseException:
+            # something else happened so log a warning
+            log.warning('unable to load materials from: {}'.format(mtl_path),
+                        exc_info=True)
 
     # Load Vertices
     # aggressivly reduce blob to only part with vertices
