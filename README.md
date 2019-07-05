@@ -49,17 +49,21 @@ trimesh.util.attach_to_log()
 # mesh objects can be created from existing faces and vertex data
 mesh = trimesh.Trimesh(vertices=[[0, 0, 0], [0, 0, 1], [0, 1, 0]],
                        faces=[[0, 1, 2]])
-# WARNING: set process=False to keep the raw data intact (the default
-# process=True might alter the mesh structure by removing Inf's and NaN's and
-# by collapsing close vertices)
+
+# by default, Trimesh will do a light processing, which will
+# remove any NaN values and merge vertices that share position
+# if you want to not do this on load, you can pass `process=False`
 mesh = trimesh.Trimesh(vertices=[[0, 0, 0], [0, 0, 1], [0, 1, 0]],
                        faces=[[0, 1, 2]],
                        process=False)
 
 # mesh objects can be loaded from a file name or from a buffer
+# you can pass any of the kwargs for the `Trimesh` constructor
+# to `trimesh.load`, including `process=False` if you would like
+# to preserve the original loaded data without merging vertices
+# STL files will be a soup of disconnected triangles without
+# merging vertices however and will not register as watertight
 mesh = trimesh.load('../models/featuretype.STL')
-# WARNING: set process=False to keep the raw data intact (see above)
-mesh = trimesh.load('../models/featuretype.STL', process=False)
 
 # is the current mesh watertight?
 mesh.is_watertight

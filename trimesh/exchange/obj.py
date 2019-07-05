@@ -324,7 +324,7 @@ def load_obj(file_obj, resolver=None, **kwargs):
                 uv = None
 
             # mask vertices and use new faces
-            
+
             mesh.update({'vertices': v[mask_v].copy(),
                          'faces': new_faces})
             if vc is not None:
@@ -365,7 +365,7 @@ def load_obj(file_obj, resolver=None, **kwargs):
         else:
             log.warning('specified material not loaded!')
             visual = None
-        
+
         mesh['visual'] = visual
 
         # store geometry by name

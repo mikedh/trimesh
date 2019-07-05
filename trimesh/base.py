@@ -230,7 +230,7 @@ class Trimesh(Geometry):
             if self._validate:
                 self.remove_duplicate_faces()
                 self.remove_degenerate_faces()
-        # since none of our process operations moved vertices or faces,
+        # since none of our process operations moved vertices or faces
         # we can keep face and vertex normals in the cache without recomputing
         # if faces or vertices have been removed, normals are validated before
         # being returned so there is no danger of inconsistent dimensions
@@ -244,9 +244,10 @@ class Trimesh(Geometry):
         An MD5 of the core geometry information for the mesh,
         faces and vertices.
 
-        Generated from TrackedArray, which subclasses np.ndarray to monitor for
-        changes and returns a correct, but lazily evaluated md5 so it only has to
-        recalculate the hash occasionally, rather than on every call.
+        Generated from TrackedArray which subclasses np.ndarray to
+        monitor array for changes and returns a correct lazily
+        evaluated md5 so it only has to recalculate the hash
+        occasionally, rather than on every call.
 
         Returns
         ----------

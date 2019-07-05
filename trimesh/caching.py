@@ -86,33 +86,28 @@ def cache_decorator(function):
         self = args[0]
         # use function name as key in cache
         name = function.__name__
+        # store execution times
+        tic = [time.time(), 0.0, 0.0]
         # do the dump logic ourselves to avoid
         # verifying cache twice per call
-
-        tic = [time.time()]
         self._cache.verify()
-        tic.append(time.time())
+        tic[1] = time.time()
         # access cache dict to avoid automatic validation
         # since we already called cache.verify manually
         if name in self._cache.cache:
             # already stored so return value
             return self._cache.cache[name]
-
         # value not in cache so execute the function
         value = function(*args, **kwargs)
-        tic.append(time.time())
+        tic[2] = time.time()
         # store the value
         self._cache.cache[name] = value
-        # debug log execution time
-        # this is nice for debugging as you can see when
-        # cache is getting dumped all the time
-        tic_check = tic[1] - tic[0]
-        tic_exec = tic[2] - tic[1]
-
-        log.debug('`%s` executed in: %.6f, ratio to cache.verify: %.2f',
+        # log both the function execution time and how long
+        # it took to validate the state of the cache
+        log.debug('`%s` execute: %.2Es, cache.verify: %.2Es',
                   name,
-                  tic_exec,
-                  tic_exec / tic_check)
+                  tic[2] - tic[1],
+                  tic[1] - tic[0])
         return value
 
     # all cached values are also properties
@@ -542,8 +537,6 @@ class DataStore(collections.Mapping):
         # apply the flag to any data stored
         for n, i in self.data.items():
             i.mutable = value
-            # i.flags['WRITEABLE'] = is_mutable
-            # print(n, i.flags['WRITEABLE'])
         # save the mutable setting
         self._mutable = is_mutable
 
@@ -617,7 +610,8 @@ class DataStore(collections.Mapping):
 
         Returns
         ----------
-        md5: str, MD5 in hexadecimal
+        md5 : str
+          MD5 of data in hexadecimal
         """
         hasher = hashlib.md5()
         for key in sorted(self.data.keys()):
@@ -631,7 +625,8 @@ class DataStore(collections.Mapping):
 
         Returns
         ----------
-        crc: int, CRC of data
+        crc : int
+          CRC of data
         """
         crc = sum(i.crc() for i in self.data.values())
         return crc
@@ -642,7 +637,8 @@ class DataStore(collections.Mapping):
 
         Returns
         ------------
-        hashed: int, checksum of data
+        hashed : int
+          Checksum of data
         """
         fast = sum(i.fast_hash() for i in self.data.values())
         return fast
@@ -659,11 +655,13 @@ def _fast_crc(count=50):
 
     Parameters
     ------------
-    count: int, number of repetitions to do on the speed trial
+    count : int
+      Number of repetitions to do on the speed trial
 
     Returns
     ----------
-    crc32: function, either zlib.adler32 or zlib.crc32
+    crc32 : function
+      Either `zlib.adler32` or `zlib.crc32`
     """
     import timeit
 
