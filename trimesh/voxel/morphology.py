@@ -1,10 +1,19 @@
 """Basic morphology operations that create new encodings."""
 import numpy as np
-from scipy.ndimage import morphology as _m
-from ..constants import log_time
+
 from . import encoding as enc
 from . import ops
+
+from ..constants import log_time
 from .. import util
+
+
+try:
+    from scipy.ndimage import morphology as _m
+except BaseException as E:
+    # scipy is a soft dependency
+    from ..exceptions import ExceptionModule
+    _m = ExceptionModule(E)
 
 
 def _dense(encoding, rank=None):

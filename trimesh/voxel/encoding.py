@@ -1,10 +1,17 @@
 """OO interfaces to encodings for ND arrays which caching."""
 import numpy as np
-from scipy import sparse as sp
+
 import abc
+from ..util import ABC
+
 from . import runlength as rl
 from .. import caching
-from ..util import ABC
+
+try:
+    from scipy import sparse as sp
+except BaseException as E:
+    from ..exceptions import ExceptionModule
+    sp = ExceptionModule(E)
 
 
 class Encoding(ABC):
