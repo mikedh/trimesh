@@ -301,7 +301,7 @@ def load_obj(file_obj, resolver=None, **kwargs):
             name = '{}_{}'.format(name, util.unique_id())
 
         # try to get usable texture
-        visual = None
+        mesh = kwargs.copy()
         if faces_tex is not None:
             # convert faces referencing vertices and
             # faces referencing vertex texture to new faces
@@ -323,16 +323,9 @@ def load_obj(file_obj, resolver=None, **kwargs):
             except BaseException:
                 uv = None
 
-            if materials is not None and material in materials:
-                visual = TextureVisuals(
-                    uv=uv, material=materials[material])
-            else:
-                log.warning('specified material not loaded!')
-                visual = None
             # mask vertices and use new faces
-            mesh = kwargs.copy()
+            
             mesh.update({'vertices': v[mask_v].copy(),
-                         'visual': visual,
                          'faces': new_faces})
             if vc is not None:
                 # if we have vertex colors pass them
@@ -341,11 +334,9 @@ def load_obj(file_obj, resolver=None, **kwargs):
                 # if we have vertex normals pass them
                 mesh['vertex_normals'] = vn[mask_v]
 
-            # store geometry by name
-            geometry[name] = mesh
         else:
             # otherwise just use unmasked vertices
-            mesh = kwargs.copy()
+            uv = None
             mesh.update({'vertices': v.copy(),
                          'vertex_normals': vn,
                          'faces': faces})
@@ -368,7 +359,17 @@ def load_obj(file_obj, resolver=None, **kwargs):
                 mesh['vertices'] = mesh['vertices'][mask_v]
                 mesh['faces'] = new_faces
 
-            geometry[name] = mesh
+        if materials is not None and material in materials:
+            visual = TextureVisuals(
+                uv=uv, material=materials[material])
+        else:
+            log.warning('specified material not loaded!')
+            visual = None
+        
+        mesh['visual'] = visual
+
+        # store geometry by name
+        geometry[name] = mesh
 
     if len(geometry) == 1:
         return next(iter(geometry.values()))

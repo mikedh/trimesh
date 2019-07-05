@@ -15,12 +15,15 @@ from ... transformations import transform_points, planar_matrix
 _template_svg = Template(get_resource('svg.xml.template'))
 
 try:
+    # pip install svg.path
     from svg.path import parse_path
-    from lxml import etree
 except ImportError:
     log.warning('SVG path loading unavailable!',
                 exc_info=True)
-
+try:
+    from lxml import etree
+except ImportError:
+    log.warning('lxml unavailable!', exc_info=True)
 
 def svg_to_path(file_obj, file_type=None):
     """

@@ -9,8 +9,6 @@ try:
     import collada
 except BaseException:
     collada = None
-except ImportError:
-    pass
 
 try:
     import PIL.Image
