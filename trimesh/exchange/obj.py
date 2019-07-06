@@ -201,8 +201,7 @@ def load_obj(file_obj, resolver=None, **kwargs):
         if len(o_split) > 1:
             for o_chunk in o_split:
                 # set the object label
-                current_object = o_chunk[
-                    :o_chunk.find('\n')].strip()
+                current_object = o_chunk[:o_chunk.find('\n')].strip()
                 # find the first face in the chunk
                 f_idx = o_chunk.find('\nf ')
                 # if we have any faces append it to our search tuple
