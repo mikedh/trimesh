@@ -6,6 +6,7 @@ Functions and classes that help with tracking changes in ndarrays
 and clearing cached values based on those changes.
 """
 
+import collections
 import numpy as np
 
 import zlib
@@ -85,26 +86,28 @@ def cache_decorator(function):
         self = args[0]
         # use function name as key in cache
         name = function.__name__
+        # store execution times
+        tic = [time.time(), 0.0, 0.0]
         # do the dump logic ourselves to avoid
         # verifying cache twice per call
         self._cache.verify()
-        # access cache dict to avoid automatic verification
+        tic[1] = time.time()
+        # access cache dict to avoid automatic validation
+        # since we already called cache.verify manually
         if name in self._cache.cache:
             # already stored so return value
             return self._cache.cache[name]
-
-        # time execution
-        tic = time.time()
         # value not in cache so execute the function
         value = function(*args, **kwargs)
+        tic[2] = time.time()
         # store the value
         self._cache.cache[name] = value
-        # debug log execution time
-        # this is nice for debugging as you can see when
-        # cache is getting dumped all the time
-        log.debug('%s was not in cache, executed in %.6f',
+        # log both the function execution time and how long
+        # it took to validate the state of the cache
+        log.debug('`%s` execute: %.2Es, cache.verify: %.2Es',
                   name,
-                  time.time() - tic)
+                  tic[2] - tic[1],
+                  tic[1] - tic[0])
         return value
 
     # all cached values are also properties
@@ -146,6 +149,15 @@ class TrackedArray(np.ndarray):
             obj._modified_c = True
             obj._modified_m = True
             obj._modified_x = True
+
+    @property
+    def mutable(self):
+        return self.flags['WRITEABLE']
+
+    @mutable.setter
+    def mutable(self, value):
+        # self.flags['WRITEABLE'] = value
+        self.flags.writeable = value
 
     def md5(self):
         """
@@ -352,7 +364,7 @@ class TrackedArray(np.ndarray):
         fast_hash = crc
 
 
-class Cache:
+class Cache(object):
     """
     Class to cache values which will be stored until the
     result of an ID function changes.
@@ -479,7 +491,7 @@ class Cache:
         self.id_current = self._id_function()
 
 
-class DataStore:
+class DataStore(collections.Mapping):
     """
     A class to store multiple numpy arrays and track them all
     for changes.
@@ -490,18 +502,43 @@ class DataStore:
     def __init__(self):
         self.data = {}
 
+    def __iter__(self):
+        return iter(self.data)
+
+    def __delitem__(self, key):
+        del self.data[key]
+
     @property
     def mutable(self):
+        """
+        Is data allowed to be altered or not.
+
+        Returns
+        -----------
+        is_mutable : bool
+          Can data be altered in the DataStore
+        """
         if not hasattr(self, '_mutable'):
-            self._mutable = True
+            return True
         return self._mutable
 
     @mutable.setter
     def mutable(self, value):
-        value = bool(value)
-        for i in self.data.value():
-            i.flags.writeable = value
-        self._mutable = value
+        """
+        Is data allowed to be altered or not.
+
+        Parameters
+        ------------
+        is_mutable : bool
+          Should data be allowed to be altered
+        """
+        # make sure passed value is a bool
+        is_mutable = bool(value)
+        # apply the flag to any data stored
+        for n, i in self.data.items():
+            i.mutable = value
+        # save the mutable setting
+        self._mutable = is_mutable
 
     def is_empty(self):
         """
@@ -509,7 +546,8 @@ class DataStore:
 
         Returns
         ----------
-        empty: bool, False if there are items in the DataStore
+        empty : bool
+          False if there are items in the DataStore
         """
         if len(self.data) == 0:
             return True
@@ -530,30 +568,35 @@ class DataStore:
         self.data = {}
 
     def __getitem__(self, key):
-        try:
-            return self.data[key]
-        except KeyError:
-            return np.empty((0,))
+        return self.data[key]
 
     def __setitem__(self, key, data):
         """
         Store an item in the DataStore
         """
+        # we shouldn't allow setting on immutable datastores
+        if not self.mutable:
+            raise ValueError('DataStore is configured immutable!')
+
         if hasattr(data, 'md5'):
             # don't bother to re-track TrackedArray
-            self.data[key] = data
+            tracked = data
         else:
             # otherwise wrap data
-            self.data[key] = tracked_array(data)
+            tracked = tracked_array(data)
+        # apply our mutability setting
+
+        if hasattr(self, '_mutable'):
+            # apply our mutability setting only if it was explicitly set
+            tracked.mutable = self.mutable
+        # store data
+        self.data[key] = tracked
 
     def __contains__(self, key):
         return key in self.data
 
     def __len__(self):
         return len(self.data)
-
-    def values(self):
-        return self.data.values()
 
     def update(self, values):
         if not isinstance(values, dict):
@@ -567,7 +610,8 @@ class DataStore:
 
         Returns
         ----------
-        md5: str, MD5 in hexadecimal
+        md5 : str
+          MD5 of data in hexadecimal
         """
         hasher = hashlib.md5()
         for key in sorted(self.data.keys()):
@@ -581,7 +625,8 @@ class DataStore:
 
         Returns
         ----------
-        crc: int, CRC of data
+        crc : int
+          CRC of data
         """
         crc = sum(i.crc() for i in self.data.values())
         return crc
@@ -592,7 +637,8 @@ class DataStore:
 
         Returns
         ------------
-        hashed: int, checksum of data
+        hashed : int
+          Checksum of data
         """
         fast = sum(i.fast_hash() for i in self.data.values())
         return fast
@@ -609,11 +655,13 @@ def _fast_crc(count=50):
 
     Parameters
     ------------
-    count: int, number of repetitions to do on the speed trial
+    count : int
+      Number of repetitions to do on the speed trial
 
     Returns
     ----------
-    crc32: function, either zlib.adler32 or zlib.crc32
+    crc32 : function
+      Either `zlib.adler32` or `zlib.crc32`
     """
     import timeit
 
