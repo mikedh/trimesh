@@ -451,13 +451,13 @@ class PointCloud(Geometry):
 
     def apply_transform(self, transform):
         """
-        Apply a homogenous transformation to the PointCloud
+        Apply a homogeneous transformation to the PointCloud
         object in- place.
 
         Parameters
         --------------
         transform : (4, 4) float
-          Homogenous transformation to apply to PointCloud
+          Homogeneous transformation to apply to PointCloud
         """
         self.vertices = transformations.transform_points(self.vertices,
                                                          matrix=transform)
@@ -532,10 +532,13 @@ class PointCloud(Geometry):
         colors : (len(self.vertices), 4) np.uint8
           Per- point RGBA color
         """
-        return self._data['colors']
+        return self._data.get('colors', None)
 
     @colors.setter
     def colors(self, data):
+        if data is None:
+            if 'colors' in self._data:
+                del self._data['colors']
         data = np.asanyarray(data)
         if data.shape in [(3,), (4,)]:
             data = np.tile(data, (len(self.vertices), 1))

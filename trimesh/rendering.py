@@ -7,6 +7,8 @@ Functions to convert trimesh objects to pyglet/opengl objects.
 
 import numpy as np
 
+from . import util
+
 try:
     import pyglet
     pyglet.options['shadow_window'] = False
@@ -20,8 +22,6 @@ except BaseException:
     # otherwise provide mode flags
     # this is so we can unit test without pyglet
     GL_POINTS, GL_LINES, GL_TRIANGLES = (0, 1, 4)
-
-from . import util
 
 
 def convert_to_vertexlist(geometry, **kwargs):
@@ -54,6 +54,10 @@ def convert_to_vertexlist(geometry, **kwargs):
     elif util.is_instance_named(geometry, 'ndarray'):
         # (n,2) or (n,3) points
         return points_to_vertexlist(geometry, **kwargs)
+    elif util.is_instance_named(geometry, 'VoxelGrid'):
+        # for voxels view them as a bunch of boxes
+        return mesh_to_vertexlist(geometry.as_boxes(**kwargs),
+                                  **kwargs)
     else:
         raise ValueError('Geometry passed is not a viewable type!')
 
@@ -90,7 +94,7 @@ def mesh_to_vertexlist(mesh,
         faces = mesh.faces.reshape(-1).tolist()
         vertices = mesh.vertices.reshape(-1).tolist()
 
-        # get the per- vertex UV coordinates
+        # get the per-vertex UV coordinates
         uv = mesh.visual.uv
         # if someone passed (n, 3) UVR cut it off here
         if uv.shape[1] > 2:
@@ -218,7 +222,7 @@ def points_to_vertexlist(points,
 
 def colors_to_gl(colors, count):
     """
-    Given a list of colors (or None) return a GL- acceptable list of colors
+    Given a list of colors (or None) return a GL-acceptable list of colors
 
     Parameters
     ------------
@@ -255,7 +259,7 @@ def colors_to_gl(colors, count):
 def material_to_texture(material):
     """
     Convert a trimesh.visual.texture.Material object into
-    a pyglet- compatible texture object.
+    a pyglet-compatible texture object.
 
     Parameters
     --------------
@@ -294,13 +298,13 @@ def material_to_texture(material):
 
 def matrix_to_gl(matrix):
     """
-    Convert a numpy row- major homogenous transformation matrix
-    to a flat column- major GLfloat transformation.
+    Convert a numpy row-major homogeneous transformation matrix
+    to a flat column-major GLfloat transformation.
 
     Parameters
     -------------
     matrix : (4,4) float
-      Row- major homogenous transform
+      Row-major homogeneous transform
 
     Returns
     -------------

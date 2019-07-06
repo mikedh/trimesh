@@ -282,7 +282,7 @@ class Trimesh(Geometry):
         faces : (n,3) int
           Representing triangles which reference self.vertices
         """
-        return self._data['faces']
+        return self._data.get('faces', np.empty(shape=(0, 3), dtype=int))
 
     @faces.setter
     def faces(self, values):
@@ -294,8 +294,10 @@ class Trimesh(Geometry):
         values : (n, 3) int
           Indexes of self.vertices
         """
-        if values is None:
-            values = []
+        if values is None or len(values) == 0:
+            if 'faces' in self._data:
+                del self._data['faces']
+            return
         values = np.asanyarray(values, dtype=np.int64)
         # automatically triangulate quad faces
         if util.is_shape(values, (-1, 4)):
