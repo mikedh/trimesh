@@ -256,7 +256,7 @@ class Camera(object):
         angles : (n, 2) float
           Ray spherical coordinate angles in radians.
         """
-        return np.arctan(_ray_pixel_coords(self))
+        return np.arctan(-_ray_pixel_coords(self))
         
 
 
@@ -319,12 +319,7 @@ def look_at(points, fov, rotation=None, distance=None, center=None):
 
 
 def _ray_pixel_coords(camera):
-    # radians of half the field of view
-    half = np.radians(camera.fov / 2.0)
-    # scale it down by two pixels to keep image under resolution
-    # half *= (camera.resolution - 2) / camera.resolution
-
-    bottom_right = np.tan(half)
+    bottom_right = np.tan(np.radians(camera.fov / 2.0))
     # move half a pixel width in
     ## pixel_size = (bottom_right - top_left) / camera.resolution
     # pixel_size = bottom_right*2 / camera.resolution

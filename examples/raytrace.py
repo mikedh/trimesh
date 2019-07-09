@@ -29,9 +29,12 @@ if __name__ == '__main__':
                              scene.camera.resolution.max())
 
     # convert the camera to rays with one ray per pixel
+    # origins, vectors, angles = scene.camera.to_rays(scene.camera_transform)
+    # origin = origins[0]
     origin, vectors = scene.camera.to_rays(scene.camera_transform)
+
+    vectors *= -1  # I'm not sure why this is needed...
     origins = np.tile(np.expand_dims(origin, 0), (len(vectors), 1))
-    angles = scene.camera.angles()
 
     # do the actual ray- mesh queries
     points, index_ray, index_tri = mesh.ray.intersects_location(
@@ -45,6 +48,7 @@ if __name__ == '__main__':
     # find the angular resolution, in pixels per radian
     ppr = scene.camera.resolution / np.radians(scene.camera.fov)
     # convert rays to pixel locations
+    angles = scene.camera.angles()
     pixel = (angles * ppr).round().astype(np.int64)
     # make sure we are in the first quadrant
     pixel -= pixel.min(axis=0)
