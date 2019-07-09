@@ -429,7 +429,7 @@ def parse_mtl(mtl, resolver=None):
                 materials[material.pop('newmtl')] = material
 
             # start a fresh new material
-            material = {'newmtl': split[1]}
+            material = {'newmtl': ' '.join(split[1:])}
 
         elif key == 'map_Kd':
             # represents the file name of the texture image
