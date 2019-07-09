@@ -29,7 +29,9 @@ if __name__ == '__main__':
                              scene.camera.resolution.max())
 
     # convert the camera to rays with one ray per pixel
-    origins, vectors, angles = scene.camera.to_rays(scene.camera_transform)
+    origin, vectors = scene.camera.to_rays(scene.camera_transform)
+    origins = np.tile(np.expand_dims(origin, 0), (len(vectors), 1))
+    angles = scene.camera.angles()
 
     # do the actual ray- mesh queries
     points, index_ray, index_tri = mesh.ray.intersects_location(
@@ -37,7 +39,7 @@ if __name__ == '__main__':
 
     # for each hit, find the distance along its vector
     # you could also do this against the single camera Z vector
-    depth = trimesh.util.diagonal_dot(points - origins[0],
+    depth = trimesh.util.diagonal_dot(points - origin,
                                       vectors[index_ray])
 
     # find the angular resolution, in pixels per radian
