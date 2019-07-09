@@ -33,7 +33,6 @@ if __name__ == '__main__':
     # origin = origins[0]
     origin, vectors = scene.camera.to_rays(scene.camera_transform)
 
-    vectors *= -1  # I'm not sure why this is needed...
     origins = np.tile(np.expand_dims(origin, 0), (len(vectors), 1))
 
     # do the actual ray- mesh queries

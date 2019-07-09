@@ -329,7 +329,9 @@ def _ray_pixel_coords(camera):
     top_left = -bottom_right
 
     xy = util.grid_linspace(
-        bounds=[top_left, bottom_right], count=camera.resolution)
+        bounds=[top_left, bottom_right],
+        # bounds=[bottom_right, top_left],
+        count=camera.resolution)
     return xy
 
 
@@ -356,12 +358,7 @@ def camera_to_rays(camera, transform):
     xy = _ray_pixel_coords(camera)
     # vectors = util.unitize(np.column_stack((xy, np.ones_like(xy[:, :1]))))
     vectors = np.column_stack((xy, -np.ones_like(xy[:, :1])))
-
-    # flip the camera transform to change sign of Z
-    transform = np.dot(
-        transform,
-        align_vectors([1, 0, 0], [-1, 0, 0]))
-
+  
     # apply the rotation to the direction vectors
     vectors = transformations.transform_points(
         vectors,

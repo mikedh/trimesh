@@ -21,6 +21,7 @@ camera.fov = (fov,) * 2
 camera.resolution = (resolution,) * 2
 origin, rays = camera.to_rays(scene.camera_transform)
 rays = rays.reshape((resolution, resolution, 3))
+rays = rays[:, -1::-1]  # not sure why this is necessary...
 offset = mesh.vertices - origin
 
 # dists is vertices projected onto central ray
@@ -28,6 +29,7 @@ dists = np.dot(offset, rays[rays.shape[0] // 2, rays.shape[1] // 2])
 closest = np.min(dists)
 farthest = np.max(dists)
 z = np.linspace(closest, farthest, resolution)
+print('z range: %f, %f' % (closest, farthest))
 
 vox = mesh.voxelized(1./resolution, method='binvox')
 
