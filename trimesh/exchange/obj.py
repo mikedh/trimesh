@@ -195,7 +195,8 @@ def load_obj(file_obj, resolver=None, **kwargs):
         # find the first newline in the chunk
         # everything before it will be the usemtl direction
         newline = m_chunk.find('\n')
-        current_material = m_chunk[:newline].strip()
+        # remove internal double spaces because why wouldn't that be OK
+        current_material = ' '.join(m_chunk[:newline].strip().split())
         # material chunk contains multiple objects
         o_split = m_chunk.split('\no ')
         if len(o_split) > 1:
@@ -426,7 +427,6 @@ def parse_mtl(mtl, resolver=None):
             if material is not None:
                 # save the old material by old name and remove key
                 materials[material.pop('newmtl')] = material
-
             # start a fresh new material
             material = {'newmtl': ' '.join(split[1:])}
 
