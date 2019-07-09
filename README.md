@@ -128,17 +128,16 @@ print(mesh.bounding_box_oriented.volume,
 
 * Import meshes from binary/ASCII STL, Wavefront OBJ, ASCII OFF, binary/ASCII PLY, GLTF/GLB 2.0, 3MF, XAML, 3DXML, etc.
 * Import and export 2D or 3D vector paths from/to DXF or SVG files
-* Import geometry files (i.e. BREP (.brep), STEP (.stp or .step), 'IGES (.igs or .iges), etc.) via Gmsh SDK
-* Import skin of 3D FE Models (i.e. Abaqus (*.inp), Nastran (*.bdf), etc.) via Gmsh SDK
+* Import geometry files using the GMSH SDK if installed (BREP, STEP, IGES, INP, BDF, etc)
 * Export meshes as binary STL, binary PLY, ASCII OFF, OBJ, GLTF/GLB 2.0, COLLADA, etc.
-* Export mesh as FE Models (i.e. Abaqus (*.inp), Nastran (*.bdf), etc.) via Gmsh SDK
+* Export meshes using the GMSH SDK if installed (Abaqus INP, Nastran BDF, etc)
 * Preview meshes using pyglet
 * Preview meshes in- line in jupyter notebooks using three.js
 * Automatic hashing of numpy arrays storing key data for change tracking using MD5, zlib CRC, or xxhash
 * Internal caching of computed values validated from hashes
 * Fast loading of binary files through importers written by defining custom numpy dtypes
-* Calculate things like face adjacencies, face angles, vertex defects, etc.
-* Calculate cross sections (i.e. the slicing operation used in 3D printing)
+* Calculate face adjacencies, face angles, vertex defects, etc.
+* Calculate cross sections, i.e. the slicing operation used in 3D printing
 * Slice meshes with one or multiple arbitrary planes and return the resulting surface
 * Split mesh based on face connectivity using networkx, graph-tool, or scipy.sparse
 * Calculate mass properties, including volume, center of mass, moment of inertia, and principal components of inertia vectors and components
@@ -150,19 +149,19 @@ print(mesh.bounding_box_oriented.volume,
 * Repair single triangle and single quad holes
 * Uniformly sample the surface of a mesh
 * Ray-mesh queries including location, triangle index, etc.
-* Boolean operations on meshes (intersection, union, difference) using OpenSCAD or Blender as backend
+* Boolean operations on meshes (intersection, union, difference) using OpenSCAD or Blender as the back end. Note that mesh booleans are usually quite slow and unstable.
 * Voxelize watertight meshes
 * Volume mesh generation (TETgen) using Gmsh SDK
 * Smooth watertight meshes using laplacian smoothing algorithms (Classic, Taubin, Humphrey)
 * Subdivide faces of a mesh
 * Minimum volume oriented bounding boxes for meshes
-* Minimum volume bounding sphere / n-spheres
-* Symbolic integration of function(x,y,z) over a triangles
+* Minimum volume bounding spheres
+* Symbolic integration of function(x, y, z) over triangles
 * Calculate nearest point on mesh surface and signed distance
-* Determine if a point lies inside or outside of a mesh using signed distance
+* Determine if a point lies inside or outside of a well constructed mesh using signed distance
 * Primitive objects (Box, Cylinder, Sphere, Extrusion) which are subclassed Trimesh objects and have all the same features (inertia, viewers, etc)
-* Simple scene graph and transform tree which can be rendered (pyglet window or three.js in a jupyter notebook) or exported.
-* Numerous utility functions, such as transforming points, unitizing vectors, tracking arrays for changes, grouping rows, etc.
+* Simple scene graph and transform tree which can be rendered (pyglet window, three.js in a jupyter notebook, [pyrender](https://github.com/mmatl/pyrender)) or exported.
+* Many utility functions, like transforming points, unitizing vectors, aligning vectors, tracking numpy arrays for changes, grouping rows, etc.
 
 
 ## Viewer
