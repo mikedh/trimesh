@@ -330,7 +330,7 @@ def load_obj(file_obj, resolver=None, **kwargs):
             if vc is not None:
                 # if we have vertex colors pass them
                 mesh['vertex_colors'] = vc[mask_v]
-            if vn is not None:
+            if False and vn is not None:
                 # if we have vertex normals pass them
                 mesh['vertex_normals'] = vn[mask_v]
 

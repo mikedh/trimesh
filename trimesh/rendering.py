@@ -87,7 +87,7 @@ def mesh_to_vertexlist(mesh,
       Args for vertex list constructor
     """
 
-    if hasattr(mesh.visual, 'uv') and mesh.visual.uv is not None:
+    if hasattr(mesh.visual, 'uv'):
         # if the mesh has texture defined pass it to pyglet
         vertex_count = len(mesh.vertices)
         normals = mesh.vertex_normals.reshape(-1).tolist()
@@ -96,12 +96,18 @@ def mesh_to_vertexlist(mesh,
 
         # get the per-vertex UV coordinates
         uv = mesh.visual.uv
-        # if someone passed (n, 3) UVR cut it off here
-        if uv.shape[1] > 2:
-            uv = uv[:, :2]
-        # texcoord as (2,) float
-        color_gl = ('t2f/static',
-                    uv.astype(np.float64).reshape(-1).tolist())
+        if uv is None:
+            # if no UV coordinates on material, just set face colors
+            # to the diffuse color of the material
+            color_gl = colors_to_gl(mesh.visual.material.diffuse,
+                                    vertex_count)
+        else:
+            # if someone passed (n, 3) UVR cut it off here
+            if uv.shape[1] > 2:
+                uv = uv[:, :2]
+            # texcoord as (2,) float
+            color_gl = ('t2f/static',
+                        uv.astype(np.float64).reshape(-1).tolist())
 
     elif smooth and len(mesh.faces) < smooth_threshold:
         # if we have a small number of faces and colors defined
@@ -250,13 +256,14 @@ def colors_to_gl(colors, count):
         colors = colors.reshape(-1).tolist()
     else:
         # case where colors are wrong shape, use a default color
-        colors = np.tile([.5, .10, .20], (count, 1)).reshape(-1).tolist()
+        colors = np.tile([.5, .10, .20],
+                         (count, 1)).reshape(-1).tolist()
         colors_type = 'c3f/static'
 
     return colors_type, colors
 
 
-def material_to_texture(material):
+def material_to_texture(material, upsize=True):
     """
     Convert a trimesh.visual.texture.Material object into
     a pyglet-compatible texture object.
@@ -265,6 +272,9 @@ def material_to_texture(material):
     --------------
     material : trimesh.visual.texture.Material
       Material to be converted
+    upsize: bool
+      If True, will upscale textures to their nearest power
+      of two resolution to avoid weirdness
 
     Returns
     ---------------
@@ -278,8 +288,18 @@ def material_to_texture(material):
     else:
         img = material.baseColorTexture
 
+    # if no images in texture return now
     if img is None:
         return None
+
+    # what is the current resolution of the image in pixels
+    size = np.array(img.size, dtype=np.int64)
+    # what is the resolution of the image upsized to the nearest
+    # power of two
+    newsize = (2 ** np.ceil(np.log2(size))).astype(np.int64)
+    # if we're not powers of two upsize
+    if upsize and (size != newsize).all():
+        img = img.resize(newsize, resample=1)
 
     # use a PNG export to exchange into pyglet
     # probably a way to do this with a PIL converter
