@@ -31,7 +31,7 @@ if __name__ == '__main__':
                              scene.camera.resolution.max())
 
     # convert the camera to rays with one ray per pixel
-    origin, vectors = scene.camera.to_rays(scene.camera_transform)
+    origin, vectors = scene.camera_rays()
 
     # intersects_location requires origins to be the same shape as vectors
     origins = np.tile(np.expand_dims(origin, 0), (len(vectors), 1))

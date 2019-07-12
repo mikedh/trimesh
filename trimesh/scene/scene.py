@@ -485,6 +485,32 @@ class Scene(Geometry):
         """
         return self.graph[self.camera.name][0]
 
+    def camera_rays(self):
+        """
+        Calculate the trimesh.scene.Camera origin and ray direction vectors.
+
+        Will return one ray per pixel, as set in camera.resolution.
+
+        Returns
+        --------------
+        origins: (3,) float
+            Ray origins in space
+        vectors: (n, 3)
+            Ray direction unit vectors in world coordinates
+        """
+        vectors = self.camera.to_rays()
+        transform = self.camera_transform
+
+        # apply the rotation to the direction vectors
+        vectors = transformations.transform_points(
+            vectors,
+            transform,
+            translate=False)
+
+        # camera origin is single point, extract from transform
+        origin = transformations.translation_from_matrix(transform)
+        return origin, vectors
+
     @camera_transform.setter
     def camera_transform(self, camera_transform):
         """

@@ -226,25 +226,18 @@ class Camera(object):
             # fov overrides focal
             self._focal = None
 
-    def to_rays(self, transform):
+    def to_rays(self):
         """
-        Convert a trimesh.scene.Camera object to ray origins
-        and direction vectors. Will return one ray per pixel,
-        as set in camera.resolution.
+        Calculate ray direction vectors.
 
-        Parameters
-        ----------
-        transform : (4, 4) float
-          Camera transform in the base frame
+        Will return one ray per pixel, as set in self.resolution.
 
         Returns
         --------------
-        origins : (3,) float
-          Ray origin in space
         vectors : (n, 3) float
-          Ray direction unit vectors
+          Ray direction vectors in camera frame with z == -1
         """
-        return camera_to_rays(self, transform)
+        return camera_to_rays(self)
 
     def angles(self):
         """
@@ -256,7 +249,7 @@ class Camera(object):
         angles : (n, 2) float
           Ray spherical coordinate angles in radians.
         """
-        return np.arctan(-_ray_pixel_coords(self))
+        return np.arctan(-ray_pixel_coords(self))
 
 
 
@@ -318,7 +311,31 @@ def look_at(points, fov, rotation=None, distance=None, center=None):
     return cam_pose
 
 
-def _ray_pixel_coords(camera):
+def ray_pixel_coords(camera):
+    """
+    Get the x-y coordinates of rays in camera coordinates at z == -1.
+
+    One coordinate pair will be given for each pixel as defined in
+    camera.resolution. If reshaped, the returned array corresponds to pixels
+    of the rendered image.
+
+    i.e.
+    ```python
+    xy = ray_pixel_coords(camera).reshape(
+      tuple(camera.coordinates) + (2,))
+    top_left == xy[0, 0]
+    bottom_right == xy[-1, -1]
+    ```
+
+    Parameters
+    --------------
+    camera : trimesh.scene.Camera
+
+    Returns
+    --------------
+    xy : (n, 2) float
+      x-y coordinates of intersection of each camera ray with the z == -1 frame
+    """
     right_top = np.tan(np.radians(camera.fov / 2.0))
     # move half a pixel width in
     # pixel_size = (right_top - left_bottom) / camera.resolution
@@ -348,36 +365,22 @@ def _ray_pixel_coords(camera):
     return xy
 
 
-def camera_to_rays(camera, transform):
+def camera_to_rays(camera):
     """
-    Convert a trimesh.scene.Camera object to ray origins
-    and direction vectors. Will return one ray per pixel,
-    as set in camera.resolution.
+    Calculate the trimesh.scene.Camera object to direction vectors.
+
+    Will return one ray per pixel, as set in camera.resolution.
 
     Parameters
     --------------
     camera : trimesh.scene.Camera
-      Camera with transform defined
-    transform : (4, 4) float
-      Camera transform in the base frame
 
     Returns
     --------------
-    origins : (3,) float
-      Ray origins in space
     vectors : (n, 3) float
-      Ray direction unit vectors
+      Ray direction vectors in camera frame with z == -1
     """
-    xy = _ray_pixel_coords(camera)
+    xy = ray_pixel_coords(camera)
     # vectors = util.unitize(np.column_stack((xy, np.ones_like(xy[:, :1]))))
     vectors = np.column_stack((xy, -np.ones_like(xy[:, :1])))
-
-    # apply the rotation to the direction vectors
-    vectors = transformations.transform_points(
-        vectors,
-        transform,
-        translate=False)
-
-    # camera origin is single point, extract from transform
-    origin = transformations.translation_from_matrix(transform)
-    return origin, vectors
+    return vectors

@@ -19,7 +19,7 @@ camera = scene.camera
 
 camera.fov = (fov,) * 2
 camera.resolution = (resolution,) * 2
-origin, rays = camera.to_rays(scene.camera_transform)
+origin, rays = scene.camera_rays()
 rays = rays.reshape((resolution, resolution, 3))
 offset = mesh.vertices - origin
 
