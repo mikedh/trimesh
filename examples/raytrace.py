@@ -7,6 +7,8 @@ rays for image reasons.
 
 Install `pyembree` for a speedup (600k+ rays per second)
 """
+from __future__ import division
+
 import PIL.Image
 
 import trimesh
@@ -29,10 +31,9 @@ if __name__ == '__main__':
                              scene.camera.resolution.max())
 
     # convert the camera to rays with one ray per pixel
-    # origins, vectors, angles = scene.camera.to_rays(scene.camera_transform)
-    # origin = origins[0]
     origin, vectors = scene.camera.to_rays(scene.camera_transform)
 
+    # intersects_location requires origins to be the same shape as vectors
     origins = np.tile(np.expand_dims(origin, 0), (len(vectors), 1))
 
     # do the actual ray- mesh queries

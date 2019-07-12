@@ -245,19 +245,19 @@ class Camera(object):
           Ray direction unit vectors
         """
         return camera_to_rays(self, transform)
-    
+
     def angles(self):
         """
         Get ray spherical coordinates in radians.
 
-        
+
         Returns
         --------------
         angles : (n, 2) float
           Ray spherical coordinate angles in radians.
         """
         return np.arctan(-_ray_pixel_coords(self))
-        
+
 
 
 def look_at(points, fov, rotation=None, distance=None, center=None):
@@ -319,19 +319,32 @@ def look_at(points, fov, rotation=None, distance=None, center=None):
 
 
 def _ray_pixel_coords(camera):
-    bottom_right = np.tan(np.radians(camera.fov / 2.0))
+    right_top = np.tan(np.radians(camera.fov / 2.0))
     # move half a pixel width in
-    ## pixel_size = (bottom_right - top_left) / camera.resolution
-    # pixel_size = bottom_right*2 / camera.resolution
-    # bottom_right -= pixel_size / 2
-    bottom_right *= 1 - 1. / camera.resolution
-    
-    top_left = -bottom_right
+    # pixel_size = (right_top - left_bottom) / camera.resolution
+    # # for symmetric cameras, pixel_size impl above is equivalent to below
+    # pixel_size = right_top*2 / camera.resolution
+    # right_top -= pixel_size / 2
+    # # the above two lines can be computed more efficiently by the below line
+    right_top *= 1 - 1. / camera.resolution
+
+    left_bottom = -right_top
+    # we are looking down the negative z axis, so
+    # right_top corresponds to maximum x/y values
+    # bottom_left corresponds to minimum x/y values
+
+    right, top = right_top
+    left, bottom = left_bottom
 
     xy = util.grid_linspace(
-        bounds=[top_left, bottom_right],
-        # bounds=[bottom_right, top_left],
+        bounds=[[left, top], [right, bottom]],
         count=camera.resolution)
+
+    # i.e. after reshaping we have corners aligned correctly
+    # xy_reshaped = xy.reshape(tuple(camera.resolution) + 2)
+    # xy_reshaped[0, 0] == top_left
+    # xy_reshaped[-1, -1] == bottom_right
+
     return xy
 
 
@@ -358,7 +371,7 @@ def camera_to_rays(camera, transform):
     xy = _ray_pixel_coords(camera)
     # vectors = util.unitize(np.column_stack((xy, np.ones_like(xy[:, :1]))))
     vectors = np.column_stack((xy, -np.ones_like(xy[:, :1])))
-  
+
     # apply the rotation to the direction vectors
     vectors = transformations.transform_points(
         vectors,

@@ -21,7 +21,6 @@ camera.fov = (fov,) * 2
 camera.resolution = (resolution,) * 2
 origin, rays = camera.to_rays(scene.camera_transform)
 rays = rays.reshape((resolution, resolution, 3))
-rays = rays[:, -1::-1]  # not sure why this is necessary...
 offset = mesh.vertices - origin
 
 # dists is vertices projected onto central ray
