@@ -3,9 +3,6 @@ import copy
 import numpy as np
 
 from .. import util
-from .. import transformations
-
-from ..geometry import align_vectors
 
 
 class Camera(object):
@@ -252,7 +249,6 @@ class Camera(object):
         return np.arctan(-ray_pixel_coords(self))
 
 
-
 def look_at(points, fov, rotation=None, distance=None, center=None):
     """
     Generate transform for a camera to keep a list
@@ -381,6 +377,5 @@ def camera_to_rays(camera):
       Ray direction vectors in camera frame with z == -1
     """
     xy = ray_pixel_coords(camera)
-    # vectors = util.unitize(np.column_stack((xy, np.ones_like(xy[:, :1]))))
     vectors = np.column_stack((xy, -np.ones_like(xy[:, :1])))
     return vectors

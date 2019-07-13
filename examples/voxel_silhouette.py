@@ -3,10 +3,6 @@ import trimesh
 import numpy as np
 from PIL import Image
 
-from trimesh.geometry import align_vectors
-from trimesh import util
-from trimesh import transformations
-
 
 resolution = 256
 fov = 60.
@@ -30,7 +26,7 @@ farthest = np.max(dists)
 z = np.linspace(closest, farthest, resolution)
 print('z range: %f, %f' % (closest, farthest))
 
-vox = mesh.voxelized(1./resolution, method='binvox')
+vox = mesh.voxelized(1. / resolution, method='binvox')
 
 coords = np.expand_dims(rays, axis=-2) * np.expand_dims(z, axis=-1)
 coords += origin
