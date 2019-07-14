@@ -69,7 +69,7 @@ class MeshScript:
             if platform.system() == 'Windows':
                 startupinfo = subprocess.STARTUPINFO()
                 startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-                
+
             check_call(command_run,
                        stdout=devnull,
                        stderr=subprocess.STDOUT,

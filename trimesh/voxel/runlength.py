@@ -232,12 +232,14 @@ def brle_to_dense(brle_data, vals=None):
     return np.repeat(ft[:len(brle_data)], brle_data).flatten()
 
 
-def rle_to_dense(rle_data, dtype=None):
+def rle_to_dense(rle_data, dtype=np.int64):
     """Get the dense decoding of the associated run length encoded data."""
     values, counts = np.split(np.reshape(rle_data, (-1, 2)), 2, axis=-1)
     if dtype is not None:
         values = np.asanyarray(values, dtype=dtype)
-    return np.repeat(np.squeeze(values, axis=-1), np.squeeze(counts, axis=-1))
+    result = np.repeat(np.squeeze(values, axis=-1),
+                       np.squeeze(counts, axis=-1))
+    return result
 
 
 def dense_to_rle(dense_data, dtype=np.int64):
