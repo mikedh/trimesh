@@ -222,7 +222,9 @@ class RayMeshIntersector(object):
         index_ray = np.hstack(result_ray_idx)
 
         if return_locations:
-            locations = np.array(result_locations)
+            locations = (
+                np.zeros((0, 3), float) if len(result_locations) == 0
+                else np.array(result_locations))
 
             return index_tri, index_ray, locations
         return index_tri, index_ray

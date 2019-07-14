@@ -3,9 +3,6 @@ import copy
 import numpy as np
 
 from .. import util
-from .. import transformations
-
-from ..geometry import align_vectors
 
 
 class Camera(object):
@@ -226,27 +223,30 @@ class Camera(object):
             # fov overrides focal
             self._focal = None
 
-    def to_rays(self, transform):
+    def to_rays(self):
         """
-        Convert a trimesh.scene.Camera object to ray origins
-        and direction vectors. Will return one ray per pixel,
-        as set in camera.resolution.
+        Calculate ray direction vectors.
 
-        Parameters
-        ----------
-        transform : (4, 4) float
-          Camera transform in the base frame
+        Will return one ray per pixel, as set in self.resolution.
 
         Returns
         --------------
-        origins : (n, 3) float
-          Ray origins in space
         vectors : (n, 3) float
-          Ray direction unit vectors
-        angles : (n, 2) float
-          Ray spherical coordinate angles in radians
+          Ray direction vectors in camera frame with z == -1
         """
-        return camera_to_rays(self, transform)
+        return camera_to_rays(self)
+
+    def angles(self):
+        """
+        Get ray spherical coordinates in radians.
+
+
+        Returns
+        --------------
+        angles : (n, 2) float
+          Ray spherical coordinate angles in radians.
+        """
+        return np.arctan(-ray_pixel_coords(self))
 
 
 def look_at(points, fov, rotation=None, distance=None, center=None):
@@ -307,64 +307,75 @@ def look_at(points, fov, rotation=None, distance=None, center=None):
     return cam_pose
 
 
-def camera_to_rays(camera, transform):
+def ray_pixel_coords(camera):
     """
-    Convert a trimesh.scene.Camera object to ray origins
-    and direction vectors. Will return one ray per pixel,
-    as set in camera.resolution.
+    Get the x-y coordinates of rays in camera coordinates at z == -1.
+
+    One coordinate pair will be given for each pixel as defined in
+    camera.resolution. If reshaped, the returned array corresponds to pixels
+    of the rendered image.
+
+    i.e.
+    ```python
+    xy = ray_pixel_coords(camera).reshape(
+      tuple(camera.coordinates) + (2,))
+    top_left == xy[0, 0]
+    bottom_right == xy[-1, -1]
+    ```
 
     Parameters
     --------------
     camera : trimesh.scene.Camera
-      Camera with transform defined
-    transform : (4, 4) float
-      Camera transform in the base frame
 
     Returns
     --------------
-    origins : (n, 3) float
-      Ray origins in space
-    vectors : (n, 3) float
-      Ray direction unit vectors
-    angles : (n, 2) float
-      Ray spherical coordinate angles in radians
+    xy : (n, 2) float
+      x-y coordinates of intersection of each camera ray with the z == -1 frame
     """
-    # radians of half the field of view
-    half = np.radians(camera.fov / 2.0)
-    # scale it down by two pixels to keep image under resolution
-    half *= (camera.resolution - 2) / camera.resolution
+    right_top = np.tan(np.radians(camera.fov / 2.0))
+    # move half a pixel width in
+    # pixel_size = (right_top - left_bottom) / camera.resolution
+    # # for symmetric cameras, pixel_size impl above is equivalent to below
+    # pixel_size = right_top*2 / camera.resolution
+    # right_top -= pixel_size / 2
+    # # the above two lines can be computed more efficiently by the below line
+    right_top *= 1 - 1. / camera.resolution
 
-    bottom_right = np.sin(half)
-    top_left = -bottom_right  # np.sin(-half)
+    left_bottom = -right_top
+    # we are looking down the negative z axis, so
+    # right_top corresponds to maximum x/y values
+    # bottom_left corresponds to minimum x/y values
+
+    right, top = right_top
+    left, bottom = left_bottom
 
     xy = util.grid_linspace(
-        bounds=[top_left, bottom_right], count=camera.resolution)
-    vectors = util.unitize(np.column_stack((xy, np.ones_like(xy[:, :1]))))
-    angles = np.arcsin(xy)
+        bounds=[[left, top], [right, bottom]],
+        count=camera.resolution)
 
-    # # create an evenly spaced list of angles
-    # angles = util.grid_linspace(bounds=[-half, half],
-    #                             count=camera.resolution)
+    # i.e. after reshaping we have corners aligned correctly
+    # xy_reshaped = xy.reshape(tuple(camera.resolution) + 2)
+    # xy_reshaped[0, 0] == top_left
+    # xy_reshaped[-1, -1] == bottom_right
 
-    # # turn the angles into unit vectors
-    # vectors = util.unitize(np.column_stack((
-    #     np.sin(angles),
-    #     np.ones(len(angles)))))
+    return xy
 
-    # flip the camera transform to change sign of Z
-    transform = np.dot(
-        transform,
-        align_vectors([1, 0, 0], [-1, 0, 0]))
 
-    # apply the rotation to the direction vectors
-    vectors = transformations.transform_points(
-        vectors,
-        transform,
-        translate=False)
+def camera_to_rays(camera):
+    """
+    Calculate the trimesh.scene.Camera object to direction vectors.
 
-    # camera origin is single point, extract from transform
-    origin = transformations.translation_from_matrix(transform)
-    # tile it into corresponding list of ray vectors
-    origins = np.ones_like(vectors) * origin
+    Will return one ray per pixel, as set in camera.resolution.
 
-    return origins, vectors, angles
+    Parameters
+    --------------
+    camera : trimesh.scene.Camera
+
+    Returns
+    --------------
+    vectors : (n, 3) float
+      Ray direction vectors in camera frame with z == -1
+    """
+    xy = ray_pixel_coords(camera)
+    vectors = np.column_stack((xy, -np.ones_like(xy[:, :1])))
+    return vectors

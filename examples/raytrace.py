@@ -7,6 +7,8 @@ rays for image reasons.
 
 Install `pyembree` for a speedup (600k+ rays per second)
 """
+from __future__ import division
+
 import PIL.Image
 
 import trimesh
@@ -29,7 +31,10 @@ if __name__ == '__main__':
                              scene.camera.resolution.max())
 
     # convert the camera to rays with one ray per pixel
-    origins, vectors, angles = scene.camera.to_rays(scene.camera_transform)
+    origin, vectors = scene.camera_rays()
+
+    # intersects_location requires origins to be the same shape as vectors
+    origins = np.tile(np.expand_dims(origin, 0), (len(vectors), 1))
 
     # do the actual ray- mesh queries
     points, index_ray, index_tri = mesh.ray.intersects_location(
@@ -37,12 +42,13 @@ if __name__ == '__main__':
 
     # for each hit, find the distance along its vector
     # you could also do this against the single camera Z vector
-    depth = trimesh.util.diagonal_dot(points - origins[0],
+    depth = trimesh.util.diagonal_dot(points - origin,
                                       vectors[index_ray])
 
     # find the angular resolution, in pixels per radian
     ppr = scene.camera.resolution / np.radians(scene.camera.fov)
     # convert rays to pixel locations
+    angles = scene.camera.angles()
     pixel = (angles * ppr).round().astype(np.int64)
     # make sure we are in the first quadrant
     pixel -= pixel.min(axis=0)
