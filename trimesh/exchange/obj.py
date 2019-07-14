@@ -330,10 +330,7 @@ def load_obj(file_obj, resolver=None, **kwargs):
                 # survive index errors as sometimes we
                 # want materials without UV coordinates
                 uv = vt[mask_vt]
-            except BaseException as E:
-                print('mask fucked yo')
-                from IPython import embed
-                embed()
+            except BaseException:
                 uv = None
 
             # mask vertices and use new faces
@@ -510,7 +507,7 @@ def _parse_faces(lines):
                      split[0]]
         elif len(split) != 3:
             log.warning(
-                'face not triangle or quad, not: {}'.format(len(split)))
+                'face has {} elements! skipping!'.format(len(split)))
             continue
 
         # f is like: '76/558/76'

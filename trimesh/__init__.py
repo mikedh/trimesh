@@ -30,8 +30,10 @@ from .exchange.load import (load,
                             load_remote,
                             available_formats)
 
+from . import voxel
 # avoid a circular import in trimesh.base
 from . import primitives
+
 
 # explicitly list imports in __all__
 # as otherwise flake8 gets mad
@@ -39,6 +41,7 @@ __all__ = [__version__,
            Trimesh,
            PointCloud,
            Scene,
+           voxel,
            unitize,
            tol,
            load,

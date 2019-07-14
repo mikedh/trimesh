@@ -21,12 +21,11 @@ def load_notebook(file_obj):
     Arguments
     ----------
     file_obj :  open file object
-    exclude  :  list, strs which if a line contains the line
-                will be replaced by a pass statement.
 
     Returns
     ----------
-    script : str, cleaned script which can be passed to exec
+    script : str
+      Cleaned script which can be passed to exec
     """
     raw = json.load(file_obj)
     lines = np.hstack([i['source']
@@ -37,7 +36,12 @@ def load_notebook(file_obj):
 
 def exclude_calls(
         lines,
-        exclude=['%matplotlib', '%pylab', 'show', 'plt', 'save_image', '?']):
+        exclude=['%matplotlib',
+                 '%pylab',
+                 'show',
+                 'plt',
+                 'save_image',
+                 '?']):
     """
     Exclude certain calls based on substrings, replacing
     them with pass statements.
@@ -143,7 +147,10 @@ def main():
 
     # examples which we're not going to run in CI
     # widget.py opens a window and does a bunch of openGL stuff
-    ci_blacklist = ['widget.py']
+    ci_blacklist = ['widget.py',
+                    'voxel.py',
+                    'voxel_fillers.py',
+                    'voxel_silhouette.py']
 
     if "examples" in sys.argv:
         out_path = sys.argv[sys.argv.index("examples") + 1]
@@ -182,6 +189,6 @@ def main():
 
 if __name__ == '__main__':
     """
-    Load and run a notebook if a file name is passed
+    Load and run a notebook if a file name is passed.
     """
     main()
