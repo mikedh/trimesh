@@ -70,10 +70,12 @@ def load_obj(file_obj, resolver=None, **kwargs):
     # aggressivly reduce blob to only part with vertices
     # the first position of a vertex in the text blob
     v_start = text.find('\nv ')
-    # we only need to search from the start of the file
-    # up to the location of out our first vertex
-    vn_start = text.find('\nvn ', 0, v_start)
-    vt_start = text.find('\nvt ', 0, v_start)
+    # we only really need to search from the start of the file
+    # up to the location of out our first vertex but we
+    # are going to use this check for "do we have texture"
+    # determination later so search the whole stupid file
+    vn_start = text.find('\nvn ')
+    vt_start = text.find('\nvt ')
     # positions of first locations filtered by existance
     starts = [i for i in [v_start, vt_start, vn_start] if i >= 0]
     if len(starts) > 0:
@@ -328,7 +330,10 @@ def load_obj(file_obj, resolver=None, **kwargs):
                 # survive index errors as sometimes we
                 # want materials without UV coordinates
                 uv = vt[mask_vt]
-            except BaseException:
+            except BaseException as E:
+                print('mask fucked yo')
+                from IPython import embed
+                embed()
                 uv = None
 
             # mask vertices and use new faces
@@ -338,7 +343,7 @@ def load_obj(file_obj, resolver=None, **kwargs):
             if vc is not None:
                 # if we have vertex colors pass them
                 mesh['vertex_colors'] = vc[mask_v]
-            if False and vn is not None:
+            if vn is not None:
                 # if we have vertex normals pass them
                 mesh['vertex_normals'] = vn[mask_v]
 

@@ -1,4 +1,4 @@
-FROM debian:stretch-slim
+FROM debian:buster-slim
 MAINTAINER Michael Dawson-Haggerty <mikedh@kerfed.com>
 
 COPY docker/builds/apt.bash /tmp/
