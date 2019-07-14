@@ -245,22 +245,35 @@ def colors_to_gl(colors, count):
 
     colors = np.asanyarray(colors)
     count = int(count)
-    if util.is_shape(colors, (count, (3, 4))):
-        # convert the numpy dtype code to an opengl one
-        colors_dtype = {'f': 'f',
-                        'i': 'B',
-                        'u': 'B'}[colors.dtype.kind]
-        # create the data type description string pyglet expects
-        colors_type = 'c' + str(colors.shape[1]) + colors_dtype + '/static'
+    # get the GL kind of color we have
+    colors_dtypes = {'f': 'f',
+                     'i': 'B',
+                     'u': 'B'}
+
+    if colors.dtype.kind in colors_dtypes:
+        dtype = colors_dtypes[colors.dtype.kind]
+    else:
+        dtype = None
+
+    if dtype is not None and util.is_shape(colors, (count, (3, 4))):
+        # save the shape and dtype for opengl color string
+        colors_type = 'c{}{}/static'.format(colors.shape[1], dtype)
         # reshape the 2D array into a 1D one and then convert to a python list
-        colors = colors.reshape(-1).tolist()
+        gl_colors = colors.reshape(-1).tolist()
+    elif dtype is not None and colors.shape in [(3,), (4,)]:
+        # we've been passed a single color so tile them
+        gl_colors = (np.ones((count, colors.size),
+                             dtype=colors.dtype) * colors).reshape(-1).tolist()
+        # we know we're tiling
+        colors_type = 'c{}{}/static'.format(colors.size, dtype)
     else:
         # case where colors are wrong shape, use a default color
-        colors = np.tile([.5, .10, .20],
-                         (count, 1)).reshape(-1).tolist()
+        gl_colors = np.tile([.5, .10, .20],
+                            (count, 1)).reshape(-1).tolist()
+        # we're returning RGB float colors
         colors_type = 'c3f/static'
 
-    return colors_type, colors
+    return colors_type, gl_colors
 
 
 def material_to_texture(material, upsize=True):

@@ -337,12 +337,6 @@ def load_obj(file_obj, resolver=None, **kwargs):
 
             mesh.update({'vertices': v[mask_v].copy(),
                          'faces': new_faces})
-            if vc is not None:
-                # if we have vertex colors pass them
-                mesh['vertex_colors'] = vc[mask_v]
-            if vn is not None:
-                # if we have vertex normals pass them
-                mesh['vertex_normals'] = vn[mask_v]
 
         else:
             # otherwise just use unmasked vertices
@@ -359,7 +353,6 @@ def load_obj(file_obj, resolver=None, **kwargs):
             if vc is not None:
                 mesh['vertex_colors'] = vc
             # if we have vertex normals pass them
-
             if vn is not None and np.shape(normal_idx) == faces.shape:
                 # do the crazy unmerging logic for split indices
                 new_faces, mask_v, mask_vn = unmerge_faces(
@@ -368,6 +361,8 @@ def load_obj(file_obj, resolver=None, **kwargs):
                 mesh['vertex_normals'] = vn[mask_vn]
                 mesh['vertices'] = mesh['vertices'][mask_v]
                 mesh['faces'] = new_faces
+                if 'vertex_colors' in mesh:
+                    mesh['vertex_colors'] = mesh['vertex_colors'][mask_v]
 
         if materials is not None and material in materials:
             visual = TextureVisuals(

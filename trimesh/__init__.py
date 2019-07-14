@@ -30,10 +30,16 @@ from .exchange.load import (load,
                             load_remote,
                             available_formats)
 
-from . import voxel
 # avoid a circular import in trimesh.base
 from . import primitives
 
+try:
+    from . import voxel
+except BaseException as E:
+    # create a dummy module to re-raise this
+    # exception when someone tries to use it
+    from .exceptions import ExceptionModule
+    voxel = ExceptionModule(E)
 
 # explicitly list imports in __all__
 # as otherwise flake8 gets mad

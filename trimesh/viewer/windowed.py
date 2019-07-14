@@ -191,10 +191,14 @@ class SceneViewer(pyglet.window.Window):
         # save the rendering mode from the constructor args
         self.vertex_list_mode[name] = args[1]
 
-        # if a geometry has a texture defined convert it to opengl form and
-        # save
-        if hasattr(geometry, 'visual') and hasattr(
-                geometry.visual, 'material'):
+        try:
+            # if a geometry has UV coordinates that match vertices
+            assert len(geometry.visual.uv) == len(geometry.vertices)
+            has_tex = True
+        except BaseException:
+            has_tex = False
+
+        if has_tex:
             tex = rendering.material_to_texture(geometry.visual.material)
             if tex is not None:
                 self.textures[name] = tex

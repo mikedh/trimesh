@@ -64,7 +64,7 @@ class VoxelGridTest(g.unittest.TestCase):
         try:
             from skimage import measure  # NOQA
         except ImportError:
-            g.log.warn('no skimage, skipping marching cubes test')
+            g.log.warning('no skimage, skipping marching cubes test')
             return
 
         # make sure offset is correct
@@ -82,7 +82,7 @@ class VoxelGridTest(g.unittest.TestCase):
         try:
             from skimage import measure  # NOQA
         except ImportError:
-            g.log.warn('no skimage, skipping marching cubes test')
+            g.log.warning('no skimage, skipping marching cubes test')
             return
 
         # get some points on the surface of an icosahedron

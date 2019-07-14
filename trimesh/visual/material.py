@@ -29,10 +29,10 @@ class SimpleMaterial(Material):
         # save image
         self.image = image
 
-        # save material colors
-        self.ambient = ambient
-        self.diffuse = diffuse
-        self.specular = specular
+        # save material colors as RGBA
+        self.ambient = color.to_rgba(ambient)
+        self.diffuse = color.to_rgba(diffuse)
+        self.specular = color.to_rgba(specular)
 
         # save other keyword arguments
         self.kwargs = kwargs

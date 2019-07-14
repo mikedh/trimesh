@@ -443,7 +443,7 @@ def _polygon_to_kwargs(polygon):
         try:
             start += add_boundary(interior, start)
         except BaseException:
-            log.warn('invalid interior, continuing')
+            log.warning('invalid interior, continuing')
             continue
 
     # create clean (n,2) float array of vertices

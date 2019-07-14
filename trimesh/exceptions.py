@@ -13,7 +13,7 @@ class ExceptionModule(object):
 
     For soft dependencies we want to survive failing to import but
     we would like to raise an appropriate error when the functionality is
-    actually requested, so the user gets an easily debuggable message.
+    actually requested so the user gets an easily debuggable message.
     """
 
     def __init__(self, exc):

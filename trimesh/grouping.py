@@ -232,7 +232,7 @@ def float_to_int(data, digits=None, dtype=np.int32):
     elif isinstance(digits, float) or isinstance(digits, np.float):
         digits = util.decimal_to_digits(digits)
     elif not (isinstance(digits, int) or isinstance(digits, np.integer)):
-        log.warn('Digits were passed as %s!', digits.__class__.__name__)
+        log.warning('Digits were passed as %s!', digits.__class__.__name__)
         raise ValueError('Digits must be None, int, or float!')
 
     # data is float so convert to large integers
