@@ -13,6 +13,10 @@ class Material(object):
     def __init__(self, *args, **kwargs):
         raise NotImplementedError('material must be subclassed!')
 
+    @property
+    def main_color(self):
+        raise NotImplementedError('material must be subclassed!')
+
 
 class SimpleMaterial(Material):
     """
@@ -39,6 +43,10 @@ class SimpleMaterial(Material):
 
     def to_color(self, uv):
         return color.uv_to_color(uv, self.image)
+
+    @property
+    def main_color(self):
+        return self.diffuse
 
 
 class PBRMaterial(Material):
@@ -100,3 +108,7 @@ class PBRMaterial(Material):
         if colors is None and self.baseColorFactor is not None:
             colors = self.baseColorFactor.copy()
         return colors
+
+    @property
+    def main_color(self):
+        return self.baseColorFactor

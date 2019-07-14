@@ -99,7 +99,7 @@ def mesh_to_vertexlist(mesh,
         if uv is None:
             # if no UV coordinates on material, just set face colors
             # to the diffuse color of the material
-            color_gl = colors_to_gl(mesh.visual.material.diffuse,
+            color_gl = colors_to_gl(mesh.visual.material.main_color,
                                     vertex_count)
         else:
             # if someone passed (n, 3) UVR cut it off here
