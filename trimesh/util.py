@@ -2054,3 +2054,41 @@ class TemporaryDirectory(object):
 
     def __exit__(self, *args, **kwargs):
         shutil.rmtree(self.path)
+
+
+def decode_text(text):
+    """
+    Try to decode byte input as a string.
+
+    Initially guesses that text is UTF-8, and then if
+    that fails it tries to detect the encoding and
+    try once more.
+
+    Parameters
+    ------------
+    text : bytes
+      Data that might be strings
+
+    Returns
+    ------------
+    decoded : str
+      Data as a string
+    """
+    # if not bytes just return input
+    if not hasattr(text, 'decode'):
+        return text
+
+    try:
+        # initially guess file is UTF-8
+        text = text.decode('utf-8')
+    except UnicodeDecodeError:
+        # detect different file encodings
+        import chardet
+        # try to detect the encoding of the file
+        detect = chardet.detect(text)
+        # warn on files that aren't UTF-8
+        log.warning('data not UTF-8, possibly: {} confidence {}'.format(
+            detect['encoding'], detect['confidence']))
+        # try to decode again, unwrapped in try
+        text = text.decode(detect['encoding'])
+    return text

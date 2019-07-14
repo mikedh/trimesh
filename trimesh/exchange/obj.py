@@ -34,10 +34,12 @@ def load_obj(file_obj, resolver=None, **kwargs):
       trimesh.exchange.load.load_kwargs into a trimesh.Scene
     """
 
-    # get text as string blob
+    # get text as bytes or string blob
     text = file_obj.read()
-    if hasattr(text, 'decode'):
-        text = text.decode('utf-8')
+
+    # if text was bytes decode into string
+    text = util.decode_text(text)
+
     # add leading and trailing newlines so we can use the
     # same logic even if they jump directly in to data lines
     text = '\n{}\n'.format(text.strip().replace('\r\n', '\n'))
@@ -72,17 +74,23 @@ def load_obj(file_obj, resolver=None, **kwargs):
     # up to the location of out our first vertex
     vn_start = text.find('\nvn ', 0, v_start)
     vt_start = text.find('\nvt ', 0, v_start)
-    start = min(i for i in [v_start, vt_start, vn_start] if i >= 0)
-    # search for the first newline past the last vertex
-    v_end = text.find('\n', text.rfind('\nv ') + 3)
-    # we only need to search from the last
-    # vertex up until the end of the file
-    vt_end = text.find('\n', text.rfind('\nvt ', v_end) + 4)
-    vn_end = text.find('\n', text.rfind('\nvn ', v_end) + 4)
-    # take the last position of any vertex property
-    end = max(i for i in [v_end, vt_end, vn_end] if i > 0)
-    # make a giant string numpy array of each "word"
-    words = np.array(text[start:end].split())
+    # positions of first locations filtered by existance
+    starts = [i for i in [v_start, vt_start, vn_start] if i >= 0]
+    if len(starts) > 0:
+        start = min(starts)
+        # search for the first newline past the last vertex
+        v_end = text.find('\n', text.rfind('\nv ') + 3)
+        # we only need to search from the last
+        # vertex up until the end of the file
+        vt_end = text.find('\n', text.rfind('\nvt ', v_end) + 4)
+        vn_end = text.find('\n', text.rfind('\nvn ', v_end) + 4)
+        # take the last position of any vertex property
+        end = max(i for i in [v_end, vt_end, vn_end] if i > 0)
+        # make a giant string numpy array of each "word"
+        words = np.array(text[start:end].replace('+e', 'e').replace('-e', 'e').split())
+    else:
+        # none of the vertex keys exist so the file is empty
+        words = np.array([])
 
     # find indexes of the "vertex" keys
     # this avoids having to loop through the giant vertex array
@@ -127,7 +135,7 @@ def load_obj(file_obj, resolver=None, **kwargs):
         pass
 
     vt = None
-    if vt_end >= 0:
+    if vt_start >= 0:
         # if we have vertex textures specified convert to numpy array
         vt_idx = np.nonzero(words == 'vt')[0].reshape((-1, 1))
         # only bother if we got the right number of indexes
@@ -137,7 +145,7 @@ def load_obj(file_obj, resolver=None, **kwargs):
                           dtype=np.float64).reshape((-1, 2))
 
     vn = None
-    if vn_end >= 0:
+    if vn_start >= 0:
         # if we have vertex normals specified convert to numpy array
         vn_idx = np.nonzero(words == 'vn')[0].reshape((-1, 1))
         if len(vn_idx) > 0:
