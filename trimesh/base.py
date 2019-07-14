@@ -15,7 +15,6 @@ from . import util
 from . import units
 from . import poses
 from . import graph
-from . import voxel
 from . import sample
 from . import repair
 from . import convex
