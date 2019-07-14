@@ -66,14 +66,14 @@ class MeshScript:
         # avoid resourcewarnings with null
         with open(os.devnull, 'w') as devnull:
             startupinfo = None
-            if os.name == 'nt':
+            if platform.system() == 'Windows':
                 startupinfo = subprocess.STARTUPINFO()
                 startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
                 
             check_call(command_run,
                        stdout=devnull,
                        stderr=subprocess.STDOUT,
-                       startupinfo = startupinfo)
+                       startupinfo=startupinfo)
 
         # bring the binaries result back as a set of Trimesh kwargs
         mesh_results = exchange.load.load_mesh(self.mesh_post.name)
