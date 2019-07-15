@@ -14,8 +14,8 @@ from . import encoding as enc
 from .. import caching
 from .. import transformations as tr
 
-from ..constants import log
 from ..parent import Geometry
+from ..constants import log
 
 
 class VoxelGrid(Geometry):

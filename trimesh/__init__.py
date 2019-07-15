@@ -30,30 +30,30 @@ from .exchange.load import (load,
                             load_remote,
                             available_formats)
 
-# avoid a circular import in trimesh.base
-from . import primitives
-
 try:
-    from . import voxel
+    from .voxel.base import VoxelGrid
 except BaseException as E:
     # create a dummy module to re-raise this
     # exception when someone tries to use it
     from .exceptions import ExceptionModule
-    voxel = ExceptionModule(E)
+    VoxelGrid = ExceptionModule(E)
+
+# avoid a circular import in trimesh.base
+from . import primitives
 
 # explicitly list imports in __all__
 # as otherwise flake8 gets mad
 __all__ = [__version__,
-           Trimesh,
-           PointCloud,
-           Scene,
-           voxel,
-           unitize,
-           tol,
-           load,
-           load_mesh,
-           load_path,
-           load_remote,
-           primitives,
-           transform_points,
-           available_formats]
+           'Trimesh',
+           'PointCloud',
+           'Scene',
+           'VoxelGrid',
+           'unitize',
+           'tol',
+           'load',
+           'load_mesh',
+           'load_path',
+           'load_remote',
+           'primitives',
+           'transform_points',
+           'available_formats']

@@ -68,7 +68,7 @@ class Trimesh(Geometry):
         A Trimesh object contains a triangular 3D mesh.
 
         Parameters
-        ----------
+        ------------
         vertices : (n, 3) float
           Array of vertex locations
         faces : (m, 3) or (m, 4) int
@@ -1038,7 +1038,7 @@ class Trimesh(Geometry):
         Convert the units of the mesh into a specified unit.
 
         Parameters
-        ----------
+        ------------
         desired : string
           Units to convert to (eg 'inches')
         guess : boolean
@@ -1071,7 +1071,7 @@ class Trimesh(Geometry):
         Update vertices with a mask.
 
         Parameters
-        ----------
+        ------------
         vertex_mask : (len(self.vertices)) bool
           Array of which vertices to keep
         inverse : (len(self.vertices)) int
@@ -1140,7 +1140,7 @@ class Trimesh(Geometry):
         as well as keeping track of normals and colors.
 
         Parameters
-        ---------
+        ------------
         valid : (m) int or (len(self.faces)) bool
           Mask to remove faces
         """
@@ -1234,7 +1234,7 @@ class Trimesh(Geometry):
         Splits into individual components, sometimes referred to as 'bodies'
 
         Parameters
-        ---------
+        ------------
         only_watertight : bool
           Only return watertight meshes and discard remainder
         adjacency : None or (n, 2) int
@@ -1785,7 +1785,7 @@ class Trimesh(Geometry):
         most probable pose first.
 
         Parameters
-        ----------
+        ------------
         center_mass : (3,) float
           The object center of mass (if None, this method
           assumes uniform density and watertightness and
@@ -1822,7 +1822,7 @@ class Trimesh(Geometry):
         smaller faces.
 
         Parameters
-        ----------
+        ------------
         face_index: (m,) int or None
           If None all faces of mesh will be subdivided
           If (m,) int array of indices: only specified faces will be
@@ -1902,7 +1902,7 @@ class Trimesh(Geometry):
         defined by origin and normal.
 
         Parameters
-        ---------
+        ------------
         plane_normal: (3) vector for plane normal
           Normal vector of section plane
         plane_origin : (3,) float
@@ -1944,7 +1944,7 @@ class Trimesh(Geometry):
         mesh in 2D.
 
         Parameters
-        ---------
+        ------------
         plane_normal: (3) vector for plane normal
           Normal vector of section plane
         plane_origin : (3,) float
@@ -1988,7 +1988,7 @@ class Trimesh(Geometry):
         sliced by the plane defined by origin and normal.
 
         Parameters
-        ---------
+        ------------
         plane_normal: (3) vector for plane normal
           Normal vector of slicing plane
         plane_origin : (3,) float
@@ -2029,7 +2029,7 @@ class Trimesh(Geometry):
         surface of the mesh
 
         Parameters
-        ---------
+        ------------
         count : int
           Number of points to sample
         return_index : bool
@@ -2105,7 +2105,7 @@ class Trimesh(Geometry):
         if possible.
 
         Parameters
-        ----------
+        ------------
         matrix : (4, 4) float
           Homogeneous transformation matrix
         """
@@ -2217,7 +2217,7 @@ class Trimesh(Geometry):
         discretized into voxels at the specified pitch
 
         Parameters
-        ----------
+        ------------
         pitch : float
           The edge length of a single voxel
         method: implementation key. See `trimesh.voxel.creation.voxelizers`
@@ -2244,7 +2244,7 @@ class Trimesh(Geometry):
         outline of a watertight mesh is an empty path.
 
         Parameters
-        ----------
+        ------------
         face_ids : (n,) int
           Indices to compute the outline of.
           If None, outline of full mesh will be computed.
@@ -2373,7 +2373,7 @@ class Trimesh(Geometry):
         Render the mesh in an opengl window. Requires pyglet.
 
         Parameters
-        -----------
+        ------------
         smooth : bool
           Run smooth shading on mesh or not,
           large meshes will be slow
@@ -2391,7 +2391,7 @@ class Trimesh(Geometry):
         Return a subset of the mesh.
 
         Parameters
-        ----------
+        ------------
         faces_sequence : sequence (m,) int
           Face indices of mesh
         only_watertight : bool
@@ -2446,7 +2446,7 @@ class Trimesh(Geometry):
         dict64, msgpack.
 
         Parameters
-        ---------
+        ------------
         file_obj: open writeable file object
           str, file name where to save the mesh
           None, if you would like this function to return the export blob
@@ -2502,7 +2502,7 @@ class Trimesh(Geometry):
 
 
         Parameters
-        ----------
+        ------------
         maxhulls :  int
           Maximum number of convex hulls to return
         **kwargs :  testVHACD keyword arguments
@@ -2522,7 +2522,7 @@ class Trimesh(Geometry):
         Boolean union between this mesh and n other meshes
 
         Parameters
-        ---------
+        ------------
         other : trimesh.Trimesh, or list of trimesh.Trimesh objects
           Other meshes to union
 
@@ -2540,7 +2540,7 @@ class Trimesh(Geometry):
         Boolean difference between this mesh and n other meshes
 
         Parameters
-        ---------
+        ------------
         other : trimesh.Trimesh, or list of trimesh.Trimesh objects
          Meshes to difference
 
@@ -2558,7 +2558,7 @@ class Trimesh(Geometry):
         Boolean intersection between this mesh and n other meshes
 
         Parameters
-        ---------
+        ------------
         other : trimesh.Trimesh, or list of trimesh.Trimesh objects
           Meshes to calculate intersections with
 
@@ -2577,7 +2577,7 @@ class Trimesh(Geometry):
         This raises an error if called on a non- watertight mesh.
 
         Parameters
-        ---------
+        ------------
         points : (n, 3) float
           Points in cartesian space
 
@@ -2695,7 +2695,7 @@ class Trimesh(Geometry):
         Statements are evaluated inside the Trimesh object, and
 
         Parameters
-        -----------
+        ------------
         statement : str
           Statement of valid python code
         *args : list

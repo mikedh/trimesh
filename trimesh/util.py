@@ -64,7 +64,7 @@ def unitize(vectors,
     Unitize a vector or an array or row- vectors.
 
     Parameters
-    ---------
+    ------------
     vectors : (n,m) or (j) float
        Vector or vectors to be unitized
     check_valid :  bool
@@ -1440,14 +1440,14 @@ def submesh(mesh,
 def zero_pad(data, count, right=True):
     """
     Parameters
-    --------
+    -----------
     data : (n,)
       1D array
     count : int
       Minimum length of result array
 
     Returns
-    --------
+    ---------
     padded : (m,)
       1D array where m >= count
     """
@@ -1498,12 +1498,12 @@ def convert_like(item, like):
     Convert an item to have the dtype of another item
 
     Parameters
-    ----------
+    ------------
     item: item to be converted
     like: object with target dtype. If None, item is returned unmodified
 
     Returns
-    --------
+    ----------
     result: item, but in dtype of like
     """
     if isinstance(like, np.ndarray):
@@ -1527,7 +1527,7 @@ def bounds_tree(bounds):
     collision detection
 
     Parameters
-    ---------
+    ------------
     bounds: (n, dimension*2) list of non- interleaved bounds
              for a 2D bounds tree:
              [(minx, miny, maxx, maxy), ...]
@@ -1574,7 +1574,7 @@ def wrap_as_stream(item):
     Wrap a string or bytes object as a file object.
 
     Parameters
-    ----------
+    ------------
     item: str or bytes
       Item to be wrapped
 
@@ -1596,7 +1596,7 @@ def sigfig_round(values, sigfig=1):
     Round a single value to a specified number of significant figures.
 
     Parameters
-    ----------
+    ------------
     values: float, value to be rounded
     sigfig: int, number of significant figures to reduce to
 
@@ -1662,7 +1662,7 @@ def decompress(file_obj, file_type):
     of the archive as open file objects in a dict.
 
     Parameters
-    -----------
+    ------------
     file_obj : file-like
       Containing compressed data
     file_type : str
@@ -1738,7 +1738,7 @@ def split_extension(file_name, special=['tar.bz2', 'tar.gz']):
     special case multipart file extensions (like .tar.gz)
 
     Parameters
-    ----------
+    ------------
     file_name: str, file name
     special:   list of str, multipart extensions
                eg: ['tar.bz2', 'tar.gz']
@@ -1911,12 +1911,12 @@ def generate_basis(z):
     from a given z-axis vector.
 
     Parameters
-    ----------
+    ------------
     z: (3,) float
       A vector along the positive z-axis
 
     Returns
-    -------
+    ---------
     x : (3,) float
       Vector along x axis
     y : (3,) float
@@ -1959,7 +1959,7 @@ def isclose(a, b, atol):
     a and b MUST be np.ndarray, not list or "array-like"
 
     Parameters
-    ----------
+    ------------
     a : np.ndarray
       To be compared
     b : np.ndarray
@@ -1986,7 +1986,7 @@ def allclose(a, b, atol):
     a and b MUST be np.ndarray, not list or "array-like"
 
     Parameters
-    ----------
+    ------------
     a : np.ndarray
       To be compared
     b : np.ndarray
