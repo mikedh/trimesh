@@ -4,9 +4,11 @@ from . import util
 from .constants import tol, log
 
 try:
-    from scipy.sparse import coo_matrix, identity
-except ImportError:
-    log.warning('scipy.sparse.coo_matrix unavailable')
+    from scipy import sparse
+except BaseException as E:
+    from . import exceptions
+    # raise E again if anyone tries to use sparse
+    sparse = exceptions.ExceptionModule(E)
 
 
 def plane_transform(origin, normal):
@@ -229,7 +231,7 @@ def vertex_face_indices(vertex_count,
         else:
             sparse = index_sparse(vertex_count, faces)
 
-        y = identity(len(faces), dtype=int)
+        y = sparse.identity(len(faces), dtype=int)
         sorted_faces = sparse.dot(y).nonzero()
         return sorted_faces
 
@@ -381,7 +383,7 @@ def index_sparse(column_count, indices):
 
     shape = (column_count, len(indices))
     data = np.ones(len(col), dtype=np.bool)
-    sparse = coo_matrix((data, (row, col)),
-                        shape=shape,
-                        dtype=np.bool)
+    sparse = sparse.coo_matrix((data, (row, col)),
+                               shape=shape,
+                               dtype=np.bool)
     return sparse
