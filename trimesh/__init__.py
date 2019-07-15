@@ -30,14 +30,6 @@ from .exchange.load import (load,
                             load_remote,
                             available_formats)
 
-try:
-    from .voxel.base import VoxelGrid
-except BaseException as E:
-    # create a dummy module to re-raise this
-    # exception when someone tries to use it
-    from .exceptions import ExceptionModule
-    VoxelGrid = ExceptionModule(E)
-
 # avoid a circular import in trimesh.base
 from . import primitives
 
@@ -47,7 +39,6 @@ __all__ = [__version__,
            'Trimesh',
            'PointCloud',
            'Scene',
-           'VoxelGrid',
            'unitize',
            'tol',
            'load',
