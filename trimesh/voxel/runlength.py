@@ -161,11 +161,10 @@ def split_long_brle_lengths(lengths, dtype=np.int64):
         repeats = np.asarray(lengths) // max_val
         remainders = (lengths % max_val).astype(dtype)
 
-        # shape of lengths
-        shape = (np.sum(repeats) * 2 + nl,)
         lengths = np.concatenate(
             [np.array([max_val, 0] * repeat + [remainder], dtype=dtype)
-             for repeat, remainder in zip(repeats, remainders)]).reshape(shape).astype(dtype)
+             for repeat, remainder in zip(repeats, remainders)])
+        lengths = lengths.reshape((np.sum(repeats) * 2 + nl,)).astype(dtype)
         return lengths
     elif lengths.dtype != dtype:
         return lengths.astype(dtype)
@@ -239,8 +238,13 @@ def rle_to_dense(rle_data, dtype=np.int64):
     values, counts = np.split(np.reshape(rle_data, (-1, 2)), 2, axis=-1)
     if dtype is not None:
         values = np.asanyarray(values, dtype=dtype)
-    result = np.repeat(np.squeeze(values, axis=-1),
-                       np.squeeze(counts, axis=-1))
+    try:
+        result = np.repeat(np.squeeze(values, axis=-1),
+                           np.squeeze(counts, axis=-1))
+    except TypeError:
+        # on windows it sometimes fails to cast data type
+        result = np.repeat(np.squeeze(values.astype(np.int64), axis=-1),
+                           np.squeeze(counts.astype(np.int64), axis=-1))
     return result
 
 

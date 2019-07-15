@@ -794,7 +794,13 @@ class TransposedEncoding(LazyIndexMap):
         return np.take(indices, self._perm, axis=-1)
 
     def _from_base_indices(self, base_indices):
-        return np.take(base_indices, self._inv_perm, axis=-1)
+        try:
+            return np.take(base_indices, self._inv_perm, axis=-1)
+        except TypeError:
+            # windows sometimes tries to use wrong dtypes
+            return np.take(base_indices.astype(np.int64),
+                           self._inv_perm.astype(np.int64),
+                           axis=-1)
 
     @property
     def dense(self):
