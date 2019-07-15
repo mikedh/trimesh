@@ -76,7 +76,7 @@ def load_obj(file_obj, resolver=None, **kwargs):
     # determination later so search the whole stupid file
     vn_start = text.find('\nvn ')
     vt_start = text.find('\nvt ')
-    # positions of first locations filtered by existance
+    # positions of first locations filtered by existence
     starts = [i for i in [v_start, vt_start, vn_start] if i >= 0]
     if len(starts) > 0:
         start = min(starts)

@@ -23,7 +23,7 @@ class BooleanTest(g.unittest.TestCase):
         for engine, exists in engines:
             # if we have all_dep set it means we should fail if
             # engine is not installed so don't continue
-            if not exists and not g.all_dep:
+            if not exists:
                 g.log.warning('skipping boolean engine %s', engine)
                 continue
 
