@@ -32,7 +32,8 @@ ENV PATH="/home/user/conda/bin:$PATH"
 # make sure build fails if tests are failing
 # -p no:warnings suppresses 10,000 useless upstream warnings
 # -p no:alldep means that tests will fail if a dependency is missing
-# RUN pytest -p no:warnings -p no:alldep /tmp/trimesh/tests
+# -x will exit on first test failure
+RUN pytest -x -p no:warnings -p no:alldep /tmp/trimesh/tests
 
 # environment variables for software rendering
 ENV XVFB_WHD="1920x1080x24"\

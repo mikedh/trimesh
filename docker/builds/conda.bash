@@ -24,7 +24,9 @@ conda install pyembree
 # install trimesh from the repo
 cd /tmp/trimesh
 # include all soft dependencies
-pip install .[all,test] pyassimp
+pip install .[all,test] pyassimp==4.1.3
 
 # remove archives
 conda clean --all
+# remove pip cache and temp files
+rm -rf ~/.cache/pip || true
