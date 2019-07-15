@@ -227,12 +227,12 @@ def vertex_face_indices(vertex_count,
         # sort the face indices by vertex index
         # allow cached sparse matrix to be passed
         if 'sparse' in kwargs:
-            sparse = kwargs['sparse']
+            matrix = kwargs['sparse']
         else:
-            sparse = index_sparse(vertex_count, faces)
+            matrix = index_sparse(vertex_count, faces)
 
         y = sparse.identity(len(faces), dtype=int)
-        sorted_faces = sparse.dot(y).nonzero()
+        sorted_faces = matrix.dot(y).nonzero()
         return sorted_faces
 
     def sorted_loop():
@@ -304,10 +304,10 @@ def mean_vertex_normals(vertex_count,
         # figure out the summed normal at each vertex
         # allow cached sparse matrix to be passed
         if 'sparse' in kwargs:
-            sparse = kwargs['sparse']
+            matrix = kwargs['sparse']
         else:
-            sparse = index_sparse(vertex_count, faces)
-        summed = sparse.dot(face_normals)
+            matrix = index_sparse(vertex_count, faces)
+        summed = matrix.dot(face_normals)
         return summed
 
     def summed_loop():
@@ -383,7 +383,8 @@ def index_sparse(column_count, indices):
 
     shape = (column_count, len(indices))
     data = np.ones(len(col), dtype=np.bool)
-    sparse = sparse.coo_matrix((data, (row, col)),
+    # assemble into sparse matrix
+    matrix = sparse.coo_matrix((data, (row, col)),
                                shape=shape,
                                dtype=np.bool)
-    return sparse
+    return matrix
