@@ -6,7 +6,6 @@ Fill holes and fix winding and normals of meshes.
 """
 
 import numpy as np
-import networkx as nx
 
 from . import graph
 from . import triangles
@@ -14,6 +13,15 @@ from . import triangles
 from .constants import log
 from .grouping import group_rows
 from .geometry import faces_to_edges
+
+
+try:
+    import networkx as nx
+except BaseException as E:
+    # create a dummy module which will raise the ImportError
+    # or other exception only when someone tries to use networkx
+    from .exceptions import ExceptionModule
+    nx = ExceptionModule(E)
 
 
 def fix_winding(mesh):

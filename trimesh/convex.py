@@ -11,7 +11,7 @@ Convex is defined as:
 
 import numpy as np
 
-from .constants import tol, log
+from .constants import tol
 
 from . import util
 from . import triangles
@@ -19,8 +19,9 @@ from . import triangles
 
 try:
     from scipy import spatial
-except ImportError:
-    log.warning('Scipy import failed!')
+except ImportError as E:
+    from .exceptions import ExceptionModule
+    spatial = ExceptionModule(E)
 
 
 def convex_hull(obj, qhull_options='QbB Pp QJn'):

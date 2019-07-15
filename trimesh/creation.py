@@ -21,11 +21,14 @@ try:
     # shapely is a soft dependency
     from shapely.geometry import Polygon
     from shapely.wkb import loads as load_wkb
-except BaseException:
+except BaseException as E:
     # shapely will sometimes raise OSErrors
     # on import rather than just ImportError
-    log.warning('shapely.geometry.Polygon not available!',
-                exc_info=True)
+    from . import exceptions
+    # re-raise the exception when someone tries
+    # to use the module that they don't have
+    Polygon = exceptions.closure(E)
+    load_wkb = exceptions.closure(E)
 
 
 def validate_polygon(obj):
@@ -440,7 +443,7 @@ def _polygon_to_kwargs(polygon):
         try:
             start += add_boundary(interior, start)
         except BaseException:
-            log.warn('invalid interior, continuing')
+            log.warning('invalid interior, continuing')
             continue
 
     # create clean (n,2) float array of vertices
@@ -993,13 +996,8 @@ def camera_marker(camera,
       Contains Trimesh and Path3D objects which can be visualized
     """
 
-    camera_transform = camera.transform
-    if camera_transform is None:
-        camera_transform = np.eye(4)
-
     # append the visualizations to an array
     meshes = [axis(origin_size=marker_height / 10.0)]
-    meshes[0].apply_transform(camera_transform)
 
     try:
         # path is a soft dependency
@@ -1044,6 +1042,5 @@ def camera_marker(camera,
 
     # add a single Path3D object for all line segments
     meshes.append(load_path(segments))
-    meshes[-1].apply_transform(camera_transform)
 
     return meshes

@@ -320,7 +320,7 @@ def rotation_matrix(angle, direction, point=None):
     Returns
     -------------
     matrix : (4, 4) float, or (4, 4) sympy.Matrix
-             Homogenous transformation matrix
+             Homogeneous transformation matrix
 
     Examples
     -------------
@@ -1976,7 +1976,7 @@ def planar_matrix(offset=None,
     Returns
     ----------
     matrix : (3, 3) flat
-      Homogenous 2D transformation matrix
+      Homogeneous 2D transformation matrix
     """
     if offset is None:
         offset = [0.0, 0.0]
@@ -2005,16 +2005,16 @@ def planar_matrix(offset=None,
 
 def planar_matrix_to_3D(matrix_2D):
     """
-    Given a 2D homogenous rotation matrix convert it to a 3D rotation
+    Given a 2D homogeneous rotation matrix convert it to a 3D rotation
     matrix that is rotating around the Z axis
 
     Parameters
     ----------
-    matrix_2D: (3,3) float, homogenous 2D rotation matrix
+    matrix_2D: (3,3) float, homogeneous 2D rotation matrix
 
     Returns
     ----------
-    matrix_3D: (4,4) float, homogenous 3D rotation matrix
+    matrix_3D: (4,4) float, homogeneous 3D rotation matrix
     """
 
     matrix_2D = np.asanyarray(matrix_2D, dtype=np.float64)
@@ -2066,7 +2066,7 @@ def transform_points(points,
     points : (n, d) float
       Points where d is 2 or 3
     matrix : (3,3) or (4,4) float
-      Homogenous rotation matrix
+      Homogeneous rotation matrix
     translate : bool
       Apply translation from matrix or not
 
@@ -2126,3 +2126,21 @@ def is_rigid(matrix):
                    matrix[:3, :3].T)
 
     return np.allclose(check, np.eye(3))
+
+
+def scale_and_translate(scale=None, translate=None):
+    """
+    Optimized version of `compose_matrix` for just scaling then translating.
+
+    Scalar args are broadcast to arrays of shape (3,)
+
+    Args:
+        scale: scalar or length-3 array
+        translate: scalar or length-3 array
+    """
+    M = np.eye(4)
+    if np.any(scale != 1):
+        M[:3, :3] *= scale
+    if translate is not None:
+        M[:3, 3] = translate
+    return M

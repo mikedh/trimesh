@@ -60,11 +60,14 @@ try:
 except ImportError:
     has_path = False
 
+# find_executable for binvox
+has_binvox = trimesh.exchange.binvox.binvox_encoder is not None
+
 # Python version as an array, i.e. [3, 6]
 python_version = np.array([sys.version_info.major,
                            sys.version_info.minor])
 
-# some repeatable homogenous transforms to use in tests
+# some repeatable homogeneous transforms to use in tests
 transforms = [trimesh.transformations.euler_matrix(np.pi / 4, i, 0)
               for i in np.linspace(0.0, np.pi * 2.0, 100)]
 # should be a (100, 4, 4) float
@@ -318,19 +321,7 @@ def scene_equal(a, b):
             m.volume, b.geometry[k].volume, rtol=0.001)
 
 
-class TemporaryDirectory(object):
-    """
-    Same basic usage as tempfile.TemporaryDirectory
-    but functional in Python 2.7+
-    """
-
-    def __enter__(self):
-        self.path = tempfile.mkdtemp()
-        return self.path
-
-    def __exit__(self, *args, **kwargs):
-        shutil.rmtree(self.path)
-
+TemporaryDirectory = trimesh.util.TemporaryDirectory
 
 # all the JSON files with truth data
 data = _load_data()

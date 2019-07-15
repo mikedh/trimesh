@@ -77,7 +77,7 @@ class SceneViewer(pyglet.window.Window):
         self.scene._redraw = self._redraw
 
         # save initial camera transform
-        self._initial_camera_transform = scene.camera.transform.copy()
+        self._initial_camera_transform = scene.camera_transform.copy()
 
         self.reset_view(flags=flags)
         self.batch = pyglet.graphics.Batch()
@@ -191,10 +191,14 @@ class SceneViewer(pyglet.window.Window):
         # save the rendering mode from the constructor args
         self.vertex_list_mode[name] = args[1]
 
-        # if a geometry has a texture defined convert it to opengl form and
-        # save
-        if hasattr(geometry, 'visual') and hasattr(
-                geometry.visual, 'material'):
+        try:
+            # if a geometry has UV coordinates that match vertices
+            assert len(geometry.visual.uv) == len(geometry.vertices)
+            has_tex = True
+        except BaseException:
+            has_tex = False
+
+        if has_tex:
             tex = rendering.material_to_texture(geometry.visual.material)
             if tex is not None:
                 self.textures[name] = tex
@@ -456,7 +460,7 @@ class SceneViewer(pyglet.window.Window):
         width, height = self._update_perspective(width, height)
         self.scene.camera.resolution = (width, height)
         self.view['ball'].resize(self.scene.camera.resolution)
-        self.scene.camera.transform = self.view['ball'].pose
+        self.scene.camera_transform = self.view['ball'].pose
 
     def on_mouse_press(self, x, y, buttons, modifiers):
         """
@@ -478,21 +482,21 @@ class SceneViewer(pyglet.window.Window):
             self.view['ball'].set_state(Trackball.STATE_ZOOM)
 
         self.view['ball'].down(np.array([x, y]))
-        self.scene.camera.transform = self.view['ball'].pose
+        self.scene.camera_transform = self.view['ball'].pose
 
     def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
         """
         Pan or rotate the view.
         """
         self.view['ball'].drag(np.array([x, y]))
-        self.scene.camera.transform = self.view['ball'].pose
+        self.scene.camera_transform = self.view['ball'].pose
 
     def on_mouse_scroll(self, x, y, dx, dy):
         """
         Zoom the view.
         """
         self.view['ball'].scroll(dy)
-        self.scene.camera.transform = self.view['ball'].pose
+        self.scene.camera_transform = self.view['ball'].pose
 
     def on_key_press(self, symbol, modifiers):
         """
@@ -529,7 +533,7 @@ class SceneViewer(pyglet.window.Window):
                 self.view['ball'].drag([0, -magnitude])
             elif symbol == pyglet.window.key.UP:
                 self.view['ball'].drag([0, magnitude])
-            self.scene.camera.transform = self.view['ball'].pose
+            self.scene.camera_transform = self.view['ball'].pose
 
     def on_draw(self):
         """
@@ -541,7 +545,7 @@ class SceneViewer(pyglet.window.Window):
         gl.glLoadIdentity()
 
         # pull the new camera transform from the scene
-        transform_camera = np.linalg.inv(self.scene.camera.transform)
+        transform_camera = np.linalg.inv(self.scene.camera_transform)
 
         # apply the camera transform to the matrix stack
         gl.glMultMatrixf(rendering.matrix_to_gl(transform_camera))

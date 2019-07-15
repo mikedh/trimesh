@@ -11,6 +11,8 @@ or imported inside of a function
 
 import numpy as np
 
+import abc
+import collections
 import time
 import copy
 import json
@@ -18,12 +20,18 @@ import base64
 import logging
 import hashlib
 import zipfile
-import collections
+import sys
+import tempfile
+import shutil
 
-from sys import version_info
+
+if sys.version_info >= (3, 4):
+    ABC = abc.ABC
+else:
+    ABC = abc.ABCMeta('ABC', (), {})
 
 # a flag we can check elsewhere for Python 3
-PY3 = version_info.major >= 3
+PY3 = sys.version_info.major >= 3
 if PY3:
     # for type checking
     basestring = str
@@ -222,7 +230,7 @@ def is_sequence(obj):
     return seq
 
 
-def is_shape(obj, shape):
+def is_shape(obj, shape, allow_zeros=False):
     """
     Compare the shape of a numpy.ndarray to a target shape,
     with any value less than zero being considered a wildcard
@@ -237,6 +245,8 @@ def is_shape(obj, shape):
     shape : list or tuple
        Any negative term will be considered a wildcard
        Any tuple term will be evaluated as an OR
+    allow_zeros: bool
+        if False, zeros do not math negatives in shape.
 
     Returns
     ---------
@@ -286,7 +296,7 @@ def is_shape(obj, shape):
 
         # check if current field is a wildcard
         if target < 0:
-            if i == 0:
+            if i == 0 and not allow_zeros:
                 # if a dimension is 0, we don't allow
                 # that to match to a wildcard
                 # it would have to be explicitly called out as 0
@@ -501,11 +511,11 @@ def pairwise(iterable):
 
 
 try:
-    # prefer the faster numpy version
+    # prefer the faster numpy version of multi_dot
     # only included in recent- ish version of numpy
     multi_dot = np.linalg.multi_dot
 except AttributeError:
-    log.warning('np.linalg.multi_dot not available, falling back')
+    log.warning('np.linalg.multi_dot not available, using fallback')
 
     def multi_dot(arrays):
         """
@@ -514,7 +524,7 @@ except AttributeError:
         provided for backwards compatibility with ancient versions of numpy.
         """
         arrays = np.asanyarray(arrays)
-        result = arrays[0]
+        result = arrays[0].copy()
         for i in arrays[1:]:
             result = np.dot(result, i)
         return result
@@ -665,7 +675,7 @@ def grid_arange(bounds, step):
         step = np.tile(step, bounds.shape[1])
 
     grid_elements = [np.arange(*b, step=s) for b, s in zip(bounds.T, step)]
-    grid = np.vstack(np.meshgrid(*grid_elements)
+    grid = np.vstack(np.meshgrid(*grid_elements, indexing='ij')
                      ).reshape(bounds.shape[1], -1).T
     return grid
 
@@ -692,7 +702,7 @@ def grid_linspace(bounds, count):
         count = np.tile(count, bounds.shape[1])
 
     grid_elements = [np.linspace(*b, num=c) for b, c in zip(bounds.T, count)]
-    grid = np.vstack(np.meshgrid(*grid_elements)
+    grid = np.vstack(np.meshgrid(*grid_elements, indexing='ij')
                      ).reshape(bounds.shape[1], -1).T
     return grid
 
@@ -1545,7 +1555,7 @@ def bounds_tree(bounds):
 
     properties = rtree.index.Property(dimension=dimension)
     if rtree_stream_ok:
-        # stream load was verified working on inport above
+        # stream load was verified working on import above
         tree = rtree.index.Index(zip(np.arange(len(bounds)),
                                      bounds,
                                      [None] * len(bounds)),
@@ -1965,3 +1975,120 @@ def isclose(a, b, atol):
     diff = a - b
     close = np.logical_and(diff > -atol, diff < atol)
     return close
+
+
+def allclose(a, b, atol):
+    """
+    A replacement for np.allclose that does few checks
+    and validation and as a result is faster.
+
+        Note that this is used in tight loops, and as such
+    a and b MUST be np.ndarray, not list or "array-like"
+
+    Parameters
+    ----------
+    a : np.ndarray
+      To be compared
+    b : np.ndarray
+      To be compared
+    atol : float
+      Acceptable distance between `a` and `b` to be "close"
+
+    Returns
+    -----------
+    bool indicating if all elements are within `atol`.
+    """
+    return np.all(np.abs(a - b).max() < atol)
+
+
+class FunctionRegistry(collections.Mapping):
+    """
+    Non-overwritable mapping of string keys to functions.
+
+    This allows external packages to register additional implementations
+    of common functionality without risk of breaking implementations provided
+    by trimesh.
+
+    See trimesh.voxel.morphology for example usage.
+    """
+
+    def __init__(self, **kwargs):
+        self._dict = {}
+        for k, v in kwargs.items():
+            self[k] = v
+
+    def __getitem__(self, key):
+        return self._dict[key]
+
+    def __setitem__(self, key, value):
+        if not isinstance(key, str):
+            raise ValueError('key must be a string, got %s' % str(key))
+        if key in self:
+            raise KeyError('Cannot set new value to existing key %s' % key)
+        if not callable(value):
+            raise ValueError('Cannot set value which is not callable.')
+        self._dict[key] = value
+
+    def __iter__(self):
+        return iter(self._dict)
+
+    def __len__(self):
+        return len(self._dict)
+
+    def __contains__(self, key):
+        return key in self._dict
+
+    def __call__(self, key, *args, **kwargs):
+        return self[key](*args, **kwargs)
+
+
+class TemporaryDirectory(object):
+    """
+    Same basic usage as tempfile.TemporaryDirectory
+    but functional in Python 2.7+
+    """
+
+    def __enter__(self):
+        self.path = tempfile.mkdtemp()
+        return self.path
+
+    def __exit__(self, *args, **kwargs):
+        shutil.rmtree(self.path)
+
+
+def decode_text(text):
+    """
+    Try to decode byte input as a string.
+
+    Initially guesses that text is UTF-8, and then if
+    that fails it tries to detect the encoding and
+    try once more.
+
+    Parameters
+    ------------
+    text : bytes
+      Data that might be strings
+
+    Returns
+    ------------
+    decoded : str
+      Data as a string
+    """
+    # if not bytes just return input
+    if not hasattr(text, 'decode'):
+        return text
+
+    try:
+        # initially guess file is UTF-8
+        text = text.decode('utf-8')
+    except UnicodeDecodeError:
+        # detect different file encodings
+        import chardet
+        # try to detect the encoding of the file
+        detect = chardet.detect(text)
+        # warn on files that aren't UTF-8
+        log.warning('data not UTF-8, possibly: {} confidence {}'.format(
+            detect['encoding'], detect['confidence']))
+        # try to decode again, unwrapped in try
+        text = text.decode(detect['encoding'])
+    return text

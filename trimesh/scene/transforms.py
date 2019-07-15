@@ -1,13 +1,22 @@
-import time
 import copy
+import time
 import collections
 
 import numpy as np
-import networkx as nx
 
 from .. import util
 from .. import caching
+from .. import exceptions
 from .. import transformations
+
+try:
+    import networkx as nx
+    _ForestParent = nx.DiGraph
+except BaseException as E:
+    # create a dummy module which will raise the ImportError
+    # or other exception only when someone tries to use networkx
+    nx = exceptions.ExceptionModule(E)
+    _ForestParent = object
 
 
 class TransformForest(object):
@@ -35,7 +44,7 @@ class TransformForest(object):
         frame_to :  hashable object
           Usually a string (eg 'mesh_0')
         matrix : (4,4) float
-          Homogenous transformation matrix
+          Homogeneous transformation matrix
         quaternion :  (4,) float
           Quaternion ordered [w, x, y, z]
         axis : (3,) float
@@ -265,7 +274,7 @@ class TransformForest(object):
         Returns
         ---------
         transform : (4, 4) float
-          Homogenous transformation matrix
+          Homogeneous transformation matrix
         """
 
         if frame_from is None:
@@ -368,7 +377,7 @@ class TransformForest(object):
         return self._paths[key]
 
 
-class EnforcedForest(nx.DiGraph):
+class EnforcedForest(_ForestParent):
     """
     A subclass of networkx.DiGraph that will raise an error if an
     edge is added which would make the DiGraph not a forest or tree.
@@ -452,13 +461,6 @@ class EnforcedForest(nx.DiGraph):
             raise ValueError('Edge does not exist!')
         data = self.get_edge_data(*[u, v][::direction])
         return data, direction
-
-
-def path_to_edges(path):
-    """
-    Turn an (n) path into a (2(n-1)) set of edges
-    """
-    return np.column_stack((path, path)).reshape(-1)[1:-1].reshape((-1, 2))
 
 
 def kwargs_to_matrix(**kwargs):

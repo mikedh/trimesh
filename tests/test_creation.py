@@ -96,15 +96,6 @@ class CreationTest(g.unittest.TestCase):
             assert isinstance(mesh, (g.trimesh.Trimesh,
                                      g.trimesh.path.Path3D))
 
-        # camera transform is rotated
-        rotation_matrix = g.trimesh.transformations.random_rotation_matrix()
-        camera.transform = rotation_matrix
-        meshes_rotated = g.trimesh.creation.camera_marker(
-            camera=camera, marker_height=0.04)
-        for mesh, mesh_rot in zip(meshes, meshes_rotated):
-            mesh.apply_transform(rotation_matrix)
-            g.np.testing.assert_allclose(mesh.vertices, mesh_rot.vertices)
-
     def test_axis(self):
         # specify the size of the origin radius
         origin_size = 0.04

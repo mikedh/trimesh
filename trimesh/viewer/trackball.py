@@ -1,4 +1,5 @@
-# Copied from https://github.com/mmatl/pyrender/blob/master/pyrender/trackball.py
+# Copied from
+# https://github.com/mmatl/pyrender/blob/master/pyrender/trackball.py
 
 # MIT License
 #
@@ -26,7 +27,7 @@
 """
 import numpy as np
 
-import trimesh.transformations as transformations
+from .. import transformations
 
 
 class Trackball(object):

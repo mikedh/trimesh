@@ -8,12 +8,16 @@ Functions for grouping values and rows.
 import numpy as np
 
 from . import util
+from . import exceptions
+
 from .constants import log, tol
 
 try:
     from scipy.spatial import cKDTree
-except ImportError:
-    log.warning('scipy unavailable')
+except BaseException as E:
+    # wrapping just ImportError fails in some cases
+    # will raise the error when someone tries to use KDtree
+    cKDTree = exceptions.exception_closure(E)
 
 
 def merge_vertices(mesh,
@@ -228,7 +232,7 @@ def float_to_int(data, digits=None, dtype=np.int32):
     elif isinstance(digits, float) or isinstance(digits, np.float):
         digits = util.decimal_to_digits(digits)
     elif not (isinstance(digits, int) or isinstance(digits, np.integer)):
-        log.warn('Digits were passed as %s!', digits.__class__.__name__)
+        log.warning('Digits were passed as %s!', digits.__class__.__name__)
         raise ValueError('Digits must be None, int, or float!')
 
     # data is float so convert to large integers

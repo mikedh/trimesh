@@ -23,7 +23,7 @@ class ExportTest(g.unittest.TestCase):
             if all(i.__class__.__name__ in ['Line', 'Arc']
                    for i in d.entities):
                 # perimeter should stay the same-ish
-                # on export/inport
+                # on export/import
                 assert g.np.isclose(d.length,
                                     loaded.length,
                                     rtol=.01)

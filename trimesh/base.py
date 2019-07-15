@@ -15,7 +15,6 @@ from . import util
 from . import units
 from . import poses
 from . import graph
-from . import voxel
 from . import sample
 from . import repair
 from . import convex
@@ -171,6 +170,9 @@ class Trimesh(Geometry):
         # update the mesh metadata with passed metadata
         if isinstance(metadata, dict):
             self.metadata.update(metadata)
+        elif metadata is not None:
+            raise ValueError(
+                'metadata should be a dict or None, got %s' % str(metadata))
 
         # Set the default center of mass and density
         self._density = 1.0
@@ -227,7 +229,7 @@ class Trimesh(Geometry):
             if self._validate:
                 self.remove_duplicate_faces()
                 self.remove_degenerate_faces()
-        # since none of our process operations moved vertices or faces,
+        # since none of our process operations moved vertices or faces
         # we can keep face and vertex normals in the cache without recomputing
         # if faces or vertices have been removed, normals are validated before
         # being returned so there is no danger of inconsistent dimensions
@@ -241,9 +243,10 @@ class Trimesh(Geometry):
         An MD5 of the core geometry information for the mesh,
         faces and vertices.
 
-        Generated from TrackedArray, which subclasses np.ndarray to monitor for
-        changes and returns a correct, but lazily evaluated md5 so it only has to
-        recalculate the hash occasionally, rather than on every call.
+        Generated from TrackedArray which subclasses np.ndarray to
+        monitor array for changes and returns a correct lazily
+        evaluated md5 so it only has to recalculate the hash
+        occasionally, rather than on every call.
 
         Returns
         ----------
@@ -704,7 +707,7 @@ class Trimesh(Geometry):
         Returns
         ----------
         transform : (4, 4) float
-          Homogenous transformation matrix
+          Homogeneous transformation matrix
         """
         order = np.argsort(self.principal_inertia_components)[1:][::-1]
         vectors = self.principal_inertia_vectors[order]
@@ -1772,10 +1775,10 @@ class Trimesh(Geometry):
         This method samples the location of the center of mass from a multivariate
         gaussian (mean at com, cov equal to identity times sigma) over n_samples.
         For each sample, it computes the stable resting poses of the mesh on a
-        a planar workspace and evaulates the probabilities of landing in
+        a planar workspace and evaluates the probabilities of landing in
         each pose if the object is dropped onto the table randomly.
 
-        This method returns the 4x4 homogenous transform matrices that place
+        This method returns the 4x4 homogeneous transform matrices that place
         the shape against the planar surface with the z-axis pointing upwards
         and a list of the probabilities for each pose.
         The transforms and probabilties that are returned are sorted, with the
@@ -1799,7 +1802,7 @@ class Trimesh(Geometry):
         Returns
         -------
         transforms : (n, 4, 4) float
-          The homogenous matrices that transform the
+          The homogeneous matrices that transform the
           object to rest in a stable pose, with the
           new z-axis pointing upwards from the table
           and the object just touching the table.
@@ -2095,7 +2098,7 @@ class Trimesh(Geometry):
 
     def apply_transform(self, matrix):
         """
-        Transform mesh by a homogenous transformation matrix.
+        Transform mesh by a homogeneous transformation matrix.
 
         Does the bookkeeping to avoid recomputing things so this function
         should be used rather than directly modifying self.vertices
@@ -2104,22 +2107,22 @@ class Trimesh(Geometry):
         Parameters
         ----------
         matrix : (4, 4) float
-          Homogenous transformation matrix
+          Homogeneous transformation matrix
         """
         # get c-order float64 matrix
         matrix = np.asanyarray(matrix,
                                order='C',
                                dtype=np.float64)
 
-        # only support homogenous transformations
+        # only support homogeneous transformations
         if matrix.shape != (4, 4):
             raise ValueError('Transformation matrix must be (4,4)!')
 
         # exit early if we've been passed an identity matrix
         # np.allclose is surprisingly slow so do this test
-        elif np.abs(matrix - np.eye(4)).max() < 1e-8:
-            log.debug('apply_tranform passed identity matrix')
-            return
+        elif util.allclose(matrix, np.eye(4), 1e-8):
+            log.debug('apply_transform passed identity matrix')
+            return self
 
         # new vertex positions
         new_vertices = transformations.transform_points(
@@ -2208,25 +2211,26 @@ class Trimesh(Geometry):
         log.debug('mesh transformed by matrix')
         return self
 
-    def voxelized(self, pitch, **kwargs):
+    def voxelized(self, pitch, method='subdivide', **kwargs):
         """
-        Return a Voxel object representing the current mesh
+        Return a VoxelGrid object representing the current mesh
         discretized into voxels at the specified pitch
 
         Parameters
         ----------
         pitch : float
           The edge length of a single voxel
+        method: implementation key. See `trimesh.voxel.creation.voxelizers`
+        **kwargs: additional kwargs passed to the specified implementation.
 
         Returns
         ----------
-        voxelized : Voxel object
+        voxelized : VoxelGrid object
           Representing the current mesh
         """
-        voxelized = voxel.VoxelMesh(self,
-                                    pitch=pitch,
-                                    **kwargs)
-        return voxelized
+        from .voxel import creation
+        return creation.voxelize(
+            mesh=self, pitch=pitch, method=method, **kwargs)
 
     def outline(self, face_ids=None, **kwargs):
         """

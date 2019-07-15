@@ -10,16 +10,24 @@ from ...constants import log
 from ...constants import res_path as res
 
 from ... import util
+from ... import exceptions
+
 from ... transformations import transform_points, planar_matrix
 
-_template_svg = Template(get_resource('svg.xml.template'))
+try:
+    # pip install svg.path
+    from svg.path import parse_path
+except BaseException as E:
+    # will re-raise the import exception when
+    # someone tries to call `parse_path`
+    parse_path = exceptions.closure(E)
 
 try:
-    from svg.path import parse_path
     from lxml import etree
-except ImportError:
-    log.warning('SVG path loading unavailable!',
-                exc_info=True)
+except BaseException as E:
+    # will re-raise the import exception when
+    # someone actually tries to use the module
+    etree = exceptions.ExceptionModule(E)
 
 
 def svg_to_path(file_obj, file_type=None):
@@ -114,7 +122,7 @@ def transform_to_matrices(transform):
         values = np.array([float(i) for i in
                            args.replace(',', ' ').split()])
         if key == 'translate':
-            # convert translation to a (3, 3) homogenous matrix
+            # convert translation to a (3, 3) homogeneous matrix
             matrices.append(np.eye(3))
             matrices[-1][:2, 2] = values
         elif key == 'matrix':
@@ -260,7 +268,11 @@ def export_svg(drawing,
     if not util.is_instance_named(drawing, 'Path2D'):
         raise ValueError('drawing must be Path2D object!')
 
+    # copy the points and make sure they're not a TrackedArray
     points = drawing.vertices.view(np.ndarray).copy()
+
+    # fetch the export template for SVG files
+    template_svg = Template(get_resource('svg.xml.template'))
 
     def circle_to_svgpath(center, radius, reverse):
         radius_str = format(radius, res.export)
@@ -409,5 +421,5 @@ def export_svg(drawing,
             'WIDTH': drawing.extents[0],
             'HEIGHT': drawing.extents[1],
             'STROKE': stroke_width}
-    result = _template_svg.substitute(subs)
+    result = template_svg.substitute(subs)
     return result

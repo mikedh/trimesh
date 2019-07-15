@@ -1,5 +1,5 @@
-import copy
 import io
+import copy
 import uuid
 
 import numpy as np
@@ -9,8 +9,6 @@ try:
     import collada
 except BaseException:
     collada = None
-except ImportError:
-    pass
 
 try:
     import PIL.Image
@@ -315,7 +313,7 @@ def _parse_material(effect, resolver):
             log.warning('unable to load bumpmap',
                         exc_info=True)
 
-    return visual.texture.PBRMaterial(
+    return visual.material.PBRMaterial(
         emissiveFactor=emissiveFactor,
         emissiveTexture=emissiveTexture,
         normalTexture=normalTexture,
@@ -331,7 +329,7 @@ def _unparse_material(material):
     Turn a trimesh material into a COLLADA material.
     """
     # TODO EXPORT TEXTURES
-    if isinstance(material, visual.texture.PBRMaterial):
+    if isinstance(material, visual.material.PBRMaterial):
         diffuse = material.baseColorFactor
         if diffuse is not None:
             diffuse = list(diffuse)

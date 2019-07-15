@@ -731,7 +731,7 @@ def _parse_materials(header, views, resolver=None):
                     # store the actual image as the value
                     pbr[k] = images[idx]
             # create a PBR material object for the GLTF material
-            materials.append(visual.texture.PBRMaterial(**pbr))
+            materials.append(visual.material.PBRMaterial(**pbr))
 
     return materials
 

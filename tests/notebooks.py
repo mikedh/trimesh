@@ -21,12 +21,11 @@ def load_notebook(file_obj):
     Arguments
     ----------
     file_obj :  open file object
-    exclude  :  list, strs which if a line contains the line
-                will be replaced by a pass statement.
 
     Returns
     ----------
-    script : str, cleaned script which can be passed to exec
+    script : str
+      Cleaned script which can be passed to exec
     """
     raw = json.load(file_obj)
     lines = np.hstack([i['source']
@@ -35,7 +34,14 @@ def load_notebook(file_obj):
     return script
 
 
-def exclude_calls(lines, exclude=['%', 'show', 'plt']):
+def exclude_calls(
+        lines,
+        exclude=['%matplotlib',
+                 '%pylab',
+                 'show',
+                 'plt',
+                 'save_image',
+                 '?']):
     """
     Exclude certain calls based on substrings, replacing
     them with pass statements.
@@ -54,10 +60,24 @@ def exclude_calls(lines, exclude=['%', 'show', 'plt']):
     """
     result = []
     for line in lines:
-        if any(i in line for i in exclude):
-            result.append(to_pass(line))
+        # skip lines that only have whitespace or comments
+        strip = line.strip()
+        if len(strip) == 0 or strip.startswith('#'):
+            continue
+        # if the line has a blacklisted phrase switch it with a pass statement
+        # we don't want to exclude function definitions however
+        if not strip.startswith('def ') and any(i in line for i in exclude):
+            # switch statement with pass
+            line_modified = to_pass(line)
         else:
-            result.append(line.rstrip())
+            # remove trailing whitespace
+            line_modified = line.rstrip()
+        # skip duplicate lines
+        if len(result) > 0 and line_modified == result[-1]:
+            continue
+        # append the modified line to the result
+        result.append(line_modified)
+    # recombine into string and add trailing newline
     result = '\n'.join(result) + '\n'
     return result
 
@@ -127,7 +147,10 @@ def main():
 
     # examples which we're not going to run in CI
     # widget.py opens a window and does a bunch of openGL stuff
-    ci_blacklist = ['widget.py']
+    ci_blacklist = ['widget.py',
+                    'voxel.py',
+                    'voxel_fillers.py',
+                    'voxel_silhouette.py']
 
     if "examples" in sys.argv:
         out_path = sys.argv[sys.argv.index("examples") + 1]
@@ -137,25 +160,35 @@ def main():
         file_name = sys.argv[sys.argv.index("exec") + 1].strip()
         # we want to skip some of these examples in CI
         if 'ci' in sys.argv and os.path.basename(file_name) in ci_blacklist:
-            print(file_name, 'in CI blacklist: skipping!')
+            print('{} in CI blacklist: skipping!'.format(file_name))
             return
 
-        if (file_name.endswith('ipynb') and
-                os.path.exists(file_name)):
+        # skip files that don't exist
+        if not os.path.exists(file_name):
+            return
+
+        if file_name.lower().endswith('.ipynb'):
+            # ipython notebooks
             with open(file_name, 'r') as file_obj:
                 script = load_notebook(file_obj)
-            print('\nloaded {}:\n'.format(file_name))
-            print('script:\n\n{}\n'.format(script))
-            exec(script, globals())
-        elif file_name.endswith('.py'):
+        elif file_name.lower().endswith('.py'):
+            # regular python files
             with open(file_name, 'r') as file_obj:
                 script = exclude_calls(file_obj.read().split('\n'))
-            print('\nloaded {}:\n'.format(file_name))
+        else:
+            # skip other types of files
+            return
+
+        print('running {}'.format(file_name))
+        try:
             exec(script, globals())
+        except BaseException as E:
+            print('failed {}!\n\nscript was:\n{}\n\n'.format(file_name, script))
+            raise E
 
 
 if __name__ == '__main__':
     """
-    Load and run a notebook if a file name is passed
+    Load and run a notebook if a file name is passed.
     """
     main()

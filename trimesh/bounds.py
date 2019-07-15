@@ -30,7 +30,7 @@ def oriented_bounds_2D(points, qhull_options='QbB'):
     Returns
     ----------
     transform : (3,3) float
-      Homogenous 2D transformation matrix to move the
+      Homogeneous 2D transformation matrix to move the
       input points so that the axis aligned bounding box
       is CENTERED AT THE ORIGIN.
     rectangle : (2,) float
@@ -82,7 +82,7 @@ def oriented_bounds_2D(points, qhull_options='QbB'):
     # (2,) float of smallest rectangle size
     rectangle = extents[area_min]
 
-    # find the (3,3) homogenous transformation which moves the input
+    # find the (3,3) homogeneous transformation which moves the input
     # points to have a bounding box centered at the origin
     offset = -bounds[area_min][:2] - (rectangle * .5)
     theta = np.arctan2(*edge_vectors[area_min][::-1])

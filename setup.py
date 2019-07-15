@@ -18,6 +18,8 @@ if os.path.exists('README.md'):
 # "easy" requirements should install without compiling
 # anything on Windows, Linux, and Mac, for Python 2.7-3.4+
 requirements_easy = set([
+    'scipy',     # provide convex hulls, fast graph ops, etc
+    'networkx',  # provide slow graph ops with a nice API
     'lxml',      # handle XML better and faster than built- in XML
     'pyglet',    # render preview windows nicely
     'shapely',   # handle 2D polygons robustly
@@ -36,10 +38,11 @@ requirements_easy = set([
 # through some mechanism on Linux with Python 3.5+
 # and are allowed to compile code
 requirements_all = requirements_easy.union([
-    'triangle',    # 2D triangulations of polygons
-    'python-fcl',  # do fast 3D collision queries
-    'psutil',      # figure out how much memory we have
-    'glooey'])     # make GUI applications with 3D stuff
+    'triangle',      # 2D triangulations of polygons
+    'python-fcl',    # do fast 3D collision queries
+    'psutil',        # figure out how much memory we have
+    'glooey',        # make GUI applications with 3D stuff
+    'scikit-image']) # marching cubes and other nice stuff
 
 # call the magical setuptools setup
 setup(name='trimesh',
@@ -50,7 +53,7 @@ setup(name='trimesh',
       author='Michael Dawson-Haggerty',
       author_email='mikedh@kerfed.com',
       license='MIT',
-      url='http://github.com/mikedh/trimesh',
+      url='https://github.com/mikedh/trimesh',
       keywords='graphics mesh geometry 3D',
       classifiers=[
           'Development Status :: 4 - Beta',
@@ -77,9 +80,7 @@ setup(name='trimesh',
           'trimesh.interfaces'],
       package_data={'trimesh': ['resources/*.template',
                                 'resources/*.json']},
-      install_requires=['numpy',
-                        'scipy',
-                        'networkx'],
+      install_requires=['numpy'],
       extras_require={'test': ['pytest',
                                'pytest-cov',
                                'pyinstrument',

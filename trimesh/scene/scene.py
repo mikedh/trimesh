@@ -33,7 +33,8 @@ class Scene(Geometry):
                  metadata={},
                  graph=None,
                  camera=None,
-                 lights=None):
+                 lights=None,
+                 camera_transform=None):
         """
         Create a new Scene object.
 
@@ -47,6 +48,12 @@ class Scene(Geometry):
           Any metadata about the scene
         graph : TransformForest or None
           A passed transform graph to use
+        camera : Camera or None
+          A passed camera to use
+        lights : [trimesh.scene.lighting.Light] or None
+          A passed lights to use
+        camera_transform : (4, 4) float or None
+          Camera transform in the base frame
         """
         # mesh name : Trimesh object
         self.geometry = collections.OrderedDict()
@@ -70,6 +77,7 @@ class Scene(Geometry):
 
         self.camera = camera
         self.lights = lights
+        self.camera_transform = camera_transform
 
     def apply_transform(self, transform):
         raise NotImplementedError
@@ -438,35 +446,84 @@ class Scene(Geometry):
 
         # if no geometry nothing to set camera to
         if len(self.geometry) == 0:
-            self._camera = cameras.Camera(
-                fov=fov,
-                scene=self,
-                transform=np.eye(4))
+            self._camera = cameras.Camera(fov=fov)
+            self.graph[self._camera.name] = None
             return self._camera
         # set with no rotation by default
         if angles is None:
             angles = np.zeros(3)
 
         rotation = transformations.euler_matrix(*angles)
-        transform = cameras.look_at(self.bounds_corners,
-                                    fov=fov,
-                                    rotation=rotation,
-                                    distance=distance,
-                                    center=center)
+        transform = cameras.look_at(
+            self.bounds_corners,
+            fov=fov,
+            rotation=rotation,
+            distance=distance,
+            center=center)
 
         if hasattr(self, '_camera') and self._camera is not None:
             self._camera.fov = fov
-            self._camera._scene = self
-            self._camera.transform = transform
             if resolution is not None:
                 self._camera.resolution = resolution
         else:
             # create a new camera object
-            self._camera = cameras.Camera(fov=fov,
-                                          scene=self,
-                                          transform=transform,
-                                          resolution=resolution)
+            self._camera = cameras.Camera(fov=fov, resolution=resolution)
+
+        self.graph[self._camera.name] = transform
+
         return self._camera
+
+    @property
+    def camera_transform(self):
+        """
+        Get camera transform in the base frame
+
+        Returns
+        -------
+        camera_transform : (4, 4), float
+          Camera transform in the base frame
+        """
+        return self.graph[self.camera.name][0]
+
+    def camera_rays(self):
+        """
+        Calculate the trimesh.scene.Camera origin and ray direction vectors.
+
+        Will return one ray per pixel, as set in camera.resolution.
+
+        Returns
+        --------------
+        origins: (3,) float
+            Ray origins in space
+        vectors: (n, 3)
+            Ray direction unit vectors in world coordinates
+        """
+        vectors = self.camera.to_rays()
+        transform = self.camera_transform
+
+        # apply the rotation to the direction vectors
+        vectors = transformations.transform_points(
+            vectors,
+            transform,
+            translate=False)
+
+        # camera origin is single point, extract from transform
+        origin = transformations.translation_from_matrix(transform)
+        return origin, vectors
+
+    @camera_transform.setter
+    def camera_transform(self, camera_transform):
+        """
+        Set the camera transform in the base frame
+
+        Parameters
+        ----------
+        camera_transform : (4, 4), float
+          Camera transform in the base frame
+        """
+        if camera_transform is None:
+            return
+        self.graph[self.camera.name] = camera_transform
 
     @property
     def camera(self):
@@ -499,8 +556,6 @@ class Scene(Geometry):
         """
         if camera is None:
             return
-        # assign the scene reference here
-        camera.scene = self
         self._camera = camera
 
     @property

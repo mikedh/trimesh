@@ -3,7 +3,11 @@ import numpy as np
 import copy
 
 from . import color
+
 from .. import caching
+from .. import grouping
+
+from .material import SimpleMaterial
 
 
 class TextureVisuals(object):
@@ -168,135 +172,61 @@ class TextureVisuals(object):
         pass
 
 
-class Material(object):
-    def __init__(self, *args, **kwargs):
-        raise NotImplementedError('material must be subclassed!')
-
-
-class SimpleMaterial(Material):
+def unmerge_faces(faces, *args):
     """
-    Hold a single image texture.
-    """
-
-    def __init__(self,
-                 image=None,
-                 diffuse=None,
-                 ambient=None,
-                 specular=None,
-                 **kwargs):
-
-        # save image
-        self.image = image
-
-        # save material colors
-        self.ambient = ambient
-        self.diffuse = diffuse
-        self.specular = specular
-
-        # save other keyword arguments
-        self.kwargs = kwargs
-
-    def to_color(self, uv):
-        return uv_to_color(uv, self.image)
-
-
-class PBRMaterial(Material):
-    """
-    Create a material for physically based rendering as
-    specified by GLTF 2.0:
-    https://git.io/fhkPZ
-
-    Parameters with `Texture` in them must be PIL.Image objects
-    """
-
-    def __init__(self,
-                 name=None,
-                 emissiveFactor=None,
-                 emissiveTexture=None,
-                 normalTexture=None,
-                 occlusionTexture=None,
-                 baseColorTexture=None,
-                 baseColorFactor=None,
-                 metallicFactor=None,
-                 roughnessFactor=None,
-                 metallicRoughnessTexture=None,
-                 doubleSided=False,
-                 alphaMode='OPAQUE',
-                 alphaCutoff=0.5):
-
-        # To to-float conversions
-        if baseColorFactor is not None:
-            baseColorFactor = np.array(baseColorFactor, dtype=np.float)
-        if emissiveFactor is not None:
-            emissiveFactor = np.array(emissiveFactor, dtype=np.float)
-
-        # (4,) float
-        self.baseColorFactor = color.to_rgba(baseColorFactor)
-
-        # (3,) float
-        self.emissiveFactor = color.to_rgba(emissiveFactor)
-
-        # float
-        self.metallicFactor = metallicFactor
-        self.roughnessFactor = roughnessFactor
-        self.alphaCutoff = alphaCutoff
-
-        # PIL image
-        self.normalTexture = normalTexture
-        self.emissiveTexture = emissiveTexture
-        self.occlusionTexture = occlusionTexture
-        self.baseColorTexture = baseColorTexture
-        self.metallicRoughnessTexture = metallicRoughnessTexture
-
-        # bool
-        self.doubleSided = doubleSided
-
-        # str
-        alphaMode = alphaMode
-
-    def to_color(self, uv):
-        color = uv_to_color(uv=uv, image=self.baseColorTexture)
-        if color is None and self.baseColorFactor is not None:
-            color = self.baseColorFactor.copy()
-        return color
-
-
-def uv_to_color(uv, image):
-    """
-    Get the color in a texture image.
+    Textured meshes can come with faces referencing vertex
+    indices (`v`) and an array the same shape which references
+    vertex texture indices (`vt`).
 
     Parameters
     -------------
-    uv : (n, 2) float
-      UV coordinates on texture image
-    image : PIL.Image
-      Texture image
+    faces : (n, d) int
+      References vertex indices
+    *args : (n, d) int
+      Various references of corresponding values
+      This is usually UV coordinates or normal indexes
 
     Returns
-    ----------
-    colors : (n, 4) float
-      RGBA color at each of the UV coordinates
+    -------------
+    new_faces : (m, d) int
+      New faces for masked vertices
+    mask_v : (p,) int
+      A mask to apply to vertices
+    mask_* : (p,) int
+      A mask to apply to vt array to get matching UV coordinates
+      Returns as many of these as args were passed
     """
-    if image is None or uv is None:
-        return None
+    # stack into pairs of (vertex index, texture index)
+    stackable = [np.asanyarray(faces).reshape(-1)]
+    # append multiple args to the correlated stack
+    # this is usually UV coordinates (vt) and normals (vn)
+    for arg in args:
+        stackable.append(np.asanyarray(arg).reshape(-1))
+    # unify them into rows of a numpy array
+    stack = np.column_stack(stackable)
+    # find unique pairs: we're trying to avoid merging
+    # vertices that have the same position but different
+    # texture coordinates
+    unique, inverse = grouping.unique_rows(stack)
 
-    # UV coordinates should be (n, 2) float
-    uv = np.asanyarray(uv, dtype=np.float64)
+    # only take the unique pairs
+    pairs = stack[unique]
+    # try to maintain original vertex order
+    order = pairs[:, 0].argsort()
+    # apply the order to the pairs
+    pairs = pairs[order]
 
-    # get texture image pixel positions of UV coordinates
-    x = (uv[:, 0] * (image.width - 1))
-    y = ((1 - uv[:, 1]) * (image.height - 1))
+    # we re-ordered the vertices to try to maintain
+    # the original vertex order as much as possible
+    # so to reconstruct the faces we need to remap
+    remap = np.zeros(len(order), dtype=np.int64)
+    remap[order] = np.arange(len(order))
 
-    # convert to int and wrap to image
-    # size in the manner of GL_REPEAT
-    x = x.round().astype(np.int64) % image.width
-    y = y.round().astype(np.int64) % image.height
+    # the faces are just the inverse with the new order
+    new_faces = remap[inverse].reshape((-1, 3))
 
-    # access colors from pixel locations
-    # make sure image is RGBA before getting values
-    colors = np.asanyarray(image.convert('RGBA'))[y, x]
+    # the mask for vertices and masks for other args
+    result = [new_faces]
+    result.extend(pairs.T)
 
-    # conversion to RGBA should have corrected shape
-    assert colors.ndim == 2 and colors.shape[1] == 4
-
-    return colors
+    return result

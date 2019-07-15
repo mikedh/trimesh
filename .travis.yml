@@ -86,17 +86,20 @@ install:
 - pip install -U autopep8 flake8
 
 script:
-# style check
+# style checks
 - flake8 trimesh/
 - flake8 example/
 - flake8 tests/
+# will error on non-pep8 formatting
 - autopep8 --recursive --aggressive --diff --exit-code trimesh/
 - autopep8 --recursive --aggressive --diff --exit-code examples/
 - autopep8 --recursive --aggressive --diff --exit-code tests/
 
-# try simple tests with only minimal deps
+# try simple tests that should succeed with only numpy
 - python -c "import trimesh"
-- pytest  -p no:warnings tests/test_inertia.py
+# grep will print all lines that don't start with a #
+# i.e. filter out comments then print out a list of basic tests to run
+- cd tests; pytest  -p no:warnings `grep -v '^#' basic.list`; cd ..
 
 # pyembree, scikit-image, python-fcl not available everywhere
 - if [[ "$PYTHON_VERSION" == "3.6" ]]; then conda install pyembree scikit-image; fi;
@@ -116,18 +119,18 @@ script:
 # first instance of a warning rather than all of them
 - pytest -W default --cov=trimesh tests/
 
-# downgrade networkx from 2.x to 1.x to make sure our
-# graph operations work on both versions of their API
-- pip install -q -Iv networkx==1.11
-# print version for logs
-- python -c "import networkx; print('::NX_VERSION::', networkx.__version__)"
-# will print tons of depreciation warnings we don't care about 
-- pytest -p no:warnings tests/test_graph.py tests/test_scene.py
-
-# make sure examples still work
+# make sure examples still work by running them all
 - cd examples
 - set -xe; for f in *py*; do python ../tests/notebooks.py ci exec "$f"; done
 - cd ..
+
+# downgrade networkx from 2.x to 1.x to make sure our
+# graph operations work on both versions of their API
+- pip install -q -Iv networkx==1.11
+# fail if it didn't install old networkx for some reason
+- python -c "import networkx; assert networkx.__version__ == '1.11'"
+# will print tons of depreciation warnings we don't care about 
+- pytest -p no:warnings tests/test_graph.py tests/test_scene.py
 
 after_success:
 - coveralls || true

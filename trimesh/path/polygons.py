@@ -1,5 +1,4 @@
 import numpy as np
-import networkx as nx
 
 from shapely.geometry import Polygon
 from shapely import vectorized
@@ -16,6 +15,14 @@ from ..constants import log
 from ..transformations import transform_points
 
 from .traversal import resample_path
+
+try:
+    import networkx as nx
+except BaseException as E:
+    # create a dummy module which will raise the ImportError
+    # or other exception only when someone tries to use networkx
+    from ..exceptions import ExceptionModule
+    nx = ExceptionModule(E)
 
 
 def enclosure_tree(polygons):
@@ -181,14 +188,14 @@ def polygon_obb(polygon):
 
 def transform_polygon(polygon, matrix):
     """
-    Transform a polygon by a a 2D homogenous transform.
+    Transform a polygon by a a 2D homogeneous transform.
 
     Parameters
     -------------
     polygon : shapely.geometry.Polygon
                  2D polygon to be transformed.
     matrix  : (3, 3) float
-                 2D homogenous transformation.
+                 2D homogeneous transformation.
 
     Returns
     --------------

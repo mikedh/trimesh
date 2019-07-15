@@ -20,13 +20,17 @@ def sample_surface(mesh, count):
 
     Parameters
     ---------
-    mesh: Trimesh object
-    count: number of points to return
+    mesh : trimesh.Trimesh
+      Geometry to sample the surface of
+    count : int
+      Number of points to return
 
     Returns
     ---------
-    samples: (count,3) points in space on the surface of mesh
-    face_index: (count,) indices of faces for each sampled point
+    samples : (count, 3) float
+      Points in space on the surface of mesh
+    face_index : (count,) int
+      Indices of faces for each sampled point
     """
 
     # len(mesh.faces) float, array of the areas
@@ -71,18 +75,21 @@ def sample_surface(mesh, count):
 
 def volume_mesh(mesh, count):
     """
-    Use rejection sampling to produce points randomly distributed
-    in the volume of a mesh.
+    Use rejection sampling to produce points randomly
+    distributed in the volume of a mesh.
+
 
     Parameters
-    ----------
-    mesh: Trimesh object
-    count: int, number of samples desired
+    ---------
+    mesh : trimesh.Trimesh
+      Geometry to sample
+    count : int
+      Number of points to return
 
     Returns
-    ----------
-    samples: (n,3) float, points in the volume of the mesh.
-              where: n <= count
+    ---------
+    samples : (n, 3) float
+      Points in the volume of the mesh where n <= count
     """
     points = (np.random.random((count, 3)) * mesh.extents) + mesh.bounds[0]
     contained = mesh.contains(points)
@@ -94,17 +101,22 @@ def volume_rectangular(extents,
                        count,
                        transform=None):
     """
-    Return random samples inside a rectangular volume.
+    Return random samples inside a rectangular volume,
+    useful for sampling inside oriented bounding boxes.
 
     Parameters
     ----------
-    extents:   (3,) float, side lengths of rectangular solid
-    count:     int, number of points to return
-    transform: (4,4) float, transformation matrix
+    extents :   (3,) float
+      Side lengths of rectangular solid
+    count : int
+      Number of points to return
+    transform : (4, 4) float
+      Homogeneous transformation matrix
 
     Returns
     ---------
-    samples: (count, 3) float, points in volume
+    samples : (count, 3) float
+      Points in requested volume
     """
     samples = np.random.random((count, 3)) - .5
     samples *= extents
@@ -117,18 +129,23 @@ def volume_rectangular(extents,
 def sample_surface_even(mesh, count):
     """
     Sample the surface of a mesh, returning samples which are
-    approximately evenly spaced.
+    approximately evenly spaced. This is accomplished by sampling
+    and then rejecting pairs that are too close together.
 
 
     Parameters
     ---------
-    mesh: Trimesh object
-    count: number of points to return
+    mesh : trimesh.Trimesh
+      Geometry to sample the surface of
+    count : int
+      Number of points to return
 
     Returns
     ---------
-    samples: (count,3) points in space on the surface of mesh
-    face_index: (count,) indices of faces for each sampled point
+    samples : (count, 3) float
+      Points in space on the surface of mesh
+    face_index : (count,) int
+      Indices of faces for each sampled point
     """
     from .points import remove_close
 
@@ -149,17 +166,20 @@ def sample_surface_sphere(count):
 
     Parameters
     ----------
-    count: int, number of points to return
+    count : int
+      Number of points to return
 
     Returns
     ----------
-    points: (count,3) float, list of random points on a unit sphere
+    points : (count, 3) float
+      Random points on the surface of a unit sphere
     """
-
+    # get random values 0.0-1.0
     u, v = np.random.random((2, count))
-
+    # convert to two angles
     theta = np.pi * 2 * u
     phi = np.arccos((2 * v) - 1)
-
-    points = util.spherical_to_vector(np.column_stack((theta, phi)))
+    # convert spherical coordinates to cartesian
+    points = util.spherical_to_vector(
+        np.column_stack((theta, phi)))
     return points

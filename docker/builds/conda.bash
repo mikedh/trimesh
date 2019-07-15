@@ -2,33 +2,31 @@ set -xe
 
 cd
 # get versioned miniconda installer via HTTPS
-wget https://repo.anaconda.com/miniconda/Miniconda3-4.5.4-Linux-x86_64.sh --quiet -O miniconda.sh
+wget https://repo.anaconda.com/miniconda/Miniconda3-4.6.14-Linux-x86_64.sh --quiet -O miniconda.sh
 # check hash of file
-echo "80ecc86f8c2f131c5170e43df489514f80e3971dd105c075935470bbf2476dea  miniconda.sh" | sha256sum --check
+echo "0d6b23895a91294a4924bd685a3a1f48e35a17970a073cd2f684ffe2c31fc4be  miniconda.sh" | sha256sum --check
 # run miniconda install
 bash miniconda.sh -b -p ~/conda
+# delete installer
 rm miniconda.sh
 
-# make sure conda bin is in front of PATH so we get correct pip
+# make sure conda base
 export PATH="~/conda/bin:$PATH"
-
-# create a conda env
 conda config --set always_yes yes --set changeps1 no
-conda create -q -n denv python=3.6
-
-# make sure pip/conda is the latest
-pip install --upgrade pip
-conda update -n base conda
-
 # add conda-forge as remote channel
 conda config --add channels conda-forge
 
-# scikit-image is used for marching cubes
 # pyembree is used for fast ray tests
-conda install scikit-image pyembree 
+# this will also install numpy from conda
+# conda/numpy is compiled with intel's MKL
+conda install pyembree 
 
-# actually install trimesh and pytest
-pip install trimesh[all] pytest pyassimp==4.1.3
+# install trimesh from the repo
+cd /tmp/trimesh
+# include all soft dependencies
+pip install .[all,test] pyassimp==4.1.3
 
 # remove archives
-conda clean --all -y
+conda clean --all
+# remove pip cache and temp files
+rm -rf ~/.cache/pip || true

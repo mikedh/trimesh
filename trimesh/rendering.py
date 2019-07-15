@@ -87,7 +87,7 @@ def mesh_to_vertexlist(mesh,
       Args for vertex list constructor
     """
 
-    if hasattr(mesh.visual, 'uv') and mesh.visual.uv is not None:
+    if hasattr(mesh.visual, 'uv'):
         # if the mesh has texture defined pass it to pyglet
         vertex_count = len(mesh.vertices)
         normals = mesh.vertex_normals.reshape(-1).tolist()
@@ -96,12 +96,18 @@ def mesh_to_vertexlist(mesh,
 
         # get the per-vertex UV coordinates
         uv = mesh.visual.uv
-        # if someone passed (n, 3) UVR cut it off here
-        if uv.shape[1] > 2:
-            uv = uv[:, :2]
-        # texcoord as (2,) float
-        color_gl = ('t2f/static',
-                    uv.astype(np.float64).reshape(-1).tolist())
+        if uv is None:
+            # if no UV coordinates on material, just set face colors
+            # to the diffuse color of the material
+            color_gl = colors_to_gl(mesh.visual.material.main_color,
+                                    vertex_count)
+        else:
+            # if someone passed (n, 3) UVR cut it off here
+            if uv.shape[1] > 2:
+                uv = uv[:, :2]
+            # texcoord as (2,) float
+            color_gl = ('t2f/static',
+                        uv.astype(np.float64).reshape(-1).tolist())
 
     elif smooth and len(mesh.faces) < smooth_threshold:
         # if we have a small number of faces and colors defined
@@ -239,24 +245,38 @@ def colors_to_gl(colors, count):
 
     colors = np.asanyarray(colors)
     count = int(count)
-    if util.is_shape(colors, (count, (3, 4))):
-        # convert the numpy dtype code to an opengl one
-        colors_dtype = {'f': 'f',
-                        'i': 'B',
-                        'u': 'B'}[colors.dtype.kind]
-        # create the data type description string pyglet expects
-        colors_type = 'c' + str(colors.shape[1]) + colors_dtype + '/static'
+    # get the GL kind of color we have
+    colors_dtypes = {'f': 'f',
+                     'i': 'B',
+                     'u': 'B'}
+
+    if colors.dtype.kind in colors_dtypes:
+        dtype = colors_dtypes[colors.dtype.kind]
+    else:
+        dtype = None
+
+    if dtype is not None and util.is_shape(colors, (count, (3, 4))):
+        # save the shape and dtype for opengl color string
+        colors_type = 'c{}{}/static'.format(colors.shape[1], dtype)
         # reshape the 2D array into a 1D one and then convert to a python list
-        colors = colors.reshape(-1).tolist()
+        gl_colors = colors.reshape(-1).tolist()
+    elif dtype is not None and colors.shape in [(3,), (4,)]:
+        # we've been passed a single color so tile them
+        gl_colors = (np.ones((count, colors.size),
+                             dtype=colors.dtype) * colors).reshape(-1).tolist()
+        # we know we're tiling
+        colors_type = 'c{}{}/static'.format(colors.size, dtype)
     else:
         # case where colors are wrong shape, use a default color
-        colors = np.tile([.5, .10, .20], (count, 1)).reshape(-1).tolist()
+        gl_colors = np.tile([.5, .10, .20],
+                            (count, 1)).reshape(-1).tolist()
+        # we're returning RGB float colors
         colors_type = 'c3f/static'
 
-    return colors_type, colors
+    return colors_type, gl_colors
 
 
-def material_to_texture(material):
+def material_to_texture(material, upsize=True):
     """
     Convert a trimesh.visual.texture.Material object into
     a pyglet-compatible texture object.
@@ -265,6 +285,9 @@ def material_to_texture(material):
     --------------
     material : trimesh.visual.texture.Material
       Material to be converted
+    upsize: bool
+      If True, will upscale textures to their nearest power
+      of two resolution to avoid weirdness
 
     Returns
     ---------------
@@ -278,8 +301,19 @@ def material_to_texture(material):
     else:
         img = material.baseColorTexture
 
+    # if no images in texture return now
     if img is None:
         return None
+
+    # what is the current resolution of the image in pixels
+    size = np.array(img.size, dtype=np.int64)
+    # what is the resolution of the image upsized to the nearest
+    # power of two on each axis: allow rectangular textures
+    newsize = (2 ** np.ceil(np.log2(size))).astype(np.int64)
+
+    # if we're not powers of two upsize
+    if upsize and (size != newsize).any():
+        img = img.resize(newsize, resample=1)
 
     # use a PNG export to exchange into pyglet
     # probably a way to do this with a PIL converter

@@ -1,0 +1,4 @@
+# a list of tests which only require numpy to run
+test_inertia.py
+test_cache.py
+test_triangles.py

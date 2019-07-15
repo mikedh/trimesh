@@ -33,12 +33,21 @@ from .exchange.load import (load,
 # avoid a circular import in trimesh.base
 from . import primitives
 
+try:
+    from . import voxel
+except BaseException as E:
+    # create a dummy module to re-raise this
+    # exception when someone tries to use it
+    from .exceptions import ExceptionModule
+    voxel = ExceptionModule(E)
+
 # explicitly list imports in __all__
 # as otherwise flake8 gets mad
 __all__ = [__version__,
            Trimesh,
            PointCloud,
            Scene,
+           voxel,
            unitize,
            tol,
            load,

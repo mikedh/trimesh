@@ -21,25 +21,26 @@ except ImportError:
     pass
 
 # from ply specification, and additional dtypes found in the wild
-dtypes = {'char': 'i1',
-          'uchar': 'u1',
-          'short': 'i2',
-          'ushort': 'u2',
-          'int': 'i4',
-          'int8': 'i1',
-          'int16': 'i2',
-          'int32': 'i4',
-          'int64': 'i8',
-          'uint': 'u4',
-          'uint8': 'u1',
-          'uint16': 'u2',
-          'uint32': 'u4',
-          'uint64': 'u8',
-          'float': 'f4',
-          'float16': 'f2',
-          'float32': 'f4',
-          'float64': 'f8',
-          'double': 'f8'}
+dtypes = {
+    'char': 'i1',
+    'uchar': 'u1',
+    'short': 'i2',
+    'ushort': 'u2',
+    'int': 'i4',
+    'int8': 'i1',
+    'int16': 'i2',
+    'int32': 'i4',
+    'int64': 'i8',
+    'uint': 'u4',
+    'uint8': 'u1',
+    'uint16': 'u2',
+    'uint32': 'u4',
+    'uint64': 'u8',
+    'float': 'f4',
+    'float16': 'f2',
+    'float32': 'f4',
+    'float64': 'f8',
+    'double': 'f8'}
 
 
 def load_ply(file_obj,
@@ -370,22 +371,25 @@ def elements_to_kwargs(elements, fix_texture, image):
         # in- the- wild PLY comes with things merged that
         # probably shouldn't be so disconnect vertices
         if fix_texture:
+            # do import here
+            from ..visual.texture import unmerge_faces
+
             # reshape to correspond with flattened faces
-            uv = texcoord.reshape((-1, 2))
+            uv_all = texcoord.reshape((-1, 2))
+            # UV coordinates defined for every triangle have
+            # duplicates which can be merged so figure out
+            # which UV coordinates are the same here
+            unique, inverse = grouping.unique_rows(uv_all)
 
-            # round UV to OOM 10^4 as they are pixel coordinates
-            # and more precision is not necessary or desirable
-            search = np.column_stack((
-                vertices[faces.reshape(-1)],
-                (uv * 1e4).round()))
-
-            # find vertices which have the same position AND UV
-            unique, inverse = grouping.unique_rows(search)
-
-            # set vertices, faces, and UV to the new values
-            vertices = search[:, :3][unique]
-            faces = inverse.reshape((-1, 3))
-            uv = uv[unique]
+            # use the indices of faces and face textures
+            # to only merge vertices where the position
+            # AND uv coordinate are the same
+            faces, mask_v, mask_vt = unmerge_faces(
+                faces, inverse.reshape(faces.shape))
+            # apply the mask to get resulting vertices
+            vertices = vertices[mask_v]
+            # apply the mask to get UV coordinates
+            uv = uv_all[unique][mask_vt]
         else:
             # don't alter vertices, UV will look like crap
             # if it was exported with vertices merged

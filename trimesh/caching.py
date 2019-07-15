@@ -104,7 +104,7 @@ def cache_decorator(function):
         self._cache.cache[name] = value
         # log both the function execution time and how long
         # it took to validate the state of the cache
-        log.debug('`%s` execute: %.2Es, cache.verify: %.2Es',
+        log.debug('`%s`: %.2Es, `cache.verify`: %.2Es',
                   name,
                   tic[2] - tic[1],
                   tic[1] - tic[0])

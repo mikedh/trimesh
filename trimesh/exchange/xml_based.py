@@ -1,5 +1,4 @@
 import numpy as np
-import networkx as nx
 
 import collections
 import json
@@ -7,6 +6,14 @@ import json
 from .. import util
 from .. import visual
 from .. import transformations
+
+try:
+    import networkx as nx
+except BaseException as E:
+    # create a dummy module which will raise the ImportError
+    # or other exception only when someone tries to use networkx
+    from ..exceptions import ExceptionModule
+    nx = ExceptionModule(E)
 
 
 def load_XAML(file_obj, *args, **kwargs):

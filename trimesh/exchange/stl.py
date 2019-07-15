@@ -1,3 +1,5 @@
+from .. import util
+
 import numpy as np
 
 
@@ -18,21 +20,22 @@ _stl_dtype_header = np.dtype([('header', np.void, 80),
                               ('face_count', '<i4')])
 
 
-def load_stl(file_obj, file_type=None, **kwargs):
+def load_stl(file_obj, **kwargs):
     """
     Load an STL file from a file object.
 
     Parameters
     ----------
-    file_obj: open file- like object
-    file_type: not used
+    file_obj : open file-like object
+      Containing STL data
 
     Returns
     ----------
-    loaded: kwargs for a Trimesh constructor with keys:
-              vertices:     (n,3) float, vertices
-              faces:        (m,3) int, indexes of vertices
-              face_normals: (m,3) float, normal vector of each face
+    loaded : dict
+      kwargs for a Trimesh constructor with keys:
+      vertices:     (n,3) float, vertices
+      faces:        (m,3) int, indexes of vertices
+      face_normals: (m,3) float, normal vector of each face
     """
     # save start of file obj
     file_pos = file_obj.tell()
@@ -57,7 +60,8 @@ def load_stl_binary(file_obj):
 
     Parameters
     ----------
-    file_obj: open file- like object
+    file_obj : open file- like object
+      Containing STL data
 
     Returns
     ----------
@@ -82,8 +86,8 @@ def load_stl_binary(file_obj):
     try:
         # save the header block as a string
         # there could be any garbage in there so wrap in try
-        metadata = {
-            'header': bytes(header['header'][0]).decode('utf-8').strip()}
+        metadata = {'header': util.decode_text(
+            bytes(header['header'][0])).strip()}
     except BaseException:
         metadata = {}
 
@@ -109,7 +113,10 @@ def load_stl_binary(file_obj):
     # we will be producing garbage or crashing hard
     # so it's much better to raise an exception here.
     if len_data != len_expected:
-        raise HeaderError('Binary STL has incorrect length in header!')
+        raise HeaderError(
+            'Binary STL has incorrect length in header: {} vs {}'.format(
+                len_data, len_expected))
+
     blob = np.frombuffer(file_obj.read(), dtype=_stl_dtype)
 
     # all of our vertices will be loaded in order
@@ -132,14 +139,16 @@ def load_stl_ascii(file_obj):
 
     Parameters
     ----------
-    file_obj: open file- like object
+    file_obj : open file- like object
+      Containing input data
 
     Returns
     ----------
-    loaded: kwargs for a Trimesh constructor with keys:
-              vertices:     (n,3) float, vertices
-              faces:        (m,3) int, indexes of vertices
-              face_normals: (m,3) float, normal vector of each face
+    loaded : dict
+      kwargs for a Trimesh constructor with keys:
+      vertices:     (n,3) float, vertices
+      faces:        (m,3) int, indexes of vertices
+      face_normals: (m,3) float, normal vector of each face
     """
 
     # the first line is the header
@@ -147,7 +156,7 @@ def load_stl_ascii(file_obj):
     # make sure header is a string, not bytes
     if hasattr(header, 'decode'):
         try:
-            header = header.decode('utf-8')
+            header = util.decode_text(header)
         except BaseException:
             header = ''
     # save header to metadata
@@ -155,9 +164,8 @@ def load_stl_ascii(file_obj):
 
     # read all text into one string
     text = file_obj.read()
-    # convert bytes to string
-    if hasattr(text, 'decode'):
-        text = text.decode('utf-8')
+    # try to convert bytes to string
+    text = util.decode_text(text)
     # split by endsolid keyword
     text = text.lower().split('endsolid')[0]
     # create array of splits

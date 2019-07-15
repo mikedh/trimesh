@@ -182,6 +182,31 @@ class CacheTest(g.unittest.TestCase):
         assert t.crc() != t[::-1].crc()
         assert t.fast_hash() != t[::-1].fast_hash()
 
+    def test_mutable(self):
+        """
+        Run some simple tests on mutable DataStore objects
+        """
+        d = g.trimesh.caching.DataStore()
+
+        d['hi'] = g.np.random.random(100)
+        hash_initial = d.fast_hash()
+        # mutate internal data
+        d['hi'][0] += 1
+        assert d.fast_hash() != hash_initial
+
+        # should be mutable by default
+        assert d.mutable
+        # set data to immutable
+        d.mutable = False
+
+        try:
+            d['hi'][1] += 1
+        except ValueError:
+            # should be raised when array is marked as read only
+            return
+        # we shouldn't make it past the try-except
+        raise ValueError('mutating data worked when it shouldn\'t!')
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

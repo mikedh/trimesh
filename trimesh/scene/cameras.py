@@ -3,9 +3,6 @@ import copy
 import numpy as np
 
 from .. import util
-from .. import transformations
-
-from ..geometry import align_vectors
 
 
 class Camera(object):
@@ -15,9 +12,7 @@ class Camera(object):
             name=None,
             resolution=None,
             focal=None,
-            fov=None,
-            scene=None,
-            transform=None):
+            fov=None):
         """
         Create a new Camera object that stores camera intrinsic
         and extrinsic parameters.
@@ -36,9 +31,6 @@ class Camera(object):
           but not both.  focal = (K[0][0], K[1][1])
         fov : (2,) float
           Field of view (fovx, fovy) in degrees
-        transform : (4, 4) float
-          Camera transform, extrinsic homogoenous
-          transformation matrix.
         """
 
         if name is None:
@@ -65,28 +57,15 @@ class Camera(object):
             resolution = (self.fov * 15.0).astype(np.int64)
         self.resolution = resolution
 
-        # add a back- reference to scene object
-        self.scene = scene
-        # set transform
-        self.transform = transform
-
     def copy(self):
         """
         Safely get a copy of the current camera.
         """
-
-        if self.transform is None:
-            transform = None
-        else:
-            transform = copy.deepcopy(self.transform)
-
-        # do not include scene reference
         return Camera(
             name=copy.deepcopy(self.name),
             resolution=copy.deepcopy(self.resolution),
             focal=copy.deepcopy(self.focal),
-            fov=copy.deepcopy(self.fov),
-            transform=transform)
+            fov=copy.deepcopy(self.fov))
 
     @property
     def resolution(self):
@@ -121,90 +100,6 @@ class Camera(object):
         else:
             # fov must be computed
             self._fov = None
-
-    @property
-    def scene(self):
-        """
-        Get a reference to the scene that this camera is in.
-
-        Returns
-        -------------
-        scene : None, or trimesh.Scene
-          Scene where this camera is attached
-        """
-        return self._scene
-
-    @scene.setter
-    def scene(self, value):
-        """
-        Set the reference to the scene that this camera is in.
-
-        Parameters
-        -------------
-        scene : None, or trimesh.Scene
-          Scene where this camera is attached
-        """
-
-        # save the scene reference
-        self._scene = value
-
-        # check if we have local not None transform
-        # an if we can apply it to the scene graph
-        # also check here that scene is a real scene
-        if (hasattr(self, '_transform') and
-            self._transform is not None and
-                hasattr(value, 'graph')):
-            # set scene transform to locally saved transform
-            self._scene.graph[self.name] = self._transform
-            # set local transform to None
-            self._transform = None
-
-    @property
-    def transform(self):
-        """
-        Get the (4, 4) homogenous transformation from the
-        world frame to this camera object.
-
-        Returns
-        ------------
-        transform : (4, 4) float
-          Transform from world to camera
-        """
-        # no scene set
-        if self._scene is None:
-            # no transform saved locally
-            if not hasattr(self, '_transform') or self._transform is None:
-                return np.eye(4)
-            # transform saved locally
-            return self._transform
-
-        # get the transform from the scene
-        return self._scene.graph[self.name][0]
-
-    @transform.setter
-    def transform(self, values):
-        """
-
-        Set the (4, 4) homogenous transformation from the
-        world frame to this camera object.
-
-        Parameters
-        ------------
-        transform : (4, 4) float
-          Transform from world to camera
-        """
-        if values is None:
-            return
-        matrix = np.asanyarray(values, dtype=np.float64)
-        if matrix.shape != (4, 4):
-            raise ValueError('transform must be (4, 4) float!')
-        matrix.flags.writeable = False
-        if self._scene is None:
-            # if no scene, save transform locally
-            self._transform = matrix
-        else:
-            # assign passed values to transform
-            self._scene.graph[self.name] = matrix
 
     @property
     def focal(self):
@@ -330,20 +225,28 @@ class Camera(object):
 
     def to_rays(self):
         """
-        Convert a trimesh.scene.Camera object to ray origins
-        and direction vectors. Will return one ray per pixel,
-        as set in camera.resolution.
+        Calculate ray direction vectors.
+
+        Will return one ray per pixel, as set in self.resolution.
 
         Returns
         --------------
-        origins : (n, 3) float
-          Ray origins in space
         vectors : (n, 3) float
-          Ray direction unit vectors
-        angles : (n, 2) float
-          Ray spherical coordinate angles in radians
+          Ray direction vectors in camera frame with z == -1
         """
         return camera_to_rays(self)
+
+    def angles(self):
+        """
+        Get ray spherical coordinates in radians.
+
+
+        Returns
+        --------------
+        angles : (n, 2) float
+          Ray spherical coordinate angles in radians.
+        """
+        return np.arctan(-ray_pixel_coords(self))
 
 
 def look_at(points, fov, rotation=None, distance=None, center=None):
@@ -404,54 +307,75 @@ def look_at(points, fov, rotation=None, distance=None, center=None):
     return cam_pose
 
 
-def camera_to_rays(camera):
+def ray_pixel_coords(camera):
     """
-    Convert a trimesh.scene.Camera object to ray origins
-    and direction vectors. Will return one ray per pixel,
-    as set in camera.resolution.
+    Get the x-y coordinates of rays in camera coordinates at z == -1.
+
+    One coordinate pair will be given for each pixel as defined in
+    camera.resolution. If reshaped, the returned array corresponds to pixels
+    of the rendered image.
+
+    i.e.
+    ```python
+    xy = ray_pixel_coords(camera).reshape(
+      tuple(camera.coordinates) + (2,))
+    top_left == xy[0, 0]
+    bottom_right == xy[-1, -1]
+    ```
 
     Parameters
     --------------
     camera : trimesh.scene.Camera
-      Camera with transform defined
 
     Returns
     --------------
-    origins : (n, 3) float
-      Ray origins in space
-    vectors : (n, 3) float
-      Ray direction unit vectors
-    angles : (n, 2) float
-      Ray spherical coordinate angles in radians
+    xy : (n, 2) float
+      x-y coordinates of intersection of each camera ray with the z == -1 frame
     """
-    # radians of half the field of view
-    half = np.radians(camera.fov / 2.0)
-    # scale it down by two pixels to keep image under resolution
-    half *= (camera.resolution - 2) / camera.resolution
+    right_top = np.tan(np.radians(camera.fov / 2.0))
+    # move half a pixel width in
+    # pixel_size = (right_top - left_bottom) / camera.resolution
+    # # for symmetric cameras, pixel_size impl above is equivalent to below
+    # pixel_size = right_top*2 / camera.resolution
+    # right_top -= pixel_size / 2
+    # # the above two lines can be computed more efficiently by the below line
+    right_top *= 1 - 1. / camera.resolution
 
-    # create an evenly spaced list of angles
-    angles = util.grid_linspace(bounds=[-half, half],
-                                count=camera.resolution)
+    left_bottom = -right_top
+    # we are looking down the negative z axis, so
+    # right_top corresponds to maximum x/y values
+    # bottom_left corresponds to minimum x/y values
 
-    # turn the angles into unit vectors
-    vectors = util.unitize(np.column_stack((
-        np.sin(angles),
-        np.ones(len(angles)))))
+    right, top = right_top
+    left, bottom = left_bottom
 
-    # flip the camera transform to change sign of Z
-    transform = np.dot(
-        camera.transform,
-        align_vectors([1, 0, 0], [-1, 0, 0]))
+    xy = util.grid_linspace(
+        bounds=[[left, top], [right, bottom]],
+        count=camera.resolution)
 
-    # apply the rotation to the direction vectors
-    vectors = transformations.transform_points(
-        vectors,
-        transform,
-        translate=False)
+    # i.e. after reshaping we have corners aligned correctly
+    # xy_reshaped = xy.reshape(tuple(camera.resolution) + 2)
+    # xy_reshaped[0, 0] == top_left
+    # xy_reshaped[-1, -1] == bottom_right
 
-    # camera origin is single point, extract from transform
-    origin = transformations.translation_from_matrix(transform)
-    # tile it into corresponding list of ray vectorsy
-    origins = np.ones_like(vectors) * origin
+    return xy
 
-    return origins, vectors, angles
+
+def camera_to_rays(camera):
+    """
+    Calculate the trimesh.scene.Camera object to direction vectors.
+
+    Will return one ray per pixel, as set in camera.resolution.
+
+    Parameters
+    --------------
+    camera : trimesh.scene.Camera
+
+    Returns
+    --------------
+    vectors : (n, 3) float
+      Ray direction vectors in camera frame with z == -1
+    """
+    xy = ray_pixel_coords(camera)
+    vectors = np.column_stack((xy, -np.ones_like(xy[:, :1])))
+    return vectors

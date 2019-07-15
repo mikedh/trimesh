@@ -491,15 +491,16 @@ def to_rgba(colors, dtype=np.uint8):
 
     Parameters
     ----------
-    colors: (n,[3|4]) list of RGB or RGBA colors
+    colors : (n, 3) or (n, 4) array
+      RGB or RGBA colors
 
     Returns
     ----------
-    colors: (n,4) list of RGBA colors
-            (4,)  single RGBA color
+    colors : (n, 4) list of RGBA colors
+             (4,)  single RGBA color
     """
-    if not util.is_sequence(colors):
-        return
+    if colors is None or not util.is_sequence(colors):
+        return DEFAULT_COLOR
 
     # colors as numpy array
     colors = np.asanyarray(colors)
@@ -508,7 +509,7 @@ def to_rgba(colors, dtype=np.uint8):
     opaque = np.iinfo(dtype).max
 
     if (colors.dtype.kind == 'f' and colors.max() < (1.0 + 1e-8)):
-        colors = (colors * opaque).astype(dtype)
+        colors = (colors * opaque).round().astype(dtype)
     elif (colors.max() <= opaque):
         colors = colors.astype(dtype)
     else:
@@ -528,6 +529,33 @@ def to_rgba(colors, dtype=np.uint8):
         raise ValueError('Colors not of appropriate shape!')
 
     return colors
+
+
+def to_float(colors):
+    """
+    Convert integer colors to 0.0 - 1.0 floating point colors
+
+    Parameters
+    -------------
+    colors : (n, d) int
+      Integer colors
+
+    Returns
+    -------------
+    as_float : (n, d) float
+      Float colors 0.0 - 1.0
+    """
+
+    # colors as numpy array
+    colors = np.asanyarray(colors)
+    if colors.dtype.kind == 'f':
+        return colors
+    elif colors.dtype.kind in 'iu':
+        # integer value for opaque alpha given our datatype
+        opaque = np.iinfo(colors.dtype).max
+        return colors.astype(np.float64) / opaque
+    else:
+        raise ValueError('only works on int or float colors!')
 
 
 def hex_to_rgba(color):
@@ -737,6 +765,47 @@ def interpolate(values, color_map=None, dtype=np.uint8):
     rgba = to_rgba(colors, dtype=dtype)
 
     return rgba
+
+
+def uv_to_color(uv, image):
+    """
+    Get the color in a texture image.
+
+    Parameters
+    -------------
+    uv : (n, 2) float
+      UV coordinates on texture image
+    image : PIL.Image
+      Texture image
+
+    Returns
+    ----------
+    colors : (n, 4) float
+      RGBA color at each of the UV coordinates
+    """
+    if image is None or uv is None:
+        return None
+
+    # UV coordinates should be (n, 2) float
+    uv = np.asanyarray(uv, dtype=np.float64)
+
+    # get texture image pixel positions of UV coordinates
+    x = (uv[:, 0] * (image.width - 1))
+    y = ((1 - uv[:, 1]) * (image.height - 1))
+
+    # convert to int and wrap to image
+    # size in the manner of GL_REPEAT
+    x = x.round().astype(np.int64) % image.width
+    y = y.round().astype(np.int64) % image.height
+
+    # access colors from pixel locations
+    # make sure image is RGBA before getting values
+    colors = np.asanyarray(image.convert('RGBA'))[y, x]
+
+    # conversion to RGBA should have corrected shape
+    assert colors.ndim == 2 and colors.shape[1] == 4
+
+    return colors
 
 
 DEFAULT_COLOR = np.array([102, 102, 102, 255], dtype=np.uint8)
