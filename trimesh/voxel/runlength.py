@@ -160,10 +160,12 @@ def split_long_brle_lengths(lengths, dtype=np.int64):
         nl = len(lengths)
         repeats = np.asarray(lengths) // max_val
         remainders = (lengths % max_val).astype(dtype)
-        lengths = np.empty(shape=(np.sum(repeats) * 2 + nl,), dtype=dtype)
-        np.concatenate(
+
+        # shape of lengths
+        shape = (np.sum(repeats) * 2 + nl,)
+        lengths = np.concatenate(
             [np.array([max_val, 0] * repeat + [remainder], dtype=dtype)
-             for repeat, remainder in zip(repeats, remainders)], out=lengths)
+             for repeat, remainder in zip(repeats, remainders)]).reshape(shape).astype(dtype)
         return lengths
     elif lengths.dtype != dtype:
         return lengths.astype(dtype)
