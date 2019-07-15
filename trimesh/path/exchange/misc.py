@@ -15,7 +15,7 @@ def dict_to_path(as_dict):
     can be sent directly to a Path constructor.
 
     Parameters
-    -----------
+    ------------
     as_dict : dict
       Has keys: 'vertices', 'entities'
 
@@ -88,7 +88,7 @@ def polygon_to_path(polygon):
       Input geometry
 
     Returns
-    -------------
+    -----------
     kwargs : dict
       Keyword arguments for Path2D constructor
     """
@@ -154,7 +154,7 @@ def faces_to_path(mesh, face_ids=None, **kwargs):
     turn them into a Path3D.
 
     Parameters
-    ---------
+    ------------
     mesh : trimesh.Trimesh
       Triangulated surface in 3D
     face_ids : (n,) int

@@ -22,18 +22,29 @@ Binvox = collections.namedtuple(
 
 
 def parse_binvox_header(fp):
-    """Read the header from a binvox file.
+    """
+    Read the header from a binvox file.
+    Spec available:
+    https://www.patrickmin.com/binvox/binvox.html
 
-    Spec at https://www.patrickmin.com/binvox/binvox.html
+    Parameters
+    ------------
+    fp: file-object
+      File like object with binvox file
 
-    Args:
-        fp: object providing a `readline` method (e.g. an open file)
+    Returns
+    ----------
+    shape : tuple
+      Shape of binvox according to binvox spec
+    translate : tuple
+      Translation
+    scale : float
+      Scale of voxels
 
-    Returns:
-        (shape, translate, scale) according to binvox spec
-
-    Raises:
-        `IOError` if invalid binvox file.
+    Raises
+    ------------
+    IOError
+      If invalid binvox file.
     """
 
     line = fp.readline().strip()
@@ -55,19 +66,26 @@ def parse_binvox_header(fp):
 
 
 def parse_binvox(fp, writeable=False):
-    """Read a binvox file.
+    """
+    Read a binvox file, spec at
+    https://www.patrickmin.com/binvox/binvox.html
 
-    Spec at https://www.patrickmin.com/binvox/binvox.html
+    Parameters
+    ------------
+    fp: file-object
+      File like object with binvox file
 
-    Args:
-        fp: object providing a `readline` method (e.g. an open file)
+    Returns
+    ----------
+    binvox : namedtuple
+      Containing data
+    rle : numpy array
+      Run length encoded data
 
-    Returns:
-        `Binvox` namedtuple ('rle', 'shape', 'translate', 'scale')
-        `rle` is the run length encoding of the values.
-
-    Raises:
-        `IOError` if invalid binvox file.
+    Raises
+    ------------
+    IOError
+      If invalid binvox file
     """
     # get the header info
     shape, translate, scale = parse_binvox_header(fp)
@@ -89,7 +107,8 @@ data
 
 
 def binvox_header(shape, translate, scale):
-    """Get a binvox header string.
+    """
+    Get a binvox header string.
 
     Parameters
     --------
@@ -112,14 +131,19 @@ def binvox_bytes(rle_data, shape, translate=(0, 0, 0), scale=1):
 
     Parameters
     --------
-    rle_data: run-length encoded numpy array.
-    shape: length 3 iterable of ints denoting shape of voxel grid.
-    translate: length 3 iterable of floats denoting translation.
-    scale: num length of entire voxel grid.
+    rle_data : numpy array
+      Run-length encoded numpy array.
+    shape : (3,) int
+      Shape of voxel grid.
+    translate : (3,) float
+      Translation of voxels
+    scale : float
+      Length of entire voxel grid.
 
     Returns
     --------
-    bytes representation, suitable for writing to binary file
+    data : bytes
+      Suitable for writing to binary file
     """
     if rle_data.dtype != np.uint8:
         raise ValueError(
@@ -136,23 +160,27 @@ def voxel_from_binvox(
 
     Parameters
     ---------
-    rle_data: numpy array representing run-length-encoded of flat voxel
-        values, or a `trimesh.rle.RunLengthEncoding` object.
-        See `trimesh.rle` documentation for description of encoding.
-    shape: shape of voxel grid.
-    translate: alias for `origin` in trimesh terminology
-    scale: side length of entire voxel grid. Note this is different
-        to `pitch` in trimesh terminology, which relates to the side
-        length of an individual voxel.
-    encoded_axes: iterable with values in ('x', 'y', 'z', 0, 1, 2),
-        where x => 0, y => 1, z => 2
-        denoting the order of axes in the encoded data. binvox by
-        default saves in xzy order, but using `xyz` (or (0, 1, 2)) will
-        be faster in some circumstances.
+    rle_data : numpy
+      Run-length-encoded of flat voxel
+      values, or a `trimesh.rle.RunLengthEncoding` object.
+      See `trimesh.rle` documentation for description of encoding
+    shape : (3,) int
+      Shape of voxel grid.
+    translate : (3,) float
+      Translation of voxels
+    scale : float
+      Length of entire voxel grid.
+    encoded_axes : iterable
+      With values in ('x', 'y', 'z', 0, 1, 2),
+      where x => 0, y => 1, z => 2
+      denoting the order of axes in the encoded data. binvox by
+      default saves in xzy order, but using `xyz` (or (0, 1, 2)) will
+      be faster in some circumstances.
 
     Returns
     ---------
-    `VoxelGrid` instance
+    result : VoxelGrid
+      Loaded voxels
     """
     # shape must be uniform else scale is ambiguous
     from ..voxel import encoding as enc
@@ -204,7 +232,8 @@ def load_binvox(file_obj,
 
     Returns
     ---------
-    `trimesh.voxel.VoxelGrid` instance.
+    result : trimesh.voxel.VoxelGrid
+      Loaded voxel data
     """
     if file_type is not None and file_type != 'binvox':
         raise ValueError(
@@ -344,7 +373,8 @@ class Binvoxer(object):
         Parameters
         ------------
         dimension: voxel grid size (max 1024 when not using exact)
-        file_type: output file time. Supported types are:
+        file_type: str
+          Output file type, supported types are:
             'binvox'
             'hips'
             'mira'
@@ -352,7 +382,7 @@ class Binvoxer(object):
             'raw'
             'schematic'
             'msh'
-        z_buffer_carving: use z buffer based carving. At least one of
+        z_buffer_carving : use z buffer based carving. At least one of
             `z_buffer_carving` and `z_buffer_voting` must be True.
         z_buffer_voting: use z-buffer based parity voting method.
         dilated_carving: stop carving 1 voxel before intersection.
@@ -500,7 +530,10 @@ class Binvoxer(object):
         return out_path
 
 
-def voxelize_mesh(mesh, binvoxer=None, export_type='off', **binvoxer_kwargs):
+def voxelize_mesh(mesh,
+                  binvoxer=None,
+                  export_type='off',
+                  **binvoxer_kwargs):
     """
     Interface for voxelizing Trimesh object via the binvox tool.
 

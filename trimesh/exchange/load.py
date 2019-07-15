@@ -36,7 +36,8 @@ except BaseException as E:
 
         Raises
         ----------
-        path_exception : Whatever failed when we imported path
+        path_exception : BaseException
+          Whatever failed when we imported path
         """
         raise _path_exception
 
@@ -79,18 +80,18 @@ def load(file_obj,
          resolver=None,
          **kwargs):
     """
-    Load a mesh or vectorized path into objects:
+    Load a mesh or vectorized path into objects like
     Trimesh, Path2D, Path3D, Scene
 
     Parameters
-    ---------
+    -----------
     file_obj : str, or file- like object
       The source of the data to be loadeded
     file_type: str
       What kind of file type do we have (eg: 'stl')
     resolver : trimesh.visual.Resolver
       Object to load referenced assets like materials and textures
-    kwargs : **
+    kwargs : dict
       Passed to geometry __init__
 
     Returns

@@ -239,7 +239,7 @@ def is_shape(obj, shape, allow_zeros=False):
     array, this function will not convert it and will return False.
 
     Parameters
-    ---------
+    ------------
     obj :   np.ndarray
        Array to check the shape on
     shape : list or tuple
@@ -322,7 +322,7 @@ def make_sequence(obj):
     objects and other times return lists of objects.
 
     Parameters
-    --------------
+    -------------
     obj : object
       An object to be made a sequence
 
@@ -349,7 +349,7 @@ def vector_hemisphere(vectors, return_sign=False):
     negative X value will be reversed.
 
     Parameters
-    ----------
+    ------------
     vectors : (n,3) float
       Input vectors
     return_sign : bool
@@ -448,7 +448,7 @@ def spherical_to_vector(spherical):
     Convert a set of (n,2) spherical vectors to (n,3) vectors
 
     Parameters
-    -----------
+    ------------
     spherical : (n , 2) float
        Angles, in radians
 
@@ -475,7 +475,7 @@ def pairwise(iterable):
     For an iterable, group values into pairs.
 
     Parameters
-    -----------
+    ------------
     iterable : (m, ) list
        A sequence of values
 
@@ -617,7 +617,7 @@ def stack_3D(points, return_2D=False):
     as (n, 3) 3D points, 2D points on the XY plane.
 
     Parameters
-    ----------
+    ------------
     points :  (n, 2) or (n, 3) float
       Points in either 2D or 3D space
     return_2D : bool
@@ -657,12 +657,12 @@ def grid_arange(bounds, step):
     Return a grid from an (2,dimension) bounds with samples step distance apart.
 
     Parameters
-    ---------
+    ------------
     bounds: (2,dimension) list of [[min x, min y, etc], [max x, max y, etc]]
     step:   float, or (dimension) floats, separation between points
 
     Returns
-    -------
+    ---------
     grid: (n, dimension), points inside the specified bounds
     """
     bounds = np.asanyarray(bounds, dtype=np.float64)
@@ -685,12 +685,12 @@ def grid_linspace(bounds, count):
     Return a grid spaced inside a bounding box with edges spaced using np.linspace.
 
     Parameters
-    ---------
+    ------------
     bounds: (2,dimension) list of [[min x, min y, etc], [max x, max y, etc]]
     count:  int, or (dimension,) int, number of samples per side
 
     Returns
-    -------
+    ---------
     grid: (n, dimension) float, points in the specified bounds
     """
     bounds = np.asanyarray(bounds, dtype=np.float64)
@@ -715,7 +715,7 @@ def multi_dict(pairs):
     Can be called like the regular dict(pairs) constructor
 
     Parameters
-    ----------
+    ------------
     pairs: (n,2) array of key, value pairs
 
     Returns
@@ -735,12 +735,12 @@ def tolist(data):
     numpy arrays are properly converted to lists
 
     Parameters
-    -----------------
+    -------------
     data : any
       Usually a dict with some numpy arrays as values
 
     Returns
-    ------------
+    ----------
     result : any
       JSON- serializable version of data
     """
@@ -772,7 +772,7 @@ def distance_to_end(file_obj):
     For an open file object how far is it to the end
 
     Parameters
-    ----------
+    ------------
     file_obj: open file- like object
 
     Returns
@@ -813,7 +813,7 @@ def hash_file(file_obj,
     Get the hash of an open file- like object.
 
     Parameters
-    ---------
+    ------------
     file_obj: file like object
     hash_function: function to use to hash data
 
@@ -841,7 +841,7 @@ def md5_object(obj):
     If an object is hashable, return the string of the MD5.
 
     Parameters
-    -----------
+    ------------
     obj: object
 
     Returns
@@ -946,7 +946,7 @@ def stack_lines(indices):
     individual line segments with duplicated consecutive values.
 
     Parameters
-    ----------
+    ------------
     indices: sequence of items
 
     Returns
@@ -1034,7 +1034,7 @@ def array_to_string(array,
     basic numpy array to string conversions are surprisingly bad.
 
     Parameters
-    ----------
+    ------------
     array : (n,) or (n, d) float or int
        Data to be converted
        If shape is (n,) only column delimiter will be used
@@ -1150,7 +1150,7 @@ def decode_keys(store, encoding='utf-8'):
     If a dictionary has keys that are bytes decode them to a str.
 
     Parameters
-    ---------
+    ------------
     store : dict
       Dictionary with data
 
@@ -1223,7 +1223,7 @@ def is_instance_named(obj, name):
     or a subclass of 'name', return True.
 
     Parameters
-    ---------
+    ------------
     obj : instance
       Some object of some class
     name: str
@@ -1263,7 +1263,7 @@ def type_named(obj, name):
     for named instance.
 
     Parameters
-    ----------
+    ------------
     obj: object to look for class of
     name : str, name of class
 
@@ -1286,7 +1286,7 @@ def concatenate(a, b=None):
     Concatenate two or more meshes.
 
     Parameters
-    ----------
+    ------------
     a: Trimesh object, or list of such
     b: Trimesh object, or list of such
 
@@ -1336,7 +1336,7 @@ def submesh(mesh,
     Return a subset of a mesh.
 
     Parameters
-    ----------
+    ------------
     mesh : Trimesh
        Source mesh to take geometry from
     faces_sequence : sequence (p,) int
@@ -1440,7 +1440,7 @@ def submesh(mesh,
 def zero_pad(data, count, right=True):
     """
     Parameters
-    -----------
+    ------------
     data : (n,)
       1D array
     count : int

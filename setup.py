@@ -32,6 +32,7 @@ requirements_easy = set([
     'xxhash',    # hash ndarrays faster than built-in MD5/CRC
     'setuptools',  # do setuptools stuff
     'pycollada',   # parse collada/dae/zae files
+    'chardet',     # figure out if someone used UTF-16
     'colorlog'])   # log in pretty colors
 
 # "all" requirements only need to be installable

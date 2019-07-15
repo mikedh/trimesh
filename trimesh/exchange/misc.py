@@ -13,12 +13,12 @@ def load_off(file_obj, **kwargs):
     Parameters
     ----------
     file_obj : file object
-                 Contains an OFF file
+      Contains an OFF file
 
     Returns
     ----------
     loaded : dict
-              kwargs for Trimesh constructor
+      kwargs for Trimesh constructor
     """
     header_string = file_obj.readline()
     if hasattr(header_string, 'decode'):

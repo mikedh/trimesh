@@ -11,13 +11,13 @@ def abspath(rel):
 
     Parameters
     ------------
-    rel     : str
-              Relative path, IE '../stuff'
+    rel : str
+      Relative path, IE '../stuff'
 
     Returns
     -------------
     abspath : str
-              Absolute path, IE '/home/user/stuff'
+      Absolute path, IE '/home/user/stuff'
     """
 
     # current working directory
@@ -26,9 +26,7 @@ def abspath(rel):
     return os.path.abspath(os.path.join(cwd, rel))
 
 
-extensions = ['sphinx.ext.autodoc',
-              'sphinx.ext.autosummary',
-              'numpydoc']
+extensions = ['sphinxcontrib.napoleon']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

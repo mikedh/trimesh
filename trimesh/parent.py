@@ -134,7 +134,7 @@ class Geometry(ABC):
 
         Returns
         --------
-        minball: trimesh.primitives.Sphere
+        minball : trimesh.primitives.Sphere
           Sphere primitive containing current mesh
         """
         from . import primitives, nsphere
@@ -167,10 +167,11 @@ class Geometry(ABC):
 
         Returns
         ---------
-        bounding_primitive : trimesh.primitives.Sphere
-                             trimesh.primitives.Box
-                             trimesh.primitives.Cylinder
-          Primitive which bounds the mesh with the smallest volume
+        bounding_primitive : object
+          Smallest primitive which bounds the mesh:
+          trimesh.primitives.Sphere
+          trimesh.primitives.Box
+          trimesh.primitives.Cylinder
         """
         options = [self.bounding_box_oriented,
                    self.bounding_sphere,

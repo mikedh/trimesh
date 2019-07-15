@@ -17,7 +17,7 @@ def export_mesh(mesh, file_obj, file_type=None, **kwargs):
     Export a Trimesh object to a file- like object, or to a filename
 
     Parameters
-    ---------
+    -----------
     file_obj : str, file-like
       Where should mesh be exported to
     file_type : str or None
@@ -117,7 +117,8 @@ def export_dict(mesh, encoding=None):
 
     Returns
     -------------
-
+    export : dict
+      Data stored in dict
     """
 
     def encode(item, dtype=None):

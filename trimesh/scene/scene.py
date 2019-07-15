@@ -935,12 +935,13 @@ class Scene(Geometry):
 
         Parameters
         -----------
-        viewer: str 'gl':       open a pyglet window
-                str,'notebook': return ipython.display.HTML
-                None: automatically pick based on whether or not
-                          we are in an ipython notebook
-        smooth : bool
-          Turn on or off automatic smooth shading
+        viewer: str
+          What kind of viewer to open, including
+          'gl' to open a pyglet window, 'notebook'
+          for a jupyter notebook or None
+        kwargs : dict
+          Includes `smooth`, which will turn
+          on or off automatic smooth shading
         """
 
         if viewer is None:
