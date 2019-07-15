@@ -37,7 +37,7 @@ class TransformForest(object):
         Update a transform in the tree.
 
         Parameters
-        ---------
+        ------------
         frame_from : hashable object
           Usually a string (eg 'world').
           If left as None it will be set to self.base_frame
@@ -174,7 +174,7 @@ class TransformForest(object):
         (node_a, node_b, {metadata})
 
         Returns
-        -------
+        ---------
         edgelist: (n,) list of tuples
         """
         # save cleaned edges
@@ -264,7 +264,7 @@ class TransformForest(object):
         If the frames are not connected a NetworkXNoPath error will be raised.
 
         Parameters
-        ---------
+        ------------
         frame_to : hashable
           Node name, usually a string (eg 'mesh_0')
         frame_from : hashable
@@ -272,7 +272,7 @@ class TransformForest(object):
           If None it will be set to self.base_frame
 
         Returns
-        ---------
+        ----------
         transform : (4, 4) float
           Homogeneous transformation matrix
         """
@@ -354,7 +354,7 @@ class TransformForest(object):
         from the transform graph.
 
         Parameters
-        ---------
+        ------------
         frame_from: a frame key, usually a string
                     eg, 'world'
         frame_to:   a frame key, usually a string

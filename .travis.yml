@@ -13,7 +13,7 @@ matrix:
 
 before_deploy:
 - pip install -q -r docs/requirements.txt
-- python docs/build.py
+- python docs/build.py -v
 
 # extract the current trimesh version from the version file
 - export TM_VERSION=`python -c "exec(open('trimesh/version.py','r').read()); print(__version__)"`
