@@ -2,9 +2,9 @@ set -xe
 
 cd
 # get versioned miniconda installer via HTTPS
-wget https://repo.anaconda.com/miniconda/Miniconda3-4.5.4-Linux-x86_64.sh --quiet -O miniconda.sh
+wget https://repo.anaconda.com/miniconda/Miniconda3-4.6.14-Linux-x86_64.sh --quiet -O miniconda.sh
 # check hash of file
-echo "80ecc86f8c2f131c5170e43df489514f80e3971dd105c075935470bbf2476dea  miniconda.sh" | sha256sum --check
+echo "0d6b23895a91294a4924bd685a3a1f48e35a17970a073cd2f684ffe2c31fc4be  miniconda.sh" | sha256sum --check
 # run miniconda install
 bash miniconda.sh -b -p ~/conda
 # delete installer
@@ -21,10 +21,10 @@ conda config --add channels conda-forge
 # conda/numpy is compiled with intel's MKL
 conda install pyembree 
 
-# install trimesh from repo version
+# install trimesh from the repo
 cd /tmp/trimesh
 # include all soft dependencies
-pip install .[all,test] pyassimp==4.1.3
+pip install .[all,test] pyassimp
 
 # remove archives
-# conda clean --all
+conda clean --all

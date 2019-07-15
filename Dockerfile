@@ -29,13 +29,13 @@ RUN bash /tmp/trimesh/docker/builds/conda.bash
 # add user python to path 
 ENV PATH="/home/user/conda/bin:$PATH"
 
+# make sure build fails if tests are failing
+# -p no:warnings suppresses 10,000 useless upstream warnings
+# -p no:alldep means that tests will fail if a dependency is missing
+# RUN pytest -p no:warnings -p no:alldep /tmp/trimesh/tests
+
 # environment variables for software rendering
 ENV XVFB_WHD="1920x1080x24"\
     DISPLAY=":99" \
     LIBGL_ALWAYS_SOFTWARE="1" \
     GALLIUM_DRIVER="llvmpipe"
-
-# make sure build fails if tests are failing
-# -p no:warnings suppresses 10,000 useless upstream warnings
-# -p no:alldep means that tests will fail if a dependancy is missing
-RUN pytest -p no:warnings -p no:alldep /tmp/trimesh/tests
