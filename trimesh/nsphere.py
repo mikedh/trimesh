@@ -13,10 +13,14 @@ from . import convex
 from .constants import log, tol
 
 try:
+    # scipy is a soft dependency
     from scipy import spatial
     from scipy.optimize import leastsq
-except ImportError:
-    log.warning('No scipy!')
+except BaseException as E:
+    # raise the exception when someone tries to use it
+    from . import exceptions
+    leastsq = exceptions.closure(E)
+    spatial = exceptions.ExceptionModule(E)
 
 try:
     import psutil
@@ -26,7 +30,7 @@ try:
         return psutil.virtual_memory().free / 2.0
 except ImportError:
     def _MAX_MEMORY():
-        # use a best guess estimate
+        # use a hardcoded best guess estimate
         return 1e9
 
 

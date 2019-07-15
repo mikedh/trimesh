@@ -7,13 +7,18 @@ Functions for registering (aligning) point clouds with meshes.
 
 import numpy as np
 
-from scipy.spatial import cKDTree
-
 from . import util
 from . import bounds
 from . import transformations
 
 from .transformations import transform_points
+
+try:
+    from scipy.spatial import cKDTree
+except BaseException as E:
+    # wrapping just ImportError fails in some cases
+    # will raise the error when someone tries to use KDtree
+    cKDTree = exceptions.closure(E)
 
 
 def mesh_other(mesh,

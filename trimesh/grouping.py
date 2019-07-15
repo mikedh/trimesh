@@ -17,7 +17,7 @@ try:
 except BaseException as E:
     # wrapping just ImportError fails in some cases
     # will raise the error when someone tries to use KDtree
-    cKDTree = exceptions.exception_closure(E)
+    cKDTree = exceptions.closure(E)
 
 
 def merge_vertices(mesh,

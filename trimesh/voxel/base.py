@@ -19,6 +19,10 @@ from ..parent import Geometry
 
 
 class VoxelGrid(Geometry):
+    """
+    Store 3D voxels.
+    """
+
     def __init__(self, encoding, transform=None, metadata=None):
         if transform is None:
             transform = np.eye(4)

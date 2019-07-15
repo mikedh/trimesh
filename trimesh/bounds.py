@@ -12,10 +12,14 @@ from . import triangles
 from . import transformations
 
 try:
+    # scipy is a soft dependency
     from scipy import spatial
     from scipy import optimize
-except ImportError:
-    log.warning('Scipy import failed!')
+except BaseException as E:
+    # raise the exception when someone tries to use it
+    from . import exceptions
+    spatial = exceptions.ExceptionModule(E)
+    optimize = exceptions.ExceptionModule(E)
 
 
 def oriented_bounds_2D(points, qhull_options='QbB'):

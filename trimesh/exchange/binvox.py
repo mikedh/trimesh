@@ -156,8 +156,10 @@ def voxel_from_binvox(
     """
     # shape must be uniform else scale is ambiguous
     from ..voxel import encoding as enc
-    from .. import voxel as v
+    from ..voxel.base import VoxelGrid
+
     from .. import transformations
+
     if isinstance(rle_data, enc.RunLengthEncoding):
         encoding = rle_data
     else:
@@ -180,19 +182,25 @@ def voxel_from_binvox(
             "Invalid axis_order '%s': must be None, 'xyz' or 'xzy'")
 
     assert(encoding.shape == shape)
-    return v.VoxelGrid(encoding, transform)
+    return VoxelGrid(encoding, transform)
 
 
-def load_binvox(
-        file_obj, resolver=None, axis_order='xzy', file_type=None):
-    """Load trimesh `VoxelGrid` instance from file.
+def load_binvox(file_obj,
+                resolver=None,
+                axis_order='xzy',
+                file_type=None):
+    """
+    Load trimesh `VoxelGrid` instance from file.
 
     Parameters
-    ---------
-    file_obj: file-like object with `read` and `readline` methods.
-    resolve: unused
-    axis_order: order of axes in encoded data. binvox default is
-        'xzy', but 'xyz' may be faster results where this is not relevant.
+    -----------
+    file_obj : file-like object
+      Contains binvox data
+    resolver : unused
+    axis_order : str
+      Order of axes in encoded data.
+      Binvox default is 'xzy', but 'xyz' may be faster
+      where this is not relevant.
 
     Returns
     ---------
@@ -211,17 +219,23 @@ def load_binvox(
 
 
 def export_binvox(voxel, axis_order='xzy'):
-    """Export `trimesh.voxel.VoxelGrid` instance to bytes
+    """
+    Export `trimesh.voxel.VoxelGrid` instance to bytes
 
-    Args:
-        voxel: `trimesh.voxel.VoxelGrid` instance. Assumes axis ordering of
-            `xyz` and encodes in binvox default `xzy` ordering.
-        axis_order: iterable of elements in ('x', 'y', 'z', 0, 1, 2), the order
-            of axes to encode data (standard is 'xzy' for binvox). `voxel`
-            data is assumed to be in order 'xyz'.
+    Parameters
+    ------------
+    voxel : `trimesh.voxel.VoxelGrid`
+      Assumes axis ordering of `xyz` and encodes
+      in binvox default `xzy` ordering.
+    axis_order : str
+      Eements in ('x', 'y', 'z', 0, 1, 2), the order
+      of axes to encode data (standard is 'xzy' for binvox). `voxel`
+      data is assumed to be in order 'xyz'.
 
-    Returns:
-        bytes representation according to binvox spec
+    Returns
+    -----------
+    result : bytes
+      Representation according to binvox spec
     """
     translate = voxel.translation
     scale = voxel.scale * ((np.array(voxel.shape) - 1))
