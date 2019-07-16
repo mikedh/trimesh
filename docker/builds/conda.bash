@@ -16,10 +16,6 @@ export PATH="~/conda/bin:$PATH"
 conda config --set always_yes yes --set changeps1 no
 conda create -q -n denv python=3.6
 
-# make sure pip/conda is the latest
-pip install --upgrade pip
-conda update -n base conda
-
 # add conda-forge as remote channel
 conda config --add channels conda-forge
 
@@ -28,7 +24,6 @@ conda config --add channels conda-forge
 conda install scikit-image pyembree 
 
 # actually install trimesh and pytest
-pip install trimesh[all] pytest pyassimp==4.1.3
+cd /tmp/trimesh
+pip install .[all] pytest pyassimp==4.1.3
 
-# remove archives
-conda clean --all -y
