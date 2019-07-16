@@ -7,7 +7,7 @@ from . import color
 from .. import caching
 from .. import grouping
 
-from .material import SimpleMaterial
+from .material import SimpleMaterial, PBRMaterial # NOQA
 
 
 class TextureVisuals(object):
