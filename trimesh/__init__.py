@@ -31,6 +31,7 @@ from .exchange.load import (load,
                             available_formats)
 
 # avoid a circular import in trimesh.base
+from . import voxel
 from . import primitives
 
 # explicitly list imports in __all__
