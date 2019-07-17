@@ -1,8 +1,6 @@
 # dockerRender
 
-The `trimesh` docker images are configured to use the [LLVMpipe](https://www.phoronix.com/scan.php?page=news_item&px=LLVMpipe-Mesa-19.0-Performance) software rasterizer and XVFB. Who knew LLVM also solved rasterization, somehow?
-
-The advantage of not using a GPU is so you can use it in "normal" cheap cloud instances (i.e. DigitalOcean). It also is WAY easier than configuring a GPU to be usable in a container (CUDA, EGL, etc). 
+The `trimesh` docker images are configured to use the [LLVMpipe](https://www.phoronix.com/scan.php?page=news_item&px=LLVMpipe-Mesa-19.0-Performance) software rasterizer and XVFB. Who knew LLVM also solved rasterization, somehow? The advantage of not using a GPU is so you can use it in "normal" cheap cloud instances (i.e. DigitalOcean). It also is WAY easier than configuring a GPU to be usable in a container (CUDA, EGL, etc). 
 
 This example will render a PNG of a sphere, probably. 
 

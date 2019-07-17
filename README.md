@@ -200,6 +200,9 @@ Wavefront `OBJ` is also pretty common: unfortunately OBJ doesn't have a widely a
 
 ## Containers
    
-If you want to deploy something in a container that uses trimesh, automated builds containing trimesh and its dependencies are available on Docker Hub:
+If you want to deploy something in a container that uses trimesh, automated `debian:buster-slim` based builds with trimesh and dependencies are available on Docker Hub:
 
 `docker pull mikedh/trimesh`
+
+[Here's an example](https://github.com/mikedh/trimesh/tree/master/examples/dockerRender) of how to render meshes using LLVMpipe and XVFB inside a container.
+
