@@ -17,11 +17,12 @@ if __name__ == '__main__':
     # run the actual render call
     png = scene.save_image(resolution=[1920, 1080], visible=True)
 
-    # block somehow, otherwise supervisord will restart the process
-    # this is excellent if you make an application which polls some
-    # queue and then sleeps for a while before exiting
+    # the PNG is just bytes data
     print('rendered bytes:', len(png))
 
     # write the render to a volume we should have docker mounted
     with open('/output/render.png', 'wb') as f:
         f.write(png)
+
+    # NOTE: if you raise an exception, supervisord will automatically
+    # restart this script which is pretty useful in long running workers

@@ -8,7 +8,7 @@ This example will render a PNG of a sphere, probably.
 
 
 ```
-# in this directory build the imagey with a tag
+# in this directory build the image with a tag
 docker build . -t renderworker
 
 # run the container we just built
