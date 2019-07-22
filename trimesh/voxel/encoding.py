@@ -14,6 +14,15 @@ except BaseException as E:
     sp = ExceptionModule(E)
 
 
+def _empty_stripped(shape):
+    num_dims = len(shape)
+    encoding = DenseEncoding(
+        np.empty(shape=(0,) * num_dims, dtype=bool))
+    padding = np.zeros(shape=(num_dims, 2), dtype=int)
+    padding[:, 1] = shape
+    return encoding, padding
+
+
 class Encoding(ABC):
     """
     Base class for objects that implement a specific subset of of ndarray ops.
@@ -75,7 +84,7 @@ class Encoding(ABC):
 
     @property
     def is_empty(self):
-        return False
+        return self.sparse_indices[self.sparse_values != 0].size == 0
 
     @caching.cache_decorator
     def stripped(self):
@@ -89,6 +98,8 @@ class Encoding(ABC):
         padding : (n, 2) int
           Padding at the start and end that was stripped
         """
+        if self.is_empty:
+            return _empty_stripped(self.shape)
         dense = self.dense
         shape = dense.shape
         ndims = len(shape)
@@ -186,6 +197,10 @@ class DenseEncoding(Encoding):
     def sum(self):
         return self._data.sum()
 
+    @caching.cache_decorator
+    def is_empty(self):
+        return not np.any(self._data)
+
     @property
     def size(self):
         return self._data.size
@@ -279,6 +294,13 @@ class SparseEncoding(Encoding):
         if not np.all(indices >= 0):
             raise ValueError('all indices must be non-negative')
 
+    @staticmethod
+    def from_dense(dense_data):
+        sparse_indices = np.where(dense_data)
+        values = dense_data[sparse_indices]
+        return SparseEncoding(
+            np.stack(sparse_indices, axis=-1), values, shape=dense_data.shape)
+
     def copy(self):
         return SparseEncoding(
             indices=self.sparse_indices.copy(),
@@ -363,6 +385,8 @@ class SparseEncoding(Encoding):
             padding: (n, 2) array of ints denoting padding at the start/end
                 that was stripped
         """
+        if self.is_empty:
+            return _empty_stripped(self.shape)
         indices = self.sparse_indices
         pad_left = np.min(indices, axis=0)
         pad_right = np.max(indices, axis=0)
@@ -412,6 +436,11 @@ class RunLengthEncoding(Encoding):
             raise ValueError('data must be 1D numpy array')
         self._dtype = dtype
 
+    @caching.cache_decorator
+    def is_empty(self):
+        return not np.any(
+            np.logical_and(self._data[::2], self._data[1::2]))
+
     @property
     def ndims(self):
         return 1
@@ -447,6 +476,8 @@ class RunLengthEncoding(Encoding):
 
     @caching.cache_decorator
     def stripped(self):
+        if self.is_empty:
+            return _empty_stripped(self.shape)
         data, padding = rl.rle_strip(self._data)
         if padding == (0, 0):
             encoding = self
@@ -529,6 +560,10 @@ class BinaryRunLengthEncoding(RunLengthEncoding):
         """
         super(BinaryRunLengthEncoding, self).__init__(data=data, dtype=bool)
 
+    @caching.cache_decorator
+    def is_empty(self):
+        return not np.any(self._data[1::2])
+
     @staticmethod
     def from_dense(dense_data, encoding_dtype=np.int64):
         return BinaryRunLengthEncoding(
@@ -547,6 +582,8 @@ class BinaryRunLengthEncoding(RunLengthEncoding):
 
     @caching.cache_decorator
     def stripped(self):
+        if self.is_empty:
+            return _empty_stripped(self.shape)
         data, padding = rl.rle_strip(self._data)
         if padding == (0, 0):
             encoding = self
@@ -631,6 +668,10 @@ class LazyIndexMap(Encoding):
     @abc.abstractmethod
     def _from_base_indices(self, base_indices):
         pass
+
+    @property
+    def is_empty(self):
+        return self._data.is_empty
 
     @property
     def dtype(self):

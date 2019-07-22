@@ -2,8 +2,8 @@ try:
     from . import generic as g
 except BaseException:
     import generic as g
-from trimesh.voxel import encoding as enc
-from trimesh.voxel import runlength as rl
+enc = g.trimesh.voxel.encoding
+rl = g.trimesh.voxel.runlength
 np = g.np
 
 shape = (10, 10, 10)
@@ -173,6 +173,29 @@ class EncodingTest(g.unittest.TestCase):
             stripped.sparse_indices, expected_sparse_indices)
         np.testing.assert_equal(
             calculated_padding, 2 * np.ones((3, 2), dtype=int))
+
+    def test_empty_stripped(self):
+        res = 10
+        encoding = enc.DenseEncoding(np.zeros((res,) * 3, dtype=bool))
+        stripped, calculated_padding = encoding.stripped
+        self.assertEqual(stripped.size, 0)
+        np.testing.assert_equal(
+            calculated_padding, [[0, res], [0, res], [0, res]])
+
+    def test_is_empty(self):
+        res = 10
+        empty = np.zeros((res,), dtype=bool)
+        not_empty = np.zeros((res,), dtype=bool)
+        not_empty[[1, 2, 5, 6, 7]] = True
+        self.assertTrue(enc.DenseEncoding(empty).is_empty)
+        self.assertFalse(enc.DenseEncoding(not_empty).is_empty)
+
+        for cls in (
+                enc.SparseEncoding,
+                enc.RunLengthEncoding,
+                enc.BinaryRunLengthEncoding):
+            self.assertTrue(cls.from_dense(empty).is_empty)
+            self.assertFalse(cls.from_dense(not_empty).is_empty)
 
 
 if __name__ == '__main__':
