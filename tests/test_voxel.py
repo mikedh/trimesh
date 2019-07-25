@@ -363,7 +363,7 @@ class VoxelGridTest(g.unittest.TestCase):
                                     dimension=dim,
                                     method='binvox',
                                     exact=True)
-        self.assertEqual(octant.shape, (dim,)*3)
+        self.assertEqual(octant.shape, (dim,) * 3)
 
 
 if __name__ == '__main__':
