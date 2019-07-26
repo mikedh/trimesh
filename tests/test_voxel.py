@@ -353,6 +353,18 @@ class VoxelGridTest(g.unittest.TestCase):
         np.testing.assert_allclose(octant.points, stripped.points)
         self.assertGreater(octant.encoding.size, stripped.encoding.size)
 
+    def test_binvox_with_dimension(self):
+        if not g.has_binvox:
+            g.log.warning('no binvox to test!')
+            return
+
+        dim = 10
+        octant = Sphere().voxelized(pitch=None,
+                                    dimension=dim,
+                                    method='binvox',
+                                    exact=True)
+        self.assertEqual(octant.shape, (dim,) * 3)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

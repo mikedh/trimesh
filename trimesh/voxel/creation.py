@@ -222,7 +222,8 @@ def voxelize_ray(mesh,
 
 
 @log_time
-def voxelize_binvox(mesh, pitch, **binvoxer_kwargs):
+def voxelize_binvox(
+        mesh, pitch=None, dimension=None, bounds=None, **binvoxer_kwargs):
     """
     Voxelize via binvox tool.
 
@@ -231,13 +232,40 @@ def voxelize_binvox(mesh, pitch, **binvoxer_kwargs):
     mesh : trimesh.Trimesh
       Mesh to voxelize
     pitch : float
-      Side length of each voxel
+      Side length of each voxel. Ignored if dimension is provided
+    dimension: int
+      Number of voxels along each dimension. If not provided, this is
+        calculated based on pitch and bounds/mesh extents
+    bounds: (2, 3) float
+      min/max values of the returned `VoxelGrid` in each instance. Uses
+      `mesh.bounds` if not provided.
     **binvoxer_kwargs:
-      Passed to `trimesh.exchange.binvox.Binvoxer`
-      Cannot contain `dim`
+      Passed to `trimesh.exchange.binvox.Binvoxer`.
+      Should not contain `bounding_box` if bounds is not None.
+
+    Returns
+    --------------
+    `VoxelGrid` instance
+
+    Raises
+    --------------
+    `ValueError` if `bounds is not None and 'bounding_box' in binvoxer_kwargs`.
     """
-    from ..exchange import binvox
-    dimension = int(np.ceil(np.max(mesh.extents) / pitch))
+    from trimesh.exchange import binvox
+
+    if dimension is None:
+        # pitch must be provided
+        if bounds is None:
+            extents = mesh.extents
+        else:
+            mins, maxs = bounds
+            extents = maxs - mins
+        dimension = int(np.ceil(np.max(extents) / pitch))
+    if bounds is not None:
+        if 'bounding_box' in binvoxer_kwargs:
+            raise ValueError('Cannot provide both bounds and bounding_box')
+        binvoxer_kwargs['bounding_box'] = np.asanyarray(bounds).flatten()
+
     binvoxer = binvox.Binvoxer(dimension=dimension, **binvoxer_kwargs)
     return binvox.voxelize_mesh(mesh, binvoxer)
 
