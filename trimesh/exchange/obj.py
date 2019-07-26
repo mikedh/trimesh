@@ -13,6 +13,8 @@ from ..visual.material import SimpleMaterial
 
 from ..constants import log, tol
 
+### DEBUG
+import sys, psutil
 
 def load_obj(file_obj, resolver=None, **kwargs):
     """
@@ -66,95 +68,9 @@ def load_obj(file_obj, resolver=None, **kwargs):
             log.warning('unable to load materials from: {}'.format(mtl_path),
                         exc_info=True)
 
-    # Load Vertices
-    # aggressivly reduce blob to only part with vertices
-    # the first position of a vertex in the text blob
-    v_start = text.find('\nv ')
-    # we only really need to search from the start of the file
-    # up to the location of out our first vertex but we
-    # are going to use this check for "do we have texture"
-    # determination later so search the whole stupid file
-    vn_start = text.find('\nvn ')
-    vt_start = text.find('\nvt ')
-    # positions of first locations filtered by existence
-    starts = [i for i in [v_start, vt_start, vn_start] if i >= 0]
-    if len(starts) > 0:
-        start = min(starts)
-        # search for the first newline past the last vertex
-        v_end = text.find('\n', text.rfind('\nv ') + 3)
-        # we only need to search from the last
-        # vertex up until the end of the file
-        vt_end = text.find('\n', text.rfind('\nvt ', v_end) + 4)
-        vn_end = text.find('\n', text.rfind('\nvn ', v_end) + 4)
-        # take the last position of any vertex property
-        end = max(i for i in [v_end, vt_end, vn_end] if i > 0)
-        # make a giant string numpy array of each "word"
-        words = np.array(text[start:end].replace('+e', 'e').replace('-e', 'e').split())
-    else:
-        # none of the vertex keys exist so the file is empty
-        words = np.array([])
-
-    # find indexes of the "vertex" keys
-    # this avoids having to loop through the giant vertex array
-    v_idx = np.nonzero(words == 'v')[0].reshape((-1, 1))
-    # do the type conversion with built- in map/list/float
-    # vs np.astype, which is roughly 2x slower and these
-    # are the most expensive operations in the whole loader
-    # due to the fact that they are executed on every vertex
-    # In [17]: %timeit np.array(list(map(float, a.ravel().tolist())),
-    #                           dtype=np.float64)
-    #           1 loop, best of 3: 208 ms per loop
-    # In [18]: %timeit a.astype(np.float64)
-    #          1 loop, best of 3: 375 ms per loop
-    #
-    # get vertices as list of strings
-    v_list = words[v_idx + np.arange(1, 4)].ravel().tolist()
-    # run the conversion using built- in functions then re-numpy it
-    v = np.array(list(map(float, v_list)),
-                 dtype=np.float64).reshape((-1, 3))
-
-    # check will generally only be run in unit tests
-    # so we are allowed to do things that are slow
-    if tol.strict:
-        # check to make sure our subsetting
-        # didn't miss any vertices
-        assert len(v) == text.count('\nv ')
-
-    # vertex colors are stored right after the vertices
-    vc = None
-    try:
-        # try just one line, which will raise before
-        # we try to do the whole array
-        words[v_idx[0] + np.arange(4, 7)].astype(np.float64)
-        # we made it past one line, try to get a color for every vertex
-        vc_list = words[v_idx + np.arange(4, 7)]
-        if len(vc_list) == len(v):
-            # only get vertex colors if they have the correct shape
-            vc = np.array(list(map(float, vc_list.ravel().tolist())),
-                          dtype=np.float64).reshape(v.shape)
-    except BaseException:
-        # we don't have colors of correct shape
-        pass
-
-    vt = None
-    if vt_start >= 0:
-        # if we have vertex textures specified convert to numpy array
-        vt_idx = np.nonzero(words == 'vt')[0].reshape((-1, 1))
-        # only bother if we got the right number of indexes
-        if len(vt_idx) > 0:
-            vt_list = words[vt_idx + np.arange(1, 3)].ravel().tolist()
-            vt = np.array(list(map(float, vt_list)),
-                          dtype=np.float64).reshape((-1, 2))
-
-    vn = None
-    if vn_start >= 0:
-        # if we have vertex normals specified convert to numpy array
-        vn_idx = np.nonzero(words == 'vn')[0].reshape((-1, 1))
-        if len(vn_idx) > 0:
-            vn_list = words[vn_idx + np.arange(1, 4)].ravel().tolist()
-            vn = np.array(list(map(float, vn_list)),
-                          dtype=np.float64).reshape((-1, 3))
-
+    # extract vertices from raw text
+    v, vn, vt, vc = _parse_vertices(text)
+    
     # Pre-Process Face Text
     # Rather than looking at each line in a loop we're
     # going to split lines by directives which indicate
@@ -170,9 +86,8 @@ def load_obj(file_obj, resolver=None, **kwargs):
             continue
         # subtract the length of the key from the position
         # to make sure it's included in the slice of text
-        current = search
-        if current < f_start:
-            f_start = current
+        if search < f_start:
+            f_start = search
     # index in blob of the newline after the last face
     f_end = text.find('\n', text.rfind('\nf ') + 3)
     # get the chunk of the file that has face information
@@ -235,21 +150,57 @@ def load_obj(file_obj, resolver=None, **kwargs):
     # so now we have to turn them into numpy arrays and kwargs
     # for trimesh mesh and scene objects
     geometry = {}
-    for material, current_object, chunk in face_tuples:
+    while len(face_tuples) > 0:
+        # consume the next chunk of text
+        material, current_object, chunk = face_tuples.pop()
         # do wangling in string form
         # we need to only take the face line before a newline
         # using builtin functions in a list comprehension
         # is pretty fast relative to other options
         # this operation is the only one that is O(len(faces))
         # [i[:i.find('\n')] ... requires a conditional
-        face_lines = [i.split('\n')[0] for i in chunk.split('\nf ')[1:]]
+        print('0')
+        face_lines = [i.split('\n', maxsplit=1)[0] for i in chunk.split('\nf ')[1:]]
+
+        
+        # alternative worse way
+        #face_lines = [i[:i.find('\n')] for i in chunk.split('\nf ')[1:]]
+
+        print('1')
         # then we are going to replace all slashes with spaces
         joined = ' '.join(face_lines).replace('/', ' ')
         # the fastest way to get to a numpy array
         # processes the whole string at once into a 1D array
         # also wavefront is 1- indexed (vs 0- indexed) so offset
+
+        print('2')
+        del chunk
+
+
+        ######## DEBUG
+        items = dir()
+        sizes = np.zeros(len(items))
+        for i, item in enumerate(items):
+            try:
+                sizes[i] = eval('sys.getsizeof({})'.format(item))
+            except:
+                pass
+        order = sizes.argsort()
+        pad = max(len(i) for i in items) + 1
+        st = '\n'.join(
+            '{}:\t{}MB'.format(i.ljust(pad), s) for i,s in
+            zip(np.array(items)[order], sizes[order]/1e6))
+        print('\n\n', st)
+
+        # if you don't do this it takes out your computer
+        if psutil.virtual_memory().percent > 20:
+            from IPython import embed
+            embed()
+        #### / DEBUG
+        
         array = np.fromstring(
             joined, sep=' ', dtype=np.int64) - 1
+        del joined
 
         # get the number of columns rounded and converted to int
         columns = int(np.round(
@@ -304,7 +255,7 @@ def load_obj(file_obj, resolver=None, **kwargs):
             log.warning(
                 'faces are mixed tri/quad/*, try to not do this!')
             # TODO: allow fallback, and find a mesh we can test it on
-            faces, faces_tex, normal_idx = _parse_faces(face_lines)
+            faces, faces_tex, normal_idx = _parse_face_fallback(face_lines)
 
         name = current_object
         if name is None or len(name) == 0 or name in geometry:
@@ -467,7 +418,7 @@ def parse_mtl(mtl, resolver=None):
     return materials
 
 
-def _parse_faces(lines):
+def _parse_face_fallback(lines):
     """
     Use a slow but more flexible looping method to process
     face lines as a fallback option to faster vectorized methods.
@@ -532,6 +483,107 @@ def _parse_faces(lines):
         normals = np.array(vn, dtype=np.int64).reshape((-1, 3)) - 1
 
     return faces, faces_tex, normals
+
+
+def _parse_vertices(text):
+
+    # Load Vertices
+    # aggressivly reduce blob to only part with vertices
+    # the first position of a vertex in the text blob
+    v_start = text.find('\nv ')
+    # we only really need to search from the start of the file
+    # up to the location of out our first vertex but we
+    # are going to use this check for "do we have texture"
+    # determination later so search the whole stupid file
+    vn_start = text.find('\nvn ')
+    vt_start = text.find('\nvt ')
+    # positions of first locations filtered by existence
+    starts = [i for i in [v_start, vt_start, vn_start] if i >= 0]
+    if len(starts) > 0:
+        start = min(starts)
+        # search for the first newline past the last vertex
+        v_end = text.find('\n', text.rfind('\nv ') + 3)
+        # we only need to search from the last
+        # vertex up until the end of the file
+        vt_end = text.find('\n', text.rfind('\nvt ', v_end) + 4)
+        vn_end = text.find('\n', text.rfind('\nvn ', v_end) + 4)
+        # take the last position of any vertex property
+        end = max(i for i in [v_end, vt_end, vn_end] if i > 0)
+        # make a giant string numpy array of each "word"
+        words = np.array(text[start:end].replace('+e', 'e').replace('-e', 'e').split())
+    else:
+        # none of the vertex keys exist so the file is empty
+        words = np.array([])
+
+    
+    # find indexes of the "vertex" keys
+    # this avoids having to loop through the giant vertex array
+    v_idx = np.nonzero(words == 'v')[0].reshape((-1, 1))
+    # do the type conversion with built- in map/list/float
+    # vs np.astype, which is roughly 2x slower and these
+    # are the most expensive operations in the whole loader
+    # due to the fact that they are executed on every vertex
+    # In [17]: %timeit np.array(list(map(float, a.ravel().tolist())),
+    #                           dtype=np.float64)
+    #           1 loop, best of 3: 208 ms per loop
+    # In [18]: %timeit a.astype(np.float64)
+    #          1 loop, best of 3: 375 ms per loop
+    #
+    # get vertices as list of strings
+    v_list = words[v_idx + np.arange(1, 4)].ravel().tolist()
+    # run the conversion using built- in functions then re-numpy it
+    v = np.array(list(map(float, v_list)),
+                 dtype=np.float64).reshape((-1, 3))
+    del v_list, v_idx
+    
+    # check will generally only be run in unit tests
+    # so we are allowed to do things that are slow
+    if tol.strict:
+        # check to make sure our subsetting
+        # didn't miss any vertices
+        assert len(v) == text.count('\nv ')
+
+    # vertex colors are stored right after the vertices
+    vc = None
+    try:
+        # try just one line, which will raise before
+        # we try to do the whole array
+        words[v_idx[0] + np.arange(4, 7)].astype(np.float64)
+        # we made it past one line, try to get a color for every vertex
+        vc_list = words[v_idx + np.arange(4, 7)]
+        if len(vc_list) == len(v):
+            # only get vertex colors if they have the correct shape
+            vc = np.array(list(map(float, vc_list.ravel().tolist())),
+                          dtype=np.float64).reshape(v.shape)
+        del vc_list
+    except BaseException:
+        # we don't have colors of correct shape
+        pass
+
+    vt = None
+    if vt_start >= 0:
+        # if we have vertex textures specified convert to numpy array
+        vt_idx = np.nonzero(words == 'vt')[0].reshape((-1, 1))
+        # only bother if we got the right number of indexes
+        if len(vt_idx) > 0:
+            vt_list = words[vt_idx + np.arange(1, 3)].ravel().tolist()
+            vt = np.array(list(map(float, vt_list)),
+                          dtype=np.float64).reshape((-1, 2))
+            del vt_list, vt_idx
+            
+    vn = None
+    if vn_start >= 0:
+        # if we have vertex normals specified convert to numpy array
+        vn_idx = np.nonzero(words == 'vn')[0].reshape((-1, 1))
+        if len(vn_idx) > 0:
+            vn_list = words[vn_idx + np.arange(1, 4)].ravel().tolist()
+            vn = np.array(list(map(float, vn_list)),
+                          dtype=np.float64).reshape((-1, 3))
+            del vn_list
+        del vn_idx
+    del words
+    
+    return v, vn, vt, vc
 
 
 def export_obj(mesh,
