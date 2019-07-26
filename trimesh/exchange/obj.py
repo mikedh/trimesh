@@ -14,9 +14,9 @@ from ..visual.material import SimpleMaterial
 from ..constants import log, tol
 
 ### DEBUG
-import sys, psutil
+import sys, psutil, gc
 
-def load_obj(file_obj, resolver=None, **kwargs):
+def load_obj(file_obj, resolver=None, split_object=False, **kwargs):
     """
     Load a Wavefront OBJ file into kwargs for a trimesh.Scene
     object.
@@ -123,7 +123,10 @@ def load_obj(file_obj, resolver=None, **kwargs):
         # remove internal double spaces because why wouldn't that be OK
         current_material = ' '.join(m_chunk[:newline].strip().split())
         # material chunk contains multiple objects
-        o_split = m_chunk.split('\no ')
+        if split_object:
+            o_split = m_chunk.split('\no ')
+        else:
+            o_split = [m_chunk]
         if len(o_split) > 1:
             for o_chunk in o_split:
                 # set the object label
@@ -158,24 +161,19 @@ def load_obj(file_obj, resolver=None, **kwargs):
         # using builtin functions in a list comprehension
         # is pretty fast relative to other options
         # this operation is the only one that is O(len(faces))
-        # [i[:i.find('\n')] ... requires a conditional
-        print('0')
-        face_lines = [i.split('\n', maxsplit=1)[0] for i in chunk.split('\nf ')[1:]]
-
-        
-        # alternative worse way
-        #face_lines = [i[:i.find('\n')] for i in chunk.split('\nf ')[1:]]
-
-        print('1')
+        # slower due to the tight-loop conditional:
+        #face_lines = [i[:i.find('\n')]
+        #              for i in chunk.split('\nf ')[1:]
+        #              if i.rfind('\n') >0]
+        # maxsplit=1 means that it can stop working after
+        # it finds the first newline
+        face_lines = [i.split('\n', maxsplit=1)[0]
+                      for i in chunk.split('\nf ')[1:]]
         # then we are going to replace all slashes with spaces
         joined = ' '.join(face_lines).replace('/', ' ')
         # the fastest way to get to a numpy array
         # processes the whole string at once into a 1D array
         # also wavefront is 1- indexed (vs 0- indexed) so offset
-
-        print('2')
-        del chunk
-
 
         ######## DEBUG
         items = dir()
@@ -190,17 +188,18 @@ def load_obj(file_obj, resolver=None, **kwargs):
         st = '\n'.join(
             '{}:\t{}MB'.format(i.ljust(pad), s) for i,s in
             zip(np.array(items)[order], sizes[order]/1e6))
-        print('\n\n', st)
+        # print('\n\n', st)
 
         # if you don't do this it takes out your computer
         if psutil.virtual_memory().percent > 20:
-            from IPython import embed
-            embed()
+            print('collect', psutil.virtual_memory().percent)
+            #gc.collect()            
+            #from IPython import embed
+            #embed()
         #### / DEBUG
         
-        array = np.fromstring(
-            joined, sep=' ', dtype=np.int64) - 1
-        del joined
+        array = np.fromstring(joined, sep=' ', dtype=np.int64) - 1
+        #del joined
 
         # get the number of columns rounded and converted to int
         columns = int(np.round(
@@ -285,14 +284,13 @@ def load_obj(file_obj, resolver=None, **kwargs):
                 uv = None
 
             # mask vertices and use new faces
-
             mesh.update({'vertices': v[mask_v].copy(),
                          'faces': new_faces})
 
         else:
             # otherwise just use unmasked vertices
             uv = None
-            mesh.update({'vertices': v.copy(),
+            mesh.update({'vertices': v,
                          'vertex_normals': vn,
                          'faces': faces})
 
