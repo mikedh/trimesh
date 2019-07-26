@@ -415,7 +415,7 @@ def rle_mask(rle_data, mask):
             count = next(data_iter)
         except StopIteration:
             break
-        for c in range(count):
+        for _ in range(count):
             m = next(mask_iter)
             if m:
                 yield value
