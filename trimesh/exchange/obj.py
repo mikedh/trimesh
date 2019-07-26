@@ -13,8 +13,11 @@ from ..visual.material import SimpleMaterial
 
 from ..constants import log, tol
 
-### DEBUG
-import sys, psutil, gc
+# DEBUG
+import sys
+import psutil
+import gc
+
 
 def load_obj(file_obj, resolver=None, split_object=False, **kwargs):
     """
@@ -70,7 +73,7 @@ def load_obj(file_obj, resolver=None, split_object=False, **kwargs):
 
     # extract vertices from raw text
     v, vn, vt, vc = _parse_vertices(text)
-    
+
     # Pre-Process Face Text
     # Rather than looking at each line in a loop we're
     # going to split lines by directives which indicate
@@ -162,7 +165,7 @@ def load_obj(file_obj, resolver=None, split_object=False, **kwargs):
         # is pretty fast relative to other options
         # this operation is the only one that is O(len(faces))
         # slower due to the tight-loop conditional:
-        #face_lines = [i[:i.find('\n')]
+        # face_lines = [i[:i.find('\n')]
         #              for i in chunk.split('\nf ')[1:]
         #              if i.rfind('\n') >0]
         # maxsplit=1 means that it can stop working after
@@ -175,29 +178,29 @@ def load_obj(file_obj, resolver=None, split_object=False, **kwargs):
         # processes the whole string at once into a 1D array
         # also wavefront is 1- indexed (vs 0- indexed) so offset
 
-        ######## DEBUG
+        # DEBUG
         items = dir()
         sizes = np.zeros(len(items))
         for i, item in enumerate(items):
             try:
                 sizes[i] = eval('sys.getsizeof({})'.format(item))
-            except:
+            except BaseException:
                 pass
         order = sizes.argsort()
         pad = max(len(i) for i in items) + 1
         st = '\n'.join(
-            '{}:\t{}MB'.format(i.ljust(pad), s) for i,s in
-            zip(np.array(items)[order], sizes[order]/1e6))
+            '{}:\t{}MB'.format(i.ljust(pad), s) for i, s in
+            zip(np.array(items)[order], sizes[order] / 1e6))
         # print('\n\n', st)
 
         # if you don't do this it takes out your computer
         if psutil.virtual_memory().percent > 20:
             print('collect', psutil.virtual_memory().percent)
-            #gc.collect()            
+            # gc.collect()
             #from IPython import embed
-            #embed()
-        #### / DEBUG
-        
+            # embed()
+        # / DEBUG
+
         array = np.fromstring(joined, sep=' ', dtype=np.int64) - 1
         #del joined
 
@@ -254,7 +257,7 @@ def load_obj(file_obj, resolver=None, split_object=False, **kwargs):
             log.warning(
                 'faces are mixed tri/quad/*, try to not do this!')
             # TODO: allow fallback, and find a mesh we can test it on
-            faces, faces_tex, normal_idx = _parse_face_fallback(face_lines)
+            faces, faces_tex, normal_idx = _parse_faces_fallback(face_lines)
 
         name = current_object
         if name is None or len(name) == 0 or name in geometry:
@@ -266,6 +269,7 @@ def load_obj(file_obj, resolver=None, split_object=False, **kwargs):
             # convert faces referencing vertices and
             # faces referencing vertex texture to new faces
             # where each face
+            # TODO: include VN
             new_faces, mask_v, mask_vt = unmerge_faces(faces, faces_tex)
 
             if tol.strict:
@@ -290,28 +294,33 @@ def load_obj(file_obj, resolver=None, split_object=False, **kwargs):
         else:
             # otherwise just use unmasked vertices
             uv = None
-            mesh.update({'vertices': v,
-                         'vertex_normals': vn,
-                         'faces': faces})
 
             # check to make sure indexes are in bounds
             if tol.strict:
                 assert faces.max() < len(v)
 
-            # if we have vertex colors pass them
-            if vc is not None:
-                mesh['vertex_colors'] = vc
-            # if we have vertex normals pass them
             if vn is not None and np.shape(normal_idx) == faces.shape:
                 # do the crazy unmerging logic for split indices
                 new_faces, mask_v, mask_vn = unmerge_faces(
                     faces, normal_idx)
+            else:
+                mask_v = np.zeros(len(v), dtype=np.bool)
+                mask_v[faces] = True
+                inverse = np.zeros(len(v), dtype=np.int64)
+                inverse[mask_v] = np.arange(mask_v.sum())
+                new_faces = inverse[faces]
 
+                mask_vn = None
+
+            # start with vertices and faces
+            mesh = {'faces': new_faces,
+                    'vertices': v[mask_v].copy()}
+            # if vertex colors are OK save them
+            if vc is not None and len(vc) == len(v):
+                mesh['vertex_colors'] = vc[mask_v]
+            # if vertex normals are OK save them
+            if mask_vn is not None:
                 mesh['vertex_normals'] = vn[mask_vn]
-                mesh['vertices'] = mesh['vertices'][mask_v]
-                mesh['faces'] = new_faces
-                if 'vertex_colors' in mesh:
-                    mesh['vertex_colors'] = mesh['vertex_colors'][mask_v]
 
         if materials is not None and material in materials:
             visual = TextureVisuals(
@@ -416,7 +425,7 @@ def parse_mtl(mtl, resolver=None):
     return materials
 
 
-def _parse_face_fallback(lines):
+def _parse_faces_fallback(lines):
     """
     Use a slow but more flexible looping method to process
     face lines as a fallback option to faster vectorized methods.
@@ -484,9 +493,27 @@ def _parse_face_fallback(lines):
 
 
 def _parse_vertices(text):
+    """
+    Parse raw OBJ text into vertices, vertex normals,
+    vertex colors, and vertex textures.
 
-    # Load Vertices
-    # aggressivly reduce blob to only part with vertices
+    Parameters
+    -------------
+    text : str
+      Full OBJ file
+
+    Returns
+    -------------
+    v : (n, 3) float
+      Vertices in space
+    vn : (m, 3) float or None
+      Vertex normals
+    vt : (p, 2) float or None
+      Vertex texture coordinates
+    vc : (n, 3) float or None
+      Per-vertex color
+    return v, vn, vt, vc
+    """
     # the first position of a vertex in the text blob
     v_start = text.find('\nv ')
     # we only really need to search from the start of the file
@@ -513,7 +540,6 @@ def _parse_vertices(text):
         # none of the vertex keys exist so the file is empty
         words = np.array([])
 
-    
     # find indexes of the "vertex" keys
     # this avoids having to loop through the giant vertex array
     v_idx = np.nonzero(words == 'v')[0].reshape((-1, 1))
@@ -532,8 +558,7 @@ def _parse_vertices(text):
     # run the conversion using built- in functions then re-numpy it
     v = np.array(list(map(float, v_list)),
                  dtype=np.float64).reshape((-1, 3))
-    del v_list, v_idx
-    
+
     # check will generally only be run in unit tests
     # so we are allowed to do things that are slow
     if tol.strict:
@@ -553,11 +578,12 @@ def _parse_vertices(text):
             # only get vertex colors if they have the correct shape
             vc = np.array(list(map(float, vc_list.ravel().tolist())),
                           dtype=np.float64).reshape(v.shape)
-        del vc_list
+
     except BaseException:
         # we don't have colors of correct shape
         pass
 
+    # load vertex textures
     vt = None
     if vt_start >= 0:
         # if we have vertex textures specified convert to numpy array
@@ -567,8 +593,8 @@ def _parse_vertices(text):
             vt_list = words[vt_idx + np.arange(1, 3)].ravel().tolist()
             vt = np.array(list(map(float, vt_list)),
                           dtype=np.float64).reshape((-1, 2))
-            del vt_list, vt_idx
-            
+
+    # load vertex normals
     vn = None
     if vn_start >= 0:
         # if we have vertex normals specified convert to numpy array
@@ -577,16 +603,12 @@ def _parse_vertices(text):
             vn_list = words[vn_idx + np.arange(1, 4)].ravel().tolist()
             vn = np.array(list(map(float, vn_list)),
                           dtype=np.float64).reshape((-1, 3))
-            del vn_list
-        del vn_idx
-    del words
-    
+
     return v, vn, vt, vc
 
 
 def export_obj(mesh,
                include_normals=True,
-               include_texture=True,
                include_color=True):
     """
     Export a mesh as a Wavefront OBJ file
@@ -636,16 +658,18 @@ def export_obj(mesh,
                                        row_delim='\nvn ',
                                        digits=8) + '\n'
 
-    if (include_texture and
-        'vertex_texture' in mesh.metadata and
-            len(mesh.metadata['vertex_texture']) == len(mesh.vertices)):
+    """
+    TODO: update this to use TextureVisuals
+    if include_texture:
         # if vertex texture exists and is the right shape export here
         face_type.append('vt')
         export += 'vt '
+
         export += util.array_to_string(mesh.metadata['vertex_texture'],
                                        col_delim=' ',
                                        row_delim='\nvt ',
                                        digits=8) + '\n'
+    """
 
     # the format for a single vertex reference of a face
     face_format = face_formats[tuple(face_type)]
