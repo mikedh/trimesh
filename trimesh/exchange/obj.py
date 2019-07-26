@@ -13,11 +13,6 @@ from ..visual.material import SimpleMaterial
 
 from ..constants import log, tol
 
-# DEBUG
-import sys
-import psutil
-import gc
-
 
 def load_obj(file_obj, resolver=None, split_object=False, **kwargs):
     """
@@ -178,31 +173,7 @@ def load_obj(file_obj, resolver=None, split_object=False, **kwargs):
         # processes the whole string at once into a 1D array
         # also wavefront is 1- indexed (vs 0- indexed) so offset
 
-        # DEBUG
-        items = dir()
-        sizes = np.zeros(len(items))
-        for i, item in enumerate(items):
-            try:
-                sizes[i] = eval('sys.getsizeof({})'.format(item))
-            except BaseException:
-                pass
-        order = sizes.argsort()
-        pad = max(len(i) for i in items) + 1
-        st = '\n'.join(
-            '{}:\t{}MB'.format(i.ljust(pad), s) for i, s in
-            zip(np.array(items)[order], sizes[order] / 1e6))
-        # print('\n\n', st)
-
-        # if you don't do this it takes out your computer
-        if psutil.virtual_memory().percent > 20:
-            print('collect', psutil.virtual_memory().percent)
-            # gc.collect()
-            #from IPython import embed
-            # embed()
-        # / DEBUG
-
         array = np.fromstring(joined, sep=' ', dtype=np.int64) - 1
-        #del joined
 
         # get the number of columns rounded and converted to int
         columns = int(np.round(
