@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import os
+import sys
 from setuptools import setup
 
 # load __version__ without importing anything
@@ -35,6 +36,12 @@ requirements_easy = set([
     'chardet',     # figure out if someone used UTF-16
     'colorlog'])   # log in pretty colors
 
+# `lxml` removed Python 3.4 support in version 4.4.0
+# cap `lxml` at the last version that did support Python 3.4
+if sys.version_info.major == 3 and sys.version_info.minor <= 4:
+    requirements_easy.difference_update('lxml')
+    requirements_easy.add('lxml<=4.3.5')
+
 # "all" requirements only need to be installable
 # through some mechanism on Linux with Python 3.5+
 # and are allowed to compile code
@@ -66,6 +73,7 @@ setup(name='trimesh',
           'Programming Language :: Python :: 3.5',
           'Programming Language :: Python :: 3.6',
           'Programming Language :: Python :: 3.7',
+          'Programming Language :: Python :: 3.8',
           'Natural Language :: English',
           'Topic :: Scientific/Engineering'],
       packages=[
