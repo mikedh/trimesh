@@ -307,6 +307,28 @@ def parse_mtl(mtl, resolver=None):
 
 
 def _parse_faces_vectorized(array, columns, sample_line):
+    """
+    Parse loaded homogenous (tri/quad) face data in a
+    vectorized manner.
+
+    Parameters
+    ------------
+    array : (n,) int
+      Indices in order
+    columns : int
+      Number of columns in the file
+    sample_line : str
+      A single line so we can assess the ordering
+
+    Returns
+    --------------
+    faces : (n, d) int
+      Faces in space
+    faces_tex : (n, d) int or None
+      Texture for each vertex in face
+    normal_idx : (n, d) int or None
+      Normal index for each vertex in face
+    """
     # reshape to columns
     array = array.reshape((-1, columns))
     # how many elements are in the first line of faces
