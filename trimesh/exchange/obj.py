@@ -107,9 +107,10 @@ def load_obj(file_obj,
         # face_lines = [i[:i.find('\n')]
         #              for i in chunk.split('\nf ')[1:]
         #              if i.rfind('\n') >0]
-        # maxsplit=1 means that it can stop working after
-        # it finds the first newline
-        face_lines = [i.split('\n', maxsplit=1)[0]
+        # maxsplit=1 means that it can stop working
+        # after it finds the first newline
+        # passed as arg as it's not a kwarg in python2
+        face_lines = [i.split('\n', 1)[0]
                       for i in chunk.split('\nf ')[1:]]
         # then we are going to replace all slashes with spaces
         joined = ' '.join(face_lines).replace('/', ' ')
