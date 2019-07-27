@@ -11,7 +11,7 @@ class OBJTest(g.unittest.TestCase):
         # it has mixed triangles, quads, and 16 element faces -_-
         # this should test the non-vectorized load path
         m = g.get_mesh('rabbit.obj')
-        assert len(m.geometry) > 0
+        assert len(m.faces) == 1168
 
     def test_obj_groups(self):
         # a wavefront file with groups defined
@@ -39,7 +39,9 @@ class OBJTest(g.unittest.TestCase):
 
     def test_obj_multiobj(self):
         # test a wavefront file with multiple objects in the same file
-        scene = g.get_mesh('two_objects.obj', split_object=True)
+        scene = g.get_mesh('two_objects.obj',
+                           split_object=True,
+                           group_material=False)
         assert len(scene.geometry) == 2
 
         for mesh in scene.geometry.values():
@@ -54,16 +56,19 @@ class OBJTest(g.unittest.TestCase):
         # test a wavefront file where pos/uv/norm have different indices
         # and where multiple objects share vertices
         # Note 'process=False' to avoid merging vertices
-        scene = g.get_mesh('joined_tetrahedra.obj', process=False, split_object=True)
+        scene = g.get_mesh('joined_tetrahedra.obj',
+                           process=False,
+                           split_object=True,
+                           group_material=False)
 
         assert len(scene.geometry) == 2
 
         geom = list(scene.geometry.values())
 
         assert g.trimesh.util.is_shape(geom[0].faces, (4, 3))
-        assert g.trimesh.util.is_shape(geom[0].vertices, (4, 3))
+        assert g.trimesh.util.is_shape(geom[0].vertices, (9, 3))
         assert g.trimesh.util.is_shape(geom[1].faces, (4, 3))
-        assert g.trimesh.util.is_shape(geom[1].vertices, (4, 3))
+        assert g.trimesh.util.is_shape(geom[1].vertices, (9, 3))
 
     def test_obj_simple_order(self):
         # test a simple wavefront model without split indexes

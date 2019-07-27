@@ -14,7 +14,10 @@ class MeshScript:
     def __init__(self,
                  meshes,
                  script,
-                 tmpfile_ext='stl'):
+                 tmpfile_ext='stl',
+                 **kwargs):
+
+        self.kwargs = kwargs
         self.meshes = meshes
         self.script = script
         self.tmpfile_ext = tmpfile_ext
@@ -76,7 +79,8 @@ class MeshScript:
                        startupinfo=startupinfo)
 
         # bring the binaries result back as a set of Trimesh kwargs
-        mesh_results = exchange.load.load_mesh(self.mesh_post.name)
+        mesh_results = exchange.load.load_mesh(self.mesh_post.name,
+                                               **self.kwargs)
 
         return mesh_results
 

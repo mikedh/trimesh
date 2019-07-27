@@ -52,7 +52,9 @@ def convex_decomposition(mesh, **kwargs):
 
     with MeshScript(meshes=[mesh],
                     script='',
-                    tmpfile_ext='obj') as vhacd:
+                    tmpfile_ext='obj',
+                    group_material=False,
+                    split_object=True) as vhacd:
         result = vhacd.run(_vhacd_executable + argstring)
 
     # if we got a scene back return a list of meshes
