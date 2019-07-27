@@ -10,9 +10,18 @@ class RepairTests(g.unittest.TestCase):
         for mesh_name in ['unit_cube.STL',
                           'machinist.XAML',
                           'round.stl',
+                          'sphere.ply',
+                          'teapot.stl',
+                          'soup.stl',
+                          'featuretype.STL',
+                          'angle_block.STL',
                           'quadknot.obj']:
+
             mesh = g.get_mesh(mesh_name)
             if not mesh.is_watertight:
+                # output of fill_holes should match watertight status
+                returned = mesh.fill_holes()
+                assert returned == mesh.is_watertight
                 continue
 
             hashes = [{mesh._data.crc(),
@@ -33,8 +42,8 @@ class RepairTests(g.unittest.TestCase):
 
             assert hashes[0] != hashes[1]
 
-            # run the fill holes operation
-            mesh.fill_holes()
+            # run the fill holes operation should succeed
+            assert mesh.fill_holes()
             # should be a superset of the last two
             assert mesh.is_volume
             assert mesh.is_watertight
