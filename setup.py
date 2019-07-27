@@ -38,8 +38,12 @@ requirements_easy = set([
 
 # `lxml` removed Python 3.4 support in version 4.4.0
 # cap `lxml` at the last version that did support Python 3.4
-if sys.version_info.major == 3 and sys.version_info.minor <= 4:
+# we could also do this with very confusing PEP508 rules:
+# https://www.python.org/dev/peps/pep-0508/#environment-markers
+if sys.version_info.major == 3 and sys.version_info.minor == 4:
+    # remove raw `lxml` requirement
     requirements_easy.difference_update('lxml')
+    # replace it with version locked `lxml`
     requirements_easy.add('lxml<=4.3.5')
 
 # "all" requirements only need to be installable
@@ -73,7 +77,6 @@ setup(name='trimesh',
           'Programming Language :: Python :: 3.5',
           'Programming Language :: Python :: 3.6',
           'Programming Language :: Python :: 3.7',
-          'Programming Language :: Python :: 3.8',
           'Natural Language :: English',
           'Topic :: Scientific/Engineering'],
       packages=[
