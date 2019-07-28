@@ -456,10 +456,11 @@ class Trimesh(Geometry):
         """
         # make sure we have faces_sparse
         assert hasattr(self.faces_sparse, 'dot')
-        vertex_normals = geometry.mean_vertex_normals(
+        vertex_normals = geometry.weighted_vertex_normals(
             vertex_count=len(self.vertices),
             faces=self.faces,
             face_normals=self.face_normals,
+            face_angles=self.face_angles,
             sparse=self.faces_sparse)
         return vertex_normals
 
