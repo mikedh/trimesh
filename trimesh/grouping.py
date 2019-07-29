@@ -685,6 +685,7 @@ def clusters(points, radius):
 def blocks(data,
            min_len=2,
            max_len=np.inf,
+           wrap=False,
            digits=None,
            only_nonzero=False):
     """
@@ -693,15 +694,23 @@ def blocks(data,
 
     Parameters
     ---------
-    data:    (n) array
-    min_len: int, the minimum length group to be returned
-    max_len: int, the maximum length group to be retuurned
-    digits:  if dealing with floats, how many digits to use
-    only_nonzero: bool, only return blocks of non- zero values
+    data :  (n,) array
+      Data to find blocks on 
+    min_len : int
+      The minimum length group to be returned
+    max_len : int
+      The maximum length group to be retuurned
+    wrap : bool
+      Combine blocks on both ends
+    digits : None or int
+      If dealing with floats how many digits to consider
+    only_nonzero : bool
+      Only return blocks of non- zero values
 
     Returns
     ---------
-    blocks: (m) sequence of indices referencing data
+    blocks : (m) sequence of (*,) int
+      Indices referencing data
     """
     data = float_to_int(data, digits=digits)
 
@@ -715,10 +724,10 @@ def blocks(data,
                              infl_len <= max_len)
 
     if only_nonzero:
-        # check to make sure the values of each contiguous block are True,
-        # by checking the first value of each block
-        infl_ok = np.logical_and(infl_ok,
-                                 data[infl[:-1]])
+        # check to make sure the values of each contiguous block
+        # are True by checking the first value of each block
+        infl_ok = np.logical_and(
+            infl_ok, data[infl[:-1]])
 
     # inflate start/end indexes into full ranges of values
     blocks = [np.arange(infl[i], infl[i + 1])
