@@ -407,7 +407,7 @@ def weighted_vertex_normals(vertex_count,
     return vertex_normals
 
 
-def index_sparse(column_count, indices, **kwargs):
+def index_sparse(column_count, indices, data=None, **kwargs):
     """
     Return a sparse matrix for which vertices are contained in which faces.
     A data vector can be passed which is then used instead of booleans
@@ -458,7 +458,7 @@ def index_sparse(column_count, indices, **kwargs):
         (-1, 1)), (1, indices.shape[1])).reshape(-1)
 
     shape = (column_count, len(indices))
-    if 'data' not in kwargs or shape[0] * shape[1] != len(data):
+    if data is None or (shape[0] * shape[1]) != len(data):
         data = np.ones(len(col), dtype=np.bool)
     # assemble into sparse matrix
     matrix = sparse.coo_matrix((data, (row, col)),

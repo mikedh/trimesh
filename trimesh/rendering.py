@@ -103,7 +103,10 @@ def mesh_to_vertexlist(mesh,
 
         # get the per-vertex UV coordinates
         uv = mesh.visual.uv
-        if uv is None:
+        # does the material actually have an image specified
+        no_image = (hasattr(mesh.visual, 'image') and
+                    mesh.visual.image is None)
+        if uv is None or no_image:
             # if no UV coordinates on material, just set face colors
             # to the diffuse color of the material
             color_gl = colors_to_gl(mesh.visual.material.main_color,
