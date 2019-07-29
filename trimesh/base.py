@@ -2639,6 +2639,22 @@ class Trimesh(Geometry):
         return defects
 
     @caching.cache_decorator
+    def vertex_degree(self):
+        """
+        Return the number of faces each vertex is included in.
+
+        Returns
+        ----------
+        degree : (len(self.vertices), ) int
+          Number of faces each vertex is included in
+        """
+        # get degree through sparse matrix
+        degree = np.array(self.faces_sparse.sum(axis=1)).flatten()
+        # don't allow property to be modified
+        degree.flags['WRITEABLE'] = False
+        return degree
+
+    @caching.cache_decorator
     def face_adjacency_tree(self):
         """
         An R-tree of face adjacencies.

@@ -309,7 +309,7 @@ def parse_mtl(mtl, resolver=None):
 
 def _parse_faces_vectorized(array, columns, sample_line):
     """
-    Parse loaded homogenous (tri/quad) face data in a
+    Parse loaded homogeneous (tri/quad) face data in a
     vectorized manner.
 
     Parameters
