@@ -52,7 +52,6 @@ def merge_vertices(mesh,
         mesh.visual.defined and
         mesh.visual.kind == 'texture' and
             mesh.visual.uv is not None):
-
         # get an array with vertices and UV coordinates
         # converted to integers at requested precision
         stacked = np.column_stack((
@@ -63,16 +62,6 @@ def merge_vertices(mesh,
         # because that can corrupt textures at seams.
         unique, inverse = unique_rows(stacked)
         mesh.update_vertices(unique, inverse)
-
-        # Now, smooth out the vertex normals at the duplicate vertices.
-        # For now, we just use the first vertex's normal in a duplicate group.
-        # It would be better to average these, but that's slower.
-        unique, inverse = unique_rows(mesh.vertices,
-                                      digits=digits)
-        try:
-            mesh.vertex_normals = mesh.vertex_normals[unique[inverse]]
-        except BaseException:
-            pass
 
     # In normal usage, just merge vertices that are close.
     else:
@@ -695,13 +684,13 @@ def blocks(data,
     Parameters
     ---------
     data :  (n,) array
-      Data to find blocks on 
+      Data to find blocks on
     min_len : int
       The minimum length group to be returned
     max_len : int
       The maximum length group to be retuurned
     wrap : bool
-      Combine blocks on both ends
+      TODO:Combine blocks on both ends
     digits : None or int
       If dealing with floats how many digits to consider
     only_nonzero : bool

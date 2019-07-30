@@ -40,9 +40,9 @@ class NormalsTest(g.unittest.TestCase):
             # as the sparse matrix
             normals = g.trimesh.geometry.weighted_vertex_normals(
                 vertex_count=len(mesh.vertices),
-                faces = mesh.faces,
+                faces=mesh.faces,
                 face_normals=mesh.face_normals,
-                face_angles = mesh.face_angles)
+                face_angles=mesh.face_angles)
             assert g.np.allclose(normals - truth, 0.0, atol=atol)
 
             # make sure the automatic sparse matrix generation works

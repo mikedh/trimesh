@@ -394,7 +394,6 @@ def load_kwargs(*args, **kwargs):
             scene.graph.base_frame = kwargs['base_frame']
         if 'metadata' in kwargs:
             scene.metadata.update(kwargs['metadata'])
-
         return scene
 
     def handle_trimesh_kwargs():

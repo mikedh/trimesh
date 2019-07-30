@@ -321,7 +321,7 @@ class Trimesh(Geometry):
           shape : (len(self.vertices), len(self.faces))
         """
         sparse = geometry.index_sparse(
-            column_count=len(self.vertices),
+            columns=len(self.vertices),
             indices=self.faces)
         return sparse
 

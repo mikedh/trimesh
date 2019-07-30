@@ -127,7 +127,7 @@ def load_obj(file_obj,
         # make sure we have the right number of values
         if len(array) == (columns * len(face_lines)):
             # everything is a nice even 2D array
-            faces, faces_tex, normal_idx = _parse_faces_vectorized(
+            faces, faces_tex, faces_norm = _parse_faces_vectorized(
                 array=array,
                 columns=columns,
                 sample_line=face_lines[0])
@@ -135,7 +135,7 @@ def load_obj(file_obj,
             # if we had something annoying like mixed in quads
             # or faces that differ per-line we have to loop
             log.warning('faces are mixed tri/quad/*, try to not do this!')
-            faces, faces_tex, normal_idx = _parse_faces_fallback(face_lines)
+            faces, faces_tex, faces_norm = _parse_faces_fallback(face_lines)
 
         # TODO: this usually falls back to something useless
         name = current_object
@@ -148,8 +148,12 @@ def load_obj(file_obj,
             # convert faces referencing vertices and
             # faces referencing vertex texture to new faces
             # where each face
-            # TODO: include VN
-            new_faces, mask_v, mask_vt = unmerge_faces(faces, faces_tex)
+            if faces_norm is not None and len(faces_norm) == len(faces):
+                new_faces, mask_v, mask_vt, mask_vn = unmerge_faces(
+                    faces, faces_tex, faces_norm)
+            else:
+                mask_vn = None
+                new_faces, mask_v, mask_vt = unmerge_faces(faces, faces_tex)
 
             if tol.strict:
                 # we should NOT have messed up the faces
@@ -163,8 +167,9 @@ def load_obj(file_obj,
                 # survive index errors as sometimes we
                 # want materials without UV coordinates
                 uv = vt[mask_vt]
-            except BaseException:
+            except BaseException as E:
                 uv = None
+                raise E
 
             # mask vertices and use new faces
             mesh.update({'vertices': v[mask_v].copy(),
@@ -178,10 +183,10 @@ def load_obj(file_obj,
             if tol.strict:
                 assert faces.max() < len(v)
 
-            if vn is not None and np.shape(normal_idx) == faces.shape:
+            if vn is not None and np.shape(faces_norm) == faces.shape:
                 # do the crazy unmerging logic for split indices
                 new_faces, mask_v, mask_vn = unmerge_faces(
-                    faces, normal_idx)
+                    faces, faces_norm)
             else:
                 # generate the mask so we only include
                 # referenced vertices in every new mesh
@@ -327,7 +332,7 @@ def _parse_faces_vectorized(array, columns, sample_line):
       Faces in space
     faces_tex : (n, d) int or None
       Texture for each vertex in face
-    normal_idx : (n, d) int or None
+    faces_norm : (n, d) int or None
       Normal index for each vertex in face
     """
     # reshape to columns
@@ -345,7 +350,7 @@ def _parse_faces_vectorized(array, columns, sample_line):
 
     # TODO: probably need to support 8 and 12 columns for quads
     # or do something more general
-    faces_tex, normal_idx = None, None
+    faces_tex, faces_norm = None, None
     if columns == 6:
         # if we have two values per vertex the second
         # one is index of texture coordinate (`vt`)
@@ -356,7 +361,7 @@ def _parse_faces_vectorized(array, columns, sample_line):
             # case where each face line looks like:
             # ' 75//139 76//141 77//141'
             # which is vertex/nothing/normal
-            normal_idx = array[:, index + 1]
+            faces_norm = array[:, index + 1]
         elif count == int(columns / 2):
             # case where each face line looks like:
             # '75/139 76/141 77/141'
@@ -370,8 +375,8 @@ def _parse_faces_vectorized(array, columns, sample_line):
         # second value is always texture
         faces_tex = array[:, index + 1]
         # third value is reference to vertex normal (`vn`)
-        normal_idx = array[:, index + 2]
-    return faces, faces_tex, normal_idx
+        faces_norm = array[:, index + 2]
+    return faces, faces_tex, faces_norm
 
 
 def _parse_faces_fallback(lines):

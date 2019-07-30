@@ -228,13 +228,13 @@ class BoundsTest(g.unittest.TestCase):
                                  b.bounds)
 
             # unordered extents and transforms
-            uT, uE = g.trimesh.bounds.oriented_bounds(b, ordered=False)
-            assert g.np.allclose(g.np.sort(uE), extents_ordered)
+            transform, extents = g.trimesh.bounds.oriented_bounds(b, ordered=False)
+            assert g.np.allclose(g.np.sort(extents), extents_ordered)
             # create a box from the unordered OBB information
-            uB = g.trimesh.creation.box(
-                extents=uE, transform=g.np.linalg.inv(uT))
+            box = g.trimesh.creation.box(
+                extents=extents, transform=g.np.linalg.inv(transform))
             # make sure it is a real OBB too
-            assert g.np.allclose(uB.bounds, b.bounds)
+            assert g.np.allclose(box.bounds, b.bounds)
 
 
 if __name__ == '__main__':

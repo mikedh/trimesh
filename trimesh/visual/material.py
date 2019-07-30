@@ -46,6 +46,9 @@ class SimpleMaterial(Material):
 
     @property
     def main_color(self):
+        """
+        Return the most prominent color.
+        """
         return self.diffuse
 
 

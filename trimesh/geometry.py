@@ -372,7 +372,10 @@ def weighted_vertex_normals(vertex_count,
         corner_angles = face_angles[np.repeat(
             np.arange(len(faces)), 3), np.argsort(faces, axis=1).ravel()]
         if sparse is None:
-            matrix = index_sparse(vertex_count, faces, data=corner_angles)
+            matrix = index_sparse(vertex_count, faces)  # , data=corner_angles)
+            matrix = matrix.astype(np.float64)
+            matrix.data = corner_angles
+
         else:
             matrix = sparse.copy().astype(np.float64)
             matrix.data = corner_angles
@@ -408,14 +411,21 @@ def weighted_vertex_normals(vertex_count,
     return vertex_normals
 
 
-def index_sparse(column_count, indices, data=None, **kwargs):
+def index_sparse(columns, indices):
     """
     Return a sparse matrix for which vertices are contained in which faces.
     A data vector can be passed which is then used instead of booleans
 
+    Parameters
+    ------------
+    columns : int
+      Number of columns, usually number of vertices
+    indices : (m, d) int
+      Usually mesh.faces
+
     Returns
     ---------
-    sparse: scipy.sparse.coo_matrix of shape (column_count, len(faces))
+    sparse: scipy.sparse.coo_matrix of shape (columns, len(faces))
             dtype is boolean
 
     Examples
@@ -452,17 +462,18 @@ def index_sparse(column_count, indices, data=None, **kwargs):
     Out[7]: array([3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3])
     """
     indices = np.asanyarray(indices)
-    column_count = int(column_count)
+    columns = int(columns)
 
     row = indices.reshape(-1)
     col = np.tile(np.arange(len(indices)).reshape(
         (-1, 1)), (1, indices.shape[1])).reshape(-1)
 
-    shape = (column_count, len(indices))
-    if data is None or (shape[0] * shape[1]) != len(data):
-        data = np.ones(len(col), dtype=np.bool)
+    shape = (columns, len(indices))
+    data = np.ones(len(col), dtype=np.bool)
+
     # assemble into sparse matrix
     matrix = scipy.sparse.coo_matrix((data, (row, col)),
                                      shape=shape,
                                      dtype=data.dtype)
+
     return matrix
