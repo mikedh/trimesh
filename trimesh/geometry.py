@@ -4,11 +4,11 @@ from . import util
 from .constants import tol, log
 
 try:
-    from scipy import sparse
+    import scipy.sparse
 except BaseException as E:
     from . import exceptions
     # raise E again if anyone tries to use sparse
-    sparse = exceptions.ExceptionModule(E)
+    scipy = exceptions.ExceptionModule(E)
 
 
 def plane_transform(origin, normal):
@@ -203,7 +203,7 @@ def triangulate_quads(quads):
 
 def vertex_face_indices(vertex_count,
                         faces,
-                        **kwargs):
+                        sparse=None):
     """
     Find vertex face indices from the faces array of vertices
 
@@ -226,12 +226,11 @@ def vertex_face_indices(vertex_count,
         # use a sparse matrix of which face contains each vertex to
         # sort the face indices by vertex index
         # allow cached sparse matrix to be passed
-        if 'sparse' in kwargs:
-            matrix = kwargs['sparse']
-        else:
+        if sparse is None:
             matrix = index_sparse(vertex_count, faces)
-
-        y = sparse.identity(len(faces), dtype=int)
+        else:
+            matrix = sparse
+        y = scipy.sparse.identity(len(faces), dtype=int)
         sorted_faces = matrix.dot(y).nonzero()
         return sorted_faces
 
@@ -245,7 +244,7 @@ def vertex_face_indices(vertex_count,
             sorted_faces[1][v_slice] = (np.where(faces.flatten() == v)[0] // 3)[::-1]
         return sorted_faces
 
-    # Create 2d array with row for each vertex and
+    # Create 2D array with row for each vertex and
     # length of max number of faces for a vertex
     try:
         vertex_counts = np.bincount(faces.flatten())
@@ -264,7 +263,7 @@ def vertex_face_indices(vertex_count,
         sorted_faces = sorted_sparse()
     except BaseException:
         log.warning(
-            'unable to generate sparse matrix! Falling back!',
+            'unable to use sparse matrix, falling back!',
             exc_info=True)
         sorted_faces = sorted_loop()
 
@@ -279,6 +278,7 @@ def vertex_face_indices(vertex_count,
 def mean_vertex_normals(vertex_count,
                         faces,
                         face_normals,
+                        sparse=None,
                         **kwargs):
     """
     Find vertex normals from the mean of the faces that contain
@@ -303,10 +303,10 @@ def mean_vertex_normals(vertex_count,
         # use a sparse matrix of which face contains each vertex to
         # figure out the summed normal at each vertex
         # allow cached sparse matrix to be passed
-        if 'sparse' in kwargs:
-            matrix = kwargs['sparse']
-        else:
+        if sparse is None:
             matrix = index_sparse(vertex_count, faces)
+        else:
+            matrix = sparse
         summed = matrix.dot(face_normals)
         return summed
 
@@ -336,7 +336,7 @@ def weighted_vertex_normals(vertex_count,
                             faces,
                             face_normals,
                             face_angles,
-                            **kwargs):
+                            sparse=None):
     """
     Compute vertex normals from the faces that contain that vertex.
     The contibution of a face's normal to a vertex normal is the
@@ -371,11 +371,12 @@ def weighted_vertex_normals(vertex_count,
         # fill the matrix with vertex-corner angles as weights
         corner_angles = face_angles[np.repeat(
             np.arange(len(faces)), 3), np.argsort(faces, axis=1).ravel()]
-        if 'sparse' in kwargs:
-            matrix = kwargs['sparse'].astype(np.float64)
-            matrix.data = corner_angles
-        else:
+        if sparse is None:
             matrix = index_sparse(vertex_count, faces, data=corner_angles)
+        else:
+            matrix = sparse.copy().astype(np.float64)
+            matrix.data = corner_angles
+
         summed = matrix.dot(face_normals)
         return summed
 
@@ -461,7 +462,7 @@ def index_sparse(column_count, indices, data=None, **kwargs):
     if data is None or (shape[0] * shape[1]) != len(data):
         data = np.ones(len(col), dtype=np.bool)
     # assemble into sparse matrix
-    matrix = sparse.coo_matrix((data, (row, col)),
-                               shape=shape,
-                               dtype=data.dtype)
+    matrix = scipy.sparse.coo_matrix((data, (row, col)),
+                                     shape=shape,
+                                     dtype=data.dtype)
     return matrix

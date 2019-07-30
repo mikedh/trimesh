@@ -17,8 +17,7 @@ class NormalsTest(g.unittest.TestCase):
         normals = g.trimesh.geometry.mean_vertex_normals(
             len(mesh.vertices),
             mesh.faces,
-            mesh.face_normals,
-            sparse=None)
+            mesh.face_normals)
         assert g.np.allclose(normals - truth, 0.0)
 
         # make sure the automatic sparse matrix generation works
@@ -40,11 +39,10 @@ class NormalsTest(g.unittest.TestCase):
             # force fallback to loop normal summing by passing None
             # as the sparse matrix
             normals = g.trimesh.geometry.weighted_vertex_normals(
-                len(mesh.vertices),
-                mesh.faces,
-                mesh.face_normals,
-                mesh.face_angles,
-                sparse=None)
+                vertex_count=len(mesh.vertices),
+                faces = mesh.faces,
+                face_normals=mesh.face_normals,
+                face_angles = mesh.face_angles)
             assert g.np.allclose(normals - truth, 0.0, atol=atol)
 
             # make sure the automatic sparse matrix generation works

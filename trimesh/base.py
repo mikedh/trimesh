@@ -481,8 +481,7 @@ class Trimesh(Geometry):
         vertex_faces = geometry.vertex_face_indices(
             vertex_count=len(self.vertices),
             faces=self.faces,
-            sparse=self.faces_sparse
-        )
+            sparse=self.faces_sparse)
         return vertex_faces
 
     @vertex_normals.setter
