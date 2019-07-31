@@ -134,7 +134,10 @@ def load_obj(file_obj,
         else:
             # if we had something annoying like mixed in quads
             # or faces that differ per-line we have to loop
-            log.warning('faces are mixed tri/quad/*, try to not do this!')
+            # i.e. something like:
+            #  '31407 31406 31408',
+            #  '32303/2469 32304/2469 32305/2469',
+            log.warning('faces have mixed data, using slow fallback!')
             faces, faces_tex, faces_norm = _parse_faces_fallback(face_lines)
 
         # TODO: this usually falls back to something useless
@@ -485,7 +488,7 @@ def _parse_vertices(text):
         '\n', text.rfind('\n{} '.format(k)) + 2 + len(k))
         for k, v in starts.items() if v >= 0}
 
-    # take the last position of any vertex property
+    # take the first and last position of any vertex property
     start = min(s for s in starts.values() if s >= 0)
     end = max(e for e in ends.values() if e >= 0)
     # get the chunk of test that contains vertex data
@@ -524,7 +527,7 @@ def _parse_vertices(text):
 
     # vertices
     v = result['v']
-    # vertex colors
+    # vertex colors are stored next to vertices
     vc = None
     if v is not None and v.shape[1] >= 6:
         # vertex colors are stored after vertices
@@ -532,14 +535,14 @@ def _parse_vertices(text):
     elif v is not None and v.shape[1] > 3:
         # we got a lot of something unknowable
         v = v[:, :3]
+
     # vertex texture or None
     vt = result['vt']
     if vt is not None:
+        # sometimes UV coordinates come in as UVW
         vt = vt[:, :2]
     # vertex normals or None
     vn = result['vn']
-    if vn is not None:
-        vn = vn[:, :3]
 
     # check will generally only be run in unit tests
     # so we are allowed to do things that are slow
@@ -547,7 +550,7 @@ def _parse_vertices(text):
         # check to make sure our subsetting
         # didn't miss any vertices or data
         assert len(v) == text.count('\nv ')
-        # optional data
+        # make sure optional data matches file too
         if vn is not None:
             assert len(vn) == text.count('\nvn ')
         if vt is not None:

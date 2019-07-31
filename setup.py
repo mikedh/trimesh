@@ -40,7 +40,7 @@ requirements_easy = set([
 # cap `lxml` at the last version that did support Python 3.4
 # we could also do this with very confusing PEP508 rules:
 # https://www.python.org/dev/peps/pep-0508/#environment-markers
-if sys.version_info.major == 3 and sys.version_info.minor == 4:
+if sys.version_info[:2] == (3, 4):
     # remove raw `lxml` requirement
     requirements_easy.difference_update('lxml')
     # replace it with version locked `lxml`
