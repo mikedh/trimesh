@@ -291,7 +291,7 @@ def voxelize(mesh, pitch, method='subdivide', **kwargs):
     mesh: Trimesh object (left unchanged).
     pitch: float, side length of each voxel.
     method: implementation method. Must be in `fillers`.
-    **kwargs: additional kwargs passed ot the specified implementation.
+    **kwargs: additional kwargs passed to the specified implementation.
 
     Returns
     --------------

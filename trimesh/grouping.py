@@ -690,7 +690,7 @@ def blocks(data,
     max_len : int
       The maximum length group to be retuurned
     wrap : bool
-      TODO:Combine blocks on both ends
+      Combine blocks on both ends of 1D array
     digits : None or int
       If dealing with floats how many digits to consider
     only_nonzero : bool
@@ -721,12 +721,58 @@ def blocks(data,
     # inflate start/end indexes into full ranges of values
     blocks = [np.arange(infl[i], infl[i + 1])
               for i, ok in enumerate(infl_ok) if ok]
+
+    if wrap:
+        # wrap only matters if first and last points are the same
+        if data[0] != data[-1]:
+            return blocks
+        # if we are only grouping nonzero things and
+        # the first and last point are zero we can exit
+        if only_nonzero and not bool(data[0]):
+            return blocks
+
+        # so now first point equals last point, so the cases are:
+        # - first and last point are in a block: combine two blocks
+        # - first OR last point are in block: add other point to block
+        # - neither are in a block: check if combined is eligible block
+
+        # first point is in a block
+        first = len(blocks) > 0 and blocks[0][0] == 0
+        # last point is in a block
+        last = len(blocks) > 0 and blocks[-1][-1] == (len(data) - 1)
+
+        # CASE: first and last point are BOTH in block: combine blocks
+        if first and last:
+            blocks[0] = np.append(blocks[-1], blocks[0])
+            blocks.pop()
+        else:
+            # combined length
+            combined = infl_len[0] + infl_len[-1]
+            # exit if lengths aren't OK
+            if combined < min_len or combined > max_len:
+                return blocks
+            # new block combines both ends
+            new_block = np.append(np.arange(infl[-2], infl[-1]),
+                                  np.arange(infl[0], infl[1]))
+            # we are in a first OR last situation now
+            if first:
+                # first was already in a block so replace it with combined
+                blocks[0] = new_block
+            elif last:
+                # last was already in a block so replace with superset
+                blocks[-1] = new_block
+            else:
+                # both are false
+                # combined length generated new block
+                blocks.append(new_block)
+
     return blocks
 
 
 def group_min(groups, data):
     """
-    Given a list of groups, find the minimum element of data within each group
+    Given a list of groups find the minimum element of data
+    within each group
 
     Parameters
     -----------

@@ -11,7 +11,8 @@ class GroupTests(g.unittest.TestCase):
         subset = int(count / 10)
 
         # check unique_rows on float data
-        data = g.np.arange(count * 3).reshape((-1, 3)).astype(g.np.float)
+        data = g.np.arange(count * 3).reshape((-1, 3)).astype(
+            g.np.float)
         data[:subset] = data[0]
         unique, inverse = g.trimesh.grouping.unique_rows(data)
         assert (inverse[:subset] == 0).all()
@@ -24,6 +25,10 @@ class GroupTests(g.unittest.TestCase):
         assert len(unique) == count - subset + 1
 
     def test_blocks(self):
+        """
+        Blocks are equivalent values next to each other in
+        a 1D array.
+        """
         blocks = g.trimesh.grouping.blocks
 
         count = 100
@@ -75,6 +80,104 @@ class GroupTests(g.unittest.TestCase):
         assert set(result[0]) == set([1])
         assert all(a[i].all() for i in result)
 
+    def test_block_wrap(self):
+        """
+        Test blocks with wrapping
+        """
+        # save the mouthful
+        blocks = g.trimesh.grouping.blocks
+
+        # case: both ends are in a block
+        data = g.np.array([1, 1, 0, 0, 1, 1, 1, 1])
+        kwargs = {'data': data,
+                  'min_len': 2,
+                  'wrap': True,
+                  'only_nonzero': True}
+        r = blocks(**kwargs)
+        # should be one group
+        assert len(r) == 1
+        # should have every element
+        assert g.np.allclose(r[0], [4, 5, 6, 7, 0, 1])
+        assert len(r[0]) == data.sum()
+        assert g.np.allclose(data[r[0]], 1)
+        check_roll_wrap(**kwargs)
+
+        kwargs = {'data': data,
+                  'min_len': 1,
+                  'wrap': True,
+                  'only_nonzero': False}
+        r = blocks(**kwargs)
+        # should be one group
+        assert len(r) == 2
+        # should have every element
+        check = set()
+        for i in r:
+            check.update(i)
+        assert check == set(range(len(data)))
+        check_roll_wrap(**kwargs)
+
+        r = blocks(
+            data,
+            min_len=1,
+            wrap=False,
+            only_nonzero=False)
+        assert len(r) == 3
+        check = set()
+        for i in r:
+            check.update(i)
+        assert check == set(range(len(data)))
+
+        # CASE: blocks not at the end
+        data = g.np.array([1, 0, 0, 0, 1, 1, 1, 0])
+        kwargs = {'data': data,
+                  'min_len': 1,
+                  'wrap': True,
+                  'only_nonzero': True}
+        r = blocks(**kwargs)
+        assert len(r) == 2
+        assert len(r[0]) == 1
+        assert len(r[1]) == 3
+        check_roll_wrap(**kwargs)
+
+        # one block and one eligible but non-block point
+        data = g.np.array([1, 0, 0, 0, 1, 1, 1, 1])
+        r = blocks(
+            data,
+            min_len=2, wrap=True, only_nonzero=True)
+        assert len(r) == 1
+        assert g.np.allclose(data[r[0]], 1)
+
+        # CASE: neither are in a block but together they are eligible
+        data = g.np.array([1, 0, 0, 0, 1])
+        kwargs = {'data': data,
+                  'min_len': 3,
+                  'wrap': True,
+                  'only_nonzero': True}
+        r = blocks(**kwargs)
+        assert len(r) == 0
+        check_roll_wrap(**kwargs)
+        kwargs['only_nonzero'] = False
+        r = blocks(**kwargs)
+        assert len(r) == 1
+        assert g.np.allclose(data[r[0]], 0)
+        check_roll_wrap(**kwargs)
+
+        kwargs['data'] = g.np.abs(data - 1)
+        # should be the same even inverted
+        rn = blocks(**kwargs)
+        assert len(r) == 1
+        assert g.np.allclose(r[0], rn[0])
+        check_roll_wrap(**kwargs)
+
+        kwargs = {'data': data,
+                  'min_len': 2,
+                  'wrap': True,
+                  'only_nonzero': True}
+        r = blocks(**kwargs)
+        assert len(r) == 1
+        assert set(r[0]) == set([0, 4])
+        check_roll_wrap(**kwargs)
+
     def test_runs(self):
         a = g.np.array([-1, -1, -1, 0, 0, 1, 1, 2,
                         0, 3, 3, 4, 4, 5, 5, 6,
@@ -83,11 +186,11 @@ class GroupTests(g.unittest.TestCase):
         r = g.trimesh.grouping.merge_runs(a)
         u = g.trimesh.grouping.unique_ordered(a)
 
-        self.assertTrue((g.np.diff(r) != 0).all())
-        self.assertTrue((g.np.diff(u) != 0).all())
+        assert (g.np.diff(r) != 0).all()
+        assert (g.np.diff(u) != 0).all()
 
-        self.assertTrue(r.size == 12)
-        self.assertTrue(u.size == 11)
+        assert r.size == 12
+        assert u.size == 11
 
     def test_cluster(self):
         # create some random points stacked with some zeros to cluster
@@ -176,6 +279,32 @@ class GroupTests(g.unittest.TestCase):
             a, b, g.np.setdiff1d)
         assert g.np.allclose(g.np.unique(diff),
                              g.np.arange(8))
+
+
+def check_roll_wrap(**kwargs):
+    """
+    Check that blocks with wrapping enables returns the same
+    value for all values of roll.
+
+    Parameters
+    ------------
+    kwargs : dict
+      Passed to trimesh.grouping.blocks
+    """
+    current = None
+    # remove data from passed kwargs
+    data = kwargs.pop('data')
+    for i in range(len(data)):
+        block = g.trimesh.grouping.blocks(
+            g.np.roll(data, -i), **kwargs)
+        # get result as a set of tuples with the rolling index
+        # removed through a modulus, so we can compare equality
+        check = set([tuple(((j + i) % len(data)).tolist())
+                     for j in block])
+        if current is None:
+            current = check
+        # all values should be the same
+        assert current == check
 
 
 if __name__ == '__main__':
