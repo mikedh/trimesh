@@ -36,16 +36,6 @@ requirements_easy = set([
     'chardet',     # figure out if someone used UTF-16
     'colorlog'])   # log in pretty colors
 
-# `lxml` removed Python 3.4 support in version 4.4.0
-# cap `lxml` at the last version that did support Python 3.4
-# we could also do this with very confusing PEP508 rules:
-# https://www.python.org/dev/peps/pep-0508/#environment-markers
-if sys.version_info[:2] == (3, 4):
-    # remove raw `lxml` requirement
-    requirements_easy.difference_update('lxml')
-    # replace it with version locked `lxml`
-    requirements_easy.add('lxml<=4.3.5')
-
 # "all" requirements only need to be installable
 # through some mechanism on Linux with Python 3.5+
 # and are allowed to compile code
@@ -54,7 +44,7 @@ requirements_all = requirements_easy.union([
     'python-fcl',    # do fast 3D collision queries
     'psutil',        # figure out how much memory we have
     'glooey',        # make GUI applications with 3D stuff
-    'scikit-image']) # marching cubes and other nice stuff
+    'scikit-image'])  # marching cubes and other nice stuff
 
 # call the magical setuptools setup
 setup(name='trimesh',
