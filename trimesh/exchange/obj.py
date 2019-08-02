@@ -120,9 +120,8 @@ def load_obj(file_obj,
         # also wavefront is 1- indexed (vs 0- indexed) so offset
         array = np.fromstring(joined, sep=' ', dtype=np.int64) - 1
 
-        # get the number of columns rounded and converted to int
-        columns = int(np.round(
-            float(len(array) / len(face_lines))))
+        # get the number of columns in a sample line
+        columns = len(face_lines[0].strip().split())
 
         # make sure we have the right number of values
         if len(array) == (columns * len(face_lines)):
@@ -195,6 +194,7 @@ def load_obj(file_obj,
                 # referenced vertices in every new mesh
                 mask_v = np.zeros(len(v), dtype=np.bool)
                 mask_v[faces] = True
+
                 # reconstruct the faces with the new vertex indices
                 inverse = np.zeros(len(v), dtype=np.int64)
                 inverse[mask_v] = np.arange(mask_v.sum())
