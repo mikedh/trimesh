@@ -30,6 +30,7 @@ class MeshTests(g.unittest.TestCase):
             assert mesh.vertex_normals.shape == mesh.vertices.shape
             assert g.np.isfinite(mesh.vertex_normals).all()
 
+            # should be one per vertex
             assert len(mesh.vertex_faces) == len(mesh.vertices)
 
             # check some edge properties
@@ -38,9 +39,14 @@ class MeshTests(g.unittest.TestCase):
             assert len(mesh.edges_sorted) == len(mesh.edges)
             assert len(mesh.edges_face) == len(mesh.edges)
 
-            assert len(m.edges_unique) == len(m.edges_unique_inverse)
-            assert len(m.edges_unique) == len(m.edges_unique_length)
+            # check edges_unique
+            assert len(mesh.edges) == len(mesh.edges_unique_inverse)
+            assert g.np.allclose(
+                mesh.edges_sorted,
+                mesh.edges_unique[mesh.edges_unique_inverse])
+            assert len(mesh.edges_unique) == len(mesh.edges_unique_length)
 
+            # euler number should be an integer
             assert isinstance(mesh.euler_number, int)
 
             # check bounding primitives
