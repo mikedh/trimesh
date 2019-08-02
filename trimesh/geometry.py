@@ -369,19 +369,16 @@ def weighted_vertex_normals(vertex_count,
         # figure out the summed normal at each vertex
         # allow cached sparse matrix to be passed
         # fill the matrix with vertex-corner angles as weights
-        corner_angles = face_angles[np.repeat(
-            np.arange(len(faces)), 3), np.argsort(faces, axis=1).ravel()]
+        corner_angles = face_angles[np.repeat(np.arange(len(faces)), 3),
+                                    np.argsort(faces, axis=1).ravel()]
         if sparse is None:
-            matrix = index_sparse(vertex_count, faces)  # , data=corner_angles)
-            matrix = matrix.astype(np.float64)
+            matrix = index_sparse(vertex_count, faces).astype(np.float64)
             matrix.data = corner_angles
-
         else:
             matrix = sparse.copy().astype(np.float64)
             matrix.data = corner_angles
 
-        summed = matrix.dot(face_normals)
-        return summed
+        return matrix.dot(face_normals)
 
     def summed_loop():
         summed = np.zeros((vertex_count, 3), np.float64)
@@ -395,23 +392,26 @@ def weighted_vertex_normals(vertex_count,
                 surrounding_angles /
                 surrounding_angles.sum(),
                 face_normals[face_idxs])
+
         return summed
 
+    # normals should be unit vectors
+    face_ok = (face_normals ** 2).sum(axis=1) > 0.5
+    # don't consider faces with invalid normals
+    faces = faces[face_ok]
+    face_normals = face_normals[face_ok]
+    face_angles = face_angles[face_ok]
+
     try:
-        summed = summed_sparse()
-    except BaseException:
+        return util.unitize(summed_sparse())
+    except BaseException as E:
         log.warning(
             'unable to generate sparse matrix! Falling back!',
             exc_info=True)
-        summed = summed_loop()
-
-    # invalid normals will be returned as zero
-    vertex_normals = util.unitize(summed)
-
-    return vertex_normals
+        return util.unitize(summed_loop())
 
 
-def index_sparse(columns, indices):
+def index_sparse(columns, indices, data=None):
     """
     Return a sparse matrix for which vertices are contained in which faces.
     A data vector can be passed which is then used instead of booleans
@@ -469,7 +469,8 @@ def index_sparse(columns, indices):
         (-1, 1)), (1, indices.shape[1])).reshape(-1)
 
     shape = (columns, len(indices))
-    data = np.ones(len(col), dtype=np.bool)
+    if data is None:
+        data = np.ones(len(col), dtype=np.bool)
 
     # assemble into sparse matrix
     matrix = scipy.sparse.coo_matrix((data, (row, col)),

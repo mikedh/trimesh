@@ -83,6 +83,32 @@ class NormalsTest(g.unittest.TestCase):
         # we have to tweak the tolerance for the comparison a little
         compare_trimesh_to_groundtruth(fandisk_mesh, fandisk_truth, 0.0001)
 
+        # see how we do with degenerate faces
+        m = g.trimesh.creation.box()
+        m.faces[0][0] = m.faces[0][1]
+        norm = m.vertex_normals
+        assert g.np.isfinite(norm).all()
+        assert len(norm) == len(m.vertices)
+
+        # vertices with every face intact
+        mask = g.np.zeros(len(m.vertices), dtype=g.np.bool)
+        mask[m.faces[0]] = False
+        # it's a box so normals should all be unit vectors [1,1,1]
+        assert g.np.allclose(g.np.abs(norm[mask]), (1.0 / 3.0) ** .5)
+
+        # try with a deliberately broken sparse matrix to test looping path
+        norm = g.trimesh.geometry.weighted_vertex_normals(
+            vertex_count=len(m.vertices),
+            faces=m.faces,
+            face_normals=m.face_normals,
+            face_angles=m.face_angles,
+            sparse=10)
+        assert g.np.isfinite(norm).all()
+        assert len(norm) == len(m.vertices)
+
+        # every intact vertex should be away from box corner
+        assert g.np.allclose(g.np.abs(norm[mask]), (1.0 / 3.0) ** .5)
+
     def test_face_normals(self):
         """
         Test automatic generation of face normals on mesh objects

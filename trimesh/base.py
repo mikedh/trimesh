@@ -1569,9 +1569,11 @@ class Trimesh(Geometry):
         nondegenerate : (len(self.faces),) bool
           Mask used to remove faces
         """
-        nondegenerate = triangles.nondegenerate(self.triangles,
-                                                areas=self.area_faces,
-                                                height=height)
+        nondegenerate = triangles.nondegenerate(
+            self.triangles,
+            areas=self.area_faces,
+
+            height=height)
         self.update_faces(nondegenerate)
 
         return nondegenerate

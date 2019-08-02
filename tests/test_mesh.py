@@ -26,10 +26,21 @@ class MeshTests(g.unittest.TestCase):
             assert len(mesh.faces) > 0
             assert len(mesh.vertices) > 0
 
+            # make sure vertex normals match vertices and are valid
+            assert mesh.vertex_normals.shape == mesh.vertices.shape
+            assert g.np.isfinite(mesh.vertex_normals).all()
+
+            assert len(mesh.vertex_faces) == len(mesh.vertices)
+
+            # check some edge properties
             assert len(mesh.edges) > 0
             assert len(mesh.edges_unique) > 0
-            assert len(mesh.edges_sorted) > 0
-            assert len(mesh.edges_face) > 0
+            assert len(mesh.edges_sorted) == len(mesh.edges)
+            assert len(mesh.edges_face) == len(mesh.edges)
+
+            assert len(m.edges_unique) == len(m.edges_unique_inverse)
+            assert len(m.edges_unique) == len(m.edges_unique_length)
+
             assert isinstance(mesh.euler_number, int)
 
             # check bounding primitives
