@@ -404,7 +404,7 @@ def weighted_vertex_normals(vertex_count,
 
     try:
         return util.unitize(summed_sparse())
-    except BaseException as E:
+    except BaseException:
         log.warning(
             'unable to generate sparse matrix! Falling back!',
             exc_info=True)
