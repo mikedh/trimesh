@@ -460,8 +460,7 @@ class Trimesh(Geometry):
             vertex_count=len(self.vertices),
             faces=self.faces,
             face_normals=self.face_normals,
-            face_angles=self.face_angles,
-            sparse=self.faces_sparse)
+            face_angles=self.face_angles)
         return vertex_normals
 
     @caching.cache_decorator

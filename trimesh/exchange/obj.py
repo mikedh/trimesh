@@ -120,12 +120,12 @@ def load_obj(file_obj,
         # also wavefront is 1- indexed (vs 0- indexed) so offset
         array = np.fromstring(joined, sep=' ', dtype=np.int64) - 1
 
-        # get the number of columns in a sample line
-        columns = len(face_lines[0].strip().split())
+        # get the number of raw 2D columns in a sample line
+        columns = len(face_lines[0].strip().replace('/', ' ').split())
 
-        # make sure we have the right number of values
+        # make sure we have the right number of values for vectorized
         if len(array) == (columns * len(face_lines)):
-            # everything is a nice even 2D array
+            # everything is a nice 2D array
             faces, faces_tex, faces_norm = _parse_faces_vectorized(
                 array=array,
                 columns=columns,
@@ -136,7 +136,8 @@ def load_obj(file_obj,
             # i.e. something like:
             #  '31407 31406 31408',
             #  '32303/2469 32304/2469 32305/2469',
-            log.warning('faces have mixed data, using slow fallback!')
+            log.warning('faces have mixed data, using slow fallback!',
+                        len(array), columns, len(face_lines))
             faces, faces_tex, faces_norm = _parse_faces_fallback(face_lines)
 
         # TODO: this usually falls back to something useless

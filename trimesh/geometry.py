@@ -322,7 +322,7 @@ def mean_vertex_normals(vertex_count,
         summed = summed_sparse()
     except BaseException:
         log.warning(
-            'unable to generate sparse matrix! Falling back!',
+            'unable to use sparse matrix, falling back!',
             exc_info=True)
         summed = summed_loop()
 
@@ -336,7 +336,7 @@ def weighted_vertex_normals(vertex_count,
                             faces,
                             face_normals,
                             face_angles,
-                            sparse=None):
+                            use_loop=False):
     """
     Compute vertex normals from the faces that contain that vertex.
     The contibution of a face's normal to a vertex normal is the
@@ -371,12 +371,10 @@ def weighted_vertex_normals(vertex_count,
         # fill the matrix with vertex-corner angles as weights
         corner_angles = face_angles[np.repeat(np.arange(len(faces)), 3),
                                     np.argsort(faces, axis=1).ravel()]
-        if sparse is None:
-            matrix = index_sparse(vertex_count, faces).astype(np.float64)
-            matrix.data = corner_angles
-        else:
-            matrix = sparse.copy().astype(np.float64)
-            matrix.data = corner_angles
+        # create a sparse matrix
+        matrix = index_sparse(vertex_count, faces).astype(np.float64)
+        # assign the corner angles to the sparse matrix data
+        matrix.data = corner_angles
 
         return matrix.dot(face_normals)
 
@@ -402,13 +400,15 @@ def weighted_vertex_normals(vertex_count,
     face_normals = face_normals[face_ok]
     face_angles = face_angles[face_ok]
 
-    try:
-        return util.unitize(summed_sparse())
-    except BaseException:
-        log.warning(
-            'unable to generate sparse matrix! Falling back!',
-            exc_info=True)
-        return util.unitize(summed_loop())
+    if not use_loop:
+        try:
+            return util.unitize(summed_sparse())
+        except BaseException:
+            log.warning(
+                'unable to use sparse matrix, falling back!',
+                exc_info=True)
+    # we either crashed or were asked to loop
+    return util.unitize(summed_loop())
 
 
 def index_sparse(columns, indices, data=None):

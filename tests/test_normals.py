@@ -102,7 +102,7 @@ class NormalsTest(g.unittest.TestCase):
             faces=m.faces,
             face_normals=m.face_normals,
             face_angles=m.face_angles,
-            sparse=10)
+            use_loop=True)
         assert g.np.isfinite(norm).all()
         assert len(norm) == len(m.vertices)
 
