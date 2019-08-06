@@ -136,8 +136,7 @@ def load_obj(file_obj,
             # i.e. something like:
             #  '31407 31406 31408',
             #  '32303/2469 32304/2469 32305/2469',
-            log.warning('faces have mixed data, using slow fallback!',
-                        len(array), columns, len(face_lines))
+            log.warning('faces have mixed data, using slow fallback!')
             faces, faces_tex, faces_norm = _parse_faces_fallback(face_lines)
 
         # TODO: this usually falls back to something useless

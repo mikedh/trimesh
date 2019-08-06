@@ -176,7 +176,11 @@ def unmerge_faces(faces, *args):
     """
     Textured meshes can come with faces referencing vertex
     indices (`v`) and an array the same shape which references
-    vertex texture indices (`vt`).
+    vertex texture indices (`vt`) and sometimes even normal (`vn`).
+
+    Vertex locations with different values of any of these can't
+    be considered the "same" vertex, and for our simple data
+    model we need to not combine these vertices.
 
     Parameters
     -------------

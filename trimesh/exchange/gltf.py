@@ -41,17 +41,14 @@ _shapes = {
     "VEC4": (4),
     "MAT2": (2, 2),
     "MAT3": (3, 3),
-    "MAT4": (4, 4),
-}
+    "MAT4": (4, 4)}
 
 # a default PBR metallic material
 _default_material = {
     "pbrMetallicRoughness": {
         "baseColorFactor": [0, 0, 0, 0],
         "metallicFactor": 0,
-        "roughnessFactor": 0,
-    }
-}
+        "roughnessFactor": 0}}
 
 # specify common dtypes with forced little endian
 float32 = np.dtype("<f4")
@@ -151,10 +148,9 @@ def export_glb(scene, extras=None, include_normals=False):
         views.append(
             {"buffer": 0,
              "byteOffset": current_pos,
-             "byteLength": len(current_item)}
-        )
+             "byteLength": len(current_item)})
         current_pos += len(current_item)
-
+    # combine bytes into a single blob
     buffer_data = bytes().join(buffer_items)
 
     tree["buffers"] = [{"byteLength": len(buffer_data)}]
@@ -407,12 +403,12 @@ def _create_gltf_structure(scene,
       Contains bytes of data
     """
     # we are defining a single scene, and will be setting the
-    # world node to the 0th index
+    # world node to the 0-index
     tree = {
         "scene": 0,
         "scenes": [{"nodes": [0]}],
         "asset": {"version": "2.0",
-                  "generator": "github.com/mikedh/trimesh"},
+                  "generator": "https://github.com/mikedh/trimesh"},
         "accessors": [],
         "meshes": [],
         "materials": [],
@@ -515,21 +511,11 @@ def _append_mesh(mesh,
     buffer_items.append(_byte_pad(
         mesh.vertices.astype(float32).tobytes()))
 
+    # make sure nothing fell off the truck
     assert len(buffer_items) >= tree['accessors'][-1]['bufferView']
 
-    # for now cheap hack to display
-    # crappy version of textured meshes
-    if hasattr(mesh.visual, "uv"):
-        visual = mesh.visual.to_color()
-    else:
-        visual = mesh.visual
-    color_ok = (
-        visual.kind in ['vertex', 'face'] and
-        visual.vertex_colors.shape == (len(mesh.vertices), 4))
-
-    # make sure to append colors after other stuff to
-    # not screw up the indexes of accessors or buffers
-    if color_ok:
+    # check to see if we have vertex or face colors
+    if mesh.visual.kind in ['vertex', 'face']:
         # make sure colors are RGBA, this should always be true
         vertex_colors = visual.vertex_colors
 
@@ -550,12 +536,28 @@ def _append_mesh(mesh,
             "byteOffset": 0})
         # the actual color data
         buffer_items.append(color_data)
-    else:
-        # if no colors, set a material
-        tree["meshes"][-1]["primitives"][0]["material"] = len(
-            tree["materials"])
-        # add a default- ish material
-        tree["materials"].append(_mesh_to_material(mesh))
+
+    elif hasattr(mesh.visual, 'material'):
+        # set the material to the last index in the tree
+        tree["meshes"][-1]["primitives"][0]["material"] = len(tree["materials"])
+        # append the material to our materials list in tree
+        _convert_material(mat=mesh.visual.material,
+                          tree=tree,
+                          buffer_items=buffer_items)
+        # if we have UV coordinates defined export them
+        if hasattr(mesh.visual, 'uv') and util.is_shape(mesh.visual.uv, (-1, 2)):
+
+            # convert UV coordinate data to bytes
+            uv_data = _byte_pad(mesh.visual.uv.astype(float32).tobytes())
+            # the vertex color accessor data
+            tree["accessors"].append({
+                "bufferView": len(buffer_items),
+                "componentType": 5126,
+                "count": len(mesh.visual.uv),
+                "type": "VEC2",
+                "byteOffset": 0})
+        # the actual color data
+        buffer_items.append(uv_data)
 
     if include_normals:
         # add the reference for vertex color
@@ -1007,5 +1009,72 @@ def _convert_camera(camera):
     return result
 
 
+def _convert_image(img):
+    """
+    Convert an image to the GLTF format
+    """
+    # probably not a PIL image
+    if not hasattr(img, 'format'):
+        return None, None
+
+    if img.format == 'JPEG':
+        # no need to mangle JPEGs
+        save_as = 'JPEG'
+    else:
+        # for everything else just use PNG
+        save_as = 'png'
+
+    with util.BytesIO() as f:
+        img.save(f, format=save_as)
+        f.seek(0)
+        data = f.read()
+
+    mime = 'image/{}'.format(save_as.lower())
+
+    return mime, data
+
+
+def _convert_material(mat, tree=None, buffer_items=None):
+    """
+    Convert the current PBR material to GLTF 2.0 specification data.
+
+    Returns
+    ----------
+    material : dict
+      A dictionary which can be serialized with JSON
+    buffers : (n,) bytes
+      Exported image data
+    """
+
+    # a default PBR metallic material
+    pbr = {}
+    image_header = {}
+    image_buffer = []
+
+    try:
+        pbr['baseColorFactor'] = np.array(mat.baseColorFactor,
+                                          dtype=np.float64).tolist()
+    except BaseException:
+        pass
+
+    if isinstance(mat.metallicFactor, float):
+        pbr['metallicFactor'] = mat.metallicFactor
+    if isinstance(mat.roughnessFactor, float):
+        pbr['roughnessFactor'] = mat.roughnessFactor
+
+    material = {"pbrMetallicRoughness": pbr}
+
+    # try converting base image
+    mime, data = _convert_image(self.baseColorTexture)
+    if mime is not None:
+        pass
+
+    from IPython import embed
+    embed()
+
+    return material
+
+
+# exporters
 _gltf_loaders = {"glb": load_glb,
                  "gltf": load_gltf}

@@ -150,6 +150,50 @@ def export_dict(mesh, encoding=None):
     return export
 
 
+def scene_to_dict(scene, use_base64=False):
+    """
+    Export a Scene object as a dict.
+
+    Parameters
+    -------------
+    scene : trimesh.Scene
+      Scene object to be exported
+
+    Returns
+    -------------
+    as_dict : dict
+      Scene as a dict
+    """
+
+    # save some basic data about the scene
+    export = {'graph': scene.graph.to_edgelist(),
+              'geometry': {},
+              'scene_cache': {'bounds': scene.bounds.tolist(),
+                              'extents': scene.extents.tolist(),
+                              'centroid': scene.centroid.tolist(),
+                              'scale': scene.scale}}
+
+    # encode arrays with base64 or not
+    if use_base64:
+        file_type = 'dict64'
+    else:
+        file_type = 'dict'
+
+    # if the mesh has an export method use it
+    # otherwise put the mesh itself into the export object
+    for geometry_name, geometry in scene.geometry.items():
+        if hasattr(geometry, 'export'):
+            # export the data
+            exported = {'data': geometry.export(file_type=file_type),
+                        'file_type': file_type}
+            export['geometry'][geometry_name] = exported
+        else:
+            # case where mesh object doesn't have exporter
+            # might be that someone replaced the mesh with a URL
+            export['geometry'][geometry_name] = geometry
+    return export
+
+
 def export_json(mesh):
     blob = export_dict(mesh, encoding='base64')
     export = json.dumps(blob)

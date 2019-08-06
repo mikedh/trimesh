@@ -76,11 +76,11 @@ class PBRMaterial(Material):
                  alphaMode='OPAQUE',
                  alphaCutoff=0.5):
 
-        # To to-float conversions
+        # To-float conversions
         if baseColorFactor is not None:
-            baseColorFactor = np.array(baseColorFactor, dtype=np.float)
+            baseColorFactor = np.array(baseColorFactor, dtype=np.float64)
         if emissiveFactor is not None:
-            emissiveFactor = np.array(emissiveFactor, dtype=np.float)
+            emissiveFactor = np.array(emissiveFactor, dtype=np.float64)
 
         # (4,) float
         self.baseColorFactor = color.to_rgba(baseColorFactor)
@@ -107,6 +107,18 @@ class PBRMaterial(Material):
         alphaMode = alphaMode
 
     def to_color(self, uv):
+        """
+        Get the rough color at a list of specified UV coordinates.
+
+        Parameters
+        -------------
+        uv : (n, 2) float
+          UV coordinates on the material
+
+        Returns
+        -------------
+        colors :
+        """
         colors = color.uv_to_color(uv=uv, image=self.baseColorTexture)
         if colors is None and self.baseColorFactor is not None:
             colors = self.baseColorFactor.copy()

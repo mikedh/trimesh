@@ -646,7 +646,23 @@ class Scene(Geometry):
         hull = convex.convex_hull(points)
         return hull
 
-    def export(self, file_type=None):
+    def export(self, file_obj=None, file_type=None, **kwargs):
+        """
+        Export the current scene to a file object or file name.
+
+        Supported formats are GLB.
+
+        Parameters
+        ------------
+        file_obj: open writeable file object
+          str, file name where to save the mesh
+          None, if you would like this function to return the export blob
+        file_type: str
+          Which file type to export as.
+          If file name is passed this is not required
+        """
+
+    def export(self, file_obj=None, file_type=None, **kwargs):
         """
         Export a snapshot of the current scene.
 
@@ -657,52 +673,41 @@ class Scene(Geometry):
 
         Returns
         ----------
-        export: dict with keys:
-                meshes: list of meshes, encoded as per file_type
-                transforms: edge list of transforms, eg:
-                             ((u, v, {'matrix' : np.eye(4)}))
+        export : bytes
+          Only returned if file_obj is None
         """
 
-        file_type = str(file_type).strip().lower()
-        if file_type == 'gltf':
-            return gltf.export_gltf(self)
-        elif file_type == 'glb':
-            return gltf.export_glb(self)
-
-        export = {'graph': self.graph.to_edgelist(),
-                  'geometry': {},
-                  'scene_cache': {'bounds': self.bounds.tolist(),
-                                  'extents': self.extents.tolist(),
-                                  'centroid': self.centroid.tolist(),
-                                  'scale': self.scale}}
-
+        # if we weren't passed a file type extract from file_obj
         if file_type is None:
-            file_type = {'Trimesh': 'ply',
-                         'Path2D': 'dxf'}
+            file_type = str(file_obj).split('.')[-1]
 
-        # if the mesh has an export method use it
-        # otherwise put the mesh itself into the export object
-        for geometry_name, geometry in self.geometry.items():
-            if hasattr(geometry, 'export'):
-                if isinstance(file_type, dict):
-                    # case where we have export types that are different
-                    # for different classes of objects.
-                    for query_class, query_format in file_type.items():
-                        if util.is_instance_named(geometry, query_class):
-                            export_type = query_format
-                            break
-                else:
-                    # if file_type is not a dict, try to export everything in the
-                    # the scene as that value like 'ply'
-                    export_type = file_type
-                exported = {'data': geometry.export(file_type=export_type),
-                            'file_type': export_type}
-                export['geometry'][geometry_name] = exported
-            else:
-                # case where mesh object doesn't have exporter
-                # might be that someone replaced the mesh with a URL
-                export['geometry'][geometry_name] = geometry
-        return export
+        # always remove whitepace and leading charecters
+        file_type = file_type.strip().lower().lstrip('.')
+
+        if file_type == 'gltf':
+            data = gltf.export_gltf(self)
+        elif file_type == 'glb':
+            data = gltf.export_glb(self)
+        elif file_type == 'dict':
+            from ..exchange.export import scene_to_dict
+            data = scene_to_dict(self)
+        elif file_type == 'dict64':
+            from ..exchange.export import scene_to_dict
+            data = scene_to_dict(self, use_base64=True)
+        else:
+            raise ValueError('unsupported export format: {}'.format(file_type))
+
+        # now write the data, or not
+        if hasattr(file_obj, 'write'):
+            # if it's just a regular file object
+            file_obj.write(data)
+        elif util.is_string(file_obj):
+            # assume strings are file paths
+            with open(file_obj, 'wb') as f:
+                f.write(data)
+        else:
+            # no writeable file object so return data
+            return data
 
     def save_image(self, resolution=(1024, 768), **kwargs):
         """
