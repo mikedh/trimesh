@@ -51,6 +51,11 @@ class SimpleMaterial(Material):
         """
         return self.diffuse
 
+    def to_pbr(self):
+        """
+        Convert the current simple material to a PBR material
+        """
+        return PBRMaterial(baseColorTexture=self.image)
 
 class PBRMaterial(Material):
     """

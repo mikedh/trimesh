@@ -12,7 +12,9 @@ class Camera(object):
             name=None,
             resolution=None,
             focal=None,
-            fov=None):
+            fov=None,
+            z_near=0.001,
+            z_far=1000.0):
         """
         Create a new Camera object that stores camera intrinsic
         and extrinsic parameters.
@@ -31,6 +33,8 @@ class Camera(object):
           but not both.  focal = (K[0][0], K[1][1])
         fov : (2,) float
           Field of view (fovx, fovy) in degrees
+        z_near : float
+          What is the closest 
         """
 
         if name is None:
@@ -57,6 +61,11 @@ class Camera(object):
             resolution = (self.fov * 15.0).astype(np.int64)
         self.resolution = resolution
 
+        # what is the farthest from the camera it should render
+        self.z_far = float(z_far)
+        # what is the closest to the camera it should render
+        self.z_near = float(z_near)
+        
     def copy(self):
         """
         Safely get a copy of the current camera.

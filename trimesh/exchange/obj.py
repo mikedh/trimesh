@@ -117,7 +117,7 @@ def load_obj(file_obj,
 
         # the fastest way to get to a numpy array
         # processes the whole string at once into a 1D array
-        # also wavefront is 1- indexed (vs 0- indexed) so offset
+        # also wavefront is 1-indexed (vs 0-indexed) so offset
         array = np.fromstring(joined, sep=' ', dtype=np.int64) - 1
 
         # get the number of raw 2D columns in a sample line
@@ -139,7 +139,7 @@ def load_obj(file_obj,
             log.warning('faces have mixed data, using slow fallback!')
             faces, faces_tex, faces_norm = _parse_faces_fallback(face_lines)
 
-        # TODO: this usually falls back to something useless
+        # TODO: name usually falls back to something useless
         name = current_object
         if name is None or len(name) == 0 or name in geometry:
             name = '{}_{}'.format(name, util.unique_id())
