@@ -132,7 +132,7 @@ def export_glb(scene, extras=None, include_normals=False):
     """
     # if we were passed a bare Trimesh or Path3D object
     if (not util.is_instance_named(scene, "Scene") and
-        hasattr(scene, "scene")):
+            hasattr(scene, "scene")):
         # generate a scene with just that mesh in it
         scene = scene.scene()
 
@@ -442,9 +442,14 @@ def _create_gltf_structure(scene,
                 name=name,
                 tree=tree,
                 buffer_items=buffer_items)
-    # if nothing defined a material remove it from the structure
+    # cull empty or unpopulated fields here
+    if len(tree['textures']) == 0:
+        tree.pop('textures')
+        tree.pop('samplers')
     if len(tree["materials"]) == 0:
         tree.pop("materials")
+    if len(tree['images']) == 0:
+        tree.pop('images')
 
     return tree, buffer_items
 
@@ -552,7 +557,7 @@ def _append_mesh(mesh,
 
         # if mesh has UV coordinates defined export them
         if (hasattr(mesh.visual, 'uv') and
-            mesh.visual.uv.shape == (len(mesh.vertices), 2)):
+                mesh.visual.uv.shape == (len(mesh.vertices), 2)):
 
             # add the reference for UV coordinates
             tree["meshes"][-1]["primitives"][0]["attributes"][
@@ -1126,6 +1131,7 @@ def _append_material(mat, tree, buffer_items):
     # append all the information gathered to the material
     tree['materials'].append({"pbrMetallicRoughness": pbr})
 
+
 # exporters
-_gltf_loaders={"glb": load_glb,
-               "gltf": load_gltf}
+_gltf_loaders = {"glb": load_glb,
+                 "gltf": load_gltf}
