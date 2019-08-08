@@ -557,7 +557,7 @@ def _append_mesh(mesh,
 
         # if mesh has UV coordinates defined export them
         if (hasattr(mesh.visual, 'uv') and
-                mesh.visual.uv.shape == (len(mesh.vertices), 2)):
+                np.shape(mesh.visual.uv) == (len(mesh.vertices), 2)):
 
             # add the reference for UV coordinates
             tree["meshes"][-1]["primitives"][0]["attributes"][
