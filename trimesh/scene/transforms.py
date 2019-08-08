@@ -131,8 +131,7 @@ class TransformForest(object):
         Returns
         --------
         gltf : dict
-          with keys:
-                  'nodes': list of dicts
+          with 'nodes' referencing a list of dicts
         """
         # geometry is an OrderedDict
         # {geometry key : index}
@@ -140,7 +139,8 @@ class TransformForest(object):
                       in enumerate(scene.geometry.keys())}
         # save the output
         gltf = collections.deque([])
-        for node in self.nodes:
+        # only export nodes which have geometry
+        for node in self.nodes_geometry:
             # don't include edge for base frame
             if node == self.base_frame:
                 continue

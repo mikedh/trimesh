@@ -153,14 +153,10 @@ def export_glb(scene, extras=None, include_normals=False):
         current_pos += len(current_item)
     # combine bytes into a single blob
     buffer_data = bytes().join(buffer_items)
-
+    # add the information about the buffer data
     tree["buffers"] = [{"byteLength": len(buffer_data)}]
     tree["bufferViews"] = views
 
-    ### TODO: DEBUG
-    print('\n\n\n\n\n\nEXPORTAAAA\n',
-          json.dumps(tree, indent=2, sort_keys=True))
-    
     # export the tree to JSON for the content of the file
     content = json.dumps(tree)
     # add spaces to content, so the start of the data
@@ -231,7 +227,6 @@ def load_gltf(file_obj=None,
         except BaseException:
             tree = json.loads(data.decode('utf-8'))
 
-            
     # use the URI and resolver to get data from file names
     buffers = [_uri_to_bytes(uri=b['uri'], resolver=resolver)
                for b in tree['buffers']]
@@ -293,10 +288,6 @@ def load_glb(file_obj, resolver=None, **mesh_kwargs):
     # load the json header to native dict
     header = json.loads(json_data)
 
-    #### TODO: REMOVE
-    print(json.dumps(header, indent=2, sort_keys=True))
-    #### TODO: REMOVE
-    
     # read the binary data referred to by GLTF as 'buffers'
     buffers = []
     while (file_obj.tell() - start) < length:
@@ -553,7 +544,7 @@ def _append_mesh(mesh,
     elif hasattr(mesh.visual, 'material'):
         # set the material to the last index in the tree
         tree["meshes"][-1]["primitives"][0]["material"] = len(tree["materials"])
-        # immediatly append the material to materials list
+        # immediately append the material to materials list
         # will also append necessary images and textures to tree
         _append_material(mat=mesh.visual.material,
                          tree=tree,
@@ -562,7 +553,7 @@ def _append_mesh(mesh,
         # if mesh has UV coordinates defined export them
         if (hasattr(mesh.visual, 'uv') and
             mesh.visual.uv.shape == (len(mesh.vertices), 2)):
-        
+
             # add the reference for UV coordinates
             tree["meshes"][-1]["primitives"][0]["attributes"][
                 "TEXCOORD_0"] = len(tree["accessors"])
@@ -579,7 +570,7 @@ def _append_mesh(mesh,
                 "count": len(mesh.visual.uv),
                 "type": "VEC2",
                 "byteOffset": 0})
-            # immediatly add UV data so bufferView indices are correct
+            # immediately add UV data so bufferView indices are correct
             buffer_items.append(uv_data)
 
     if include_normals:
@@ -1027,16 +1018,14 @@ def _convert_camera(camera):
         "perspective": {
             "aspectRatio": camera.fov[0] / camera.fov[1],
             "yfov": np.radians(camera.fov[1]),
-            "znear": float(camera.z_near)
-        },
-    }
+            "znear": float(camera.z_near)}}
     return result
 
 
 def _append_image(img, tree, buffer_items):
     """
     Append a PIL image to a GLTF2.0 tree.
-    
+
     Parameters
     ------------
     img : PIL.Image
@@ -1045,7 +1034,7 @@ def _append_image(img, tree, buffer_items):
       GLTF 2.0 format tree
     buffer_items : (n,) bytes
       Binary blobs containing data
-    
+
     Returns
     -----------
     index : int or None
@@ -1056,7 +1045,7 @@ def _append_image(img, tree, buffer_items):
     if not hasattr(img, 'format'):
         return None
 
-    # don't reencode JPEGs
+    # don't re-encode JPEGs
     if img.format == 'JPEG':
         # no need to mangle JPEGs
         save_as = 'JPEG'
@@ -1081,7 +1070,6 @@ def _append_image(img, tree, buffer_items):
     return len(tree['images']) - 1
 
 
-
 def _append_material(mat, tree, buffer_items):
     """
     Add passed PBRMaterial as GLTF 2.0 specification JSON
@@ -1089,7 +1077,7 @@ def _append_material(mat, tree, buffer_items):
     - images are added to `tree['images']`
     - texture is added to `tree['texture']`
     - material is added to `tree['materials']`
-    
+
 
     Parameters
     ------------
@@ -1106,33 +1094,38 @@ def _append_material(mat, tree, buffer_items):
     # TODO: implement this method on SimpleMaterial
     if hasattr(mat, 'to_pbr'):
         mat = mat.to_pbr()
-                
+
     # a default PBR metallic material
     pbr = {}
     try:
-        pbr['baseColorFactor'] = visual.color.to_float(mat.baseColorFactor).tolist()
+        # try to convert base color to (4,) float color
+        pbr['baseColorFactor'] = visual.color.to_float(
+            mat.baseColorFactor).reshape(4).tolist()
     except BaseException:
         pass
 
+    # if scalars are defined correctly export
     if isinstance(mat.metallicFactor, float):
         pbr['metallicFactor'] = mat.metallicFactor
     if isinstance(mat.roughnessFactor, float):
         pbr['roughnessFactor'] = mat.roughnessFactor
 
-    # try converting base image
+    # try adding the base image to the export object
     index = _append_image(
         img=mat.baseColorTexture,
         tree=tree,
         buffer_items=buffer_items)
+    # if the image was added successfully it will return index
+    # if it failed for any reason, it will return None
     if index is not None:
+        # add a reference to the base color texture
         pbr['baseColorTexture'] = {'index': len(tree['textures'])}
+        # add an object for the texture
         tree['textures'].append({'source': index, 'sampler': 0})
 
-        
-    material = {"pbrMetallicRoughness": pbr}
-
-    tree['materials'].append(material)
+    # append all the information gathered to the material
+    tree['materials'].append({"pbrMetallicRoughness": pbr})
 
 # exporters
-_gltf_loaders = {"glb": load_glb,
-                 "gltf": load_gltf}
+_gltf_loaders={"glb": load_glb,
+               "gltf": load_gltf}

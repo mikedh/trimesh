@@ -34,7 +34,7 @@ class Camera(object):
         fov : (2,) float
           Field of view (fovx, fovy) in degrees
         z_near : float
-          What is the closest 
+          What is the closest
         """
 
         if name is None:
@@ -65,7 +65,7 @@ class Camera(object):
         self.z_far = float(z_far)
         # what is the closest to the camera it should render
         self.z_near = float(z_near)
-        
+
     def copy(self):
         """
         Safely get a copy of the current camera.

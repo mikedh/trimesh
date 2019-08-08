@@ -681,7 +681,7 @@ class Scene(Geometry):
         if file_type is None:
             file_type = str(file_obj).split('.')[-1]
 
-        # always remove whitepace and leading charecters
+        # always remove whitepace and leading characters
         file_type = file_type.strip().lower().lstrip('.')
 
         if file_type == 'gltf':

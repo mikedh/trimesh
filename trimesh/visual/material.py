@@ -57,6 +57,7 @@ class SimpleMaterial(Material):
         """
         return PBRMaterial(baseColorTexture=self.image)
 
+
 class PBRMaterial(Material):
     """
     Create a material for physically based rendering as

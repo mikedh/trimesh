@@ -272,7 +272,7 @@ class SceneViewer(pyglet.window.Window):
 
     @staticmethod
     def _gl_enable_depth():
-        
+
         gl.glDepthRange(self.camera.z_near,
                         self.camera.z_far)
 
