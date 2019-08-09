@@ -383,7 +383,7 @@ def _mesh_to_material(mesh, metallic=0.0, rough=0.0):
 
 def _create_gltf_structure(scene,
                            extras=None,
-                           include_normals=False):
+                           include_normals=None):
     """
     Generate a GLTF header.
 
@@ -526,15 +526,12 @@ def _append_mesh(mesh,
     # check to see if we have vertex or face colors
     if mesh.visual.kind in ['vertex', 'face']:
         # make sure colors are RGBA, this should always be true
-        vertex_colors = visual.vertex_colors
-
+        vertex_colors = mesh.visual.vertex_colors
         # add the reference for vertex color
         tree["meshes"][-1]["primitives"][0]["attributes"][
             "COLOR_0"] = len(tree["accessors"])
-
         # convert color data to bytes
         color_data = _byte_pad(vertex_colors.astype(uint8).tobytes())
-
         # the vertex color accessor data
         tree["accessors"].append({
             "bufferView": len(buffer_items),
@@ -578,7 +575,7 @@ def _append_mesh(mesh,
             # immediately add UV data so bufferView indices are correct
             buffer_items.append(uv_data)
 
-    if include_normals:
+    if (include_normals or (include_normals is None and 'vertex_normals' in mesh._cache.cache)):
         # add the reference for vertex color
         tree["meshes"][-1]["primitives"][0]["attributes"][
             "NORMAL"] = len(tree["accessors"])
@@ -668,9 +665,7 @@ def _append_path(path, name, tree, buffer_items):
             "type": "VEC3",
             "byteOffset": 0,
             "max": path.vertices.max(axis=0).tolist(),
-            "min": path.vertices.min(axis=0).tolist(),
-        }
-    )
+            "min": path.vertices.min(axis=0).tolist()})
 
     # TODO add color support to Path object
     # this is just exporting everying as black
@@ -1101,11 +1096,16 @@ def _append_material(mat, tree, buffer_items):
         mat = mat.to_pbr()
 
     # a default PBR metallic material
-    pbr = {}
+    pbr = {"pbrMetallicRoughness": {}}
     try:
         # try to convert base color to (4,) float color
         pbr['baseColorFactor'] = visual.color.to_float(
             mat.baseColorFactor).reshape(4).tolist()
+    except BaseException:
+        pass
+
+    try:
+        pbr['emissiveFactor'] = mat.emissiveFactor.reshape(3).tolist()
     except BaseException:
         pass
 
@@ -1115,21 +1115,46 @@ def _append_material(mat, tree, buffer_items):
     if isinstance(mat.roughnessFactor, float):
         pbr['roughnessFactor'] = mat.roughnessFactor
 
-    # try adding the base image to the export object
-    index = _append_image(
-        img=mat.baseColorTexture,
-        tree=tree,
-        buffer_items=buffer_items)
-    # if the image was added successfully it will return index
-    # if it failed for any reason, it will return None
-    if index is not None:
-        # add a reference to the base color texture
-        pbr['baseColorTexture'] = {'index': len(tree['textures'])}
-        # add an object for the texture
-        tree['textures'].append({'source': index, 'sampler': 0})
+    image_mapping = {
+        'baseColorTexture': mat.baseColorTexture,
+        'emissiveTexture': mat.emissiveTexture,
+        'normalTexture': mat.normalTexture,
+        'occlusionTexture': mat.occlusionTexture,
+        'metallicRoughnessTexture': mat.metallicRoughnessTexture}
 
-    # append all the information gathered to the material
-    tree['materials'].append({"pbrMetallicRoughness": pbr})
+    for key, img in image_mapping.items():
+        if img is None:
+            continue
+        # try adding the base image to the export object
+        index = _append_image(
+            img=img,
+            tree=tree,
+            buffer_items=buffer_items)
+        # if the image was added successfully it will return index
+        # if it failed for any reason, it will return None
+        if index is not None:
+            # add a reference to the base color texture
+            pbr[key] = {'index': len(tree['textures'])}
+            # add an object for the texture
+            tree['textures'].append({'source': index, 'sampler': 0})
+
+    # for our PBRMaterial object we flatten all keys
+    # however GLTF would like some of them under the
+    # "pbrMetallicRoughness" key
+    pbr_subset = ['baseColorTexture',
+                  'baseColorFactor',
+                  'metallicRoughnessTexture']
+    # move keys down a level
+    for key in pbr_subset:
+        if key in pbr:
+            pbr["pbrMetallicRoughness"][key] = pbr.pop(key)
+
+    #
+    if len(pbr['pbrMetallicRoughness']) == 0:
+        pbr.pop('pbrMetallicRoughness')
+
+    # append the new material
+    tree['materials'].append(pbr)
 
 
 # exporters

@@ -82,17 +82,16 @@ class PBRMaterial(Material):
                  alphaMode='OPAQUE',
                  alphaCutoff=0.5):
 
-        # To-float conversions
+        # (4,) float
         if baseColorFactor is not None:
-            baseColorFactor = np.array(baseColorFactor, dtype=np.float64)
+            baseColorFactor = color.to_rgba(baseColorFactor)
+        self.baseColorFactor = baseColorFactor
+
         if emissiveFactor is not None:
             emissiveFactor = np.array(emissiveFactor, dtype=np.float64)
 
-        # (4,) float
-        self.baseColorFactor = color.to_rgba(baseColorFactor)
-
         # (3,) float
-        self.emissiveFactor = color.to_rgba(emissiveFactor)
+        self.emissiveFactor = emissiveFactor
 
         # float
         self.metallicFactor = metallicFactor
@@ -132,4 +131,5 @@ class PBRMaterial(Material):
 
     @property
     def main_color(self):
-        return self.baseColorFactor
+        # will return default color if None
+        result = trimesh.visual.to_rgba(self.baseColorFactor)
