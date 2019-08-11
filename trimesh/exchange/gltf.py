@@ -15,9 +15,10 @@ import numpy as np
 from .. import util
 from .. import visual
 from .. import rendering
+from .. import resources
 from .. import transformations
 
-from ..constants import log
+from ..constants import log, tol
 
 # magic numbers which have meaning in GLTF
 # most are uint32's of UTF-8 text
@@ -450,6 +451,10 @@ def _create_gltf_structure(scene,
         tree.pop("materials")
     if len(tree['images']) == 0:
         tree.pop('images')
+
+    # in unit tests compare our header against the schema
+    if tol.strict:
+        validate(tree)
 
     return tree, buffer_items
 
@@ -1155,6 +1160,62 @@ def _append_material(mat, tree, buffer_items):
 
     # append the new material
     tree['materials'].append(pbr)
+
+
+def validate(tree):
+    """
+    Validate a GLTF 2.0 header against the schema.
+
+    Returns result from:
+    `jsonschema.validate(tree, schema=get_schema)`
+
+    Parameters
+    -------------
+    tree : dict
+      Populated GLTF 2.0 header
+
+    Raises
+    --------------
+    err : jsonschema.exceptions.ValidationError
+      If the tree is an invalid GLTF2.0 header
+    """
+    # a soft dependency
+    import jsonschema
+    # will do the reference replacement
+    schema = get_schema()
+
+    # validate the passed tree against the schema
+    return jsonschema.validate(tree, schema=schema)
+
+
+def get_schema():
+    """
+    Get a copy of the GLTF 2.0 schema with references resolved.
+
+    Returns
+    ------------
+    schema : dict
+      A copy of the GLTF 2.0 schema without external references.
+    """
+    # replace references
+    from ..schemas import resolve_json
+    # get zip resolver to access referenced assets
+    from ..visual.resolvers import ZipResolver
+
+    # get a blob of a zip file including the GLTF 2.0 schema
+    blob = resources.get_resource(
+        'gltf_2.0_schema.zip', decode=False)
+    # get the zip file as a dict keyed by file name
+    archive = util.decompress(
+        util.wrap_as_stream(blob), 'zip')
+    # get a resolver object for accessing the schema
+    resolver = ZipResolver(archive)
+    # remove references to other files in the schema
+    schema = json.loads(
+        resolve_json(
+            resolver.get('glTF.schema.json').decode('utf-8'),
+            resolver=resolver))
+    return schema
 
 
 # exporters
