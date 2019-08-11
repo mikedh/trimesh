@@ -580,7 +580,9 @@ def _append_mesh(mesh,
             # immediately add UV data so bufferView indices are correct
             buffer_items.append(uv_data)
 
-    if (include_normals or (include_normals is None and 'vertex_normals' in mesh._cache.cache)):
+    if (include_normals or
+        (include_normals is None and
+         'vertex_normals' in mesh._cache.cache)):
         # add the reference for vertex color
         tree["meshes"][-1]["primitives"][0]["attributes"][
             "NORMAL"] = len(tree["accessors"])

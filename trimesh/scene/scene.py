@@ -648,22 +648,6 @@ class Scene(Geometry):
 
     def export(self, file_obj=None, file_type=None, **kwargs):
         """
-        Export the current scene to a file object or file name.
-
-        Supported formats are GLB.
-
-        Parameters
-        ------------
-        file_obj: open writeable file object
-          str, file name where to save the mesh
-          None, if you would like this function to return the export blob
-        file_type: str
-          Which file type to export as.
-          If file name is passed this is not required
-        """
-
-    def export(self, file_obj=None, file_type=None, **kwargs):
-        """
         Export a snapshot of the current scene.
 
         Parameters

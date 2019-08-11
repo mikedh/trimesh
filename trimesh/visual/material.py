@@ -132,4 +132,5 @@ class PBRMaterial(Material):
     @property
     def main_color(self):
         # will return default color if None
-        result = trimesh.visual.to_rgba(self.baseColorFactor)
+        result = color.to_rgba(self.baseColorFactor)
+        return result
