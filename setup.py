@@ -44,6 +44,7 @@ requirements_all = requirements_easy.union([
     'python-fcl',    # do fast 3D collision queries
     'psutil',        # figure out how much memory we have
     'glooey',        # make GUI applications with 3D stuff
+    'jsonschema',    # validate JSON schemas like GLTF
     'scikit-image'])  # marching cubes and other nice stuff
 
 # call the magical setuptools setup
