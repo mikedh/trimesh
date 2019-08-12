@@ -197,6 +197,18 @@ In the wild, `STL` is perhaps the most common format. `STL` files are extremely 
 
 Wavefront `OBJ` is also pretty common: unfortunately OBJ doesn't have a widely accepted specification so every importer and exporter implements things slightly differently, making it tough to support. It also allows unfortunate things like arbitrary sized polygons, has a face representation which is easy to mess up, references other files for materials and textures, arbitrarily interleaves data, and is slow to parse. Give `GLB` or `PLY` a try as an alternative!
 
+## How can I cite this library?
+
+A question that comes up pretty frequently is [how to cite the library.](https://github.com/mikedh/trimesh/issues?utf8=1&q=cite) A quick BibTex recommendation:
+```
+@software{trimesh,
+	author = {{Dawson-Haggerty et al.}},
+	title = {trimesh},
+	url = {https://trimsh.org/},
+	version = {3.2.0},
+	date = {2019-12-8},
+}
+```
 
 ## Containers
    

@@ -51,6 +51,12 @@ class SimpleMaterial(Material):
         """
         return self.diffuse
 
+    def to_pbr(self):
+        """
+        Convert the current simple material to a PBR material
+        """
+        return PBRMaterial(baseColorTexture=self.image)
+
 
 class PBRMaterial(Material):
     """
@@ -76,17 +82,16 @@ class PBRMaterial(Material):
                  alphaMode='OPAQUE',
                  alphaCutoff=0.5):
 
-        # To to-float conversions
-        if baseColorFactor is not None:
-            baseColorFactor = np.array(baseColorFactor, dtype=np.float)
-        if emissiveFactor is not None:
-            emissiveFactor = np.array(emissiveFactor, dtype=np.float)
-
         # (4,) float
-        self.baseColorFactor = color.to_rgba(baseColorFactor)
+        if baseColorFactor is not None:
+            baseColorFactor = color.to_rgba(baseColorFactor)
+        self.baseColorFactor = baseColorFactor
+
+        if emissiveFactor is not None:
+            emissiveFactor = np.array(emissiveFactor, dtype=np.float64)
 
         # (3,) float
-        self.emissiveFactor = color.to_rgba(emissiveFactor)
+        self.emissiveFactor = emissiveFactor
 
         # float
         self.metallicFactor = metallicFactor
@@ -107,6 +112,18 @@ class PBRMaterial(Material):
         alphaMode = alphaMode
 
     def to_color(self, uv):
+        """
+        Get the rough color at a list of specified UV coordinates.
+
+        Parameters
+        -------------
+        uv : (n, 2) float
+          UV coordinates on the material
+
+        Returns
+        -------------
+        colors :
+        """
         colors = color.uv_to_color(uv=uv, image=self.baseColorTexture)
         if colors is None and self.baseColorFactor is not None:
             colors = self.baseColorFactor.copy()
@@ -114,4 +131,6 @@ class PBRMaterial(Material):
 
     @property
     def main_color(self):
-        return self.baseColorFactor
+        # will return default color if None
+        result = color.to_rgba(self.baseColorFactor)
+        return result

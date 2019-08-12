@@ -22,9 +22,10 @@ def minify(path):
     path: str, path of resource
     """
 
-    if 'http' in path:
+    if path.startswith('http'):
         data = requests.get(path).content.decode(
             'ascii', errors='ignore')
+        print('downloaded', path, len(data))
     else:
         with open(path, 'rb') as f:
             # some of these assholes use unicode spaces -_-
@@ -84,3 +85,7 @@ if __name__ == '__main__':
 
     with open('../viewer.html.template', 'w') as f:
         f.write(result)
+
+    import subprocess
+    subprocess.check_call(['zip', '-j', '../viewer.template.zip',
+                           '../viewer.html.template'])

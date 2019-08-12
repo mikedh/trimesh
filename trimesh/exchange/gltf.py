@@ -15,9 +15,10 @@ import numpy as np
 from .. import util
 from .. import visual
 from .. import rendering
+from .. import resources
 from .. import transformations
 
-from ..constants import log
+from ..constants import log, tol
 
 # magic numbers which have meaning in GLTF
 # most are uint32's of UTF-8 text
@@ -41,17 +42,14 @@ _shapes = {
     "VEC4": (4),
     "MAT2": (2, 2),
     "MAT3": (3, 3),
-    "MAT4": (4, 4),
-}
+    "MAT4": (4, 4)}
 
 # a default PBR metallic material
 _default_material = {
     "pbrMetallicRoughness": {
         "baseColorFactor": [0, 0, 0, 0],
         "metallicFactor": 0,
-        "roughnessFactor": 0,
-    }
-}
+        "roughnessFactor": 0}}
 
 # specify common dtypes with forced little endian
 float32 = np.dtype("<f4")
@@ -134,7 +132,8 @@ def export_glb(scene, extras=None, include_normals=False):
       Exported result in GLB 2.0
     """
     # if we were passed a bare Trimesh or Path3D object
-    if not util.is_instance_named(scene, "Scene") and hasattr(scene, "scene"):
+    if (not util.is_instance_named(scene, "Scene") and
+            hasattr(scene, "scene")):
         # generate a scene with just that mesh in it
         scene = scene.scene()
 
@@ -151,12 +150,11 @@ def export_glb(scene, extras=None, include_normals=False):
         views.append(
             {"buffer": 0,
              "byteOffset": current_pos,
-             "byteLength": len(current_item)}
-        )
+             "byteLength": len(current_item)})
         current_pos += len(current_item)
-
+    # combine bytes into a single blob
     buffer_data = bytes().join(buffer_items)
-
+    # add the information about the buffer data
     tree["buffers"] = [{"byteLength": len(buffer_data)}]
     tree["bufferViews"] = views
 
@@ -386,7 +384,7 @@ def _mesh_to_material(mesh, metallic=0.0, rough=0.0):
 
 def _create_gltf_structure(scene,
                            extras=None,
-                           include_normals=False):
+                           include_normals=None):
     """
     Generate a GLTF header.
 
@@ -407,14 +405,17 @@ def _create_gltf_structure(scene,
       Contains bytes of data
     """
     # we are defining a single scene, and will be setting the
-    # world node to the 0th index
+    # world node to the 0-index
     tree = {
         "scene": 0,
         "scenes": [{"nodes": [0]}],
         "asset": {"version": "2.0",
-                  "generator": "github.com/mikedh/trimesh"},
+                  "generator": "https://github.com/mikedh/trimesh"},
         "accessors": [],
         "meshes": [],
+        "images": [],
+        "textures": [],
+        "samplers": [{}],
         "materials": [],
         "cameras": [_convert_camera(scene.camera)]}
 
@@ -442,9 +443,18 @@ def _create_gltf_structure(scene,
                 name=name,
                 tree=tree,
                 buffer_items=buffer_items)
-    # if nothing defined a material remove it from the structure
+    # cull empty or unpopulated fields here
+    if len(tree['textures']) == 0:
+        tree.pop('textures')
+        tree.pop('samplers')
     if len(tree["materials"]) == 0:
         tree.pop("materials")
+    if len(tree['images']) == 0:
+        tree.pop('images')
+
+    # in unit tests compare our header against the schema
+    if tol.strict:
+        validate(tree)
 
     return tree, buffer_items
 
@@ -515,31 +525,18 @@ def _append_mesh(mesh,
     buffer_items.append(_byte_pad(
         mesh.vertices.astype(float32).tobytes()))
 
+    # make sure nothing fell off the truck
     assert len(buffer_items) >= tree['accessors'][-1]['bufferView']
 
-    # for now cheap hack to display
-    # crappy version of textured meshes
-    if hasattr(mesh.visual, "uv"):
-        visual = mesh.visual.to_color()
-    else:
-        visual = mesh.visual
-    color_ok = (
-        visual.kind in ['vertex', 'face'] and
-        visual.vertex_colors.shape == (len(mesh.vertices), 4))
-
-    # make sure to append colors after other stuff to
-    # not screw up the indexes of accessors or buffers
-    if color_ok:
+    # check to see if we have vertex or face colors
+    if mesh.visual.kind in ['vertex', 'face']:
         # make sure colors are RGBA, this should always be true
-        vertex_colors = visual.vertex_colors
-
+        vertex_colors = mesh.visual.vertex_colors
         # add the reference for vertex color
         tree["meshes"][-1]["primitives"][0]["attributes"][
             "COLOR_0"] = len(tree["accessors"])
-
         # convert color data to bytes
         color_data = _byte_pad(vertex_colors.astype(uint8).tobytes())
-
         # the vertex color accessor data
         tree["accessors"].append({
             "bufferView": len(buffer_items),
@@ -550,14 +547,42 @@ def _append_mesh(mesh,
             "byteOffset": 0})
         # the actual color data
         buffer_items.append(color_data)
-    else:
-        # if no colors, set a material
-        tree["meshes"][-1]["primitives"][0]["material"] = len(
-            tree["materials"])
-        # add a default- ish material
-        tree["materials"].append(_mesh_to_material(mesh))
 
-    if include_normals:
+    elif hasattr(mesh.visual, 'material'):
+        # set the material to the last index in the tree
+        tree["meshes"][-1]["primitives"][0]["material"] = len(tree["materials"])
+        # immediately append the material to materials list
+        # will also append necessary images and textures to tree
+        _append_material(mat=mesh.visual.material,
+                         tree=tree,
+                         buffer_items=buffer_items)
+
+        # if mesh has UV coordinates defined export them
+        if (hasattr(mesh.visual, 'uv') and
+                np.shape(mesh.visual.uv) == (len(mesh.vertices), 2)):
+
+            # add the reference for UV coordinates
+            tree["meshes"][-1]["primitives"][0]["attributes"][
+                "TEXCOORD_0"] = len(tree["accessors"])
+
+            # reverse the Y for GLTF
+            uv = mesh.visual.uv.copy()
+            uv[:, 1] = 1.0 - uv[:, 1]
+            # convert UV coordinate data to bytes and pad
+            uv_data = _byte_pad(uv.astype(float32).tobytes())
+            # add an accessor describing the blob of UV's
+            tree["accessors"].append({
+                "bufferView": len(buffer_items),
+                "componentType": 5126,
+                "count": len(mesh.visual.uv),
+                "type": "VEC2",
+                "byteOffset": 0})
+            # immediately add UV data so bufferView indices are correct
+            buffer_items.append(uv_data)
+
+    if (include_normals or
+        (include_normals is None and
+         'vertex_normals' in mesh._cache.cache)):
         # add the reference for vertex color
         tree["meshes"][-1]["primitives"][0]["attributes"][
             "NORMAL"] = len(tree["accessors"])
@@ -596,11 +621,16 @@ def _byte_pad(data, bound=4):
     bound = int(bound)
     if len(data) % bound != 0:
         # extra bytes to pad with
-        pad = bytes(bound - (len(data) % bound))
-        # combine the two
+        count = bound - (len(data) % bound)
+        # bytes(count) only works on Python 3
+        pad = (' ' * count).encode('utf-8')
+        # combine the padding and data
         result = bytes().join([data, pad])
         # we should always divide evenly
-        assert (len(result) % bound) == 0
+        if (len(result) % bound) != 0:
+            raise ValueError(
+                'byte_pad failed! ori:{} res:{} pad:{} req:{}'.format(
+                    len(data), len(result), count, bound))
         return result
 
     return data
@@ -647,9 +677,7 @@ def _append_path(path, name, tree, buffer_items):
             "type": "VEC3",
             "byteOffset": 0,
             "max": path.vertices.max(axis=0).tolist(),
-            "min": path.vertices.min(axis=0).tolist(),
-        }
-    )
+            "min": path.vertices.min(axis=0).tolist()})
 
     # TODO add color support to Path object
     # this is just exporting everying as black
@@ -1002,10 +1030,201 @@ def _convert_camera(camera):
         "perspective": {
             "aspectRatio": camera.fov[0] / camera.fov[1],
             "yfov": np.radians(camera.fov[1]),
-        },
-    }
+            "znear": float(camera.z_near)}}
     return result
 
 
+def _append_image(img, tree, buffer_items):
+    """
+    Append a PIL image to a GLTF2.0 tree.
+
+    Parameters
+    ------------
+    img : PIL.Image
+      Image object
+    tree : dict
+      GLTF 2.0 format tree
+    buffer_items : (n,) bytes
+      Binary blobs containing data
+
+    Returns
+    -----------
+    index : int or None
+      The index of the image in the tree
+      None if image append failed for any reason
+    """
+    # probably not a PIL image so exit
+    if not hasattr(img, 'format'):
+        return None
+
+    # don't re-encode JPEGs
+    if img.format == 'JPEG':
+        # no need to mangle JPEGs
+        save_as = 'JPEG'
+    else:
+        # for everything else just use PNG
+        save_as = 'png'
+
+    # get the image data into a bytes object
+    with util.BytesIO() as f:
+        img.save(f, format=save_as)
+        f.seek(0)
+        data = f.read()
+
+    # append buffer index and the GLTF-acceptable mimetype
+    tree['images'].append({
+        'bufferView': len(buffer_items),
+        'mimeType': 'image/{}'.format(save_as.lower())})
+    # append data so bufferView matches
+    buffer_items.append(_byte_pad(data))
+
+    # index is length minus one
+    return len(tree['images']) - 1
+
+
+def _append_material(mat, tree, buffer_items):
+    """
+    Add passed PBRMaterial as GLTF 2.0 specification JSON
+    serializable data:
+    - images are added to `tree['images']`
+    - texture is added to `tree['texture']`
+    - material is added to `tree['materials']`
+
+
+    Parameters
+    ------------
+    mat : trimesh.visual.materials.PBRMaterials
+      Source material to convert
+    tree : dict
+      GLTF header blob
+    buffer_items : (n,) bytes
+      Binary blobs with various data
+    """
+
+    # if they have passed a material with
+    # a PBR conversion method call it
+    # TODO: implement this method on SimpleMaterial
+    if hasattr(mat, 'to_pbr'):
+        mat = mat.to_pbr()
+
+    # a default PBR metallic material
+    pbr = {"pbrMetallicRoughness": {}}
+    try:
+        # try to convert base color to (4,) float color
+        pbr['baseColorFactor'] = visual.color.to_float(
+            mat.baseColorFactor).reshape(4).tolist()
+    except BaseException:
+        pass
+
+    try:
+        pbr['emissiveFactor'] = mat.emissiveFactor.reshape(3).tolist()
+    except BaseException:
+        pass
+
+    # if scalars are defined correctly export
+    if isinstance(mat.metallicFactor, float):
+        pbr['metallicFactor'] = mat.metallicFactor
+    if isinstance(mat.roughnessFactor, float):
+        pbr['roughnessFactor'] = mat.roughnessFactor
+
+    # which keys of the PBRMaterial are images
+    image_mapping = {
+        'baseColorTexture': mat.baseColorTexture,
+        'emissiveTexture': mat.emissiveTexture,
+        'normalTexture': mat.normalTexture,
+        'occlusionTexture': mat.occlusionTexture,
+        'metallicRoughnessTexture': mat.metallicRoughnessTexture}
+
+    for key, img in image_mapping.items():
+        if img is None:
+            continue
+        # try adding the base image to the export object
+        index = _append_image(
+            img=img,
+            tree=tree,
+            buffer_items=buffer_items)
+        # if the image was added successfully it will return index
+        # if it failed for any reason, it will return None
+        if index is not None:
+            # add a reference to the base color texture
+            pbr[key] = {'index': len(tree['textures'])}
+            # add an object for the texture
+            tree['textures'].append({'source': index, 'sampler': 0})
+
+    # for our PBRMaterial object we flatten all keys
+    # however GLTF would like some of them under the
+    # "pbrMetallicRoughness" key
+    pbr_subset = ['baseColorTexture',
+                  'baseColorFactor',
+                  'metallicRoughnessTexture']
+    # move keys down a level
+    for key in pbr_subset:
+        if key in pbr:
+            pbr["pbrMetallicRoughness"][key] = pbr.pop(key)
+
+    # if we didn't have any PBR keys remove the empty key
+    if len(pbr['pbrMetallicRoughness']) == 0:
+        pbr.pop('pbrMetallicRoughness')
+
+    # append the new material
+    tree['materials'].append(pbr)
+
+
+def validate(header):
+    """
+    Validate a GLTF 2.0 header against the schema.
+
+    Returns result from:
+    `jsonschema.validate(header, schema=get_schema())`
+
+    Parameters
+    -------------
+    header : dict
+      Populated GLTF 2.0 header
+
+    Raises
+    --------------
+    err : jsonschema.exceptions.ValidationError
+      If the tree is an invalid GLTF2.0 header
+    """
+    # a soft dependency
+    import jsonschema
+    # will do the reference replacement
+    schema = get_schema()
+    # validate the passed header against the schema
+    return jsonschema.validate(header, schema=schema)
+
+
+def get_schema():
+    """
+    Get a copy of the GLTF 2.0 schema with references resolved.
+
+    Returns
+    ------------
+    schema : dict
+      A copy of the GLTF 2.0 schema without external references.
+    """
+    # replace references
+    from ..schemas import resolve_json
+    # get zip resolver to access referenced assets
+    from ..visual.resolvers import ZipResolver
+
+    # get a blob of a zip file including the GLTF 2.0 schema
+    blob = resources.get_resource(
+        'gltf_2.0_schema.zip', decode=False)
+    # get the zip file as a dict keyed by file name
+    archive = util.decompress(
+        util.wrap_as_stream(blob), 'zip')
+    # get a resolver object for accessing the schema
+    resolver = ZipResolver(archive)
+    # remove references to other files in the schema and load
+    schema = json.loads(
+        resolve_json(
+            resolver.get('glTF.schema.json').decode('utf-8'),
+            resolver=resolver))
+    return schema
+
+
+# exporters
 _gltf_loaders = {"glb": load_glb,
                  "gltf": load_gltf}

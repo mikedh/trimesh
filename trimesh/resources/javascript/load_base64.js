@@ -2,7 +2,7 @@
 var camera, controls, scene, renderer, tracklight;
 
 /* Fit the camera to an object's bounding sphere
- * 
+ *
  *
  */
 function autoFit(obj, camera, controls) {
@@ -15,7 +15,7 @@ function autoFit(obj, camera, controls) {
   // object size / display size
   const scale = 1.0;
   // convert to radians and scale
-  const angularSize = camera.fov * Math.PI / 180 * scale;
+  const angularSize = ((camera.fov * Math.PI) / 180) * scale;
 
   const distanceToCamera = boundingSphere.radius / Math.tan(angularSize);
   const len = Math.sqrt(
@@ -38,8 +38,8 @@ function autoFit(obj, camera, controls) {
 }
 
 /* Center the controls on the scene's bounding sphere
- * 
- * 
+ *
+ *
  */
 function centerControls(obj, camera, controls) {
   // center control rotation on scene bounding box

@@ -17,7 +17,7 @@ class GLTFTest(g.unittest.TestCase):
         # should not be watertight
         assert not geom.is_volume
         # make sure export doesn't crash
-        export = scene.export('glb')
+        export = scene.export(file_type='glb')
         assert len(export) > 0
         # check a roundtrip
         reloaded = g.trimesh.load(
@@ -53,7 +53,7 @@ class GLTFTest(g.unittest.TestCase):
         assert len(s.graph.nodes_geometry) == 5
 
         # make sure export doesn't crash
-        export = s.export('glb')
+        export = s.export(file_type='glb')
         assert len(export) > 0
 
         reloaded = g.trimesh.load(
@@ -70,7 +70,7 @@ class GLTFTest(g.unittest.TestCase):
         original = g.get_mesh('pins.glb')
 
         # export it as a a GLB file
-        export = original.export('glb')
+        export = original.export(file_type='glb')
         kwargs = g.trimesh.exchange.gltf.load_glb(
             g.trimesh.util.wrap_as_stream(export))
         # roundtrip it
@@ -110,7 +110,7 @@ class GLTFTest(g.unittest.TestCase):
         assert len(scene.geometry) >= 117
 
         # a dict with {file name: str}
-        export = scene.export('gltf')
+        export = scene.export(file_type='gltf')
         # load from just resolver
         r = g.trimesh.load(file_obj=None,
                            file_type='gltf',
@@ -142,7 +142,7 @@ class GLTFTest(g.unittest.TestCase):
         # should have multiple primitives
         assert len(scene.geometry) == 11
 
-        export = scene.export('glb')
+        export = scene.export(file_type='glb')
         assert len(export) > 0
         # check a roundtrip
         reloaded = g.trimesh.load(

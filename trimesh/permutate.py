@@ -19,20 +19,27 @@ def transform(mesh, translation_scale=1000.0):
 
     Parameters
     ----------
-    mesh:   Trimesh object (input will not be altered by this function)
+    mesh : trimesh.Trimesh
+      Mesh, will not be altered by this function
 
     Returns
     ----------
-    permutated: Trimesh object, same faces as input mesh but
-                rotated and reordered.
+    permutated : trimesh.Trimesh
+      Mesh with same faces as input mesh but reordered
+      and rigidly transformed in space.
     """
+    # rotate and translate randomly
     matrix = transformations.random_rotation_matrix()
-    matrix[0:3, 3] = np.random.random(3) * translation_scale
+    matrix[0:3, 3] = (np.random.random(3) - 0.5) * translation_scale
 
+    # randomly re-order triangles
     triangles = np.random.permutation(mesh.triangles).reshape((-1, 3))
+    # apply rigid transform
     triangles = transformations.transform_points(triangles, matrix)
 
+    # extract the class from the input object
     mesh_type = util.type_named(mesh, 'Trimesh')
+    # generate a new mesh from the permutated data
     permutated = mesh_type(
         **triangles_module.to_kwargs(triangles.reshape((-1, 3, 3))))
 
@@ -41,18 +48,21 @@ def transform(mesh, translation_scale=1000.0):
 
 def noise(mesh, magnitude=None):
     """
-    Add gaussian noise to every vertex of a mesh.
-    Makes no effort to maintain topology or sanity.
+    Add gaussian noise to every vertex of a mesh, making
+    no effort to maintain topology or sanity.
 
     Parameters
     ----------
-    mesh:      Trimesh object (will not be mutated)
-    magnitude: float, what is the maximum distance per axis we can displace a vertex.
-               Default value is mesh.scale/100.0
+    mesh : trimesh.Trimesh
+      Input geometry, will not be altered
+    magnitude : float
+      What is the maximum distance per axis we can displace a vertex.
+      If None, value defaults to (mesh.scale / 100.0)
 
     Returns
     ----------
-    permutated: Trimesh object, input mesh with noise applied
+    permutated : trimesh.Trimesh
+      Input mesh with noise applied
     """
     if magnitude is None:
         magnitude = mesh.scale / 100.0
@@ -78,12 +88,14 @@ def tessellation(mesh):
     but with different tessellation.
 
     Parameters
-    ----------
-    mesh: Trimesh object
+    ------------
+    mesh : trimesh.Trimesh
+      Input geometry
 
     Returns
     ----------
-    permutated: Trimesh object with remeshed facets
+    permutated : trimesh.Trimesh
+      Mesh with remeshed facets
     """
     # create random barycentric coordinates for each face
     # pad all coordinates by a small amount to bias new vertex towards center
@@ -119,8 +131,9 @@ class Permutator:
         """
         self._mesh = mesh
 
-    def transform(self):
-        return transform(self._mesh)
+    def transform(self, translation_scale=1000):
+        return transform(
+            self._mesh, translation_scale=translation_scale)
 
     def noise(self, magnitude=None):
         return noise(self._mesh, magnitude)

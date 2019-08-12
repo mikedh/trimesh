@@ -83,7 +83,7 @@ script:
 # i.e. filter out comments then print out a list of basic tests to run
 - cd tests; pytest  -p no:warnings `grep -v '^#' basic.list`; cd ..
 # install more testing stuff
-- pip install pytest-cov pyassimp==4.1.3
+- pip install pytest-cov pyassimp==4.1.3 jsonschema
 # coveralls started failing to install on Python 3.4 so make it optional
 - pip install coveralls || true
 # install style checkers
