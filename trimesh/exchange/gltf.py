@@ -621,11 +621,16 @@ def _byte_pad(data, bound=4):
     bound = int(bound)
     if len(data) % bound != 0:
         # extra bytes to pad with
-        pad = bytes(bound - (len(data) % bound))
-        # combine the two
+        count = bound - (len(data) % bound)
+        # bytes(count) only works on Python 3
+        pad = (' ' * count).encode('utf-8')
+        # combine the padding and data
         result = bytes().join([data, pad])
         # we should always divide evenly
-        assert (len(result) % bound) == 0
+        if (len(result) % bound) != 0:
+            raise ValueError(
+                'byte_pad failed! ori:{} res:{} pad:{} req:{}'.format(
+                    len(data), len(result), count, bound))
         return result
 
     return data
@@ -1122,6 +1127,7 @@ def _append_material(mat, tree, buffer_items):
     if isinstance(mat.roughnessFactor, float):
         pbr['roughnessFactor'] = mat.roughnessFactor
 
+    # which keys of the PBRMaterial are images
     image_mapping = {
         'baseColorTexture': mat.baseColorTexture,
         'emissiveTexture': mat.emissiveTexture,
@@ -1156,7 +1162,7 @@ def _append_material(mat, tree, buffer_items):
         if key in pbr:
             pbr["pbrMetallicRoughness"][key] = pbr.pop(key)
 
-    #
+    # if we didn't have any PBR keys remove the empty key
     if len(pbr['pbrMetallicRoughness']) == 0:
         pbr.pop('pbrMetallicRoughness')
 
@@ -1164,16 +1170,16 @@ def _append_material(mat, tree, buffer_items):
     tree['materials'].append(pbr)
 
 
-def validate(tree):
+def validate(header):
     """
     Validate a GLTF 2.0 header against the schema.
 
     Returns result from:
-    `jsonschema.validate(tree, schema=get_schema)`
+    `jsonschema.validate(header, schema=get_schema())`
 
     Parameters
     -------------
-    tree : dict
+    header : dict
       Populated GLTF 2.0 header
 
     Raises
@@ -1185,9 +1191,8 @@ def validate(tree):
     import jsonschema
     # will do the reference replacement
     schema = get_schema()
-
-    # validate the passed tree against the schema
-    return jsonschema.validate(tree, schema=schema)
+    # validate the passed header against the schema
+    return jsonschema.validate(header, schema=schema)
 
 
 def get_schema():
@@ -1212,7 +1217,7 @@ def get_schema():
         util.wrap_as_stream(blob), 'zip')
     # get a resolver object for accessing the schema
     resolver = ZipResolver(archive)
-    # remove references to other files in the schema
+    # remove references to other files in the schema and load
     schema = json.loads(
         resolve_json(
             resolver.get('glTF.schema.json').decode('utf-8'),

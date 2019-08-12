@@ -7,35 +7,27 @@ Tools for dealing with schemas, particularly JSONschema
 import json
 
 
-def resolve(schema, resolver, recursive=True):
-    """
-    Given a JSON schema that references other files by URI
-    replace them and return a flat version of the schema.
-
-    Parameters
-    ------------
-    schema : dict or list
-      JSON serializable JSONschema
-    resolver : trimesh.resolvers.Resolver
-      A way to load referenced resourced
-    recursive : bool
-      Recursively evaluate references
-
-    Returns
-    ------------
-    flat : dict
-      Schema with references replaced
-    """
-    pass
-
-
 def resolve_json(text, resolver, recursive=True, fill_empty='{}'):
     """
     Given a JSON Schema containing `$ref` keys, replace all
     referenced URI values with their values using trimesh
     Resolver objects.
 
+    Parameters
+    ---------------
+    text : str
+      JSON text including `$ref` to other files
+    resolver : trimesh.visual.resolver.Resolver
+      Resolver to fetch referenced assets
+    recursive : bool
+      If True, resolve references in referenced files
+    fill_empty : str
+      What to replace empty references with
 
+    Returns
+    ----------
+    result : str
+      JSON text with references filled in
     """
     if '$ref' not in text:
         return text
@@ -79,7 +71,6 @@ def resolve_json(text, resolver, recursive=True, fill_empty='{}'):
         # for the next loop only look at the next chunk
         current = current[last + 1:]
 
-    assert '$ref' not in current
     # any values after the last reference
     result.append(current)
 
