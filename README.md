@@ -199,14 +199,14 @@ Wavefront `OBJ` is also pretty common: unfortunately OBJ doesn't have a widely a
 
 ## How can I cite this library?
 
-Quick recommendation using BibTex for library version x.y.z released on date Y-d-m:
+A question that comes up pretty frequently is [how to cite the library.](https://github.com/mikedh/trimesh/issues?utf8=1&q=cite) A quick BibTex recommendation:
 ```
 @software{trimesh,
-	author = {{Michael Dawson-Haggerty}},
+	author = {{Dawson-Haggerty et al.}},
 	title = {trimesh},
 	url = {https://trimsh.org/},
-	version = {x.y.z},
-	date = {Y-d-m},
+	version = {3.2.0},
+	date = {2019-12-8},
 }
 ```
 
