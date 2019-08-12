@@ -78,7 +78,7 @@ class SceneGroup(pyglet.graphics.Group):
         self._set_view()
 
         SceneViewer._gl_set_background(self._background)
-        SceneViewer._gl_enable_depth()
+        SceneViewer._gl_enable_depth(self.scene.camera)
         SceneViewer._gl_enable_color_material()
         SceneViewer._gl_enable_blending()
         SceneViewer._gl_enable_smooth_lines()
