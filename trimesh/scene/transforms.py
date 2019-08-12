@@ -147,14 +147,16 @@ class TransformForest(object):
             # get the transform and geometry from the graph
             transform, geometry = self.get(
                 frame_to=node, frame_from=self.base_frame)
-
-            gltf.append({
-                'matrix': transform.T.reshape(-1).tolist(),
-                'name': node})
+            # add a node by name
+            gltf.append({'name': node})
+            # if the transform is an identity matrix don't include it
+            is_identity = np.abs(transform - np.eye(4)).max() < 1e-5
+            if not is_identity:
+                gltf[-1]['matrix'] = transform.T.reshape(-1).tolist()
             # assign geometry if it exists
             if geometry is not None:
                 gltf[-1]['mesh'] = mesh_index[geometry]
-
+            # check to see if we have camera node
             if node == scene.camera.name:
                 gltf[-1]['camera'] = 0
 
