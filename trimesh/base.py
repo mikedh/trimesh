@@ -1627,9 +1627,8 @@ class Trimesh(Geometry):
             return np.array([])
 
         area_faces = self.area_faces
-        # sum the area of each group of faces represented by facets
 
-        # the face index of the first face in each facet
+        # the face index of the largest face in each facet
         index = np.array([i[area_faces[i].argmax()]
                           for i in self.facets])
         # (n,3) float, unit normal vectors of facet plane
