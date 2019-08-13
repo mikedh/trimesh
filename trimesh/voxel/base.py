@@ -241,8 +241,21 @@ class VoxelGrid(Geometry):
         meshed: Trimesh object representing the current voxel
                         object, as returned by marching cubes algorithm.
         """
-        meshed = ops.matrix_to_marching_cubes(matrix=self.encoding.dense)
+        meshed = ops.matrix_to_marching_cubes(matrix=self.matrix)
         return meshed
+
+    @property
+    def matrix(self):
+        """
+        Return a DENSE matrix of the current voxel encoding
+
+        Returns
+        -------------
+        dense : (a, b, c) bool
+          Numpy array of dense matrix
+          Shortcut to voxel.encoding.dense
+        """
+        return self.encoding.dense
 
     @caching.cache_decorator
     def volume(self):
