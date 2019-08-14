@@ -6,7 +6,10 @@ from ..constants import log
 
 from distutils.spawn import find_executable
 
+# start the search with the user's PATH
 _search_path = os.environ['PATH']
+
+# add additional search locations on windows
 if platform.system() == 'Windows':
     # split existing path by delimiter
     _search_path = [i for i in _search_path.split(';') if len(i) > 0]
@@ -14,16 +17,16 @@ if platform.system() == 'Windows':
     _search_path.append(os.path.normpath(r'C:\Program Files (x86)\OpenSCAD'))
     _search_path = ';'.join(_search_path)
     log.debug('searching for scad in: %s', _search_path)
-
+# add mac-specific search locations
 if platform.system() == 'Darwin':
     _search_path = [i for i in _search_path.split(':') if len(i) > 0]
     _search_path.append('/Applications/OpenSCAD.app/Contents/MacOS')
     _search_path = ':'.join(_search_path)
     log.debug('searching for scad in: %s', _search_path)
-    log.warning('searching for scad in: %s', _search_path)
 
+# try to find the SCAD executable by name
 _scad_executable = find_executable('openscad', path=_search_path)
-if not _scad_executable:
+if _scad_executable is None:
     _scad_executable = find_executable('OpenSCAD', path=_search_path)
 exists = _scad_executable is not None
 

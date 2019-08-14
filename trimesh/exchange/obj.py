@@ -212,13 +212,14 @@ def load_obj(file_obj,
             if mask_vn is not None:
                 mesh['vertex_normals'] = vn[mask_vn]
 
-        if materials is not None and material in materials:
+        visual = None
+        if material in materials:
             visual = TextureVisuals(
                 uv=uv, material=materials[material])
-        else:
+        elif material is not None:
+            # material will be None by default
             log.warning('specified material ({})  not loaded!'.format(
                 material))
-            visual = None
         mesh['visual'] = visual
 
         # store geometry by name
@@ -637,11 +638,17 @@ def _preprocess_faces(text, split_object=False):
         # if empty continue
         if len(m_chunk) == 0:
             continue
+
         # find the first newline in the chunk
         # everything before it will be the usemtl direction
-        newline = m_chunk.find('\n')
-        # remove internal double spaces because why wouldn't that be OK
-        current_material = ' '.join(m_chunk[:newline].strip().split())
+        new_line = m_chunk.find('\n')
+        # if the file contained no materials it will start with a newline
+        if new_line == 0:
+            current_material = None
+        else:
+            # remove internal double spaces because why wouldn't that be OK
+            current_material = ' '.join(m_chunk[:new_line].strip().split())
+
         # material chunk contains multiple objects
         if split_object:
             o_split = m_chunk.split('\no ')
