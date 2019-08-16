@@ -48,7 +48,7 @@ requirements_all = requirements_easy.union([
     'scikit-image'])  # marching cubes and other nice stuff
 
 # requirements for running unit tests
-requirements_easy = set(['pytest',       # run all unit tests
+requirements_test = set(['pytest',       # run all unit tests
                          'pytest-cov',   # coverage plugin
                          'pyinstrument',  # profile code
                          'coveralls'])   # report coverage stats
