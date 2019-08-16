@@ -315,15 +315,10 @@ def material_to_texture(material, upsize=True):
     if img is None:
         return None
 
-    # what is the current resolution of the image in pixels
-    size = np.array(img.size, dtype=np.int64)
-    # what is the resolution of the image upsized to the nearest
-    # power of two on each axis: allow rectangular textures
-    newsize = (2 ** np.ceil(np.log2(size))).astype(np.int64)
-
     # if we're not powers of two upsize
-    if upsize and (size != newsize).any():
-        img = img.resize(newsize, resample=1)
+    if upsize:
+        from .visual.texture import power_resize
+        img = power_resize(img)
 
     # use a PNG export to exchange into pyglet
     # probably a way to do this with a PIL converter

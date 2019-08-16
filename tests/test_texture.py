@@ -98,6 +98,37 @@ class TextureTest(g.unittest.TestCase):
         assert len(b.vertices) == 502
         assert len(b.visual.uv) == 502
 
+    def test_upsize(self):
+        """
+        Texture images usually want to have sizes that are powers
+        of two so resize textures up to the nearest power of two.
+        """
+        try:
+            from PIL import Image
+        except BaseException:
+            g.log.warning('no PIL, not testing power_resize!')
+            return
+
+        # shortcut for the function
+        resize = g.trimesh.visual.texture.power_resize
+
+        img = Image.new('RGB', (10, 20))
+        assert img.size == (10, 20)
+        assert resize(img).size == (16, 32)
+        assert resize(img, square=True).size == (32, 32)
+
+        # check with one value on-size
+        img = Image.new('RGB', (10, 32))
+        assert img.size == (10, 32)
+        assert resize(img).size == (16, 32)
+        assert resize(img, square=True).size == (32, 32)
+
+        # check early exit pathOA
+        img = Image.new('RGB', (32, 32))
+        assert img.size == (32, 32)
+        assert resize(img).size == (32, 32)
+        assert resize(img, square=True).size == (32, 32)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

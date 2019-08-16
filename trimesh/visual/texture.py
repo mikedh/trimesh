@@ -234,3 +234,38 @@ def unmerge_faces(faces, *args):
     result.extend(pairs.T)
 
     return result
+
+
+def power_resize(image, resample=1, square=False):
+    """
+    Resize a PIL image so every dimension is a power of two.
+
+    Parameters
+    ------------
+    image : PIL.Image
+      Input image
+    resample : int
+      Passed to Image.resize
+    square : bool
+      If True, upsize to a square image
+
+    Returns
+    -------------
+    resized : PIL.Image
+      Input image resized
+    """
+    # what is the current resolution of the image in pixels
+    size = np.array(image.size, dtype=np.int64)
+    # what is the resolution of the image upsized to the nearest
+    # power of two on each axis: allow rectangular textures
+    new_size = (2 ** np.ceil(np.log2(size))).astype(np.int64)
+
+    # make every dimension the largest
+    if square:
+        new_size = np.ones(2, dtype=np.int64) * new_size.max()
+
+    # if we're not powers of two upsize
+    if (size != new_size).any():
+        return image.resize(new_size, resample=resample)
+
+    return image.copy()

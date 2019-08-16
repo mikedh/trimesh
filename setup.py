@@ -47,6 +47,12 @@ requirements_all = requirements_easy.union([
     'jsonschema',    # validate JSON schemas like GLTF
     'scikit-image'])  # marching cubes and other nice stuff
 
+# requirements for running unit tests
+requirements_easy = set(['pytest',       # run all unit tests
+                         'pytest-cov',   # coverage plugin
+                         'pyinstrument',  # profile code
+                         'coveralls'])   # report coverage stats
+
 # call the magical setuptools setup
 setup(name='trimesh',
       version=__version__,
@@ -86,10 +92,7 @@ setup(name='trimesh',
                                 'resources/*.json',
                                 'resources/*.zip']},
       install_requires=['numpy'],
-      extras_require={'test': ['pytest',
-                               'pytest-cov',
-                               'pyinstrument',
-                               'coveralls'],
+      extras_require={'test': list(requirements_test),
                       'easy': list(requirements_easy),
                       'all': list(requirements_all)}
       )
