@@ -678,12 +678,12 @@ def blocks(data,
            digits=None,
            only_nonzero=False):
     """
-    Given an array, find the indices of contiguous blocks
+    Find the indices in an array of contiguous blocks
     of equal values.
 
     Parameters
-    ---------
-    data :  (n,) array
+    ------------
+    data : (n,) array
       Data to find blocks on
     min_len : int
       The minimum length group to be returned
@@ -703,12 +703,13 @@ def blocks(data,
     """
     data = float_to_int(data, digits=digits)
 
-    # find the inflection points, or locations where the array turns
-    # from True to False.
+    # find the inflection points
+    # AKA locations where the array goes from True to False.
     infl = np.concatenate(([0],
                            np.nonzero(np.diff(data))[0] + 1,
                            [len(data)]))
     infl_len = np.diff(infl)
+    # check the length of each group
     infl_ok = np.logical_and(infl_len >= min_len,
                              infl_len <= max_len)
 
