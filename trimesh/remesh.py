@@ -13,7 +13,8 @@ from . import grouping
 
 def subdivide(vertices,
               faces,
-              face_index=None):
+              face_index=None,
+              attributes=None):
     """
     Subdivide a mesh into smaller triangles.
 
@@ -81,7 +82,20 @@ def subdivide(vertices,
 
     new_vertices = np.vstack((vertices, mid))
 
-    return new_vertices, new_faces
+    if attributes is not None:
+        new_attributes = {}
+        for name, attribute in attributes.items():
+            attr_tris = attribute[faces]
+            attr_mid = np.vstack([attr_tris[:, g, :].mean(axis=1)
+                                  for g in [[0, 1],
+                                            [1, 2],
+                                            [2, 0]]])
+            attr_mid = attr_mid[unique]
+            new_attributes[name] = np.vstack((attribute, attr_mid))
+
+        return new_vertices, new_faces, new_attributes
+    else:
+        return new_vertices, new_faces
 
 
 def subdivide_to_size(vertices,
