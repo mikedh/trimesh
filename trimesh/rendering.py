@@ -156,8 +156,8 @@ def mesh_to_vertexlist(mesh,
 
 def path_to_vertexlist(path, group=None, colors=None, **kwargs):
     """
-    Convert a Path3D object to arguments for an
-    indexed vertex list constructor.
+    Convert a Path3D object to arguments for a
+    pyglet indexed vertex list constructor.
 
     Parameters
     -------------
@@ -277,8 +277,9 @@ def colors_to_gl(colors, count):
         # we know we're tiling
         colors_type = 'c{}{}/static'.format(colors.size, dtype)
     else:
-        # case where colors are wrong shape, use a default color
-        gl_colors = np.tile([.5, .10, .20],
+        # case where colors are wrong shape
+        # use black as the default color
+        gl_colors = np.tile([0.0, 0.0, 0.0],
                             (count, 1)).reshape(-1).tolist()
         # we're returning RGB float colors
         colors_type = 'c3f/static'

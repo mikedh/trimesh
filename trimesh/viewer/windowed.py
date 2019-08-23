@@ -14,10 +14,13 @@ import numpy as np
 import pyglet
 import pyglet.gl as gl
 
-from ..visual import to_rgba
-from ..util import log
-from .. import rendering
 from .trackball import Trackball
+
+from .. import util
+from .. import rendering
+
+from ..visual import to_rgba
+from ..transformations import translation_matrix
 
 pyglet.options['shadow_window'] = False
 
@@ -39,6 +42,8 @@ class SceneViewer(pyglet.window.Window):
                  callback_period=None,
                  caption=None,
                  fixed=None,
+                 offset_lines=True,
+                 background=None,
                  **kwargs):
         """
         Create a window that will display a trimesh.Scene object
@@ -67,17 +72,29 @@ class SceneViewer(pyglet.window.Window):
         fixed : None or iterable
           List of keys in scene.geometry to skip view
           transform on to keep fixed relative to camera
+        offset_lines : bool
+          If True, will offset lines slightly so if drawn
+          coplanar with mesh geometry they will be visible
+        background : None or (4,) uint8
+          Color for background
         kwargs : dict
           Additional arguments to pass, including
           'background' for to set background color
         """
         self.scene = self._scene = scene
+
         self.callback = callback
         self.callback_period = callback_period
         self.scene._redraw = self._redraw
-
+        self.offset_lines = bool(offset_lines)
+        self.background = background
         # save initial camera transform
         self._initial_camera_transform = scene.camera_transform.copy()
+
+        # a transform to offset lines slightly to avoid Z-fighting
+        if self.offset_lines:
+            self._line_offset = translation_matrix(
+                [0, 0, scene.scale / 1000])
 
         self.reset_view(flags=flags)
         self.batch = pyglet.graphics.Batch()
@@ -242,18 +259,15 @@ class SceneViewer(pyglet.window.Window):
         OpenGL scene using pyglet.
         """
 
-        # default background color is white-ish
-        background = [.99, .99, .99, 1.0]
         # if user passed a background color use it
-        if 'background' in self.kwargs:
-            try:
-                # convert to (4,) uint8 RGBA
-                background = to_rgba(self.kwargs['background'])
-                # convert to 0.0 - 1.0 float
-                background = background.astype(np.float64) / 255.0
-            except BaseException:
-                log.error('background color set but wrong!',
-                          exc_info=True)
+        if self.background is None:
+            # default background color is white
+            background = np.ones(4)
+        else:
+            # convert to (4,) uint8 RGBA
+            background = to_rgba(self.background)
+            # convert to 0.0-1.0 float
+            background = background.astype(np.float64) / 255.0
 
         self._gl_set_background(background)
         # use camera setting for depth
@@ -325,7 +339,7 @@ class SceneViewer(pyglet.window.Window):
         gl.glEnable(gl.GL_LINE_SMOOTH)
         gl.glHint(gl.GL_LINE_SMOOTH_HINT, gl.GL_NICEST)
         # set the width of lines to 1.5 pixels
-        gl.glLineWidth(1.5)
+        gl.glLineWidth(4)
         # set PointCloud markers to 4 pixels in size
         gl.glPointSize(4)
 
@@ -592,6 +606,19 @@ class SceneViewer(pyglet.window.Window):
             if mesh.is_empty:
                 continue
 
+            # get the GL mode of the current geometry
+            mode = self.vertex_list_mode[geometry_name]
+
+            # if you draw a coplanar line with a triangle it will z-fight
+            # the best way to do this is probably a shader but this works fine
+            if mode == gl.GL_LINES:
+                # apply the offset in camera space
+                transform = util.multi_dot([
+                    transform,
+                    np.linalg.inv(transform_camera),
+                    self._line_offset,
+                    transform_camera])
+
             # add a new matrix to the model stack
             gl.glPushMatrix()
             # transform by the nodes transform
@@ -621,8 +648,6 @@ class SceneViewer(pyglet.window.Window):
                 gl.glEnable(texture.target)
                 gl.glBindTexture(texture.target, texture.id)
 
-            # get the mode of the current geometry
-            mode = self.vertex_list_mode[geometry_name]
             # draw the mesh with its transform applied
             self.vertex_list[geometry_name].draw(mode=mode)
             # pop the matrix stack as we drew what we needed to draw
@@ -706,21 +731,21 @@ def render_scene(scene,
     if visible is None:
         visible = platform.system() != 'Linux'
 
+    from ..util import BytesIO
+
     # need to run loop twice to display anything
-    for i in range(2):
+    for save in [False, False, True]:
         pyglet.clock.tick()
         window.switch_to()
         window.dispatch_events()
         window.dispatch_event('on_draw')
         window.flip()
-
-    from ..util import BytesIO
-
-    # save the color buffer data to memory
-    file_obj = BytesIO()
-    window.save_image(file_obj)
-    file_obj.seek(0)
-    render = file_obj.read()
+        if save:
+            # save the color buffer data to memory
+            file_obj = BytesIO()
+            window.save_image(file_obj)
+            file_obj.seek(0)
+            render = file_obj.read()
     window.close()
 
     return render
