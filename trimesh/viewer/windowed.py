@@ -44,7 +44,8 @@ class SceneViewer(pyglet.window.Window):
                  fixed=None,
                  offset_lines=True,
                  background=None,
-                 **kwargs):
+                 window_conf=None,
+                 ** kwargs):
         """
         Create a window that will display a trimesh.Scene object
         in an OpenGL context via pyglet.
@@ -77,6 +78,8 @@ class SceneViewer(pyglet.window.Window):
           coplanar with mesh geometry they will be visible
         background : None or (4,) uint8
           Color for background
+        window_conf : None, or gl.Config
+          Passed to window init
         kwargs : dict
           Additional arguments to pass, including
           'background' for to set background color
@@ -122,22 +125,32 @@ class SceneViewer(pyglet.window.Window):
         else:
             scene.camera.resolution = resolution
 
-        try:
-            # try enabling antialiasing
-            # if you have a graphics card this will probably work
-            conf = gl.Config(sample_buffers=1,
-                             samples=4,
-                             depth_size=24,
-                             double_buffer=True)
-            super(SceneViewer, self).__init__(config=conf,
-                                              visible=visible,
-                                              resizable=True,
-                                              width=resolution[0],
-                                              height=resolution[1],
-                                              caption=caption)
-        except pyglet.window.NoSuchConfigException:
-            conf = gl.Config(double_buffer=True)
-            super(SceneViewer, self).__init__(config=conf,
+        # no window conf was passed so try to get the best looking one
+        if window_conf is None:
+            try:
+                # try enabling antialiasing
+                # if you have a graphics card this will probably work
+                conf = gl.Config(sample_buffers=1,
+                                 samples=4,
+                                 depth_size=24,
+                                 double_buffer=True)
+                super(SceneViewer, self).__init__(config=conf,
+                                                  visible=visible,
+                                                  resizable=True,
+                                                  width=resolution[0],
+                                                  height=resolution[1],
+                                                  caption=caption)
+            except pyglet.window.NoSuchConfigException:
+                conf = gl.Config(double_buffer=True)
+                super(SceneViewer, self).__init__(config=conf,
+                                                  resizable=True,
+                                                  visible=visible,
+                                                  width=resolution[0],
+                                                  height=resolution[1],
+                                                  caption=caption)
+        else:
+            # window config was manually passed
+            super(SceneViewer, self).__init__(config=window_conf,
                                               resizable=True,
                                               visible=visible,
                                               width=resolution[0],
@@ -338,7 +351,7 @@ class SceneViewer(pyglet.window.Window):
         # make the lines from Path3D objects less ugly
         gl.glEnable(gl.GL_LINE_SMOOTH)
         gl.glHint(gl.GL_LINE_SMOOTH_HINT, gl.GL_NICEST)
-        # set the width of lines to 1.5 pixels
+        # set the width of lines to 4 pixels
         gl.glLineWidth(4)
         # set PointCloud markers to 4 pixels in size
         gl.glPointSize(4)
@@ -463,12 +476,14 @@ class SceneViewer(pyglet.window.Window):
         gl.glMatrixMode(gl.GL_PROJECTION)
         gl.glLoadIdentity()
 
-        # get field of view from camera
-        fovY = self.scene.camera.fov[1]
-        gl.gluPerspective(fovY,
+        # get field of view and Z range from camera
+        camera = self.scene.camera
+
+        # set perspective from camera data
+        gl.gluPerspective(camera.fov[1],
                           width / float(height),
-                          .01,
-                          1000.)
+                          camera.z_near,
+                          camera.z_far)
         gl.glMatrixMode(gl.GL_MODELVIEW)
 
         return width, height
@@ -539,11 +554,10 @@ class SceneViewer(pyglet.window.Window):
             self.toggle_fullscreen()
 
         if symbol in [
-            pyglet.window.key.LEFT,
-            pyglet.window.key.RIGHT,
-            pyglet.window.key.DOWN,
-            pyglet.window.key.UP,
-        ]:
+                pyglet.window.key.LEFT,
+                pyglet.window.key.RIGHT,
+                pyglet.window.key.DOWN,
+                pyglet.window.key.UP]:
             self.view['ball'].down([0, 0])
             if symbol == pyglet.window.key.LEFT:
                 self.view['ball'].drag([-magnitude, 0])
@@ -702,7 +716,7 @@ def geometry_hash(geometry):
 
 
 def render_scene(scene,
-                 resolution=(1080, 1080),
+                 resolution=None,
                  visible=True,
                  **kwargs):
     """
@@ -712,8 +726,8 @@ def render_scene(scene,
     ------------
     scene : trimesh.Scene
       Geometry to be rendered
-    resolution : (2,) int
-      Resolution in pixels
+    resolution : (2,) int or None
+      Resolution in pixels, or set from scene.camera
     kwargs : **
       Passed to SceneViewer
 

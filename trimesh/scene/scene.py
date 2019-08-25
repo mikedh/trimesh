@@ -693,7 +693,7 @@ class Scene(Geometry):
             # no writeable file object so return data
             return data
 
-    def save_image(self, resolution=(1024, 768), **kwargs):
+    def save_image(self, resolution=None, **kwargs):
         """
         Get a PNG image of a scene.
 

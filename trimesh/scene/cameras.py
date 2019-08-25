@@ -13,7 +13,7 @@ class Camera(object):
             resolution=None,
             focal=None,
             fov=None,
-            z_near=0.001,
+            z_near=0.01,
             z_far=1000.0):
         """
         Create a new Camera object that stores camera intrinsic
@@ -257,6 +257,37 @@ class Camera(object):
         """
         return np.arctan(-ray_pixel_coords(self))
 
+    def look_at(self, points, rotation=None, distance=None, center=None):
+        """
+        Generate transform for a camera to keep a list
+        of points in the camera's field of view.
+
+        Parameters
+        -------------
+        points : (n, 3) float
+          Points in space
+        rotation : None, or (4, 4) float
+          Rotation matrix for initial rotation
+        distance : None or float
+          Distance from camera to center
+        center : None, or (3,) float
+          Center of field of view.
+
+        Returns
+        --------------
+        transform : (4, 4) float
+          Transformation matrix from world to camera
+        """
+        return look_at(points,
+                       fov=self.fov,
+                       rotation=rotation,
+                       distance=distance,
+                       center=center)
+
+    def __repr__(self):
+        return '<trimesh.scene.Camera> FOV: {} Resolution: {}'.format(
+            self.fov, self.resolution)
+
 
 def look_at(points, fov, rotation=None, distance=None, center=None):
     """
@@ -271,13 +302,15 @@ def look_at(points, fov, rotation=None, distance=None, center=None):
       Field of view, in DEGREES
     rotation : None, or (4, 4) float
       Rotation matrix for initial rotation
+    distance : None or float
+      Distance from camera to center
     center : None, or (3,) float
       Center of field of view.
 
     Returns
     --------------
     transform : (4, 4) float
-      Transformation matrix with points in view
+      Transformation matrix from world to camera
     """
 
     if rotation is None:
