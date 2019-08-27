@@ -79,8 +79,8 @@ def align_vectors(a, b, return_angle=False):
         angle = np.pi
 
         # https://github.com/mikedh/trimesh/issues/540
-        svd_a, *_ = np.linalg.svd(a[:, np.newaxis])
-        svd_b, *_ = np.linalg.svd(b[:, np.newaxis])
+        svd_a = np.linalg.svd(a[:, np.newaxis])[0]
+        svd_b = np.linalg.svd(b[:, np.newaxis])[0]
         rotation = svd_b.dot(svd_a.T)
 
     # are vectors already the same
