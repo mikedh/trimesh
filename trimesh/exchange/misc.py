@@ -5,67 +5,6 @@ import json
 from .. import util
 
 
-def load_off(file_obj, **kwargs):
-    """
-    Load an OFF file into the kwargs for a Trimesh constructor
-
-
-    Parameters
-    ----------
-    file_obj : file object
-      Contains an OFF file
-
-    Returns
-    ----------
-    loaded : dict
-      kwargs for Trimesh constructor
-    """
-    text = file_obj.read()
-    if hasattr(text, 'decode'):
-        text = text.decode('utf-8')
-
-    text = text.lstrip()
-    # split the first key
-    header, raw = text.split(None, 1)
-
-    if header.upper() not in ['OFF', 'COFF']:
-        raise NameError(
-            'Not an OFF file! Header was: `{}`'.format(header))
-
-    # split into lines and remove whitespace
-    splits = [i.strip() for i in str.splitlines(raw)]
-    # remove empty lines and comments
-    splits = [i for i in splits if len(i) > 0 and i[0] != '#']
-
-    # the first non-comment line should be the counts
-    header = np.array(splits[0].split(), dtype=np.int64)
-    vertex_count, face_count = header[:2]
-
-    vertices = np.array([
-        i.split()[:3] for i in
-        splits[1: vertex_count + 1]],
-        dtype=np.float64)
-
-    # will fail if incorrect number of vertices loaded
-    vertices = vertices.reshape((vertex_count, 3))
-
-    # get lines with face data
-    faces = [i.split() for i in
-             splits[vertex_count + 1:vertex_count + face_count + 1]]
-    # the first value is count
-    faces = [line[1:int(line[0]) + 1] for line in faces]
-
-    # convert faces to numpy array
-    # will fail on mixed garbage as FSM intended -_-
-    faces = np.array(faces, dtype=np.int64)
-
-    # save data as kwargs for a trimesh.Trimesh
-    kwargs = {'vertices': vertices,
-              'faces': faces}
-
-    return kwargs
-
-
 def load_msgpack(blob, **kwargs):
     """
     Load a dict packed with msgpack into kwargs for
@@ -159,8 +98,7 @@ def load_dict(data, **kwargs):
                          data.__class__.__name__)
 
 
-_misc_loaders = {'off': load_off,
-                 'dict': load_dict,
+_misc_loaders = {'dict': load_dict,
                  'dict64': load_dict,
                  'json': load_dict,
                  'msgpack': load_msgpack}

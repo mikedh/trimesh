@@ -13,6 +13,7 @@ from .ply import _ply_loaders
 from .stl import _stl_loaders
 from .dae import _collada_loaders
 from .obj import _obj_loaders
+from .off import _off_loaders
 from .misc import _misc_loaders
 from .gltf import _gltf_loaders
 from .assimp import _assimp_loaders
@@ -583,6 +584,7 @@ mesh_loaders.update(_misc_loaders)
 mesh_loaders.update(_ply_loaders)
 mesh_loaders.update(_xml_loaders)
 mesh_loaders.update(_obj_loaders)
+mesh_loaders.update(_off_loaders)
 mesh_loaders.update(_collada_loaders)
 mesh_loaders.update(_gltf_loaders)
 mesh_loaders.update(_three_loaders)

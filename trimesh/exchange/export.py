@@ -7,6 +7,7 @@ from .. import util
 from .urdf import export_urdf  # NOQA
 from .gltf import export_glb
 from .obj import _obj_exporters
+from .off import _off_exporters
 from .stl import export_stl, export_stl_ascii
 from .ply import _ply_exporters
 from .dae import _collada_exporters
@@ -63,37 +64,6 @@ def export_mesh(mesh, file_obj, file_type=None, **kwargs):
         file_obj.close()
 
     return result
-
-
-def export_off(mesh, digits=10):
-    """
-    Export a mesh as an OFF file, a simple text format
-
-    Parameters
-    -----------
-    mesh : trimesh.Trimesh
-      Geometry to export
-    digits : int
-      Number of digits to include on floats
-
-    Returns
-    -----------
-    export : str
-      OFF format output
-    """
-    # make sure specified digits is an int
-    digits = int(digits)
-    # prepend a 3 (face count) to each face
-    faces_stacked = np.column_stack((np.ones(len(mesh.faces)) * 3,
-                                     mesh.faces)).astype(np.int64)
-    export = 'OFF\n'
-    # the header is vertex count, face count, another number
-    export += str(len(mesh.vertices)) + ' ' + str(len(mesh.faces)) + ' 0\n'
-    export += util.array_to_string(
-        mesh.vertices, col_delim=' ', row_delim='\n', digits=digits) + '\n'
-    export += util.array_to_string(
-        faces_stacked, col_delim=' ', row_delim='\n')
-    return export
 
 
 def export_dict64(mesh):
@@ -211,7 +181,6 @@ _mesh_exporters = {
     'stl': export_stl,
     'dict': export_dict,
     'json': export_json,
-    'off': export_off,
     'glb': export_glb,
     'dict64': export_dict64,
     'msgpack': export_msgpack,
