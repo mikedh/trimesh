@@ -28,6 +28,7 @@ class SimpleMaterial(Material):
                  diffuse=None,
                  ambient=None,
                  specular=None,
+                 glossiness=None,
                  **kwargs):
 
         # save image
@@ -37,6 +38,9 @@ class SimpleMaterial(Material):
         self.ambient = color.to_rgba(ambient)
         self.diffuse = color.to_rgba(diffuse)
         self.specular = color.to_rgba(specular)
+
+        # save Ns
+        self.glossiness = glossiness
 
         # save other keyword arguments
         self.kwargs = kwargs
@@ -51,11 +55,32 @@ class SimpleMaterial(Material):
         """
         return self.diffuse
 
+    @property
+    def glossiness(self):
+        if hasattr(self, '_glossiness'):
+            return self._glossiness
+        return 1.0
+
+    @glossiness.setter
+    def glossiness(self, value):
+        if value is None:
+            return
+        self._glossiness = float(value)
+
     def to_pbr(self):
         """
-        Convert the current simple material to a PBR material
+        Convert the current simple material to a PBR material.
+
+        Returns
+        ------------
+        pbr : PBRMaterial
+          Contains material information in PBR format.
         """
-        return PBRMaterial(baseColorTexture=self.image,
+        # convert specular exponent to roughness
+        roughness = (2 / (self.glossiness + 2)) ** (1.0 / 4.0)
+
+        return PBRMaterial(roughnessFactor=roughness,
+                           baseColorTexture=self.image,
                            baseColorFactor=self.diffuse)
 
 

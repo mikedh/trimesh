@@ -74,18 +74,17 @@ def align_vectors(a, b, return_angle=False):
     dot = np.dot(a, b)
 
     # are vectors just reversed
-    if dot < (tol.zero - 1):
+    if dot < (tol.merge - 1):
         # a reversed vector is 180 degrees
         angle = np.pi
 
-        # get an arbitrary perpendicular vector to a
-        perp = util.generate_basis(a)[0] * np.eye(3)
-
-        # (3, 3) rotation from a to b
-        rotation = (2 * np.dot(perp, perp.T)) - np.eye(3)
+        # https://github.com/mikedh/trimesh/issues/540
+        svd_a, *_ = np.linalg.svd(a[:, np.newaxis])
+        svd_b, *_ = np.linalg.svd(b[:, np.newaxis])
+        rotation = svd_b.dot(svd_a.T)
 
     # are vectors already the same
-    elif dot > (1 - tol.zero):
+    elif dot > (1 - tol.merge):
         angle = 0.0
         # no rotation
         rotation = np.eye(3)

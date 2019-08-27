@@ -20,35 +20,49 @@ def load_off(file_obj, **kwargs):
     loaded : dict
       kwargs for Trimesh constructor
     """
-    header_string = file_obj.readline()
-    if hasattr(header_string, 'decode'):
-        header_string = header_string.decode('utf-8')
-    header_string = header_string.strip().upper()
+    text = file_obj.read()
+    if hasattr(text, 'decode'):
+        text = text.decode('utf-8')
 
-    if not header_string == 'OFF':
-        raise NameError('Not an OFF file! Header was ' +
-                        header_string)
+    text = text.lstrip()
+    # split the first key
+    header, raw = text.split(None, 1)
 
-    header = np.array(
-        file_obj.readline().strip().split()).astype(np.int64)
+    if header.upper() not in ['OFF', 'COFF']:
+        raise NameError(
+            'Not an OFF file! Header was: `{}`'.format(header))
+
+    # split into lines and remove whitespace
+    splits = [i.strip() for i in str.splitlines(raw)]
+    # remove empty lines and comments
+    splits = [i for i in splits if len(i) > 0 and i[0] != '#']
+
+    # the first non-comment line should be the counts
+    header = np.array(splits[0].split(), dtype=np.int64)
     vertex_count, face_count = header[:2]
 
-    # read the rest of the file
-    blob = np.array(file_obj.read().strip().split())
-    # there should be 3 points per vertex
-    # and 3 indexes + 1 count per face
-    data_ok = np.sum(header * [3, 4, 0]) == len(blob)
-    if not data_ok:
-        raise NameError('Incorrect number of vertices or faces!')
+    vertices = np.array([
+        i.split()[:3] for i in
+        splits[1: vertex_count + 1]],
+        dtype=np.float64)
 
-    vertices = blob[:(vertex_count * 3)].astype(
-        np.float64).reshape((-1, 3))
-    # strip the first column which is a per- face count
-    faces = blob[(vertex_count * 3):].astype(
-        np.int64).reshape((-1, 4))[:, 1:]
+    # will fail if incorrect number of vertices loaded
+    vertices = vertices.reshape((vertex_count, 3))
 
+    # get lines with face data
+    faces = [i.split() for i in
+             splits[vertex_count + 1:vertex_count + face_count + 1]]
+    # the first value is count
+    faces = [line[1:int(line[0]) + 1] for line in faces]
+
+    # convert faces to numpy array
+    # will fail on mixed garbage as FSM intended -_-
+    faces = np.array(faces, dtype=np.int64)
+
+    # save data as kwargs for a trimesh.Trimesh
     kwargs = {'vertices': vertices,
               'faces': faces}
+
     return kwargs
 
 

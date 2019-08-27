@@ -55,14 +55,18 @@ class AlignTests(g.unittest.TestCase):
 
         # function we're testing
         align = g.trimesh.geometry.align_vectors
+        is_rigid = g.trimesh.transformations.is_rigid
 
         # start with some edge cases and make sure the transform works
-        target = g.np.array([0, 0, 1], dtype=g.np.float64)
+        target = g.np.array([0, 0, -1], dtype=g.np.float64)
         vectors = g.np.vstack((g.trimesh.unitize(g.np.random.random((1000, 3)) - .5),
                                [-target, target],
-                               g.trimesh.util.generate_basis(target)))
+                               g.trimesh.util.generate_basis(target),
+                               [[7.12106798e-07, -7.43194705e-08, 1.00000000e+00],
+                                [0, 0, -1]]))
         for vector in vectors:
             T, a = align(vector, target, return_angle=True)
+            assert is_rigid(T)
             # rotate vector with transform
             check = g.np.dot(T[:3, :3], vector)
             # compare to target vector
@@ -89,7 +93,7 @@ class AlignTests(g.unittest.TestCase):
             # check alignment to first vector
             # which was created with zero angle
             T, a = align(vector, vectors[0], return_angle=True)
-
+            assert is_rigid(T)
             # check to make sure returned angle corresponds with truth
             assert g.np.isclose(a, angle)
 

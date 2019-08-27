@@ -266,6 +266,12 @@ def parse_mtl(mtl, resolver=None):
     # use universal newline splitting
     lines = str.splitlines(str(mtl).strip())
 
+    # remap OBJ property names to kwargs for SimpleMaterial
+    mapped = {'Kd': 'diffuse',
+              'Ka': 'ambient',
+              'Ks': 'specular',
+              'Ns': 'glossiness'}
+
     for line in lines:
         # split by white space
         split = line.strip().split()
@@ -295,17 +301,20 @@ def parse_mtl(mtl, resolver=None):
             except BaseException:
                 log.warning('failed to load image', exc_info=True)
 
-        elif key in ['Kd', 'Ka', 'Ks']:
-            # remap to kwargs for SimpleMaterial
-            mapped = {'Kd': 'diffuse',
-                      'Ka': 'ambient',
-                      'Ks': 'specular'}
+        elif key in mapped.keys():
             try:
                 # diffuse, ambient, and specular float RGB
-                material[mapped[key]] = [float(x) for x in split[1:]]
+                value = [float(x) for x in split[1:]]
+                # if there is only one value return that
+                if len(value) == 1:
+                    value = value[0]
+                # store the key by mapped value
+                material[mapped[key]] = value
+                # also store key by OBJ name
+                material[key] = value
             except BaseException:
                 log.warning('failed to convert color!', exc_info=True)
-
+        # pass everything as kwargs to material constructor
         elif material is not None:
             # save any other unspecified keys
             material[key] = split[1:]
