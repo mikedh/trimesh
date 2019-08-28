@@ -1,7 +1,5 @@
 import numpy as np
 
-import json
-
 from .. import util
 
 

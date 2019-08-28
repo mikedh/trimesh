@@ -189,4 +189,5 @@ _mesh_exporters = {
 
 _mesh_exporters.update(_ply_exporters)
 _mesh_exporters.update(_obj_exporters)
+_mesh_exporters.update(_off_exporters)
 _mesh_exporters.update(_collada_exporters)
