@@ -57,7 +57,7 @@ def load_obj(file_obj,
     # Load Materials
     materials = {}
     mtl_position = text.find('mtllib')
-    if mtl_position >= 0:
+    if mtl_position >= 0 and not kwargs.get('ignore_mtl', False):
         # take the line of the material file after `mtllib`
         # which should be the file location of the .mtl file
         mtl_path = text[mtl_position + 6:text.find('\n', mtl_position)].strip()
