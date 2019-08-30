@@ -217,9 +217,10 @@ def load_obj(file_obj,
             visual = TextureVisuals(
                 uv=uv, material=materials[material])
         elif material is not None:
-            # material will be None by default
-            log.warning('specified material ({})  not loaded!'.format(
-                material))
+            if not kwargs.get('ignore_mtl', False):
+                # material will be None by default
+                log.warning('specified material ({})  not loaded!'.format(
+                    material))
             if kwargs.get('default_material', None) is not None:
                 visual = TextureVisuals(uv=uv, material=kwargs.get('default_material'))
         mesh['visual'] = visual
