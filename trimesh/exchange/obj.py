@@ -220,6 +220,8 @@ def load_obj(file_obj,
             # material will be None by default
             log.warning('specified material ({})  not loaded!'.format(
                 material))
+            if kwargs.get('default_material', None) is not None:
+                visual = TextureVisuals(uv=uv, material=kwargs.get('default_material'))
         mesh['visual'] = visual
 
         # store geometry by name
