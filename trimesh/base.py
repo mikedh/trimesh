@@ -2025,7 +2025,7 @@ class Trimesh(Geometry):
 
     def sample(self, count, return_index=False):
         """
-        Return random samples distributed normally across the
+        Return random samples distributed across the
         surface of the mesh
 
         Parameters
@@ -2043,7 +2043,7 @@ class Trimesh(Geometry):
         face_index : (count, ) int
           Index of self.faces
         """
-        samples, index = sample.sample_surface(self, count)
+        samples, index = sample.sample_surface(mesh=self, count=count)
         if return_index:
             return samples, index
         return samples

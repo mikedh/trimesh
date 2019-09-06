@@ -1291,24 +1291,25 @@ class Path2D(Path):
         """
         return simplify.simplify_basic(self, **kwargs)
 
-    def simplify_spline(self, path_indexes=None, smooth=.0002):
+    def simplify_spline(self, smooth=.0002, verbose=False):
         """
         Convert paths into b-splines.
 
         Parameters
         -----------
-        path_indexes : (n) int
-          List of indexes of self.paths to convert
         smooth : float
           How much the spline should smooth the curve
+        verbose : bool
+          Print detailed log messages
 
         Returns
         ------------
-        simplified: Path2D object
+        simplified : Path2D
+          Discrete curves replaced with splines
         """
         return simplify.simplify_spline(self,
-                                        path_indexes=path_indexes,
-                                        smooth=smooth)
+                                        smooth=smooth,
+                                        verbose=verbose)
 
     def split(self):
         """
