@@ -357,68 +357,72 @@ def elements_to_kwargs(elements, fix_texture, image):
             # incorrectly is a ValueError
             pass
 
-    # PLY stores texture coordinates per- face which is
-    # slightly annoying, as we have to then figure out
-    # which vertices have the same position but different UV
-    expected = (faces.shape[0], faces.shape[1] * 2)
-    if (image is not None and
-        texcoord is not None and
-            texcoord.shape == expected):
+    if faces is not None:
+        # PLY stores texture coordinates per- face which is
+        # slightly annoying, as we have to then figure out
+        # which vertices have the same position but different UV
+        expected = (faces.shape[0], faces.shape[1] * 2)
+        if (image is not None and
+            texcoord is not None and
+                texcoord.shape == expected):
 
-        # vertices with the same position but different
-        # UV coordinates can't be merged without it
-        # looking like it went through a woodchipper
-        # in- the- wild PLY comes with things merged that
-        # probably shouldn't be so disconnect vertices
-        if fix_texture:
-            # do import here
-            from ..visual.texture import unmerge_faces
+            # vertices with the same position but different
+            # UV coordinates can't be merged without it
+            # looking like it went through a woodchipper
+            # in- the- wild PLY comes with things merged that
+            # probably shouldn't be so disconnect vertices
+            if fix_texture:
+                # do import here
+                from ..visual.texture import unmerge_faces
 
-            # reshape to correspond with flattened faces
-            uv_all = texcoord.reshape((-1, 2))
-            # UV coordinates defined for every triangle have
-            # duplicates which can be merged so figure out
-            # which UV coordinates are the same here
-            unique, inverse = grouping.unique_rows(uv_all)
+                # reshape to correspond with flattened faces
+                uv_all = texcoord.reshape((-1, 2))
+                # UV coordinates defined for every triangle have
+                # duplicates which can be merged so figure out
+                # which UV coordinates are the same here
+                unique, inverse = grouping.unique_rows(uv_all)
 
-            # use the indices of faces and face textures
-            # to only merge vertices where the position
-            # AND uv coordinate are the same
-            faces, mask_v, mask_vt = unmerge_faces(
-                faces, inverse.reshape(faces.shape))
-            # apply the mask to get resulting vertices
-            vertices = vertices[mask_v]
-            # apply the mask to get UV coordinates
-            uv = uv_all[unique][mask_vt]
-        else:
-            # don't alter vertices, UV will look like crap
-            # if it was exported with vertices merged
-            uv = np.zeros((len(vertices), 2))
-            uv[faces.reshape(-1)] = texcoord.reshape((-1, 2))
+                # use the indices of faces and face textures
+                # to only merge vertices where the position
+                # AND uv coordinate are the same
+                faces, mask_v, mask_vt = unmerge_faces(
+                    faces, inverse.reshape(faces.shape))
+                # apply the mask to get resulting vertices
+                vertices = vertices[mask_v]
+                # apply the mask to get UV coordinates
+                uv = uv_all[unique][mask_vt]
+            else:
+                # don't alter vertices, UV will look like crap
+                # if it was exported with vertices merged
+                uv = np.zeros((len(vertices), 2))
+                uv[faces.reshape(-1)] = texcoord.reshape((-1, 2))
 
-        # create the visuals object for the texture
-        kwargs['visual'] = visual.texture.TextureVisuals(
-            uv=uv, image=image)
-
+            # create the visuals object for the texture
+            kwargs['visual'] = visual.texture.TextureVisuals(
+                uv=uv, image=image)
+        # faces were not none so assign them
+        kwargs['faces'] = faces
     # kwargs for Trimesh or PointCloud
-    kwargs.update({'faces': faces,
-                   'vertices': vertices})
+    kwargs['vertices'] = vertices
 
     # if both vertex and face color are defined pick the one
     # with the most going on
     colors = []
     signal = []
-    if kwargs['faces'] is not None:
+    if faces is not None:
         f_color, f_signal = element_colors(elements['face'])
         colors.append({'face_colors': f_color})
         signal.append(f_signal)
-    if kwargs['vertices'] is not None:
+
         v_color, v_signal = element_colors(elements['vertex'])
         colors.append({'vertex_colors': v_color})
         signal.append(v_signal)
 
-    # add the winning colors to the result
-    kwargs.update(colors[np.argmax(signal)])
+        # add the winning colors to the result
+        kwargs.update(colors[np.argmax(signal)])
+
+    else:
+        kwargs['colors'] = element_colors(elements['vertex'])
 
     return kwargs
 
@@ -537,10 +541,12 @@ def ply_binary(elements, file_obj):
         """
         p_start = file_obj.tell()
         p_current = file_obj.tell()
+        elem_pop = []
         for element_key, element in elements.items():
             props = element['properties']
             prior_data = ''
             for k, dtype in props.items():
+                prop_pop = []
                 if '$LIST' in dtype:
                     # every list field has two data types:
                     # the list length (single value), and the list data (multiple)
@@ -551,13 +557,33 @@ def ply_binary(elements, file_obj):
                     else:
                         offset = np.dtype(prior_data).itemsize
                     file_obj.seek(p_current + offset)
-                    size = np.frombuffer(file_obj.read(field_dtype.itemsize),
-                                         dtype=field_dtype)[0]
+                    blob = file_obj.read(field_dtype.itemsize)
+                    if len(blob) == 0:
+                        # no data was read for property
+                        prop_pop.append(k)
+                        break
+                    size = np.frombuffer(blob, dtype=field_dtype)[0]
                     props[k] = props[k].replace('$LIST', str(size))
                 prior_data += props[k] + ','
+            if len(prop_pop) > 0:
+                # if a property was empty remove it
+                for pop in prop_pop:
+                    props.pop(pop)
+                # if we've removed all properties from
+                # an element remove the element later
+                if len(props) == 0:
+                    elem_pop.append(element_key)
+                    continue
+            # get the size of the items in bytes
             itemsize = np.dtype(', '.join(props.values())).itemsize
+            # offset the file based on read size
             p_current += element['length'] * itemsize
+        # move the file back to where we found it
         file_obj.seek(p_start)
+        # if there were elements without properties remove them
+        for pop in elem_pop:
+            print('pop', pop)
+            elements.pop(pop)
 
     def populate_data(file_obj, elements):
         """

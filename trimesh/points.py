@@ -5,7 +5,6 @@ points.py
 Functions dealing with (n, d) points.
 """
 import copy
-import warnings
 
 import numpy as np
 
@@ -348,23 +347,31 @@ class PointCloud(Geometry):
     in a scene.
     """
 
-    def __init__(self, vertices, colors=None, color=None):
+    def __init__(self, vertices, colors=None, metadata=None, **kwargs):
+        """
+        Load an array of points into a PointCloud object.
+
+        Parameters
+        -------------
+        vertices : (n, 3) float
+          Points in space
+        colors : (n, 4) uint8 or None
+          RGBA colors for each point
+        metadata : dict or None
+          Metadata about points
+        """
         self._data = caching.DataStore()
         self._cache = caching.Cache(self._data.md5)
         self.metadata = {}
+
+        if metadata is not None:
+            self.metadata.update(metadata)
 
         # load vertices
         self.vertices = vertices
 
         if colors is not None:
             self.colors = colors
-        elif color is not None:
-            msg = (
-                "'PointCloud(color=__)' is deprecated and will be " +
-                "removed in versions released after 6/1/2019. " +
-                "Use 'PointCloud(colors=__)' instead")
-            warnings.warn(msg, DeprecationWarning)
-            self.colors = color
 
     def __setitem__(self, *args, **kwargs):
         return self.vertices.__setitem__(*args, **kwargs)

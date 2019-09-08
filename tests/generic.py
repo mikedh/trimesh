@@ -215,12 +215,14 @@ def get_meshes(count=np.inf,
         if extension in trimesh.available_formats():
             loaded = trimesh.util.make_sequence(get_mesh(file_name))
             for m in loaded:
-                is_mesh = trimesh.util.is_instance_named(m, 'Trimesh')
-                is_scene = trimesh.util.is_instance_named(m, 'Scene')
-                if raise_error and not is_mesh and not is_scene:
+                # is the loaded mesh a Geometry object or a subclass:
+                # Trimesh, PointCloud, Scene
+                type_ok = isinstance(m, trimesh.parent.Geometry)
+                if raise_error and not type_ok:
                     raise ValueError('%s returned a non- Trimesh object!',
                                      file_name)
-                if not is_mesh or (only_watertight and not m.is_watertight):
+                if not isinstance(m, trimesh.Trimesh) or (
+                        only_watertight and not m.is_watertight):
                     continue
                 meshes.append(m)
                 yield m

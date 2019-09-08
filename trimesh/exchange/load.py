@@ -397,27 +397,30 @@ def load_kwargs(*args, **kwargs):
             scene.metadata.update(kwargs['metadata'])
         return scene
 
-    def handle_trimesh_kwargs():
+    def handle_mesh():
         """
-        Load information with vertices and faces into a mesh
-        or PointCloud object.
+        Handle the keyword arguments for a Trimesh object
         """
+        # if they've been serialized as a dict
         if (isinstance(kwargs['vertices'], dict) or
                 isinstance(kwargs['faces'], dict)):
             return Trimesh(**misc.load_dict(kwargs))
-        elif kwargs['faces'] is None:
-            # vertices without faces returns a PointCloud
-            return PointCloud(**kwargs)
-        else:
-            return Trimesh(**kwargs)
+        # otherwise just load that puppy
+        return Trimesh(**kwargs)
 
-    def handle_trimesh_export():
+    def handle_export():
+        """
+        Handle an exported mesh.
+        """
         data, file_type = kwargs['data'], kwargs['file_type']
         if not isinstance(data, dict):
             data = util.wrap_as_stream(data)
         k = mesh_loaders[file_type](data,
                                     file_type=file_type)
         return Trimesh(**k)
+
+    def handle_pointcloud():
+        return PointCloud(**kwargs)
 
     # if we've been passed a single dict instead of kwargs
     # substitute the dict for kwargs
@@ -427,11 +430,15 @@ def load_kwargs(*args, **kwargs):
         kwargs = args[0]
 
     # (function, tuple of expected keys)
+    # order is important
     handlers = (
         (handle_scene, ('graph', 'geometry')),
-        (handle_trimesh_kwargs, ('vertices', 'faces')),
-        (handle_trimesh_export, ('file_type', 'data')),
-    )
+        (handle_mesh, ('vertices', 'faces')),
+        (handle_pointcloud, ('vertices',)),
+        (handle_export, ('file_type', 'data')))
+
+    # filter out keys with a value of None
+    kwargs = {k: v for k, v in kwargs.items() if v is not None}
 
     # loop through handler functions and expected key
     for func, expected in handlers:
