@@ -21,6 +21,7 @@ from .util import concatenate
 
 from .. import util
 from .. import units
+from .. import bounds
 from .. import caching
 from .. import grouping
 from .. import transformations
@@ -248,11 +249,9 @@ class Path(object):
         # flatten bound extrema into (n, dimension) array
         points = points.reshape((-1, self.vertices.shape[1]))
         # get the max and min of all bounds
-        bounds = np.array([points.min(axis=0),
-                           points.max(axis=0)],
-                          dtype=np.float64)
-
-        return bounds
+        return np.array([points.min(axis=0),
+                         points.max(axis=0)],
+                        dtype=np.float64)
 
     @property
     def extents(self):
@@ -953,14 +952,30 @@ class Path2D(Path):
         """
         Transform the current path so that its OBB is axis aligned
         and OBB center is at the origin.
+
+        Returns
+        -----------
+        obb : (3, 3) float
+          Homogeneous transformation matrix
         """
-        if len(self.root) == 1:
-            matrix, bounds = polygons.polygon_obb(
-                self.polygons_closed[self.root[0]])
-            self.apply_transform(matrix)
-            return matrix
-        else:
-            raise ValueError('Not implemented for multibody geometry')
+        matrix = self.obb
+        self.apply_transform(matrix)
+        return matrix
+
+    @caching.cache_decorator
+    def obb(self):
+        """
+        Get a transform that centers and aligns the OBB of the
+        referenced vertices with the XY axis.
+
+        Returns
+        -----------
+        obb : (3, 3) float
+          Homogeneous transformation matrix
+        """
+        matrix = bounds.oriented_bounds_2D(
+            self.vertices[self.referenced_vertices])[0]
+        return matrix
 
     def rasterize(self,
                   pitch,

@@ -393,37 +393,47 @@ def unique_rows(data, digits=None):
 
     Parameters
     ---------
-    data: (n,m) set of floating point data
-    digits: how many digits to consider for the purposes of uniqueness
+    data : (n, m) array
+      Floating point data
+    digits : int or None
+      How many digits to consider
 
     Returns
     --------
-    unique:  (j) array, index in data which is a unique row
-    inverse: (n) length array to reconstruct original
-                 example: unique[inverse] == data
+    unique :  (j,) int
+      Index in data which is a unique row
+    inverse : (n,) int
+      Array to reconstruct original
+      Example: unique[inverse] == data
     """
     hashes = hashable_rows(data, digits=digits)
-    garbage, unique, inverse = np.unique(hashes,
-                                         return_index=True,
-                                         return_inverse=True)
+    garbage, unique, inverse = np.unique(
+        hashes,
+        return_index=True,
+        return_inverse=True)
     return unique, inverse
 
 
 def unique_value_in_row(data, unique=None):
     """
-    For a 2D array of integers find the position of a value in each
-    row which only occurs once. If there are more than one value per
-    row which occur once, the last one is returned.
+    For a 2D array of integers find the position of a
+    value in each row which only occurs once.
+
+    If there are more than one value per row which
+    occur once, the last one is returned.
 
     Parameters
     ----------
-    data:   (n,d) int
-    unique: (m) int, list of unique values contained in data.
-             speedup purposes only, generated from np.unique if not passed
+    data :   (n, d) int
+      Data to check values
+    unique : (m,) int
+      List of unique values contained in data.
+      Generated from np.unique if not passed
 
     Returns
     ---------
-    result: (n,d) bool, with one or zero True values per row.
+    result : (n, d) bool
+      With one or zero True values per row.
 
 
     Examples
@@ -464,33 +474,35 @@ def group_rows(data, require_count=None, digits=None):
     Returns index groups of duplicate rows, for example:
     [[1,2], [3,4], [1,2]] will return [[0,2], [1]]
 
+
+    Note that using require_count allows numpy advanced
+    indexing to be used in place of looping and
+    checking hashes and is ~10x faster.
+
+
     Parameters
     ----------
-    data:          (n,m) array
-    require_count: only returns groups of a specified length, eg:
-                   require_count =  2
-                   [[1,2], [3,4], [1,2]] will return [[0,2]]
-
-                   Note that using require_count allows numpy advanced indexing
-                   to be used in place of looping and checking hashes, and as a
-                   consequence is ~10x faster.
-
-    digits:        If data is floating point, how many decimals to look at.
-                   If this is None, the value in TOL_MERGE will be turned into a
-                   digit count and used.
+    data : (n, m) array
+      Data to group
+    require_count : None or int
+      Only return groups of a specified length, eg:
+      require_count =  2
+      [[1,2], [3,4], [1,2]] will return [[0,2]]
+    digits : None or int
+    If data is floating point how many decimals
+    to consider, or calculated from tol.merge
 
     Returns
     ----------
-    groups:        List or sequence of indices from data indicating identical rows.
-                   If require_count != None, shape will be (j, require_count)
-                   If require_count is None, shape will be irregular (AKA a sequence)
+    groups : sequence (*,) int
+      Indices from in indicating identical rows.
     """
 
     def group_dict():
         """
         Simple hash table based grouping.
-        The loop and appends make this rather slow on very large arrays,
-        but it works on irregular groups.
+        The loop and appends make this rather slow on
+        large arrays but it works on irregular groups.
         """
         observed = dict()
         hashable = hashable_rows(data, digits=digits)
