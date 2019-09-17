@@ -582,7 +582,6 @@ def ply_binary(elements, file_obj):
         file_obj.seek(p_start)
         # if there were elements without properties remove them
         for pop in elem_pop:
-            print('pop', pop)
             elements.pop(pop)
 
     def populate_data(file_obj, elements):
