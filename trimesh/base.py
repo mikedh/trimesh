@@ -1681,6 +1681,10 @@ class Trimesh(Geometry):
         on_hull : (len(mesh.facets),) bool
           is A facet on the meshes convex hull or not
         """
+        # if no facets exit early
+        if len(self.facets) == 0:
+            return np.array([], dtype=np.bool)
+
         # facets plane, origin and normal
         normals = self.facets_normal
         origins = self.facets_origin

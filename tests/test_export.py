@@ -203,34 +203,6 @@ class ExportTest(g.unittest.TestCase):
         # faces should be same
         assert g.np.allclose(x.faces, y.faces)
 
-    def test_ply(self):
-        m = g.get_mesh('machinist.XAML')
-
-        assert m.visual.kind == 'face'
-        assert m.visual.face_colors.ptp(axis=0).max() > 0
-
-        export = m.export(file_type='ply')
-        reconstructed = g.trimesh.load(g.trimesh.util.wrap_as_stream(export),
-                                       file_type='ply')
-
-        assert reconstructed.visual.kind == 'face'
-
-        assert g.np.allclose(reconstructed.visual.face_colors,
-                             m.visual.face_colors)
-
-        m = g.get_mesh('reference.ply')
-
-        assert m.visual.kind == 'vertex'
-        assert m.visual.vertex_colors.ptp(axis=0).max() > 0
-
-        export = m.export(file_type='ply')
-        reconstructed = g.trimesh.load(g.trimesh.util.wrap_as_stream(export),
-                                       file_type='ply')
-        assert reconstructed.visual.kind == 'vertex'
-
-        assert g.np.allclose(reconstructed.visual.vertex_colors,
-                             m.visual.vertex_colors)
-
     def test_dict(self):
         mesh = g.get_mesh('machinist.XAML')
         assert mesh.visual.kind == 'face'

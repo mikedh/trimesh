@@ -20,8 +20,12 @@ class MeshTests(g.unittest.TestCase):
         for mesh in g.get_meshes(raise_error=True):
             # log file name for debugging
             file_name = mesh.metadata['file_name']
-            g.log.info('Testing %s', file_name)
 
+            # ply files can return PointCloud objects
+            if file_name.startswith('points_'):
+                continue
+
+            g.log.info('Testing %s', file_name)
             start = {mesh.md5(), mesh.crc()}
             assert len(mesh.faces) > 0
             assert len(mesh.vertices) > 0

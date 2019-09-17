@@ -159,12 +159,11 @@ def radial_symmetry(mesh):
       to get cross section
     """
 
-    # if not a volume this is meaningless
-    if not mesh.is_volume:
-        return None, None, None
-
-    # the sorted order of the principal components of inertia (3,) float
-    order = mesh.principal_inertia_components.argsort()
+    # shortcuts to avoid typing and hitting cache
+    scalar = mesh.principal_inertia_components
+    vector = mesh.principal_inertia_vectors
+    # the sorted order of the principal components
+    order = scalar.argsort()
 
     # we are checking if a geometry has radial symmetry
     # if 2 of the PCI are equal, it is a revolved 2D profile
@@ -173,8 +172,8 @@ def radial_symmetry(mesh):
     # of the largest PCI, and then scale to the tolerance we care about
     # if tol is 1e-3, that means that 2 components are identical if they
     # are within .1% of the maximum PCI.
-    diff = np.abs(np.diff(mesh.principal_inertia_components[order]))
-    diff /= np.abs(mesh.principal_inertia_components).max()
+    diff = np.abs(np.diff(scalar[order]))
+    diff /= np.abs(scalar).max()
     # diffs that are within tol of zero
     diff_zero = (diff / 1e-3).astype(int) == 0
 
@@ -182,8 +181,8 @@ def radial_symmetry(mesh):
         # this is the case where all 3 PCI are identical
         # this means that the geometry is symmetric about a point
         # examples of this are a sphere, icosahedron, etc
-        axis = mesh.principal_inertia_vectors[0]
-        section = mesh.principal_inertia_vectors[1:]
+        axis = vector[0]
+        section = vector[1:]
 
         return 'spherical', axis, section
 
@@ -204,12 +203,12 @@ def radial_symmetry(mesh):
         # one is one of those two
         section_index = order[np.array([[0, 1],
                                         [1, -1]])[diff_zero]].flatten()
-        section = mesh.principal_inertia_vectors[section_index]
+        section = vector[section_index]
 
         # we know the rotation axis is the sole unique value
         # and is either first or last of the sorted values
         axis_index = order[np.array([-1, 0])[diff_zero]][0]
-        axis = mesh.principal_inertia_vectors[axis_index]
+        axis = vector[axis_index]
         return 'radial', axis, section
 
     return None, None, None

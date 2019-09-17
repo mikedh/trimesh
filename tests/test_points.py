@@ -69,13 +69,7 @@ class PointsTest(g.unittest.TestCase):
     def test_init_arguments(self):
         vertices = [[0, 0, 0], [1, 1, 1]]
         colors = [[0, 0, 1.0], [1.0, 0, 0]]
-        # deprecated color -> colors
-        with g.warnings.catch_warnings(record=True) as w:
-            g.warnings.simplefilter('always')
-            p = g.trimesh.PointCloud(vertices=vertices, color=colors)
-        self.assertEqual(len(w), 1)
-        self.assertIs(w[0].category, DeprecationWarning)
-        g.np.testing.assert_allclose(p.colors, colors)
+
         # introduced colors
         p = g.trimesh.PointCloud(vertices=vertices, colors=colors)
         g.np.testing.assert_allclose(p.colors, colors)
