@@ -51,10 +51,10 @@ class ExtrudeTest(g.unittest.TestCase):
         assert e.contains(b.vertices).all()
 
         # try with negative height and transform
-        transform = [[1.,  0.,  0., -0.],
-                     [0.,  1.,  0.,  0.],
+        transform = [[1., 0., 0., -0.],
+                     [0., 1., 0., 0.],
                      [-0., -0., -1., -0.],
-                     [0.,  0.,  0.,  1.]]
+                     [0., 0., 0., 1.]]
         e = g.trimesh.primitives.Extrusion(
             polygon=polygon,
             height=-1.0,
