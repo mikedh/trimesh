@@ -463,6 +463,27 @@ class Trimesh(Geometry):
             face_angles=self.face_angles)
         return vertex_normals
 
+    @vertex_normals.setter
+    def vertex_normals(self, values):
+        """
+        Assign values to vertex normals
+
+        Parameters
+        -------------
+        values : (len(self.vertices), 3) float
+          Unit normal vectors for each vertex
+        """
+        if values is not None:
+            values = np.asanyarray(values,
+                                   order='C',
+                                   dtype=np.float64)
+            if values.shape == self.vertices.shape:
+                # check to see if they assigned all zeros
+                if values.ptp() < tol.merge:
+                    log.warning(
+                        'vertex_normals are all set to zero!')
+                self._cache['vertex_normals'] = values
+
     @caching.cache_decorator
     def vertex_faces(self):
         """
@@ -482,23 +503,6 @@ class Trimesh(Geometry):
             faces=self.faces,
             sparse=self.faces_sparse)
         return vertex_faces
-
-    @vertex_normals.setter
-    def vertex_normals(self, values):
-        """
-        Assign values to vertex normals
-
-        Parameters
-        -------------
-        values : (len(self.vertices), 3) float
-          Unit normal vectors for each vertex
-        """
-        if values is not None:
-            values = np.asanyarray(values,
-                                   order='C',
-                                   dtype=np.float64)
-            if values.shape == self.vertices.shape:
-                self._cache['vertex_normals'] = values
 
     @caching.cache_decorator
     def bounds(self):
@@ -912,6 +916,20 @@ class Trimesh(Geometry):
         return edges_sorted
 
     @caching.cache_decorator
+    def edges_sorted_tree(self):
+        """
+        A KDTree for mapping edges back to edge index.
+
+        Returns
+        ------------
+        tree : scipy.spatial.cKDTree
+          Tree when queried with edges will return
+          their index in mesh.edges_sorted
+        """
+        from scipy.spatial import cKDTree
+        return cKDTree(self.edges_sorted)
+
+    @caching.cache_decorator
     def edges_sparse(self):
         """
         Edges in sparse bool COO graph format where connected
@@ -1306,6 +1324,20 @@ class Trimesh(Geometry):
         return self._cache['face_adjacency_edges']
 
     @caching.cache_decorator
+    def face_adjacency_edges_tree(self):
+        """
+        A KDTree for mapping edges back face adjacency index.
+
+        Returns
+        ------------
+        tree : scipy.spatial.cKDTree
+          Tree when queried with SORTED edges will return
+          their index in mesh.face_adjacency
+        """
+        from scipy.spatial import cKDTree
+        return cKDTree(self.face_adjacency_edges)
+
+    @caching.cache_decorator
     def face_adjacency_angles(self):
         """
         Return the angle between adjacent faces
@@ -1543,8 +1575,8 @@ class Trimesh(Geometry):
           Contains mesh.vertices
         """
 
-        from scipy.spatial import cKDTree as KDTree
-        tree = KDTree(self.vertices.view(np.ndarray))
+        from scipy.spatial import cKDTree
+        tree = cKDTree(self.vertices.view(np.ndarray))
         return tree
 
     def remove_degenerate_faces(self, height=tol.merge):
@@ -2158,35 +2190,14 @@ class Trimesh(Geometry):
                     matrix=matrix,
                     translate=False))
 
-        # a test triangle pre and post transform
-        triangle_pre = self.vertices[self.faces[:5]]
-        # we don't care about scale so make sure they aren't tiny
-        triangle_pre /= np.abs(triangle_pre).max()
-
-        # do the same for the post- transform test
-        triangle_post = new_vertices[self.faces[:5]]
-        triangle_post /= np.abs(triangle_post).max()
-
-        # compute triangle normal before and after transform
-        normal_pre, valid_pre = triangles.normals(triangle_pre)
-        normal_post, valid_post = triangles.normals(triangle_post)
-
-        # check the first few faces against normals to check winding
-        aligned_pre = triangles.windings_aligned(triangle_pre[valid_pre],
-                                                 normal_pre)
-        # windings aligned after applying transform
-        aligned_post = triangles.windings_aligned(triangle_post[valid_post],
-                                                  normal_post)
-
-        # convert multiple face checks to single bool, allowing outliers
-        pre = (aligned_pre.sum() / float(len(aligned_pre))) > .6
-        post = (aligned_post.sum() / float(len(aligned_post))) > .6
-
-        if pre != post:
+        # if transformation flips winding of triangles
+        if transformations.flips_winding(matrix):
             log.debug('transform flips winding')
-            # fliplr will make array non C contiguous, which will
-            # cause hashes to be more expensive than necessary
-            self.faces = np.ascontiguousarray(np.fliplr(self.faces))
+            # fliplr will make array non C contiguous
+            # which will cause hashes to be more
+            # expensive than necessary so wrap
+            self.faces = np.ascontiguousarray(
+                np.fliplr(self.faces))
 
         # assign the new values
         self.vertices = new_vertices

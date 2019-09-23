@@ -142,19 +142,22 @@ def fix_normals(mesh, multibody=False):
     Fix the winding and direction of a mesh face and
     face normals in-place.
 
-    Really only meaningful on watertight meshes, but will orient all
+    Really only meaningful on watertight meshes but will orient all
     faces and winding in a uniform way for non-watertight face
     patches as well.
 
     Parameters
     -------------
-    mesh:      Trimesh object
-    multibody: bool, if True try to correct normals direction
-                     on every body.
+    mesh : trimesh.Trimesh
+      Mesh to fix normals on
+    multibody : bool
+      if True try to correct normals direction
+      on every body rather than just one
 
     Alters
     --------------
-    mesh.faces: will flip columns on inverted faces
+    mesh.faces
+      Will flip columns on inverted faces
     """
     # traverse face adjacency to correct winding
     fix_winding(mesh)

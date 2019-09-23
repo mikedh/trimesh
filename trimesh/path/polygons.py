@@ -332,7 +332,7 @@ def medial_axis(polygon,
     from scipy.spatial import Voronoi
 
     if resolution is None:
-        resolution = .01
+        resolution = np.reshape(polygon.bounds, (2, 2)).ptp(axis=0).max() / 100
 
     # get evenly spaced points on the polygons boundaries
     samples = resample_boundaries(polygon=polygon,

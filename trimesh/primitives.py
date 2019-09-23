@@ -19,7 +19,7 @@ from . import creation
 from . import transformations
 
 from .base import Trimesh
-from .constants import log
+from .constants import log, tol
 
 
 class _Primitive(Trimesh):
@@ -611,7 +611,8 @@ class Extrusion(_Primitive):
 
         Returns
         ----------
-        area: float, surface area of 3D extrusion
+        area: float
+          Surface area of 3D extrusion
         """
         # area of the sides of the extrusion
         area = abs(self.primitive.height *
@@ -629,7 +630,8 @@ class Extrusion(_Primitive):
 
         Returns
         ----------
-        volume: float, volume of 3D extrusion
+        volume : float
+          Volume of 3D extrusion
         """
         volume = abs(self.primitive.polygon.area *
                      self.primitive.height)
@@ -666,38 +668,58 @@ class Extrusion(_Primitive):
                                translation.copy())
         self.primitive.transform = new_transform
 
-    def buffer(self, distance):
+    def buffer(self, distance, distance_height=None):
         """
         Return a new Extrusion object which is expanded in profile and
         in height by a specified distance.
 
+        Parameters
+        --------------
+        distance : float
+          Distance to buffer polygon
+        distance_height : float
+          Distance to buffer above and below extrusion
+
         Returns
         ----------
-        buffered: Extrusion object
+        buffered : primitives.Extrusion
+          Extrusion object with new values
         """
         distance = float(distance)
+        # if not specified use same distance for everything
+        if distance_height is None:
+            distance_height = distance
 
         # start with current height
         height = self.primitive.height
         # if current height is negative offset by negative amount
-        height += np.sign(height) * 2.0 * distance
+        height += np.sign(height) * 2.0 * distance_height
 
+        # create a new extrusion with a buffered polygon
         buffered = Extrusion(
             transform=self.primitive.transform.copy(),
             polygon=self.primitive.polygon.buffer(distance),
             height=height)
 
         # slide the stock along the axis
-        buffered.slide(-np.sign(height) * distance)
+        buffered.slide(-np.sign(height) * distance_height)
 
         return buffered
 
     def _create_mesh(self):
         log.debug('Creating mesh for extrude Primitive')
-        mesh = creation.extrude_polygon(self.primitive.polygon,
-                                        self.primitive.height)
+        # extrude the polygon along Z
+        mesh = creation.extrude_polygon(
+            self.primitive.polygon,
+            self.primitive.height)
+        # should do proper bookkeeping
         mesh.apply_transform(self.primitive.transform)
 
+        # check volume here in unit tests
+        if tol.strict and mesh.volume < 0.0:
+            raise ValueError('matrix inverted mesh!')
+
+        # cache mesh geometry in the primitive
         self._cache['vertices'] = mesh.vertices
         self._cache['faces'] = mesh.faces
         self._cache['face_normals'] = mesh.face_normals
