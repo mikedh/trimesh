@@ -21,6 +21,7 @@ from .threemf import _three_loaders
 from .openctm import _ctm_loaders
 from .xml_based import _xml_loaders
 from .binvox import _binvox_loaders
+from .xyz import _xyz_loaders
 
 
 try:
@@ -72,6 +73,7 @@ def available_formats():
     loaders = mesh_formats()
     loaders.extend(path_formats())
     loaders.extend(compressed_loaders.keys())
+    loaders.extend(pointcloud_loaders.keys())
 
     return loaders
 
@@ -147,6 +149,12 @@ def load(file_obj,
                 file_type=file_type,
                 resolver=resolver,
                 **kwargs)
+        elif file_type in pointcloud_loaders:
+            loaded = load_pointcloud(
+                file_obj,
+                file_type=file_type,
+                resolver=resolver,
+                **kwargs)
         else:
             if file_type in ['svg', 'dxf']:
                 # call the dummy function to raise the import error
@@ -218,6 +226,71 @@ def load_mesh(file_obj,
 
         log.debug('loaded mesh using %s',
                   mesh_loaders[file_type].__name__)
+
+        if not isinstance(results, list):
+            results = [results]
+
+        loaded = []
+        for result in results:
+            kwargs.update(result)
+            loaded.append(load_kwargs(kwargs))
+            loaded[-1].metadata.update(metadata)
+        if len(loaded) == 1:
+            loaded = loaded[0]
+    finally:
+        # if we failed to load close file
+        if opened:
+            file_obj.close()
+
+    return loaded
+
+
+@log_time
+def load_pointcloud(file_obj,
+              file_type=None,
+              resolver=None,
+              **kwargs):
+    """
+    Load a pointcloud file into a Pointcloud object
+
+    Parameters
+    -----------
+    file_obj : str or file object
+      File name or file with pointcloud data
+    file_type : str or None
+      Which file type, e.g. 'xyz'
+    kwargs : dict
+      Passed to Pointcloud constructor
+
+    Returns
+    ----------
+    mesh : trimesh.Pointcloud
+      Loaded geometry data
+    """
+
+    # parse the file arguments into clean loadable form
+    (file_obj,  # file- like object
+     file_type,  # str, what kind of file
+     metadata,  # dict, any metadata from file name
+     opened,    # bool, did we open the file ourselves
+     resolver   # object to load referenced resources
+     ) = parse_file_args(file_obj=file_obj,
+                         file_type=file_type,
+                         resolver=resolver)
+
+    try:
+        # make sure we keep passed kwargs to loader
+        # but also make sure loader keys override passed keys
+        results = pointcloud_loaders[file_type](file_obj,
+                                          file_type=file_type,
+                                          resolver=resolver,
+                                          **kwargs)
+
+        if util.is_file(file_obj):
+            file_obj.close()
+
+        log.debug('loaded pointcloud using %s',
+                  pointcloud_loaders[file_type].__name__)
 
         if not isinstance(results, list):
             results = [results]
@@ -598,3 +671,6 @@ mesh_loaders.update(_three_loaders)
 
 voxel_loaders = {}
 voxel_loaders.update(_binvox_loaders)
+
+pointcloud_loaders = {}
+pointcloud_loaders.update(_xyz_loaders)

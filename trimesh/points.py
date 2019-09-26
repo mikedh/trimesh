@@ -12,6 +12,8 @@ from .constants import tol
 from .geometry import plane_transform
 from .parent import Geometry
 
+from .exchange.export import export_pointcloud
+
 from . import util
 from . import caching
 from . import grouping
@@ -581,3 +583,22 @@ class PointCloud(Geometry):
         Open a viewer window displaying the current PointCloud
         """
         self.scene().show(**kwargs)
+
+    def export(self, file_obj=None, file_type=None, **kwargs):
+        """
+        Export the current pointcloud to a file object.
+        If file_obj is a filename, file will be written there.
+        Supported formats are xyz
+        Parameters
+        ------------
+        file_obj: open writeable file object
+          str, file name where to save the pointcloud
+          None, if you would like this function to return the export blob
+        file_type: str
+          Which file type to export as.
+          If file name is passed this is not required
+        """
+        return export_pointcloud(cloud=self,
+                                 file_obj=file_obj,
+                                 file_type=file_type,
+                                 **kwargs)
