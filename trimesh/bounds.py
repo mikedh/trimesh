@@ -107,7 +107,7 @@ def oriented_bounds_2D(points, qhull_options='QbB'):
     return transform, rectangle
 
 
-def oriented_bounds(obj, angle_digits=1, ordered=True):
+def oriented_bounds(obj, angle_digits=1, ordered=True, normal=None):
     """
     Find the oriented bounding box for a Trimesh
 
@@ -120,6 +120,10 @@ def oriented_bounds(obj, angle_digits=1, ordered=True):
        Even with less precision the returned extents will cover
        the mesh albeit with larger than minimal volume, and may
        experience substantial speedups.
+    ordered : bool
+      Return a consistent order for bounds
+    normal : None or (3,) float
+      Override search for normal on 3D meshes
 
     Returns
     ----------
@@ -167,13 +171,18 @@ def oriented_bounds(obj, angle_digits=1, ordered=True):
     # inside the loop by converting to angles ahead of time
     spherical_unique = grouping.unique_rows(spherical_coords,
                                             digits=angle_digits)[0]
-
     min_volume = np.inf
     tic = time.time()
 
-    for spherical in spherical_coords[spherical_unique]:
-        # a matrix which will rotate each hull normal to [0,0,1]
-        to_2D = np.linalg.inv(transformations.spherical_matrix(*spherical))
+    # matrices which will rotate each hull normal to [0,0,1]
+    if normal is None:
+        matrices = [np.linalg.inv(transformations.spherical_matrix(*s))
+                    for s in spherical_coords[spherical_unique]]
+    else:
+        # if explicit normal was passed use it
+        matrices = [geometry.align_vectors(normal, [0, 0, 1])]
+
+    for to_2D in matrices:
         # apply the transform here
         projected = np.dot(to_2D, np.column_stack(
             (vertices, np.ones(len(vertices)))).T).T[:, :3]

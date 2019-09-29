@@ -2160,7 +2160,7 @@ def flips_winding(matrix):
     Parameters
     -------------
     matrix : (4, 4) float
-      Homogenous transformation matrix
+      Homogeneous transformation matrix
 
     Returns
     --------------

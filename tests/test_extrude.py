@@ -61,6 +61,23 @@ class ExtrudeTest(g.unittest.TestCase):
             transform=transform)
         assert e.to_mesh().volume > 0.0
 
+        for T in g.transforms:
+            current = e.copy().apply_transform(T)
+            # get the special case OBB calculation for extrusions
+            obb = current.bounding_box_oriented
+            # check to make sure shortcutted OBB is the right size
+            assert g.np.isclose(
+                obb.volume,
+                current.to_mesh().bounding_box_oriented.volume)
+            # use OBB transform to project vertices of extrusion to plane
+            points = g.trimesh.transform_points(
+                current.vertices, g.np.linalg.inv(obb.primitive.transform))
+            # half extents of calculated oriented bounding box
+            half = (g.np.abs(obb.primitive.extents) / 2.0) + 1e-3
+            # every vertex should be inside OBB
+            assert (points > -half).all()
+            assert (points < half).all()
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

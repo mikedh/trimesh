@@ -107,8 +107,8 @@ class _Primitive(Trimesh):
             return
 
         new_transform = np.dot(matrix, self.primitive.transform)
-
         self.primitive.transform = new_transform
+        return self
 
     def _create_mesh(self):
         raise ValueError('Primitive doesn\'t define mesh creation!')
@@ -415,7 +415,6 @@ class Sphere(_Primitive):
         # bounding box, and a sphere is the absolute slowest case for the OBB calculation
         # as it is a convex surface with a ton of face normals that all need to
         # be checked
-
         return self.bounding_box
 
     @caching.cache_decorator
@@ -651,6 +650,26 @@ class Extrusion(_Primitive):
         direction = np.dot(self.primitive.transform[:3, :3],
                            [0.0, 0.0, np.sign(self.primitive.height)])
         return direction
+
+    @caching.cache_decorator
+    def bounding_box_oriented(self):
+        # no docstring for inheritance
+        # calculate OBB using 2D polygon and known axis
+        from . import bounds
+        # find the 2D bounding box using the polygon
+        to_origin, box = bounds.oriented_bounds_2D(
+            self.primitive.polygon.exterior.coords)
+        #  3D extents
+        extents = np.append(box, abs(self.primitive.height))
+        # calculate to_3D transform from 2D obb
+        rotation_Z = np.linalg.inv(transformations.planar_matrix_to_3D(to_origin))
+        rotation_Z[2, 3] = self.primitive.height / 2.0
+        # combine the 2D OBB transformation with the 2D projection transform
+        to_3D = np.dot(self.primitive.transform, rotation_Z)
+        obb = Box(transform=to_3D,
+                  extents=extents,
+                  mutable=False)
+        return obb
 
     def slide(self, distance):
         """

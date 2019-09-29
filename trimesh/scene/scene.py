@@ -997,8 +997,7 @@ def split_scene(geometry):
                      metadata=metadata)
 
     # a single geometry so we are going to split
-    split = collections.deque()
-
+    split = []
     metadata = {}
     for g in util.make_sequence(geometry):
         split.extend(g.split())
