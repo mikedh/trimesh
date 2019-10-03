@@ -4,11 +4,11 @@ except BaseException:
     import generic as g
 
 try:
-    import meshpy  # NOQA
-    has_meshpy = True
+    import triangle  # NOQA
+    has_triangle = True
 except ImportError:
-    g.log.warning('No meshpy! Not testing extrude primitives!')
-    has_meshpy = False
+    g.log.warning('No triangle! Not testing extrude primitives!')
+    has_triangle = False
 
 
 class PrimitiveTest(g.unittest.TestCase):
@@ -17,7 +17,7 @@ class PrimitiveTest(g.unittest.TestCase):
         self.primitives = []
 
         # do it with a flag in case there is more than one ImportError
-        if has_meshpy:
+        if has_triangle:
             e = g.trimesh.primitives.Extrusion()
             e.primitive.polygon = g.trimesh.path.polygons.random_polygon()
             e.primitive.height = 1.0
@@ -117,42 +117,6 @@ class PrimitiveTest(g.unittest.TestCase):
             # centroid should have translated correctly
             assert g.np.allclose(primitive.centroid - centroid,
                                  translation)
-
-    def test_extrusion(self):
-        if not has_meshpy:
-            return
-
-        transform = g.trimesh.transformations.random_rotation_matrix()
-        polygon = g.Point([0, 0]).buffer(.5)
-        e = g.trimesh.primitives.Extrusion(
-            polygon=polygon,
-            transform=transform)
-
-        # will create an inflated version of the extrusion
-        b = e.buffer(.1)
-        assert b.volume > e.volume
-        assert b.contains(e.vertices).all()
-
-        # try making it smaller
-        b = e.buffer(-.1)
-        assert b.volume < e.volume
-        assert e.contains(b.vertices).all()
-
-        # try with negative height
-        e = g.trimesh.primitives.Extrusion(
-            polygon=polygon,
-            height=-1.0,
-            transform=transform)
-
-        # will create an inflated version of the extrusion
-        b = e.buffer(.1)
-        assert b.volume > e.volume
-        assert b.contains(e.vertices).all()
-
-        # try making it smaller
-        b = e.buffer(-.1)
-        assert b.volume < e.volume
-        assert e.contains(b.vertices).all()
 
     def test_sample(self):
         transform = g.trimesh.transformations.random_rotation_matrix()

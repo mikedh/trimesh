@@ -19,7 +19,7 @@ from . import creation
 from . import transformations
 
 from .base import Trimesh
-from .constants import log
+from .constants import log, tol
 
 
 class _Primitive(Trimesh):
@@ -107,8 +107,8 @@ class _Primitive(Trimesh):
             return
 
         new_transform = np.dot(matrix, self.primitive.transform)
-
         self.primitive.transform = new_transform
+        return self
 
     def _create_mesh(self):
         raise ValueError('Primitive doesn\'t define mesh creation!')
@@ -415,7 +415,6 @@ class Sphere(_Primitive):
         # bounding box, and a sphere is the absolute slowest case for the OBB calculation
         # as it is a convex surface with a ton of face normals that all need to
         # be checked
-
         return self.bounding_box
 
     @caching.cache_decorator
@@ -581,13 +580,17 @@ class Extrusion(_Primitive):
 
     def __init__(self, *args, **kwargs):
         """
-        Create an Extrusion Primitive, a subclass of Trimesh
+        Create an Extrusion primitive, which
+        is a subclass of Trimesh.
 
         Parameters
         ----------
-        polygon:   shapely.geometry.Polygon, polygon to extrude
-        transform: (4,4) float, transform to apply after extrusion
-        height:    float, height to extrude polygon by
+        polygon : shapely.geometry.Polygon
+          Polygon to extrude
+        transform : (4,4) float
+          Transform to apply after extrusion
+        height : float
+          Height to extrude polygon by
         """
         super(Extrusion, self).__init__(*args, **kwargs)
 
@@ -611,7 +614,8 @@ class Extrusion(_Primitive):
 
         Returns
         ----------
-        area: float, surface area of 3D extrusion
+        area: float
+          Surface area of 3D extrusion
         """
         # area of the sides of the extrusion
         area = abs(self.primitive.height *
@@ -629,7 +633,8 @@ class Extrusion(_Primitive):
 
         Returns
         ----------
-        volume: float, volume of 3D extrusion
+        volume : float
+          Volume of 3D extrusion
         """
         volume = abs(self.primitive.polygon.area *
                      self.primitive.height)
@@ -638,17 +643,50 @@ class Extrusion(_Primitive):
     @property
     def direction(self):
         """
-        Based on the extrudes transform, what is the vector along
-        which the polygon will be extruded
+        Based on the extrudes transform what is the
+        vector along which the polygon will be extruded.
 
         Returns
         ---------
-        direction: (3,) float vector. If self.primitive.transform is an
-                   identity matrix this will be [0.0, 0.0, 1.0]
+        direction : (3,) float
+          Unit direction vector
         """
         direction = np.dot(self.primitive.transform[:3, :3],
                            [0.0, 0.0, np.sign(self.primitive.height)])
         return direction
+
+    @property
+    def origin(self):
+        """
+        Based on the extrude transform what is the
+        origin of the plane it is extruded from.
+
+        Returns
+        -----------
+        origin : (3,) float
+          Origin of extrusion plane
+        """
+        return self.primitive.transform[:3, 3]
+
+    @caching.cache_decorator
+    def bounding_box_oriented(self):
+        # no docstring for inheritance
+        # calculate OBB using 2D polygon and known axis
+        from . import bounds
+        # find the 2D bounding box using the polygon
+        to_origin, box = bounds.oriented_bounds_2D(
+            self.primitive.polygon.exterior.coords)
+        #  3D extents
+        extents = np.append(box, abs(self.primitive.height))
+        # calculate to_3D transform from 2D obb
+        rotation_Z = np.linalg.inv(transformations.planar_matrix_to_3D(to_origin))
+        rotation_Z[2, 3] = self.primitive.height / 2.0
+        # combine the 2D OBB transformation with the 2D projection transform
+        to_3D = np.dot(self.primitive.transform, rotation_Z)
+        obb = Box(transform=to_3D,
+                  extents=extents,
+                  mutable=False)
+        return obb
 
     def slide(self, distance):
         """
@@ -666,38 +704,58 @@ class Extrusion(_Primitive):
                                translation.copy())
         self.primitive.transform = new_transform
 
-    def buffer(self, distance):
+    def buffer(self, distance, distance_height=None):
         """
         Return a new Extrusion object which is expanded in profile and
         in height by a specified distance.
 
+        Parameters
+        --------------
+        distance : float
+          Distance to buffer polygon
+        distance_height : float
+          Distance to buffer above and below extrusion
+
         Returns
         ----------
-        buffered: Extrusion object
+        buffered : primitives.Extrusion
+          Extrusion object with new values
         """
         distance = float(distance)
+        # if not specified use same distance for everything
+        if distance_height is None:
+            distance_height = distance
 
         # start with current height
         height = self.primitive.height
         # if current height is negative offset by negative amount
-        height += np.sign(height) * 2.0 * distance
+        height += np.sign(height) * 2.0 * distance_height
 
+        # create a new extrusion with a buffered polygon
         buffered = Extrusion(
             transform=self.primitive.transform.copy(),
             polygon=self.primitive.polygon.buffer(distance),
             height=height)
 
         # slide the stock along the axis
-        buffered.slide(-np.sign(height) * distance)
+        buffered.slide(-np.sign(height) * distance_height)
 
         return buffered
 
     def _create_mesh(self):
         log.debug('Creating mesh for extrude Primitive')
-        mesh = creation.extrude_polygon(self.primitive.polygon,
-                                        self.primitive.height)
+        # extrude the polygon along Z
+        mesh = creation.extrude_polygon(
+            self.primitive.polygon,
+            self.primitive.height)
+        # should do proper bookkeeping
         mesh.apply_transform(self.primitive.transform)
 
+        # check volume here in unit tests
+        if tol.strict and mesh.volume < 0.0:
+            raise ValueError('matrix inverted mesh!')
+
+        # cache mesh geometry in the primitive
         self._cache['vertices'] = mesh.vertices
         self._cache['faces'] = mesh.faces
         self._cache['face_normals'] = mesh.face_normals

@@ -346,7 +346,7 @@ def _unparse_material(material):
         effect = collada.material.Effect(
             uuid.uuid4().hex, params=[], shadingtype='phong',
             diffuse=diffuse, emission=emission,
-            specular=[1.0, 1.0, 1.0], shininess=float(shininess)
+            specular=[1.0, 1.0, 1.0, 1.0], shininess=float(shininess)
         )
         material = collada.material.Material(
             uuid.uuid4().hex, 'pbrmaterial', effect

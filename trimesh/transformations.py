@@ -2102,16 +2102,19 @@ def transform_points(points,
 
 def is_rigid(matrix):
     """
-    Check to make sure a homogeonous transformation matrix is
-    a rigid body transform.
+    Check to make sure a homogeonous transformation
+    matrix is a rigid transform.
 
     Parameters
     -----------
-    matrix: possibly a transformation matrix
+    matrix : (4, 4) float
+      A transformation matrix
 
     Returns
     -----------
-    check: bool, True if matrix is a valid (4,4) rigid body transform.
+    check : bool
+      True if matrix is a a transform with
+      only translation, scale, and rotation
     """
 
     matrix = np.asanyarray(matrix, dtype=np.float64)
@@ -2130,13 +2133,17 @@ def is_rigid(matrix):
 
 def scale_and_translate(scale=None, translate=None):
     """
-    Optimized version of `compose_matrix` for just scaling then translating.
+    Optimized version of `compose_matrix` for just
+    scaling then translating.
 
     Scalar args are broadcast to arrays of shape (3,)
 
-    Args:
-        scale: scalar or length-3 array
-        translate: scalar or length-3 array
+    Parameters
+    --------------
+    scale : float or (3,) float
+      Scale factor
+    translate : float or (3,) float
+      Translation
     """
     M = np.eye(4)
     if np.any(scale != 1):
@@ -2144,3 +2151,47 @@ def scale_and_translate(scale=None, translate=None):
     if translate is not None:
         M[:3, 3] = translate
     return M
+
+
+def flips_winding(matrix):
+    """
+    Check to see if a matrix will invert triangles.
+
+    Parameters
+    -------------
+    matrix : (4, 4) float
+      Homogeneous transformation matrix
+
+    Returns
+    --------------
+    flip : bool
+      True if matrix will flip winding of triangles.
+    """
+    # get input as numpy array
+    matrix = np.asanyarray(matrix, dtype=np.float64)
+    # how many random triangles do we really want
+    count = 3
+    # test rotation against some random triangles
+    tri = np.random.random((count * 3, 3))
+    rot = np.dot(matrix[:3, :3], tri.T).T
+
+    # stack them into one triangle soup
+    triangles = np.vstack((tri, rot)).reshape((-1, 3, 3))
+    # find the normals of every triangle
+    vectors = np.diff(triangles, axis=1)
+    cross = np.cross(vectors[:, 0], vectors[:, 1])
+    # rotate the original normals to match
+    cross[:count] = np.dot(matrix[:3, :3],
+                           cross[:count].T).T
+    # unitize normals
+    norm = np.sqrt(np.dot(cross * cross, [1, 1, 1])).reshape((-1, 1))
+    cross = cross / norm
+    # find the projection of the two normals
+    projection = np.dot(cross[:count] * cross[count:],
+                        [1.0] * 3)
+    # if the winding was flipped but not the normal
+    # the projection will be negative, and since we're
+    # checking a few triangles check against the mean
+    flip = projection.mean() < 0.0
+
+    return flip

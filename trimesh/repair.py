@@ -142,19 +142,22 @@ def fix_normals(mesh, multibody=False):
     Fix the winding and direction of a mesh face and
     face normals in-place.
 
-    Really only meaningful on watertight meshes, but will orient all
+    Really only meaningful on watertight meshes but will orient all
     faces and winding in a uniform way for non-watertight face
     patches as well.
 
     Parameters
     -------------
-    mesh:      Trimesh object
-    multibody: bool, if True try to correct normals direction
-                     on every body.
+    mesh : trimesh.Trimesh
+      Mesh to fix normals on
+    multibody : bool
+      if True try to correct normals direction
+      on every body rather than just one
 
     Alters
     --------------
-    mesh.faces: will flip columns on inverted faces
+    mesh.faces
+      Will flip columns on inverted faces
     """
     # traverse face adjacency to correct winding
     fix_winding(mesh)
@@ -237,20 +240,23 @@ def fill_holes(mesh):
 
     # we know that in a watertight mesh every edge will be included twice
     # thus every edge which appears only once is part of a hole boundary
-    boundary_groups = group_rows(mesh.edges_sorted, require_count=1)
+    boundary_groups = group_rows(
+        mesh.edges_sorted, require_count=1)
 
+    # mesh is not watertight and we have too few edges
+    # edges to do a repair
+    # since we haven't changed anything return False
     if len(boundary_groups) < 3:
-        watertight = len(boundary_groups) == 0
-        return watertight
+        return False
 
     boundary_edges = mesh.edges[boundary_groups]
     index_as_dict = [{'index': i} for i in boundary_groups]
 
     # we create a graph of the boundary edges, and find cycles.
-    g = nx.from_edgelist(np.column_stack((boundary_edges,
-                                          index_as_dict)))
+    g = nx.from_edgelist(
+        np.column_stack((boundary_edges,
+                         index_as_dict)))
     cycles = np.array(nx.cycle_basis(g))
-
     new_faces = []
     new_vertex = []
     for hole in cycles:

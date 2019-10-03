@@ -43,6 +43,23 @@ class SegmentsTest(g.unittest.TestCase):
         n = segments.colinear_pairs(seg, length=0.01)
         assert len(n) == 1
 
+    def test_extrude(self):
+        from trimesh.path.segments import extrude
+        # hand tuned segments
+        manual = g.np.column_stack((
+            g.np.zeros((3, 2)),
+            [[0, 1], [0, -1], [1, 2]])).reshape((-1, 2, 2))
+
+        for seg in [manual, g.random((10, 2, 2))]:
+            height = 1.22
+            v, f = extrude(segments=seg, height=height)
+            # load extrusion as mesh
+            mesh = g.trimesh.Trimesh(vertices=v, faces=f)
+            # load line segments as path
+            path = g.trimesh.load_path(seg)
+            # compare area of mesh with source path
+            assert g.np.isclose(mesh.area, path.length * height)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
