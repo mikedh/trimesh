@@ -58,7 +58,7 @@ class SegmentsTest(g.unittest.TestCase):
             # load line segments as path
             path = g.trimesh.load_path(seg)
             # compare area of mesh with source path
-            assert g.np.isclose(mesh.area, path.length * height):
+            assert g.np.isclose(mesh.area, path.length * height)
 
 
 if __name__ == '__main__':
