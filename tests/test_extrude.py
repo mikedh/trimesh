@@ -78,6 +78,9 @@ class ExtrudeTest(g.unittest.TestCase):
             assert (points > -half).all()
             assert (points < half).all()
 
+            assert current.direction.shape == (3,)
+            assert current.origin.shape == (3,)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

@@ -320,3 +320,39 @@ def overlap(origins, vectors, params):
     length = new_range.ptp()
 
     return length, segments
+
+
+def extrude(segments, height):
+    """
+    Extrude 2D line segments into 3D triangles.
+
+    Parameters
+    -------------
+    segments : (n, 2, 2) float
+      2D line segments
+    height : float
+      Distance to extrude along Z
+
+    Returns
+    -------------
+    vertices : (n, 3) float
+      Vertices in space
+    faces : (n, 3) int
+      Indices of vertices forming triangles
+    """
+    segments = np.asanyarray(segments, dtype=np.float64)
+    if not util.is_shape(segments, (-1, 2, 2)):
+        raise ValueError('segments shape incorrect')
+
+    # we are creating two vertices  triangles for every 2D line segment
+    # on the segments of the 2D triangulation
+    vertices = np.tile(segments.reshape((-1, 2)), 2).reshape((-1, 2))
+    vertices = np.column_stack((vertices,
+                                np.tile([0, height, 0, height],
+                                        len(segments))))
+    faces = np.tile([3, 1, 2, 2, 1, 0],
+                    (len(segments), 1))
+    faces += np.arange(len(segments)).reshape((-1, 1)) * 4
+    faces = faces.reshape((-1, 3))
+
+    return vertices, faces

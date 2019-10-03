@@ -580,13 +580,17 @@ class Extrusion(_Primitive):
 
     def __init__(self, *args, **kwargs):
         """
-        Create an Extrusion Primitive, a subclass of Trimesh
+        Create an Extrusion primitive, which
+        is a subclass of Trimesh.
 
         Parameters
         ----------
-        polygon:   shapely.geometry.Polygon, polygon to extrude
-        transform: (4,4) float, transform to apply after extrusion
-        height:    float, height to extrude polygon by
+        polygon : shapely.geometry.Polygon
+          Polygon to extrude
+        transform : (4,4) float
+          Transform to apply after extrusion
+        height : float
+          Height to extrude polygon by
         """
         super(Extrusion, self).__init__(*args, **kwargs)
 
@@ -639,17 +643,30 @@ class Extrusion(_Primitive):
     @property
     def direction(self):
         """
-        Based on the extrudes transform, what is the vector along
-        which the polygon will be extruded
+        Based on the extrudes transform what is the
+        vector along which the polygon will be extruded.
 
         Returns
         ---------
-        direction: (3,) float vector. If self.primitive.transform is an
-                   identity matrix this will be [0.0, 0.0, 1.0]
+        direction : (3,) float
+          Unit direction vector
         """
         direction = np.dot(self.primitive.transform[:3, :3],
                            [0.0, 0.0, np.sign(self.primitive.height)])
         return direction
+
+    @property
+    def origin(self):
+        """
+        Based on the extrude transform what is the
+        origin of the plane it is extruded from.
+
+        Returns
+        -----------
+        origin : (3,) float
+          Origin of extrusion plane
+        """
+        return self.primitive.transform[:3, 3]
 
     @caching.cache_decorator
     def bounding_box_oriented(self):
