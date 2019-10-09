@@ -322,7 +322,7 @@ def overlap(origins, vectors, params):
     return length, segments
 
 
-def extrude(segments, height):
+def extrude(segments, height, double_sided=False):
     """
     Extrude 2D line segments into 3D triangles.
 
@@ -332,6 +332,8 @@ def extrude(segments, height):
       2D line segments
     height : float
       Distance to extrude along Z
+    double_sided : bool
+      If true, return 4 triangles per segment
 
     Returns
     -------------
@@ -354,5 +356,10 @@ def extrude(segments, height):
                     (len(segments), 1))
     faces += np.arange(len(segments)).reshape((-1, 1)) * 4
     faces = faces.reshape((-1, 3))
+
+    if double_sided:
+        # stack so they will render from the back
+        faces = np.vstack((
+            faces, np.fliplr(faces)))
 
     return vertices, faces

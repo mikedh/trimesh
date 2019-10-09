@@ -126,7 +126,7 @@ def fit_nsphere(points, prior=None):
     Fit an n-sphere to a set of points using least squares.
 
     Parameters
-    ---------
+    ------------
     points : (n, d) float
       Points in space
     prior : (d,) float

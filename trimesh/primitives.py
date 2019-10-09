@@ -704,7 +704,7 @@ class Extrusion(_Primitive):
                                translation.copy())
         self.primitive.transform = new_transform
 
-    def buffer(self, distance, distance_height=None):
+    def buffer(self, distance, distance_height=None, **kwargs):
         """
         Return a new Extrusion object which is expanded in profile and
         in height by a specified distance.
@@ -715,6 +715,8 @@ class Extrusion(_Primitive):
           Distance to buffer polygon
         distance_height : float
           Distance to buffer above and below extrusion
+        kwargs : dict
+          Passed to Extrusion constructor
 
         Returns
         ----------
@@ -732,10 +734,12 @@ class Extrusion(_Primitive):
         height += np.sign(height) * 2.0 * distance_height
 
         # create a new extrusion with a buffered polygon
-        buffered = Extrusion(
+        # use type(self) vs Extrusion to handle subclasses
+        buffered = type(self)(
             transform=self.primitive.transform.copy(),
             polygon=self.primitive.polygon.buffer(distance),
-            height=height)
+            height=height,
+            **kwargs)
 
         # slide the stock along the axis
         buffered.slide(-np.sign(height) * distance_height)

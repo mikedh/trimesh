@@ -197,7 +197,8 @@ def edges_to_path(edges,
 
     Returns
     ----------
-    kwargs: dict, kwargs for Path constructor
+    kwargs : dict
+      Kwargs for Path constructor
     """
     # sequence of ordered traversals
     dfs = graph.traversals(edges, mode='dfs')

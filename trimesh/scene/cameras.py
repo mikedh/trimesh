@@ -57,8 +57,8 @@ class Camera(object):
         self.fov = fov
 
         if resolution is None:
-            # if unset make resolution 15 pixels per degree
-            resolution = (self.fov * 15.0).astype(np.int64)
+            # if unset make resolution 30 pixels per degree
+            resolution = (self.fov * 30.0).round().astype(np.int64)
         self.resolution = resolution
 
         # what is the farthest from the camera it should render

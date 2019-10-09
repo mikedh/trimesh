@@ -83,15 +83,20 @@ class RayMeshIntersector(object):
 
         Parameters
         ----------
-        ray_origins:    (n,3) float, origins of rays
-        ray_directions: (n,3) float, direction (vector) of rays
+        ray_origins : (n, 3) float
+          Origins of rays
+        ray_directions : (n, 3) float
+          Direction (vector) of rays
 
 
         Returns
         ---------
-        locations: (n) sequence of (m,3) intersection points
-        index_ray: (n,) int, list of ray index
-        index_tri: (n,) int, list of triangle (face) indexes
+        locations : (n) sequence of (m, 3) float
+          Intersection points
+        index_ray : (n,) int
+          Indexes of ray
+        index_tri : (n,) int
+          Indexes of mesh.faces
         """
         (index_tri,
          index_ray,

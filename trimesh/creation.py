@@ -284,12 +284,11 @@ def extrude_triangulation(vertices,
                     vertices_3D.copy() + [0.0, 0, height],
                     vertical]
 
-    mesh = Trimesh(*util.append_faces(vertices_seq,
-                                      faces_seq),
-                   process=True,
+    mesh = Trimesh(*util.append_faces(vertices_seq, faces_seq),
                    **kwargs)
 
-    assert mesh.volume > 0.0
+    if tol.strict:
+        assert mesh.volume > 0.0
 
     return mesh
 

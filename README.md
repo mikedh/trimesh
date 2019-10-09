@@ -27,7 +27,7 @@ For more functionality, like convex hulls (`scipy`), graph operations (`networkx
 conda install -c conda-forge trimesh
 ```
 
-To install `trimesh` with all the soft dependencies which install cleanly on Windows, Linux, and OSX using `pip`:
+To install `trimesh` with the soft dependencies which install cleanly on Linux, OSX, and Windows* using `pip`:
 ```bash
 pip install trimesh[easy]
 ```

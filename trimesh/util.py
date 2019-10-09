@@ -1503,25 +1503,32 @@ def convert_like(item, like):
 
     Parameters
     ------------
-    item: item to be converted
-    like: object with target dtype. If None, item is returned unmodified
+    item : any
+      Item to be converted
+    like : any
+      Object with target dtype
+      If None, item is returned unmodified
 
     Returns
     ----------
     result: item, but in dtype of like
     """
+    # if it's a numpy array
     if isinstance(like, np.ndarray):
         return np.asanyarray(item, dtype=like.dtype)
 
+    # if it's already the desired type just return it
     if isinstance(item, like.__class__) or is_none(like):
         return item
 
-    if (is_sequence(item) and
-        len(item) == 1 and
+    # if it's an array with one item return it
+    if (is_sequence(item) and len(item) == 1 and
             isinstance(item[0], like.__class__)):
         return item[0]
 
+    # otherwise just run the conversion
     item = like.__class__(item)
+
     return item
 
 
@@ -1532,24 +1539,29 @@ def bounds_tree(bounds):
 
     Parameters
     ------------
-    bounds: (n, dimension*2) list of non- interleaved bounds
-             for a 2D bounds tree:
-             [(minx, miny, maxx, maxy), ...]
+    bounds : (n, dimension * 2) float
+      Non- interleaved bounds, i.e. for a 2D bounds tree:
+        [(minx, miny, maxx, maxy), ...]
 
     Returns
     ---------
-    tree: Rtree object
+    tree : Rtree
+      Tree containing bounds by index
     """
-    bounds = np.asanyarray(copy.deepcopy(bounds), dtype=np.float64)
+    # rtree is a soft dependency
+    import rtree
+
+    # make sure we've copied bounds
+    bounds = np.array(bounds, dtype=np.float64, copy=True)
     if len(bounds.shape) != 2:
         raise ValueError('Bounds must be (n,dimension*2)!')
 
+    # check to make sure we have correct shape
     dimension = bounds.shape[1]
     if (dimension % 2) != 0:
         raise ValueError('Bounds must be (n,dimension*2)!')
     dimension = int(dimension / 2)
 
-    import rtree
     # some versions of rtree screw up indexes on stream loading
     # do a test here so we know if we are free to use stream loading
     # or if we have to do a loop to insert things which is 5x slower
@@ -1584,9 +1596,11 @@ def wrap_as_stream(item):
 
     Returns
     ---------
-    wrapped: file-like object
+    wrapped : file-like object
+      Contains data from item
     """
     if not PY3:
+        # in python 2 StringIO handles bytes and str
         return StringIO(item)
     if isinstance(item, str):
         return StringIO(item)
@@ -1601,13 +1615,15 @@ def sigfig_round(values, sigfig=1):
 
     Parameters
     ------------
-    values: float, value to be rounded
-    sigfig: int, number of significant figures to reduce to
-
+    values : float
+      Value to be rounded
+    sigfig : int
+      Number of significant figures to reduce to
 
     Returns
     ----------
-    rounded: values, but rounded to the specified number of significant figures
+    rounded : float
+      Value rounded to the specified number of significant figures
 
 
     Examples
@@ -1634,14 +1650,18 @@ def sigfig_int(values, sigfig):
 
     Parameters
     ------------
-    values: (n,) float or int, array of values
-    sigfig: (n,) int, number of significant figures to keep
+    values : (n,) float or int
+      Array of values
+    sigfig : (n,) int
+      Number of significant figures to keep
 
     Returns
     ------------
-    as_int:      (n,) int, every value[i] has sigfig[i] digits
-    multiplier:  (n, int), exponent, so as_int * 10 ** multiplier is
-                 the same order of magnitude as the input
+    as_int : (n,) int
+      Every value[i] has sigfig[i] digits
+    multiplier : (n, int)
+      Exponent, so as_int * 10 ** multiplier is
+      the same order of magnitude as the input
     """
     values = np.asanyarray(values).reshape(-1)
     sigfig = np.asanyarray(sigfig, dtype=np.int).reshape(-1)
@@ -1743,14 +1763,17 @@ def split_extension(file_name, special=['tar.bz2', 'tar.gz']):
 
     Parameters
     ------------
-    file_name: str, file name
-    special:   list of str, multipart extensions
-               eg: ['tar.bz2', 'tar.gz']
+    file_name : str
+      File name
+    special : list of str
+      Multipart extensions
+      eg: ['tar.bz2', 'tar.gz']
 
     Returns
     ----------
-    extension: str, last characters after a period, or
-               a value from 'special'
+    extension : str
+      Last characters after a period, or
+      a value from 'special'
     """
     file_name = str(file_name)
 
@@ -1763,7 +1786,7 @@ def split_extension(file_name, special=['tar.bz2', 'tar.gz']):
 
 def triangle_strips_to_faces(strips):
     """
-    Given a sequence of triangle strips, convert them to (n,3) faces.
+    Given a sequence of triangle strips, convert them to (n, 3) faces.
 
     Processes all strips at once using np.concatenate and is significantly
     faster than loop- based methods.
@@ -1779,11 +1802,13 @@ def triangle_strips_to_faces(strips):
 
     Parameters
     ------------
-    strips: (n,) list of (m,) int vertex indices
+    strips: (n,) list of (m,) int
+      Vertex indices
 
     Returns
     ------------
-    faces: (m,3) int, vertex indices representing triangles
+    faces : (m, 3) int
+      Vertex indices representing triangles
     """
 
     # save the length of each list in the list of lists
@@ -1823,12 +1848,14 @@ def vstack_empty(tup):
 
     Parameters
     ------------
-    tup: tuple or list of arrays with the same number of columns
+    tup : tuple or list of arrays
+      With the same number of columns
 
     Returns
     ------------
-    stacked: (n,d) array, with same number of columns as
-              constituent arrays.
+    stacked : (n, d) array
+      With same number of columns as
+      constituent arrays.
     """
     # filter out empty arrays
     stackable = [i for i in tup if len(i) > 0]
@@ -1846,15 +1873,20 @@ def write_encoded(file_obj,
                   stuff,
                   encoding='utf-8'):
     """
-    If a file is open in binary mode and a string is passed, encode and write
-    If a file is open in text   mode and bytes are passed, decode and write
+    If a file is open in binary mode and a
+    string is passed, encode and write.
+
+    If a file is open in text mode and bytes are
+    passed decode bytes to str and write.
 
     Parameters
     -----------
-    file_obj: file object,  with 'write' and 'mode'
-    stuff:    str or bytes, stuff to be written
-    encoding: str,          encoding of text
-
+    file_obj : file object
+      With 'write' and 'mode'
+    stuff :  str or bytes
+      Stuff to be written
+    encoding : str
+      Encoding of text
     """
     binary_file = 'b' in file_obj.mode
     string_stuff = isinstance(stuff, basestring)
@@ -1885,14 +1917,18 @@ def unique_id(length=12, increment=0):
 
     Parameters
     ------------
-    length:    int, length of resulting identifier
-    increment: int, number to add to header uint16
-                    useful if calling this function repeatedly
-                    in a tight loop executing faster than time
-                    can increment the header
+    length : int
+      Length of desired identifier
+    increment : int
+      Number to add to header uint16
+      useful if calling this function repeatedly
+      in a tight loop executing faster than time
+      can increment the header
+
     Returns
     ------------
-    unique: str, unique alphanumeric identifier
+    unique : str
+      Unique alphanumeric identifier
     """
     # head the identifier with 16 bits of time information
     # this provides locality and reduces collision chances

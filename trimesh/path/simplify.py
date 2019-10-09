@@ -29,15 +29,18 @@ def fit_circle_check(points,
 
     Parameters
     ---------
-    points:  (n, d) set of points which represent a path
-    prior:   (center, radius) tuple for best guess, or None if unknown
-    scale:   float, what is the overall scale of the set of points
-    verbose: boolean, if True output log.debug messages for the reasons
-             for fit rejection. Potentially generates hundreds of thousands of
-             messages so only suggested in manual debugging.
+    points :  (n, d)
+      List of points which represent a path
+    prior :  (center, radius) tuple
+      Best guess or None if unknown
+    scale : float
+      What is the overall scale of the set of points
+    verbose : bool
+     Output log.debug messages for the reasons
+     for fit rejection only suggested for manual debugging
 
     Returns
-    ---------
+    -----------
     if fit is acceptable:
         (center, radius) tuple
     else:
@@ -113,9 +116,12 @@ def is_circle(points, scale, verbose=False):
 
     Parameters
     -------------
-    points: (n,2) float, points in space
-    scale:  float, scale of overall drawing
-    verbose: bool, print all fit messages or not
+    points : (n,2 ) float
+      Points in space
+    scale : float
+      Scale of overall drawing
+    verbose : bool
+      Print all fit messages or not
 
     Returns
     -------------
