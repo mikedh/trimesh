@@ -154,6 +154,25 @@ def is_file(obj):
     return hasattr(obj, 'read') or hasattr(obj, 'write')
 
 
+def is_pathlib(obj):
+    """
+    Check if the object is a `pathlib.Path` or subclass.
+
+    Parameters
+    ------------
+    obj : object
+      Object to be checked
+
+    Returns
+    ------------
+    is_pathlib : bool
+      Is the input object a pathlib path
+    """
+    # check class name rather than a pathlib import
+    name = obj.__class__.__name__
+    return hasattr(obj, 'absolute') and name.endswith('Path')
+
+
 def is_string(obj):
     """
     Check if an object is a string.

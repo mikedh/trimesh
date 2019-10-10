@@ -33,6 +33,10 @@ def export_mesh(mesh, file_obj, file_type=None, **kwargs):
     # we will want to close it when we're done
     was_opened = False
 
+    if util.is_pathlib(file_obj):
+        # handle `pathlib` objects by converting to string
+        file_obj = str(file_obj.absolute())
+
     if util.is_string(file_obj):
         if file_type is None:
             file_type = (str(file_obj).split('.')[-1]).lower()

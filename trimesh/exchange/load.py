@@ -4,6 +4,7 @@ from .. import util
 from .. import visual
 
 from ..base import Trimesh
+from ..parent import Geometry
 from ..points import PointCloud
 from ..scene.scene import Scene, append_scenes
 from ..constants import log_time, log
@@ -101,12 +102,9 @@ def load(file_obj,
       Loaded geometry as trimesh classes
     """
     # check to see if we're trying to load something
-    # that is already a native trimesh object
-    # do the check by name to avoid circular imports
-    out_types = ('Trimesh', 'Path', 'Scene')
-    if any(util.is_instance_named(file_obj, t)
-           for t in out_types):
-        log.info('Loaded called on %s object, returning input',
+    # that is already a native trimesh Geometry subclass
+    if isinstance(file_obj, Geometry):
+        log.info('Load called on %s object, returning input',
                  file_obj.__class__.__name__)
         return file_obj
 
@@ -509,8 +507,12 @@ def parse_file_args(file_obj,
             isinstance(kwargs['metadata'], dict)):
         metadata.update(kwargs['metadata'])
 
+    if util.is_pathlib(file_obj):
+        # convert pathlib objects to string
+        file_obj = str(file_obj.absolute())
+
     if util.is_file(file_obj) and file_type is None:
-        raise ValueError('file_type must be set when passing file objects!')
+        raise ValueError('file_type must be set for file objects!')
     if util.is_string(file_obj):
         try:
             # os.path.isfile will return False incorrectly
