@@ -14,29 +14,31 @@ from . import grouping
 def subdivide(vertices,
               faces,
               face_index=None,
-              attributes=None):
+              vertex_attributes=None):
     """
     Subdivide a mesh into smaller triangles.
 
-    Note that if `face_index` is passed, only those faces will
-    be subdivided and their neighbors won't be modified making
-    the mesh no longer "watertight."
+    Note that if `face_index` is passed, only those
+    faces will be subdivided and their neighbors won't
+    be modified making the mesh no longer "watertight."
 
     Parameters
-    ----------
+    ------------
     vertices : (n, 3) float
       Vertices in space
-    faces : (n, 3) int
+    faces : (m, 3) int
       Indexes of vertices which make up triangular faces
     face_index : faces to subdivide.
       if None: all faces of mesh will be subdivided
       if (n,) int array of indices: only specified faces
+    vertex_attributes : dict
+      Contains (n, d) attribute data
 
     Returns
     ----------
-    new_vertices : (n, 3) float
+    new_vertices : (q, 3) float
       Vertices in space
-    new_faces : (n, 3) int
+    new_faces : (p, 3) int
       Remeshed faces
     """
     if face_index is None:
@@ -82,20 +84,21 @@ def subdivide(vertices,
 
     new_vertices = np.vstack((vertices, mid))
 
-    if attributes is not None:
+    if vertex_attributes is not None:
         new_attributes = {}
-        for name, attribute in attributes.items():
-            attr_tris = attribute[faces]
-            attr_mid = np.vstack([attr_tris[:, g, :].mean(axis=1)
-                                  for g in [[0, 1],
-                                            [1, 2],
-                                            [2, 0]]])
+        for key, values in vertex_attributes.items():
+            attr_tris = values[faces]
+            attr_mid = np.vstack([
+                attr_tris[:, g, :].mean(axis=1)
+                for g in [[0, 1],
+                          [1, 2],
+                          [2, 0]]])
             attr_mid = attr_mid[unique]
-            new_attributes[name] = np.vstack((attribute, attr_mid))
-
+            new_attributes[key] = np.vstack((
+                values, attr_mid))
         return new_vertices, new_faces, new_attributes
-    else:
-        return new_vertices, new_faces
+
+    return new_vertices, new_faces
 
 
 def subdivide_to_size(vertices,
