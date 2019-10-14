@@ -1,7 +1,8 @@
 import numpy as np
 
-from shapely.geometry import Polygon
+
 from shapely import vectorized
+from shapely.geometry import Polygon
 
 from rtree import Rtree
 from collections import deque

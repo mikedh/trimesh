@@ -293,10 +293,12 @@ def facets(mesh, engine=None):
                          span[nonzero]) ** 2 > tol.facet_threshold
 
     # run connected components on the parallel faces to group them
-    components = connected_components(mesh.face_adjacency[parallel],
-                                      nodes=np.arange(len(mesh.faces)),
-                                      min_len=2,
-                                      engine=engine)
+    components = connected_components(
+        mesh.face_adjacency[parallel],
+        nodes=np.arange(len(mesh.faces)),
+        min_len=2,
+        engine=engine)
+
     return components
 
 
@@ -493,7 +495,8 @@ def connected_component_labels(edges, node_count=None):
     body_count, labels = csgraph.connected_components(
         matrix, directed=False)
 
-    assert len(labels) == node_count
+    if node_count is not None:
+        assert len(labels) == node_count
 
     return labels
 
