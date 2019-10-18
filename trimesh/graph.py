@@ -246,21 +246,6 @@ def shared_edges(faces_a, faces_b):
     return shared
 
 
-def connected_edges(G, nodes):
-    """
-    Given graph G and list of nodes, return the list of edges that
-    are connected to nodes
-
-    """
-    nodes_in_G = collections.deque()
-    for node in nodes:
-        if not G.has_node(node):
-            continue
-        nodes_in_G.extend(nx.node_connected_component(G, node))
-    edges = G.subgraph(nodes_in_G).edges()
-    return edges
-
-
 def facets(mesh, engine=None):
     """
     Find the list of parallel adjacent faces.
