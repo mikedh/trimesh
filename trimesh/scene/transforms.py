@@ -171,13 +171,14 @@ class TransformForest(object):
 
     def to_edgelist(self):
         """
-        Export the current transforms as a list of edge tuples, with
-        each tuple having the format:
+        Export the current transforms as a list of
+        edge tuples, with each tuple having the format:
         (node_a, node_b, {metadata})
 
         Returns
         ---------
-        edgelist: (n,) list of tuples
+        edgelist : (n,) list
+          Of edge tuples
         """
         # save cleaned edges
         export = []
@@ -186,8 +187,8 @@ class TransformForest(object):
             a, b, c = edge
             # geometry is a node property but save it to the
             # edge so we don't need two dictionaries
-            if 'geometry' in self.transforms.nodes[b]:
-                c['geometry'] = self.transforms.nodes[b]['geometry']
+            if 'geometry' in self.transforms.nodes()[b]:
+                c['geometry'] = self.transforms.nodes()[b]['geometry']
             # save the matrix as a float list
             c['matrix'] = np.asanyarray(c['matrix'], dtype=np.float64).tolist()
             export.append((a, b, c))
@@ -254,7 +255,7 @@ class TransformForest(object):
 
         nodes = np.array([
             n for n in self.transforms.nodes()
-            if 'geometry' in self.transforms.nodes[n]])
+            if 'geometry' in self.transforms.nodes()[n]])
 
         return nodes
 
@@ -311,8 +312,8 @@ class TransformForest(object):
             transform = util.multi_dot(transforms)
 
         geometry = None
-        if 'geometry' in self.transforms.nodes[frame_to]:
-            geometry = self.transforms.nodes[frame_to]['geometry']
+        if 'geometry' in self.transforms.nodes()[frame_to]:
+            geometry = self.transforms.nodes()[frame_to]['geometry']
 
         self._cache[cache_key] = (transform, geometry)
 
@@ -333,7 +334,7 @@ class TransformForest(object):
         return graph_to_svg(self.transforms)
 
     def __contains__(self, key):
-        return key in self.transforms.nodes
+        return key in self.transforms.nodes()
 
     def __getitem__(self, key):
         return self.get(key)
@@ -450,7 +451,6 @@ class EnforcedForest(_ForestParent):
         try:
             path = nx.shortest_path(self._undirected, u, v)
         except BaseException as E:
-            print(u, v)
             raise E
         return path
 
