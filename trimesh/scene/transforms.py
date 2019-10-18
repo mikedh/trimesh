@@ -187,10 +187,14 @@ class TransformForest(object):
             a, b, c = edge
             # geometry is a node property but save it to the
             # edge so we don't need two dictionaries
-            if 'geometry' in self.transforms.nodes()[b]:
-                c['geometry'] = self.transforms.nodes()[b]['geometry']
+            b_attr = self.transforms.nodes()[b]
+            if not isinstance(b_attr, dict):
+                log.warning('b_attr not a dict! {}'.format(b_attr))
+            if 'geometry' in b_attr:
+                c['geometry'] = b_attr['geometry']
             # save the matrix as a float list
-            c['matrix'] = np.asanyarray(c['matrix'], dtype=np.float64).tolist()
+            c['matrix'] = np.asanyarray(
+                c['matrix'], dtype=np.float64).tolist()
             export.append((a, b, c))
         return export
 
