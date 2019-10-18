@@ -1898,16 +1898,18 @@ class Trimesh(Geometry):
         return result
 
     @log_time
-    def smoothed(self, angle=.4):
+    def smoothed(self, angle=None, facet_minlen=4):
         """
         Return a version of the current mesh which will render
         nicely, without changing source mesh.
 
         Parameters
         -------------
-        angle : float
-          Angle in radians, face pairs with angles smaller than
-          this value will appear smoothed
+        angle : float or None
+          Angle in radians face pairs with angles
+          smaller than this will appear smoothed
+        facet_minlen : int or None
+          Minimum length of facets to consider
 
         Returns
         ---------
@@ -1921,7 +1923,11 @@ class Trimesh(Geometry):
         cached = self.visual._cache['smoothed']
         if cached is not None:
             return cached
-        smoothed = graph.smoothed(self, angle)
+        # run smoothing
+        smoothed = graph.smoothed(
+            self,
+            angle=angle,
+            facet_minlen=facet_minlen)
         self.visual._cache['smoothed'] = smoothed
         return smoothed
 

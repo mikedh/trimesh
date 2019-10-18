@@ -103,8 +103,13 @@ class GraphTest(g.unittest.TestCase):
                                               tic_diff))))
 
     def test_smoothed(self):
-        mesh = g.get_mesh('ADIS16480.STL')
-        assert len(mesh.faces) == len(mesh.smoothed().faces)
+        """
+        Make sure smoothing is keeping the same number
+        of faces.
+        """
+        for name in ['ADIS16480.STL', 'featuretype.STL']:
+            mesh = g.get_mesh(name)
+            assert len(mesh.faces) == len(mesh.smoothed().faces)
 
     def test_engines(self):
         edges = g.np.arange(10).reshape((-1, 2))

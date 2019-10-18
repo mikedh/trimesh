@@ -6,7 +6,6 @@ Deal with objects which hold visual properties, like
 ColorVisuals and TextureVisuals.
 """
 import numpy as np
-import collections
 
 from .color import ColorVisuals
 from ..util import log

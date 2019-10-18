@@ -297,22 +297,27 @@ def split(mesh,
           adjacency=None,
           engine=None):
     """
-    Split a mesh into multiple meshes from face connectivity.
+    Split a mesh into multiple meshes from face
+    connectivity.
 
-    If only_watertight is true, it will only return watertight meshes
-    and will attempt single triangle/quad repairs.
+    If only_watertight is true it will only return
+    watertight meshes and will attempt to repair
+    single triangle or quad holes.
 
     Parameters
     ----------
-    mesh: Trimesh
-    only_watertight: if True, only return watertight components
-    adjacency: (n,2) list of face adjacency to override using the plain
-               adjacency calculated automatically.
-    engine: str, which engine to use. ('networkx', 'scipy', or 'graphtool')
+    mesh : trimesh.Trimesh
+    only_watertight: bool
+      Only return watertight components
+    adjacency : (n, 2) int
+      Face adjacency to override full mesh
+    engine : str or None
+      Which graph engine to use
 
     Returns
     ----------
-    meshes: list of Trimesh objects
+    meshes : (m,) trimesh.Trimesh
+      Results of splitting
     """
 
     if adjacency is None:
@@ -324,12 +329,14 @@ def split(mesh,
     else:
         min_len = 1
 
-    components = connected_components(edges=adjacency,
-                                      nodes=np.arange(len(mesh.faces)),
-                                      min_len=min_len,
-                                      engine=engine)
-    meshes = mesh.submesh(components,
-                          only_watertight=only_watertight)
+    components = connected_components(
+        edges=adjacency,
+        nodes=np.arange(len(mesh.faces)),
+        min_len=min_len,
+        engine=engine)
+    meshes = mesh.submesh(
+        components,
+        only_watertight=only_watertight)
     return meshes
 
 
@@ -369,8 +376,9 @@ def connected_components(edges,
             graph.add_nodes_from(nodes)
         iterable = nx.connected_components(graph)
         # newer versions of networkx return sets rather than lists
-        components = np.array([np.array(list(i), dtype=np.int64)
-                               for i in iterable if len(i) >= min_len])
+        components = np.array(
+            [np.array(list(i), dtype=np.int64)
+             for i in iterable if len(i) >= min_len])
         return components
 
     def components_graphtool():
@@ -754,6 +762,9 @@ def smoothed(mesh, angle, facet_minlen=4):
     smooth : trimesh.Trimesh
       Geometry with disconnected face patches
     """
+    if angle is None:
+        angle = np.radians(20)
+
     # if the mesh has no adjacent faces return a copy
     if len(mesh.face_adjacency) == 0:
         return mesh.copy()
@@ -765,6 +776,7 @@ def smoothed(mesh, angle, facet_minlen=4):
 
     # coplanar groups of faces
     facets = []
+    nodes = None
     # collect coplanar regions for smoothing
     if facet_minlen is not None:
         # exclude facets with few faces
@@ -779,28 +791,48 @@ def smoothed(mesh, angle, facet_minlen=4):
             # apply the mask to adjacency
             adjacency = adjacency[
                 mask[adjacency].all(axis=1)]
+            # nodes are no longer every faces
+            nodes = np.unique(adjacency)
 
     # run connected components on facet adjacency
     components = connected_components(
         adjacency,
         min_len=1,
-        nodes=np.arange(len(mesh.faces))).tolist()
+        nodes=nodes).tolist()
 
     # add back coplanar groups if any exist
     if len(facets) > 0:
         components.extend(facets)
 
+    if len(components) == 0:
+        # if no components for some reason
+        # just return a copy of the original mesh
+        return mesh.copy()
+
+    # add back any faces that were missed
+    unique = np.unique(np.hstack(components))
+    if len(unique) != len(mesh.faces):
+        # things like single loose faces
+        # or groups below facet_minlen
+        broke = np.setdiff1d(
+            np.arange(len(mesh.faces)), unique)
+        components.extend(broke.reshape((-1, 1)))
+
     # get a submesh as a single appended Trimesh
     smooth = mesh.submesh(components,
                           only_watertight=False,
                           append=True)
+
+    if len(smooth.faces) != len(mesh.faces):
+        log.warning('face count in smooth wrong!')
+
     return smooth
 
 
 def is_watertight(edges, edges_sorted=None):
     """
     Parameters
-    ---------
+    -----------
     edges : (n, 2) int
       List of vertex indices
     edges_sorted : (n, 2) int
