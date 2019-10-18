@@ -109,7 +109,9 @@ def export_gltf(scene,
 
     tree["buffers"] = buffers
     tree["bufferViews"] = views
-    files["model.gltf"] = json.dumps(tree).encode("utf-8")
+    # dump tree with compact separators
+    files["model.gltf"] = json.dumps(
+        tree, separators=(',', ':')).encode("utf-8")
     return files
 
 
@@ -158,8 +160,8 @@ def export_glb(scene, extras=None, include_normals=False):
     tree["buffers"] = [{"byteLength": len(buffer_data)}]
     tree["bufferViews"] = views
 
-    # export the tree to JSON for the content of the file
-    content = json.dumps(tree)
+    # export the tree to JSON for the header
+    content = json.dumps(tree, separators=(',', ':'))
     # add spaces to content, so the start of the data
     # is 4 byte aligned as per spec
     content += (4 - ((len(content) + 20) % 4)) * " "
