@@ -620,9 +620,12 @@ def vertex_to_face_color(vertex_colors, faces):
     return face_colors.astype(np.uint8)
 
 
-def face_to_vertex_color(mesh, face_colors, dtype=np.uint8):
+def face_to_vertex_color(
+        mesh,
+        face_colors,
+        dtype=np.uint8):
     """
-    Convert a list of face colors into a list of vertex colors.
+    Convert face colors into vertex colors.
 
     Parameters
     -----------
@@ -635,12 +638,13 @@ def face_to_vertex_color(mesh, face_colors, dtype=np.uint8):
     vertex_colors: (m,4) dtype, colors for each vertex
     """
     rgba = to_rgba(face_colors)
-    vertex_colors = mesh.faces_sparse.dot(
-        rgba.astype(np.float64))
-    vertex_colors /= mesh.faces_sparse.sum(axis=1)
-    vertex_colors = vertex_colors.astype(dtype)
+    vertex = mesh.faces_sparse.dot(rgba.astype(np.float64))
+    vertex = (vertex / mesh.vertex_degree.reshape(
+        (-1, 1))).astype(dtype)
 
-    return vertex_colors
+    assert vertex.shape == (len(mesh.vertices), 4)
+
+    return vertex
 
 
 def colors_to_materials(colors, count=None):

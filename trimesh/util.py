@@ -1384,8 +1384,10 @@ def submesh(mesh,
     # check to make sure we're not doing a whole bunch of work
     # to deliver a subset which ends up as the whole mesh
     if len(faces_sequence[0]) == len(mesh.faces):
-        all_faces = np.array_equal(np.sort(faces_sequence),
-                                   np.arange(len(faces_sequence)))
+        # compare sorted faces to arange
+        all_faces = np.array_equal(
+            np.sort(faces_sequence[0]),
+            np.arange(len(faces_sequence)))
         if all_faces:
             log.debug('entire mesh requested, returning copy')
             return mesh.copy()
@@ -1427,7 +1429,6 @@ def submesh(mesh,
             visual = visuals[0].concatenate(visuals[1:])
         else:
             visual = None
-
         vertices, faces = append_faces(vertices, faces)
         appended = trimesh_type(
             vertices=vertices,

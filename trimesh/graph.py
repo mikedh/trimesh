@@ -48,19 +48,20 @@ def face_adjacency(faces=None,
 
 
     Parameters
-    ----------
+    -----------
     faces : (n, 3) int, or None
-        List of vertex indices representing triangles
+        Vertex indices representing triangles
     mesh : Trimesh object
-        If passed will used cached edges instead of faces
+        If passed will used cached edges
+        instead of generating from faces
     return_edges : bool
         Return the edges shared by adjacent faces
 
     Returns
-    ---------
-    adjacency : (m,2) int
+    ----------
+    adjacency : (m, 2) int
         Indexes of faces that are adjacent
-    edges: (m,2) int
+    edges: (m, 2) int
         Only returned if return_edges is True
         Indexes of vertices which make up the
         edges shared by the adjacent faces
@@ -228,16 +229,20 @@ def shared_edges(faces_a, faces_b):
 
     Parameters
     ---------
-    faces_a: (n,3) int, set of faces
-    faces_b: (m,3) int, set of faces
+    faces_a : (n, 3) int
+      Array of faces
+    faces_b : (m, 3) int
+      Array of faces
 
     Returns
     ---------
-    shared: (p, 2) int, set of edges
+    shared : (p, 2) int
+      Edges shared between faces
     """
     e_a = np.sort(faces_to_edges(faces_a), axis=1)
     e_b = np.sort(faces_to_edges(faces_b), axis=1)
-    shared = grouping.boolean_rows(e_a, e_b, operation=np.intersect1d)
+    shared = grouping.boolean_rows(
+        e_a, e_b, operation=np.intersect1d)
     return shared
 
 
@@ -261,7 +266,7 @@ def facets(mesh, engine=None):
     Find the list of parallel adjacent faces.
 
     Parameters
-    ---------
+    -----------
     mesh :  trimesh.Trimesh
     engine : str
        Which graph engine to use:
@@ -352,16 +357,21 @@ def connected_components(edges,
 
     Parameters
     -----------
-    edges:      (n,2) int, edges between nodes
-    nodes:      (m, ) int, list of nodes that exist
-    min_len:    int, minimum length of a component group to return
-    engine:     str, which graph engine to use.
-                ('networkx', 'scipy', or 'graphtool')
-                If None, will automatically choose fastest available.
+    edges : (n, 2) int
+      Edges between nodes
+    nodes : (m, ) int or None
+      List of nodes that exist
+    min_len : int
+      Minimum length of a component group to return
+    engine :  str or None
+      Which graph engine to use (None for automatic):
+      (None, 'networkx', 'scipy', 'graphtool')
+
 
     Returns
     -----------
-    components: (n,) sequence of lists, nodes which are connected
+    components : (n,) sequence of (*,) int
+      Nodes which are connected
     """
     def components_networkx():
         """
@@ -456,9 +466,10 @@ def connected_components(edges,
     # graphtool is usually faster then scipy by ~10%, however on very
     # large or very small graphs graphtool outperforms scipy substantially
     # networkx is pure python and is usually 5-10x slower
-    engines = collections.OrderedDict((('graphtool', components_graphtool),
-                                       ('scipy', components_csgraph),
-                                       ('networkx', components_networkx)))
+    engines = collections.OrderedDict((
+        ('graphtool', components_graphtool),
+        ('scipy', components_csgraph),
+        ('networkx', components_networkx)))
 
     # if a graph engine has explicitly been requested use it
     if engine in engines:
@@ -480,14 +491,14 @@ def connected_component_labels(edges, node_count=None):
     Label graph nodes from an edge list, using scipy.sparse.csgraph
 
     Parameters
-    ----------
+    -----------
     edges : (n, 2) int
        Edges of a graph
     node_count : int, or None
         The largest node in the graph.
 
     Returns
-    ---------
+    ----------
     labels : (node_count,) int
         Component labels for each node
     """
@@ -736,19 +747,22 @@ def edges_to_coo(edges, count=None, data=None):
     return matrix
 
 
-def smoothed(mesh, angle):
+def smoothed(mesh, angle, facet_minlen=4):
     """
-    Return a non- watertight version of the mesh which will
-    render nicely with smooth shading by disconnecting faces
-    at sharp angles to each other.
+    Return a non- watertight version of the mesh which
+    will render nicely with smooth shading by
+    disconnecting faces at sharp angles to each other.
 
     Parameters
-    ---------
+    -----------
     mesh : trimesh.Trimesh
       Source geometry
     angle : float
-      Angle in radians, adjacent faces which have normals
+      Angle in radians: adjacent faces
       below this angle will be smoothed
+    facet_minlen : None or int
+      If specified will specially group facets
+      with more faces
 
     Returns
     ---------
@@ -763,10 +777,34 @@ def smoothed(mesh, angle):
     angle_ok = mesh.face_adjacency_angles <= angle
     # subset of face adjacency
     adjacency = mesh.face_adjacency[angle_ok]
-    # list of connected groups of faces
-    components = connected_components(adjacency,
-                                      min_len=1,
-                                      nodes=np.arange(len(mesh.faces)))
+
+    # coplanar groups of faces
+    facets = []
+    # collect coplanar regions for smoothing
+    if facet_minlen is not None:
+        # exclude facets with few faces
+        facets = [f for f in mesh.facets
+                  if len(f) > facet_minlen]
+        if len(facets) > 0:
+            # mask for removing adjacency pairs where
+            # one of the faces is contained in a facet
+            mask = np.ones(len(mesh.faces),
+                           dtype=np.bool)
+            mask[np.hstack(facets)] = False
+            # apply the mask to adjacency
+            adjacency = adjacency[
+                mask[adjacency].all(axis=1)]
+
+    # run connected components on facet adjacency
+    components = connected_components(
+        adjacency,
+        min_len=1,
+        nodes=np.arange(len(mesh.faces))).tolist()
+
+    # add back coplanar groups if any exist
+    if len(facets) > 0:
+        components.extend(facets)
+
     # get a submesh as a single appended Trimesh
     smooth = mesh.submesh(components,
                           only_watertight=False,
@@ -796,7 +834,8 @@ def is_watertight(edges, edges_sorted=None):
         edges_sorted = np.sort(edges, axis=1)
 
     # group sorted edges
-    groups = grouping.group_rows(edges_sorted, require_count=2)
+    groups = grouping.group_rows(
+        edges_sorted, require_count=2)
     watertight = bool((len(groups) * 2) == len(edges))
 
     # are opposing edges reversed
@@ -809,7 +848,8 @@ def is_watertight(edges, edges_sorted=None):
 
 def graph_to_svg(graph):
     """
-    Turn a networkx graph into an SVG string, using graphviz dot.
+    Turn a networkx graph into an SVG string
+    using graphviz `dot`.
 
     Parameters
     ----------

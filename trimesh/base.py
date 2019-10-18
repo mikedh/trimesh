@@ -1921,7 +1921,6 @@ class Trimesh(Geometry):
         cached = self.visual._cache['smoothed']
         if cached is not None:
             return cached
-
         smoothed = graph.smoothed(self, angle)
         self.visual._cache['smoothed'] = smoothed
         return smoothed
