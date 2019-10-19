@@ -184,22 +184,21 @@ class TransformForest(object):
         export = []
         # loop through (node, node, edge attributes)
         for edge in nx.to_edgelist(self.transforms):
-            a, b, c = edge
+            a, b, attr = edge
             # geometry is a node property but save it to the
             # edge so we don't need two dictionaries
             try:
                 b_attr = self.transforms.nodes[b]
             except BaseException as E:
-                print('node: {}'.format(b))
-                print('nodes.__class: {}'.format(self.transforms.nodes.__class__))
-                print('nx version: {}'.format(nx.__version__))
-                raise E
+                # networkx 1.X API
+                b_attr = self.transforms.node[b]
+            # apply node geometry to edge attributes
             if 'geometry' in b_attr:
-                c['geometry'] = b_attr['geometry']
+                attr['geometry'] = b_attr['geometry']
             # save the matrix as a float list
-            c['matrix'] = np.asanyarray(
-                c['matrix'], dtype=np.float64).tolist()
-            export.append((a, b, c))
+            attr['matrix'] = np.asanyarray(
+                attr['matrix'], dtype=np.float64).tolist()
+            export.append((a, b, attr))
         return export
 
     def from_edgelist(self, edges, strict=True):
@@ -246,9 +245,10 @@ class TransformForest(object):
 
         Returns
         -------------
-        nodes: (n,) array, of node names
+        nodes : (n,) array
+          All node names
         """
-        nodes = np.array(list(self.transforms.nodes))
+        nodes = np.array(list(self.transforms.nodes()))
         return nodes
 
     @caching.cache_decorator
@@ -258,11 +258,12 @@ class TransformForest(object):
 
         Returns
         ------------
-        nodes_geometry: (m,) array, of node names
+        nodes_geometry : (m,) array
+          Node names which have geometry associated
         """
-        nodes = np.array([
-            n for n, attr in self.transforms.nodes.items()
-            if 'geometry' in attr])
+        nodes = np.array(
+            [n for n, attr in self.transforms.nodes(data=True)
+             if 'geometry' in attr])
 
         return nodes
 
@@ -318,9 +319,16 @@ class TransformForest(object):
         else:
             transform = util.multi_dot(transforms)
 
-        geometry = None
-        if 'geometry' in self.transforms.nodes[frame_to]:
-            geometry = self.transforms.nodes[frame_to]['geometry']
+        try:
+            attr = self.transforms.nodes[frame_to]
+        except BaseException:
+            # networkx 1.X API
+            attr = self.transforms.node[frame_to]
+
+        if 'geometry' in attr:
+            geometry = attr['geometry']
+        else:
+            geometry = None
 
         self._cache[cache_key] = (transform, geometry)
 
@@ -341,7 +349,12 @@ class TransformForest(object):
         return graph_to_svg(self.transforms)
 
     def __contains__(self, key):
-        return key in self.transforms.nodes
+        try:
+            return key in self.transforms.nodes
+        except BaseException:
+            # networkx 1.X API
+            util.log.warning('upgrade networkx to version 2.X!')
+            return key in self.transforms.nodes()
 
     def __getitem__(self, key):
         return self.get(key)
