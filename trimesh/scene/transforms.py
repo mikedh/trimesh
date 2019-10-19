@@ -189,7 +189,7 @@ class TransformForest(object):
             # edge so we don't need two dictionaries
             try:
                 b_attr = self.transforms.nodes[b]
-            except BaseException as E:
+            except BaseException:
                 # networkx 1.X API
                 b_attr = self.transforms.node[b]
             # apply node geometry to edge attributes
