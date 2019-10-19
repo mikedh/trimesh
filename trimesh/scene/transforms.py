@@ -188,10 +188,11 @@ class TransformForest(object):
             # geometry is a node property but save it to the
             # edge so we don't need two dictionaries
             try:
-                b_attr = self.transforms.nodes()[b]
+                b_attr = self.transforms.nodes[b]
             except BaseException as E:
                 print('node: {}'.format(b))
-                print('nodes: {}'.format(self.transforms.nodes()))
+                print('nodes.__class: {}'.format(self.transforms.nodes.__class__))
+                print('nx version: {}'.format(nx.__version__))
                 raise E
             if 'geometry' in b_attr:
                 c['geometry'] = b_attr['geometry']
@@ -247,7 +248,7 @@ class TransformForest(object):
         -------------
         nodes: (n,) array, of node names
         """
-        nodes = np.array(list(self.transforms.nodes()))
+        nodes = np.array(list(self.transforms.nodes))
         return nodes
 
     @caching.cache_decorator
@@ -260,7 +261,7 @@ class TransformForest(object):
         nodes_geometry: (m,) array, of node names
         """
         nodes = np.array([
-            n for n, attr in self.transforms.nodes().items()
+            n for n, attr in self.transforms.nodes.items()
             if 'geometry' in attr])
 
         return nodes
@@ -318,8 +319,8 @@ class TransformForest(object):
             transform = util.multi_dot(transforms)
 
         geometry = None
-        if 'geometry' in self.transforms.nodes()[frame_to]:
-            geometry = self.transforms.nodes()[frame_to]['geometry']
+        if 'geometry' in self.transforms.nodes[frame_to]:
+            geometry = self.transforms.nodes[frame_to]['geometry']
 
         self._cache[cache_key] = (transform, geometry)
 
@@ -340,7 +341,7 @@ class TransformForest(object):
         return graph_to_svg(self.transforms)
 
     def __contains__(self, key):
-        return key in self.transforms.nodes()
+        return key in self.transforms.nodes
 
     def __getitem__(self, key):
         return self.get(key)
@@ -414,7 +415,7 @@ class EnforcedForest(_ForestParent):
             return changed
         if self._undirected.has_edge(u, v):
             self.remove_edges_from([[u, v], [v, u]])
-        elif len(self.nodes()) > 0:
+        elif len(self.nodes) > 0:
             try:
                 path = nx.shortest_path(self._undirected, u, v)
                 if self.flags['strict']:
