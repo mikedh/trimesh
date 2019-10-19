@@ -105,17 +105,17 @@ def compute_stable_poses(mesh,
                 if dg.out_degree(node) == 0:
                     continue
                 successor = next(iter(dg.successors(node)))
-                dg.node[successor]['prob'] += dg.node[node]['prob']
-                dg.node[node]['prob'] = 0.0
+                dg.nodes[successor]['prob'] += dg.nodes[node]['prob']
+                dg.nodes[node]['prob'] = 0.0
                 new_nodes.append(successor)
             nodes = new_nodes
             n_iters += 1
 
         # Collect stable poses
         for node in dg.nodes():
-            if dg.node[node]['prob'] > 0.0:
+            if dg.nodes[node]['prob'] > 0.0:
                 normal = cvh.face_normals[node]
-                prob = dg.node[node]['prob']
+                prob = dg.nodes[node]['prob']
                 key = tuple(np.around(normal, decimals=3))
                 if key in norms_to_probs:
                     norms_to_probs[key]['prob'] += 1.0 / n_samples * prob

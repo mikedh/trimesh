@@ -413,9 +413,9 @@ class EnforcedForest(_ForestParent):
             if self.flags['strict']:
                 raise ValueError('Edge must be between two unique nodes!')
             return changed
-        if self._undirected.has_edge(u, v):
+        elif self._undirected.has_edge(u, v):
             self.remove_edges_from([[u, v], [v, u]])
-        elif len(self.nodes) > 0:
+        elif len(self.nodes()) > 0:
             try:
                 path = nx.shortest_path(self._undirected, u, v)
                 if self.flags['strict']:
