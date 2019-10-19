@@ -1,6 +1,11 @@
 import os
+import inspect
 
-from pkg_resources import resource_string
+# find the current absolute path using inspect
+_pwd = os.path.dirname(
+    os.path.abspath(
+        inspect.getfile(
+            inspect.currentframe())))
 
 
 def get_resource(name, decode=True):
@@ -19,10 +24,12 @@ def get_resource(name, decode=True):
     resource : str or bytes
       File data
     """
-    # get the resource
-    resource = resource_string(
-        'trimesh', os.path.join('resources', name))
-    # make sure we return it as a string
+    # get the resource using relative names
+    with open(os.path.join(_pwd, name), 'rb') as f:
+        resource = f.read()
+
+    # make sure we return it as a string if asked
     if decode and hasattr(resource, 'decode'):
         return resource.decode('utf-8')
+
     return resource

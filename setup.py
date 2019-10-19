@@ -16,6 +16,13 @@ if os.path.exists('README.md'):
     with open('README.md', 'r') as f:
         long_description = f.read()
 
+# minimal requirements for installing trimesh
+# note that `pip` requires setuptools itself
+requirements_default = set([
+    'numpy',     # all data structures
+    'setuptools'  # used for packaging
+])
+
 # "easy" requirements should install without compiling
 # anything on Windows, Linux, and Mac, for Python 2.7-3.4+
 requirements_easy = set([
@@ -91,7 +98,7 @@ setup(name='trimesh',
       package_data={'trimesh': ['resources/*.template',
                                 'resources/*.json',
                                 'resources/*.zip']},
-      install_requires=['numpy'],
+      install_requires=list(requirements_default),
       extras_require={'test': list(requirements_test),
                       'easy': list(requirements_easy),
                       'all': list(requirements_all)}
