@@ -763,7 +763,7 @@ def smoothed(mesh, angle, facet_minlen=4):
       Geometry with disconnected face patches
     """
     if angle is None:
-        angle = np.radians(20)
+        angle = np.radians(30)
 
     # if the mesh has no adjacent faces return a copy
     if len(mesh.face_adjacency) == 0:
