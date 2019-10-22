@@ -3,6 +3,7 @@ import os
 # find the current absolute path to this directory
 _pwd = os.path.expanduser(os.path.abspath(os.path.dirname(__file__)))
 
+
 def get_resource(name, decode=True):
     """
     Get a resource from the trimesh/resources folder.

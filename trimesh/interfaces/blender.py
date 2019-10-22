@@ -27,8 +27,6 @@ if platform.system() == 'Darwin':
     log.debug('searching for blender in: %s', _search_path)
 
 _blender_executable = find_executable('blender', path=_search_path)
-_blender_template = get_resource('blender.py.template')
-
 exists = _blender_executable is not None
 
 
@@ -39,7 +37,9 @@ def boolean(meshes, operation='difference'):
     if operation == 'INTERSECTION':
         operation = 'INTERSECT'
 
-    script = _blender_template.replace('$operation', operation)
+    # get the template from our resources folder
+    template = get_resource('blender.py.template')
+    script = template.replace('$operation', operation)
 
     with MeshScript(meshes=meshes,
                     script=script) as blend:

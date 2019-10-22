@@ -88,9 +88,7 @@ is_linux = 'linux' in platform.system().lower()
 
 # find the current absolute path using inspect
 dir_current = os.path.dirname(
-    os.path.abspath(
-        inspect.getfile(
-            inspect.currentframe())))
+    os.path.abspath(os.path.expanduser(__file__)))
 # the absolute path for our reference models
 dir_models = os.path.abspath(
     os.path.join(dir_current, '..', 'models'))
