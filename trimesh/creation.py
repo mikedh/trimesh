@@ -12,7 +12,7 @@ from .geometry import faces_to_edges, align_vectors
 
 from . import util
 from . import grouping
-from . import transformations
+from . import transformations as tf
 
 import numpy as np
 import collections
@@ -67,6 +67,7 @@ def validate_polygon(obj):
 
 def extrude_polygon(polygon,
                     height,
+                    transform=None,
                     **kwargs):
     """
     Extrude a 2D shapely polygon into a 3D mesh
@@ -89,6 +90,7 @@ def extrude_polygon(polygon,
     mesh = extrude_triangulation(vertices=vertices,
                                  faces=faces,
                                  height=height,
+                                 transform=transform,
                                  **kwargs)
     return mesh
 
@@ -135,10 +137,10 @@ def sweep_polygon(polygon,
 
     # Compute 3D locations of those vertices
     verts_3d = np.c_[verts_2d, np.zeros(n)]
-    verts_3d = transformations.transform_points(verts_3d, tf_mat)
+    verts_3d = tf.transform_points(verts_3d, tf_mat)
     base_verts_3d = np.c_[base_verts_2d,
                           np.zeros(len(base_verts_2d))]
-    base_verts_3d = transformations.transform_points(base_verts_3d,
+    base_verts_3d = tf.transform_points(base_verts_3d,
                                                      tf_mat)
 
     # keep matching sequence of vertices and 0- indexed faces
@@ -163,10 +165,10 @@ def sweep_polygon(polygon,
 
         # Rotate if needed
         if angles is not None:
-            tf_mat = transformations.rotation_matrix(angles[i],
+            tf_mat = tf.rotation_matrix(angles[i],
                                                      norms[i],
                                                      path[i])
-            verts_3d_prev = transformations.transform_points(verts_3d_prev,
+            verts_3d_prev = tf.transform_points(verts_3d_prev,
                                                              tf_mat)
 
         # Project vertices onto plane in 3D
@@ -207,6 +209,7 @@ def sweep_polygon(polygon,
 def extrude_triangulation(vertices,
                           faces,
                           height,
+                          transform=None,
                           **kwargs):
     """
     Turn a 2D triangulation into a watertight Trimesh.
@@ -256,7 +259,8 @@ def extrude_triangulation(vertices,
     # edges which only occur once are on the boundary of the polygon
     # since the triangulation may have subdivided the boundary of the
     # shapely polygon, we need to find it again
-    edges_unique = grouping.group_rows(edges_sorted, require_count=1)
+    edges_unique = grouping.group_rows(
+        edges_sorted, require_count=1)
 
     # (n, 2, 2) set of line segments (positions, not references)
     boundary = vertices[edges[edges_unique]]
@@ -284,9 +288,18 @@ def extrude_triangulation(vertices,
                     vertices_3D.copy() + [0.0, 0, height],
                     vertical]
 
-    mesh = Trimesh(*util.append_faces(vertices_seq, faces_seq),
+    # append sequences into flat nicely indexed arrays
+    vertices, faces = util.append_faces(vertices_seq, faces_seq)
+    # apply transform here to avoid later bookkeeping
+    if transform is not None:
+        vertices = tf.transform_points(
+            vertices, transform)
+    # create mesh
+    mesh = Trimesh(vertices=vertices,
+                   faces=faces,
                    **kwargs)
 
+    # only check in strict mode (unit tests)
     if tol.strict:
         assert mesh.volume > 0.0
 
@@ -752,7 +765,7 @@ def cylinder(radius=1.0,
         # align Z with our desired direction
         rotation = align_vectors([0, 0, 1], vector)
         # translate to midpoint of segment
-        translation = transformations.translation_matrix(midpoint)
+        translation = tf.translation_matrix(midpoint)
         # compound the rotation and translation
         transform = np.dot(translation, rotation)
 
@@ -933,7 +946,7 @@ def axis(origin_size=0.04,
     axis_origin.visual.face_colors = origin_color
 
     # create the cylinder for the z-axis
-    translation = transformations.translation_matrix(
+    translation = tf.translation_matrix(
         [0, 0, axis_length / 2])
     z_axis = cylinder(
         radius=axis_radius,
@@ -943,10 +956,10 @@ def axis(origin_size=0.04,
     z_axis.visual.face_colors = [0, 0, 255]
 
     # create the cylinder for the y-axis
-    translation = transformations.translation_matrix(
+    translation = tf.translation_matrix(
         [0, 0, axis_length / 2])
-    rotation = transformations.rotation_matrix(np.radians(-90),
-                                               [1, 0, 0])
+    rotation = tf.rotation_matrix(np.radians(-90),
+                                  [1, 0, 0])
     y_axis = cylinder(
         radius=axis_radius,
         height=axis_length,
@@ -955,10 +968,10 @@ def axis(origin_size=0.04,
     y_axis.visual.face_colors = [0, 255, 0]
 
     # create the cylinder for the x-axis
-    translation = transformations.translation_matrix(
+    translation = tf.translation_matrix(
         [0, 0, axis_length / 2])
-    rotation = transformations.rotation_matrix(np.radians(90),
-                                               [0, 1, 0])
+    rotation = tf.rotation_matrix(np.radians(90),
+                                  [0, 1, 0])
     x_axis = cylinder(
         radius=axis_radius,
         height=axis_length,

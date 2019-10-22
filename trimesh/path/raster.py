@@ -56,6 +56,10 @@ def rasterize(path,
     discrete = [((i - origin) / pitch).astype(np.int)
                 for i in path.discrete]
 
+    # the path indexes that are exteriors
+    # needed to know what to fill/empty but expensive
+    roots = path.root
+
     # draw the exteriors
     exteriors = Image.new(mode='1', size=resolution)
     edraw = ImageDraw.Draw(exteriors)
@@ -71,10 +75,6 @@ def rasterize(path,
         if not fill:
             del edraw
             return exteriors
-
-    # the path indexes that are exteriors
-    # needed to know what to fill/empty but expensive
-    roots = path.root
 
     # draw the interiors
     interiors = Image.new(mode='1', size=resolution)

@@ -402,7 +402,7 @@ class Trimesh(Geometry):
             compare[valid] = check
 
             if not np.allclose(compare, values[:20]):
-                log.warning('face_normals didn\'t match triangles, ignoring!')
+                log.debug("face_normals didn't match triangles, ignoring!")
                 return
 
         self._cache['face_normals'] = values

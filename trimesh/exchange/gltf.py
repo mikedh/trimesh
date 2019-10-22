@@ -445,14 +445,13 @@ def _create_gltf_structure(scene,
                 name=name,
                 tree=tree,
                 buffer_items=buffer_items)
-    # cull empty or unpopulated fields here
-    if len(tree['textures']) == 0:
-        tree.pop('textures')
-        tree.pop('samplers')
-    if len(tree["materials"]) == 0:
-        tree.pop("materials")
-    if len(tree['images']) == 0:
-        tree.pop('images')
+
+    # cull empty or unpopulated fields
+    # check keys that might be empty so we can remove them
+    check = ['textures', 'samplers', 'materials', 'images']
+    for key in check:
+        if len(tree[key]) == 0:
+            tree.pop(key)
 
     # in unit tests compare our header against the schema
     if tol.strict:

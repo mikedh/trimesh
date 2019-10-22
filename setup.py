@@ -5,7 +5,9 @@ import sys
 from setuptools import setup
 
 # load __version__ without importing anything
-version_file = 'trimesh/version.py'
+version_file = os.path.join(
+    os.path.dirname(__file__),
+    'trimesh/version.py')
 with open(version_file, 'r') as f:
     # use eval to get a clean string of version from file
     __version__ = eval(f.read().strip().split('=')[-1])
@@ -20,7 +22,7 @@ if os.path.exists('README.md'):
 # note that `pip` requires setuptools itself
 requirements_default = set([
     'numpy',     # all data structures
-    'setuptools'  # used for packaging
+    'setuptools' # used for packaging
 ])
 
 # "easy" requirements should install without compiling
@@ -31,7 +33,7 @@ requirements_easy = set([
     'lxml',      # handle XML better and faster than built- in XML
     'pyglet',    # render preview windows nicely
     'shapely',   # handle 2D polygons robustly
-    'rtree',     # create N- dimension trees for broad- phase queries
+    'rtree',     # create N-dimension trees for broad-phase queries
     'svg.path',  # handle SVG format path strings
     'sympy',     # do analytical math
     'msgpack',   # serialize into msgpack
@@ -52,13 +54,23 @@ requirements_all = requirements_easy.union([
     'psutil',        # figure out how much memory we have
     'glooey',        # make GUI applications with 3D stuff
     'jsonschema',    # validate JSON schemas like GLTF
-    'scikit-image'])  # marching cubes and other nice stuff
+    'scikit-image']) # marching cubes and other nice stuff
 
 # requirements for running unit tests
 requirements_test = set(['pytest',       # run all unit tests
                          'pytest-cov',   # coverage plugin
                          'pyinstrument',  # profile code
                          'coveralls'])   # report coverage stats
+
+# if someone wants to output a requirements file
+# `python setup.py --list-all > requirements.txt`
+if '--list-all' in sys.argv:
+    # will not include default requirements (numpy)
+    print('\n'.join(requirements_all))
+    exit()
+elif '--list-easy' in sys.argv:
+    print('\n'.join(requirements_easy))
+    exit()
 
 # call the magical setuptools setup
 setup(name='trimesh',

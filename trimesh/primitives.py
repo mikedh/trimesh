@@ -16,7 +16,7 @@ from . import sample
 from . import caching
 from . import inertia
 from . import creation
-from . import transformations
+from . import transformations as tf
 
 from .base import Trimesh
 from .constants import log, tol
@@ -92,11 +92,13 @@ class _Primitive(Trimesh):
 
     def apply_transform(self, matrix):
         """
-        Apply a transform to the current primitive (sets self.transform)
+        Apply a transform to the current primitive by
+        setting self.transform
 
         Parameters
-        -----------
-        matrix: (4,4) float, homogeneous transformation
+        ------------
+        matrix: (4,4) float
+          Homogeneous transformation
         """
         matrix = np.asanyarray(matrix, order='C', dtype=np.float64)
         if matrix.shape != (4, 4):
@@ -539,7 +541,7 @@ class Box(_Primitive):
         else:
             raise ValueError('either count or step must be specified!')
 
-        transformed = transformations.transform_points(
+        transformed = tf.transform_points(
             grid, matrix=self.primitive.transform)
         return transformed
 
@@ -679,7 +681,7 @@ class Extrusion(_Primitive):
         #  3D extents
         extents = np.append(box, abs(self.primitive.height))
         # calculate to_3D transform from 2D obb
-        rotation_Z = np.linalg.inv(transformations.planar_matrix_to_3D(to_origin))
+        rotation_Z = np.linalg.inv(tf.planar_matrix_to_3D(to_origin))
         rotation_Z[2, 3] = self.primitive.height / 2.0
         # combine the 2D OBB transformation with the 2D projection transform
         to_3D = np.dot(self.primitive.transform, rotation_Z)
@@ -750,10 +752,9 @@ class Extrusion(_Primitive):
         log.debug('Creating mesh for extrude Primitive')
         # extrude the polygon along Z
         mesh = creation.extrude_polygon(
-            self.primitive.polygon,
-            self.primitive.height)
-        # should do proper bookkeeping
-        mesh.apply_transform(self.primitive.transform)
+            polygon=self.primitive.polygon,
+            height=self.primitive.height,
+            transform=self.primitive.transform)
 
         # check volume here in unit tests
         if tol.strict and mesh.volume < 0.0:
@@ -762,4 +763,3 @@ class Extrusion(_Primitive):
         # cache mesh geometry in the primitive
         self._cache['vertices'] = mesh.vertices
         self._cache['faces'] = mesh.faces
-        self._cache['face_normals'] = mesh.face_normals
