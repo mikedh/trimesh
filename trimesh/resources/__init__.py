@@ -1,11 +1,8 @@
 import os
-import inspect
 
-# find the current absolute path using inspect
-_pwd = os.path.dirname(
-    os.path.abspath(
-        inspect.getfile(
-            inspect.currentframe())))
+
+# find the current absolute path to this directory
+_pwd = os.path.dirname(__file__)
 
 
 def get_resource(name, decode=True):
