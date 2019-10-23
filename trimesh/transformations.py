@@ -1300,20 +1300,26 @@ def quaternion_matrix(quaternion):
     >>> M = quaternion_matrix([0, 1, 0, 0])
     >>> np.allclose(M, np.diag([1, -1, -1, 1]))
     True
+    >>> M = quaternion_matrix([[1, 0, 0, 0],[0, 1, 0, 0]])
+    >>> np.allclose(M, np.array([np.identity(4), np.diag([1, -1, -1, 1])]))
+    True
+
 
     """
-    q = np.array(quaternion, dtype=np.float64, copy=True)
-    n = np.dot(q, q)
-    if n < _EPS:
-        return np.identity(4)
-    q *= math.sqrt(2.0 / n)
-    q = np.outer(q, q)
-    return np.array([
-        [1.0 - q[2, 2] - q[3, 3], q[1, 2] -
-            q[3, 0], q[1, 3] + q[2, 0], 0.0],
-        [q[1, 2] + q[3, 0], 1.0 - q[1, 1] - q[3, 3], q[2, 3] - q[1, 0], 0.0],
-        [q[1, 3] - q[2, 0], q[2, 3] + q[1, 0], 1.0 - q[1, 1] - q[2, 2], 0.0],
-        [0.0, 0.0, 0.0, 1.0]])
+    q = np.array(quaternion, dtype=np.float64, copy=True).reshape((-1,4))
+    n = np.einsum('ij,ij->i', q, q)
+    num_qs = len(n)
+    identities = n < _EPS
+    q[~identities,:] *= np.sqrt(2.0 / n[~identities,None])
+    q = np.einsum('ij,ik->ikj', q, q)
+    ret = np.zeros((num_qs,4,4))
+    ret[:,0,:] = np.vstack([1.0 - q[:,2,2] - q[:,3,3], q[:,1,2] - q[:,3,0], q[:,1,3] + q[:,2,0], np.zeros(num_qs, dtype=np.float64)]).T
+    ret[:,1,:] = np.vstack([q[:,1,2] + q[:,3,0], 1.0 - q[:,1,1] - q[:,3,3], q[:,2,3] - q[:,1,0], np.zeros(num_qs, dtype=np.float64)]).T
+    ret[:,2,:] = np.vstack([q[:,1,3] - q[:,2,0], q[:,2,3] + q[:,1,0], 1.0 - q[:,1,1] - q[:,2,2], np.zeros(num_qs, dtype=np.float64)]).T
+    ret[:,3,:] = np.vstack([np.zeros(num_qs, dtype=np.float64), np.zeros(num_qs, dtype=np.float64), 
+                            np.zeros(num_qs, dtype=np.float64), np.ones(num_qs, dtype=np.float64)]).T
+    ret[identities] = np.eye(4)[None,...]
+    return ret.squeeze()
 
 
 def quaternion_from_matrix(matrix, isprecise=False):
@@ -1506,7 +1512,7 @@ def quaternion_slerp(quat0, quat1, fraction, spin=0, shortestpath=True):
     return q0
 
 
-def random_quaternion(rand=None):
+def random_quaternion(rand=None, num=1):
     """Return uniform random unit quaternion.
 
     rand: array like or None
@@ -1516,25 +1522,28 @@ def random_quaternion(rand=None):
     >>> q = random_quaternion()
     >>> np.allclose(1, vector_norm(q))
     True
+    >>> q = random_quaternion(num=10)
+    >>> np.allclose(1, vector_norm(q, axis=1))
+    True
     >>> q = random_quaternion(np.random.random(3))
     >>> len(q.shape), q.shape[0]==4
     (1, True)
 
     """
     if rand is None:
-        rand = np.random.rand(3)
+        rand = np.random.rand(3*num).reshape((3,-1))
     else:
-        assert len(rand) == 3
+        assert rand.shape[0] == 3
     r1 = np.sqrt(1.0 - rand[0])
     r2 = np.sqrt(rand[0])
     pi2 = math.pi * 2.0
     t1 = pi2 * rand[1]
     t2 = pi2 * rand[2]
     return np.array([np.cos(t2) * r2, np.sin(t1) * r1,
-                     np.cos(t1) * r1, np.sin(t2) * r2])
+                     np.cos(t1) * r1, np.sin(t2) * r2]).T.squeeze()
 
 
-def random_rotation_matrix(rand=None):
+def random_rotation_matrix(rand=None, num=1):
     """Return uniform random rotation matrix.
 
     rand: array like
@@ -1544,9 +1553,12 @@ def random_rotation_matrix(rand=None):
     >>> R = random_rotation_matrix()
     >>> np.allclose(np.dot(R.T, R), np.identity(4))
     True
+    >>> R = random_rotation_matrix(num=10)
+    >>> np.allclose(np.einsum('...ji,...jk->...ik', R, R), np.identity(4))
+    True
 
     """
-    return quaternion_matrix(random_quaternion(rand))
+    return quaternion_matrix(random_quaternion(rand=rand, num=num))
 
 
 class Arcball(object):
