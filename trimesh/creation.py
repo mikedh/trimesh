@@ -141,7 +141,7 @@ def sweep_polygon(polygon,
     base_verts_3d = np.c_[base_verts_2d,
                           np.zeros(len(base_verts_2d))]
     base_verts_3d = tf.transform_points(base_verts_3d,
-                                                     tf_mat)
+                                        tf_mat)
 
     # keep matching sequence of vertices and 0- indexed faces
     vertices = [base_verts_3d]
@@ -166,10 +166,10 @@ def sweep_polygon(polygon,
         # Rotate if needed
         if angles is not None:
             tf_mat = tf.rotation_matrix(angles[i],
-                                                     norms[i],
-                                                     path[i])
+                                        norms[i],
+                                        path[i])
             verts_3d_prev = tf.transform_points(verts_3d_prev,
-                                                             tf_mat)
+                                                tf_mat)
 
         # Project vertices onto plane in 3D
         ds = np.einsum('ij,j->i', (path[i + 1] - verts_3d_prev), norms[i])
@@ -290,15 +290,19 @@ def extrude_triangulation(vertices,
 
     # append sequences into flat nicely indexed arrays
     vertices, faces = util.append_faces(vertices_seq, faces_seq)
-    # apply transform here to avoid later bookkeeping
     if transform is not None:
+        # apply transform here to avoid later bookkeeping
         vertices = tf.transform_points(
             vertices, transform)
-    # create mesh
+        # if the transform flips the winding flip faces back
+        # so that the normals will be facing outwards
+        if tf.flips_winding(transform):
+            # fliplr makes arrays non-contiguous
+            faces = np.ascontiguousarray(np.fliplr(faces))
+    # create mesh object with passed keywords
     mesh = Trimesh(vertices=vertices,
                    faces=faces,
                    **kwargs)
-
     # only check in strict mode (unit tests)
     if tol.strict:
         assert mesh.volume > 0.0

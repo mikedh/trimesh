@@ -16,6 +16,7 @@ from . import sample
 from . import caching
 from . import inertia
 from . import creation
+from . import triangles
 from . import transformations as tf
 
 from .base import Trimesh
@@ -61,11 +62,18 @@ class _Primitive(Trimesh):
 
     @property
     def face_normals(self):
+        # we need to avoid the logic in the superclass that
+        # is specific to the data model prioritizing faces
         stored = self._cache['face_normals']
         if util.is_shape(stored, (-1, 3)):
             return stored
-        self._create_mesh()
-        return self._cache['face_normals']
+        # just calculate if not stored
+        unit, valid = triangles.normals(self.triangles)
+        normals = np.zeros((len(valid), 3))
+        normals[valid] = unit
+        # store and return
+        self._cache['face_normals'] = normals
+        return normals
 
     @face_normals.setter
     def face_normals(self, values):
