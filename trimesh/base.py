@@ -2049,8 +2049,8 @@ class Trimesh(Geometry):
                     plane_normal,
                     **kwargs):
         """
-        Returns another mesh that is the current mesh
-        sliced by the plane defined by origin and normal.
+        Slice the mesh with a plane, returning a new mesh that is the
+        portion of the original mesh to the positive normal side of the plane
 
         Parameters
         ------------
@@ -2062,7 +2062,8 @@ class Trimesh(Geometry):
         Returns
         ---------
         new_mesh: trimesh.Trimesh or None
-          Subset of current mesh sliced by plane
+          Subset of current mesh that intersects the half plane
+          to the positive normal side of the plane
         """
 
         # return a new mesh
