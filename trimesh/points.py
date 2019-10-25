@@ -12,8 +12,6 @@ from .constants import tol
 from .geometry import plane_transform
 from .parent import Geometry
 
-from .exchange.export import export_pointcloud
-
 from . import util
 from . import caching
 from . import grouping
@@ -598,7 +596,8 @@ class PointCloud(Geometry):
           Which file type to export as.
           If file name is passed this is not required
         """
-        return export_pointcloud(cloud=self,
-                                 file_obj=file_obj,
-                                 file_type=file_type,
-                                 **kwargs)
+        from .exchange.export import export_mesh
+        return export_mesh(self,
+                           file_obj=file_obj,
+                           file_type=file_type,
+                           **kwargs)

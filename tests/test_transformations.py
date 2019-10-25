@@ -146,7 +146,7 @@ class TransformTest(g.unittest.TestCase):
             m = g.get_mesh('ADIS16480.STL', validate=validate)
             m.apply_scale(.001)
             m._cache.clear()
-            fz = g.np.nonzero(g.np.linalg.norm(
+            g.np.nonzero(g.np.linalg.norm(
                 m.face_normals,
                 axis=1) < 1e-3)
             m.apply_transform(

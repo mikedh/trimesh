@@ -169,6 +169,27 @@ class PointsTest(g.unittest.TestCase):
                         g.np.diff(points[idx], axis=0), axis=1)
                     assert g.np.allclose(dist_check, dist)
 
+    def test_xyz(self):
+        """
+        Test XYZ file loading
+        """
+        # test a small file from cloudcompare
+        p = g.get_mesh('points_cloudcompare.xyz')
+        assert p.vertices.shape == (101, 3)
+        assert p.colors.shape == (101, 4)
+
+        # test a small file from agisoft
+        p = g.get_mesh('points_agisoft.xyz')
+        assert p.vertices.shape == (100, 3)
+        assert p.colors.shape == (100, 4)
+
+        # test exports
+        e = p.export(file_type='xyz')
+        p = g.trimesh.load(g.trimesh.util.wrap_as_stream(e),
+                           file_type='xyz')
+        assert p.vertices.shape == (100, 3)
+        assert p.colors.shape == (100, 4)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

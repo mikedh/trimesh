@@ -1,62 +1,101 @@
 import numpy as np
 
+from .. import util
+
 
 def load_xyz(file_obj,
-             delimiter=' ',
-             *args,
+             delimiter=None,
              **kwargs):
     """
     Load a XYZ file from an open file object.
-    
+
     Parameters
-    ----------
-    file_obj : an open file-like object 
+    ------------
+    file_obj : an open file-like object
       Source data, ASCII XYZ
-    separator : string
-      Symol(s) used to separate the columns of the file
+    delimiter : None or string
+      Charecters used to separate the columns of the file
+      If not passed will use whitespace or commas
 
     Returns
-    -------
-
-    pointcloud_kwargs : dict
-      Data which can be passed to 
-      Pointcloud constructor, eg: c = Pointcloud(**pointcloud_kwargs)
+    ----------
+    kwargs : dict
+      Data which can be passed to Pointcloud constructor
     """
-    data = np.loadtxt(file_obj, ndmin=2, delimiter=delimiter)
-    num_cols = len(data[0])
+    # read the whole file into memory as a string
+    raw = util.decode_text(file_obj.read()).strip()
+    # get the first line to look at
+    first = raw[:raw.find('\n')].strip()
+    # guess the column count by looking at the first line
+    columns = len(first.split())
+    if columns < 3:
+        raise ValueError("not enough columns in xyz file!")
+
+    if delimiter is None and ',' in first:
+        # if no delimiter passed and file has commas
+        delimiter = ','
+    if delimiter is not None:
+        # replace delimiter with whitespace so split works
+        raw = raw.replace(delimiter, ' ')
+
+    # use string splitting to get array
+    array = np.array(raw.split(), dtype=np.float64)
+    # reshape to column count
+    # if file has different numbers of values
+    # per row this will fail as it should
+    data = array.reshape((-1, columns))
+
+    # start with no colors
+    colors = None
+    # vertices are the first three columns
     vertices = data[:, :3]
-    if num_cols == 3:
-        # only positions
-        colors = None
-    elif num_cols == 4:
-        # color given by scalar value, map to color?
-        colors = None
-    elif num_cols == 6:
+    if columns == 6:
+        # RGB colors
         colors = np.array(data[:, 3:], dtype=np.uint8)
-        colors = np.concatenate((colors,
-                                 np.ones((len(data), 1), dtype=np.uint8)*255),
-                                axis=1)
-    elif num_cols == 7:
-        colors = np.array(data[:, 3:], dtype=np.uint8)
-    else:
-        raise ValueError("Unknown data type in xyz file")
-    result = {'vertices': vertices,
-              'colors': colors,
-              'metadata': {}}
-    return result
+        colors = np.concatenate((
+            colors,
+            np.ones((len(data), 1), dtype=np.uint8) * 255), axis=1)
+    elif columns >= 7:
+        # extract RGBA colors
+        colors = np.array(data[:, 3:8], dtype=np.uint8)
+    # add extracted colors and vertices to kwargs
+    kwargs.update({'vertices': vertices,
+                   'colors': colors})
 
-def export_xyz(cloud, write_colors=True, delimiter=' '):
+    return kwargs
+
+
+def export_xyz(cloud, write_colors=True, delimiter=None):
+    """
+    Export a PointCloud object to an XYZ format string.
+
+    Parameters
+    -------------
+    cloud : trimesh.PointCloud
+      Geometry in space
+    write_colors : bool
+      Write colors or not
+    delimiter : None or str
+      What to separate columns with
+
+    Returns
+    --------------
+    export : str
+      Pointcloud in XYZ format
+    """
+
+    # compile data into a blob
     data = cloud.vertices
-    num_cols = 3
-    
     if write_colors and cloud.colors is not None:
-        data = np.concatenate((data, cloud.colors), axis=1)
-        num_cols += 4
+        data = np.hstack((data, cloud.colors))
+    # if delimiter not passed use whitepace
+    if delimiter is None:
+        delimiter = ' '
+    # stack blob into XYZ format
+    export = util.array_to_string(data, col_delim=delimiter)
 
-    fmt = (('{}' + delimiter)*num_cols)[:-1]
-    export = ((fmt+'\n')*len(data))[:-1].format(*data.flatten())
     return export
-               
+
 
 _xyz_loaders = {'xyz': load_xyz}
 _xyz_exporters = {'xyz': export_xyz}

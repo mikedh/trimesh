@@ -55,7 +55,8 @@ def export_mesh(mesh, file_obj, file_type=None, **kwargs):
             faces += len(m.faces)
         log.debug('Exporting %d meshes with a total of %d faces as %s',
                   len(mesh), faces, file_type.upper())
-    else:
+    elif hasattr(mesh, 'faces'):
+        # if the mesh has faces log the number
         log.debug('Exporting %d faces as %s', len(mesh.faces),
                   file_type.upper())
     export = _mesh_exporters[file_type](mesh, **kwargs)
@@ -69,51 +70,6 @@ def export_mesh(mesh, file_obj, file_type=None, **kwargs):
         file_obj.close()
 
     return result
-
-
-def export_pointcloud(cloud, file_obj, file_type=None, **kwargs):
-    """
-    Export a Pointcloud object to a file- like object, or to a filename
-
-    Parameters
-    -----------
-    file_obj : str, file-like
-      Where should pointcloud be exported to
-    file_type : str or None
-      Represents file type (eg: 'xyz')
-
-    Returns
-    ----------
-    exported : bytes or str
-      Result of exporter
-    """
-    # if we opened a file object in this function
-    # we will want to close it when we're done
-    was_opened = False
-
-    if util.is_string(file_obj):
-        if file_type is None:
-            file_type = (str(file_obj).split('.')[-1]).lower()
-        if file_type in _pointcloud_exporters:
-            was_opened = True
-            file_obj = open(file_obj, 'wb')
-    file_type = str(file_type).lower()
-
-    if not (file_type in _pointcloud_exporters):
-        raise ValueError('%s exporter not available!', file_type)
-
-    export = _pointcloud_exporters[file_type](cloud, **kwargs)
-
-    if hasattr(file_obj, 'write'):
-        result = util.write_encoded(file_obj, export)
-    else:
-        result = export
-
-    if was_opened:
-        file_obj.close()
-
-    return result
-
 
 
 def export_dict64(mesh):
@@ -236,11 +192,8 @@ _mesh_exporters = {
     'msgpack': export_msgpack,
     'stl_ascii': export_stl_ascii
 }
-
 _mesh_exporters.update(_ply_exporters)
 _mesh_exporters.update(_obj_exporters)
 _mesh_exporters.update(_off_exporters)
 _mesh_exporters.update(_collada_exporters)
-
-_pointcloud_exporters = {}
-_pointcloud_exporters.update(_xyz_exporters)
+_mesh_exporters.update(_xyz_exporters)
