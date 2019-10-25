@@ -1310,8 +1310,6 @@ def quaternion_matrix(quaternion):
                  dtype=np.float64,
                  copy=True).reshape((-1, 4))
     n = np.einsum('ij,ij->i', q, q)
-    # get the norm of each vector
-    n = np.dot(q * q, [1, 1, 1, 1])
     # how many entries do we have
     num_qs = len(n)
     identities = n < _EPS
