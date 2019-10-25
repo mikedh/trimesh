@@ -154,6 +154,30 @@ class TransformTest(g.unittest.TestCase):
                     g.np.pi / 4, [0, 0, 1]))
 
 
+    def test_quat(self):
+        """
+        """
+        # shortcuts
+        tf = g.trimesh.transformations
+        multiply = tf.quaternion_multiply
+        to_matrix = tf.quaternion_matrix
+        from_matrix = tf.quaternion_from_matrix
+
+        # get some arbitrary rotation matrices
+        a = tf.rotation_matrix(0.2, g.trimesh.unitize([1,2,3]))
+        b = tf.rotation_matrix(0.3, g.trimesh.unitize([1,-2,0])) 
+
+        # matrix multiply them
+        mm = g.np.dot(a, b)
+        # quaternion multiply then convert back to matrix
+        qm = to_matrix(multiply(from_matrix(a), from_matrix(b)))
+        # results should be the same
+        assert g.np.allclose(mm, qm, atol=1e-5)
+        
+        from IPython import embed
+        embed()
+        pass
+            
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()
