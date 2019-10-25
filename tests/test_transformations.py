@@ -167,9 +167,19 @@ class TransformTest(g.unittest.TestCase):
         a = tf.rotation_matrix(0.2, g.trimesh.unitize([1,2,3]))
         b = tf.rotation_matrix(0.3, g.trimesh.unitize([1,-2,0])) 
 
+        from pyinstrument import Profiler
+        profiler = Profiler()
+        profiler.start()
+
+    
         # convert to quaternions
-        qa = from_matrix(a)
-        qb = from_matrix(b)
+        # qa = [from_matrix(a) for i in range(10000)]
+        qb = [from_matrix(b) for i in range(10000)]
+        profiler.stop()
+        print(profiler.output_text(unicode=True, color=True))
+
+        from IPython import embed
+        embed()
         
         # matrix multiply the original matrices
         mm = g.np.dot(a, b)
@@ -177,9 +187,6 @@ class TransformTest(g.unittest.TestCase):
         qm = to_matrix(multiply(qa, qb))
         # results should be the same
         assert g.np.allclose(mm, qm, atol=1e-5)
-        
-        from IPython import embed
-        embed()
         pass
             
 if __name__ == '__main__':
