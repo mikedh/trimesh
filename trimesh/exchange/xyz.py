@@ -1,6 +1,7 @@
 import numpy as np
 
 from .. import util
+from ..points import PointCloud
 
 
 def load_xyz(file_obj,
@@ -83,11 +84,17 @@ def export_xyz(cloud, write_colors=True, delimiter=None):
     export : str
       Pointcloud in XYZ format
     """
+    if not isinstance(cloud, PointCloud):
+        raise ValueError('object must be PointCloud')
 
     # compile data into a blob
     data = cloud.vertices
-    if write_colors and cloud.colors is not None:
+    if (write_colors and
+        hasattr(cloud, 'colors') and
+            cloud.colors is not None):
+        # stack colors and  vertices
         data = np.hstack((data, cloud.colors))
+
     # if delimiter not passed use whitepace
     if delimiter is None:
         delimiter = ' '

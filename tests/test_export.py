@@ -18,19 +18,24 @@ class ExportTest(g.unittest.TestCase):
             # disregard texture
             mesh.merge_vertices(textured=False)
             for file_type in export_types:
+                # skip pointcloud format
+                if file_type in ['xyz']:
+                    # a pointcloud format
+                    continue
+                # run the export
                 export = mesh.export(file_type=file_type)
-                if export is None:
-                    raise ValueError('Exporting mesh %s to %s resulted in None!',
-                                     mesh.metadata['file_name'],
-                                     file_type)
-
-                assert len(export) > 0
+                # if nothing returned log the message
+                if export is None or len(export) == 0:
+                    raise ValueError(
+                        'No data exported %s to %s',
+                        mesh.metadata['file_name'],
+                        file_type)
 
                 if file_type in [
                         'dae',     # collada, no native importers
                         'collada',  # collada, no native importers
                         'msgpack',  # kind of flaky, but usually works
-                        'drc']:    # DRC is not a lossless format
+                        'drc']:  # DRC is not a lossless format
                     g.log.warning(
                         'no native loaders implemented for collada!')
                     continue
