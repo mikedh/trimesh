@@ -182,8 +182,8 @@ class TransformTest(g.unittest.TestCase):
         # all random matrices should be rigid transforms
         assert all(is_rigid(T) for T in random_matrix(num=100))
         # random quaternions should all be unit vector
-        assert g.np.allclose(np.linalg.norm(random_quat(num=100),
-                                            axis=1),
+        assert g.np.allclose(g.np.linalg.norm(random_quat(num=100),
+                                              axis=1),
                              1.0, atol=1e-6)
 
 

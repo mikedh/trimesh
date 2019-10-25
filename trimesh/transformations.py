@@ -1310,37 +1310,42 @@ def quaternion_matrix(quaternion):
                  dtype=np.float64,
                  copy=True).reshape((-1, 4))
     n = np.einsum('ij,ij->i', q, q)
+    # get the norm of each vector
+    n = np.dot(q * q, [1, 1, 1, 1])
+    # how many entries do we have
     num_qs = len(n)
     identities = n < _EPS
     q[~identities, :] *= np.sqrt(2.0 / n[~identities, None])
     q = np.einsum('ij,ik->ikj', q, q)
     ret = np.zeros((num_qs, 4, 4))
-    ret[:, 0, :] = np.vstack([1.0 -
-                              q[:, 2, 2] -
-                              q[:, 3, 3], q[:, 1, 2] -
-                              q[:, 3, 0], q[:, 1, 3] +
-                              q[:, 2, 0],
-                              np.zeros(num_qs, dtype=np.float64)]).T
-    ret[:, 1, :] = np.vstack([q[:, 1, 2] +
-                              q[:, 3, 0], 1.0 -
-                              q[:, 1, 1] -
-                              q[:, 3, 3], q[:, 2, 3] -
-                              q[:, 1, 0],
-                              np.zeros(num_qs, dtype=np.float64)]).T
-    ret[:, 2, :] = np.vstack([q[:, 1, 3] -
-                              q[:, 2, 0], q[:, 2, 3] +
-                              q[:, 1, 0], 1.0 -
-                              q[:, 1, 1] -
-                              q[:, 2, 2],
-                              np.zeros(num_qs, dtype=np.float64)]).T
-    ret[:, 3, :] = np.vstack([np.zeros(num_qs,
-                                       dtype=np.float64),
-                              np.zeros(num_qs,
-                                       dtype=np.float64),
-                              np.zeros(num_qs,
-                                       dtype=np.float64),
-                              np.ones(num_qs, dtype=np.float64)]).T
+    # intermediate shape
+    shape = (-1, num_qs)
+    # create a 1D array of zeros to reuse
+    zqs = np.zeros(num_qs, dtype=np.float64)
+    ret[:, 0, :] = np.concatenate(
+        [1.0 -
+         q[:, 2, 2] -
+         q[:, 3, 3], q[:, 1, 2] -
+         q[:, 3, 0], q[:, 1, 3] +
+         q[:, 2, 0],
+         zqs]).reshape((-1, num_qs)).T
+    ret[:, 1, :] = np.concatenate(
+        [q[:, 1, 2] +
+         q[:, 3, 0], 1.0 -
+         q[:, 1, 1] -
+         q[:, 3, 3], q[:, 2, 3] -
+         q[:, 1, 0],
+         zqs]).reshape(shape).T
+    ret[:, 2, :] = np.concatenate(
+        [q[:, 1, 3] -
+         q[:, 2, 0], q[:, 2, 3] +
+         q[:, 1, 0], 1.0 -
+         q[:, 1, 1] -
+         q[:, 2, 2],
+         zqs]).reshape(shape).T
+    ret[:, 3, :] = np.zeros((num_qs, 4)) + [0, 0, 0, 1]
     ret[identities] = np.eye(4)[None, ...]
+
     return ret.squeeze()
 
 
