@@ -167,10 +167,14 @@ class TransformTest(g.unittest.TestCase):
         a = tf.rotation_matrix(0.2, g.trimesh.unitize([1,2,3]))
         b = tf.rotation_matrix(0.3, g.trimesh.unitize([1,-2,0])) 
 
-        # matrix multiply them
+        # convert to quaternions
+        qa = from_matrix(a)
+        qb = from_matrix(b)
+        
+        # matrix multiply the original matrices
         mm = g.np.dot(a, b)
         # quaternion multiply then convert back to matrix
-        qm = to_matrix(multiply(from_matrix(a), from_matrix(b)))
+        qm = to_matrix(multiply(qa, qb))
         # results should be the same
         assert g.np.allclose(mm, qm, atol=1e-5)
         
