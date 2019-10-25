@@ -153,42 +153,40 @@ class TransformTest(g.unittest.TestCase):
                 g.trimesh.transformations.rotation_matrix(
                     g.np.pi / 4, [0, 0, 1]))
 
-
     def test_quat(self):
         """
+        Do some simple checks on our quaternion math.
         """
-        # shortcuts
+        # shortcuts to long function names
         tf = g.trimesh.transformations
+        is_rigid = tf.is_rigid
         multiply = tf.quaternion_multiply
         to_matrix = tf.quaternion_matrix
         from_matrix = tf.quaternion_from_matrix
+        random_matrix = tf.random_rotation_matrix
+        random_quat = tf.random_quaternion
 
         # get some arbitrary rotation matrices
-        a = tf.rotation_matrix(0.2, g.trimesh.unitize([1,2,3]))
-        b = tf.rotation_matrix(0.3, g.trimesh.unitize([1,-2,0])) 
+        a = tf.rotation_matrix(0.2, g.trimesh.unitize([1, 2, 3]))
+        b = tf.rotation_matrix(0.3, g.trimesh.unitize([1, -2, 0]))
 
-        from pyinstrument import Profiler
-        profiler = Profiler()
-        profiler.start()
-
-    
-        # convert to quaternions
-        # qa = [from_matrix(a) for i in range(10000)]
-        qb = [from_matrix(b) for i in range(10000)]
-        profiler.stop()
-        print(profiler.output_text(unicode=True, color=True))
-
-        from IPython import embed
-        embed()
-        
+        # convert arbitrary rotations to quaternions
+        qa = from_matrix(a)
+        qb = from_matrix(b)
         # matrix multiply the original matrices
         mm = g.np.dot(a, b)
         # quaternion multiply then convert back to matrix
         qm = to_matrix(multiply(qa, qb))
         # results should be the same
         assert g.np.allclose(mm, qm, atol=1e-5)
-        pass
-            
+        # all random matrices should be rigid transforms
+        assert all(is_rigid(T) for T in random_matrix(num=100))
+        # random quaternions should all be unit vector
+        assert g.np.allclose(np.linalg.norm(random_quat(num=100),
+                                            axis=1),
+                             1.0, atol=1e-6)
+
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()

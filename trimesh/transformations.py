@@ -1306,19 +1306,41 @@ def quaternion_matrix(quaternion):
 
 
     """
-    q = np.array(quaternion, dtype=np.float64, copy=True).reshape((-1,4))
+    q = np.array(quaternion,
+                 dtype=np.float64,
+                 copy=True).reshape((-1, 4))
     n = np.einsum('ij,ij->i', q, q)
     num_qs = len(n)
     identities = n < _EPS
-    q[~identities,:] *= np.sqrt(2.0 / n[~identities,None])
+    q[~identities, :] *= np.sqrt(2.0 / n[~identities, None])
     q = np.einsum('ij,ik->ikj', q, q)
-    ret = np.zeros((num_qs,4,4))
-    ret[:,0,:] = np.vstack([1.0 - q[:,2,2] - q[:,3,3], q[:,1,2] - q[:,3,0], q[:,1,3] + q[:,2,0], np.zeros(num_qs, dtype=np.float64)]).T
-    ret[:,1,:] = np.vstack([q[:,1,2] + q[:,3,0], 1.0 - q[:,1,1] - q[:,3,3], q[:,2,3] - q[:,1,0], np.zeros(num_qs, dtype=np.float64)]).T
-    ret[:,2,:] = np.vstack([q[:,1,3] - q[:,2,0], q[:,2,3] + q[:,1,0], 1.0 - q[:,1,1] - q[:,2,2], np.zeros(num_qs, dtype=np.float64)]).T
-    ret[:,3,:] = np.vstack([np.zeros(num_qs, dtype=np.float64), np.zeros(num_qs, dtype=np.float64), 
-                            np.zeros(num_qs, dtype=np.float64), np.ones(num_qs, dtype=np.float64)]).T
-    ret[identities] = np.eye(4)[None,...]
+    ret = np.zeros((num_qs, 4, 4))
+    ret[:, 0, :] = np.vstack([1.0 -
+                              q[:, 2, 2] -
+                              q[:, 3, 3], q[:, 1, 2] -
+                              q[:, 3, 0], q[:, 1, 3] +
+                              q[:, 2, 0],
+                              np.zeros(num_qs, dtype=np.float64)]).T
+    ret[:, 1, :] = np.vstack([q[:, 1, 2] +
+                              q[:, 3, 0], 1.0 -
+                              q[:, 1, 1] -
+                              q[:, 3, 3], q[:, 2, 3] -
+                              q[:, 1, 0],
+                              np.zeros(num_qs, dtype=np.float64)]).T
+    ret[:, 2, :] = np.vstack([q[:, 1, 3] -
+                              q[:, 2, 0], q[:, 2, 3] +
+                              q[:, 1, 0], 1.0 -
+                              q[:, 1, 1] -
+                              q[:, 2, 2],
+                              np.zeros(num_qs, dtype=np.float64)]).T
+    ret[:, 3, :] = np.vstack([np.zeros(num_qs,
+                                       dtype=np.float64),
+                              np.zeros(num_qs,
+                                       dtype=np.float64),
+                              np.zeros(num_qs,
+                                       dtype=np.float64),
+                              np.ones(num_qs, dtype=np.float64)]).T
+    ret[identities] = np.eye(4)[None, ...]
     return ret.squeeze()
 
 
@@ -1531,7 +1553,7 @@ def random_quaternion(rand=None, num=1):
 
     """
     if rand is None:
-        rand = np.random.rand(3*num).reshape((3,-1))
+        rand = np.random.rand(3 * num).reshape((3, -1))
     else:
         assert rand.shape[0] == 3
     r1 = np.sqrt(1.0 - rand[0])
@@ -2114,7 +2136,7 @@ def transform_points(points,
     return transformed
 
 
-def is_rigid(matrix):
+def is_rigid(matrix, epsilon=1e-8):
     """
     Check to make sure a homogeonous transformation
     matrix is a rigid transform.
@@ -2136,13 +2158,15 @@ def is_rigid(matrix):
     if matrix.shape != (4, 4):
         return False
 
-    if not np.allclose(matrix[-1], [0, 0, 0, 1]):
+    # make sure last row has no scaling
+    if (matrix[-1] - [0, 0, 0, 1]).ptp() > epsilon:
         return False
 
+    # check dot product of rotation against transpose
     check = np.dot(matrix[:3, :3],
-                   matrix[:3, :3].T)
+                   matrix[:3, :3].T) - np.eye(3)
 
-    return np.allclose(check, np.eye(3))
+    return check.ptp() < epsilon
 
 
 def scale_and_translate(scale=None, translate=None):
