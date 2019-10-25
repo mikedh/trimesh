@@ -30,7 +30,7 @@ class TransformTest(g.unittest.TestCase):
         # they are super unreliable and depend on janky string formatting
         results = doctest.testmod(trimesh.transformations,
                                   verbose=False,
-                                  raise_on_error=False)
+                                  raise_on_error=True)
         g.log.info('transformations {}'.format(str(results)))
 
     def test_downstream(self):
@@ -139,7 +139,8 @@ class TransformTest(g.unittest.TestCase):
 
     def test_tiny(self):
         """
-        Test transformations with models containing very small triangles
+        Test transformations with models containing
+        very small triangles.
         """
         for validate in [False, True]:
             m = g.get_mesh('ADIS16480.STL', validate=validate)
@@ -148,7 +149,6 @@ class TransformTest(g.unittest.TestCase):
             fz = g.np.nonzero(g.np.linalg.norm(
                 m.face_normals,
                 axis=1) < 1e-3)
-            print(fz)
             m.apply_transform(
                 g.trimesh.transformations.rotation_matrix(
                     g.np.pi / 4, [0, 0, 1]))
