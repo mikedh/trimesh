@@ -1319,28 +1319,19 @@ def quaternion_matrix(quaternion):
 
     # store the result
     ret = np.zeros((num_qs, 4, 4))
-    # intermediate shape for concatenated arrays
-    shape = (-1, num_qs)
-    # stack into result array
-    ret[:, 0, :3] = np.concatenate(
-        [1.0 -
-         q[:, 2, 2] -
-         q[:, 3, 3], q[:, 1, 2] -
-         q[:, 3, 0], q[:, 1, 3] +
-         q[:, 2, 0]]).reshape(shape).T
-    ret[:, 1, :3] = np.concatenate(
-        [q[:, 1, 2] +
-         q[:, 3, 0], 1.0 -
-         q[:, 1, 1] -
-         q[:, 3, 3], q[:, 2, 3] -
-         q[:, 1, 0]]).reshape(shape).T
-    ret[:, 2, :3] = np.concatenate(
-        [q[:, 1, 3] -
-         q[:, 2, 0], q[:, 2, 3] +
-         q[:, 1, 0], 1.0 -
-         q[:, 1, 1] -
-         q[:, 2, 2]]).reshape(shape).T
+
+    # pack the values into the result
+    ret[:, 0, 0] = 1.0 - q[:, 2, 2] - q[:, 3, 3]
+    ret[:, 0, 1] = q[:, 1, 2] - q[:, 3, 0]
+    ret[:, 0, 2] = q[:, 1, 3] + q[:, 2, 0]
+    ret[:, 1, 0] = q[:, 1, 2] + q[:, 3, 0]
+    ret[:, 1, 1] = 1.0 - q[:, 1, 1] - q[:, 3, 3]
+    ret[:, 1, 2] = q[:, 2, 3] - q[:, 1, 0]
+    ret[:, 2, 0] = q[:, 1, 3] - q[:, 2, 0]
+    ret[:, 2, 1] = q[:, 2, 3] + q[:, 1, 0]
+    ret[:, 2, 2] = 1.0 - q[:, 1, 1] - q[:, 2, 2]
     ret[:, 3, 3] = 1.0
+    # set any identities
     ret[identities] = np.eye(4)[None, ...]
 
     return ret.squeeze()
