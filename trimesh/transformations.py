@@ -1289,7 +1289,8 @@ def quaternion_about_axis(angle, axis):
 
 
 def quaternion_matrix(quaternion):
-    """Return homogeneous rotation matrix from quaternion.
+    """
+    Return a homogeneous rotation matrix from quaternion.
 
     >>> M = quaternion_matrix([0.99810947, 0.06146124, 0, 0])
     >>> np.allclose(M, rotation_matrix(0.123, [1, 0, 0]))
@@ -1315,33 +1316,31 @@ def quaternion_matrix(quaternion):
     identities = n < _EPS
     q[~identities, :] *= np.sqrt(2.0 / n[~identities, None])
     q = np.einsum('ij,ik->ikj', q, q)
+
+    # store the result
     ret = np.zeros((num_qs, 4, 4))
-    # intermediate shape
+    # intermediate shape for concatenated arrays
     shape = (-1, num_qs)
-    # create a 1D array of zeros to reuse
-    zqs = np.zeros(num_qs, dtype=np.float64)
-    ret[:, 0, :] = np.concatenate(
+    # stack into result array
+    ret[:, 0, :3] = np.concatenate(
         [1.0 -
          q[:, 2, 2] -
          q[:, 3, 3], q[:, 1, 2] -
          q[:, 3, 0], q[:, 1, 3] +
-         q[:, 2, 0],
-         zqs]).reshape((-1, num_qs)).T
-    ret[:, 1, :] = np.concatenate(
+         q[:, 2, 0]]).reshape(shape).T
+    ret[:, 1, :3] = np.concatenate(
         [q[:, 1, 2] +
          q[:, 3, 0], 1.0 -
          q[:, 1, 1] -
          q[:, 3, 3], q[:, 2, 3] -
-         q[:, 1, 0],
-         zqs]).reshape(shape).T
-    ret[:, 2, :] = np.concatenate(
+         q[:, 1, 0]]).reshape(shape).T
+    ret[:, 2, :3] = np.concatenate(
         [q[:, 1, 3] -
          q[:, 2, 0], q[:, 2, 3] +
          q[:, 1, 0], 1.0 -
          q[:, 1, 1] -
-         q[:, 2, 2],
-         zqs]).reshape(shape).T
-    ret[:, 3, :] = np.zeros((num_qs, 4)) + [0, 0, 0, 1]
+         q[:, 2, 2]]).reshape(shape).T
+    ret[:, 3, 3] = 1.0
     ret[identities] = np.eye(4)[None, ...]
 
     return ret.squeeze()
