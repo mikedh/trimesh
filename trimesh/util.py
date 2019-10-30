@@ -369,7 +369,7 @@ def vector_hemisphere(vectors, return_sign=False):
 
     Parameters
     ------------
-    vectors : (n,3) float
+    vectors : (n, 3) float
       Input vectors
     return_sign : bool
       Return the sign mask or not
@@ -422,7 +422,7 @@ def vector_hemisphere(vectors, return_sign=False):
                              negative[:, 0])] = -1.0
 
     else:
-        raise ValueError('vectors must be (n,3)!')
+        raise ValueError('vectors must be (n, 3)!')
 
     # apply the signs to the vectors
     oriented = vectors * signs.reshape((-1, 1))
@@ -435,7 +435,7 @@ def vector_hemisphere(vectors, return_sign=False):
 
 def vector_to_spherical(cartesian):
     """
-    Convert a set of cartesian points to (n,2) spherical unit
+    Convert a set of cartesian points to (n, 2) spherical unit
     vectors.
 
     Parameters
@@ -450,7 +450,7 @@ def vector_to_spherical(cartesian):
     """
     cartesian = np.asanyarray(cartesian, dtype=np.float64)
     if not is_shape(cartesian, (-1, 3)):
-        raise ValueError('Cartesian points must be (n,3)!')
+        raise ValueError('Cartesian points must be (n, 3)!')
 
     unit, valid = unitize(cartesian, check_valid=True)
     unit[np.abs(unit) < TOL_MERGE] = 0.0
@@ -464,7 +464,7 @@ def vector_to_spherical(cartesian):
 
 def spherical_to_vector(spherical):
     """
-    Convert a set of (n,2) spherical vectors to (n,3) vectors
+    Convert a set of (n, 2) spherical vectors to (n, 3) vectors
 
     Parameters
     ------------
@@ -663,7 +663,7 @@ def stack_3D(points, return_2D=False):
     elif shape[1] == 3:
         is_2D = False
     else:
-        raise ValueError('Points must be (n,2) or (n,3)!')
+        raise ValueError('Points must be (n, 2) or (n, 3)!')
 
     if return_2D:
         return points, is_2D
@@ -735,7 +735,7 @@ def multi_dict(pairs):
 
     Parameters
     ------------
-    pairs: (n,2) array of key, value pairs
+    pairs: (n, 2) array of key, value pairs
 
     Returns
     ----------
@@ -970,21 +970,21 @@ def stack_lines(indices):
 
     Returns
     ---------
-    stacked: (n,2) set of items
+    stacked: (n, 2) set of items
 
-    In [1]: trimesh.util.stack_lines([0,1,2])
+    In [1]: trimesh.util.stack_lines([0, 1, 2])
     Out[1]:
     array([[0, 1],
            [1, 2]])
 
-    In [2]: trimesh.util.stack_lines([0,1,2,4,5])
+    In [2]: trimesh.util.stack_lines([0, 1, 2, 4, 5])
     Out[2]:
     array([[0, 1],
            [1, 2],
            [2, 4],
            [4, 5]])
 
-    In [3]: trimesh.util.stack_lines([[0,0],[1,1],[2,2], [3,3]])
+    In [3]: trimesh.util.stack_lines([[0,0],[1, 1],[2, 2], [3, 3]])
     Out[3]:
     array([[0, 0],
            [1, 1],
@@ -2042,9 +2042,6 @@ def allclose(a, b, atol):
     A replacement for np.allclose that does few checks
     and validation and as a result is faster.
 
-        Note that this is used in tight loops, and as such
-    a and b MUST be np.ndarray, not list or "array-like"
-
     Parameters
     ------------
     a : np.ndarray
@@ -2127,7 +2124,7 @@ def decode_text(text):
     Parameters
     ------------
     text : bytes
-      Data that might be strings
+      Data that might be a string
 
     Returns
     ------------
