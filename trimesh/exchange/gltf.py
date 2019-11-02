@@ -1122,6 +1122,10 @@ def _append_material(mat, tree, buffer_items):
     except BaseException:
         pass
 
+    # if alphaMode is defined, export
+    if isinstance(mat.alphaMode, str):
+        pbr['alphaMode'] = mat.alphaMode
+
     # if scalars are defined correctly export
     if isinstance(mat.metallicFactor, float):
         pbr['metallicFactor'] = mat.metallicFactor
