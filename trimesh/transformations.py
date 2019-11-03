@@ -346,7 +346,7 @@ def rotation_matrix(angle, direction, point=None):
 
     """
     if type(angle).__name__ == 'Symbol':
-         # special case sympy symbolic angles
+        # special case sympy symbolic angles
         import sympy as sp
         symbolic = True
         sina = sp.sin(angle)

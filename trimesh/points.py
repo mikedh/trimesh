@@ -13,7 +13,6 @@ from .geometry import plane_transform
 from .constants import tol
 
 from . import util
-from . import graph
 from . import caching
 from . import grouping
 from . import transformations
