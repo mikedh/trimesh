@@ -129,7 +129,7 @@ def volume_rectangular(extents,
 def sample_surface_even(mesh, count, radius=None):
     """
     Sample the surface of a mesh, returning samples which are
-    VERY approximately evenly spaced. 
+    VERY approximately evenly spaced.
 
     This is accomplished by sampling and then rejecting pairs
     that are too close together.
@@ -166,11 +166,11 @@ def sample_surface_even(mesh, count, radius=None):
     # we got all the samples we expect
     if len(points) >= count:
         return points[:count], index[mask][:count]
-    
+
     # warn if we didn't get all the samples we expect
     util.log.warning('only got {}/{} samples!'.format(
         len(points), count))
-        
+
     return points, index[mask]
 
 

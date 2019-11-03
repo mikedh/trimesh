@@ -15,7 +15,7 @@ def load_xyz(file_obj,
     file_obj : an open file-like object
       Source data, ASCII XYZ
     delimiter : None or string
-      Charecters used to separate the columns of the file
+      Characters used to separate the columns of the file
       If not passed will use whitespace or commas
 
     Returns

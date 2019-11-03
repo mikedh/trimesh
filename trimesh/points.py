@@ -194,12 +194,12 @@ def remove_close(points, radius):
 
     # take the value in each row with the highest degree
     # there is probably better numpy slicing you could do here
-    highest = pairs.ravel()[column + 2*np.arange(len(column))]
+    highest = pairs.ravel()[column + 2 * np.arange(len(column))]
 
     # mask the vertices by index
     mask = np.ones(len(points), dtype=np.bool)
     mask[highest] = False
-    
+
     if tol.strict:
         # verify we actually did what we said we'd do
         test = cKDTree(points[mask])

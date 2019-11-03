@@ -197,6 +197,8 @@ class PointsTest(g.unittest.TestCase):
         culled, mask = g.trimesh.points.remove_close(g.np.vstack((p, p)), radius=0.1)
         assert culled.shape == (100, 3)
         assert mask.shape == (200,)
+
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()
