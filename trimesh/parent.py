@@ -39,6 +39,19 @@ class Geometry(ABC):
     def is_empty(self):
         pass
 
+    def __repr__(self):
+        """
+        Print quick summary of the current geometry without computing properties.
+        """
+        elements = []
+        if hasattr(self, 'vertices'):
+            elements.append('vertices.shape={}'.format(self.vertices.shape))
+        if hasattr(self, 'faces'):
+            elements.append('faces.shape={}'.format(self.faces.shape))
+        if hasattr(self, 'geometry') and isinstance(self.geometry, dict):
+            elements.append('len(geometry)={}'.format(len(self.geometry)))
+        return '<trimesh.{}( {} )>'.format(type(self).__name__, ', '.join(elements))
+
     def apply_translation(self, translation):
         """
         Translate the current mesh.

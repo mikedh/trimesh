@@ -98,6 +98,16 @@ class Path(object):
             # aren't merged properly
             self.merge_vertices()
 
+    def __repr__(self):
+        """
+        Print a quick summary of the number of vertices and entities.
+        """
+        r = '<trimesh.{}( len(entities)={}, len(vertices)={} )>'.format(
+            type(self).__name__,
+            len(self.entities),
+            len(self.vertices))
+        return r
+
     def process(self):
         """
         Apply basic cleaning functions to the Path object, in- place.

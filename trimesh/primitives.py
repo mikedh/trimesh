@@ -34,6 +34,9 @@ class _Primitive(Trimesh):
         self._data.clear()
         self._validate = False
 
+    def __repr__(self):
+        return '<trimesh.primitives.{}>'.format(type(self).__name__)
+
     @property
     def faces(self):
         stored = self._cache['faces']
@@ -250,7 +253,7 @@ class Cylinder(_Primitive):
             transform=self.primitive.transform)
         return tensor
 
-    @property
+    @caching.cache_decorator
     def direction(self):
         """
         The direction of the cylinder's axis.
@@ -306,11 +309,7 @@ class Cylinder(_Primitive):
         return buffered
 
     def _create_mesh(self):
-        log.info('Creating cylinder mesh with r=%f, h=%f %d sections',
-                 self.primitive.radius,
-                 self.primitive.height,
-                 self.primitive.sections)
-
+        log.debug('creating mesh for Cylinder primitive')
         mesh = creation.cylinder(radius=self.primitive.radius,
                                  height=self.primitive.height,
                                  sections=self.primitive.sections,
@@ -344,7 +343,7 @@ class Capsule(_Primitive):
                                               defaults,
                                               kwargs)
 
-    @property
+    @caching.cache_decorator
     def direction(self):
         """
         The direction of the capsule's axis.
@@ -357,10 +356,7 @@ class Capsule(_Primitive):
         return axis
 
     def _create_mesh(self):
-        log.info('Creating capsule mesh with r=%f, h=%f and %d sections',
-                 self.primitive.radius,
-                 self.primitive.height,
-                 self.primitive.sections)
+        log.debug('creating mesh for Capsule primitive')
 
         mesh = creation.capsule(radius=self.primitive.radius,
                                 height=self.primitive.height)
@@ -467,6 +463,7 @@ class Sphere(_Primitive):
         return tensor
 
     def _create_mesh(self):
+        log.debug('creating mesh for Sphere primitive')
         unit = creation.icosphere(subdivisions=self.primitive.subdivisions)
         unit.vertices *= self.primitive.radius
         unit.vertices += self.primitive.center
@@ -577,7 +574,7 @@ class Box(_Primitive):
         return volume
 
     def _create_mesh(self):
-        log.debug('Creating mesh for box Primitive')
+        log.debug('creating mesh for Box primitive')
         box = creation.box(extents=self.primitive.extents,
                            transform=self.primitive.transform)
 
@@ -650,7 +647,7 @@ class Extrusion(_Primitive):
                      self.primitive.height)
         return volume
 
-    @property
+    @caching.cache_decorator
     def direction(self):
         """
         Based on the extrudes transform what is the
@@ -757,7 +754,7 @@ class Extrusion(_Primitive):
         return buffered
 
     def _create_mesh(self):
-        log.debug('Creating mesh for extrude Primitive')
+        log.debug('creating mesh for Extrusion primitive')
         # extrude the polygon along Z
         mesh = creation.extrude_polygon(
             polygon=self.primitive.polygon,
