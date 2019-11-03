@@ -8,20 +8,20 @@ def load_xyz(file_obj,
              delimiter=None,
              **kwargs):
     """
-    Load a XYZ file from an open file object.
+    Load an XYZ file into a PointCloud.
 
     Parameters
     ------------
     file_obj : an open file-like object
       Source data, ASCII XYZ
     delimiter : None or string
-      Charecters used to separate the columns of the file
+      Characters used to separate the columns of the file
       If not passed will use whitespace or commas
 
     Returns
     ----------
     kwargs : dict
-      Data which can be passed to Pointcloud constructor
+      Data which can be passed to PointCloud constructor
     """
     # read the whole file into memory as a string
     raw = util.decode_text(file_obj.read()).strip()

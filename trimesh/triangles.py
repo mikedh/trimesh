@@ -137,7 +137,7 @@ def all_coplanar(triangles):
     """
     triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
-        raise ValueError('Triangles must be (n,3,3)!')
+        raise ValueError('Triangles must be (n, 3, 3)!')
 
     test_normal = normals(triangles)[0]
     test_vertex = triangles[0][0]
@@ -156,7 +156,7 @@ def any_coplanar(triangles):
     """
     triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
-        raise ValueError('Triangles must be (n,3,3)!')
+        raise ValueError('Triangles must be (n, 3, 3)!')
 
     test_normal = normals(triangles)[0]
     test_vertex = triangles[0][0]
@@ -199,7 +199,7 @@ def mass_properties(triangles,
     """
     triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
-        raise ValueError('Triangles must be (n,3,3)!')
+        raise ValueError('Triangles must be (n, 3, 3)!')
 
     if crosses is None:
         crosses = cross(triangles)
@@ -330,7 +330,7 @@ def bounds_tree(triangles):
     """
     triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
-        raise ValueError('Triangles must be (n,3,3)!')
+        raise ValueError('Triangles must be (n, 3, 3)!')
 
     # the (n,6) interleaved bounding box for every triangle
     triangle_bounds = np.column_stack((triangles.min(axis=1),
@@ -363,7 +363,7 @@ def nondegenerate(triangles, areas=None, height=None):
     """
     triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
-        raise ValueError('Triangles must be (n,3,3)!')
+        raise ValueError('Triangles must be (n, 3, 3)!')
 
     if height is None:
         height = tol.merge
@@ -394,7 +394,7 @@ def extents(triangles, areas=None):
     """
     triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
-        raise ValueError('Triangles must be (n,3,3)!')
+        raise ValueError('Triangles must be (n, 3, 3)!')
 
     if areas is None:
         areas = area(triangles=triangles,
@@ -443,7 +443,7 @@ def barycentric_to_points(triangles, barycentric):
     triangles = np.asanyarray(triangles, dtype=np.float64)
 
     if not util.is_shape(triangles, (-1, 3, 3)):
-        raise ValueError('Triangles must be (n,3,3)!')
+        raise ValueError('Triangles must be (n, 3, 3)!')
     if barycentric.shape == (2,):
         barycentric = np.ones((len(triangles), 2),
                               dtype=np.float64) * barycentric
@@ -679,7 +679,7 @@ def to_kwargs(triangles):
     """
     triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
-        raise ValueError('Triangles must be (n,3,3)!')
+        raise ValueError('Triangles must be (n, 3, 3)!')
 
     vertices = triangles.reshape((-1, 3))
     faces = np.arange(len(vertices)).reshape((-1, 3))

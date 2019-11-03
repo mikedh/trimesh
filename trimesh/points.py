@@ -8,9 +8,9 @@ import copy
 
 import numpy as np
 
-from .constants import tol
-from .geometry import plane_transform
 from .parent import Geometry
+from .geometry import plane_transform
+from .constants import tol
 
 from . import util
 from . import caching
@@ -158,8 +158,8 @@ def project_to_plane(points,
 
 def remove_close(points, radius):
     """
-    Given an (n, m) set of points where n=(2|3) return a list of points
-    where no point is closer than radius.
+    Given an (n, m) array of points return a subset of
+    points where no point is closer than radius.
 
     Parameters
     ------------
@@ -173,21 +173,38 @@ def remove_close(points, radius):
     culled : (m, dimension) float
       Points in space
     mask : (n,) bool
-      Which points from the original set were returned
+      Which points from the original points were returned
     """
-    from scipy.spatial import cKDTree as KDTree
+    from scipy.spatial import cKDTree
 
-    tree = KDTree(points)
-    consumed = np.zeros(len(points), dtype=np.bool)
-    unique = np.zeros(len(points), dtype=np.bool)
-    for i in range(len(points)):
-        if consumed[i]:
-            continue
-        neighbors = tree.query_ball_point(points[i], r=radius)
-        consumed[neighbors] = True
-        unique[i] = True
+    tree = cKDTree(points)
+    # get the index of every pair of points closer than our radius
+    pairs = tree.query_pairs(radius, output_type='ndarray')
 
-    return points[unique], unique
+    # how often each vertex index appears in a pair
+    # this is essentially a cheaply computed "vertex degree"
+    # in the graph that we could construct for connected points
+    count = np.bincount(pairs.ravel(), minlength=len(points))
+
+    # for every pair we know we have to remove one of them
+    # which of the two options we pick can have a large impact
+    # on how much over-culling we end up doing
+    column = count[pairs].argmax(axis=1)
+
+    # take the value in each row with the highest degree
+    # there is probably better numpy slicing you could do here
+    highest = pairs.ravel()[column + 2 * np.arange(len(column))]
+
+    # mask the vertices by index
+    mask = np.ones(len(points), dtype=np.bool)
+    mask[highest] = False
+
+    if tol.strict:
+        # verify we actually did what we said we'd do
+        test = cKDTree(points[mask])
+        assert len(test.query_pairs(radius)) == 0
+
+    return points[mask], mask
 
 
 def k_means(points, k, **kwargs):

@@ -135,7 +135,7 @@ class PBRMaterial(Material):
         self.doubleSided = doubleSided
 
         # str
-        alphaMode = alphaMode
+        self.alphaMode = alphaMode
 
     def to_color(self, uv):
         """

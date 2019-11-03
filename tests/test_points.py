@@ -190,6 +190,14 @@ class PointsTest(g.unittest.TestCase):
         assert p.vertices.shape == (100, 3)
         assert p.colors.shape == (100, 4)
 
+    def test_remove_close(self):
+        # create 100 unique points
+        p = g.np.arange(300).reshape((100, 3))
+        # should return the original 100 points
+        culled, mask = g.trimesh.points.remove_close(g.np.vstack((p, p)), radius=0.1)
+        assert culled.shape == (100, 3)
+        assert mask.shape == (200,)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

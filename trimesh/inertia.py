@@ -29,12 +29,12 @@ def cylinder_inertia(mass, radius, height, transform=None):
       Radius of cylinder
     height : float
       Height of cylinder
-    transform : (4,4) float
+    transform : (4, 4) float
       Transformation of cylinder
 
     Returns
     ------------
-    inertia : (3,3) float
+    inertia : (3, 3) float
       Inertia tensor
     """
     h2, r2 = height ** 2, radius ** 2
@@ -76,20 +76,20 @@ def principal_axis(inertia):
 
     Parameters
     ------------
-    inertia : (3,3) float
+    inertia : (3, 3) float
       Inertia tensor
 
     Returns
     ------------
     components : (3,) float
       Principal components of inertia
-    vectors : (3,3) float
+    vectors : (3, 3) float
       Row vectors pointing along the
       principal axes of inertia
     """
     inertia = np.asanyarray(inertia, dtype=np.float64)
     if inertia.shape != (3, 3):
-        raise ValueError('inertia tensor must be (3,3)!')
+        raise ValueError('inertia tensor must be (3, 3)!')
 
     # you could any of the following to calculate this:
     # np.linalg.svd, np.linalg.eig, np.linalg.eigh
@@ -129,11 +129,11 @@ def transform_inertia(transform, inertia_tensor):
     elif transform.shape == (3, 3):
         rotation = transform
     else:
-        raise ValueError('transform must be (3,3) or (4,4)!')
+        raise ValueError('transform must be (3, 3) or (4, 4)!')
 
     inertia_tensor = np.asanyarray(inertia_tensor, dtype=np.float64)
     if inertia_tensor.shape != (3, 3):
-        raise ValueError('inertia_tensor must be (3,3)!')
+        raise ValueError('inertia_tensor must be (3, 3)!')
 
     transformed = util.multi_dot([rotation,
                                   inertia_tensor * negate_nondiagonal,
@@ -144,7 +144,7 @@ def transform_inertia(transform, inertia_tensor):
 
 def radial_symmetry(mesh):
     """
-    Check whether a mesh has rotational symmetry.
+    Check whether a mesh has radial symmetry.
 
     Returns
     -----------

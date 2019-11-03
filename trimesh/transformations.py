@@ -311,16 +311,16 @@ def rotation_matrix(angle, direction, point=None):
     Parameters
     -------------
     angle     : float, or sympy.Symbol
-                Angle, in radians or symbolic angle
+      Angle, in radians or symbolic angle
     direction : (3,) float
-                Unit vector along rotation axis
+      Unit vector along rotation axis
     point     : (3, ) float, or None
-                Origin point of rotation axis
+      Origin point of rotation axis
 
     Returns
     -------------
     matrix : (4, 4) float, or (4, 4) sympy.Matrix
-             Homogeneous transformation matrix
+      Homogeneous transformation matrix
 
     Examples
     -------------
@@ -345,12 +345,14 @@ def rotation_matrix(angle, direction, point=None):
     True
 
     """
-    # special case sympy symbolic angles
     if type(angle).__name__ == 'Symbol':
+        # special case sympy symbolic angles
         import sympy as sp
+        symbolic = True
         sina = sp.sin(angle)
         cosa = sp.cos(angle)
     else:
+        symbolic = False
         sina = math.sin(angle)
         cosa = math.cos(angle)
 
@@ -370,7 +372,7 @@ def rotation_matrix(angle, direction, point=None):
         M[:3, 3] = point - np.dot(M[:3, :3], point)
 
     # return symbolic angles as sympy Matrix objects
-    if type(angle).__name__ == 'Symbol':
+    if symbolic:
         return sp.Matrix(M)
 
     return M
