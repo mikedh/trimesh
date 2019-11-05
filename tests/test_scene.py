@@ -261,13 +261,13 @@ class SceneTests(g.unittest.TestCase):
 
     def test_empty(self):
         # test an empty scene
-        empty = trimesh.Trimesh([], [])
+        empty = g.trimesh.Trimesh([], [])
         assert empty.bounds is None
         assert empty.extents is None
         assert g.np.isclose(empty.scale, 1.0)
 
         # create a sphere
-        sphere = trimesh.creation.icosphere()
+        sphere = g.trimesh.creation.icosphere()
 
         # empty scene should have None for bounds
         scene = empty.scene()
@@ -277,7 +277,7 @@ class SceneTests(g.unittest.TestCase):
         scene.add_geometry(sphere)
         # bounds should now be populated
         assert scene.bounds.shape == (2, 3)
-        assert np.allclose(scene.bounds, sphere.bounds)
+        assert g.np.allclose(scene.bounds, sphere.bounds)
 
 
 class GraphTests(g.unittest.TestCase):
