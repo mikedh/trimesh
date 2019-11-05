@@ -140,7 +140,8 @@ class _PrimitiveAttributes(object):
         self._mutable = True
         for key, value in kwargs.items():
             if key in defaults:
-                self._data[key] = util.convert_like(value, defaults[key])
+                self._data[key] = util.convert_like(
+                    value, defaults[key])
         # if configured as immutable, apply setting after instantiation values
         # are set
         if 'mutable' in kwargs:
@@ -585,7 +586,7 @@ class Box(_Primitive):
 
 class Extrusion(_Primitive):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, triangle_args=None, *args, **kwargs):
         """
         Create an Extrusion primitive, which
         is a subclass of Trimesh.
@@ -598,16 +599,18 @@ class Extrusion(_Primitive):
           Transform to apply after extrusion
         height : float
           Height to extrude polygon by
+        triangle_args : str
+          Arguments to pass to triangle
         """
-        super(Extrusion, self).__init__(*args, **kwargs)
-
         # do the import here, fail early if Shapely isn't installed
         from shapely.geometry import Point
-
+        super(Extrusion, self).__init__(*args, **kwargs)
+        # save arguments for triangulation
+        self.triangle_args = triangle_args
+        # set default values
         defaults = {'polygon': Point([0, 0]).buffer(1.0),
                     'transform': np.eye(4),
                     'height': 1.0}
-
         self.primitive = _PrimitiveAttributes(self,
                                               defaults,
                                               kwargs)
@@ -634,8 +637,7 @@ class Extrusion(_Primitive):
     @caching.cache_decorator
     def volume(self):
         """
-        The volume of the primitive extrusion.
-
+        The volume of the Extrusion primitive.
         Calculated from polygon and height to avoid mesh creation.
 
         Returns
@@ -643,6 +645,7 @@ class Extrusion(_Primitive):
         volume : float
           Volume of 3D extrusion
         """
+        # height may be negative
         volume = abs(self.primitive.polygon.area *
                      self.primitive.height)
         return volume
@@ -658,8 +661,10 @@ class Extrusion(_Primitive):
         direction : (3,) float
           Unit direction vector
         """
-        direction = np.dot(self.primitive.transform[:3, :3],
-                           [0.0, 0.0, np.sign(self.primitive.height)])
+        # only consider rotation and signed height
+        direction = np.dot(
+            self.primitive.transform[:3, :3],
+            [0.0, 0.0, np.sign(self.primitive.height)])
         return direction
 
     @property
@@ -702,7 +707,8 @@ class Extrusion(_Primitive):
 
         Parameters
         -----------
-        distance: float, distance along self.extrude_direction to move
+        distance : float
+          Distance along self.extrude_direction to move
         """
         distance = float(distance)
         translation = np.eye(4)
@@ -713,8 +719,8 @@ class Extrusion(_Primitive):
 
     def buffer(self, distance, distance_height=None, **kwargs):
         """
-        Return a new Extrusion object which is expanded in profile and
-        in height by a specified distance.
+        Return a new Extrusion object which is expanded in profile
+        and in height by a specified distance.
 
         Parameters
         --------------
@@ -759,7 +765,8 @@ class Extrusion(_Primitive):
         mesh = creation.extrude_polygon(
             polygon=self.primitive.polygon,
             height=self.primitive.height,
-            transform=self.primitive.transform)
+            transform=self.primitive.transform,
+            triangle_args=self.triangle_args)
 
         # check volume here in unit tests
         if tol.strict and mesh.volume < 0.0:

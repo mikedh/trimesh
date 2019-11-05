@@ -199,7 +199,7 @@ class GraphTest(g.unittest.TestCase):
             for name in ['featuretype.STL', 'soup.stl']:
                 m = g.get_mesh(name)
                 if add_degen:
-                    # make the first face degnerate
+                    # make the first face degenerate
                     m.faces[0][2] = m.faces[0][0]
                 # degenerate faces should be filtered
                 assert g.np.not_equal(*m.face_adjacency.T).all()
