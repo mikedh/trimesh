@@ -195,30 +195,38 @@ class GraphTest(g.unittest.TestCase):
                 assert all(i.dtype == g.np.int64 for i in dfs)
 
     def test_adjacency(self):
-        for name in ['featuretype.STL', 'soup.stl']:
-            m = g.get_mesh(name)
+        for add_degen in [False, True]:
+            for name in ['featuretype.STL', 'soup.stl']:
+                m = g.get_mesh(name)
+                if add_degen:
+                    # make the first face degenerate
+                    m.faces[0][2] = m.faces[0][0]
+                # degenerate faces should be filtered
+                assert g.np.not_equal(*m.face_adjacency.T).all()
+                # package properties to loop through
+                zips = zip(m.face_adjacency,
+                           m.face_adjacency_edges,
+                           m.face_adjacency_unshared)
+                for a, e, v in zips:
+                    # get two adjacenct faces as a set
+                    fa = set(m.faces[a[0]])
+                    fb = set(m.faces[a[1]])
 
-            zips = zip(m.face_adjacency,
-                       m.face_adjacency_edges,
-                       m.face_adjacency_unshared)
-            for a, e, v in zips:
-                # get two adjacenct faces as a set
-                fa = set(m.faces[a[0]])
-                fb = set(m.faces[a[1]])
+                    # face should be different
+                    assert fa != fb
+                    # shared edge should be in both faces
 
-                # face should be different
-                assert fa != fb
-                # shared edge should be in both faces
+                    # removing 2 vertices should leave one
+                    da = fa.difference(e)
+                    db = fb.difference(e)
+                    assert len(da) == 1
+                    assert len(db) == 1
 
-                # removing 2 vertices should leave one
-                da = fa.difference(e)
-                db = fb.difference(e)
-                assert len(da) == 1
-                assert len(db) == 1
-
-                # unshared vertex should be correct
-                assert da.issubset(v)
-                assert db.issubset(v)
+                    # unshared vertex should be correct
+                    assert da.issubset(v)
+                    assert db.issubset(v)
+                    assert da != db
+                    assert len(v) == 2
 
 
 def check_engines(edges, nodes):

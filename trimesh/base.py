@@ -511,11 +511,15 @@ class Trimesh(Geometry):
 
         Returns
         -----------
-        bounds : (2, 3) float
+        bounds : (2, 3) float or None
           Bounding box with [min, max] coordinates
+          If mesh is empty will return None
         """
         # return bounds including ONLY referenced vertices
         in_mesh = self.vertices[self.referenced_vertices]
+        # don't crash if we have no vertices referenced
+        if len(in_mesh) == 0:
+            return None
         # get mesh bounds with min and max
         mesh_bounds = np.array([in_mesh.min(axis=0),
                                 in_mesh.max(axis=0)])
@@ -526,13 +530,18 @@ class Trimesh(Geometry):
     @caching.cache_decorator
     def extents(self):
         """
-        The length, width, and height of the bounding box of the mesh.
+        The length, width, and height of the axis aligned
+        bounding box of the mesh.
 
         Returns
         -----------
-        extents : (3,) float
+        extents : (3,) float or None
           Array containing axis aligned [length, width, height]
+          If mesh is empty returns None
         """
+        # if mesh is empty return None
+        if self.bounds is None:
+            return None
         extents = self.bounds.ptp(axis=0)
         extents.flags.writeable = False
         return extents
@@ -548,6 +557,9 @@ class Trimesh(Geometry):
         scale : float
           The length of the meshes AABB diagonal
         """
+        # if mesh is empty just return no scale
+        if self.extents is None:
+            return 1.0
         # make sure we are returning python floats
         scale = float((self.extents ** 2).sum() ** .5)
         return scale

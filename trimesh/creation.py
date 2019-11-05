@@ -68,6 +68,7 @@ def validate_polygon(obj):
 def extrude_polygon(polygon,
                     height,
                     transform=None,
+                    triangle_args=None,
                     **kwargs):
     """
     Extrude a 2D shapely polygon into a 3D mesh
@@ -78,6 +79,8 @@ def extrude_polygon(polygon,
       2D geometry to extrude
     height : float
       Distance to extrude polygon along Z
+    triangle_args : str or None
+      Passed to triangle
     **kwargs:
         passed to Trimesh
 
@@ -86,7 +89,8 @@ def extrude_polygon(polygon,
     mesh : trimesh.Trimesh
       Resulting extrusion as watertight body
     """
-    vertices, faces = triangulate_polygon(polygon, **kwargs)
+    vertices, faces = triangulate_polygon(
+        polygon, triangle_args=triangle_args, **kwargs)
     mesh = extrude_triangulation(vertices=vertices,
                                  faces=faces,
                                  height=height,
@@ -311,7 +315,7 @@ def extrude_triangulation(vertices,
 
 
 def triangulate_polygon(polygon,
-                        triangle_args='pq30',
+                        triangle_args=None,
                         engine='auto',
                         **kwargs):
     """
@@ -324,8 +328,8 @@ def triangulate_polygon(polygon,
     ---------
     polygon : Shapely.geometry.Polygon
         Polygon object to be triangulated
-    triangle_args : str
-        Passed to triangle.triangulate
+    triangle_args : str or None
+        Passed to triangle.triangulate i.e: 'p', 'pq30'
     engine : str
         'meshpy', 'triangle', or 'auto'
     kwargs: passed directly to meshpy.triangle.build:
@@ -349,6 +353,10 @@ def triangulate_polygon(polygon,
     faces :    (n, 3) int
        Index of vertices that make up triangles
     """
+
+    # set default triangulation if not specified
+    if triangle_args is None:
+        triangle_args = 'p'
 
     # turn the polygon in to vertices, segments, and hole points
     arg = _polygon_to_kwargs(polygon)

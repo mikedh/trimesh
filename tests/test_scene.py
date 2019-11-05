@@ -259,6 +259,26 @@ class SceneTests(g.unittest.TestCase):
         set_dbl = set([len(i) for i in r.duplicate_nodes])
         assert set_ori == set_dbl
 
+    def test_empty(self):
+        # test an empty scene
+        empty = g.trimesh.Trimesh([], [])
+        assert empty.bounds is None
+        assert empty.extents is None
+        assert g.np.isclose(empty.scale, 1.0)
+
+        # create a sphere
+        sphere = g.trimesh.creation.icosphere()
+
+        # empty scene should have None for bounds
+        scene = empty.scene()
+        assert scene.bounds is None
+
+        # add a sphere to the empty scene
+        scene.add_geometry(sphere)
+        # bounds should now be populated
+        assert scene.bounds.shape == (2, 3)
+        assert g.np.allclose(scene.bounds, sphere.bounds)
+
 
 class GraphTests(g.unittest.TestCase):
 
