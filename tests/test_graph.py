@@ -103,10 +103,9 @@ class GraphTest(g.unittest.TestCase):
                                               tic_diff))))
 
     def test_smoothed(self):
-        """
-        Make sure smoothing is keeping the same number
-        of faces.
-        """
+        # Make sure smoothing is keeping the same number
+        # of faces.
+
         for name in ['ADIS16480.STL', 'featuretype.STL']:
             mesh = g.get_mesh(name)
             assert len(mesh.faces) == len(mesh.smoothed().faces)
@@ -129,9 +128,7 @@ class GraphTest(g.unittest.TestCase):
         # assert m.is_volume
 
     def test_traversals(self):
-        """
-        Test traversals (BFS+DFS)
-        """
+        # Test traversals (BFS+DFS)
 
         # generate some simple test data
         simple_nodes = g.np.arange(20)
@@ -196,6 +193,32 @@ class GraphTest(g.unittest.TestCase):
 
                 # check all return dtypes
                 assert all(i.dtype == g.np.int64 for i in dfs)
+
+    def test_adjacency(self):
+        for name in ['featuretype.STL', 'soup.stl']:
+            m = g.get_mesh(name)
+
+            zips = zip(m.face_adjacency,
+                       m.face_adjacency_edges,
+                       m.face_adjacency_unshared)
+            for a, e, v in zips:
+                # get two adjacenct faces as a set
+                fa = set(m.faces[a[0]])
+                fb = set(m.faces[a[1]])
+
+                # face should be different
+                assert fa != fb
+                # shared edge should be in both faces
+
+                # removing 2 vertices should leave one
+                da = fa.difference(e)
+                db = fb.difference(e)
+                assert len(da) == 1
+                assert len(db) == 1
+
+                # unshared vertex should be correct
+                assert da.issubset(v)
+                assert db.issubset(v)
 
 
 def check_engines(edges, nodes):

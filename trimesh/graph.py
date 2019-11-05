@@ -78,8 +78,7 @@ def face_adjacency(faces=None,
     if mesh is None:
         # first generate the list of edges for the current faces
         # also return the index for which face the edge is from
-        edges, edges_face = faces_to_edges(faces,
-                                           return_index=True)
+        edges, edges_face = faces_to_edges(faces, return_index=True)
         # make sure edge rows are sorted
         edges.sort(axis=1)
     else:
@@ -101,14 +100,19 @@ def face_adjacency(faces=None,
     # the pairs of all adjacent faces
     # so for every row in face_idx, self.faces[face_idx[*][0]] and
     # self.faces[face_idx[*][1]] will share an edge
-    face_adjacency = edges_face[edge_groups]
+    adjacency = edges_face[edge_groups]
 
-    # sort pairs so we can search for indexes with ordered pairs
-    face_adjacency.sort(axis=1)
+    # degenerate faces may appear in adjacency as the same value
+    nondegenerate = adjacency[:, 0] != adjacency[:, 1]
+    adjacency = adjacency[nondegenerate]
+
+    # sort pairs in-place so we can search for indexes with ordered pairs
+    adjacency.sort(axis=1)
 
     if return_edges:
-        face_adjacency_edges = edges[edge_groups[:, 0]]
-        return face_adjacency, face_adjacency_edges
+        adjacency_edges = edges[edge_groups[:, 0][nondegenerate]]
+        assert len(adjacency_edges) == len(adjacency)
+        return adjacency, adjacency_edges
     return face_adjacency
 
 
@@ -120,25 +124,39 @@ def face_adjacency_unshared(mesh):
     Parameters
     ----------
     mesh : Trimesh object
+      Input mesh
 
     Returns
     -----------
     vid_unshared : (len(mesh.face_adjacency), 2) int
-        Indexes of mesh.vertices
+      Indexes of mesh.vertices
+      for degenerate faces without exactly
+      one unshared vertex per face it will be -1
     """
 
-    # the non- shared vertex index is the same shape as face_adjacnecy
-    # just holding vertex indices rather than face indices
+    # the non- shared vertex index is the same shape
+    # as face_adjacency holding vertex indices vs face indices
     vid_unshared = np.zeros_like(mesh.face_adjacency,
-                                 dtype=np.int64)
-    # loop through both columns of face adjacency
-    for i, adjacency in enumerate(mesh.face_adjacency.T):
+                                 dtype=np.int64) - 1
+    # get the shared edges between adjacent faces
+    edges = mesh.face_adjacency_edges
+
+    # loop through the two columns of face adjacency
+    for i, fid in enumerate(mesh.face_adjacency.T):
         # faces from the current column of face adjacency
-        faces = mesh.faces[adjacency]
-        shared = np.logical_or(
-            faces == mesh.face_adjacency_edges[:, 0].reshape((-1, 1)),
-            faces == mesh.face_adjacency_edges[:, 1].reshape((-1, 1)))
-        vid_unshared[:, i] = faces[np.logical_not(shared)]
+        faces = mesh.faces[fid]
+        # should have one True per row of (3,)
+        # index of vertex not included in shared edge
+        unshared = np.logical_not(np.logical_or(
+            faces == edges[:, 0].reshape((-1, 1)),
+            faces == edges[:, 1].reshape((-1, 1))))
+        # each row should have exactly one uncontained verted
+        row_ok = unshared.sum(axis=1) == 1
+        # any degenerate row should be ignored
+        unshared[~row_ok, :] = False
+        # set the
+        vid_unshared[row_ok, i] = faces[unshared]
+
     return vid_unshared
 
 
@@ -779,21 +797,25 @@ def smoothed(mesh, angle, facet_minlen=4):
     nodes = None
     # collect coplanar regions for smoothing
     if facet_minlen is not None:
-        # exclude facets with few faces
-        facets = [f for f in mesh.facets
-                  if len(f) > facet_minlen]
-        if len(facets) > 0:
-            # mask for removing adjacency pairs where
-            # one of the faces is contained in a facet
-            mask = np.ones(len(mesh.faces),
-                           dtype=np.bool)
-            mask[np.hstack(facets)] = False
-            # apply the mask to adjacency
-            adjacency = adjacency[
-                mask[adjacency].all(axis=1)]
-            # nodes are no longer every faces
-            nodes = np.unique(adjacency)
-
+        try:
+            # we can survive not knowing facets
+            # exclude facets with few faces
+            facets = [f for f in mesh.facets
+                      if len(f) > facet_minlen]
+            if len(facets) > 0:
+                # mask for removing adjacency pairs where
+                # one of the faces is contained in a facet
+                mask = np.ones(len(mesh.faces),
+                               dtype=np.bool)
+                mask[np.hstack(facets)] = False
+                # apply the mask to adjacency
+                adjacency = adjacency[
+                    mask[adjacency].all(axis=1)]
+                # nodes are no longer every faces
+                nodes = np.unique(adjacency)
+        except BaseException:
+            log.warning('failed to calculate facets',
+                        exc_info=True)
     # run connected components on facet adjacency
     components = connected_components(
         adjacency,

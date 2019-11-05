@@ -614,23 +614,29 @@ class Scene(Geometry):
                           matrix=matrix)
         self.graph.base_frame = new_base
 
-    def dump(self):
+    def dump(self, concatenate=False):
         """
         Append all meshes in scene to a list of meshes.
 
         Returns
         ----------
-        dumped: (n,) list, of Trimesh objects transformed to their
-                           location the scene.graph
+        dumped : (n,) list
+          Trimesh objects transformed to their
+          location the scene.graph
         """
-        result = collections.deque()
-
+        result = []
         for node_name in self.graph.nodes_geometry:
             transform, geometry_name = self.graph[node_name]
-
+            # get a copy of the geometry
             current = self.geometry[geometry_name].copy()
+            # move the geometry vertices into the requested frame
             current.apply_transform(transform)
+            # save to our list of meshes
             result.append(current)
+
+        if concatenate:
+            return util.concatenate(result)
+
         return np.array(result)
 
     @caching.cache_decorator
