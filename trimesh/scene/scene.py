@@ -251,13 +251,16 @@ class Scene(Geometry):
         corners_inst = []
         # (n, 3) float corners of each geometry
         corners_geom = {k: bounds_module.corners(v.bounds)
-                        for k, v in self.geometry.items()}
+                        for k, v in self.geometry.items()
+                        if v.bounds is not None}
+        if len(corners_geom) == 0:
+            return np.array([])
 
         for node_name in self.graph.nodes_geometry:
             # access the transform and geometry name from node
             transform, geometry_name = self.graph[node_name]
             # not all nodes have associated geometry
-            if geometry_name is None:
+            if geometry_name not in corners_geom:
                 continue
             # transform geometry corners into where
             # the instance of the geometry is located
@@ -277,9 +280,13 @@ class Scene(Geometry):
 
         Returns
         --------
-        bounds: (2,3) float points for min, max corner
+        bounds : (2, 3) float or None
+          Position of [min, max] bounding box
+          Returns None if no valid bounds exist
         """
         corners = self.bounds_corners
+        if len(corners) == 0:
+            return None
         bounds = np.array([corners.min(axis=0),
                            corners.max(axis=0)])
         return bounds

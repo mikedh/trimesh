@@ -41,16 +41,28 @@ class Geometry(ABC):
 
     def __repr__(self):
         """
-        Print quick summary of the current geometry without computing properties.
+        Print quick summary of the current geometry without
+        computing properties.
         """
         elements = []
         if hasattr(self, 'vertices'):
-            elements.append('vertices.shape={}'.format(self.vertices.shape))
+            # for Trimesh and PointCloud
+            elements.append('vertices.shape={}'.format(
+                self.vertices.shape))
         if hasattr(self, 'faces'):
-            elements.append('faces.shape={}'.format(self.faces.shape))
-        if hasattr(self, 'geometry') and isinstance(self.geometry, dict):
-            elements.append('len(geometry)={}'.format(len(self.geometry)))
-        return '<trimesh.{}( {} )>'.format(type(self).__name__, ', '.join(elements))
+            # for Trimesh
+            elements.append('faces.shape={}'.format(
+                self.faces.shape))
+        if hasattr(self, 'geometry') and isinstance(
+                self.geometry, dict):
+            # for Scene
+            elements.append('len(geometry)={}'.format(
+                len(self.geometry)))
+        if hasattr(self, 'shape'):
+            # for VoxelGrid objects
+            elements.append(str(self.shape)[1:-1])
+        return '<trimesh.{}({})>'.format(
+            type(self).__name__, ', '.join(elements))
 
     def apply_translation(self, translation):
         """
@@ -126,7 +138,8 @@ class Geometry(ABC):
         ---------
         obb : trimesh.primitives.Box
           Box object with transform and extents defined
-          representing the minimum volume oriented bounding box of the mesh
+          representing the minimum volume oriented
+          bounding box of the mesh
         """
         from . import primitives, bounds
         to_origin, extents = bounds.oriented_bounds(self)
