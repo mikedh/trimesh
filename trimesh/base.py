@@ -1304,8 +1304,8 @@ class Trimesh(Geometry):
 
         In [6]: groups = nx.connected_components(graph)
         """
-        adjacency, edges = graph.face_adjacency(mesh=self,
-                                                return_edges=True)
+        adjacency, edges = graph.face_adjacency(
+            mesh=self, return_edges=True)
         self._cache['face_adjacency_edges'] = edges
         return adjacency
 
