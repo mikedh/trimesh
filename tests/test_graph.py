@@ -203,6 +203,24 @@ class GraphTest(g.unittest.TestCase):
                     m.faces[0][2] = m.faces[0][0]
                 # degenerate faces should be filtered
                 assert g.np.not_equal(*m.face_adjacency.T).all()
+
+                # check the various paths of calling face adjacency
+                a = g.trimesh.graph.face_adjacency(
+                    m.faces.view(g.np.ndarray).copy(),
+                    return_edges=False)
+                b, be = g.trimesh.graph.face_adjacency(
+                    m.faces.view(g.np.ndarray).copy(),
+                    return_edges=True)
+                c = g.trimesh.graph.face_adjacency(
+                    mesh=m, return_edges=False)
+                c, ce = g.trimesh.graph.face_adjacency(
+                    mesh=m, return_edges=True)
+                # make sure they all return the expected result
+                assert g.np.allclose(a, b)
+                assert g.np.allclose(a, c)
+                assert len(be) == len(a)
+                assert len(ce) == len(a)
+
                 # package properties to loop through
                 zips = zip(m.face_adjacency,
                            m.face_adjacency_edges,
