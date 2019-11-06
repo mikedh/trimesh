@@ -259,7 +259,7 @@ class SceneTests(g.unittest.TestCase):
         set_dbl = set([len(i) for i in r.duplicate_nodes])
         assert set_ori == set_dbl
 
-    def test_empty(self):
+    def test_empty_scene(self):
         # test an empty scene
         empty = g.trimesh.Trimesh([], [])
         assert empty.bounds is None
