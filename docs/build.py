@@ -74,6 +74,7 @@ if __name__ == '__main__':
 
     # build the API doc
     api = ['sphinx-apidoc',
+           '-e',
            '-o',
            cwd,
            abspath('../trimesh')]
