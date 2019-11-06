@@ -26,7 +26,10 @@ def abspath(rel):
     return os.path.abspath(os.path.join(cwd, rel))
 
 
-extensions = ['sphinxcontrib.napoleon']
+extensions = [
+    'sphinx.ext.napoleon',
+    'autodocsumm',
+]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -82,3 +85,9 @@ html_theme = 'sphinx_rtd_theme'
 
 # Output file base name for HTML help builder.
 htmlhelp_basename = 'trimeshdoc'
+
+# -- Extensions configuration ----------------------------------------
+
+autodoc_default_options = {
+    'autosummary': True,
+}
