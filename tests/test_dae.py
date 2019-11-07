@@ -37,6 +37,15 @@ class DAETest(g.unittest.TestCase):
         assert len(scene.geometry) == 3
         assert len(scene.graph.nodes_geometry) == 3
 
+    def test_export(self):
+        if collada is None:
+            g.log.error('no pycollada to test!')
+            return
+
+        a = g.get_mesh('ballA.off')
+        r = a.export(file_type='dae')
+        assert len(r) > 0
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
