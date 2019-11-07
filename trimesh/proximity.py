@@ -15,7 +15,7 @@ from .triangles import closest_point as closest_point_corresponding
 from collections import deque
 
 
-def nearby_faces(mesh, points):
+def nearby_faces(mesh, points, ret_stacked=False):
     """
     For each point find nearby faces relatively quickly.
 
@@ -30,10 +30,14 @@ def nearby_faces(mesh, points):
     ----------
     mesh : Trimesh object
     points : (n,3) float , points in space
+    ret_stacked : bool
+        When `True`, instead of returning nested lists of faces, returns
+        stacked candidates and the number of candidates corresponding to
+        each query point.
 
     Returns
     -----------
-    candidates : (points,) int, sequence of indexes for mesh.faces
+    candidates : (len(points),) int, sequence of indexes for mesh.faces
     """
     points = np.asanyarray(points, dtype=np.float64)
     if not util.is_shape(points, (-1, 3)):
@@ -52,10 +56,19 @@ def nearby_faces(mesh, points):
     bounds = np.column_stack((points - distance_vertex,
                               points + distance_vertex))
 
-    # faces that intersect axis aligned bounding box
-    candidates = [list(rtree.intersection(b)) for b in bounds]
-
-    return candidates
+    if ret_stacked:
+        num_candidates = np.empty(len(points), dtype=np.int64)
+        stacked_candidates = deque()
+        for i, b in enumerate(bounds):
+            # faces that intersect axis aligned bounding box
+            faces = list(rtree.intersection(b))
+            stacked_candidates.append(faces)
+            num_candidates[i] = len(faces)
+        stacked_candidates = np.concatenate(stacked_candidates)
+        return stacked_candidates, num_candidates
+    else:
+        candidates = [list(rtree.intersection(b)) for b in bounds]
+        return candidates
 
 
 def closest_point_naive(mesh, points):
@@ -130,27 +143,20 @@ def closest_point(mesh, points):
         raise ValueError('points must be (n,3)!')
 
     # do a tree- based query for faces near each point
-    candidates = nearby_faces(mesh, points)
+    stacked_candidates, num_candidates = nearby_faces(mesh, points, ret_stacked=True)
     # view triangles as an ndarray so we don't have to recompute
     # the MD5 during all of the subsequent advanced indexing
     triangles = mesh.triangles.view(np.ndarray)
 
     # create the corresponding list of triangles
     # and query points to send to the closest_point function
-    query_point = deque()
-    query_tri = deque()
-    for triangle_ids, point in zip(candidates, points):
-        query_point.append(np.tile(point, (len(triangle_ids), 1)))
-        query_tri.append(triangles[triangle_ids])
-
-    # stack points into an (n,3) array
-    query_point = np.vstack(query_point)
-    # stack triangles into an (n,3,3) array
-    query_tri = np.vstack(query_tri)
+    # num_candidates = np.array([len(i) for i in candidates])
+    query_point = np.repeat(points, num_candidates, axis=0)
+    query_tri = triangles[stacked_candidates]
 
     # do the computation for closest point
     query_close = closest_point_corresponding(query_tri, query_point)
-    query_group = np.cumsum(np.array([len(i) for i in candidates]))[:-1]
+    query_group = np.cumsum(num_candidates)[:-1]
 
     distance_2 = ((query_close - query_point) ** 2).sum(axis=1)
 
@@ -160,11 +166,10 @@ def closest_point(mesh, points):
     result_distance = np.zeros(len(points), dtype=np.float64)
 
     # go through results to get minimum distance result
-    for i, close_points, distance, candidate in zip(
-            np.arange(len(points)),
+    for i, (close_points, distance, candidate) in enumerate(zip(
             np.array_split(query_close, query_group),
             np.array_split(distance_2, query_group),
-            candidates):
+            np.array_split(stacked_candidates, query_group))):
 
         # unless some other check is true use the smallest distance
         idx = distance.argmin()

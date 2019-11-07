@@ -567,13 +567,13 @@ def closest_point(triangles, points):
         raise ValueError('need same number of triangles and points!')
 
     # store the location of the closest point
-    result = np.zeros_like(points)
+    result = np.empty(points.shape, dtype=np.float64)
     # which points still need to be handled
     remain = np.ones(len(points), dtype=np.bool)
 
     # if we dot product this against a (n, 3)
     # it is equivalent but faster than array.sum(axis=1)
-    ones = [1.0, 1.0, 1.0]
+    ones = np.ones(3)
 
     # get the three points of each triangle
     # use the same notation as RTCD to avoid confusion
