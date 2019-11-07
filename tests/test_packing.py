@@ -2,12 +2,12 @@ try:
     from . import generic as g
 except BaseException:
     import generic as g
-from shapely.geometry import Polygon
 
 
 class PackingTest(g.unittest.TestCase):
 
     def setUp(self):
+        from shapely.geometry import Polygon
         self.nestable = [Polygon(i) for i in g.data['nestable']]
 
     def test_obb(self):
