@@ -6,7 +6,6 @@ Functions and classes that help with tracking changes in ndarrays
 and clearing cached values based on those changes.
 """
 
-import collections
 import numpy as np
 
 import zlib
