@@ -6,7 +6,6 @@ Functions and classes that help with tracking changes in ndarrays
 and clearing cached values based on those changes.
 """
 
-import collections
 import numpy as np
 
 import zlib
@@ -14,6 +13,11 @@ import time
 import hashlib
 
 from functools import wraps
+
+try:
+    from collections.abc import Mapping
+except ImportError:
+    from collections import Mapping
 
 from .constants import log
 from .util import is_sequence
@@ -491,7 +495,7 @@ class Cache(object):
         self.id_current = self._id_function()
 
 
-class DataStore(collections.Mapping):
+class DataStore(Mapping):
     """
     A class to store multiple numpy arrays and track them all
     for changes.

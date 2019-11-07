@@ -113,7 +113,7 @@ def face_adjacency(faces=None,
         adjacency_edges = edges[edge_groups[:, 0][nondegenerate]]
         assert len(adjacency_edges) == len(adjacency)
         return adjacency, adjacency_edges
-    return face_adjacency
+    return adjacency
 
 
 def face_adjacency_unshared(mesh):

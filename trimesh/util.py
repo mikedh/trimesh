@@ -45,6 +45,11 @@ else:
     StringIO.__exit__ = lambda a, b, c, d: a.close()
     BytesIO = StringIO
 
+try:
+    from collections.abc import Mapping
+except ImportError:
+    from collections import Mapping
+
 # create a default logger
 log = logging.getLogger('trimesh')
 
@@ -2058,7 +2063,7 @@ def allclose(a, b, atol):
     return np.all(np.abs(a - b).max() < atol)
 
 
-class FunctionRegistry(collections.Mapping):
+class FunctionRegistry(Mapping):
     """
     Non-overwritable mapping of string keys to functions.
 

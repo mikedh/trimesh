@@ -7,6 +7,11 @@ try:
     import collada
 except ImportError:
     collada = None
+except BaseException:
+    # TODO : REMOVE WHEN UPSTREAM RELEASE FIXED
+    # https://github.com/pycollada/pycollada/pull/92
+    g.log.error('DAE fix not pushed yet!')
+    collada = None
 
 
 class DAETest(g.unittest.TestCase):
@@ -31,6 +36,15 @@ class DAETest(g.unittest.TestCase):
         scene = g.get_mesh('shoulder.zae')
         assert len(scene.geometry) == 3
         assert len(scene.graph.nodes_geometry) == 3
+
+    def test_export(self):
+        if collada is None:
+            g.log.error('no pycollada to test!')
+            return
+
+        a = g.get_mesh('ballA.off')
+        r = a.export(file_type='dae')
+        assert len(r) > 0
 
 
 if __name__ == '__main__':

@@ -141,13 +141,6 @@ class UtilTests(unittest.TestCase):
         assert a.md5() == hA
 
 
-class IOTest(unittest.TestCase):
-
-    def test_dae(self):
-        a = g.get_mesh('ballA.off')
-        r = a.export(file_type='dae')  # NOQA
-
-
 class ContainsTest(unittest.TestCase):
 
     def test_inside(self):
