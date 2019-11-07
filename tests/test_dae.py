@@ -7,6 +7,11 @@ try:
     import collada
 except ImportError:
     collada = None
+except BaseException:
+    # TODO : REMOVE WHEN UPSTREAM RELEASE FIXED
+    # https://github.com/pycollada/pycollada/pull/92
+    g.log.error('DAE fix not pushed yet!')
+    collada = None
 
 
 class DAETest(g.unittest.TestCase):
