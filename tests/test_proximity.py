@@ -201,9 +201,9 @@ class NearestTest(g.unittest.TestCase):
     def test_candidates(self):
         mesh = g.trimesh.creation.random_soup(2000)
         points = g.np.random.random((2000, 3))
-
-        c = g.trimesh.proximity.nearby_faces(
+        g.trimesh.proximity.nearby_faces(
             mesh=mesh, points=points)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
