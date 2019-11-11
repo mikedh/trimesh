@@ -1,7 +1,7 @@
 import numpy as np
 
 from . import util
-from .constants import tol, log
+from .constants import log
 
 try:
     import scipy.sparse
@@ -72,34 +72,32 @@ def align_vectors(a, b, return_angle=False):
 
     # projection of a onto b
     dot = np.dot(a, b)
-
-    # are vectors just reversed
-    if dot < (tol.merge - 1):
+    # resolution to compare floating point numbers
+    epsilon = 1e-12
+    if dot < (epsilon - 1):
         # a reversed vector is 180 degrees
         angle = np.pi
-
-        # https://github.com/mikedh/trimesh/issues/540
-        svd_a = np.linalg.svd(a[:, np.newaxis])[0]
-        svd_b = np.linalg.svd(b[:, np.newaxis])[0]
-        rotation = svd_b.dot(svd_a.T)
-
-    # are vectors already the same
-    elif dot > (1 - tol.merge):
+        # get an arbitrary perpendicular vector
+        # note that we are using both a and b
+        # so small values will be halved
+        perp = util.generate_basis(a - b)[0]
+        # compose the rotation matrix around our
+        # perpendicular vector with a simplification since
+        # cos(pi)=-1 and sin(pi)=0
+        rotation = np.outer(perp, perp) * 2.0 - np.eye(3)
+    elif dot > (1 - epsilon):
+        # are vectors already the same
         angle = 0.0
         # no rotation
         rotation = np.eye(3)
-
     # vectors are at some angle to each other
     else:
         # we already handled values out of the range [-1.0, 1.0]
         angle = np.arccos(dot)
-
         # (3,) vector perpendicular to both a and b
         w = np.cross(a, b)
-
         # a float between 0.5 and 1.0
         c = 1.0 / (1.0 + dot)
-
         # (3, 3) skew- symmetric matrix from the (3,) vector w
         # the matrix has the property: wx == -wx.T
         wx = np.array([[0, -w[2], w[1]],

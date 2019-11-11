@@ -60,6 +60,8 @@ log = logging.getLogger('trimesh')
 TOL_ZERO = np.finfo(np.float64).resolution * 100
 # how close to merge vertices
 TOL_MERGE = 1e-8
+# enable additional potentially slow checks
+_STRICT = False
 
 
 def unitize(vectors,
@@ -2000,17 +2002,27 @@ def generate_basis(z):
     # X as arbitrary perpendicular vector
     x = np.array([-z[1], z[0], 0.0])
     # avoid degenerate case
-    if np.isclose(np.linalg.norm(x), 0.0):
-        # Z is already along Z [0, 0, 1]
+    x_norm = np.linalg.norm(x)
+    if x_norm < 1e-12:
+        # this means that
         # so a perpendicular X is just X
-        x = np.array([1.0, 0.0, 0.0])
+        x = np.array([-z[2], z[1], 0.0])
+        x /= np.linalg.norm(x)
     else:
         # otherwise normalize X in- place
-        x /= np.linalg.norm(x)
+        x /= x_norm
     # get perpendicular Y with cross product
     y = np.cross(z, x)
-    # append result values into vector
+    # append result values into (3, 3) vector
     result = np.array([x, y, z], dtype=np.float64)
+
+    if _STRICT:
+        # run checks to make sure axis are perpendicular
+        assert np.abs(np.dot(x, z)) < 1e-8
+        assert np.abs(np.dot(y, z)) < 1e-8
+        assert np.abs(np.dot(x, y)) < 1e-8
+        # all vectors should be unit vector
+        assert np.allclose(np.linalg.norm(result, axis=1), 1.0)
 
     return result
 
@@ -2039,6 +2051,7 @@ def isclose(a, b, atol):
     """
     diff = a - b
     close = np.logical_and(diff > -atol, diff < atol)
+
     return close
 
 
