@@ -1,7 +1,7 @@
 import numpy as np
 
 from . import util
-from .constants import tol, log
+from .constants import log
 
 try:
     import scipy.sparse
