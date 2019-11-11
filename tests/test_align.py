@@ -29,20 +29,12 @@ class AlignTests(g.unittest.TestCase):
 
         for vector in vectors:
             T, a = align(vector, target, return_angle=True)
-
-            if not is_rigid(T):
-                from IPython import embed
-                embed()
-
             assert is_rigid(T)
             assert g.np.isclose(g.np.linalg.det(T), 1.0)
             # rotate vector with transform
             check = g.np.dot(T[:3, :3], vector)
             # compare to target vector
             norm = g.np.linalg.norm(check - target)
-            if norm > tol_norm:
-                from IPython import embed
-                embed()
             assert norm < tol_norm
 
         # these vectors should be perpendicular and zero
@@ -72,11 +64,6 @@ class AlignTests(g.unittest.TestCase):
             # check alignment to first vector
             # which was created with zero angle
             T, a = align(vector, vectors[0], return_angle=True)
-
-            if not is_rigid(T):
-                from IPython import embed
-                embed()
-
             assert is_rigid(T)
             # check to make sure returned angle corresponds with truth
 
