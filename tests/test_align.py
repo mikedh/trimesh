@@ -3,6 +3,8 @@ try:
 except BaseException:
     import generic as g
 
+tol_norm = 1e-6
+
 
 class AlignTests(g.unittest.TestCase):
 
@@ -38,10 +40,10 @@ class AlignTests(g.unittest.TestCase):
             check = g.np.dot(T[:3, :3], vector)
             # compare to target vector
             norm = g.np.linalg.norm(check - target)
-            if norm > 1e-7:
+            if norm > tol_norm:
                 from IPython import embed
                 embed()
-            assert norm < 1e-7
+            assert norm < tol_norm
 
         # these vectors should be perpendicular and zero
         angles = [align(i, target, return_angle=True)[1]
@@ -84,7 +86,21 @@ class AlignTests(g.unittest.TestCase):
             check = g.np.dot(T[:3, :3], vector)
             norm = g.np.linalg.norm(check - vectors[0])
 
-            assert norm < 1e-7
+            assert norm < tol_norm
+
+    def test_rigid(self):
+        # check issues with near-reversed vectors not returning rigid
+        align = g.trimesh.geometry.align_vectors
+        T = align([0, 0, -1], [-1e-17, 1e-17, 1])
+        assert g.np.isclose(g.np.linalg.det(T), 1.0)
+
+        T = align([0, 0, -1], [-1e-4, 1e-4, 1])
+        assert g.np.isclose(g.np.linalg.det(T), 1.0)
+
+        vector_1 = g.np.array([7.12106798e-07, -7.43194705e-08, 1.00000000e+00])
+        vector_2 = g.np.array([0, 0, -1])
+        T, angle = align(vector_1, vector_2, return_angle=True)
+        assert g.np.isclose(g.np.linalg.det(T), 1.0)
 
 
 if __name__ == '__main__':

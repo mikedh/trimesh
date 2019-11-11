@@ -2013,15 +2013,16 @@ def generate_basis(z):
         x /= x_norm
     # get perpendicular Y with cross product
     y = np.cross(z, x)
+    # append result values into (3, 3) vector
+    result = np.array([x, y, z], dtype=np.float64)
 
     if _STRICT:
         # run checks to make sure axis are perpendicular
-        assert np.isclose(np.dot(x, z), 0.0, rtol=0.0, atol=1e-8)
-        assert np.isclose(np.dot(y, z), 0.0, rtol=0.0, atol=1e-8)
-        assert np.isclose(np.dot(x, y), 0.0, rtol=0.0, atol=1e-8)
-
-    # append result values into vector
-    result = np.array([x, y, z], dtype=np.float64)
+        assert np.abs(np.dot(x, z)) < 1e-8
+        assert np.abs(np.dot(y, z)) < 1e-8
+        assert np.abs(np.dot(x, y)) < 1e-8
+        # all vectors should be unit vector
+        assert np.allclose(np.linalg.norm(result, axis=1), 1.0)
 
     return result
 
@@ -2050,6 +2051,7 @@ def isclose(a, b, atol):
     """
     diff = a - b
     close = np.logical_and(diff > -atol, diff < atol)
+
     return close
 
 

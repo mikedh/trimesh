@@ -72,14 +72,12 @@ def align_vectors(a, b, return_angle=False):
 
     # projection of a onto b
     dot = np.dot(a, b)
-
+    # resolution to compare floating point numbers
     epsilon = 1e-12
-
-    # are vectors just reversed
     if dot < (epsilon - 1):
         # a reversed vector is 180 degrees
         angle = np.pi
-        # an arbitrary perpendicular vector
+        # get an arbitrary perpendicular vector
         # note that we are using both a and b
         # so small values will be halved
         perp = util.generate_basis(a - b)[0]
@@ -87,32 +85,19 @@ def align_vectors(a, b, return_angle=False):
         # perpendicular vector with a simplification since
         # cos(pi)=-1 and sin(pi)=0
         rotation = np.outer(perp, perp) * 2.0 - np.eye(3)
-
-        if not np.allclose(np.dot(a, rotation), b):
-
-            svd_a = np.linalg.svd(a.reshape((-1, 1)))[0]
-            svd_b = np.linalg.svd(b.reshape((-1, 1)))[0]
-            r = svd_a.dot(svd_b)
-            if np.linalg.det(r) > .99:
-                rotation = r
-
-    # are vectors already the same
     elif dot > (1 - epsilon):
+        # are vectors already the same
         angle = 0.0
         # no rotation
         rotation = np.eye(3)
-
     # vectors are at some angle to each other
     else:
         # we already handled values out of the range [-1.0, 1.0]
         angle = np.arccos(dot)
-
         # (3,) vector perpendicular to both a and b
         w = np.cross(a, b)
-
         # a float between 0.5 and 1.0
         c = 1.0 / (1.0 + dot)
-
         # (3, 3) skew- symmetric matrix from the (3,) vector w
         # the matrix has the property: wx == -wx.T
         wx = np.array([[0, -w[2], w[1]],
