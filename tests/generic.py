@@ -45,8 +45,9 @@ from collections import deque
 from trimesh.constants import tol, tol_path
 from trimesh.base import Trimesh
 
-# make sure everyone knows they should run additional
-# validation checks and raise exceptions
+# make sure functions know they should run additional
+# potentially slow validation checks and raise exceptions
+trimesh.util._STRICT = True
 trimesh.constants.tol.strict = True
 trimesh.constants.tol_path.strict = True
 
