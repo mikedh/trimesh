@@ -1,7 +1,7 @@
 from .. import util
+from .. import resources
 
 from .generic import MeshScript
-from ..resources import get_resource
 from ..constants import log
 
 from distutils.spawn import find_executable
@@ -38,7 +38,7 @@ def boolean(meshes, operation='difference'):
         operation = 'INTERSECT'
 
     # get the template from our resources folder
-    template = get_resource('blender.py.template')
+    template = resources.get('blender.py.template')
     script = template.replace('$operation', operation)
 
     with MeshScript(meshes=meshes,

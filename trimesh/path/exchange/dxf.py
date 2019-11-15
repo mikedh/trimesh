@@ -3,12 +3,13 @@ import numpy as np
 
 from string import Template
 
+
 from ..arc import to_threepoint
 from ..entities import Line, Arc, BSpline, Text
+from .. import resources
 
 from ...constants import log
 from ...constants import tol_path as tol
-from ...resources import get_resource
 from ... import util
 from ... import grouping
 
@@ -60,7 +61,7 @@ XRECORD_MAX_INDEX = 368
 
 # get the TEMPLATES for exporting DXF files
 TEMPLATES = {k: Template(v) for k, v in json.loads(
-    get_resource('dxf.json.template')).items()}
+    resources.get('dxf.json.template')).items()}
 
 
 def load_dxf(file_obj, **kwargs):

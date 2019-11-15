@@ -64,7 +64,8 @@ class MeshScript:
         return self
 
     def run(self, command):
-        command_run = Template(command).substitute(self.replacement).split()
+        command_run = Template(command).substitute(
+            self.replacement).split()
         # run the binary
         # avoid resourcewarnings with null
         with open(os.devnull, 'w') as devnull:
@@ -87,7 +88,10 @@ class MeshScript:
     def __exit__(self, *args, **kwargs):
         # delete all the temporary files by name
         # they are closed but their names are still available
+        """
         os.remove(self.script_out.name)
         for file_obj in self.mesh_pre:
             os.remove(file_obj.name)
         os.remove(self.mesh_post.name)
+        """
+        pass
