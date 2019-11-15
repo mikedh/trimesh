@@ -109,7 +109,7 @@ def unitize(vectors,
         unit = vectors * tiled
     elif len(vectors.shape) == 1:
         # treat 1D arrays as a single vector
-        norm = np.sqrt((vectors * vectors).sum())
+        norm = np.sqrt(np.dot(vectors, vectors))
         valid = norm > threshold
         if valid:
             unit = vectors / norm
@@ -267,16 +267,17 @@ def is_shape(obj, shape, allow_zeros=False):
     Parameters
     ------------
     obj :   np.ndarray
-       Array to check the shape on
+      Array to check the shape on
     shape : list or tuple
-       Any negative term will be considered a wildcard
-       Any tuple term will be evaluated as an OR
+      Any negative term will be considered a wildcard
+      Any tuple term will be evaluated as an OR
     allow_zeros: bool
-        if False, zeros do not math negatives in shape.
+      if False, zeros do not match negatives in shape
 
     Returns
     ---------
-    shape_ok: bool, True if shape of obj matches query shape
+    shape_ok : bool
+      True if shape of obj matches query shape
 
     Examples
     ------------------------
@@ -307,6 +308,10 @@ def is_shape(obj, shape, allow_zeros=False):
     if (not hasattr(obj, 'shape') or
             len(obj.shape) != len(shape)):
         return False
+
+    # empty lists with any flexible dimensions match
+    if len(obj) == 0 and -1 in shape:
+        return True
 
     # loop through each integer of the two shapes
     # multiple values are sequences
@@ -562,7 +567,7 @@ def diagonal_dot(a, b):
 
     There are a lot of ways to do this though
     performance varies very widely. This method
-    uses the dot product to sum the row and avoids
+    uses a dot product to sum the row and avoids
     function calls if at all possible.
 
     Comparing performance of some equivalent versions:
@@ -607,8 +612,7 @@ def diagonal_dot(a, b):
     a = np.asanyarray(a)
     # 3x faster than (a * b).sum(axis=1)
     # avoiding np.ones saves 5-10% sometimes
-    result = np.dot(a * b, [1.0] * a.shape[1])
-    return result
+    return np.dot(a * b, [1.0] * a.shape[1])
 
 
 def row_norm(data):

@@ -378,33 +378,31 @@ class Trimesh(Geometry):
         values : (len(self.faces), 3) float
           Unit face normals
         """
-        if values is not None:
-            # make sure face normals are C- contiguous float
-            values = np.asanyarray(values,
-                                   order='C',
-                                   dtype=np.float64)
-
-            # check if any values are larger than tol.merge
-            # this check is equivalent to but 25% faster than:
-            # `np.abs(values) > tol.merge`
-            nonzero = np.logical_or(values > tol.merge,
-                                    values < -tol.merge)
-
-            # don't set the normals if they are all zero
-            if not nonzero.any():
-                log.warning('face_normals all zero, ignoring!')
-                return
-
-            # make sure the first few normals match the first few triangles
-            check, valid = triangles.normals(
-                self.vertices.view(np.ndarray)[self.faces[:20]])
-            compare = np.zeros((len(valid), 3))
-            compare[valid] = check
-
-            if not np.allclose(compare, values[:20]):
-                log.debug("face_normals didn't match triangles, ignoring!")
-                return
-
+        # if nothing passed exit
+        if values is None:
+            return
+        # make sure candidate face normals are C- contiguous float
+        values = np.asanyarray(
+            values, order='C', dtype=np.float64)
+        # face normals need to correspond to faces
+        if len(values) == 0 or values.shape != self.faces.shape:
+            log.warning('face_normals incorrect shape, ignoring!')
+            return
+        # check if any values are larger than tol.merge
+        # don't set the normals if they are all zero
+        ptp = values.ptp()
+        if not np.isfinite(ptp) or ptp < tol.merge:
+            log.warning('face_normals all zero, ignoring!')
+            return
+        # make sure the first few normals match the first few triangles
+        check, valid = triangles.normals(
+            self.vertices.view(np.ndarray)[self.faces[:20]])
+        compare = np.zeros((len(valid), 3))
+        compare[valid] = check
+        if not np.allclose(compare, values[:20]):
+            log.debug("face_normals didn't match triangles, ignoring!")
+            return
+        # otherwise store face normals
         self._cache['face_normals'] = values
 
     @property

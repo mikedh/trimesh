@@ -1,3 +1,4 @@
+
 """
 path.py
 
@@ -102,10 +103,10 @@ class Path(object):
         """
         Print a quick summary of the number of vertices and entities.
         """
-        r = '<trimesh.{}( len(entities)={}, len(vertices)={} )>'.format(
+        r = '<trimesh.{}(vertices.shape={}, len(entities)={})>'.format(
             type(self).__name__,
-            len(self.entities),
-            len(self.vertices))
+            self.vertices.shape,
+            len(self.entities))
         return r
 
     def process(self):
