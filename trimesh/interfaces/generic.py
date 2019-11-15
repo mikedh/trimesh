@@ -15,8 +15,10 @@ class MeshScript:
                  meshes,
                  script,
                  tmpfile_ext='stl',
+                 debug=False,
                  **kwargs):
 
+        self.debug = debug
         self.kwargs = kwargs
         self.meshes = meshes
         self.script = script
@@ -73,9 +75,13 @@ class MeshScript:
             if platform.system() == 'Windows':
                 startupinfo = subprocess.STARTUPINFO()
                 startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-
+            if self.debug:
+                # in debug mode print the output
+                stdout = None
+            else:
+                stdout = devnull
             check_call(command_run,
-                       stdout=devnull,
+                       stdout=stdout,
                        stderr=subprocess.STDOUT,
                        startupinfo=startupinfo)
 
@@ -86,12 +92,13 @@ class MeshScript:
         return mesh_results
 
     def __exit__(self, *args, **kwargs):
+        if self.debug:
+            print('MeshScript.debug: not deleting {}'.format(
+                self.script_out.name))
+            return
         # delete all the temporary files by name
         # they are closed but their names are still available
-        """
         os.remove(self.script_out.name)
         for file_obj in self.mesh_pre:
             os.remove(file_obj.name)
         os.remove(self.mesh_post.name)
-        """
-        pass

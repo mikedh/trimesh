@@ -2572,22 +2572,26 @@ class Trimesh(Geometry):
                                                     **kwargs)
         return result
 
-    def union(self, other, engine=None):
+    def union(self, other, engine=None, **kwargs):
         """
         Boolean union between this mesh and n other meshes
 
         Parameters
         ------------
-        other : trimesh.Trimesh, or list of trimesh.Trimesh objects
+        other : Trimesh or (n,) Trimesh
           Other meshes to union
+        engine : None or str
+          Which backend to use
 
         Returns
         ---------
         union : trimesh.Trimesh
           Union of self and other Trimesh objects
         """
-        result = boolean.union(meshes=np.append(self, other),
-                               engine=engine)
+        result = boolean.union(
+            meshes=np.append(self, other),
+            engine=engine,
+            **kwargs)
         return result
 
     def difference(self, other, engine=None):
