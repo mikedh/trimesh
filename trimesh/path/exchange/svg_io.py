@@ -5,11 +5,11 @@ from string import Template
 from .. import entities as entities_mod
 from ..arc import arc_center
 
-from ...resources import get_resource
 from ...constants import log
 from ...constants import res_path as res
 
 from ... import util
+from ... import resources
 from ... import exceptions
 
 from ... transformations import transform_points, planar_matrix
@@ -272,7 +272,7 @@ def export_svg(drawing,
     points = drawing.vertices.view(np.ndarray).copy()
 
     # fetch the export template for SVG files
-    template_svg = Template(get_resource('svg.xml.template'))
+    template_svg = Template(resources.get('svg.xml.template'))
 
     def circle_to_svgpath(center, radius, reverse):
         radius_str = format(radius, res.export)
