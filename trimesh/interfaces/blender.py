@@ -30,7 +30,7 @@ _blender_executable = find_executable('blender', path=_search_path)
 exists = _blender_executable is not None
 
 
-def boolean(meshes, operation='difference'):
+def boolean(meshes, operation='difference', debug=False):
     if not exists:
         raise ValueError('No blender available!')
     operation = str.upper(operation)
@@ -42,7 +42,8 @@ def boolean(meshes, operation='difference'):
     script = template.replace('$operation', operation)
 
     with MeshScript(meshes=meshes,
-                    script=script) as blend:
+                    script=script,
+                    debug=debug) as blend:
         result = blend.run(_blender_executable +
                            ' --background --python $script')
 
