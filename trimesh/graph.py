@@ -844,10 +844,11 @@ def smoothed(mesh, angle, facet_minlen=4):
     smooth = mesh.submesh(components,
                           only_watertight=False,
                           append=True)
-
+    # store face indices from original mesh
+    smooth.metadata['original_components'] = components
+    # smoothed should have exactly the same number of faces
     if len(smooth.faces) != len(mesh.faces):
         log.warning('face count in smooth wrong!')
-
     return smooth
 
 

@@ -9,10 +9,10 @@ sympy.physics.units or pint.
 import json
 
 from .constants import log
-from .resources import get_resource
+from . import resources
 
 # scaling factors from various unit systems to inches
-TO_INCH = json.loads(get_resource('units_to_inches.json'))
+TO_INCH = json.loads(resources.get('units_to_inches.json'))
 
 
 def unit_conversion(current, desired):

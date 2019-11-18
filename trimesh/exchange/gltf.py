@@ -1217,7 +1217,7 @@ def get_schema():
     from ..visual.resolvers import ZipResolver
 
     # get a blob of a zip file including the GLTF 2.0 schema
-    blob = resources.get_resource(
+    blob = resources.get(
         'gltf_2.0_schema.zip', decode=False)
     # get the zip file as a dict keyed by file name
     archive = util.decompress(

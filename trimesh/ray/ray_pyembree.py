@@ -19,6 +19,8 @@ from .. import util
 from .. import caching
 from .. import intersections
 
+from ..constants import log_time
+
 # the factor of geometry.scale to offset a ray from a triangle
 # to reliably not hit its origin triangle
 _ray_offset_factor = 1e-4
@@ -108,6 +110,7 @@ class RayMeshIntersector(object):
 
         return locations, index_ray, index_tri
 
+    @log_time
     def intersects_id(self,
                       ray_origins,
                       ray_directions,
@@ -120,8 +123,8 @@ class RayMeshIntersector(object):
 
         Parameters
         ----------
-        ray_origins:      (n,3) float, origins of rays
-        ray_directions:   (n,3) float, direction (vector) of rays
+        ray_origins:      (n, 3) float, origins of rays
+        ray_directions:   (n, 3) float, direction (vector) of rays
         multiple_hits:    bool, if True will return every hit along the ray
                                 if False will only return first hit
         return_locations: bool, should we return hit locations or not
@@ -130,7 +133,7 @@ class RayMeshIntersector(object):
         ----------
         index_tri: (m,) int, index of triangle the ray hit
         index_ray: (m,) int, index of ray
-        locations: (m,3) float, locations in space
+        locations: (m, 3) float, locations in space
         """
         # make sure input is _dtype for embree
         ray_origins = np.asanyarray(
@@ -234,6 +237,7 @@ class RayMeshIntersector(object):
             return index_tri, index_ray, locations
         return index_tri, index_ray
 
+    @log_time
     def intersects_first(self,
                          ray_origins,
                          ray_directions):
@@ -243,12 +247,15 @@ class RayMeshIntersector(object):
 
         Parameters
         ----------
-        ray_origins:    (n,3) float, origins of rays
-        ray_directions: (n,3) float, direction (vector) of rays
+        ray_origins : (n, 3) float
+          Origins of rays
+        ray_directions : (n, 3) float
+          Direction (vector) of rays
 
         Returns
         ----------
-        triangle_index: (n,) int, index of triangle ray hit, or -1 if not hit
+        triangle_index : (n,) int
+          Index of triangle ray hit, or -1 if not hit
         """
 
         ray_origins = np.asanyarray(deepcopy(ray_origins))
@@ -266,13 +273,16 @@ class RayMeshIntersector(object):
 
 
         Parameters
-        ----------
-        ray_origins:    (n,3) float, origins of rays
-        ray_directions: (n,3) float, direction (vector) of rays
+        -----------
+        ray_origins : (n, 3) float
+          Origins of rays
+        ray_directions : (n, 3) float
+          Direction (vector) of rays
 
         Returns
         ----------
-        hit:            (n,) bool, did each ray hit the surface
+        hit : (n,) bool
+          Did each ray hit the surface
         """
 
         first = self.intersects_first(ray_origins=ray_origins,
@@ -288,7 +298,7 @@ class RayMeshIntersector(object):
 
         Parameters
         ---------
-        points: (n,3) points in space
+        points: (n, 3) points in space
 
         Returns
         ---------

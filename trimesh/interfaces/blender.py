@@ -1,7 +1,7 @@
 from .. import util
+from .. import resources
 
 from .generic import MeshScript
-from ..resources import get_resource
 from ..constants import log
 
 from distutils.spawn import find_executable
@@ -30,7 +30,7 @@ _blender_executable = find_executable('blender', path=_search_path)
 exists = _blender_executable is not None
 
 
-def boolean(meshes, operation='difference'):
+def boolean(meshes, operation='difference', debug=False):
     if not exists:
         raise ValueError('No blender available!')
     operation = str.upper(operation)
@@ -38,11 +38,12 @@ def boolean(meshes, operation='difference'):
         operation = 'INTERSECT'
 
     # get the template from our resources folder
-    template = get_resource('blender.py.template')
+    template = resources.get('blender.py.template')
     script = template.replace('$operation', operation)
 
     with MeshScript(meshes=meshes,
-                    script=script) as blend:
+                    script=script,
+                    debug=debug) as blend:
         result = blend.run(_blender_executable +
                            ' --background --python $script')
 

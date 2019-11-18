@@ -378,33 +378,35 @@ class Trimesh(Geometry):
         values : (len(self.faces), 3) float
           Unit face normals
         """
-        if values is not None:
-            # make sure face normals are C- contiguous float
-            values = np.asanyarray(values,
-                                   order='C',
-                                   dtype=np.float64)
+        # if nothing passed exit
+        if values is None:
+            return
+        # make sure candidate face normals are C- contiguous float
+        values = np.asanyarray(
+            values, order='C', dtype=np.float64)
+        # face normals need to correspond to faces
+        if len(values) == 0 or values.shape != self.faces.shape:
+            log.warning('face_normals incorrect shape, ignoring!')
+            return
+        # check if any values are larger than tol.merge
+        # don't set the normals if they are all zero
+        ptp = values.ptp()
+        if not np.isfinite(ptp):
+            log.warning('face_normals contain NaN, ignoring!')
+            return
+        if ptp < tol.merge:
+            log.warning('face_normals all zero, ignoring!')
+            return
 
-            # check if any values are larger than tol.merge
-            # this check is equivalent to but 25% faster than:
-            # `np.abs(values) > tol.merge`
-            nonzero = np.logical_or(values > tol.merge,
-                                    values < -tol.merge)
-
-            # don't set the normals if they are all zero
-            if not nonzero.any():
-                log.warning('face_normals all zero, ignoring!')
-                return
-
-            # make sure the first few normals match the first few triangles
-            check, valid = triangles.normals(
-                self.vertices.view(np.ndarray)[self.faces[:20]])
-            compare = np.zeros((len(valid), 3))
-            compare[valid] = check
-
-            if not np.allclose(compare, values[:20]):
-                log.debug("face_normals didn't match triangles, ignoring!")
-                return
-
+        # make sure the first few normals match the first few triangles
+        check, valid = triangles.normals(
+            self.vertices.view(np.ndarray)[self.faces[:20]])
+        compare = np.zeros((len(valid), 3))
+        compare[valid] = check
+        if not np.allclose(compare, values[:20]):
+            log.debug("face_normals didn't match triangles, ignoring!")
+            return
+        # otherwise store face normals
         self._cache['face_normals'] = values
 
     @property
@@ -496,12 +498,10 @@ class Trimesh(Geometry):
           padded with -1 up to the max number of faces corresponding to any one vertex
           Where n == len(self.vertices), m == max number of faces for a single vertex
         """
-        # make sure we have faces_sparse
-        assert hasattr(self.faces_sparse, 'dot')
         vertex_faces = geometry.vertex_face_indices(
             vertex_count=len(self.vertices),
             faces=self.faces,
-            sparse=self.faces_sparse)
+            faces_sparse=self.faces_sparse)
         return vertex_faces
 
     @caching.cache_decorator
@@ -2574,22 +2574,26 @@ class Trimesh(Geometry):
                                                     **kwargs)
         return result
 
-    def union(self, other, engine=None):
+    def union(self, other, engine=None, **kwargs):
         """
         Boolean union between this mesh and n other meshes
 
         Parameters
         ------------
-        other : trimesh.Trimesh, or list of trimesh.Trimesh objects
+        other : Trimesh or (n,) Trimesh
           Other meshes to union
+        engine : None or str
+          Which backend to use
 
         Returns
         ---------
         union : trimesh.Trimesh
           Union of self and other Trimesh objects
         """
-        result = boolean.union(meshes=np.append(self, other),
-                               engine=engine)
+        result = boolean.union(
+            meshes=np.append(self, other),
+            engine=engine,
+            **kwargs)
         return result
 
     def difference(self, other, engine=None):

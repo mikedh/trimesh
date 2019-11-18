@@ -1,3 +1,4 @@
+\
 import os
 
 # find the current absolute path to this directory
@@ -7,7 +8,7 @@ _pwd = os.path.expanduser(os.path.abspath(os.path.dirname(__file__)))
 _cache = {}
 
 
-def get_resource(name, decode=True):
+def get(name, decode=True):
     """
     Get a resource from the trimesh/resources folder.
 

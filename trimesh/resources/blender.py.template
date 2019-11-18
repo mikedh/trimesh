@@ -1,15 +1,26 @@
 import os
 import bpy
-
 def keep_only_first_mesh():
   # different versions of blender sometimes return the wrong mesh
   objects = bpy.context.scene.objects
-  if len(objects) > 1:
+  if len(objects) <= 1:
+    return
+  
+  try:
+    # earlier than blender <2.8
     objects[-1].select = False
     for other in objects[:-1]:
       other.select = True
     bpy.ops.object.delete()
-  objects[-1].select = True
+    objects[-1].select = True
+  except AttributeError:
+    # blender 2.8 changed this
+    ob = objects[-1]
+    ob.select_set(False)
+    for other in objects[:-1]:
+      other.select_set(True)
+    bpy.ops.object.delete()
+    objects[-1].select_set(True)
 
 if __name__ == "__main__":
   # Clear scene of default box
@@ -30,6 +41,8 @@ if __name__ == "__main__":
   # by going last to first on the filenames we can preserve the index relation
   for filename in mesh_pre[::-1]:
     bpy.ops.import_mesh.stl(filepath=os.path.abspath(filename))
+
+  print('\n\nobjects', len(bpy.context.scene.objects))
 
   mesh  = bpy.context.scene.objects[0]
   for other in bpy.context.scene.objects[1:]:

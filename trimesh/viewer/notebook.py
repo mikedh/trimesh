@@ -9,7 +9,7 @@ import os
 import base64
 
 # for our template
-from ..resources import get_resource
+from .. import resources
 
 
 def scene_to_html(scene):
@@ -28,8 +28,7 @@ def scene_to_html(scene):
       HTML containing embedded geometry
     """
     # use os.path.join so this works on windows
-    base = get_resource('viewer.html.template')
-
+    base = resources.get('viewer.html.template')
     # get export as bytes
     data = scene.export(file_type='glb')
     # encode as base64 string

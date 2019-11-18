@@ -11,9 +11,9 @@ import collections
 from .. import util
 from .. import visual
 from .. import grouping
+from .. import resources
 
 from ..constants import log
-from ..resources import get_resource
 
 try:
     import PIL.Image
@@ -131,7 +131,7 @@ def export_ply(mesh,
     dtype_color = ('rgba', '<u1', (4))
 
     # get template strings in dict
-    templates = json.loads(get_resource('ply.template'))
+    templates = json.loads(resources.get('ply.template'))
     # start collecting elements into a string for the header
     header = templates['intro']
     header += templates['vertex']
