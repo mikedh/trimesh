@@ -391,9 +391,13 @@ class Trimesh(Geometry):
         # check if any values are larger than tol.merge
         # don't set the normals if they are all zero
         ptp = values.ptp()
-        if not np.isfinite(ptp) or ptp < tol.merge:
+        if not np.isfinite(ptp):
+            log.warning('face_normals contain NaN, ignoring!')
+            return
+        if ptp < tol.merge:
             log.warning('face_normals all zero, ignoring!')
             return
+
         # make sure the first few normals match the first few triangles
         check, valid = triangles.normals(
             self.vertices.view(np.ndarray)[self.faces[:20]])
@@ -494,12 +498,10 @@ class Trimesh(Geometry):
           padded with -1 up to the max number of faces corresponding to any one vertex
           Where n == len(self.vertices), m == max number of faces for a single vertex
         """
-        # make sure we have faces_sparse
-        assert hasattr(self.faces_sparse, 'dot')
         vertex_faces = geometry.vertex_face_indices(
             vertex_count=len(self.vertices),
             faces=self.faces,
-            sparse=self.faces_sparse)
+            faces_sparse=self.faces_sparse)
         return vertex_faces
 
     @caching.cache_decorator
