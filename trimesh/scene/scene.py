@@ -80,7 +80,16 @@ class Scene(Geometry):
         self.camera_transform = camera_transform
 
     def apply_transform(self, transform):
-        raise NotImplementedError
+        """
+        Apply a transform to every geometry in the scene.
+
+        Parameters
+        --------------
+        transform : (4, 4)
+          Homogeneous transformation matrix
+        """
+        for geometry in self.geometry.values():
+            geometry.apply_transform(transform)
 
     def add_geometry(self,
                      geometry,
