@@ -2207,6 +2207,11 @@ class Trimesh(Geometry):
             self.vertices,
             matrix=matrix)
 
+        # check to see if the matrix has rotation
+        # rather than just translation
+        has_rotation = not util.allclose(
+            matrix[:3, :3], np.eye(3), atol=1e-6)
+
         # overridden center of mass
         if self._center_mass is not None:
             self._center_mass = transformations.transform_points(
@@ -2215,7 +2220,7 @@ class Trimesh(Geometry):
 
         # preserve face normals if we have them stored
         new_face_normals = None
-        if 'face_normals' in self._cache:
+        if has_rotation and 'face_normals' in self._cache:
             # transform face normals by rotation component
             new_face_normals = util.unitize(
                 transformations.transform_points(
@@ -2225,7 +2230,7 @@ class Trimesh(Geometry):
 
         # preserve vertex normals if we have them stored
         new_vertex_normals = None
-        if 'vertex_normals' in self._cache:
+        if has_rotation and 'vertex_normals' in self._cache:
             new_vertex_normals = util.unitize(
                 transformations.transform_points(
                     self.vertex_normals,
@@ -2233,7 +2238,7 @@ class Trimesh(Geometry):
                     translate=False))
 
         # if transformation flips winding of triangles
-        if transformations.flips_winding(matrix):
+        if has_rotation and transformations.flips_winding(matrix):
             log.debug('transform flips winding')
             # fliplr will make array non C contiguous
             # which will cause hashes to be more
@@ -2251,6 +2256,7 @@ class Trimesh(Geometry):
         # while dumping everything else
         self._cache.clear(exclude=[
             'face_normals',   # transformed by us
+            'vertex_normals'  # also transformed by us
             'face_adjacency',  # topological
             'face_adjacency_edges',
             'face_adjacency_unshared',
@@ -2260,8 +2266,7 @@ class Trimesh(Geometry):
             'edges_sparse',
             'body_count',
             'faces_unique_edges',
-            'euler_number',
-            'vertex_normals'])
+            'euler_number', ])
         # set the cache ID with the current hash value
         self._cache.id_set()
 

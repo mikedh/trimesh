@@ -279,6 +279,14 @@ class SceneTests(g.unittest.TestCase):
         assert scene.bounds.shape == (2, 3)
         assert g.np.allclose(scene.bounds, sphere.bounds)
 
+    def test_transform(self):
+        # check transforming scenes
+        scene = g.trimesh.creation.box()
+        assert g.np.allclose(scene.bounds, [[-.5, -.5, -.5], [.5, .5, .5]])
+
+        scene.apply_translation([1, 0, 1])
+        assert g.np.allclose(scene.bounds, [[.5, -.5, .5], [1.5, .5, 1.5]])
+
 
 class GraphTests(g.unittest.TestCase):
 
