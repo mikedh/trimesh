@@ -691,9 +691,9 @@ class Scene(Geometry):
         file_type = file_type.strip().lower().lstrip('.')
 
         if file_type == 'gltf':
-            data = gltf.export_gltf(self)
+            data = gltf.export_gltf(self, **kwargs)
         elif file_type == 'glb':
-            data = gltf.export_glb(self)
+            data = gltf.export_glb(self, **kwargs)
         elif file_type == 'dict':
             from ..exchange.export import scene_to_dict
             data = scene_to_dict(self)
@@ -703,7 +703,7 @@ class Scene(Geometry):
         else:
             raise ValueError('unsupported export format: {}'.format(file_type))
 
-        # now write the data, or not
+        # now write the data or return bytes of result
         if hasattr(file_obj, 'write'):
             # if it's just a regular file object
             file_obj.write(data)
@@ -721,12 +721,15 @@ class Scene(Geometry):
 
         Parameters
         -----------
-        resolution: (2,) int, resolution to render image
-        **kwargs:  passed to SceneViewer constructor
+        resolution : (2,) int
+          Resolution to render image
+        **kwargs
+          Passed to SceneViewer constructor
 
         Returns
         -----------
-        png: bytes, render of scene in PNG form
+        png : bytes
+          Render of scene as a PNG
         """
         from ..viewer import render_scene
         png = render_scene(scene=self,

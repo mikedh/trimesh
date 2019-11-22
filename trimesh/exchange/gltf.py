@@ -428,7 +428,12 @@ def _create_gltf_structure(scene,
     nodes = scene.graph.to_gltf(scene=scene)
     tree.update(nodes)
 
+    # store materials as {hash : index} to avoid duplicates
+    mat_hashes = {}
+    # store data from geometries
     buffer_items = []
+
+    # loop through every geometry
     for name, geometry in scene.geometry.items():
         if util.is_instance_named(geometry, "Trimesh"):
             # add the mesh
@@ -437,7 +442,8 @@ def _create_gltf_structure(scene,
                 name=name,
                 tree=tree,
                 buffer_items=buffer_items,
-                include_normals=include_normals)
+                include_normals=include_normals,
+                mat_hashes=mat_hashes)
         elif util.is_instance_named(geometry, "Path"):
             # add Path2D and Path3D objects
             _append_path(
@@ -464,7 +470,8 @@ def _append_mesh(mesh,
                  name,
                  tree,
                  buffer_items,
-                 include_normals):
+                 include_normals,
+                 mat_hashes):
     """
     Append a mesh to the scene structure and put the
     data into buffer_items.
@@ -481,6 +488,8 @@ def _append_mesh(mesh,
       Will have buffer appended with mesh data
     include_normals : bool
       Include vertex normals in export or not
+    mat_hashes : dict
+      Which materials have already been added
     """
     # meshes reference accessor indexes
     # mode 4 is GL_TRIANGLES
@@ -550,13 +559,12 @@ def _append_mesh(mesh,
         buffer_items.append(color_data)
 
     elif hasattr(mesh.visual, 'material'):
-        # set the material to the last index in the tree
-        tree["meshes"][-1]["primitives"][0]["material"] = len(tree["materials"])
-        # immediately append the material to materials list
-        # will also append necessary images and textures to tree
-        _append_material(mat=mesh.visual.material,
-                         tree=tree,
-                         buffer_items=buffer_items)
+        # append the material and then set from returned index
+        tree["meshes"][-1]["primitives"][0]["material"] = _append_material(
+            mat=mesh.visual.material,
+            tree=tree,
+            buffer_items=buffer_items,
+            mat_hashes=mat_hashes)
 
         # if mesh has UV coordinates defined export them
         if (hasattr(mesh.visual, 'uv') and
@@ -602,10 +610,10 @@ def _append_mesh(mesh,
 
 def _byte_pad(data, bound=4):
     """
-    GLTF wants chunks aligned with 4 byte boundaries
-    so this function will add padding to the end of a
-    chunk of bytes so that it aligns with a specified
-    boundary size
+    GLTF wants chunks aligned with 4 byte boundaries.
+    This function will add padding to the end of a
+    chunk of bytes so that it aligns with the passed
+    boundary size.
 
     Parameters
     --------------
@@ -633,7 +641,6 @@ def _byte_pad(data, bound=4):
                 'byte_pad failed! ori:{} res:{} pad:{} req:{}'.format(
                     len(data), len(result), count, bound))
         return result
-
     return data
 
 
@@ -1083,14 +1090,13 @@ def _append_image(img, tree, buffer_items):
     return len(tree['images']) - 1
 
 
-def _append_material(mat, tree, buffer_items):
+def _append_material(mat, tree, buffer_items, mat_hashes):
     """
     Add passed PBRMaterial as GLTF 2.0 specification JSON
     serializable data:
     - images are added to `tree['images']`
     - texture is added to `tree['texture']`
     - material is added to `tree['materials']`
-
 
     Parameters
     ------------
@@ -1100,45 +1106,59 @@ def _append_material(mat, tree, buffer_items):
       GLTF header blob
     buffer_items : (n,) bytes
       Binary blobs with various data
-    """
+    mat_hashes : dict
+      Which materials have already been added
+      Stored as { hashed : material index }
 
-    # if they have passed a material with
-    # a PBR conversion method call it
-    # TODO: implement this method on SimpleMaterial
+    Returns
+    -------------
+    index : int
+      Index at which material was added
+    """
+    # materials are hashable
+    hashed = hash(mat)
+    # check stored material indexes to see if material
+    # has already been added
+    if mat_hashes is not None and hashed in mat_hashes:
+        return mat_hashes[hashed]
+
+    # convert passed input to PBR if necessary
     if hasattr(mat, 'to_pbr'):
-        mat = mat.to_pbr()
+        as_pbr = mat.to_pbr()
+    else:
+        as_pbr = mat
 
     # a default PBR metallic material
-    pbr = {"pbrMetallicRoughness": {}}
+    result = {"pbrMetallicRoughness": {}}
     try:
         # try to convert base color to (4,) float color
-        pbr['baseColorFactor'] = visual.color.to_float(
-            mat.baseColorFactor).reshape(4).tolist()
+        result['baseColorFactor'] = visual.color.to_float(
+            as_pbr.baseColorFactor).reshape(4).tolist()
     except BaseException:
         pass
 
     try:
-        pbr['emissiveFactor'] = mat.emissiveFactor.reshape(3).tolist()
+        result['emissiveFactor'] = as_pbr.emissiveFactor.reshape(3).tolist()
     except BaseException:
         pass
 
     # if alphaMode is defined, export
-    if isinstance(mat.alphaMode, str):
-        pbr['alphaMode'] = mat.alphaMode
+    if isinstance(as_pbr.alphaMode, str):
+        result['alphaMode'] = as_pbr.alphaMode
 
     # if scalars are defined correctly export
-    if isinstance(mat.metallicFactor, float):
-        pbr['metallicFactor'] = mat.metallicFactor
-    if isinstance(mat.roughnessFactor, float):
-        pbr['roughnessFactor'] = mat.roughnessFactor
+    if isinstance(as_pbr.metallicFactor, float):
+        result['metallicFactor'] = as_pbr.metallicFactor
+    if isinstance(as_pbr.roughnessFactor, float):
+        result['roughnessFactor'] = as_pbr.roughnessFactor
 
     # which keys of the PBRMaterial are images
     image_mapping = {
-        'baseColorTexture': mat.baseColorTexture,
-        'emissiveTexture': mat.emissiveTexture,
-        'normalTexture': mat.normalTexture,
-        'occlusionTexture': mat.occlusionTexture,
-        'metallicRoughnessTexture': mat.metallicRoughnessTexture}
+        'baseColorTexture': as_pbr.baseColorTexture,
+        'emissiveTexture': as_pbr.emissiveTexture,
+        'normalTexture': as_pbr.normalTexture,
+        'occlusionTexture': as_pbr.occlusionTexture,
+        'metallicRoughnessTexture': as_pbr.metallicRoughnessTexture}
 
     for key, img in image_mapping.items():
         if img is None:
@@ -1152,7 +1172,7 @@ def _append_material(mat, tree, buffer_items):
         # if it failed for any reason, it will return None
         if index is not None:
             # add a reference to the base color texture
-            pbr[key] = {'index': len(tree['textures'])}
+            result[key] = {'index': len(tree['textures'])}
             # add an object for the texture
             tree['textures'].append({'source': index, 'sampler': 0})
 
@@ -1166,15 +1186,21 @@ def _append_material(mat, tree, buffer_items):
                   'metallicRoughnessTexture']
     # move keys down a level
     for key in pbr_subset:
-        if key in pbr:
-            pbr["pbrMetallicRoughness"][key] = pbr.pop(key)
+        if key in result:
+            result["pbrMetallicRoughness"][key] = result.pop(key)
 
     # if we didn't have any PBR keys remove the empty key
-    if len(pbr['pbrMetallicRoughness']) == 0:
-        pbr.pop('pbrMetallicRoughness')
+    if len(result['pbrMetallicRoughness']) == 0:
+        result.pop('pbrMetallicRoughness')
 
-    # append the new material
-    tree['materials'].append(pbr)
+    # which index are we inserting material at
+    index = len(tree['materials'])
+    # add the material to the data structure
+    tree['materials'].append(result)
+    # add the material index in-place
+    mat_hashes[hash(mat)] = index
+
+    return index
 
 
 def validate(header):
