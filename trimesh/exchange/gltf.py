@@ -1191,7 +1191,7 @@ def _append_material(mat, tree, buffer_items, mat_hashes):
 
     # if we didn't have any PBR keys remove the empty key
     if len(result['pbrMetallicRoughness']) == 0:
-        pbr.pop('pbrMetallicRoughness')
+        result.pop('pbrMetallicRoughness')
 
     # which index are we inserting material at
     index = len(tree['materials'])
