@@ -13,6 +13,9 @@ class Material(object):
     def __init__(self, *args, **kwargs):
         raise NotImplementedError('material must be subclassed!')
 
+    def __hash__(self):
+        return id(self)
+
     @property
     def main_color(self):
         raise NotImplementedError('material must be subclassed!')
@@ -47,6 +50,35 @@ class SimpleMaterial(Material):
 
     def to_color(self, uv):
         return color.uv_to_color(uv, self.image)
+
+    def __hash__(self):
+        """
+        Provide a hash of the material so we can detect
+        duplicates.
+
+        Returns
+        ------------
+        hash : int
+          Hash of image and parameters
+        """
+        if hasattr(self.image, 'tobytes'):
+            # start with hash of raw image bytes
+            hashed = hash(self.image.tobytes())
+        else:
+            # otherwise start with zero
+            hashed = 0
+        # we will add additional parameters with
+        # an in-place xor of the additional value
+        # if stored as numpy arrays add parameters
+        if hasattr(self.ambient, 'tobytes'):
+            hashed ^= hash(self.ambient.tobytes())
+        if hasattr(self.diffuse, 'tobytes'):
+            hashed ^= hash(self.diffuse.tobytes())
+        if hasattr(self.specular, 'tobytes'):
+            hashed ^= hash(self.specular.tobytes())
+        if isinstance(self.glossiness, float):
+            hashed ^= hash(int(self.glossiness * 1000))
+        return hashed
 
     @property
     def main_color(self):

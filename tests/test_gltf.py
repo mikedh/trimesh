@@ -151,6 +151,53 @@ class GLTFTest(g.unittest.TestCase):
         # make basic assertions
         g.scene_equal(scene, reloaded)
 
+    def test_material_hash(self):
+
+        # load mesh twice independently
+        a = g.get_mesh('fuze.obj')
+        b = g.get_mesh('fuze.obj')
+        # move one of the meshes away from the other
+        a.apply_translation([a.scale, 0, 0])
+
+        # materials should not be the same object
+        assert id(a.visual.material) != id(b.visual.material)
+        # despite being loaded separately material hash should match
+        assert hash(a.visual.material) == hash(b.visual.material)
+
+        # create a scene with two meshes
+        scene = g.trimesh.Scene([a, b])
+        # get the exported GLTF header of a scene with both meshes
+        header = g.json.loads(scene.export(
+            file_type='gltf')['model.gltf'].decode('utf-8'))
+        # header should contain exactly one material
+        assert len(header['materials']) == 1
+        # both meshes should be contained in the export
+        assert len(header['meshes']) == 2
+
+        # get a reloaded version
+        reloaded = g.trimesh.load(
+            file_obj=g.trimesh.util.wrap_as_stream(
+                scene.export(file_type='glb')),
+            file_type='glb')
+
+        # meshes should have survived
+        assert len(reloaded.geometry) == 2
+        # get meshes back
+        ar, br = reloaded.geometry.values()
+
+        # should have been loaded as a PBR material
+        assert isinstance(ar.visual.material,
+                          g.trimesh.visual.material.PBRMaterial)
+
+        # materials should have the same memory location
+        assert id(ar.visual.material) == id(br.visual.material)
+
+        # make sure hash is returning something
+        ahash = hash(ar.visual.material)
+        # should be returning valid material hashes
+        assert isinstance(ahash, int)
+        assert ahash != 0
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

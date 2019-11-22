@@ -26,8 +26,10 @@ import shutil
 
 
 if sys.version_info >= (3, 4):
+    # for newer version of python
     ABC = abc.ABC
 else:
+    # an abstract base class that works on older versions
     ABC = abc.ABCMeta('ABC', (), {})
 
 # a flag we can check elsewhere for Python 3

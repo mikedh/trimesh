@@ -1010,8 +1010,8 @@ def _teigha_convert(data, extension='dwg'):
         raise ValueError('conversion using Teigha failed!')
 
     # load converted file into a string
-    with open(name_result, 'r') as f:
-        converted = f.read()
+    with open(name_result, 'rb') as f:
+        converted = f.read().decode(errors='ignore')
 
     # remove the temporary directories
     shutil.rmtree(dir_out)
