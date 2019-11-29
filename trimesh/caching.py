@@ -221,16 +221,13 @@ class TrackedArray(np.ndarray):
         # these functions are called millions of times so everything helps
         if self._modified_x or not hasattr(self, '_hashed_xx'):
             if self.flags['C_CONTIGUOUS']:
-                hasher = xxhash.xxh64(self)
-                self._hashed_xx = hasher.intdigest()
+                self._hashed_xx = xxhash.xxh64(self).intdigest()
             else:
                 # the case where we have sliced our nice
                 # contiguous array into a non- contiguous block
                 # for example (note slice *after* track operation):
                 # t = util.tracked_array(np.random.random(10))[::-1]
-                contiguous = np.ascontiguousarray(self)
-                hasher = xxhash.xxh64(contiguous)
-                self._hashed_xx = hasher.intdigest()
+                self._hashed_xx = xxhash.xxh64(np.ascontiguousarray(self)).intdigest()
         self._modified_x = False
         return self._hashed_xx
 

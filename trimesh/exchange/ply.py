@@ -46,6 +46,7 @@ dtypes = {
 def load_ply(file_obj,
              resolver=None,
              fix_texture=True,
+             prefer_color=None,
              *args,
              **kwargs):
     """
@@ -61,6 +62,8 @@ def load_ply(file_obj,
       If True, will re- index vertices and faces
       so vertices with different UV coordinates
       are disconnected.
+    prefer_color : None, 'vertex', or 'face'
+      Which kind of color to prefer if both defined
 
     Returns
     ---------
@@ -90,7 +93,8 @@ def load_ply(file_obj,
 
     kwargs = elements_to_kwargs(elements,
                                 fix_texture=fix_texture,
-                                image=image)
+                                image=image,
+                                prefer_color=prefer_color)
 
     return kwargs
 
@@ -287,19 +291,31 @@ def parse_header(file_obj):
     return elements, is_ascii, image_name
 
 
-def elements_to_kwargs(elements, fix_texture, image):
+def elements_to_kwargs(elements,
+                       fix_texture,
+                       image,
+                       prefer_color=None):
     """
     Given an elements data structure, extract the keyword
     arguments that a Trimesh object constructor will expect.
 
     Parameters
     ------------
-    elements: OrderedDict object, with fields and data loaded
+    elements : OrderedDict object
+      With fields and data loaded
+    fix_texture : bool
+      If True, will re- index vertices and faces
+      so vertices with different UV coordinates
+      are disconnected.
+    image : PIL.Image
+      Image to be viewed
+    prefer_color : None, 'vertex', or 'face'
+      Which kind of color to prefer if both defined
 
     Returns
     -----------
-    kwargs: dict, with keys for Trimesh constructor.
-            eg: mesh = trimesh.Trimesh(**kwargs)
+    kwargs : dict
+      Keyword arguments for Trimesh constructor
     """
 
     kwargs = {'metadata': {'ply_raw': elements}}
@@ -406,21 +422,29 @@ def elements_to_kwargs(elements, fix_texture, image):
     kwargs['vertices'] = vertices
 
     # if both vertex and face color are defined pick the one
-    # with the most going on
+    # with the most "signal," i.e. which one is not all zeros
     colors = []
     signal = []
     if faces is not None:
+        # extract face colors or None
         f_color, f_signal = element_colors(elements['face'])
         colors.append({'face_colors': f_color})
         signal.append(f_signal)
-
+        # extract vertex colors or None
         v_color, v_signal = element_colors(elements['vertex'])
         colors.append({'vertex_colors': v_color})
         signal.append(v_signal)
 
-        # add the winning colors to the result
-        kwargs.update(colors[np.argmax(signal)])
-
+        if prefer_color is None:
+            # if we are in "auto-pick" mode take the one with the
+            # largest  standard deviation of colors
+            kwargs.update(colors[np.argmax(signal)])
+        elif 'vert' in prefer_color and v_color is not None:
+            # vertex colors are preferred and defined
+            kwargs['vertex_colors'] = v_color
+        elif 'face' in prefer_color and f_color is not None:
+            # face colors are prefered and defined
+            kwargs['face_colors'] = f_color
     else:
         kwargs['colors'] = element_colors(elements['vertex'])
 
@@ -447,7 +471,7 @@ def element_colors(element):
 
     if len(candidate_colors) >= 3:
         colors = np.column_stack(candidate_colors)
-        signal = colors.ptp(axis=0).sum()
+        signal = colors.std(axis=0).sum()
         return colors, signal
 
     return None, 0.0

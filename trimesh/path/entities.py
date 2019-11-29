@@ -22,6 +22,7 @@ class Entity(object):
                  points,
                  closed=None,
                  layer=None,
+                 color=None,
                  **kwargs):
         # points always reference vertex indices and are int
         self.points = np.asanyarray(points, dtype=np.int64)

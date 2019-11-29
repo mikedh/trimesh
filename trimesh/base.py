@@ -2601,7 +2601,7 @@ class Trimesh(Geometry):
             **kwargs)
         return result
 
-    def difference(self, other, engine=None):
+    def difference(self, other, engine=None, **kwargs):
         """
         Boolean difference between this mesh and n other meshes
 
@@ -2616,10 +2616,10 @@ class Trimesh(Geometry):
           Difference between self and other Trimesh objects
         """
         result = boolean.difference(meshes=np.append(self, other),
-                                    engine=engine)
+                                    engine=engine, **kwargs)
         return result
 
-    def intersection(self, other, engine=None):
+    def intersection(self, other, engine=None, **kwargs):
         """
         Boolean intersection between this mesh and n other meshes
 
@@ -2634,13 +2634,14 @@ class Trimesh(Geometry):
           Mesh of the volume contained by all passed meshes
         """
         result = boolean.intersection(meshes=np.append(self, other),
-                                      engine=engine)
+                                      engine=engine, **kwargs)
         return result
 
     def contains(self, points):
         """
-        Given a set of points, determine whether or not they are inside the mesh.
-        This raises an error if called on a non- watertight mesh.
+        Given an array of points determine whether or not they
+        are inside the mesh. This raises an error if called on a
+        non- watertight mesh.
 
         Parameters
         ------------

@@ -108,11 +108,11 @@ setup(name='trimesh',
           'trimesh.exchange',
           'trimesh.resources',
           'trimesh.interfaces'],
-      package_data={'trimesh': ['resources/*.template',
+      package_data={'trimesh': ['resources/*template*',
                                 'resources/*.json',
                                 'resources/*.zip']},
       install_requires=list(requirements_default),
       extras_require={'test': list(requirements_test),
                       'easy': list(requirements_easy),
                       'all': list(requirements_all)}
-      )
+)

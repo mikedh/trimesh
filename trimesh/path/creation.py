@@ -1,8 +1,9 @@
 from . import arc
-from . import entities
 
 from .. import util
 from .. import transformations
+
+from .entities import Line, Arc
 
 import numpy as np
 
@@ -57,7 +58,7 @@ def circle_pattern(pattern_radius,
                                   radius=circle_radius)
         # add a single circle entity
         ents.append(
-            entities.Arc(
+            Arc(
                 points=np.arange(3) + len(vert),
                 closed=True))
         # keep flat array by extend instead of append
@@ -102,7 +103,7 @@ def circle(radius=None, center=None, **kwargs):
                               center=center,
                               radius=radius) + center
 
-    result = Path2D(entities=[entities.Arc(points=np.arange(3), closed=True)],
+    result = Path2D(entities=[Arc(points=np.arange(3), closed=True)],
                     vertices=three,
                     **kwargs)
     return result
@@ -138,14 +139,14 @@ def rectangle(bounds, **kwargs):
             util.is_shape(bounds, (-1, 2, 2))):
         raise ValueError('bounds must be (m, 2, 2) or (2, 2)')
 
-    # hold entities.Line objects
+    # hold Line objects
     lines = []
     # hold (n, 2) cartesian points
     vertices = []
 
     # loop through each rectangle
     for lower, upper in bounds.reshape((-1, 2, 2)):
-        lines.append(entities.Line((np.arange(5) % 4) + len(vertices)))
+        lines.append(Line((np.arange(5) % 4) + len(vertices)))
         vertices.extend([lower,
                          [upper[0], lower[1]],
                          upper,
@@ -196,10 +197,70 @@ def box_outline(extents=None, transform=None, **kwargs):
 
     # apply transform if passed
     if transform is not None:
-        vertices = transformations.transform_points(vertices, transform)
+        vertices = transformations.transform_points(
+            vertices, transform)
 
     # vertex indices
     indices = [0, 1, 3, 2, 0, 4, 5, 7, 6, 4, 0, 2, 6, 7, 3, 1, 5]
     outline = load_path(vertices[indices])
 
     return outline
+
+
+def grid(side,
+         count,
+         include_circle=True,
+         sections=32,
+         transform=None):
+    """
+    """
+    from .path import Path3D
+
+    # radius
+    radii = np.linspace(0.0, side, count)[1:]
+    rmax = radii[-1]
+
+    current = 0
+    vertices = []
+    entities = []
+    for r in radii:
+        if include_circle:
+            circle_count = int((r / radii[0]) * sections)
+            theta = np.linspace(0.0, np.pi * 2, circle_count)
+            circle = np.column_stack((np.cos(theta),
+                                      np.sin(theta))) * r
+            vertices.append(circle)
+            entities.append(Line(
+                points=np.arange(len(circle)) + current))
+            current += len(circle)
+
+        vertices.append([[-rmax, r],
+                         [rmax, r],
+                         [-rmax, -r],
+                         [rmax, -r],
+                         [r, -rmax],
+                         [r, rmax],
+                         [-r, -rmax],
+                         [-r, rmax]])
+        for i in [0, 2, 4, 6]:
+            entities.append(Line(
+                points=np.arange(2) + current + i))
+        current += len(vertices[-1])
+
+    vertices.append([[0, rmax],
+                     [0, -rmax],
+                     [-rmax, 0],
+                     [rmax, 0]])
+    entities.append(Line(points=np.arange(2) + current))
+    entities.append(Line(points=np.arange(2) + current + 2))
+
+    vertices = np.vstack(vertices)
+
+    if transform is not None:
+        vertices = np.column_stack((vertices,
+                                    np.zeros(len(vertices))))
+        vertices = transformations.transform_points(
+            vertices, matrix=transform)
+
+    p = Path3D(entities, vertices)
+    return p

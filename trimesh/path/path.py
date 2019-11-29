@@ -520,8 +520,9 @@ class Path(object):
         if len(self.vertices) == 0:
             return
         if digits is None:
-            digits = util.decimal_to_digits(tol.merge * self.scale,
-                                            min_digits=1)
+            digits = util.decimal_to_digits(
+                tol.merge * self.scale,
+                min_digits=1)
 
         unique, inverse = grouping.unique_rows(self.vertices,
                                                digits=digits)
@@ -788,9 +789,7 @@ class Path3D(Path):
     def _process_functions(self):
         return [self.merge_vertices,
                 self.remove_duplicate_entities,
-                self.remove_unreferenced_vertices,
-                self.generate_closed_paths,
-                self.generate_discrete]
+                self.remove_unreferenced_vertices]
 
     def to_planar(self,
                   to_2D=None,

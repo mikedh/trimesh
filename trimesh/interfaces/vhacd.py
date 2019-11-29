@@ -43,7 +43,7 @@ def convex_decomposition(mesh, **kwargs):
     if not exists:
         raise ValueError('No vhacd available!')
 
-    argstring = ' --input $mesh_0 --output $mesh_post --log $script'
+    argstring = ' --input $MESH_0 --output $MESH_PRE --log $SCRIPT'
 
     # pass through extra arguments from the input dictionary
     for key, value in kwargs.items():

@@ -324,7 +324,7 @@ def load_glb(file_obj, resolver=None, **mesh_kwargs):
 def _uri_to_bytes(uri, resolver):
     """
     Take a URI string and load it as a
-    a filename or as base64
+    a filename or as base64.
 
     Parameters
     --------------
@@ -557,7 +557,6 @@ def _append_mesh(mesh,
             "byteOffset": 0})
         # the actual color data
         buffer_items.append(color_data)
-
     elif hasattr(mesh.visual, 'material'):
         # append the material and then set from returned index
         tree["meshes"][-1]["primitives"][0]["material"] = _append_material(
@@ -567,15 +566,13 @@ def _append_mesh(mesh,
             mat_hashes=mat_hashes)
 
         # if mesh has UV coordinates defined export them
-        if (hasattr(mesh.visual, 'uv') and
-                np.shape(mesh.visual.uv) == (len(mesh.vertices), 2)):
+        if hasattr(mesh.visual, 'uv') and len(mesh.visual.uv) == len(mesh.vertices):
 
             # add the reference for UV coordinates
             tree["meshes"][-1]["primitives"][0]["attributes"][
                 "TEXCOORD_0"] = len(tree["accessors"])
-
-            # reverse the Y for GLTF
-            uv = mesh.visual.uv.copy()
+            # reverse the Y for GLTF and slice off W if passed
+            uv = mesh.visual.uv.copy()[:, :2]
             uv[:, 1] = 1.0 - uv[:, 1]
             # convert UV coordinate data to bytes and pad
             uv_data = _byte_pad(uv.astype(float32).tobytes())
@@ -1000,20 +997,20 @@ def _read_buffers(header, buffers, mesh_kwargs, resolver=None):
             geometries = mesh_prim[child["mesh"]]
             for name in geometries:
                 kwargs["geometry"] = name
-                kwargs["frame_to"] = "{}_{}".format(
-                    name, util.unique_id(
-                        length=6, increment=len(graph)).upper()
-                )
+                if 'name' in child:
+                    kwargs['frame_to'] = child['name']
+                else:
+                    kwargs["frame_to"] = "{}_{}".format(
+                        name, util.unique_id(
+                            length=6, increment=len(graph)).upper())
                 # append the edge with the mesh frame
                 graph.append(kwargs.copy())
 
-    # kwargs to be loaded
-    result = {
-        "class": "Scene",
-        "geometry": meshes,
-        "graph": graph,
-        "base_frame": base_frame,
-    }
+    # kwargs for load_kwargs
+    result = {"class": "Scene",
+              "geometry": meshes,
+              "graph": graph,
+              "base_frame": base_frame}
 
     return result
 

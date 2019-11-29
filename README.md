@@ -182,8 +182,12 @@ If called from inside a `jupyter` notebook, `mesh.show()` displays an in-line pr
 
 You can check out the [Github network](https://github.com/mikedh/trimesh/network/dependents) for things using trimesh. A select few:
 
+- Berkeley's [DexNet4](https://www.youtube.com/watch?v=GBiAxoWBNho&feature=emb_logo) and related [ambidextrous.ai](https://www.ambidextrous.ai/) work.
+- Nvidia's [kaolin](https://github.com/NVIDIAGameWorks/kaolin).
+- Kerfed's [Kerfed's Engine](https://kerfed.com/technology)
 - [pyrender](https://github.com/mmatl/pyrender) Render scenes using nice looking PBR materials
 - [urdfpy](https://github.com/mmatl/urdfpy) Load URDF robot descriptions
+- [moderngl-window](https://github.com/moderngl/moderngl-window)
 - [vtkplotter](https://github.com/marcomusy/vtkplotter) Visualize meshes interactively
 - [fsleyes](https://users.fmrib.ox.ac.uk/~paulmc/fsleyes/userdoc/latest/quick_start.html) View MRI images and brain data
 

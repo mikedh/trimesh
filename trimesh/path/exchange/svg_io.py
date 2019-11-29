@@ -9,6 +9,7 @@ from ...constants import log
 from ...constants import res_path as res
 
 from ... import util
+from ... import grouping
 from ... import resources
 from ... import exceptions
 
@@ -55,9 +56,8 @@ def svg_to_path(file_obj, file_type=None):
         current = e
         for i in range(max_depth):
             if 'transform' in current.attrib:
-                mat = transform_to_matrices(current.attrib['transform'])
-                matrices.extend(mat)
-                # cached[current] = mat
+                matrices.extend(transform_to_matrices(
+                    current.attrib['transform']))
             current = current.getparent()
             if current is None:
                 break
@@ -232,6 +232,13 @@ def _svg_path_convert(paths):
 
     for path_string, matrix in paths:
         starting = True
+        parsed = list(parse_path(path_string))
+        cn = np.array([type(i).__name__ == 'Line' for i in parsed])
+        blocks = grouping.blocks(cn, min_len=2, only_nonzero=True)
+
+        if len(blocks) > 0:
+            from IPython import embed
+            embed()
         for svg_entity in parse_path(path_string):
             type_name = svg_entity.__class__.__name__
             if type_name in loaders:
