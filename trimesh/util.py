@@ -70,7 +70,7 @@ def unitize(vectors,
             check_valid=False,
             threshold=None):
     """
-    Unitize a vector or an array or row- vectors.
+    Unitize a vector or an array or row-vectors.
 
     Parameters
     ------------
@@ -96,7 +96,7 @@ def unitize(vectors,
         threshold = TOL_ZERO
 
     if len(vectors.shape) == 2:
-        # for (m, d) arrays take the per- row unit vector
+        # for (m, d) arrays take the per-row unit vector
         # using sqrt and avoiding exponents is slightly faster
         # also dot with ones is faser than .sum(axis=1)
         norm = np.sqrt(np.dot(vectors * vectors,
@@ -148,7 +148,7 @@ def euclidean(a, b):
 
 def is_file(obj):
     """
-    Check if an object is file- like
+    Check if an object is file-like
 
     Parameters
     ------------
@@ -263,7 +263,7 @@ def is_shape(obj, shape, allow_zeros=False):
     Compare the shape of a numpy.ndarray to a target shape,
     with any value less than zero being considered a wildcard
 
-    Note that if a list- like object is passed that is not a numpy
+    Note that if a list-like object is passed that is not a numpy
     array, this function will not convert it and will return False.
 
     Parameters
@@ -545,7 +545,7 @@ def pairwise(iterable):
 
 try:
     # prefer the faster numpy version of multi_dot
-    # only included in recent- ish version of numpy
+    # only included in recent-ish version of numpy
     multi_dot = np.linalg.multi_dot
 except AttributeError:
     log.warning('np.linalg.multi_dot not available, using fallback')
@@ -619,7 +619,7 @@ def diagonal_dot(a, b):
 
 def row_norm(data):
     """
-    Compute the norm per- row of a numpy array.
+    Compute the norm per-row of a numpy array.
 
     This is identical to np.linalg.norm(data, axis=1) but roughly
     three times faster due to being less general.
@@ -633,7 +633,7 @@ def row_norm(data):
     Parameters
     -------------
     data : (n, d) float
-      Input 2D data to calculate per- row norm of
+      Input 2D data to calculate per-row norm of
 
     Returns
     -------------
@@ -774,7 +774,7 @@ def tolist(data):
     Returns
     ----------
     result : any
-      JSON- serializable version of data
+      JSON-serializable version of data
     """
     result = json.loads(jsonify(data))
     return result
@@ -805,7 +805,7 @@ def distance_to_end(file_obj):
 
     Parameters
     ------------
-    file_obj: open file- like object
+    file_obj: open file-like object
 
     Returns
     ----------
@@ -842,7 +842,7 @@ def decimal_to_digits(decimal, min_digits=None):
 def hash_file(file_obj,
               hash_function=hashlib.md5):
     """
-    Get the hash of an open file- like object.
+    Get the hash of an open file-like object.
 
     Parameters
     ------------
@@ -902,14 +902,19 @@ def attach_to_log(level=logging.DEBUG,
 
     Parameters
     ------------
-    level:     logging level
-    handler:   log handler object
-    loggers:   list of loggers to attach to
-                 if None, will try to attach to all available
-    colors:    bool, if True try to use colorlog formatter
-    blacklist: list of str, names of loggers NOT to attach to
+    level : enum
+      Logging level, like logging.INFO
+    handler : None or logging.Handler
+      Handler to attach
+    loggers : None or (n,) logging.Logger
+      If None, will try to attach to all available
+    colors : bool
+      If True try to use colorlog formatter
+    blacklist : (n,) str
+      Names of loggers NOT to attach to
     """
 
+    # default blacklist includes ipython debugging stuff
     if blacklist is None:
         blacklist = ['TerminalIPythonApp',
                      'PYREADLINE',
@@ -922,6 +927,7 @@ def attach_to_log(level=logging.DEBUG,
     # make sure we log warnings from the warnings module
     logging.captureWarnings(capture_warnings)
 
+    # create a basic formatter
     formatter = logging.Formatter(
         "[%(asctime)s] %(levelname)-7s (%(filename)s:%(lineno)3s) %(message)s",
         "%Y-%m-%d %H:%M:%S")
@@ -941,7 +947,7 @@ def attach_to_log(level=logging.DEBUG,
         except ImportError:
             pass
 
-    # if no handler was passed, use a StreamHandler
+    # if no handler was passed use a StreamHandler
     if handler is None:
         handler = logging.StreamHandler()
 
@@ -951,7 +957,7 @@ def attach_to_log(level=logging.DEBUG,
 
     # if nothing passed use all available loggers
     if loggers is None:
-        # de- duplicate loggers using a set
+        # de-duplicate loggers using a set
         loggers = set(logging.Logger.manager.loggerDict.values())
     # add the warnings logging
     loggers.add(logging.getLogger('py.warnings'))
@@ -979,12 +985,16 @@ def stack_lines(indices):
 
     Parameters
     ------------
-    indices: sequence of items
+    indices : (m,) any
+      List of items to be stacked
 
     Returns
     ---------
-    stacked: (n, 2) set of items
+    stacked : (n, 2) any
+      Stacked items
 
+    Examples
+    ----------
     In [1]: trimesh.util.stack_lines([0, 1, 2])
     Out[1]:
     array([[0, 1],
@@ -997,7 +1007,7 @@ def stack_lines(indices):
            [2, 4],
            [4, 5]])
 
-    In [3]: trimesh.util.stack_lines([[0,0],[1, 1],[2, 2], [3, 3]])
+    In [3]: trimesh.util.stack_lines([[0, 0], [1, 1], [2, 2], [3, 3]])
     Out[3]:
     array([[0, 0],
            [1, 1],
@@ -1018,7 +1028,7 @@ def stack_lines(indices):
 
 def append_faces(vertices_seq, faces_seq):
     """
-    Given a sequence of zero- indexed faces and vertices
+    Given a sequence of zero-indexed faces and vertices
     combine them into a single array of faces and
     a single array of vertices.
 
@@ -1093,7 +1103,7 @@ def array_to_string(array,
     col_delim = str(col_delim)
     value_format = str(value_format)
 
-    # abort for non- flat arrays
+    # abort for non-flat arrays
     if len(array.shape) > 2:
         raise ValueError('conversion only works on 1D/2D arrays not %s!',
                          str(array.shape))
@@ -1508,7 +1518,7 @@ def jsonify(obj, **kwargs):
 
     Parameters
     --------------
-    obj : JSON- serializable blob
+    obj : JSON-serializable blob
     **kwargs :
         Passed to json.dumps
 
@@ -1567,13 +1577,13 @@ def convert_like(item, like):
 
 def bounds_tree(bounds):
     """
-    Given a set of axis aligned bounds, create an r-tree for broad- phase
-    collision detection
+    Given a set of axis aligned bounds create an r-tree for broad-phase
+    collision detection.
 
     Parameters
     ------------
     bounds : (n, dimension * 2) float
-      Non- interleaved bounds, i.e. for a 2D bounds tree:
+      Non-interleaved bounds, i.e. for a 2D bounds tree:
         [(minx, miny, maxx, maxy), ...]
 
     Returns
@@ -1819,10 +1829,10 @@ def split_extension(file_name, special=['tar.bz2', 'tar.gz']):
 
 def triangle_strips_to_faces(strips):
     """
-    Given a sequence of triangle strips, convert them to (n, 3) faces.
+    Convert a sequence of triangle strips to (n, 3) faces.
 
     Processes all strips at once using np.concatenate and is significantly
-    faster than loop- based methods.
+    faster than loop-based methods.
 
     From the OpenGL programming guide describing a single triangle
     strip [v0, v1, v2, v3, v4]:
@@ -1940,7 +1950,7 @@ def write_encoded(file_obj,
 def unique_id(length=12, increment=0):
     """
     Generate a decent looking alphanumeric unique identifier.
-    First 16 bits are time- incrementing, followed by randomness.
+    First 16 bits are time-incrementing, followed by randomness.
 
     This function is used as a nicer looking alternative to:
     >>> uuid.uuid4().hex
@@ -2003,7 +2013,7 @@ def generate_basis(z):
     if z.shape != (3,):
         raise ValueError('z must be (3,) float!')
 
-    # normalize vector in- place
+    # normalize vector in-place
     z /= np.linalg.norm(z)
     # X as arbitrary perpendicular vector
     x = np.array([-z[1], z[0], 0.0])
@@ -2015,7 +2025,7 @@ def generate_basis(z):
         x = np.array([-z[2], z[1], 0.0])
         x /= np.linalg.norm(x)
     else:
-        # otherwise normalize X in- place
+        # otherwise normalize X in-place
         x /= x_norm
     # get perpendicular Y with cross product
     y = np.cross(z, x)
@@ -2053,7 +2063,7 @@ def isclose(a, b, atol):
     Returns
     -----------
     close : np.ndarray, bool
-      Per- element closeness
+      Per-element closeness
     """
     diff = a - b
     close = np.logical_and(diff > -atol, diff < atol)

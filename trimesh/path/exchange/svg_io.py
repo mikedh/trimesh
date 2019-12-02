@@ -2,10 +2,11 @@ import numpy as np
 
 from string import Template
 
-from .. import entities as entities_mod
-from ..arc import arc_center
 
-from ...constants import log
+from ..arc import arc_center
+from ..entities import Line, Arc, Bezier
+
+from ...constants import log, tol
 from ...constants import res_path as res
 
 from ... import util
@@ -88,11 +89,10 @@ def transform_to_matrices(transform):
     """
     Convert an SVG transform string to an array of matrices.
 
-
-    > transform = "rotate(-10 50 100)
-                   translate(-36 45.5)
-                   skewX(40)
-                   scale(1 0.5)"
+    i.e. "rotate(-10 50 100)
+          translate(-36 45.5)
+          skewX(40)
+          scale(1 0.5)"
 
     Parameters
     -----------
@@ -160,7 +160,7 @@ def _svg_path_convert(paths):
     Parameters
     -------------
     paths: list of tuples
-      Containing (path string, (3,3) matrix)
+      Containing (path string, (3, 3) matrix)
 
     Returns
     -------------
@@ -170,84 +170,96 @@ def _svg_path_convert(paths):
     def complex_to_float(values):
         return np.array([[i.real, i.imag] for i in values])
 
-    def load_line(svg_line):
-        points = complex_to_float([svg_line.point(0.0),
-                                   svg_line.point(1.0)])
-        if starting:
-            # return every vertex and use it
-            return (entities_mod.Line(np.arange(2) + len(vertices)), points)
-        else:
-            # we are not starting so use the last referenced vertex as the
-            # start point
-            return (entities_mod.Line(
-                np.arange(2) + len(vertices) - 1), points[1:])
+    def load_multi(multi):
+        # return every vertex and use it
+        return Line(np.arange(len(multi.points)) + len(vertices)), multi.points
 
     def load_arc(svg_arc):
         points = complex_to_float([svg_arc.start,
                                    svg_arc.point(.5),
                                    svg_arc.end])
-        if starting:
-            # return every vertex and use it
-            return (entities_mod.Arc(np.arange(3) + len(vertices)), points)
-        else:
-            # we are not starting so use the last referenced vertex as the
-            # start point
-            return (entities_mod.Arc(np.arange(3) +
-                                     len(vertices) - 1), points[1:])
+        # return every vertex and use it
+        return Arc(np.arange(3) + count), points
 
     def load_quadratic(svg_quadratic):
         points = complex_to_float([svg_quadratic.start,
                                    svg_quadratic.control,
                                    svg_quadratic.end])
-        if starting:
-            # return every vertex and use it
-            return (entities_mod.Bezier(np.arange(3) + len(vertices)), points)
-        else:
-            # we are not starting so use the last referenced vertex as the
-            # start point
-            return (entities_mod.Bezier(
-                np.arange(3) + len(vertices) - 1), points[1:])
+        return Bezier(np.arange(3) + count), points
 
     def load_cubic(svg_cubic):
         points = complex_to_float([svg_cubic.start,
                                    svg_cubic.control1,
                                    svg_cubic.control2,
                                    svg_cubic.end])
-        if starting:
-            # return every vertex and use it
-            return (entities_mod.Bezier(np.arange(4) + len(vertices)), points)
-        else:
-            # we are not starting so use the last referenced vertex as the
-            # start point
-            return (entities_mod.Bezier(
-                np.arange(4) + len(vertices) - 1), points[1:])
+        return Bezier(np.arange(4) + count), points
 
     # store loaded values here
     entities = []
     vertices = []
+    # how many vertices have we loaded
+    count = 0
+    # load functions for each entity
     loaders = {'Arc': load_arc,
-               'Line': load_line,
+               'MultiLine': load_multi,
                'CubicBezier': load_cubic,
                'QuadraticBezier': load_quadratic}
 
-    for path_string, matrix in paths:
-        starting = True
-        parsed = list(parse_path(path_string))
-        cn = np.array([type(i).__name__ == 'Line' for i in parsed])
-        blocks = grouping.blocks(cn, min_len=2, only_nonzero=True)
+    class MultiLine(object):
+        # An object to hold one or multiple Line entities.
+        def __init__(self, lines):
+            if tol.strict:
+                # in unit tests make sure we only have lines
+                assert all(type(L).__name__ == 'Line'
+                           for L in lines)
+            # get the starting point of every line
+            points = [L.start for L in lines]
+            # append the endpoint
+            points.append(lines[-1].end)
+            # convert to (n, 2) float points
+            self.points = np.array([[i.real, i.imag]
+                                    for i in points],
+                                   dtype=np.float64)
 
-        if len(blocks) > 0:
-            from IPython import embed
-            embed()
-        for svg_entity in parse_path(path_string):
-            type_name = svg_entity.__class__.__name__
+    for path_string, matrix in paths:
+        # get parsed entities from svg.path
+        raw = np.array(list(parse_path(path_string)))
+        # check to see if each entity is a Line
+        is_line = np.array([type(i).__name__ == 'Line'
+                            for i in raw])
+        # find groups of consecutive lines so we can combine them
+        blocks = grouping.blocks(
+            is_line, min_len=1, only_nonzero=False)
+        if tol.strict:
+            # in unit tests make sure we didn't lose any entities
+            assert np.allclose(np.hstack(blocks),
+                               np.arange(len(raw)))
+
+        # Combine consecutive lines into a single MultiLine
+        parsed = []
+        for b in blocks:
+            if type(raw[b[0]]).__name__ == 'Line':
+                # if entity consists of lines add a multiline
+                parsed.append(MultiLine(raw[b]))
+            else:
+                # otherwise just add the entities
+                parsed.extend(raw[b])
+        # loop through parsed entity objects
+        for svg_entity in parsed:
+            # keyed by entity class name
+            type_name = type(svg_entity).__name__
             if type_name in loaders:
+                # get new entities and vertices
                 e, v = loaders[type_name](svg_entity)
+                # append them to the result
                 entities.append(e)
-                vertices.extend(transform_points(v, matrix))
-    # store results as kwargs
+                # create a sequence of vertex arrays
+                vertices.append(transform_points(v, matrix))
+                count += len(vertices[-1])
+
+    # store results as kwargs and stack vertices
     loaded = {'entities': np.array(entities),
-              'vertices': np.array(vertices)}
+              'vertices': np.vstack(vertices)}
     return loaded
 
 
@@ -269,7 +281,8 @@ def export_svg(drawing,
 
     Returns
     -----------
-    as_svg: str, XML formatted as SVG
+    as_svg : str
+      XML formatted SVG
 
     """
     if not util.is_instance_named(drawing, 'Path2D'):
@@ -279,7 +292,7 @@ def export_svg(drawing,
     points = drawing.vertices.view(np.ndarray).copy()
 
     # fetch the export template for SVG files
-    template_svg = Template(resources.get('svg.xml.template'))
+    template_svg = Template(resources.get('svg.template.xml'))
 
     def circle_to_svgpath(center, radius, reverse):
         radius_str = format(radius, res.export)

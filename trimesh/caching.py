@@ -27,9 +27,8 @@ try:
     # packaged in easy wheels on linux (`pip install xxhash`)
     # so we keep it a soft dependency
     import xxhash
-    hasX = True
 except ImportError:
-    hasX = False
+    xxhash = None
 
 
 def tracked_array(array, dtype=None):
@@ -357,12 +356,12 @@ class TrackedArray(np.ndarray):
         super(self.__class__, self).__setslice__(*args,
                                                  **kwargs)
 
-    if hasX:
-        # if xxhash is installed use it
-        fast_hash = _xxhash
-    else:
+    if xxhash is None:
         # otherwise use our fastest CRC
         fast_hash = crc
+    else:
+        # if xxhash is installed use it
+        fast_hash = _xxhash
 
 
 class Cache(object):
@@ -629,6 +628,7 @@ class DataStore(Mapping):
         crc : int
           CRC of data
         """
+        # combine with a sum of every hash
         crc = sum(i.crc() for i in self.data.values())
         return crc
 
@@ -641,11 +641,12 @@ class DataStore(Mapping):
         hashed : int
           Checksum of data
         """
+        # combine every hash
         fast = sum(i.fast_hash() for i in self.data.values())
         return fast
 
 
-def _fast_crc(count=50):
+def _fast_crc(count=25):
     """
     On certain platforms/builds zlib.adler32 is substantially
     faster than zlib.crc32, but it is not consistent across
@@ -666,12 +667,14 @@ def _fast_crc(count=50):
     """
     import timeit
 
+    # create an array of random numbers
     setup = 'import numpy, zlib;'
     setup += 'd = numpy.random.random((500,3));'
-
+    # time crc32
     crc32 = timeit.timeit(setup=setup,
                           stmt='zlib.crc32(d)',
                           number=count)
+    # time adler32
     adler32 = timeit.timeit(setup=setup,
                             stmt='zlib.adler32(d)',
                             number=count)

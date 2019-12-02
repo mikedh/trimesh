@@ -204,7 +204,7 @@ class GLTFTest(g.unittest.TestCase):
         an export-import cycle.
         """
         # a scene
-        s = g.get_mesh('models/cycloidal.3DXML')
+        s = g.get_mesh('cycloidal.3DXML')
         # export as GLB then re-load
         r = g.trimesh.load(
             g.trimesh.util.wrap_as_stream(

@@ -1,4 +1,3 @@
-
 """
 path.py
 
@@ -8,9 +7,6 @@ import numpy as np
 
 import copy
 import collections
-
-from shapely.geometry import Polygon
-from scipy.spatial import cKDTree as KDTree
 
 from ..points import plane_fit
 from ..geometry import plane_transform
@@ -25,6 +21,7 @@ from .. import units
 from .. import bounds
 from .. import caching
 from .. import grouping
+from .. import exceptions
 from .. import transformations
 
 from . import raster
@@ -37,6 +34,9 @@ from . import traversal
 
 from .exchange.export import export_path
 
+from scipy.spatial import cKDTree
+from shapely.geometry import Polygon
+
 try:
     # try running shapely speedups
     # these mostly speed up object instantiation
@@ -44,15 +44,14 @@ try:
     if speedups.available:
         speedups.enable()
 except BaseException:
-    pass
+    log.warning('shapely speedups failed', exc_info=True)
 
 try:
     import networkx as nx
 except BaseException as E:
     # create a dummy module which will raise the ImportError
     # or other exception only when someone tries to use networkx
-    from .exceptions import ExceptionModule
-    nx = ExceptionModule(E)
+    nx = exceptions.ExceptionModule(E)
 
 
 class Path(object):
@@ -159,13 +158,14 @@ class Path(object):
 
         Returns
         ------------
-        crc: int, CRC of entity points and vertices
+        crc : int
+          CRC of entity points and vertices
         """
         # first CRC the points in every entity
-        target = caching.crc32(bytes().join(e._bytes()
-                                            for e in self.entities))
-        # add the CRC for the vertices
-        target ^= self.vertices.crc()
+        target = caching.crc32(bytes().join(
+            e._bytes() for e in self.entities))
+        # XOR the CRC for the vertices
+        target ^= self.vertices.fast_hash()
         return target
 
     def md5(self):
@@ -174,12 +174,13 @@ class Path(object):
 
         Returns
         ------------
-        md5: str, two appended MD5 hashes
+        md5 : str
+          Appended MD5 hashes
         """
         # first MD5 the points in every entity
         target = '{}{}'.format(
-            util.md5_object(bytes().join(e._bytes()
-                                         for e in self.entities)),
+            util.md5_object(bytes().join(
+                e._bytes() for e in self.entities)),
             self.vertices.md5())
 
         return target
@@ -191,7 +192,8 @@ class Path(object):
 
         Returns
         ---------
-        paths: (n,) sequence of (*,) int referencing self.entities
+        paths : (n,) sequence of (*,) int
+          Referencing self.entities
         """
         paths = traversal.closed_paths(self.entities,
                                        self.vertices)
@@ -204,7 +206,8 @@ class Path(object):
 
         Returns
         ----------
-        dangling: (n,) int, index of self.entities
+        dangling : (n,) int
+          Index of self.entities
         """
         if len(self.paths) == 0:
             return np.arange(len(self.entities))
@@ -221,10 +224,10 @@ class Path(object):
 
         Returns
         ----------
-        kdtree: scipy.spatial.cKDTree object holding self.vertices
+        kdtree : scipy.spatial.cKDTree
+          Object holding self.vertices
         """
-
-        kdtree = KDTree(self.vertices.view(np.ndarray))
+        kdtree = cKDTree(self.vertices.view(np.ndarray))
         return kdtree
 
     @property
@@ -236,7 +239,7 @@ class Path(object):
         Returns
         ----------
         scale : float
-            Approximate size of the world holding this path
+          Approximate size of the world holding this path
         """
         # use vertices peak-peak rather than exact extents
         scale = float((self.vertices.ptp(axis=0) ** 2).sum() ** .5)
@@ -249,7 +252,8 @@ class Path(object):
 
         Returns
         ----------
-        bounds: (2, dimension) float, (min, max) coordinates
+        bounds : (2, dimension) float
+          AABB with (min, max) coordinates
         """
         # get the exact bounds of each entity
         # some entities (aka 3- point Arc) have bounds that can't
@@ -271,7 +275,8 @@ class Path(object):
 
         Returns
         ---------
-        extents: (dimension,) float, edge length of AABB
+        extents : (dimension,) float
+          Edge length of AABB
         """
         return self.bounds.ptp(axis=0)
 
@@ -282,7 +287,8 @@ class Path(object):
 
         Returns
         -----------
-        units: str, current unit system
+        units : str
+          Current unit system
         """
         if 'units' in self.metadata:
             return self.metadata['units']
@@ -299,8 +305,10 @@ class Path(object):
 
         Parameters
         -----------
-        desired: str, unit system to convert to
-        guess:   bool, if True will attempt to guess units
+        desired : str
+          Unit system to convert to
+        guess : bool
+          If True will attempt to guess units
         """
         units._convert_units(self,
                              desired=desired,

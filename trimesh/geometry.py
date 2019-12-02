@@ -211,6 +211,7 @@ def vertex_face_indices(vertex_count,
     faces : (n, 3) int
       List of vertex indices
     faces_sparse : scipy.sparse.COO
+      Sparse matrix
 
     Returns
     -----------

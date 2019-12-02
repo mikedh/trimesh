@@ -443,7 +443,7 @@ def elements_to_kwargs(elements,
             # vertex colors are preferred and defined
             kwargs['vertex_colors'] = v_color
         elif 'face' in prefer_color and f_color is not None:
-            # face colors are prefered and defined
+            # face colors are preferred and defined
             kwargs['face_colors'] = f_color
     else:
         kwargs['colors'] = element_colors(elements['vertex'])

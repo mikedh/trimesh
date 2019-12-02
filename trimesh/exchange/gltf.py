@@ -51,7 +51,7 @@ _default_material = {
         "metallicFactor": 0,
         "roughnessFactor": 0}}
 
-# specify common dtypes with forced little endian
+# specify dtypes with forced little endian
 float32 = np.dtype("<f4")
 uint32 = np.dtype("<u4")
 uint8 = np.dtype("<u1")
@@ -564,15 +564,17 @@ def _append_mesh(mesh,
             tree=tree,
             buffer_items=buffer_items,
             mat_hashes=mat_hashes)
-
         # if mesh has UV coordinates defined export them
-        if hasattr(mesh.visual, 'uv') and len(mesh.visual.uv) == len(mesh.vertices):
-
+        has_uv = (hasattr(mesh.visual, 'uv') and
+                  mesh.visual.uv is not None and
+                  len(mesh.visual.uv) == len(mesh.vertices))
+        if has_uv:
             # add the reference for UV coordinates
             tree["meshes"][-1]["primitives"][0]["attributes"][
                 "TEXCOORD_0"] = len(tree["accessors"])
-            # reverse the Y for GLTF and slice off W if passed
+            # slice off W if passed
             uv = mesh.visual.uv.copy()[:, :2]
+            # reverse the Y for GLTF
             uv[:, 1] = 1.0 - uv[:, 1]
             # convert UV coordinate data to bytes and pad
             uv_data = _byte_pad(uv.astype(float32).tobytes())
@@ -1195,7 +1197,7 @@ def _append_material(mat, tree, buffer_items, mat_hashes):
     # add the material to the data structure
     tree['materials'].append(result)
     # add the material index in-place
-    mat_hashes[hash(mat)] = index
+    mat_hashes[hashed] = index
 
     return index
 
@@ -1240,11 +1242,9 @@ def get_schema():
     from ..visual.resolvers import ZipResolver
 
     # get a blob of a zip file including the GLTF 2.0 schema
-    blob = resources.get(
-        'gltf_2.0_schema.zip', decode=False)
+    blob = resources.get('gltf_2_schema.zip', decode=False)
     # get the zip file as a dict keyed by file name
-    archive = util.decompress(
-        util.wrap_as_stream(blob), 'zip')
+    archive = util.decompress(util.wrap_as_stream(blob), 'zip')
     # get a resolver object for accessing the schema
     resolver = ZipResolver(archive)
     # remove references to other files in the schema and load

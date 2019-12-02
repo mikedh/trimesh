@@ -59,3 +59,6 @@ if __name__ == '__main__':
 
     # show the resulting image
     img.show()
+
+    # create a raster render of the same scene using OpenGL
+    # rendered = PIL.Image.open(trimesh.util.wrap_as_stream(scene.save_image()))

@@ -1,11 +1,10 @@
+import numpy as np
+
 from . import arc
+from .entities import Line, Arc
 
 from .. import util
 from .. import transformations
-
-from .entities import Line, Arc
-
-import numpy as np
 
 
 def circle_pattern(pattern_radius,
@@ -210,30 +209,55 @@ def box_outline(extents=None, transform=None, **kwargs):
 def grid(side,
          count,
          include_circle=True,
-         sections=32,
+         sections_circle=32,
          transform=None):
     """
+    Create a Path3D for a grid visualization.
+
+    Parameters
+    -----------
+    side : float
+      Length of half of a grid side
+    count : int
+      Number of grid lines per grid half
+    include_circle : bool
+      Include a circular pattern inside the grid
+    sections_circle : int
+      How many sections should the smallest circle have
+    transform : None or (4, 4) float
+      Transformation matrix
     """
     from .path import Path3D
 
-    # radius
-    radii = np.linspace(0.0, side, count)[1:]
+    # change full side length to half-side
+    side = float(side)
+    # make sure count is an integer
+    count = int(count)
+    # get a spaced sequence of radius
+    radii = np.linspace(0.0, side, count + 1)[1:]
+    # what's the maximum radius
     rmax = radii[-1]
 
+    # keep a count of the current vertex count
     current = 0
+    # collect vertices and entities
     vertices = []
     entities = []
     for r in radii:
         if include_circle:
-            circle_count = int((r / radii[0]) * sections)
-            theta = np.linspace(0.0, np.pi * 2, circle_count)
+            # scale the section count by radius
+            circle_res = int((r / radii[0]) * sections_circle)
+            # generate a circule pattern
+            theta = np.linspace(0.0, np.pi * 2, circle_res)
             circle = np.column_stack((np.cos(theta),
                                       np.sin(theta))) * r
+            # append the circle pattern
             vertices.append(circle)
             entities.append(Line(
                 points=np.arange(len(circle)) + current))
+            # keep the vertex count correct
             current += len(circle)
-
+        # generate a series of grid lines
         vertices.append([[-rmax, r],
                          [rmax, r],
                          [-rmax, -r],
@@ -242,25 +266,27 @@ def grid(side,
                          [r, rmax],
                          [-r, -rmax],
                          [-r, rmax]])
+        # append an entity per grid line
         for i in [0, 2, 4, 6]:
             entities.append(Line(
                 points=np.arange(2) + current + i))
         current += len(vertices[-1])
 
+    # add the middle lines which were skipped
     vertices.append([[0, rmax],
                      [0, -rmax],
                      [-rmax, 0],
                      [rmax, 0]])
     entities.append(Line(points=np.arange(2) + current))
     entities.append(Line(points=np.arange(2) + current + 2))
-
+    # stack vertices into clean (n, 3) float
     vertices = np.vstack(vertices)
-
+    # apply transform if passed
     if transform is not None:
         vertices = np.column_stack((vertices,
                                     np.zeros(len(vertices))))
         vertices = transformations.transform_points(
             vertices, matrix=transform)
-
-    p = Path3D(entities, vertices)
-    return p
+    # combine result into a Path3D object
+    grid_path = Path3D(entities=entities, vertices=vertices)
+    return grid_path

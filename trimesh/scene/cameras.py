@@ -380,17 +380,12 @@ def ray_pixel_coords(camera):
     """
     # shorthand
     res = camera.resolution
+    half_fov = np.radians(camera.fov) / 2.0
 
-    right_top = np.tan(np.radians(camera.fov / 2.0))
+    right_top = np.tan(half_fov)
     # move half a pixel width in
-    # pixel_size = (right_top - left_bottom) / camera.resolution
-    # # for symmetric cameras, pixel_size impl above is equivalent to below
-    # pixel_size = right_top*2 / camera.resolution
-    # right_top -= pixel_size / 2
-    # # the above two lines can be computed more efficiently by the below line
     right_top *= 1 - (1.0 / res)
     left_bottom = -right_top
-
     # we are looking down the negative z axis, so
     # right_top corresponds to maximum x/y values
     # bottom_left corresponds to minimum x/y values
@@ -406,9 +401,7 @@ def ray_pixel_coords(camera):
     pixels = util.grid_linspace(
         bounds=[[0, res[1]], [res[0], 0]],
         count=res).astype(np.int64)
-
-    # they should always correspond
-    assert pixels.shape == xy.shape
+    assert xy.shape == pixels.shape
 
     return xy, pixels
 
