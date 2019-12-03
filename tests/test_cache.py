@@ -43,7 +43,7 @@ class CacheTest(g.unittest.TestCase):
 
         # xxhash should be faster than CRC and MD5
         # it is sometimes slower on Windows/Appveyor TODO: figure out why
-        if g.trimesh.caching.hasX and g.platform.system() == 'Linux':
+        if g.trimesh.caching.xxhash is not None and g.platform.system() == 'Linux':
             assert xt < mt
             assert xt < ct
 
