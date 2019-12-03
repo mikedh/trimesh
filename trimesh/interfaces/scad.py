@@ -48,7 +48,7 @@ def interface_scad(meshes, script, debug=False, **kwargs):
     if not exists:
         raise ValueError('No SCAD available!')
     with MeshScript(meshes=meshes, script=script, debug=debug) as scad:
-        result = scad.run(_scad_executable + ' $script -o $mesh_post')
+        result = scad.run(_scad_executable + ' $SCRIPT -o $MESH_POST')
     return result
 
 
@@ -58,6 +58,6 @@ def boolean(meshes, operation='difference', debug=False, **kwargs):
     """
     script = operation + '(){'
     for i in range(len(meshes)):
-        script += 'import(\"$mesh_' + str(i) + '\");'
+        script += 'import(\"$MESH_' + str(i) + '\");'
     script += '}'
     return interface_scad(meshes, script, debug=debug, **kwargs)

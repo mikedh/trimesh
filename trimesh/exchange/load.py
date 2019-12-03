@@ -214,9 +214,6 @@ def load_mesh(file_obj,
         if util.is_file(file_obj):
             file_obj.close()
 
-        log.debug('loaded mesh using %s',
-                  mesh_loaders[file_type].__name__)
-
         if not isinstance(results, list):
             results = [results]
 
@@ -227,6 +224,10 @@ def load_mesh(file_obj,
             loaded[-1].metadata.update(metadata)
         if len(loaded) == 1:
             loaded = loaded[0]
+        # show the repr for loaded
+        log.debug('loaded {} using {}'.format(
+            str(loaded),
+            mesh_loaders[file_type].__name__))
     finally:
         # if we failed to load close file
         if opened:
