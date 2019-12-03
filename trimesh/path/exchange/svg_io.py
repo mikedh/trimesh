@@ -171,23 +171,25 @@ def _svg_path_convert(paths):
         return np.array([[i.real, i.imag] for i in values])
 
     def load_multi(multi):
-        # return every vertex and use it
-        return Line(np.arange(len(multi.points)) + len(vertices)), multi.points
+        # load a previously parsed multiline
+        return Line(np.arange(len(multi.points)) + count), multi.points
 
     def load_arc(svg_arc):
+        # load an SVG arc into a trimesh arc
         points = complex_to_float([svg_arc.start,
                                    svg_arc.point(.5),
                                    svg_arc.end])
-        # return every vertex and use it
         return Arc(np.arange(3) + count), points
 
     def load_quadratic(svg_quadratic):
+        # load a quadratic bezier spline
         points = complex_to_float([svg_quadratic.start,
                                    svg_quadratic.control,
                                    svg_quadratic.end])
         return Bezier(np.arange(3) + count), points
 
     def load_cubic(svg_cubic):
+        # load a cubic bezier spline
         points = complex_to_float([svg_cubic.start,
                                    svg_cubic.control1,
                                    svg_cubic.control2,
