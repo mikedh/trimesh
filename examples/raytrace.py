@@ -31,29 +31,17 @@ if __name__ == '__main__':
                              scene.camera.resolution.max())
 
     # convert the camera to rays with one ray per pixel
-    origin, vectors = scene.camera_rays()
-
-    # intersects_location requires origins to be the same shape as vectors
-    origins = np.tile(np.expand_dims(origin, 0), (len(vectors), 1))
+    origins, vectors, pixels = scene.camera_rays()
 
     # do the actual ray- mesh queries
     points, index_ray, index_tri = mesh.ray.intersects_location(
         origins, vectors, multiple_hits=False)
 
     # for each hit, find the distance along its vector
-    # you could also do this against the single camera Z vector
-    depth = trimesh.util.diagonal_dot(points - origin,
+    depth = trimesh.util.diagonal_dot(points - origins[0],
                                       vectors[index_ray])
-
-    # find the angular resolution, in pixels per radian
-    ppr = scene.camera.resolution / np.radians(scene.camera.fov)
-    # convert rays to pixel locations
-    angles = scene.camera.angles()
-    pixel = (angles * ppr).round().astype(np.int64)
-    # make sure we are in the first quadrant
-    pixel -= pixel.min(axis=0)
     # find pixel locations of actual hits
-    pixel_ray = pixel[index_ray]
+    pixel_ray = pixels[index_ray]
 
     # create a numpy array we can turn into an image
     # doing it with uint8 creates an `L` mode greyscale image
@@ -63,11 +51,14 @@ if __name__ == '__main__':
     depth_float = ((depth - depth.min()) / depth.ptp())
 
     # convert depth into 0 - 255 uint8
-    depth_int = (depth_float * 255).astype(np.uint8)
+    depth_int = (depth_float * 255).round().astype(np.uint8)
     # assign depth to correct pixel locations
     a[pixel_ray[:, 0], pixel_ray[:, 1]] = depth_int
-
     # create a PIL image from the depth queries
     img = PIL.Image.fromarray(a)
 
+    # show the resulting image
     img.show()
+
+    # create a raster render of the same scene using OpenGL
+    # rendered = PIL.Image.open(trimesh.util.wrap_as_stream(scene.save_image()))

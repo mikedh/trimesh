@@ -38,14 +38,14 @@ def boolean(meshes, operation='difference', debug=False):
         operation = 'INTERSECT'
 
     # get the template from our resources folder
-    template = resources.get('blender.py.template')
-    script = template.replace('$operation', operation)
+    template = resources.get('blender.template.py')
+    script = template.replace('$OPERATION', operation)
 
     with MeshScript(meshes=meshes,
                     script=script,
                     debug=debug) as blend:
         result = blend.run(_blender_executable +
-                           ' --background --python $script')
+                           ' --background --python $SCRIPT')
 
     for m in util.make_sequence(result):
         # blender returns actively incorrect face normals

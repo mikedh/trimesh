@@ -111,20 +111,25 @@ def closest_point_naive(mesh, points):
 
 def closest_point(mesh, points):
     """
-    Given a mesh and a list of points, find the closest point on any triangle.
+    Given a mesh and a list of points find the closest point
+    on any triangle.
 
     Parameters
     ----------
-    mesh   : Trimesh object
-    points : (m,3)   float, points in space
+    mesh   : trimesh.Trimesh
+      Mesh to query
+    points : (m, 3) float
+      Points in space
 
     Returns
     ----------
-    closest     : (m,3) float, closest point on triangles for each point
-    distance    : (m,)  float, distance
-    triangle_id : (m,)  int, index of triangle containing closest point
+    closest : (m, 3) float
+      Closest point on triangles for each point
+    distance : (m,)  float
+      Distance
+    triangle_id : (m,) int
+      Index of triangle containing closest point
     """
-
     points = np.asanyarray(points, dtype=np.float64)
     if not util.is_shape(points, (-1, 3)):
         raise ValueError('points must be (n,3)!')

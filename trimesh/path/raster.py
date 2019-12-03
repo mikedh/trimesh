@@ -11,8 +11,13 @@ try:
     from PIL import (Image,
                      ImageDraw,
                      ImageChops)
-except ImportError:
-    pass
+except BaseException as E:
+    from .. import exceptions
+    # re-raise the useful exception when called
+    closure = exceptions.closure(E)
+    Image = closure
+    ImageDraw = closure
+    ImageChops = closure
 
 
 def rasterize(path,

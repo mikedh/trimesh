@@ -198,6 +198,24 @@ class GLTFTest(g.unittest.TestCase):
         assert isinstance(ahash, int)
         assert ahash != 0
 
+    def test_node_name(self):
+        """
+        Test to see if node names generally survive
+        an export-import cycle.
+        """
+        # a scene
+        s = g.get_mesh('cycloidal.3DXML')
+        # export as GLB then re-load
+        r = g.trimesh.load(
+            g.trimesh.util.wrap_as_stream(
+                s.export(file_type='glb')),
+            file_type='glb')
+        # make sure we have the same geometries before and after
+        assert set(s.geometry.keys()) == set(r.geometry.keys())
+        # make sure the node names are the same before and after
+        assert (set(s.graph.nodes_geometry) ==
+                set(r.graph.nodes_geometry))
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

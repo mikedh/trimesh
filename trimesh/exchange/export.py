@@ -1,5 +1,6 @@
-import numpy as np
+import os
 import json
+import numpy as np
 
 from ..constants import log
 from .. import util
@@ -40,10 +41,15 @@ def export_mesh(mesh, file_obj, file_type=None, **kwargs):
 
     if util.is_string(file_obj):
         if file_type is None:
+            # get file type from file name
             file_type = (str(file_obj).split('.')[-1]).lower()
         if file_type in _mesh_exporters:
             was_opened = True
-            file_obj = open(file_obj, 'wb')
+            # get full path of file before opening
+            file_path = os.path.abspath(os.path.expanduser(file_obj))
+            file_obj = open(file_path, 'wb')
+
+    # make sure file type is lower case
     file_type = str(file_type).lower()
 
     if not (file_type in _mesh_exporters):

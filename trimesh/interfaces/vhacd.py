@@ -25,7 +25,7 @@ for _name in ['vhacd', 'testVHACD']:
 exists = _vhacd_executable is not None
 
 
-def convex_decomposition(mesh, **kwargs):
+def convex_decomposition(mesh, debug=False, **kwargs):
     """
     Run VHACD to generate an approximate convex decomposition
     of a single mesh.
@@ -43,7 +43,7 @@ def convex_decomposition(mesh, **kwargs):
     if not exists:
         raise ValueError('No vhacd available!')
 
-    argstring = ' --input $mesh_0 --output $mesh_post --log $script'
+    argstring = ' --input $MESH_0 --output $MESH_POST --log $SCRIPT'
 
     # pass through extra arguments from the input dictionary
     for key, value in kwargs.items():
@@ -54,7 +54,8 @@ def convex_decomposition(mesh, **kwargs):
                     script='',
                     tmpfile_ext='obj',
                     group_material=False,
-                    split_object=True) as vhacd:
+                    split_object=True,
+                    debug=debug) as vhacd:
         result = vhacd.run(_vhacd_executable + argstring)
 
     # if we got a scene back return a list of meshes

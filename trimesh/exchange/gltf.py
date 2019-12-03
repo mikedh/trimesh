@@ -51,7 +51,7 @@ _default_material = {
         "metallicFactor": 0,
         "roughnessFactor": 0}}
 
-# specify common dtypes with forced little endian
+# specify dtypes with forced little endian
 float32 = np.dtype("<f4")
 uint32 = np.dtype("<u4")
 uint8 = np.dtype("<u1")
@@ -324,7 +324,7 @@ def load_glb(file_obj, resolver=None, **mesh_kwargs):
 def _uri_to_bytes(uri, resolver):
     """
     Take a URI string and load it as a
-    a filename or as base64
+    a filename or as base64.
 
     Parameters
     --------------
@@ -557,7 +557,6 @@ def _append_mesh(mesh,
             "byteOffset": 0})
         # the actual color data
         buffer_items.append(color_data)
-
     elif hasattr(mesh.visual, 'material'):
         # append the material and then set from returned index
         tree["meshes"][-1]["primitives"][0]["material"] = _append_material(
@@ -565,17 +564,17 @@ def _append_mesh(mesh,
             tree=tree,
             buffer_items=buffer_items,
             mat_hashes=mat_hashes)
-
         # if mesh has UV coordinates defined export them
-        if (hasattr(mesh.visual, 'uv') and
-                np.shape(mesh.visual.uv) == (len(mesh.vertices), 2)):
-
+        has_uv = (hasattr(mesh.visual, 'uv') and
+                  mesh.visual.uv is not None and
+                  len(mesh.visual.uv) == len(mesh.vertices))
+        if has_uv:
             # add the reference for UV coordinates
             tree["meshes"][-1]["primitives"][0]["attributes"][
                 "TEXCOORD_0"] = len(tree["accessors"])
-
+            # slice off W if passed
+            uv = mesh.visual.uv.copy()[:, :2]
             # reverse the Y for GLTF
-            uv = mesh.visual.uv.copy()
             uv[:, 1] = 1.0 - uv[:, 1]
             # convert UV coordinate data to bytes and pad
             uv_data = _byte_pad(uv.astype(float32).tobytes())
@@ -1000,20 +999,20 @@ def _read_buffers(header, buffers, mesh_kwargs, resolver=None):
             geometries = mesh_prim[child["mesh"]]
             for name in geometries:
                 kwargs["geometry"] = name
-                kwargs["frame_to"] = "{}_{}".format(
-                    name, util.unique_id(
-                        length=6, increment=len(graph)).upper()
-                )
+                if 'name' in child:
+                    kwargs['frame_to'] = child['name']
+                else:
+                    kwargs["frame_to"] = "{}_{}".format(
+                        name, util.unique_id(
+                            length=6, increment=len(graph)).upper())
                 # append the edge with the mesh frame
                 graph.append(kwargs.copy())
 
-    # kwargs to be loaded
-    result = {
-        "class": "Scene",
-        "geometry": meshes,
-        "graph": graph,
-        "base_frame": base_frame,
-    }
+    # kwargs for load_kwargs
+    result = {"class": "Scene",
+              "geometry": meshes,
+              "graph": graph,
+              "base_frame": base_frame}
 
     return result
 
@@ -1198,7 +1197,7 @@ def _append_material(mat, tree, buffer_items, mat_hashes):
     # add the material to the data structure
     tree['materials'].append(result)
     # add the material index in-place
-    mat_hashes[hash(mat)] = index
+    mat_hashes[hashed] = index
 
     return index
 
@@ -1243,11 +1242,9 @@ def get_schema():
     from ..visual.resolvers import ZipResolver
 
     # get a blob of a zip file including the GLTF 2.0 schema
-    blob = resources.get(
-        'gltf_2.0_schema.zip', decode=False)
+    blob = resources.get('gltf_2_schema.zip', decode=False)
     # get the zip file as a dict keyed by file name
-    archive = util.decompress(
-        util.wrap_as_stream(blob), 'zip')
+    archive = util.decompress(util.wrap_as_stream(blob), 'zip')
     # get a resolver object for accessing the schema
     resolver = ZipResolver(archive)
     # remove references to other files in the schema and load

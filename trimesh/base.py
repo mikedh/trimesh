@@ -535,7 +535,7 @@ class Trimesh(Geometry):
 
         Returns
         -----------
-        extents : (3,) float or None
+        extents : (3, ) float or None
           Array containing axis aligned [length, width, height]
           If mesh is empty returns None
         """
@@ -575,7 +575,7 @@ class Trimesh(Geometry):
 
         Returns
         ----------
-        centroid : (3,) float
+        centroid : (3, ) float
           The average vertex weighted by face area
         """
 
@@ -597,7 +597,7 @@ class Trimesh(Geometry):
 
         Returns
         -----------
-        center_mass : (3,) float
+        center_mass : (3, ) float
            Volumetric center of mass of the mesh
         """
         center_mass = self.mass_properties['center_mass']
@@ -686,7 +686,7 @@ class Trimesh(Geometry):
 
         Returns
         ----------
-        components : (3,) float
+        components : (3, ) float
           Principal components of inertia
         """
         # both components and vectors from inertia matrix
@@ -760,7 +760,7 @@ class Trimesh(Geometry):
 
         Returns
         ------------
-        axis: (3,) float
+        axis: (3, ) float
           Axis around which a 2D profile
           was revolved to generate this mesh
         """
@@ -859,7 +859,7 @@ class Trimesh(Geometry):
 
         Returns
         ---------
-        edges_face : (n,) int
+        edges_face : (n, ) int
           Index of self.faces
         """
         populate = self.edges
@@ -908,7 +908,7 @@ class Trimesh(Geometry):
 
         Returns
         ----------
-        inverse : (len(self.edges),) int
+        inverse : (len(self.edges), ) int
           Indexes of self.edges_unique
         """
         populate = self.edges_unique
@@ -1035,7 +1035,7 @@ class Trimesh(Geometry):
 
         Returns
         -------------
-        referenced : (len(self.vertices),) bool
+        referenced : (len(self.vertices), ) bool
           Which vertices are referenced by a face
         """
         referenced = np.zeros(len(self.vertices), dtype=np.bool)
@@ -1226,12 +1226,12 @@ class Trimesh(Geometry):
         self.vertices : masked to remove np.inf/np.nan
         """
         if util.is_shape(self.faces, (-1, 3)):
-            # (len(self.faces),) bool, mask for faces
+            # (len(self.faces), ) bool, mask for faces
             face_mask = np.isfinite(self.faces).all(axis=1)
             self.update_faces(face_mask)
 
         if util.is_shape(self.vertices, (-1, 3)):
-            # (len(self.vertices),) bool, mask for vertices
+            # (len(self.vertices), ) bool, mask for vertices
             vertex_mask = np.isfinite(self.vertices).all(axis=1)
             self.update_vertices(vertex_mask)
 
@@ -1271,7 +1271,7 @@ class Trimesh(Geometry):
 
         Returns
         ---------
-        meshes : (n,) trimesh.Trimesh
+        meshes : (n, ) trimesh.Trimesh
           Separate bodies from original mesh
         """
         meshes = graph.split(self,
@@ -1356,7 +1356,7 @@ class Trimesh(Geometry):
 
         Returns
         --------
-        adjacency_angle : (n,) float
+        adjacency_angle : (n, ) float
           Angle between adjacent faces
           Each value corresponds with self.face_adjacency
         """
@@ -1372,7 +1372,7 @@ class Trimesh(Geometry):
 
         Returns
         ----------
-        projections : (len(self.face_adjacency),) float
+        projections : (len(self.face_adjacency), ) float
           Dot product of vertex
           onto plane of adjacent triangle.
         """
@@ -1390,7 +1390,7 @@ class Trimesh(Geometry):
 
         Returns
         ----------
-        are_convex : (len(self.face_adjacency),) bool
+        are_convex : (len(self.face_adjacency), ) bool
           Face pairs that are locally convex
         """
         are_convex = self.face_adjacency_projections < tol.merge
@@ -1417,7 +1417,7 @@ class Trimesh(Geometry):
 
         Returns
         ------------
-        radii : (len(self.face_adjacency),) float
+        radii : (len(self.face_adjacency), ) float
           Approximate radius formed by triangle pair
         """
         radii, span = graph.face_adjacency_radius(mesh=self)
@@ -1433,7 +1433,7 @@ class Trimesh(Geometry):
 
         Returns
         ------------
-        span : (len(self.face_adjacency),) float
+        span : (len(self.face_adjacency), ) float
           Approximate span between the non- shared vertices
         """
         populate = self.face_adjacency_radius
@@ -1473,7 +1473,7 @@ class Trimesh(Geometry):
 
         Returns
         ----------
-        vertex_neighbors : (len(self.vertices),) int
+        vertex_neighbors : (len(self.vertices), ) int
           Represents immediate neighbors of each vertex along
           the edge of a triangle
 
@@ -1609,7 +1609,7 @@ class Trimesh(Geometry):
 
         Returns
         -------------
-        nondegenerate : (len(self.faces),) bool
+        nondegenerate : (len(self.faces), ) bool
           Mask used to remove faces
         """
         nondegenerate = triangles.nondegenerate(
@@ -1628,7 +1628,7 @@ class Trimesh(Geometry):
 
         Returns
         ---------
-        facets : (n, ) sequence of (m,) int
+        facets : (n, ) sequence of (m, ) int
           Groups of indexes of self.faces
         """
         facets = graph.facets(self)
@@ -1641,7 +1641,7 @@ class Trimesh(Geometry):
 
         Returns
         ---------
-        area : (len(self.facets),) float
+        area : (len(self.facets), ) float
           Total area of each facet (group of faces)
         """
         # avoid thrashing the cache inside a loop
@@ -1722,7 +1722,7 @@ class Trimesh(Geometry):
 
         Returns
         ---------
-        on_hull : (len(mesh.facets),) bool
+        on_hull : (len(mesh.facets), ) bool
           is A facet on the meshes convex hull or not
         """
         # if no facets exit early
@@ -1834,7 +1834,7 @@ class Trimesh(Geometry):
 
         Parameters
         ------------
-        center_mass : (3,) float
+        center_mass : (3, ) float
           The object center of mass (if None, this method
           assumes uniform density and watertightness and
           computes a center of mass explicitly)
@@ -1855,7 +1855,7 @@ class Trimesh(Geometry):
           new z-axis pointing upwards from the table
           and the object just touching the table.
 
-        probs : (n,) float
+        probs : (n, ) float
           A probability ranging from 0.0 to 1.0 for each pose
         """
         return poses.compute_stable_poses(mesh=self,
@@ -1871,9 +1871,9 @@ class Trimesh(Geometry):
 
         Parameters
         ------------
-        face_index: (m,) int or None
+        face_index: (m, ) int or None
           If None all faces of mesh will be subdivided
-          If (m,) int array of indices: only specified faces will be
+          If (m, ) int array of indices: only specified faces will be
           subdivided. Note that in this case the mesh will generally
           no longer be manifold, as the additional vertex on the midpoint
           will not be used by the adjacent faces to the faces specified,
@@ -1982,7 +1982,7 @@ class Trimesh(Geometry):
         ------------
         plane_normal: (3) vector for plane normal
           Normal vector of section plane
-        plane_origin : (3,) float
+        plane_origin : (3, ) float
           Point on the cross section plane
 
         Returns
@@ -2024,15 +2024,15 @@ class Trimesh(Geometry):
         ------------
         plane_normal: (3) vector for plane normal
           Normal vector of section plane
-        plane_origin : (3,) float
+        plane_origin : (3, ) float
           Point on the cross section plane
-        heights : (n,) float
+        heights : (n, ) float
           Each section is offset by height along
           the plane normal.
 
         Returns
         ---------
-        paths : (n,) Path2D or None
+        paths : (n, ) Path2D or None
           2D cross sections at specified heights.
           path.metadata['to_3D'] contains transform
           to return 2D section back into 3D space.
@@ -2068,7 +2068,7 @@ class Trimesh(Geometry):
         ------------
         plane_normal: (3) vector for plane normal
           Normal vector of slicing plane
-        plane_origin : (3,) float
+        plane_origin : (3, ) float
           Point on the slicing plane
 
         Returns
@@ -2090,7 +2090,7 @@ class Trimesh(Geometry):
     @caching.cache_decorator
     def convex_hull(self):
         """
-        Get a new Trimesh object representing the convex hull of
+        Returns a Trimesh object representing the convex hull of
         the current mesh.
 
         Returns
@@ -2307,7 +2307,7 @@ class Trimesh(Geometry):
 
         Parameters
         ------------
-        face_ids : (n,) int
+        face_ids : (n, ) int
           Indices to compute the outline of.
           If None, outline of full mesh will be computed.
         **kwargs: passed to Path3D constructor
@@ -2345,7 +2345,7 @@ class Trimesh(Geometry):
 
         Returns
         ---------
-        area_faces : (n,) float
+        area_faces : (n, ) float
           Area of each face
         """
         area_faces = triangles.area(crosses=self.triangles_cross,
@@ -2421,7 +2421,7 @@ class Trimesh(Geometry):
 
     def scene(self, **kwargs):
         """
-        Get a Scene object containing the current mesh.
+        Returns a Scene object containing the current mesh.
 
         Returns
         ---------
@@ -2454,7 +2454,7 @@ class Trimesh(Geometry):
 
         Parameters
         ------------
-        faces_sequence : sequence (m,) int
+        faces_sequence : sequence (m, ) int
           Face indices of mesh
         only_watertight : bool
           Only return submeshes which are watertight
@@ -2479,7 +2479,7 @@ class Trimesh(Geometry):
 
         Returns
         -----------
-        identifier : (6,) float
+        identifier : (6, ) float
           Identifying properties of the current mesh
         """
         identifier = comparison.identifier_simple(self)
@@ -2585,7 +2585,7 @@ class Trimesh(Geometry):
 
         Parameters
         ------------
-        other : Trimesh or (n,) Trimesh
+        other : Trimesh or (n, ) Trimesh
           Other meshes to union
         engine : None or str
           Which backend to use
@@ -2601,7 +2601,7 @@ class Trimesh(Geometry):
             **kwargs)
         return result
 
-    def difference(self, other, engine=None):
+    def difference(self, other, engine=None, **kwargs):
         """
         Boolean difference between this mesh and n other meshes
 
@@ -2616,10 +2616,10 @@ class Trimesh(Geometry):
           Difference between self and other Trimesh objects
         """
         result = boolean.difference(meshes=np.append(self, other),
-                                    engine=engine)
+                                    engine=engine, **kwargs)
         return result
 
-    def intersection(self, other, engine=None):
+    def intersection(self, other, engine=None, **kwargs):
         """
         Boolean intersection between this mesh and n other meshes
 
@@ -2634,13 +2634,14 @@ class Trimesh(Geometry):
           Mesh of the volume contained by all passed meshes
         """
         result = boolean.intersection(meshes=np.append(self, other),
-                                      engine=engine)
+                                      engine=engine, **kwargs)
         return result
 
     def contains(self, points):
         """
-        Given a set of points, determine whether or not they are inside the mesh.
-        This raises an error if called on a non- watertight mesh.
+        Given an array of points determine whether or not they
+        are inside the mesh. This raises an error if called on a
+        non- watertight mesh.
 
         Parameters
         ------------
@@ -2664,7 +2665,7 @@ class Trimesh(Geometry):
 
         Returns
         --------
-        angles : (n, 3) float
+        angles : (len(self.faces), 3) float
           Angle at each vertex of a face
         """
         angles = triangles.angles(self.triangles)
@@ -2677,9 +2678,9 @@ class Trimesh(Geometry):
 
         Returns
         ----------
-        sparse: scipy.sparse.coo_matrix with:
-                dtype: float
-                shape: (len(self.vertices), len(self.faces))
+        sparse : scipy.sparse.coo_matrix
+          Float sparse matrix with with shape:
+          (len(self.vertices), len(self.faces))
         """
         angles = curvature.face_angles_sparse(self)
         return angles
@@ -2739,7 +2740,7 @@ class Trimesh(Geometry):
 
     def copy(self):
         """
-        Safely get a copy of the current mesh.
+        Safely return a copy of the current mesh.
 
         Copied objects will have emptied caches to avoid memory
         issues and so may be slow on initial operations until

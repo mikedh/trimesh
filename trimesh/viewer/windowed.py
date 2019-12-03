@@ -108,6 +108,8 @@ class SceneViewer(pyglet.window.Window):
 
         # store a vertexlist for an axis marker
         self._axis = None
+        # store a vertexlist for a grid display
+        self._grid = None
         # store scene geometry as vertex lists
         self.vertex_list = {}
         # store geometry hashes
@@ -229,7 +231,8 @@ class SceneViewer(pyglet.window.Window):
             has_tex = False
 
         if has_tex:
-            tex = rendering.material_to_texture(geometry.visual.material)
+            tex = rendering.material_to_texture(
+                geometry.visual.material)
             if tex is not None:
                 self.textures[name] = tex
 
@@ -246,16 +249,14 @@ class SceneViewer(pyglet.window.Window):
         self.view = {
             'cull': True,
             'axis': False,
+            'grid': False,
             'fullscreen': False,
             'wireframe': False,
             'ball': Trackball(
                 pose=self._initial_camera_transform,
                 size=self.scene.camera.resolution,
                 scale=self.scene.scale,
-                target=self.scene.centroid,
-            ),
-        }
-
+                target=self.scene.centroid)}
         try:
             # if any flags are passed override defaults
             if isinstance(flags, dict):
@@ -424,6 +425,15 @@ class SceneViewer(pyglet.window.Window):
         # perform gl actions
         self.update_flags()
 
+    def toggle_grid(self):
+        """
+        Toggle a rendered grid.
+        """
+        # update state to next index
+        self.view['grid'] = not self.view['grid']
+        # perform gl actions
+        self.update_flags()
+
     def update_flags(self):
         """
         Check the view flags, and call required GL functions.
@@ -453,7 +463,6 @@ class SceneViewer(pyglet.window.Window):
             args = rendering.mesh_to_vertexlist(axis)
             # store the axis as a reference
             self._axis = self.batch.add_indexed(*args)
-
         # case where we DON'T want an axis but a vertexlist
         # IS stored internally
         elif not self.view['axis'] and self._axis is not None:
@@ -461,6 +470,29 @@ class SceneViewer(pyglet.window.Window):
             self._axis.delete()
             # set the reference to None
             self._axis = None
+
+        if self.view['grid'] and self._grid is None:
+            try:
+                # create a grid marker
+                from ..path.creation import grid
+                bounds = self.scene.bounds
+                center = bounds.mean(axis=0)
+                center[2] = bounds[0][2]
+                side = bounds.ptp(axis=0)[:2].max()
+                # create an axis marker sized relative to the scene
+                grid_mesh = grid(
+                    side=side,
+                    count=4,
+                    transform=translation_matrix(center))
+                args = rendering.convert_to_vertexlist(grid_mesh)
+                # create ordered args for a vertex list
+                self._grid = self.batch.add_indexed(*args)
+            except BaseException:
+                util.log.warning(
+                    'failed to create grid!', exc_info=True)
+        elif not self.view['grid'] and self._grid is not None:
+            self._grid.delete()
+            self._grid = None
 
     def _update_perspective(self, width, height):
         try:
@@ -546,6 +578,8 @@ class SceneViewer(pyglet.window.Window):
             self.toggle_culling()
         elif symbol == pyglet.window.key.A:
             self.toggle_axis()
+        elif symbol == pyglet.window.key.G:
+            self.toggle_grid()
         elif symbol == pyglet.window.key.Q:
             self.on_close()
         elif symbol == pyglet.window.key.M:
@@ -595,6 +629,8 @@ class SceneViewer(pyglet.window.Window):
         if self._axis:
             # we stored it as a vertex list
             self._axis.draw(mode=gl.GL_TRIANGLES)
+        if self._grid:
+            self._grid.draw(mode=gl.GL_LINES)
 
         while len(node_names) > 0:
             count += 1

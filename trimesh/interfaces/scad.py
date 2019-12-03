@@ -31,7 +31,7 @@ if _scad_executable is None:
 exists = _scad_executable is not None
 
 
-def interface_scad(meshes, script):
+def interface_scad(meshes, script, debug=False, **kwargs):
     """
     A way to interface with openSCAD which is itself an interface
     to the CGAL CSG bindings.
@@ -47,17 +47,17 @@ def interface_scad(meshes, script):
     """
     if not exists:
         raise ValueError('No SCAD available!')
-    with MeshScript(meshes=meshes, script=script) as scad:
-        result = scad.run(_scad_executable + ' $script -o $mesh_post')
+    with MeshScript(meshes=meshes, script=script, debug=debug) as scad:
+        result = scad.run(_scad_executable + ' $SCRIPT -o $MESH_POST')
     return result
 
 
-def boolean(meshes, operation='difference'):
+def boolean(meshes, operation='difference', debug=False, **kwargs):
     """
     Run an operation on a set of meshes
     """
     script = operation + '(){'
     for i in range(len(meshes)):
-        script += 'import(\"$mesh_' + str(i) + '\");'
+        script += 'import(\"$MESH_' + str(i) + '\");'
     script += '}'
-    return interface_scad(meshes, script)
+    return interface_scad(meshes, script, debug=debug, **kwargs)

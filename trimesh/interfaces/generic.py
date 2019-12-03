@@ -1,4 +1,5 @@
 import os
+import logging
 import platform
 import subprocess
 
@@ -7,6 +8,9 @@ from tempfile import NamedTemporaryFile
 from subprocess import check_call
 
 from .. import exchange
+
+# create a default logger
+log = logging.getLogger('trimesh.interfaces')
 
 
 class MeshScript:
@@ -46,11 +50,12 @@ class MeshScript:
         for mesh, file_obj in zip(self.meshes, self.mesh_pre):
             mesh.export(file_obj.name)
 
-        self.replacement = {
-            'mesh_' + str(i): m.name for i, m in enumerate(self.mesh_pre)}
-        self.replacement['mesh_pre'] = str([i.name for i in self.mesh_pre])
-        self.replacement['mesh_post'] = self.mesh_post.name
-        self.replacement['script'] = self.script_out.name
+        self.replacement = {'MESH_' + str(i): m.name
+                            for i, m in enumerate(self.mesh_pre)}
+        self.replacement['MESH_PRE'] = str(
+            [i.name for i in self.mesh_pre])
+        self.replacement['MESH_POST'] = self.mesh_post.name
+        self.replacement['SCRIPT'] = self.script_out.name
 
         script_text = Template(self.script).substitute(self.replacement)
         if platform.system() == 'Windows':
@@ -80,6 +85,9 @@ class MeshScript:
                 stdout = None
             else:
                 stdout = devnull
+
+            if self.debug:
+                log.info('executing: {}'.format(' '.join(command_run)))
             check_call(command_run,
                        stdout=stdout,
                        stderr=subprocess.STDOUT,

@@ -351,13 +351,15 @@ def look_at(points, fov, rotation=None, distance=None, center=None):
 
 def ray_pixel_coords(camera):
     """
-    Get the x-y coordinates of rays in camera coordinates at z == -1.
+    Get the x-y coordinates of rays in camera coordinates at
+    z == -1.
 
     One coordinate pair will be given for each pixel as defined in
-    camera.resolution. If reshaped, the returned array corresponds to pixels
-    of the rendered image.
+    camera.resolution. If reshaped, the returned array corresponds
+    to pixels of the rendered image.
 
-    i.e.
+    Examples
+    ------------
     ```python
     xy = ray_pixel_coords(camera).reshape(
       tuple(camera.coordinates) + (2,))
@@ -368,39 +370,40 @@ def ray_pixel_coords(camera):
     Parameters
     --------------
     camera : trimesh.scene.Camera
+      Camera object to generate rays from
 
     Returns
     --------------
     xy : (n, 2) float
-      x-y coordinates of intersection of each camera ray with the z == -1 frame
+      x-y coordinates of intersection of each camera ray
+      with the z == -1 frame
     """
-    right_top = np.tan(np.radians(camera.fov / 2.0))
-    # move half a pixel width in
-    # pixel_size = (right_top - left_bottom) / camera.resolution
-    # # for symmetric cameras, pixel_size impl above is equivalent to below
-    # pixel_size = right_top*2 / camera.resolution
-    # right_top -= pixel_size / 2
-    # # the above two lines can be computed more efficiently by the below line
-    right_top *= 1 - 1. / camera.resolution
+    # shorthand
+    res = camera.resolution
+    half_fov = np.radians(camera.fov) / 2.0
 
+    right_top = np.tan(half_fov)
+    # move half a pixel width in
+    right_top *= 1 - (1.0 / res)
     left_bottom = -right_top
     # we are looking down the negative z axis, so
     # right_top corresponds to maximum x/y values
     # bottom_left corresponds to minimum x/y values
-
     right, top = right_top
     left, bottom = left_bottom
 
+    # create a grid of vectors
     xy = util.grid_linspace(
         bounds=[[left, top], [right, bottom]],
         count=camera.resolution)
 
-    # i.e. after reshaping we have corners aligned correctly
-    # xy_reshaped = xy.reshape(tuple(camera.resolution) + 2)
-    # xy_reshaped[0, 0] == top_left
-    # xy_reshaped[-1, -1] == bottom_right
+    # create a matching array of pixel indexes for the rays
+    pixels = util.grid_linspace(
+        bounds=[[0, res[1]], [res[0], 0]],
+        count=res).astype(np.int64)
+    assert xy.shape == pixels.shape
 
-    return xy
+    return xy, pixels
 
 
 def camera_to_rays(camera):
@@ -418,6 +421,9 @@ def camera_to_rays(camera):
     vectors : (n, 3) float
       Ray direction vectors in camera frame with z == -1
     """
-    xy = ray_pixel_coords(camera)
-    vectors = np.column_stack((xy, -np.ones_like(xy[:, :1])))
-    return vectors
+    # get the on-plane coordinates
+    xy, pixels = ray_pixel_coords(camera)
+    # convert vectors to 3D unit vectors
+    vectors = util.unitize(
+        np.column_stack((xy, -np.ones_like(xy[:, :1]))))
+    return vectors, pixels
