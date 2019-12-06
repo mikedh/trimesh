@@ -119,6 +119,14 @@ class OBJTest(g.unittest.TestCase):
         # assert colors have survived the export cycle
         assert (mesh.visual.vertex_colors == rec.visual.vertex_colors).all()
 
+    def test_single_vn(self):
+        """
+        Make sure files with a single VN load.
+        """
+        m = g.get_mesh('singlevn.obj')
+        assert len(m.vertices) > 0
+        assert len(m.faces) > 0
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
