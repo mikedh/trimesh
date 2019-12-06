@@ -510,7 +510,7 @@ def _parse_vertices(text):
             for k, v in starts.items() if v >= 0}
 
     # count the number of data values per row on a sample row
-    per_row = {k: len(v[1].split()) for k, v in data.items()}
+    per_row = {k: len(v[0].split()) for k, v in data.items()}
 
     # convert data values into numpy arrays
     result = collections.defaultdict(lambda: None)

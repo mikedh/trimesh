@@ -575,6 +575,7 @@ def parse_file_args(file_obj,
     # if we still have no resolver try using file_obj name
     if (resolver is None and
         hasattr(file_obj, 'name') and
+        file_obj.name is not None and
             len(file_obj.name) > 0):
         resolver = visual.resolvers.FilePathResolver(file_obj.name)
 
