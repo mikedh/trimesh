@@ -102,11 +102,10 @@ class Path(object):
         """
         Print a quick summary of the number of vertices and entities.
         """
-        r = '<trimesh.{}(vertices.shape={}, len(entities)={})>'.format(
+        return '<trimesh.{}(vertices.shape={}, len(entities)={})>'.format(
             type(self).__name__,
             self.vertices.shape,
             len(self.entities))
-        return r
 
     def process(self):
         """
@@ -124,7 +123,8 @@ class Path(object):
 
     @vertices.setter
     def vertices(self, values):
-        self._vertices = caching.tracked_array(values, dtype=np.float64)
+        self._vertices = caching.tracked_array(
+            values, dtype=np.float64)
 
     @property
     def entities(self):
