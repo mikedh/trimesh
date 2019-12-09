@@ -53,6 +53,10 @@ class PlyTest(g.unittest.TestCase):
         assert m.vertices.shape == (5, 3)
         assert isinstance(m, g.trimesh.PointCloud)
 
+        m = g.get_mesh('points_emptyface.ply')
+        assert m.vertices.shape == (1024, 3)
+        assert isinstance(m, g.trimesh.PointCloud)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
