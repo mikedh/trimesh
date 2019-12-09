@@ -1,6 +1,5 @@
 import copy
 import time
-import collections
 
 import numpy as np
 
@@ -139,9 +138,10 @@ class TransformForest(object):
         mesh_index = {name: i for i, name
                       in enumerate(scene.geometry.keys())}
 
+        # shortcut to graph
+        graph = self.transforms
         # get the stored node data
-        g = self.transforms
-        node_data = dict(g.nodes(data=True))
+        node_data = dict(graph.nodes(data=True))
 
         # list of dict, in gltf format
         result = []
@@ -156,7 +156,7 @@ class TransformForest(object):
             # name of the scene node
             node = info['name']
             # store children as indexes
-            children = [lookup[k] for k in g[node].keys()]
+            children = [lookup[k] for k in graph[node].keys()]
             if len(children) > 0:
                 info['children'] = children
             # if we have a mesh store by index
@@ -168,9 +168,9 @@ class TransformForest(object):
             try:
                 # try to ignore KeyError and StopIteration
                 # parent-child transform is stored in child
-                parent = next(iter(g.predecessors(node)))
+                parent = next(iter(graph.predecessors(node)))
                 # get the (4, 4) homogeneous transform
-                matrix = g.get_edge_data(parent, node)['matrix']
+                matrix = graph.get_edge_data(parent, node)['matrix']
                 # only include matrix if it is not an identity matrix
                 if np.abs(matrix - np.eye(4)).max() > 1e-5:
                     info['matrix'] = matrix.T.reshape(-1).tolist()
