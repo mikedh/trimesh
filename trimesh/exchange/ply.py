@@ -505,35 +505,34 @@ def ply_ascii(elements, file_obj):
 
     # loop through data we need
     for key, values in elements.items():
+        # if the element is empty ignore it
+        if 'length' not in values or values['length'] == 0:
+            continue
         # will store (start, end) column index of data
         columns = collections.deque()
         # will store the total number of rows
         rows = 0
 
         for name, dtype in values['properties'].items():
+            # we need to know how many elements are in this dtype
             if '$LIST' in dtype:
                 # if an element contains a list property handle it here
-
                 row = array[position]
                 list_count = int(row[rows])
-
                 # ignore the count and take the data
                 columns.append([rows + 1,
                                 rows + 1 + list_count])
                 rows += list_count + 1
                 # change the datatype to just the dtype for data
-
                 values['properties'][name] = dtype.split('($LIST,)')[-1]
             else:
                 # a single column data field
                 columns.append([rows, rows + 1])
                 rows += 1
-
         # get the lines as a 2D numpy array
         data = np.vstack(array[position:position + values['length']])
         # offset position in file
         position += values['length']
-
         # store columns we care about by name and convert to data type
         elements[key]['data'] = {n: data[:, c[0]:c[1]].astype(dt)
                                  for n, dt, c in zip(
@@ -548,11 +547,13 @@ def ply_binary(elements, file_obj):
 
     Parameters
     ------------
-    elements: OrderedDict object, populated from the file header.
-              object will be modified to add data by this function.
+    elements : OrderedDict
+      Populated from the file header.
+      Object will be modified to add data by this function.
 
-    file_obj: open file object, with current position at the start
-              of the data section (past the header)
+    file_obj : open file object
+      With current position at the start
+      of the data section (past the header)
     """
 
     def populate_listsize(file_obj, elements):
@@ -653,7 +654,7 @@ def ply_binary(elements, file_obj):
     populate_data(file_obj, elements)
 
 
-def export_draco(mesh):
+def export_draco(mesh, bits=28):
     """
     Export a mesh using Google's Draco compressed format.
 
@@ -663,6 +664,10 @@ def export_draco(mesh):
     Parameters
     ----------
     mesh : Trimesh object
+      Mesh to export
+    bits : int
+      Bits of quantization for position
+      tol.merge=1e-8 is roughly 25 bits
 
     Returns
     ----------
@@ -674,10 +679,8 @@ def export_draco(mesh):
         temp_ply.flush()
         with tempfile.NamedTemporaryFile(suffix='.drc') as encoded:
             subprocess.check_output([draco_encoder,
-                                     '-qp',  # bits of quantization for position
-                                     '28',  # since our tol.merge is 1e-8, 25 bits
-                                            # more has a machine epsilon
-                                            # smaller than that
+                                     '-qp',
+                                     str(int(bits)),
                                      '-i',
                                      temp_ply.name,
                                      '-o',
@@ -693,7 +696,7 @@ def load_draco(file_obj, **kwargs):
 
     Parameters
     ----------
-    file_obj  : file- like object
+    file_obj : file- like object
       Contains data
 
     Returns

@@ -58,7 +58,7 @@ class Geometry(ABC):
             # for Scene
             elements.append('len(geometry)={}'.format(
                 len(self.geometry)))
-        if hasattr(self, 'shape'):
+        if 'Voxel' in type(self).__name__:
             # for VoxelGrid objects
             elements.append(str(self.shape)[1:-1])
         return '<trimesh.{}({})>'.format(
