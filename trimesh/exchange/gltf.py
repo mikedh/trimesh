@@ -228,7 +228,7 @@ def load_gltf(file_obj=None,
         try:
             tree = json.loads(data)
         except BaseException:
-            tree = json.loads(data.decode('utf-8'))
+            tree = json.loads(util.decode_text(data))
 
     # use the URI and resolver to get data from file names
     buffers = [_uri_to_bytes(uri=b['uri'], resolver=resolver)
@@ -287,7 +287,7 @@ def load_glb(file_obj, resolver=None, **mesh_kwargs):
     json_data = file_obj.read(int(chunk_length))
     # convert to text
     if hasattr(json_data, "decode"):
-        json_data = json_data.decode("utf-8")
+        json_data = util.decode_text(json_data)
     # load the json header to native dict
     header = json.loads(json_data)
 

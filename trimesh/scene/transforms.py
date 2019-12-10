@@ -144,13 +144,18 @@ class TransformForest(object):
         node_data = dict(graph.nodes(data=True))
 
         # list of dict, in gltf format
-        result = []
+        # start with base frame as first node index
+        result = [{'name': self.base_frame}]
         # {node name : node index in gltf}
-        lookup = {}
-        # first collect the nodes in order
-        for i, node in enumerate(node_data.keys()):
+        lookup = {0: self.base_frame}
+
+        # collect the nodes in order
+        for node in node_data.keys():
+            if node == self.base_frame:
+                continue
+            lookup[node] = len(result)
             result.append({'name': node})
-            lookup[node] = i
+
         # then iterate through to collect data
         for info in result:
             # name of the scene node

@@ -7,13 +7,14 @@ except BaseException:
 class GLTFTest(g.unittest.TestCase):
 
     def test_duck(self):
-        scene = g.get_mesh('Duck.glb')
+        scene = g.get_mesh('Duck.glb', process=False)
 
         # should have one mesh
         assert len(scene.geometry) == 1
 
         # get the mesh
         geom = next(iter(scene.geometry.values()))
+
         # should not be watertight
         assert not geom.is_volume
         # make sure export doesn't crash
