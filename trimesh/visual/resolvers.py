@@ -118,12 +118,14 @@ class ZipResolver(Resolver):
                 if option in self.archive:
                     name = option
                     break
+        # get the stored data
+        obj = self.archive[name]
+        if isinstance(obj, (bytes, str)):
+            return obj
         # read file object from beginning
-        self.archive[name].seek(0)
+        obj.seek(0)
         # data is stored as a file object
-        data = self.archive[name].read()
-
-        return data
+        return obj.read()
 
 
 class WebResolver(Resolver):

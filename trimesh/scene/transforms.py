@@ -1,6 +1,5 @@
 import copy
 import time
-import collections
 
 import numpy as np
 
@@ -133,41 +132,56 @@ class TransformForest(object):
         gltf : dict
           with 'nodes' referencing a list of dicts
         """
+
         # geometry is an OrderedDict
-        # {geometry key : index}
+        # map mesh name to index: {geometry key : index}
         mesh_index = {name: i for i, name
                       in enumerate(scene.geometry.keys())}
-        # save the output
-        gltf = collections.deque([])
-        # only export nodes which have geometry
-        for node in self.nodes_geometry:
-            # don't include edge for base frame
+
+        # shortcut to graph
+        graph = self.transforms
+        # get the stored node data
+        node_data = dict(graph.nodes(data=True))
+
+        # list of dict, in gltf format
+        # start with base frame as first node index
+        result = [{'name': self.base_frame}]
+        # {node name : node index in gltf}
+        lookup = {0: self.base_frame}
+
+        # collect the nodes in order
+        for node in node_data.keys():
             if node == self.base_frame:
                 continue
-            # get the transform and geometry from the graph
-            transform, geometry = self.get(
-                frame_to=node, frame_from=self.base_frame)
-            # add a node by name
-            gltf.append({'name': node})
-            # if the transform is an identity matrix don't include it
-            is_identity = np.abs(transform - np.eye(4)).max() < 1e-5
-            if not is_identity:
-                gltf[-1]['matrix'] = transform.T.reshape(-1).tolist()
-            # assign geometry if it exists
-            if geometry is not None:
-                gltf[-1]['mesh'] = mesh_index[geometry]
+            lookup[node] = len(result)
+            result.append({'name': node})
+
+        # then iterate through to collect data
+        for info in result:
+            # name of the scene node
+            node = info['name']
+            # store children as indexes
+            children = [lookup[k] for k in graph[node].keys()]
+            if len(children) > 0:
+                info['children'] = children
+            # if we have a mesh store by index
+            if 'geometry' in node_data[node]:
+                info['mesh'] = mesh_index[node_data[node]['geometry']]
             # check to see if we have camera node
             if node == scene.camera.name:
-                gltf[-1]['camera'] = 0
-
-        # we have flattened tree, so all nodes will be child of world
-        gltf.appendleft({
-            'name': self.base_frame,
-            'children': list(range(1, 1 + len(gltf)))
-        })
-        result = {'nodes': list(gltf)}
-
-        return result
+                info['camera'] = 0
+            try:
+                # try to ignore KeyError and StopIteration
+                # parent-child transform is stored in child
+                parent = next(iter(graph.predecessors(node)))
+                # get the (4, 4) homogeneous transform
+                matrix = graph.get_edge_data(parent, node)['matrix']
+                # only include matrix if it is not an identity matrix
+                if np.abs(matrix - np.eye(4)).max() > 1e-5:
+                    info['matrix'] = matrix.T.reshape(-1).tolist()
+            except BaseException:
+                continue
+        return {'nodes': result}
 
     def to_edgelist(self):
         """
