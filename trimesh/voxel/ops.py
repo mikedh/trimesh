@@ -255,7 +255,7 @@ def multibox(centers, pitch=1.0, colors=None):
     # get a basic box
     b = primitives.Box()
     # apply the pitch
-    b.vertices *= float(pitch)
+    b.apply_scale(float(pitch))
     # tile into one box vertex per center
     v = np.tile(
         centers,
