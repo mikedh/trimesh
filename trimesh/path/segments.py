@@ -363,3 +363,100 @@ def extrude(segments, height, double_sided=False):
             faces, np.fliplr(faces)))
 
     return vertices, faces
+
+
+def length(segments, summed=True):
+    """
+    Extrude 2D line segments into 3D triangles.
+
+    Parameters
+    -------------
+    segments : (n, 2, 2) float
+      2D line segments
+    height : float
+      Distance to extrude along Z
+    double_sided : bool
+      If true, return 4 triangles per segment
+
+    Returns
+    -------------
+    vertices : (n, 3) float
+      Vertices in space
+    faces : (n, 3) int
+      Indices of vertices forming triangles
+    """
+    segments = np.asanyarray(segments)
+    norms = util.row_norm(segments[:, 0, :] - segments[:, 1, :])
+    if summed:
+        return norms.sum()
+    return norms
+
+
+def resample(segments, maxlen):
+    """
+    Resample line segments until no segment
+    is longer than maxlen.
+
+    Parameters
+    -------------
+    segments : (n, 2, 2) float
+      2D line segments
+    maxlen : float
+      The maximum length of a line segment
+
+    Returns
+    -------------
+    resampled : (m, 2, 3) float
+      Line segments where no segment is longer than maxlen
+    """
+    maxlen = float(maxlen)
+    segments = np.asanyarray(segments, dtype=np.float64)
+
+    # shortcut for endpoints
+    pt1 = segments[:, 0]
+    pt2 = segments[:, 1]
+    # vector between endpoints
+    vec = pt2 - pt1
+    # the integer number of times a segment needs to be split
+    splits = np.ceil(util.row_norm(vec) / maxlen).astype(np.int64)
+
+    # save resulting segments
+    result = []
+
+    # loop through each count of unique splits needed
+    for split in np.unique(splits):
+        # get a mask of which segments need to be split
+        mask = splits == split
+        # the vector for each incremental length
+        increment = vec[mask] / split
+        # stack the increment vector into the shape needed
+        v = np.tile(increment, split + 1).reshape((-1, 3))
+        # apply integer multiples of the increment
+        v *= np.tile(np.arange(split + 1),
+                     len(increment)).reshape((-1, 1))
+        # stack the origin points correctly
+        o = np.tile(pt1[mask], split + 1).reshape((-1, 3))
+        # now get each segment as an (split, 3) polyline
+        poly = (o + v).reshape((-1, split + 1, 3))
+        # get indexes to stack polyline into segments
+        stack = util.stack_lines(np.arange(split + 1))
+        # save the resulting segments
+        result.extend([p[stack] for p in poly])
+
+        if tol.strict:
+            # check to make sure every start and end point
+            # from the reconstructed result corresponds
+            for original, recon in zip(segments[mask], poly):
+                assert np.allclose(original[0], recon[0])
+                assert np.allclose(original[-1], recon[-1])
+
+    # stack into (n, 2, 3) segments
+    result = np.concatenate(result)
+
+    if tol.strict:
+        # make sure resampled segments have the same length as input
+        assert np.isclose(length(segments),
+                          length(result),
+                          atol=1e-3)
+
+    return result

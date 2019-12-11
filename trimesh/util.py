@@ -1018,7 +1018,9 @@ def stack_lines(indices):
 
     """
     indices = np.asanyarray(indices)
-    if is_sequence(indices[0]):
+    if len(indices) == 0:
+        return np.array([])
+    elif is_sequence(indices[0]):
         shape = (-1, len(indices[0]))
     else:
         shape = (-1, 2)

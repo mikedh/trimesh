@@ -138,7 +138,7 @@ class SceneWidget(glooey.Widget):
         self.vertex_list_hash = {}
         self.textures = {}
 
-        self._initial_camera_transform = self.scene.camera_transform
+        self._initial_camera_transform = self.scene.camera_transform.copy()
         self.reset_view()
 
         self._background = kwargs.pop('background', None)
@@ -159,6 +159,15 @@ class SceneWidget(glooey.Widget):
             )
         return self._scene_group
 
+    def clear(self):
+        self._scene_group = None
+        self.mesh_group = {}
+        while self.vertex_list:
+            _, vertex = self.vertex_list.popitem()
+            vertex.delete()
+        self.vertex_list_hash = {}
+        self.textures = {}
+
     def reset_view(self):
         self.view = {
             'ball': Trackball(
@@ -166,7 +175,7 @@ class SceneWidget(glooey.Widget):
                 size=self.scene.camera.resolution,
                 scale=self.scene.scale,
                 target=self.scene.centroid)}
-        self.scene.camera_transform = self.view['ball'].pose
+        self.scene.camera_transform[...] = self.view['ball'].pose
 
     def do_claim(self):
         return 0, 0

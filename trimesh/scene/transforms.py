@@ -147,7 +147,7 @@ class TransformForest(object):
         # start with base frame as first node index
         result = [{'name': self.base_frame}]
         # {node name : node index in gltf}
-        lookup = {0: self.base_frame}
+        lookup = {self.base_frame: 0}
 
         # collect the nodes in order
         for node in node_data.keys():
