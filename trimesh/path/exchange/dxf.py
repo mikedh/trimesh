@@ -555,15 +555,10 @@ def export_dxf(path, layers=None):
         subs : dict
           Has keys 'COLOR', 'LAYER', 'NAME'
         """
+        # TODO : convert RGBA entity.color to index
         subs = {'COLOR': 255,  # default is ByLayer
                 'LAYER': 0,
                 'NAME': str(id(entity))[:16]}
-
-        if hasattr(entity, 'color'):
-            # all colors must be integers between 0-255
-            color = str(entity.color)
-            if str.isnumeric(color):
-                subs['COLOR'] = int(color) % 256
 
         if hasattr(entity, 'layer'):
             subs['LAYER'] = str(entity.layer)
