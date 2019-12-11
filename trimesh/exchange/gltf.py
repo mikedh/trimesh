@@ -1181,7 +1181,7 @@ def _append_material(mat, tree, buffer_items, mat_hashes):
     pbr_subset = ['baseColorTexture',
                   'baseColorFactor',
                   'roughnessFactor',
-                  'metallicFactor'
+                  'metallicFactor',
                   'metallicRoughnessTexture']
     # move keys down a level
     for key in pbr_subset:
