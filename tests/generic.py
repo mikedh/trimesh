@@ -302,6 +302,7 @@ def check_path2D(path):
 
     assert path.colors.shape == (len(path.entities), 4)
 
+
 def scene_equal(a, b):
     """
     Do a simple check on two scenes and assert
