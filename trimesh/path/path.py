@@ -68,7 +68,8 @@ class Path(object):
                  entities=None,
                  vertices=None,
                  metadata=None,
-                 process=True):
+                 process=True,
+                 colors=None):
         """
         Instantiate a path object.
 
@@ -86,6 +87,7 @@ class Path(object):
 
         self.entities = entities
         self.vertices = vertices
+        self.colors = colors
         self.metadata = dict()
 
         if metadata.__class__.__name__ == 'dict':
@@ -116,6 +118,14 @@ class Path(object):
             for func in self._process_functions():
                 func()
         return self
+
+    @property
+    def colors(self):
+        return self._colors
+
+    @colors.setter
+    def colors(self, values):
+        self._colors = caching.tracked_array(values)
 
     @property
     def vertices(self):

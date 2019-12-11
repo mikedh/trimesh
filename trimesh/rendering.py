@@ -52,7 +52,7 @@ def convert_to_vertexlist(geometry, **kwargs):
     elif util.is_instance_named(geometry, 'Path'):
         # works for Path3D and Path2D
         # both of which inherit from Path
-        return path_to_vertexlist(geometry, **kwargs)
+        return path_to_vertexlist(geometry, colors=geometry.colors, **kwargs)
     elif util.is_instance_named(geometry, 'PointCloud'):
         # pointcloud objects contain colors
         return points_to_vertexlist(geometry.vertices,
