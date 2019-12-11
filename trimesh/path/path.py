@@ -10,7 +10,7 @@ import collections
 
 from ..points import plane_fit
 from ..geometry import plane_transform
-
+from ..visual import to_rgba
 from ..constants import log
 from ..constants import tol_path as tol
 
@@ -68,7 +68,8 @@ class Path(object):
                  entities=None,
                  vertices=None,
                  metadata=None,
-                 process=True):
+                 process=True,
+                 colors=None):
         """
         Instantiate a path object.
 
@@ -86,11 +87,15 @@ class Path(object):
 
         self.entities = entities
         self.vertices = vertices
-        self.metadata = dict()
 
+        # assign each color to each entity
+        self.colors = colors
+        # collect metadata into new dictionary
+        self.metadata = dict()
         if metadata.__class__.__name__ == 'dict':
             self.metadata.update(metadata)
 
+        # cache will dump whenever self.crc changes
         self._cache = caching.Cache(id_function=self.crc)
 
         if process:
@@ -116,6 +121,48 @@ class Path(object):
             for func in self._process_functions():
                 func()
         return self
+
+    @property
+    def colors(self):
+        """
+        Colors are stored per-entity.
+
+        Returns
+        ------------
+        colors : (len(entities), 4) uint8
+          RGBA colors for each entity
+        """
+        # start with default colors
+        colors = np.ones((len(self.entities), 4))
+        colors = (colors * [100, 100, 100, 255]).astype(np.uint8)
+        # collect colors from entities
+        for i, e in enumerate(self.entities):
+            if hasattr(e, 'color') and e.color is not None:
+                colors[i] = to_rgba(e.color)
+        # don't allow parts of the color array to be written
+        colors.flags['WRITEABLE'] = False
+        return colors
+
+    @colors.setter
+    def colors(self, values):
+        """
+        Set the color for every entity in the Path.
+
+        Parameters
+        ------------
+        values : (len(entities), 4) uint8
+          Color of each entity
+        """
+        # if not set return
+        if values is None:
+            return
+        # make sure colors are RGBA
+        colors = to_rgba(values)
+        if len(colors) != len(self.entities):
+            raise ValueError('colors must be per-entity!')
+        # otherwise assign each color to the entity
+        for c, e in zip(colors, self.entities):
+            e.color = c
 
     @property
     def vertices(self):

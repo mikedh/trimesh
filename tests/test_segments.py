@@ -60,6 +60,21 @@ class SegmentsTest(g.unittest.TestCase):
             # compare area of mesh with source path
             assert g.np.isclose(mesh.area, path.length * height)
 
+    def test_resample(self):
+        from trimesh.path.segments import length, resample
+        # create some random segments
+        seg = g.random((1000, 2, 3))
+        # set a maximum segment length
+        maxlen = 0.1
+        # one of the original segments should be longer than maxlen
+        assert (length(seg, summed=False) > maxlen).any()
+        # resample to be all shorter than maxlen
+        res = resample(seg, maxlen=maxlen)
+        # check lengths of the resampled result
+        assert (length(res, summed=False) < maxlen).all()
+        # make sure overall length hasn't changed
+        assert g.np.isclose(length(res), length(seg))
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

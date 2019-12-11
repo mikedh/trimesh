@@ -31,6 +31,8 @@ class Entity(object):
             self.closed = closed
         # save the passed layer
         self.layer = layer
+        # save the passed color
+        self.color = color
         # save any other kwargs for general use
         self.kwargs = kwargs
 

@@ -9,6 +9,7 @@ import abc
 import numpy as np
 
 from . import caching
+from . import transformations
 from .util import ABC
 
 
@@ -83,19 +84,14 @@ class Geometry(ABC):
 
     def apply_scale(self, scaling):
         """
-        Scale the mesh equally on all axis.
+        Scale the mesh.
 
         Parameters
         ----------
-        scaling : float
+        scaling : float or (3,) float
           Scale factor to apply to the mesh
         """
-        scaling = float(scaling)
-        if not np.isfinite(scaling):
-            raise ValueError('Scaling factor must be finite number!')
-
-        matrix = np.eye(4)
-        matrix[:3, :3] *= scaling
+        matrix = transformations.scale_and_translate(scale=scaling)
         # apply_transform will work nicely even on negative scales
         return self.apply_transform(matrix)
 
