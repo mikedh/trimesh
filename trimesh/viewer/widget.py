@@ -159,6 +159,15 @@ class SceneWidget(glooey.Widget):
             )
         return self._scene_group
 
+    def clear(self):
+        self._scene_group = None
+        self.mesh_group = {}
+        while self.vertex_list:
+            _, vertex = self.vertex_list.popitem()
+            vertex.delete()
+        self.vertex_list_hash = {}
+        self.textures = {}
+
     def reset_view(self):
         self.view = {
             'ball': Trackball(
