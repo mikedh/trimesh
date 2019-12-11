@@ -300,6 +300,7 @@ def check_path2D(path):
     assert all(path.polygons_closed[i] is not None
                for i in path.enclosure_directed.nodes())
 
+    assert path.colors.shape == (len(path.entities), 4)
 
 def scene_equal(a, b):
     """

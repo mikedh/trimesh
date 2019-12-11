@@ -166,6 +166,8 @@ class VectorTests(g.unittest.TestCase):
                 raise ValueError(
                     'type bases:',
                     [i.__name__ for i in g.trimesh.util.type_bases(t)])
+        # make sure this doesn't crash with text entities
+        g.trimesh.rendering.convert_to_vertexlist(p)
 
     def test_empty(self):
         # make sure empty paths perform as expected
@@ -260,6 +262,18 @@ class VectorTests(g.unittest.TestCase):
                 g.Point([(i + 2) * 2, 0]).buffer(1.0))
             s = path.sample(count=count)
             assert s.shape[1] == 2
+
+    def test_color(self):
+        p = g.get_mesh('2D/wrench.dxf')
+        # make sure we have entities
+        assert len(p.entities) > 0
+        # make sure shape of colors is correct
+        assert p.colors.shape == (len(p.entities), 4)
+        color = [255, 0, 0, 255]
+        # assign a color to the entity
+        p.entities[0].color = color
+        # make sure this is reflected in the path color
+        assert g.np.allclose(p.colors[0], color)
 
 
 class SplitTest(g.unittest.TestCase):

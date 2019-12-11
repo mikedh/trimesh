@@ -52,7 +52,8 @@ def convert_to_vertexlist(geometry, **kwargs):
     elif util.is_instance_named(geometry, 'Path'):
         # works for Path3D and Path2D
         # both of which inherit from Path
-        return path_to_vertexlist(geometry, colors=geometry.colors, **kwargs)
+        return path_to_vertexlist(geometry,
+                                  **kwargs)
     elif util.is_instance_named(geometry, 'PointCloud'):
         # pointcloud objects contain colors
         return points_to_vertexlist(geometry.vertices,
@@ -154,7 +155,7 @@ def mesh_to_vertexlist(mesh,
     return args
 
 
-def path_to_vertexlist(path, group=None, colors=None, **kwargs):
+def path_to_vertexlist(path, group=None, **kwargs):
     """
     Convert a Path3D object to arguments for a
     pyglet indexed vertex list constructor.
@@ -175,24 +176,32 @@ def path_to_vertexlist(path, group=None, colors=None, **kwargs):
     vertices = path.vertices
 
     # get (n, 2, (2|3)) lines
-    lines = np.vstack([util.stack_lines(e.discrete(vertices))
-                       for e in path.entities])
+    stacked = [util.stack_lines(e.discrete(vertices))
+               for e in path.entities]
+    lines = util.vstack_empty(stacked)
     count = len(lines)
 
     # stack zeros for 2D lines
     if util.is_shape(vertices, (-1, 2)):
         lines = lines.reshape((-1, 2))
         lines = np.column_stack((lines, np.zeros(len(lines))))
-
     # index for GL is one per point
     index = np.arange(count).tolist()
+    # convert from entity color to the color of
+    # each vertex in the line segments
+    vcolor = np.vstack(
+        [(np.ones((len(s), 4)) * c).astype(np.uint8)
+         for s, c in zip(stacked, path.colors)])
+    # convert to gl-friendly colors
+    gl_colors = colors_to_gl(vcolor, count=count)
 
+    # collect args for vertexlist constructor
     args = (count,    # number of lines
             GL_LINES,  # mode
             group,    # group
             index,    # indices
             ('v3f/static', lines.reshape(-1)),
-            colors_to_gl(colors, count=count))  # default colors
+            gl_colors)
     return args
 
 
@@ -238,7 +247,8 @@ def points_to_vertexlist(points,
 
 def colors_to_gl(colors, count):
     """
-    Given a list of colors (or None) return a GL-acceptable list of colors
+    Given a list of colors (or None) return a GL-acceptable
+    list of colors.
 
     Parameters
     ------------
