@@ -83,13 +83,19 @@ class _Primitive(Trimesh):
         if values is not None:
             log.warning('Primitive face normals are immutable! Not setting!')
 
-    def copy(self):
+    def copy(self, **kwargs):
         """
         Return a copy of the Primitive object.
+
+        Returns
+        -------------
+        copied : object
+          Copy of current primitive
         """
-        result = copy.deepcopy(self)
-        result._cache.clear()
-        return result
+        # get keyword arguments for data
+        primitive_kwargs = self.primitive.to_kwargs()
+        # create a new primitive of the same type
+        return type(self)(**primitive_kwargs)
 
     def to_mesh(self):
         """
@@ -189,6 +195,19 @@ class _PrimitiveAttributes(object):
             keys = list(self._defaults.keys())
             raise ValueError(
                 'Only default attributes {} can be set!'.format(keys))
+
+    def to_kwargs(self):
+        """
+        Return a dict with copies of kwargs for the current
+        Primitive.
+
+        Returns
+        ------------
+        kwargs : dict
+          Arguments to reconstruct current PrimitiveAttributes
+        """
+        return {k: copy.deepcopy(self._data[k])
+                for k in self._defaults.keys()}
 
     def __dir__(self):
         result = sorted(dir(type(self)) +
