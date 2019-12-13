@@ -7,6 +7,7 @@ from distutils.spawn import find_executable
 import os
 import sys
 import json
+import copy
 import time
 import shutil
 import timeit

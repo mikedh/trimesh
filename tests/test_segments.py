@@ -75,6 +75,13 @@ class SegmentsTest(g.unittest.TestCase):
         # make sure overall length hasn't changed
         assert g.np.isclose(length(res), length(seg))
 
+        # now try with indexes returned
+        res, index = resample(seg, maxlen=maxlen, return_index=True)
+        # check lengths of the resampled result
+        assert (length(res, summed=False) < maxlen).all()
+        # make sure overall length hasn't changed
+        assert g.np.isclose(length(res), length(seg))
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
