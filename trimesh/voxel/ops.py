@@ -152,7 +152,7 @@ def matrix_to_marching_cubes(matrix, pitch=1.0):
         vertices, faces, normals, vals = meshed
 
     # Return to the origin, add in the pad_width
-    vertices = np.subtract(vertices, pad_width)
+    vertices = np.subtract(vertices, pad_width * pitch)
     # create the mesh
     mesh = Trimesh(vertices=vertices,
                    faces=faces,
