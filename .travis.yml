@@ -131,4 +131,5 @@ script:
 - pytest -p no:warnings tests/test_graph.py tests/test_scene.py
 
 after_success:
-- coveralls || true
+# only upload test coverage results on python 3.6
+- if [[ "$PYTHON_VERSION" == "3.6" ]]; then coveralls || true; fi;

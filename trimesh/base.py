@@ -849,6 +849,8 @@ class Trimesh(Geometry):
         """
         edges, index = geometry.faces_to_edges(self.faces.view(np.ndarray),
                                                return_index=True)
+        edges.flags['WRITEABLE'] = False
+        index.flags['WRITEABLE'] = False
         self._cache['edges_face'] = index
         return edges
 
@@ -2738,24 +2740,29 @@ class Trimesh(Geometry):
         tree = util.bounds_tree(segment_bounds)
         return tree
 
-    def copy(self):
+    def copy(self, include_cache=False):
         """
         Safely return a copy of the current mesh.
 
-        Copied objects will have emptied caches to avoid memory
-        issues and so may be slow on initial operations until
-        caches are regenerated.
+        By default, copied meshes will have emptied cache
+        to avoid memory issues and so may be slow on initial
+        operations until caches are regenerated.
 
-        Current object will *not* have its cache cleared.
+        Current object will *never* have its cache cleared.
+
+        Parameters
+        ------------
+        include_cache : bool
+          If True, will shallow copy cached data to new mesh
 
         Returns
         ---------
         copied : trimesh.Trimesh
           Copy of current mesh
         """
+        # start with an empty mesh
         copied = Trimesh()
-
-        # copy vertex and face data
+        # always deepcopy vertex and face data
         copied._data.data = copy.deepcopy(self._data.data)
         # copy visual information
         copied.visual = self.visual.copy()
@@ -2766,10 +2773,26 @@ class Trimesh(Geometry):
             copied.center_mass = self.center_mass
         copied._density = self._density
 
-        # make sure cache is set from here
-        copied._cache.clear()
+        # make sure cache ID is set initially
+        copied._cache.verify()
+
+        if include_cache:
+            # shallow copy cached items into the new cache
+            # since the data didn't change here when the
+            # data in the new mesh is changed these items
+            # will be dumped in the new mesh but preserved
+            # in the original mesh
+            copied._cache.cache.update(self._cache.cache)
 
         return copied
+
+    def __deepcopy__(self, *args):
+        # interpret deep copy as "get rid of cached data"
+        return self.copy(include_cache=False)
+
+    def __copy__(self, *args):
+        # interpret shallow copy as "keep cached data"
+        return self.copy(include_cache=True)
 
     def eval_cached(self, statement, *args):
         """

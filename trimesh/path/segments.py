@@ -392,7 +392,7 @@ def length(segments, summed=True):
     return norms
 
 
-def resample(segments, maxlen):
+def resample(segments, maxlen, return_index=False):
     """
     Resample line segments until no segment
     is longer than maxlen.
@@ -403,12 +403,17 @@ def resample(segments, maxlen):
       2D line segments
     maxlen : float
       The maximum length of a line segment
+    return_index : bool
+      Return the index of the source segment
 
     Returns
     -------------
     resampled : (m, 2, 3) float
       Line segments where no segment is longer than maxlen
+    index : (m,) int
+      If return_index, the index of segments resampled came from
     """
+    # check arguments
     maxlen = float(maxlen)
     segments = np.asanyarray(segments, dtype=np.float64)
 
@@ -422,6 +427,8 @@ def resample(segments, maxlen):
 
     # save resulting segments
     result = []
+    # save index of original segment
+    index = []
 
     # loop through each count of unique splits needed
     for split in np.unique(splits):
@@ -441,7 +448,17 @@ def resample(segments, maxlen):
         # get indexes to stack polyline into segments
         stack = util.stack_lines(np.arange(split + 1))
         # save the resulting segments
-        result.extend([p[stack] for p in poly])
+        # magical slicing is equivalent to:
+        # > [p[stack] for p in poly]
+        result.extend(poly[:, stack])
+
+        if return_index:
+            # get the original index from the mask
+            index_original = np.nonzero(mask)[0].reshape((-1, 1))
+            # save one entry per split segment
+            index.append((np.ones((len(poly), split),
+                                  dtype=np.int64) *
+                          index_original).ravel())
 
         if tol.strict:
             # check to make sure every start and end point
@@ -458,5 +475,15 @@ def resample(segments, maxlen):
         assert np.isclose(length(segments),
                           length(result),
                           atol=1e-3)
+
+    if return_index:
+        # stack original indexes
+        index = np.concatenate(index)
+        if tol.strict:
+            # index should correspond to result
+            assert len(index) == len(result)
+            # every segment should be represented
+            assert set(index) == set(range(len(segments)))
+        return result, index
 
     return result
