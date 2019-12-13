@@ -29,6 +29,10 @@ class _Primitive(Trimesh):
     Mesh is generated lazily when vertices or faces are requested.
     """
 
+    # ignore superclass copy directives
+    __copy__ = None
+    __deepcopy__ = None
+
     def __init__(self, *args, **kwargs):
         super(_Primitive, self).__init__(*args, **kwargs)
         self._data.clear()
@@ -92,10 +96,7 @@ class _Primitive(Trimesh):
         copied : object
           Copy of current primitive
         """
-        # get keyword arguments for data
-        primitive_kwargs = self.primitive.to_kwargs()
-        # create a new primitive of the same type
-        return type(self)(**primitive_kwargs)
+        return copy.deepcopy(self)
 
     def to_mesh(self):
         """
