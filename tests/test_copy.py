@@ -13,9 +13,6 @@ class CopyTests(g.unittest.TestCase):
         for mesh in g.get_meshes(raise_error=True):
             if not isinstance(mesh, g.trimesh.Trimesh):
                 continue
-            # log file name for debugging
-            file_name = mesh.metadata['file_name']
-
             start = {mesh.md5(), mesh.crc()}
 
             # make sure some stuff is populated
