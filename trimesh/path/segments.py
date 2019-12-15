@@ -415,7 +415,7 @@ def resample(segments, maxlen, return_index=False):
     """
     # check arguments
     maxlen = float(maxlen)
-    segments = np.asanyarray(segments, dtype=np.float64)
+    segments = np.array(segments, dtype=np.float64)
 
     # shortcut for endpoints
     pt1 = segments[:, 0]

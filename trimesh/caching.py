@@ -104,6 +104,10 @@ def cache_decorator(function):
         value = function(*args, **kwargs)
         tic[2] = time.time()
         # store the value
+        if self._cache.force_immutable and hasattr(
+                value, 'flags') and len(value.shape) > 0:
+            value.flags.writeable = False
+
         self._cache.cache[name] = value
         # log both the function execution time and how long
         # it took to validate the state of the cache
@@ -159,7 +163,6 @@ class TrackedArray(np.ndarray):
 
     @mutable.setter
     def mutable(self, value):
-        # self.flags['WRITEABLE'] = value
         self.flags.writeable = value
 
     def md5(self):
@@ -370,18 +373,25 @@ class Cache(object):
     result of an ID function changes.
     """
 
-    def __init__(self, id_function):
+    def __init__(self, id_function, force_immutable=False):
         """
         Create a cache object.
 
         Parameters
         ------------
-        id_function: function, that returns hashable value
+        id_function : function
+          Returns hashable value
+        force_immutable : bool
+          If set will make all numpy arrays read-only
         """
         self._id_function = id_function
-
+        # force stored numpy arrays to have flags.writable=False
+        self.force_immutable = bool(force_immutable)
+        # call the id function for initial value
         self.id_current = self._id_function()
+        # a counter for locks
         self._lock = 0
+        # actual store for data
         self.cache = {}
 
     def delete(self, key):
@@ -433,6 +443,11 @@ class Cache(object):
         checking id_function.
         """
         self.cache.update(items)
+
+        if self.force_immutable:
+            for k, v in self.cache.items():
+                if hasattr(v, 'flags') and len(v.shape) > 0:
+                    v.flags.writeable = False
         self.id_set()
 
     def id_set(self):
@@ -467,12 +482,18 @@ class Cache(object):
         Parameters
         ------------
         key : hashable
-                 Key to reference value
+          Key to reference value
         value : any
-                  Value to store in cache
+          Value to store in cache
         """
+        # dumpy cache if ID function has changed
         self.verify()
+        # make numpy arrays read-only if asked to
+        if self.force_immutable and hasattr(value, 'flags') and len(value.shape) > 0:
+            value.flags.writeable = False
+        # assign data to dict
         self.cache[key] = value
+
         return value
 
     def __contains__(self, key):

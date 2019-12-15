@@ -119,10 +119,8 @@ class MeshTests(g.unittest.TestCase):
 
                 # nothing in the cache should be writeable
                 if cached.flags['WRITEABLE']:
-                    # TODO
-                    # eventually make all cached arrays read-only
-                    # then raise a ValueError here
-                    writeable.append(name)
+                    raise ValueError('{} is writeable!'.format(
+                        name))
 
                 # only check int, float, and bool
                 if cached.dtype.kind not in 'ibf':

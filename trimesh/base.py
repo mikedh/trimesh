@@ -113,7 +113,10 @@ class Trimesh(Geometry):
         # regenerated from self._data, but may be slow to calculate.
         # In order to maintain consistency
         # the cache is cleared when self._data.crc() changes
-        self._cache = caching.Cache(id_function=self._data.fast_hash)
+        self._cache = caching.Cache(
+            id_function=self._data.fast_hash,
+            force_immutable=True)
+
         self._cache.update(initial_cache)
 
         # if validate we are allowed to alter the mesh silently
@@ -523,8 +526,6 @@ class Trimesh(Geometry):
         # get mesh bounds with min and max
         mesh_bounds = np.array([in_mesh.min(axis=0),
                                 in_mesh.max(axis=0)])
-        # should not be mutable
-        mesh_bounds.flags.writeable = False
         return mesh_bounds
 
     @caching.cache_decorator
@@ -849,8 +850,6 @@ class Trimesh(Geometry):
         """
         edges, index = geometry.faces_to_edges(self.faces.view(np.ndarray),
                                                return_index=True)
-        edges.flags['WRITEABLE'] = False
-        index.flags['WRITEABLE'] = False
         self._cache['edges_face'] = index
         return edges
 
@@ -1655,8 +1654,6 @@ class Trimesh(Geometry):
         areas = np.array([sum(area_faces[i])
                           for i in self.facets],
                          dtype=np.float64)
-        # don't allow in-place operations or reassignment
-        areas.flags['WRITEABLE'] = False
         return areas
 
     @caching.cache_decorator
@@ -2352,8 +2349,6 @@ class Trimesh(Geometry):
         """
         area_faces = triangles.area(crosses=self.triangles_cross,
                                     sum=False)
-        # disallow in-place modifications
-        area_faces.flags['WRITEABLE'] = False
         return area_faces
 
     @caching.cache_decorator
@@ -2485,7 +2480,6 @@ class Trimesh(Geometry):
           Identifying properties of the current mesh
         """
         identifier = comparison.identifier_simple(self)
-        identifier.flags['WRITEABLE'] = False
         return identifier
 
     @caching.cache_decorator
@@ -2703,7 +2697,6 @@ class Trimesh(Geometry):
           Vertex defect at the every vertex
         """
         defects = curvature.vertex_defects(self)
-        defects.flags['WRITEABLE'] = False
         return defects
 
     @caching.cache_decorator
@@ -2718,8 +2711,6 @@ class Trimesh(Geometry):
         """
         # get degree through sparse matrix
         degree = np.array(self.faces_sparse.sum(axis=1)).flatten()
-        # don't allow property to be modified
-        degree.flags['WRITEABLE'] = False
         return degree
 
     @caching.cache_decorator

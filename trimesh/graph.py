@@ -660,18 +660,20 @@ def fill_traversals(traversals, edges, edges_hash=None):
 
 def traversals(edges, mode='bfs'):
     """
-    Given an edge list, generate a sequence of ordered
-    depth first search traversals, using scipy.csgraph routines.
+    Given an edge list generate a sequence of ordered depth
+    first search traversals using scipy.csgraph routines.
 
     Parameters
     ------------
-    edges : (n,2) int, undirected edges of a graph
-    mode :  str, 'bfs', or 'dfs'
+    edges : (n, 2) int
+      Undirected edges of a graph
+    mode :  str
+      Traversal type, 'bfs' or 'dfs'
 
     Returns
     -----------
-    traversals: (m,) sequence of (p,) int,
-                ordered DFS or BFS traversals of the graph.
+    traversals : (m,) sequence of (p,) int
+      Ordered DFS or BFS traversals of the graph.
     """
     edges = np.asanyarray(edges, dtype=np.int64)
     if len(edges) == 0:
