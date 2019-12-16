@@ -340,9 +340,11 @@ def plane_lines(plane_origin,
 def planes_lines(plane_origins,
                  plane_normals,
                  line_origins,
-                 line_directions):
+                 line_directions,
+                 return_distance=False,
+                 return_denom=False):
     """
-    Given one line per plane, find the intersection points.
+    Given one line per plane find the intersection points.
 
     Parameters
     -----------
@@ -354,13 +356,21 @@ def planes_lines(plane_origins,
         Point at origin of each line
     line_directions : (n,3) float
         Direction vector of each line
+    return_distance : bool
+      Return distance from origin to point also
+    return_denom : bool
+      Return denominator, so you can check for small values
 
     Returns
     ----------
     on_plane : (n,3) float
-        Points on specified planes
+      Points on specified planes
     valid : (n,) bool
-        Did plane intersect line or not
+      Did plane intersect line or not
+    distance : (n,) float
+      [OPTIONAL] Distance from point
+    denom : (n,) float
+      [OPTIONAL] Denominator
     """
 
     # check input types
@@ -375,7 +385,7 @@ def planes_lines(plane_origins,
     projection_ori = util.diagonal_dot(origin_vectors, plane_normals)
     projection_dir = util.diagonal_dot(line_directions, plane_normals)
 
-    valid = np.abs(projection_dir) > tol.merge
+    valid = np.abs(projection_dir) > 1e-5
 
     distance = np.divide(projection_ori[valid],
                          projection_dir[valid])
@@ -383,7 +393,14 @@ def planes_lines(plane_origins,
     on_plane = line_directions[valid] * distance.reshape((-1, 1))
     on_plane += line_origins[valid]
 
-    return on_plane, valid
+    result = [on_plane, valid]
+
+    if return_distance:
+        result.append(distance)
+    if return_denom:
+        result.append(projection_dir)
+
+    return result
 
 
 def slice_faces_plane(vertices,

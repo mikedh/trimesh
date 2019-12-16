@@ -4,7 +4,6 @@ API wrapped to match our native raytracer.
 """
 import numpy as np
 
-from collections import deque
 from copy import deepcopy
 
 from pyembree import __version__ as _ver
@@ -43,12 +42,12 @@ class RayMeshIntersector(object):
 
         Parameters
         -------------
-        geometry     : Trimesh object
-                         Mesh to do ray tests on
+        geometry : Trimesh object
+          Mesh to do ray tests on
         scale_to_box : bool
-                         If true, will scale mesh to approximate
-                         unit cube to avoid problems with extreme
-                         large or small meshes.
+          If true, will scale mesh to approximate
+          unit cube to avoid problems with extreme
+          large or small meshes.
         """
         self.mesh = geometry
         self._scale_to_box = scale_to_box
@@ -90,14 +89,13 @@ class RayMeshIntersector(object):
         ray_directions : (n, 3) float
           Direction (vector) of rays
 
-
         Returns
         ---------
-        locations : (n) sequence of (m, 3) float
+        locations : (m) sequence of (p, 3) float
           Intersection points
-        index_ray : (n,) int
+        index_ray : (m,) int
           Indexes of ray
-        index_tri : (n,) int
+        index_tri : (m,) int
           Indexes of mesh.faces
         """
         (index_tri,
@@ -121,19 +119,29 @@ class RayMeshIntersector(object):
         Find the triangles hit by a list of rays, including
         optionally multiple hits along a single ray.
 
+
         Parameters
         ----------
-        ray_origins:      (n, 3) float, origins of rays
-        ray_directions:   (n, 3) float, direction (vector) of rays
-        multiple_hits:    bool, if True will return every hit along the ray
-                                if False will only return first hit
-        return_locations: bool, should we return hit locations or not
+        ray_origins : (n, 3) float
+          Origins of rays
+        ray_directions : (n, 3) float
+          Direction (vector) of rays
+        multiple_hits : bool
+          If True will return every hit along the ray
+          If False will only return first hit
+        max_hits : int
+          Maximum number of hits per ray
+        return_locations : bool
+          Should we return hit locations or not
 
         Returns
-        ----------
-        index_tri: (m,) int, index of triangle the ray hit
-        index_ray: (m,) int, index of ray
-        locations: (m, 3) float, locations in space
+        ---------
+        index_tri : (m,) int
+          Indexes of mesh.faces
+        index_ray : (m,) int
+          Indexes of ray
+        locations : (m) sequence of (p, 3) float
+          Intersection points, only returned if return_locations
         """
         # make sure input is _dtype for embree
         ray_origins = np.asanyarray(
@@ -145,9 +153,9 @@ class RayMeshIntersector(object):
 
         # since we are constructing all hits, save them to a deque then
         # stack into (depth, len(rays)) at the end
-        result_triangle = deque()
-        result_ray_idx = deque()
-        result_locations = deque()
+        result_triangle = []
+        result_ray_idx = []
+        result_locations = []
 
         # the mask for which rays are still active
         current = np.ones(len(ray_origins), dtype=np.bool)
@@ -316,8 +324,8 @@ class _EmbreeWrap(object):
     """
 
     def __init__(self, vertices, faces, scale):
-        scaled = np.asanyarray(vertices,
-                               dtype=np.float64)
+        scaled = np.array(vertices,
+                          dtype=np.float64)
         self.origin = scaled.min(axis=0)
         self.scale = float(scale)
         scaled = (scaled - self.origin) * self.scale
@@ -327,11 +335,11 @@ class _EmbreeWrap(object):
         TriangleMesh(
             scene=self.scene,
             vertices=scaled.astype(_embree_dtype),
-            indices=faces.astype(np.int32))
+            indices=faces.view(np.ndarray).astype(np.int32))
 
     def run(self, origins, normals, **kwargs):
-        scaled = (np.asanyarray(origins,
-                                dtype=np.float64) - self.origin) * self.scale
+        scaled = (np.array(origins,
+                           dtype=np.float64) - self.origin) * self.scale
 
         return self.scene.run(scaled.astype(_embree_dtype),
                               normals.astype(_embree_dtype),

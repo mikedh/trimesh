@@ -19,7 +19,7 @@ class ExportTest(g.unittest.TestCase):
             mesh.merge_vertices(textured=False)
             for file_type in export_types:
                 # skip pointcloud format
-                if file_type in ['xyz']:
+                if file_type in ['xyz', 'gltf']:
                     # a pointcloud format
                     continue
                 # run the export

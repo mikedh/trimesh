@@ -274,7 +274,8 @@ def unique_bincount(values,
     return_inverse : bool
       If True, return an inverse such that unique[inverse] == values
     return_counts : bool
-      If True, also return the number of times each unique item appears in values
+      If True, also return the number of times each
+      unique item appears in values
 
     Returns
     ------------

@@ -361,69 +361,20 @@ def export_svg(drawing,
         result = template.format(*discrete.reshape(-1))
         return result
 
-    def convert_path(path,
-                     reverse=False,
-                     close=True):
-        """
-        Convert a list of entity indices to SVG.
+    def convert_entity(entity, reverse=False):
+        if layers is not None and entity.layer not in layers:
+            return ''
+        # the class name of the entity
+        etype = entity.__class__.__name__
+        if etype == 'Arc':
+            # export the exact version of the entity
+            return svg_arc(entity, reverse=False)
+        else:
+            # just export the polyline version of the entity
+            return svg_discrete(entity, reverse=False)
 
-        Parameters
-        ----------------
-        path : [int]
-          List of entity indices
-        reverse : bool
-          Reverse exported path
-        close : bool
-          If True, connect last vertex to first
-
-        Returns
-        -------------
-        as_svg : str
-          SVG path string of input path
-        """
-        # if we are only exporting some layers check here
-        if layers is not None:
-            # only export if every entity is on layer whitelist
-            if not all(drawing.layers[i] in layers for i in path):
-                return ''
-
-        path = path[::(reverse * -2) + 1]
-        converted = []
-        for i, entity_id in enumerate(path):
-            # the entity object
-            entity = drawing.entities[entity_id]
-            # the class name of the entity
-            etype = entity.__class__.__name__
-            if etype in converters:
-                # export the exact version of the entity
-                converted.append(converters[etype](entity,
-                                                   reverse))
-            else:
-                # just export the polyline version of the entity
-                converted.append(svg_discrete(entity,
-                                              reverse))
-
-        # remove leading and trailing whitespace
-        as_svg = ' '.join(converted) + ' '
-        return as_svg
-
-    # only converters where we want to do something
-    # other than export a curve as a polyline
-    converters = {'Arc': svg_arc}
-
-    converted = []
-    for index, path in enumerate(drawing.paths):
-        # holes are determined by winding
-        # trimesh makes all paths clockwise
-        reverse = not (index in drawing.root)
-        converted.append(convert_path(path,
-                                      reverse=reverse,
-                                      close=True))
-
-    # entities which haven't been included in a closed path
-    converted.append(convert_path(drawing.dangling,
-                                  reverse=False,
-                                  close=False))
+    # convert each entity to an SVG entity
+    converted = [convert_entity(e) for e in drawing.entities]
 
     # append list of converted into a string
     path_str = ''.join(converted).strip()
