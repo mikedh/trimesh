@@ -362,6 +362,8 @@ def export_svg(drawing,
         return result
 
     def convert_entity(entity, reverse=False):
+        if layers is not None and entity.layer not in layers:
+            return ''
         # the class name of the entity
         etype = entity.__class__.__name__
         if etype == 'Arc':

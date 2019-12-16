@@ -45,16 +45,19 @@ class ExportTest(g.unittest.TestCase):
         assert g.np.isclose(c.area, a.area + b.area)
 
         # export C with just layer of A
-        aX = c.export(file_type='svg',
-                      layers=['ACIRCLE'],
-                      return_path=True)
+        aX = g.trimesh.load(g.io_wrap(
+            c.export(file_type='svg',
+                     layers=['ACIRCLE'])),
+            file_type='svg')
 
-        # export C with just layer of A
-        cX = c.export(file_type='svg',
-                      layers=None,
-                      return_path=True)
+        # export C with all layers
+        cX = g.trimesh.load(g.io_wrap(
+            c.export(file_type='svg',
+                     layers=None)),
+            file_type='svg')
 
-        assert len(cX) > len(aX)
+        assert len(cX.entities) == len(c.entities)
+        assert len(aX.entities) == 1
 
         # make
         aR = g.trimesh.load(g.io_wrap(c.export(file_type='dxf',
