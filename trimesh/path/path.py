@@ -293,6 +293,19 @@ class Path(object):
         return scale
 
     @caching.cache_decorator
+    def length(self):
+        """
+        The total discretized length of every entity.
+
+        Returns
+        --------
+        length: float, summed length of every entity
+        """
+        length = float(sum(i.length(self.vertices)
+                           for i in self.entities))
+        return length
+
+    @caching.cache_decorator
     def bounds(self):
         """
         Return the axis aligned bounding box of the current path.
@@ -773,7 +786,8 @@ class Path(object):
 
         Returns
         ---------
-        copied: Path object, copy of self
+        copied : Path object
+          Copy of self
         """
 
         metadata = {}
@@ -789,7 +803,8 @@ class Path(object):
         # copy the core data
         copied = type(self)(entities=copy.deepcopy(self.entities),
                             vertices=copy.deepcopy(self.vertices),
-                            metadata=metadata)
+                            metadata=metadata,
+                            process=False)
 
         cache = {}
         # try to copy the cache over to the new object
@@ -1222,19 +1237,6 @@ class Path2D(Path):
         """
         centroid = self.vertices.mean(axis=0)
         return centroid
-
-    @caching.cache_decorator
-    def length(self):
-        """
-        The total discretized length of every entity.
-
-        Returns
-        --------
-        length: float, summed length of every entity
-        """
-        length = float(sum(i.length(self.vertices)
-                           for i in self.entities))
-        return length
 
     def extrude(self, height, **kwargs):
         """
