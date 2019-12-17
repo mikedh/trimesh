@@ -391,12 +391,11 @@ def vector_hemisphere(vectors, return_sign=False):
     Returns
     ----------
     oriented: (n, 3) float
-       Vectors with same magnitude as source
-       but possibly reversed to ensure all vectors
-       are in the same hemisphere.
+      Vectors with same magnitude as source
+      but possibly reversed to ensure all vectors
+      are in the same hemisphere.
     sign : (n,) float
-
-
+      [OPTIONAL] sign of original vectors
     """
     # vectors as numpy array
     vectors = np.asanyarray(vectors, dtype=np.float64)
@@ -660,8 +659,7 @@ def stack_3D(points, return_2D=False):
     points : (n, 3) float
       Points in space
     is_2D : bool
-      Only returned if return_2D
-      If source points were (n, 2) True
+      [OPTIONAL] if source points were (n, 2)
     """
     points = np.asanyarray(points, dtype=np.float64)
     shape = points.shape

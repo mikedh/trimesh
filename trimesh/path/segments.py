@@ -392,7 +392,10 @@ def length(segments, summed=True):
     return norms
 
 
-def resample(segments, maxlen, return_index=False):
+def resample(segments,
+             maxlen,
+             return_index=False,
+             return_count=False):
     """
     Resample line segments until no segment
     is longer than maxlen.
@@ -405,13 +408,17 @@ def resample(segments, maxlen, return_index=False):
       The maximum length of a line segment
     return_index : bool
       Return the index of the source segment
+    return_count : bool
+      Return how many segments each original was split into
 
     Returns
     -------------
     resampled : (m, 2, 3) float
       Line segments where no segment is longer than maxlen
     index : (m,) int
-      If return_index, the index of segments resampled came from
+      [OPTIONAL] The index of segments resampled came from
+    count : (n,) int
+      [OPTIONAL] The count of the original segments
     """
     # check arguments
     maxlen = float(maxlen)
@@ -476,6 +483,11 @@ def resample(segments, maxlen, return_index=False):
                           length(result),
                           atol=1e-3)
 
+    if not return_index and not return_count:
+        return result
+
+    result = [result]
+
     if return_index:
         # stack original indexes
         index = np.concatenate(index)
@@ -484,6 +496,9 @@ def resample(segments, maxlen, return_index=False):
             assert len(index) == len(result)
             # every segment should be represented
             assert set(index) == set(range(len(segments)))
-        return result, index
+        result.append(index)
+
+    if return_count:
+        result.append(splits)
 
     return result
