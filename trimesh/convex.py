@@ -24,7 +24,7 @@ except ImportError as E:
     spatial = ExceptionModule(E)
 
 
-def convex_hull(obj, qhull_options='QbB Pp QJn'):
+def convex_hull(obj, qhull_options='QbB Pp QJ'):
     """
     Get a new Trimesh object representing the convex hull of the
     current mesh, with proper normals and watertight.

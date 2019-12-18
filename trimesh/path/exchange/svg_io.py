@@ -277,15 +277,14 @@ def export_svg(drawing,
     drawing : Path2D
      Source geometry
     return_path : bool
-      If True return only path string
+      If True return only path string not wrapped in XML
     layers : None, or [str]
       Only export specified layers
 
     Returns
     -----------
     as_svg : str
-      XML formatted SVG
-
+      XML formatted SVG, or path string
     """
     if not util.is_instance_named(drawing, 'Path2D'):
         raise ValueError('drawing must be Path2D object!')

@@ -392,7 +392,10 @@ def length(segments, summed=True):
     return norms
 
 
-def resample(segments, maxlen, return_index=False):
+def resample(segments,
+             maxlen,
+             return_index=False,
+             return_count=False):
     """
     Resample line segments until no segment
     is longer than maxlen.
@@ -405,13 +408,17 @@ def resample(segments, maxlen, return_index=False):
       The maximum length of a line segment
     return_index : bool
       Return the index of the source segment
+    return_count : bool
+      Return how many segments each original was split into
 
     Returns
     -------------
     resampled : (m, 2, 3) float
       Line segments where no segment is longer than maxlen
     index : (m,) int
-      If return_index, the index of segments resampled came from
+      [OPTIONAL] The index of segments resampled came from
+    count : (n,) int
+      [OPTIONAL] The count of the original segments
     """
     # check arguments
     maxlen = float(maxlen)
@@ -468,22 +475,28 @@ def resample(segments, maxlen, return_index=False):
                 assert np.allclose(original[-1], recon[-1])
 
     # stack into (n, 2, 3) segments
-    result = np.concatenate(result)
+    result = [np.concatenate(result)]
 
     if tol.strict:
         # make sure resampled segments have the same length as input
         assert np.isclose(length(segments),
-                          length(result),
+                          length(result[0]),
                           atol=1e-3)
 
+    # stack additional return options
     if return_index:
         # stack original indexes
         index = np.concatenate(index)
         if tol.strict:
             # index should correspond to result
-            assert len(index) == len(result)
+            assert len(index) == len(result[0])
             # every segment should be represented
             assert set(index) == set(range(len(segments)))
-        return result, index
+        result.append(index)
 
+    if return_count:
+        result.append(splits)
+
+    if len(result) == 1:
+        return result[0]
     return result
