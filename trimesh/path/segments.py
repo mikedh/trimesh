@@ -475,25 +475,21 @@ def resample(segments,
                 assert np.allclose(original[-1], recon[-1])
 
     # stack into (n, 2, 3) segments
-    result = np.concatenate(result)
+    result = [np.concatenate(result)]
 
     if tol.strict:
         # make sure resampled segments have the same length as input
         assert np.isclose(length(segments),
-                          length(result),
+                          length(result[0]),
                           atol=1e-3)
 
-    if not return_index and not return_count:
-        return result
-
-    result = [result]
-
+    # stack additional return options
     if return_index:
         # stack original indexes
         index = np.concatenate(index)
         if tol.strict:
             # index should correspond to result
-            assert len(index) == len(result)
+            assert len(index) == len(result[0])
             # every segment should be represented
             assert set(index) == set(range(len(segments)))
         result.append(index)
@@ -501,4 +497,6 @@ def resample(segments,
     if return_count:
         result.append(splits)
 
+    if len(result) == 1:
+        return result[0]
     return result
