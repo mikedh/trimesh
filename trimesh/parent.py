@@ -95,6 +95,24 @@ class Geometry(ABC):
         # apply_transform will work nicely even on negative scales
         return self.apply_transform(matrix)
 
+    def apply_obb(self):
+        """
+        Apply the oriented bounding box transform to the current mesh.
+
+        This will result in a mesh with an AABB centered at the
+        origin and the same dimensions as the OBB.
+
+        Returns
+        ----------
+        matrix : (4, 4) float
+          Transformation matrix that was applied
+          to mesh to move it into OBB frame
+        """
+        matrix = self.bounding_box_oriented.primitive.transform
+        matrix = np.linalg.inv(matrix)
+        self.apply_transform(matrix)
+        return matrix
+
     @abc.abstractmethod
     def copy(self):
         pass

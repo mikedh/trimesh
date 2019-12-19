@@ -285,7 +285,7 @@ class Trimesh(Geometry):
 
         Returns
         ----------
-        faces : (n,3) int
+        faces : (n, 3) int
           Representing triangles which reference self.vertices
         """
         return self._data.get('faces', np.empty(shape=(0, 3), dtype=int))
@@ -439,9 +439,8 @@ class Trimesh(Geometry):
         values : (n, 3) float
           Points in space
         """
-        self._data['vertices'] = np.asanyarray(values,
-                                               order='C',
-                                               dtype=np.float64)
+        self._data['vertices'] = np.asanyarray(
+            values, order='C', dtype=np.float64)
 
     @caching.cache_decorator
     def vertex_normals(self):
@@ -455,7 +454,7 @@ class Trimesh(Geometry):
 
         Returns
         ----------
-        vertex_normals : (n,3) float
+        vertex_normals : (n, 3) float
           Represents the surface normal at each vertex.
           Where n == len(self.vertices)
         """
@@ -1288,7 +1287,7 @@ class Trimesh(Geometry):
 
         Returns
         ----------
-        adjacency : (n,2) int
+        adjacency : (n, 2) int
           Pairs of faces which share an edge
 
         Examples
@@ -1460,7 +1459,7 @@ class Trimesh(Geometry):
         mesh = trimesh.primitives.Box()
         graph = mesh.vertex_adjacency_graph
         graph.neighbors(0)
-        > [1,2,3,4]
+        > [1, 2, 3, 4]
         """
 
         adjacency_g = graph.vertex_adjacency_graph(mesh=self)
@@ -1485,7 +1484,7 @@ class Trimesh(Geometry):
 
         >>> mesh = trimesh.primitives.Box()
         >>> mesh.vertex_neighbors[0]
-        [1,2,3,4]
+        [1, 2, 3, 4]
         """
         graph = self.vertex_adjacency_graph
         neighbors = [list(graph.neighbors(i)) for
@@ -1674,9 +1673,9 @@ class Trimesh(Geometry):
         # the face index of the largest face in each facet
         index = np.array([i[area_faces[i].argmax()]
                           for i in self.facets])
-        # (n,3) float, unit normal vectors of facet plane
+        # (n, 3) float, unit normal vectors of facet plane
         normals = self.face_normals[index]
-        # (n,3) float, points on facet plane
+        # (n, 3) float, points on facet plane
         origins = self.vertices[self.faces[:, 0][index]]
         # save origins in cache
         self._cache['facets_origin'] = origins
@@ -1732,7 +1731,7 @@ class Trimesh(Geometry):
         normals = self.facets_normal
         origins = self.facets_origin
 
-        # (n,3) convex hull vertices
+        # (n, 3) convex hull vertices
         convex = self.convex_hull.vertices.view(np.ndarray).copy()
 
         # boolean mask for which facets are on convex hull
@@ -2155,24 +2154,6 @@ class Trimesh(Geometry):
         # keep face normals as the haven't changed
         self._cache.clear(exclude=['face_normals'])
 
-    def apply_obb(self):
-        """
-        Apply the oriented bounding box transform to the current mesh.
-
-        This will result in a mesh with an AABB centered at the
-        origin and the same dimensions as the OBB.
-
-        Returns
-        ----------
-        matrix : (4, 4) float
-          Transformation matrix that was applied
-          to mesh to move it into OBB frame
-        """
-        matrix = self.bounding_box_oriented.primitive.transform
-        matrix = np.linalg.inv(matrix)
-        self.apply_transform(matrix)
-        return matrix
-
     def apply_transform(self, matrix):
         """
         Transform mesh by a homogeneous transformation matrix.
@@ -2187,13 +2168,12 @@ class Trimesh(Geometry):
           Homogeneous transformation matrix
         """
         # get c-order float64 matrix
-        matrix = np.asanyarray(matrix,
-                               order='C',
-                               dtype=np.float64)
+        matrix = np.asanyarray(
+            matrix, order='C', dtype=np.float64)
 
         # only support homogeneous transformations
         if matrix.shape != (4, 4):
-            raise ValueError('Transformation matrix must be (4,4)!')
+            raise ValueError('Transformation matrix must be (4, 4)!')
 
         # exit early if we've been passed an identity matrix
         # np.allclose is surprisingly slow so do this test
@@ -2804,7 +2784,7 @@ class Trimesh(Geometry):
 
         Examples
         -----------
-        r = mesh.eval_cached('np.dot(self.vertices, args[0])', [0,0,1])
+        r = mesh.eval_cached('np.dot(self.vertices, args[0])', [0, 0, 1])
         """
 
         statement = str(statement)

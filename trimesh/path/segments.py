@@ -437,6 +437,10 @@ def resample(segments,
     # save index of original segment
     index = []
 
+    tile = np.tile
+    # generate the line indexes ahead of time
+    stacks = util.stack_lines(np.arange(splits.max() + 1))
+
     # loop through each count of unique splits needed
     for split in np.unique(splits):
         # get a mask of which segments need to be split
@@ -444,20 +448,17 @@ def resample(segments,
         # the vector for each incremental length
         increment = vec[mask] / split
         # stack the increment vector into the shape needed
-        v = np.tile(increment, split + 1).reshape((-1, 3))
-        # apply integer multiples of the increment
-        v *= np.tile(np.arange(split + 1),
-                     len(increment)).reshape((-1, 1))
+        v = (tile(increment, split + 1).reshape((-1, 3)) *
+             tile(np.arange(split + 1),
+                  len(increment)).reshape((-1, 1)))
         # stack the origin points correctly
-        o = np.tile(pt1[mask], split + 1).reshape((-1, 3))
+        o = tile(pt1[mask], split + 1).reshape((-1, 3))
         # now get each segment as an (split, 3) polyline
         poly = (o + v).reshape((-1, split + 1, 3))
-        # get indexes to stack polyline into segments
-        stack = util.stack_lines(np.arange(split + 1))
         # save the resulting segments
         # magical slicing is equivalent to:
         # > [p[stack] for p in poly]
-        result.extend(poly[:, stack])
+        result.extend(poly[:, stacks[:split]])
 
         if return_index:
             # get the original index from the mask
@@ -466,13 +467,16 @@ def resample(segments,
             index.append((np.ones((len(poly), split),
                                   dtype=np.int64) *
                           index_original).ravel())
-
         if tol.strict:
             # check to make sure every start and end point
             # from the reconstructed result corresponds
             for original, recon in zip(segments[mask], poly):
                 assert np.allclose(original[0], recon[0])
                 assert np.allclose(original[-1], recon[-1])
+            # make sure stack slicing was OK
+            assert np.allclose(
+                util.stack_lines(np.arange(split + 1)),
+                stacks[:split])
 
     # stack into (n, 2, 3) segments
     result = [np.concatenate(result)]
