@@ -190,6 +190,13 @@ class PointsTest(g.unittest.TestCase):
         assert p.vertices.shape == (100, 3)
         assert p.colors.shape == (100, 4)
 
+    def test_obb(self):
+        p = g.get_mesh('points_agisoft.xyz')
+        original = p.bounds.copy()
+        matrix = p.apply_obb()
+        assert matrix.shape == (4, 4)
+        assert not g.np.allclose(p.bounds, original)
+
     def test_remove_close(self):
         # create 100 unique points
         p = g.np.arange(300).reshape((100, 3))
