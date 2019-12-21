@@ -1,7 +1,5 @@
 import numpy as np
 
-
-from shapely import vectorized
 from shapely.geometry import Polygon
 
 from rtree import Rtree
@@ -331,6 +329,7 @@ def medial_axis(polygon,
       Vertex positions in space
     """
     from scipy.spatial import Voronoi
+    from shapely import vectorized
 
     if resolution is None:
         resolution = np.reshape(polygon.bounds, (2, 2)).ptp(axis=0).max() / 100
@@ -485,6 +484,8 @@ def sample(polygon, count, factor=1.5, max_iter=10):
            Random points inside polygon
            where n <= count
     """
+    from shapely import vectorized
+
     bounds = np.reshape(polygon.bounds, (2, 2))
     extents = bounds.ptp(axis=0)
 
