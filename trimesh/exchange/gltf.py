@@ -978,7 +978,7 @@ def _read_buffers(header, buffers, mesh_kwargs, resolver=None):
                 vertex_attributes = {}
                 for attr in custom_attrs:
                         vertex_attributes[attr] = access[p["attributes"][attr]]
-                kwargs['vertex_attributes'] = vertex_attributes
+                kwargs["vertex_attributes"] = vertex_attributes
 
             kwargs["process"] = False
 
