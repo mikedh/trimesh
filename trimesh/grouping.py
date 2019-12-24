@@ -56,6 +56,7 @@ def merge_vertices(mesh,
         # converted to integers at requested precision
         stacked = np.column_stack((
             mesh.vertices * (10 ** digits),
+            mesh.vertex_normals * (10 ** digits),
             mesh.visual.uv * (10 ** uv_digits))).round().astype(np.int64)
         # Merge vertices with identical positions and UVs
         # we don't merge vertices just based on position
@@ -74,9 +75,11 @@ def merge_vertices(mesh,
             # this is used for PointCloud objects
             referenced = np.ones(len(mesh.vertices), dtype=np.bool)
 
-        # check unique rows of referenced vertices
-        u, i = unique_rows(mesh.vertices[referenced],
-                           digits=digits)
+        # only remove duplicates if vertex position and normal are close
+        stacked = np.column_stack((
+            mesh.vertices[referenced] * (10 ** digits),
+            mesh.vertex_normals[referenced] * (10 ** digits))).round().astype(np.int64)
+        u, i = unique_rows(stacked)
 
         # construct an inverse using the subset
         inverse = np.zeros(len(mesh.vertices), dtype=np.int64)
