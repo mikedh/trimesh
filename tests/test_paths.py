@@ -9,7 +9,7 @@ class VectorTests(g.unittest.TestCase):
     def test_discrete(self):
         try:
             # TODO : REMOVE THIS WHEN SHAPELY WORKS IN 3.8
-            from shapely import vectorized
+            from shapely import vectorized  # noqa
             vec_ok = True
         except BaseException:
             vec_ok = False
@@ -241,7 +241,7 @@ class VectorTests(g.unittest.TestCase):
         """
         try:
             # TODO : REMOVE THIS
-            from shapely import vectorized
+            from shapely import vectorized  # noqa
         except BaseException:
             g.log.error(
                 'no shapely.vectorized!', exc_info=True)
