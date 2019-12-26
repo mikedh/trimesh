@@ -1077,23 +1077,30 @@ class Trimesh(Geometry):
         units._convert_units(self, desired, guess)
         return self
 
-    def merge_vertices(self, digits=None, textured=True):
+    def merge_vertices(self, **kwargs):
         """
         If a mesh has vertices that are closer than
         trimesh.constants.tol.merge reindex faces to reference
         the same index for both vertices.
 
         Parameters
-        --------------
-        digits : int
-          If specified overrides tol.merge
-        textured : bool
-          If True avoids merging vertices with different UV
-          coordinates. No effect on untextured meshes.
+        -------------
+        mesh : Trimesh object
+          Mesh to merge vertices on
+        use_tex : bool
+          If True for textured meshes merge vertices
+          with identical positions AND UV coordinates.
+        use_norm : bool
+          If True meshes with vertex normals defined will
+          only have vertices merged with identical normal
+        digits_vertex : None or int
+          Number of digits to consider for vertex position
+        digits_norm : int
+          Number of digits to consider for unit normals
+        digits_uv : int
+          Number of digits to consider for UV coordinates
         """
-        grouping.merge_vertices(self,
-                                digits=digits,
-                                textured=textured)
+        grouping.merge_vertices(self, **kwargs)
 
     def update_vertices(self, mask, inverse=None):
         """
