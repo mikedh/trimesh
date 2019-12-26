@@ -1,7 +1,5 @@
 import numpy as np
 
-
-from shapely import vectorized
 from shapely.geometry import Polygon
 
 from rtree import Rtree
@@ -331,9 +329,11 @@ def medial_axis(polygon,
       Vertex positions in space
     """
     from scipy.spatial import Voronoi
+    from shapely import vectorized
 
     if resolution is None:
-        resolution = np.reshape(polygon.bounds, (2, 2)).ptp(axis=0).max() / 100
+        resolution = np.reshape(
+            polygon.bounds, (2, 2)).ptp(axis=0).max() / 100
 
     # get evenly spaced points on the polygons boundaries
     samples = resample_boundaries(polygon=polygon,
@@ -468,23 +468,25 @@ def sample(polygon, count, factor=1.5, max_iter=10):
     Parameters
     -----------
     polygon : shapely.geometry.Polygon
-                Polygon that will contain points
-    count   : int
-                Number of points to return
-    factor  : float
-                How many points to test per loop
-                IE, count * factor
-    max_iter : int,
-                Maximum number of intersection loops
-                to run, total points sampled is
-                count * factor * max_iter
+      Polygon that will contain points
+    count : int
+      Number of points to return
+    factor : float
+      How many points to test per loop
+    max_iter : int
+      Maximum number of intersection checks is:
+      > count * factor * max_iter
 
     Returns
     -----------
     hit : (n, 2) float
-           Random points inside polygon
-           where n <= count
+      Random points inside polygon
+      where n <= count
     """
+    # do batch point-in-polygon queries
+    from shapely import vectorized
+
+    # get size of bounding box
     bounds = np.reshape(polygon.bounds, (2, 2))
     extents = bounds.ptp(axis=0)
 

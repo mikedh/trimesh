@@ -82,6 +82,22 @@ class SegmentsTest(g.unittest.TestCase):
         # make sure overall length hasn't changed
         assert g.np.isclose(length(res), length(seg))
 
+    def test_svg(self):
+        from trimesh.path.segments import to_svg
+        # create some 2D segments
+        seg = g.random((1000, 2, 2))
+        # create an SVG path string
+        svg = to_svg(seg)
+        # should be one move and one line per segment
+        assert svg.count('M') == len(seg)
+        assert svg.count('L') == len(seg)
+
+        try:
+            to_svg(g.random((100, 2, 3)))
+        except ValueError:
+            return
+        raise ValueError('to_svg accepted wrong input!')
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

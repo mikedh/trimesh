@@ -225,7 +225,7 @@ def split(segments, points, atol=1e-5):
 
 def unique(segments, digits=5):
     """
-    Find unique line segments.
+    Find unique non-zero line segments.
 
     Parameters
     ------------
@@ -245,13 +245,16 @@ def unique(segments, digits=5):
     inverse = grouping.unique_rows(
         segments.reshape((-1, segments.shape[2])),
         digits=digits)[1].reshape((-1, 2))
-
     # make sure rows are sorted
     inverse.sort(axis=1)
-    # find rows that occur once
-    index = grouping.unique_rows(inverse)
+    # remove segments where both indexes are the same
+    mask = np.zeros(len(segments), dtype=np.bool)
+    # only include the first occurance of a segment
+    mask[grouping.unique_rows(inverse)[0]] = True
+    # remove segments that are zero-length
+    mask[inverse[:, 0] == inverse[:, 1]] = False
     # apply the unique mask
-    unique = segments[index[0]]
+    unique = segments[mask]
 
     return unique
 
@@ -503,4 +506,45 @@ def resample(segments,
 
     if len(result) == 1:
         return result[0]
+    return result
+
+
+def to_svg(segments, digits=4, scale=None, origin=None):
+    """
+    Convert (n, 2, 2) line segments to an SVG path string.
+
+    Parameters
+    ------------
+    segments : (n, 2, 2) float
+      Line segments to convert
+    digits : int
+      Number of digits to include in SVG string
+    scale : None or float
+      Scale to apply before exporting
+    origin : None or (2,) float
+      Origin to translate before scaling
+
+    Returns
+    -----------
+    path : str
+      SVG path string with one line per segment
+      IE: 'M 0.1 0.2 L 10 12'
+    """
+    segments = np.asanyarray(segments)
+    if not util.is_shape(segments, (-1, 2, 2)):
+        raise ValueError('only for (n, 2, 2) segments!')
+
+    # create the array to export
+    flat = segments.copy().reshape((-1, 2))
+    # apply origin if passed
+    if origin is not None:
+        flat -= np.array(origin).reshape(2)
+    # then apply scale if passed
+    if scale is not None:
+        flat *= float(scale)
+    # create the base format for a single line segment
+    base = ' M _ _ L _ _'.replace(
+        '_', '{:0.' + str(int(digits)) + 'f}')
+    # create one large format string then apply points
+    result = (base * len(segments))[1:].format(*flat.ravel())
     return result

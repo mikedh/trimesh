@@ -384,7 +384,7 @@ class Trimesh(Geometry):
         # if nothing passed exit
         if values is None:
             return
-        # make sure candidate face normals are C- contiguous float
+        # make sure candidate face normals are C-contiguous float
         values = np.asanyarray(
             values, order='C', dtype=np.float64)
         # face normals need to correspond to faces
@@ -570,7 +570,7 @@ class Trimesh(Geometry):
         The point in space which is the average of the triangle centroids
         weighted by the area of each triangle.
 
-        This will be valid even for non- watertight meshes,
+        This will be valid even for non-watertight meshes,
         unlike self.center_mass
 
         Returns
@@ -1077,23 +1077,34 @@ class Trimesh(Geometry):
         units._convert_units(self, desired, guess)
         return self
 
-    def merge_vertices(self, digits=None, textured=True):
+    def merge_vertices(self, **kwargs):
         """
         If a mesh has vertices that are closer than
         trimesh.constants.tol.merge reindex faces to reference
         the same index for both vertices.
 
         Parameters
-        --------------
-        digits : int
-          If specified overrides tol.merge
-        textured : bool
-          If True avoids merging vertices with different UV
-          coordinates. No effect on untextured meshes.
+        -------------
+        mesh : Trimesh object
+          Mesh to merge vertices on
+        use_tex : bool
+          If True for textured meshes merge vertices
+          with identical positions AND UV coordinates.
+        use_norm : bool
+          If True meshes with vertex normals defined will
+          only have vertices merged with identical normal
+        digits_vertex : None or int
+          Number of digits to consider for vertex position
+        digits_norm : int
+          Number of digits to consider for unit normals
+        digits_uv : int
+          Number of digits to consider for UV coordinates
         """
-        grouping.merge_vertices(self,
-                                digits=digits,
-                                textured=textured)
+        if 'textured' in kwargs:
+            kwargs['use_tex'] = kwargs.pop('textured')
+            log.warning(
+                'merge_vertices depreciation: `textured`->`use_tex`')
+        grouping.merge_vertices(self, **kwargs)
 
     def update_vertices(self, mask, inverse=None):
         """
@@ -1129,7 +1140,7 @@ class Trimesh(Geometry):
             else:
                 inverse = None
 
-        # re- index faces from inverse
+        # re-index faces from inverse
         if inverse is not None and util.is_shape(self.faces, (-1, 3)):
             self.faces = inverse[self.faces.reshape(-1)].reshape((-1, 3))
 
@@ -1146,7 +1157,6 @@ class Trimesh(Geometry):
                 if len(value) != count:
                     raise TypeError()
             except TypeError:
-
                 continue
             # apply the mask to the attribute
             self.vertex_attributes[key] = value[mask]
@@ -1367,7 +1377,7 @@ class Trimesh(Geometry):
     @caching.cache_decorator
     def face_adjacency_projections(self):
         """
-        The projection of the non- shared vertex of a triangle onto
+        The projection of the non-shared vertex of a triangle onto
         its adjacent face
 
         Returns
@@ -1427,14 +1437,14 @@ class Trimesh(Geometry):
     @caching.cache_decorator
     def face_adjacency_span(self):
         """
-        The approximate perpendicular projection of the non- shared
+        The approximate perpendicular projection of the non-shared
         vertices in a pair of adjacent faces onto the shared edge of
         the two faces.
 
         Returns
         ------------
         span : (len(self.face_adjacency), ) float
-          Approximate span between the non- shared vertices
+          Approximate span between the non-shared vertices
         """
         populate = self.face_adjacency_radius
         return self._cache['face_adjacency_span']
@@ -2356,10 +2366,10 @@ class Trimesh(Geometry):
                                          center_mass=self._center_mass,
                                          skip_inertia=False)
 
-        # if magical clean- up mode is enabled
+        # if magical clean-up mode is enabled
         # and mesh is watertight/wound correctly but with negative
         # volume it means that every triangle is probably facing
-        # inwards, so we invert it in- place without dumping cache
+        # inwards, so we invert it in-place without dumping cache
         if (self._validate and
             self.is_watertight and
             self.is_winding_consistent and
@@ -2377,7 +2387,7 @@ class Trimesh(Geometry):
 
     def invert(self):
         """
-        Invert the mesh in- place by reversing the winding of every
+        Invert the mesh in-place by reversing the winding of every
         face and negating normals without dumping the cache.
 
         Alters
@@ -2617,7 +2627,7 @@ class Trimesh(Geometry):
         """
         Given an array of points determine whether or not they
         are inside the mesh. This raises an error if called on a
-        non- watertight mesh.
+        non-watertight mesh.
 
         Parameters
         ------------
@@ -2630,7 +2640,7 @@ class Trimesh(Geometry):
           Whether or not each point is inside the mesh
         """
         if not self.is_watertight:
-            log.warning('Mesh is non- watertight for contained point query!')
+            log.warning('Mesh is non-watertight for contained point query!')
         contains = self.ray.contains_points(points)
         return contains
 
