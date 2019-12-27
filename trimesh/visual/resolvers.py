@@ -125,8 +125,9 @@ class ZipResolver(Resolver):
         # read file object from beginning
         obj.seek(0)
         # data is stored as a file object
-        return obj.read()
-
+        data = obj.read()
+        obj.seek(0)
+        return data
 
 class WebResolver(Resolver):
     """

@@ -194,18 +194,17 @@ class Trimesh(Geometry):
         # process will remove NaN and Inf values and merge vertices
         # if validate, will remove degenerate and duplicate faces
         if process or validate:
-            self.process()
+            self.process(validate=validate, **kwargs)
 
         # save reference to kwargs
         self._kwargs = kwargs
 
-    def process(self):
+    def process(self, **kwargs):
         """
         Do the bare minimum processing to make a mesh useful.
 
         Does this by:
             1) removing NaN and Inf values
-
             2) merging duplicate vertices
 
         If self._validate:
@@ -226,10 +225,10 @@ class Trimesh(Geometry):
         # avoid clearing the cache during operations
         with self._cache:
             self.remove_infinite_values()
-            self.merge_vertices()
+            self.merge_vertices(**kwargs)
             # if we're cleaning remove duplicate
             # and degenerate faces
-            if self._validate:
+            if self._validate or ('validate' in kwargs and kwargs['validate']):
                 self.remove_duplicate_faces()
                 self.remove_degenerate_faces()
         # since none of our process operations moved vertices or faces
@@ -1557,7 +1556,7 @@ class Trimesh(Geometry):
                      self.volume > 0.0)
         return valid
 
-    @caching.cache_decorator
+    @property
     def is_empty(self):
         """
         Does the current mesh have data defined.

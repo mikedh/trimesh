@@ -25,7 +25,8 @@ def merge_vertices(mesh,
                    use_norm=True,
                    digits_vertex=None,
                    digits_norm=2,
-                   digits_uv=4):
+                   digits_uv=4,
+                   **kwargs):
     """
     Removes duplicate vertices based on integer hashes of
     each row.
