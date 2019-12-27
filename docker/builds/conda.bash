@@ -19,7 +19,7 @@ conda config --add channels conda-forge
 # pyembree is used for fast ray tests
 # this will also install numpy from conda
 # conda/numpy is compiled with intel's MKL
-conda install pyembree 
+conda install pyembree rtree
 
 # install trimesh from the repo
 cd /tmp/trimesh

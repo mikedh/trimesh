@@ -7,15 +7,6 @@ except BaseException:
 class VectorTests(g.unittest.TestCase):
 
     def test_discrete(self):
-        try:
-            # TODO : REMOVE THIS WHEN SHAPELY WORKS IN 3.8
-            from shapely import vectorized  # noqa
-            vec_ok = True
-        except BaseException:
-            vec_ok = False
-            g.log.error(
-                'no shapely.vectorized!', exc_info=True)
-
         for d in g.get_2D():
             # store md5 before requesting passive functions
             md5 = d.md5()
@@ -108,7 +99,7 @@ class VectorTests(g.unittest.TestCase):
             # Y should not have moved
             assert g.np.allclose(d.bounds[:, 1], ori[:, 1])
 
-            if vec_ok and len(d.polygons_full) > 0 and len(d.vertices) < 150:
+            if and len(d.polygons_full) > 0 and len(d.vertices) < 150:
                 g.log.info('Checking medial axis on %s',
                            d.metadata['file_name'])
                 m = d.medial_axis()
@@ -239,13 +230,6 @@ class VectorTests(g.unittest.TestCase):
         """
         Test random sampling of polygons
         """
-        try:
-            # TODO : REMOVE THIS
-            from shapely import vectorized  # noqa
-        except BaseException:
-            g.log.error(
-                'no shapely.vectorized!', exc_info=True)
-            return
 
         p = g.Point([0, 0]).buffer(1.0)
         count = 100

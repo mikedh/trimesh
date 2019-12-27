@@ -71,7 +71,6 @@ install:
 - source activate test-environment
 # make sure we parked our car in the right spot
 - python -c "import os,sys;assert '{}.{}'.format(*sys.version_info[:2])==os.environ['PYTHON_VERSION']"
-
 # only install the basic version of the library to make sure
 # trimesh imports and functions with only the minimal install
 - pip install .
@@ -103,6 +102,8 @@ script:
 - if [[ "$PYTHON_VERSION" == "3.6" ]]; then pip install python-fcl; fi;
 # lxml stopped supporting EOL Python
 - if [[ "$PYTHON_VERSION" == "3.4" ]]; then pip install lxml==4.3.5; fi;
+# sdist for released shapely has issues on 3.8
+- if [[ "$PYTHON_VERSION" == "3.8" ]]; then pip install shapely==1.7a2; fi;
 
 # install most deps here
 - pip install -q .[easy]
