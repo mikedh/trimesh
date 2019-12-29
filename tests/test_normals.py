@@ -159,7 +159,7 @@ class NormalsTest(g.unittest.TestCase):
         assert g.np.isclose(m.volume, 8.0, atol=1e-4)
 
         # without considering normals should just be cube
-        m.merge_vertices(use_norm=False)
+        m.merge_vertices(merge_norm=True)
         assert m.vertices.shape == (8, 3)
         assert m.faces.shape == (12, 3)
         assert g.np.isclose(m.volume, 8.0, atol=1e-4)

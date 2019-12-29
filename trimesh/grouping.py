@@ -21,26 +21,26 @@ except BaseException as E:
 
 
 def merge_vertices(mesh,
-                   use_tex=True,
-                   use_norm=True,
+                   merge_tex=False,
+                   merge_norm=False,
                    digits_vertex=None,
                    digits_norm=2,
                    digits_uv=4,
                    **kwargs):
     """
-    Removes duplicate vertices based on integer hashes of
+    Removes duplicate vertices. By default,  based on integer hashes of
     each row.
 
     Parameters
     -------------
     mesh : Trimesh object
       Mesh to merge vertices on
-    use_tex : bool
-      If True for textured meshes merge vertices
-      with identical positions AND UV coordinates.
-    use_norm : bool
-      If True meshes with vertex normals defined will
-      only have vertices merged with identical normal
+    merge_tex : bool
+      If True textured meshes with UV coordinates will
+      have vertices merged regardless of UV coordinates
+    merge_norm : bool
+      If True, meshes with vertex normals will have
+      vertices merged ignoring different normals
     digits_vertex : None or int
       Number of digits to consider for vertex position
     digits_norm : int
@@ -61,25 +61,26 @@ def merge_vertices(mesh,
         # this is used for geometry without faces
         referenced = np.ones(len(mesh.vertices), dtype=np.bool)
 
-    # collect vertex attributes into sequence
+    # collect vertex attributes into sequence we can stack
     stacked = [mesh.vertices * (10 ** digits_vertex)]
 
     # UV texture visuals require us to update the
     # vertices and normals differently
-    if (use_tex and
+    if (not merge_tex and
         mesh.visual.defined and
         mesh.visual.kind == 'texture' and
-            mesh.visual.uv is not None):
+        mesh.visual.uv is not None and
+            len(mesh.visual.uv) == len(mesh.vertices)):
         # get an array with vertices and UV coordinates
         # converted to integers at requested precision
         stacked.append(mesh.visual.uv * (10 ** digits_uv))
 
     # check to see if we have vertex normals
     normals = mesh._cache['vertex_normals']
-    if use_norm and np.shape(normals) == np.shape(mesh.vertices):
+    if not merge_norm and np.shape(normals) == mesh.vertices.shape:
         stacked.append(normals * (10 ** digits_norm))
 
-    # stack collected vertex properties and round to int
+    # stack collected vertex properties and round to integer
     stacked = np.column_stack(stacked).round().astype(np.int64)
 
     # check unique rows of referenced vertices

@@ -2,7 +2,7 @@
 schemas.py
 -------------
 
-Tools for dealing with schemas particularly JSONschema
+Tools for dealing with schemas, particularly JSONschema
 """
 import json
 
@@ -11,7 +11,7 @@ def resolve(item, resolver):
     """
     Given a JSON Schema containing `$ref` keys recursively
     evaluate to find and replace referenced files with their
-    actual values using trimesh Resolver objects.
+    actual values using trimesh.visual.Resolver objects.
 
     Parameters
     ---------------

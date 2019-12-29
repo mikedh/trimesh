@@ -11,6 +11,7 @@ from .. import util
 from .. import grouping
 from .. import geometry
 from .. import interval
+from .. import transformations
 
 from ..constants import tol
 
@@ -249,7 +250,7 @@ def unique(segments, digits=5):
     inverse.sort(axis=1)
     # remove segments where both indexes are the same
     mask = np.zeros(len(segments), dtype=np.bool)
-    # only include the first occurance of a segment
+    # only include the first occurrence of a segment
     mask[grouping.unique_rows(inverse)[0]] = True
     # remove segments that are zero-length
     mask[inverse[:, 0] == inverse[:, 1]] = False
@@ -509,7 +510,7 @@ def resample(segments,
     return result
 
 
-def to_svg(segments, digits=4, scale=None, origin=None):
+def to_svg(segments, digits=4, matrix=None):
     """
     Convert (n, 2, 2) line segments to an SVG path string.
 
@@ -519,10 +520,8 @@ def to_svg(segments, digits=4, scale=None, origin=None):
       Line segments to convert
     digits : int
       Number of digits to include in SVG string
-    scale : None or float
-      Scale to apply before exporting
-    origin : None or (2,) float
-      Origin to translate before scaling
+    matrix : None or (3, 3) float
+      Homogeneous 2D transformation to apply before export
 
     Returns
     -----------
@@ -530,19 +529,17 @@ def to_svg(segments, digits=4, scale=None, origin=None):
       SVG path string with one line per segment
       IE: 'M 0.1 0.2 L 10 12'
     """
-    segments = np.asanyarray(segments)
+    segments = np.array(segments, copy=True)
     if not util.is_shape(segments, (-1, 2, 2)):
         raise ValueError('only for (n, 2, 2) segments!')
 
     # create the array to export
-    flat = segments.copy().reshape((-1, 2))
-    # apply origin if passed
-    if origin is not None:
-        flat -= np.array(origin).reshape(2)
-    # then apply scale if passed
-    if scale is not None:
-        flat *= float(scale)
-    # create the base format for a single line segment
+    flat = segments.reshape((-1, 2))
+    # apply 2D transformation if passed
+    if matrix is not None:
+        flat = transformations.transform_points(
+            flat, matrix=matrix)
+    # create the format string for a single line segment
     base = ' M _ _ L _ _'.replace(
         '_', '{:0.' + str(int(digits)) + 'f}')
     # create one large format string then apply points

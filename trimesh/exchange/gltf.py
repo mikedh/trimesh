@@ -1237,7 +1237,7 @@ def get_schema():
       A copy of the GLTF 2.0 schema without external references.
     """
     # replace references
-    from ..schemas import resolve, resolve_json
+    from ..schemas import resolve
     # get zip resolver to access referenced assets
     from ..visual.resolvers import ZipResolver
 

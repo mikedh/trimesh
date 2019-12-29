@@ -129,6 +129,7 @@ class ZipResolver(Resolver):
         obj.seek(0)
         return data
 
+
 class WebResolver(Resolver):
     """
     Resolve assets from a remote URL.
