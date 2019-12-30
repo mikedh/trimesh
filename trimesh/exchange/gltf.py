@@ -1247,8 +1247,11 @@ def get_schema():
     archive = util.decompress(util.wrap_as_stream(blob), 'zip')
     # get a resolver object for accessing the schema
     resolver = ZipResolver(archive)
-    # remove references to other files in the schema and load
-    schema = resolve(json.loads(resolver.get('glTF.schema.json')),
+    # get a loaded dict from the base file
+    unresolved = json.loads(util.decode_text(
+        resolver.get('glTF.schema.json')))
+    # remove references to other files in the schema
+    schema = resolve(unresolved,
                      resolver=resolver)
 
     return schema

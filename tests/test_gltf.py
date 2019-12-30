@@ -217,6 +217,30 @@ class GLTFTest(g.unittest.TestCase):
         assert (set(s.graph.nodes_geometry) ==
                 set(r.graph.nodes_geometry))
 
+    def test_schema(self):
+        # get a copy of the GLTF schema and do simple checks
+        s = g.trimesh.exchange.gltf.get_schema()
+
+        # make sure it has at least the keys we expect
+        assert set(s['properties'].keys()).issuperset(
+            {'accessors',
+             'animations',
+             'asset',
+             'buffers',
+             'bufferViews',
+             'cameras',
+             'images',
+             'materials',
+             'meshes',
+             'nodes',
+             'samplers',
+             'scene',
+             'scenes',
+             'skins',
+             'textures',
+             'extensions',
+             'extras'})
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

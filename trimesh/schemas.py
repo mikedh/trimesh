@@ -6,6 +6,7 @@ Tools for dealing with schemas, particularly JSONschema
 """
 import json
 
+from .util import decode_text
 
 def resolve(item, resolver):
     """
@@ -32,7 +33,8 @@ def resolve(item, resolver):
         if '$ref' in item:
             # if we have a reference to a file pop the key
             # and update the dict with the reference in-place
-            item.update(json.loads(resolver.get(item.pop('$ref'))))
+            raw = decode_text(resolver.get(item.pop('$ref')))
+            item.update(json.loads(raw))
             # run the resolver on the dict again
             resolve(item, resolver)
         else:
