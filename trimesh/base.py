@@ -1100,9 +1100,9 @@ class Trimesh(Geometry):
           Number of digits to consider for UV coordinates
         """
         if 'textured' in kwargs:
-            kwargs['use_tex'] = kwargs.pop('textured')
+            kwargs['merge_tex'] = not kwargs.pop('textured')
             log.warning(
-                'merge_vertices depreciation: `textured`->`use_tex`')
+                'merge_vertices depreciation: `not textured`->`merge_tex`')
         grouping.merge_vertices(self, **kwargs)
 
     def update_vertices(self, mask, inverse=None):

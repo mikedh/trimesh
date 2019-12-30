@@ -28,7 +28,7 @@ class GLTFTest(g.unittest.TestCase):
         g.scene_equal(scene, reloaded)
 
         # if we merge ugly it should now be watertight
-        geom.merge_vertices(textured=False)
+        geom.merge_vertices(merge_tex=True)
         assert geom.is_volume
 
     def test_tex_export(self):
