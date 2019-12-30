@@ -8,6 +8,7 @@ import json
 
 from .util import decode_text
 
+
 def resolve(item, resolver):
     """
     Given a JSON Schema containing `$ref` keys recursively
