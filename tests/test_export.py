@@ -16,7 +16,7 @@ class ExportTest(g.unittest.TestCase):
 
         for mesh in meshes:
             # disregard texture
-            mesh.merge_vertices(textured=False)
+            mesh.merge_vertices(merge_tex=True, merge_norm=True)
             for file_type in export_types:
                 # skip pointcloud format
                 if file_type in ['xyz', 'gltf']:
@@ -50,7 +50,10 @@ class ExportTest(g.unittest.TestCase):
                     file_obj = export
 
                 loaded = g.trimesh.load(file_obj=file_obj,
-                                        file_type=file_type)
+                                        file_type=file_type,
+                                        process=True,
+                                        merge_norm=True,
+                                        merge_tex=True)
 
                 # if we exported as GLTF/dae it will come back as a Scene
                 if isinstance(loaded, g.trimesh.Scene) and isinstance(

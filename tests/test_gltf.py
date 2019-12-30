@@ -28,7 +28,7 @@ class GLTFTest(g.unittest.TestCase):
         g.scene_equal(scene, reloaded)
 
         # if we merge ugly it should now be watertight
-        geom.merge_vertices(textured=False)
+        geom.merge_vertices(merge_tex=True)
         assert geom.is_volume
 
     def test_tex_export(self):
@@ -216,6 +216,30 @@ class GLTFTest(g.unittest.TestCase):
         # make sure the node names are the same before and after
         assert (set(s.graph.nodes_geometry) ==
                 set(r.graph.nodes_geometry))
+
+    def test_schema(self):
+        # get a copy of the GLTF schema and do simple checks
+        s = g.trimesh.exchange.gltf.get_schema()
+
+        # make sure it has at least the keys we expect
+        assert set(s['properties'].keys()).issuperset(
+            {'accessors',
+             'animations',
+             'asset',
+             'buffers',
+             'bufferViews',
+             'cameras',
+             'images',
+             'materials',
+             'meshes',
+             'nodes',
+             'samplers',
+             'scene',
+             'scenes',
+             'skins',
+             'textures',
+             'extensions',
+             'extras'})
 
 
 if __name__ == '__main__':

@@ -24,7 +24,6 @@ from ..transformations import translation_matrix
 
 pyglet.options['shadow_window'] = False
 
-
 # smooth only when fewer faces than this
 _SMOOTH_MAX_FACES = 100000
 
@@ -45,6 +44,7 @@ class SceneViewer(pyglet.window.Window):
                  offset_lines=True,
                  background=None,
                  window_conf=None,
+                 profile=False,
                  ** kwargs):
         """
         Create a window that will display a trimesh.Scene object
@@ -102,6 +102,11 @@ class SceneViewer(pyglet.window.Window):
         self.reset_view(flags=flags)
         self.batch = pyglet.graphics.Batch()
         self._smooth = smooth
+
+        self._profile = bool(profile)
+        if self._profile:
+            from pyinstrument import Profiler
+            self.Profiler = Profiler
 
         # store kwargs
         self.kwargs = kwargs
@@ -608,6 +613,10 @@ class SceneViewer(pyglet.window.Window):
         Run the actual draw calls.
         """
 
+        if self._profile:
+            profiler = self.Profiler()
+            profiler.start()
+
         self._update_meshes()
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
         gl.glLoadIdentity()
@@ -706,6 +715,10 @@ class SceneViewer(pyglet.window.Window):
             # disable texture after using
             if texture is not None:
                 gl.glDisable(texture.target)
+
+        if self._profile:
+            profiler.stop()
+            print(profiler.output_text(unicode=True, color=True))
 
     def save_image(self, file_obj):
         """
