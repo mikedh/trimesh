@@ -760,7 +760,7 @@ def edges_to_coo(edges, count=None, data=None):
     return matrix
 
 
-def smoothed(mesh, angle, facet_minlen=4):
+def smoothed(mesh, angle=None, facet_minarea=15):
     """
     Return a non- watertight version of the mesh which
     will render nicely with smooth shading by
@@ -770,12 +770,13 @@ def smoothed(mesh, angle, facet_minlen=4):
     -----------
     mesh : trimesh.Trimesh
       Source geometry
-    angle : float
-      Angle in radians: adjacent faces
-      below this angle will be smoothed
-    facet_minlen : None or int
-      If specified will specially group facets
-      with more faces
+    angle : float or None
+      Angle in radians face pairs with angles
+      smaller than this will appear smoothed
+    facet_minarea : float or None
+      Minimum area fraction to consider
+      IE for `facets_minarea=25` only facets larger
+      than `mesh.area / 25` will be considered.
 
     Returns
     ---------
@@ -798,12 +799,14 @@ def smoothed(mesh, angle, facet_minlen=4):
     facets = []
     nodes = None
     # collect coplanar regions for smoothing
-    if facet_minlen is not None:
+    if facet_minarea is not None:
+        areas = mesh.area_faces
+        min_area = mesh.area / facet_minarea
         try:
             # we can survive not knowing facets
             # exclude facets with few faces
             facets = [f for f in mesh.facets
-                      if len(f) > facet_minlen]
+                      if areas[f].sum() > min_area]
             if len(facets) > 0:
                 # mask for removing adjacency pairs where
                 # one of the faces is contained in a facet
