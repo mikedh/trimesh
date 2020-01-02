@@ -1,7 +1,9 @@
 """
 path.py
+-----------
 
-A library designed to work with vector paths.
+A module designed to work with vector paths such as
+those stored in a DXF or SVG file.
 """
 import numpy as np
 
@@ -69,7 +71,8 @@ class Path(object):
                  vertices=None,
                  metadata=None,
                  process=True,
-                 colors=None):
+                 colors=None,
+                 **kwargs):
         """
         Instantiate a path object.
 

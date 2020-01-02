@@ -86,11 +86,23 @@ class SegmentsTest(g.unittest.TestCase):
         from trimesh.path.segments import to_svg
         # create some 2D segments
         seg = g.random((1000, 2, 2))
+        # make one of the segments a duplicate
+        seg[0] = seg[-1]
         # create an SVG path string
-        svg = to_svg(seg)
+        svg = to_svg(seg, merge=False)
         # should be one move and one line per segment
         assert svg.count('M') == len(seg)
         assert svg.count('L') == len(seg)
+
+        # try with a transform
+        svg = to_svg(seg, matrix=g.np.eye(3), merge=False)
+        assert svg.count('M') == len(seg)
+        assert svg.count('L') == len(seg)
+
+        # remove the duplicate segments
+        svg = to_svg(seg, matrix=g.np.eye(3), merge=True)
+        assert svg.count('M') < len(seg)
+        assert svg.count('L') < len(seg)
 
         try:
             to_svg(g.random((100, 2, 3)))

@@ -510,7 +510,7 @@ def resample(segments,
     return result
 
 
-def to_svg(segments, digits=4, matrix=None):
+def to_svg(segments, digits=4, matrix=None, merge=True):
     """
     Convert (n, 2, 2) line segments to an SVG path string.
 
@@ -534,14 +534,20 @@ def to_svg(segments, digits=4, matrix=None):
         raise ValueError('only for (n, 2, 2) segments!')
 
     # create the array to export
-    flat = segments.reshape((-1, 2))
+
     # apply 2D transformation if passed
     if matrix is not None:
-        flat = transformations.transform_points(
-            flat, matrix=matrix)
+        segments = transformations.transform_points(
+            segments.reshape((-1, 2)),
+            matrix=matrix).reshape((-1, 2, 2))
+
+    if merge:
+        # remove duplicate and zero-length segments
+        segments = unique(segments, digits=digits)
+
     # create the format string for a single line segment
     base = ' M _ _ L _ _'.replace(
         '_', '{:0.' + str(int(digits)) + 'f}')
     # create one large format string then apply points
-    result = (base * len(segments))[1:].format(*flat.ravel())
+    result = (base * len(segments))[1:].format(*segments.ravel())
     return result

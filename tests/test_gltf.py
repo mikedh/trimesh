@@ -241,6 +241,9 @@ class GLTFTest(g.unittest.TestCase):
              'extensions',
              'extras'})
 
+        # lightly check to see that no references exist
+        assert '$ref' not in g.json.dumps(s)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
