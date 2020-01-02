@@ -9,6 +9,8 @@ environment:
       MINICONDA: C:\Miniconda3
     - PYTHON_VERSION: 3.6
       MINICONDA: C:\Miniconda3
+    - PYTHON_VERSION: 3.7
+      MINICONDA: C:\Miniconda3
 
 init:
   - "ECHO %PYTHON_VERSION% %MINICONDA%"
@@ -19,10 +21,8 @@ install:
   - conda info -a
   - "conda create -q -n test-environment python=%PYTHON_VERSION%"
   - activate test-environment
-  - pip install numpy scipy
   - conda install -c conda-forge shapely rtree
-  - pip install nose2
-  - pip install .[easy]
+  - pip install .[easy,test]
 
 test_script:
-  - nose2
+  - pytest tests
