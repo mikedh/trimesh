@@ -95,7 +95,7 @@ def face_adjacency(faces=None,
     edge_groups = grouping.group_rows(edges, require_count=2)
 
     if len(edge_groups) == 0:
-        log.error('No adjacent faces detected! Did you merge vertices?')
+        log.warning('No adjacent faces detected! Did you merge vertices?')
 
     # the pairs of all adjacent faces
     # so for every row in face_idx, self.faces[face_idx[*][0]] and

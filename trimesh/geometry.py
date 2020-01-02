@@ -227,7 +227,7 @@ def vertex_face_indices(vertex_count,
             faces.flatten(), minlength=vertex_count)
     except TypeError:
         # casting failed on 32 bit Windows
-        log.error('casting failed!', exc_info=True)
+        log.warning('casting failed, falling back!')
         # fall back to np.unique (usually ~35x slower than bincount)
         counts = np.unique(faces.flatten(), return_counts=True)[1]
     assert len(counts) == vertex_count
