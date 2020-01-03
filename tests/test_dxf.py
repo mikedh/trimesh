@@ -194,7 +194,10 @@ class DXFTest(g.unittest.TestCase):
         # get a base 2D model
         m = g.get_mesh('2D/wrench.dxf')
         # make one of the entity layers a unicode string
-        m.entities[0].layer = 'TRAÇADOHORIZONTAL_TRAÇADO4'
+        # store it as B64 so python2 doesn't get mad
+        layer = g.base64.b64decode(
+            'VFJBw4dBRE9IT1JJWk9OVEFMX1RSQcOHQURPNA==').decode('utf-8')
+        m.entities[0].layer = layer
         # export to a string
         export = m.export(file_type='dxf')
         # if any unicode survived the export this will fail

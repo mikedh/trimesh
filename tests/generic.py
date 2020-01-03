@@ -11,6 +11,7 @@ import copy
 import time
 import shutil
 import timeit
+import base64
 import inspect
 import logging
 import platform
