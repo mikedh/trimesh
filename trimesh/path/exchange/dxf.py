@@ -555,7 +555,9 @@ def export_dxf(path, layers=None):
                 'NAME': str(id(entity))[:16]}
 
         if hasattr(entity, 'layer'):
-            subs['LAYER'] = str(entity.layer)
+            # make sure layer name is forced into ASCII
+            subs['LAYER'] = str(entity.layer).encode(
+                'ascii', errors='ignore').decode('ascii')
 
         return subs
 
@@ -664,19 +666,21 @@ def export_dxf(path, layers=None):
         """
         Convert a Text entity to DXF string.
         """
+        # start with layer info
         sub = entity_info(txt)
-
         # get the origin point of the text
-        sub['ORIGIN'] = format_points(vertices[[txt.origin]],
-                                      increment=False)
+        sub['ORIGIN'] = format_points(
+            vertices[[txt.origin]], increment=False)
         # rotation angle in degrees
         sub['ANGLE'] = np.degrees(txt.angle(vertices))
         # actual string of text with spaces escaped
-        sub['TEXT'] = txt.text.replace(' ', _SAFESPACE)
+        # force into ASCII to avoid weird encoding issues
+        sub['TEXT'] = txt.text.replace(' ', _SAFESPACE).encode(
+            'ascii', errors='ignore').decode('ascii')
         # height of text
         sub['HEIGHT'] = txt.height
-
-        return TEMPLATES['text'].substitute(sub)
+        result = TEMPLATES['text'].substitute(sub)
+        return result
 
     def convert_generic(entity, vertices):
         """
@@ -703,20 +707,19 @@ def export_dxf(path, layers=None):
                 continue
         if name in conversions:
             converted = conversions[name](e, path.vertices).strip()
-            # only save if we converted something
             if len(converted) > 0:
+                # only save if we converted something
                 collected.append(converted)
         else:
             log.debug('Entity type %s not exported!', name)
 
+    # join all entities into one string
     entities_str = '\n'.join(collected)
-
     hsub = {'BOUNDS_MIN': format_points([path.bounds[0]]),
             'BOUNDS_MAX': format_points([path.bounds[1]]),
             'LUNITS': '1'}
     if path.units in _UNITS_TO_DXF:
         hsub['LUNITS'] = _UNITS_TO_DXF[path.units]
-
     # sections of the DXF
     header = TEMPLATES['header'].substitute(hsub)
     # entities section
@@ -729,23 +732,21 @@ def export_dxf(path, layers=None):
     # although Draftsight, LibreCAD, and Inkscape don't care
     # what a giant legacy piece of shit
     # strip out all leading and trailing whitespace
-    sections = [i.strip() for i in [header,
-                                    entities,
-                                    footer]
+    sections = [i.strip() for i in
+                [header, entities, footer]
                 if len(i) > 0]
-
+    # create the joined string blob
     blob = '\n'.join(sections).replace(_SAFESPACE, ' ')
-
     # run additional self- checks
     if tol.strict:
         # check that every line pair is (group code, value)
         lines = str.splitlines(str(blob))
-
         # should be even number of lines
         assert (len(lines) % 2) == 0
-
         # group codes should all be convertible to int and positive
         assert all(int(i) >= 0 for i in lines[::2])
+        # make sure we didn't slip any unicode in there
+        blob.encode('ascii')
 
     return blob
 
