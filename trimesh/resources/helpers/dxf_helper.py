@@ -59,6 +59,9 @@ def read_files(path):
     """
     template = {}
     for file_name in os.listdir(path):
+        # skip emacs buffers
+        if '~' in file_name:
+            continue
         with open(os.path.join(path, file_name), 'r') as f:
             template[file_name] = replace_whitespace(
                 f.read(), insert=True)

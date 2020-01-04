@@ -295,7 +295,7 @@ def load_dxf(file_obj, **kwargs):
             raw = raw.decode('utf-8', errors='ignore')
 
     # remove trailing whitespace
-    raw = util.str(raw).strip()
+    raw = str(raw).strip()
     # without any spaces and in upper case
     cleaned = raw.replace(' ', '').strip().upper()
 
@@ -478,15 +478,19 @@ def load_dxf(file_obj, **kwargs):
 
 def export_dxf(path, layers=None):
     """
-    Export a 2D path object to a DXF file
+    Export a 2D path object to a DXF file.
 
     Parameters
     ----------
-    path: trimesh.path.path.Path2D
+    path : trimesh.path.path.Path2D
+      Input geometry to export
+    layers : None, set or iterable
+      If passed only export the layers specified
 
     Returns
     ----------
-    export: str, path formatted as a DXF file
+    export : str
+      Path formatted as a DXF file
     """
 
     def format_points(points,
@@ -528,7 +532,7 @@ def export_dxf(path, layers=None):
         if as_2D:
             group = group[:, :2]
             three = three[:, :2]
-
+        # join into result string
         packed = '\n'.join('{:d}\n{:.12f}'.format(g, v)
                            for g, v in zip(group.reshape(-1),
                                            three.reshape(-1)))
@@ -552,13 +556,10 @@ def export_dxf(path, layers=None):
         # TODO : convert RGBA entity.color to index
         subs = {'COLOR': 255,  # default is ByLayer
                 'LAYER': 0,
-                'NAME': util.str(id(entity))[:16]}
-
+                'NAME': str(id(entity))[:16]}
         if hasattr(entity, 'layer'):
             # make sure layer name is forced into ASCII
-            subs['LAYER'] = util.str(entity.layer).encode(
-                'ascii', errors='ignore').decode('ascii')
-
+            subs['LAYER'] = util.to_ascii(entity.layer)
         return subs
 
     def convert_line(line, vertices):
@@ -740,7 +741,7 @@ def export_dxf(path, layers=None):
     # run additional self- checks
     if tol.strict:
         # check that every line pair is (group code, value)
-        lines = str.splitlines(util.str(blob))
+        lines = str.splitlines(str(blob))
         # should be even number of lines
         assert (len(lines) % 2) == 0
         # group codes should all be convertible to int and positive

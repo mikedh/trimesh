@@ -251,7 +251,8 @@ class Text(Entity):
                  height=None,
                  vector=None,
                  normal=None,
-                 align=None):
+                 align=None,
+                 layer=None):
         """
         An entity for text labels.
 
@@ -275,12 +276,14 @@ class Text(Entity):
         """
         # where is text placed
         self.origin = origin
-
+        # what direction is the text pointing
         self.vector = vector
+        # what is the normal of the text plane
         self.normal = normal
-
         # how high is the text entity
         self.height = height
+        # what layer is the entity on
+        self.layer = layer
 
         # None or (2,) str
         if align is None:
@@ -663,9 +666,10 @@ class Bezier(Curve):
         discrete : (m, 2) or (m, 3) float
           Curve as line segments
         """
-        discrete = discretize_bezier(vertices[self.points],
-                                     count=count,
-                                     scale=scale)
+        discrete = discretize_bezier(
+            vertices[self.points],
+            count=count,
+            scale=scale)
         return self._orient(discrete)
 
 
