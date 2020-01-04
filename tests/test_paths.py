@@ -123,7 +123,7 @@ class VectorTests(g.unittest.TestCase):
 
         # layers should match entity count
         assert len(p.layers) == len(p.entities)
-        assert len(g.np.unique(p.layers)) > 1
+        assert len(set(p.layers)) > 1
 
         count = len(p.entities)
 
