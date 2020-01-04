@@ -117,9 +117,8 @@ class Path(object):
 
     def process(self):
         """
-        Apply basic cleaning functions to the Path object, in- place.
+        Apply basic cleaning functions to the Path object in- place.
         """
-        log.debug('Processing drawing')
         with self._cache:
             for func in self._process_functions():
                 func()
@@ -178,6 +177,14 @@ class Path(object):
 
     @property
     def entities(self):
+        """
+        The actual entities making up the path.
+
+        Returns
+        -----------
+        entities : (n,) trimesh.path.entities.Entity
+          Entities such as Line, Arc, or BSpline curves
+        """
         return self._entities
 
     @entities.setter
@@ -190,17 +197,16 @@ class Path(object):
     @property
     def layers(self):
         """
-        If entities have a layer defined, return it.
+        Get a list of the layer for every entity.
 
         Returns
         ---------
-        layers: (len(entities), ) list of str
+        layers : (len(entities), ) any
+          Whatever is stored in each `entity.layer`
         """
-        layer = ['NONE'] * len(self.entities)
-        for i, e in enumerate(self.entities):
-            if hasattr(e, 'layer'):
-                layer[i] = str(e.layer)
-        return layer
+        # layer is a required property for entities
+        layers = [e.layer for e in self.entities]
+        return layers
 
     def crc(self):
         """

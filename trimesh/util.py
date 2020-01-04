@@ -2187,3 +2187,28 @@ def decode_text(text, initial='utf-8'):
         # try to decode again, unwrapped in try
         text = text.decode(detect['encoding'])
     return text
+
+
+def to_ascii(text):
+    """
+    Force a string or other to ASCII text ignoring errors.
+
+    Parameters
+    -----------
+    text : any
+      Input to be converted to ASCII string
+
+    Returns
+    -----------
+    ascii : str
+      Input as an ASCII string
+    """
+    if hasattr(text, 'encode'):
+        # case for existing strings
+        return text.encode(
+            'ascii', errors='ignore').decode('ascii')
+    elif hasattr(text, 'decode'):
+        # case for bytes
+        return text.decode('ascii', errors='ignore')
+    # otherwise just wrap as a string
+    return str(text)

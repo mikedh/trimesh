@@ -185,6 +185,24 @@ class DXFTest(g.unittest.TestCase):
             # angle should be 30 degrees
             assert g.np.isclose(angle, g.np.radians(30.0))
 
+    def test_unicode(self):
+        """
+        Check our handling of unicode. Current approach is to
+        just force everything into ASCII rather than handling
+        the encoding flags in DXF headers.
+        """
+        # get a base 2D model
+        m = g.get_mesh('2D/wrench.dxf')
+        # make one of the entity layers a unicode string
+        # store it as B64 so python2 doesn't get mad
+        layer = g.base64.b64decode(
+            'VFJBw4dBRE9IT1JJWk9OVEFMX1RSQcOHQURPNA==').decode('utf-8')
+        m.entities[0].layer = layer
+        # export to a string
+        export = m.export(file_type='dxf')
+        # if any unicode survived the export this will fail
+        export.encode('ascii')
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
