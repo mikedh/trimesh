@@ -295,7 +295,7 @@ def load_dxf(file_obj, **kwargs):
             raw = raw.decode('utf-8', errors='ignore')
 
     # remove trailing whitespace
-    raw = str(raw).strip()
+    raw = util.str(raw).strip()
     # without any spaces and in upper case
     cleaned = raw.replace(' ', '').strip().upper()
 
@@ -552,11 +552,11 @@ def export_dxf(path, layers=None):
         # TODO : convert RGBA entity.color to index
         subs = {'COLOR': 255,  # default is ByLayer
                 'LAYER': 0,
-                'NAME': str(id(entity))[:16]}
+                'NAME': util.str(id(entity))[:16]}
 
         if hasattr(entity, 'layer'):
             # make sure layer name is forced into ASCII
-            subs['LAYER'] = str(entity.layer).encode(
+            subs['LAYER'] = util.str(entity.layer).encode(
                 'ascii', errors='ignore').decode('ascii')
 
         return subs
@@ -740,7 +740,7 @@ def export_dxf(path, layers=None):
     # run additional self- checks
     if tol.strict:
         # check that every line pair is (group code, value)
-        lines = str.splitlines(str(blob))
+        lines = str.splitlines(util.str(blob))
         # should be even number of lines
         assert (len(lines) % 2) == 0
         # group codes should all be convertible to int and positive

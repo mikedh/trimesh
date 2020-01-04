@@ -37,6 +37,8 @@ PY3 = sys.version_info.major >= 3
 if PY3:
     # for type checking
     basestring = str
+    # for converting
+    str = str
     # Python 3
     from io import BytesIO, StringIO
 else:
@@ -46,7 +48,7 @@ else:
     StringIO.__enter__ = lambda a: a
     StringIO.__exit__ = lambda a, b, c, d: a.close()
     BytesIO = StringIO
-
+    str = unicode
 try:
     from collections.abc import Mapping
 except ImportError:
