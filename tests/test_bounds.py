@@ -239,6 +239,7 @@ class BoundsTest(g.unittest.TestCase):
             assert g.np.allclose(box.bounds, b.bounds)
 
     def test_bounds_tree(self):
+        # test r-tree intersections
         for dimension in (2, 3):
             # create some (n, 2, 3) bounds
             bounds = g.np.array([[i.min(axis=0), i.max(axis=0)]
@@ -249,7 +250,7 @@ class BoundsTest(g.unittest.TestCase):
             for i, b in enumerate(bounds):
                 assert i in set(tree.intersection(b.ravel()))
             # construct tree with per-row bounds
-            tree = g.trimesh.util.bounds_tree(bounds.reshape((-1, 6)))
+            tree = g.trimesh.util.bounds_tree(bounds.reshape((-1, dimension * 2)))
             for i, b in enumerate(bounds):
                 assert i in set(tree.intersection(b.ravel()))
 
