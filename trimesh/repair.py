@@ -184,7 +184,7 @@ def broken_faces(mesh, color=None):
     broken = [k for k, v in dict(adjacency.degree()).items()
               if v != 3]
     broken = np.array(broken)
-    if color is not None:
+    if color is not None and broken.size != 0:
         # if someone passed a broken color
         color = np.array(color)
         if not (color.shape == (4,) or color.shape == (3,)):
