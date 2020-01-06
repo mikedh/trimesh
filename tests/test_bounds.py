@@ -242,9 +242,9 @@ class BoundsTest(g.unittest.TestCase):
         for dimension in (2, 3):
             # create some (n, 2, 3) bounds
             bounds = g.np.array([[i.min(axis=0), i.max(axis=0)]
-                               for i in
-                               [g.random((4, dimension))
-                                for i in range(10)]])
+                                 for i in
+                                 [g.random((4, dimension))
+                                  for i in range(10)]])
             tree = g.trimesh.util.bounds_tree(bounds)
             for i, b in enumerate(bounds):
                 assert i in set(tree.intersection(b.ravel()))
