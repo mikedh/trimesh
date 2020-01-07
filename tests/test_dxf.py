@@ -28,7 +28,9 @@ class DXFTest(g.unittest.TestCase):
             text = d.export(file_type='dxf')
 
             # DXF files are always pairs of lines
-            assert (len(str.splitlines(str(text))) % 2) == 0
+            lines = str.splitlines(str(text))
+            assert (len(lines) % 2) == 0
+            assert all(len(L.strip()) > 0 for L in lines)
 
             # reload the file by name and by stream
             rc = [g.trimesh.load(temp_name),

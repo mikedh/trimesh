@@ -1582,7 +1582,7 @@ def bounds_tree(bounds):
 
     Parameters
     ------------
-    bounds : (n, dimension * 2) float
+    bounds : (n, dimension * 2) or (n, 2, dimension) float
       Non-interleaved bounds, i.e. for a 2D bounds tree:
         [(minx, miny, maxx, maxy), ...]
 
@@ -1596,8 +1596,14 @@ def bounds_tree(bounds):
 
     # make sure we've copied bounds
     bounds = np.array(bounds, dtype=np.float64, copy=True)
-    if len(bounds.shape) != 2:
-        raise ValueError('Bounds must be (n,dimension*2)!')
+    if len(bounds.shape) == 3:
+        # should be min-max per bound
+        if bounds.shape[1] != 2:
+            raise ValueError('bounds not (n, 2, dimension)!')
+        # reshape to one-row-per-hyperrectangle
+        bounds = bounds.reshape((len(bounds), -1))
+    elif len(bounds.shape) != 2:
+        raise ValueError('Bounds must be (n, dimension * 2)!')
 
     # check to make sure we have correct shape
     dimension = bounds.shape[1]

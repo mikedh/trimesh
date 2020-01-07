@@ -33,8 +33,8 @@ class RepairTests(g.unittest.TestCase):
             assert not mesh.is_volume
 
             # color some faces
-            g.trimesh.repair.broken_faces(mesh,
-                                          color=[255, 0, 0, 255])
+            g.trimesh.repair.broken_faces(
+                mesh, color=[255, 0, 0, 255])
 
             hashes.append({mesh._data.crc(),
                            mesh._data.md5(),
@@ -52,8 +52,11 @@ class RepairTests(g.unittest.TestCase):
             hashes.append({mesh._data.crc(),
                            mesh._data.md5(),
                            mesh._data.fast_hash()})
-
             assert hashes[1] != hashes[2]
+
+            # try broken faces on a watertight mesh
+            g.trimesh.repair.broken_faces(
+                mesh, color=[255, 255, 0, 255])
 
     def test_fix_normals(self):
         for mesh in g.get_meshes(5):

@@ -127,9 +127,9 @@ class PointsTest(g.unittest.TestCase):
         """
         clustered = []
         for i in range(cluster_count):
-            # use repeatable random- ish coordinatez
+            # use repeatable random- ish coordinates
             clustered.append(
-                g.random((points_per_cluster, 3)) + (i * 10.0))
+                g.random((points_per_cluster, 3)) * (1e-3) + (i * 10.0))
         clustered = g.np.vstack(clustered)
 
         # run k- means clustering on our nicely separated data
