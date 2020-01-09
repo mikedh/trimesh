@@ -5,11 +5,9 @@ repair.py
 Try to fix problems with closed regions.
 """
 from . import segments
-
 from .. import util
 
 import numpy as np
-
 from scipy.spatial import cKDTree
 
 

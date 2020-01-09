@@ -19,8 +19,8 @@ def discretize_bezier(points,
       Scale of curve
     Returns
     ----------
-    discrete: (n,d) list of points, a polyline representation
-              of the bezier curve which respects constants.RES_LENGTH
+    discrete: (n, dimension) float
+     Points forming a a polyline representation
     """
     # make sure we have a numpy array
     points = np.asanyarray(points, dtype=np.float64)
@@ -107,7 +107,7 @@ def binomial(n):
     Parameters
     --------------
     n : int
-      Order
+      Order of binomial
 
     Returns
     ---------------

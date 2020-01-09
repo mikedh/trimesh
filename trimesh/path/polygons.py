@@ -167,14 +167,17 @@ def polygon_obb(polygon):
 
     Parameters
     -------------
-    polygons: shapely.geometry.Polygon
+    polygons : shapely.geometry.Polygon
+      Input geometry
 
     Returns
     -------------
-    transform: (3,3) float, transformation matrix
-               which will move input polygon from its original position
-               to the first quadrant where the AABB is the OBB
-    extents:   (2,) float, extents of transformed polygon
+    transform : (3, 3) float
+      Transformation matrix
+      which will move input polygon from its original position
+      to the first quadrant where the AABB is the OBB
+    extents : (2,) float
+      Extents of transformed polygon
     """
     if hasattr(polygon, 'exterior'):
         points = np.asanyarray(polygon.exterior.coords)
@@ -192,15 +195,14 @@ def transform_polygon(polygon, matrix):
     Parameters
     -------------
     polygon : shapely.geometry.Polygon
-                 2D polygon to be transformed.
+      2D polygon to be transformed.
     matrix  : (3, 3) float
-                 2D homogeneous transformation.
+      2D homogeneous transformation.
 
     Returns
     --------------
     result : shapely.geometry.Polygon
-                 Polygon transformed by matrix.
-
+      Polygon transformed by matrix.
     """
     matrix = np.asanyarray(matrix, dtype=np.float64)
 
@@ -257,14 +259,18 @@ def resample_boundaries(polygon, resolution, clip=None):
 
     Parameters
     -------------
-    polygon:    shapely.geometry.Polygon object
-    resolution: float, desired distance between points on boundary
-    clip:       (2,) int, upper and lower bounds to clip
-                number of samples to (to avoid exploding counts)
+    polygon : shapely.geometry.Polygon
+      Source geometry
+    resolution : float
+      Desired distance between points on boundary
+    clip : (2,) int
+      Upper and lower bounds to clip
+      number of samples to avoid exploding count
 
     Returns
     ------------
-    kwargs: dict, keyword args for a Polygon(**kwargs)
+    kwargs : dict
+     Keyword args for a Polygon constructor `Polygon(**kwargs)`
     """
     def resample_boundary(boundary):
         # add a polygon.exterior or polygon.interior to
@@ -290,11 +296,13 @@ def stack_boundaries(boundaries):
 
     Parameters
     ------------
-    boundaries: dict, with keys 'shell', 'holes'
+    boundaries : dict
+      With keys 'shell', 'holes'
 
     Returns
     ------------
-    stacked: (n, 2) float, list of vertices
+    stacked : (n, 2) float
+      Stacked vertices
     """
     if len(boundaries['holes']) == 0:
         return boundaries['shell']
@@ -387,12 +395,15 @@ def random_polygon(segments=8, radius=1.0):
 
     Parameters
     ---------
-    segments: int, the maximum number of sides the random polygon will have
-    radius:   float, the approximate radius of the polygon desired
+    segments : int
+      The maximum number of sides the random polygon will have
+    radius : float
+      The approximate radius of the polygon desired
 
     Returns
     ---------
-    polygon: shapely.geometry.Polygon object with random exterior, and no interiors.
+    polygon : shapely.geometry.Polygon
+      Geometry object with random exterior and no interiors.
     """
     angles = np.sort(np.cumsum(np.random.random(
         segments) * np.pi * 2) % (np.pi * 2))
@@ -408,15 +419,17 @@ def random_polygon(segments=8, radius=1.0):
 
 def polygon_scale(polygon):
     """
-    For a Polygon object, return the diagonal length of the AABB.
+    For a Polygon object return the diagonal length of the AABB.
 
     Parameters
     ------------
-    polygon: shapely.geometry.Polygon object
+    polygon : shapely.geometry.Polygon
+      Source geometry
 
     Returns
     ------------
-    scale: float, length of AABB diagonal
+    scale : float
+      Length of AABB diagonal
     """
     extents = np.reshape(polygon.bounds, (2, 2)).ptp(axis=0)
     scale = (extents ** 2).sum() ** .5
@@ -432,15 +445,15 @@ def paths_to_polygons(paths, scale=None):
     Parameters
     -----------
     paths : (n,) sequence
-        Of (m,2) float, closed paths
+      Of (m, 2) float closed paths
     scale: float
-        Approximate scale of drawing for precision
+      Approximate scale of drawing for precision
 
     Returns
     -----------
-    polys: (p,) list
-        shapely.geometry.Polygon
-        None
+    polys : (p,) list
+      Filled with Polygon or None
+
     """
     polygons = [None] * len(paths)
     for i, path in enumerate(paths):
@@ -523,17 +536,22 @@ def repair_invalid(polygon, scale=None, rtol=.5):
 
     Parameters
     -----------
-    polygon: shapely.geometry.Polygon object
-    rtol:    float, how close does a perimeter have to be
-    scale:   float, or None
+    polygon : shapely.geometry.Polygon
+      Source geometry
+    rtol : float
+      How close does a perimeter have to be
+    scale : float or None
+      For numerical precision reference
 
     Returns
     ----------
-    repaired: shapely.geometry.Polygon object
+    repaired : shapely.geometry.Polygon
+      Repaired polygon
 
     Raises
     ----------
-    ValueError: if polygon can't be repaired
+    ValueError
+      If polygon can't be repaired
     """
     if hasattr(polygon, 'is_valid') and polygon.is_valid:
         return polygon

@@ -162,13 +162,16 @@ def merge_colinear(points, scale):
 
     Parameters
     ----------
-    points: (n, d) set of points (where d is dimension)
-    scale:  float, scale of drawing
+    points : (n, dimension) float
+      Points in space
+    scale : float
+      Scale of drawing for precision
 
     Returns
     ----------
-    merged: (j, d) set of points with colinear and duplicate
-             points merged, where (j < n)
+    merged : (j, d) float
+      Points with colinear and duplicate
+      points merged, where (j < n)
     """
     points = np.asanyarray(points, dtype=np.float64)
     scale = float(scale)
@@ -223,14 +226,19 @@ def resample_spline(points, smooth=.001, count=None, degree=3):
 
     Parameters
     -----------
-    points: (n, dimension) float, points in space
-    smooth: float, smoothing amount
-    count:  number of samples in output
-    degree: int, degree of spline polynomial
+    points : (n, dimension) float
+      Points in space
+    smooth : float
+      Smoothing distance
+    count :  int or None
+      Number of samples desired in output
+    degree : int
+      Degree of spline polynomial
 
     Returns
     ---------
-    resampled: (count, dimension) float, points in space
+    resampled : (count, dimension) float
+      Points in space
     """
     from scipy.interpolate import splprep, splev
     if count is None:
@@ -256,14 +264,19 @@ def points_to_spline_entity(points, smooth=None, count=None):
 
     Parameters
     -----------
-    points: (n, dimension) float, points in space
-    smooth: float, smoothing amount
-    count:  int, number of samples in result
+    points : (n, dimension) float
+      Points in space
+    smooth : float
+      Smoothing distance
+    count :  int or None
+      Number of samples desired in result
 
     Returns
     ---------
-    entity: entities.BSpline object with points indexed at zero
-    control: (m, dimension) float, new vertices for entity
+    entity : entities.BSpline
+      Entity object with points indexed at zero
+    control : (m, dimension) float
+      New vertices for entity
     """
 
     from scipy.interpolate import splprep
@@ -297,11 +310,13 @@ def simplify_basic(drawing, process=False, **kwargs):
 
     Parameters
     -----------
-    drawing: Path2D object, will not be modified.
+    drawing : Path2D
+      Source geometry, will not be modified
 
     Returns
     -----------
-    simplified: Path2D with circles.
+    simplified : Path2D
+      Original path but with some closed line-loops converted to circles
     """
 
     if any(i.__class__.__name__ != 'Line'
