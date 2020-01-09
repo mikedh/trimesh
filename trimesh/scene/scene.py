@@ -133,14 +133,12 @@ class Scene(Geometry):
                         node_name=node_name,
                         geom_name=geom_name,
                         parent_node_name=parent_node_name,
-                        transform=transform,
-                    )
+                        transform=transform)
                 else:
                     self.add_geometry(
                         geometry=value,
                         geom_name=geom_name,
-                        parent_node_name=node_name,
-                    )
+                        parent_node_name=node_name)
             return
 
         elif isinstance(geometry, dict):
@@ -194,7 +192,8 @@ class Scene(Geometry):
 
         Returns
         --------
-        hashed: str, MD5 hash of scene
+        hashed : str
+          MD5 hash of scene
         """
         # start with transforms hash
         hashes = [self.graph.md5()]
@@ -314,7 +313,8 @@ class Scene(Geometry):
 
         Returns
         ----------
-        extents: (3,) float, bounding box sides length
+        extents : (3,) float
+          Bounding box sides length
         """
         return np.diff(self.bounds, axis=0).reshape(-1)
 
@@ -325,7 +325,8 @@ class Scene(Geometry):
 
         Returns
         -----------
-        scale: float, the mean of the bounding box edge lengths
+        scale : float
+          The mean of the bounding box edge lengths
         """
         scale = (self.extents ** 2).sum() ** .5
         return scale
@@ -337,7 +338,8 @@ class Scene(Geometry):
 
         Returns
         --------
-        centroid: (3) float point for center of bounding box
+        centroid : (3) float
+          Point for center of bounding box
         """
         centroid = np.mean(self.bounds, axis=0)
         return centroid
@@ -350,7 +352,8 @@ class Scene(Geometry):
 
         Returns
         ----------
-        triangles: (n,3,3) float, triangles in space
+        triangles : (n, 3, 3) float
+          Triangles in space
         """
         triangles = collections.deque()
         triangles_node = collections.deque()
@@ -385,7 +388,7 @@ class Scene(Geometry):
         Returns
         ---------
         triangles_index : (len(self.triangles),)
-            Node name for each triangle
+          Node name for each triangle
         """
         populate = self.triangles  # NOQA
         return self._cache['triangles_node']
@@ -397,7 +400,8 @@ class Scene(Geometry):
 
         Returns
         ---------
-        identifiers: dict, identifier md5: key in self.geometry
+        identifiers : dict
+          {Identifier MD5: key in self.geometry}
         """
         identifiers = {mesh.identifier_md5: name
                        for name, mesh in self.geometry.items()}
@@ -408,13 +412,13 @@ class Scene(Geometry):
         """
         Return a sequence of node keys of identical meshes.
 
-        Will combine meshes duplicated by copying in space with different keys in
-        self.geometry, as well as meshes repeated by self.nodes.
+        Will include meshes with different geometry but identical
+        spatial hashes as well as meshes repeated by self.nodes.
 
         Returns
         -----------
-        duplicates: (m) sequence of keys to self.nodes that represent
-                     identical geometry
+        duplicates : (m) sequenc
+          Keys of self.nodes that represent identical geometry
         """
         # if there is no geometry we can have no duplicate nodes
         if len(self.geometry) == 0:
@@ -503,7 +507,7 @@ class Scene(Geometry):
 
         Returns
         -------
-        camera_transform : (4, 4), float
+        camera_transform : (4, 4) float
           Camera transform in the base frame
         """
         return self.graph[self.camera.name][0]
@@ -544,7 +548,7 @@ class Scene(Geometry):
 
         Parameters
         ----------
-        camera_transform : (4, 4), float
+        camera_transform : (4, 4) float
           Camera transform in the base frame
         """
         if camera_transform is None:
