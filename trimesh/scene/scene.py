@@ -126,14 +126,21 @@ class Scene(Geometry):
         # PointCloud objects will look like a sequence
         elif util.is_sequence(geometry):
             # if passed a sequence add all elements
-            for value in geometry:
-                self.add_geometry(
-                    geometry=value,
-                    node_name=node_name,
-                    geom_name=geom_name,
-                    parent_node_name=parent_node_name,
-                    transform=transform,
-                )
+            for i, value in enumerate(geometry):
+                if i == 0:
+                    node_name = self.add_geometry(
+                        geometry=value,
+                        node_name=node_name,
+                        geom_name=geom_name,
+                        parent_node_name=parent_node_name,
+                        transform=transform,
+                    )
+                else:
+                    self.add_geometry(
+                        geometry=value,
+                        geom_name=geom_name,
+                        parent_node_name=node_name,
+                    )
             return
 
         elif isinstance(geometry, dict):

@@ -161,6 +161,16 @@ class SceneTests(g.unittest.TestCase):
         assert scene.md5() == md5
         assert converted.md5() != md5
 
+    def test_add_geometry(self):
+        # list-typed geometry should create multiple nodes,
+        # e.g., below code is equivalent to
+        #     scene.add_geometry(geometry[0], node_name='voxels')
+        #     scene.add_geometry(geometry[1], parent_node_name='voxels')
+        scene = g.trimesh.Scene()
+        geometry = [g.trimesh.creation.box(), g.trimesh.creation.box()]
+        scene.add_geometry(geometry, node_name='voxels')
+        assert len(scene.graph.nodes_geometry) == 2
+
     def test_dupe(self):
         m = g.get_mesh('tube.obj')
 
