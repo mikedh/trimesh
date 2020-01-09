@@ -2,7 +2,7 @@
 raster.py
 ------------
 
-Turn 2D vector paths into raster images, using `pillow`
+Turn 2D vector paths into raster images using `pillow`
 """
 import numpy as np
 
@@ -31,16 +31,23 @@ def rasterize(path,
 
     Parameters
     ------------
-    path:       Path2D object
-    pitch:      float, length in model space of a pixel edge
-    origin:     (2,) float, origin position in model space
-    resolution: (2,) int, resolution in pixel space
-    fill:       bool, if True will return closed regions as filled
-    width:      int, if not None will draw outline this wide (pixels)
+    path : Path2D
+      Original geometry
+    pitch : float
+      Length in model space of a pixel edge
+    origin : (2,) float
+      Origin position in model space
+    resolution : (2,) int
+      Resolution in pixel space
+    fill :  bool
+      If True will return closed regions as filled
+    width : int
+      If not None will draw outline this wide in pixels
 
     Returns
     ------------
-    raster: PIL.Image object, mode 1
+    raster : PIL.Image object mode 1
+      Rasterized version of input
     """
 
     # check inputs
@@ -94,8 +101,8 @@ def rasterize(path,
             idraw.polygon(points.flatten().tolist(),
                           fill=1)
     # clean up the draw objects
-    # this is in their examples, I have no idea if
-    # it is actually necessary
+    # this is in the PIL examples and I have
+    # no idea if it this is actually necessary
     del edraw
     del idraw
     # the final result is the exteriors minus the interiors

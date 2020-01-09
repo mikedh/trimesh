@@ -25,12 +25,12 @@ def arc_center(points):
     Returns
     ---------
     result : dict
-      Has keys:
-        'center':   (d,) float, cartesian center of the arc
-        'radius':   float, radius of the arc
-        'normal':   (3,) float, the plane normal.
-        'angle':    (2,) float, angle of start and end, in radians
-        'span' :    float, angle swept by the arc, in radians
+      Contains the arc center and other information:
+      {'center' : (d,) float, cartesian center of the arc
+       'radius' : float, radius of the arc
+       'normal' : (3,) float, the plane normal.
+       'angle'  : (2,) float, angle of start and end in radians
+       'span'   : float, angle swept by the arc in radians}
     """
     # it's a lot easier to treat 2D as 3D with a zero Z value
     points, is_2D = util.stack_3D(points, return_2D=True)
@@ -197,9 +197,9 @@ def to_threepoint(center, radius, angles=None):
                        angles.mean(),
                        angles[1]],
                       dtype=np.float64)
-    # turn angles into (3,2) points
-    three = np.column_stack((np.cos(angles),
-                             np.sin(angles))) * radius
-    three += center
+    # turn angles into (3, 2) points
+    three = (np.column_stack(
+        (np.cos(angles),
+         np.sin(angles))) * radius) + center
 
     return three
