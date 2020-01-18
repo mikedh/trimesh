@@ -9,13 +9,12 @@ and clearing cached values based on those changes.
 import numpy as np
 
 import zlib
-import time
 import hashlib
 
 from functools import wraps
 
 from .constants import log
-from .util import is_sequence
+from .util import is_sequence, now
 
 try:
     from collections.abc import Mapping
@@ -29,13 +28,6 @@ try:
     import xxhash
 except ImportError:
     xxhash = None
-
-try:
-    # will be the highest granularity clock available
-    from time import perf_counter as now
-except ImportError:
-    # not available on python 2
-    from time import time as now
 
 
 def tracked_array(array, dtype=None):

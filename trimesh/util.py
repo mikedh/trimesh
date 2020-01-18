@@ -12,18 +12,16 @@ or imported inside of a function
 import numpy as np
 
 import abc
-import collections
-import time
+import sys
 import copy
 import json
 import base64
+import shutil
 import logging
 import hashlib
 import zipfile
-import sys
 import tempfile
-import shutil
-
+import collections
 
 if sys.version_info >= (3, 4):
     # for newer version of python
@@ -39,6 +37,8 @@ if PY3:
     basestring = str
     # Python 3
     from io import BytesIO, StringIO
+    # will be the highest granularity clock available
+    from time import perf_counter as now
 else:
     # Python 2
     from StringIO import StringIO
@@ -46,6 +46,9 @@ else:
     StringIO.__enter__ = lambda a: a
     StringIO.__exit__ = lambda a, b, c, d: a.close()
     BytesIO = StringIO
+    # perf_counter not available on python 2
+    from time import time as now
+
 
 try:
     from collections.abc import Mapping
@@ -1981,7 +1984,7 @@ def unique_id(length=12, increment=0):
     """
     # head the identifier with 16 bits of time information
     # this provides locality and reduces collision chances
-    head = np.array((increment + time.time() * 10) % 2**16,
+    head = np.array((increment + now() * 10) % 2**16,
                     dtype=np.uint16).tostring()
     # get a bunch of random bytes
     random = np.random.random(int(np.ceil(length / 5))).tostring()
