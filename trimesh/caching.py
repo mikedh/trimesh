@@ -14,13 +14,13 @@ import hashlib
 
 from functools import wraps
 
+from .constants import log
+from .util import is_sequence
+
 try:
     from collections.abc import Mapping
 except ImportError:
     from collections import Mapping
-
-from .constants import log
-from .util import is_sequence
 
 try:
     # xxhash is roughly 5x faster than zlib.adler32 but is only
@@ -30,13 +30,20 @@ try:
 except ImportError:
     xxhash = None
 
+try:
+    # will be the highest granularity clock available
+    from time import perf_counter as now
+except ImportError:
+    # not available on python 2
+    from time import time as now
+
 
 def tracked_array(array, dtype=None):
     """
     Properly subclass a numpy ndarray to track changes.
 
     Avoids some pitfalls of subclassing by forcing contiguous
-    arrays, and does a view into a TrackedArray.
+    arrays and does a view into a TrackedArray.
 
     Parameters
     ------------
@@ -90,11 +97,11 @@ def cache_decorator(function):
         # use function name as key in cache
         name = function.__name__
         # store execution times
-        tic = [time.time(), 0.0, 0.0]
+        tic = [now(), 0.0, 0.0]
         # do the dump logic ourselves to avoid
         # verifying cache twice per call
         self._cache.verify()
-        tic[1] = time.time()
+        tic[1] = now()
         # access cache dict to avoid automatic validation
         # since we already called cache.verify manually
         if name in self._cache.cache:
@@ -102,7 +109,7 @@ def cache_decorator(function):
             return self._cache.cache[name]
         # value not in cache so execute the function
         value = function(*args, **kwargs)
-        tic[2] = time.time()
+        tic[2] = now()
         # store the value
         if self._cache.force_immutable and hasattr(
                 value, 'flags') and len(value.shape) > 0:
@@ -171,7 +178,8 @@ class TrackedArray(np.ndarray):
 
         Returns
         -----------
-        md5: str, hexadecimal MD5 of the array
+        md5 : str
+          Hexadecimal MD5 of the array
         """
         if self._modified_m or not hasattr(self, '_hashed_md5'):
             if self.flags['C_CONTIGUOUS']:
@@ -195,7 +203,8 @@ class TrackedArray(np.ndarray):
 
         Returns
         -----------
-        crc: int, checksum from zlib.crc32 or zlib.adler32
+        crc : int
+          Checksum from zlib.crc32 or zlib.adler32
         """
         if self._modified_c or not hasattr(self, '_hashed_crc'):
             if self.flags['C_CONTIGUOUS']:
@@ -216,7 +225,8 @@ class TrackedArray(np.ndarray):
 
         Returns
         -------------
-        xx: int, xxhash.xxh64 hash of array.
+        xx : int
+          xxhash.xxh64 hash of array.
         """
         # repeat the bookkeeping to get a contiguous array inside
         # the function to avoid additional function calls
@@ -239,7 +249,8 @@ class TrackedArray(np.ndarray):
 
         Returns
         -----------
-        hash: int, result of fast_hash
+        hash : int
+          Result of fast_hash
         """
         return self.fast_hash()
 
@@ -469,6 +480,7 @@ class Cache(object):
         Returns
         -------------
         cached : object, or None
+          Object that was stored
         """
         self.verify()
         if key in self.cache:

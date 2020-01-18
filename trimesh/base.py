@@ -2400,7 +2400,9 @@ class Trimesh(Geometry):
                 self.face_normals = self._cache['face_normals'] * -1.0
             if 'vertex_normals' in self._cache:
                 self.vertex_normals = self._cache['vertex_normals'] * -1.0
-            self.faces = np.fliplr(self.faces)
+            # fliplr makes array non-contiguous so cache checks slow
+            self.faces = np.ascontiguousarray(
+                np.fliplr(self.faces))
         # save our normals
         self._cache.clear(exclude=['face_normals',
                                    'vertex_normals'])

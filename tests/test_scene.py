@@ -171,6 +171,17 @@ class SceneTests(g.unittest.TestCase):
         scene.add_geometry(geometry, node_name='voxels')
         assert len(scene.graph.nodes_geometry) == 2
 
+    def test_add_concat(self):
+        # create a scene with just a box in it
+        a = g.trimesh.creation.box().scene()
+        # do the same but move the box first
+        b = g.trimesh.creation.box().apply_translation([2, 2, 2]).scene()
+        # add the second scene to the first
+        a.add_geometry(b)
+        assert len(b.geometry) == 1
+        assert len(a.geometry) == 2
+        assert len(a.graph.nodes_geometry) == 2
+
     def test_dupe(self):
         m = g.get_mesh('tube.obj')
 

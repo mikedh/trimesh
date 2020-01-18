@@ -146,6 +146,18 @@ class Scene(Geometry):
             for key, value in geometry.items():
                 self.add_geometry(value, geom_name=key)
             return
+        elif isinstance(geometry, Scene):
+            # concatenate current scene with passed scene
+            concat = self + geometry
+            # replace geometry in-place
+            self.geometry.clear()
+            self.geometry.update(concat.geometry)
+            # replace graph data with concatenated graph
+            self.graph.transforms = concat.graph.transforms
+            return
+        elif not hasattr(geometry, 'vertices'):
+            util.log.warning('unknown type ({}) added to scene!'.format(
+                type(geometry).__name__))
 
         # get or create a name to reference the geometry by
         if geom_name is not None:
