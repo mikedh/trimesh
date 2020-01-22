@@ -491,6 +491,11 @@ def _append_mesh(mesh,
     mat_hashes : dict
       Which materials have already been added
     """
+    # return early from empty meshes to avoid crashing later
+    if len(mesh.faces) == 0:
+        log.warning('skipping empty mesh!')
+        return
+
     # meshes reference accessor indexes
     # mode 4 is GL_TRIANGLES
     tree["meshes"].append({
@@ -857,6 +862,7 @@ def _read_buffers(header, buffers, mesh_kwargs, resolver=None):
             # if we don't have a triangular mesh continue
             # if not specified assume it is a mesh
             if "mode" in p and p["mode"] != 4:
+                log.warning('skipping primitive with mode {}!'.format(p['mode']))
                 continue
 
             # store those units

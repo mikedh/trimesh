@@ -6,10 +6,6 @@ github.com/mikedh/trimesh
 Library for importing, exporting and doing simple operations on triangular meshes.
 """
 
-import numpy as np
-
-import copy
-
 from . import ray
 from . import util
 from . import units
@@ -44,6 +40,9 @@ from .constants import log, log_time, tol
 
 from .scene import Scene
 from .parent import Geometry
+
+import copy
+import numpy as np
 
 
 class Trimesh(Geometry):
@@ -542,7 +541,7 @@ class Trimesh(Geometry):
         if self.bounds is None:
             return None
         extents = self.bounds.ptp(axis=0)
-        extents.flags.writeable = False
+
         return extents
 
     @caching.cache_decorator
@@ -566,8 +565,8 @@ class Trimesh(Geometry):
     @caching.cache_decorator
     def centroid(self):
         """
-        The point in space which is the average of the triangle centroids
-        weighted by the area of each triangle.
+        The point in space which is the average of the triangle
+        centroids weighted by the area of each triangle.
 
         This will be valid even for non-watertight meshes,
         unlike self.center_mass
@@ -580,10 +579,13 @@ class Trimesh(Geometry):
 
         # use the centroid of each triangle weighted by
         # the area of the triangle to find the overall centroid
-        centroid = np.average(self.triangles_center,
-                              axis=0,
-                              weights=self.area_faces)
-        centroid.flags.writeable = False
+        try:
+            centroid = np.average(self.triangles_center,
+                                  weights=self.area_faces,
+                                  axis=0)
+        except BaseException:
+            # if all triangles are zero-area weights will not work
+            centroid = self.triangles_center.mean(axis=0)
         return centroid
 
     @property
@@ -591,8 +593,8 @@ class Trimesh(Geometry):
         """
         The point in space which is the center of mass/volume.
 
-        If the current mesh is not watertight, this is meaningless garbage
-        unless it was explicitly set.
+        If the current mesh is not watertight this is meaningless
+        garbage unless it was explicitly set.
 
         Returns
         -----------
@@ -793,8 +795,7 @@ class Trimesh(Geometry):
         # trigger a change flag which means the MD5 will have to be
         # recomputed. We can escape this check by viewing the array.
         triangles = self.vertices.view(np.ndarray)[self.faces]
-        # make triangles (which are derived from faces/vertices) not writeable
-        triangles.flags.writeable = False
+
         return triangles
 
     @caching.cache_decorator
