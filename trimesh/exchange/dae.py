@@ -130,14 +130,14 @@ def export_collada(mesh, **kwargs):
         )
         indices = np.repeat(m.faces.flatten(), len(arrays))
 
-        matref = 'material{}'.format(i)
+        matref = u'material{}'.format(i)
         triset = geom.createTriangleSet(indices, input_list, matref)
         geom.primitives.append(triset)
         c.geometries.append(geom)
 
         matnode = collada.scene.MaterialNode(matref, mat, inputs=[])
         geomnode = collada.scene.GeometryNode(geom, [matnode])
-        node = collada.scene.Node('node{}'.format(i), children=[geomnode])
+        node = collada.scene.Node(u'node{}'.format(i), children=[geomnode])
         nodes.append(node)
     scene = collada.scene.Scene('scene', nodes)
     c.scenes.append(scene)
@@ -219,7 +219,7 @@ def _parse_node(node,
                     vis = visual.texture.TextureVisuals(
                         uv=uv, material=material)
 
-                primid = '{}.{}'.format(geometry.id, i)
+                primid = u'{}.{}'.format(geometry.id, i)
                 meshes[primid] = {
                     'vertices': vertices,
                     'faces': faces,
