@@ -219,7 +219,7 @@ def _parse_node(node,
                     vis = visual.texture.TextureVisuals(
                         uv=uv, material=material)
 
-                primid = '{}.{}'.format(geometry.id, i)
+                primid = '{}.{}'.format(geometry.id.encode('utf-8'), i)
                 meshes[primid] = {
                     'vertices': vertices,
                     'faces': faces,
