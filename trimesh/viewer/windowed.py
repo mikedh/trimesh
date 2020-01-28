@@ -482,13 +482,17 @@ class SceneViewer(pyglet.window.Window):
                 from ..path.creation import grid
                 bounds = self.scene.bounds
                 center = bounds.mean(axis=0)
-                center[2] = bounds[0][2]
+                # set the grid to the lowest Z position
+                # also offset by the scale to avoid interference
+                center[2] = bounds[0][2] - (bounds[:, 2].ptp() / 100)
+                # choose the side length by maximum XY length
                 side = bounds.ptp(axis=0)[:2].max()
                 # create an axis marker sized relative to the scene
                 grid_mesh = grid(
                     side=side,
                     count=4,
                     transform=translation_matrix(center))
+                # convert the path to vertexlist args
                 args = rendering.convert_to_vertexlist(grid_mesh)
                 # create ordered args for a vertex list
                 self._grid = self.batch.add_indexed(*args)

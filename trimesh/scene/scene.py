@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import collections
 
@@ -439,21 +440,40 @@ class Scene(Geometry):
         # geometry name : md5 of mesh
         mesh_hash = {k: int(m.identifier_md5, 16)
                      for k, m in self.geometry.items()}
-
         # the name of nodes in the scene graph with geometry
         node_names = np.array(self.graph.nodes_geometry)
         # the geometry names for each node in the same order
         node_geom = np.array([self.graph[i][1] for i in node_names])
-
         # the mesh md5 for each node in the same order
         node_hash = np.array([mesh_hash[v] for v in node_geom])
-
         # indexes of identical hashes
         node_groups = grouping.group(node_hash)
-
-        # sequence of node names, where each sublist has identical geometry
-        duplicates = [np.sort(node_names[g]).tolist() for g in node_groups]
+        # sequence of node names where each
+        # sublist has identical geometry
+        duplicates = [np.sort(node_names[g]).tolist()
+                      for g in node_groups]
         return duplicates
+
+    def deduplicated(self):
+        """
+        Return a new scene where each unique geometry is only
+        included once and transforms are discarded.
+
+        Returns
+        -------------
+        dedupe : Scene
+          One copy of each unique geometry from scene
+        """
+        # collect geometry
+        geometry = {}
+        # loop through groups of identical nodes
+        for group in self.duplicate_nodes:
+            # get the name of the geometry
+            name = self.graph[group[0]][1]
+            # collect our unique collection of geometry
+            geometry[name] = self.geometry[name]
+
+        return Scene(geometry)
 
     def set_camera(self,
                    angles=None,
@@ -735,7 +755,8 @@ class Scene(Geometry):
             file_obj.write(data)
         elif util.is_string(file_obj):
             # assume strings are file paths
-            with open(file_obj, 'wb') as f:
+            file_path = os.path.expanduser(os.path.abspath(file_obj))
+            with open(file_path, 'wb') as f:
                 f.write(data)
         else:
             # no writeable file object so return data

@@ -204,9 +204,27 @@ class SceneTests(g.unittest.TestCase):
         assert len(u.duplicate_nodes) == 1
         assert len(u.duplicate_nodes[0]) == 1
 
+    def test_dedupe(self):
+        # create a scene with two identical meshes
+        a = g.trimesh.creation.box()
+        b = g.trimesh.creation.box().apply_translation([2, 2, 2])
+        s = g.trimesh.Scene([a, b])
+
+        # should have 2 geometries
+        assert len(s.geometry) == 2
+        assert len(s.graph.nodes_geometry) == 2
+
+        # get a de-duplicated scene
+        d = s.deduplicated()
+        # should not have mutated original
+        assert len(s.geometry) == 2
+        assert len(s.graph.nodes_geometry) == 2
+        # should only have one geometry
+        assert len(d.geometry) == 1
+        assert len(d.graph.nodes_geometry) == 1
+
     def test_3DXML(self):
         s = g.get_mesh('rod.3DXML')
-
         assert len(s.geometry) == 3
         assert len(s.graph.nodes_geometry) == 29
 

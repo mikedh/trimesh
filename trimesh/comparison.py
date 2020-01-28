@@ -52,7 +52,9 @@ def identifier_simple(mesh):
         # note that we're going to try to make all parameters relative
         # to area so other values don't get blown up at weird scales
         identifier[0] = mesh_area
-
+        # avoid divide-by-zero later
+        if mesh_area < tol.merge:
+            mesh_area = 1.0
         # topological constant and the only thing we can really
         # trust in this fallen world
         identifier[1] = mesh.euler_number
@@ -75,30 +77,39 @@ def identifier_simple(mesh):
             if mesh.symmetry == 'radial':
                 # cylinder height
                 h = np.dot(vertices, mesh.symmetry_axis).ptp()
-                # section radius
-                R2 = (np.dot(vertices, mesh.symmetry_section.T)
-                      ** 2).sum(axis=1).max()
+                # section radius summed per row then overall max
+                R2 = np.dot((np.dot(vertices, mesh.symmetry_section.T)
+                             ** 2), [1, 1]).max()
                 # area of a cylinder primitive
                 area = (2 * np.pi * (R2**.5) * h) + (2 * np.pi * R2)
                 # replace area in this case with area ratio
                 identifier[0] = mesh_area / area
             elif mesh.symmetry == 'spherical':
                 # handle a spherically symmetric mesh
-                R2 = (vertices ** 2).sum(axis=1).max()
+                R2 = np.dot((vertices ** 2), [1, 1, 1]).max()
                 area = 4 * np.pi * R2
                 identifier[0] = mesh_area / area
         else:
             # if we don't have a watertight mesh add information about the
-            # convex hull, which is slow to compute and unreliable
+            # convex hull which is slow to compute and unreliable
+            try:
+                # get the hull area and volume
+                hull = mesh.convex_hull
+                hull_area = hull.area
+                hull_volume = hull.volume
+            except BaseException:
+                # in-plane or single point geometry has no hull
+                hull_area = 6.0
+                hull_volume = 1.0
             # just what we're looking for in a hash but hey
-            identifier[3] = mesh_area / mesh.convex_hull.area
+            identifier[3] = mesh_area / hull_area
             # cube side length ratio for the hull
-            identifier[4] = (((mesh.convex_hull.area / 6.0) ** (1.0 / 2.0)) /
-                             (mesh.convex_hull.volume ** (1.0 / 3.0)))
+            identifier[4] = (((hull_area / 6.0) ** (1.0 / 2.0)) /
+                             (hull_volume ** (1.0 / 3.0)))
+            # calculate maximum mesh radius
             vertices = mesh.vertices - mesh.centroid
-
             # add in max radius^2 to area ratio
-            R2 = (vertices ** 2).sum(axis=1).max()
+            R2 = np.dot((vertices ** 2), [1, 1, 1]).max()
             identifier[5] = R2 / mesh_area
 
     return identifier
