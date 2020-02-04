@@ -35,6 +35,20 @@ class SubDivideTest(g.unittest.TestCase):
 
             assert (edge_len < max_edge).all()
 
+    def test_sub(self):
+        # try on some primitives
+        meshes = [g.trimesh.creation.box(),
+                  g.trimesh.creation.icosphere()]
+
+        for m in meshes:
+            s = m.subdivide(face_index=[0, len(m.faces) - 1])
+            # shouldn't have subdivided in-place
+            assert len(s.faces) > len(m.faces)
+            # area should be the same
+            assert g.np.isclose(m.area, s.area)
+            # volume should be the same
+            assert g.np.isclose(m.volume, s.volume)
+
     def test_uv(self):
         # get a mesh with texture
         m = g.get_mesh('fuze.obj')

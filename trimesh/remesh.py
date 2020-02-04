@@ -46,10 +46,11 @@ def subdivide(vertices,
     else:
         face_index = np.asanyarray(face_index)
 
-    # the (c,3) int set of vertex indices
-    faces = faces[face_index]
+    # the (c, 3) int array of vertex indices
+    faces_subset = faces[face_index]
+
     # the (c, 3, 3) float set of points in the triangles
-    triangles = vertices[faces]
+    triangles = vertices[faces_subset]
     # the 3 midpoints of each triangle edge
     # stacked to a (3 * c, 3) float
     mid = np.vstack([triangles[:, g, :].mean(axis=1)
@@ -57,27 +58,27 @@ def subdivide(vertices,
                                [1, 2],
                                [2, 0]]])
 
-    # for adjacent faces we are going to be generating
+    # for adjacent faces_subset we are going to be generating
     # the same midpoint twice so merge them here
     mid_idx = (np.arange(len(face_index) * 3)).reshape((3, -1)).T
     unique, inverse = grouping.unique_rows(mid)
     mid = mid[unique]
     mid_idx = inverse[mid_idx] + len(vertices)
 
-    # the new faces with correct winding
-    f = np.column_stack([faces[:, 0],
+    # the new faces_subset with correct winding
+    f = np.column_stack([faces_subset[:, 0],
                          mid_idx[:, 0],
                          mid_idx[:, 2],
                          mid_idx[:, 0],
-                         faces[:, 1],
+                         faces_subset[:, 1],
                          mid_idx[:, 1],
                          mid_idx[:, 2],
                          mid_idx[:, 1],
-                         faces[:, 2],
+                         faces_subset[:, 2],
                          mid_idx[:, 0],
                          mid_idx[:, 1],
                          mid_idx[:, 2]]).reshape((-1, 3))
-    # add the 3 new faces per old face
+    # add the 3 new faces_subset per old face
     new_faces = np.vstack((faces, f[len(face_index):]))
     # replace the old face with a smaller face
     new_faces[face_index] = f[:len(face_index)]
@@ -87,7 +88,7 @@ def subdivide(vertices,
     if vertex_attributes is not None:
         new_attributes = {}
         for key, values in vertex_attributes.items():
-            attr_tris = values[faces]
+            attr_tris = values[faces_subset]
             attr_mid = np.vstack([
                 attr_tris[:, g, :].mean(axis=1)
                 for g in [[0, 1],
