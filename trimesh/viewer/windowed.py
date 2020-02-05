@@ -241,6 +241,23 @@ class SceneViewer(pyglet.window.Window):
             if tex is not None:
                 self.textures[name] = tex
 
+    def sweap_geometries(self):
+        """
+        Sweap geometries from the viewer.
+
+        """
+        node_names = collections.deque(
+            self.scene.graph.nodes_geometry)
+        deleted_names = []
+        for name in self.vertex_list:
+            if name not in node_names:
+                deleted_names.append(name)
+        for name in deleted_names:
+            self.vertex_list.pop(name, None)
+            self.vertex_list_hash.pop(name, None)
+            self.vertex_list_mode.pop(name, None)
+            self.textures.pop(name, None)
+
     def reset_view(self, flags=None):
         """
         Set view to the default view.
