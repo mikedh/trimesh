@@ -123,6 +123,8 @@ class SceneViewer(pyglet.window.Window):
         self.vertex_list_mode = {}
         # store meshes that don't rotate relative to viewer
         self.fixed = fixed
+        # store a hidden (don't not display) node.
+        self._nodes_hidden = set()
         # name : texture
         self.textures = {}
 
@@ -257,6 +259,28 @@ class SceneViewer(pyglet.window.Window):
             self.vertex_list_hash.pop(name, None)
             self.vertex_list_mode.pop(name, None)
             self.textures.pop(name, None)
+
+    def show_geometry(self, node):
+        """
+        Display the geometry contained at a node.
+
+        Parameters
+        -------------
+        node : str
+           Node to display
+        """
+        self._nodes_hidden.discard(node)
+
+    def hide_geometry(self, node):
+        """
+        Don't display the geometry contained at a node.
+
+        Parameters
+        -------------
+        node : str
+           Node to not display
+        """
+        self._nodes_hidden.add(node)
 
     def reset_view(self, flags=None):
         """
@@ -665,6 +689,9 @@ class SceneViewer(pyglet.window.Window):
         while len(node_names) > 0:
             count += 1
             current_node = node_names.popleft()
+
+            if current_node in self._nodes_hidden:
+                continue
 
             # get the transform from world to geometry and mesh name
             transform, geometry_name = self.scene.graph.get(current_node)
