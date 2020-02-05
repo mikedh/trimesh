@@ -198,6 +198,22 @@ class Scene(Geometry):
                           geometry_flags={'visible': True})
         return node_name
 
+    def delete_geometry(self, name):
+        """
+        Delete a geometry from the scene.
+
+        Parameters
+        --------------
+        name : hashable
+          Name that references geometry
+        """
+        self.graph.transforms.remove_node(name)
+        self.graph._cache.update(
+            {'nodes_geometry': np.array(
+                [n for n, attr in self.graph.transforms.nodes(data=True)
+                 if 'geometry' in attr])})
+        self.geometry.pop(name)
+
     def md5(self):
         """
         MD5 of scene which will change when meshes or
