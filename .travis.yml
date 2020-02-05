@@ -100,8 +100,6 @@ script:
 # pyembree, scikit-image, python-fcl not available everywhere
 - if [[ "$PYTHON_VERSION" == "3.6" ]]; then conda install pyembree scikit-image; fi;
 - if [[ "$PYTHON_VERSION" == "3.6" ]]; then pip install python-fcl; fi;
-# lxml stopped supporting EOL Python
-- if [[ "$PYTHON_VERSION" == "3.4" ]]; then pip install lxml==4.3.5 shapely==1.6.4; fi;
 
 # install most deps here
 - pip install -q .[easy]
