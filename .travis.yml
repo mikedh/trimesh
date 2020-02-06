@@ -71,6 +71,8 @@ install:
 - source activate test-environment
 # make sure we parked our car in the right spot
 - python -c "import os,sys;assert '{}.{}'.format(*sys.version_info[:2])==os.environ['PYTHON_VERSION']"
+# lock pip version for python 3.4
+- if [[ "$PYTHON_VERSION" == "3.4" ]]; then pip install pip===19.0.2; fi
 # only install the basic version of the library to make sure
 # trimesh imports and functions with only the minimal install
 - pip install .
