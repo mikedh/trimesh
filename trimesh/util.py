@@ -2145,7 +2145,14 @@ class FunctionRegistry(Mapping):
 class TemporaryDirectory(object):
     """
     Same basic usage as tempfile.TemporaryDirectory
-    but functional in Python 2.7+
+    but functional in Python 2.7+.
+
+    Example
+    ---------
+    ```
+    with trimesh.util.TemporaryDirectory() as path:
+       writable = os.path.join(path, 'hi.txt')
+    ```
     """
 
     def __enter__(self):

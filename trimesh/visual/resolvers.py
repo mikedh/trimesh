@@ -9,10 +9,10 @@ import os
 
 # URL parsing for remote resources via WebResolver
 try:
-    # python 3
+    # Python 3
     from urllib.parse import urlparse, urljoin
 except ImportError:
-    # python 2
+    # Python 2
     from urlparse import urlparse, urljoin
 
 
@@ -120,8 +120,11 @@ class ZipResolver(Resolver):
                     break
         # get the stored data
         obj = self.archive[name]
+        # if the dict is storing data as bytes just reture
         if isinstance(obj, (bytes, str)):
             return obj
+
+        # otherwise get it as a file object
         # read file object from beginning
         obj.seek(0)
         # data is stored as a file object
