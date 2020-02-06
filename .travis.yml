@@ -65,7 +65,6 @@ install:
 - export PATH="$HOME/miniconda/bin:$PATH"
 - conda config --set always_yes yes --set changeps1 no
 - conda config --add channels conda-forge
-- conda update -q conda
 - conda info -a
 - conda create -q -n test-environment python=$PYTHON_VERSION
 - source activate test-environment
