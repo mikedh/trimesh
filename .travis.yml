@@ -57,20 +57,22 @@ before_install:
   -P /usr/bin
 - sudo chmod +x /usr/bin/testVHACD
 
+
 install:
 - if [[ "$PYTHON_VERSION" == "2.7" ]]; then wget --quiet https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
-  -O miniconda.sh; else wget --quiet https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
+  -O miniconda.sh; else wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-4.6.14-Linux-x86_64.sh
   -O miniconda.sh; fi
 - bash miniconda.sh -b -p $HOME/miniconda
 - export PATH="$HOME/miniconda/bin:$PATH"
 - conda config --set always_yes yes --set changeps1 no
 - conda config --add channels conda-forge
-- conda update -q conda
 - conda info -a
 - conda create -q -n test-environment python=$PYTHON_VERSION
 - source activate test-environment
 # make sure we parked our car in the right spot
 - python -c "import os,sys;assert '{}.{}'.format(*sys.version_info[:2])==os.environ['PYTHON_VERSION']"
+# lock pip version for python 3.4
+- if [[ "$PYTHON_VERSION" == "3.4" ]]; then conda install pip===10.0.1; fi
 # only install the basic version of the library to make sure
 # trimesh imports and functions with only the minimal install
 - pip install .

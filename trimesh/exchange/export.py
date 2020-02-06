@@ -7,7 +7,7 @@ from .. import util
 
 from .urdf import export_urdf  # NOQA
 from .gltf import export_glb, export_gltf
-from .obj import _obj_exporters
+from .obj import export_obj
 from .off import _off_exporters
 from .stl import export_stl, export_stl_ascii
 from .ply import _ply_exporters
@@ -194,13 +194,13 @@ _mesh_exporters = {
     'dict': export_dict,
     'json': export_json,
     'glb': export_glb,
+    'obj': export_obj,
     'gltf': export_gltf,
     'dict64': export_dict64,
     'msgpack': export_msgpack,
     'stl_ascii': export_stl_ascii
 }
 _mesh_exporters.update(_ply_exporters)
-_mesh_exporters.update(_obj_exporters)
 _mesh_exporters.update(_off_exporters)
 _mesh_exporters.update(_collada_exporters)
 _mesh_exporters.update(_xyz_exporters)

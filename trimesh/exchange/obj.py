@@ -1,5 +1,5 @@
-import numpy as np
 import collections
+import numpy as np
 
 try:
     import PIL.Image as Image
@@ -688,7 +688,8 @@ def _preprocess_faces(text, split_object=False):
 
 def export_obj(mesh,
                include_normals=True,
-               include_color=True):
+               include_color=True,
+               include_texture=False):
     """
     Export a mesh as a Wavefront OBJ file
 
@@ -696,11 +697,24 @@ def export_obj(mesh,
     -----------
     mesh : trimesh.Trimesh
       Mesh to be exported
+    include_normals : bool
+      Inlcude vertex normals in export
+    include_color : bool
+      Include vertex color in export
+    include_texture bool
+      Include texture in export?
+      False by default as it will change the return
+      values to include files that must be saved in the
+      same location as the exported mesh.
 
     Returns
     -----------
     export : str
       OBJ format output
+    texture : dict
+      [OPTIONAL]
+      Contains files that need to be saved in the same
+      directory as the exported mesh: {file name : bytes}
     """
     # store the multiple options for formatting
     # vertex indexes for faces
@@ -722,45 +736,59 @@ def export_obj(mesh,
         v_blob = mesh.vertices
 
     # add the first vertex key and convert the array
-    export = 'v ' + util.array_to_string(v_blob,
-                                         col_delim=' ',
-                                         row_delim='\nv ',
-                                         digits=8) + '\n'
+    export = collections.deque(
+        ['v ' + util.array_to_string(
+            v_blob,
+            col_delim=' ',
+            row_delim='\nv ',
+            digits=8) + '\n'])
 
     # only include vertex normals if they're already stored
     if include_normals and 'vertex_normals' in mesh._cache:
         # if vertex normals are stored in cache export them
         face_type.append('vn')
-        export += 'vn '
-        export += util.array_to_string(mesh.vertex_normals,
-                                       col_delim=' ',
-                                       row_delim='\nvn ',
-                                       digits=8) + '\n'
+        export.append('vn ' + util.array_to_string(
+            mesh.vertex_normals,
+            col_delim=' ',
+            row_delim='\nvn ',
+            digits=8) + '\n')
 
-    """
-    TODO: update this to use TextureVisuals
-    if include_texture:
-        # if vertex texture exists and is the right shape export here
+    tex_data = None
+    if include_texture and hasattr(mesh.visual, 'uv'):
+        # if vertex texture exists and is the right shape
         face_type.append('vt')
-        export += 'vt '
-
-        export += util.array_to_string(mesh.metadata['vertex_texture'],
-                                       col_delim=' ',
-                                       row_delim='\nvt ',
-                                       digits=8) + '\n'
-    """
+        # add the uv coordinates
+        export.append('vt ' + util.array_to_string(
+            mesh.visual.uv,
+            col_delim=' ',
+            row_delim='\nvt ',
+            digits=8) + '\n')
+        tex_data, tex_name, mtl_name = mesh.visual.material.to_obj()
+        # add the reference to the MTL file
+        export.appendleft('mtllib {}'.format(mtl_name))
+        # add the directive to use the exported material
+        export.appendleft('usemtl {}'.format(tex_name))
 
     # the format for a single vertex reference of a face
     face_format = face_formats[tuple(face_type)]
-    faces = 'f ' + util.array_to_string(mesh.faces + 1,
-                                        col_delim=' ',
-                                        row_delim='\nf ',
-                                        value_format=face_format)
     # add the exported faces to the export
-    export += faces
+    export.append('f ' + util.array_to_string(
+        mesh.faces + 1,
+        col_delim=' ',
+        row_delim='\nf ',
+        value_format=face_format))
+
+    # add a created-with header to the top of the file
+    export.appendleft('# https://github.com/mikedh/trimesh')
+
+    # combine elements into a single string
+    export = '\n'.join(export)
+
+    # if we exported texture it changes returned values
+    if include_texture and tex_data is not None:
+        return export, tex_data
 
     return export
 
 
 _obj_loaders = {'obj': load_obj}
-_obj_exporters = {'obj': export_obj}

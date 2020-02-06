@@ -116,7 +116,8 @@ class TextureVisuals(object):
         if values is None:
             self._data.clear()
         else:
-            self._data['uv'] = np.asanyarray(values, dtype=np.float64)
+            self._data['uv'] = np.asanyarray(
+                values, dtype=np.float64)
 
     def copy(self):
         """
