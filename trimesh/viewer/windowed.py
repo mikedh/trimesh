@@ -243,42 +243,47 @@ class SceneViewer(pyglet.window.Window):
             if tex is not None:
                 self.textures[name] = tex
 
-    def sweap_geometries(self):
+    def cleanup_geometries(self):
         """
-        Sweap geometries from the viewer.
+        Remove any stored vertex lists that no longer
+        exist in the scene.
+        """
+        # shorthand to scene graph
+        graph = self.scene.graph
+        # which parts of the graph still have geometry
+        geom_keep = set([graph[node][1] for
+                         node in graph.nodes_geometry])
+        # which geometries no longer need to be kept
+        geom_delete = [geom for geom in self.vertex_list
+                       if geom not in geom_keep]
+        for geom in geom_delete:
+            # remove stored vertex references
+            self.vertex_list.pop(geom, None)
+            self.vertex_list_hash.pop(geom, None)
+            self.vertex_list_mode.pop(geom, None)
+            self.textures.pop(geom, None)
 
+    def unhide_geometry(self, node):
         """
-        node_names = collections.deque(
-            self.scene.graph.nodes_geometry)
-        deleted_names = []
-        for name in self.vertex_list:
-            if name not in node_names:
-                deleted_names.append(name)
-        for name in deleted_names:
-            self.vertex_list.pop(name, None)
-            self.vertex_list_hash.pop(name, None)
-            self.vertex_list_mode.pop(name, None)
-            self.textures.pop(name, None)
-
-    def show_geometry(self, node):
-        """
-        Display the geometry contained at a node.
+        If a node is hidden remove the flag and show the
+        geometry on the next draw.
 
         Parameters
         -------------
         node : str
-           Node to display
+          Node to display
         """
         self._nodes_hidden.discard(node)
 
     def hide_geometry(self, node):
         """
-        Don't display the geometry contained at a node.
+        Don't display the geometry contained at a node on
+        the next draw.
 
         Parameters
         -------------
         node : str
-           Node to not display
+          Node to not display
         """
         self._nodes_hidden.add(node)
 

@@ -57,10 +57,13 @@ class SectionTest(g.unittest.TestCase):
 
                 # Z should be in plane frame
                 assert g.np.allclose(section.vertices[:, 2], z)
+                assert len(section.centroid) == 3
 
                 planar, to_3D = section.to_planar()
                 assert planar.is_closed
                 assert (len(planar.polygons_full) > 0)
+                assert len(planar.centroid) == 2
+
                 sections[index] = planar
                 sections_3D[index] = section
 

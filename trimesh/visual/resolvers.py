@@ -120,7 +120,7 @@ class ZipResolver(Resolver):
                     break
         # get the stored data
         obj = self.archive[name]
-        # if the dict is storing data as bytes just reture
+        # if the dict is storing data as bytes just return
         if isinstance(obj, (bytes, str)):
             return obj
 

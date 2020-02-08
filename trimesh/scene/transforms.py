@@ -95,7 +95,7 @@ class TransformForest(object):
 
         Returns
         ------------
-        copied: TransformForest
+        copied : TransformForest
         """
         copied = TransformForest()
         copied.base_frame = copy.deepcopy(self.base_frame)
@@ -280,6 +280,32 @@ class TransformForest(object):
              if 'geometry' in attr])
 
         return nodes
+
+    def remove_geometries(self, geometries):
+        """
+        Remove the reference for specified geometries from nodes
+        without deleting the node.
+
+        Parameters
+        ------------
+        geometries : list or str
+          Name of scene.geometry to dereference.
+        """
+        # make sure we have a set of geometries to remove
+        if isinstance(geometries, util.basestring):
+            geometries = [geometries]
+        geometries = set(geometries)
+
+        # remove the geometry reference from the node without deleting nodes
+        # this lets us keep our cached paths, and will not screw up children
+        for node, attrib in self.transforms.nodes(data=True):
+            if 'geometry' in attrib and attrib['geometry'] in geometries:
+                attrib.pop('geometry')
+
+        # it would be safer to just run _cache.clear
+        # but the only property using the geometry should be
+        # nodes_geometry: if this becomes not true change this to clear!
+        self._cache.cache.pop('nodes_geometry', None)
 
     def get(self, frame_to, frame_from=None):
         """

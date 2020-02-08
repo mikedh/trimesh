@@ -698,7 +698,7 @@ def export_obj(mesh,
     mesh : trimesh.Trimesh
       Mesh to be exported
     include_normals : bool
-      Inlcude vertex normals in export
+      Include vertex normals in export
     include_color : bool
       Include vertex color in export
     include_texture bool
