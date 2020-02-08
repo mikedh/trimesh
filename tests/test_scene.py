@@ -184,10 +184,10 @@ class SceneTests(g.unittest.TestCase):
 
     def test_delete(self):
         # check to make sure our geometry delete cleans up
-        a = trimesh.creation.icosphere()
-        b = trimesh.creation.icosphere().apply_translation([2, 0, 0])
+        a = g.trimesh.creation.icosphere()
+        b = g.trimesh.creation.icosphere().apply_translation([2, 0, 0])
+        s = g.trimesh.Scene({'a': a, 'b': b})
 
-        s = trimesh.Scene({'a': a, 'b': b})
         assert len(s.geometry) == 2
         assert len(s.graph.nodes_geometry) == 2
         # make sure every node has a transform
