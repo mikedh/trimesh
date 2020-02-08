@@ -198,6 +198,26 @@ class Scene(Geometry):
                           geometry_flags={'visible': True})
         return node_name
 
+    def delete_geometry(self, names):
+        """
+        Delete one more multiple geometries from the scene and also
+        remove any node in the transform graph which references it.
+
+        Parameters
+        --------------
+        name : hashable
+          Name that references self.geometry
+        """
+        # make sure we have a set we can check
+        if util.is_string(names):
+            names = [names]
+        names = set(names)
+
+        # remove the geometry reference from relevant nodes
+        self.graph.remove_geometries(names)
+        # remove the geometries from our geometry store
+        [self.geometry.pop(name, None) for name in names]
+
     def md5(self):
         """
         MD5 of scene which will change when meshes or
@@ -1008,7 +1028,9 @@ class Scene(Geometry):
         if viewer is None:
             # check to see if we are in a notebook or not
             from ..viewer import in_notebook
-            viewer = ['gl', 'notebook'][int(in_notebook())]
+            viewer = 'gl'
+            if in_notebook():
+                viewer = 'notebook'
 
         if viewer == 'gl':
             # this imports pyglet, and will raise an ImportError

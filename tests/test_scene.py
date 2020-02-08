@@ -182,6 +182,24 @@ class SceneTests(g.unittest.TestCase):
         assert len(a.geometry) == 2
         assert len(a.graph.nodes_geometry) == 2
 
+    def test_delete(self):
+        # check to make sure our geometry delete cleans up
+        a = g.trimesh.creation.icosphere()
+        b = g.trimesh.creation.icosphere().apply_translation([2, 0, 0])
+        s = g.trimesh.Scene({'a': a, 'b': b})
+
+        assert len(s.geometry) == 2
+        assert len(s.graph.nodes_geometry) == 2
+        # make sure every node has a transform
+        [s.graph[n] for n in s.graph.nodes]
+
+        # delete a geometry
+        s.delete_geometry('a')
+        assert len(s.geometry) == 1
+        assert len(s.graph.nodes_geometry) == 1
+        # if we screwed up the delete this will crash
+        [s.graph[n] for n in s.graph.nodes]
+
     def test_dupe(self):
         m = g.get_mesh('tube.obj')
 

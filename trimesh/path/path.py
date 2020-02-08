@@ -337,6 +337,20 @@ class Path(object):
                          points.max(axis=0)],
                         dtype=np.float64)
 
+    @caching.cache_decorator
+    def centroid(self):
+        """
+        Return the centroid of axis aligned bounding box enclosing
+        all entities of the path object.
+
+        Returns
+        -----------
+        centroid : (d,) float
+          Approximate centroid of the path
+        """
+        centroid = self.bounds.mean(axis=0)
+        return centroid
+
     @property
     def extents(self):
         """
@@ -1233,19 +1247,6 @@ class Path2D(Path):
         """
         area = float(sum(i.area for i in self.polygons_full))
         return area
-
-    @caching.cache_decorator
-    def centroid(self):
-        """
-        Return the centroid of the path object.
-
-        Returns
-        -----------
-        centroid : (d,) float
-          Approximate centroid of the path
-        """
-        centroid = self.vertices.mean(axis=0)
-        return centroid
 
     def extrude(self, height, **kwargs):
         """

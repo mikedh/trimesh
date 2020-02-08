@@ -123,6 +123,8 @@ class SceneViewer(pyglet.window.Window):
         self.vertex_list_mode = {}
         # store meshes that don't rotate relative to viewer
         self.fixed = fixed
+        # store a hidden (don't not display) node.
+        self._nodes_hidden = set()
         # name : texture
         self.textures = {}
 
@@ -240,6 +242,50 @@ class SceneViewer(pyglet.window.Window):
                 geometry.visual.material)
             if tex is not None:
                 self.textures[name] = tex
+
+    def cleanup_geometries(self):
+        """
+        Remove any stored vertex lists that no longer
+        exist in the scene.
+        """
+        # shorthand to scene graph
+        graph = self.scene.graph
+        # which parts of the graph still have geometry
+        geom_keep = set([graph[node][1] for
+                         node in graph.nodes_geometry])
+        # which geometries no longer need to be kept
+        geom_delete = [geom for geom in self.vertex_list
+                       if geom not in geom_keep]
+        for geom in geom_delete:
+            # remove stored vertex references
+            self.vertex_list.pop(geom, None)
+            self.vertex_list_hash.pop(geom, None)
+            self.vertex_list_mode.pop(geom, None)
+            self.textures.pop(geom, None)
+
+    def unhide_geometry(self, node):
+        """
+        If a node is hidden remove the flag and show the
+        geometry on the next draw.
+
+        Parameters
+        -------------
+        node : str
+          Node to display
+        """
+        self._nodes_hidden.discard(node)
+
+    def hide_geometry(self, node):
+        """
+        Don't display the geometry contained at a node on
+        the next draw.
+
+        Parameters
+        -------------
+        node : str
+          Node to not display
+        """
+        self._nodes_hidden.add(node)
 
     def reset_view(self, flags=None):
         """
@@ -648,6 +694,9 @@ class SceneViewer(pyglet.window.Window):
         while len(node_names) > 0:
             count += 1
             current_node = node_names.popleft()
+
+            if current_node in self._nodes_hidden:
+                continue
 
             # get the transform from world to geometry and mesh name
             transform, geometry_name = self.scene.graph.get(current_node)
