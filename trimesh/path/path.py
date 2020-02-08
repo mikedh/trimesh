@@ -1017,6 +1017,19 @@ class Path3D(Path):
         if show:
             plt.show()
 
+    @caching.cache_decorator
+    def centroid(self):
+        """
+        Return the centroid of the path object.
+
+        Returns
+        -----------
+        centroid : (d,) float
+          Approximate centroid of the path
+        """
+        centroid = self.vertices.mean(axis=0)
+        return centroid
+
 
 class Path2D(Path):
 
