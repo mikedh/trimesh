@@ -292,7 +292,7 @@ class TransformForest(object):
           Name of scene.geometry to dereference.
         """
         # make sure we have a set of geometries to remove
-        if isinstance(geometries, util.basestring):
+        if util.is_string(geometries):
             geometries = [geometries]
         geometries = set(geometries)
 

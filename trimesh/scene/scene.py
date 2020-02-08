@@ -209,7 +209,7 @@ class Scene(Geometry):
           Name that references self.geometry
         """
         # make sure we have a set we can check
-        if isinstance(names, util.basestring):
+        if util.is_string(names):
             names = [names]
         names = set(names)
 
