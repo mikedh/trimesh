@@ -195,8 +195,8 @@ class SceneTests(g.unittest.TestCase):
 
         # delete a geometry
         s.delete_geometry('a')
-        assert len(s.geometry) == 2
-        assert len(s.graph.nodes_geometry) == 2
+        assert len(s.geometry) == 1
+        assert len(s.graph.nodes_geometry) == 1
         # if we screwed up the delete this will crash
         [s.graph[n] for n in s.graph.nodes]
 
