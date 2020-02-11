@@ -477,6 +477,69 @@ def element_colors(element):
     return None, 0.0
 
 
+def load_element_with_differing_length_lists(properties, data):
+    """
+    Load element data based on the element's property-definitions.
+
+    Parameters
+    ------------
+    properties: Property definitions encoded in a dict where the property name is the key
+                and the property data type the value.
+    data: numpy-array of data rows for this element.
+    """
+    element_data = {k: [] for k in properties.keys()}
+    for row in data:
+        start = 0
+        for name, dt in properties.items():
+            length = 1
+            if '$LIST' in dt:
+                dt = dt.split('($LIST,)')[-1]
+                # the first entry in a list-property is the number of elements in the list
+                length = int(row[start])
+                # skip the first entry (the length), when reading the data
+                start += 1
+            end = start + length
+            element_data[name].append(row[start:end].astype(dt))
+            # start next property at the end of this one
+            start = end
+
+    # convert all property lists to numpy arrays
+    for name in element_data.keys():
+        element_data[name] = np.array(element_data[name]).squeeze()
+
+    return element_data
+
+
+def load_element_with_single_length_lists(properties, data):
+    """
+    Load element data based on the element's property-definitions.
+
+    Parameters
+    ------------
+    properties: Property definitions encoded in a dict where the property name is the key
+                and the property data type the value.
+    data: numpy-array of data rows for this element. If the data contains list-properties,
+          all lists belonging to one property must have the same length.
+    """
+    col_ranges = []
+    start = 0
+    row0 = data[0]
+    for name, dt in properties.items():
+        length = 1
+        if '$LIST' in dt:
+            # the first entry in a list-property is the number of elements in the list
+            length = int(row0[start])
+            # skip the first entry (the length), when reading the data
+            start += 1
+        end = start + length
+        col_ranges.append((start, end))
+        # start next property at the end of this one
+        start = end
+
+    return {n: data[:, c[0]:c[1]].astype(dt.split('($LIST,)')[-1])
+            for c, (n, dt) in zip(col_ranges, properties.items())}
+
+
 def ply_ascii(elements, file_obj):
     """
     Load data from an ASCII PLY file into an existing elements data structure.
@@ -501,44 +564,41 @@ def ply_ascii(elements, file_obj):
                       for i in lines])
 
     # store the line position in the file
-    position = 0
+    row_pos = 0
 
     # loop through data we need
     for key, values in elements.items():
         # if the element is empty ignore it
         if 'length' not in values or values['length'] == 0:
             continue
-        # will store (start, end) column index of data
-        columns = collections.deque()
-        # will store the total number of rows
-        rows = 0
 
-        for name, dtype in values['properties'].items():
-            # we need to know how many elements are in this dtype
-            if '$LIST' in dtype:
-                # if an element contains a list property handle it here
-                row = array[position]
-                list_count = int(row[rows])
-                # ignore the count and take the data
-                columns.append([rows + 1,
-                                rows + 1 + list_count])
-                rows += list_count + 1
-                # change the datatype to just the dtype for data
-                values['properties'][name] = dtype.split('($LIST,)')[-1]
-            else:
-                # a single column data field
-                columns.append([rows, rows + 1])
-                rows += 1
-        # get the lines as a 2D numpy array
-        data = np.vstack(array[position:position + values['length']])
-        # offset position in file
-        position += values['length']
-        # store columns we care about by name and convert to data type
-        elements[key]['data'] = {n: data[:, c[0]:c[1]].astype(dt)
-                                 for n, dt, c in zip(
-            values['properties'].keys(),    # field name
-            values['properties'].values(),  # data type of field
-            columns)}                       # list of (start, end) column indexes
+        data = array[row_pos:row_pos + values['length']]
+        row_pos += values['length']
+
+        # try stacking the data, which simplifies column-wise access. this is only
+        # possible, if all rows have the same length.
+        try:
+            data = np.vstack(data)
+            col_count_equal = True
+        except ValueError:
+            col_count_equal = False
+
+        # number of list properties in this element
+        list_count = sum(1 for dt in values['properties'].values() if '$LIST' in dt)
+        if col_count_equal and list_count <= 1:
+            # all rows have the same length and we only have at most one list
+            # property where all entries have the same length. this means we can
+            # use the quick numpy-based loading.
+            element_data = load_element_with_single_length_lists(
+                values['properties'], data)
+        else:
+            # there are lists of differing lengths. we need to fall back to loading
+            # the data by iterating all rows and checking for list-lengths. this is
+            # slower than the variant above.
+            element_data = load_element_with_differing_length_lists(
+                values['properties'], data)
+
+        elements[key]['data'] = element_data
 
 
 def ply_binary(elements, file_obj):
