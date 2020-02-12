@@ -1147,9 +1147,17 @@ def _append_material(mat, tree, buffer_items, mat_hashes):
     except BaseException:
         pass
 
+    # if name is defined, export
+    if isinstance(as_pbr.name, str):
+        result['name'] = as_pbr.name
+
     # if alphaMode is defined, export
     if isinstance(as_pbr.alphaMode, str):
         result['alphaMode'] = as_pbr.alphaMode
+
+    # if doubleSided is defined, export
+    if isinstance(as_pbr.doubleSided, bool):
+        result['doubleSided'] = as_pbr.doubleSided
 
     # if scalars are defined correctly export
     if isinstance(as_pbr.metallicFactor, float):

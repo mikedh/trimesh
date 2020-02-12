@@ -221,6 +221,7 @@ class PBRMaterial(Material):
         self.doubleSided = doubleSided
 
         # str
+        self.name = name
         self.alphaMode = alphaMode
 
     def to_color(self, uv):
