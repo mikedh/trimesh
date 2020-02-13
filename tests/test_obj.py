@@ -134,6 +134,11 @@ class OBJTest(g.unittest.TestCase):
         assert len(m.vertices) > 0
         assert len(m.faces) > 0
 
+    def test_faces_not_enough_indices(self):
+        m = g.get_mesh('notenoughindices.obj')
+        assert len(m.vertices) > 0
+        assert len(m.faces) == 1
+
     def test_mtl(self):
         # get a mesh with texture
         m = g.get_mesh('fuze.obj')
