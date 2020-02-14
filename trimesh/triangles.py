@@ -106,9 +106,10 @@ def angles(triangles):
     w = triangles[:, 2] - triangles[:, 1]
 
     # norm per- row of each vector
-    u /= util.row_norm(u).reshape((-1, 1))
-    v /= util.row_norm(v).reshape((-1, 1))
-    w /= util.row_norm(w).reshape((-1, 1))
+    with np.errstate(invalid='ignore'):
+        u /= util.row_norm(u).reshape((-1, 1))
+        v /= util.row_norm(v).reshape((-1, 1))
+        w /= util.row_norm(w).reshape((-1, 1))
 
     # run the cosine and per- row dot product
     a = np.arccos(np.clip(util.diagonal_dot(u, v), -1, 1))
