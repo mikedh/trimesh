@@ -417,7 +417,10 @@ def _parse_faces_fallback(lines):
         # take first bit before newline then split by whitespace
         split = line.strip().split('\n')[0].split()
         # split into: ['76/558/76', '498/265/498', '456/267/456']
-        if len(split) == 4:
+        len_split = len(split)
+        if len_split == 3:
+            pass
+        elif len_split == 4:
             # triangulate quad face
             split = [split[0],
                      split[1],
@@ -425,9 +428,19 @@ def _parse_faces_fallback(lines):
                      split[2],
                      split[3],
                      split[0]]
-        elif len(split) != 3:
+        elif len_split > 4:
+            # triangulate polygon, as a triangles fan
+            r_split = []
+            r_split_append = r_split.append
+            for i in range(len(split) - 2):
+                r_split_append(split[0])
+                r_split_append(split[i + 1])
+                r_split_append(split[i + 2])
+            split = r_split
+        else:
             log.warning(
-                'face has {} elements! skipping!'.format(len(split)))
+                'face need at least 3 elements (got {})! skipping!'.format(
+                    len(split)))
             continue
 
         # f is like: '76/558/76'
