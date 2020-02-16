@@ -108,10 +108,9 @@ def unitize(vectors,
         valid = norm > threshold
         # in-place reciprocal of nonzero norms
         norm[valid] **= -1
-        # tile reciprocal of norm
-        tiled = np.tile(norm, (vectors.shape[1], 1)).T
         # multiply by reciprocal of norm
-        unit = vectors * tiled
+        unit = vectors * norm.reshape((-1, 1))
+
     elif len(vectors.shape) == 1:
         # treat 1D arrays as a single vector
         norm = np.sqrt(np.dot(vectors, vectors))
