@@ -132,6 +132,31 @@ class TrianglesTest(g.unittest.TestCase):
         # degenerate angles should be zero, not NaN
         assert g.np.allclose(angles, g.np.radians(60))
 
+        # an equilateral triangle transformed into space
+        tris = g.trimesh.transform_points(
+            g.np.array(
+                [[-1, 0, 0],
+                 [1, 0, 0],
+                 [0, g.np.sqrt(3), 0]], dtype=g.np.float64),
+            g.trimesh.transformations.random_rotation_matrix()).reshape((-1, 3, 3))
+        angles = g.trimesh.triangles.angles(tris)
+        # all angles should be 60 degrees
+        assert g.np.allclose(angles, g.np.radians(60))
+
+        # an 3-4-5 right triangle
+        tris = g.trimesh.transform_points(
+            g.np.array(
+                [[0, 0, 0],
+                 [3, 0, 0],
+                 [0, 4, 0]], dtype=g.np.float64),
+            g.trimesh.transformations.random_rotation_matrix()).reshape((-1, 3, 3))
+        # get angles
+        angles = g.trimesh.triangles.angles(tris)
+        # make sure they match a 3-4-5
+        assert g.np.allclose(
+            g.np.sort(angles.ravel()),
+            [g.np.arcsin(3.0 / 5), g.np.arcsin(4.0 / 5), g.np.pi / 2])
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
