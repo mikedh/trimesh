@@ -207,6 +207,18 @@ class CacheTest(g.unittest.TestCase):
         # we shouldn't make it past the try-except
         raise ValueError('mutating data worked when it shouldn\'t!')
 
+    def test_transform(self):
+        """
+        apply_transform tries to not dump the full cache
+        """
+        m = g.get_mesh('featuretype.STL')
+        # should populate edges_face
+        e_len = len(m.edges)
+        # should maintain required properties
+        m.apply_transform(g.transforms[1])
+        # should still be in the cache
+        assert len(m.edges_face) == e_len
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
