@@ -114,13 +114,23 @@ class TrianglesTest(g.unittest.TestCase):
         assert len(r) == len(tri)
         assert (r == tri_gt).all()
 
-    def test_zero_angle(self):
+    def test_angles(self):
         # a zero- area triangle
         tris = g.np.array(
             [[[0, 0, 0], [1, 0, 0], [1, 0, 0]]], dtype=g.np.float64)
         angles = g.trimesh.triangles.angles(tris)
         # degenerate angles should be zero, not NaN
+        print(angles)
         assert g.np.allclose(angles, 0.0)
+
+        # an equilateral triangle
+        tris = g.np.array(
+            [[[-1, 0, 0],
+              [1, 0, 0],
+              [0, g.np.sqrt(3), 0]]], dtype=g.np.float64)
+        angles = g.trimesh.triangles.angles(tris)
+        # degenerate angles should be zero, not NaN
+        assert g.np.allclose(angles, g.np.radians(60))
 
 
 if __name__ == '__main__':

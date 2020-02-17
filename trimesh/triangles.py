@@ -106,15 +106,17 @@ def angles(triangles):
     v = unitize(triangles[:, 2] - triangles[:, 0])
     w = unitize(triangles[:, 2] - triangles[:, 1])
 
-    # run the cosine and per- row dot product
+    # run the cosine and per-row dot product
     result = np.zeros((len(triangles), 3), dtype=np.float64)
+    # clip to make sure we don't float error past 1.0
     result[:, 0] = np.arccos(np.clip(diagonal_dot(u, v), -1, 1))
     result[:, 1] = np.arccos(np.clip(diagonal_dot(-u, w), -1, 1))
+    # the third angle is just the remaining
     result[:, 2] = np.pi - result[:, 0] - result[:, 1]
 
-    # set the angles of any triangles with any zero-length
-    # edges to all zeros
-    result[result[:, 2] < 1e-8, :] = 0.0
+    # a triangle with any zero angles is degenerate
+    # so set all of the angles to zero in that case
+    result[(result < tol.merge).any(axis=1), :] = 0.0
 
     return result
 
