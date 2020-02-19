@@ -96,7 +96,48 @@ def load_dict(data, **kwargs):
                          data.__class__.__name__)
 
 
+def load_meshio(file_obj, file_type=None, **kwargs):
+    """
+    Load a meshio-supported file into the kwargs for a Trimesh
+    constructor.
+
+
+    Parameters
+    ----------
+    file_obj : file object
+      Contains a meshio file
+    file_type : str
+      File extension, aka 'vtk'
+
+    Returns
+    ----------
+    loaded : dict
+      kwargs for Trimesh constructor
+    """
+    # trimesh "file types" are really filename extensions
+    file_format = meshio.extension_to_filetype["." + file_type]
+    # load_meshio gets passed and io.BufferedReader
+    # not all readers can cope with that
+    # e.g., the ones that use h5m underneath
+    # in that case use the associated file name instead
+    mesh = meshio.read(file_obj.name, file_format=file_format)
+
+    # save data as kwargs for a trimesh.Trimesh
+    result = {'vertices': mesh.points,
+              'faces': mesh.get_cells_type("triangle")}
+    return result
+
+
 _misc_loaders = {'dict': load_dict,
                  'dict64': load_dict,
                  'json': load_dict,
                  'msgpack': load_msgpack}
+
+try:
+    import meshio
+    # add meshio loaders here
+    _misc_loaders.update(
+        {k[1:]: load_meshio for k in
+         meshio.extension_to_filetype.keys()})
+except BaseException:
+    pass

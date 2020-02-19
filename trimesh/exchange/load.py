@@ -23,7 +23,6 @@ from .openctm import _ctm_loaders
 from .xml_based import _xml_loaders
 from .binvox import _binvox_loaders
 from .xyz import _xyz_loaders
-from .meshio import _meshio_loaders
 
 
 try:
@@ -593,12 +592,9 @@ mesh_loaders = {}
 # assimp has a lot of loaders, but they are all quite slow
 # load first and replace with native loaders where possible
 mesh_loaders.update(_assimp_loaders)
-# same for meshio?
-mesh_loaders.update(_meshio_loaders)
-#
+mesh_loaders.update(_misc_loaders)
 mesh_loaders.update(_stl_loaders)
 mesh_loaders.update(_ctm_loaders)
-mesh_loaders.update(_misc_loaders)
 mesh_loaders.update(_ply_loaders)
 mesh_loaders.update(_xml_loaders)
 mesh_loaders.update(_obj_loaders)

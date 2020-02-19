@@ -29,6 +29,11 @@ class LoaderTest(g.unittest.TestCase):
             # will raise if dtype string not valid
             g.np.dtype(d)
 
+    def test_meshio(self):
+        m = g.get_mesh('insulated.msh')
+        assert len(m.faces) > 0
+        assert m.area > 1e-5
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
