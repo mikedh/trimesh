@@ -43,6 +43,7 @@ requirements_easy = set([
     'setuptools',  # do setuptools stuff
     'pycollada',   # parse collada/dae/zae files
     'chardet',     # figure out if someone used UTF-16
+    'meshio',      # load a number of additional mesh formats
     'colorlog'])   # log in pretty colors
 
 # "all" requirements only need to be installable
