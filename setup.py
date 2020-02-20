@@ -43,7 +43,6 @@ requirements_easy = set([
     'setuptools',  # do setuptools stuff
     'pycollada',   # parse collada/dae/zae files
     'chardet',     # figure out if someone used UTF-16
-    'meshio',      # load a number of additional mesh formats
     'colorlog'])   # log in pretty colors
 
 # "all" requirements only need to be installable
@@ -55,6 +54,7 @@ requirements_all = requirements_easy.union([
     'psutil',        # figure out how much memory we have
     'glooey',        # make GUI applications with 3D stuff
     'jsonschema',    # validate JSON schemas like GLTF
+    'meshio',        # load a number of additional mesh formats; Python 3.5+
     'scikit-image'])  # marching cubes and other nice stuff
 
 # requirements for running unit tests
