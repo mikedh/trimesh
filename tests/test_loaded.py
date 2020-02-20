@@ -31,7 +31,7 @@ class LoaderTest(g.unittest.TestCase):
 
     def test_meshio(self):
         try:
-            import meshio # NOQA
+            import meshio  # NOQA
         except BaseException:
             return
         # if meshio is importable we should be able to load this
