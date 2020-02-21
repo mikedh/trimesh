@@ -592,9 +592,9 @@ mesh_loaders = {}
 # assimp has a lot of loaders, but they are all quite slow
 # load first and replace with native loaders where possible
 mesh_loaders.update(_assimp_loaders)
+mesh_loaders.update(_misc_loaders)
 mesh_loaders.update(_stl_loaders)
 mesh_loaders.update(_ctm_loaders)
-mesh_loaders.update(_misc_loaders)
 mesh_loaders.update(_ply_loaders)
 mesh_loaders.update(_xml_loaders)
 mesh_loaders.update(_obj_loaders)

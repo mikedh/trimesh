@@ -54,6 +54,7 @@ requirements_all = requirements_easy.union([
     'psutil',        # figure out how much memory we have
     'glooey',        # make GUI applications with 3D stuff
     'jsonschema',    # validate JSON schemas like GLTF
+    'meshio',        # load a number of additional mesh formats; Python 3.5+
     'scikit-image'])  # marching cubes and other nice stuff
 
 # requirements for running unit tests
