@@ -791,6 +791,10 @@ def export_obj(mesh,
         row_delim='\nf ',
         value_format=face_format))
 
+    # add object name if found in metadata
+    if 'name' in mesh.metadata:
+        export.appendleft('o {}'.format(mesh.metadata['name']))
+
     # add a created-with header to the top of the file
     export.appendleft('# https://github.com/mikedh/trimesh')
 
