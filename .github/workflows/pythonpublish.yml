@@ -62,16 +62,16 @@ jobs:
     - name: Build, tag, and push to DockerHub and AWS ECR
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        ECR_REPOSITORY: trimesh
+        ECR_REPOSITORY: kerfed/trimesh
         IMAGE_TAG: ${{ github.sha }}
       run: |
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        ls -altrsh
+        pwd
+        docker build -t mikedh/trimesh:latest -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
         # push image to AWS ECR tagged by sha
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
         # push image to ECR tagged latest
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-        # TODO : push same docker image to DockerHub public image
-        # docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG mikedh/trimesh:latest
     - name: Logout of registries
       if: always()
       run: |
