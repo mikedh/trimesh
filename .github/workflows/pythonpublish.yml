@@ -59,6 +59,8 @@ jobs:
     - name: Login to Amazon ECR
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v1
+    - name: Checkout trimesh
+      uses: actions/checkout@v2
     - name: Build, tag, and push to DockerHub and AWS ECR
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
