@@ -48,7 +48,6 @@ jobs:
         twine upload dist/*
 
   containers:
-    needs: test
     runs-on: ubuntu-latest
     steps:
     - name: Login to Amazon ECR
@@ -58,10 +57,13 @@ jobs:
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         ECR_REPOSITORY: trimesh
+        IMAGE_TAG: ${{ github.sha }}
       run: |
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
-        # push docker image to AWS ECR
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        # push image to AWS ECR tagged by sha
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        # push image to ECR tagged latest
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
         # TODO : push same docker image to DockerHub public image
         # docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG mikedh/trimesh:latest
     - name: Logout of registries
