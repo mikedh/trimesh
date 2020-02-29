@@ -65,9 +65,12 @@ jobs:
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
-        IMAGE_TAG: ${{ github.sha }}
+        GIT_SHA: ${{ github.sha }}
       run: |
+        # get the version of trimesh with python
         export TRIMESH_VERSION=$(python -c "exec(open('trimesh/version.py','r').read()); print(__version__)")
+        # tag the image with the short git sha
+        export IMAGE_TAG=${GIT_SHA::7}
         docker build -t mikedh/trimesh:latest -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
         # push image to AWS ECR tagged by sha
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
