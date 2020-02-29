@@ -162,6 +162,17 @@ class OBJTest(g.unittest.TestCase):
         # make sure the faces are the same size
         assert rec.faces.shape == m.faces.shape
 
+    def test_scene(self):
+        s = g.get_mesh('cycloidal.3DXML')
+
+        e = g.trimesh.load(
+            g.io_wrap(s.export(file_type='obj')),
+            file_type='obj',
+            split_object=True,
+            group_materials=False)
+
+        assert g.np.isclose(e.area, s.area, rtol=.01)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

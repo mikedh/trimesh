@@ -378,6 +378,27 @@ class Scene(Geometry):
         return centroid
 
     @caching.cache_decorator
+    def area(self):
+        """
+        What is the summed area of every geometry which
+        has area.
+
+        Returns
+        ------------
+        area : float
+          Summed area of every instanced geometry
+        """
+        # get the area of every geometry that has an area property
+        areas = {n: g.area for n, g in self.geometry.items()
+                 if hasattr(g, 'area')}
+        # get the name of every geometry instance in the scene
+        geoms = [self.graph[n][1] for n in
+                 self.graph.nodes_geometry]
+        # sum the area for every instanced geometry
+        area = sum(areas[n] for n in geoms if n in geoms)
+        return area
+
+    @caching.cache_decorator
     def triangles(self):
         """
         Return a correctly transformed polygon soup of the
@@ -698,11 +719,16 @@ class Scene(Geometry):
 
     def dump(self, concatenate=False):
         """
-        Append all meshes in scene to a list of meshes.
+        Append all meshes in scene freezing transforms.
+
+        Parameters
+        ------------
+        concatenate : bool
+          If True, concatenate results into single mesh
 
         Returns
         ----------
-        dumped : (n,) list
+        dumped : (n,) Trimesh or Trimesh
           Trimesh objects transformed to their
           location the scene.graph
         """
@@ -713,6 +739,7 @@ class Scene(Geometry):
             current = self.geometry[geometry_name].copy()
             # move the geometry vertices into the requested frame
             current.apply_transform(transform)
+            current.metadata['name'] = node_name
             # save to our list of meshes
             result.append(current)
 
@@ -734,14 +761,20 @@ class Scene(Geometry):
         hull = convex.convex_hull(points)
         return hull
 
-    def export(self, file_obj=None, file_type=None, **kwargs):
+    def export(self,
+               file_obj=None,
+               file_type=None,
+               **kwargs):
         """
         Export a snapshot of the current scene.
 
         Parameters
         ----------
-        file_type: what encoding to use for meshes
-                   ie: dict, dict64, stl
+        file_obj : str, file-like, or None
+          File object to export to
+        file_type : str or None
+          What encoding to use for meshes
+          IE: dict, dict64, stl
 
         Returns
         ----------
@@ -751,11 +784,15 @@ class Scene(Geometry):
 
         # if we weren't passed a file type extract from file_obj
         if file_type is None:
-            file_type = str(file_obj).split('.')[-1]
+            if util.is_string(file_obj):
+                file_type = str(file_obj).split('.')[-1]
+            else:
+                raise ValueError('file_type not specified!')
 
         # always remove whitepace and leading characters
         file_type = file_type.strip().lower().lstrip('.')
 
+        # now handle our different scene export types
         if file_type == 'gltf':
             data = gltf.export_gltf(self, **kwargs)
         elif file_type == 'glb':
@@ -763,11 +800,15 @@ class Scene(Geometry):
         elif file_type == 'dict':
             from ..exchange.export import scene_to_dict
             data = scene_to_dict(self)
+        elif file_type == 'obj':
+            from ..exchange.obj import export_obj
+            data = export_obj(self)
         elif file_type == 'dict64':
             from ..exchange.export import scene_to_dict
             data = scene_to_dict(self, use_base64=True)
         else:
-            raise ValueError('unsupported export format: {}'.format(file_type))
+            raise ValueError(
+                'unsupported export format: {}'.format(file_type))
 
         # now write the data or return bytes of result
         if hasattr(file_obj, 'write'):
@@ -775,8 +816,13 @@ class Scene(Geometry):
             file_obj.write(data)
         elif util.is_string(file_obj):
             # assume strings are file paths
-            file_path = os.path.expanduser(os.path.abspath(file_obj))
-            with open(file_path, 'wb') as f:
+            file_path = os.path.expanduser(
+                os.path.abspath(file_obj))
+            if util.is_string(data):
+                mode = 'w'
+            else:
+                mode = 'wb'
+            with open(file_path, mode) as f:
                 f.write(data)
         else:
             # no writeable file object so return data
