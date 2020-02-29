@@ -64,12 +64,11 @@ jobs:
     - name: Build, tag, and push to DockerHub and AWS ECR
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        ECR_REPOSITORY: kerfed/trimesh
+        ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
         IMAGE_TAG: ${{ github.sha }}
+	TRIMESH_VERSION: `python -c "exec(open('trimesh/version.py','r').read()); print(__version__)"`
       run: |
-        ls -altrsh
-        pwd
-        docker build -t mikedh/trimesh:latest -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker build -t mikedh/trimesh:latest -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
         # push image to AWS ECR tagged by sha
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
         # push image to ECR tagged latest
