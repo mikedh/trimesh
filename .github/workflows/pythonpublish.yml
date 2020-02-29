@@ -71,11 +71,13 @@ jobs:
         export TRIMESH_VERSION=$(python -c "exec(open('trimesh/version.py','r').read()); print(__version__)")
         # tag the image with the short git sha
         export IMAGE_TAG=${GIT_SHA::7}
-        docker build -t mikedh/trimesh:latest -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
+        docker build -t mikedh/trimesh:latest -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:latest -t $ECR_REGISTRY/$ECR_REPOSITORY:$TRIMESH_VERSION .
         # push image to AWS ECR tagged by sha
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
         # push image to ECR tagged latest
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+        # push image to ECR tagged with trimesh version
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$TRIMESH_VERSION
     - name: Logout of registries
       if: always()
       run: |
