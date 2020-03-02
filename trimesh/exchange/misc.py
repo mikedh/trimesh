@@ -123,8 +123,18 @@ def load_meshio(file_obj, file_type=None, **kwargs):
     mesh = meshio.read(file_obj.name, file_format=file_format)
 
     # save data as kwargs for a trimesh.Trimesh
-    result = {'vertices': mesh.points,
-              'faces': mesh.get_cells_type("triangle")}
+    result = {}
+    # pass kwargs to mesh constructor
+    result.update(kwargs)
+    # add vertices
+    result['vertices'] = mesh.points
+    try:
+        # add faces
+        result['faces'] = mesh.get_cells_type("triangle")
+    except BaseException:
+        util.log.warning('unable to get faces', exc_info=True)
+        result['faces'] = []
+
     return result
 
 

@@ -1,5 +1,5 @@
 FROM debian:buster-slim
-MAINTAINER Michael Dawson-Haggerty <mikedh@kerfed.com>
+LABEL maintainer="mikedh@kerfed.com"
 
 COPY docker/builds/apt.bash /tmp/
 RUN bash /tmp/apt.bash

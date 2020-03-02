@@ -1579,14 +1579,15 @@ def convert_like(item, like):
 
 def bounds_tree(bounds):
     """
-    Given a set of axis aligned bounds create an r-tree for broad-phase
-    collision detection.
+    Given a set of axis aligned bounds create an r-tree for
+    broad-phase collision detection.
 
     Parameters
     ------------
-    bounds : (n, dimension * 2) or (n, 2, dimension) float
-      Non-interleaved bounds, i.e. for a 2D bounds tree:
-        [(minx, miny, maxx, maxy), ...]
+    bounds : (n, 2D) or (n, 2, D) float
+      Non-interleaved bounds where D=dimension
+      E.G a 2D bounds tree:
+      [(minx, miny, maxx, maxy), ...]
 
     Returns
     ---------
@@ -1604,7 +1605,7 @@ def bounds_tree(bounds):
             raise ValueError('bounds not (n, 2, dimension)!')
         # reshape to one-row-per-hyperrectangle
         bounds = bounds.reshape((len(bounds), -1))
-    elif len(bounds.shape) != 2:
+    elif len(bounds.shape) != 2 or bounds.size == 0:
         raise ValueError('Bounds must be (n, dimension * 2)!')
 
     # check to make sure we have correct shape
@@ -1616,9 +1617,11 @@ def bounds_tree(bounds):
     # some versions of rtree screw up indexes on stream loading
     # do a test here so we know if we are free to use stream loading
     # or if we have to do a loop to insert things which is 5x slower
-    rtree_test = rtree.index.Index([(1564, [0, 0, 0, 10, 10, 10], None)],
-                                   properties=rtree.index.Property(dimension=3))
-    rtree_stream_ok = next(rtree_test.intersection([1, 1, 1, 2, 2, 2])) == 1564
+    rtree_test = rtree.index.Index(
+        [(1564, [0, 0, 0, 10, 10, 10], None)],
+        properties=rtree.index.Property(dimension=3))
+    rtree_stream_ok = next(rtree_test.intersection(
+        [1, 1, 1, 2, 2, 2])) == 1564
 
     properties = rtree.index.Property(dimension=dimension)
     if rtree_stream_ok:
