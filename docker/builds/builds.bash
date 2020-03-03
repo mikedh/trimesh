@@ -14,9 +14,9 @@ bash "$(dirname $0)/vhacd.bash"
 # remove build packages from image
 apt-get remove -y --purge $PACKAGES_BUILD
 # remove any orphaned packages
-apt-get autoremove
+apt-get autoremove -y
 # remove garbage
-apt-get clean
+apt-get clean -y
 rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 
