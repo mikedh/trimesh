@@ -60,7 +60,7 @@ jobs:
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v1
     - name: Login to Docker Hub
-      run echo ${{ secrets.DH_PASS }} | docker login --username mikedh --password-stdin
+      run: echo ${{ secrets.DH_PASS }} | docker login --username mikedh --password-stdin
     - name: Checkout trimesh
       uses: actions/checkout@v2
     - name: Build, tag, and push to DockerHub and AWS ECR
