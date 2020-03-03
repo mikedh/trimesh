@@ -2,9 +2,10 @@ set -xe
 
 cd
 # get versioned miniconda installer via HTTPS
-wget https://repo.anaconda.com/miniconda/Miniconda3-4.6.14-Linux-x86_64.sh --quiet -O miniconda.sh
+wget https://repo.anaconda.com/miniconda/Miniconda2-4.7.12.1-Linux-x86_64.sh --quiet -O miniconda.sh
+
 # check hash of file
-echo "0d6b23895a91294a4924bd685a3a1f48e35a17970a073cd2f684ffe2c31fc4be  miniconda.sh" | sha256sum --check
+echo "383fe7b6c2574e425eee3c65533a5101e68a2d525e66356844a80aa02a556695 miniconda.sh" | sha256sum --check
 # run miniconda install
 bash miniconda.sh -b -p ~/conda
 # delete installer

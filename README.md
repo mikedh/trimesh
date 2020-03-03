@@ -216,9 +216,9 @@ A question that comes up pretty frequently is [how to cite the library.](https:/
 
 ## Containers
    
-If you want to deploy something in a container that uses trimesh, automated `debian:buster-slim` based builds with trimesh and dependencies are available on Docker Hub:
+If you want to deploy something in a container that uses trimesh, automated `debian:buster-slim` based builds with trimesh and dependencies are available on [Docker Hub](https://hub.docker.com/repository/docker/trimesh/trimesh) with image tags for `latest`, git short hash for the commit in master (i.e. `trimesh/trimesh:0c1298d`), and version (i.e. `trimesh/trimesh:3.5.27`):
 
-`docker pull mikedh/trimesh`
+`docker pull trimesh/trimesh`
 
 [Here's an example](https://github.com/mikedh/trimesh/tree/master/examples/dockerRender) of how to render meshes using LLVMpipe and XVFB inside a container.
 
