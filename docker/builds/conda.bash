@@ -2,10 +2,10 @@ set -xe
 
 cd
 # get versioned miniconda installer via HTTPS
-wget https://repo.anaconda.com/miniconda/Miniconda2-4.7.12.1-Linux-x86_64.sh --quiet -O miniconda.sh
+wget https://repo.anaconda.com/miniconda/Miniconda3-4.7.12.1-Linux-x86_64.sh --quiet -O miniconda.sh
 
 # check hash of file
-echo "383fe7b6c2574e425eee3c65533a5101e68a2d525e66356844a80aa02a556695 miniconda.sh" | sha256sum --check
+echo "bfe34e1fa28d6d75a7ad05fd02fa5472275673d5f5621b77380898dee1be15d2 miniconda.sh" | sha256sum --check
 # run miniconda install
 bash miniconda.sh -b -p ~/conda
 # delete installer
@@ -25,9 +25,9 @@ conda install pyembree rtree
 # install trimesh from the repo
 cd /tmp/trimesh
 # include all soft dependencies
-pip install .[all,test] pyassimp==4.1.3
+pip install --no-cache-dir .[all,test] pyassimp==4.1.3
 
 # remove archives
-conda clean --all
+conda clean --all -f -y
 # remove pip cache and temp files
-rm -rf ~/.cache/pip || true
+rm -rf ~/.cache || true
