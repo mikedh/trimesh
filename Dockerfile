@@ -4,11 +4,9 @@ LABEL maintainer="mikedh@kerfed.com"
 COPY docker/builds/apt.bash /tmp/
 RUN bash /tmp/apt.bash
 
-# build draco and download vhacd
+# copy compile recipies to build draco and download vhacd
 COPY docker/builds/draco.bash /tmp/
 COPY docker/builds/vhacd.bash /tmp/
-COPY docker/builds/builds.bash /tmp/
-RUN bash /tmp/builds.bash
 
 # XVFB in background if you start supervisor
 COPY docker/config/xvfb.supervisord.conf /etc/supervisor/conf.d/

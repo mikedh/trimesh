@@ -11,6 +11,16 @@ bash miniconda.sh -b -p ~/conda
 # delete installer
 rm miniconda.sh
 
+# install build requirements
+apt-get update
+# packages needed to build stuff
+PACKAGES_BUILD="build-essential g++ gcc cmake"
+apt-get -y --no-install-recommends install $PACKAGES_BUILD
+# install draco, google's mesh compression utility
+bash "$(dirname $0)/draco.bash"
+# install VHACD, a mesh decomposition utility
+bash "$(dirname $0)/vhacd.bash"
+
 # make sure conda base
 export PATH="~/conda/bin:$PATH"
 conda config --set always_yes yes --set changeps1 no
@@ -31,3 +41,12 @@ pip install --no-cache-dir .[all,test] pyassimp==4.1.3
 conda clean --all -f -y
 # remove pip cache and temp files
 rm -rf ~/.cache || true
+
+# remove build packages from image
+apt-get remove -y --purge $PACKAGES_BUILD
+# remove any orphaned packages
+apt-get autoremove -y
+# remove garbage
+apt-get clean -y
+rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
