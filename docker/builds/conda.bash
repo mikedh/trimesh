@@ -7,9 +7,9 @@ apt-get update -qq
 PACKAGES_BUILD="build-essential g++ gcc cmake sudo"
 apt-get -y --no-install-recommends -qq install $PACKAGES_BUILD
 # install draco, google's mesh compression utility
-# bash "$(dirname $0)/draco.bash"
+bash "$(dirname $0)/draco.bash"
 # install VHACD, a mesh decomposition utility
-#bash "$(dirname $0)/vhacd.bash"
+bash "$(dirname $0)/vhacd.bash"
 
 # run the middle bit as `user`
 exec sudo -i -u user /bin/bash - << eof
