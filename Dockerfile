@@ -11,18 +11,16 @@ COPY docker/builds/vhacd.bash /tmp/
 # XVFB in background if you start supervisor
 COPY docker/config/xvfb.supervisord.conf /etc/supervisor/conf.d/
 
-# copy local trimesh for install and tests
-COPY . /tmp/trimesh
-
 # switch out of root
 RUN useradd -m -s /bin/bash user
-# make sure user owns all of tmp
-RUN chown -R user:user /tmp
-# switch to non-root
-USER user
+
+# copy local trimesh for install and tests
+COPY --chown=user:user . /tmp/trimesh
 
 # install a conda env and trimesh
 RUN bash /tmp/trimesh/docker/builds/conda.bash
+
+USER user
 
 # add user python to path 
 ENV PATH="/home/user/conda/bin:$PATH"

@@ -5,7 +5,27 @@ on:
     branches:
       - actions
 jobs:
+
+  formatting:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v1
+      with:
+        python-version: 3.8
+    - name: Install Formatting
+      run: |
+        python -m pip install --upgrade pip
+        pip install autopep8 flake8
+    - name: Check Formatting
+      run: |
+        flake8 tests
+        flake8 trimesh
+        flake8 examples
+
   test:
+    needs: formatting
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:

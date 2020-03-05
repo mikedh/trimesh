@@ -11,7 +11,7 @@ class CopyTests(g.unittest.TestCase):
 
     def test_copy(self):
         for mesh in g.get_meshes(raise_error=True):
-            if not isinstance(mesh, g.trimesh.Trimesh):
+            if not isinstance(mesh, g.trimesh.Trimesh) or len(mesh.faces) == 0:
                 continue
             start = {mesh.md5(), mesh.crc()}
 
