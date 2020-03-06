@@ -23,3 +23,8 @@ make
 # move executables to our PATH
 mv /tmp/draco_build/draco_encoder /usr/bin
 mv /tmp/draco_build/draco_decoder /usr/bin
+cd
+
+rm -rf /tmp/draco_build
+rm -rf /tmp/draco-1.3.5
+rm -f /tmp/draco.zip
