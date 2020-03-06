@@ -22,6 +22,7 @@ jobs:
         flake8 tests
         flake8 trimesh
         flake8 examples
+        flake8 setup.py
         autopep8 --recursive --aggressive --diff --exit-code trimesh/
         autopep8 --recursive --aggressive --diff --exit-code examples/
         autopep8 --recursive --aggressive --diff --exit-code tests/

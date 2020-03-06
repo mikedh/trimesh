@@ -41,6 +41,7 @@ requirements_easy = set([
     'requests',  # do network requests
     'xxhash',    # hash ndarrays faster than built-in MD5/CRC
     'setuptools',  # do setuptools stuff
+    'jsonschema',  # validate JSON schemas like GLTF
     'pycollada',   # parse collada/dae/zae files
     'chardet',     # figure out if someone used UTF-16
     'colorlog'])   # log in pretty colors
@@ -53,7 +54,6 @@ requirements_all = requirements_easy.union([
     'python-fcl',    # do fast 3D collision queries
     'psutil',        # figure out how much memory we have
     'glooey',        # make GUI applications with 3D stuff
-    'jsonschema',    # validate JSON schemas like GLTF
     'meshio',        # load a number of additional mesh formats; Python 3.5+
     'scikit-image'])  # marching cubes and other nice stuff
 
