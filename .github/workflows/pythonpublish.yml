@@ -5,7 +5,6 @@ on:
     branches:
       - actions
 jobs:
-
   formatting:
     runs-on: ubuntu-latest
     steps:
@@ -40,7 +39,7 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install APT
-      if: ${{ matrix.os }} == 'ubuntu-latest'
+      if: matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get update -qq -y
         sudo apt-get install -qq -y libspatialindex-dev libgeos-dev
@@ -48,10 +47,10 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install pytest pytest-cov
-    - name: Install Trimesh And Test
-      run: |
-        pip install .[easy]
-        pytest
+    - name: Install Trimesh
+      run: pip install .[easy]
+    - name: Run Pytest
+      run: pytest
 
   pypi:
     needs: tests
@@ -84,7 +83,7 @@ jobs:
     - name: Install Pandoc
       run: |
         sudo apt-get update -qq -y
-        sudo apt-get install -qq -y pandoc
+        sudo apt-get install -qq -y --no-install-recommends pandoc
     - name: Install From Pip
       run: |
         python -m pip install --upgrade pip
