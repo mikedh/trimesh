@@ -7,7 +7,7 @@ RUN bash /tmp/apt.bash
 # copy compile recipies to build draco and download vhacd
 COPY docker/builds/draco.bash /tmp/
 COPY docker/builds/vhacd.bash /tmp/
-RUN bash /tmp/draco.bash && bash /tmp.vhacd.bash
+RUN bash /tmp/draco.bash && bash /tmp/vhacd.bash
 
 # XVFB in background if you start supervisor
 COPY docker/config/xvfb.supervisord.conf /etc/supervisor/conf.d/
