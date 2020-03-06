@@ -73,7 +73,7 @@ def circle_pattern(pattern_radius,
 
 def circle(radius=None, center=None, **kwargs):
     """
-    Create a Path2D containing circle with the specified 
+    Create a Path2D containing circle with the specified
     radius.
 
     Parameters
