@@ -38,11 +38,14 @@ jobs:
       uses: actions/setup-python@v1
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Install APT
+    - name: Install APT On Linux
       if: matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get update -qq -y
         sudo apt-get install -qq -y libspatialindex-dev libgeos-dev
+    - name: Install Brew On Mac
+      if: matrix.os == 'macos-latest'
+      run: brew install spatialindex geos
     - name: Install Pytest
       run: |
         python -m pip install --upgrade pip
