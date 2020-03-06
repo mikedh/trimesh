@@ -39,6 +39,11 @@ jobs:
       uses: actions/setup-python@v1
       with:
         python-version: ${{ matrix.python-version }}
+    - name: Install APT
+      if: ${{ matrix.os }} == 'ubuntu-latest'
+      run: |
+        sudo apt-get update -qq -y
+        sudo apt-get install -qq -y libspatialindex-dev libgeos-dev
     - name: Install Pytest
       run: |
         python -m pip install --upgrade pip
@@ -76,10 +81,10 @@ jobs:
       uses: actions/setup-python@v1
       with:
         python-version: '3.x'
-    - name: Install From APT
+    - name: Install Pandoc
       run: |
-        apt-get update -qq -y
-        apt-get install -qq -y pandoc
+        sudo apt-get update -qq -y
+        sudo apt-get install -qq -y pandoc
     - name: Install From Pip
       run: |
         python -m pip install --upgrade pip
