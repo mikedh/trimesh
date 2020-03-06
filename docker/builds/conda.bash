@@ -1,19 +1,5 @@
 set -xe
 
-
-# install build requirements
-apt-get update -qq
-# packages needed to build stuff
-PACKAGES_BUILD="build-essential g++ gcc cmake sudo"
-apt-get -y --no-install-recommends -qq install $PACKAGES_BUILD
-# install draco, google's mesh compression utility
-bash "$(dirname $0)/draco.bash"
-# install VHACD, a mesh decomposition utility
-bash "$(dirname $0)/vhacd.bash"
-
-# run the middle bit as `user`
-exec sudo -i -u user /bin/bash - << eof
-
 # get versioned miniconda installer via HTTPS
 wget https://repo.anaconda.com/miniconda/Miniconda3-4.7.12.1-Linux-x86_64.sh --quiet -O miniconda.sh
 
@@ -42,14 +28,3 @@ pip install --no-cache-dir /tmp/trimesh[all,test] pyassimp==4.1.3
 conda clean --all -f -y
 # remove pip cache and temp files
 rm -rf ~/.cache || true
-
-eof
-
-# remove build packages from image
-apt-get remove -y --purge $PACKAGES_BUILD
-# remove any orphaned packages
-apt-get autoremove -y
-# remove garbage
-apt-get clean -y
-rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-

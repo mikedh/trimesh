@@ -24,7 +24,7 @@ jobs:
         flake8 trimesh
         flake8 examples
 
-  test:
+  tests:
     needs: formatting
     runs-on: ${{ matrix.os }}
     strategy:
@@ -66,6 +66,25 @@ jobs:
       run: |
         python setup.py sdist bdist_wheel
         twine upload dist/*
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python
+      uses: actions/setup-python@v1
+      with:
+        python-version: '3.x'
+    - name: Install Doc Requirements
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r docs/requirements.txt
+    - name: Build Docs
+      run: python docs/build.py
+    - name: Deploy To Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./docs/html
 
   containers:
     runs-on: ubuntu-latest
@@ -83,7 +102,7 @@ jobs:
       run: echo ${{ secrets.DH_PASS }} | docker login --username mikedh --password-stdin
     - name: Checkout trimesh
       uses: actions/checkout@v2
-    - name: Build, tag, and push to DockerHub and AWS ECR
+    - name: Build/Push to DockerHub and AWS ECR
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
