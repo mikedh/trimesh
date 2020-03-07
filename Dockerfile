@@ -1,30 +1,30 @@
 FROM debian:buster-slim
-MAINTAINER Michael Dawson-Haggerty <mikedh@kerfed.com>
+LABEL maintainer="mikedh@kerfed.com"
 
 COPY docker/builds/apt.bash /tmp/
 RUN bash /tmp/apt.bash
 
-# build draco and download vhacd
+# copy compile recipies to build draco and download vhacd
 COPY docker/builds/draco.bash /tmp/
 COPY docker/builds/vhacd.bash /tmp/
-COPY docker/builds/builds.bash /tmp/
-RUN bash /tmp/builds.bash
+RUN bash /tmp/draco.bash && bash /tmp/vhacd.bash
 
 # XVFB in background if you start supervisor
 COPY docker/config/xvfb.supervisord.conf /etc/supervisor/conf.d/
 
-# copy local trimesh for install and tests
-COPY . /tmp/trimesh
-
 # switch out of root
 RUN useradd -m -s /bin/bash user
-# make sure user owns all of tmp
-RUN chown -R user:user /tmp
-# switch to non-root
+
+# copy local trimesh for install and tests
+COPY --chown=user:user . /tmp/trimesh
+
+# switch to user
 USER user
 
 # install a conda env and trimesh
 RUN bash /tmp/trimesh/docker/builds/conda.bash
+
+USER user
 
 # add user python to path 
 ENV PATH="/home/user/conda/bin:$PATH"

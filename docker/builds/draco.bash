@@ -21,5 +21,10 @@ cd /tmp/draco_build
 cmake /tmp/draco-1.3.5
 make
 # move executables to our PATH
-mv draco_encoder /usr/bin
-mv draco_decoder /usr/bin
+mv /tmp/draco_build/draco_encoder /usr/bin
+mv /tmp/draco_build/draco_decoder /usr/bin
+cd
+
+rm -rf /tmp/draco_build
+rm -rf /tmp/draco-1.3.5
+rm -f /tmp/draco.zip

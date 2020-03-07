@@ -286,7 +286,7 @@ class Trimesh(Geometry):
         faces : (n, 3) int
           Representing triangles which reference self.vertices
         """
-        return self._data.get('faces', np.empty(shape=(0, 3), dtype=int))
+        return self._data.get('faces', np.empty(shape=(0, 3), dtype=np.int64))
 
     @faces.setter
     def faces(self, values):
@@ -425,7 +425,7 @@ class Trimesh(Geometry):
         vertices : (n, 3) float
           Points in cartesian space referenced by self.faces
         """
-        return self._data['vertices']
+        return self._data.get('vertices', np.empty(shape=(0, 3), dtype=np.float64))
 
     @vertices.setter
     def vertices(self, values):

@@ -20,6 +20,11 @@ class ExceptionModule(object):
         self.exc = exc
 
     def __getattribute__(self, *args, **kwargs):
+        # if it's asking for our class type return None
+        # this allows isinstance() checks to not re-raise
+        if args[0] == '__class__':
+            return None.__class__
+        # otherwise return our original exception
         raise super(ExceptionModule, self).__getattribute__('exc')
 
 

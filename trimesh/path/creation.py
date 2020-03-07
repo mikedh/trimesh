@@ -73,8 +73,8 @@ def circle_pattern(pattern_radius,
 
 def circle(radius=None, center=None, **kwargs):
     """
-    Create a Path2D containing a single or multiple rectangles
-    with the specified bounds.
+    Create a Path2D containing circle with the specified
+    radius.
 
     Parameters
     --------------
@@ -83,8 +83,8 @@ def circle(radius=None, center=None, **kwargs):
 
     Returns
     -------------
-    rect : Path2D
-      Path containing specified rectangles
+    circle : Path2D
+      Path containing specified circle
     """
     from .path import Path2D
 

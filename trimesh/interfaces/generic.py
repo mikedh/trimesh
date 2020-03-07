@@ -101,7 +101,7 @@ class MeshScript:
 
     def __exit__(self, *args, **kwargs):
         if self.debug:
-            print('MeshScript.debug: not deleting {}'.format(
+            log.info('MeshScript.debug: not deleting {}'.format(
                 self.script_out.name))
             return
         # delete all the temporary files by name
