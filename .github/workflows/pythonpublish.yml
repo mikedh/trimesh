@@ -3,7 +3,7 @@ name: Test And Publish
 on:
   push:
     branches:
-      - actions
+      - master
 jobs:
   formatting:
     runs-on: ubuntu-latest
