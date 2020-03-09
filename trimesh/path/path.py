@@ -40,15 +40,6 @@ from scipy.spatial import cKDTree
 from shapely.geometry import Polygon
 
 try:
-    # try running shapely speedups
-    # these mostly speed up object instantiation
-    from shapely import speedups
-    if speedups.available:
-        speedups.enable()
-except BaseException:
-    log.warning('shapely speedups failed', exc_info=True)
-
-try:
     import networkx as nx
 except BaseException as E:
     # create a dummy module which will raise the ImportError
@@ -58,12 +49,13 @@ except BaseException as E:
 
 class Path(object):
     """
-    A Path object consists of:
+    A Path object consists of vertices and entities. Vertices
+    are a simple (n, dimension) float array of points in space.
 
-    vertices: (n,[2|3]) coordinates, stored in self.vertices
-
-    entities: geometric primitives (aka Lines, Arcs, etc.)
-              that reference indexes in self.vertices
+    Entities are a list of objects representing geometric
+    primitives, such as Lines, Arcs, BSpline, etc. All entities
+    reference vertices by index, so any transform applied to the
+    simple vertex array is applied to the entity.
     """
 
     def __init__(self,
