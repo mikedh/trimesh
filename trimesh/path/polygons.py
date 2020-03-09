@@ -2,7 +2,6 @@ import numpy as np
 
 from shapely.geometry import Polygon
 
-from rtree import Rtree
 from collections import deque
 
 from .. import util
@@ -22,6 +21,12 @@ except BaseException as E:
     # or other exception only when someone tries to use networkx
     from ..exceptions import ExceptionModule
     nx = ExceptionModule(E)
+try:
+    from rtree import Rtree
+except BaseException as E:
+    # create a dummy module which will raise the ImportError
+    from ..exceptions import ExceptionModule
+    Rtree = ExceptionModule(E)
 
 
 def enclosure_tree(polygons):
