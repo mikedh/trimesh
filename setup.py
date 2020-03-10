@@ -66,13 +66,14 @@ requirements_test = set(['pytest',       # run all unit tests
 
 # python 3.4 support has been dropped from upstream packages
 # version lock those packages here so install succeeds
-if (sys.version_info.major, sys.version_info.minor) == (3, 4):
+if (sys.version_info.major, sys.version_info.minor) <= (3, 4):
     # remove version-free requirements
     requirements_easy.remove('lxml')
     requirements_easy.remove('shapely')
     # add working version locked requirements
     requirements_easy.add('lxml==4.3.5')
     requirements_easy.add('shapely==1.6.4')
+
 
 # if someone wants to output a requirements file
 # `python setup.py --list-all > requirements.txt`
