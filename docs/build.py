@@ -78,6 +78,7 @@ if __name__ == '__main__':
            '-o',
            cwd,
            abspath('../trimesh')]
+
     # build the HTML docs
     bld = ['sphinx-build',
            '-b',
@@ -85,14 +86,9 @@ if __name__ == '__main__':
            cwd,
            build_dir]
 
-    if verbose:
-        # sphinx produces a ton of useless output
-        subprocess.check_call(api)
-        subprocess.check_call(bld)
-    else:
-        print('running sphinx, eating output')
-        subprocess.check_output(api, stderr=subprocess.DEVNULL)
-        subprocess.check_output(bld, stderr=subprocess.DEVNULL)
+    # sphinx produces a ton of useless output
+    subprocess.check_call(api)
+    subprocess.check_call(bld)
 
     # keep github pages from using jekyll
     with open(os.path.join(build_dir, '.nojekyll'), 'w') as f:

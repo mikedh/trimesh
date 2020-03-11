@@ -1,3 +1,4 @@
+# note that we are in the midst of a migration from travis to github actions
 # we are using miniconda python
 language: generic
 sudo: required
@@ -5,17 +6,9 @@ dist: trusty
 
 matrix:
   include:
-    - env: PYTHON_VERSION=2.7
-    - env: PYTHON_VERSION=3.4
-    - env: PYTHON_VERSION=3.5
     - env: PYTHON_VERSION=3.6
-    - env: PYTHON_VERSION=3.7
-    - env: PYTHON_VERSION=3.8
 
 before_deploy:
-- pip install -q -r docs/requirements.txt
-- python docs/build.py -v
-
 # extract the current trimesh version from the version file
 - export TM_VERSION=`python -c "exec(open('trimesh/version.py','r').read()); print(__version__)"`
 
@@ -23,22 +16,6 @@ before_deploy:
 - git tag $TM_VERSION || true
 
 deploy:
-- provider: pypi
-  user: mikedh
-  on:
-    condition: $PYTHON_VERSION = '3.6'
-    branch: master
-  password: $TWINE_PASSWORD
-
-- provider: pages
-  skip-cleanup: true
-  github-token: $GITHUB_TOKEN 
-  keep-history: false
-  target-branch: gh-pages
-  local-dir: docs/html
-  on:
-    condition: $PYTHON_VERSION = '3.6'
-    branch: master
 
 - provider: releases
   api_key: $GITHUB_TOKEN
