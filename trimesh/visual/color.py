@@ -13,14 +13,13 @@ get the others. The two general categories are:
 
 This module only implements diffuse colors at the moment.
 
-Rules
+Goals
 ----------
 1) If nothing is defined sane defaults should be returned
 2) If a user alters or sets a value, that is considered user data
    and should be saved and treated as such.
-3) Only one mode of visual is allowed at a time, and setting or altering a value should transparently change the mode. Color modes are:
-  * vertex colors
-  * face colors
+3) Only one 'mode' of visual (vertex or face) is allowed at a time
+   and setting or altering a value should automatically change the mode.
 """
 
 import numpy as np
