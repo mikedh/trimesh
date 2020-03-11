@@ -114,7 +114,7 @@ jobs:
     - name: Install APT
       run: |
         sudo apt-get update -qq -y
-        sudo apt-get install -qq -y --no-install-recommends pandoc libspatialindex-dex libgeos-dev
+        sudo apt-get install -qq -y --no-install-recommends pandoc libspatialindex-dev libgeos-dev
     - name: Install From Pip
       run: |
         python -m pip install --upgrade pip
