@@ -250,7 +250,7 @@ class GLTFTest(g.unittest.TestCase):
         v_count, _ = sphere.vertices.shape
 
         sphere.vertex_attributes['_CustomFloat32Scalar'] = g.np.random.rand(v_count, 1).astype(g.np.float32)
-        sphere.vertex_attributes['_CustomUIntScalar'] = g.np.random.random_integers(
+        sphere.vertex_attributes['_CustomUIntScalar'] = g.np.random.randint(
             0, 1000, size=(v_count, 1)
         ).astype(g.np.uintc)
         sphere.vertex_attributes['_CustomFloat32Vec3'] = g.np.random.rand(v_count, 3).astype(g.np.float32)
