@@ -249,12 +249,16 @@ class GLTFTest(g.unittest.TestCase):
         sphere = g.trimesh.primitives.Sphere()
         v_count, _ = sphere.vertices.shape
 
-        sphere.vertex_attributes['_CustomFloat32Scalar'] = g.np.random.rand(v_count, 1).astype(g.np.float32)
+        sphere.vertex_attributes['_CustomFloat32Scalar'] = g.np.random.rand(
+            v_count, 1).astype(
+            g.np.float32)
         sphere.vertex_attributes['_CustomUIntScalar'] = g.np.random.randint(
             0, 1000, size=(v_count, 1)
         ).astype(g.np.uintc)
-        sphere.vertex_attributes['_CustomFloat32Vec3'] = g.np.random.rand(v_count, 3).astype(g.np.float32)
-        sphere.vertex_attributes['_CustomFloat32Mat4'] = g.np.random.rand(v_count, 4, 4).astype(g.np.float32)
+        sphere.vertex_attributes['_CustomFloat32Vec3'] = g.np.random.rand(
+            v_count, 3).astype(g.np.float32)
+        sphere.vertex_attributes['_CustomFloat32Mat4'] = g.np.random.rand(
+            v_count, 4, 4).astype(g.np.float32)
 
         # export as GLB then re-load
         r = g.trimesh.load(
@@ -263,10 +267,15 @@ class GLTFTest(g.unittest.TestCase):
             file_type='glb')
 
         for _, val in r.geometry.items():
-            assert set(val.vertex_attributes.keys()) == set(sphere.vertex_attributes.keys())
+            assert set(
+                val.vertex_attributes.keys()) == set(
+                sphere.vertex_attributes.keys())
             for key in val.vertex_attributes:
-                is_same = g.np.array_equal(val.vertex_attributes[key], sphere.vertex_attributes[key])
-                assert is_same == True
+                is_same = g.np.array_equal(
+                    val.vertex_attributes[key],
+                    sphere.vertex_attributes[key])
+                assert is_same is True
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
