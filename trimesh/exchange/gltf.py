@@ -33,6 +33,8 @@ _dtypes = {5120: "<i1",
            5123: "<u2",
            5125: "<u4",
            5126: "<f4"}
+# a string we can use to look up numpy dtype : GLTF dtype
+_dtypes_lookup = {v[1:]: k for k, v in _dtypes.items()}
 
 # GLTF data formats: numpy shapes
 _shapes = {
@@ -611,13 +613,15 @@ def _append_mesh(mesh,
         # the actual color data
         buffer_items.append(normal_data)
 
-    # for each attribute with a leading underscore, assign them to trimesh vertex_attributes
+    # for each attribute with a leading underscore, assign them to trimesh
+    # vertex_attributes
     for key in mesh.vertex_attributes:
         attribute_name = key
         # Application specific attributes must be prefixed with an underscore
         if not key.startswith("_"):
             attribute_name = "_" + key
-        tree["meshes"][-1]["primitives"][0]["attributes"][attribute_name] = len(tree["accessors"])
+        tree["meshes"][-1]["primitives"][0]["attributes"][attribute_name] = len(
+            tree["accessors"])
         attribute_data = _byte_pad(mesh.vertex_attributes[key].tobytes())
         accessor = {
             "bufferView": len(buffer_items),
@@ -626,6 +630,7 @@ def _append_mesh(mesh,
         accessor.update(_build_accessor(mesh.vertex_attributes[key]))
         tree["accessors"].append(accessor)
         buffer_items.append(attribute_data)
+
 
 def _build_accessor(array):
     shape = array.shape
@@ -644,34 +649,21 @@ def _build_accessor(array):
             raise ValueError("Matrix types must have 4, 9 or 16 components")
         data_type = "MAT%d" % shape[2]
 
-    componentType = None
-    if array.dtype == np.byte:
-        componentType = 5120
-    if array.dtype == np.ubyte:
-        componentType = 5121
-    if array.dtype == np.short:
-        componentType = 5122
-    if array.dtype == np.ushort:
-        componentType = 5123
-    if array.dtype == np.uintc:
-        componentType = 5125
-    if array.dtype == np.float32:
-        componentType = 5126
-
-    if componentType is None:
-        raise ValueError("Unsupported componentType %s" % array.dtype)
-
-    accessor =  {
+    # get the array data type as a str, stripping off endian
+    lookup = array.dtype.str[-2:]
+    # map the numpy dtype to a GLTF code (i.e. 5121)
+    componentType = _dtypes_lookup[lookup]
+    accessor = {
         "componentType": componentType,
         "type": data_type,
-        "byteOffset": 0
-    }
+        "byteOffset": 0}
 
     if len(shape) < 3:
         accessor["max"] = array.max(axis=0).tolist()
         accessor["min"] = array.min(axis=0).tolist()
 
     return accessor
+
 
 def _byte_pad(data, bound=4):
     """
@@ -977,7 +969,7 @@ def _read_buffers(header, buffers, mesh_kwargs, resolver=None):
             if len(custom_attrs):
                 vertex_attributes = {}
                 for attr in custom_attrs:
-                        vertex_attributes[attr] = access[p["attributes"][attr]]
+                    vertex_attributes[attr] = access[p["attributes"][attr]]
                 kwargs["vertex_attributes"] = vertex_attributes
 
             kwargs["process"] = False
