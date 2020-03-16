@@ -1891,7 +1891,7 @@ class Trimesh(Geometry):
         # subdivide vertex attributes
         vertex_attributes = {}
         if (hasattr(self.visual, 'uv') and
-                np.shape(self.visual.uv)[0] == len(self.vertices)):
+                np.shape(self.visual.uv) == (len(self.vertices), 2)):
             # only subdivide if
             vertex_attributes['uv'] = self.visual.uv
 

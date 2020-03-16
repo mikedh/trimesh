@@ -49,6 +49,8 @@ def fit_circle_check(points,
     # an arc needs at least three points
     if len(points) < 3:
         return None
+    # make sure our points are a numpy array
+    points = np.asanyarray(points, dtype=np.float64)
 
     # do a least squares fit on the points
     C, R, r_deviation = fit_nsphere(points, prior=prior)

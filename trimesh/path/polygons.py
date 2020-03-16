@@ -12,6 +12,7 @@ from ..constants import tol_path as tol
 from ..constants import log
 from ..transformations import transform_points
 
+from .simplify import fit_circle_check
 from .traversal import resample_path
 
 try:
@@ -341,6 +342,26 @@ def medial_axis(polygon,
     vertices : (m, 2) float
       Vertex positions in space
     """
+    # a circle will have a single point medial axis
+    if len(polygon.interiors) == 0:
+        # what is the approximate scale of the polygon
+        scale = np.reshape(polygon.bounds, (2, 2)).ptp(axis=0).max()
+        # a (center, radius, error) tuple
+        fit = fit_circle_check(
+            polygon.exterior.coords, scale=scale)
+        # is this polygon in fact a circle
+        if fit is not None:
+            # return an edge that has the center as the midpoint
+            epsilon = np.clip(
+                fit['radius'] / 500, 1e-5, np.inf)
+            vertices = np.array(
+                [fit['center'] + [0, epsilon],
+                 fit['center'] - [0, epsilon]],
+                dtype=np.float64)
+            # return a single edge to avoid consumers needing to special case
+            edges = np.array([[0, 1]], dtype=np.int64)
+            return edges, vertices
+
     from scipy.spatial import Voronoi
     from shapely import vectorized
 
@@ -365,7 +386,22 @@ def medial_axis(polygon,
     # only take ridges where every vertex is contained
     edges = ridge[contains[ridge].all(axis=1)]
 
-    return edges, voronoi.vertices
+    # now we need to remove uncontained vertices
+    contained = np.unique(edges)
+    mask = np.zeros(len(voronoi.vertices), dtype=np.int64)
+    mask[contained] = np.arange(len(contained))
+
+    # mask voronoi vertices
+    vertices = voronoi.vertices[contained]
+    # re-index edges
+    edges_final = mask[edges]
+
+    if tol.strict:
+        # make sure we didn't screw up indexes
+        assert (vertices[edges_final] -
+                voronoi.vertices[edges]).ptp() < 1e-5
+
+    return edges_final, vertices
 
 
 def polygon_hash(polygon):

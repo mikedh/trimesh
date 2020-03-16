@@ -1,9 +1,7 @@
 name: Test And Publish
 
-on:
-  push:
-    branches:
-      - master
+on: [push, pull_request]
+
 jobs:
   formatting:
     runs-on: ubuntu-latest
@@ -84,6 +82,7 @@ jobs:
 
   pypi:
     needs: tests
+    if: github.ref == 'master'
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -104,6 +103,7 @@ jobs:
         twine upload dist/*
   docs:
     needs: containers
+    if: github.ref == 'master'
     runs-on: ubuntu-latest
     container:
       image: mikedh/trimesh:latest

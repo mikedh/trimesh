@@ -33,6 +33,8 @@ _dtypes = {5120: "<i1",
            5123: "<u2",
            5125: "<u4",
            5126: "<f4"}
+# a string we can use to look up numpy dtype : GLTF dtype
+_dtypes_lookup = {v[1:]: k for k, v in _dtypes.items()}
 
 # GLTF data formats: numpy shapes
 _shapes = {
@@ -611,6 +613,57 @@ def _append_mesh(mesh,
         # the actual color data
         buffer_items.append(normal_data)
 
+    # for each attribute with a leading underscore, assign them to trimesh
+    # vertex_attributes
+    for key in mesh.vertex_attributes:
+        attribute_name = key
+        # Application specific attributes must be prefixed with an underscore
+        if not key.startswith("_"):
+            attribute_name = "_" + key
+        tree["meshes"][-1]["primitives"][0]["attributes"][attribute_name] = len(
+            tree["accessors"])
+        attribute_data = _byte_pad(mesh.vertex_attributes[key].tobytes())
+        accessor = {
+            "bufferView": len(buffer_items),
+            "count": len(mesh.vertex_attributes[key])
+        }
+        accessor.update(_build_accessor(mesh.vertex_attributes[key]))
+        tree["accessors"].append(accessor)
+        buffer_items.append(attribute_data)
+
+
+def _build_accessor(array):
+    shape = array.shape
+    data_type = "SCALAR"
+    if len(shape) == 2:
+        vec_length = shape[1]
+        if vec_length > 4:
+            raise ValueError("The GLTF spec does not support vectors larger than 4")
+        if vec_length > 1:
+            data_type = "VEC%d" % vec_length
+        else:
+            data_type = "SCALAR"
+
+    if len(shape) == 3:
+        if shape[2] not in [2, 3, 4]:
+            raise ValueError("Matrix types must have 4, 9 or 16 components")
+        data_type = "MAT%d" % shape[2]
+
+    # get the array data type as a str, stripping off endian
+    lookup = array.dtype.str[-2:]
+    # map the numpy dtype to a GLTF code (i.e. 5121)
+    componentType = _dtypes_lookup[lookup]
+    accessor = {
+        "componentType": componentType,
+        "type": data_type,
+        "byteOffset": 0}
+
+    if len(shape) < 3:
+        accessor["max"] = array.max(axis=0).tolist()
+        accessor["min"] = array.min(axis=0).tolist()
+
+    return accessor
+
 
 def _byte_pad(data, bound=4):
     """
@@ -822,7 +875,6 @@ def _read_buffers(header, buffers, mesh_kwargs, resolver=None):
         # number of items when flattened
         # i.e. a (4, 4) MAT4 has 16
         per_count = np.abs(np.product(per_item))
-
         if 'bufferView' in a:
             # data was stored in a buffer view so get raw bytes
             data = views[a["bufferView"]]
@@ -835,6 +887,7 @@ def _read_buffers(header, buffers, mesh_kwargs, resolver=None):
             # length is the number of bytes per item times total
             length = np.dtype(dtype).itemsize * count * per_count
             # load the bytes data into correct dtype and shape
+
             access[index] = np.frombuffer(
                 data[start:start + length], dtype=dtype).reshape(shape)
         else:
@@ -911,6 +964,15 @@ def _read_buffers(header, buffers, mesh_kwargs, resolver=None):
             # each primitive gets it's own Trimesh object
             if len(m["primitives"]) > 1:
                 name += "_{}".format(j)
+
+            custom_attrs = [attr for attr in p["attributes"] if attr.startswith("_")]
+            if len(custom_attrs):
+                vertex_attributes = {}
+                for attr in custom_attrs:
+                    vertex_attributes[attr] = access[p["attributes"][attr]]
+                kwargs["vertex_attributes"] = vertex_attributes
+
+            kwargs["process"] = False
 
             meshes[name] = kwargs
             mesh_prim[index].append(name)
