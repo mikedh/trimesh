@@ -19,6 +19,7 @@ jobs:
       run: |
         flake8 tests
         flake8 trimesh
+        echo ${{github.ref}}
         flake8 examples
         flake8 setup.py
         autopep8 --recursive --aggressive --diff --exit-code trimesh/
