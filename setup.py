@@ -63,8 +63,20 @@ requirements_test = set(['pytest',       # run all unit tests
                          'pyinstrument',  # profile code
                          'coveralls'])   # report coverage stats
 
+# requirements for building documentation
+requirements_docs = set([
+    'pypandoc',
+    'numpy',
+    'scipy',
+    'networkx',
+    'recommonmark',
+    'sphinx',
+    'jupyter',
+    'sphinx_rtd_theme',
+    'pyopenssl',
+    'autodocsumm'])
 
-# python 3.4 support has been dropped from upstream packages
+# Python 2.7 and 3.4 support has been dropped from packages
 # version lock those packages here so install succeeds
 if (sys.version_info.major, sys.version_info.minor) <= (3, 4):
     # remove version-free requirements
@@ -127,5 +139,5 @@ setup(name='trimesh',
       install_requires=list(requirements_default),
       extras_require={'test': list(requirements_test),
                       'easy': list(requirements_easy),
-                      'all': list(requirements_all)}
-      )
+                      'docs': list(requirements_docs),
+                      'all': list(requirements_all)})

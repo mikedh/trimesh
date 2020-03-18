@@ -22,7 +22,7 @@ conda config --add channels conda-forge
 conda install pyembree rtree
 
 # include all soft dependencies
-pip install --no-cache-dir /tmp/trimesh[all,test] pyassimp==4.1.3
+pip install --no-cache-dir /tmp/trimesh[all,test,docs] pyassimp==4.1.3
 
 # remove archives
 conda clean --all -f -y
