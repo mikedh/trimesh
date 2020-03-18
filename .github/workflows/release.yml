@@ -110,8 +110,8 @@ jobs:
     - name: Build Docs
       run: |
          # build docs in docker image to get working trimesh env for docstrings
-         docker pull mikedh/trimesh:latest
-         docker run --rm -v `pwd`:/trimesh mikedh/trimesh:latest python /trimesh/docs/build.py
+         docker pull trimesh/trimesh:latest
+         docker run --rm -v `pwd`:/trimesh trimesh/trimesh:latest python /trimesh/docs/build.py
     - name: Tag Version
       id: set_tag
       run: |
@@ -153,7 +153,7 @@ jobs:
         # put a whole bunch of tags on image:
         # tag with version, git sha, and latest
         # push to DockerHub and AWS ECR
-        export TAGS="trimesh/trimesh:latest; trimesh/trimesh:$VERSION; trimesh/trimesh:$GIT_SHORT; $ECR_REGISTRY/$ECR_REPOSITORY:$VERSION; $ECR_REGISTRY/$ECR_REPOSITORY:latest; $ECR_REGISTRY/$ECR_REPOSITORY:$GIT_SHORT"
+        export TAGS="trimesh/trimesh:latest; trimesh/trimesh:$VERSION; trimesh/trimesh:$GIT_SHORT; mikedh/trimesh:latest; mikedh/trimesh:$VERSION; mikedh/trimesh:$GIT_SHORT; $ECR_REGISTRY/$ECR_REPOSITORY:$VERSION; $ECR_REGISTRY/$ECR_REPOSITORY:latest; $ECR_REGISTRY/$ECR_REPOSITORY:$GIT_SHORT"
         # build image tagged with all our many tags
         docker build -t `echo "${TAGS//;/$' -t '}"` .
         # push every tag to remote registry
