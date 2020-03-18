@@ -111,7 +111,7 @@ jobs:
       run: |
          # build docs in docker image to get working trimesh env for docstrings
          docker pull trimesh/trimesh:latest
-         docker run --rm -v `pwd`:/trimesh trimesh/trimesh:latest python /trimesh/docs/build.py
+         docker run --rm --user 0:0 -v `pwd`:/trimesh trimesh/trimesh:latest python /trimesh/docs/build.py
     - name: Tag Version
       id: set_tag
       run: |
