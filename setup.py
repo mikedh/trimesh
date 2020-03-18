@@ -79,13 +79,15 @@ requirements_docs = set([
 # Python 2.7 and 3.4 support has been dropped from packages
 # version lock those packages here so install succeeds
 if (sys.version_info.major, sys.version_info.minor) <= (3, 4):
-    # remove version-free requirements
-    requirements_easy.remove('lxml')
-    requirements_easy.remove('shapely')
-    # add working version locked requirements
-    requirements_easy.add('lxml==4.3.5')
-    requirements_easy.add('shapely==1.6.4')
-
+    # packages that no longer support old Python
+    lock = [('lxml', '4.3.5'),
+            ('shapely', '1.6.4'),
+            ('pyglet', '1.4.10')]
+    for name, version in lock:
+        # remove version-free requirements
+        requirements_easy.remove(name)
+        # add working version locked requirements
+        requirements_easy.add('{}=={}'.format(name, version))
 
 # if someone wants to output a requirements file
 # `python setup.py --list-all > requirements.txt`
