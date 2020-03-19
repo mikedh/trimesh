@@ -57,6 +57,27 @@ class PlyTest(g.unittest.TestCase):
         assert m.vertices.shape == (1024, 3)
         assert isinstance(m, g.trimesh.PointCloud)
 
+    def test_list_properties(self):
+        """
+        Test reading point clouds with the following metadata:
+        - lists of differing length
+        - multiple list properties
+        - single-element properties that come after list properties
+        """
+        m = g.get_mesh('points_ascii_with_lists.ply')
+
+        point_list = m.metadata['ply_raw']['point_list']['data']
+        assert g.np.array_equal(
+            point_list['point_indices1'][0], g.np.array([10, 11, 12], dtype=g.np.uint32))
+        assert g.np.array_equal(
+            point_list['point_indices1'][1], g.np.array([10, 11], dtype=g.np.uint32))
+        assert g.np.array_equal(
+            point_list['point_indices2'][0], g.np.array([13, 14], dtype=g.np.uint32))
+        assert g.np.array_equal(
+            point_list['point_indices2'][1], g.np.array([12, 13, 14], dtype=g.np.uint32))
+        assert g.np.array_equal(
+            point_list['some_float'], g.np.array([1.1, 2.2], dtype=g.np.float32))
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
