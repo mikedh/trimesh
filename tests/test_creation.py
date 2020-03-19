@@ -25,6 +25,19 @@ class CreationTest(g.unittest.TestCase):
 
         self.engines = engines
 
+    def test_cone(self):
+        # tolerance for cone
+        atol = 0.03
+
+        c = g.trimesh.creation.cone()
+        assert c.is_volume
+        assert c.body_count == 1
+
+        c = g.trimesh.creation.cone(radius=0.5, height=1.0)
+        assert c.is_volume
+        assert c.body_count == 1
+        assert g.np.allclose(c.extents, 1.0, atol=atol)
+
     def test_cylinder(self):
         # tolerance for cylinders
         atol = 0.03
