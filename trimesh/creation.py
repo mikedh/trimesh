@@ -735,6 +735,98 @@ def capsule(height=1.0,
     return capsule
 
 
+def cone(radius=1.0,
+         height=1.0,
+         sections=32,
+         transform=None,
+         **kwargs):
+    """
+    Create a mesh of a cone along Z centered at the origin.
+
+    Parameters
+    ----------
+    radius : float
+      The radius of the cylinder
+    height : float
+      The height of the cylinder
+    sections : int
+      How many pie wedges should the cylinder have
+    transform : (4, 4) float
+      Transform to apply
+    **kwargs:
+        passed to Trimesh to create cylinder
+
+    Returns
+    ----------
+    cone: trimesh.Trimesh
+      Resulting mesh of a cone
+    """
+    # create a 2D pie out of wedges
+    theta = np.linspace(0, np.pi * 2, sections)
+    vertices = np.column_stack((np.sin(theta),
+                                np.cos(theta))) * radius
+    # the single vertex at the center of the circle
+    # we're overwriting the duplicated start/end vertex
+    vertices[0] = [0, 0]
+
+    # whangle indexes into a triangulation of the pie wedges
+    index = np.arange(1, len(vertices) + 1).reshape((-1, 1))
+    index[-1] = 1
+    faces = np.tile(index, (1, 2)).reshape(-1)[1:-1].reshape((-1, 2))
+    faces = np.column_stack((np.zeros(len(faces), dtype=np.int), faces))
+
+    vertices = np.asanyarray(vertices, dtype=np.float64)
+    height = float(height)
+    faces = np.asanyarray(faces, dtype=np.int64)
+
+    # make sure triangulation winding is pointing up
+    normal_test = normals(
+        [util.stack_3D(vertices[faces[0]])])[0]
+
+    normal_dot = np.dot(normal_test,
+                        [0.0, 0.0, np.sign(height)])[0]
+
+    # make sure the triangulation is aligned with the sign of
+    # the height we've been passed
+    if normal_dot < 0.0:
+        faces = np.fliplr(faces)
+
+    # stack the (n,3) faces into (3*n, 2) edges
+    edges = faces_to_edges(faces)
+    edges_sorted = np.sort(edges, axis=1)
+    # edges which only occur once are on the boundary of the polygon
+    # since the triangulation may have subdivided the boundary of the
+    # shapely polygon, we need to find it again
+    edges_unique = grouping.group_rows(
+        edges_sorted, require_count=1)
+
+    # (n, 2, 2) set of line segments (positions, not references)
+    boundary = vertices[edges[edges_unique]]
+
+    vertical = np.concatenate([boundary, np.zeros((sections - 1, 1, 2))], axis=1)
+    vertical = vertical.reshape(-1, 2)
+    vertical = np.column_stack(
+        (vertical, np.tile([0, 0, height], len(boundary))))
+    vertical_faces = np.arange(len(vertical)).reshape(-1, 3)
+
+    vertices_3D = util.stack_3D(vertices)
+
+    # a sequence of zero- indexed faces, which will then be appended
+    # with offsets to create the final mesh
+    faces_seq = [faces[:, ::-1], vertical_faces]
+    vertices_seq = [vertices_3D, vertical]
+
+    # append sequences into flat nicely indexed arrays
+    vertices, faces = util.append_faces(vertices_seq, faces_seq)
+    cone = Trimesh(vertices=vertices, faces=faces, **kwargs)
+
+    cone.vertices[:, 2] -= height / 4.0
+    if transform is not None:
+        cone.apply_transform(transform)
+
+    return cone
+
+
 def cylinder(radius=1.0,
              height=1.0,
              sections=32,
