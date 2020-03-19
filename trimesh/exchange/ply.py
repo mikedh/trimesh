@@ -477,15 +477,18 @@ def element_colors(element):
     return None, 0.0
 
 
-def load_element_with_differing_length_lists(properties, data):
+def load_element_different(properties, data):
     """
-    Load element data based on the element's property-definitions.
+    Load elements which include lists of different lengths
+    based on the element's property-definitions.
 
     Parameters
     ------------
-    properties: Property definitions encoded in a dict where the property name is the key
-                and the property data type the value.
-    data: numpy-array of data rows for this element.
+    properties : dict
+      Property definitions encoded in a dict where the property name is the key
+      and the property data type the value.
+    data : array
+      Data rows for this element.
     """
     element_data = {k: [] for k in properties.keys()}
     for row in data:
@@ -510,16 +513,19 @@ def load_element_with_differing_length_lists(properties, data):
     return element_data
 
 
-def load_element_with_single_length_lists(properties, data):
+def load_element_single(properties, data):
     """
-    Load element data based on the element's property-definitions.
+    Load element data with lists of a single length
+    based on the element's property-definitions.
 
     Parameters
     ------------
-    properties: Property definitions encoded in a dict where the property name is the key
-                and the property data type the value.
-    data: numpy-array of data rows for this element. If the data contains list-properties,
-          all lists belonging to one property must have the same length.
+    properties : dict
+      Property definitions encoded in a dict where the property name is the key
+      and the property data type the value.
+    data : array
+      Data rows for this element. If the data contains list-properties,
+      all lists belonging to one property must have the same length.
     """
     col_ranges = []
     start = 0
@@ -589,13 +595,13 @@ def ply_ascii(elements, file_obj):
             # all rows have the same length and we only have at most one list
             # property where all entries have the same length. this means we can
             # use the quick numpy-based loading.
-            element_data = load_element_with_single_length_lists(
+            element_data = load_element_single(
                 values['properties'], data)
         else:
             # there are lists of differing lengths. we need to fall back to loading
             # the data by iterating all rows and checking for list-lengths. this is
             # slower than the variant above.
-            element_data = load_element_with_differing_length_lists(
+            element_data = load_element_different(
                 values['properties'], data)
 
         elements[key]['data'] = element_data
