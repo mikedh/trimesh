@@ -14,7 +14,7 @@ if __name__ == '__main__':
     # scene = trimesh.scene.Scene(mesh)
     scene = mesh.scene()
 
-    # a 45 degree homogenous rotation matrix around
+    # a 45 degree homogeneous rotation matrix around
     # the Y axis at the scene centroid
     rotate = trimesh.transformations.rotation_matrix(
         angle=np.radians(10.0),

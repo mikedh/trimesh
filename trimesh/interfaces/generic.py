@@ -18,7 +18,7 @@ class MeshScript:
     def __init__(self,
                  meshes,
                  script,
-                 tmpfile_ext='stl',
+                 exchange='stl',
                  debug=False,
                  **kwargs):
 
@@ -26,7 +26,7 @@ class MeshScript:
         self.kwargs = kwargs
         self.meshes = meshes
         self.script = script
-        self.tmpfile_ext = tmpfile_ext
+        self.exchange = exchange
 
     def __enter__(self):
         # windows has problems with multiple programs using open files so we close
@@ -35,12 +35,12 @@ class MeshScript:
         self.mesh_pre = [
             NamedTemporaryFile(
                 suffix='.{}'.format(
-                    self.tmpfile_ext),
+                    self.exchange),
                 mode='wb',
                 delete=False) for i in self.meshes]
         self.mesh_post = NamedTemporaryFile(
             suffix='.{}'.format(
-                self.tmpfile_ext),
+                self.exchange),
             mode='rb',
             delete=False)
         self.script_out = NamedTemporaryFile(mode='wb',

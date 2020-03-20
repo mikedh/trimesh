@@ -22,7 +22,7 @@ def sinwave(scene):
       Scene containing geometry
 
     """
-    # create an empty homogenous transformation
+    # create an empty homogeneous transformation
     matrix = np.eye(4)
     # set Y as cos of time
     matrix[1][3] = np.cos(time.time()) * 2
