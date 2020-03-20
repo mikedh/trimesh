@@ -24,7 +24,7 @@ class ExceptionModule(object):
         # this allows isinstance() checks to not re-raise
         if args[0] == '__class__':
             return None.__class__
-        # otherwise return our original exception
+        # otherwise raise our original exception
         raise super(ExceptionModule, self).__getattribute__('exc')
 
 

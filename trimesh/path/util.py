@@ -7,21 +7,23 @@ def is_ccw(points):
 
     Parameters
     -----------
-    points: (n,2) float, connected points on a plane
+    points : (n, 2) float
+      Connected points on a plane
 
     Returns
     ----------
-    ccw: bool, True if points are counterclockwise
+    ccw : bool
+      True if points are counterclockwise
     """
     points = np.asanyarray(points, dtype=np.float64)
 
-    if (len(points.shape) != 2 or
-            points.shape[1] != 2):
+    if (len(points.shape) != 2 or points.shape[1] != 2):
         raise ValueError('CCW is only defined for 2D')
     xd = np.diff(points[:, 0])
-    yd = np.column_stack((
+    # sum along axis=1 with a dot product
+    yd = np.dot(np.column_stack((
         points[:, 1],
-        points[:, 1])).reshape(-1)[1:-1].reshape((-1, 2)).sum(axis=1)
+        points[:, 1])).reshape(-1)[1:-1].reshape((-1, 2)), [1, 1])
     area = np.sum(xd * yd) * .5
     ccw = area < 0
 
@@ -34,11 +36,13 @@ def concatenate(paths):
 
     Parameters
     -------------
-    paths: list of Path, Path2D, or Path3D objects
+    paths : (n,) Path
+      Path objects to concatenate
 
     Returns
     -------------
-    concat: Path, Path2D, or Path3D object
+    concat : Path, Path2D, or Path3D
+      Concatenated result
     """
     # if only one path object just return copy
     if len(paths) == 1:
