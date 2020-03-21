@@ -1,5 +1,5 @@
 import numpy as np
-from ..util import is_ccw # NOQA
+from ..util import is_ccw  # NOQA
 
 
 def concatenate(paths):
