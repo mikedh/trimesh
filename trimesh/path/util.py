@@ -1,33 +1,5 @@
 import numpy as np
-
-
-def is_ccw(points):
-    """
-    Check if connected planar points are counterclockwise.
-
-    Parameters
-    -----------
-    points : (n, 2) float
-      Connected points on a plane
-
-    Returns
-    ----------
-    ccw : bool
-      True if points are counterclockwise
-    """
-    points = np.asanyarray(points, dtype=np.float64)
-
-    if (len(points.shape) != 2 or points.shape[1] != 2):
-        raise ValueError('CCW is only defined for 2D')
-    xd = np.diff(points[:, 0])
-    # sum along axis=1 with a dot product
-    yd = np.dot(np.column_stack((
-        points[:, 1],
-        points[:, 1])).reshape(-1)[1:-1].reshape((-1, 2)), [1, 1])
-    area = np.sum(xd * yd) * .5
-    ccw = area < 0
-
-    return ccw
+from ..util import is_ccw # NOQA
 
 
 def concatenate(paths):

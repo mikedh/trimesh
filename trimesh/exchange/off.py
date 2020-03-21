@@ -19,10 +19,8 @@ def load_off(file_obj, **kwargs):
       kwargs for Trimesh constructor
     """
     text = file_obj.read()
-    if hasattr(text, 'decode'):
-        text = text.decode('utf-8')
-
-    text = text.lstrip()
+    # will magically survive weird encoding sometimes
+    text = util.decode_text(text).lstrip()
     # split the first key
     header, raw = text.split(None, 1)
 

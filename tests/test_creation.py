@@ -7,22 +7,12 @@ except BaseException:
 class CreationTest(g.unittest.TestCase):
 
     def setUp(self):
-        # we support two interfaces to triangle:
-        # pip install meshpy
-        # pip install triangle
         engines = []
-        try:
-            import meshpy  # NOQA
-            engines.append('meshpy')
-        except ImportError:
-            g.log.error("no meshpy: skipping")
-
         try:
             from triangle import triangulate  # NOQA
             engines.append('triangle')
         except ImportError:
             g.log.error('no triangle: skipping')
-
         self.engines = engines
 
     def test_cone(self):

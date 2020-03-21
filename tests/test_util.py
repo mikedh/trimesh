@@ -306,6 +306,34 @@ class UniqueTests(unittest.TestCase):
             assert np.all(truth_counts == counts)
 
 
+class CommentTests(unittest.TestCase):
+
+    def test_comment(self):
+        # test our comment stripping logic
+        f = g.trimesh.util.comment_strip
+
+        text = 'hey whats up'
+        assert f(text) == text
+
+        text = '#hey whats up'
+        assert f(text) == ''
+
+        text = '   # hey whats up '
+        assert f(text) == ''
+
+        text = '# naahah\nhey whats up'
+        assert f(text) == 'hey whats up'
+
+        text = '#naahah\nhey whats up\nhi'
+        assert f(text) == 'hey whats up\nhi'
+
+        text = '#naahah\nhey whats up\n hi'
+        assert f(text) == 'hey whats up\n hi'
+
+        text = '#naahah\nhey whats up\n hi#'
+        assert f(text) == 'hey whats up\n hi'
+
+
 if __name__ == '__main__':
     trimesh.util.attach_to_log()
     unittest.main()

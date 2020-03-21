@@ -48,7 +48,7 @@ def interface_scad(meshes, script, debug=False, **kwargs):
     if not exists:
         raise ValueError('No SCAD available!')
     # OFF is a simple text format that references vertices by-index
-    # making it slightly preferrable to STL for this kind of exchange duty
+    # making it slightly preferable to STL for this kind of exchange duty
     with MeshScript(meshes=meshes, script=script, debug=debug, exchange='off') as scad:
         result = scad.run(_scad_executable + ' $SCRIPT -o $MESH_POST')
     return result

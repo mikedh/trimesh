@@ -1222,6 +1222,49 @@ def decode_keys(store, encoding='utf-8'):
     return store
 
 
+def comment_strip(text, starts_with='#', new_line='\n'):
+    """
+    Strip comments from a text block.
+
+    Parameters
+    -----------
+    text : str
+      Text to remove comments from
+    starts_with : str
+      Charecter or substring that starts a comment
+    new_line : str
+      Charecter or substring that ends a comment
+
+    Returns
+    -----------
+    stripped : str
+      Text with comments stripped
+    """
+    # if not contained exit immediately
+    if starts_with not in text:
+        return text
+
+    # start by splitting into chunks by the comment indicator
+    split = (text + new_line).split(starts_with)
+
+    # special case files that start with a comment
+    if text.startswith(starts_with):
+        lead = ''
+    else:
+        lead = split[0]
+
+    # take each comment up until the newline
+    removed = [i.split(new_line, 1) for i in split]
+    # add the leading string back on
+    result = lead + new_line.join(
+        i[1] for i in removed
+        if len(i) > 1 and len(i[1]) > 0)
+    # strip leading and trailing whitespace
+    result = result.strip()
+
+    return result
+
+
 def encoded_to_array(encoded):
     """
     Turn a dictionary with base64 encoded strings back into a numpy array.
@@ -2230,3 +2273,32 @@ def to_ascii(text):
         return text.decode('ascii', errors='ignore')
     # otherwise just wrap as a string
     return str(text)
+
+
+def is_ccw(points):
+    """
+    Check if connected 2D points are counterclockwise.
+
+    Parameters
+    -----------
+    points : (n, 2) float
+      Connected points on a plane
+
+    Returns
+    ----------
+    ccw : bool
+      True if points are counter-clockwise
+    """
+    points = np.asanyarray(points, dtype=np.float64)
+
+    if (len(points.shape) != 2 or points.shape[1] != 2):
+        raise ValueError('CCW is only defined for 2D')
+    xd = np.diff(points[:, 0])
+    # sum along axis=1 with a dot product
+    yd = np.dot(np.column_stack((
+        points[:, 1],
+        points[:, 1])).reshape(-1)[1:-1].reshape((-1, 2)), [1, 1])
+    area = np.sum(xd * yd) * .5
+    ccw = area < 0
+
+    return ccw

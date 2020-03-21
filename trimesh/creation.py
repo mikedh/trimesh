@@ -7,11 +7,11 @@ Create meshes from primitives, or with operations.
 
 from .base import Trimesh
 from .constants import log, tol
-from .triangles import normals
 from .geometry import faces_to_edges, align_vectors
 
 from . import util
 from . import grouping
+from . import triangles
 from . import transformations as tf
 
 import numpy as np
@@ -45,6 +45,9 @@ def revolve(linestring,
     eventually including cylinders, annular cylinders, capsules, cones,
     and UV spheres.
 
+    Note that if your linestring is closed, it needs to be counterclockwise
+    if you would like face winding and normals facing outwards.
+
     Populates vertices, faces, and face normals
 
     Parameters
@@ -71,9 +74,6 @@ def revolve(linestring,
     # linestring must be ordered 2D points
     if len(linestring.shape) != 2 or linestring.shape[1] != 2:
         raise ValueError('linestring must be 2D!')
-
-    if np.allclose(linestring[0], linestring[-1]):
-        linestring = linestring[::-1]
 
     if angle is None:
         # default to closing the revolution
@@ -118,13 +118,7 @@ def revolve(linestring,
     # how many slices of the pie
     slices = len(theta) - 1
 
-    # which linestring vertices have a zero radius
-    # a segment with no zero-radius points needs 2 two triangles
-    # a segment with one zero-radius point needs one triangle
-    # a segment with two zero-radius points needs no triangles
-    zero = util.isclose(radius, 0.0, atol=tol.merge)
-
-    # start with a quad for every segement
+    # start with a quad for every segment
     # this is a superset which will then be reduced
     quad = np.array([0, per, 1,
                      1, per, per + 1])
@@ -132,11 +126,9 @@ def revolve(linestring,
     single = np.tile(quad, per).reshape((-1, 3))
     # `per` is basically the stride of the vertices
     single += np.tile(np.arange(per), (2, 1)).T.reshape((-1, 1))
-    # check how many zero-radius vertices exist per triangle
-    # a valid face can have 0 or 1 zero-radius vertices
-    ok = np.tile(zero, 2)[single % per].sum(axis=1) <= 1
-    # remove invalid triangles to get one nice slice of revolution
-    single = single[ok]
+    # remove any zero-area triangle
+    # this covers many cases without having to think too much
+    single = single[triangles.area(vertices[single]) > tol.merge]
 
     # how much to offset each slice
     # note arange multiplied by vertex stride
@@ -156,23 +148,14 @@ def revolve(linestring,
     # create the mesh from our vertices and faces
     mesh = Trimesh(vertices=vertices, faces=faces)
 
-    # strict checks run only in unit tests generally
-    if tol.strict:
+    # strict checks run only in unit tests
+    if (tol.strict and
+        np.allclose(radius[[0, -1]], 0.0) or
+            np.allclose(linestring[0], linestring[-1])):
         # if revolved curve starts and ends with zero radius
         # it should really be a valid volume, unless the sign
         # reversed on the input linestring
-        if (zero[0] and zero[-1]) or np.allclose(linestring[0], linestring[-1]):
-
-            if not mesh.is_volume:
-                import trimesh
-                trimesh.repair.broken_faces(mesh, color=[255, 0, 0, 255])
-
-                mesh.show()
-
-                from IPython import embed
-                embed()
-
-            assert mesh.is_volume
+        assert mesh.is_volume
 
     return mesh
 
@@ -360,7 +343,7 @@ def extrude_triangulation(vertices,
         raise ValueError('Height must be nonzero!')
 
     # make sure triangulation winding is pointing up
-    normal_test = normals(
+    normal_test = triangles.normals(
         [util.stack_3D(vertices[faces[0]])])[0]
 
     normal_dot = np.dot(normal_test,
@@ -840,8 +823,8 @@ def cone(radius,
     return cone
 
 
-def cylinder(radius=1.0,
-             height=1.0,
+def cylinder(radius,
+             height,
              sections=None,
              segment=None,
              transform=None,
@@ -886,11 +869,12 @@ def cylinder(radius=1.0,
         # compound the rotation and translation
         transform = np.dot(translation, rotation)
 
+    half = abs(float(height)) / 2.0
     # create a profile to revolve
-    linestring = [[0, -height],
-                  [radius, -height],
-                  [radius, height],
-                  [0, height]]
+    linestring = [[0, -half],
+                  [radius, -half],
+                  [radius, half],
+                  [0, half]]
     # generate cylinder through simple revolution
     return revolve(linestring=linestring,
                    sections=sections,
@@ -937,13 +921,14 @@ def annulus(r_min,
                         transform=transform)
     r_max = abs(float(r_max))
     # we're going to center at XY plane so take half the height
-    h2 = abs(float(height)) / 2.0
-    # create the rectangle
-    linestring = [[r_min, -h2],
-                  [r_min, h2],
-                  [r_max, h2],
-                  [r_max, -h2],
-                  [r_min, -h2]]
+    half = abs(float(height)) / 2.0
+    # create counter-clockwise rectangle
+    linestring = [[r_min, -half],
+                  [r_max, -half],
+                  [r_max, half],
+                  [r_min, half],
+                  [r_min, -half]]
+
     # revolve the curve
     annulus = revolve(linestring=linestring,
                       sections=sections,
