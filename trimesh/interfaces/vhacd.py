@@ -52,7 +52,7 @@ def convex_decomposition(mesh, debug=False, **kwargs):
 
     with MeshScript(meshes=[mesh],
                     script='',
-                    tmpfile_ext='obj',
+                    exchange='obj',
                     group_material=False,
                     split_object=True,
                     debug=debug) as vhacd:
