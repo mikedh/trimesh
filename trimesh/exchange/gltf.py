@@ -61,7 +61,7 @@ uint8 = np.dtype("<u1")
 
 def export_gltf(scene,
                 extras=None,
-                include_normals=False):
+                include_normals=None):
     """
     Export a scene object as a GLTF directory.
 
@@ -117,7 +117,7 @@ def export_gltf(scene,
     return files
 
 
-def export_glb(scene, extras=None, include_normals=False):
+def export_glb(scene, extras=None, include_normals=None):
     """
     Export a scene as a binary GLTF (GLB) file.
 

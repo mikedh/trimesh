@@ -77,8 +77,8 @@ class ArcTests(g.unittest.TestCase):
         Test a Path2D object containing polygons nested in
         the interiors of other polygons.
         """
-        inner = g.trimesh.creation.annulus(r_min=.5, r_max=.6)
-        outer = g.trimesh.creation.annulus(r_min=.9, r_max=1.0)
+        inner = g.trimesh.creation.annulus(r_min=.5, r_max=0.6, height=1.0)
+        outer = g.trimesh.creation.annulus(r_min=.9, r_max=1.0, height=1.0)
         m = inner + outer
 
         s = m.section(plane_normal=[0, 0, 1],

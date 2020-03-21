@@ -7,6 +7,7 @@ on:
 
 jobs:
   formatting:
+    name: Check Code Formatting
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -30,6 +31,7 @@ jobs:
         autopep8 --recursive --aggressive --diff --exit-code tests/
 
   wintests:
+    name: Run Windows Unit Tests
     needs: formatting
     runs-on: ${{ matrix.os }}
     strategy:
@@ -52,6 +54,7 @@ jobs:
       run: python tests/test_inertia.py
 
   tests:
+    name: Run Unit Tests
     needs: formatting
     runs-on: ${{ matrix.os }}
     strategy:
@@ -83,6 +86,7 @@ jobs:
       run: pytest
 
   pypi:
+    name: Release To PyPi
     needs: tests
     runs-on: ubuntu-latest
     steps:
@@ -103,6 +107,7 @@ jobs:
         python setup.py sdist bdist_wheel
         twine upload dist/*
   docs:
+    name: Build Docs
     needs: containers
     runs-on: ubuntu-latest
     steps:
@@ -112,18 +117,13 @@ jobs:
          # build docs in docker image to get working trimesh env for docstrings
          docker pull trimesh/trimesh:latest
          docker run --rm --user 0:0 -v `pwd`:/trimesh trimesh/trimesh:latest python /trimesh/docs/build.py
-    - name: Tag Version
-      id: set_tag
-      run: |
-        export VERSION=$(python -c "exec(open('trimesh/version.py','r').read()); print(__version__)")
-        echo "::set-output name=tag_name::${VERSION}"
     - name: Deploy To Pages
       uses: peaceiris/actions-gh-pages@v3
       with:
-        tag_name: ${{ steps.set_tag.outputs.tag_name }}
         github_token: ${{ secrets.GITHUB_TOKEN }}
         publish_dir: ./docs/html
   containers:
+    name: Build Docker Images
     runs-on: ubuntu-latest
     needs: tests
     steps:
@@ -165,7 +165,7 @@ jobs:
         docker logout
 
   release:
-    name: Create Release
+    name: Create GitHub Release
     needs: tests
     runs-on: ubuntu-latest
     steps:
