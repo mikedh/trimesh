@@ -362,7 +362,6 @@ class CreationTests(g.unittest.TestCase):
         assert g.np.allclose(
             circle.polygons_full[0].centroid, [
                 1.0, 1.0], atol=1e-3)
-
         assert len(circle.entities) == 1
         assert len(circle.polygons_closed) == 1
         assert len(circle.polygons_full) == 1

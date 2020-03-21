@@ -71,15 +71,19 @@ def circle_pattern(pattern_radius,
     return pattern
 
 
-def circle(radius=None, center=None, **kwargs):
+def circle(radius, center=None, **kwargs):
     """
     Create a Path2D containing circle with the specified
     radius.
 
     Parameters
     --------------
-    bounds : (2, 2) float, or (m, 2, 2) float
-      Minimum XY, Maximum XY
+    radius : float
+      The radius of the circle
+    center : None or (2,) float
+      Center of the circle, origin by default
+    ** kwargs : dict
+      Passed to trimesh.path.Path2D constructor
 
     Returns
     -------------
@@ -92,19 +96,19 @@ def circle(radius=None, center=None, **kwargs):
         center = [0.0, 0.0]
     else:
         center = np.asanyarray(center, dtype=np.float64)
-    if radius is None:
-        radius = 1.0
-    else:
-        radius = float(radius)
+    # make sure radius is a float
+    radius = float(radius)
 
     # (3, 2) float, points on arc
     three = arc.to_threepoint(angles=[0, np.pi],
                               center=center,
                               radius=radius)
+    # generate the path object
+    result = Path2D(
+        entities=[Arc(points=np.arange(3), closed=True)],
+        vertices=three,
+        **kwargs)
 
-    result = Path2D(entities=[Arc(points=np.arange(3), closed=True)],
-                    vertices=three,
-                    **kwargs)
     return result
 
 
