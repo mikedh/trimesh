@@ -45,7 +45,7 @@ verbose = '-v' in sys.argv
 if __name__ == '__main__':
     # convert README to an RST for sphinx
     pdc = ['pandoc',
-           '--from=markdown',
+           '--from=gfm',
            '--to=rst',
            '--output=' + abspath('README.rst'),
            abspath('../README.md')]
