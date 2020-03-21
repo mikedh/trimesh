@@ -100,7 +100,7 @@ def circle(radius=None, center=None, **kwargs):
     # (3, 2) float, points on arc
     three = arc.to_threepoint(angles=[0, np.pi],
                               center=center,
-                              radius=radius) + center
+                              radius=radius)
 
     result = Path2D(entities=[Arc(points=np.arange(3), closed=True)],
                     vertices=three,
