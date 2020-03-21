@@ -86,7 +86,7 @@ jobs:
 
   pypi:
     name: Release To PyPi
-    needs: tests
+    needs: [tests, containers]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -165,7 +165,7 @@ jobs:
 
   release:
     name: Create GitHub Release
-    needs: tests
+    needs: [tests, containers]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
