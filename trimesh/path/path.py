@@ -470,12 +470,12 @@ class Path(object):
 
     def apply_transform(self, transform):
         """
-        Apply a tf matrix to the current path in- place
+        Apply a transformation matrix to the current path in- place
 
         Parameters
         -----------
         transform : (d+1, d+1) float
-          Homogeneous tf for vertices
+          Homogeneous transformations for vertices
         """
         dimension = self.vertices.shape[1]
         transform = np.asanyarray(transform, dtype=np.float64)
@@ -525,7 +525,7 @@ class Path(object):
 
     def apply_scale(self, scale):
         """
-        Apply a tf matrix to the current path in- place
+        Apply a transformation matrix to the current path in- place
 
         Parameters
         -----------
@@ -539,7 +539,7 @@ class Path(object):
 
     def apply_translation(self, offset):
         """
-        Apply a tf matrix to the current path in- place
+        Apply a transformation matrix to the current path in- place
 
         Parameters
         -----------
@@ -578,7 +578,7 @@ class Path(object):
         Returns
         -----------
         matrix : (dimension + 1, dimension + 1) float
-          Homogeneous tf that was applied
+          Homogeneous transformations that was applied
           to the current Path object.
         """
         # transform to the lower left corner
@@ -887,7 +887,7 @@ class Path3D(Path):
         Parameters
         -----------
         to_2D: (4,4) float
-            Homogeneous tf matrix to apply,
+            Homogeneous transformation matrix to apply,
             If not passed a plane will be fitted to vertices.
         normal: (3,) float, or None
            Approximate normal of direction of plane
@@ -902,7 +902,7 @@ class Path3D(Path):
         planar : trimesh.path.Path2D
                    Current path transformed onto plane
         to_3D :  (4,4) float
-                   Homeogenous tf to move planar
+                   Homeogenous transformations to move planar
                    back into 3D space
         """
         # which vertices are actually referenced
@@ -1049,7 +1049,7 @@ class Path2D(Path):
         Returns
         -----------
         obb : (3, 3) float
-          Homogeneous tf matrix
+          Homogeneous transformation matrix
         """
         matrix = self.obb
         self.apply_transform(matrix)
@@ -1064,7 +1064,7 @@ class Path2D(Path):
         Returns
         -----------
         obb : (3, 3) float
-          Homogeneous tf matrix
+          Homogeneous transformation matrix
         """
         matrix = bounds.oriented_bounds_2D(
             self.vertices[self.referenced_vertices])[0]
