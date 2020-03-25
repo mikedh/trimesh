@@ -1108,7 +1108,7 @@ class Scene(Geometry):
         return result
 
 
-def split_scene(geometry, only_watertight=False):
+def split_scene(geometry, only_watertight=True):
     """
     Given a geometry, list of geometries, or a Scene
     return them as a single Scene object.
