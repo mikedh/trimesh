@@ -1,13 +1,6 @@
-OFF
-#
-#  cube.off
-#  A cube.
-#  There is extra RGBA color information specified for the faces.
-#
-
-8 6 12
+	                                                                       OFF8 6 12 # or nah
   1.632993   0.000000   1.154701
-  0.000000   1.632993   1.154701 # see this vertex be weird
+  0.000000   1.632993   1.154701
  -1.632993   0.000000   1.154701
   0.000000  -1.632993   1.154701
   1.632993   0.000000  -1.154701

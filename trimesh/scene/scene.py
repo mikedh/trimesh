@@ -1108,7 +1108,7 @@ class Scene(Geometry):
         return result
 
 
-def split_scene(geometry):
+def split_scene(geometry, only_watertight=True):
     """
     Given a geometry, list of geometries, or a Scene
     return them as a single Scene object.
@@ -1140,7 +1140,7 @@ def split_scene(geometry):
     split = []
     metadata = {}
     for g in util.make_sequence(geometry):
-        split.extend(g.split())
+        split.extend(g.split(only_watertight=only_watertight))
         metadata.update(g.metadata)
 
     # if there is only one geometry in the mesh

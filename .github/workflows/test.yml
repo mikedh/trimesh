@@ -29,7 +29,6 @@ jobs:
 
   tests:
     name: Run Unit Tests
-    needs: formatting
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:

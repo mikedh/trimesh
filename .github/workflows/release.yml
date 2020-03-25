@@ -124,7 +124,6 @@ jobs:
   containers:
     name: Build Docker Images
     runs-on: ubuntu-latest
-    needs: tests
     steps:
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v1
