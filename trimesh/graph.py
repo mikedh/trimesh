@@ -2,11 +2,10 @@
 graph.py
 -------------
 
-Deal with graph operations. Primarily deal with graphs in (n,2)
+Deal with graph operations. Primarily deal with graphs in (n, 2)
 edge list form, and abstract the backend graph library being used.
 
-Currently uses networkx, scipy.sparse.csgraph, or graph_tool
-backends.
+Currently uses networkx or scipy.sparse.csgraph backend.
 """
 
 import numpy as np
@@ -20,15 +19,10 @@ from .constants import log, tol
 from .geometry import faces_to_edges
 
 try:
-    from graph_tool import Graph as GTGraph
-    from graph_tool.topology import label_components
-except ImportError:
-    pass
-
-try:
     from scipy.sparse import csgraph, coo_matrix
-except ImportError as E:
-    csgraph = exceptions.closure(E)
+except BaseException as E:
+    # re-raise exception when used
+    csgraph = exceptions.ExceptionModule(E)
     coo_matrix = exceptions.closure(E)
 
 try:
@@ -43,7 +37,7 @@ def face_adjacency(faces=None,
                    mesh=None,
                    return_edges=False):
     """
-    Returns an (n,2) list of face indices.
+    Returns an (n, 2) list of face indices.
     Each pair of faces in the list shares an edge, making them adjacent.
 
 
@@ -234,7 +228,7 @@ def vertex_adjacency_graph(mesh):
     potentially for some simple smoothing techniques.
     >>> graph = mesh.vertex_adjacency_graph
     >>> graph.neighbors(0)
-    > [1,3,4]
+    > [1, 3, 4]
     """
     g = nx.Graph()
     g.add_edges_from(mesh.edges_unique)
@@ -273,7 +267,7 @@ def facets(mesh, engine=None):
     mesh :  trimesh.Trimesh
     engine : str
        Which graph engine to use:
-       ('scipy', 'networkx', 'graphtool')
+       ('scipy', 'networkx')
 
     Returns
     ---------
@@ -375,7 +369,7 @@ def connected_components(edges,
       Minimum length of a component group to return
     engine :  str or None
       Which graph engine to use (None for automatic):
-      (None, 'networkx', 'scipy', 'graphtool')
+      (None, 'networkx', 'scipy')
 
 
     Returns
@@ -397,30 +391,6 @@ def connected_components(edges,
         components = np.array(
             [np.array(list(i), dtype=np.int64)
              for i in iterable if len(i) >= min_len])
-        return components
-
-    def components_graphtool():
-        """
-        Find connected components using graphtool
-        """
-        g = GTGraph()
-        # make sure all the nodes are in the graph
-        g.add_vertex(node_count)
-        # add the edge list
-        g.add_edge_list(edges)
-
-        labels = np.array(label_components(g, directed=False)[0].a,
-                          dtype=np.int64)[:node_count]
-
-        # we have to remove results that contain nodes outside
-        # of the specified node set and reindex
-        contained = np.zeros(node_count, dtype=np.bool)
-        contained[nodes] = True
-        index = np.arange(node_count, dtype=np.int64)[contained]
-
-        components = grouping.group(labels[contained], min_len=min_len)
-        components = np.array([index[c] for c in components])
-
         return components
 
     def components_csgraph():
@@ -458,7 +428,7 @@ def connected_components(edges,
             return np.array([])
 
     if not util.is_shape(edges, (-1, 2)):
-        raise ValueError('edges must be (n,2)!')
+        raise ValueError('edges must be (n, 2)!')
 
     # find the maximum index referenced in either nodes or edges
     counts = [0]
@@ -474,11 +444,8 @@ def connected_components(edges,
     edges_ok = mask[edges].all(axis=1)
     edges = edges[edges_ok]
 
-    # graphtool is usually faster then scipy by ~10%, however on very
-    # large or very small graphs graphtool outperforms scipy substantially
-    # networkx is pure python and is usually 5-10x slower
+    # networkx is pure python and is usually 5-10x slower than scipy
     engines = collections.OrderedDict((
-        ('graphtool', components_graphtool),
         ('scipy', components_csgraph),
         ('networkx', components_networkx)))
 
@@ -552,7 +519,7 @@ def split_traversal(traversal,
         edges_hash = grouping.hashable_rows(
             np.sort(edges, axis=1))
 
-    # turn the (n,) traversal into (n-1,2) edges
+    # turn the (n,) traversal into (n-1, 2) edges
     trav_edge = np.column_stack((traversal[:-1],
                                  traversal[1:]))
     # hash each edge so we can compare to edge set
@@ -638,7 +605,7 @@ def fill_traversals(traversals, edges, edges_hash=None):
             traversal=nodes,
             edges=edges,
             edges_hash=edges_hash))
-    # turn the split traversals back into (n,2) edges
+    # turn the split traversals back into (n, 2) edges
     included = util.vstack_empty([np.column_stack((i[:-1], i[1:]))
                                   for i in splits])
     if len(included) > 0:
@@ -679,7 +646,7 @@ def traversals(edges, mode='bfs'):
     if len(edges) == 0:
         return []
     elif not util.is_shape(edges, (-1, 2)):
-        raise ValueError('edges are not (n,2)!')
+        raise ValueError('edges are not (n, 2)!')
 
     # pick the traversal method
     mode = str(mode).lower().strip()
@@ -724,7 +691,7 @@ def edges_to_coo(edges, count=None, data=None):
 
     Parameters
     ------------
-    edges : (n,2) int
+    edges : (n, 2) int
       Edges of a graph
     count : int
       The total number of nodes in the graph
@@ -741,7 +708,7 @@ def edges_to_coo(edges, count=None, data=None):
     edges = np.asanyarray(edges, dtype=np.int64)
     if not (len(edges) == 0 or
             util.is_shape(edges, (-1, 2))):
-        raise ValueError('edges must be (n,2)!')
+        raise ValueError('edges must be (n, 2)!')
 
     # if count isn't specified just set it to largest
     # value referenced in edges

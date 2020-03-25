@@ -224,15 +224,20 @@ def identity_matrix():
 
 
 def translation_matrix(direction):
-    """Return matrix to translate by direction vector.
+    """
+    Return matrix to translate by direction vector.
 
     >>> v = np.random.random(3) - 0.5
     >>> np.allclose(v, translation_matrix(v)[:3, 3])
     True
 
     """
-    M = np.identity(4)
-    M[:3, 3] = direction[:3]
+    # are we 2D or 3D
+    dim = len(direction)
+    # start with identity matrix
+    M = np.identity(dim + 1)
+    # apply the offset
+    M[:dim, dim] = direction[:dim]
     return M
 
 

@@ -24,7 +24,7 @@ from .. import bounds
 from .. import caching
 from .. import grouping
 from .. import exceptions
-from .. import transformations
+from .. import transformations as tf
 
 from . import raster
 from . import repair
@@ -470,12 +470,12 @@ class Path(object):
 
     def apply_transform(self, transform):
         """
-        Apply a transformation matrix to the current path in- place
+        Apply a tf matrix to the current path in- place
 
         Parameters
         -----------
         transform : (d+1, d+1) float
-          Homogeneous transformation for vertices
+          Homogeneous tf for vertices
         """
         dimension = self.vertices.shape[1]
         transform = np.asanyarray(transform, dtype=np.float64)
@@ -493,7 +493,7 @@ class Path(object):
         # apply transform to discretized paths
         if 'discrete' in self._cache.cache:
             cache['discrete'] = np.array([
-                transformations.transform_points(
+                tf.transform_points(
                     d, matrix=transform)
                 for d in self.discrete])
 
@@ -512,7 +512,7 @@ class Path(object):
                 cache[key] = self._cache.cache[key]
 
         # transform vertices in place
-        self.vertices = transformations.transform_points(
+        self.vertices = tf.transform_points(
             self.vertices,
             matrix=transform)
         # explicitly clear the cache
@@ -521,10 +521,11 @@ class Path(object):
 
         # populate the things we wangled
         self._cache.cache.update(cache)
+        return self
 
     def apply_scale(self, scale):
         """
-        Apply a transformation matrix to the current path in- place
+        Apply a tf matrix to the current path in- place
 
         Parameters
         -----------
@@ -534,11 +535,11 @@ class Path(object):
         dimension = self.vertices.shape[1]
         matrix = np.eye(dimension + 1)
         matrix[:dimension, :dimension] *= scale
-        self.apply_transform(matrix)
+        return self.apply_transform(matrix)
 
     def apply_translation(self, offset):
         """
-        Apply a transformation matrix to the current path in- place
+        Apply a tf matrix to the current path in- place
 
         Parameters
         -----------
@@ -555,7 +556,7 @@ class Path(object):
         # apply the offset
         matrix[:dimension, dimension] = offset
 
-        self.apply_transform(matrix)
+        return self.apply_transform(matrix)
 
     def apply_layer(self, name):
         """
@@ -577,28 +578,25 @@ class Path(object):
         Returns
         -----------
         matrix : (dimension + 1, dimension + 1) float
-          Homogeneous transformation that was applied
+          Homogeneous tf that was applied
           to the current Path object.
         """
-        dimension = self.vertices.shape[1]
-        matrix = np.eye(dimension + 1)
-        matrix[:dimension, dimension] = -self.vertices.min(axis=0)
+        # transform to the lower left corner
+        matrix = tf.translation_matrix(-self.bounds[0])
+        # cleanly apply trransformation matrix
         self.apply_transform(matrix)
+
         return matrix
 
     def merge_vertices(self, digits=None):
         """
-        Merges vertices which are identical and replace references.
+        Merges vertices which are identical and replace references
+        by altering `self.entities` and `self.vertices`
 
         Parameters
         --------------
         digits : None, or int
           How many digits to consider when merging vertices
-
-        Alters
-        -----------
-        self.entities : entity.points re- referenced
-        self.vertices : duplicates removed
         """
         if len(self.vertices) == 0:
             return
@@ -889,7 +887,7 @@ class Path3D(Path):
         Parameters
         -----------
         to_2D: (4,4) float
-            Homogeneous transformation matrix to apply,
+            Homogeneous tf matrix to apply,
             If not passed a plane will be fitted to vertices.
         normal: (3,) float, or None
            Approximate normal of direction of plane
@@ -904,7 +902,7 @@ class Path3D(Path):
         planar : trimesh.path.Path2D
                    Current path transformed onto plane
         to_3D :  (4,4) float
-                   Homeogenous transformation to move planar
+                   Homeogenous tf to move planar
                    back into 3D space
         """
         # which vertices are actually referenced
@@ -937,8 +935,8 @@ class Path3D(Path):
             raise ValueError('unable to create transform!')
 
         # transform all vertices to 2D plane
-        flat = transformations.transform_points(self.vertices,
-                                                to_2D)
+        flat = tf.transform_points(self.vertices,
+                                   to_2D)
 
         # Z values of vertices which are referenced
         heights = flat[referenced][:, 2]
@@ -959,7 +957,7 @@ class Path3D(Path):
         # exactly Z=0 adjust it so the returned transform does
         if np.abs(height) > tol.planar:
             # adjust to_3D transform by height
-            adjust = transformations.translation_matrix(
+            adjust = tf.translation_matrix(
                 [0, 0, height])
             # apply the height adjustment to_3D
             to_3D = np.dot(to_3D, adjust)
@@ -1051,7 +1049,7 @@ class Path2D(Path):
         Returns
         -----------
         obb : (3, 3) float
-          Homogeneous transformation matrix
+          Homogeneous tf matrix
         """
         matrix = self.obb
         self.apply_transform(matrix)
@@ -1066,7 +1064,7 @@ class Path2D(Path):
         Returns
         -----------
         obb : (3, 3) float
-          Homogeneous transformation matrix
+          Homogeneous tf matrix
         """
         matrix = bounds.oriented_bounds_2D(
             self.vertices[self.referenced_vertices])[0]
@@ -1166,8 +1164,8 @@ class Path2D(Path):
         vertices = np.column_stack((copy.deepcopy(self.vertices),
                                     np.zeros(len(self.vertices))))
         if transform is not None:
-            vertices = transformations.transform_points(vertices,
-                                                        transform)
+            vertices = tf.transform_points(vertices,
+                                           transform)
         # make sure everything is deep copied
         path_3D = Path3D(entities=copy.deepcopy(self.entities),
                          vertices=vertices,
@@ -1395,7 +1393,7 @@ class Path2D(Path):
                                         smooth=smooth,
                                         verbose=verbose)
 
-    def split(self):
+    def split(self, **kwargs):
         """
         If the current Path2D consists of n 'root' curves,
         split them into a list of n Path2D objects
@@ -1434,7 +1432,9 @@ class Path2D(Path):
         Plot the entities of the path, with no notion of topology
         """
         import matplotlib.pyplot as plt
+        # keep plot axis scaled the same
         plt.axes().set_aspect('equal', 'datalim')
+        # hardcode a format for each entity type
         eformat = {'Line0': {'color': 'g', 'linewidth': 1},
                    'Line1': {'color': 'y', 'linewidth': 1},
                    'Arc0': {'color': 'r', 'linewidth': 1},
@@ -1444,12 +1444,16 @@ class Path2D(Path):
                    'BSpline0': {'color': 'm', 'linewidth': 1},
                    'BSpline1': {'color': 'm', 'linewidth': 1}}
         for entity in self.entities:
+            # if the entity has it's own plot method use it
             if annotations and hasattr(entity, 'plot'):
                 entity.plot(self.vertices)
                 continue
+            # otherwise plot the discrete curve
             discrete = entity.discrete(self.vertices)
+            # a unique key for entities
             e_key = entity.__class__.__name__ + str(int(entity.closed))
-            fmt = eformat[e_key]
+
+            fmt = eformat[e_key].copy()
             if color is not None:
                 # passed color will override other optons
                 fmt['color'] = color
