@@ -333,6 +333,9 @@ class CommentTests(unittest.TestCase):
         text = '#naahah\nhey whats up\n hi#'
         assert f(text) == 'hey whats up\n hi'
 
+        text = 'hey whats up# see here\n hi#'
+        assert f(text) == 'hey whats up\n hi'
+
 
 if __name__ == '__main__':
     trimesh.util.attach_to_log()

@@ -1256,7 +1256,7 @@ def comment_strip(text, starts_with='#', new_line='\n'):
     # take each comment up until the newline
     removed = [i.split(new_line, 1) for i in split]
     # add the leading string back on
-    result = lead + new_line.join(
+    result = lead + new_line + new_line.join(
         i[1] for i in removed
         if len(i) > 1 and len(i[1]) > 0)
     # strip leading and trailing whitespace
