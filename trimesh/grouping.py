@@ -424,6 +424,7 @@ def unique_rows(data, digits=None):
         hashes,
         return_index=True,
         return_inverse=True)
+
     return unique, inverse
 
 
