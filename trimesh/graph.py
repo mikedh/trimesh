@@ -642,7 +642,7 @@ def traversals(edges, mode='bfs'):
     traversals : (m,) sequence of (p,) int
       Ordered DFS or BFS traversals of the graph.
     """
-    edges = np.asanyarray(edges, dtype=np.int64)
+    edges = np.array(edges, dtype=np.int64)
     if len(edges) == 0:
         return []
     elif not util.is_shape(edges, (-1, 2)):
