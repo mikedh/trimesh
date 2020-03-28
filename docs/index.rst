@@ -3,6 +3,9 @@
   
 .. include:: README.rst
 
+.. toctree::
+   Trimesh On Github <http://github.com/mikedh/trimesh>
+
 Install
 ==========
 .. toctree::
@@ -23,5 +26,3 @@ Module Reference
    :maxdepth: 2
    
    modules
-
-

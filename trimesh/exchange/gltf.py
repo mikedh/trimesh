@@ -112,7 +112,7 @@ def export_gltf(scene,
     tree["buffers"] = buffers
     tree["bufferViews"] = views
     # dump tree with compact separators
-    files["model.gltf"] = json.dumps(
+    files["model.gltf"] = util.jsonify(
         tree, separators=(',', ':')).encode("utf-8")
     return files
 
@@ -163,7 +163,7 @@ def export_glb(scene, extras=None, include_normals=None):
     tree["bufferViews"] = views
 
     # export the tree to JSON for the header
-    content = json.dumps(tree, separators=(',', ':'))
+    content = util.jsonify(tree, separators=(',', ':'))
     # add spaces to content, so the start of the data
     # is 4 byte aligned as per spec
     content += (4 - ((len(content) + 20) % 4)) * " "
@@ -423,8 +423,22 @@ def _create_gltf_structure(scene,
         "materials": [],
         "cameras": [_convert_camera(scene.camera)]}
 
-    if extras is not None:
-        tree['extras'] = extras
+    # collect extras from passed arguments and metadata
+    collected = {}
+    try:
+        # start with scene metadata
+        if 'extras' in scene.metadata:
+            collected.update(scene.metadata['extras'])
+        # override with passed extras
+        if extras is not None:
+            collected.update(extras)
+        # fail here if data isn't json compatible
+        util.jsonify(collected)
+        # only export the extras if there is something there
+        if len(collected) > 0:
+            tree['extras'] = collected
+    except BaseException:
+        log.warning('failed to export extras!', exc_info=True)
 
     # grab the flattened scene graph in GLTF's format
     nodes = scene.graph.to_gltf(scene=scene)
@@ -1081,8 +1095,33 @@ def _read_buffers(header, buffers, mesh_kwargs, resolver=None):
               "geometry": meshes,
               "graph": graph,
               "base_frame": base_frame}
+    # load any extras into scene.metadata
+    result.update(_parse_extras(header))
 
     return result
+
+
+def _parse_extras(header):
+    """
+    Load any GLTF "extras" into scene.metadata['extras'].
+
+    Parameters
+    --------------
+    header : dict
+      GLTF header
+
+    Returns
+    -------------
+    kwargs : dict
+      Includes metadata
+    """
+    if 'extras' not in header:
+        return {}
+    try:
+        return {'metadata': {'extras': dict(header['extras'])}}
+    except BaseException:
+        log.warning('failed to load extras', exc_info=True)
+        return {}
 
 
 def _convert_camera(camera):
