@@ -276,6 +276,36 @@ class GLTFTest(g.unittest.TestCase):
                     sphere.vertex_attributes[key])
                 assert is_same is True
 
+    def test_extras(self):
+        # if GLTF extras are defined, make sure they survive a round trip
+        s = g.get_mesh('cycloidal.3DXML')
+
+        # some dummy data
+        dummy = {'who': 'likes cheese', 'potatoes': 25}
+
+        # export as GLB with extras passed to the exporter then re-load
+        r = g.trimesh.load(
+            g.trimesh.util.wrap_as_stream(
+                s.export(file_type='glb', extras=dummy)),
+            file_type='glb')
+
+        # shouldn't be in original metadata
+        assert 'extras' not in s.metadata
+        # make sure extras survived a round trip
+        assert all(r.metadata['extras'][k] == v
+                   for k, v in dummy.items())
+
+        # now assign the extras to the metadata
+        s.metadata['extras'] = dummy
+        # export as GLB then re-load
+        r = g.trimesh.load(
+            g.trimesh.util.wrap_as_stream(
+                s.export(file_type='glb')),
+            file_type='glb')
+        # make sure extras survived a round trip
+        assert all(r.metadata['extras'][k] == v
+                   for k, v in dummy.items())
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

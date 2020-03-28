@@ -17,6 +17,10 @@ except ImportError:
 
 
 class Resolver(object):
+    """
+    The base class for resolvers.
+    """
+
     def __init__(self, *args, **kwargs):
         raise NotImplementedError('Use a resolver subclass!')
 

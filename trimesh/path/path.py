@@ -868,6 +868,9 @@ class Path(object):
 
 
 class Path3D(Path):
+    """
+    Hold multiple vector curves (lines, arcs, splines, etc) in 3D.
+    """
 
     def _process_functions(self):
         return [self.merge_vertices,
@@ -1023,6 +1026,9 @@ class Path3D(Path):
 
 
 class Path2D(Path):
+    """
+    Hold multiple vector curves (lines, arcs, splines, etc) in 3D.
+    """
 
     def show(self, annotations=True):
         """
