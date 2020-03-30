@@ -27,8 +27,8 @@ def identifier_simple(mesh):
     transformations and different tesselations.
 
     Parameters
-    ----------
-    mesh : Trimesh object
+    ------------
+    mesh : trimesh.Trimesh
       Source geometry
 
     Returns
@@ -121,7 +121,7 @@ def identifier_hash(identifier, sigfig=None):
     significant figures.
 
     Parameters
-    ----------
+    ------------
     identifier : (n,) float
       Vector of properties
     sigfig : (n,) int
@@ -147,10 +147,11 @@ def identifier_hash(identifier, sigfig=None):
 
 def face_ordering(mesh):
     """
-    Triangles with three different length sides are
-    ordered in two ways:
-    [small edge, medium edge, large edge] (SML)
-    [small edge, large edge,  medium edge] (SLM)
+    Return the size-order of every face in the input mesh.
+
+    Triangles can be considered by the length order:
+      [small edge, medium edge, large edge] (SML)
+      [small edge, large edge,  medium edge] (SLM)
 
     This function returns [-1, 0, 1], depending on whether
     the triangle is SML or SLM, and 0 if M == L.

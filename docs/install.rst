@@ -1,16 +1,15 @@
 Advanced Installation
 =====================
 
-The minimal requirement to install ``trimesh`` is just
-`numpy <http://www.numpy.org/>`__.
+The only thing required to install ``trimesh`` is `numpy <http://www.numpy.org/>`__.
 
-All other dependancies are 'soft', or trimesh will only fail if a function is called that requires something not installed. If you do the most basic pip install, it will only require those three packages:
+All other dependencies are 'soft,' or trimesh will raise the ``ImportError`` at runtime if a function is called that requires a package that isn't installed. If you do the most basic install of ``trimesh`` it will only install ``numpy``:
 
 .. code:: bash
 
    pip install trimesh
 
-If you'd like most soft dependancies which should install cleanly:
+If you'd like most soft dependencies which should install cleanly, you can use the ``easy`` pip extra:
 
 .. code:: bash
 
@@ -21,16 +20,12 @@ If you'd like most soft dependancies which should install cleanly:
 Conda Install
 '''''''''''''
 
-The easiest way to get going on the most platforms is through Conda.
+The easiest way to get going on the most platforms is through a Python provided by conda. You can install `Miniconda <https://conda.io/docs/install/quick.html>`__ easily on all major platforms. Then, to install ``trimesh``:
 
 .. code:: bash
-
-   # install Miniconda if you have no conda:
-   # https://conda.io/docs/install/quick.html
-
    conda install -c conda-forge scikit-image shapely rtree pyembree
 
-   # install trimesh and all possible dependancies
+   # install trimesh and all possible dependencies
    # if this fails try: pip install trimesh[easy]
    pip install trimesh[all]
 
@@ -38,7 +33,7 @@ The easiest way to get going on the most platforms is through Conda.
 Ubuntu Notes
 ''''''''''''''''''
 
-Blender and openSCAD are soft dependancies used for boolean operations with subprocess, you can get them with apt:
+Blender and openSCAD are soft dependencies used for boolean operations with subprocess, you can get them with apt:
 
 .. code:: bash
 

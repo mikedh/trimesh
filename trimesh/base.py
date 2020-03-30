@@ -200,7 +200,7 @@ class Trimesh(Geometry):
 
     def process(self, **kwargs):
         """
-        Do the bare minimum processing to make a mesh useful.
+        Do processing to make a mesh useful.
 
         Does this by:
             1) removing NaN and Inf values
@@ -468,7 +468,7 @@ class Trimesh(Geometry):
     @vertex_normals.setter
     def vertex_normals(self, values):
         """
-        Assign values to vertex normals
+        Assign values to vertex normals.
 
         Parameters
         -------------
@@ -700,9 +700,8 @@ class Trimesh(Geometry):
     @property
     def principal_inertia_vectors(self):
         """
-        Return the principal axis of inertia.
-
-        Ordering corresponds to mesh.principal_inertia_components
+        Return the principal axis of inertia as unit vectors.
+        The order corresponds to `mesh.principal_inertia_components`.
 
         Returns
         ----------
@@ -741,13 +740,13 @@ class Trimesh(Geometry):
     @caching.cache_decorator
     def symmetry(self):
         """
-        Check whether a mesh has rotational symmetry.
+        Check whether a mesh has rotational symmetry around
+        an axis (radial) or point (spherical).
 
         Returns
         -----------
-        symmetry: None         No rotational symmetry
-                  'radial'     Symmetric around an axis
-                  'spherical'  Symmetric around a point
+        symmetry: None, 'radial', 'spherical'
+          What kind of symmetry does the mesh have.
         """
         symmetry, axis, section = inertia.radial_symmetry(self)
         self._cache['symmetry_axis'] = axis
@@ -761,9 +760,8 @@ class Trimesh(Geometry):
 
         Returns
         ------------
-        axis: (3, ) float
-          Axis around which a 2D profile
-          was revolved to generate this mesh
+        axis : (3, ) float
+          Axis around which a 2D profile was revolved to create this mesh.
         """
         if self.symmetry is not None:
             return self._cache['symmetry_axis']
@@ -771,12 +769,13 @@ class Trimesh(Geometry):
     @property
     def symmetry_section(self):
         """
-        If a mesh has rotational symmetry, return the two
+        If a mesh has rotational symmetry return the two
         vectors which make up a section coordinate frame.
 
         Returns
         ----------
-        section: (2, 3) float, vectors to take a section along
+        section : (2, 3) float
+          Vectors to take a section along
         """
         if self.symmetry is not None:
             return self._cache['symmetry_section']
@@ -960,7 +959,6 @@ class Trimesh(Geometry):
     def body_count(self):
         """
         How many connected groups of vertices exist in this mesh.
-
         Note that this number may differ from result in mesh.split,
         which is calculated from FACE rather than vertex adjacency.
 
@@ -1227,13 +1225,9 @@ class Trimesh(Geometry):
     def remove_infinite_values(self):
         """
         Ensure that every vertex and face consists of finite numbers.
-
         This will remove vertices or faces containing np.nan and np.inf
 
-        Alters
-        ----------
-        self.faces : masked to remove np.inf/np.nan
-        self.vertices : masked to remove np.inf/np.nan
+        Alters `self.faces` and `self.vertices`
         """
         if util.is_shape(self.faces, (-1, 3)):
             # (len(self.faces), ) bool, mask for faces
@@ -1249,9 +1243,7 @@ class Trimesh(Geometry):
         """
         On the current mesh remove any faces which are duplicates.
 
-        Alters
-        ----------
-        self.faces : removes duplicates
+        Alters `self.faces` to remove duplicate faces
         """
         unique, inverse = grouping.unique_rows(np.sort(self.faces, axis=1))
         self.update_faces(unique)
@@ -1260,9 +1252,7 @@ class Trimesh(Geometry):
         """
         Translate the mesh so that all vertex vertices are positive.
 
-        Alters
-        ----------
-        self.vertices : Translated to first octant (all values > 0)
+        Alters `self.vertices`.
         """
         self.apply_translation(self.bounds[0] * -1.0)
 
@@ -2393,11 +2383,8 @@ class Trimesh(Geometry):
         Invert the mesh in-place by reversing the winding of every
         face and negating normals without dumping the cache.
 
-        Alters
-        ---------
-        self.faces :          columns reversed
-        self.face_normals :   negated if defined
-        self.vertex_normals : negated if defined
+        Alters `self.faces` by reversing columns, and negating
+        `self.face_normals` and `self.vertex_normals`.
         """
         with self._cache:
             if 'face_normals' in self._cache:
