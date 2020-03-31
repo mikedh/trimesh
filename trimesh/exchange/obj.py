@@ -61,7 +61,7 @@ def load_obj(file_obj,
     # Load Materials
     materials = {}
     mtl_position = text.find('mtllib')
-    if mtl_position >= 0:
+    if mtl_position >= 0 and not kwargs.get('ignore_mtl', False)::
         # take the line of the material file after `mtllib`
         # which should be the file location of the .mtl file
         mtl_path = text[mtl_position + 6:text.find('\n', mtl_position)].strip()
@@ -221,9 +221,14 @@ def load_obj(file_obj,
             visual = TextureVisuals(
                 uv=uv, material=materials[material])
         elif material is not None:
-            # material will be None by default
-            log.warning('specified material ({})  not loaded!'.format(
-                material))
+            # It's okay that the MTL file does not exist if ignore_mtl is set.
+            if not kwargs.get('ignore_mtl', False):
+                # material will be None by default
+                log.warning('specified material ({})  not loaded!'.format(
+                    material))
+            # Override material with the specified one if set.
+            if kwargs.get('default_material', None) is not None:
+                visual = TextureVisuals(uv=uv, material=kwargs.get('default_material'))
         mesh['visual'] = visual
 
         # store geometry by name
