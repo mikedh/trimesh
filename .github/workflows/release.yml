@@ -105,6 +105,7 @@ jobs:
       run: |
         python setup.py sdist bdist_wheel
         twine upload dist/*
+
   docs:
     name: Build Docs
     needs: containers
@@ -121,6 +122,8 @@ jobs:
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         publish_dir: ./docs/html
+        force_orphan: true
+
   containers:
     name: Build Docker Images
     runs-on: ubuntu-latest

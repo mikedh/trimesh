@@ -182,10 +182,15 @@ class Scene(Geometry):
 
         # create a unique node name if not passed
         if node_name is None:
-            # a random unique identifier
-            unique = util.unique_id(increment=len(self.geometry))
-            # geometry name + UUID
-            node_name = name + '_' + unique.upper()
+            # if the name of the geometry is also a transform node
+            if name in self.graph.nodes:
+                # a random unique identifier
+                unique = util.unique_id(increment=len(self.geometry))
+                # geometry name + UUID
+                node_name = name + '_' + unique.upper()
+            else:
+                # otherwise make the transform node name the same as the geom
+                node_name = name
 
         if transform is None:
             # create an identity transform from parent_node
