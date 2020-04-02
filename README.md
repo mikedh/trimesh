@@ -182,6 +182,7 @@ If called from inside a `jupyter` notebook, `mesh.show()` displays an in-line pr
 
 You can check out the [Github network](https://github.com/mikedh/trimesh/network/dependents) for things using trimesh. A select few:
 - Nvidia's [kaolin](https://github.com/NVIDIAGameWorks/kaolin) for deep learning on 3D geometry.
+- [Cura](https://github.com/Ultimaker/Cura), a popular slicer for 3D printing.
 - Berkeley's [DexNet4](https://www.youtube.com/watch?v=GBiAxoWBNho&feature=emb_logo) and related [ambidextrous.ai](https://www.ambidextrous.ai/) work with robotic grasp planning and manipulation.
 - Kerfed's [Kerfed's Engine](https://kerfed.com/technology) for analyzing assembly geometry for manufacturing.
 - [MyMiniFactory's](https://www.myminifactory.com/) P2Slice for preparing models for 3D printing.
@@ -190,7 +191,6 @@ You can check out the [Github network](https://github.com/mikedh/trimesh/network
 - [moderngl-window](https://github.com/moderngl/moderngl-window) A helper to create GL contexts and load meshes.
 - [vtkplotter](https://github.com/marcomusy/vtkplotter) Visualize meshes interactively.
 - [fsleyes](https://users.fmrib.ox.ac.uk/~paulmc/fsleyes/userdoc/latest/quick_start.html) View MRI images and brain data.
-
 ## Which Mesh Format Should I Use?
 
 Quick recommendation: `GLB` or `PLY`. Every time you replace `OBJ` with `GLB` an angel gets its wings.

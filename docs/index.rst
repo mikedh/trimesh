@@ -3,6 +3,8 @@
   
 .. include:: README.rst
 
+Links
+==========
 .. toctree::
    Trimesh On Github <http://github.com/mikedh/trimesh>
 

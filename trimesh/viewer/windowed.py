@@ -178,7 +178,8 @@ class SceneViewer(pyglet.window.Window):
         if self.callback is not None:
             # if no callback period is specified set it to default
             if callback_period is None:
-                callback_period = 1.0 / 100.0
+                # 30 times per second
+                callback_period = 1.0 / 30.0
             # set up a do-nothing periodic task which will
             # trigger `self.on_draw` every `callback_period`
             # seconds if someone has passed a callback
