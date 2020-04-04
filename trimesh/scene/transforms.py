@@ -263,7 +263,7 @@ class TransformForest(object):
         nodes : (n,) array
           All node names
         """
-        nodes = set(self.transforms.nodes())
+        nodes = np.array(list(self.transforms.nodes()))
         return nodes
 
     @caching.cache_decorator
