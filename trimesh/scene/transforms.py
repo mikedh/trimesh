@@ -2,6 +2,7 @@ import copy
 import time
 
 import numpy as np
+import collections
 
 from .. import util
 from .. import caching
@@ -280,6 +281,22 @@ class TransformForest(object):
              if 'geometry' in attr])
 
         return nodes
+
+    @caching.cache_decorator
+    def geometry_nodes(self):
+        """
+        Which nodes have this geometry?
+
+        Returns
+        ------------
+        geometry_nodes : dict
+          Geometry name : (n,) node names
+        """
+        res = collections.defaultdict(list)
+        for node, attr in self.transforms.nodes(data=True):
+            if 'geometry' in attr:
+                res[attr['geometry']].append(node)
+        return res
 
     def remove_geometries(self, geometries):
         """

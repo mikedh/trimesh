@@ -228,6 +228,16 @@ class CreationTest(g.unittest.TestCase):
         v, f = p.triangulate()
         check_triangulation(v, f, p.area)
 
+    def test_truncated(self, count=10):
+        # create some random triangles
+        tri = g.random((count, 3, 3))
+
+        m = g.trimesh.creation.truncated_prisms(tri)
+        split = m.split()
+        assert m.body_count == count
+        assert len(split) == count
+        assert all(s.volume > 0 for s in split)
+
 
 def check_triangulation(v, f, true_area):
     assert g.trimesh.util.is_shape(v, (-1, 2))
