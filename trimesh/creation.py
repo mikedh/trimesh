@@ -7,7 +7,7 @@ Create meshes from primitives, or with operations.
 
 from .base import Trimesh
 from .constants import log, tol
-from .geometry import faces_to_edges, align_vectors
+from .geometry import faces_to_edges, align_vectors, plane_transform
 
 from . import util
 from . import grouping
@@ -38,7 +38,7 @@ def revolve(linestring,
             **kwargs):
     """
     Revolve a 2D line string around the 2D Y axis, with a result with
-    the 2D Y axis pointing along Z in 3D.
+    the 2D Y axis pointing along the 3D Z axis.
 
     This function is intended to handle the complexity of indexing
     and is intended to be used to create all radially symmetric primitives,
@@ -47,8 +47,6 @@ def revolve(linestring,
 
     Note that if your linestring is closed, it needs to be counterclockwise
     if you would like face winding and normals facing outwards.
-
-    Populates vertices, faces, and face normals
 
     Parameters
     -------------
@@ -575,10 +573,10 @@ def box(extents=None, transform=None, **kwargs):
             raise ValueError('Extents must be (3,)!')
         vertices *= extents
 
+    # hardcoded face indices
     faces = [1, 3, 0, 4, 1, 0, 0, 3, 2, 2, 4, 0, 1, 7, 3, 5, 1, 4,
              5, 7, 1, 3, 7, 2, 6, 4, 2, 2, 7, 6, 6, 5, 4, 7, 5, 6]
-    faces = np.array(faces,
-                     order='C', dtype=np.int64).reshape((-1, 3))
+    faces = np.array(faces, order='C', dtype=np.int64).reshape((-1, 3))
 
     face_normals = [-1, 0, 0, 0, -1, 0, -1, 0, 0, 0, 0, -1, 0, 0, 1, 0, -1,
                     0, 0, 0, 1, 0, 1, 0, 0, 0, -1, 0, 1, 0, 1, 0, 0, 1, 0, 0]
@@ -1119,3 +1117,63 @@ def camera_marker(camera,
     meshes.append(load_path(segments))
 
     return meshes
+
+
+def truncated_prisms(tris, origin=None, normal=None):
+    """
+    Return a mesh consisting of multiple watertight prisms below
+    a list of triangles, truncated by a specified plane.
+
+    Parameters
+    -------------
+    triangles : (n, 3, 3) float
+      Triangles in space
+    origin : None or (3,) float
+      Origin of truncation plane
+    normal : None or (3,) float
+      Unit normal vector of truncation plane
+
+    Returns
+    -----------
+    mesh : trimesh.Trimesh
+      Triangular mesh
+    """
+    if origin is None:
+        transform = np.eye(4)
+    else:
+        transform = plane_transform(origin=origin, normal=normal)
+
+    # transform the triangles to the specified plane
+    transformed = tf.transform_points(
+        tris.reshape((-1, 3)), transform).reshape((-1, 9))
+
+    # stack triangles such that every other one is repeated
+    vs = np.column_stack((transformed, transformed)).reshape((-1, 3, 3))
+    # set the Z value of the second triangle to zero
+    vs[1::2, :, 2] = 0
+    # reshape triangles to a flat array of points and transform back to original frame
+    vertices = tf.transform_points(
+        vs.reshape((-1, 3)), matrix=np.linalg.inv(transform))
+
+    # face indexes for a *single* truncated triangular prism
+    f = np.array([[2, 1, 0],
+                  [3, 4, 5],
+                  [0, 1, 4],
+                  [1, 2, 5],
+                  [2, 0, 3],
+                  [4, 3, 0],
+                  [5, 4, 1],
+                  [3, 5, 2]])
+    # find the projection of each triangle with the normal vector
+    cross = np.dot([0, 0, 1], triangles.cross(transformed.reshape((-1, 3, 3))).T)
+    # stack faces into one prism per triangle
+    f_seq = np.tile(f, (len(transformed), 1)).reshape((-1, len(f), 3))
+    # if the normal of the triangle was positive flip the winding
+    f_seq[cross > 0] = np.fliplr(f)
+    # offet stacked faces to create correct indices
+    faces = (f_seq + (np.arange(len(f_seq)) * 6).reshape((-1, 1, 1))).reshape((-1, 3))
+
+    # create a mesh from the data
+    mesh = Trimesh(vertices=vertices, faces=faces, process=False)
+
+    return mesh

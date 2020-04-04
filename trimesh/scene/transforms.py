@@ -2,6 +2,7 @@ import copy
 import time
 
 import numpy as np
+import collections
 
 from .. import util
 from .. import caching
@@ -262,7 +263,7 @@ class TransformForest(object):
         nodes : (n,) array
           All node names
         """
-        nodes = np.array(list(self.transforms.nodes()))
+        nodes = set(self.transforms.nodes())
         return nodes
 
     @caching.cache_decorator
@@ -275,11 +276,27 @@ class TransformForest(object):
         nodes_geometry : (m,) array
           Node names which have geometry associated
         """
-        nodes = np.array(
+        nodes = set(
             [n for n, attr in self.transforms.nodes(data=True)
              if 'geometry' in attr])
 
         return nodes
+
+    @caching.cache_decorator
+    def geometry_nodes(self):
+        """
+        Which nodes have this geometry?
+
+        Returns
+        ------------
+        geometry_nodes : dict
+          Geometry name : (n,) node names
+        """
+        res = collections.defaultdict(list)
+        for node, attr in self.transforms.nodes(data=True):
+            if 'geometry' in attr:
+                res[attr['geometry']].append(node)
+        return res
 
     def remove_geometries(self, geometries):
         """
