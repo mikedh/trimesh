@@ -236,7 +236,7 @@ class CreationTest(g.unittest.TestCase):
         split = m.split()
         assert m.body_count == count
         assert len(split) == count
-        all(s.volume > 0 for s in split)
+        assert all(s.volume > 0 for s in split)
 
 
 def check_triangulation(v, f, true_area):
