@@ -35,7 +35,7 @@ USER user
 # -p no:warnings suppresses 10,000 useless upstream warnings
 # -p no:alldep means that tests will fail if a dependency is missing
 # -x will exit on first test failure
-RUN pytest -x -p no:warnings -p no:alldep "${TRIMESH_PATH}/tests"
+RUN pytest -x -p no:warnings -p no:alldep -p no:cacheprovider "${TRIMESH_PATH}/tests"
 
 # Set environment variables for software rendering.
 ENV XVFB_WHD="1920x1080x24"\
