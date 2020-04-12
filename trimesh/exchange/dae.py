@@ -313,6 +313,11 @@ def _parse_material(effect, resolver):
             log.warning('unable to load bumpmap',
                         exc_info=True)
 
+    # Compute opacity
+    if (effect.transparent is not None
+            and not isinstance(effect.transparent, collada.material.Map)):
+        baseColorFactor = tuple([*baseColorFactor[:3], effect.transparent[3]])
+
     return visual.material.PBRMaterial(
         emissiveFactor=emissiveFactor,
         emissiveTexture=emissiveTexture,
