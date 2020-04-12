@@ -506,7 +506,7 @@ class VertexColor(Visuals):
         if data is None:
             self._colors = None
         else:
-            print(data)
+            # tile single color into color array
             data = np.asanyarray(data)
             if data.shape in [(3,), (4,)]:
                 data = np.tile(data, (len(self.obj.vertices), 1))
