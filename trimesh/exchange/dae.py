@@ -52,7 +52,6 @@ def load_collada(file_obj, resolver=None, **kwargs):
     meshes = {}
     # list of dict
     graph = []
-
     for node in c.scene.nodes:
         _parse_node(node=node,
                     parent_matrix=np.eye(4),

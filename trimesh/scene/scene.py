@@ -552,7 +552,7 @@ class Scene(Geometry):
         # if no geometry nothing to set camera to
         if len(self.geometry) == 0:
             self._camera = cameras.Camera(fov=fov)
-            self.graph[self._camera.name] = None
+            self.graph[self._camera.name] = np.eye(4)
             return self._camera
         # set with no rotation by default
         if angles is None:
