@@ -1170,7 +1170,7 @@ def truncated_prisms(tris, origin=None, normal=None):
     f_seq = np.tile(f, (len(transformed), 1)).reshape((-1, len(f), 3))
     # if the normal of the triangle was positive flip the winding
     f_seq[cross > 0] = np.fliplr(f)
-    # offet stacked faces to create correct indices
+    # offset stacked faces to create correct indices
     faces = (f_seq + (np.arange(len(f_seq)) * 6).reshape((-1, 1, 1))).reshape((-1, 3))
 
     # create a mesh from the data

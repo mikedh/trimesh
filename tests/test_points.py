@@ -197,6 +197,20 @@ class PointsTest(g.unittest.TestCase):
         assert matrix.shape == (4, 4)
         assert not g.np.allclose(p.bounds, original)
 
+    def test_ply(self):
+        p = g.get_mesh('points_agisoft.xyz')
+        assert isinstance(p, g.trimesh.PointCloud)
+        assert len(p.vertices) > 0
+        p.visual.colors = (g.np.random.random(
+            (len(p.vertices), 4)) * 255).astype(g.np.uint8)
+        # test exporting a pointcloud to a PLY file
+        r = g.trimesh.load(g.trimesh.util.wrap_as_stream(
+            p.export(file_type='ply')),
+            file_type='ply')
+        assert r.vertices.shape == p.vertices.shape
+        # make sure colors survived the round trip
+        assert g.np.allclose(r.colors, p.colors)
+
     def test_remove_close(self):
         # create 100 unique points
         p = g.np.arange(300).reshape((100, 3))

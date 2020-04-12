@@ -160,34 +160,37 @@ def export_ply(mesh,
     if mesh.visual.kind == 'vertex':
         vertex['rgba'] = mesh.visual.vertex_colors
 
-    header += templates['face']
-    if mesh.visual.kind == 'face' and encoding != 'ascii':
-        header += templates['color']
-        dtype_face.append(dtype_color)
-
-    # put mesh face data into custom dtype to export
-    faces = np.zeros(len(mesh.faces), dtype=dtype_face)
-    faces['count'] = 3
-    faces['index'] = mesh.faces
-    if mesh.visual.kind == 'face' and encoding != 'ascii':
-        faces['rgba'] = mesh.visual.face_colors
-
-    header += templates['outro']
-
     header_params = {'vertex_count': len(mesh.vertices),
-                     'face_count': len(mesh.faces),
                      'encoding': encoding}
 
+    if hasattr(mesh, 'faces'):
+        header += templates['face']
+        if mesh.visual.kind == 'face' and encoding != 'ascii':
+            header += templates['color']
+            dtype_face.append(dtype_color)
+        # put mesh face data into custom dtype to export
+        faces = np.zeros(len(mesh.faces), dtype=dtype_face)
+        faces['count'] = 3
+        faces['index'] = mesh.faces
+        if mesh.visual.kind == 'face' and encoding != 'ascii':
+            faces['rgba'] = mesh.visual.face_colors
+        header_params['face_count'] = len(mesh.faces)
+
+    header += templates['outro']
     export = Template(header).substitute(header_params).encode('utf-8')
 
     if encoding == 'binary_little_endian':
         export += vertex.tostring()
-        export += faces.tostring()
+        if hasattr(mesh, 'faces'):
+            export += faces.tostring()
     elif encoding == 'ascii':
-        # ply format is: (face count, v0, v1, v2)
-        fstack = np.column_stack((np.ones(len(mesh.faces),
-                                          dtype=np.int64) * 3,
-                                  mesh.faces))
+        if hasattr(mesh, 'faces'):
+            # ply format is: (face count, v0, v1, v2)
+            fstack = np.column_stack((np.ones(len(mesh.faces),
+                                              dtype=np.int64) * 3,
+                                      mesh.faces))
+        else:
+            fstack = []
 
         # if we're exporting vertex normals they get stacked
         if vertex_normal:
@@ -446,7 +449,7 @@ def elements_to_kwargs(elements,
             # face colors are preferred and defined
             kwargs['face_colors'] = f_color
     else:
-        kwargs['colors'] = element_colors(elements['vertex'])
+        kwargs['colors'] = element_colors(elements['vertex'])[0]
 
     return kwargs
 
