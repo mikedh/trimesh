@@ -57,6 +57,10 @@ trimesh.constants.tol_path.strict = True
 # this is set in the docker images to catch missing packages
 all_dep = 'alldep' in ''.join(sys.argv)
 
+if all_dep:
+    # make sure pyembree is importable
+    from pyembree import rtcore_scene
+
 try:
     from shapely.geometry import Point, Polygon, LineString
     has_path = True
