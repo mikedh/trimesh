@@ -14,7 +14,7 @@ tar -xzf /tmp/draco.tar.gz --strip-components=1 --one-top-level=/tmp/draco_sourc
 mkdir /tmp/draco_build
 cd /tmp/draco_build
 cmake /tmp/draco_source
-make
+make -j$(nproc)
 
 # Move executables to local path.
 mv /tmp/draco_build/draco_encoder /usr/local/bin
