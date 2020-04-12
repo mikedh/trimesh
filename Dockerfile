@@ -2,6 +2,9 @@ FROM python:3.8-slim-buster
 LABEL maintainer="mikedh@kerfed.com"
 ARG TRIMESH_PATH=/opt/trimesh
 
+# Required for python to be able to find libembree.
+ENV LD_LIBRARY_PATH="/usr/local/lib:$LD_LIBRARY_PATH"
+
 # Create a local non-root user.
 RUN useradd -m -s /bin/bash user
 
