@@ -1,41 +1,43 @@
-FROM debian:buster-slim
+FROM python:3.8-slim-buster
 LABEL maintainer="mikedh@kerfed.com"
+ARG TRIMESH_PATH=/opt/trimesh
 
+# Create a local non-root user.
+RUN useradd -m -s /bin/bash user
+
+# Install binary APT dependencies.
 COPY docker/builds/apt.bash /tmp/
 RUN bash /tmp/apt.bash
 
-# copy compile recipies to build draco and download vhacd
+# Install various custom utilities and libraries.
 COPY docker/builds/draco.bash /tmp/
-COPY docker/builds/vhacd.bash /tmp/
-RUN bash /tmp/draco.bash && bash /tmp/vhacd.bash
+RUN bash /tmp/draco.bash
 
-# XVFB in background if you start supervisor
+COPY docker/builds/vhacd.bash /tmp/
+RUN bash /tmp/vhacd.bash
+
+COPY docker/builds/embree.bash /tmp/
+RUN bash /tmp/embree.bash
+
+# XVFB runs in the background if you start supervisor.
 COPY docker/config/xvfb.supervisord.conf /etc/supervisor/conf.d/
 
-# switch out of root
-RUN useradd -m -s /bin/bash user
+# Copy local trimesh installation.
+COPY --chown=user:user . "${TRIMESH_PATH}"
 
-# copy local trimesh for install and tests
-COPY --chown=user:user . /tmp/trimesh
+# Include all soft dependencies.
+RUN pip install --no-cache-dir -e "${TRIMESH_PATH}[all,test,docs]" pyassimp==4.1.3
 
-# switch to user
+# Switch to non-root user.
 USER user
-
-# install a conda env and trimesh
-RUN bash /tmp/trimesh/docker/builds/conda.bash
-
-USER user
-
-# add user python to path 
-ENV PATH="/home/user/conda/bin:$PATH"
 
 # make sure build fails if tests are failing
 # -p no:warnings suppresses 10,000 useless upstream warnings
 # -p no:alldep means that tests will fail if a dependency is missing
 # -x will exit on first test failure
-RUN pytest -x -p no:warnings -p no:alldep /tmp/trimesh/tests
+RUN pytest -x -p no:warnings -p no:alldep "${TRIMESH_PATH}/tests"
 
-# environment variables for software rendering
+# Set environment variables for software rendering.
 ENV XVFB_WHD="1920x1080x24"\
     DISPLAY=":99" \
     LIBGL_ALWAYS_SOFTWARE="1" \
