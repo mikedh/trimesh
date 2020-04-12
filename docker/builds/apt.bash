@@ -1,5 +1,6 @@
 #!/bin/bash
 set -xe
+DEBIAN_FRONTEND=noninteractive
 
 # Install binary dependencies directly from APT.
 apt-get update -qq

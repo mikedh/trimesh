@@ -2,6 +2,9 @@ FROM python:3.8-slim-buster
 LABEL maintainer="mikedh@kerfed.com"
 ARG TRIMESH_PATH=/opt/trimesh
 
+# Required for python to be able to find libembree.
+ENV LD_LIBRARY_PATH="/usr/local/lib:$LD_LIBRARY_PATH"
+
 # Create a local non-root user.
 RUN useradd -m -s /bin/bash user
 
@@ -35,7 +38,7 @@ USER user
 # -p no:warnings suppresses 10,000 useless upstream warnings
 # -p no:alldep means that tests will fail if a dependency is missing
 # -x will exit on first test failure
-RUN pytest -x -p no:warnings -p no:alldep "${TRIMESH_PATH}/tests"
+RUN pytest -x -p no:warnings -p no:alldep -p no:cacheprovider "${TRIMESH_PATH}/tests"
 
 # Set environment variables for software rendering.
 ENV XVFB_WHD="1920x1080x24"\
