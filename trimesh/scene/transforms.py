@@ -555,7 +555,7 @@ def kwargs_to_matrix(**kwargs):
         matrix = transformations.rotation_matrix(kwargs['angle'],
                                                  kwargs['axis'])
     else:
-        raise ValueError('Couldn\'t update transform!')
+        matrix = np.eye(4)
 
     if 'translation' in kwargs:
         # translation can be used in conjunction with any of the methods of

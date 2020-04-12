@@ -2,15 +2,15 @@ import numpy as np
 
 import copy
 
+from .base import Visuals
 from . import color
-
 from .. import caching
 from .. import grouping
 
 from .material import SimpleMaterial, PBRMaterial  # NOQA
 
 
-class TextureVisuals(object):
+class TextureVisuals(Visuals):
     def __init__(self,
                  uv=None,
                  material=None,
@@ -171,6 +171,9 @@ class TextureVisuals(object):
         Apply a mask to remove or duplicate face properties
         """
         pass
+
+    def concatenate(self, *args, **kwargs):
+        raise NotImplementedError('concatentate not implemented yet for texture!')
 
 
 def unmerge_faces(faces, *args):

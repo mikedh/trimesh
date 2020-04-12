@@ -27,12 +27,14 @@ import numpy as np
 import copy
 import colorsys
 
+from .base import Visuals
+
 from .. import util
 from .. import caching
 from .. import grouping
 
 
-class ColorVisuals(object):
+class ColorVisuals(Visuals):
     """
     Store color information about a mesh.
     """
@@ -98,7 +100,8 @@ class ColorVisuals(object):
 
         Returns
         ---------
-        defined: bool, are colors defined or not.
+        defined : bool
+          Are colors defined or not.
         """
         return self.kind is not None
 
@@ -109,7 +112,8 @@ class ColorVisuals(object):
 
         Returns
         ----------
-        mode: 'face', 'vertex', or None
+        mode : str or None
+          One of ('face', 'vertex', None)
         """
         self._verify_crc()
         if 'vertex_colors' in self._data:
@@ -127,7 +131,8 @@ class ColorVisuals(object):
 
         Returns
         ----------
-        crc: int, checksum of data in visual object and its parent mesh
+        crc : int
+          Checksum of data in visual object and its parent mesh
         """
         # will make sure everything has been transferred
         # to datastore that needs to be before returning crc
@@ -453,21 +458,6 @@ class ColorVisuals(object):
         result = objects.concatenate(self, other, *args)
         return result
 
-    def __add__(self, other):
-        """
-        Concatenate two ColorVisuals objects into a single object.
-
-        Parameters
-        -----------
-        other: ColorVisuals object
-
-        Returns
-        -----------
-        result: ColorVisuals object containing information from current
-                object and other in the order (self, other)
-        """
-        return self.concatenate(other)
-
     def _update_key(self, mask, key):
         """
         Mask the value contained in the DataStore at a specified key.
@@ -481,6 +471,70 @@ class ColorVisuals(object):
         mask = np.asanyarray(mask)
         if key in self._data:
             self._data[key] = self._data[key][mask]
+
+
+class VertexColor(Visuals):
+    """
+    Create a simple visual object to hold just vertex colors
+    for objects such as PointClouds.
+    """
+
+    def __init__(self, colors=None, obj=None):
+        """
+        Create a vertex color visual
+        """
+        self.obj = obj
+        self.vertex_colors = colors
+
+    @property
+    def kind(self):
+        return 'vertex'
+
+    def update_vertices(self, mask):
+        if self._colors is not None:
+            self._colors = self._colors[mask]
+
+    def update_faces(self, mask):
+        pass
+
+    @property
+    def vertex_colors(self):
+        return self._colors
+
+    @vertex_colors.setter
+    def vertex_colors(self, data):
+        if data is None:
+            self._colors = None
+        else:
+            # tile single color into color array
+            data = np.asanyarray(data)
+            if data.shape in [(3,), (4,)]:
+                data = np.tile(data, (len(self.obj.vertices), 1))
+            self._colors = data
+
+    def copy(self):
+        """
+        Return a copy of the current visuals
+        """
+        return copy.deepcopy(self)
+
+    def concatenate(self, other):
+        """
+        Concatenate this visual object with another VertexVisuals.
+
+        Parameters
+        -----------
+        other : VertexColors or ColorVisuals
+          Other object to concatenate
+
+        Returns
+        ------------
+        concate : VertexColor
+          Object with both colors
+        """
+        return VertexColor(colors=np.vstack(
+            self.vertex_colors,
+            other.vertex_colors))
 
 
 def to_rgba(colors, dtype=np.uint8):

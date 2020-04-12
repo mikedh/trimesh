@@ -341,7 +341,18 @@ class Trimesh(Geometry):
         """
         # check shape of cached normals
         cached = self._cache['face_normals']
-        if np.shape(cached) == np.shape(self._data['faces']):
+        # get faces from datastore
+        if 'faces' in self._data:
+            faces = self._data.data['faces']
+        else:
+            faces = None
+
+        # if we have no faces exit early
+        if faces is None or len(faces) == 0:
+            return np.array([], dtype=np.int64).reshape((0, 3))
+
+        # if the shape of cached normals equals the shape of faces return
+        if np.shape(cached) == np.shape(faces):
             return cached
 
         log.debug('generating face normals')
@@ -1360,7 +1371,9 @@ class Trimesh(Geometry):
           Angle between adjacent faces
           Each value corresponds with self.face_adjacency
         """
+        # get pairs of unit vectors for adjacent faces
         pairs = self.face_normals[self.face_adjacency]
+        # find the angle between the pairs of vectors
         angles = geometry.vector_angle(pairs)
         return angles
 

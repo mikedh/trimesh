@@ -52,7 +52,6 @@ def load_collada(file_obj, resolver=None, **kwargs):
     meshes = {}
     # list of dict
     graph = []
-
     for node in c.scene.nodes:
         _parse_node(node=node,
                     parent_matrix=np.eye(4),
@@ -312,6 +311,11 @@ def _parse_material(effect, resolver):
         except BaseException:
             log.warning('unable to load bumpmap',
                         exc_info=True)
+
+    # Compute opacity
+    if (effect.transparent is not None
+            and not isinstance(effect.transparent, collada.material.Map)):
+        baseColorFactor = tuple([*baseColorFactor[:3], effect.transparent[3]])
 
     return visual.material.PBRMaterial(
         emissiveFactor=emissiveFactor,
