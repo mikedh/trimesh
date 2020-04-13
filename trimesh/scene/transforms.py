@@ -263,7 +263,7 @@ class TransformForest(object):
         nodes : (n,) array
           All node names
         """
-        nodes = np.array(list(self.transforms.nodes()))
+        nodes = list(self.transforms.nodes())
         return nodes
 
     @caching.cache_decorator
@@ -276,9 +276,8 @@ class TransformForest(object):
         nodes_geometry : (m,) array
           Node names which have geometry associated
         """
-        nodes = np.array(
-            [n for n, attr in self.transforms.nodes(data=True)
-             if 'geometry' in attr])
+        nodes = [n for n, attr in self.transforms.nodes(data=True)
+                 if 'geometry' in attr]
 
         return nodes
 
