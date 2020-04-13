@@ -5,7 +5,7 @@ import json
 
 from .. import util
 from .. import visual
-from .. import transformations
+from .. import transformations as tf
 
 try:
     import networkx as nx
@@ -73,10 +73,10 @@ def load_XAML(file_obj, *args, **kwargs):
     ns = root.tag.split('}')[0] + '}'
 
     # the linked lists our results are going in
-    vertices = collections.deque()
-    faces = collections.deque()
-    colors = collections.deque()
-    normals = collections.deque()
+    vertices = []
+    faces = []
+    colors = []
+    normals = []
 
     # iterate through the element tree
     # the GeometryModel3D tag contains a material and geometry
@@ -132,8 +132,7 @@ def load_XAML(file_obj, *args, **kwargs):
                     ',', ' ').split(), dtype=np.float64).reshape(
                 (-1, 3))
             # bake in the transform as we're saving
-            c_vertices = transformations.transform_points(c_vertices,
-                                                          transform)
+            c_vertices = tf.transform_points(c_vertices, transform)
 
             c_faces = np.array(
                 g.attrib['TriangleIndices'].replace(
@@ -158,7 +157,8 @@ def load_XAML(file_obj, *args, **kwargs):
 
 def load_3DXML(file_obj, *args, **kwargs):
     """
-    Load a 3DXML scene into kwargs.
+    Load a 3DXML scene into kwargs. 3DXML is a CAD format
+    that can be exported from Solidworks
 
     Parameters
     ------------
@@ -367,7 +367,7 @@ def load_3DXML(file_obj, *args, **kwargs):
 
     # the 3DXML format is stored as a directed acyclic graph that needs all
     # paths from the root to a geometry to generate the tree of the scene
-    paths = collections.deque()
+    paths = []
     for geometry_id in geometries.keys():
         paths.extend(nx.all_simple_paths(graph,
                                          source=root_id,
@@ -377,8 +377,9 @@ def load_3DXML(file_obj, *args, **kwargs):
     root_name = references[root_id]['name']
     # create a list of kwargs to send to the scene.graph.update function
     # start with a transform from the graphs base frame to our root name
-    graph_kwargs = collections.deque([{'frame_to': root_name,
-                                       'matrix': np.eye(4)}])
+
+    graph_kwargs = [{'frame_to': root_name,
+                     'matrix': np.eye(4)}]
 
     # we are going to collect prettier geometry names as we traverse paths
     geom_names = {}

@@ -2,11 +2,10 @@
 graph.py
 -------------
 
-Deal with graph operations. Primarily deal with graphs in (n,2)
+Deal with graph operations. Primarily deal with graphs in (n, 2)
 edge list form, and abstract the backend graph library being used.
 
-Currently uses networkx, scipy.sparse.csgraph, or graph_tool
-backends.
+Currently uses networkx or scipy.sparse.csgraph backend.
 """
 
 import numpy as np
@@ -20,15 +19,10 @@ from .constants import log, tol
 from .geometry import faces_to_edges
 
 try:
-    from graph_tool import Graph as GTGraph
-    from graph_tool.topology import label_components
-except ImportError:
-    pass
-
-try:
     from scipy.sparse import csgraph, coo_matrix
-except ImportError as E:
-    csgraph = exceptions.closure(E)
+except BaseException as E:
+    # re-raise exception when used
+    csgraph = exceptions.ExceptionModule(E)
     coo_matrix = exceptions.closure(E)
 
 try:
@@ -43,24 +37,25 @@ def face_adjacency(faces=None,
                    mesh=None,
                    return_edges=False):
     """
-    Returns an (n,2) list of face indices.
+    Returns an (n, 2) list of face indices.
     Each pair of faces in the list shares an edge, making them adjacent.
 
 
     Parameters
-    ----------
+    -----------
     faces : (n, 3) int, or None
-        List of vertex indices representing triangles
+        Vertex indices representing triangles
     mesh : Trimesh object
-        If passed will used cached edges instead of faces
+        If passed will used cached edges
+        instead of generating from faces
     return_edges : bool
         Return the edges shared by adjacent faces
 
     Returns
-    ---------
-    adjacency : (m,2) int
+    ----------
+    adjacency : (m, 2) int
         Indexes of faces that are adjacent
-    edges: (m,2) int
+    edges: (m, 2) int
         Only returned if return_edges is True
         Indexes of vertices which make up the
         edges shared by the adjacent faces
@@ -77,8 +72,7 @@ def face_adjacency(faces=None,
     if mesh is None:
         # first generate the list of edges for the current faces
         # also return the index for which face the edge is from
-        edges, edges_face = faces_to_edges(faces,
-                                           return_index=True)
+        edges, edges_face = faces_to_edges(faces, return_index=True)
         # make sure edge rows are sorted
         edges.sort(axis=1)
     else:
@@ -95,20 +89,25 @@ def face_adjacency(faces=None,
     edge_groups = grouping.group_rows(edges, require_count=2)
 
     if len(edge_groups) == 0:
-        log.error('No adjacent faces detected! Did you merge vertices?')
+        log.warning('No adjacent faces detected! Did you merge vertices?')
 
     # the pairs of all adjacent faces
     # so for every row in face_idx, self.faces[face_idx[*][0]] and
     # self.faces[face_idx[*][1]] will share an edge
-    face_adjacency = edges_face[edge_groups]
+    adjacency = edges_face[edge_groups]
 
-    # sort pairs so we can search for indexes with ordered pairs
-    face_adjacency.sort(axis=1)
+    # degenerate faces may appear in adjacency as the same value
+    nondegenerate = adjacency[:, 0] != adjacency[:, 1]
+    adjacency = adjacency[nondegenerate]
+
+    # sort pairs in-place so we can search for indexes with ordered pairs
+    adjacency.sort(axis=1)
 
     if return_edges:
-        face_adjacency_edges = edges[edge_groups[:, 0]]
-        return face_adjacency, face_adjacency_edges
-    return face_adjacency
+        adjacency_edges = edges[edge_groups[:, 0][nondegenerate]]
+        assert len(adjacency_edges) == len(adjacency)
+        return adjacency, adjacency_edges
+    return adjacency
 
 
 def face_adjacency_unshared(mesh):
@@ -119,25 +118,39 @@ def face_adjacency_unshared(mesh):
     Parameters
     ----------
     mesh : Trimesh object
+      Input mesh
 
     Returns
     -----------
     vid_unshared : (len(mesh.face_adjacency), 2) int
-        Indexes of mesh.vertices
+      Indexes of mesh.vertices
+      for degenerate faces without exactly
+      one unshared vertex per face it will be -1
     """
 
-    # the non- shared vertex index is the same shape as face_adjacnecy
-    # just holding vertex indices rather than face indices
+    # the non- shared vertex index is the same shape
+    # as face_adjacency holding vertex indices vs face indices
     vid_unshared = np.zeros_like(mesh.face_adjacency,
-                                 dtype=np.int64)
-    # loop through both columns of face adjacency
-    for i, adjacency in enumerate(mesh.face_adjacency.T):
+                                 dtype=np.int64) - 1
+    # get the shared edges between adjacent faces
+    edges = mesh.face_adjacency_edges
+
+    # loop through the two columns of face adjacency
+    for i, fid in enumerate(mesh.face_adjacency.T):
         # faces from the current column of face adjacency
-        faces = mesh.faces[adjacency]
-        shared = np.logical_or(
-            faces == mesh.face_adjacency_edges[:, 0].reshape((-1, 1)),
-            faces == mesh.face_adjacency_edges[:, 1].reshape((-1, 1)))
-        vid_unshared[:, i] = faces[np.logical_not(shared)]
+        faces = mesh.faces[fid]
+        # should have one True per row of (3,)
+        # index of vertex not included in shared edge
+        unshared = np.logical_not(np.logical_or(
+            faces == edges[:, 0].reshape((-1, 1)),
+            faces == edges[:, 1].reshape((-1, 1))))
+        # each row should have exactly one uncontained verted
+        row_ok = unshared.sum(axis=1) == 1
+        # any degenerate row should be ignored
+        unshared[~row_ok, :] = False
+        # set the
+        vid_unshared[row_ok, i] = faces[unshared]
+
     return vid_unshared
 
 
@@ -215,7 +228,7 @@ def vertex_adjacency_graph(mesh):
     potentially for some simple smoothing techniques.
     >>> graph = mesh.vertex_adjacency_graph
     >>> graph.neighbors(0)
-    > [1,3,4]
+    > [1, 3, 4]
     """
     g = nx.Graph()
     g.add_edges_from(mesh.edges_unique)
@@ -228,32 +241,21 @@ def shared_edges(faces_a, faces_b):
 
     Parameters
     ---------
-    faces_a: (n,3) int, set of faces
-    faces_b: (m,3) int, set of faces
+    faces_a : (n, 3) int
+      Array of faces
+    faces_b : (m, 3) int
+      Array of faces
 
     Returns
     ---------
-    shared: (p, 2) int, set of edges
+    shared : (p, 2) int
+      Edges shared between faces
     """
     e_a = np.sort(faces_to_edges(faces_a), axis=1)
     e_b = np.sort(faces_to_edges(faces_b), axis=1)
-    shared = grouping.boolean_rows(e_a, e_b, operation=np.intersect1d)
+    shared = grouping.boolean_rows(
+        e_a, e_b, operation=np.intersect1d)
     return shared
-
-
-def connected_edges(G, nodes):
-    """
-    Given graph G and list of nodes, return the list of edges that
-    are connected to nodes
-
-    """
-    nodes_in_G = collections.deque()
-    for node in nodes:
-        if not G.has_node(node):
-            continue
-        nodes_in_G.extend(nx.node_connected_component(G, node))
-    edges = G.subgraph(nodes_in_G).edges()
-    return edges
 
 
 def facets(mesh, engine=None):
@@ -261,11 +263,11 @@ def facets(mesh, engine=None):
     Find the list of parallel adjacent faces.
 
     Parameters
-    ---------
+    -----------
     mesh :  trimesh.Trimesh
     engine : str
        Which graph engine to use:
-       ('scipy', 'networkx', 'graphtool')
+       ('scipy', 'networkx')
 
     Returns
     ---------
@@ -293,10 +295,12 @@ def facets(mesh, engine=None):
                          span[nonzero]) ** 2 > tol.facet_threshold
 
     # run connected components on the parallel faces to group them
-    components = connected_components(mesh.face_adjacency[parallel],
-                                      nodes=np.arange(len(mesh.faces)),
-                                      min_len=2,
-                                      engine=engine)
+    components = connected_components(
+        mesh.face_adjacency[parallel],
+        nodes=np.arange(len(mesh.faces)),
+        min_len=2,
+        engine=engine)
+
     return components
 
 
@@ -305,22 +309,27 @@ def split(mesh,
           adjacency=None,
           engine=None):
     """
-    Split a mesh into multiple meshes from face connectivity.
+    Split a mesh into multiple meshes from face
+    connectivity.
 
-    If only_watertight is true, it will only return watertight meshes
-    and will attempt single triangle/quad repairs.
+    If only_watertight is true it will only return
+    watertight meshes and will attempt to repair
+    single triangle or quad holes.
 
     Parameters
     ----------
-    mesh: Trimesh
-    only_watertight: if True, only return watertight components
-    adjacency: (n,2) list of face adjacency to override using the plain
-               adjacency calculated automatically.
-    engine: str, which engine to use. ('networkx', 'scipy', or 'graphtool')
+    mesh : trimesh.Trimesh
+    only_watertight: bool
+      Only return watertight components
+    adjacency : (n, 2) int
+      Face adjacency to override full mesh
+    engine : str or None
+      Which graph engine to use
 
     Returns
     ----------
-    meshes: list of Trimesh objects
+    meshes : (m,) trimesh.Trimesh
+      Results of splitting
     """
 
     if adjacency is None:
@@ -332,12 +341,14 @@ def split(mesh,
     else:
         min_len = 1
 
-    components = connected_components(edges=adjacency,
-                                      nodes=np.arange(len(mesh.faces)),
-                                      min_len=min_len,
-                                      engine=engine)
-    meshes = mesh.submesh(components,
-                          only_watertight=only_watertight)
+    components = connected_components(
+        edges=adjacency,
+        nodes=np.arange(len(mesh.faces)),
+        min_len=min_len,
+        engine=engine)
+    meshes = mesh.submesh(
+        components,
+        only_watertight=only_watertight)
     return meshes
 
 
@@ -350,16 +361,21 @@ def connected_components(edges,
 
     Parameters
     -----------
-    edges:      (n,2) int, edges between nodes
-    nodes:      (m, ) int, list of nodes that exist
-    min_len:    int, minimum length of a component group to return
-    engine:     str, which graph engine to use.
-                ('networkx', 'scipy', or 'graphtool')
-                If None, will automatically choose fastest available.
+    edges : (n, 2) int
+      Edges between nodes
+    nodes : (m, ) int or None
+      List of nodes that exist
+    min_len : int
+      Minimum length of a component group to return
+    engine :  str or None
+      Which graph engine to use (None for automatic):
+      (None, 'networkx', 'scipy')
+
 
     Returns
     -----------
-    components: (n,) sequence of lists, nodes which are connected
+    components : (n,) sequence of (*,) int
+      Nodes which are connected
     """
     def components_networkx():
         """
@@ -372,32 +388,9 @@ def connected_components(edges,
             graph.add_nodes_from(nodes)
         iterable = nx.connected_components(graph)
         # newer versions of networkx return sets rather than lists
-        components = np.array([np.array(list(i), dtype=np.int64)
-                               for i in iterable if len(i) >= min_len])
-        return components
-
-    def components_graphtool():
-        """
-        Find connected components using graphtool
-        """
-        g = GTGraph()
-        # make sure all the nodes are in the graph
-        g.add_vertex(node_count)
-        # add the edge list
-        g.add_edge_list(edges)
-
-        labels = np.array(label_components(g, directed=False)[0].a,
-                          dtype=np.int64)[:node_count]
-
-        # we have to remove results that contain nodes outside
-        # of the specified node set and reindex
-        contained = np.zeros(node_count, dtype=np.bool)
-        contained[nodes] = True
-        index = np.arange(node_count, dtype=np.int64)[contained]
-
-        components = grouping.group(labels[contained], min_len=min_len)
-        components = np.array([index[c] for c in components])
-
+        components = np.array(
+            [np.array(list(i), dtype=np.int64)
+             for i in iterable if len(i) >= min_len])
         return components
 
     def components_csgraph():
@@ -435,7 +428,7 @@ def connected_components(edges,
             return np.array([])
 
     if not util.is_shape(edges, (-1, 2)):
-        raise ValueError('edges must be (n,2)!')
+        raise ValueError('edges must be (n, 2)!')
 
     # find the maximum index referenced in either nodes or edges
     counts = [0]
@@ -451,12 +444,10 @@ def connected_components(edges,
     edges_ok = mask[edges].all(axis=1)
     edges = edges[edges_ok]
 
-    # graphtool is usually faster then scipy by ~10%, however on very
-    # large or very small graphs graphtool outperforms scipy substantially
-    # networkx is pure python and is usually 5-10x slower
-    engines = collections.OrderedDict((('graphtool', components_graphtool),
-                                       ('scipy', components_csgraph),
-                                       ('networkx', components_networkx)))
+    # networkx is pure python and is usually 5-10x slower than scipy
+    engines = collections.OrderedDict((
+        ('scipy', components_csgraph),
+        ('networkx', components_networkx)))
 
     # if a graph engine has explicitly been requested use it
     if engine in engines:
@@ -478,14 +469,14 @@ def connected_component_labels(edges, node_count=None):
     Label graph nodes from an edge list, using scipy.sparse.csgraph
 
     Parameters
-    ----------
+    -----------
     edges : (n, 2) int
        Edges of a graph
     node_count : int, or None
         The largest node in the graph.
 
     Returns
-    ---------
+    ----------
     labels : (node_count,) int
         Component labels for each node
     """
@@ -493,7 +484,8 @@ def connected_component_labels(edges, node_count=None):
     body_count, labels = csgraph.connected_components(
         matrix, directed=False)
 
-    assert len(labels) == node_count
+    if node_count is not None:
+        assert len(labels) == node_count
 
     return labels
 
@@ -527,7 +519,7 @@ def split_traversal(traversal,
         edges_hash = grouping.hashable_rows(
             np.sort(edges, axis=1))
 
-    # turn the (n,) traversal into (n-1,2) edges
+    # turn the (n,) traversal into (n-1, 2) edges
     trav_edge = np.column_stack((traversal[:-1],
                                  traversal[1:]))
     # hash each edge so we can compare to edge set
@@ -613,7 +605,7 @@ def fill_traversals(traversals, edges, edges_hash=None):
             traversal=nodes,
             edges=edges,
             edges_hash=edges_hash))
-    # turn the split traversals back into (n,2) edges
+    # turn the split traversals back into (n, 2) edges
     included = util.vstack_empty([np.column_stack((i[:-1], i[1:]))
                                   for i in splits])
     if len(included) > 0:
@@ -635,24 +627,26 @@ def fill_traversals(traversals, edges, edges_hash=None):
 
 def traversals(edges, mode='bfs'):
     """
-    Given an edge list, generate a sequence of ordered
-    depth first search traversals, using scipy.csgraph routines.
+    Given an edge list generate a sequence of ordered depth
+    first search traversals using scipy.csgraph routines.
 
     Parameters
     ------------
-    edges : (n,2) int, undirected edges of a graph
-    mode :  str, 'bfs', or 'dfs'
+    edges : (n, 2) int
+      Undirected edges of a graph
+    mode :  str
+      Traversal type, 'bfs' or 'dfs'
 
     Returns
     -----------
-    traversals: (m,) sequence of (p,) int,
-                ordered DFS or BFS traversals of the graph.
+    traversals : (m,) sequence of (p,) int
+      Ordered DFS or BFS traversals of the graph.
     """
-    edges = np.asanyarray(edges, dtype=np.int64)
+    edges = np.array(edges, dtype=np.int64)
     if len(edges) == 0:
         return []
     elif not util.is_shape(edges, (-1, 2)):
-        raise ValueError('edges are not (n,2)!')
+        raise ValueError('edges are not (n, 2)!')
 
     # pick the traversal method
     mode = str(mode).lower().strip()
@@ -697,7 +691,7 @@ def edges_to_coo(edges, count=None, data=None):
 
     Parameters
     ------------
-    edges : (n,2) int
+    edges : (n, 2) int
       Edges of a graph
     count : int
       The total number of nodes in the graph
@@ -714,7 +708,7 @@ def edges_to_coo(edges, count=None, data=None):
     edges = np.asanyarray(edges, dtype=np.int64)
     if not (len(edges) == 0 or
             util.is_shape(edges, (-1, 2))):
-        raise ValueError('edges must be (n,2)!')
+        raise ValueError('edges must be (n, 2)!')
 
     # if count isn't specified just set it to largest
     # value referenced in edges
@@ -733,25 +727,32 @@ def edges_to_coo(edges, count=None, data=None):
     return matrix
 
 
-def smoothed(mesh, angle):
+def smoothed(mesh, angle=None, facet_minarea=15):
     """
-    Return a non- watertight version of the mesh which will
-    render nicely with smooth shading by disconnecting faces
-    at sharp angles to each other.
+    Return a non- watertight version of the mesh which
+    will render nicely with smooth shading by
+    disconnecting faces at sharp angles to each other.
 
     Parameters
-    ---------
+    -----------
     mesh : trimesh.Trimesh
       Source geometry
-    angle : float
-      Angle in radians, adjacent faces which have normals
-      below this angle will be smoothed
+    angle : float or None
+      Angle in radians face pairs with angles
+      smaller than this will appear smoothed
+    facet_minarea : float or None
+      Minimum area fraction to consider
+      IE for `facets_minarea=25` only facets larger
+      than `mesh.area / 25` will be considered.
 
     Returns
     ---------
     smooth : trimesh.Trimesh
       Geometry with disconnected face patches
     """
+    if angle is None:
+        angle = np.radians(30)
+
     # if the mesh has no adjacent faces return a copy
     if len(mesh.face_adjacency) == 0:
         return mesh.copy()
@@ -760,21 +761,73 @@ def smoothed(mesh, angle):
     angle_ok = mesh.face_adjacency_angles <= angle
     # subset of face adjacency
     adjacency = mesh.face_adjacency[angle_ok]
-    # list of connected groups of faces
-    components = connected_components(adjacency,
-                                      min_len=1,
-                                      nodes=np.arange(len(mesh.faces)))
+
+    # coplanar groups of faces
+    facets = []
+    nodes = None
+    # collect coplanar regions for smoothing
+    if facet_minarea is not None:
+        areas = mesh.area_faces
+        min_area = mesh.area / facet_minarea
+        try:
+            # we can survive not knowing facets
+            # exclude facets with few faces
+            facets = [f for f in mesh.facets
+                      if areas[f].sum() > min_area]
+            if len(facets) > 0:
+                # mask for removing adjacency pairs where
+                # one of the faces is contained in a facet
+                mask = np.ones(len(mesh.faces),
+                               dtype=np.bool)
+                mask[np.hstack(facets)] = False
+                # apply the mask to adjacency
+                adjacency = adjacency[
+                    mask[adjacency].all(axis=1)]
+                # nodes are no longer every faces
+                nodes = np.unique(adjacency)
+        except BaseException:
+            log.warning('failed to calculate facets',
+                        exc_info=True)
+    # run connected components on facet adjacency
+    components = connected_components(
+        adjacency,
+        min_len=1,
+        nodes=nodes).tolist()
+
+    # add back coplanar groups if any exist
+    if len(facets) > 0:
+        components.extend(facets)
+
+    if len(components) == 0:
+        # if no components for some reason
+        # just return a copy of the original mesh
+        return mesh.copy()
+
+    # add back any faces that were missed
+    unique = np.unique(np.hstack(components))
+    if len(unique) != len(mesh.faces):
+        # things like single loose faces
+        # or groups below facet_minlen
+        broke = np.setdiff1d(
+            np.arange(len(mesh.faces)), unique)
+        components.extend(broke.reshape((-1, 1)))
+
     # get a submesh as a single appended Trimesh
     smooth = mesh.submesh(components,
                           only_watertight=False,
                           append=True)
+    # store face indices from original mesh
+    smooth.metadata['original_components'] = components
+    # smoothed should have exactly the same number of faces
+    if len(smooth.faces) != len(mesh.faces):
+        log.warning('face count in smooth wrong!')
     return smooth
 
 
 def is_watertight(edges, edges_sorted=None):
     """
     Parameters
-    ---------
+    -----------
     edges : (n, 2) int
       List of vertex indices
     edges_sorted : (n, 2) int
@@ -793,7 +846,8 @@ def is_watertight(edges, edges_sorted=None):
         edges_sorted = np.sort(edges, axis=1)
 
     # group sorted edges
-    groups = grouping.group_rows(edges_sorted, require_count=2)
+    groups = grouping.group_rows(
+        edges_sorted, require_count=2)
     watertight = bool((len(groups) * 2) == len(edges))
 
     # are opposing edges reversed
@@ -806,7 +860,8 @@ def is_watertight(edges, edges_sorted=None):
 
 def graph_to_svg(graph):
     """
-    Turn a networkx graph into an SVG string, using graphviz dot.
+    Turn a networkx graph into an SVG string
+    using graphviz `dot`.
 
     Parameters
     ----------

@@ -9,6 +9,7 @@ import abc
 import numpy as np
 
 from . import caching
+from . import transformations
 from .util import ABC
 
 
@@ -39,6 +40,39 @@ class Geometry(ABC):
     def is_empty(self):
         pass
 
+    @abc.abstractmethod
+    def crc(self):
+        pass
+
+    @abc.abstractmethod
+    def md5(self):
+        pass
+
+    def __repr__(self):
+        """
+        Print quick summary of the current geometry without
+        computing properties.
+        """
+        elements = []
+        if hasattr(self, 'vertices'):
+            # for Trimesh and PointCloud
+            elements.append('vertices.shape={}'.format(
+                self.vertices.shape))
+        if hasattr(self, 'faces'):
+            # for Trimesh
+            elements.append('faces.shape={}'.format(
+                self.faces.shape))
+        if hasattr(self, 'geometry') and isinstance(
+                self.geometry, dict):
+            # for Scene
+            elements.append('len(geometry)={}'.format(
+                len(self.geometry)))
+        if 'Voxel' in type(self).__name__:
+            # for VoxelGrid objects
+            elements.append(str(self.shape)[1:-1])
+        return '<trimesh.{}({})>'.format(
+            type(self).__name__, ', '.join(elements))
+
     def apply_translation(self, translation):
         """
         Translate the current mesh.
@@ -58,21 +92,34 @@ class Geometry(ABC):
 
     def apply_scale(self, scaling):
         """
-        Scale the mesh equally on all axis.
+        Scale the mesh.
 
         Parameters
         ----------
-        scaling : float
+        scaling : float or (3,) float
           Scale factor to apply to the mesh
         """
-        scaling = float(scaling)
-        if not np.isfinite(scaling):
-            raise ValueError('Scaling factor must be finite number!')
-
-        matrix = np.eye(4)
-        matrix[:3, :3] *= scaling
+        matrix = transformations.scale_and_translate(scale=scaling)
         # apply_transform will work nicely even on negative scales
         return self.apply_transform(matrix)
+
+    def apply_obb(self):
+        """
+        Apply the oriented bounding box transform to the current mesh.
+
+        This will result in a mesh with an AABB centered at the
+        origin and the same dimensions as the OBB.
+
+        Returns
+        ----------
+        matrix : (4, 4) float
+          Transformation matrix that was applied
+          to mesh to move it into OBB frame
+        """
+        matrix = self.bounding_box_oriented.primitive.transform
+        matrix = np.linalg.inv(matrix)
+        self.apply_transform(matrix)
+        return matrix
 
     @abc.abstractmethod
     def copy(self):
@@ -113,7 +160,8 @@ class Geometry(ABC):
         ---------
         obb : trimesh.primitives.Box
           Box object with transform and extents defined
-          representing the minimum volume oriented bounding box of the mesh
+          representing the minimum volume oriented
+          bounding box of the mesh
         """
         from . import primitives, bounds
         to_origin, extents = bounds.oriented_bounds(self)

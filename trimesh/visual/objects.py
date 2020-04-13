@@ -6,9 +6,9 @@ Deal with objects which hold visual properties, like
 ColorVisuals and TextureVisuals.
 """
 import numpy as np
-import collections
 
 from .color import ColorVisuals
+from ..util import log
 
 
 def create_visual(**kwargs):
@@ -47,23 +47,19 @@ def concatenate(visuals, *args):
     else:
         visuals = np.array(visuals)
 
-    # get the type of visuals (vertex or face) removing undefined
-    modes = {v.kind for v in visuals}.difference({None})
-    if len(modes) == 0:
-        # none of the visuals have anything defined
-        return ColorVisuals()
-    else:
-        # if we have visuals with different modes defined
-        # arbitrarily get one of them
-        mode = modes.pop()
+    try:
+        # get the mode of the first visual
+        mode = visuals[0].kind
+        if mode == 'face':
+            colors = np.vstack([
+                v.face_colors for v in visuals])
+            return ColorVisuals(face_colors=colors)
+        elif mode == 'vertex':
+            colors = np.vstack([
+                v.vertex_colors for v in visuals])
+            return ColorVisuals(vertex_colors=colors)
+    except BaseException:
+        log.warning('failed to concatenate visuals!',
+                    exc_info=True)
 
-    # a linked list to store colors before stacking
-    colors = collections.deque()
-    # a string to evaluate which returns the colors we want
-    append = 'v.{}_colors'.format(mode)
-    for v in visuals:
-        # use an eval so we can use the object property
-        colors.append(eval(append))
-    # use an eval so we can use the constructor
-    concat = eval('ColorVisuals({}_colors=np.vstack(colors))'.format(mode))
-    return concat
+    return ColorVisuals()

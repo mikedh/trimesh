@@ -43,9 +43,10 @@ build_dir = abspath('html')
 verbose = '-v' in sys.argv
 
 if __name__ == '__main__':
+
     # convert README to an RST for sphinx
     pdc = ['pandoc',
-           '--from=markdown',
+           '--from=gfm',
            '--to=rst',
            '--output=' + abspath('README.rst'),
            abspath('../README.md')]
@@ -64,7 +65,21 @@ if __name__ == '__main__':
            examples_dir]
     subprocess.check_call(exp)
 
-    # copy images to build director
+    # create an RST file which includes the notebook HTML for each example
+    with open(abspath('examples.template'), 'r') as f:
+        example_template = f.read()
+    for file_name in os.listdir(examples_dir):
+        if not file_name.lower().endswith('.html'):
+            continue
+        name = file_name[:-5]
+
+        text = example_template.format(
+            url='examples/{}'.format(file_name),
+            name=name)
+        with open(abspath('examples.{}.rst'.format(name)), 'w') as f:
+            f.write(text)
+
+    # copy images to build directory
     try:
         shutil.copytree(
             abspath('images'),
@@ -74,9 +89,12 @@ if __name__ == '__main__':
 
     # build the API doc
     api = ['sphinx-apidoc',
+           '-e',
            '-o',
            cwd,
            abspath('../trimesh')]
+    subprocess.check_call(api)
+
     # build the HTML docs
     bld = ['sphinx-build',
            '-b',
@@ -84,14 +102,8 @@ if __name__ == '__main__':
            cwd,
            build_dir]
 
-    if verbose:
-        # sphinx produces a ton of useless output
-        subprocess.check_call(api)
-        subprocess.check_call(bld)
-    else:
-        print('running sphinx, eating output')
-        subprocess.check_output(api, stderr=subprocess.DEVNULL)
-        subprocess.check_output(bld, stderr=subprocess.DEVNULL)
+    # sphinx produces a ton of useless output
+    subprocess.check_call(bld)
 
     # keep github pages from using jekyll
     with open(os.path.join(build_dir, '.nojekyll'), 'w') as f:

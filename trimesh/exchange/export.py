@@ -1,16 +1,18 @@
-import numpy as np
+import os
 import json
+import numpy as np
 
 from ..constants import log
 from .. import util
 
 from .urdf import export_urdf  # NOQA
-from .gltf import export_glb
-from .obj import _obj_exporters
+from .gltf import export_glb, export_gltf
+from .obj import export_obj
 from .off import _off_exporters
 from .stl import export_stl, export_stl_ascii
 from .ply import _ply_exporters
 from .dae import _collada_exporters
+from .xyz import _xyz_exporters
 
 
 def export_mesh(mesh, file_obj, file_type=None, **kwargs):
@@ -33,12 +35,21 @@ def export_mesh(mesh, file_obj, file_type=None, **kwargs):
     # we will want to close it when we're done
     was_opened = False
 
+    if util.is_pathlib(file_obj):
+        # handle `pathlib` objects by converting to string
+        file_obj = str(file_obj.absolute())
+
     if util.is_string(file_obj):
         if file_type is None:
+            # get file type from file name
             file_type = (str(file_obj).split('.')[-1]).lower()
         if file_type in _mesh_exporters:
             was_opened = True
-            file_obj = open(file_obj, 'wb')
+            # get full path of file before opening
+            file_path = os.path.abspath(os.path.expanduser(file_obj))
+            file_obj = open(file_path, 'wb')
+
+    # make sure file type is lower case
     file_type = str(file_type).lower()
 
     if not (file_type in _mesh_exporters):
@@ -50,7 +61,8 @@ def export_mesh(mesh, file_obj, file_type=None, **kwargs):
             faces += len(m.faces)
         log.debug('Exporting %d meshes with a total of %d faces as %s',
                   len(mesh), faces, file_type.upper())
-    else:
+    elif hasattr(mesh, 'faces'):
+        # if the mesh has faces log the number
         log.debug('Exporting %d faces as %s', len(mesh.faces),
                   file_type.upper())
     export = _mesh_exporters[file_type](mesh, **kwargs)
@@ -182,12 +194,13 @@ _mesh_exporters = {
     'dict': export_dict,
     'json': export_json,
     'glb': export_glb,
+    'obj': export_obj,
+    'gltf': export_gltf,
     'dict64': export_dict64,
     'msgpack': export_msgpack,
     'stl_ascii': export_stl_ascii
 }
-
 _mesh_exporters.update(_ply_exporters)
-_mesh_exporters.update(_obj_exporters)
 _mesh_exporters.update(_off_exporters)
 _mesh_exporters.update(_collada_exporters)
+_mesh_exporters.update(_xyz_exporters)

@@ -35,7 +35,9 @@ class NormalsTest(g.unittest.TestCase):
 
     def test_weighted_vertex_normals(self):
 
-        def compare_trimesh_to_groundtruth(mesh, truth, atol=g.trimesh.tol.merge):
+        def compare_trimesh_to_groundtruth(
+                mesh,
+                truth, atol=g.trimesh.tol.merge):
             # force fallback to loop normal summing by passing None
             # as the sparse matrix
             normals = g.trimesh.geometry.weighted_vertex_normals(
@@ -135,6 +137,32 @@ class NormalsTest(g.unittest.TestCase):
         mesh.face_normals = g.np.zeros_like(mesh.faces)
         assert g.np.allclose(
             g.np.linalg.norm(mesh.face_normals, axis=1), 1.0)
+
+    def test_merge(self):
+        """
+        Check merging with vertex normals
+        """
+        # no vertex merging
+        m = g.get_mesh(
+            'cube_compressed.obj',
+            process=False)
+        assert m.vertices.shape == (24, 3)
+        assert m.faces.shape == (12, 3)
+        assert g.np.isclose(m.volume, 8.0, atol=1e-4)
+
+        # with normal-aware vertex merging
+        m = g.get_mesh(
+            'cube_compressed.obj',
+            process=True)
+        assert m.vertices.shape == (24, 3)
+        assert m.faces.shape == (12, 3)
+        assert g.np.isclose(m.volume, 8.0, atol=1e-4)
+
+        # without considering normals should just be cube
+        m.merge_vertices(merge_norm=True)
+        assert m.vertices.shape == (8, 3)
+        assert m.faces.shape == (12, 3)
+        assert g.np.isclose(m.volume, 8.0, atol=1e-4)
 
 
 if __name__ == '__main__':

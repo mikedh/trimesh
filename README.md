@@ -1,7 +1,7 @@
 [![trimesh](https://trimsh.org/images/logotype-a.svg)](http://trimsh.org)
 
 -----------
-[![Build Status](https://travis-ci.org/mikedh/trimesh.svg?branch=master)](https://travis-ci.org/mikedh/trimesh) [![Build status](https://ci.appveyor.com/api/projects/status/j8h3luwvst1tkghl/branch/master?svg=true)](https://ci.appveyor.com/project/mikedh/trimesh/branch/master) [![Coverage Status](https://coveralls.io/repos/github/mikedh/trimesh/badge.svg)](https://coveralls.io/github/mikedh/trimesh) [![PyPI version](https://badge.fury.io/py/trimesh.svg)](https://badge.fury.io/py/trimesh) [![CircleCI](https://circleci.com/gh/mikedh/trimesh/tree/master.svg?style=svg)](https://circleci.com/gh/mikedh/trimesh/tree/master) [![Join the chat at https://gitter.im/trimsh/Lobby](https://badges.gitter.im/trimsh/Lobby.svg)](https://gitter.im/trimsh/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Github Actions](https://github.com/mikedh/trimesh/workflows/Release%20Trimesh/badge.svg)](https://github.com/mikedh/trimesh/actions) [![Coverage Status](https://coveralls.io/repos/github/mikedh/trimesh/badge.svg)](https://coveralls.io/github/mikedh/trimesh) [![PyPI version](https://badge.fury.io/py/trimesh.svg)](https://badge.fury.io/py/trimesh) [![Join the chat at https://gitter.im/trimsh/Lobby](https://badges.gitter.im/trimsh/Lobby.svg)](https://gitter.im/trimsh/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 
 
@@ -27,7 +27,7 @@ For more functionality, like convex hulls (`scipy`), graph operations (`networkx
 conda install -c conda-forge trimesh
 ```
 
-To install `trimesh` with all the soft dependencies which install cleanly on Windows, Linux, and OSX using `pip`:
+To install `trimesh` with the soft dependencies which install cleanly on Linux, OSX, and Windows* using `pip`:
 ```bash
 pip install trimesh[easy]
 ```
@@ -134,7 +134,6 @@ print(mesh.bounding_box_oriented.volume,
 * Preview meshes using pyglet or in- line in jupyter notebooks using three.js
 * Automatic hashing of numpy arrays for change tracking using MD5, zlib CRC, or xxhash
 * Internal caching of computed values validated from hashes
-* Fast loading of binary files through importers written by defining custom numpy dtypes
 * Calculate face adjacencies, face angles, vertex defects, etc.
 * Calculate cross sections, i.e. the slicing operation used in 3D printing
 * Slice meshes with one or multiple arbitrary planes and return the resulting surface
@@ -171,29 +170,34 @@ Trimesh includes an optional `pyglet` based viewer for debugging and inspecting.
 * `z` returns to the base view
 * `w` toggles wireframe mode
 * `c` toggles backface culling
+* `g` toggles an XY grid with Z set to lowest point
+* `a` toggles an XYZ-RGB axis marker between three states: off, at world frame, or at every frame
 * `f` toggles between fullscreen and windowed mode
 * `m` maximizes the window
 * `q` closes the window
-* `a` toggles an XYZ-RGB axis marker between three states: off, at world frame, or at every frame
 
 If called from inside a `jupyter` notebook, `mesh.show()` displays an in-line preview using `three.js` to display the mesh or scene. For more complete rendering (PBR, better lighting, shaders, better off-screen support, etc) [pyrender](https://github.com/mmatl/pyrender) is designed to interoperate with `trimesh` objects.
 
 ## Projects Using Trimesh
 
 You can check out the [Github network](https://github.com/mikedh/trimesh/network/dependents) for things using trimesh. A select few:
-
-- [pyrender](https://github.com/mmatl/pyrender) Render scenes using nice looking PBR materials
-- [urdfpy](https://github.com/mmatl/urdfpy) Load URDF robot descriptions
-- [vtkplotter](https://github.com/marcomusy/vtkplotter) Visualize meshes interactively
-- [fsleyes](https://users.fmrib.ox.ac.uk/~paulmc/fsleyes/userdoc/latest/quick_start.html) View MRI images and brain data
-
+- Nvidia's [kaolin](https://github.com/NVIDIAGameWorks/kaolin) for deep learning on 3D geometry.
+- [Cura](https://github.com/Ultimaker/Cura), a popular slicer for 3D printing.
+- Berkeley's [DexNet4](https://www.youtube.com/watch?v=GBiAxoWBNho&feature=emb_logo) and related [ambidextrous.ai](https://www.ambidextrous.ai/) work with robotic grasp planning and manipulation.
+- Kerfed's [Kerfed's Engine](https://kerfed.com/technology) for analyzing assembly geometry for manufacturing.
+- [MyMiniFactory's](https://www.myminifactory.com/) P2Slice for preparing models for 3D printing.
+- [pyrender](https://github.com/mmatl/pyrender) A library to render scenes from Python using nice looking PBR materials.
+- [urdfpy](https://github.com/mmatl/urdfpy) Load URDF robot descriptions in Python.
+- [moderngl-window](https://github.com/moderngl/moderngl-window) A helper to create GL contexts and load meshes.
+- [vtkplotter](https://github.com/marcomusy/vtkplotter) Visualize meshes interactively.
+- [fsleyes](https://users.fmrib.ox.ac.uk/~paulmc/fsleyes/userdoc/latest/quick_start.html) View MRI images and brain data.
 ## Which Mesh Format Should I Use?
 
-Quick recommendation: `GLB` or `STL`. Every time you replace `OBJ` with `GLB` an angel gets its wings.
+Quick recommendation: `GLB` or `PLY`. Every time you replace `OBJ` with `GLB` an angel gets its wings.
 
 If you want things like by-index faces, instancing, colors, textures, etc, `GLB` is a terrific choice. GLTF/GLB is an [extremely well specified](https://github.com/KhronosGroup/glTF/tree/master/specification/2.0) modern format that is easy and fast to parse: it has a JSON header describing data in a binary blob. It has a simple hierarchical scene graph, a great looking modern physically based material system, support in [dozens-to-hundreds of libraries](https://github.com/KhronosGroup/glTF/issues/1058), and a [John Carmack endorsment](https://www.khronos.org/news/press/significant-gltf-momentum-for-efficient-transmission-of-3d-scenes-models).
 
-In the wild, `STL` is perhaps the most common format. `STL` files are extremely simple: it is basically just a list of triangles. They are very robust and an excellent choice for basic geometry.
+In the wild, `STL` is perhaps the most common format. `STL` files are extremely simple: it is basically just a list of triangles. They are robust and are a good choice for basic geometry. Binary `PLY` files are a good step up, as they support indexed faces and colors.
 
 Wavefront `OBJ` is also pretty common: unfortunately OBJ doesn't have a widely accepted specification so every importer and exporter implements things slightly differently, making it tough to support. It also allows unfortunate things like arbitrary sized polygons, has a face representation which is easy to mess up, references other files for materials and textures, arbitrarily interleaves data, and is slow to parse. Give `GLB` or `PLY` a try as an alternative!
 
@@ -212,9 +216,9 @@ A question that comes up pretty frequently is [how to cite the library.](https:/
 
 ## Containers
    
-If you want to deploy something in a container that uses trimesh, automated `debian:buster-slim` based builds with trimesh and dependencies are available on Docker Hub:
+If you want to deploy something in a container that uses trimesh, automated `debian:buster-slim` based builds with trimesh and dependencies are available on [Docker Hub](https://hub.docker.com/repository/docker/trimesh/trimesh) with image tags for `latest`, git short hash for the commit in master (i.e. `trimesh/trimesh:0c1298d`), and version (i.e. `trimesh/trimesh:3.5.27`):
 
-`docker pull mikedh/trimesh`
+`docker pull trimesh/trimesh`
 
 [Here's an example](https://github.com/mikedh/trimesh/tree/master/examples/dockerRender) of how to render meshes using LLVMpipe and XVFB inside a container.
 

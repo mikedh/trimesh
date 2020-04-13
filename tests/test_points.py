@@ -66,14 +66,6 @@ class PointsTest(g.unittest.TestCase):
         assert g.np.allclose(cloud.vertices,
                              cloud.copy().vertices)
 
-    def test_init_arguments(self):
-        vertices = [[0, 0, 0], [1, 1, 1]]
-        colors = [[0, 0, 1.0], [1.0, 0, 0]]
-
-        # introduced colors
-        p = g.trimesh.PointCloud(vertices=vertices, colors=colors)
-        g.np.testing.assert_allclose(p.colors, colors)
-
     def test_empty(self):
         p = g.trimesh.PointCloud(None)
         assert p.is_empty
@@ -127,9 +119,9 @@ class PointsTest(g.unittest.TestCase):
         """
         clustered = []
         for i in range(cluster_count):
-            # use repeatable random- ish coordinatez
+            # use repeatable random- ish coordinates
             clustered.append(
-                g.random((points_per_cluster, 3)) + (i * 10.0))
+                g.random((points_per_cluster, 3)) * (1e-3) + (i * 10.0))
         clustered = g.np.vstack(clustered)
 
         # run k- means clustering on our nicely separated data
@@ -168,6 +160,64 @@ class PointsTest(g.unittest.TestCase):
                     dist_check = g.np.linalg.norm(
                         g.np.diff(points[idx], axis=0), axis=1)
                     assert g.np.allclose(dist_check, dist)
+
+    def test_xyz(self):
+        """
+        Test XYZ file loading
+        """
+        # test a small file from cloudcompare
+        p = g.get_mesh('points_cloudcompare.xyz')
+        assert p.vertices.shape == (101, 3)
+        assert p.colors.shape == (101, 4)
+
+        # test a small file from agisoft
+        p = g.get_mesh('points_agisoft.xyz')
+        assert p.vertices.shape == (100, 3)
+        assert p.colors.shape == (100, 4)
+
+        # test exports
+        e = p.export(file_type='xyz')
+        p = g.trimesh.load(g.trimesh.util.wrap_as_stream(e),
+                           file_type='xyz')
+        assert p.vertices.shape == (100, 3)
+        assert p.colors.shape == (100, 4)
+
+    def test_obb(self):
+        p = g.get_mesh('points_agisoft.xyz')
+        original = p.bounds.copy()
+        matrix = p.apply_obb()
+        assert matrix.shape == (4, 4)
+        assert not g.np.allclose(p.bounds, original)
+
+    def test_ply(self):
+        p = g.get_mesh('points_agisoft.xyz')
+        assert isinstance(p, g.trimesh.PointCloud)
+        assert len(p.vertices) > 0
+
+        # initial color CRC
+        initial = p.visual.crc()
+        # set to random colors
+        p.colors = g.np.random.random(
+            (len(p.vertices), 4))
+        # visual CRC should have changed
+        assert p.visual.crc() != initial
+
+        # test exporting a pointcloud to a PLY file
+        r = g.trimesh.load(g.trimesh.util.wrap_as_stream(
+            p.export(file_type='ply')),
+            file_type='ply')
+        assert r.vertices.shape == p.vertices.shape
+        # make sure colors survived the round trip
+
+        assert g.np.allclose(r.colors, p.colors)
+
+    def test_remove_close(self):
+        # create 100 unique points
+        p = g.np.arange(300).reshape((100, 3))
+        # should return the original 100 points
+        culled, mask = g.trimesh.points.remove_close(g.np.vstack((p, p)), radius=0.1)
+        assert culled.shape == (100, 3)
+        assert mask.shape == (200,)
 
 
 if __name__ == '__main__':

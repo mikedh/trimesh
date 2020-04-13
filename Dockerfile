@@ -1,41 +1,46 @@
-FROM debian:buster-slim
-MAINTAINER Michael Dawson-Haggerty <mikedh@kerfed.com>
+FROM python:3.8-slim-buster
+LABEL maintainer="mikedh@kerfed.com"
+ARG TRIMESH_PATH=/opt/trimesh
 
+# Required for python to be able to find libembree.
+ENV LD_LIBRARY_PATH="/usr/local/lib:$LD_LIBRARY_PATH"
+
+# Create a local non-root user.
+RUN useradd -m -s /bin/bash user
+
+# Install binary APT dependencies.
 COPY docker/builds/apt.bash /tmp/
 RUN bash /tmp/apt.bash
 
-# build draco and download vhacd
+# Install various custom utilities and libraries.
 COPY docker/builds/draco.bash /tmp/
-COPY docker/builds/vhacd.bash /tmp/
-COPY docker/builds/builds.bash /tmp/
-RUN bash /tmp/builds.bash
+RUN bash /tmp/draco.bash
 
-# XVFB in background if you start supervisor
+COPY docker/builds/vhacd.bash /tmp/
+RUN bash /tmp/vhacd.bash
+
+COPY docker/builds/embree.bash /tmp/
+RUN bash /tmp/embree.bash
+
+# XVFB runs in the background if you start supervisor.
 COPY docker/config/xvfb.supervisord.conf /etc/supervisor/conf.d/
 
-# copy local trimesh for install and tests
-COPY . /tmp/trimesh
+# Copy local trimesh installation.
+COPY --chown=user:user . "${TRIMESH_PATH}"
 
-# switch out of root
-RUN useradd -m -s /bin/bash user
-# make sure user owns all of tmp
-RUN chown -R user:user /tmp
-# switch to non-root
+# Include all soft dependencies.
+RUN pip install --no-cache-dir -e "${TRIMESH_PATH}[all,test,docs]" pyassimp==4.1.3
+
+# Switch to non-root user.
 USER user
-
-# install a conda env and trimesh
-RUN bash /tmp/trimesh/docker/builds/conda.bash
-
-# add user python to path 
-ENV PATH="/home/user/conda/bin:$PATH"
 
 # make sure build fails if tests are failing
 # -p no:warnings suppresses 10,000 useless upstream warnings
 # -p no:alldep means that tests will fail if a dependency is missing
 # -x will exit on first test failure
-RUN pytest -x -p no:warnings -p no:alldep /tmp/trimesh/tests
+RUN pytest -x -p no:warnings -p no:alldep -p no:cacheprovider "${TRIMESH_PATH}/tests"
 
-# environment variables for software rendering
+# Set environment variables for software rendering.
 ENV XVFB_WHD="1920x1080x24"\
     DISPLAY=":99" \
     LIBGL_ALWAYS_SOFTWARE="1" \

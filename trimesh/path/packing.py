@@ -175,7 +175,7 @@ def pack_rectangles(rectangles, sheet_size, shuffle=False):
     return density, offset[inserted], inserted, consumed_box
 
 
-def pack_paths(paths, sheet_size=None):
+def pack_paths(paths, **kwargs):
     """
     Pack a list of Path2D objects into a rectangle.
 
@@ -193,9 +193,6 @@ def pack_paths(paths, sheet_size=None):
     """
     from .util import concatenate
 
-    if sheet_size is not None:
-        sheet_size = np.sort(sheet_size)[::-1]
-
     quantity = []
     for path in paths:
         if 'quantity' in path.metadata:
@@ -209,13 +206,12 @@ def pack_paths(paths, sheet_size=None):
     # pack the polygons using rectangular bin packing
     inserted, transforms = multipack(polygons=polygons,
                                      quantity=quantity,
-                                     sheet_size=sheet_size)
+                                     **kwargs)
 
     multi = []
     for i, T in zip(inserted, transforms):
         multi.append(paths[i].copy())
         multi[-1].apply_transform(T)
-
     # append all packed paths into a single Path object
     packed = concatenate(multi)
 

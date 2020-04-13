@@ -9,14 +9,18 @@ import os
 
 # URL parsing for remote resources via WebResolver
 try:
-    # python 3
+    # Python 3
     from urllib.parse import urlparse, urljoin
 except ImportError:
-    # python 2
+    # Python 2
     from urlparse import urlparse, urljoin
 
 
 class Resolver(object):
+    """
+    The base class for resolvers.
+    """
+
     def __init__(self, *args, **kwargs):
         raise NotImplementedError('Use a resolver subclass!')
 
@@ -118,11 +122,18 @@ class ZipResolver(Resolver):
                 if option in self.archive:
                     name = option
                     break
-        # read file object from beginning
-        self.archive[name].seek(0)
-        # data is stored as a file object
-        data = self.archive[name].read()
+        # get the stored data
+        obj = self.archive[name]
+        # if the dict is storing data as bytes just return
+        if isinstance(obj, (bytes, str)):
+            return obj
 
+        # otherwise get it as a file object
+        # read file object from beginning
+        obj.seek(0)
+        # data is stored as a file object
+        data = obj.read()
+        obj.seek(0)
         return data
 
 

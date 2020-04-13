@@ -30,7 +30,7 @@ class TransformTest(g.unittest.TestCase):
         # they are super unreliable and depend on janky string formatting
         results = doctest.testmod(trimesh.transformations,
                                   verbose=False,
-                                  raise_on_error=False)
+                                  raise_on_error=True)
         g.log.info('transformations {}'.format(str(results)))
 
     def test_downstream(self):
@@ -139,19 +139,52 @@ class TransformTest(g.unittest.TestCase):
 
     def test_tiny(self):
         """
-        Test transformations with models containing very small triangles
+        Test transformations with models containing
+        very small triangles.
         """
         for validate in [False, True]:
             m = g.get_mesh('ADIS16480.STL', validate=validate)
             m.apply_scale(.001)
             m._cache.clear()
-            fz = g.np.nonzero(g.np.linalg.norm(
+            g.np.nonzero(g.np.linalg.norm(
                 m.face_normals,
                 axis=1) < 1e-3)
-            print(fz)
             m.apply_transform(
                 g.trimesh.transformations.rotation_matrix(
                     g.np.pi / 4, [0, 0, 1]))
+
+    def test_quat(self):
+        """
+        Do some simple checks on our quaternion math.
+        """
+        # shortcuts to long function names
+        tf = g.trimesh.transformations
+        is_rigid = tf.is_rigid
+        multiply = tf.quaternion_multiply
+        to_matrix = tf.quaternion_matrix
+        from_matrix = tf.quaternion_from_matrix
+        random_matrix = tf.random_rotation_matrix
+        random_quat = tf.random_quaternion
+
+        # get some arbitrary rotation matrices
+        a = tf.rotation_matrix(0.2, g.trimesh.unitize([1, 2, 3]))
+        b = tf.rotation_matrix(0.3, g.trimesh.unitize([1, -2, 0]))
+
+        # convert arbitrary rotations to quaternions
+        qa = from_matrix(a)
+        qb = from_matrix(b)
+        # matrix multiply the original matrices
+        mm = g.np.dot(a, b)
+        # quaternion multiply then convert back to matrix
+        qm = to_matrix(multiply(qa, qb))
+        # results should be the same
+        assert g.np.allclose(mm, qm, atol=1e-5)
+        # all random matrices should be rigid transforms
+        assert all(is_rigid(T) for T in random_matrix(num=100))
+        # random quaternions should all be unit vector
+        assert g.np.allclose(g.np.linalg.norm(random_quat(num=100),
+                                              axis=1),
+                             1.0, atol=1e-6)
 
 
 if __name__ == '__main__':

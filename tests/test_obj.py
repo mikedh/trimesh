@@ -11,7 +11,7 @@ class OBJTest(g.unittest.TestCase):
         # it has mixed triangles, quads, and 16 element faces -_-
         # this should test the non-vectorized load path
         m = g.get_mesh('rabbit.obj')
-        assert len(m.faces) == 1168
+        assert len(m.faces) == 1252
 
     def test_obj_groups(self):
         # a wavefront file with groups defined
@@ -114,10 +114,64 @@ class OBJTest(g.unittest.TestCase):
                                      for _ in range(len(mesh.vertices))]
         # export and then reload the file as OBJ
         rec = g.trimesh.load(
-            g.trimesh.util.wrap_as_stream(mesh.export(file_type='obj')),
+            g.trimesh.util.wrap_as_stream(
+                mesh.export(file_type='obj')),
             file_type='obj')
         # assert colors have survived the export cycle
-        assert (mesh.visual.vertex_colors == rec.visual.vertex_colors).all()
+        assert (mesh.visual.vertex_colors ==
+                rec.visual.vertex_colors).all()
+
+    def test_single_vn(self):
+        """
+        Make sure files with a single VN load.
+        """
+        m = g.get_mesh('singlevn.obj')
+        assert len(m.vertices) > 0
+        assert len(m.faces) > 0
+
+    def test_polygon_faces(self):
+        m = g.get_mesh('polygonfaces.obj')
+        assert len(m.vertices) > 0
+        assert len(m.faces) > 0
+
+    def test_faces_not_enough_indices(self):
+        m = g.get_mesh('notenoughindices.obj')
+        assert len(m.vertices) > 0
+        assert len(m.faces) == 1
+
+    def test_mtl(self):
+        # get a mesh with texture
+        m = g.get_mesh('fuze.obj')
+        # export the mesh including data
+        obj, data = g.trimesh.exchange.export.export_obj(
+            m, include_texture=True)
+        with g.trimesh.util.TemporaryDirectory() as path:
+            # where is the OBJ file going to be saved
+            obj_path = g.os.path.join(path, 'test.obj')
+            with open(obj_path, 'w') as f:
+                f.write(obj)
+            # save the MTL and images
+            for k, v in data.items():
+                with open(g.os.path.join(path, k), 'wb') as f:
+                    f.write(v)
+            # reload the mesh from the export
+            rec = g.trimesh.load(obj_path)
+        # make sure loaded image is the same size as the original
+        assert (rec.visual.material.image.size ==
+                m.visual.material.image.size)
+        # make sure the faces are the same size
+        assert rec.faces.shape == m.faces.shape
+
+    def test_scene(self):
+        s = g.get_mesh('cycloidal.3DXML')
+
+        e = g.trimesh.load(
+            g.io_wrap(s.export(file_type='obj')),
+            file_type='obj',
+            split_object=True,
+            group_materials=False)
+
+        assert g.np.isclose(e.area, s.area, rtol=.01)
 
 
 if __name__ == '__main__':

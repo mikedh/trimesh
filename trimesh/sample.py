@@ -126,12 +126,15 @@ def volume_rectangular(extents,
     return samples
 
 
-def sample_surface_even(mesh, count):
+def sample_surface_even(mesh, count, radius=None):
     """
     Sample the surface of a mesh, returning samples which are
-    approximately evenly spaced. This is accomplished by sampling
-    and then rejecting pairs that are too close together.
+    VERY approximately evenly spaced. This is accomplished by
+    sampling and then rejecting pairs that are too close together.
 
+    Note that since it is using rejection sampling it may return
+    fewer points than requested (i.e. n < count). If this is the
+    case a log.warning will be emitted.
 
     Parameters
     ---------
@@ -139,22 +142,37 @@ def sample_surface_even(mesh, count):
       Geometry to sample the surface of
     count : int
       Number of points to return
+    radius : None or float
+      Removes samples below this radius
 
     Returns
     ---------
-    samples : (count, 3) float
+    samples : (n, 3) float
       Points in space on the surface of mesh
-    face_index : (count,) int
+    face_index : (n,) int
       Indices of faces for each sampled point
     """
     from .points import remove_close
 
-    radius = np.sqrt(mesh.area / (2 * count))
+    # guess radius from area
+    if radius is None:
+        radius = np.sqrt(mesh.area / (3 * count))
 
-    samples, ids = sample_surface(mesh, count * 5)
-    result, mask = remove_close(samples, radius)
+    # get points on the surface
+    points, index = sample_surface(mesh, count * 3)
 
-    return result, ids[mask]
+    # remove the points closer than radius
+    points, mask = remove_close(points, radius)
+
+    # we got all the samples we expect
+    if len(points) >= count:
+        return points[:count], index[mask][:count]
+
+    # warn if we didn't get all the samples we expect
+    util.log.warning('only got {}/{} samples!'.format(
+        len(points), count))
+
+    return points, index[mask]
 
 
 def sample_surface_sphere(count):

@@ -112,6 +112,7 @@ def render_notebook(file_name, out_name, nbconvert='jupyter'):
 
     command = [nbconvert,
                'nbconvert',
+               '--execute',
                '--to',
                'html',
                file_name,

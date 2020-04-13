@@ -107,13 +107,20 @@ class MeshTests(g.unittest.TestCase):
             assert len(mesh.vertices) == len(mesh.vertex_defects)
             assert len(mesh.principal_inertia_components) == 3
 
+            # collect list of cached properties that are writeable
+            writeable = []
             # we should have built up a bunch of stuff into
-            # our cache, so make sure all numpy arrays cached are
-            # finite
+            # our cache, so make sure all numpy arrays cached
+            # are read-only and not crazy
             for name, cached in mesh._cache.cache.items():
                 # only check numpy arrays
                 if not isinstance(cached, g.np.ndarray):
                     continue
+
+                # nothing in the cache should be writeable
+                if cached.flags['WRITEABLE']:
+                    raise ValueError('{} is writeable!'.format(
+                        name))
 
                 # only check int, float, and bool
                 if cached.dtype.kind not in 'ibf':
@@ -133,28 +140,15 @@ class MeshTests(g.unittest.TestCase):
                     raise ValueError('inf values in %s/%s',
                                      file_name, name)
 
-            # some memory issues only show up when you copy the mesh a bunch
-            # specifically, if you cache c- objects then deepcopy the mesh this
-            # generally segfaults randomly
-            copy_count = 200
-            g.log.info('Attempting to copy mesh %d times', copy_count)
-            for i in range(copy_count):
-                copied = mesh.copy()
-                assert copied.is_empty == mesh.is_empty
-                # t = copied.triangles_tree
-                c = copied.kdtree  # NOQA
-                copied.apply_transform(
-                    g.trimesh.transformations.rotation_matrix(
-                        g.np.degrees(i),
-                        [0, 1, 1]))
-            g.log.info('Multiple copies done')
-
-            if not g.np.allclose(copied.identifier,
-                                 mesh.identifier):
-                raise ValueError('copied identifier changed!')
-
             # ...still shouldn't have changed anything
             assert start == {mesh.md5(), mesh.crc()}
+
+            # log the names of properties we need to make read-only
+            if len(writeable) > 0:
+                # TODO : all cached values should be read-only
+                g.log.error(
+                    'cached properties writeable: {}'.format(
+                        ', '.join(writeable)))
 
 
 if __name__ == '__main__':

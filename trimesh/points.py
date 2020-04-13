@@ -8,9 +8,10 @@ import copy
 
 import numpy as np
 
-from .constants import tol
-from .geometry import plane_transform
 from .parent import Geometry
+from .geometry import plane_transform
+from .constants import tol
+from .visual.color import VertexColor
 
 from . import util
 from . import caching
@@ -26,13 +27,17 @@ def point_plane_distance(points,
 
     Parameters
     -----------
-    points:       (n, 3) float, points in space
-    plane_normal: (3,) float, normal vector
-    plane_origin: (3,) float, plane origin in space
+    points : (n, 3) float
+      Points in space
+    plane_normal : (3,) float
+      Unit normal vector
+    plane_origin : (3,) float
+      Plane origin in space
 
     Returns
     ------------
-    distances:     (n,) float, distance from point to plane
+    distances : (n,) float
+      Distance from point to plane
     """
     points = np.asanyarray(points, dtype=np.float64)
     w = points - plane_origin
@@ -42,15 +47,18 @@ def point_plane_distance(points,
 
 def major_axis(points):
     """
-    Returns an approximate vector representing the major axis of points
+    Returns an approximate vector representing the major
+    axis of the passed points.
 
     Parameters
     -------------
-    points: (n, dimension) float, points in space
+    points : (n, dimension) float
+      Points in space
 
     Returns
     -------------
-    axis: (dimension,) float, vector along approximate major axis
+    axis : (dimension,) float
+      Vector along approximate major axis
     """
     U, S, V = np.linalg.svd(points)
     axis = util.unitize(np.dot(S, V))
@@ -59,19 +67,19 @@ def major_axis(points):
 
 def plane_fit(points):
     """
-    Given a set of points, find an origin and normal using SVD.
+    Fit a plane to points using SVD.
 
     Parameters
     ---------
-    points : (n,3) float
-        Points in 3D space
+    points : (n, 3) float
+      3D points in space
 
     Returns
     ---------
     C : (3,) float
-        Point on the plane
+      Point on the plane
     N : (3,) float
-        Normal vector of plane
+      Unit normal vector of plane
     """
     # make sure input is numpy array
     points = np.asanyarray(points, dtype=np.float64)
@@ -92,17 +100,21 @@ def radial_sort(points,
                 normal):
     """
     Sorts a set of points radially (by angle) around an
-    origin/normal.
+    an axis specified by origin and normal vector.
 
     Parameters
     --------------
-    points: (n,3) float, points in space
-    origin: (3,)  float, origin to sort around
-    normal: (3,)  float, vector to sort around
+    points : (n, 3) float
+      Points in space
+    origin : (3,)  float
+      Origin to sort around
+    normal : (3,)  float
+      Vector to sort around
 
     Returns
     --------------
-    ordered: (n,3) flot, re- ordered points in space
+    ordered : (n, 3) float
+      Same as input points but reordered
     """
 
     # create two axis perpendicular to each other and the normal,
@@ -127,18 +139,22 @@ def project_to_plane(points,
                      return_transform=False,
                      return_planar=True):
     """
-    Projects a set of (n,3) points onto a plane.
+    Project (n, 3) points onto a plane.
 
     Parameters
-    ---------
-    points:           (n,3) array of points
-    plane_normal:     (3) normal vector of plane
-    plane_origin:     (3) point on plane
-    transform:        None or (4,4) matrix. If specified, normal/origin are ignored
-    return_transform: bool, if true returns the (4,4) matrix used to project points
-                      onto a plane
-    return_planar:    bool, if True, returns (n,2) points. If False, returns
-                      (n,3), where the Z column consists of zeros
+    -----------
+    points : (n, 3) float
+      Points in space.
+    plane_normal : (3,) float
+      Unit normal vector of plane
+    plane_origin : (3,)
+      Origin point of plane
+    transform : None or (4, 4) float
+       Homogeneous transform, if specified, normal+origin are overridden
+    return_transform : bool
+      Returns the (4, 4) matrix used or not
+    return_planar : bool
+      Return (n, 2) points rather than (n, 3) points
     """
 
     if np.all(np.abs(plane_normal) < tol.zero):
@@ -158,8 +174,8 @@ def project_to_plane(points,
 
 def remove_close(points, radius):
     """
-    Given an (n, m) set of points where n=(2|3) return a list of points
-    where no point is closer than radius.
+    Given an (n, m) array of points return a subset of
+    points where no point is closer than radius.
 
     Parameters
     ------------
@@ -173,21 +189,38 @@ def remove_close(points, radius):
     culled : (m, dimension) float
       Points in space
     mask : (n,) bool
-      Which points from the original set were returned
+      Which points from the original points were returned
     """
-    from scipy.spatial import cKDTree as KDTree
+    from scipy.spatial import cKDTree
 
-    tree = KDTree(points)
-    consumed = np.zeros(len(points), dtype=np.bool)
-    unique = np.zeros(len(points), dtype=np.bool)
-    for i in range(len(points)):
-        if consumed[i]:
-            continue
-        neighbors = tree.query_ball_point(points[i], r=radius)
-        consumed[neighbors] = True
-        unique[i] = True
+    tree = cKDTree(points)
+    # get the index of every pair of points closer than our radius
+    pairs = tree.query_pairs(radius, output_type='ndarray')
 
-    return points[unique], unique
+    # how often each vertex index appears in a pair
+    # this is essentially a cheaply computed "vertex degree"
+    # in the graph that we could construct for connected points
+    count = np.bincount(pairs.ravel(), minlength=len(points))
+
+    # for every pair we know we have to remove one of them
+    # which of the two options we pick can have a large impact
+    # on how much over-culling we end up doing
+    column = count[pairs].argmax(axis=1)
+
+    # take the value in each row with the highest degree
+    # there is probably better numpy slicing you could do here
+    highest = pairs.ravel()[column + 2 * np.arange(len(column))]
+
+    # mask the vertices by index
+    mask = np.ones(len(points), dtype=np.bool)
+    mask[highest] = False
+
+    if tol.strict:
+        # verify we actually did what we said we'd do
+        test = cKDTree(points[mask])
+        assert len(test.query_pairs(radius)) == 0
+
+    return points[mask], mask
 
 
 def k_means(points, k, **kwargs):
@@ -198,18 +231,18 @@ def k_means(points, k, **kwargs):
     Parameters
     ----------
     points:  (n, d) float
-        Points in a space
+      Points in space
     k : int
-         Number of centroids to compute
+      Number of centroids to compute
     **kwargs : dict
-        Passed directly to scipy.cluster.vq.kmeans
+      Passed directly to scipy.cluster.vq.kmeans
 
     Returns
     ----------
     centroids : (k, d) float
-         Points in some space
+      Points in some space
     labels: (n) int
-        Indexes for which points belong to which centroid
+      Indexes for which points belong to which centroid
     """
     from scipy.cluster.vq import kmeans
     from scipy.spatial import cKDTree
@@ -238,7 +271,8 @@ def tsp(points, start=0):
     i.e. the travelling salesman problem on a fully connected
     graph. It is not a MINIMUM traversal; rather it is a
     "not totally goofy traversal, quickly." On random points
-    this traversal is often ~20x shorter than random ordering.
+    this traversal is often ~20x shorter than random ordering,
+    and executes on 1000 points in around 29ms on a 2014 i7.
 
     Parameters
     ---------------
@@ -310,7 +344,7 @@ def tsp(points, start=0):
 
 def plot_points(points, show=True):
     """
-    Plot an (n,3) list of points using matplotlib
+    Plot an (n, 3) list of points using matplotlib
 
     Parameters
     -------------
@@ -370,8 +404,8 @@ class PointCloud(Geometry):
         # load vertices
         self.vertices = vertices
 
-        if colors is not None:
-            self.colors = colors
+        # save visual data to vertex color object
+        self.visual = VertexColor(colors=colors, obj=self)
 
     def __setitem__(self, *args, **kwargs):
         return self.vertices.__setitem__(*args, **kwargs)
@@ -440,6 +474,17 @@ class PointCloud(Geometry):
           Hash of self.vertices
         """
         return self._data.md5()
+
+    def crc(self):
+        """
+        Get a CRC hash of the current vertices.
+
+        Returns
+        ----------
+        crc : int
+          Hash of self.vertices
+        """
+        return self._data.crc()
 
     def merge_vertices(self):
         """
@@ -539,17 +584,11 @@ class PointCloud(Geometry):
         colors : (len(self.vertices), 4) np.uint8
           Per- point RGBA color
         """
-        return self._data.get('colors', None)
+        return self.visual.vertex_colors
 
     @colors.setter
     def colors(self, data):
-        if data is None:
-            if 'colors' in self._data:
-                del self._data['colors']
-        data = np.asanyarray(data)
-        if data.shape in [(3,), (4,)]:
-            data = np.tile(data, (len(self.vertices), 1))
-        self._data['colors'] = data
+        self.visual.vertex_colors = data
 
     @caching.cache_decorator
     def convex_hull(self):
@@ -581,3 +620,23 @@ class PointCloud(Geometry):
         Open a viewer window displaying the current PointCloud
         """
         self.scene().show(**kwargs)
+
+    def export(self, file_obj=None, file_type=None, **kwargs):
+        """
+        Export the current pointcloud to a file object.
+        If file_obj is a filename, file will be written there.
+        Supported formats are xyz
+        Parameters
+        ------------
+        file_obj: open writeable file object
+          str, file name where to save the pointcloud
+          None, if you would like this function to return the export blob
+        file_type: str
+          Which file type to export as.
+          If file name is passed this is not required
+        """
+        from .exchange.export import export_mesh
+        return export_mesh(self,
+                           file_obj=file_obj,
+                           file_type=file_type,
+                           **kwargs)

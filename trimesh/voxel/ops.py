@@ -152,7 +152,7 @@ def matrix_to_marching_cubes(matrix, pitch=1.0):
         vertices, faces, normals, vals = meshed
 
     # Return to the origin, add in the pad_width
-    vertices = np.subtract(vertices, pad_width)
+    vertices = np.subtract(vertices, pad_width * pitch)
     # create the mesh
     mesh = Trimesh(vertices=vertices,
                    faces=faces,
@@ -225,7 +225,7 @@ def points_to_marching_cubes(points, pitch=1.0):
     return mesh
 
 
-def multibox(centers, colors=None):
+def multibox(centers, pitch=1.0, colors=None):
     """
     Return a Trimesh object with a box at every center.
 
@@ -233,34 +233,40 @@ def multibox(centers, colors=None):
 
     Parameters
     -----------
-    centers: (n,3) float, center of boxes that are occupied
-    pitch:   float, the edge length of a voxel
-    colors: (3,) or (4,) or (n,3) or (n, 4) float, color of boxes
+    centers : (n, 3) float
+      Center of boxes that are occupied
+    pitch : float
+      The edge length of a voxel
+    colors : (3,) or (4,) or (n,3) or (n, 4) float
+      Color of boxes
 
     Returns
     ---------
-    rough: Trimesh object representing inputs
+    rough : Trimesh
+      Mesh object representing inputs
     """
     from .. import primitives
     from ..base import Trimesh
 
+    # get centers as numpy array
+    centers = np.asanyarray(
+        centers, dtype=np.float64)
+
+    # get a basic box
     b = primitives.Box()
-
-    # v = np.expand_dims(centers, axis=0)
-    # v = v + np.expand_dims(b.vertices, axis=1)
-    # v = v.reshape((-1, 3))
-
-    # vertices_per_box = len(b.vertices)
-    # f = np.expand_dims(np.arange(len(centers)) * vertices_per_box, axis=0)
-    # f = f + np.expand_dims(np.arange(vertices_per_box), axis=1)
-    # f = f.reshape((-1, 3))
-
-    v = np.tile(centers, (1, len(b.vertices))).reshape((-1, 3))
+    # apply the pitch
+    b.apply_scale(float(pitch))
+    # tile into one box vertex per center
+    v = np.tile(
+        centers,
+        (1, len(b.vertices))).reshape((-1, 3))
+    # offset to centers
     v += np.tile(b.vertices, (len(centers), 1))
 
     f = np.tile(b.faces, (len(centers), 1))
-    f += np.tile(np.arange(len(centers)) * len(b.vertices),
-                 (len(b.faces), 1)).T.reshape((-1, 1))
+    f += np.tile(
+        np.arange(len(centers)) * len(b.vertices),
+        (len(b.faces), 1)).T.reshape((-1, 1))
 
     face_colors = None
     if colors is not None:

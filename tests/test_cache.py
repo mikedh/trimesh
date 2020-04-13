@@ -43,7 +43,7 @@ class CacheTest(g.unittest.TestCase):
 
         # xxhash should be faster than CRC and MD5
         # it is sometimes slower on Windows/Appveyor TODO: figure out why
-        if g.trimesh.caching.hasX and g.platform.system() == 'Linux':
+        if g.trimesh.caching.xxhash is not None and g.platform.system() == 'Linux':
             assert xt < mt
             assert xt < ct
 
@@ -206,6 +206,18 @@ class CacheTest(g.unittest.TestCase):
             return
         # we shouldn't make it past the try-except
         raise ValueError('mutating data worked when it shouldn\'t!')
+
+    def test_transform(self):
+        """
+        apply_transform tries to not dump the full cache
+        """
+        m = g.get_mesh('featuretype.STL')
+        # should populate edges_face
+        e_len = len(m.edges)
+        # should maintain required properties
+        m.apply_transform(g.transforms[1])
+        # should still be in the cache
+        assert len(m.edges_face) == e_len
 
 
 if __name__ == '__main__':

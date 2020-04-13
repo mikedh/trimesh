@@ -8,6 +8,7 @@ than strings inside a JSON blob
 
 import os
 import json
+import numpy as np
 
 
 def get_json(file_name='../dxf.json.template'):
@@ -37,9 +38,17 @@ def replace_whitespace(text, SAFE_SPACE='|<^>|', insert=True):
     else:
         # replace safe space chr with whitespace
         args = (SAFE_SPACE, ' ')
-
-    return '\n'.join(line.strip().replace(*args)
-                     for line in str.splitlines(text))
+    lines = [line.strip().replace(*args)
+             for line in str.splitlines(text)]
+    # remove any blank lines
+    if any(len(L) == 0 for L in lines):
+        shaped = np.reshape(lines, (-1, 2))
+        mask = np.ones(len(shaped), dtype=np.bool)
+        for i, v in enumerate(shaped[:, 1]):
+            if len(v) == 0:
+                mask[i] = False
+        lines = shaped[mask].ravel()
+    return '\n'.join(lines)
 
 
 def write_files(template, destination='./dxf'):
@@ -59,6 +68,9 @@ def read_files(path):
     """
     template = {}
     for file_name in os.listdir(path):
+        # skip emacs buffers
+        if '~' in file_name:
+            continue
         with open(os.path.join(path, file_name), 'r') as f:
             template[file_name] = replace_whitespace(
                 f.read(), insert=True)

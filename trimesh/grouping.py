@@ -21,70 +21,78 @@ except BaseException as E:
 
 
 def merge_vertices(mesh,
-                   digits=None,
-                   textured=True,
-                   uv_digits=4):
+                   merge_tex=False,
+                   merge_norm=False,
+                   digits_vertex=None,
+                   digits_norm=2,
+                   digits_uv=4,
+                   **kwargs):
     """
-    Removes duplicate vertices based on integer hashes of
+    Removes duplicate vertices. By default,  based on integer hashes of
     each row.
 
     Parameters
     -------------
     mesh : Trimesh object
       Mesh to merge vertices on
-    digits : int
-      How many digits to consider for vertices
-      If not specified uses tol.merge
-    textured : bool
-      If True, for textured meshes only merge vertices
-      with identical positions AND UV coordinates.
-      No effect on untextured meshes
-    uv_digits : int
-      Number of digits to consider for UV coordinates.
+    merge_tex : bool
+      If True textured meshes with UV coordinates will
+      have vertices merged regardless of UV coordinates
+    merge_norm : bool
+      If True, meshes with vertex normals will have
+      vertices merged ignoring different normals
+    digits_vertex : None or int
+      Number of digits to consider for vertex position
+    digits_norm : int
+      Number of digits to consider for unit normals
+    digits_uv : int
+      Number of digits to consider for UV coordinates
     """
+    # use tol.merge if digit precision not passed
+    if not isinstance(digits_vertex, int):
+        digits_vertex = util.decimal_to_digits(tol.merge)
 
-    if not isinstance(digits, int):
-        digits = util.decimal_to_digits(tol.merge)
+    # if we have a ton of unreferenced vertices it will
+    # make the unique_rows call super slow so cull first
+    if hasattr(mesh, 'faces') and len(mesh.faces) > 0:
+        referenced = np.zeros(len(mesh.vertices), dtype=np.bool)
+        referenced[mesh.faces] = True
+    else:
+        # this is used for geometry without faces
+        referenced = np.ones(len(mesh.vertices), dtype=np.bool)
+
+    # collect vertex attributes into sequence we can stack
+    stacked = [mesh.vertices * (10 ** digits_vertex)]
 
     # UV texture visuals require us to update the
     # vertices and normals differently
-    if (textured and
+    if (not merge_tex and
         mesh.visual.defined and
         mesh.visual.kind == 'texture' and
-            mesh.visual.uv is not None):
+        mesh.visual.uv is not None and
+            len(mesh.visual.uv) == len(mesh.vertices)):
         # get an array with vertices and UV coordinates
         # converted to integers at requested precision
-        stacked = np.column_stack((
-            mesh.vertices * (10 ** digits),
-            mesh.visual.uv * (10 ** uv_digits))).round().astype(np.int64)
-        # Merge vertices with identical positions and UVs
-        # we don't merge vertices just based on position
-        # because that can corrupt textures at seams.
-        unique, inverse = unique_rows(stacked)
-        mesh.update_vertices(unique, inverse)
+        stacked.append(mesh.visual.uv * (10 ** digits_uv))
 
-    # In normal usage, just merge vertices that are close.
-    else:
-        # if we have a ton of unreferenced vertices it will
-        # make the unique_rows call super slow so cull first
-        if hasattr(mesh, 'faces') and len(mesh.faces) > 0:
-            referenced = np.zeros(len(mesh.vertices), dtype=np.bool)
-            referenced[mesh.faces] = True
-        else:
-            # this is used for PointCloud objects
-            referenced = np.ones(len(mesh.vertices), dtype=np.bool)
+    # check to see if we have vertex normals
+    normals = mesh._cache['vertex_normals']
+    if not merge_norm and np.shape(normals) == mesh.vertices.shape:
+        stacked.append(normals * (10 ** digits_norm))
 
-        # check unique rows of referenced vertices
-        u, i = unique_rows(mesh.vertices[referenced],
-                           digits=digits)
+    # stack collected vertex properties and round to integer
+    stacked = np.column_stack(stacked).round().astype(np.int64)
 
-        # construct an inverse using the subset
-        inverse = np.zeros(len(mesh.vertices), dtype=np.int64)
-        inverse[referenced] = i
-        # get the vertex mask
-        mask = np.nonzero(referenced)[0][u]
-        # run the update
-        mesh.update_vertices(mask=mask, inverse=inverse)
+    # check unique rows of referenced vertices
+    u, i = unique_rows(stacked[referenced])
+
+    # construct an inverse using the subset
+    inverse = np.zeros(len(mesh.vertices), dtype=np.int64)
+    inverse[referenced] = i
+    # get the vertex mask
+    mask = np.nonzero(referenced)[0][u]
+    # run the update including normals and UV coordinates
+    mesh.update_vertices(mask=mask, inverse=inverse)
 
 
 def group(values, min_len=0, max_len=np.inf):
@@ -93,16 +101,20 @@ def group(values, min_len=0, max_len=np.inf):
 
     Parameters
     ----------
-    values:     1D array
-    min_len:    int, the shortest group allowed
-                All groups will have len >= min_length
-    max_len:    int, the longest group allowed
-                All groups will have len <= max_length
+    values : (n,) int
+      Values to group
+    min_len : int
+      The shortest group allowed
+      All groups will have len >= min_length
+    max_len : int
+      The longest group allowed
+      All groups will have len <= max_length
 
     Returns
     ----------
-    groups: sequence of indices to form groups
-            IE [0,1,0,1] returns [[0,2], [1,3]]
+    groups : sequence
+      Contains indices to form groups
+      IE [0,1,0,1] returns [[0,2], [1,3]]
     """
     original = np.asanyarray(values)
 
@@ -274,7 +286,8 @@ def unique_bincount(values,
     return_inverse : bool
       If True, return an inverse such that unique[inverse] == values
     return_counts : bool
-      If True, also return the number of times each unique item appears in values
+      If True, also return the number of times each
+      unique item appears in values
 
     Returns
     ------------
@@ -296,7 +309,7 @@ def unique_bincount(values,
         counts = np.bincount(values, minlength=minlength)
     except TypeError:
         # casting failed on 32 bit windows
-        log.error('casting failed!', exc_info=True)
+        log.warning('casting failed, falling back!')
         # fall back to numpy unique
         return np.unique(values,
                          return_inverse=return_inverse,
@@ -411,6 +424,7 @@ def unique_rows(data, digits=None):
         hashes,
         return_index=True,
         return_inverse=True)
+
     return unique, inverse
 
 

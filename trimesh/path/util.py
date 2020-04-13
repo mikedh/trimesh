@@ -1,31 +1,5 @@
 import numpy as np
-
-
-def is_ccw(points):
-    """
-    Check if connected planar points are counterclockwise.
-
-    Parameters
-    -----------
-    points: (n,2) float, connected points on a plane
-
-    Returns
-    ----------
-    ccw: bool, True if points are counterclockwise
-    """
-    points = np.asanyarray(points, dtype=np.float64)
-
-    if (len(points.shape) != 2 or
-            points.shape[1] != 2):
-        raise ValueError('CCW is only defined for 2D')
-    xd = np.diff(points[:, 0])
-    yd = np.column_stack((
-        points[:, 1],
-        points[:, 1])).reshape(-1)[1:-1].reshape((-1, 2)).sum(axis=1)
-    area = np.sum(xd * yd) * .5
-    ccw = area < 0
-
-    return ccw
+from ..util import is_ccw  # NOQA
 
 
 def concatenate(paths):
@@ -34,11 +8,13 @@ def concatenate(paths):
 
     Parameters
     -------------
-    paths: list of Path, Path2D, or Path3D objects
+    paths : (n,) Path
+      Path objects to concatenate
 
     Returns
     -------------
-    concat: Path, Path2D, or Path3D object
+    concat : Path, Path2D, or Path3D
+      Concatenated result
     """
     # if only one path object just return copy
     if len(paths) == 1:

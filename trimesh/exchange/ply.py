@@ -11,9 +11,9 @@ import collections
 from .. import util
 from .. import visual
 from .. import grouping
+from .. import resources
 
 from ..constants import log
-from ..resources import get_resource
 
 try:
     import PIL.Image
@@ -46,6 +46,7 @@ dtypes = {
 def load_ply(file_obj,
              resolver=None,
              fix_texture=True,
+             prefer_color=None,
              *args,
              **kwargs):
     """
@@ -61,6 +62,8 @@ def load_ply(file_obj,
       If True, will re- index vertices and faces
       so vertices with different UV coordinates
       are disconnected.
+    prefer_color : None, 'vertex', or 'face'
+      Which kind of color to prefer if both defined
 
     Returns
     ---------
@@ -90,7 +93,8 @@ def load_ply(file_obj,
 
     kwargs = elements_to_kwargs(elements,
                                 fix_texture=fix_texture,
-                                image=image)
+                                image=image,
+                                prefer_color=prefer_color)
 
     return kwargs
 
@@ -131,7 +135,7 @@ def export_ply(mesh,
     dtype_color = ('rgba', '<u1', (4))
 
     # get template strings in dict
-    templates = json.loads(get_resource('ply.template'))
+    templates = json.loads(resources.get('ply.template'))
     # start collecting elements into a string for the header
     header = templates['intro']
     header += templates['vertex']
@@ -156,34 +160,37 @@ def export_ply(mesh,
     if mesh.visual.kind == 'vertex':
         vertex['rgba'] = mesh.visual.vertex_colors
 
-    header += templates['face']
-    if mesh.visual.kind == 'face' and encoding != 'ascii':
-        header += templates['color']
-        dtype_face.append(dtype_color)
-
-    # put mesh face data into custom dtype to export
-    faces = np.zeros(len(mesh.faces), dtype=dtype_face)
-    faces['count'] = 3
-    faces['index'] = mesh.faces
-    if mesh.visual.kind == 'face' and encoding != 'ascii':
-        faces['rgba'] = mesh.visual.face_colors
-
-    header += templates['outro']
-
     header_params = {'vertex_count': len(mesh.vertices),
-                     'face_count': len(mesh.faces),
                      'encoding': encoding}
 
+    if hasattr(mesh, 'faces'):
+        header += templates['face']
+        if mesh.visual.kind == 'face' and encoding != 'ascii':
+            header += templates['color']
+            dtype_face.append(dtype_color)
+        # put mesh face data into custom dtype to export
+        faces = np.zeros(len(mesh.faces), dtype=dtype_face)
+        faces['count'] = 3
+        faces['index'] = mesh.faces
+        if mesh.visual.kind == 'face' and encoding != 'ascii':
+            faces['rgba'] = mesh.visual.face_colors
+        header_params['face_count'] = len(mesh.faces)
+
+    header += templates['outro']
     export = Template(header).substitute(header_params).encode('utf-8')
 
     if encoding == 'binary_little_endian':
         export += vertex.tostring()
-        export += faces.tostring()
+        if hasattr(mesh, 'faces'):
+            export += faces.tostring()
     elif encoding == 'ascii':
-        # ply format is: (face count, v0, v1, v2)
-        fstack = np.column_stack((np.ones(len(mesh.faces),
-                                          dtype=np.int64) * 3,
-                                  mesh.faces))
+        if hasattr(mesh, 'faces'):
+            # ply format is: (face count, v0, v1, v2)
+            fstack = np.column_stack((np.ones(len(mesh.faces),
+                                              dtype=np.int64) * 3,
+                                      mesh.faces))
+        else:
+            fstack = []
 
         # if we're exporting vertex normals they get stacked
         if vertex_normal:
@@ -287,19 +294,31 @@ def parse_header(file_obj):
     return elements, is_ascii, image_name
 
 
-def elements_to_kwargs(elements, fix_texture, image):
+def elements_to_kwargs(elements,
+                       fix_texture,
+                       image,
+                       prefer_color=None):
     """
     Given an elements data structure, extract the keyword
     arguments that a Trimesh object constructor will expect.
 
     Parameters
     ------------
-    elements: OrderedDict object, with fields and data loaded
+    elements : OrderedDict object
+      With fields and data loaded
+    fix_texture : bool
+      If True, will re- index vertices and faces
+      so vertices with different UV coordinates
+      are disconnected.
+    image : PIL.Image
+      Image to be viewed
+    prefer_color : None, 'vertex', or 'face'
+      Which kind of color to prefer if both defined
 
     Returns
     -----------
-    kwargs: dict, with keys for Trimesh constructor.
-            eg: mesh = trimesh.Trimesh(**kwargs)
+    kwargs : dict
+      Keyword arguments for Trimesh constructor
     """
 
     kwargs = {'metadata': {'ply_raw': elements}}
@@ -406,23 +425,31 @@ def elements_to_kwargs(elements, fix_texture, image):
     kwargs['vertices'] = vertices
 
     # if both vertex and face color are defined pick the one
-    # with the most going on
+    # with the most "signal," i.e. which one is not all zeros
     colors = []
     signal = []
     if faces is not None:
+        # extract face colors or None
         f_color, f_signal = element_colors(elements['face'])
         colors.append({'face_colors': f_color})
         signal.append(f_signal)
-
+        # extract vertex colors or None
         v_color, v_signal = element_colors(elements['vertex'])
         colors.append({'vertex_colors': v_color})
         signal.append(v_signal)
 
-        # add the winning colors to the result
-        kwargs.update(colors[np.argmax(signal)])
-
+        if prefer_color is None:
+            # if we are in "auto-pick" mode take the one with the
+            # largest  standard deviation of colors
+            kwargs.update(colors[np.argmax(signal)])
+        elif 'vert' in prefer_color and v_color is not None:
+            # vertex colors are preferred and defined
+            kwargs['vertex_colors'] = v_color
+        elif 'face' in prefer_color and f_color is not None:
+            # face colors are preferred and defined
+            kwargs['face_colors'] = f_color
     else:
-        kwargs['colors'] = element_colors(elements['vertex'])
+        kwargs['colors'] = element_colors(elements['vertex'])[0]
 
     return kwargs
 
@@ -447,10 +474,79 @@ def element_colors(element):
 
     if len(candidate_colors) >= 3:
         colors = np.column_stack(candidate_colors)
-        signal = colors.ptp(axis=0).sum()
+        signal = colors.std(axis=0).sum()
         return colors, signal
 
     return None, 0.0
+
+
+def load_element_different(properties, data):
+    """
+    Load elements which include lists of different lengths
+    based on the element's property-definitions.
+
+    Parameters
+    ------------
+    properties : dict
+      Property definitions encoded in a dict where the property name is the key
+      and the property data type the value.
+    data : array
+      Data rows for this element.
+    """
+    element_data = {k: [] for k in properties.keys()}
+    for row in data:
+        start = 0
+        for name, dt in properties.items():
+            length = 1
+            if '$LIST' in dt:
+                dt = dt.split('($LIST,)')[-1]
+                # the first entry in a list-property is the number of elements in the list
+                length = int(row[start])
+                # skip the first entry (the length), when reading the data
+                start += 1
+            end = start + length
+            element_data[name].append(row[start:end].astype(dt))
+            # start next property at the end of this one
+            start = end
+
+    # convert all property lists to numpy arrays
+    for name in element_data.keys():
+        element_data[name] = np.array(element_data[name]).squeeze()
+
+    return element_data
+
+
+def load_element_single(properties, data):
+    """
+    Load element data with lists of a single length
+    based on the element's property-definitions.
+
+    Parameters
+    ------------
+    properties : dict
+      Property definitions encoded in a dict where the property name is the key
+      and the property data type the value.
+    data : array
+      Data rows for this element. If the data contains list-properties,
+      all lists belonging to one property must have the same length.
+    """
+    col_ranges = []
+    start = 0
+    row0 = data[0]
+    for name, dt in properties.items():
+        length = 1
+        if '$LIST' in dt:
+            # the first entry in a list-property is the number of elements in the list
+            length = int(row0[start])
+            # skip the first entry (the length), when reading the data
+            start += 1
+        end = start + length
+        col_ranges.append((start, end))
+        # start next property at the end of this one
+        start = end
+
+    return {n: data[:, c[0]:c[1]].astype(dt.split('($LIST,)')[-1])
+            for c, (n, dt) in zip(col_ranges, properties.items())}
 
 
 def ply_ascii(elements, file_obj):
@@ -477,45 +573,41 @@ def ply_ascii(elements, file_obj):
                       for i in lines])
 
     # store the line position in the file
-    position = 0
+    row_pos = 0
 
     # loop through data we need
     for key, values in elements.items():
-        # will store (start, end) column index of data
-        columns = collections.deque()
-        # will store the total number of rows
-        rows = 0
+        # if the element is empty ignore it
+        if 'length' not in values or values['length'] == 0:
+            continue
 
-        for name, dtype in values['properties'].items():
-            if '$LIST' in dtype:
-                # if an element contains a list property handle it here
+        data = array[row_pos:row_pos + values['length']]
+        row_pos += values['length']
 
-                row = array[position]
-                list_count = int(row[rows])
+        # try stacking the data, which simplifies column-wise access. this is only
+        # possible, if all rows have the same length.
+        try:
+            data = np.vstack(data)
+            col_count_equal = True
+        except ValueError:
+            col_count_equal = False
 
-                # ignore the count and take the data
-                columns.append([rows + 1,
-                                rows + 1 + list_count])
-                rows += list_count + 1
-                # change the datatype to just the dtype for data
+        # number of list properties in this element
+        list_count = sum(1 for dt in values['properties'].values() if '$LIST' in dt)
+        if col_count_equal and list_count <= 1:
+            # all rows have the same length and we only have at most one list
+            # property where all entries have the same length. this means we can
+            # use the quick numpy-based loading.
+            element_data = load_element_single(
+                values['properties'], data)
+        else:
+            # there are lists of differing lengths. we need to fall back to loading
+            # the data by iterating all rows and checking for list-lengths. this is
+            # slower than the variant above.
+            element_data = load_element_different(
+                values['properties'], data)
 
-                values['properties'][name] = dtype.split('($LIST,)')[-1]
-            else:
-                # a single column data field
-                columns.append([rows, rows + 1])
-                rows += 1
-
-        # get the lines as a 2D numpy array
-        data = np.vstack(array[position:position + values['length']])
-        # offset position in file
-        position += values['length']
-
-        # store columns we care about by name and convert to data type
-        elements[key]['data'] = {n: data[:, c[0]:c[1]].astype(dt)
-                                 for n, dt, c in zip(
-            values['properties'].keys(),    # field name
-            values['properties'].values(),  # data type of field
-            columns)}                       # list of (start, end) column indexes
+        elements[key]['data'] = element_data
 
 
 def ply_binary(elements, file_obj):
@@ -524,11 +616,13 @@ def ply_binary(elements, file_obj):
 
     Parameters
     ------------
-    elements: OrderedDict object, populated from the file header.
-              object will be modified to add data by this function.
+    elements : OrderedDict
+      Populated from the file header.
+      Object will be modified to add data by this function.
 
-    file_obj: open file object, with current position at the start
-              of the data section (past the header)
+    file_obj : open file object
+      With current position at the start
+      of the data section (past the header)
     """
 
     def populate_listsize(file_obj, elements):
@@ -629,7 +723,7 @@ def ply_binary(elements, file_obj):
     populate_data(file_obj, elements)
 
 
-def export_draco(mesh):
+def export_draco(mesh, bits=28):
     """
     Export a mesh using Google's Draco compressed format.
 
@@ -639,6 +733,10 @@ def export_draco(mesh):
     Parameters
     ----------
     mesh : Trimesh object
+      Mesh to export
+    bits : int
+      Bits of quantization for position
+      tol.merge=1e-8 is roughly 25 bits
 
     Returns
     ----------
@@ -650,10 +748,8 @@ def export_draco(mesh):
         temp_ply.flush()
         with tempfile.NamedTemporaryFile(suffix='.drc') as encoded:
             subprocess.check_output([draco_encoder,
-                                     '-qp',  # bits of quantization for position
-                                     '28',  # since our tol.merge is 1e-8, 25 bits
-                                            # more has a machine epsilon
-                                            # smaller than that
+                                     '-qp',
+                                     str(int(bits)),
                                      '-i',
                                      temp_ply.name,
                                      '-o',
@@ -669,7 +765,7 @@ def load_draco(file_obj, **kwargs):
 
     Parameters
     ----------
-    file_obj  : file- like object
+    file_obj : file- like object
       Contains data
 
     Returns

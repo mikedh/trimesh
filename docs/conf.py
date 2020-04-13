@@ -26,7 +26,8 @@ def abspath(rel):
     return os.path.abspath(os.path.join(cwd, rel))
 
 
-extensions = ['sphinxcontrib.napoleon']
+extensions = ['sphinx.ext.napoleon',
+              'autodocsumm']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -40,7 +41,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'trimesh'
-copyright = '2017, Michael Dawson-Haggerty'
+copyright = '2020, Michael Dawson-Haggerty'
 author = 'Michael Dawson-Haggerty'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -75,10 +76,42 @@ todo_include_todos = False
 # The theme to use for HTML and HTML Help pages
 html_theme = 'sphinx_rtd_theme'
 
+# options for rtd-theme
+html_theme_options = {
+    'analytics_id': 'UA-161434837-1',
+    'display_version': True,
+    'prev_next_buttons_location': 'bottom',
+    'style_external_links': False,
+    # toc options
+    'collapse_navigation': True,
+    'sticky_navigation': True,
+    'navigation_depth': 4,
+    'includehidden': True,
+    'titles_only': False,
+
+}
+
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-# html_static_path = []
+html_static_path = ['_static']
+
+html_context = {
+    'css_files': [
+        '_static/custom.css',  # override non-wrapping tables in RTD theme
+    ],
+    "display_github": True,  # Add 'Edit on Github' link instead of 'View page source'
+    "github_user": "mikedh",
+    "github_repo": "trimesh",
+    "github_version": "master",
+    "conf_py_path": "/docs/",
+}
 
 # Output file base name for HTML help builder.
 htmlhelp_basename = 'trimeshdoc'
+
+# -- Extensions configuration ----------------------------------------
+
+autodoc_default_options = {
+    'autosummary': True,
+}

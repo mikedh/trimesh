@@ -1,4 +1,5 @@
 import os
+import logging
 import platform
 import subprocess
 
@@ -8,19 +9,24 @@ from subprocess import check_call
 
 from .. import exchange
 
+# create a default logger
+log = logging.getLogger('trimesh.interfaces')
+
 
 class MeshScript:
 
     def __init__(self,
                  meshes,
                  script,
-                 tmpfile_ext='stl',
+                 exchange='stl',
+                 debug=False,
                  **kwargs):
 
+        self.debug = debug
         self.kwargs = kwargs
         self.meshes = meshes
         self.script = script
-        self.tmpfile_ext = tmpfile_ext
+        self.exchange = exchange
 
     def __enter__(self):
         # windows has problems with multiple programs using open files so we close
@@ -29,12 +35,12 @@ class MeshScript:
         self.mesh_pre = [
             NamedTemporaryFile(
                 suffix='.{}'.format(
-                    self.tmpfile_ext),
+                    self.exchange),
                 mode='wb',
                 delete=False) for i in self.meshes]
         self.mesh_post = NamedTemporaryFile(
             suffix='.{}'.format(
-                self.tmpfile_ext),
+                self.exchange),
             mode='rb',
             delete=False)
         self.script_out = NamedTemporaryFile(mode='wb',
@@ -44,11 +50,12 @@ class MeshScript:
         for mesh, file_obj in zip(self.meshes, self.mesh_pre):
             mesh.export(file_obj.name)
 
-        self.replacement = {
-            'mesh_' + str(i): m.name for i, m in enumerate(self.mesh_pre)}
-        self.replacement['mesh_pre'] = str([i.name for i in self.mesh_pre])
-        self.replacement['mesh_post'] = self.mesh_post.name
-        self.replacement['script'] = self.script_out.name
+        self.replacement = {'MESH_' + str(i): m.name
+                            for i, m in enumerate(self.mesh_pre)}
+        self.replacement['MESH_PRE'] = str(
+            [i.name for i in self.mesh_pre])
+        self.replacement['MESH_POST'] = self.mesh_post.name
+        self.replacement['SCRIPT'] = self.script_out.name
 
         script_text = Template(self.script).substitute(self.replacement)
         if platform.system() == 'Windows':
@@ -64,7 +71,8 @@ class MeshScript:
         return self
 
     def run(self, command):
-        command_run = Template(command).substitute(self.replacement).split()
+        command_run = Template(command).substitute(
+            self.replacement).split()
         # run the binary
         # avoid resourcewarnings with null
         with open(os.devnull, 'w') as devnull:
@@ -72,9 +80,16 @@ class MeshScript:
             if platform.system() == 'Windows':
                 startupinfo = subprocess.STARTUPINFO()
                 startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            if self.debug:
+                # in debug mode print the output
+                stdout = None
+            else:
+                stdout = devnull
 
+            if self.debug:
+                log.info('executing: {}'.format(' '.join(command_run)))
             check_call(command_run,
-                       stdout=devnull,
+                       stdout=stdout,
                        stderr=subprocess.STDOUT,
                        startupinfo=startupinfo)
 
@@ -85,6 +100,10 @@ class MeshScript:
         return mesh_results
 
     def __exit__(self, *args, **kwargs):
+        if self.debug:
+            log.info('MeshScript.debug: not deleting {}'.format(
+                self.script_out.name))
+            return
         # delete all the temporary files by name
         # they are closed but their names are still available
         os.remove(self.script_out.name)

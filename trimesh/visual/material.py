@@ -7,11 +7,15 @@ Store visual materials as objects.
 import numpy as np
 
 from . import color
+from .. import util
 
 
 class Material(object):
     def __init__(self, *args, **kwargs):
         raise NotImplementedError('material must be subclassed!')
+
+    def __hash__(self):
+        return id(self)
 
     @property
     def main_color(self):
@@ -47,6 +51,88 @@ class SimpleMaterial(Material):
 
     def to_color(self, uv):
         return color.uv_to_color(uv, self.image)
+
+    def to_obj(self, tex_name=None, mtl_name=None):
+        """
+        Convert the current material to an OBJ format material.
+
+        Parameters
+        -----------
+        name : str or None
+          Name to apply to the material
+
+        Returns
+        -----------
+        tex_name : str
+          Name of material
+        mtl_name : str
+          Name of mtl file in files
+        files : dict
+          Data as {file name : bytes}
+        """
+        # material parameters as 0.0-1.0 RGB
+        Ka = color.to_float(self.ambient)[:3]
+        Kd = color.to_float(self.diffuse)[:3]
+        Ks = color.to_float(self.specular)[:3]
+
+        if tex_name is None:
+            tex_name = 'material0'
+        if mtl_name is None:
+            mtl_name = '{}.mtl'.format(tex_name)
+
+        # what is the name of the export image to save
+        image_name = '{}.{}'.format(
+            tex_name, self.image.format).lower()
+
+        # create an MTL file
+        mtl = '\n'.join(
+            ['# https://github.com/mikedh/trimesh',
+             'newmtl {}'.format(tex_name),
+             'Ka {} {} {}'.format(*Ka),
+             'Kd {} {} {}'.format(*Kd),
+             'Ks {} {} {}'.format(*Ks),
+             'Ns {}'.format(self.glossiness),
+             'map_Kd {}'.format(image_name)])
+
+        # save the image texture as bytes in the original format
+        f_obj = util.BytesIO()
+        self.image.save(fp=f_obj, format=self.image.format)
+        f_obj.seek(0)
+
+        # collect the OBJ data into files
+        data = {mtl_name: mtl.encode('utf-8'),
+                image_name: f_obj.read()}
+
+        return data, tex_name, mtl_name
+
+    def __hash__(self):
+        """
+        Provide a hash of the material so we can detect
+        duplicates.
+
+        Returns
+        ------------
+        hash : int
+          Hash of image and parameters
+        """
+        if hasattr(self.image, 'tobytes'):
+            # start with hash of raw image bytes
+            hashed = hash(self.image.tobytes())
+        else:
+            # otherwise start with zero
+            hashed = 0
+        # we will add additional parameters with
+        # an in-place xor of the additional value
+        # if stored as numpy arrays add parameters
+        if hasattr(self.ambient, 'tobytes'):
+            hashed ^= hash(self.ambient.tobytes())
+        if hasattr(self.diffuse, 'tobytes'):
+            hashed ^= hash(self.diffuse.tobytes())
+        if hasattr(self.specular, 'tobytes'):
+            hashed ^= hash(self.specular.tobytes())
+        if isinstance(self.glossiness, float):
+            hashed ^= hash(int(self.glossiness * 1000))
+        return hashed
 
     @property
     def main_color(self):
@@ -135,7 +221,8 @@ class PBRMaterial(Material):
         self.doubleSided = doubleSided
 
         # str
-        alphaMode = alphaMode
+        self.name = name
+        self.alphaMode = alphaMode
 
     def to_color(self, uv):
         """

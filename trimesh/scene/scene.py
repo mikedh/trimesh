@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import collections
 
@@ -80,7 +81,16 @@ class Scene(Geometry):
         self.camera_transform = camera_transform
 
     def apply_transform(self, transform):
-        raise NotImplementedError
+        """
+        Apply a transform to every geometry in the scene.
+
+        Parameters
+        --------------
+        transform : (4, 4)
+          Homogeneous transformation matrix
+        """
+        for geometry in self.geometry.values():
+            geometry.apply_transform(transform)
 
     def add_geometry(self,
                      geometry,
@@ -117,14 +127,19 @@ class Scene(Geometry):
         # PointCloud objects will look like a sequence
         elif util.is_sequence(geometry):
             # if passed a sequence add all elements
-            for value in geometry:
-                self.add_geometry(
-                    geometry=value,
-                    node_name=node_name,
-                    geom_name=geom_name,
-                    parent_node_name=parent_node_name,
-                    transform=transform,
-                )
+            for i, value in enumerate(geometry):
+                if i == 0:
+                    node_name = self.add_geometry(
+                        geometry=value,
+                        node_name=node_name,
+                        geom_name=geom_name,
+                        parent_node_name=parent_node_name,
+                        transform=transform)
+                else:
+                    self.add_geometry(
+                        geometry=value,
+                        geom_name=geom_name,
+                        parent_node_name=node_name)
             return
 
         elif isinstance(geometry, dict):
@@ -132,6 +147,18 @@ class Scene(Geometry):
             for key, value in geometry.items():
                 self.add_geometry(value, geom_name=key)
             return
+        elif isinstance(geometry, Scene):
+            # concatenate current scene with passed scene
+            concat = self + geometry
+            # replace geometry in-place
+            self.geometry.clear()
+            self.geometry.update(concat.geometry)
+            # replace graph data with concatenated graph
+            self.graph.transforms = concat.graph.transforms
+            return
+        elif not hasattr(geometry, 'vertices'):
+            util.log.warning('unknown type ({}) added to scene!'.format(
+                type(geometry).__name__))
 
         # get or create a name to reference the geometry by
         if geom_name is not None:
@@ -155,10 +182,15 @@ class Scene(Geometry):
 
         # create a unique node name if not passed
         if node_name is None:
-            # a random unique identifier
-            unique = util.unique_id(increment=len(self.geometry))
-            # geometry name + UUID
-            node_name = name + '_' + unique.upper()
+            # if the name of the geometry is also a transform node
+            if name in self.graph.nodes:
+                # a random unique identifier
+                unique = util.unique_id(increment=len(self.geometry))
+                # geometry name + UUID
+                node_name = name + '_' + unique.upper()
+            else:
+                # otherwise make the transform node name the same as the geom
+                node_name = name
 
         if transform is None:
             # create an identity transform from parent_node
@@ -171,6 +203,26 @@ class Scene(Geometry):
                           geometry_flags={'visible': True})
         return node_name
 
+    def delete_geometry(self, names):
+        """
+        Delete one more multiple geometries from the scene and also
+        remove any node in the transform graph which references it.
+
+        Parameters
+        --------------
+        name : hashable
+          Name that references self.geometry
+        """
+        # make sure we have a set we can check
+        if util.is_string(names):
+            names = [names]
+        names = set(names)
+
+        # remove the geometry reference from relevant nodes
+        self.graph.remove_geometries(names)
+        # remove the geometries from our geometry store
+        [self.geometry.pop(name, None) for name in names]
+
     def md5(self):
         """
         MD5 of scene which will change when meshes or
@@ -178,9 +230,16 @@ class Scene(Geometry):
 
         Returns
         --------
-        hashed: str, MD5 hash of scene
+        hashed : str
+          MD5 hash of scene
         """
         # start with transforms hash
+        return util.md5_object(self._hashable())
+
+    def crc(self):
+        return caching.crc32(self._hashable())
+
+    def _hashable(self):
         hashes = [self.graph.md5()]
         for g in self.geometry.values():
             if hasattr(g, 'md5'):
@@ -191,10 +250,8 @@ class Scene(Geometry):
                 # try to just straight up hash
                 # this may raise errors
                 hashes.append(str(hash(g)))
-
-        md5 = util.md5_object(''.join(hashes))
-
-        return md5
+        hashable = ''.join(sorted(hashes)).encode('utf-8')
+        return hashable
 
     @property
     def is_empty(self):
@@ -251,13 +308,16 @@ class Scene(Geometry):
         corners_inst = []
         # (n, 3) float corners of each geometry
         corners_geom = {k: bounds_module.corners(v.bounds)
-                        for k, v in self.geometry.items()}
+                        for k, v in self.geometry.items()
+                        if v.bounds is not None}
+        if len(corners_geom) == 0:
+            return np.array([])
 
         for node_name in self.graph.nodes_geometry:
             # access the transform and geometry name from node
             transform, geometry_name = self.graph[node_name]
             # not all nodes have associated geometry
-            if geometry_name is None:
+            if geometry_name not in corners_geom:
                 continue
             # transform geometry corners into where
             # the instance of the geometry is located
@@ -277,9 +337,13 @@ class Scene(Geometry):
 
         Returns
         --------
-        bounds: (2,3) float points for min, max corner
+        bounds : (2, 3) float or None
+          Position of [min, max] bounding box
+          Returns None if no valid bounds exist
         """
         corners = self.bounds_corners
+        if len(corners) == 0:
+            return None
         bounds = np.array([corners.min(axis=0),
                            corners.max(axis=0)])
         return bounds
@@ -291,7 +355,8 @@ class Scene(Geometry):
 
         Returns
         ----------
-        extents: (3,) float, bounding box sides length
+        extents : (3,) float
+          Bounding box sides length
         """
         return np.diff(self.bounds, axis=0).reshape(-1)
 
@@ -302,7 +367,8 @@ class Scene(Geometry):
 
         Returns
         -----------
-        scale: float, the mean of the bounding box edge lengths
+        scale : float
+          The mean of the bounding box edge lengths
         """
         scale = (self.extents ** 2).sum() ** .5
         return scale
@@ -314,10 +380,32 @@ class Scene(Geometry):
 
         Returns
         --------
-        centroid: (3) float point for center of bounding box
+        centroid : (3) float
+          Point for center of bounding box
         """
         centroid = np.mean(self.bounds, axis=0)
         return centroid
+
+    @caching.cache_decorator
+    def area(self):
+        """
+        What is the summed area of every geometry which
+        has area.
+
+        Returns
+        ------------
+        area : float
+          Summed area of every instanced geometry
+        """
+        # get the area of every geometry that has an area property
+        areas = {n: g.area for n, g in self.geometry.items()
+                 if hasattr(g, 'area')}
+        # get the name of every geometry instance in the scene
+        geoms = [self.graph[n][1] for n in
+                 self.graph.nodes_geometry]
+        # sum the area for every instanced geometry
+        area = sum(areas[n] for n in geoms if n in geoms)
+        return area
 
     @caching.cache_decorator
     def triangles(self):
@@ -327,7 +415,8 @@ class Scene(Geometry):
 
         Returns
         ----------
-        triangles: (n,3,3) float, triangles in space
+        triangles : (n, 3, 3) float
+          Triangles in space
         """
         triangles = collections.deque()
         triangles_node = collections.deque()
@@ -362,7 +451,7 @@ class Scene(Geometry):
         Returns
         ---------
         triangles_index : (len(self.triangles),)
-            Node name for each triangle
+          Node name for each triangle
         """
         populate = self.triangles  # NOQA
         return self._cache['triangles_node']
@@ -374,7 +463,8 @@ class Scene(Geometry):
 
         Returns
         ---------
-        identifiers: dict, identifier md5: key in self.geometry
+        identifiers : dict
+          {Identifier MD5: key in self.geometry}
         """
         identifiers = {mesh.identifier_md5: name
                        for name, mesh in self.geometry.items()}
@@ -385,13 +475,13 @@ class Scene(Geometry):
         """
         Return a sequence of node keys of identical meshes.
 
-        Will combine meshes duplicated by copying in space with different keys in
-        self.geometry, as well as meshes repeated by self.nodes.
+        Will include meshes with different geometry but identical
+        spatial hashes as well as meshes repeated by self.nodes.
 
         Returns
         -----------
-        duplicates: (m) sequence of keys to self.nodes that represent
-                     identical geometry
+        duplicates : (m) sequenc
+          Keys of self.nodes that represent identical geometry
         """
         # if there is no geometry we can have no duplicate nodes
         if len(self.geometry) == 0:
@@ -400,21 +490,40 @@ class Scene(Geometry):
         # geometry name : md5 of mesh
         mesh_hash = {k: int(m.identifier_md5, 16)
                      for k, m in self.geometry.items()}
-
         # the name of nodes in the scene graph with geometry
         node_names = np.array(self.graph.nodes_geometry)
         # the geometry names for each node in the same order
         node_geom = np.array([self.graph[i][1] for i in node_names])
-
         # the mesh md5 for each node in the same order
         node_hash = np.array([mesh_hash[v] for v in node_geom])
-
         # indexes of identical hashes
         node_groups = grouping.group(node_hash)
-
-        # sequence of node names, where each sublist has identical geometry
-        duplicates = [np.sort(node_names[g]).tolist() for g in node_groups]
+        # sequence of node names where each
+        # sublist has identical geometry
+        duplicates = [np.sort(node_names[g]).tolist()
+                      for g in node_groups]
         return duplicates
+
+    def deduplicated(self):
+        """
+        Return a new scene where each unique geometry is only
+        included once and transforms are discarded.
+
+        Returns
+        -------------
+        dedupe : Scene
+          One copy of each unique geometry from scene
+        """
+        # collect geometry
+        geometry = {}
+        # loop through groups of identical nodes
+        for group in self.duplicate_nodes:
+            # get the name of the geometry
+            name = self.graph[group[0]][1]
+            # collect our unique collection of geometry
+            geometry[name] = self.geometry[name]
+
+        return Scene(geometry)
 
     def set_camera(self,
                    angles=None,
@@ -447,7 +556,7 @@ class Scene(Geometry):
         # if no geometry nothing to set camera to
         if len(self.geometry) == 0:
             self._camera = cameras.Camera(fov=fov)
-            self.graph[self._camera.name] = None
+            self.graph[self._camera.name] = np.eye(4)
             return self._camera
         # set with no rotation by default
         if angles is None:
@@ -480,25 +589,27 @@ class Scene(Geometry):
 
         Returns
         -------
-        camera_transform : (4, 4), float
+        camera_transform : (4, 4) float
           Camera transform in the base frame
         """
         return self.graph[self.camera.name][0]
 
     def camera_rays(self):
         """
-        Calculate the trimesh.scene.Camera origin and ray direction vectors.
-
-        Will return one ray per pixel, as set in camera.resolution.
+        Calculate the trimesh.scene.Camera origin and ray
+        direction vectors. Returns one ray per pixel as set
+        in camera.resolution
 
         Returns
         --------------
-        origins: (3,) float
-            Ray origins in space
-        vectors: (n, 3)
-            Ray direction unit vectors in world coordinates
+        origins: (n, 3) float
+          Ray origins in space
+        vectors: (n, 3) float
+          Ray direction unit vectors in world coordinates
+        pixels : (n, 2) int
+          Which pixel does each ray correspond to in an image
         """
-        vectors = self.camera.to_rays()
+        vectors, pixels = self.camera.to_rays()
         transform = self.camera_transform
 
         # apply the rotation to the direction vectors
@@ -506,10 +617,11 @@ class Scene(Geometry):
             vectors,
             transform,
             translate=False)
-
-        # camera origin is single point, extract from transform
-        origin = transformations.translation_from_matrix(transform)
-        return origin, vectors
+        # camera origin is single point so extract from transform
+        origins = (np.ones_like(vectors) *
+                   transformations.translation_from_matrix(
+                       transform))
+        return origins, vectors, pixels
 
     @camera_transform.setter
     def camera_transform(self, camera_transform):
@@ -518,7 +630,7 @@ class Scene(Geometry):
 
         Parameters
         ----------
-        camera_transform : (4, 4), float
+        camera_transform : (4, 4) float
           Camera transform in the base frame
         """
         if camera_transform is None:
@@ -614,23 +726,35 @@ class Scene(Geometry):
                           matrix=matrix)
         self.graph.base_frame = new_base
 
-    def dump(self):
+    def dump(self, concatenate=False):
         """
-        Append all meshes in scene to a list of meshes.
+        Append all meshes in scene freezing transforms.
+
+        Parameters
+        ------------
+        concatenate : bool
+          If True, concatenate results into single mesh
 
         Returns
         ----------
-        dumped: (n,) list, of Trimesh objects transformed to their
-                           location the scene.graph
+        dumped : (n,) Trimesh or Trimesh
+          Trimesh objects transformed to their
+          location the scene.graph
         """
-        result = collections.deque()
-
+        result = []
         for node_name in self.graph.nodes_geometry:
             transform, geometry_name = self.graph[node_name]
-
+            # get a copy of the geometry
             current = self.geometry[geometry_name].copy()
+            # move the geometry vertices into the requested frame
             current.apply_transform(transform)
+            current.metadata['name'] = node_name
+            # save to our list of meshes
             result.append(current)
+
+        if concatenate:
+            return util.concatenate(result)
+
         return np.array(result)
 
     @caching.cache_decorator
@@ -646,14 +770,20 @@ class Scene(Geometry):
         hull = convex.convex_hull(points)
         return hull
 
-    def export(self, file_obj=None, file_type=None, **kwargs):
+    def export(self,
+               file_obj=None,
+               file_type=None,
+               **kwargs):
         """
         Export a snapshot of the current scene.
 
         Parameters
         ----------
-        file_type: what encoding to use for meshes
-                   ie: dict, dict64, stl
+        file_obj : str, file-like, or None
+          File object to export to
+        file_type : str or None
+          What encoding to use for meshes
+          IE: dict, dict64, stl
 
         Returns
         ----------
@@ -663,31 +793,45 @@ class Scene(Geometry):
 
         # if we weren't passed a file type extract from file_obj
         if file_type is None:
-            file_type = str(file_obj).split('.')[-1]
+            if util.is_string(file_obj):
+                file_type = str(file_obj).split('.')[-1]
+            else:
+                raise ValueError('file_type not specified!')
 
         # always remove whitepace and leading characters
         file_type = file_type.strip().lower().lstrip('.')
 
+        # now handle our different scene export types
         if file_type == 'gltf':
-            data = gltf.export_gltf(self)
+            data = gltf.export_gltf(self, **kwargs)
         elif file_type == 'glb':
-            data = gltf.export_glb(self)
+            data = gltf.export_glb(self, **kwargs)
         elif file_type == 'dict':
             from ..exchange.export import scene_to_dict
             data = scene_to_dict(self)
+        elif file_type == 'obj':
+            from ..exchange.obj import export_obj
+            data = export_obj(self)
         elif file_type == 'dict64':
             from ..exchange.export import scene_to_dict
             data = scene_to_dict(self, use_base64=True)
         else:
-            raise ValueError('unsupported export format: {}'.format(file_type))
+            raise ValueError(
+                'unsupported export format: {}'.format(file_type))
 
-        # now write the data, or not
+        # now write the data or return bytes of result
         if hasattr(file_obj, 'write'):
             # if it's just a regular file object
             file_obj.write(data)
         elif util.is_string(file_obj):
             # assume strings are file paths
-            with open(file_obj, 'wb') as f:
+            file_path = os.path.expanduser(
+                os.path.abspath(file_obj))
+            if util.is_string(data):
+                mode = 'w'
+            else:
+                mode = 'wb'
+            with open(file_path, mode) as f:
                 f.write(data)
         else:
             # no writeable file object so return data
@@ -699,12 +843,15 @@ class Scene(Geometry):
 
         Parameters
         -----------
-        resolution: (2,) int, resolution to render image
-        **kwargs:  passed to SceneViewer constructor
+        resolution : (2,) int
+          Resolution to render image
+        **kwargs
+          Passed to SceneViewer constructor
 
         Returns
         -----------
-        png: bytes, render of scene in PNG form
+        png : bytes
+          Render of scene as a PNG
         """
         from ..viewer import render_scene
         png = render_scene(scene=self,
@@ -936,7 +1083,9 @@ class Scene(Geometry):
         if viewer is None:
             # check to see if we are in a notebook or not
             from ..viewer import in_notebook
-            viewer = ['gl', 'notebook'][int(in_notebook())]
+            viewer = 'gl'
+            if in_notebook():
+                viewer = 'notebook'
 
         if viewer == 'gl':
             # this imports pyglet, and will raise an ImportError
@@ -968,7 +1117,7 @@ class Scene(Geometry):
         return result
 
 
-def split_scene(geometry):
+def split_scene(geometry, only_watertight=True):
     """
     Given a geometry, list of geometries, or a Scene
     return them as a single Scene object.
@@ -1000,7 +1149,7 @@ def split_scene(geometry):
     split = []
     metadata = {}
     for g in util.make_sequence(geometry):
-        split.extend(g.split())
+        split.extend(g.split(only_watertight=only_watertight))
         metadata.update(g.metadata)
 
     # if there is only one geometry in the mesh

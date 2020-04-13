@@ -103,8 +103,12 @@ class GraphTest(g.unittest.TestCase):
                                               tic_diff))))
 
     def test_smoothed(self):
-        mesh = g.get_mesh('ADIS16480.STL')
-        assert len(mesh.faces) == len(mesh.smoothed().faces)
+        # Make sure smoothing is keeping the same number
+        # of faces.
+
+        for name in ['ADIS16480.STL', 'featuretype.STL']:
+            mesh = g.get_mesh(name)
+            assert len(mesh.faces) == len(mesh.smoothed().faces)
 
     def test_engines(self):
         edges = g.np.arange(10).reshape((-1, 2))
@@ -124,9 +128,7 @@ class GraphTest(g.unittest.TestCase):
         # assert m.is_volume
 
     def test_traversals(self):
-        """
-        Test traversals (BFS+DFS)
-        """
+        # Test traversals (BFS+DFS)
 
         # generate some simple test data
         simple_nodes = g.np.arange(20)
@@ -191,6 +193,58 @@ class GraphTest(g.unittest.TestCase):
 
                 # check all return dtypes
                 assert all(i.dtype == g.np.int64 for i in dfs)
+
+    def test_adjacency(self):
+        for add_degen in [False, True]:
+            for name in ['featuretype.STL', 'soup.stl']:
+                m = g.get_mesh(name)
+                if add_degen:
+                    # make the first face degenerate
+                    m.faces[0][2] = m.faces[0][0]
+                # degenerate faces should be filtered
+                assert g.np.not_equal(*m.face_adjacency.T).all()
+
+                # check the various paths of calling face adjacency
+                a = g.trimesh.graph.face_adjacency(
+                    m.faces.view(g.np.ndarray).copy(),
+                    return_edges=False)
+                b, be = g.trimesh.graph.face_adjacency(
+                    m.faces.view(g.np.ndarray).copy(),
+                    return_edges=True)
+                c = g.trimesh.graph.face_adjacency(
+                    mesh=m, return_edges=False)
+                c, ce = g.trimesh.graph.face_adjacency(
+                    mesh=m, return_edges=True)
+                # make sure they all return the expected result
+                assert g.np.allclose(a, b)
+                assert g.np.allclose(a, c)
+                assert len(be) == len(a)
+                assert len(ce) == len(a)
+
+                # package properties to loop through
+                zips = zip(m.face_adjacency,
+                           m.face_adjacency_edges,
+                           m.face_adjacency_unshared)
+                for a, e, v in zips:
+                    # get two adjacenct faces as a set
+                    fa = set(m.faces[a[0]])
+                    fb = set(m.faces[a[1]])
+
+                    # face should be different
+                    assert fa != fb
+                    # shared edge should be in both faces
+
+                    # removing 2 vertices should leave one
+                    da = fa.difference(e)
+                    db = fb.difference(e)
+                    assert len(da) == 1
+                    assert len(db) == 1
+
+                    # unshared vertex should be correct
+                    assert da.issubset(v)
+                    assert db.issubset(v)
+                    assert da != db
+                    assert len(v) == 2
 
 
 def check_engines(edges, nodes):

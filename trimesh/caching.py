@@ -6,26 +6,28 @@ Functions and classes that help with tracking changes in ndarrays
 and clearing cached values based on those changes.
 """
 
-import collections
 import numpy as np
 
 import zlib
-import time
 import hashlib
 
 from functools import wraps
 
 from .constants import log
-from .util import is_sequence
+from .util import is_sequence, now
+
+try:
+    from collections.abc import Mapping
+except ImportError:
+    from collections import Mapping
 
 try:
     # xxhash is roughly 5x faster than zlib.adler32 but is only
     # packaged in easy wheels on linux (`pip install xxhash`)
     # so we keep it a soft dependency
     import xxhash
-    hasX = True
 except ImportError:
-    hasX = False
+    xxhash = None
 
 
 def tracked_array(array, dtype=None):
@@ -33,7 +35,7 @@ def tracked_array(array, dtype=None):
     Properly subclass a numpy ndarray to track changes.
 
     Avoids some pitfalls of subclassing by forcing contiguous
-    arrays, and does a view into a TrackedArray.
+    arrays and does a view into a TrackedArray.
 
     Parameters
     ------------
@@ -87,11 +89,11 @@ def cache_decorator(function):
         # use function name as key in cache
         name = function.__name__
         # store execution times
-        tic = [time.time(), 0.0, 0.0]
+        tic = [now(), 0.0, 0.0]
         # do the dump logic ourselves to avoid
         # verifying cache twice per call
         self._cache.verify()
-        tic[1] = time.time()
+        tic[1] = now()
         # access cache dict to avoid automatic validation
         # since we already called cache.verify manually
         if name in self._cache.cache:
@@ -99,8 +101,12 @@ def cache_decorator(function):
             return self._cache.cache[name]
         # value not in cache so execute the function
         value = function(*args, **kwargs)
-        tic[2] = time.time()
+        tic[2] = now()
         # store the value
+        if self._cache.force_immutable and hasattr(
+                value, 'flags') and len(value.shape) > 0:
+            value.flags.writeable = False
+
         self._cache.cache[name] = value
         # log both the function execution time and how long
         # it took to validate the state of the cache
@@ -156,7 +162,6 @@ class TrackedArray(np.ndarray):
 
     @mutable.setter
     def mutable(self, value):
-        # self.flags['WRITEABLE'] = value
         self.flags.writeable = value
 
     def md5(self):
@@ -165,7 +170,8 @@ class TrackedArray(np.ndarray):
 
         Returns
         -----------
-        md5: str, hexadecimal MD5 of the array
+        md5 : str
+          Hexadecimal MD5 of the array
         """
         if self._modified_m or not hasattr(self, '_hashed_md5'):
             if self.flags['C_CONTIGUOUS']:
@@ -189,7 +195,8 @@ class TrackedArray(np.ndarray):
 
         Returns
         -----------
-        crc: int, checksum from zlib.crc32 or zlib.adler32
+        crc : int
+          Checksum from zlib.crc32 or zlib.adler32
         """
         if self._modified_c or not hasattr(self, '_hashed_crc'):
             if self.flags['C_CONTIGUOUS']:
@@ -210,23 +217,21 @@ class TrackedArray(np.ndarray):
 
         Returns
         -------------
-        xx: int, xxhash.xxh64 hash of array.
+        xx : int
+          xxhash.xxh64 hash of array.
         """
         # repeat the bookkeeping to get a contiguous array inside
         # the function to avoid additional function calls
         # these functions are called millions of times so everything helps
         if self._modified_x or not hasattr(self, '_hashed_xx'):
             if self.flags['C_CONTIGUOUS']:
-                hasher = xxhash.xxh64(self)
-                self._hashed_xx = hasher.intdigest()
+                self._hashed_xx = xxhash.xxh64(self).intdigest()
             else:
                 # the case where we have sliced our nice
                 # contiguous array into a non- contiguous block
                 # for example (note slice *after* track operation):
                 # t = util.tracked_array(np.random.random(10))[::-1]
-                contiguous = np.ascontiguousarray(self)
-                hasher = xxhash.xxh64(contiguous)
-                self._hashed_xx = hasher.intdigest()
+                self._hashed_xx = xxhash.xxh64(np.ascontiguousarray(self)).intdigest()
         self._modified_x = False
         return self._hashed_xx
 
@@ -236,7 +241,8 @@ class TrackedArray(np.ndarray):
 
         Returns
         -----------
-        hash: int, result of fast_hash
+        hash : int
+          Result of fast_hash
         """
         return self.fast_hash()
 
@@ -356,12 +362,12 @@ class TrackedArray(np.ndarray):
         super(self.__class__, self).__setslice__(*args,
                                                  **kwargs)
 
-    if hasX:
-        # if xxhash is installed use it
-        fast_hash = _xxhash
-    else:
+    if xxhash is None:
         # otherwise use our fastest CRC
         fast_hash = crc
+    else:
+        # if xxhash is installed use it
+        fast_hash = _xxhash
 
 
 class Cache(object):
@@ -370,18 +376,25 @@ class Cache(object):
     result of an ID function changes.
     """
 
-    def __init__(self, id_function):
+    def __init__(self, id_function, force_immutable=False):
         """
         Create a cache object.
 
         Parameters
         ------------
-        id_function: function, that returns hashable value
+        id_function : function
+          Returns hashable value
+        force_immutable : bool
+          If set will make all numpy arrays read-only
         """
         self._id_function = id_function
-
+        # force stored numpy arrays to have flags.writable=False
+        self.force_immutable = bool(force_immutable)
+        # call the id function for initial value
         self.id_current = self._id_function()
+        # a counter for locks
         self._lock = 0
+        # actual store for data
         self.cache = {}
 
     def delete(self, key):
@@ -433,6 +446,11 @@ class Cache(object):
         checking id_function.
         """
         self.cache.update(items)
+
+        if self.force_immutable:
+            for k, v in self.cache.items():
+                if hasattr(v, 'flags') and len(v.shape) > 0:
+                    v.flags.writeable = False
         self.id_set()
 
     def id_set(self):
@@ -454,6 +472,7 @@ class Cache(object):
         Returns
         -------------
         cached : object, or None
+          Object that was stored
         """
         self.verify()
         if key in self.cache:
@@ -467,12 +486,18 @@ class Cache(object):
         Parameters
         ------------
         key : hashable
-                 Key to reference value
+          Key to reference value
         value : any
-                  Value to store in cache
+          Value to store in cache
         """
+        # dumpy cache if ID function has changed
         self.verify()
+        # make numpy arrays read-only if asked to
+        if self.force_immutable and hasattr(value, 'flags') and len(value.shape) > 0:
+            value.flags.writeable = False
+        # assign data to dict
         self.cache[key] = value
+
         return value
 
     def __contains__(self, key):
@@ -491,7 +516,7 @@ class Cache(object):
         self.id_current = self._id_function()
 
 
-class DataStore(collections.Mapping):
+class DataStore(Mapping):
     """
     A class to store multiple numpy arrays and track them all
     for changes.
@@ -628,6 +653,7 @@ class DataStore(collections.Mapping):
         crc : int
           CRC of data
         """
+        # combine with a sum of every hash
         crc = sum(i.crc() for i in self.data.values())
         return crc
 
@@ -640,11 +666,12 @@ class DataStore(collections.Mapping):
         hashed : int
           Checksum of data
         """
+        # combine every hash
         fast = sum(i.fast_hash() for i in self.data.values())
         return fast
 
 
-def _fast_crc(count=50):
+def _fast_crc(count=25):
     """
     On certain platforms/builds zlib.adler32 is substantially
     faster than zlib.crc32, but it is not consistent across
@@ -665,12 +692,14 @@ def _fast_crc(count=50):
     """
     import timeit
 
+    # create an array of random numbers
     setup = 'import numpy, zlib;'
     setup += 'd = numpy.random.random((500,3));'
-
+    # time crc32
     crc32 = timeit.timeit(setup=setup,
                           stmt='zlib.crc32(d)',
                           number=count)
+    # time adler32
     adler32 = timeit.timeit(setup=setup,
                             stmt='zlib.adler32(d)',
                             number=count)

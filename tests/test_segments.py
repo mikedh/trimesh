@@ -60,6 +60,56 @@ class SegmentsTest(g.unittest.TestCase):
             # compare area of mesh with source path
             assert g.np.isclose(mesh.area, path.length * height)
 
+    def test_resample(self):
+        from trimesh.path.segments import length, resample
+        # create some random segments
+        seg = g.random((1000, 2, 3))
+        # set a maximum segment length
+        maxlen = 0.1
+        # one of the original segments should be longer than maxlen
+        assert (length(seg, summed=False) > maxlen).any()
+        # resample to be all shorter than maxlen
+        res = resample(seg, maxlen=maxlen)
+        # check lengths of the resampled result
+        assert (length(res, summed=False) < maxlen).all()
+        # make sure overall length hasn't changed
+        assert g.np.isclose(length(res), length(seg))
+
+        # now try with indexes returned
+        res, index = resample(seg, maxlen=maxlen, return_index=True)
+        # check lengths of the resampled result
+        assert (length(res, summed=False) < maxlen).all()
+        # make sure overall length hasn't changed
+        assert g.np.isclose(length(res), length(seg))
+
+    def test_svg(self):
+        from trimesh.path.segments import to_svg
+        # create some 2D segments
+        seg = g.random((1000, 2, 2))
+        # make one of the segments a duplicate
+        seg[0] = seg[-1]
+        # create an SVG path string
+        svg = to_svg(seg, merge=False)
+        # should be one move and one line per segment
+        assert svg.count('M') == len(seg)
+        assert svg.count('L') == len(seg)
+
+        # try with a transform
+        svg = to_svg(seg, matrix=g.np.eye(3), merge=False)
+        assert svg.count('M') == len(seg)
+        assert svg.count('L') == len(seg)
+
+        # remove the duplicate segments
+        svg = to_svg(seg, matrix=g.np.eye(3), merge=True)
+        assert svg.count('M') < len(seg)
+        assert svg.count('L') < len(seg)
+
+        try:
+            to_svg(g.random((100, 2, 3)))
+        except ValueError:
+            return
+        raise ValueError('to_svg accepted wrong input!')
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

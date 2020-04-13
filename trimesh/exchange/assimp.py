@@ -46,8 +46,9 @@ def load_pyassimp(file_obj,
         # add data from the LP_Mesh
         mesh_kwargs.update({'vertices': lp.vertices,
                             'vertex_normals': lp.normals,
-                            'faces': lp.faces,
-                            'vertex_colors': colors})
+                            'vertex_colors': colors,
+                            'faces': lp.faces})
+
         return mesh_kwargs
 
     # did we open the file inside this function

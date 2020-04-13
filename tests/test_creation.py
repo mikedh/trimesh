@@ -7,31 +7,23 @@ except BaseException:
 class CreationTest(g.unittest.TestCase):
 
     def setUp(self):
-        # we support two interfaces to triangle:
-        # pip install meshpy
-        # pip install triangle
         engines = []
-        try:
-            import meshpy  # NOQA
-            engines.append('meshpy')
-        except ImportError:
-            g.log.error("no meshpy: skipping")
-
         try:
             from triangle import triangulate  # NOQA
             engines.append('triangle')
         except ImportError:
             g.log.error('no triangle: skipping')
-
         self.engines = engines
+
+    def test_cone(self):
+        c = g.trimesh.creation.cone(radius=0.5, height=1.0)
+        assert c.is_volume
+        assert c.body_count == 1
+        assert g.np.allclose(c.extents, 1.0, atol=0.03)
 
     def test_cylinder(self):
         # tolerance for cylinders
         atol = 0.03
-
-        c = g.trimesh.creation.cylinder()
-        assert c.is_volume
-        assert c.body_count == 1
 
         c = g.trimesh.creation.cylinder(radius=0.5, height=1.0)
         assert c.is_volume
@@ -235,6 +227,16 @@ class CreationTest(g.unittest.TestCase):
         p = g.get_mesh('2D/ChuteHolderPrint.DXF')
         v, f = p.triangulate()
         check_triangulation(v, f, p.area)
+
+    def test_truncated(self, count=10):
+        # create some random triangles
+        tri = g.random((count, 3, 3))
+
+        m = g.trimesh.creation.truncated_prisms(tri)
+        split = m.split()
+        assert m.body_count == count
+        assert len(split) == count
+        assert all(s.volume > 0 for s in split)
 
 
 def check_triangulation(v, f, true_area):

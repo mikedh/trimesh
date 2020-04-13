@@ -52,7 +52,6 @@ def load_collada(file_obj, resolver=None, **kwargs):
     meshes = {}
     # list of dict
     graph = []
-
     for node in c.scene.nodes:
         _parse_node(node=node,
                     parent_matrix=np.eye(4),
@@ -130,14 +129,14 @@ def export_collada(mesh, **kwargs):
         )
         indices = np.repeat(m.faces.flatten(), len(arrays))
 
-        matref = 'material{}'.format(i)
+        matref = u'material{}'.format(i)
         triset = geom.createTriangleSet(indices, input_list, matref)
         geom.primitives.append(triset)
         c.geometries.append(geom)
 
         matnode = collada.scene.MaterialNode(matref, mat, inputs=[])
         geomnode = collada.scene.GeometryNode(geom, [matnode])
-        node = collada.scene.Node('node{}'.format(i), children=[geomnode])
+        node = collada.scene.Node(u'node{}'.format(i), children=[geomnode])
         nodes.append(node)
     scene = collada.scene.Scene('scene', nodes)
     c.scenes.append(scene)
@@ -219,7 +218,7 @@ def _parse_node(node,
                     vis = visual.texture.TextureVisuals(
                         uv=uv, material=material)
 
-                primid = '{}.{}'.format(geometry.id, i)
+                primid = u'{}.{}'.format(geometry.id, i)
                 meshes[primid] = {
                     'vertices': vertices,
                     'faces': faces,
@@ -313,6 +312,11 @@ def _parse_material(effect, resolver):
             log.warning('unable to load bumpmap',
                         exc_info=True)
 
+    # Compute opacity
+    if (effect.transparent is not None
+            and not isinstance(effect.transparent, collada.material.Map)):
+        baseColorFactor = tuple(np.append(baseColorFactor[:3], effect.transparent[3]))
+
     return visual.material.PBRMaterial(
         emissiveFactor=emissiveFactor,
         emissiveTexture=emissiveTexture,
@@ -320,8 +324,7 @@ def _parse_material(effect, resolver):
         baseColorTexture=baseColorTexture,
         baseColorFactor=baseColorFactor,
         metallicFactor=metallicFactor,
-        roughnessFactor=roughnessFactor
-    )
+        roughnessFactor=roughnessFactor)
 
 
 def _unparse_material(material):

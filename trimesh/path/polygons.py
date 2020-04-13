@@ -1,9 +1,7 @@
 import numpy as np
 
 from shapely.geometry import Polygon
-from shapely import vectorized
 
-from rtree import Rtree
 from collections import deque
 
 from .. import util
@@ -14,6 +12,7 @@ from ..constants import tol_path as tol
 from ..constants import log
 from ..transformations import transform_points
 
+from .simplify import fit_circle_check
 from .traversal import resample_path
 
 try:
@@ -23,6 +22,12 @@ except BaseException as E:
     # or other exception only when someone tries to use networkx
     from ..exceptions import ExceptionModule
     nx = ExceptionModule(E)
+try:
+    from rtree import Rtree
+except BaseException as E:
+    # create a dummy module which will raise the ImportError
+    from ..exceptions import ExceptionModule
+    Rtree = ExceptionModule(E)
 
 
 def enclosure_tree(polygons):
@@ -168,14 +173,17 @@ def polygon_obb(polygon):
 
     Parameters
     -------------
-    polygons: shapely.geometry.Polygon
+    polygons : shapely.geometry.Polygon
+      Input geometry
 
     Returns
     -------------
-    transform: (3,3) float, transformation matrix
-               which will move input polygon from its original position
-               to the first quadrant where the AABB is the OBB
-    extents:   (2,) float, extents of transformed polygon
+    transform : (3, 3) float
+      Transformation matrix
+      which will move input polygon from its original position
+      to the first quadrant where the AABB is the OBB
+    extents : (2,) float
+      Extents of transformed polygon
     """
     if hasattr(polygon, 'exterior'):
         points = np.asanyarray(polygon.exterior.coords)
@@ -193,15 +201,14 @@ def transform_polygon(polygon, matrix):
     Parameters
     -------------
     polygon : shapely.geometry.Polygon
-                 2D polygon to be transformed.
+      2D polygon to be transformed.
     matrix  : (3, 3) float
-                 2D homogeneous transformation.
+      2D homogeneous transformation.
 
     Returns
     --------------
     result : shapely.geometry.Polygon
-                 Polygon transformed by matrix.
-
+      Polygon transformed by matrix.
     """
     matrix = np.asanyarray(matrix, dtype=np.float64)
 
@@ -258,14 +265,18 @@ def resample_boundaries(polygon, resolution, clip=None):
 
     Parameters
     -------------
-    polygon:    shapely.geometry.Polygon object
-    resolution: float, desired distance between points on boundary
-    clip:       (2,) int, upper and lower bounds to clip
-                number of samples to (to avoid exploding counts)
+    polygon : shapely.geometry.Polygon
+      Source geometry
+    resolution : float
+      Desired distance between points on boundary
+    clip : (2,) int
+      Upper and lower bounds to clip
+      number of samples to avoid exploding count
 
     Returns
     ------------
-    kwargs: dict, keyword args for a Polygon(**kwargs)
+    kwargs : dict
+     Keyword args for a Polygon constructor `Polygon(**kwargs)`
     """
     def resample_boundary(boundary):
         # add a polygon.exterior or polygon.interior to
@@ -291,11 +302,13 @@ def stack_boundaries(boundaries):
 
     Parameters
     ------------
-    boundaries: dict, with keys 'shell', 'holes'
+    boundaries : dict
+      With keys 'shell', 'holes'
 
     Returns
     ------------
-    stacked: (n, 2) float, list of vertices
+    stacked : (n, 2) float
+      Stacked vertices
     """
     if len(boundaries['holes']) == 0:
         return boundaries['shell']
@@ -329,10 +342,32 @@ def medial_axis(polygon,
     vertices : (m, 2) float
       Vertex positions in space
     """
+    # a circle will have a single point medial axis
+    if len(polygon.interiors) == 0:
+        # what is the approximate scale of the polygon
+        scale = np.reshape(polygon.bounds, (2, 2)).ptp(axis=0).max()
+        # a (center, radius, error) tuple
+        fit = fit_circle_check(
+            polygon.exterior.coords, scale=scale)
+        # is this polygon in fact a circle
+        if fit is not None:
+            # return an edge that has the center as the midpoint
+            epsilon = np.clip(
+                fit['radius'] / 500, 1e-5, np.inf)
+            vertices = np.array(
+                [fit['center'] + [0, epsilon],
+                 fit['center'] - [0, epsilon]],
+                dtype=np.float64)
+            # return a single edge to avoid consumers needing to special case
+            edges = np.array([[0, 1]], dtype=np.int64)
+            return edges, vertices
+
     from scipy.spatial import Voronoi
+    from shapely import vectorized
 
     if resolution is None:
-        resolution = np.reshape(polygon.bounds, (2, 2)).ptp(axis=0).max() / 100
+        resolution = np.reshape(
+            polygon.bounds, (2, 2)).ptp(axis=0).max() / 100
 
     # get evenly spaced points on the polygons boundaries
     samples = resample_boundaries(polygon=polygon,
@@ -351,7 +386,22 @@ def medial_axis(polygon,
     # only take ridges where every vertex is contained
     edges = ridge[contains[ridge].all(axis=1)]
 
-    return edges, voronoi.vertices
+    # now we need to remove uncontained vertices
+    contained = np.unique(edges)
+    mask = np.zeros(len(voronoi.vertices), dtype=np.int64)
+    mask[contained] = np.arange(len(contained))
+
+    # mask voronoi vertices
+    vertices = voronoi.vertices[contained]
+    # re-index edges
+    edges_final = mask[edges]
+
+    if tol.strict:
+        # make sure we didn't screw up indexes
+        assert (vertices[edges_final] -
+                voronoi.vertices[edges]).ptp() < 1e-5
+
+    return edges_final, vertices
 
 
 def polygon_hash(polygon):
@@ -386,12 +436,15 @@ def random_polygon(segments=8, radius=1.0):
 
     Parameters
     ---------
-    segments: int, the maximum number of sides the random polygon will have
-    radius:   float, the approximate radius of the polygon desired
+    segments : int
+      The maximum number of sides the random polygon will have
+    radius : float
+      The approximate radius of the polygon desired
 
     Returns
     ---------
-    polygon: shapely.geometry.Polygon object with random exterior, and no interiors.
+    polygon : shapely.geometry.Polygon
+      Geometry object with random exterior and no interiors.
     """
     angles = np.sort(np.cumsum(np.random.random(
         segments) * np.pi * 2) % (np.pi * 2))
@@ -407,15 +460,17 @@ def random_polygon(segments=8, radius=1.0):
 
 def polygon_scale(polygon):
     """
-    For a Polygon object, return the diagonal length of the AABB.
+    For a Polygon object return the diagonal length of the AABB.
 
     Parameters
     ------------
-    polygon: shapely.geometry.Polygon object
+    polygon : shapely.geometry.Polygon
+      Source geometry
 
     Returns
     ------------
-    scale: float, length of AABB diagonal
+    scale : float
+      Length of AABB diagonal
     """
     extents = np.reshape(polygon.bounds, (2, 2)).ptp(axis=0)
     scale = (extents ** 2).sum() ** .5
@@ -431,15 +486,15 @@ def paths_to_polygons(paths, scale=None):
     Parameters
     -----------
     paths : (n,) sequence
-        Of (m,2) float, closed paths
+      Of (m, 2) float closed paths
     scale: float
-        Approximate scale of drawing for precision
+      Approximate scale of drawing for precision
 
     Returns
     -----------
-    polys: (p,) list
-        shapely.geometry.Polygon
-        None
+    polys : (p,) list
+      Filled with Polygon or None
+
     """
     polygons = [None] * len(paths)
     for i, path in enumerate(paths):
@@ -467,23 +522,25 @@ def sample(polygon, count, factor=1.5, max_iter=10):
     Parameters
     -----------
     polygon : shapely.geometry.Polygon
-                Polygon that will contain points
-    count   : int
-                Number of points to return
-    factor  : float
-                How many points to test per loop
-                IE, count * factor
-    max_iter : int,
-                Maximum number of intersection loops
-                to run, total points sampled is
-                count * factor * max_iter
+      Polygon that will contain points
+    count : int
+      Number of points to return
+    factor : float
+      How many points to test per loop
+    max_iter : int
+      Maximum number of intersection checks is:
+      > count * factor * max_iter
 
     Returns
     -----------
     hit : (n, 2) float
-           Random points inside polygon
-           where n <= count
+      Random points inside polygon
+      where n <= count
     """
+    # do batch point-in-polygon queries
+    from shapely import vectorized
+
+    # get size of bounding box
     bounds = np.reshape(polygon.bounds, (2, 2))
     extents = bounds.ptp(axis=0)
 
@@ -520,17 +577,22 @@ def repair_invalid(polygon, scale=None, rtol=.5):
 
     Parameters
     -----------
-    polygon: shapely.geometry.Polygon object
-    rtol:    float, how close does a perimeter have to be
-    scale:   float, or None
+    polygon : shapely.geometry.Polygon
+      Source geometry
+    rtol : float
+      How close does a perimeter have to be
+    scale : float or None
+      For numerical precision reference
 
     Returns
     ----------
-    repaired: shapely.geometry.Polygon object
+    repaired : shapely.geometry.Polygon
+      Repaired polygon
 
     Raises
     ----------
-    ValueError: if polygon can't be repaired
+    ValueError
+      If polygon can't be repaired
     """
     if hasattr(polygon, 'is_valid') and polygon.is_valid:
         return polygon

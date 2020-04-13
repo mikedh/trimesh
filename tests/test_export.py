@@ -16,21 +16,26 @@ class ExportTest(g.unittest.TestCase):
 
         for mesh in meshes:
             # disregard texture
-            mesh.merge_vertices(textured=False)
+            mesh.merge_vertices(merge_tex=True, merge_norm=True)
             for file_type in export_types:
+                # skip pointcloud format
+                if file_type in ['xyz', 'gltf']:
+                    # a pointcloud format
+                    continue
+                # run the export
                 export = mesh.export(file_type=file_type)
-                if export is None:
-                    raise ValueError('Exporting mesh %s to %s resulted in None!',
-                                     mesh.metadata['file_name'],
-                                     file_type)
-
-                assert len(export) > 0
+                # if nothing returned log the message
+                if export is None or len(export) == 0:
+                    raise ValueError(
+                        'No data exported %s to %s',
+                        mesh.metadata['file_name'],
+                        file_type)
 
                 if file_type in [
                         'dae',     # collada, no native importers
                         'collada',  # collada, no native importers
                         'msgpack',  # kind of flaky, but usually works
-                        'drc']:    # DRC is not a lossless format
+                        'drc']:  # DRC is not a lossless format
                     g.log.warning(
                         'no native loaders implemented for collada!')
                     continue
@@ -45,7 +50,10 @@ class ExportTest(g.unittest.TestCase):
                     file_obj = export
 
                 loaded = g.trimesh.load(file_obj=file_obj,
-                                        file_type=file_type)
+                                        file_type=file_type,
+                                        process=True,
+                                        merge_norm=True,
+                                        merge_tex=True)
 
                 # if we exported as GLTF/dae it will come back as a Scene
                 if isinstance(loaded, g.trimesh.Scene) and isinstance(

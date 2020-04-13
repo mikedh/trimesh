@@ -1,3 +1,4 @@
+import re
 import numpy as np
 
 from .. import util
@@ -19,21 +20,21 @@ def load_off(file_obj, **kwargs):
       kwargs for Trimesh constructor
     """
     text = file_obj.read()
-    if hasattr(text, 'decode'):
-        text = text.decode('utf-8')
+    # will magically survive weird encoding sometimes
+    # comment strip will handle all cases of commenting
+    text = util.comment_strip(
+        util.decode_text(text)).strip()
 
-    text = text.lstrip()
     # split the first key
-    header, raw = text.split(None, 1)
-
+    _, header, raw = re.split('(COFF|OFF)', text, 1)
     if header.upper() not in ['OFF', 'COFF']:
         raise NameError(
             'Not an OFF file! Header was: `{}`'.format(header))
 
     # split into lines and remove whitespace
     splits = [i.strip() for i in str.splitlines(str(raw))]
-    # remove empty lines and comments
-    splits = [i for i in splits if len(i) > 0 and i[0] != '#']
+    # remove empty lines
+    splits = [i for i in splits if len(i) > 0]
 
     # the first non-comment line should be the counts
     header = np.array(splits[0].split(), dtype=np.int64)

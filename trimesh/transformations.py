@@ -224,15 +224,20 @@ def identity_matrix():
 
 
 def translation_matrix(direction):
-    """Return matrix to translate by direction vector.
+    """
+    Return matrix to translate by direction vector.
 
     >>> v = np.random.random(3) - 0.5
     >>> np.allclose(v, translation_matrix(v)[:3, 3])
     True
 
     """
-    M = np.identity(4)
-    M[:3, 3] = direction[:3]
+    # are we 2D or 3D
+    dim = len(direction)
+    # start with identity matrix
+    M = np.identity(dim + 1)
+    # apply the offset
+    M[:dim, dim] = direction[:dim]
     return M
 
 
@@ -311,16 +316,16 @@ def rotation_matrix(angle, direction, point=None):
     Parameters
     -------------
     angle     : float, or sympy.Symbol
-                Angle, in radians or symbolic angle
+      Angle, in radians or symbolic angle
     direction : (3,) float
-                Unit vector along rotation axis
+      Unit vector along rotation axis
     point     : (3, ) float, or None
-                Origin point of rotation axis
+      Origin point of rotation axis
 
     Returns
     -------------
     matrix : (4, 4) float, or (4, 4) sympy.Matrix
-             Homogeneous transformation matrix
+      Homogeneous transformation matrix
 
     Examples
     -------------
@@ -345,12 +350,14 @@ def rotation_matrix(angle, direction, point=None):
     True
 
     """
-    # special case sympy symbolic angles
     if type(angle).__name__ == 'Symbol':
+        # special case sympy symbolic angles
         import sympy as sp
+        symbolic = True
         sina = sp.sin(angle)
         cosa = sp.cos(angle)
     else:
+        symbolic = False
         sina = math.sin(angle)
         cosa = math.cos(angle)
 
@@ -370,7 +377,7 @@ def rotation_matrix(angle, direction, point=None):
         M[:3, 3] = point - np.dot(M[:3, :3], point)
 
     # return symbolic angles as sympy Matrix objects
-    if type(angle).__name__ == 'Symbol':
+    if symbolic:
         return sp.Matrix(M)
 
     return M
@@ -1289,7 +1296,8 @@ def quaternion_about_axis(angle, axis):
 
 
 def quaternion_matrix(quaternion):
-    """Return homogeneous rotation matrix from quaternion.
+    """
+    Return a homogeneous rotation matrix from quaternion.
 
     >>> M = quaternion_matrix([0.99810947, 0.06146124, 0, 0])
     >>> np.allclose(M, rotation_matrix(0.123, [1, 0, 0]))
@@ -1300,20 +1308,40 @@ def quaternion_matrix(quaternion):
     >>> M = quaternion_matrix([0, 1, 0, 0])
     >>> np.allclose(M, np.diag([1, -1, -1, 1]))
     True
+    >>> M = quaternion_matrix([[1, 0, 0, 0],[0, 1, 0, 0]])
+    >>> np.allclose(M, np.array([np.identity(4), np.diag([1, -1, -1, 1])]))
+    True
+
 
     """
-    q = np.array(quaternion, dtype=np.float64, copy=True)
-    n = np.dot(q, q)
-    if n < _EPS:
-        return np.identity(4)
-    q *= math.sqrt(2.0 / n)
-    q = np.outer(q, q)
-    return np.array([
-        [1.0 - q[2, 2] - q[3, 3], q[1, 2] -
-            q[3, 0], q[1, 3] + q[2, 0], 0.0],
-        [q[1, 2] + q[3, 0], 1.0 - q[1, 1] - q[3, 3], q[2, 3] - q[1, 0], 0.0],
-        [q[1, 3] - q[2, 0], q[2, 3] + q[1, 0], 1.0 - q[1, 1] - q[2, 2], 0.0],
-        [0.0, 0.0, 0.0, 1.0]])
+    q = np.array(quaternion,
+                 dtype=np.float64,
+                 copy=True).reshape((-1, 4))
+    n = np.einsum('ij,ij->i', q, q)
+    # how many entries do we have
+    num_qs = len(n)
+    identities = n < _EPS
+    q[~identities, :] *= np.sqrt(2.0 / n[~identities, None])
+    q = np.einsum('ij,ik->ikj', q, q)
+
+    # store the result
+    ret = np.zeros((num_qs, 4, 4))
+
+    # pack the values into the result
+    ret[:, 0, 0] = 1.0 - q[:, 2, 2] - q[:, 3, 3]
+    ret[:, 0, 1] = q[:, 1, 2] - q[:, 3, 0]
+    ret[:, 0, 2] = q[:, 1, 3] + q[:, 2, 0]
+    ret[:, 1, 0] = q[:, 1, 2] + q[:, 3, 0]
+    ret[:, 1, 1] = 1.0 - q[:, 1, 1] - q[:, 3, 3]
+    ret[:, 1, 2] = q[:, 2, 3] - q[:, 1, 0]
+    ret[:, 2, 0] = q[:, 1, 3] - q[:, 2, 0]
+    ret[:, 2, 1] = q[:, 2, 3] + q[:, 1, 0]
+    ret[:, 2, 2] = 1.0 - q[:, 1, 1] - q[:, 2, 2]
+    ret[:, 3, 3] = 1.0
+    # set any identities
+    ret[identities] = np.eye(4)[None, ...]
+
+    return ret.squeeze()
 
 
 def quaternion_from_matrix(matrix, isprecise=False):
@@ -1506,7 +1534,7 @@ def quaternion_slerp(quat0, quat1, fraction, spin=0, shortestpath=True):
     return q0
 
 
-def random_quaternion(rand=None):
+def random_quaternion(rand=None, num=1):
     """Return uniform random unit quaternion.
 
     rand: array like or None
@@ -1516,25 +1544,28 @@ def random_quaternion(rand=None):
     >>> q = random_quaternion()
     >>> np.allclose(1, vector_norm(q))
     True
+    >>> q = random_quaternion(num=10)
+    >>> np.allclose(1, vector_norm(q, axis=1))
+    True
     >>> q = random_quaternion(np.random.random(3))
     >>> len(q.shape), q.shape[0]==4
     (1, True)
 
     """
     if rand is None:
-        rand = np.random.rand(3)
+        rand = np.random.rand(3 * num).reshape((3, -1))
     else:
-        assert len(rand) == 3
+        assert rand.shape[0] == 3
     r1 = np.sqrt(1.0 - rand[0])
     r2 = np.sqrt(rand[0])
     pi2 = math.pi * 2.0
     t1 = pi2 * rand[1]
     t2 = pi2 * rand[2]
     return np.array([np.cos(t2) * r2, np.sin(t1) * r1,
-                     np.cos(t1) * r1, np.sin(t2) * r2])
+                     np.cos(t1) * r1, np.sin(t2) * r2]).T.squeeze()
 
 
-def random_rotation_matrix(rand=None):
+def random_rotation_matrix(rand=None, num=1):
     """Return uniform random rotation matrix.
 
     rand: array like
@@ -1544,9 +1575,12 @@ def random_rotation_matrix(rand=None):
     >>> R = random_rotation_matrix()
     >>> np.allclose(np.dot(R.T, R), np.identity(4))
     True
+    >>> R = random_rotation_matrix(num=10)
+    >>> np.allclose(np.einsum('...ji,...jk->...ik', R, R), np.identity(4))
+    True
 
     """
-    return quaternion_matrix(random_quaternion(rand))
+    return quaternion_matrix(random_quaternion(rand=rand, num=num))
 
 
 class Arcball(object):
@@ -2056,26 +2090,28 @@ def transform_points(points,
                      matrix,
                      translate=True):
     """
-    Returns points, rotated by transformation matrix
+    Returns points rotated by a homogeneous
+    transformation matrix.
 
-    If points is (n,2), matrix must be (3,3)
-    if points is (n,3), matrix must be (4,4)
+    If points are (n, 2) matrix must be (3, 3)
+    If points are (n, 3) matrix must be (4, 4)
 
     Parameters
     ----------
-    points : (n, d) float
-      Points where d is 2 or 3
-    matrix : (3,3) or (4,4) float
+    points : (n, D) float
+      Points where D is 2 or 3
+    matrix : (3, 3) or (4, 4) float
       Homogeneous rotation matrix
     translate : bool
       Apply translation from matrix or not
 
     Returns
     ----------
-    transformed : (n,d) float
+    transformed : (n, d) float
       Transformed points
     """
-    points = np.asanyarray(points, dtype=np.float64)
+    points = np.asanyarray(
+        points, dtype=np.float64)
     # no points no cry
     if len(points) == 0:
         return points.copy()
@@ -2100,7 +2136,7 @@ def transform_points(points,
     return transformed
 
 
-def is_rigid(matrix):
+def is_rigid(matrix, epsilon=1e-8):
     """
     Check to make sure a homogeonous transformation
     matrix is a rigid transform.
@@ -2122,13 +2158,15 @@ def is_rigid(matrix):
     if matrix.shape != (4, 4):
         return False
 
-    if not np.allclose(matrix[-1], [0, 0, 0, 1]):
+    # make sure last row has no scaling
+    if (matrix[-1] - [0, 0, 0, 1]).ptp() > epsilon:
         return False
 
+    # check dot product of rotation against transpose
     check = np.dot(matrix[:3, :3],
-                   matrix[:3, :3].T)
+                   matrix[:3, :3].T) - np.eye(3)
 
-    return np.allclose(check, np.eye(3))
+    return check.ptp() < epsilon
 
 
 def scale_and_translate(scale=None, translate=None):

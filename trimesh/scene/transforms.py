@@ -1,8 +1,8 @@
 import copy
 import time
-import collections
 
 import numpy as np
+import collections
 
 from .. import util
 from .. import caching
@@ -96,7 +96,7 @@ class TransformForest(object):
 
         Returns
         ------------
-        copied: TransformForest
+        copied : TransformForest
         """
         copied = TransformForest()
         copied.base_frame = copy.deepcopy(self.base_frame)
@@ -133,64 +133,87 @@ class TransformForest(object):
         gltf : dict
           with 'nodes' referencing a list of dicts
         """
+
         # geometry is an OrderedDict
-        # {geometry key : index}
+        # map mesh name to index: {geometry key : index}
         mesh_index = {name: i for i, name
                       in enumerate(scene.geometry.keys())}
-        # save the output
-        gltf = collections.deque([])
-        # only export nodes which have geometry
-        for node in self.nodes_geometry:
-            # don't include edge for base frame
+
+        # shortcut to graph
+        graph = self.transforms
+        # get the stored node data
+        node_data = dict(graph.nodes(data=True))
+
+        # list of dict, in gltf format
+        # start with base frame as first node index
+        result = [{'name': self.base_frame}]
+        # {node name : node index in gltf}
+        lookup = {self.base_frame: 0}
+
+        # collect the nodes in order
+        for node in node_data.keys():
             if node == self.base_frame:
                 continue
-            # get the transform and geometry from the graph
-            transform, geometry = self.get(
-                frame_to=node, frame_from=self.base_frame)
-            # add a node by name
-            gltf.append({'name': node})
-            # if the transform is an identity matrix don't include it
-            is_identity = np.abs(transform - np.eye(4)).max() < 1e-5
-            if not is_identity:
-                gltf[-1]['matrix'] = transform.T.reshape(-1).tolist()
-            # assign geometry if it exists
-            if geometry is not None:
-                gltf[-1]['mesh'] = mesh_index[geometry]
+            lookup[node] = len(result)
+            result.append({'name': node})
+
+        # then iterate through to collect data
+        for info in result:
+            # name of the scene node
+            node = info['name']
+            # store children as indexes
+            children = [lookup[k] for k in graph[node].keys()]
+            if len(children) > 0:
+                info['children'] = children
+            # if we have a mesh store by index
+            if 'geometry' in node_data[node]:
+                info['mesh'] = mesh_index[node_data[node]['geometry']]
             # check to see if we have camera node
             if node == scene.camera.name:
-                gltf[-1]['camera'] = 0
-
-        # we have flattened tree, so all nodes will be child of world
-        gltf.appendleft({
-            'name': self.base_frame,
-            'children': list(range(1, 1 + len(gltf)))
-        })
-        result = {'nodes': list(gltf)}
-
-        return result
+                info['camera'] = 0
+            try:
+                # try to ignore KeyError and StopIteration
+                # parent-child transform is stored in child
+                parent = next(iter(graph.predecessors(node)))
+                # get the (4, 4) homogeneous transform
+                matrix = graph.get_edge_data(parent, node)['matrix']
+                # only include matrix if it is not an identity matrix
+                if np.abs(matrix - np.eye(4)).max() > 1e-5:
+                    info['matrix'] = matrix.T.reshape(-1).tolist()
+            except BaseException:
+                continue
+        return {'nodes': result}
 
     def to_edgelist(self):
         """
-        Export the current transforms as a list of edge tuples, with
-        each tuple having the format:
+        Export the current transforms as a list of
+        edge tuples, with each tuple having the format:
         (node_a, node_b, {metadata})
 
         Returns
         ---------
-        edgelist: (n,) list of tuples
+        edgelist : (n,) list
+          Of edge tuples
         """
         # save cleaned edges
         export = []
         # loop through (node, node, edge attributes)
         for edge in nx.to_edgelist(self.transforms):
-            a, b, c = edge
+            a, b, attr = edge
             # geometry is a node property but save it to the
             # edge so we don't need two dictionaries
-            if 'geometry' in self.transforms.node[b]:
-                c['geometry'] = self.transforms.node[b]['geometry']
+            try:
+                b_attr = self.transforms.nodes[b]
+            except BaseException:
+                # networkx 1.X API
+                b_attr = self.transforms.node[b]
+            # apply node geometry to edge attributes
+            if 'geometry' in b_attr:
+                attr['geometry'] = b_attr['geometry']
             # save the matrix as a float list
-            c['matrix'] = np.asanyarray(c['matrix'], dtype=np.float64).tolist()
-            export.append((a, b, c))
+            attr['matrix'] = np.asanyarray(
+                attr['matrix'], dtype=np.float64).tolist()
+            export.append((a, b, attr))
         return export
 
     def from_edgelist(self, edges, strict=True):
@@ -237,7 +260,8 @@ class TransformForest(object):
 
         Returns
         -------------
-        nodes: (n,) array, of node names
+        nodes : (n,) array
+          All node names
         """
         nodes = np.array(list(self.transforms.nodes()))
         return nodes
@@ -249,14 +273,56 @@ class TransformForest(object):
 
         Returns
         ------------
-        nodes_geometry: (m,) array, of node names
+        nodes_geometry : (m,) array
+          Node names which have geometry associated
         """
-
-        nodes = np.array([
-            n for n in self.transforms.nodes()
-            if 'geometry' in self.transforms.node[n]])
+        nodes = np.array(
+            [n for n, attr in self.transforms.nodes(data=True)
+             if 'geometry' in attr])
 
         return nodes
+
+    @caching.cache_decorator
+    def geometry_nodes(self):
+        """
+        Which nodes have this geometry?
+
+        Returns
+        ------------
+        geometry_nodes : dict
+          Geometry name : (n,) node names
+        """
+        res = collections.defaultdict(list)
+        for node, attr in self.transforms.nodes(data=True):
+            if 'geometry' in attr:
+                res[attr['geometry']].append(node)
+        return res
+
+    def remove_geometries(self, geometries):
+        """
+        Remove the reference for specified geometries from nodes
+        without deleting the node.
+
+        Parameters
+        ------------
+        geometries : list or str
+          Name of scene.geometry to dereference.
+        """
+        # make sure we have a set of geometries to remove
+        if util.is_string(geometries):
+            geometries = [geometries]
+        geometries = set(geometries)
+
+        # remove the geometry reference from the node without deleting nodes
+        # this lets us keep our cached paths, and will not screw up children
+        for node, attrib in self.transforms.nodes(data=True):
+            if 'geometry' in attrib and attrib['geometry'] in geometries:
+                attrib.pop('geometry')
+
+        # it would be safer to just run _cache.clear
+        # but the only property using the geometry should be
+        # nodes_geometry: if this becomes not true change this to clear!
+        self._cache.cache.pop('nodes_geometry', None)
 
     def get(self, frame_to, frame_from=None):
         """
@@ -310,9 +376,16 @@ class TransformForest(object):
         else:
             transform = util.multi_dot(transforms)
 
-        geometry = None
-        if 'geometry' in self.transforms.node[frame_to]:
-            geometry = self.transforms.node[frame_to]['geometry']
+        try:
+            attr = self.transforms.nodes[frame_to]
+        except BaseException:
+            # networkx 1.X API
+            attr = self.transforms.node[frame_to]
+
+        if 'geometry' in attr:
+            geometry = attr['geometry']
+        else:
+            geometry = None
 
         self._cache[cache_key] = (transform, geometry)
 
@@ -333,7 +406,12 @@ class TransformForest(object):
         return graph_to_svg(self.transforms)
 
     def __contains__(self, key):
-        return key in self.transforms.node
+        try:
+            return key in self.transforms.nodes
+        except BaseException:
+            # networkx 1.X API
+            util.log.warning('upgrade networkx to version 2.X!')
+            return key in self.transforms.nodes()
 
     def __getitem__(self, key):
         return self.get(key)
@@ -405,7 +483,7 @@ class EnforcedForest(_ForestParent):
             if self.flags['strict']:
                 raise ValueError('Edge must be between two unique nodes!')
             return changed
-        if self._undirected.has_edge(u, v):
+        elif self._undirected.has_edge(u, v):
             self.remove_edges_from([[u, v], [v, u]])
         elif len(self.nodes()) > 0:
             try:
@@ -450,7 +528,6 @@ class EnforcedForest(_ForestParent):
         try:
             path = nx.shortest_path(self._undirected, u, v)
         except BaseException as E:
-            print(u, v)
             raise E
         return path
 
@@ -478,7 +555,7 @@ def kwargs_to_matrix(**kwargs):
         matrix = transformations.rotation_matrix(kwargs['angle'],
                                                  kwargs['axis'])
     else:
-        raise ValueError('Couldn\'t update transform!')
+        matrix = np.eye(4)
 
     if 'translation' in kwargs:
         # translation can be used in conjunction with any of the methods of

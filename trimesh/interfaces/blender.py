@@ -1,7 +1,7 @@
 from .. import util
+from .. import resources
 
 from .generic import MeshScript
-from ..resources import get_resource
 from ..constants import log
 
 from distutils.spawn import find_executable
@@ -27,24 +27,25 @@ if platform.system() == 'Darwin':
     log.debug('searching for blender in: %s', _search_path)
 
 _blender_executable = find_executable('blender', path=_search_path)
-_blender_template = get_resource('blender.py.template')
-
 exists = _blender_executable is not None
 
 
-def boolean(meshes, operation='difference'):
+def boolean(meshes, operation='difference', debug=False):
     if not exists:
         raise ValueError('No blender available!')
     operation = str.upper(operation)
     if operation == 'INTERSECTION':
         operation = 'INTERSECT'
 
-    script = _blender_template.replace('$operation', operation)
+    # get the template from our resources folder
+    template = resources.get('blender.py.template')
+    script = template.replace('$OPERATION', operation)
 
     with MeshScript(meshes=meshes,
-                    script=script) as blend:
+                    script=script,
+                    debug=debug) as blend:
         result = blend.run(_blender_executable +
-                           ' --background --python $script')
+                           ' --background --python $SCRIPT')
 
     for m in util.make_sequence(result):
         # blender returns actively incorrect face normals

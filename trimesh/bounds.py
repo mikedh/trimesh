@@ -1,6 +1,4 @@
 import numpy as np
-import time
-
 from .constants import log
 
 from . import util
@@ -172,7 +170,7 @@ def oriented_bounds(obj, angle_digits=1, ordered=True, normal=None):
     spherical_unique = grouping.unique_rows(spherical_coords,
                                             digits=angle_digits)[0]
     min_volume = np.inf
-    tic = time.time()
+    tic = util.now()
 
     # matrices which will rotate each hull normal to [0,0,1]
     if normal is None:
@@ -228,7 +226,7 @@ def oriented_bounds(obj, angle_digits=1, ordered=True, normal=None):
 
     log.debug('oriented_bounds checked %d vectors in %0.4fs',
               len(spherical_unique),
-              time.time() - tic)
+              util.now() - tic)
 
     return to_origin, min_extents
 
@@ -353,12 +351,12 @@ def minimum_cylinder(obj, sample_count=6, angle_tol=.001):
             (samples,
              util.vector_to_spherical(obj.principal_inertia_vectors)))
 
-    tic = [time.time()]
+    tic = [util.now()]
     # the projected volume at each sample
     volumes = np.array([volume_from_angles(i) for i in samples])
     # the best vector in (2,) spherical coordinates
     best = samples[volumes.argmin()]
-    tic.append(time.time())
+    tic.append(util.now())
 
     # since we already explored the global space, set the bounds to be
     # just around the sample that had the lowest volume
@@ -372,7 +370,7 @@ def minimum_cylinder(obj, sample_count=6, angle_tol=.001):
                           method='SLSQP',
                           bounds=bounds)
 
-    tic.append(time.time())
+    tic.append(util.now())
     log.info('Performed search in %f and minimize in %f', *np.diff(tic))
 
     # actually chunk the information about the cylinder

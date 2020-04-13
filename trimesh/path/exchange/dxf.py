@@ -3,12 +3,13 @@ import numpy as np
 
 from string import Template
 
+
 from ..arc import to_threepoint
 from ..entities import Line, Arc, BSpline, Text
 
+from ... import resources
 from ...constants import log
 from ...constants import tol_path as tol
-from ...resources import get_resource
 from ... import util
 from ... import grouping
 
@@ -60,7 +61,7 @@ XRECORD_MAX_INDEX = 368
 
 # get the TEMPLATES for exporting DXF files
 TEMPLATES = {k: Template(v) for k, v in json.loads(
-    get_resource('dxf.json.template')).items()}
+    resources.get('dxf.json.template')).items()}
 
 
 def load_dxf(file_obj, **kwargs):
@@ -238,36 +239,30 @@ def load_dxf(file_obj, **kwargs):
         """
         Convert a DXF TEXT entity into a native text entity.
         """
-        if '50' in e:
-            # rotation angle converted to radians
-            angle = np.radians(float(e['50']))
-        else:
-            # otherwise no rotation
-            angle = 0.0
-
         # text with leading and trailing whitespace removed
         text = e['1'].strip()
-
-        # height of text
-        if '40' in e:
+        # try getting optional height of text
+        try:
             height = float(e['40'])
-        else:
+        except BaseException:
             height = None
-
+        try:
+            # rotation angle converted to radians
+            angle = np.radians(float(e['50']))
+        except BaseException:
+            # otherwise no rotation
+            angle = 0.0
         # origin point
-        origin = np.array([e['10'],
-                           e['20']]).astype(np.float64)
-
-        # an origin- relative point (so transforms work)
+        origin = np.array(
+            [e['10'], e['20']], dtype=np.float64)
+        # an origin-relative point (so transforms work)
         vector = origin + [np.cos(angle), np.sin(angle)]
-
         # try to extract a (horizontal, vertical) text alignment
         align = ['center', 'center']
         try:
             align[0] = ['left', 'center', 'right'][int(e['72'])]
         except BaseException:
             pass
-
         # append the entity
         entities.append(Text(origin=len(vertices),
                              vector=len(vertices) + 1,
@@ -483,15 +478,19 @@ def load_dxf(file_obj, **kwargs):
 
 def export_dxf(path, layers=None):
     """
-    Export a 2D path object to a DXF file
+    Export a 2D path object to a DXF file.
 
     Parameters
     ----------
-    path: trimesh.path.path.Path2D
+    path : trimesh.path.path.Path2D
+      Input geometry to export
+    layers : None, set or iterable
+      If passed only export the layers specified
 
     Returns
     ----------
-    export: str, path formatted as a DXF file
+    export : str
+      Path formatted as a DXF file
     """
 
     def format_points(points,
@@ -533,7 +532,7 @@ def export_dxf(path, layers=None):
         if as_2D:
             group = group[:, :2]
             three = three[:, :2]
-
+        # join into result string
         packed = '\n'.join('{:d}\n{:.12f}'.format(g, v)
                            for g, v in zip(group.reshape(-1),
                                            three.reshape(-1)))
@@ -554,19 +553,13 @@ def export_dxf(path, layers=None):
         subs : dict
           Has keys 'COLOR', 'LAYER', 'NAME'
         """
+        # TODO : convert RGBA entity.color to index
         subs = {'COLOR': 255,  # default is ByLayer
                 'LAYER': 0,
                 'NAME': str(id(entity))[:16]}
-
-        if hasattr(entity, 'color'):
-            # all colors must be integers between 0-255
-            color = str(entity.color)
-            if str.isnumeric(color):
-                subs['COLOR'] = int(color) % 256
-
         if hasattr(entity, 'layer'):
-            subs['LAYER'] = str(entity.layer)
-
+            # make sure layer name is forced into ASCII
+            subs['LAYER'] = util.to_ascii(entity.layer)
         return subs
 
     def convert_line(line, vertices):
@@ -674,19 +667,21 @@ def export_dxf(path, layers=None):
         """
         Convert a Text entity to DXF string.
         """
+        # start with layer info
         sub = entity_info(txt)
-
         # get the origin point of the text
-        sub['ORIGIN'] = format_points(vertices[[txt.origin]],
-                                      increment=False)
+        sub['ORIGIN'] = format_points(
+            vertices[[txt.origin]], increment=False)
         # rotation angle in degrees
         sub['ANGLE'] = np.degrees(txt.angle(vertices))
         # actual string of text with spaces escaped
-        sub['TEXT'] = txt.text.replace(' ', _SAFESPACE)
+        # force into ASCII to avoid weird encoding issues
+        sub['TEXT'] = txt.text.replace(' ', _SAFESPACE).encode(
+            'ascii', errors='ignore').decode('ascii')
         # height of text
         sub['HEIGHT'] = txt.height
-
-        return TEMPLATES['text'].substitute(sub)
+        result = TEMPLATES['text'].substitute(sub)
+        return result
 
     def convert_generic(entity, vertices):
         """
@@ -713,20 +708,19 @@ def export_dxf(path, layers=None):
                 continue
         if name in conversions:
             converted = conversions[name](e, path.vertices).strip()
-            # only save if we converted something
             if len(converted) > 0:
+                # only save if we converted something
                 collected.append(converted)
         else:
             log.debug('Entity type %s not exported!', name)
 
+    # join all entities into one string
     entities_str = '\n'.join(collected)
-
     hsub = {'BOUNDS_MIN': format_points([path.bounds[0]]),
             'BOUNDS_MAX': format_points([path.bounds[1]]),
             'LUNITS': '1'}
     if path.units in _UNITS_TO_DXF:
         hsub['LUNITS'] = _UNITS_TO_DXF[path.units]
-
     # sections of the DXF
     header = TEMPLATES['header'].substitute(hsub)
     # entities section
@@ -739,23 +733,21 @@ def export_dxf(path, layers=None):
     # although Draftsight, LibreCAD, and Inkscape don't care
     # what a giant legacy piece of shit
     # strip out all leading and trailing whitespace
-    sections = [i.strip() for i in [header,
-                                    entities,
-                                    footer]
+    sections = [i.strip() for i in
+                [header, entities, footer]
                 if len(i) > 0]
-
+    # create the joined string blob
     blob = '\n'.join(sections).replace(_SAFESPACE, ' ')
-
     # run additional self- checks
     if tol.strict:
         # check that every line pair is (group code, value)
         lines = str.splitlines(str(blob))
-
         # should be even number of lines
         assert (len(lines) % 2) == 0
-
         # group codes should all be convertible to int and positive
         assert all(int(i) >= 0 for i in lines[::2])
+        # make sure we didn't slip any unicode in there
+        blob.encode('ascii')
 
     return blob
 
@@ -1009,8 +1001,8 @@ def _teigha_convert(data, extension='dwg'):
         raise ValueError('conversion using Teigha failed!')
 
     # load converted file into a string
-    with open(name_result, 'r') as f:
-        converted = f.read()
+    with open(name_result, 'rb') as f:
+        converted = f.read().decode(errors='ignore')
 
     # remove the temporary directories
     shutil.rmtree(dir_out)

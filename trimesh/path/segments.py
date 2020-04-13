@@ -11,6 +11,7 @@ from .. import util
 from .. import grouping
 from .. import geometry
 from .. import interval
+from .. import transformations
 
 from ..constants import tol
 
@@ -225,7 +226,7 @@ def split(segments, points, atol=1e-5):
 
 def unique(segments, digits=5):
     """
-    Find unique line segments.
+    Find unique non-zero line segments.
 
     Parameters
     ------------
@@ -245,13 +246,16 @@ def unique(segments, digits=5):
     inverse = grouping.unique_rows(
         segments.reshape((-1, segments.shape[2])),
         digits=digits)[1].reshape((-1, 2))
-
     # make sure rows are sorted
     inverse.sort(axis=1)
-    # find rows that occur once
-    index = grouping.unique_rows(inverse)
+    # remove segments where both indexes are the same
+    mask = np.zeros(len(segments), dtype=np.bool)
+    # only include the first occurrence of a segment
+    mask[grouping.unique_rows(inverse)[0]] = True
+    # remove segments that are zero-length
+    mask[inverse[:, 0] == inverse[:, 1]] = False
     # apply the unique mask
-    unique = segments[index[0]]
+    unique = segments[mask]
 
     return unique
 
@@ -322,7 +326,7 @@ def overlap(origins, vectors, params):
     return length, segments
 
 
-def extrude(segments, height):
+def extrude(segments, height, double_sided=False):
     """
     Extrude 2D line segments into 3D triangles.
 
@@ -332,6 +336,8 @@ def extrude(segments, height):
       2D line segments
     height : float
       Distance to extrude along Z
+    double_sided : bool
+      If true, return 4 triangles per segment
 
     Returns
     -------------
@@ -355,4 +361,193 @@ def extrude(segments, height):
     faces += np.arange(len(segments)).reshape((-1, 1)) * 4
     faces = faces.reshape((-1, 3))
 
+    if double_sided:
+        # stack so they will render from the back
+        faces = np.vstack((
+            faces, np.fliplr(faces)))
+
     return vertices, faces
+
+
+def length(segments, summed=True):
+    """
+    Extrude 2D line segments into 3D triangles.
+
+    Parameters
+    -------------
+    segments : (n, 2, 2) float
+      2D line segments
+    height : float
+      Distance to extrude along Z
+    double_sided : bool
+      If true, return 4 triangles per segment
+
+    Returns
+    -------------
+    vertices : (n, 3) float
+      Vertices in space
+    faces : (n, 3) int
+      Indices of vertices forming triangles
+    """
+    segments = np.asanyarray(segments)
+    norms = util.row_norm(segments[:, 0, :] - segments[:, 1, :])
+    if summed:
+        return norms.sum()
+    return norms
+
+
+def resample(segments,
+             maxlen,
+             return_index=False,
+             return_count=False):
+    """
+    Resample line segments until no segment
+    is longer than maxlen.
+
+    Parameters
+    -------------
+    segments : (n, 2, 2) float
+      2D line segments
+    maxlen : float
+      The maximum length of a line segment
+    return_index : bool
+      Return the index of the source segment
+    return_count : bool
+      Return how many segments each original was split into
+
+    Returns
+    -------------
+    resampled : (m, 2, 3) float
+      Line segments where no segment is longer than maxlen
+    index : (m,) int
+      [OPTIONAL] The index of segments resampled came from
+    count : (n,) int
+      [OPTIONAL] The count of the original segments
+    """
+    # check arguments
+    maxlen = float(maxlen)
+    segments = np.array(segments, dtype=np.float64)
+
+    # shortcut for endpoints
+    pt1 = segments[:, 0]
+    pt2 = segments[:, 1]
+    # vector between endpoints
+    vec = pt2 - pt1
+    # the integer number of times a segment needs to be split
+    splits = np.ceil(util.row_norm(vec) / maxlen).astype(np.int64)
+
+    # save resulting segments
+    result = []
+    # save index of original segment
+    index = []
+
+    tile = np.tile
+    # generate the line indexes ahead of time
+    stacks = util.stack_lines(np.arange(splits.max() + 1))
+
+    # loop through each count of unique splits needed
+    for split in np.unique(splits):
+        # get a mask of which segments need to be split
+        mask = splits == split
+        # the vector for each incremental length
+        increment = vec[mask] / split
+        # stack the increment vector into the shape needed
+        v = (tile(increment, split + 1).reshape((-1, 3)) *
+             tile(np.arange(split + 1),
+                  len(increment)).reshape((-1, 1)))
+        # stack the origin points correctly
+        o = tile(pt1[mask], split + 1).reshape((-1, 3))
+        # now get each segment as an (split, 3) polyline
+        poly = (o + v).reshape((-1, split + 1, 3))
+        # save the resulting segments
+        # magical slicing is equivalent to:
+        # > [p[stack] for p in poly]
+        result.extend(poly[:, stacks[:split]])
+
+        if return_index:
+            # get the original index from the mask
+            index_original = np.nonzero(mask)[0].reshape((-1, 1))
+            # save one entry per split segment
+            index.append((np.ones((len(poly), split),
+                                  dtype=np.int64) *
+                          index_original).ravel())
+        if tol.strict:
+            # check to make sure every start and end point
+            # from the reconstructed result corresponds
+            for original, recon in zip(segments[mask], poly):
+                assert np.allclose(original[0], recon[0])
+                assert np.allclose(original[-1], recon[-1])
+            # make sure stack slicing was OK
+            assert np.allclose(
+                util.stack_lines(np.arange(split + 1)),
+                stacks[:split])
+
+    # stack into (n, 2, 3) segments
+    result = [np.concatenate(result)]
+
+    if tol.strict:
+        # make sure resampled segments have the same length as input
+        assert np.isclose(length(segments),
+                          length(result[0]),
+                          atol=1e-3)
+
+    # stack additional return options
+    if return_index:
+        # stack original indexes
+        index = np.concatenate(index)
+        if tol.strict:
+            # index should correspond to result
+            assert len(index) == len(result[0])
+            # every segment should be represented
+            assert set(index) == set(range(len(segments)))
+        result.append(index)
+
+    if return_count:
+        result.append(splits)
+
+    if len(result) == 1:
+        return result[0]
+    return result
+
+
+def to_svg(segments, digits=4, matrix=None, merge=True):
+    """
+    Convert (n, 2, 2) line segments to an SVG path string.
+
+    Parameters
+    ------------
+    segments : (n, 2, 2) float
+      Line segments to convert
+    digits : int
+      Number of digits to include in SVG string
+    matrix : None or (3, 3) float
+      Homogeneous 2D transformation to apply before export
+
+    Returns
+    -----------
+    path : str
+      SVG path string with one line per segment
+      IE: 'M 0.1 0.2 L 10 12'
+    """
+    segments = np.array(segments, copy=True)
+    if not util.is_shape(segments, (-1, 2, 2)):
+        raise ValueError('only for (n, 2, 2) segments!')
+
+    # create the array to export
+
+    # apply 2D transformation if passed
+    if matrix is not None:
+        segments = transformations.transform_points(
+            segments.reshape((-1, 2)),
+            matrix=matrix).reshape((-1, 2, 2))
+
+    if merge:
+        # remove duplicate and zero-length segments
+        segments = unique(segments, digits=digits)
+
+    # create the format string for a single line segment
+    base = ' M _ _ L _ _'.replace(
+        '_', '{:0.' + str(int(digits)) + 'f}')
+    # create one large format string then apply points
+    result = (base * len(segments))[1:].format(*segments.ravel())
+    return result

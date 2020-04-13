@@ -1,7 +1,6 @@
-import time
 import numpy as np
 
-from .util import log
+from .util import log, now
 
 
 class ToleranceMesh(object):
@@ -130,13 +129,12 @@ def log_time(method):
     and then emit a log.debug message with the method name
     and how long it took to execute.
     """
-
     def timed(*args, **kwargs):
-        tic = time.time()
+        tic = now()
         result = method(*args, **kwargs)
         log.debug('%s executed in %.4f seconds.',
                   method.__name__,
-                  time.time() - tic)
+                  now() - tic)
         return result
     timed.__name__ = method.__name__
     timed.__doc__ = method.__doc__

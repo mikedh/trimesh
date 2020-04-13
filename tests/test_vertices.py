@@ -13,28 +13,30 @@ class VerticesTest(g.unittest.TestCase):
                   g.get_mesh('cycloidal.ply')]
 
         for m in meshes:
-            # Choose random face indices and make sure that their vertices
-            # contain those face indices
-            rand_faces = g.np.random.randint(low=0, high=len(m.faces), size=100)
-            for f in rand_faces:
-                v_inds = m.faces[f]
-                assert (f in m.vertex_faces[v_inds[0]])
-                assert (f in m.vertex_faces[v_inds[1]])
-                assert (f in m.vertex_faces[v_inds[2]])
+            # make sure every
+            vertex_faces = m.vertex_faces
+            for i, v in enumerate(vertex_faces):
+                # filter out negative indices
+                faces = m.faces[v[v >= 0]]
+                assert all(i in face for face in faces)
 
             # choose some random vertices and make sure their
             # face indices are correct
-            rand_vertices = g.np.random.randint(low=0, high=len(m.vertices), size=100)
+            rand_vertices = g.np.random.randint(
+                low=0, high=len(m.vertices), size=100)
             for v in rand_vertices:
                 v_faces = g.np.where(m.faces == v)[0][::-1]
                 assert (g.np.all(v_faces == m.vertex_faces[v][m.vertex_faces[v] >= 0]))
 
-            # Intentionally cause fallback to looping over vertices and make sure we
-            # get the same result
-            loop_vertex_faces = g.trimesh.geometry.vertex_face_indices(len(m.vertices),
-                                                                       m.faces,
-                                                                       sparse=None)
-            assert (loop_vertex_faces == m.vertex_faces).all()
+            # make mesh degenerate
+            m.faces[0] = [0, 0, 0]
+            m.faces[1] = [1, 1, 0]
+            # make sure every
+            vertex_faces = m.vertex_faces
+            for i, v in enumerate(vertex_faces):
+                # filter out negative indices
+                faces = m.faces[v[v >= 0]]
+                assert all(i in face for face in faces)
 
 
 if __name__ == '__main__':

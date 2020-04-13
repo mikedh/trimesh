@@ -184,7 +184,7 @@ def broken_faces(mesh, color=None):
     broken = [k for k, v in dict(adjacency.degree()).items()
               if v != 3]
     broken = np.array(broken)
-    if color is not None:
+    if color is not None and broken.size != 0:
         # if someone passed a broken color
         color = np.array(color)
         if not (color.shape == (4,) or color.shape == (3,)):
@@ -311,6 +311,15 @@ def fill_holes(mesh):
     if not valid.any():
         return False
 
+    # this is usually the case where two vertices of a triangle are just
+    # over tol.merge apart, but the normal calculation is screwed up
+    # these could be fixed by merging the vertices in question here:
+    # if not valid.all():
+    if mesh.visual.defined and mesh.visual.kind == 'face':
+        color = mesh.visual.face_colors
+    else:
+        color = None
+
     # apply the new faces and vertices
     mesh.faces = np.vstack((mesh._data['faces'], new_faces[valid]))
     mesh.vertices = new_vertices
@@ -327,15 +336,14 @@ def fill_holes(mesh):
     # over tol.merge apart, but the normal calculation is screwed up
     # these could be fixed by merging the vertices in question here:
     # if not valid.all():
-    if mesh.visual.defined and mesh.visual.kind == 'face':
+    if color is not None:
         # if face colors exist, assign the last face color to the new faces
         # note that this is a little cheesey, but it is very inexpensive and
         # is the right thing to do if the mesh is a single color.
-        stored = mesh.visual._data['face_colors']
-        color_shape = np.shape(stored)
+        color_shape = np.shape(color)
         if len(color_shape) == 2:
-            new_colors = np.tile(stored[-1], (np.sum(valid), 1))
-            new_colors = np.vstack((stored,
+            new_colors = np.tile(color[-1], (np.sum(valid), 1))
+            new_colors = np.vstack((color,
                                     new_colors))
             mesh.visual.face_colors = new_colors
 

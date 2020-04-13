@@ -28,7 +28,7 @@ def simulated_brick(face_count, extents, noise, max_iter=10):
     # create the mesh as a simple box
     mesh = trimesh.creation.box(extents=extents)
 
-    # add some systematic error pre- tesselation
+    # add some systematic error pre- tessellation
     mesh.vertices[0] += mesh.vertex_normals[0] + (noise * 2)
 
     # subdivide until we have more faces than we want
@@ -37,7 +37,7 @@ def simulated_brick(face_count, extents, noise, max_iter=10):
             break
         mesh = mesh.subdivide()
 
-    # apply tesselation and random noise
+    # apply tessellation and random noise
     mesh = mesh.permutate.noise(noise)
 
     # randomly rotation with translation
@@ -64,7 +64,7 @@ if __name__ == '__main__':
     # create a "true" mesh
     truth = trimesh.creation.box(extents=extents)
 
-    # (4, 4) float homogenous transform from truth to scan
+    # (4, 4) float homogeneous transform from truth to scan
     # this will do an ICP refinement with initial transforms
     # seeded by the principal components of inertia
     truth_to_scan, cost = truth.register(scan)

@@ -7,7 +7,6 @@ except BaseException:
 class VectorTests(g.unittest.TestCase):
 
     def test_discrete(self):
-
         for d in g.get_2D():
             # store md5 before requesting passive functions
             md5 = d.md5()
@@ -124,7 +123,7 @@ class VectorTests(g.unittest.TestCase):
 
         # layers should match entity count
         assert len(p.layers) == len(p.entities)
-        assert len(g.np.unique(p.layers)) > 1
+        assert len(set(p.layers)) > 1
 
         count = len(p.entities)
 
@@ -166,6 +165,8 @@ class VectorTests(g.unittest.TestCase):
                 raise ValueError(
                     'type bases:',
                     [i.__name__ for i in g.trimesh.util.type_bases(t)])
+        # make sure this doesn't crash with text entities
+        g.trimesh.rendering.convert_to_vertexlist(p)
 
     def test_empty(self):
         # make sure empty paths perform as expected
@@ -229,6 +230,7 @@ class VectorTests(g.unittest.TestCase):
         """
         Test random sampling of polygons
         """
+
         p = g.Point([0, 0]).buffer(1.0)
         count = 100
 
@@ -260,6 +262,18 @@ class VectorTests(g.unittest.TestCase):
                 g.Point([(i + 2) * 2, 0]).buffer(1.0))
             s = path.sample(count=count)
             assert s.shape[1] == 2
+
+    def test_color(self):
+        p = g.get_mesh('2D/wrench.dxf')
+        # make sure we have entities
+        assert len(p.entities) > 0
+        # make sure shape of colors is correct
+        assert p.colors.shape == (len(p.entities), 4)
+        color = [255, 0, 0, 255]
+        # assign a color to the entity
+        p.entities[0].color = color
+        # make sure this is reflected in the path color
+        assert g.np.allclose(p.colors[0], color)
 
 
 class SplitTest(g.unittest.TestCase):
@@ -340,15 +354,14 @@ class CreationTests(g.unittest.TestCase):
 
     def test_circle(self):
         from trimesh.path import creation
-        circle = creation.circle(radius=1.0)
+        circle = creation.circle(radius=1.0, center=(1.0, 1.0))
 
         # it's a discrete circle
         assert g.np.isclose(circle.area, g.np.pi, rtol=0.01)
         # should be centered at 0
         assert g.np.allclose(
             circle.polygons_full[0].centroid, [
-                0.0, 0.0], atol=1e-3)
-
+                1.0, 1.0], atol=1e-3)
         assert len(circle.entities) == 1
         assert len(circle.polygons_closed) == 1
         assert len(circle.polygons_full) == 1

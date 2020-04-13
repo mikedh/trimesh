@@ -1,13 +1,17 @@
 import numpy as np
-import collections
+from collections import deque, defaultdict
 
 try:
+    # `pip install pillow`
+    # optional: used for textured meshes
     import PIL.Image as Image
-except ImportError:
-    pass
+except BaseException as E:
+    # if someone tries to use Image re-raise
+    # the import error so they can debug easily
+    from ..exceptions import ExceptionModule
+    Image = ExceptionModule(E)
 
 from .. import util
-
 from ..visual.color import to_float
 from ..visual.texture import unmerge_faces, TextureVisuals
 from ..visual.material import SimpleMaterial
@@ -417,7 +421,10 @@ def _parse_faces_fallback(lines):
         # take first bit before newline then split by whitespace
         split = line.strip().split('\n')[0].split()
         # split into: ['76/558/76', '498/265/498', '456/267/456']
-        if len(split) == 4:
+        len_split = len(split)
+        if len_split == 3:
+            pass
+        elif len_split == 4:
             # triangulate quad face
             split = [split[0],
                      split[1],
@@ -425,9 +432,19 @@ def _parse_faces_fallback(lines):
                      split[2],
                      split[3],
                      split[0]]
-        elif len(split) != 3:
+        elif len_split > 4:
+            # triangulate polygon, as a triangles fan
+            r_split = []
+            r_split_append = r_split.append
+            for i in range(len(split) - 2):
+                r_split_append(split[0])
+                r_split_append(split[i + 1])
+                r_split_append(split[i + 2])
+            split = r_split
+        else:
             log.warning(
-                'face has {} elements! skipping!'.format(len(split)))
+                'face need at least 3 elements (got {})! skipping!'.format(
+                    len(split)))
             continue
 
         # f is like: '76/558/76'
@@ -510,10 +527,10 @@ def _parse_vertices(text):
             for k, v in starts.items() if v >= 0}
 
     # count the number of data values per row on a sample row
-    per_row = {k: len(v[1].split()) for k, v in data.items()}
+    per_row = {k: len(v[0].split()) for k, v in data.items()}
 
     # convert data values into numpy arrays
-    result = collections.defaultdict(lambda: None)
+    result = defaultdict(lambda: None)
     for k, value in data.items():
         # use joining and fromstring to get as numpy array
         array = np.fromstring(
@@ -586,7 +603,7 @@ def _group_by_material(face_tuples):
     """
 
     # store the chunks grouped by material
-    grouped = collections.defaultdict(lambda: ['', '', []])
+    grouped = defaultdict(lambda: ['', '', []])
     # loop through existring
     for material, obj, chunk in face_tuples:
         grouped[material][0] = material
@@ -688,19 +705,38 @@ def _preprocess_faces(text, split_object=False):
 
 def export_obj(mesh,
                include_normals=True,
-               include_color=True):
+               include_color=True,
+               include_texture=False,
+               digits=8):
     """
-    Export a mesh as a Wavefront OBJ file
+    Export a mesh as a Wavefront OBJ file.
+    TODO: scenes with textured meshes
 
     Parameters
     -----------
     mesh : trimesh.Trimesh
       Mesh to be exported
+    include_normals : bool
+      Include vertex normals in export
+    include_color : bool
+      Include vertex color in export
+    include_texture bool
+      Include texture in export?
+      False by default as it will change the return
+      values to include files that must be saved in the
+      same location as the exported mesh.
+    digits : int
+      Number of digits to include for floating point
+
 
     Returns
     -----------
     export : str
       OBJ format output
+    texture : dict
+      [OPTIONAL]
+      Contains files that need to be saved in the same
+      directory as the exported mesh: {file name : bytes}
     """
     # store the multiple options for formatting
     # vertex indexes for faces
@@ -708,59 +744,94 @@ def export_obj(mesh,
                     ('v', 'vn'): '{}//{}',
                     ('v', 'vt'): '{}/{}',
                     ('v', 'vn', 'vt'): '{}/{}/{}'}
-    # we are going to reference face_formats with this
-    face_type = ['v']
 
-    # OBJ includes vertex color as RGB elements on the same line
-    if include_color and mesh.visual.kind in ['vertex', 'face']:
-        # create a stacked blob with position and color
-        v_blob = np.column_stack((
-            mesh.vertices,
-            to_float(mesh.visual.vertex_colors[:, :3])))
+    # check the input
+    if util.is_instance_named(mesh, 'Trimesh'):
+        meshes = [mesh]
+    elif util.is_instance_named(mesh, 'Scene'):
+        meshes = mesh.dump()
     else:
-        # otherwise just export vertices
-        v_blob = mesh.vertices
+        raise ValueError('must be Trimesh or Scene!')
 
-    # add the first vertex key and convert the array
-    export = 'v ' + util.array_to_string(v_blob,
-                                         col_delim=' ',
-                                         row_delim='\nv ',
-                                         digits=8) + '\n'
+    objects = deque([])
 
-    # only include vertex normals if they're already stored
-    if include_normals and 'vertex_normals' in mesh._cache:
-        # if vertex normals are stored in cache export them
-        face_type.append('vn')
-        export += 'vn '
-        export += util.array_to_string(mesh.vertex_normals,
-                                       col_delim=' ',
-                                       row_delim='\nvn ',
-                                       digits=8) + '\n'
+    counts = {'v': 0, 'vn': 0, 'vt': 0}
 
-    """
-    TODO: update this to use TextureVisuals
-    if include_texture:
-        # if vertex texture exists and is the right shape export here
-        face_type.append('vt')
-        export += 'vt '
+    for mesh in meshes:
+        # we are going to reference face_formats with this
+        face_type = ['v']
+        # OBJ includes vertex color as RGB elements on the same line
+        if include_color and mesh.visual.kind in ['vertex', 'face']:
+            # create a stacked blob with position and color
+            v_blob = np.column_stack((
+                mesh.vertices,
+                to_float(mesh.visual.vertex_colors[:, :3])))
+        else:
+            # otherwise just export vertices
+            v_blob = mesh.vertices
 
-        export += util.array_to_string(mesh.metadata['vertex_texture'],
-                                       col_delim=' ',
-                                       row_delim='\nvt ',
-                                       digits=8) + '\n'
-    """
+            # add the first vertex key and convert the array
+        # add the vertices
+        export = deque(
+            ['v ' + util.array_to_string(
+                v_blob,
+                col_delim=' ',
+                row_delim='\nv ',
+                digits=digits)])
+        # only include vertex normals if they're already stored
+        if include_normals and 'vertex_normals' in mesh._cache.cache:
+            # if vertex normals are stored in cache export them
+            face_type.append('vn')
+            export.append('vn ' + util.array_to_string(
+                mesh.vertex_normals,
+                col_delim=' ',
+                row_delim='\nvn ',
+                digits=digits))
 
-    # the format for a single vertex reference of a face
-    face_format = face_formats[tuple(face_type)]
-    faces = 'f ' + util.array_to_string(mesh.faces + 1,
-                                        col_delim=' ',
-                                        row_delim='\nf ',
-                                        value_format=face_format)
-    # add the exported faces to the export
-    export += faces
+        tex_data = None
+        if include_texture and hasattr(mesh.visual, 'uv'):
+            # if vertex texture exists and is the right shape
+            face_type.append('vt')
+            # add the uv coordinates
+            export.append('vt ' + util.array_to_string(
+                mesh.visual.uv,
+                col_delim=' ',
+                row_delim='\nvt ',
+                digits=digits))
+            (tex_data,
+             tex_name,
+             mtl_name) = mesh.visual.material.to_obj()
+            # add the reference to the MTL file
+            objects.appendleft('mtllib {}'.format(mtl_name))
+            # add the directive to use the exported material
+            export.appendleft('usemtl {}'.format(tex_name))
+        # the format for a single vertex reference of a face
+        face_format = face_formats[tuple(face_type)]
+        # add the exported faces to the export
+        export.append('f ' + util.array_to_string(
+            mesh.faces + 1 + counts['v'],
+            col_delim=' ',
+            row_delim='\nf ',
+            value_format=face_format))
+        # offset our vertex position
+        counts['v'] += len(mesh.vertices)
 
-    return export
+        # add object name if found in metadata
+        if 'name' in mesh.metadata:
+            export.appendleft(
+                '\no {}'.format(mesh.metadata['name']))
+        # add this object
+        objects.append('\n'.join(export))
+
+    # add a created-with header to the top of the file
+    objects.appendleft('# https://github.com/mikedh/trimesh')
+    # combine elements into a single string
+    text = '\n'.join(objects)
+    # if we exported texture it changes returned values
+    if include_texture and tex_data is not None:
+        return text, tex_data
+
+    return text
 
 
 _obj_loaders = {'obj': load_obj}
-_obj_exporters = {'obj': export_obj}

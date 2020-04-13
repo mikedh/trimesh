@@ -13,15 +13,13 @@ get the others. The two general categories are:
 
 This module only implements diffuse colors at the moment.
 
-Rules
+Goals
 ----------
 1) If nothing is defined sane defaults should be returned
 2) If a user alters or sets a value, that is considered user data
    and should be saved and treated as such.
-3) Only one mode of visual is allowed at a time, and setting or altering
-   a value should transparently change the mode. Color modes are:
-     * vertex colors
-     * face colors
+3) Only one 'mode' of visual (vertex or face) is allowed at a time
+   and setting or altering a value should automatically change the mode.
 """
 
 import numpy as np
@@ -29,12 +27,14 @@ import numpy as np
 import copy
 import colorsys
 
+from .base import Visuals
+
 from .. import util
 from .. import caching
 from .. import grouping
 
 
-class ColorVisuals(object):
+class ColorVisuals(Visuals):
     """
     Store color information about a mesh.
     """
@@ -100,7 +100,8 @@ class ColorVisuals(object):
 
         Returns
         ---------
-        defined: bool, are colors defined or not.
+        defined : bool
+          Are colors defined or not.
         """
         return self.kind is not None
 
@@ -111,7 +112,8 @@ class ColorVisuals(object):
 
         Returns
         ----------
-        mode: 'face', 'vertex', or None
+        mode : str or None
+          One of ('face', 'vertex', None)
         """
         self._verify_crc()
         if 'vertex_colors' in self._data:
@@ -129,7 +131,8 @@ class ColorVisuals(object):
 
         Returns
         ----------
-        crc: int, checksum of data in visual object and its parent mesh
+        crc : int
+          Checksum of data in visual object and its parent mesh
         """
         # will make sure everything has been transferred
         # to datastore that needs to be before returning crc
@@ -455,21 +458,6 @@ class ColorVisuals(object):
         result = objects.concatenate(self, other, *args)
         return result
 
-    def __add__(self, other):
-        """
-        Concatenate two ColorVisuals objects into a single object.
-
-        Parameters
-        -----------
-        other: ColorVisuals object
-
-        Returns
-        -----------
-        result: ColorVisuals object containing information from current
-                object and other in the order (self, other)
-        """
-        return self.concatenate(other)
-
     def _update_key(self, mask, key):
         """
         Mask the value contained in the DataStore at a specified key.
@@ -483,6 +471,74 @@ class ColorVisuals(object):
         mask = np.asanyarray(mask)
         if key in self._data:
             self._data[key] = self._data[key][mask]
+
+
+class VertexColor(Visuals):
+    """
+    Create a simple visual object to hold just vertex colors
+    for objects such as PointClouds.
+    """
+
+    def __init__(self, colors=None, obj=None):
+        """
+        Create a vertex color visual
+        """
+        self.obj = obj
+        self.vertex_colors = colors
+
+    @property
+    def kind(self):
+        return 'vertex'
+
+    def crc(self):
+        return self._colors.crc()
+
+    def update_vertices(self, mask):
+        if self._colors is not None:
+            self._colors = self._colors[mask]
+
+    def update_faces(self, mask):
+        pass
+
+    @property
+    def vertex_colors(self):
+        return self._colors
+
+    @vertex_colors.setter
+    def vertex_colors(self, data):
+        if data is None:
+            self._colors = caching.tracked_array(None)
+        else:
+            # tile single color into color array
+            data = np.asanyarray(data)
+            if data.shape in [(3,), (4,)]:
+                data = np.tile(data, (len(self.obj.vertices), 1))
+            # track changes in colors and convert to RGBA
+            self._colors = caching.tracked_array(to_rgba(data))
+
+    def copy(self):
+        """
+        Return a copy of the current visuals
+        """
+        return copy.deepcopy(self)
+
+    def concatenate(self, other):
+        """
+        Concatenate this visual object with another VertexVisuals.
+
+        Parameters
+        -----------
+        other : VertexColors or ColorVisuals
+          Other object to concatenate
+
+        Returns
+        ------------
+        concate : VertexColor
+          Object with both colors
+        """
+        return VertexColor(colors=np.vstack(
+            self.vertex_colors,
+            other.vertex_colors))
 
 
 def to_rgba(colors, dtype=np.uint8):
@@ -620,9 +676,12 @@ def vertex_to_face_color(vertex_colors, faces):
     return face_colors.astype(np.uint8)
 
 
-def face_to_vertex_color(mesh, face_colors, dtype=np.uint8):
+def face_to_vertex_color(
+        mesh,
+        face_colors,
+        dtype=np.uint8):
     """
-    Convert a list of face colors into a list of vertex colors.
+    Convert face colors into vertex colors.
 
     Parameters
     -----------
@@ -635,12 +694,13 @@ def face_to_vertex_color(mesh, face_colors, dtype=np.uint8):
     vertex_colors: (m,4) dtype, colors for each vertex
     """
     rgba = to_rgba(face_colors)
-    vertex_colors = mesh.faces_sparse.dot(
-        rgba.astype(np.float64))
-    vertex_colors /= mesh.faces_sparse.sum(axis=1)
-    vertex_colors = vertex_colors.astype(dtype)
+    vertex = mesh.faces_sparse.dot(rgba.astype(np.float64))
+    vertex = (vertex / mesh.vertex_degree.reshape(
+        (-1, 1))).astype(dtype)
 
-    return vertex_colors
+    assert vertex.shape == (len(mesh.vertices), 4)
+
+    return vertex
 
 
 def colors_to_materials(colors, count=None):

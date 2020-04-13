@@ -25,7 +25,7 @@ class FileTests(g.unittest.TestCase):
         try:
             import psutil
         except ImportError:
-            g.log.error('no psutil', exc_info=True)
+            g.log.warning('no psutil, exiting')
             return
 
         # a reference to current process

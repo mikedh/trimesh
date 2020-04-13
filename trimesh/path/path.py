@@ -1,19 +1,18 @@
 """
 path.py
+-----------
 
-A library designed to work with vector paths.
+A module designed to work with vector paths such as
+those stored in a DXF or SVG file.
 """
 import numpy as np
 
 import copy
 import collections
 
-from shapely.geometry import Polygon
-from scipy.spatial import cKDTree as KDTree
-
 from ..points import plane_fit
 from ..geometry import plane_transform
-
+from ..visual import to_rgba
 from ..constants import log
 from ..constants import tol_path as tol
 
@@ -24,7 +23,8 @@ from .. import units
 from .. import bounds
 from .. import caching
 from .. import grouping
-from .. import transformations
+from .. import exceptions
+from .. import transformations as tf
 
 from . import raster
 from . import repair
@@ -36,39 +36,35 @@ from . import traversal
 
 from .exchange.export import export_path
 
-try:
-    # try running shapely speedups
-    # these mostly speed up object instantiation
-    from shapely import speedups
-    if speedups.available:
-        speedups.enable()
-except BaseException:
-    pass
+from scipy.spatial import cKDTree
+from shapely.geometry import Polygon
 
 try:
     import networkx as nx
 except BaseException as E:
     # create a dummy module which will raise the ImportError
     # or other exception only when someone tries to use networkx
-    from .exceptions import ExceptionModule
-    nx = ExceptionModule(E)
+    nx = exceptions.ExceptionModule(E)
 
 
 class Path(object):
     """
-    A Path object consists of:
+    A Path object consists of vertices and entities. Vertices
+    are a simple (n, dimension) float array of points in space.
 
-    vertices: (n,[2|3]) coordinates, stored in self.vertices
-
-    entities: geometric primitives (aka Lines, Arcs, etc.)
-              that reference indexes in self.vertices
+    Entities are a list of objects representing geometric
+    primitives, such as Lines, Arcs, BSpline, etc. All entities
+    reference vertices by index, so any transform applied to the
+    simple vertex array is applied to the entity.
     """
 
     def __init__(self,
                  entities=None,
                  vertices=None,
                  metadata=None,
-                 process=True):
+                 process=True,
+                 colors=None,
+                 **kwargs):
         """
         Instantiate a path object.
 
@@ -86,11 +82,15 @@ class Path(object):
 
         self.entities = entities
         self.vertices = vertices
-        self.metadata = dict()
 
+        # assign each color to each entity
+        self.colors = colors
+        # collect metadata into new dictionary
+        self.metadata = dict()
         if metadata.__class__.__name__ == 'dict':
             self.metadata.update(metadata)
 
+        # cache will dump whenever self.crc changes
         self._cache = caching.Cache(id_function=self.crc)
 
         if process:
@@ -98,15 +98,65 @@ class Path(object):
             # aren't merged properly
             self.merge_vertices()
 
+    def __repr__(self):
+        """
+        Print a quick summary of the number of vertices and entities.
+        """
+        return '<trimesh.{}(vertices.shape={}, len(entities)={})>'.format(
+            type(self).__name__,
+            self.vertices.shape,
+            len(self.entities))
+
     def process(self):
         """
-        Apply basic cleaning functions to the Path object, in- place.
+        Apply basic cleaning functions to the Path object in- place.
         """
-        log.debug('Processing drawing')
         with self._cache:
             for func in self._process_functions():
                 func()
         return self
+
+    @property
+    def colors(self):
+        """
+        Colors are stored per-entity.
+
+        Returns
+        ------------
+        colors : (len(entities), 4) uint8
+          RGBA colors for each entity
+        """
+        # start with default colors
+        colors = np.ones((len(self.entities), 4))
+        colors = (colors * [100, 100, 100, 255]).astype(np.uint8)
+        # collect colors from entities
+        for i, e in enumerate(self.entities):
+            if hasattr(e, 'color') and e.color is not None:
+                colors[i] = to_rgba(e.color)
+        # don't allow parts of the color array to be written
+        colors.flags['WRITEABLE'] = False
+        return colors
+
+    @colors.setter
+    def colors(self, values):
+        """
+        Set the color for every entity in the Path.
+
+        Parameters
+        ------------
+        values : (len(entities), 4) uint8
+          Color of each entity
+        """
+        # if not set return
+        if values is None:
+            return
+        # make sure colors are RGBA
+        colors = to_rgba(values)
+        if len(colors) != len(self.entities):
+            raise ValueError('colors must be per-entity!')
+        # otherwise assign each color to the entity
+        for c, e in zip(colors, self.entities):
+            e.color = c
 
     @property
     def vertices(self):
@@ -114,10 +164,19 @@ class Path(object):
 
     @vertices.setter
     def vertices(self, values):
-        self._vertices = caching.tracked_array(values, dtype=np.float64)
+        self._vertices = caching.tracked_array(
+            values, dtype=np.float64)
 
     @property
     def entities(self):
+        """
+        The actual entities making up the path.
+
+        Returns
+        -----------
+        entities : (n,) trimesh.path.entities.Entity
+          Entities such as Line, Arc, or BSpline curves
+        """
         return self._entities
 
     @entities.setter
@@ -130,17 +189,16 @@ class Path(object):
     @property
     def layers(self):
         """
-        If entities have a layer defined, return it.
+        Get a list of the layer for every entity.
 
         Returns
         ---------
-        layers: (len(entities), ) list of str
+        layers : (len(entities), ) any
+          Whatever is stored in each `entity.layer`
         """
-        layer = ['NONE'] * len(self.entities)
-        for i, e in enumerate(self.entities):
-            if hasattr(e, 'layer'):
-                layer[i] = str(e.layer)
-        return layer
+        # layer is a required property for entities
+        layers = [e.layer for e in self.entities]
+        return layers
 
     def crc(self):
         """
@@ -148,13 +206,14 @@ class Path(object):
 
         Returns
         ------------
-        crc: int, CRC of entity points and vertices
+        crc : int
+          CRC of entity points and vertices
         """
         # first CRC the points in every entity
-        target = caching.crc32(bytes().join(e._bytes()
-                                            for e in self.entities))
-        # add the CRC for the vertices
-        target ^= self.vertices.crc()
+        target = caching.crc32(bytes().join(
+            e._bytes() for e in self.entities))
+        # XOR the CRC for the vertices
+        target ^= self.vertices.fast_hash()
         return target
 
     def md5(self):
@@ -163,12 +222,13 @@ class Path(object):
 
         Returns
         ------------
-        md5: str, two appended MD5 hashes
+        md5 : str
+          Appended MD5 hashes
         """
         # first MD5 the points in every entity
         target = '{}{}'.format(
-            util.md5_object(bytes().join(e._bytes()
-                                         for e in self.entities)),
+            util.md5_object(bytes().join(
+                e._bytes() for e in self.entities)),
             self.vertices.md5())
 
         return target
@@ -180,7 +240,8 @@ class Path(object):
 
         Returns
         ---------
-        paths: (n,) sequence of (*,) int referencing self.entities
+        paths : (n,) sequence of (*,) int
+          Referencing self.entities
         """
         paths = traversal.closed_paths(self.entities,
                                        self.vertices)
@@ -193,7 +254,8 @@ class Path(object):
 
         Returns
         ----------
-        dangling: (n,) int, index of self.entities
+        dangling : (n,) int
+          Index of self.entities
         """
         if len(self.paths) == 0:
             return np.arange(len(self.entities))
@@ -210,10 +272,10 @@ class Path(object):
 
         Returns
         ----------
-        kdtree: scipy.spatial.cKDTree object holding self.vertices
+        kdtree : scipy.spatial.cKDTree
+          Object holding self.vertices
         """
-
-        kdtree = KDTree(self.vertices.view(np.ndarray))
+        kdtree = cKDTree(self.vertices.view(np.ndarray))
         return kdtree
 
     @property
@@ -225,11 +287,24 @@ class Path(object):
         Returns
         ----------
         scale : float
-            Approximate size of the world holding this path
+          Approximate size of the world holding this path
         """
         # use vertices peak-peak rather than exact extents
         scale = float((self.vertices.ptp(axis=0) ** 2).sum() ** .5)
         return scale
+
+    @caching.cache_decorator
+    def length(self):
+        """
+        The total discretized length of every entity.
+
+        Returns
+        --------
+        length: float, summed length of every entity
+        """
+        length = float(sum(i.length(self.vertices)
+                           for i in self.entities))
+        return length
 
     @caching.cache_decorator
     def bounds(self):
@@ -238,7 +313,8 @@ class Path(object):
 
         Returns
         ----------
-        bounds: (2, dimension) float, (min, max) coordinates
+        bounds : (2, dimension) float
+          AABB with (min, max) coordinates
         """
         # get the exact bounds of each entity
         # some entities (aka 3- point Arc) have bounds that can't
@@ -253,6 +329,20 @@ class Path(object):
                          points.max(axis=0)],
                         dtype=np.float64)
 
+    @caching.cache_decorator
+    def centroid(self):
+        """
+        Return the centroid of axis aligned bounding box enclosing
+        all entities of the path object.
+
+        Returns
+        -----------
+        centroid : (d,) float
+          Approximate centroid of the path
+        """
+        centroid = self.bounds.mean(axis=0)
+        return centroid
+
     @property
     def extents(self):
         """
@@ -260,7 +350,8 @@ class Path(object):
 
         Returns
         ---------
-        extents: (dimension,) float, edge length of AABB
+        extents : (dimension,) float
+          Edge length of AABB
         """
         return self.bounds.ptp(axis=0)
 
@@ -271,7 +362,8 @@ class Path(object):
 
         Returns
         -----------
-        units: str, current unit system
+        units : str
+          Current unit system
         """
         if 'units' in self.metadata:
             return self.metadata['units']
@@ -288,8 +380,10 @@ class Path(object):
 
         Parameters
         -----------
-        desired: str, unit system to convert to
-        guess:   bool, if True will attempt to guess units
+        desired : str
+          Unit system to convert to
+        guess : bool
+          If True will attempt to guess units
         """
         units._convert_units(self,
                              desired=desired,
@@ -381,7 +475,7 @@ class Path(object):
         Parameters
         -----------
         transform : (d+1, d+1) float
-          Homogeneous transformation for vertices
+          Homogeneous transformations for vertices
         """
         dimension = self.vertices.shape[1]
         transform = np.asanyarray(transform, dtype=np.float64)
@@ -399,7 +493,7 @@ class Path(object):
         # apply transform to discretized paths
         if 'discrete' in self._cache.cache:
             cache['discrete'] = np.array([
-                transformations.transform_points(
+                tf.transform_points(
                     d, matrix=transform)
                 for d in self.discrete])
 
@@ -418,7 +512,7 @@ class Path(object):
                 cache[key] = self._cache.cache[key]
 
         # transform vertices in place
-        self.vertices = transformations.transform_points(
+        self.vertices = tf.transform_points(
             self.vertices,
             matrix=transform)
         # explicitly clear the cache
@@ -427,6 +521,7 @@ class Path(object):
 
         # populate the things we wangled
         self._cache.cache.update(cache)
+        return self
 
     def apply_scale(self, scale):
         """
@@ -440,7 +535,7 @@ class Path(object):
         dimension = self.vertices.shape[1]
         matrix = np.eye(dimension + 1)
         matrix[:dimension, :dimension] *= scale
-        self.apply_transform(matrix)
+        return self.apply_transform(matrix)
 
     def apply_translation(self, offset):
         """
@@ -461,7 +556,7 @@ class Path(object):
         # apply the offset
         matrix[:dimension, dimension] = offset
 
-        self.apply_transform(matrix)
+        return self.apply_transform(matrix)
 
     def apply_layer(self, name):
         """
@@ -483,34 +578,32 @@ class Path(object):
         Returns
         -----------
         matrix : (dimension + 1, dimension + 1) float
-          Homogeneous transformation that was applied
+          Homogeneous transformations that was applied
           to the current Path object.
         """
-        dimension = self.vertices.shape[1]
-        matrix = np.eye(dimension + 1)
-        matrix[:dimension, dimension] = -self.vertices.min(axis=0)
+        # transform to the lower left corner
+        matrix = tf.translation_matrix(-self.bounds[0])
+        # cleanly apply trransformation matrix
         self.apply_transform(matrix)
+
         return matrix
 
     def merge_vertices(self, digits=None):
         """
-        Merges vertices which are identical and replace references.
+        Merges vertices which are identical and replace references
+        by altering `self.entities` and `self.vertices`
 
         Parameters
         --------------
         digits : None, or int
           How many digits to consider when merging vertices
-
-        Alters
-        -----------
-        self.entities : entity.points re- referenced
-        self.vertices : duplicates removed
         """
         if len(self.vertices) == 0:
             return
         if digits is None:
-            digits = util.decimal_to_digits(tol.merge * self.scale,
-                                            min_digits=1)
+            digits = util.decimal_to_digits(
+                tol.merge * self.scale,
+                min_digits=1)
 
         unique, inverse = grouping.unique_rows(self.vertices,
                                                digits=digits)
@@ -706,7 +799,8 @@ class Path(object):
 
         Returns
         ---------
-        copied: Path object, copy of self
+        copied : Path object
+          Copy of self
         """
 
         metadata = {}
@@ -722,7 +816,8 @@ class Path(object):
         # copy the core data
         copied = type(self)(entities=copy.deepcopy(self.entities),
                             vertices=copy.deepcopy(self.vertices),
-                            metadata=metadata)
+                            metadata=metadata,
+                            process=False)
 
         cache = {}
         # try to copy the cache over to the new object
@@ -773,13 +868,14 @@ class Path(object):
 
 
 class Path3D(Path):
+    """
+    Hold multiple vector curves (lines, arcs, splines, etc) in 3D.
+    """
 
     def _process_functions(self):
         return [self.merge_vertices,
                 self.remove_duplicate_entities,
-                self.remove_unreferenced_vertices,
-                self.generate_closed_paths,
-                self.generate_discrete]
+                self.remove_unreferenced_vertices]
 
     def to_planar(self,
                   to_2D=None,
@@ -809,7 +905,7 @@ class Path3D(Path):
         planar : trimesh.path.Path2D
                    Current path transformed onto plane
         to_3D :  (4,4) float
-                   Homeogenous transformation to move planar
+                   Homeogenous transformations to move planar
                    back into 3D space
         """
         # which vertices are actually referenced
@@ -842,8 +938,8 @@ class Path3D(Path):
             raise ValueError('unable to create transform!')
 
         # transform all vertices to 2D plane
-        flat = transformations.transform_points(self.vertices,
-                                                to_2D)
+        flat = tf.transform_points(self.vertices,
+                                   to_2D)
 
         # Z values of vertices which are referenced
         heights = flat[referenced][:, 2]
@@ -864,7 +960,7 @@ class Path3D(Path):
         # exactly Z=0 adjust it so the returned transform does
         if np.abs(height) > tol.planar:
             # adjust to_3D transform by height
-            adjust = transformations.translation_matrix(
+            adjust = tf.translation_matrix(
                 [0, 0, height])
             # apply the height adjustment to_3D
             to_3D = np.dot(to_3D, adjust)
@@ -930,6 +1026,9 @@ class Path3D(Path):
 
 
 class Path2D(Path):
+    """
+    Hold multiple vector curves (lines, arcs, splines, etc) in 3D.
+    """
 
     def show(self, annotations=True):
         """
@@ -1071,8 +1170,8 @@ class Path2D(Path):
         vertices = np.column_stack((copy.deepcopy(self.vertices),
                                     np.zeros(len(self.vertices))))
         if transform is not None:
-            vertices = transformations.transform_points(vertices,
-                                                        transform)
+            vertices = tf.transform_points(vertices,
+                                           transform)
         # make sure everything is deep copied
         path_3D = Path3D(entities=copy.deepcopy(self.entities),
                          vertices=vertices,
@@ -1144,32 +1243,6 @@ class Path2D(Path):
         """
         area = float(sum(i.area for i in self.polygons_full))
         return area
-
-    @caching.cache_decorator
-    def centroid(self):
-        """
-        Return the centroid of the path object.
-
-        Returns
-        -----------
-        centroid : (d,) float
-          Approximate centroid of the path
-        """
-        centroid = self.vertices.mean(axis=0)
-        return centroid
-
-    @caching.cache_decorator
-    def length(self):
-        """
-        The total discretized length of every entity.
-
-        Returns
-        --------
-        length: float, summed length of every entity
-        """
-        length = float(sum(i.length(self.vertices)
-                           for i in self.entities))
-        return length
 
     def extrude(self, height, **kwargs):
         """
@@ -1326,7 +1399,7 @@ class Path2D(Path):
                                         smooth=smooth,
                                         verbose=verbose)
 
-    def split(self):
+    def split(self, **kwargs):
         """
         If the current Path2D consists of n 'root' curves,
         split them into a list of n Path2D objects
@@ -1365,7 +1438,9 @@ class Path2D(Path):
         Plot the entities of the path, with no notion of topology
         """
         import matplotlib.pyplot as plt
+        # keep plot axis scaled the same
         plt.axes().set_aspect('equal', 'datalim')
+        # hardcode a format for each entity type
         eformat = {'Line0': {'color': 'g', 'linewidth': 1},
                    'Line1': {'color': 'y', 'linewidth': 1},
                    'Arc0': {'color': 'r', 'linewidth': 1},
@@ -1375,12 +1450,16 @@ class Path2D(Path):
                    'BSpline0': {'color': 'm', 'linewidth': 1},
                    'BSpline1': {'color': 'm', 'linewidth': 1}}
         for entity in self.entities:
+            # if the entity has it's own plot method use it
             if annotations and hasattr(entity, 'plot'):
                 entity.plot(self.vertices)
                 continue
+            # otherwise plot the discrete curve
             discrete = entity.discrete(self.vertices)
+            # a unique key for entities
             e_key = entity.__class__.__name__ + str(int(entity.closed))
-            fmt = eformat[e_key]
+
+            fmt = eformat[e_key].copy()
             if color is not None:
                 # passed color will override other optons
                 fmt['color'] = color

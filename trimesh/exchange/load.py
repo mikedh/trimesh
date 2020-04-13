@@ -4,6 +4,7 @@ from .. import util
 from .. import visual
 
 from ..base import Trimesh
+from ..parent import Geometry
 from ..points import PointCloud
 from ..scene.scene import Scene, append_scenes
 from ..constants import log_time, log
@@ -21,6 +22,7 @@ from .threemf import _three_loaders
 from .openctm import _ctm_loaders
 from .xml_based import _xml_loaders
 from .binvox import _binvox_loaders
+from .xyz import _xyz_loaders
 
 
 try:
@@ -72,7 +74,6 @@ def available_formats():
     loaders = mesh_formats()
     loaders.extend(path_formats())
     loaders.extend(compressed_loaders.keys())
-
     return loaders
 
 
@@ -101,12 +102,9 @@ def load(file_obj,
       Loaded geometry as trimesh classes
     """
     # check to see if we're trying to load something
-    # that is already a native trimesh object
-    # do the check by name to avoid circular imports
-    out_types = ('Trimesh', 'Path', 'Scene')
-    if any(util.is_instance_named(file_obj, t)
-           for t in out_types):
-        log.info('Loaded called on %s object, returning input',
+    # that is already a native trimesh Geometry subclass
+    if isinstance(file_obj, Geometry):
+        log.info('Load called on %s object, returning input',
                  file_obj.__class__.__name__)
         return file_obj
 
@@ -216,9 +214,6 @@ def load_mesh(file_obj,
         if util.is_file(file_obj):
             file_obj.close()
 
-        log.debug('loaded mesh using %s',
-                  mesh_loaders[file_type].__name__)
-
         if not isinstance(results, list):
             results = [results]
 
@@ -229,6 +224,10 @@ def load_mesh(file_obj,
             loaded[-1].metadata.update(metadata)
         if len(loaded) == 1:
             loaded = loaded[0]
+        # show the repr for loaded
+        log.debug('loaded {} using {}'.format(
+            str(loaded),
+            mesh_loaders[file_type].__name__))
     finally:
         # if we failed to load close file
         if opened:
@@ -458,50 +457,53 @@ def parse_file_args(file_obj,
                     resolver=None,
                     **kwargs):
     """
-    Given a file_obj and a file_type try to turn them into a file-like
-    object and a lowercase string of file type.
+    Given a file_obj and a file_type try to magically convert
+    arguments to a file-like object and a lowercase string of
+    file type.
 
     Parameters
     -----------
-    file_obj:  str: if string represents a file path, returns
-                    -------------------------------------------
-                    file_obj:   an 'rb' opened file object of the path
-                    file_type:  the extension from the file path
+    file_obj : str
+      if string represents a file path, returns:
+        file_obj:   an 'rb' opened file object of the path
+        file_type:  the extension from the file path
 
-               str: if string is NOT a path, but has JSON-like special characters
-                    -------------------------------------------
-                    file_obj:   the same string passed as file_obj
-                    file_type:  set to 'json'
+     if string is NOT a path, but has JSON-like special characters:
+        file_obj:   the same string passed as file_obj
+        file_type:  set to 'json'
 
-               str: string is a valid URL
-                    -------------------------------------------
-                    file_obj: an open 'rb' file object with retrieved data
-                    file_type: from the extension
+     if string is a valid-looking URL
+        file_obj: an open 'rb' file object with retrieved data
+        file_type: from the extension
 
-               str: string is not an existing path or a JSON-like object
-                    -------------------------------------------
-                    ValueError will be raised as we can't do anything with input
+     if string is none of those:
+        raise ValueError as we can't do anything with input
 
-               file like object: we cannot grab information on file_type automatically
-                    -------------------------------------------
-                    ValueError will be raised if file_type is None
-                    file_obj:  same as input
-                    file_type: same as input
+     if file like object:
+        ValueError will be raised if file_type is None
+        file_obj:  same as input
+        file_type: same as input
 
-               other object: like a shapely.geometry.Polygon, etc:
-                    -------------------------------------------
-                    file_obj:  same as input
-                    file_type: if None initially, set to the class name
-                               (in lower case), otherwise passed through
+     if other object: like a shapely.geometry.Polygon, etc:
+        file_obj:  same as input
+        file_type: if None initially, set to the class name
+                    (in lower case), otherwise passed through
 
-    file_type: str, type of file and handled according to above
+    file_type : str
+         type of file and handled according to above
 
     Returns
     -----------
-    file_obj:  loadable object
-    file_type: str, lower case of the type of file (eg 'stl', 'dae', etc)
-    metadata:  dict, any metadata
-    opened:    bool, did we open the file or not
+    file_obj : file-like object
+      Contains data
+    file_type : str
+      Lower case of the type of file (eg 'stl', 'dae', etc)
+    metadata : dict
+      Any metadata gathered
+    opened : bool
+      Did we open the file or not
+    resolver : trimesh.visual.Resolver
+      Resolver to load other assets
     """
     metadata = {}
     opened = False
@@ -509,8 +511,12 @@ def parse_file_args(file_obj,
             isinstance(kwargs['metadata'], dict)):
         metadata.update(kwargs['metadata'])
 
+    if util.is_pathlib(file_obj):
+        # convert pathlib objects to string
+        file_obj = str(file_obj.absolute())
+
     if util.is_file(file_obj) and file_type is None:
-        raise ValueError('file_type must be set when passing file objects!')
+        raise ValueError('file_type must be set for file objects!')
     if util.is_string(file_obj):
         try:
             # os.path.isfile will return False incorrectly
@@ -569,6 +575,7 @@ def parse_file_args(file_obj,
     # if we still have no resolver try using file_obj name
     if (resolver is None and
         hasattr(file_obj, 'name') and
+        file_obj.name is not None and
             len(file_obj.name) > 0):
         resolver = visual.resolvers.FilePathResolver(file_obj.name)
 
@@ -585,9 +592,9 @@ mesh_loaders = {}
 # assimp has a lot of loaders, but they are all quite slow
 # load first and replace with native loaders where possible
 mesh_loaders.update(_assimp_loaders)
+mesh_loaders.update(_misc_loaders)
 mesh_loaders.update(_stl_loaders)
 mesh_loaders.update(_ctm_loaders)
-mesh_loaders.update(_misc_loaders)
 mesh_loaders.update(_ply_loaders)
 mesh_loaders.update(_xml_loaders)
 mesh_loaders.update(_obj_loaders)
@@ -595,6 +602,8 @@ mesh_loaders.update(_off_loaders)
 mesh_loaders.update(_collada_loaders)
 mesh_loaders.update(_gltf_loaders)
 mesh_loaders.update(_three_loaders)
+mesh_loaders.update(_xyz_loaders)
 
+# collect loaders which return voxel types
 voxel_loaders = {}
 voxel_loaders.update(_binvox_loaders)

@@ -141,13 +141,6 @@ class UtilTests(unittest.TestCase):
         assert a.md5() == hA
 
 
-class IOTest(unittest.TestCase):
-
-    def test_dae(self):
-        a = g.get_mesh('ballA.off')
-        r = a.export(file_type='dae')  # NOQA
-
-
 class ContainsTest(unittest.TestCase):
 
     def test_inside(self):
@@ -311,6 +304,37 @@ class UniqueTests(unittest.TestCase):
 
             # make sure that the truth counts are identical to our counts
             assert np.all(truth_counts == counts)
+
+
+class CommentTests(unittest.TestCase):
+
+    def test_comment(self):
+        # test our comment stripping logic
+        f = g.trimesh.util.comment_strip
+
+        text = 'hey whats up'
+        assert f(text) == text
+
+        text = '#hey whats up'
+        assert f(text) == ''
+
+        text = '   # hey whats up '
+        assert f(text) == ''
+
+        text = '# naahah\nhey whats up'
+        assert f(text) == 'hey whats up'
+
+        text = '#naahah\nhey whats up\nhi'
+        assert f(text) == 'hey whats up\nhi'
+
+        text = '#naahah\nhey whats up\n hi'
+        assert f(text) == 'hey whats up\n hi'
+
+        text = '#naahah\nhey whats up\n hi#'
+        assert f(text) == 'hey whats up\n hi'
+
+        text = 'hey whats up# see here\n hi#'
+        assert f(text) == 'hey whats up\n hi'
 
 
 if __name__ == '__main__':

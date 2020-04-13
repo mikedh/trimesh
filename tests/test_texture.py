@@ -89,6 +89,10 @@ class TextureTest(g.unittest.TestCase):
         m = g.get_mesh('fuze_ascii.ply', process=False)
         check_fuze(m)
 
+        # textured meshes should subdivide OK-ish
+        s = m.subdivide()
+        assert len(s.visual.uv) == len(s.vertices)
+
         # load without doing the vertex separation
         # will look like garbage but represents original
         # and skips "disconnect vertices with different UV"

@@ -28,6 +28,8 @@ class SceneTests(g.unittest.TestCase):
             assert scene_split.md5() == pre[0]
             assert scene_base.md5() == pre[1]
 
+            assert isinstance(scene_base.crc(), int)
+
             # try out scene appending
             concat = scene_split + scene_base
 
@@ -161,6 +163,45 @@ class SceneTests(g.unittest.TestCase):
         assert scene.md5() == md5
         assert converted.md5() != md5
 
+    def test_add_geometry(self):
+        # list-typed geometry should create multiple nodes,
+        # e.g., below code is equivalent to
+        #     scene.add_geometry(geometry[0], node_name='voxels')
+        #     scene.add_geometry(geometry[1], parent_node_name='voxels')
+        scene = g.trimesh.Scene()
+        geometry = [g.trimesh.creation.box(), g.trimesh.creation.box()]
+        scene.add_geometry(geometry, node_name='voxels')
+        assert len(scene.graph.nodes_geometry) == 2
+
+    def test_add_concat(self):
+        # create a scene with just a box in it
+        a = g.trimesh.creation.box().scene()
+        # do the same but move the box first
+        b = g.trimesh.creation.box().apply_translation([2, 2, 2]).scene()
+        # add the second scene to the first
+        a.add_geometry(b)
+        assert len(b.geometry) == 1
+        assert len(a.geometry) == 2
+        assert len(a.graph.nodes_geometry) == 2
+
+    def test_delete(self):
+        # check to make sure our geometry delete cleans up
+        a = g.trimesh.creation.icosphere()
+        b = g.trimesh.creation.icosphere().apply_translation([2, 0, 0])
+        s = g.trimesh.Scene({'a': a, 'b': b})
+
+        assert len(s.geometry) == 2
+        assert len(s.graph.nodes_geometry) == 2
+        # make sure every node has a transform
+        [s.graph[n] for n in s.graph.nodes]
+
+        # delete a geometry
+        s.delete_geometry('a')
+        assert len(s.geometry) == 1
+        assert len(s.graph.nodes_geometry) == 1
+        # if we screwed up the delete this will crash
+        [s.graph[n] for n in s.graph.nodes]
+
     def test_dupe(self):
         m = g.get_mesh('tube.obj')
 
@@ -183,9 +224,27 @@ class SceneTests(g.unittest.TestCase):
         assert len(u.duplicate_nodes) == 1
         assert len(u.duplicate_nodes[0]) == 1
 
+    def test_dedupe(self):
+        # create a scene with two identical meshes
+        a = g.trimesh.creation.box()
+        b = g.trimesh.creation.box().apply_translation([2, 2, 2])
+        s = g.trimesh.Scene([a, b])
+
+        # should have 2 geometries
+        assert len(s.geometry) == 2
+        assert len(s.graph.nodes_geometry) == 2
+
+        # get a de-duplicated scene
+        d = s.deduplicated()
+        # should not have mutated original
+        assert len(s.geometry) == 2
+        assert len(s.graph.nodes_geometry) == 2
+        # should only have one geometry
+        assert len(d.geometry) == 1
+        assert len(d.graph.nodes_geometry) == 1
+
     def test_3DXML(self):
         s = g.get_mesh('rod.3DXML')
-
         assert len(s.geometry) == 3
         assert len(s.graph.nodes_geometry) == 29
 
@@ -258,6 +317,34 @@ class SceneTests(g.unittest.TestCase):
         set_ori = set([len(i) * 2 for i in s.duplicate_nodes])
         set_dbl = set([len(i) for i in r.duplicate_nodes])
         assert set_ori == set_dbl
+
+    def test_empty_scene(self):
+        # test an empty scene
+        empty = g.trimesh.Trimesh([], [])
+        assert empty.bounds is None
+        assert empty.extents is None
+        assert g.np.isclose(empty.scale, 1.0)
+
+        # create a sphere
+        sphere = g.trimesh.creation.icosphere()
+
+        # empty scene should have None for bounds
+        scene = empty.scene()
+        assert scene.bounds is None
+
+        # add a sphere to the empty scene
+        scene.add_geometry(sphere)
+        # bounds should now be populated
+        assert scene.bounds.shape == (2, 3)
+        assert g.np.allclose(scene.bounds, sphere.bounds)
+
+    def test_transform(self):
+        # check transforming scenes
+        scene = g.trimesh.creation.box()
+        assert g.np.allclose(scene.bounds, [[-.5, -.5, -.5], [.5, .5, .5]])
+
+        scene.apply_translation([1, 0, 1])
+        assert g.np.allclose(scene.bounds, [[.5, -.5, .5], [1.5, .5, 1.5]])
 
 
 class GraphTests(g.unittest.TestCase):

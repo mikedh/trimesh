@@ -242,8 +242,11 @@ class CollisionManager(object):
         else:
             raise ValueError('{} not in collision manager!'.format(name))
 
-    def in_collision_single(self, mesh, transform=None,
-                            return_names=False, return_data=False):
+    def in_collision_single(self,
+                            mesh,
+                            transform=None,
+                            return_names=False,
+                            return_data=False):
         """
         Check a single object for collisions against all objects in the
         manager.
@@ -265,10 +268,10 @@ class CollisionManager(object):
         is_collision : bool
           True if a collision occurs and False otherwise
         names : set of str
-          The set of names of objects that collided with the
+          [OPTIONAL] The set of names of objects that collided with the
           provided one
         contacts : list of ContactData
-          All contacts detected
+          [OPTIONAL] All contacts detected
         """
         if transform is None:
             transform = np.eye(4)

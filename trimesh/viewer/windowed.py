@@ -24,7 +24,6 @@ from ..transformations import translation_matrix
 
 pyglet.options['shadow_window'] = False
 
-
 # smooth only when fewer faces than this
 _SMOOTH_MAX_FACES = 100000
 
@@ -45,6 +44,7 @@ class SceneViewer(pyglet.window.Window):
                  offset_lines=True,
                  background=None,
                  window_conf=None,
+                 profile=False,
                  ** kwargs):
         """
         Create a window that will display a trimesh.Scene object
@@ -103,11 +103,18 @@ class SceneViewer(pyglet.window.Window):
         self.batch = pyglet.graphics.Batch()
         self._smooth = smooth
 
+        self._profile = bool(profile)
+        if self._profile:
+            from pyinstrument import Profiler
+            self.Profiler = Profiler
+
         # store kwargs
         self.kwargs = kwargs
 
         # store a vertexlist for an axis marker
         self._axis = None
+        # store a vertexlist for a grid display
+        self._grid = None
         # store scene geometry as vertex lists
         self.vertex_list = {}
         # store geometry hashes
@@ -116,6 +123,8 @@ class SceneViewer(pyglet.window.Window):
         self.vertex_list_mode = {}
         # store meshes that don't rotate relative to viewer
         self.fixed = fixed
+        # store a hidden (don't not display) node.
+        self._nodes_hidden = set()
         # name : texture
         self.textures = {}
 
@@ -169,7 +178,8 @@ class SceneViewer(pyglet.window.Window):
         if self.callback is not None:
             # if no callback period is specified set it to default
             if callback_period is None:
-                callback_period = 1.0 / 100.0
+                # 30 times per second
+                callback_period = 1.0 / 30.0
             # set up a do-nothing periodic task which will
             # trigger `self.on_draw` every `callback_period`
             # seconds if someone has passed a callback
@@ -229,9 +239,54 @@ class SceneViewer(pyglet.window.Window):
             has_tex = False
 
         if has_tex:
-            tex = rendering.material_to_texture(geometry.visual.material)
+            tex = rendering.material_to_texture(
+                geometry.visual.material)
             if tex is not None:
                 self.textures[name] = tex
+
+    def cleanup_geometries(self):
+        """
+        Remove any stored vertex lists that no longer
+        exist in the scene.
+        """
+        # shorthand to scene graph
+        graph = self.scene.graph
+        # which parts of the graph still have geometry
+        geom_keep = set([graph[node][1] for
+                         node in graph.nodes_geometry])
+        # which geometries no longer need to be kept
+        geom_delete = [geom for geom in self.vertex_list
+                       if geom not in geom_keep]
+        for geom in geom_delete:
+            # remove stored vertex references
+            self.vertex_list.pop(geom, None)
+            self.vertex_list_hash.pop(geom, None)
+            self.vertex_list_mode.pop(geom, None)
+            self.textures.pop(geom, None)
+
+    def unhide_geometry(self, node):
+        """
+        If a node is hidden remove the flag and show the
+        geometry on the next draw.
+
+        Parameters
+        -------------
+        node : str
+          Node to display
+        """
+        self._nodes_hidden.discard(node)
+
+    def hide_geometry(self, node):
+        """
+        Don't display the geometry contained at a node on
+        the next draw.
+
+        Parameters
+        -------------
+        node : str
+          Node to not display
+        """
+        self._nodes_hidden.add(node)
 
     def reset_view(self, flags=None):
         """
@@ -246,16 +301,14 @@ class SceneViewer(pyglet.window.Window):
         self.view = {
             'cull': True,
             'axis': False,
+            'grid': False,
             'fullscreen': False,
             'wireframe': False,
             'ball': Trackball(
                 pose=self._initial_camera_transform,
                 size=self.scene.camera.resolution,
                 scale=self.scene.scale,
-                target=self.scene.centroid,
-            ),
-        }
-
+                target=self.scene.centroid)}
         try:
             # if any flags are passed override defaults
             if isinstance(flags, dict):
@@ -424,6 +477,15 @@ class SceneViewer(pyglet.window.Window):
         # perform gl actions
         self.update_flags()
 
+    def toggle_grid(self):
+        """
+        Toggle a rendered grid.
+        """
+        # update state to next index
+        self.view['grid'] = not self.view['grid']
+        # perform gl actions
+        self.update_flags()
+
     def update_flags(self):
         """
         Check the view flags, and call required GL functions.
@@ -453,7 +515,6 @@ class SceneViewer(pyglet.window.Window):
             args = rendering.mesh_to_vertexlist(axis)
             # store the axis as a reference
             self._axis = self.batch.add_indexed(*args)
-
         # case where we DON'T want an axis but a vertexlist
         # IS stored internally
         elif not self.view['axis'] and self._axis is not None:
@@ -461,6 +522,33 @@ class SceneViewer(pyglet.window.Window):
             self._axis.delete()
             # set the reference to None
             self._axis = None
+
+        if self.view['grid'] and self._grid is None:
+            try:
+                # create a grid marker
+                from ..path.creation import grid
+                bounds = self.scene.bounds
+                center = bounds.mean(axis=0)
+                # set the grid to the lowest Z position
+                # also offset by the scale to avoid interference
+                center[2] = bounds[0][2] - (bounds[:, 2].ptp() / 100)
+                # choose the side length by maximum XY length
+                side = bounds.ptp(axis=0)[:2].max()
+                # create an axis marker sized relative to the scene
+                grid_mesh = grid(
+                    side=side,
+                    count=4,
+                    transform=translation_matrix(center))
+                # convert the path to vertexlist args
+                args = rendering.convert_to_vertexlist(grid_mesh)
+                # create ordered args for a vertex list
+                self._grid = self.batch.add_indexed(*args)
+            except BaseException:
+                util.log.warning(
+                    'failed to create grid!', exc_info=True)
+        elif not self.view['grid'] and self._grid is not None:
+            self._grid.delete()
+            self._grid = None
 
     def _update_perspective(self, width, height):
         try:
@@ -495,7 +583,7 @@ class SceneViewer(pyglet.window.Window):
         width, height = self._update_perspective(width, height)
         self.scene.camera.resolution = (width, height)
         self.view['ball'].resize(self.scene.camera.resolution)
-        self.scene.camera_transform = self.view['ball'].pose
+        self.scene.camera_transform[...] = self.view['ball'].pose
 
     def on_mouse_press(self, x, y, buttons, modifiers):
         """
@@ -517,21 +605,21 @@ class SceneViewer(pyglet.window.Window):
             self.view['ball'].set_state(Trackball.STATE_ZOOM)
 
         self.view['ball'].down(np.array([x, y]))
-        self.scene.camera_transform = self.view['ball'].pose
+        self.scene.camera_transform[...] = self.view['ball'].pose
 
     def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
         """
         Pan or rotate the view.
         """
         self.view['ball'].drag(np.array([x, y]))
-        self.scene.camera_transform = self.view['ball'].pose
+        self.scene.camera_transform[...] = self.view['ball'].pose
 
     def on_mouse_scroll(self, x, y, dx, dy):
         """
         Zoom the view.
         """
         self.view['ball'].scroll(dy)
-        self.scene.camera_transform = self.view['ball'].pose
+        self.scene.camera_transform[...] = self.view['ball'].pose
 
     def on_key_press(self, symbol, modifiers):
         """
@@ -546,6 +634,8 @@ class SceneViewer(pyglet.window.Window):
             self.toggle_culling()
         elif symbol == pyglet.window.key.A:
             self.toggle_axis()
+        elif symbol == pyglet.window.key.G:
+            self.toggle_grid()
         elif symbol == pyglet.window.key.Q:
             self.on_close()
         elif symbol == pyglet.window.key.M:
@@ -567,12 +657,16 @@ class SceneViewer(pyglet.window.Window):
                 self.view['ball'].drag([0, -magnitude])
             elif symbol == pyglet.window.key.UP:
                 self.view['ball'].drag([0, magnitude])
-            self.scene.camera_transform = self.view['ball'].pose
+            self.scene.camera_transform[...] = self.view['ball'].pose
 
     def on_draw(self):
         """
         Run the actual draw calls.
         """
+
+        if self._profile:
+            profiler = self.Profiler()
+            profiler.start()
 
         self._update_meshes()
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
@@ -595,10 +689,15 @@ class SceneViewer(pyglet.window.Window):
         if self._axis:
             # we stored it as a vertex list
             self._axis.draw(mode=gl.GL_TRIANGLES)
+        if self._grid:
+            self._grid.draw(mode=gl.GL_LINES)
 
         while len(node_names) > 0:
             count += 1
             current_node = node_names.popleft()
+
+            if current_node in self._nodes_hidden:
+                continue
 
             # get the transform from world to geometry and mesh name
             transform, geometry_name = self.scene.graph.get(current_node)
@@ -670,6 +769,10 @@ class SceneViewer(pyglet.window.Window):
             # disable texture after using
             if texture is not None:
                 gl.glDisable(texture.target)
+
+        if self._profile:
+            profiler.stop()
+            print(profiler.output_text(unicode=True, color=True))
 
     def save_image(self, file_obj):
         """

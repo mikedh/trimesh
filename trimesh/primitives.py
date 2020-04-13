@@ -16,7 +16,8 @@ from . import sample
 from . import caching
 from . import inertia
 from . import creation
-from . import transformations
+from . import triangles
+from . import transformations as tf
 
 from .base import Trimesh
 from .constants import log, tol
@@ -28,10 +29,17 @@ class _Primitive(Trimesh):
     Mesh is generated lazily when vertices or faces are requested.
     """
 
+    # ignore superclass copy directives
+    __copy__ = None
+    __deepcopy__ = None
+
     def __init__(self, *args, **kwargs):
         super(_Primitive, self).__init__(*args, **kwargs)
         self._data.clear()
         self._validate = False
+
+    def __repr__(self):
+        return '<trimesh.primitives.{}>'.format(type(self).__name__)
 
     @property
     def faces(self):
@@ -61,24 +69,34 @@ class _Primitive(Trimesh):
 
     @property
     def face_normals(self):
+        # we need to avoid the logic in the superclass that
+        # is specific to the data model prioritizing faces
         stored = self._cache['face_normals']
         if util.is_shape(stored, (-1, 3)):
             return stored
-        self._create_mesh()
-        return self._cache['face_normals']
+        # just calculate if not stored
+        unit, valid = triangles.normals(self.triangles)
+        normals = np.zeros((len(valid), 3))
+        normals[valid] = unit
+        # store and return
+        self._cache['face_normals'] = normals
+        return normals
 
     @face_normals.setter
     def face_normals(self, values):
         if values is not None:
             log.warning('Primitive face normals are immutable! Not setting!')
 
-    def copy(self):
+    def copy(self, **kwargs):
         """
         Return a copy of the Primitive object.
+
+        Returns
+        -------------
+        copied : object
+          Copy of current primitive
         """
-        result = copy.deepcopy(self)
-        result._cache.clear()
-        return result
+        return copy.deepcopy(self)
 
     def to_mesh(self):
         """
@@ -92,11 +110,13 @@ class _Primitive(Trimesh):
 
     def apply_transform(self, matrix):
         """
-        Apply a transform to the current primitive (sets self.transform)
+        Apply a transform to the current primitive by
+        setting self.transform
 
         Parameters
-        -----------
-        matrix: (4,4) float, homogeneous transformation
+        ------------
+        matrix: (4,4) float
+          Homogeneous transformation
         """
         matrix = np.asanyarray(matrix, order='C', dtype=np.float64)
         if matrix.shape != (4, 4):
@@ -127,7 +147,8 @@ class _PrimitiveAttributes(object):
         self._mutable = True
         for key, value in kwargs.items():
             if key in defaults:
-                self._data[key] = util.convert_like(value, defaults[key])
+                self._data[key] = util.convert_like(
+                    value, defaults[key])
         # if configured as immutable, apply setting after instantiation values
         # are set
         if 'mutable' in kwargs:
@@ -175,6 +196,19 @@ class _PrimitiveAttributes(object):
             keys = list(self._defaults.keys())
             raise ValueError(
                 'Only default attributes {} can be set!'.format(keys))
+
+    def to_kwargs(self):
+        """
+        Return a dict with copies of kwargs for the current
+        Primitive.
+
+        Returns
+        ------------
+        kwargs : dict
+          Arguments to reconstruct current PrimitiveAttributes
+        """
+        return {k: copy.deepcopy(self._data[k])
+                for k in self._defaults.keys()}
 
     def __dir__(self):
         result = sorted(dir(type(self)) +
@@ -240,7 +274,7 @@ class Cylinder(_Primitive):
             transform=self.primitive.transform)
         return tensor
 
-    @property
+    @caching.cache_decorator
     def direction(self):
         """
         The direction of the cylinder's axis.
@@ -296,11 +330,7 @@ class Cylinder(_Primitive):
         return buffered
 
     def _create_mesh(self):
-        log.info('Creating cylinder mesh with r=%f, h=%f %d sections',
-                 self.primitive.radius,
-                 self.primitive.height,
-                 self.primitive.sections)
-
+        log.debug('creating mesh for Cylinder primitive')
         mesh = creation.cylinder(radius=self.primitive.radius,
                                  height=self.primitive.height,
                                  sections=self.primitive.sections,
@@ -334,7 +364,7 @@ class Capsule(_Primitive):
                                               defaults,
                                               kwargs)
 
-    @property
+    @caching.cache_decorator
     def direction(self):
         """
         The direction of the capsule's axis.
@@ -347,10 +377,7 @@ class Capsule(_Primitive):
         return axis
 
     def _create_mesh(self):
-        log.info('Creating capsule mesh with r=%f, h=%f and %d sections',
-                 self.primitive.radius,
-                 self.primitive.height,
-                 self.primitive.sections)
+        log.debug('creating mesh for Capsule primitive')
 
         mesh = creation.capsule(radius=self.primitive.radius,
                                 height=self.primitive.height)
@@ -457,6 +484,7 @@ class Sphere(_Primitive):
         return tensor
 
     def _create_mesh(self):
+        log.debug('creating mesh for Sphere primitive')
         unit = creation.icosphere(subdivisions=self.primitive.subdivisions)
         unit.vertices *= self.primitive.radius
         unit.vertices += self.primitive.center
@@ -539,7 +567,7 @@ class Box(_Primitive):
         else:
             raise ValueError('either count or step must be specified!')
 
-        transformed = transformations.transform_points(
+        transformed = tf.transform_points(
             grid, matrix=self.primitive.transform)
         return transformed
 
@@ -567,7 +595,7 @@ class Box(_Primitive):
         return volume
 
     def _create_mesh(self):
-        log.debug('Creating mesh for box Primitive')
+        log.debug('creating mesh for Box primitive')
         box = creation.box(extents=self.primitive.extents,
                            transform=self.primitive.transform)
 
@@ -578,7 +606,7 @@ class Box(_Primitive):
 
 class Extrusion(_Primitive):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, triangle_args=None, *args, **kwargs):
         """
         Create an Extrusion primitive, which
         is a subclass of Trimesh.
@@ -591,16 +619,18 @@ class Extrusion(_Primitive):
           Transform to apply after extrusion
         height : float
           Height to extrude polygon by
+        triangle_args : str
+          Arguments to pass to triangle
         """
-        super(Extrusion, self).__init__(*args, **kwargs)
-
         # do the import here, fail early if Shapely isn't installed
         from shapely.geometry import Point
-
+        super(Extrusion, self).__init__(*args, **kwargs)
+        # save arguments for triangulation
+        self.triangle_args = triangle_args
+        # set default values
         defaults = {'polygon': Point([0, 0]).buffer(1.0),
                     'transform': np.eye(4),
                     'height': 1.0}
-
         self.primitive = _PrimitiveAttributes(self,
                                               defaults,
                                               kwargs)
@@ -627,8 +657,7 @@ class Extrusion(_Primitive):
     @caching.cache_decorator
     def volume(self):
         """
-        The volume of the primitive extrusion.
-
+        The volume of the Extrusion primitive.
         Calculated from polygon and height to avoid mesh creation.
 
         Returns
@@ -636,11 +665,12 @@ class Extrusion(_Primitive):
         volume : float
           Volume of 3D extrusion
         """
+        # height may be negative
         volume = abs(self.primitive.polygon.area *
                      self.primitive.height)
         return volume
 
-    @property
+    @caching.cache_decorator
     def direction(self):
         """
         Based on the extrudes transform what is the
@@ -651,8 +681,10 @@ class Extrusion(_Primitive):
         direction : (3,) float
           Unit direction vector
         """
-        direction = np.dot(self.primitive.transform[:3, :3],
-                           [0.0, 0.0, np.sign(self.primitive.height)])
+        # only consider rotation and signed height
+        direction = np.dot(
+            self.primitive.transform[:3, :3],
+            [0.0, 0.0, np.sign(self.primitive.height)])
         return direction
 
     @property
@@ -679,7 +711,7 @@ class Extrusion(_Primitive):
         #  3D extents
         extents = np.append(box, abs(self.primitive.height))
         # calculate to_3D transform from 2D obb
-        rotation_Z = np.linalg.inv(transformations.planar_matrix_to_3D(to_origin))
+        rotation_Z = np.linalg.inv(tf.planar_matrix_to_3D(to_origin))
         rotation_Z[2, 3] = self.primitive.height / 2.0
         # combine the 2D OBB transformation with the 2D projection transform
         to_3D = np.dot(self.primitive.transform, rotation_Z)
@@ -695,7 +727,8 @@ class Extrusion(_Primitive):
 
         Parameters
         -----------
-        distance: float, distance along self.extrude_direction to move
+        distance : float
+          Distance along self.extrude_direction to move
         """
         distance = float(distance)
         translation = np.eye(4)
@@ -704,10 +737,10 @@ class Extrusion(_Primitive):
                                translation.copy())
         self.primitive.transform = new_transform
 
-    def buffer(self, distance, distance_height=None):
+    def buffer(self, distance, distance_height=None, **kwargs):
         """
-        Return a new Extrusion object which is expanded in profile and
-        in height by a specified distance.
+        Return a new Extrusion object which is expanded in profile
+        and in height by a specified distance.
 
         Parameters
         --------------
@@ -715,6 +748,8 @@ class Extrusion(_Primitive):
           Distance to buffer polygon
         distance_height : float
           Distance to buffer above and below extrusion
+        kwargs : dict
+          Passed to Extrusion constructor
 
         Returns
         ----------
@@ -732,10 +767,12 @@ class Extrusion(_Primitive):
         height += np.sign(height) * 2.0 * distance_height
 
         # create a new extrusion with a buffered polygon
-        buffered = Extrusion(
+        # use type(self) vs Extrusion to handle subclasses
+        buffered = type(self)(
             transform=self.primitive.transform.copy(),
             polygon=self.primitive.polygon.buffer(distance),
-            height=height)
+            height=height,
+            **kwargs)
 
         # slide the stock along the axis
         buffered.slide(-np.sign(height) * distance_height)
@@ -743,13 +780,13 @@ class Extrusion(_Primitive):
         return buffered
 
     def _create_mesh(self):
-        log.debug('Creating mesh for extrude Primitive')
+        log.debug('creating mesh for Extrusion primitive')
         # extrude the polygon along Z
         mesh = creation.extrude_polygon(
-            self.primitive.polygon,
-            self.primitive.height)
-        # should do proper bookkeeping
-        mesh.apply_transform(self.primitive.transform)
+            polygon=self.primitive.polygon,
+            height=self.primitive.height,
+            transform=self.primitive.transform,
+            triangle_args=self.triangle_args)
 
         # check volume here in unit tests
         if tol.strict and mesh.volume < 0.0:
@@ -758,4 +795,3 @@ class Extrusion(_Primitive):
         # cache mesh geometry in the primitive
         self._cache['vertices'] = mesh.vertices
         self._cache['faces'] = mesh.faces
-        self._cache['face_normals'] = mesh.face_normals

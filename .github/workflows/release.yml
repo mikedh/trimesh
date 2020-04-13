@@ -1,0 +1,189 @@
+name: Release Trimesh
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  formatting:
+    name: Check Code Formatting
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v1
+      with:
+        python-version: 3.8
+    - name: Install Formatting
+      run: |
+        python -m pip install --upgrade pip
+        pip install autopep8 flake8
+    - name: Check Formatting
+      run: |
+        flake8 tests
+        flake8 trimesh
+        flake8 examples
+        flake8 setup.py
+        autopep8 --recursive --aggressive --diff --exit-code trimesh/
+        autopep8 --recursive --aggressive --diff --exit-code examples/
+        autopep8 --recursive --aggressive --diff --exit-code tests/
+
+  wintests:
+    name: Run Windows Unit Tests
+    needs: formatting
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        python-version: [2.7, 3.5, 3.6, 3.7, 3.8]
+        os: [windows-latest]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v1
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install Pytest
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-cov setuptools
+    - name: Install Trimesh Minimal
+      run: pip install .
+    - name: Run Pytest
+      run: python tests/test_inertia.py
+
+  tests:
+    name: Run Unit Tests
+    needs: formatting
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        python-version: [2.7, 3.5, 3.6, 3.7, 3.8]
+        os: [ubuntu-latest, macos-latest]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v1
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install APT On Linux
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update -qq -y
+        sudo apt-get install -qq -y libspatialindex-dev libgeos-dev
+    - name: Install Brew On Mac
+      if: matrix.os == 'macos-latest'
+      run: brew install spatialindex geos
+    - name: Install Pytest
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-cov setuptools
+        pip debug install -vv shapely
+    - name: Install Trimesh
+      run: pip install .[easy]
+    - name: Run Pytest
+      run: pytest
+
+  pypi:
+    name: Release To PyPi
+    needs: [tests, containers]
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python
+      uses: actions/setup-python@v1
+      with:
+        python-version: '3.x'
+    - name: Install publishing dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install setuptools wheel twine
+    - name: Build and publish
+      env:
+        TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
+        TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+      run: |
+        python setup.py sdist bdist_wheel
+        twine upload dist/*
+
+  docs:
+    name: Build Docs
+    needs: containers
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build Docs
+      run: |
+         # build docs in docker image to get working trimesh env for docstrings
+         docker pull trimesh/trimesh:latest
+         docker run --rm --user 0:0 -v `pwd`:/trimesh trimesh/trimesh:latest python /trimesh/docs/build.py
+    - name: Deploy To Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./docs/html
+        force_orphan: true
+
+  containers:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    steps:
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-2
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+    - name: Login to Docker Hub
+      run: echo ${{ secrets.DH_PASS }} | docker login --username mikedh --password-stdin
+    - name: Checkout trimesh
+      uses: actions/checkout@v2
+    - name: Build/Push to DockerHub and AWS ECR
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+        GIT_SHA: ${{ github.sha }}
+      run: |
+        # get the version of trimesh with python
+        export VERSION=$(python -c "exec(open('trimesh/version.py','r').read()); print(__version__)")
+        # tag the image with the short git sha
+        export GIT_SHORT=${GIT_SHA::7}
+        # put a whole bunch of tags on image:
+        # tag with version, git sha, and latest
+        # push to DockerHub and AWS ECR
+        export TAGS="trimesh/trimesh:latest; trimesh/trimesh:$VERSION; trimesh/trimesh:$GIT_SHORT; mikedh/trimesh:latest; mikedh/trimesh:$VERSION; mikedh/trimesh:$GIT_SHORT; $ECR_REGISTRY/$ECR_REPOSITORY:$VERSION; $ECR_REGISTRY/$ECR_REPOSITORY:latest; $ECR_REGISTRY/$ECR_REPOSITORY:$GIT_SHORT"
+        # build image tagged with all our many tags
+        docker build -t `echo "${TAGS//;/$' -t '}"` .
+        # push every tag to remote registry
+        for i in ${TAGS//;/ }; do docker push $i; done;
+    - name: Logout of registries
+      if: always()
+      run: |
+        docker logout ${{ steps.login-ecr.outputs.registry }}
+        docker logout
+
+  release:
+    name: Create GitHub Release
+    needs: [tests, containers]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@master
+      - name: Tag Version
+        id: set_tag
+        run: |
+          export VER=$(python -c "exec(open('trimesh/version.py','r').read());print(__version__)")
+          echo "::set-output name=tag_name::${VER}"
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@latest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.set_tag.outputs.tag_name }}
+          release_name: Release ${{ steps.set_tag.outputs.tag_name }}
+          draft: false
+          prerelease: false

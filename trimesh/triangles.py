@@ -8,6 +8,7 @@ import numpy as np
 
 from . import util
 
+from .util import unitize, diagonal_dot
 from .points import point_plane_distance
 from .constants import tol
 
@@ -78,7 +79,7 @@ def normals(triangles=None, crosses=None):
     if crosses is None:
         crosses = cross(triangles)
     # unitize the cross product vectors
-    unit, valid = util.unitize(crosses, check_valid=True)
+    unit, valid = unitize(crosses, check_valid=True)
     return unit, valid
 
 
@@ -97,26 +98,25 @@ def angles(triangles):
       Angles at vertex positions in radians
       Degenerate angles will be returned as zero
     """
-    # copy triangles so we can unitize in-place
-    triangles = np.array(triangles, dtype=np.float64)
+    # don't copy triangles
+    triangles = np.asanyarray(triangles, dtype=np.float64)
 
     # get a unit vector for each edge of the triangle
-    u = triangles[:, 1] - triangles[:, 0]
-    v = triangles[:, 2] - triangles[:, 0]
-    w = triangles[:, 2] - triangles[:, 1]
+    u = unitize(triangles[:, 1] - triangles[:, 0])
+    v = unitize(triangles[:, 2] - triangles[:, 0])
+    w = unitize(triangles[:, 2] - triangles[:, 1])
 
-    # norm per- row of each vector
-    u /= util.row_norm(u).reshape((-1, 1))
-    v /= util.row_norm(v).reshape((-1, 1))
-    w /= util.row_norm(w).reshape((-1, 1))
+    # run the cosine and per-row dot product
+    result = np.zeros((len(triangles), 3), dtype=np.float64)
+    # clip to make sure we don't float error past 1.0
+    result[:, 0] = np.arccos(np.clip(diagonal_dot(u, v), -1, 1))
+    result[:, 1] = np.arccos(np.clip(diagonal_dot(-u, w), -1, 1))
+    # the third angle is just the remaining
+    result[:, 2] = np.pi - result[:, 0] - result[:, 1]
 
-    # run the cosine and per- row dot product
-    a = np.arccos(np.clip(util.diagonal_dot(u, v), -1, 1))
-    b = np.arccos(np.clip(util.diagonal_dot(-u, w), -1, 1))
-    c = np.pi - a - b
-
-    # convert NaN to 0.0
-    result = np.nan_to_num(np.column_stack([a, b, c]))
+    # a triangle with any zero angles is degenerate
+    # so set all of the angles to zero in that case
+    result[(result < tol.merge).any(axis=1), :] = 0.0
 
     return result
 
@@ -137,7 +137,7 @@ def all_coplanar(triangles):
     """
     triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
-        raise ValueError('Triangles must be (n,3,3)!')
+        raise ValueError('Triangles must be (n, 3, 3)!')
 
     test_normal = normals(triangles)[0]
     test_vertex = triangles[0][0]
@@ -156,7 +156,7 @@ def any_coplanar(triangles):
     """
     triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
-        raise ValueError('Triangles must be (n,3,3)!')
+        raise ValueError('Triangles must be (n, 3, 3)!')
 
     test_normal = normals(triangles)[0]
     test_vertex = triangles[0][0]
@@ -199,7 +199,7 @@ def mass_properties(triangles,
     """
     triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
-        raise ValueError('Triangles must be (n,3,3)!')
+        raise ValueError('Triangles must be (n, 3, 3)!')
 
     if crosses is None:
         crosses = cross(triangles)
@@ -304,8 +304,8 @@ def windings_aligned(triangles, normals_compare):
             'triangles must have shape (n, 3, 3), got %s' % str(triangles.shape))
 
     calculated, valid = normals(triangles)
-    difference = util.diagonal_dot(calculated,
-                                   normals_compare[valid])
+    difference = diagonal_dot(calculated,
+                              normals_compare[valid])
 
     aligned = np.zeros(len(triangles), dtype=np.bool)
     aligned[valid] = difference > 0.0
@@ -330,7 +330,7 @@ def bounds_tree(triangles):
     """
     triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
-        raise ValueError('Triangles must be (n,3,3)!')
+        raise ValueError('Triangles must be (n, 3, 3)!')
 
     # the (n,6) interleaved bounding box for every triangle
     triangle_bounds = np.column_stack((triangles.min(axis=1),
@@ -363,7 +363,7 @@ def nondegenerate(triangles, areas=None, height=None):
     """
     triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
-        raise ValueError('Triangles must be (n,3,3)!')
+        raise ValueError('Triangles must be (n, 3, 3)!')
 
     if height is None:
         height = tol.merge
@@ -394,7 +394,7 @@ def extents(triangles, areas=None):
     """
     triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
-        raise ValueError('Triangles must be (n,3,3)!')
+        raise ValueError('Triangles must be (n, 3, 3)!')
 
     if areas is None:
         areas = area(triangles=triangles,
@@ -443,7 +443,7 @@ def barycentric_to_points(triangles, barycentric):
     triangles = np.asanyarray(triangles, dtype=np.float64)
 
     if not util.is_shape(triangles, (-1, 3, 3)):
-        raise ValueError('Triangles must be (n,3,3)!')
+        raise ValueError('Triangles must be (n, 3, 3)!')
     if barycentric.shape == (2,):
         barycentric = np.ones((len(triangles), 2),
                               dtype=np.float64) * barycentric
@@ -492,22 +492,22 @@ def points_to_barycentric(triangles,
 
     def method_cross():
         n = np.cross(edge_vectors[:, 0], edge_vectors[:, 1])
-        denominator = util.diagonal_dot(n, n)
+        denominator = diagonal_dot(n, n)
 
         barycentric = np.zeros((len(triangles), 3), dtype=np.float64)
-        barycentric[:, 2] = util.diagonal_dot(
+        barycentric[:, 2] = diagonal_dot(
             np.cross(edge_vectors[:, 0], w), n) / denominator
-        barycentric[:, 1] = util.diagonal_dot(
+        barycentric[:, 1] = diagonal_dot(
             np.cross(w, edge_vectors[:, 1]), n) / denominator
         barycentric[:, 0] = 1 - barycentric[:, 1] - barycentric[:, 2]
         return barycentric
 
     def method_cramer():
-        dot00 = util.diagonal_dot(edge_vectors[:, 0], edge_vectors[:, 0])
-        dot01 = util.diagonal_dot(edge_vectors[:, 0], edge_vectors[:, 1])
-        dot02 = util.diagonal_dot(edge_vectors[:, 0], w)
-        dot11 = util.diagonal_dot(edge_vectors[:, 1], edge_vectors[:, 1])
-        dot12 = util.diagonal_dot(edge_vectors[:, 1], w)
+        dot00 = diagonal_dot(edge_vectors[:, 0], edge_vectors[:, 0])
+        dot01 = diagonal_dot(edge_vectors[:, 0], edge_vectors[:, 1])
+        dot02 = diagonal_dot(edge_vectors[:, 0], w)
+        dot11 = diagonal_dot(edge_vectors[:, 1], edge_vectors[:, 1])
+        dot12 = diagonal_dot(edge_vectors[:, 1], w)
 
         inverse_denominator = 1.0 / (dot00 * dot11 - dot01 * dot01)
 
@@ -586,7 +586,7 @@ def closest_point(triangles, points):
     ac = c - a
     ap = points - a
     # this is a faster equivalent of:
-    # util.diagonal_dot(ab, ap)
+    # diagonal_dot(ab, ap)
     d1 = np.dot(ab * ap, ones)
     d2 = np.dot(ac * ap, ones)
 
@@ -679,7 +679,7 @@ def to_kwargs(triangles):
     """
     triangles = np.asanyarray(triangles, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
-        raise ValueError('Triangles must be (n,3,3)!')
+        raise ValueError('Triangles must be (n, 3, 3)!')
 
     vertices = triangles.reshape((-1, 3))
     faces = np.arange(len(vertices)).reshape((-1, 3))

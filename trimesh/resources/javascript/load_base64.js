@@ -115,6 +115,7 @@ function init() {
 
       // enable controls
       animate();
+      onWindowResize();
     }
   );
 }
