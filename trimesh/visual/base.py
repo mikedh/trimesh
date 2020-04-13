@@ -31,6 +31,10 @@ class Visuals(ABC):
         pass
 
     @abc.abstractmethod
+    def crc(self):
+        pass
+
+    @abc.abstractmethod
     def copy(self):
         pass
 

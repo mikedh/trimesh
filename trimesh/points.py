@@ -413,6 +413,12 @@ class PointCloud(Geometry):
     def __getitem__(self, *args, **kwargs):
         return self.vertices.__getitem__(*args, **kwargs)
 
+    def crc(self):
+        return self._data.crc()
+
+    def md5(self):
+        return self._data.md5()
+
     @property
     def shape(self):
         """

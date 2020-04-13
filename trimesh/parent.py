@@ -40,6 +40,14 @@ class Geometry(ABC):
     def is_empty(self):
         pass
 
+    @abc.abstractmethod
+    def crc(self):
+        pass
+
+    @abc.abstractmethod
+    def md5(self):
+        pass
+
     def __repr__(self):
         """
         Print quick summary of the current geometry without
