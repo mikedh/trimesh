@@ -66,14 +66,6 @@ class PointsTest(g.unittest.TestCase):
         assert g.np.allclose(cloud.vertices,
                              cloud.copy().vertices)
 
-    def test_init_arguments(self):
-        vertices = [[0, 0, 0], [1, 1, 1]]
-        colors = [[0, 0, 1.0], [1.0, 0, 0]]
-
-        # introduced colors
-        p = g.trimesh.PointCloud(vertices=vertices, colors=colors)
-        g.np.testing.assert_allclose(p.colors, colors)
-
     def test_empty(self):
         p = g.trimesh.PointCloud(None)
         assert p.is_empty
@@ -201,14 +193,22 @@ class PointsTest(g.unittest.TestCase):
         p = g.get_mesh('points_agisoft.xyz')
         assert isinstance(p, g.trimesh.PointCloud)
         assert len(p.vertices) > 0
-        p.visual.colors = (g.np.random.random(
-            (len(p.vertices), 4)) * 255).astype(g.np.uint8)
+
+        # initial color CRC
+        initial = p.visual.crc()
+        # set to random colors
+        p.colors = g.np.random.random(
+            (len(p.vertices), 4))
+        # visual CRC should have changed
+        assert p.visual.crc() != initial
+
         # test exporting a pointcloud to a PLY file
         r = g.trimesh.load(g.trimesh.util.wrap_as_stream(
             p.export(file_type='ply')),
             file_type='ply')
         assert r.vertices.shape == p.vertices.shape
         # make sure colors survived the round trip
+
         assert g.np.allclose(r.colors, p.colors)
 
     def test_remove_close(self):

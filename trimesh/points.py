@@ -475,6 +475,17 @@ class PointCloud(Geometry):
         """
         return self._data.md5()
 
+    def crc(self):
+        """
+        Get a CRC hash of the current vertices.
+
+        Returns
+        ----------
+        crc : int
+          Hash of self.vertices
+        """
+        return self._data.crc()
+
     def merge_vertices(self):
         """
         Merge vertices closer than tol.merge (default: 1e-8)

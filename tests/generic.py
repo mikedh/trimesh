@@ -3,6 +3,12 @@
 Module which contains most imports and data unit tests
 might need, to reduce the amount of boilerplate.
 """
+from trimesh.base import Trimesh
+from trimesh.constants import tol, tol_path
+from collections import deque
+from copy import deepcopy
+import collections
+import trimesh
 from distutils.spawn import find_executable
 import os
 import sys
@@ -34,25 +40,6 @@ except ImportError:
 
 import numpy as np
 
-try:
-    import sympy as sp
-except ImportError:
-    pass
-
-import trimesh
-import collections
-
-from copy import deepcopy
-from collections import deque
-from trimesh.constants import tol, tol_path
-from trimesh.base import Trimesh
-
-# make sure functions know they should run additional
-# potentially slow validation checks and raise exceptions
-trimesh.util._STRICT = True
-trimesh.constants.tol.strict = True
-trimesh.constants.tol_path.strict = True
-
 # should we require all soft dependencies
 # this is set in the docker images to catch missing packages
 all_dep = 'alldep' in ''.join(sys.argv)
@@ -62,10 +49,32 @@ if all_dep:
     from pyembree import rtcore_scene
 
 try:
+    import sympy as sp
+except ImportError as E:
+    if all_dep:
+        raise E
+
+
+# make sure functions know they should run additional
+# potentially slow validation checks and raise exceptions
+trimesh.util._STRICT = True
+trimesh.constants.tol.strict = True
+trimesh.constants.tol_path.strict = True
+
+
+try:
     from shapely.geometry import Point, Polygon, LineString
     has_path = True
-except ImportError:
+except ImportError as E:
+    if all_dep:
+        raise E
     has_path = False
+
+try:
+    from scipy import spatial, csgraph
+except BaseException as E:
+    if all_dep:
+        raise E
 
 # find_executable for binvox
 has_binvox = trimesh.exchange.binvox.binvox_encoder is not None

@@ -234,6 +234,12 @@ class Scene(Geometry):
           MD5 hash of scene
         """
         # start with transforms hash
+        return util.md5_object(self._hashable())
+
+    def crc(self):
+        return caching.crc32(self._hashable())
+
+    def _hashable(self):
         hashes = [self.graph.md5()]
         for g in self.geometry.values():
             if hasattr(g, 'md5'):
@@ -244,10 +250,8 @@ class Scene(Geometry):
                 # try to just straight up hash
                 # this may raise errors
                 hashes.append(str(hash(g)))
-
-        md5 = util.md5_object(''.join(hashes))
-
-        return md5
+        hashable = ''.join(sorted(hashes)).encode('utf-8')
+        return hashable
 
     @property
     def is_empty(self):

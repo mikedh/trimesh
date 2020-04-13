@@ -28,6 +28,8 @@ class SceneTests(g.unittest.TestCase):
             assert scene_split.md5() == pre[0]
             assert scene_base.md5() == pre[1]
 
+            assert isinstance(scene_base.crc(), int)
+
             # try out scene appending
             concat = scene_split + scene_base
 

@@ -490,6 +490,9 @@ class VertexColor(Visuals):
     def kind(self):
         return 'vertex'
 
+    def crc(self):
+        return self._colors.crc()
+
     def update_vertices(self, mask):
         if self._colors is not None:
             self._colors = self._colors[mask]
@@ -504,13 +507,14 @@ class VertexColor(Visuals):
     @vertex_colors.setter
     def vertex_colors(self, data):
         if data is None:
-            self._colors = None
+            self._colors = caching.tracked_array(None)
         else:
             # tile single color into color array
             data = np.asanyarray(data)
             if data.shape in [(3,), (4,)]:
                 data = np.tile(data, (len(self.obj.vertices), 1))
-            self._colors = data
+            # track changes in colors and convert to RGBA
+            self._colors = caching.tracked_array(to_rgba(data))
 
     def copy(self):
         """
