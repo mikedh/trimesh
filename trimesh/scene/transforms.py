@@ -276,9 +276,9 @@ class TransformForest(object):
         nodes_geometry : (m,) array
           Node names which have geometry associated
         """
-        nodes = [n for n, attr in self.transforms.nodes(data=True)
+        nodes = [n for n, attr in
+                 self.transforms.nodes(data=True)
                  if 'geometry' in attr]
-
         return nodes
 
     @caching.cache_decorator

@@ -727,6 +727,36 @@ def edges_to_coo(edges, count=None, data=None):
     return matrix
 
 
+def neighbors(edges, directed=False):
+    """
+    Find the neigbors for each node in an edgelist graph.
+
+    TODO : re-write this with sparse matrix operations
+
+    Parameters
+    ------------
+    edges : (n, 2) int
+      Connected nodes
+    directed : bool
+      If True, only connect edges in one direction
+
+    Returns
+    ---------
+    neighbors : dict
+      Keyed by vertex index, values are a set of other vertex indeices
+    """
+    neighbors = collections.defaultdict(set)
+    if directed:
+        [neighbors[edge[0]].add(edge[1])
+         for edge in edges]
+    else:
+        [(neighbors[edge[0]].add(edge[1]),
+          neighbors[edge[1]].add(edge[0]))
+         for edge in edges]
+
+    return dict(neighbors)
+
+
 def smoothed(mesh, angle=None, facet_minarea=15):
     """
     Return a non- watertight version of the mesh which
