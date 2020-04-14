@@ -29,7 +29,9 @@ class BinvoxTest(g.unittest.TestCase):
             [0, 0, 0, 1]
         ]))
         dense = dense.transpose((0, 2, 1))
-        np.testing.assert_allclose(base.bounds, [translate, translate + scale])
+        bound_min = translate - 0.5 * s
+        bound_max = translate + scale + 0.5 * s
+        np.testing.assert_allclose(base.bounds, [bound_min, bound_max])
         np.testing.assert_equal(base.encoding.dense, dense)
 
         if binvox.binvox_encoder is None:

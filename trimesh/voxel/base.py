@@ -141,8 +141,10 @@ class VoxelGrid(Geometry):
 
     @caching.cache_decorator
     def bounds(self):
-        points = self.points
-        bounds = np.array([points.min(axis=0), points.max(axis=0)])
+        indices = self.sparse_indices
+        bounds = np.array([indices.min(axis=0) - 0.5,
+                           indices.max(axis=0) + 0.5])
+        bounds = self._transform.transform_points(bounds)
         bounds.flags.writeable = False
         return bounds
 
