@@ -399,7 +399,7 @@ def ray_pixel_coords(camera):
 
     # create a matching array of pixel indexes for the rays
     pixels = util.grid_linspace(
-        bounds=[[0, res[1]], [res[0], 0]],
+        bounds=[[0, res[1] - 1], [res[0] - 1, 0]],
         count=res).astype(np.int64)
     assert xy.shape == pixels.shape
 

@@ -71,7 +71,7 @@ except ImportError as E:
     has_path = False
 
 try:
-    from scipy import spatial, csgraph
+    from scipy import spatial, sparse
 except BaseException as E:
     if all_dep:
         raise E

@@ -123,6 +123,18 @@ class CameraTests(g.unittest.TestCase):
         g.trimesh.scene.cameras.look_at(points, fov, center=points[0])
         g.trimesh.scene.cameras.look_at(points, fov, distance=1)
 
+    def test_ray_index(self):
+        # make sure to_rays is giving valid indexes
+        s = g.trimesh.scene.Scene()
+        res = g.np.array([512, 512])
+        for i in range(0, 1000, 79):
+            current = res + i
+            s.camera.resolution = current
+            # get ray index of camera
+            rid = s.camera.to_rays()[1]
+            assert all(rid.min(axis=0) == 0)
+            assert all(rid.max(axis=0) == current - 1)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

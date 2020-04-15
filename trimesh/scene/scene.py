@@ -999,7 +999,7 @@ class Scene(Geometry):
         scale_3D = np.eye(4) * scale
 
         # preallocate transforms and geometries
-        nodes = self.graph.nodes_geometry
+        nodes = np.array(self.graph.nodes_geometry)
         transforms = np.zeros((len(nodes), 4, 4))
         geometries = [None] * len(nodes)
 
@@ -1027,7 +1027,7 @@ class Scene(Geometry):
                 # otherwise apply the full transform
                 result.geometry[geometry].apply_transform(new_geom)
 
-            for node, T in zip(self.graph.nodes_geometry[group],
+            for node, T in zip(nodes[group],
                                transforms[group]):
                 # generate the new transforms
                 transform = util.multi_dot(
