@@ -142,7 +142,7 @@ class GLTFTest(g.unittest.TestCase):
         gltf_cameras_key = 'cameras'
 
         # if there's no camera in the scene, then it shouldn't be added to the gltf
-        box = g.trimesh.creation.box([1 ,1, 1])
+        box = g.trimesh.creation.box([1, 1, 1])
         scene = g.trimesh.Scene(box)
         export = scene.export(file_type='gltf')
         assert gltf_cameras_key not in json.loads(export['model.gltf'])
