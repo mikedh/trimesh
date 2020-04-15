@@ -137,6 +137,17 @@ class GLTFTest(g.unittest.TestCase):
             # will assert round trip is roughly equal
             g.scene_equal(rd, scene)
 
+    def test_gltf_merge_buffers(self):
+        # split a multibody mesh into a scene
+        scene = g.trimesh.scene.split_scene(
+            g.get_mesh('cycloidal.ply'))
+
+        # export a gltf with the merge_buffers option set to true
+        export = scene.export(file_type='gltf', merge_buffers=True)
+
+        # We should end up with a single .bin and scene.gltf
+        assert len(export.keys()) == 2
+
     def test_gltf_pole(self):
         scene = g.get_mesh('simple_pole.glb')
 

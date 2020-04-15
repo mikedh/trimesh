@@ -61,7 +61,8 @@ uint8 = np.dtype("<u1")
 
 def export_gltf(scene,
                 extras=None,
-                include_normals=None):
+                include_normals=None,
+                merge_buffers=False):
     """
     Export a scene object as a GLTF directory.
 
@@ -91,23 +92,34 @@ def export_gltf(scene,
 
     # store files as {name : data}
     files = {}
-    # make one buffer per buffer_items
-    buffers = [None] * len(buffer_items)
-    # A bufferView is a slice of a file
-    views = [None] * len(buffer_items)
-    # create the buffer views
-    for i, item in enumerate(buffer_items):
-        views[i] = {
-            "buffer": i,
-            "byteOffset": 0,
-            "byteLength": len(item)}
 
-        buffer_data = _byte_pad(bytes().join(buffer_items[i: i + 2]))
-        buffer_name = "gltf_buffer_{}.bin".format(i)
-        buffers[i] = {
+    if merge_buffers:
+        views = _build_views(buffer_items)
+        buffer_name = "gltf_buffer.bin"
+        buffer_data = bytes().join(buffer_items)
+        buffers = [{
             "uri": buffer_name,
             "byteLength": len(buffer_data)}
+        ]
         files[buffer_name] = buffer_data
+    else:
+        # make one buffer per buffer_items
+        buffers = [None] * len(buffer_items)
+        # A bufferView is a slice of a file
+        views = [None] * len(buffer_items)
+        # create the buffer views
+        for i, item in enumerate(buffer_items):
+            views[i] = {
+                "buffer": i,
+                "byteOffset": 0,
+                "byteLength": len(item)}
+
+            buffer_data = _byte_pad(bytes().join(buffer_items[i: i + 2]))
+            buffer_name = "gltf_buffer_{}.bin".format(i)
+            buffers[i] = {
+                "uri": buffer_name,
+                "byteLength": len(buffer_data)}
+            files[buffer_name] = buffer_data
 
     tree["buffers"] = buffers
     tree["bufferViews"] = views
@@ -147,15 +159,8 @@ def export_glb(scene, extras=None, include_normals=None):
         include_normals=include_normals)
 
     # A bufferView is a slice of a file
-    views = []
-    # create the buffer views
-    current_pos = 0
-    for current_item in buffer_items:
-        views.append(
-            {"buffer": 0,
-             "byteOffset": current_pos,
-             "byteLength": len(current_item)})
-        current_pos += len(current_item)
+    views = _build_views(buffer_items)
+
     # combine bytes into a single blob
     buffer_data = bytes().join(buffer_items)
     # add the information about the buffer data
@@ -644,6 +649,19 @@ def _append_mesh(mesh,
         accessor.update(_build_accessor(mesh.vertex_attributes[key]))
         tree["accessors"].append(accessor)
         buffer_items.append(attribute_data)
+
+
+def _build_views(buffer_items):
+    views = []
+    # create the buffer views
+    current_pos = 0
+    for current_item in buffer_items:
+        views.append(
+            {"buffer": 0,
+             "byteOffset": current_pos,
+             "byteLength": len(current_item)})
+        current_pos += len(current_item)
+    return views
 
 
 def _build_accessor(array):
