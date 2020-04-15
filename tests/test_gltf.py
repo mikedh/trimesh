@@ -145,7 +145,7 @@ class GLTFTest(g.unittest.TestCase):
         box = g.trimesh.creation.box([1, 1, 1])
         scene = g.trimesh.Scene(box)
         export = scene.export(file_type='gltf')
-        assert gltf_cameras_key not in json.loads(export['model.gltf'])
+        assert gltf_cameras_key not in json.loads(export['model.gltf'].decode('utf8'))
 
         # `scene.camera` creates a camera if it does not exist.
         # once in the scene, it should be added to the gltf.
@@ -153,7 +153,7 @@ class GLTFTest(g.unittest.TestCase):
         scene = g.trimesh.Scene(box)
         scene.set_camera()
         export = scene.export(file_type='gltf')
-        assert gltf_cameras_key in json.loads(export['model.gltf'])
+        assert gltf_cameras_key in json.loads(export['model.gltf'].decode('utf8'))
 
     def test_gltf_pole(self):
         scene = g.get_mesh('simple_pole.glb')
