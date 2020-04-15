@@ -137,6 +137,24 @@ class GLTFTest(g.unittest.TestCase):
             # will assert round trip is roughly equal
             g.scene_equal(rd, scene)
 
+    def test_gltf_optional_camera(self):
+        import json
+        gltf_cameras_key = 'cameras'
+
+        # if there's no camera in the scene, then it shouldn't be added to the gltf
+        box = g.trimesh.creation.box([1,1,1])
+        scene = g.trimesh.Scene(box)
+        export = scene.export(file_type='gltf')
+        assert gltf_cameras_key not in json.loads(export['model.gltf'])
+
+        # `scene.camera` creates a camera if it does not exist.
+        # once in the scene, it should be added to the gltf.
+        box = g.trimesh.creation.box([1,1,1])
+        scene = g.trimesh.Scene(box)
+        camera = scene.camera
+        export = scene.export(file_type='gltf')
+        assert gltf_cameras_key in json.loads(export['model.gltf'])
+
     def test_gltf_pole(self):
         scene = g.get_mesh('simple_pole.glb')
 
