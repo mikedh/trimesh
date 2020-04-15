@@ -727,7 +727,7 @@ def edges_to_coo(edges, count=None, data=None):
     return matrix
 
 
-def neighbors(edges, directed=False):
+def neighbors(edges, max_index=None, directed=False):
     """
     Find the neigbors for each node in an edgelist graph.
 
@@ -742,8 +742,8 @@ def neighbors(edges, directed=False):
 
     Returns
     ---------
-    neighbors : dict
-      Keyed by vertex index, values are a set of other vertex indeices
+    neighbors : sequence
+      Vertex index corresponds to set of other vertex indices
     """
     neighbors = collections.defaultdict(set)
     if directed:
@@ -754,7 +754,11 @@ def neighbors(edges, directed=False):
           neighbors[edge[1]].add(edge[0]))
          for edge in edges]
 
-    return dict(neighbors)
+    if max_index is None:
+        max_index = edges.max() + 1
+    array = [list(neighbors[i]) for i in range(max_index)]
+
+    return array
 
 
 def smoothed(mesh, angle=None, facet_minarea=15):
