@@ -426,7 +426,10 @@ def _create_gltf_structure(scene,
         "textures": [],
         "samplers": [{}],
         "materials": [],
-        "cameras": [_convert_camera(scene.camera)]}
+    }
+
+    if scene.has_camera:
+        tree["cameras"] = [_convert_camera(scene.camera)]
 
     # collect extras from passed arguments and metadata
     collected = {}

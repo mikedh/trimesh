@@ -649,7 +649,7 @@ class Scene(Geometry):
           Camera object defined for the scene
         """
         # no camera set for the scene yet
-        if not hasattr(self, '_camera') or self._camera is None:
+        if not self.has_camera:
             # will create a camera with everything in view
             return self.set_camera()
         assert self._camera is not None
@@ -669,6 +669,10 @@ class Scene(Geometry):
         if camera is None:
             return
         self._camera = camera
+
+    @property
+    def has_camera(self):
+        return hasattr(self, '_camera') and self._camera is not None
 
     @property
     def lights(self):
