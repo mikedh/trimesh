@@ -729,7 +729,7 @@ def edges_to_coo(edges, count=None, data=None):
 
 def neighbors(edges, max_index=None, directed=False):
     """
-    Find the neigbors for each node in an edgelist graph.
+    Find the neighbors for each node in an edgelist graph.
 
     TODO : re-write this with sparse matrix operations
 

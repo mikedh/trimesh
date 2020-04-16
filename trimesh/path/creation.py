@@ -211,12 +211,14 @@ def box_outline(extents=None, transform=None, **kwargs):
 
 
 def grid(side,
-         count,
+         count=5,
+         transform=None,
+         plane_origin=None,
+         plane_normal=None,
          include_circle=True,
-         sections_circle=32,
-         transform=None):
+         sections_circle=32):
     """
-    Create a Path3D for a grid visualization.
+    Create a Path3D for a grid visualization of a plane.
 
     Parameters
     -----------
@@ -224,12 +226,22 @@ def grid(side,
       Length of half of a grid side
     count : int
       Number of grid lines per grid half
+    transform : None or (4, 4) float
+      Transformation matrix to move grid location.
+      Takes precedence over plane_origin if both are passed.
+    plane_origin : None or (3,) float
+      Plane origin
+    plane_normal : None or (3,) float
+      Unit normal vector
     include_circle : bool
       Include a circular pattern inside the grid
     sections_circle : int
       How many sections should the smallest circle have
-    transform : None or (4, 4) float
-      Transformation matrix
+
+    Returns
+    ----------
+    grid : trimesh.path.Path3D
+      Path containing grid plane visualization
     """
     from .path import Path3D
 
@@ -285,10 +297,16 @@ def grid(side,
     entities.append(Line(points=np.arange(2) + current + 2))
     # stack vertices into clean (n, 3) float
     vertices = np.vstack(vertices)
+
+    # if plane was passed instead of transform create the matrix here
+    if (transform is None and plane_origin is not None and plane_normal is not None):
+        transform = np.linalg.inv(transformations.plane_transform(
+            origin=plane_origin, normal=plane_normal))
+
+    # stack vertices to 3D
+    vertices = np.column_stack((vertices, np.zeros(len(vertices))))
     # apply transform if passed
     if transform is not None:
-        vertices = np.column_stack((vertices,
-                                    np.zeros(len(vertices))))
         vertices = transformations.transform_points(
             vertices, matrix=transform)
     # combine result into a Path3D object

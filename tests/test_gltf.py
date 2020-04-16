@@ -137,6 +137,43 @@ class GLTFTest(g.unittest.TestCase):
             # will assert round trip is roughly equal
             g.scene_equal(rd, scene)
 
+    def test_gltf_merge_buffers(self):
+        # split a multibody mesh into a scene
+        scene = g.trimesh.scene.split_scene(
+            g.get_mesh('cycloidal.ply'))
+
+        # export a gltf with the merge_buffers option set to true
+        export = scene.export(file_type='gltf', merge_buffers=True)
+
+        # We should end up with a single .bin and scene.gltf
+        assert len(export.keys()) == 2
+
+        # reload the export
+        reloaded = g.trimesh.exchange.load.load_kwargs(
+            g.trimesh.exchange.gltf.load_gltf(
+                file_obj=None,
+                resolver=g.trimesh.visual.resolvers.ZipResolver(export)))
+
+        # check to make sure the geometry keys are the same
+        assert set(reloaded.geometry.keys()) == set(scene.geometry.keys())
+
+    def test_gltf_optional_camera(self):
+        gltf_cameras_key = 'cameras'
+
+        # if there's no camera in the scene, then it shouldn't be added to the gltf
+        box = g.trimesh.creation.box([1, 1, 1])
+        scene = g.trimesh.Scene(box)
+        export = scene.export(file_type='gltf')
+        assert gltf_cameras_key not in g.json.loads(export['model.gltf'].decode('utf8'))
+
+        # `scene.camera` creates a camera if it does not exist.
+        # once in the scene, it should be added to the gltf.
+        box = g.trimesh.creation.box([1, 1, 1])
+        scene = g.trimesh.Scene(box)
+        scene.set_camera()
+        export = scene.export(file_type='gltf')
+        assert gltf_cameras_key in g.json.loads(export['model.gltf'].decode('utf8'))
+
     def test_gltf_pole(self):
         scene = g.get_mesh('simple_pole.glb')
 
