@@ -18,6 +18,7 @@ from . import inertia
 from . import creation
 from . import triangles
 from . import transformations as tf
+from . import path
 
 from .base import Trimesh
 from .constants import log, tol
@@ -602,6 +603,10 @@ class Box(_Primitive):
         self._cache['vertices'] = box.vertices
         self._cache['faces'] = box.faces
         self._cache['face_normals'] = box.face_normals
+
+    def as_box_outline(self):
+        return path.creation.box_outline(extents=self.primitive.extents,
+                                         transform=self.primitive.transform)
 
 
 class Extrusion(_Primitive):
