@@ -140,7 +140,9 @@ class PrimitiveTest(g.unittest.TestCase):
                              start)
         assert g.np.allclose(box.extents,
                              start)
-        assert g.np.allclose(box.as_box_outline().extents, start)
+        if g.has_path:
+            # check to see if outline function works
+            assert g.np.allclose(box.as_outline().extents, start)
 
     def test_cyl_buffer(self):
         # test our inflation of cylinder primitives

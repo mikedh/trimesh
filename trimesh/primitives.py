@@ -18,7 +18,6 @@ from . import inertia
 from . import creation
 from . import triangles
 from . import transformations as tf
-from . import path
 
 from .base import Trimesh
 from .constants import log, tol
@@ -604,9 +603,21 @@ class Box(_Primitive):
         self._cache['faces'] = box.faces
         self._cache['face_normals'] = box.face_normals
 
-    def as_box_outline(self):
-        return path.creation.box_outline(extents=self.primitive.extents,
-                                         transform=self.primitive.transform)
+    def as_outline(self):
+        """
+        Return a Path3D containing the outline of the box.
+
+        Returns
+        -----------
+        outline : trimesh.path.Path3D
+          Outline of box primitive
+        """
+        # do the import in function to keep soft dependancy
+        from .path.creation import box_outline
+        # return outline with same size as primitive
+        return box_outline(
+            extents=self.primitive.extents,
+            transform=self.primitive.transform)
 
 
 class Extrusion(_Primitive):
