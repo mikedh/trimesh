@@ -2,6 +2,7 @@ import numpy as np
 
 from . import arc
 from .entities import Line, Arc
+from ..geometry import plane_transform
 
 from .. import util
 from .. import transformations
@@ -300,7 +301,7 @@ def grid(side,
 
     # if plane was passed instead of transform create the matrix here
     if (transform is None and plane_origin is not None and plane_normal is not None):
-        transform = np.linalg.inv(transformations.plane_transform(
+        transform = np.linalg.inv(plane_transform(
             origin=plane_origin, normal=plane_normal))
 
     # stack vertices to 3D
