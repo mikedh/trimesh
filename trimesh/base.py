@@ -1982,7 +1982,8 @@ class Trimesh(Geometry):
 
     def section(self,
                 plane_normal,
-                plane_origin):
+                plane_origin,
+                **kwargs):
         """
         Returns a 3D cross section of the current mesh and a plane
         defined by origin and normal.
@@ -2007,7 +2008,8 @@ class Trimesh(Geometry):
             mesh=self,
             plane_normal=plane_normal,
             plane_origin=plane_origin,
-            return_faces=True)
+            return_faces=True,
+            **kwargs)
 
         # if the section didn't hit the mesh return None
         if len(lines) == 0:
