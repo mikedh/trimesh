@@ -219,7 +219,7 @@ class SliceTest(g.unittest.TestCase):
     def test_cap(self):
 
         try:
-            from triangle import triangulate
+            from triangle import triangulate  # NOQA
         except BaseException as E:
             if g.all_dep:
                 raise E
