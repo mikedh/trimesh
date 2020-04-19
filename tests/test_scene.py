@@ -170,7 +170,7 @@ class SceneTests(g.unittest.TestCase):
         #     scene.add_geometry(geometry[1], parent_node_name='voxels')
         scene = g.trimesh.Scene()
         geometry = [g.trimesh.creation.box(), g.trimesh.creation.box()]
-        scene.add_geometry(geometry, node_name='voxels')
+        scene.add_geometry(geometry)
         assert len(scene.graph.nodes_geometry) == 2
 
     def test_add_concat(self):

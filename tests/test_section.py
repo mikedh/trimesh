@@ -151,16 +151,6 @@ class SliceTest(g.unittest.TestCase):
         assert g.np.isclose(sliced.bounds[1], mesh.bounds[1]).all()
         assert len(sliced.faces) == 5
 
-        # Same test with capping (should only add three more triangles)
-        sliced_capped = mesh.slice_plane(plane_origin=plane_origin,
-                                         plane_normal=plane_normal,
-                                         cap=True)
-
-        assert len(sliced_capped.faces) == 8
-        assert g.np.isclose(sliced_capped.bounds[0], mesh.bounds[1] - 0.15).all()
-        assert g.np.isclose(sliced_capped.bounds[1], mesh.bounds[1]).all()
-        assert sliced_capped.is_watertight
-
         # Cut top off of box and make sure bounds and number of faces is correct
         # Tests new quads and entirely contained triangles
         plane_origin = mesh.bounds[1] - 0.05
@@ -173,17 +163,6 @@ class SliceTest(g.unittest.TestCase):
             sliced.bounds[0], mesh.bounds[0] + g.np.array([0, 0, 0.95])).all()
         assert g.np.isclose(sliced.bounds[1], mesh.bounds[1]).all()
         assert len(sliced.faces) == 14
-
-        # Same test with capping (should only add six triangles)
-        sliced_capped = mesh.slice_plane(plane_origin=plane_origin,
-                                         plane_normal=plane_normal,
-                                         cap=True)
-
-        assert len(sliced_capped.faces) == 20
-        assert g.np.isclose(
-            sliced_capped.bounds[0], mesh.bounds[0] + g.np.array([0, 0, 0.95])).all()
-        assert g.np.isclose(sliced_capped.bounds[1], mesh.bounds[1]).all()
-        assert sliced_capped.is_watertight
 
         # non- watertight more complex mesh
         bunny = g.get_mesh('bunny.ply')
@@ -213,18 +192,6 @@ class SliceTest(g.unittest.TestCase):
         assert g.np.isclose(sliced.bounds[1], mesh.bounds[1]).all()
         assert len(sliced.faces) == 11
 
-        # Test cap for multiple slices to check watertightness
-        # (should add nine triangles)
-        sliced_capped = mesh.slice_plane(plane_origin=plane_origins,
-                                         plane_normal=plane_normals,
-                                         cap=True)
-
-        assert len(sliced_capped.faces) == 20
-        assert g.np.isclose(
-            sliced_capped.bounds[0], mesh.bounds[0] + g.np.array([0, 0.95, 0.95])).all()
-        assert g.np.isclose(sliced_capped.bounds[1], mesh.bounds[1]).all()
-        assert sliced_capped.is_watertight
-
         # Try with more complicated mesh and make sure we get correct projections
         # and some faces
         origins = [bunny.bounds.mean(axis=0), bunny.bounds.mean(
@@ -240,6 +207,74 @@ class SliceTest(g.unittest.TestCase):
             dot = g.np.dot(n, (sliced.vertices - o).T)
             # should be lots of stuff at the plane and nothing behind
             assert g.np.isclose(dot.min(), 0.0)
+
+        # Test cap on more complicated watertight mesh to make sure the
+        # resulting mesh is still watertight and slice is correct
+        featuretype = g.get_mesh('featuretype.STL')
+
+        origins = [featuretype.center_mass, featuretype.center_mass
+                   + 0.01 * g.trimesh.unitize([1, 0, 2])]
+        normals = [g.trimesh.unitize([1, 1, 1]), g.trimesh.unitize([1, 2, 3])]
+
+    def test_cap(self):
+
+        try:
+            from triangle import triangulate
+        except BaseException as E:
+            if g.all_dep:
+                raise E
+            else:
+                return
+
+        mesh = g.trimesh.creation.box()
+
+        # Cut corner off of box and make sure the bounds and number of faces is correct
+        # Tests new triangles, but not new quads or triangles contained entirely
+        plane_origin = mesh.bounds[1] - 0.05
+        plane_normal = mesh.bounds[1]
+
+        # Same test with capping (should only add three more triangles)
+        sliced_capped = mesh.slice_plane(plane_origin=plane_origin,
+                                         plane_normal=plane_normal,
+                                         cap=True)
+
+        assert len(sliced_capped.faces) == 8
+        assert g.np.isclose(sliced_capped.bounds[0], mesh.bounds[1] - 0.15).all()
+        assert g.np.isclose(sliced_capped.bounds[1], mesh.bounds[1]).all()
+        assert sliced_capped.is_watertight
+
+        # Cut top off of box and make sure bounds and number of faces is correct
+        # Tests new quads and entirely contained triangles
+        plane_origin = mesh.bounds[1] - 0.05
+        plane_normal = g.np.array([0, 0, 1])
+
+        # Same test with capping (should only add six triangles)
+        sliced_capped = mesh.slice_plane(plane_origin=plane_origin,
+                                         plane_normal=plane_normal,
+                                         cap=True)
+
+        assert len(sliced_capped.faces) == 20
+        assert g.np.isclose(
+            sliced_capped.bounds[0], mesh.bounds[0] + g.np.array([0, 0, 0.95])).all()
+        assert g.np.isclose(sliced_capped.bounds[1], mesh.bounds[1]).all()
+        assert sliced_capped.is_watertight
+
+        # Cut part of top off of box with multiple planes at once
+        # and make sure bounds and number of faces is correct
+        plane_origins = [mesh.bounds[1] - 0.05, mesh.bounds[1] - 0.05]
+        plane_normals = [g.np.array([0, 0, 1]), g.np.array([0, 1, 0])]
+
+        # Test cap for multiple slices to check watertightness
+        # (should add nine triangles)
+        sliced_capped = mesh.slice_plane(plane_origin=plane_origins,
+                                         plane_normal=plane_normals,
+                                         cap=True)
+
+        assert len(sliced_capped.faces) == 20
+        assert g.np.isclose(
+            sliced_capped.bounds[0], mesh.bounds[0] + g.np.array([0, 0.95, 0.95])).all()
+        assert g.np.isclose(sliced_capped.bounds[1], mesh.bounds[1]).all()
+        assert sliced_capped.is_watertight
 
         # Test cap on more complicated watertight mesh to make sure the
         # resulting mesh is still watertight and slice is correct
