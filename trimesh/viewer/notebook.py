@@ -9,6 +9,7 @@ import os
 import base64
 
 # for our template
+from .. import util
 from .. import resources
 
 
@@ -27,8 +28,12 @@ def scene_to_html(scene):
     html : str
       HTML containing embedded geometry
     """
-    # use os.path.join so this works on windows
-    base = resources.get('viewer.html.template')
+    # fetch HTML template from ZIP archive
+    # it is bundling all of three.js so compression is nice
+    base = util.decompress(
+        resources.get('viewer.template.zip', decode=False),
+        file_type='zip')['viewer.html.template'].read().decode('utf-8')
+    scene.camera
     # get export as bytes
     data = scene.export(file_type='glb')
     # encode as base64 string

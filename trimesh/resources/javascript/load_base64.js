@@ -82,15 +82,14 @@ function init() {
   loader.load(
     "data:text/plain;base64," + base64_data,
     // function will be called asynchronously after data is loaded
-    function(gltf) {
+    function (gltf) {
       // add GLTF data to scene
       scene.add(gltf.scene);
 
-      // make sure our camera object is from the GLTF
       camera = gltf.cameras[0];
 
       // create trackball controls
-      controls = new THREE.TrackballControls(camera);
+      controls = new THREE.TrackballControls(camera, renderer.domElement);
       controls.rotateSpeed = 1.0;
       controls.zoomSpeed = 1.2;
       controls.panSpeed = 0.8;
@@ -103,9 +102,6 @@ function init() {
 
       // after loading make sure we're orbiting centroid
       centerControls(scene, camera, controls);
-
-      // if the camera wasn't defined you can always do this
-      //autoFit(scene, camera, controls);
 
       // call initial render
       render();
