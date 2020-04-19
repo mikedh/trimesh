@@ -11,6 +11,7 @@ from . import transforms
 from . import morphology
 from . import encoding as enc
 
+from .. import bounds as bounds_module
 from .. import caching
 from .. import transformations as tr
 
@@ -142,9 +143,13 @@ class VoxelGrid(Geometry):
     @caching.cache_decorator
     def bounds(self):
         indices = self.sparse_indices
-        bounds = np.array([indices.min(axis=0) - 0.5,
-                           indices.max(axis=0) + 0.5])
-        bounds = self._transform.transform_points(bounds)
+        # get all 8 corners of the AABB
+        corners = bounds_module.corners([indices.min(axis=0) - 0.5,
+                                         indices.max(axis=0) + 0.5])
+        # transform these corners to a new frame
+        corners = self._transform.transform_points(corners)
+        # get the AABB of corners in-frame
+        bounds = np.array([corners.min(axis=0), corners.max(axis=0)])
         bounds.flags.writeable = False
         return bounds
 
