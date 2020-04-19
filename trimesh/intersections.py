@@ -157,8 +157,8 @@ def mesh_plane(mesh,
         # dot product of each vertex with the plane normal indexed by face
         # so for each face the dot product of each vertex is a row
         # shape is the same as mesh.faces (n,3)
-        dots = np.dot(plane_normal,
-                      (mesh.vertices - plane_origin).T)[mesh.faces]
+        dots = np.einsum('i,ij->j', plane_normal,
+                         (mesh.vertices - plane_origin).T)[mesh.faces]
 
     # sign of the dot product is -1, 0, or 1
     # shape is the same as mesh.faces (n,3)
@@ -421,11 +421,12 @@ def slice_faces_plane(vertices,
         Faces of source mesh to slice
     plane_normal : (3,) float
         Normal vector of plane to intersect with mesh
-    plane_origin:  (3,) float
+    plane_origin :  (3,) float
         Point on plane to intersect with mesh
     cached_dots : (n, 3) float
         If an external function has stored dot
         products pass them here to avoid recomputing
+    
     Returns
     ----------
     new_vertices : (n, 3) float
@@ -492,22 +493,17 @@ def slice_faces_plane(vertices,
                      np.zeros((0, 3), dtype=np.int64))
             return empty
 
-        try:
-            # count the number of occurrences of each value
-            counts = np.bincount(new_faces.flatten(), minlength=len(vertices))
-            unique_verts = counts > 0
-            unique_index = np.where(unique_verts)[0]
-        except TypeError:
-            # casting failed on 32 bit windows
-            log.error('casting failed!', exc_info=True)
-            # fall back to numpy unique
-            unique_index = np.unique(new_faces.flatten())
-            # generate a mask for cumsum
-            unique_verts = np.zeros(len(vertices), dtype=np.bool)
-            unique_verts[unique_index] = True
+        # find the unique indices in the new faces
+        # using an integer-only unique function
+        unique, inverse = grouping.unique_bincount(new_faces.reshape(-1),
+                                                   minlength=len(vertices),
+                                                   return_inverse=True)
 
-        unique_faces = (np.cumsum(unique_verts) - 1)[new_faces]
-        return vertices[unique_index], unique_faces
+        # use the unique indices for our final vertices and faces
+        final_vert = vertices[unique]
+        final_face = inverse.reshape((-1, 3))
+
+        return final_vert, final_face
 
     # Extract the intersections of each triangle's edges with the plane
     o = cut_triangles                               # origins
@@ -586,7 +582,7 @@ def slice_faces_plane(vertices,
         new_faces = np.append(new_faces, new_tri_faces, axis=0)
 
     # find the unique indices in the new faces
-    # using an integer- only unique function
+    # using an integer-only unique function
     unique, inverse = grouping.unique_bincount(new_faces.reshape(-1),
                                                minlength=len(new_vertices),
                                                return_inverse=True)
@@ -612,11 +608,11 @@ def slice_mesh_plane(mesh,
       Source mesh to slice
     plane_normal : (3,) float
       Normal vector of plane to intersect with mesh
-    plane_origin:  (3,) float
+    plane_origin :  (3,) float
       Point on plane to intersect with mesh
-    cap: bool
+    
+    cap : bool
       If True, cap the result with a triangulated polygon
-
     cached_dots : (n, 3) float
         If an external function has stored dot
         products pass them here to avoid recomputing
@@ -632,6 +628,7 @@ def slice_mesh_plane(mesh,
 
     # avoid circular import
     from .base import Trimesh
+    from .creation import triangulate_polygon
 
     # check input plane
     plane_normal = np.asanyarray(plane_normal,
@@ -648,22 +645,69 @@ def slice_mesh_plane(mesh,
     if not shape_ok:
         raise ValueError('plane origins and normals must be (n, 3)!')
 
-    # start with original vertices and faces
+    # start with copy of original mesh, faces, and vertices
+    sliced_mesh = mesh.copy()
     vertices = mesh.vertices.copy()
     faces = mesh.faces.copy()
 
     # slice away specified planes
     for origin, normal in zip(plane_origin.reshape((-1, 3)),
                               plane_normal.reshape((-1, 3))):
+
+        # calculate dots here if not passed in to save time
+        # in case of cap
+        dots = kwargs.get('cached_dots')
+        if dots is None:
+            # dot product of each vertex with the plane normal indexed by face
+            # so for each face the dot product of each vertex is a row
+            # shape is the same as faces (n,3)
+            dots = np.einsum('i,ij->j', normal,
+                            (vertices - origin).T)[faces]
+
+
         # save the new vertices and faces
         vertices, faces = slice_faces_plane(vertices=vertices,
                                             faces=faces,
                                             plane_normal=normal,
                                             plane_origin=origin,
-                                            **kwargs)
+                                            cached_dots=dots)
+       
+        # check if cap arg specified
+        if kwargs.get('cap'):
+            # check if mesh is watertight (can't cap if not)
+            if not sliced_mesh.is_watertight:
+                raise ValueError('Input mesh must be watertight to cap slice')
 
-    # create a mesh from the sliced result
-    new_mesh = Trimesh(vertices=vertices,
-                       faces=faces,
-                       process=False)
-    return new_mesh
+            path = sliced_mesh.section(plane_normal=normal,
+                                       plane_origin=origin,
+                                       cached_dots=dots)
+            
+            # transform Path3D onto XY plane for triangulation
+            on_plane, to_3D = path.to_planar()
+
+            # triangulate each closed region of 2D cap
+            # without adding any new vertices
+            v, f = [], []
+            for polygon in on_plane.polygons_full:
+                t = triangulate_polygon(polygon, 
+                                        triangle_args='p', 
+                                        allow_boundary_steiner=False)
+                v.append(t[0])
+                f.append(t[1])
+            
+            # append regions and reindex
+            vf, ff = util.append_faces(v, f)
+            
+            # make vertices 3D and transform back to mesh frame
+            vf = np.column_stack((vf, np.zeros(len(vf))))
+            vf = transformations.transform_points(vf, to_3D)
+            
+            # add cap vertices and faces and reindex
+            vertices, faces = util.append_faces([vertices, vf], [faces, ff])
+
+            # Update mesh with cap (processing needed to merge vertices)
+            sliced_mesh = Trimesh(vertices=vertices, faces=faces)
+            vertices, faces = sliced_mesh.vertices.copy(), sliced_mesh.faces.copy()
+
+    # return the sliced mesh
+    return Trimesh(vertices=vertices, faces=faces, process=False)
