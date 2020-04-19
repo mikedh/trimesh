@@ -612,7 +612,7 @@ class Box(_Primitive):
         outline : trimesh.path.Path3D
           Outline of box primitive
         """
-        # do the import in function to keep soft dependancy
+        # do the import in function to keep soft dependency
         from .path.creation import box_outline
         # return outline with same size as primitive
         return box_outline(

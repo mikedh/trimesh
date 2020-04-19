@@ -426,7 +426,7 @@ def slice_faces_plane(vertices,
     cached_dots : (n, 3) float
         If an external function has stored dot
         products pass them here to avoid recomputing
-    
+
     Returns
     ----------
     new_vertices : (n, 3) float
@@ -597,6 +597,8 @@ def slice_faces_plane(vertices,
 def slice_mesh_plane(mesh,
                      plane_normal,
                      plane_origin,
+                     cap=False,
+                     cached_dots=None,
                      **kwargs):
     """
     Slice a mesh with a plane, returning a new mesh that is the
@@ -610,7 +612,6 @@ def slice_mesh_plane(mesh,
       Normal vector of plane to intersect with mesh
     plane_origin :  (3,) float
       Point on plane to intersect with mesh
-    
     cap : bool
       If True, cap the result with a triangulated polygon
     cached_dots : (n, 3) float
@@ -656,24 +657,23 @@ def slice_mesh_plane(mesh,
 
         # calculate dots here if not passed in to save time
         # in case of cap
-        dots = kwargs.get('cached_dots')
-        if dots is None:
+        if cached_dots is None:
             # dot product of each vertex with the plane normal indexed by face
             # so for each face the dot product of each vertex is a row
             # shape is the same as faces (n,3)
             dots = np.einsum('i,ij->j', normal,
-                            (vertices - origin).T)[faces]
-
-
+                             (vertices - origin).T)[faces]
+        else:
+            dots = cached_dots
         # save the new vertices and faces
         vertices, faces = slice_faces_plane(vertices=vertices,
                                             faces=faces,
                                             plane_normal=normal,
                                             plane_origin=origin,
                                             cached_dots=dots)
-       
+
         # check if cap arg specified
-        if kwargs.get('cap'):
+        if cap:
             # check if mesh is watertight (can't cap if not)
             if not sliced_mesh.is_watertight:
                 raise ValueError('Input mesh must be watertight to cap slice')
@@ -681,7 +681,7 @@ def slice_mesh_plane(mesh,
             path = sliced_mesh.section(plane_normal=normal,
                                        plane_origin=origin,
                                        cached_dots=dots)
-            
+
             # transform Path3D onto XY plane for triangulation
             on_plane, to_3D = path.to_planar()
 
@@ -689,19 +689,18 @@ def slice_mesh_plane(mesh,
             # without adding any new vertices
             v, f = [], []
             for polygon in on_plane.polygons_full:
-                t = triangulate_polygon(polygon, 
-                                        triangle_args='p', 
-                                        allow_boundary_steiner=False)
+                t = triangulate_polygon(
+                    polygon, triangle_args='p', allow_boundary_steiner=False)
                 v.append(t[0])
                 f.append(t[1])
-            
+
             # append regions and reindex
             vf, ff = util.append_faces(v, f)
-            
+
             # make vertices 3D and transform back to mesh frame
             vf = np.column_stack((vf, np.zeros(len(vf))))
             vf = transformations.transform_points(vf, to_3D)
-            
+
             # add cap vertices and faces and reindex
             vertices, faces = util.append_faces([vertices, vf], [faces, ff])
 
