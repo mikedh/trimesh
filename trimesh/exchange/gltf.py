@@ -206,6 +206,7 @@ def export_glb(scene, extras=None, include_normals=None):
 
 def load_gltf(file_obj=None,
               resolver=None,
+              merge_primitives=False,
               **mesh_kwargs):
     """
     Load a GLTF file, which consists of a directory structure
@@ -217,6 +218,8 @@ def load_gltf(file_obj=None,
       Object containing header JSON, or None
     resolver : trimesh.visual.Resolver
       Object which can be used to load other files by name
+    merge_primitives : bool
+      If True, each GLTF 'mesh' will correspond to a single Trimesh object
     **mesh_kwargs : dict
       Passed to mesh constructor
 
@@ -245,12 +248,16 @@ def load_gltf(file_obj=None,
     # that can be used to instantiate a trimesh.Scene object
     kwargs = _read_buffers(header=tree,
                            buffers=buffers,
+                           merge_primitives=merge_primitives,
                            mesh_kwargs=mesh_kwargs,
                            resolver=resolver)
     return kwargs
 
 
-def load_glb(file_obj, resolver=None, **mesh_kwargs):
+def load_glb(file_obj,
+             resolver=None,
+             merge_primitives=False,
+             **mesh_kwargs):
     """
     Load a GLTF file in the binary GLB format into a trimesh.Scene.
 
@@ -261,6 +268,10 @@ def load_glb(file_obj, resolver=None, **mesh_kwargs):
     ------------
     file_obj : file- like object
       Containing GLB data
+    resolver : trimesh.visual.Resolver
+      Object which can be used to load other files by name
+    merge_primitives : bool
+      If True, each GLTF 'mesh' will correspond to a single Trimesh object
 
     Returns
     ------------
@@ -324,6 +335,7 @@ def load_glb(file_obj, resolver=None, **mesh_kwargs):
     # that can be used to instantiate a trimesh.Scene object
     kwargs = _read_buffers(header=header,
                            buffers=buffers,
+                           merge_primitives=merge_primitives,
                            mesh_kwargs=mesh_kwargs)
     return kwargs
 
@@ -864,7 +876,7 @@ def _parse_materials(header, views, resolver=None):
     return materials
 
 
-def _read_buffers(header, buffers, mesh_kwargs, resolver=None):
+def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver=None):
     """
     Given a list of binary data and a layout, return the
     kwargs to create a scene object.
@@ -992,9 +1004,9 @@ def _read_buffers(header, buffers, mesh_kwargs, resolver=None):
             else:
                 name = "GLTF_geometry"
 
-                # make name unique across multiple meshes
-                if len(header["meshes"]) > 1:
-                    name += "_{}".format(index)
+            # make name unique across multiple meshes
+            if name in meshes:
+                name += "_{}".format(util.unique_id())
 
             # each primitive gets it's own Trimesh object
             if len(m["primitives"]) > 1:
@@ -1006,11 +1018,43 @@ def _read_buffers(header, buffers, mesh_kwargs, resolver=None):
                 for attr in custom_attrs:
                     vertex_attributes[attr] = access[p["attributes"][attr]]
                 kwargs["vertex_attributes"] = vertex_attributes
-
             kwargs["process"] = False
-
             meshes[name] = kwargs
             mesh_prim[index].append(name)
+
+    # sometimes GLTF "meshes" come with multiple "primitives"
+    # by default we return one Trimesh object per "primitive"
+    # but if merge_primitives is True we combine the primitives
+    # for the "mesh" into a single Trimesh object
+    if merge_primitives:
+        # if we are only returning one Trimesh object
+        # replace `mesh_prim` with updated values
+        mesh_prim_replace = dict()
+        mesh_pop = []
+        for mesh_index, names in mesh_prim.items():
+            if len(names) <= 1:
+                mesh_prim_replace[mesh_index] = names
+                continue
+            name = '_'.join(names[0].split('_')[:-1])
+            mesh_pop.extend(set(names).difference({name}))
+            current = [meshes[n] for n in names]
+            v_seq = [p['vertices'] for p in current]
+            f_seq = [p['faces'] for p in current]
+            v, f = util.append_faces(v_seq, f_seq)
+            if 'metadata' in meshes[names[0]]:
+                metadata = meshes[names[0]]['metadata']
+            else:
+                metadata = {}
+            meshes[name] = {
+                'vertices': v,
+                'faces': f,
+                'metadata': metadata,
+                'process': False}
+            mesh_prim_replace[mesh_index] = [name]
+        # avoid altering inside loop
+        mesh_prim = mesh_prim_replace
+        # remove outdated meshes
+        [meshes.pop(p, None) for p in mesh_pop]
 
     # make it easier to reference nodes
     nodes = header["nodes"]

@@ -103,7 +103,7 @@ class GLTFTest(g.unittest.TestCase):
         m = g.get_mesh('testplate.glb')
         assert m.units == 'meters'
 
-    def test_gltf(self):
+    def test_basic(self):
         # split a multibody mesh into a scene
         scene = g.trimesh.scene.split_scene(
             g.get_mesh('cycloidal.ply'))
@@ -137,7 +137,7 @@ class GLTFTest(g.unittest.TestCase):
             # will assert round trip is roughly equal
             g.scene_equal(rd, scene)
 
-    def test_gltf_merge_buffers(self):
+    def test_merge_buffers(self):
         # split a multibody mesh into a scene
         scene = g.trimesh.scene.split_scene(
             g.get_mesh('cycloidal.ply'))
@@ -157,7 +157,16 @@ class GLTFTest(g.unittest.TestCase):
         # check to make sure the geometry keys are the same
         assert set(reloaded.geometry.keys()) == set(scene.geometry.keys())
 
-    def test_gltf_optional_camera(self):
+    def test_merge_primitives(self):
+        # test to see if the `merge_primitives` logic is working
+        a = g.get_mesh('CesiumMilkTruck.glb')
+        assert len(a.geometry) == 4
+
+        # should combine the multiple primitives into a single mesh
+        b = g.get_mesh('CesiumMilkTruck.glb', merge_primitives=True)
+        assert len(b.geometry) == 2
+
+    def test_optional_camera(self):
         gltf_cameras_key = 'cameras'
 
         # if there's no camera in the scene, then it shouldn't be added to the gltf
