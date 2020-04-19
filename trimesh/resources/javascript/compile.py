@@ -7,6 +7,7 @@ Take an HTML file and embed local scripts into one blob.
 The idea is you develop on viewer.html, then call this file to
 generate the template used in the trimesh viewer.
 """
+import os
 import jsmin
 import requests
 
@@ -87,5 +88,6 @@ if __name__ == '__main__':
         f.write(result)
 
     import subprocess
-    subprocess.check_call(['zip', '-j', '../viewer.template.zip',
+    subprocess.check_call(['zip', '-9', '-j', '../viewer.template.zip',
                            '../viewer.html.template'])
+    os.remove('../viewer.html.template')

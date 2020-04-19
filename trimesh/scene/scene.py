@@ -593,25 +593,25 @@ class Scene(Geometry):
 
         Returns
         --------------
-        origins: (n, 3) float
+        origin: (n, 3) float
           Ray origins in space
         vectors: (n, 3) float
           Ray direction unit vectors in world coordinates
         pixels : (n, 2) int
           Which pixel does each ray correspond to in an image
         """
+        # get the unit vectors of the camera
         vectors, pixels = self.camera.to_rays()
+        # find our scene's transform for the camera
         transform = self.camera_transform
-
-        # apply the rotation to the direction vectors
+        # apply the rotation to the unit ray direction vectors
         vectors = transformations.transform_points(
             vectors,
             transform,
             translate=False)
-        # camera origin is single point so extract from transform
+        # camera origin is single point so extract from
         origins = (np.ones_like(vectors) *
-                   transformations.translation_from_matrix(
-                       transform))
+                   transformations.translation_from_matrix(transform))
         return origins, vectors, pixels
 
     @camera_transform.setter
