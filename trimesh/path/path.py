@@ -893,9 +893,11 @@ class Path3D(Path):
             Homogeneous transformation matrix to apply,
             If not passed a plane will be fitted to vertices.
         normal: (3,) float, or None
-           Approximate normal of direction of plane
-           If to_2D is not specified sign
-           will be applied to fit plane normal
+           Assigned normal of direction of plane.
+           If to_2D is not specified
+           and normal not specified, it
+           will be to fit plane normal
+           of passed points.
         check:  bool
             If True: Raise a ValueError if
             points aren't coplanar
@@ -922,15 +924,17 @@ class Path3D(Path):
             if normal is not None:
                 normal = np.asanyarray(normal, dtype=np.float64)
                 if normal.shape == (3,):
-                    N *= np.sign(np.dot(N, normal))
-                    N = normal
+                    dn = normal
                 else:
                     log.warning(
                         "passed normal not used: {}".format(
                             normal.shape))
-            # create a transform from fit plane to XY
+            else:
+                dn = N
+            # create a transform from fit plane to destination plane
             to_2D = plane_transform(origin=C,
-                                    normal=N)
+                                    normal=N
+                                    destination_normal = dn)
 
         # make sure we've extracted a transform
         to_2D = np.asanyarray(to_2D, dtype=np.float64)
