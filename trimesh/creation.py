@@ -84,6 +84,8 @@ def revolve(linestring,
     if sections is None:
         # default to 32 sections for a full revolution
         sections = int(angle / (np.pi * 2) * 32)
+    # change to face count
+    sections += 1
     # create equally spaced angles
     theta = np.linspace(0, angle, sections)
 
