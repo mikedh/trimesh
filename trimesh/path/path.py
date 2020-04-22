@@ -934,7 +934,7 @@ class Path3D(Path):
             # create a transform from fit plane to destination plane
             to_2D = plane_transform(origin=C,
                                     normal=N
-                                    destination_normal = dn)
+                                    destination_normal=dn)
 
         # make sure we've extracted a transform
         to_2D = np.asanyarray(to_2D, dtype=np.float64)
