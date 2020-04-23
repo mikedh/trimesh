@@ -29,8 +29,8 @@ def plane_transform(origin, normal, destination_normal):
     transform: (4,4) float
         Transformation matrix to move points onto XY plane
     """
-    if destination_normal==None:
-        destination_normal=normal
+    if destination_normal is None:
+        destination_normal = normal
     transform = align_vectors(normal, destination_normal)
     transform[0:3, 3] = -np.dot(transform,
                                 np.append(origin, 1))[0:3]
