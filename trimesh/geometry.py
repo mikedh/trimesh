@@ -14,7 +14,7 @@ except BaseException as E:
 def plane_transform(origin, normal, destination_normal):
     """
     Given the origin and normal of a plane find the transform
-    that will move that plane to be coplanar with the 
+    that will move that plane to be coplanar with the
     destination plane (default is the provided normal plane).
 
     Parameters
@@ -27,7 +27,8 @@ def plane_transform(origin, normal, destination_normal):
     Returns
     ---------
     transform: (4,4) float
-        Transformation matrix to move points onto XY plane
+        Transformation matrix to move points onto 
+        destination plane
     """
     if destination_normal is None:
         destination_normal = normal
