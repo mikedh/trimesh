@@ -27,7 +27,7 @@ def plane_transform(origin, normal, destination_normal):
     Returns
     ---------
     transform: (4,4) float
-        Transformation matrix to move points onto 
+        Transformation matrix to move points onto
         destination plane
     """
     if destination_normal is None:
