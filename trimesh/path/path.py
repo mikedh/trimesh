@@ -933,7 +933,7 @@ class Path3D(Path):
                 dn = N
             # create a transform from fit plane to destination plane
             to_2D = plane_transform(origin=C,
-                                    normal=N
+                                    normal=N,
                                     destination_normal=dn)
 
         # make sure we've extracted a transform
