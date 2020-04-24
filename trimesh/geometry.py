@@ -11,7 +11,7 @@ except BaseException as E:
     scipy = exceptions.ExceptionModule(E)
 
 
-def plane_transform(origin, normal, destination_normal):
+def plane_transform(origin, normal, destination_normal=None):
     """
     Given the origin and normal of a plane find the transform
     that will move that plane to be coplanar with the
