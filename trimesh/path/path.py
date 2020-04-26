@@ -12,6 +12,7 @@ import collections
 
 from ..points import plane_fit
 from ..geometry import plane_transform
+from ..geometry import align_vectors
 from ..visual import to_rgba
 from ..constants import log
 from ..constants import tol_path as tol
