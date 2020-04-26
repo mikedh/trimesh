@@ -893,11 +893,10 @@ class Path3D(Path):
             Homogeneous transformation matrix to apply,
             If not passed a plane will be fitted to vertices.
         normal: (3,) float, or None
-           Assigned normal of direction of plane.
-           If to_2D is not specified
-           and normal not specified, it
-           will be to fit plane normal
-           of passed points.
+           Assigned normal of direction of fit plane.
+           If to_2D is not specified and normal not specified,
+           it will be fit to plane normal of passed points.
+           Must align with X, Y, or Z axis.
         check:  bool
             If True: Raise a ValueError if
             points aren't coplanar
@@ -908,7 +907,8 @@ class Path3D(Path):
                    Current path transformed onto plane
         to_3D :  (4,4) float
                    Homeogenous transformations to move planar
-                   back into 3D space
+                   back into 3D space.
+                   
         """
         # which vertices are actually referenced
         referenced = self.referenced_vertices
@@ -920,7 +920,7 @@ class Path3D(Path):
         if to_2D is None:
             # fit a plane to our vertices
             C, N = plane_fit(self.vertices[referenced])
-            # apply the normal sign hint
+            # apply a passed normal
             if normal is not None:
                 normal = np.asanyarray(normal, dtype=np.float64)
                 if normal.shape == (3,):
@@ -929,27 +929,42 @@ class Path3D(Path):
                     log.warning(
                         "passed normal not used: {}".format(
                             normal.shape))
+            #otherwise use normal from fit plane
             else:
                 dn = N
             # create a transform from fit plane to destination plane
             to_2D = plane_transform(origin=C,
                                     normal=N,
                                     destination_normal=dn)
+        else if normal is not None:
+            log.warning("passed normal not used: {}".format(
+                normal.shape))
 
         # make sure we've extracted a transform
         to_2D = np.asanyarray(to_2D, dtype=np.float64)
         if to_2D.shape != (4, 4):
             raise ValueError('unable to create transform!')
+            
+        # make sure normal aligns with X, Y, or Z axis
+        normal_test = False
+        for i in [[1,0,0],[0,1,0],[0,0,1],[-1,0,0],[0,-1,0],[0,0,-1]]:
+            if not np.any(gm.align_vectors(dn,i) - np.eye(4)) :
+                normal_test = True
+        if normal_test == False:
+            raise ValueError('normal does not align with major axis')
+            
+        # set axis
+        axis = np.where(np.abs(dn)==1)[0][0]
 
         # transform all vertices to 2D plane
         flat = tf.transform_points(self.vertices,
                                    to_2D)
 
-        # Z values of vertices which are referenced
-        heights = flat[referenced][:, 2]
-        # points are not on a plane because Z varies
+        # normal direction values of vertices which are referenced
+        heights = flat[referenced][:, axis]
+        # points are not on a plane because normal values vary
         if heights.ptp() > tol.planar:
-            # since Z is inconsistent set height to zero
+            # since normal is inconsistent set height to zero
             height = 0.0
             if check:
                 raise ValueError('points are not flat!')
@@ -961,11 +976,13 @@ class Path3D(Path):
         to_3D = np.linalg.inv(to_2D)
 
         # if the transform didn't move the path to
-        # exactly Z=0 adjust it so the returned transform does
+        # exactly axis=0 adjust it so the returned transform does
         if np.abs(height) > tol.planar:
             # adjust to_3D transform by height
+            height_adjust = [0,0,0]
+            height_adjust[axis] = height
             adjust = tf.translation_matrix(
-                [0, 0, height])
+                height_adjust)
             # apply the height adjustment to_3D
             to_3D = np.dot(to_3D, adjust)
 
@@ -975,9 +992,11 @@ class Path3D(Path):
         metadata['to_3D'] = to_3D
 
         # create the Path2D with the same entities
-        # and XY values of vertices projected onto the plane
+        # and planar values of vertices
+        planar_columns = [0,1,2]
+        planar_columns.remove(axis)
         planar = Path2D(entities=copy.deepcopy(self.entities),
-                        vertices=flat[:, :2],
+                        vertices=flat[:, planar_columns],
                         metadata=metadata,
                         process=False)
 
