@@ -908,8 +908,8 @@ class Path3D(Path):
         to_3D :  (4,4) float
                    Homeogenous transformations to move planar
                    back into 3D space.
-                   
         """
+
         # which vertices are actually referenced
         referenced = self.referenced_vertices
         # if nothing is referenced return an empty path
@@ -929,14 +929,14 @@ class Path3D(Path):
                     log.warning(
                         "passed normal not used: {}".format(
                             normal.shape))
-            #otherwise use normal from fit plane
+            # otherwise use normal from fit plane
             else:
                 dn = N
             # create a transform from fit plane to destination plane
             to_2D = plane_transform(origin=C,
                                     normal=N,
                                     destination_normal=dn)
-        else if normal is not None:
+        elif normal is not None:
             log.warning("passed normal not used: {}".format(
                 normal.shape))
 
@@ -944,17 +944,18 @@ class Path3D(Path):
         to_2D = np.asanyarray(to_2D, dtype=np.float64)
         if to_2D.shape != (4, 4):
             raise ValueError('unable to create transform!')
-            
+
         # make sure normal aligns with X, Y, or Z axis
         normal_test = False
-        for i in [[1,0,0],[0,1,0],[0,0,1],[-1,0,0],[0,-1,0],[0,0,-1]]:
-            if not np.any(gm.align_vectors(dn,i) - np.eye(4)) :
+        for i in [[1, 0, 0], [0, 1, 0], [0, 0, 1],
+                  [-1, 0, 0], [0, -1, 0], [0, 0, -1]]:
+            if not np.any(gm.align_vectors(dn, i) - np.eye(4)) :
                 normal_test = True
-        if normal_test == False:
+        if normal_test is False:
             raise ValueError('normal does not align with major axis')
-            
+
         # set axis
-        axis = np.where(np.abs(dn)==1)[0][0]
+        axis = np.where(np.abs(dn) == 1)[0][0]
 
         # transform all vertices to 2D plane
         flat = tf.transform_points(self.vertices,
@@ -979,7 +980,7 @@ class Path3D(Path):
         # exactly axis=0 adjust it so the returned transform does
         if np.abs(height) > tol.planar:
             # adjust to_3D transform by height
-            height_adjust = [0,0,0]
+            height_adjust = [0, 0, 0]
             height_adjust[axis] = height
             adjust = tf.translation_matrix(
                 height_adjust)
