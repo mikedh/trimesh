@@ -949,7 +949,7 @@ class Path3D(Path):
         normal_test = False
         for i in [[1, 0, 0], [0, 1, 0], [0, 0, 1],
                   [-1, 0, 0], [0, -1, 0], [0, 0, -1]]:
-            if not np.any(gm.align_vectors(dn, i) - np.eye(4)) :
+            if not np.any(align_vectors(dn, i) - np.eye(4)):
                 normal_test = True
         if normal_test is False:
             raise ValueError('normal does not align with major axis')
@@ -994,7 +994,7 @@ class Path3D(Path):
 
         # create the Path2D with the same entities
         # and planar values of vertices
-        planar_columns = [0,1,2]
+        planar_columns = [0, 1, 2]
         planar_columns.remove(axis)
         planar = Path2D(entities=copy.deepcopy(self.entities),
                         vertices=flat[:, planar_columns],
