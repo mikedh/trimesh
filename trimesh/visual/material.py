@@ -81,8 +81,13 @@ class SimpleMaterial(Material):
             mtl_name = '{}.mtl'.format(tex_name)
 
         # what is the name of the export image to save
+
+        image_type = self.image.format
+        if image_type is None:
+            image_type = 'png'
+
         image_name = '{}.{}'.format(
-            tex_name, self.image.format).lower()
+            tex_name, image_type).lower()
 
         # create an MTL file
         mtl = '\n'.join(
@@ -96,7 +101,7 @@ class SimpleMaterial(Material):
 
         # save the image texture as bytes in the original format
         f_obj = util.BytesIO()
-        self.image.save(fp=f_obj, format=self.image.format)
+        self.image.save(fp=f_obj, format=image_type)
         f_obj.seek(0)
 
         # collect the OBJ data into files

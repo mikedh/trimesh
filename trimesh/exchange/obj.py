@@ -374,7 +374,8 @@ def _parse_faces_vectorized(array, columns, sample_line):
         # one is index of texture coordinate (`vt`)
         # count how many delimiters are in the first face line
         # to see if our second value is texture or normals
-        count = sample_line.count('/')
+        # do splitting to clip off leading/trailing slashes
+        count = ''.join(i.strip('/') for i in sample_line.split()).count('/')
         if count == columns:
             # case where each face line looks like:
             # ' 75//139 76//141 77//141'

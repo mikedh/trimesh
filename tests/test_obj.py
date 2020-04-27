@@ -25,6 +25,11 @@ class OBJTest(g.unittest.TestCase):
         # check to make sure it's not all zeros
         assert m.visual.uv.ptp() > 0.5
 
+    def test_trailing(self):
+        # test files with texture and trailing slashes
+        m = g.get_mesh('jacked.obj')
+        assert len(m.visual.uv) == len(m.vertices)
+
     def test_obj_groups(self):
         # a wavefront file with groups defined
         mesh = g.get_mesh('groups.obj')
