@@ -13,6 +13,18 @@ class OBJTest(g.unittest.TestCase):
         m = g.get_mesh('rabbit.obj')
         assert len(m.faces) == 1252
 
+    def test_no_img(self):
+        # sometimes people use the `vt` parameter for arbitrary
+        # vertex attributes and thus want UV coordinates even
+        # if there is no texture image
+        m = g.get_mesh('noimg.obj')
+        assert m.visual.uv.shape == (len(m.vertices), 2)
+        # make sure UV coordinates are in range 0.0 - 1.0
+        assert m.visual.uv.max() < (1 + 1e-5)
+        assert m.visual.uv.min() > -1e-5
+        # check to make sure it's not all zeros
+        assert m.visual.uv.ptp() > 0.5
+
     def test_obj_groups(self):
         # a wavefront file with groups defined
         mesh = g.get_mesh('groups.obj')

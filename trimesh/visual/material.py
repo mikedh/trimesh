@@ -247,3 +247,19 @@ class PBRMaterial(Material):
         # will return default color if None
         result = color.to_rgba(self.baseColorFactor)
         return result
+
+
+def empty_material():
+    """
+    Return an empty material.
+
+    Returns
+    -------------
+    material : SimpleMaterial
+      Image is a a one pixel RGB
+    """
+    from PIL import Image
+
+    # create a one pixel RGB image
+    image = Image.new(mode='RGB', size=(1, 1))
+    return SimpleMaterial(image=image)

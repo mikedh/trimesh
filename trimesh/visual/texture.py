@@ -7,7 +7,7 @@ from . import color
 from .. import caching
 from .. import grouping
 
-from .material import SimpleMaterial, PBRMaterial  # NOQA
+from .material import SimpleMaterial, PBRMaterial, empty_material  # NOQA
 
 
 class TextureVisuals(Visuals):
@@ -40,11 +40,14 @@ class TextureVisuals(Visuals):
         # should be (n, 2) float
         self.uv = uv
 
-        if material is None and image is not None:
-            # if an image is passed create a SimpleMaterial
-            self.material = SimpleMaterial(image=image)
+        if material is None:
+            if image is None:
+                self.material = empty_material()
+            else:
+                # if an image is passed create a SimpleMaterial
+                self.material = SimpleMaterial(image=image)
         else:
-            # may be None
+            # if passed assign
             self.material = material
 
     def _verify_crc(self):

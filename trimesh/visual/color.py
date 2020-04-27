@@ -868,4 +868,5 @@ def uv_to_color(uv, image):
     return colors
 
 
+# set an arbitrary grey as the default color
 DEFAULT_COLOR = np.array([102, 102, 102, 255], dtype=np.uint8)

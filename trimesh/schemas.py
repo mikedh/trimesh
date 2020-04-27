@@ -13,7 +13,7 @@ def resolve(item, resolver):
     """
     Given a JSON Schema containing `$ref` keys recursively
     evaluate to find and replace referenced files with their
-    actual values using trimesh.visual.Resolver objects.
+    actual values using trimesh.resolvers.Resolver objects.
 
     Parameters
     ---------------

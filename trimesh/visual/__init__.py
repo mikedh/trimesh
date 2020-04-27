@@ -21,7 +21,7 @@ from . import color
 from . import texture
 from . import objects
 from . import material
-from . import resolvers
+from .. import resolvers
 
 
 # explicitly list imports in __all__
