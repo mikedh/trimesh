@@ -1419,7 +1419,7 @@ def get_schema():
     # replace references
     from ..schemas import resolve
     # get zip resolver to access referenced assets
-    from ..visual.resolvers import ZipResolver
+    from ..resolvers import ZipResolver
 
     # get a blob of a zip file including the GLTF 2.0 schema
     blob = resources.get('gltf_2_schema.zip', decode=False)

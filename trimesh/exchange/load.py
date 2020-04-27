@@ -1,7 +1,7 @@
 import os
 
 from .. import util
-from .. import visual
+from .. import resolvers
 
 from ..base import Trimesh
 from ..parent import Geometry
@@ -279,7 +279,7 @@ def load_compressed(file_obj,
         geometries = []
 
         # so loaders can access textures/etc
-        resolver = visual.resolvers.ZipResolver(files)
+        resolver = resolvers.ZipResolver(files)
 
         # try to save the files with meaningful metadata
         if 'file_path' in metadata:
@@ -359,7 +359,7 @@ def load_remote(url, **kwargs):
     file_obj = util.wrap_as_stream(response.content)
 
     # so loaders can access textures/etc
-    resolver = visual.resolvers.WebResolver(url)
+    resolver = resolvers.WebResolver(url)
 
     # actually load
     loaded = load(file_obj=file_obj,
@@ -531,7 +531,7 @@ def parse_file_args(file_obj,
         if exists:
             # if not passed create a resolver to find other files
             if resolver is None:
-                resolver = visual.resolvers.FilePathResolver(file_path)
+                resolver = resolvers.FilePathResolver(file_path)
             # save the file name and path to metadata
             metadata['file_path'] = file_path
             metadata['file_name'] = os.path.basename(file_obj)
@@ -567,7 +567,7 @@ def parse_file_args(file_obj,
         metadata['file_name'] = os.path.basename(file_type)
         file_type = util.split_extension(file_type)
         if resolver is None and os.path.exists(file_type):
-            resolver = visual.resolvers.FilePathResolver(file_type)
+            resolver = resolvers.FilePathResolver(file_type)
 
     # all our stored extensions reference in lower case
     file_type = file_type.lower()
@@ -577,7 +577,7 @@ def parse_file_args(file_obj,
         hasattr(file_obj, 'name') and
         file_obj.name is not None and
             len(file_obj.name) > 0):
-        resolver = visual.resolvers.FilePathResolver(file_obj.name)
+        resolver = resolvers.FilePathResolver(file_obj.name)
 
     return file_obj, file_type, metadata, opened, resolver
 

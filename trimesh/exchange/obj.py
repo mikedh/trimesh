@@ -168,7 +168,6 @@ def load_obj(file_obj,
                 assert np.allclose(v[faces], v[mask_v][new_faces])
                 # faces should all be in bounds of vertives
                 assert new_faces.max() < len(v[mask_v])
-
             try:
                 # survive index errors as sometimes we
                 # want materials without UV coordinates
@@ -220,6 +219,8 @@ def load_obj(file_obj,
         if material in materials:
             visual = TextureVisuals(
                 uv=uv, material=materials[material])
+        elif uv is not None and len(uv) == len(mesh['vertices']):
+            visual = TextureVisuals(uv=uv, material=None)
         elif material is not None:
             # material will be None by default
             log.warning('specified material ({})  not loaded!'.format(
@@ -373,7 +374,8 @@ def _parse_faces_vectorized(array, columns, sample_line):
         # one is index of texture coordinate (`vt`)
         # count how many delimiters are in the first face line
         # to see if our second value is texture or normals
-        count = sample_line.count('/')
+        # do splitting to clip off leading/trailing slashes
+        count = ''.join(i.strip('/') for i in sample_line.split()).count('/')
         if count == columns:
             # case where each face line looks like:
             # ' 75//139 76//141 77//141'

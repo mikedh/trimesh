@@ -2,9 +2,11 @@
 resolvers.py
 ---------------
 
-Tools to load assets referenced in meshes, like MTL files
-or texture images.
+Provides a common interface to load assets referenced by name
+like MTL files, texture images, etc. Assets can be from ZIP
+archives, web assets, or a local file path.
 """
+
 import os
 
 # URL parsing for remote resources via WebResolver
