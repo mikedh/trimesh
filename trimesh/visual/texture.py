@@ -4,6 +4,8 @@ import copy
 
 from .base import Visuals
 from . import color
+
+from .. import util
 from .. import caching
 from .. import grouping
 
@@ -176,7 +178,8 @@ class TextureVisuals(Visuals):
         pass
 
     def concatenate(self, *args, **kwargs):
-        raise NotImplementedError('concatentate not implemented yet for texture!')
+        util.log.warning('returning empty visuals!')
+        return TextureVisuals()
 
 
 def unmerge_faces(faces, *args):
