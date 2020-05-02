@@ -118,10 +118,6 @@ class Trimesh(Geometry):
 
         self._cache.update(initial_cache)
 
-        # if validate we are allowed to alter the mesh silently
-        # to ensure valid results
-        self._validate = bool(validate)
-
         # check for None only to avoid warning messages in subclasses
         if vertices is not None:
             # (n, 3) float, set of vertices
@@ -198,19 +194,22 @@ class Trimesh(Geometry):
         # save reference to kwargs
         self._kwargs = kwargs
 
-    def process(self, **kwargs):
+    def process(self, validate=False, **kwargs):
         """
         Do processing to make a mesh useful.
 
         Does this by:
             1) removing NaN and Inf values
             2) merging duplicate vertices
-
-        If self._validate:
+        If validate:
             3) Remove triangles which have one edge of their rectangular 2D
                oriented bounding box shorter than tol.merge
-
             4) remove duplicated triangles
+
+        Parameters
+        ------------
+        validate : bool
+          If True, remove degenerate and duplicate faces
 
         Returns
         ------------
@@ -227,7 +226,7 @@ class Trimesh(Geometry):
             self.merge_vertices(**kwargs)
             # if we're cleaning remove duplicate
             # and degenerate faces
-            if self._validate or ('validate' in kwargs and kwargs['validate']):
+            if validate:
                 self.remove_duplicate_faces()
                 self.remove_degenerate_faces()
         # since none of our process operations moved vertices or faces
@@ -1268,7 +1267,7 @@ class Trimesh(Geometry):
         self.apply_translation(self.bounds[0] * -1.0)
 
     @log_time
-    def split(self, only_watertight=True, adjacency=None, **kwargs):
+    def split(self, **kwargs):
         """
         Returns a list of Trimesh objects, based on face connectivity.
         Splits into individual components, sometimes referred to as 'bodies'
@@ -1285,11 +1284,7 @@ class Trimesh(Geometry):
         meshes : (n, ) trimesh.Trimesh
           Separate bodies from original mesh
         """
-        meshes = graph.split(self,
-                             only_watertight=only_watertight,
-                             adjacency=adjacency,
-                             **kwargs)
-        return meshes
+        return graph.split(self, **kwargs)
 
     @caching.cache_decorator
     def face_adjacency(self):
@@ -2376,19 +2371,16 @@ class Trimesh(Geometry):
         # and mesh is watertight/wound correctly but with negative
         # volume it means that every triangle is probably facing
         # inwards, so we invert it in-place without dumping cache
-        if (self._validate and
-            self.is_watertight and
+        if (self.is_watertight and
             self.is_winding_consistent and
             np.linalg.det(mass['inertia']) < 0.0 and
             mass['mass'] < 0.0 and
                 mass['volume'] < 0.0):
-
             # negate mass properties so we don't need to recalculate
             mass['inertia'] = -mass['inertia']
             mass['mass'] = -mass['mass']
             mass['volume'] = -mass['volume']
-            # invert the faces and normals of the mesh
-            self.invert()
+
         return mass
 
     def invert(self):
