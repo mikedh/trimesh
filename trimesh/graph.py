@@ -342,7 +342,8 @@ def split(mesh, only_watertight=True, adjacency=None, engine=None, **kwargs):
         nodes=np.arange(len(mesh.faces)),
         min_len=min_len,
         engine=engine)
-    meshes = mesh.submesh(components, **kwargs)
+    meshes = mesh.submesh(
+        components, only_watertight=only_watertight, **kwargs)
     return meshes
 
 
