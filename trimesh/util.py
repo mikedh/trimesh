@@ -1421,7 +1421,9 @@ def concatenate(a, b=None):
 
 def submesh(mesh,
             faces_sequence,
+            repair=True,
             only_watertight=False,
+            min_faces=None,
             append=False):
     """
     Return a subset of a mesh.
@@ -1449,17 +1451,6 @@ def submesh(mesh,
     if len(faces_sequence) == 0:
         return []
 
-    # check to make sure we're not doing a whole bunch of work
-    # to deliver a subset which ends up as the whole mesh
-    if len(faces_sequence[0]) == len(mesh.faces):
-        # compare sorted faces to arange
-        all_faces = np.array_equal(
-            np.sort(faces_sequence[0]),
-            np.arange(len(faces_sequence)))
-        if all_faces:
-            log.debug('entire mesh requested, returning copy')
-            return mesh.copy()
-
     # avoid nuking the cache on the original mesh
     original_faces = mesh.faces.view(np.ndarray)
     original_vertices = mesh.vertices.view(np.ndarray)
@@ -1472,27 +1463,40 @@ def submesh(mesh,
     # for reindexing faces
     mask = np.arange(len(original_vertices))
 
-    for faces_index in faces_sequence:
+    for index in faces_sequence:
         # sanitize indices in case they are coming in as a set or tuple
-        faces_index = np.asanyarray(faces_index, dtype=np.int64)
-        if len(faces_index) == 0:
+        index = np.asanyarray(index)
+        if len(index) == 0:
+            # regardless of type empty arrays are useless
             continue
-        faces_current = original_faces[faces_index]
-        unique = np.unique(faces_current.reshape(-1))
+        if index.dtype.kind == 'b':
+            # if passed a bool with no true continue
+            if not index.any():
+                continue
+            # if fewer faces than minimum
+            if min_faces is not None and index.sum() < min_faces:
+                continue
+        elif min_faces is not None and len(index) < min_faces:
+            continue
+
+        current = original_faces[index]
+        unique = np.unique(current.reshape(-1))
 
         # redefine face indices from zero
         mask[unique] = np.arange(len(unique))
-        normals.append(mesh.face_normals[faces_index])
-        faces.append(mask[faces_current])
+        normals.append(mesh.face_normals[index])
+        faces.append(mask[current])
         vertices.append(original_vertices[unique])
-        visuals.append(mesh.visual.face_subset(faces_index))
+        visuals.append(mesh.visual.face_subset(index))
+
+    if len(vertices) == 0:
+        return np.array([])
 
     # we use type(mesh) rather than importing Trimesh from base
     # to avoid a circular import
     trimesh_type = type_named(mesh, 'Trimesh')
     if append:
-        if all(hasattr(i, 'concatenate')
-               for i in visuals):
+        if all(hasattr(i, 'concatenate') for i in visuals):
             visuals = np.array(visuals)
             visual = visuals[0].concatenate(visuals[1:])
         else:
@@ -1518,11 +1522,12 @@ def submesh(mesh,
                                              normals,
                                              visuals)]
     result = np.array(result)
-    if len(result) > 0 and only_watertight:
+    if only_watertight or repair:
         # fill_holes will attempt a repair and returns the
         # watertight status at the end of the repair attempt
         watertight = np.array([i.fill_holes() and len(i.faces) >= 4
                                for i in result])
+    if only_watertight:
         # remove unrepairable meshes
         result = result[watertight]
 
@@ -2232,7 +2237,7 @@ def decode_text(text, initial='utf-8'):
         return text
 
     try:
-        # initially guess file is UTF-8
+        # initially guess file is UTF-8 or specified encoding
         text = text.decode(initial)
     except UnicodeDecodeError:
         # detect different file encodings

@@ -217,20 +217,23 @@ def load_obj(file_obj,
 
         visual = None
         if material in materials:
+            # use the material with the UV coordinates
             visual = TextureVisuals(
                 uv=uv, material=materials[material])
         elif uv is not None and len(uv) == len(mesh['vertices']):
-            visual = TextureVisuals(uv=uv, material=None)
+            # create a texture with an empty materials
+            visual = TextureVisuals(uv=uv)
         elif material is not None:
-            # material will be None by default
+            # case where material is specified but not available
             log.warning('specified material ({})  not loaded!'.format(
                 material))
+        # assign the visual
         mesh['visual'] = visual
-
         # store geometry by name
         geometry[name] = mesh
 
     if len(geometry) == 1:
+        # TODO : should this be removed to always return a scene?
         return next(iter(geometry.values()))
 
     # add an identity transform for every geometry
@@ -252,8 +255,8 @@ def parse_mtl(mtl, resolver=None):
     -------------
     mtl : str or bytes
       Data from an MTL file
-    resolver : trimesh.visual.Resolver
-      Fetch assets by name from files, web, or other
+    resolver : trimesh.Resolver
+      Fetch assets by name from file system, web, or other
 
     Returns
     ------------
@@ -261,8 +264,7 @@ def parse_mtl(mtl, resolver=None):
       Each dict has keys: newmtl, map_Kd, Kd
     """
     # decode bytes into string if necessary
-    if hasattr(mtl, 'decode'):
-        mtl = mtl.decode('utf-8')
+    mtl = util.decode_text(mtl)
 
     # current material
     material = None

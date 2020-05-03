@@ -304,10 +304,7 @@ def facets(mesh, engine=None):
     return components
 
 
-def split(mesh,
-          only_watertight=True,
-          adjacency=None,
-          engine=None):
+def split(mesh, only_watertight=True, adjacency=None, engine=None, **kwargs):
     """
     Split a mesh into multiple meshes from face
     connectivity.
@@ -331,13 +328,12 @@ def split(mesh,
     meshes : (m,) trimesh.Trimesh
       Results of splitting
     """
-
     if adjacency is None:
         adjacency = mesh.face_adjacency
 
     # if only watertight the shortest thing we can split has 3 triangles
     if only_watertight:
-        min_len = 3
+        min_len = 4
     else:
         min_len = 1
 
@@ -347,8 +343,7 @@ def split(mesh,
         min_len=min_len,
         engine=engine)
     meshes = mesh.submesh(
-        components,
-        only_watertight=only_watertight)
+        components, only_watertight=only_watertight, **kwargs)
     return meshes
 
 

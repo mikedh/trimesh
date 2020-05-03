@@ -25,7 +25,6 @@ class MeshTests(g.unittest.TestCase):
         """
         m = g.get_mesh('featuretype.STL', validate=True)
 
-        assert m._validate
         assert m.is_volume
 
         pre_len = len(m.vertices)
