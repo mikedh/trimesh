@@ -1728,6 +1728,7 @@ def snap_to(array, tolerance=TOL_ZERO):
       Array with values rounded to order of magnitude of tolerance
       value if all are within tolerance of original values.
     """
+    from .caching import tracked_array
     array = np.asanyarray(array)
     if np.log10(tolerance) <= 0:
         mod = 0
@@ -1738,7 +1739,7 @@ def snap_to(array, tolerance=TOL_ZERO):
     if isclose(array, rounded_array, atol=tolerance).all():
         array = rounded_array
 
-    return array
+    return tracked_array(array)
 
 
 def sigfig_round(values, sigfig=1):
