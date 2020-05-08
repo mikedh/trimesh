@@ -1735,7 +1735,7 @@ def snap_to(array, tolerance=TOL_ZERO):
         mod = 1
     rounded_array = array.round(-np.int(mod + np.fix(
                                             np.log10(tolerance))))
-    snap = isclose(array, rounded_array, atol = tolerance).all()
+    snap = isclose(array, rounded_array, atol=tolerance).all()
     if snap:
         array = rounded_array
 
