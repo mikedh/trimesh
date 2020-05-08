@@ -1705,13 +1705,14 @@ def wrap_as_stream(item):
         return BytesIO(item)
     raise ValueError('{} is not wrappable!'.format(type(item).__name__))
 
+
 def snap_to(array, tolerance=TOL_ZERO):
     """
     Input array is rounded to the order of magnitude one larger than
     the order of magnitude of the tolerance value. If all elements in
     the rounded array are within the tolerance value of the original
     array, the rounded array is returned.
-    
+
     Parameters
     ---------
     array : (n, m) float
@@ -1719,7 +1720,7 @@ def snap_to(array, tolerance=TOL_ZERO):
     tolerance: (1,) float
       Tolerance used to compute rounded array and to check whether
       rounded elements are within tolerance of original array.
-      
+
     Returns
     ---------
     Array : (n,m) float
@@ -1737,8 +1738,9 @@ def snap_to(array, tolerance=TOL_ZERO):
     snap = isclose(array, rounded_array, atol = tolerance).all()
     if snap:
         array = rounded_array
-    
+
     return array
+
 
 def sigfig_round(values, sigfig=1):
     """
