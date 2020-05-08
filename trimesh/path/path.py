@@ -934,8 +934,7 @@ class Path3D(Path):
             else:
                 dn = N
             # eliminate calculation errors
-            C, N, dn = util.snap_to(C), util.snap_to(N),
-                                    util.snap_to(dn)
+            C, N, dn = util.snap_to(C), util.snap_to(N), util.snap_to(dn)
             # create a transform from fit plane to destination plane
             to_2D = plane_transform(origin=C,
                                     normal=N,
