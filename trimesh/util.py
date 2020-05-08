@@ -1728,16 +1728,14 @@ def snap_to(array, tolerance=TOL_ZERO):
       Array with values rounded to order of magnitude of tolerance
       value if all are within tolerance of original values.
     """
-    snap = False
     array = np.asanyarray(array)
     if np.log10(tolerance) <= 0:
         mod = 0
     else:
         mod = 1
     rounded_array = array.round(-np.int(mod + np.fix(
-                                            np.log10(tolerance))))
-    snap = isclose(array, rounded_array, atol=tolerance).all()
-    if snap:
+                                        np.log10(tolerance))))
+    if isclose(array, rounded_array, atol=tolerance).all():
         array = rounded_array
 
     return array
