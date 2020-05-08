@@ -12,8 +12,6 @@ from .grouping import group_min
 from .constants import tol, log_time
 from .triangles import closest_point as closest_point_corresponding
 
-from collections import deque
-
 
 def nearby_faces(mesh, points):
     """
@@ -159,17 +157,17 @@ def closest_point(mesh, points):
 
     # get best two candidate indices by arg-sorting the per-query_distances
     qds = np.array_split(query_distance, query_group)
-    idxs = np.int32([qd.argsort()[:2] if len(qd)>1 else [0,0] for qd in qds])
-    idxs[1:] += query_group.reshape(-1,1)
+    idxs = np.int32([qd.argsort()[:2] if len(qd) > 1 else [0, 0] for qd in qds])
+    idxs[1:] += query_group.reshape(-1, 1)
 
     # distances and traingle ids for best two candidates
     two_dists = query_distance[idxs]
     two_candidates = all_candidates[idxs]
 
     # the first candidate is the best result for unambiguous cases
-    result_close = query_close[idxs[:,0]]
-    result_tid = two_candidates[:,0]
-    result_distance = two_dists[:,0]
+    result_close = query_close[idxs[:, 0]]
+    result_tid = two_candidates[:, 0]
+    result_distance = two_dists[:, 0]
 
     # however: same closest point on two different faces
     # find the best one and correct triangle ids if necessary
@@ -178,12 +176,12 @@ def closest_point(mesh, points):
 
     # mask results where corrections may be apply
     c_mask = np.bitwise_and(check_distance, check_magnitude)
-    
+
     # get two face normals for the candidate points
     normals = mesh.face_normals[two_candidates[c_mask]]
     # compute normalized surface-point to query-point vectors
     vectors = (query_vector[idxs[c_mask]] /
-               two_dists[c_mask].reshape(-1,2,1) ** 0.5)
+               two_dists[c_mask].reshape(-1, 2, 1) ** 0.5)
     # compare enclosed angle for both face normals
     dots = (normals * vectors).sum(axis=2)
 
