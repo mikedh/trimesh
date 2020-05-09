@@ -26,8 +26,8 @@ try:
     from rtree import Rtree
 except BaseException as E:
     # create a dummy module which will raise the ImportError
-    from ..exceptions import ExceptionModule
-    Rtree = ExceptionModule(E)
+    from ..exceptions import closure
+    Rtree = closure(E)
 
 
 def enclosure_tree(polygons):

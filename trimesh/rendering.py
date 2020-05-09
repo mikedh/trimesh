@@ -9,26 +9,9 @@ import numpy as np
 
 from . import util
 
-try:
-    import pyglet
-    # pyglet options must be set before the first time
-    # you import pyglet.gl in any capacity in a script
-    # this is a little janky, we should possibly do the gl
-    # import inside the functions so users can set these
-    pyglet.options['shadow_window'] = False
-    pyglet.options['debug'] = False
-
-    from pyglet import gl
-    # bring in mode enum from gl
-    GL_LINES, GL_POINTS, GL_TRIANGLES = (
-        gl.GL_LINES,
-        gl.GL_POINTS,
-        gl.GL_TRIANGLES)
-except BaseException as E:
-    from . import exceptions
-    pyglet = exceptions.ExceptionModule(E)
-    # provide mode flags so we can test without pyglet
-    GL_POINTS, GL_LINES, GL_TRIANGLES = (0, 1, 4)
+# avoid importing pyglet or pyglet.gl
+# as pyglet does things on import
+GL_POINTS, GL_LINES, GL_TRIANGLES = (0, 1, 4)
 
 
 def convert_to_vertexlist(geometry, **kwargs):
@@ -315,6 +298,7 @@ def material_to_texture(material, upsize=True):
     texture : pyglet.image.Texture
       Texture loaded into pyglet form
     """
+    import pyglet
 
     # try to extract a PIL image from material
     if hasattr(material, 'image'):
@@ -361,6 +345,8 @@ def matrix_to_gl(matrix):
     glmatrix : (16,) gl.GLfloat
       Transform in pyglet format
     """
+    from pyglet import gl
+
     # convert to GLfloat, switch to column major and flatten to (16,)
     return (gl.GLfloat * 16)(*np.asanyarray(
         matrix, dtype=np.float32).T.ravel())
@@ -371,6 +357,8 @@ def vector_to_gl(array, *args):
     Convert an array and an optional set of args into a
     flat vector of gl.GLfloat
     """
+    from pyglet import gl
+
     array = np.array(array)
     if len(args) > 0:
         array = np.append(array, args)
@@ -398,6 +386,7 @@ def light_to_gl(light, transform, lightN):
       List of args to pass to gl.glLightFv eg:
       [gl.glLightfb(*a) for a in multiarg]
     """
+    from pyglet import gl
 
     # convert color to opengl
     gl_color = vector_to_gl(light.color.astype(np.float64) / 255.0)

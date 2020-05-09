@@ -17,12 +17,6 @@ class RenderTest(g.unittest.TestCase):
         # a viewer show() call)
         from trimesh import rendering
 
-        try:
-            import pyglet
-            assert not pyglet.options['shadow_window']
-        except ImportError:
-            pass
-
         m = g.get_mesh('featuretype.STL')
 
         args = rendering.mesh_to_vertexlist(m)
