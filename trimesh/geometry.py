@@ -51,7 +51,7 @@ def align_vectors(a, b, return_angle=False):
     Returns
     -------------
     matrix : (4, 4) float
-      Homogenous transform to rotate from `a` to `b`
+      Homogeneous transform to rotate from `a` to `b`
     angle : float
       If `return_angle` angle in radians between `a` and `b`
 
@@ -70,7 +70,7 @@ def align_vectors(a, b, return_angle=False):
     if np.linalg.det(bu) < 0:
         bu[:, -1] *= -1.0
 
-    # put rotation into homogenous transformation
+    # put rotation into homogeneous transformation
     matrix = np.eye(4)
     matrix[:3, :3] = bu.dot(au.T)
 
