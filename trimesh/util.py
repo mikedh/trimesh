@@ -113,7 +113,7 @@ def unitize(vectors,
         # round away inaccuracies if close to zero
         unit_round = unit.round()
         check_if_close = isclose(unit, unit_round,
-            atol=threshold).all(axis=1).reshape((-1,1))
+                    atol=threshold).all(axis=1).reshape((-1, 1))
         unit = np.where(check_if_close, unit_round, unit.copy())
 
     elif len(vectors.shape) == 1:
