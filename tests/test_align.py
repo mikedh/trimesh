@@ -3,7 +3,7 @@ try:
 except BaseException:
     import generic as g
 
-tol_norm = 1e-6
+tol_norm = 1e-10
 
 
 class AlignTests(g.unittest.TestCase):
@@ -21,21 +21,33 @@ class AlignTests(g.unittest.TestCase):
         target = g.np.array([0, 0, -1], dtype=g.np.float64)
         vectors = g.np.vstack((
             g.trimesh.unitize(g.np.random.random((1000, 3)) - .5),
+            g.np.random.random((1000, 3)) - .5,
             [-target, target],
             g.trimesh.util.generate_basis(target),
             [[7.12106798e-07, -7.43194705e-08, 1.00000000e+00],
              [0, 0, -1],
              [1e-4, 1e-4, -1]]))
 
-        for vector in vectors:
-            T, a = align(vector, target, return_angle=True)
-            assert is_rigid(T)
-            assert g.np.isclose(g.np.linalg.det(T), 1.0)
-            # rotate vector with transform
-            check = g.np.dot(T[:3, :3], vector)
-            # compare to target vector
-            norm = g.np.linalg.norm(check - target)
-            assert norm < tol_norm
+        # collect errors
+        norms = []
+        unitized = g.trimesh.unitize(vectors)
+        for unit_dest, dest in zip(unitized[-10:], vectors[-10:]):
+            for unit, vector in zip(unitized, vectors):
+                T, a = align(vector, dest, return_angle=True)
+                assert is_rigid(T)
+                assert g.np.isclose(g.np.linalg.det(T), 1.0)
+                # rotate vector with transform
+                check = g.np.dot(T[:3, :3], unit)
+                # compare to target vector
+                norm = g.np.linalg.norm(check - unit_dest)
+                norms.append(norm)
+                assert norm < tol_norm
+
+        norms = g.np.array(norms)
+        g.log.debug(
+            'vector error after transform:\n' +
+            'err.ptp: {}\nerr.std: {}\nerr.mean: {}\nerr.median: {}'.format(
+                norms.ptp(), norms.std(), norms.mean(), g.np.median(norms)))
 
         # these vectors should be perpendicular and zero
         angles = [align(i, target, return_angle=True)[1]

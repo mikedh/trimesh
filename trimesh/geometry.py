@@ -36,85 +36,55 @@ def plane_transform(origin, normal):
 
 def align_vectors(a, b, return_angle=False):
     """
-    Find a transform between two 3D vectors.
-
-    Implements the method described here:
-    http://ethaneade.com/rot_between_vectors.pdf
+    Find the rotation matrix that transforms one 3D vector
+    to another.
 
     Parameters
-    --------------
+    ------------
     a : (3,) float
-      Source vector
+      Unit vector
     b : (3,) float
-      Target vector
+      Unit vector
     return_angle : bool
-      If True return the angle between the two vectors
+      Return the angle between vectors or not
 
     Returns
     -------------
-    transform : (4, 4) float
-      Homogeneous transform from a to b
+    matrix : (4, 4) float
+      Homogeneous transform to rotate from `a` to `b`
     angle : float
-      Angle between vectors in radians
-      Only returned if return_angle
+      If `return_angle` angle in radians between `a` and `b`
+
     """
-    # copy of input vectors
-    a = np.array(a, dtype=np.float64, copy=True)
-    b = np.array(b, dtype=np.float64, copy=True)
-
-    # make sure vectors are 3D
+    a = np.array(a, dtype=np.float64)
+    b = np.array(b, dtype=np.float64)
     if a.shape != (3,) or b.shape != (3,):
-        raise ValueError('only works for (3,) vectors')
+        raise ValueError('vectors must be (3,)!')
 
-    # unitize input vectors
-    a /= np.linalg.norm(a)
-    b /= np.linalg.norm(b)
+    # find the SVD of the two vectors
+    au = np.linalg.svd(a.reshape((-1, 1)))[0]
+    bu = np.linalg.svd(b.reshape((-1, 1)))[0]
 
-    # projection of a onto b
-    dot = np.dot(a, b)
-    # resolution to compare floating point numbers
-    epsilon = 1e-12
-    if dot < (epsilon - 1):
-        # a reversed vector is 180 degrees
-        angle = np.pi
-        # get an arbitrary perpendicular vector
-        # note that we are using both a and b
-        # so small values will be halved
-        perp = util.generate_basis(a - b)[0]
-        # compose the rotation matrix around our
-        # perpendicular vector with a simplification since
-        # cos(pi)=-1 and sin(pi)=0
-        rotation = np.outer(perp, perp) * 2.0 - np.eye(3)
-    elif dot > (1 - epsilon):
-        # are vectors already the same
-        angle = 0.0
-        # no rotation
-        rotation = np.eye(3)
-    # vectors are at some angle to each other
-    else:
-        # we already handled values out of the range [-1.0, 1.0]
-        angle = np.arccos(dot)
-        # (3,) vector perpendicular to both a and b
-        w = np.cross(a, b)
-        # a float between 0.5 and 1.0
-        c = 1.0 / (1.0 + dot)
-        # (3, 3) skew- symmetric matrix from the (3,) vector w
-        # the matrix has the property: wx == -wx.T
-        wx = np.array([[0, -w[2], w[1]],
-                       [w[2], 0, -w[0]],
-                       [-w[1], w[0], 0]])
+    if np.linalg.det(au) < 0:
+        au[:, -1] *= -1.0
+    if np.linalg.det(bu) < 0:
+        bu[:, -1] *= -1.0
 
-        # (3, 3) rotation from a to b
-        rotation = np.eye(3) + wx + (np.dot(wx, wx) * c)
-
-    # put rotation into homogeneous transformation matrix
-    transform = np.eye(4)
-    transform[:3, :3] = rotation
+    # put rotation into homogeneous transformation
+    matrix = np.eye(4)
+    matrix[:3, :3] = bu.dot(au.T)
 
     if return_angle:
-        return transform, angle
+        # projection of a onto b
+        # first row of SVD result is normalized source vector
+        dot = np.dot(au[0], bu[0])
+        # clip to avoid floating point error
+        angle = np.arccos(np.clip(dot, -1.0, 1.0))
+        if dot < -1e-5:
+            angle += np.pi
+        return matrix, angle
 
-    return transform
+    return matrix
 
 
 def faces_to_edges(faces, return_index=False):

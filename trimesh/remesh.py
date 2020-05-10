@@ -97,7 +97,8 @@ def subdivide(vertices,
 def subdivide_to_size(vertices,
                       faces,
                       max_edge,
-                      max_iter=10):
+                      max_iter=10,
+                      return_index=False):
     """
     Subdivide a mesh until every edge is shorter than a
     specified length.
@@ -114,6 +115,8 @@ def subdivide_to_size(vertices,
       Maximum length of any edge in the result
     max_iter : int
       The maximum number of times to run subdivision
+    return_index : bool
+      If True, return index of original face for new faces
 
     Returns
     ------------
@@ -121,18 +124,21 @@ def subdivide_to_size(vertices,
       Vertices in space
     faces : (q, 3) int
       Indices of vertices
+    index : (q, 3) int
+      Only returned if `return_index`, index of
+      original face for each new face.
     """
     # store completed
     done_face = []
     done_vert = []
+    done_idx = []
 
     # copy inputs and make sure dtype is correct
-    current_faces = np.array(faces,
-                             dtype=np.int64,
-                             copy=True)
-    current_vertices = np.array(vertices,
-                                dtype=np.float64,
-                                copy=True)
+    current_faces = np.array(
+        faces, dtype=np.int64, copy=True)
+    current_vertices = np.array(
+        vertices, dtype=np.float64, copy=True)
+    current_index = np.arange(len(faces))
 
     # loop through iteration cap
     for i in range(max_iter + 1):
@@ -142,28 +148,41 @@ def subdivide_to_size(vertices,
             axis=1) ** 2).sum(axis=2) ** .5
         # check edge length against maximum
         too_long = (edge_length > max_edge).any(axis=1)
+        # faces that are OK
+        face_ok = ~too_long
 
         # clean up the faces a little bit so we don't
         # store a ton of unused vertices
         unique, inverse = grouping.unique_bincount(
-            current_faces[np.logical_not(too_long)].flatten(),
+            current_faces[face_ok].flatten(),
             return_inverse=True)
 
         # store vertices and faces meeting criteria
         done_vert.append(current_vertices[unique])
         done_face.append(inverse.reshape((-1, 3)))
+        done_idx.append(current_index[face_ok])
 
         # met our goals so exit
         if not too_long.any():
             break
 
+        current_index = np.tile(current_index[too_long], (4, 1)).T.ravel()
         # run subdivision again
         (current_vertices,
          current_faces) = subdivide(current_vertices,
                                     current_faces[too_long])
 
+    if i >= max_iter:
+        util.log.warning(
+            'subdivide_to_size reached maximum iterations before exit criteria!')
+
     # stack sequence into nice (n, 3) arrays
-    vertices, faces = util.append_faces(
+    final_vertices, final_faces = util.append_faces(
         done_vert, done_face)
 
-    return vertices, faces
+    if return_index:
+        final_index = np.concatenate(done_idx)
+        assert len(final_index) == len(final_faces)
+        return final_vertices, final_faces, final_index
+
+    return final_vertices, final_faces

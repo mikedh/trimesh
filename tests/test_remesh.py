@@ -22,18 +22,34 @@ class SubDivideTest(g.unittest.TestCase):
                 faces=m.faces)
 
             max_edge = m.scale / 50
-            v, f = g.trimesh.remesh.subdivide_to_size(
+            v, f, idx = g.trimesh.remesh.subdivide_to_size(
                 vertices=m.vertices,
                 faces=m.faces,
-                max_edge=max_edge)
+                max_edge=max_edge,
+                return_index=True)
             ms = g.trimesh.Trimesh(vertices=v, faces=f)
-
             assert g.np.allclose(m.area, ms.area)
-
             edge_len = (g.np.diff(ms.vertices[ms.edges_unique],
                                   axis=1).reshape((-1, 3))**2).sum(axis=1)**.5
-
             assert (edge_len < max_edge).all()
+
+            # should be one index per new face
+            assert len(idx) == len(f)
+            # every face should be subdivided
+            assert idx.max() == (len(m.faces) - 1)
+
+            # check the original face index using barycentric coordinates
+            epsilon = 1e-3
+            for vid in f.T:
+                # find the barycentric coordinates
+                bary = g.trimesh.triangles.points_to_barycentric(
+                    m.triangles[idx], v[vid])
+                # if face indexes are correct they will be on the triangle
+                # which means all barycentric coordinates are between 0.0-1.0
+                assert bary.max() < (1 + epsilon)
+                assert bary.min() > -epsilon
+                # make sure it's not all zeros
+                assert bary.ptp() > epsilon
 
     def test_sub(self):
         # try on some primitives
