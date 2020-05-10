@@ -31,8 +31,10 @@ def plane_transform(origin, normal, destination_normal=None):
         destination plane
     """
     if destination_normal is None:
-        destination_normal = normal
-    transform = align_vectors(normal, destination_normal)
+        dn = normal
+    else:
+        dn = destination_normal
+    transform = align_vectors(normal, dn)
     transform[0:3, 3] = -np.dot(transform,
                                 np.append(origin, 1))[0:3]
     return transform
