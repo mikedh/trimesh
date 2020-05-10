@@ -110,6 +110,11 @@ def unitize(vectors,
         norm[valid] **= -1
         # multiply by reciprocal of norm
         unit = vectors * norm.reshape((-1, 1))
+        # round away inaccuracies if close to zero
+        unit_round = unit.round()
+        check_if_close = isclose(unit,unit_round,
+                  atol=threshold).all(axis=1).reshape((-1,1))
+        unit = np.where(check_if_close,unit_round,unit.copy())
 
     elif len(vectors.shape) == 1:
         # treat 1D arrays as a single vector
@@ -117,6 +122,11 @@ def unitize(vectors,
         valid = norm > threshold
         if valid:
             unit = vectors / norm
+            # round away inaccuracies if close to zero
+            unit_round = unit.round()
+            if isclose(unit, unit_round,
+                                    atol=threshold).all():
+                unit = unit_round
         else:
             unit = vectors.copy()
     else:
