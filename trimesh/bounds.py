@@ -315,8 +315,8 @@ def minimum_cylinder(obj, sample_count=6, angle_tol=.001):
             origin = obj.convex_hull.center_mass
         # will align symmetry axis with Z and move origin to zero
         to_2D = geometry.plane_transform(
-            origin,
-            obj.symmetry_axis)
+            origin=origin,
+            normal=obj.symmetry_axis)
         # transform vertices to plane to check
         on_plane = transformations.transform_points(
             obj.vertices, to_2D)
