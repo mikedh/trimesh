@@ -352,6 +352,11 @@ class GLTFTest(g.unittest.TestCase):
         assert all(r.metadata['extras'][k] == v
                    for k, v in dummy.items())
 
+    def test_samename(self):
+        s = g.get_mesh('TestScene.gltf')
+        assert len(s.graph.nodes_geometry) == 7
+        assert len(s.geometry) == 7
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
