@@ -230,15 +230,12 @@ def load_gltf(file_obj=None,
     """
     try:
         # see if we've been passed the GLTF header file
-        tree = json.load(file_obj)
+        tree = json.loads(util.decode_text(file_obj.read()))
     except BaseException:
         # otherwise header should be in 'model.gltf'
         data = resolver['model.gltf']
         # old versions of python/json need strings
-        try:
-            tree = json.loads(data)
-        except BaseException:
-            tree = json.loads(util.decode_text(data))
+        tree = json.loads(util.decode_text(data))
 
     # use the URI and resolver to get data from file names
     buffers = [_uri_to_bytes(uri=b['uri'], resolver=resolver)
