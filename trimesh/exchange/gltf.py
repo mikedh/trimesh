@@ -1064,7 +1064,10 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
     names = {}
     for i, n in enumerate(nodes):
         if "name" in n:
-            names[i] = n["name"]
+            if n["name"] in names.values():
+                names[i] = n["name"] + "_{}".format(util.unique_id())
+            else:
+                names[i] = n["name"]
         else:
             names[i] = str(i)
 
@@ -1147,7 +1150,7 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
             for name in geometries:
                 kwargs["geometry"] = name
                 if 'name' in child:
-                    kwargs['frame_to'] = child['name']
+                    kwargs['frame_to'] = names[b]
                 else:
                     kwargs["frame_to"] = "{}_{}".format(
                         name, util.unique_id(
