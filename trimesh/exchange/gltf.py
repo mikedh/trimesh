@@ -230,15 +230,12 @@ def load_gltf(file_obj=None,
     """
     try:
         # see if we've been passed the GLTF header file
-        tree = json.load(file_obj)
+        tree = json.loads(util.decode_text(file_obj.read()))
     except BaseException:
         # otherwise header should be in 'model.gltf'
         data = resolver['model.gltf']
         # old versions of python/json need strings
-        try:
-            tree = json.loads(data)
-        except BaseException:
-            tree = json.loads(util.decode_text(data))
+        tree = json.loads(util.decode_text(data))
 
     # use the URI and resolver to get data from file names
     buffers = [_uri_to_bytes(uri=b['uri'], resolver=resolver)
@@ -1065,7 +1062,10 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
     names = {}
     for i, n in enumerate(nodes):
         if "name" in n:
-            names[i] = n["name"]
+            if n["name"] in names.values():
+                names[i] = n["name"] + "_{}".format(util.unique_id())
+            else:
+                names[i] = n["name"]
         else:
             names[i] = str(i)
 
@@ -1148,7 +1148,7 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
             for name in geometries:
                 kwargs["geometry"] = name
                 if 'name' in child:
-                    kwargs['frame_to'] = child['name']
+                    kwargs['frame_to'] = names[b]
                 else:
                     kwargs["frame_to"] = "{}_{}".format(
                         name, util.unique_id(
