@@ -14,7 +14,7 @@ except BaseException as E:
 from .. import util
 from ..visual.color import to_float
 from ..visual.texture import unmerge_faces, TextureVisuals
-from ..visual.material import SimpleMaterial
+from ..visual.materials import SimpleMaterial
 
 from ..constants import log, tol
 

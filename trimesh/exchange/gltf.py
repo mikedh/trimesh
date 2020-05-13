@@ -871,7 +871,7 @@ def _parse_materials(header, views, resolver=None):
                     # store the actual image as the value
                     pbr[k] = images[idx]
             # create a PBR material object for the GLTF material
-            materials.append(visual.material.PBRMaterial(**pbr))
+            materials.append(visual.materials.PBRMaterial(**pbr))
 
     return materials
 
@@ -1012,7 +1012,8 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
             if len(m["primitives"]) > 1:
                 name += "_{}".format(j)
 
-            custom_attrs = [attr for attr in p["attributes"] if attr.startswith("_")]
+            custom_attrs = [attr for attr in p["attributes"]
+                            if attr.startswith("_")]
             if len(custom_attrs):
                 vertex_attributes = {}
                 for attr in custom_attrs:

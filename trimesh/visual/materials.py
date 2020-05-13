@@ -253,6 +253,30 @@ class PBRMaterial(Material):
         result = color.to_rgba(self.baseColorFactor)
         return result
 
+    def __hash__(self):
+        """
+        Provide a hash of the material so we can detect
+        duplicates.
+
+        Returns
+        ------------
+        hash : int
+          Hash of image and parameters
+        """
+        if hasattr(self.baseColorTexture, 'tobytes'):
+            # start with hash of raw image bytes
+            hashed = hash(self.baseColorTexture.tobytes())
+        else:
+            # otherwise start with zero
+            hashed = 0
+        # we will add additional parameters with
+        # an in-place xor of the additional value
+        # if stored as numpy arrays add parameters
+        if hasattr(self.baseColorFactor, 'tobytes'):
+            hashed ^= hash(self.baseColorFactor.tobytes())
+
+        return hashed
+
 
 def empty_material():
     """
@@ -268,3 +292,61 @@ def empty_material():
     # create a one pixel RGB image
     image = Image.new(mode='RGB', size=(1, 1))
     return SimpleMaterial(image=image)
+
+
+def pack(materials, uvs):
+    """
+    Pack multiple materials with texture into a single material.
+
+    Parameters
+    -----------
+    materials : (n,) Material
+      List of multiple materials
+    uvs : (n, m, 2) float
+      Original UV coordinates
+
+    Returns
+    ------------
+    material : Material
+      Combined material
+    uv : (p, 2) float
+      Combined UV coordinates
+    """
+
+    from PIL import Image
+    from ..path import packing
+    # store the images to combine later
+    images = []
+    # first collect the images from the materials
+    for i, m in enumerate(materials):
+        if isinstance(m, PBRMaterial):
+            if m.baseColorTexture is not None:
+                img = m.baseColorTexture
+            else:
+                img = Image.new(mode='RGB', size=(1, 1))
+        elif hasattr(m, 'image'):
+            img = m.image
+        else:
+            raise ValueError('no image to pack!')
+        images.append(img)
+
+    # pack the multiple images into a single large image
+    final, offsets = packing.images(images)
+
+    # the size of the final texture image
+    fsize = np.array(final.size, dtype=np.float64)
+    # collect scaled new UV coordinates
+    new_uv = []
+
+    for img, off, uv in zip(images, offsets, uvs):
+        # how big was the original image
+        scale = img.size / fsize
+        # what is the offset in fractions of final image
+        uv_off = off / fsize
+
+        new_uv.append((uv * scale) + uv_off)
+
+    # stack UV's into single (n, 2) array
+    stacked = np.vstack(new_uv)
+
+    return SimpleMaterial(image=final), stacked

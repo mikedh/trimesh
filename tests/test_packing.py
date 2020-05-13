@@ -18,7 +18,16 @@ class PackingTest(g.unittest.TestCase):
         from trimesh.path import packing
         paths = [g.trimesh.load_path(i) for i in self.nestable]
 
+
+        from pyinstrument import Profiler
+        profiler = Profiler()
+        profiler.start()
+
         r, inserted = packing.pack_paths(paths)
+
+        # code you want to profile
+        profiler.stop()
+        print(profiler.output_text(unicode=True, color=True))
 
         # number of paths inserted
         count = len(g.np.unique(inserted))

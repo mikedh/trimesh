@@ -4,12 +4,13 @@ import copy
 
 from .base import Visuals
 from . import color
+from . import materials
 
 from .. import util
 from .. import caching
 from .. import grouping
 
-from .material import SimpleMaterial, PBRMaterial, empty_material  # NOQA
+from .materials import SimpleMaterial, PBRMaterial, empty_material  # NOQA
 
 
 class TextureVisuals(Visuals):
@@ -44,10 +45,10 @@ class TextureVisuals(Visuals):
 
         if material is None:
             if image is None:
-                self.material = empty_material()
+                self.material = materials.empty_material()
             else:
                 # if an image is passed create a SimpleMaterial
-                self.material = SimpleMaterial(image=image)
+                self.material = materials.SimpleMaterial(image=image)
         else:
             # if passed assign
             self.material = material
@@ -177,9 +178,24 @@ class TextureVisuals(Visuals):
         """
         pass
 
-    def concatenate(self, *args, **kwargs):
+    def concatenate(self, others, *args, **kwargs):
         util.log.warning('returning empty visuals!')
-        return TextureVisuals()
+
+        visuals = [self]
+        visuals.extend(others)
+
+        mat = [v.material for v in visuals]
+        uvs = [v.uv for v in visuals]
+
+        for i in range(len(uvs)):
+            if uvs[i] is not None:
+                continue
+            vc = len(visuals[i].mesh.vertices)
+            uvs[i] = np.zeros((vc, 2))
+
+        newmat, newuv = materials.pack(materials=mat, uvs=uvs)
+
+        return TextureVisuals(material=newmat, uv=newuv)
 
 
 def unmerge_faces(faces, *args):
