@@ -63,13 +63,13 @@ def concatenate(visuals, *args):
         for v in visuals:
             if v.kind == 'texture':
                 mats.append(v.material)
-                uv_shape = (len(v.mesh.vertices), 2)
-                if uv_shape == np.shape(v.uv):
+                if v.uv is None:
+                    # otherwise use zeros
+                    uvs.append(np.zeros((len(v.mesh.vertices), 2)) + 0.5)
+                else:
                     # if uvs are of correct shape use them
                     uvs.append(v.uv)
-                else:
-                    # otherwise use zeros
-                    uvs.append(np.zeros(uv_shape) + 0.5)
+
             else:
                 # create a material and UV coordinates from vertex colors
                 color_mat, color_uv = materials.from_color(
