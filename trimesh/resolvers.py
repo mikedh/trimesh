@@ -8,6 +8,7 @@ archives, web assets, or a local file path.
 """
 
 import os
+from . import util
 
 # URL parsing for remote resources via WebResolver
 try:
@@ -92,10 +93,8 @@ class FilePathResolver(Resolver):
         """
         # write files to path name
         with open(os.path.join(self.parent, name.strip()), 'wb') as f:
-            if hasattr(data, 'encode'):
-                f.write(data.encode('utf-8'))
-            else:
-                f.write(data)
+            # handle encodings correctly for str/bytes
+            util.write_encoded(file_obj=f, stuff=data)
 
 
 class ZipResolver(Resolver):
