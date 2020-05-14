@@ -26,6 +26,10 @@ class Resolver(object):
     def __init__(self, *args, **kwargs):
         raise NotImplementedError('Use a resolver subclass!')
 
+    def write(self, name, data):
+        raise NotImplementedError('write not implemented for {}'.format(
+            self.__class__.__name__))
+
     def __getitem__(self, key):
         return self.get(key)
 
@@ -71,10 +75,27 @@ class FilePathResolver(Resolver):
           Loaded data from asset
         """
         # load the file by path name
-        with open(os.path.join(self.parent,
-                               name.strip()), 'rb') as f:
+        with open(os.path.join(self.parent, name.strip()), 'rb') as f:
             data = f.read()
         return data
+
+    def write(self, name, data):
+        """
+        Write an asset to a file path.
+
+        Parameters
+        -----------
+        name : str
+          Name of the file to write
+        data : str or bytes
+          Data to write to the file
+        """
+        # write files to path name
+        with open(os.path.join(self.parent, name.strip()), 'wb') as f:
+            if hasattr(data, 'encode'):
+                f.write(data.encode('utf-8'))
+            else:
+                f.write(data)
 
 
 class ZipResolver(Resolver):

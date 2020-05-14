@@ -179,7 +179,7 @@ class TextureVisuals(Visuals):
         pass
 
     def concatenate(self, others, *args, **kwargs):
-        util.log.warning('returning empty visuals!')
+        util.log.warning('concatenating texture, may create visual artifacts')
 
         visuals = [self]
         visuals.extend(others)
@@ -191,7 +191,7 @@ class TextureVisuals(Visuals):
             if uvs[i] is not None:
                 continue
             vc = len(visuals[i].mesh.vertices)
-            uvs[i] = np.zeros((vc, 2))
+            uvs[i] = np.zeros((vc, 2)) + 0.5
 
         newmat, newuv = materials.pack(materials=mat, uvs=uvs)
 

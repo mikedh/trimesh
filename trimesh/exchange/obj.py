@@ -710,7 +710,10 @@ def _preprocess_faces(text, split_object=False):
 def export_obj(mesh,
                include_normals=True,
                include_color=True,
-               include_texture=False,
+               include_texture=True,
+               return_texture=False,
+               write_texture=True,
+               resolver=None,
                digits=8):
     """
     Export a mesh as a Wavefront OBJ file.
@@ -731,7 +734,6 @@ def export_obj(mesh,
       same location as the exported mesh.
     digits : int
       Number of digits to include for floating point
-
 
     Returns
     -----------
@@ -831,8 +833,14 @@ def export_obj(mesh,
     objects.appendleft('# https://github.com/mikedh/trimesh')
     # combine elements into a single string
     text = '\n'.join(objects)
+
+    # if we have a resolver and have asked to write texture
+    if write_texture and resolver is not None and tex_data is not None:
+        # not all resolvers have a write method
+        [resolver.write(k, v) for k, v in tex_data.items()]
+
     # if we exported texture it changes returned values
-    if include_texture and tex_data is not None:
+    if return_texture:
         return text, tex_data
 
     return text

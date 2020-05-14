@@ -299,6 +299,7 @@ def multipack(polygons,
      sheet) = multipack_rectangles(
          rectangles=rectangles,
          sheet_size=sheet_size,
+         spacing=spacing,
          density_escape=density_escape,
          iterations=iterations)
 
@@ -357,7 +358,7 @@ def multipack_rectangles(rectangles,
     return result
 
 
-def images(images):
+def images(images, power_resize=False):
     """
     Pack a list of images and return result and offsets.
 
@@ -390,8 +391,12 @@ def images(images):
     # offsets should be integer multiple of pizels
     offset = offset.round().astype(int)
 
+    size = sheet.round().astype(int)
+    if power_resize:
+        size = (2 ** np.ceil(np.log2(size))).astype(np.int64)
+
     # create the image
-    result = Image.new('RGB', tuple(sheet.round().astype(int)))
+    result = Image.new('RGB', tuple(size))
     # paste each image into the result
     for img, off in zip(images, offset):
         result.paste(img, tuple(off))

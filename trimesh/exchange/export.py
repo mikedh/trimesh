@@ -4,6 +4,7 @@ import numpy as np
 
 from ..constants import log
 from .. import util
+from .. import resolvers
 
 from .urdf import export_urdf  # NOQA
 from .gltf import export_glb, export_gltf
@@ -15,7 +16,7 @@ from .dae import _collada_exporters
 from .xyz import _xyz_exporters
 
 
-def export_mesh(mesh, file_obj, file_type=None, **kwargs):
+def export_mesh(mesh, file_obj, file_type=None, resolver=None, **kwargs):
     """
     Export a Trimesh object to a file- like object, or to a filename
 
@@ -48,6 +49,9 @@ def export_mesh(mesh, file_obj, file_type=None, **kwargs):
             # get full path of file before opening
             file_path = os.path.abspath(os.path.expanduser(file_obj))
             file_obj = open(file_path, 'wb')
+            if resolver is None:
+                # create a resolver which can write files to the path
+                resolver = resolvers.FilePathResolver(file_path)
 
     # make sure file type is lower case
     file_type = str(file_type).lower()
@@ -65,7 +69,7 @@ def export_mesh(mesh, file_obj, file_type=None, **kwargs):
         # if the mesh has faces log the number
         log.debug('Exporting %d faces as %s', len(mesh.faces),
                   file_type.upper())
-    export = _mesh_exporters[file_type](mesh, **kwargs)
+    export = _mesh_exporters[file_type](mesh, resolver=resolver, **kwargs)
 
     if hasattr(file_obj, 'write'):
         result = util.write_encoded(file_obj, export)
@@ -92,10 +96,10 @@ def export_dict(mesh, encoding=None):
 
     Parameters
     ------------
-    mesh : Trimesh object
-             Mesh to be exported
-    encoding : str, or None
-                 'base64'
+    mesh : trimesh.Trimesh
+      Mesh to be exported
+    encoding : str or None
+      Such as 'base64'
 
     Returns
     -------------

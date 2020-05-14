@@ -294,7 +294,7 @@ def empty_material():
     return SimpleMaterial(image=image)
 
 
-def pack(materials, uvs):
+def pack(materials, uvs, deduplicate=True):
     """
     Pack multiple materials with texture into a single material.
 
@@ -315,13 +315,30 @@ def pack(materials, uvs):
 
     from PIL import Image
     from ..path import packing
+    import collections
+
+    if deduplicate:
+        # start by collecting a list of indexes for each material hash
+        unique_idx = collections.defaultdict(list)
+        [unique_idx[hash(m)].append(i) for i, m in enumerate(materials)]
+        # now we only need the indexes and don't care about the hashes
+        mat_idx = list(unique_idx.values())
+    else:
+        # otherwise just use all the indexes
+        mat_idx = np.arange(len(materials)).reshape((-1, 1))
+
     # store the images to combine later
     images = []
     # first collect the images from the materials
-    for i, m in enumerate(materials):
+    for idx in mat_idx:
+        # get the first material from the group
+        m = materials[idx[0]]
+        # extract an image for each material
         if isinstance(m, PBRMaterial):
             if m.baseColorTexture is not None:
                 img = m.baseColorTexture
+            elif m.baseColorFactor is not None:
+                img = Image.fromarray(m.baseColorFactor[:3].reshape((1, 1, 3)))
             else:
                 img = Image.new(mode='RGB', size=(1, 1))
         elif hasattr(m, 'image'):
@@ -331,22 +348,21 @@ def pack(materials, uvs):
         images.append(img)
 
     # pack the multiple images into a single large image
-    final, offsets = packing.images(images)
+    final, offsets = packing.images(images, power_resize=True)
 
     # the size of the final texture image
-    fsize = np.array(final.size, dtype=np.float64)
+    final_size = np.array(final.size, dtype=np.float64)
     # collect scaled new UV coordinates
     new_uv = []
 
-    for img, off, uv in zip(images, offsets, uvs):
+    for idxs, img, off in zip(mat_idx, images, offsets):
         # how big was the original image
-        scale = img.size / fsize
+        scale = img.size / final_size
         # what is the offset in fractions of final image
-        uv_off = off / fsize
-
-        new_uv.append((uv * scale) + uv_off)
-
-    # stack UV's into single (n, 2) array
+        uv_off = off / final_size
+        # scale and translate each of the new UV coordinates
+        [new_uv.append((uvs[i] * scale) + uv_off) for i in idxs]
+    # stack UV coordinates into single (n, 2) array
     stacked = np.vstack(new_uv)
 
     return SimpleMaterial(image=final), stacked
