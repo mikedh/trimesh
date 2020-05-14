@@ -881,7 +881,8 @@ class Path3D(Path):
     def to_planar(self,
                   to_2D=None,
                   normal=None,
-                  check=True):
+                  check=True,
+                  default_Z=True):
         """
         Check to see if current vectors are all coplanar.
 
@@ -901,6 +902,10 @@ class Path3D(Path):
         check:  bool
             If True: Raise a ValueError if
             points aren't coplanar
+        default_Z:  bool
+            If True: use Z axis as default normal direction.
+            If False: raise a ValueError if points are not
+            coplanar in a plane normal to any major axis
 
         Returns
         -----------
@@ -921,60 +926,65 @@ class Path3D(Path):
         if to_2D is None:
             # fit a plane to our vertices
             C, N = plane_fit(self.vertices[referenced])
-            # apply a passed normal
-            if normal is not None:
-                normal = np.asanyarray(normal, dtype=np.float64)
-                if normal.shape == (3,):
-                    dn = normal
-                else:
-                    log.warning(
-                        "passed normal not used: {}".format(
-                            normal.shape))
-            # otherwise use normal from fit plane
-            else:
-                dn = N
-            # eliminate calculation errors
-            C, N, dn = util.snap_to(C), util.snap_to(N), util.snap_to(dn)
-            # create a transform from fit plane to destination plane
-            to_2D = plane_transform(origin=C,
-                                    normal=N,
-                                    destination_normal=dn)
-        elif normal is not None:
-            log.warning("passed normal not used: {}".format(
-                normal.shape))
+        else:
+            # transform all vertices to 2D plane
+            flat_fit = tf.transform_points(self.vertices[referenced],
+                                           to_2D)
+            # find center and normal from transformed plane
+            C, N = plane_fit(flat_fit)
 
+        # align to normal if included
+        if normal is not None:
+            normal = np.asanyarray(unitize(normal), dtype=np.float64)
+            if normal.shape == (3,):
+                dn = normal.copy()
+            else:
+                log.warning(
+                    "passed normal not used: {}".format(
+                        normal.shape))
+        # otherwise use normal from fit plane
+        else:
+            dn = unitize(N)
+
+        # check if destination normal is a unit normal
+        # and see if normal aligns with X, Y, or Z axis
+        axis = []
+        normal_check = isclose(np.abs(unitize(dn)), np.eye(3)).all(axis=1)
+        if normal_check.any():
+            axis = list(np.flatnonzero(normal_check))[0]
+        elif default_Z:
+            axis = 2
+            dn = np.asanyarray([0,0,1])
+
+        # find final transform to 2D
+        to_2D = plane_transform(origin=C,
+                                normal=N,
+                                destination_normal=dn)
         # make sure we've extracted a transform
         to_2D = np.asanyarray(to_2D, dtype=np.float64)
         if to_2D.shape != (4, 4):
             raise ValueError('unable to create transform!')
 
-        # make sure normal aligns with X, Y, or Z axis
-        normal_test = False
-        for i in [[1, 0, 0], [0, 1, 0], [0, 0, 1],
-                  [-1, 0, 0], [0, -1, 0], [0, 0, -1]]:
-            if not np.any(align_vectors(dn, i) - np.eye(4)):
-                normal_test = True
-        if normal_test is False:
-            raise ValueError('normal does not align with major axis')
-
-        # set axis
-        axis = np.where(np.abs(dn) == 1)[0][0]
-
         # transform all vertices to 2D plane
         flat = tf.transform_points(self.vertices,
                                    to_2D)
 
-        # normal direction values of vertices which are referenced
-        heights = flat[referenced][:, axis]
-        # points are not on a plane because normal values vary
-        if heights.ptp() > tol.planar:
-            # since normal is inconsistent set height to zero
-            height = 0.0
-            if check:
-                raise ValueError('points are not flat!')
+        if axis:
+            # normal direction values of vertices which are referenced
+            heights = flat[referenced][:, axis]
+            # points are not on a plane because normal values vary
+            if heights.ptp() > tol.planar:
+                # since normal is inconsistent set height to zero
+                height = 0.0
+                if check:
+                    raise ValueError('points are not flat!')
+            else:
+                # if the points were planar store the height
+                height = heights.mean()
         else:
-            # if the points were planar store the height
-            height = heights.mean()
+            raise ValueError(
+                "points may be flat but normal does not align with major axis")
+
 
         # the transform from 2D to 3D
         to_3D = np.linalg.inv(to_2D)
