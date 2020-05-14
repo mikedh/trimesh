@@ -11,8 +11,6 @@ from . import materials
 from .texture import TextureVisuals
 from .color import ColorVisuals
 
-from ..util import log
-
 
 def create_visual(**kwargs):
     """

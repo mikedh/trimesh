@@ -26,6 +26,8 @@ def export_mesh(mesh, file_obj, file_type=None, resolver=None, **kwargs):
       Where should mesh be exported to
     file_type : str or None
       Represents file type (eg: 'stl')
+    resolver : None or trimesh.resolvers.Resolver
+      Resolver to write referenced assets to
 
     Returns
     ----------
@@ -69,7 +71,11 @@ def export_mesh(mesh, file_obj, file_type=None, resolver=None, **kwargs):
         # if the mesh has faces log the number
         log.debug('Exporting %d faces as %s', len(mesh.faces),
                   file_type.upper())
-    export = _mesh_exporters[file_type](mesh, resolver=resolver, **kwargs)
+
+    # OBJ files save assets everywhere
+    if file_type == 'obj':
+        kwargs['resolver'] = resolver
+    export = _mesh_exporters[file_type](mesh, **kwargs)
 
     if hasattr(file_obj, 'write'):
         result = util.write_encoded(file_obj, export)

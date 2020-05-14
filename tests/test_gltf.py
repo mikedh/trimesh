@@ -234,7 +234,7 @@ class GLTFTest(g.unittest.TestCase):
 
         # should have been loaded as a PBR material
         assert isinstance(ar.visual.material,
-                          g.trimesh.visual.material.PBRMaterial)
+                          g.trimesh.visual.materials.PBRMaterial)
 
         # materials should have the same memory location
         assert id(ar.visual.material) == id(br.visual.material)

@@ -399,9 +399,6 @@ def pack(materials, uvs, deduplicate=True):
         # scale and translate each of the new UV coordinates
         [new_uv.append((uvs[i] * scale) + uv_off) for i in idxs]
 
-    #from IPython import embed
-    # embed()
-
     # stack UV coordinates into single (n, 2) array
     stacked = np.vstack(new_uv)
 
