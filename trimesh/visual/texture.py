@@ -178,24 +178,24 @@ class TextureVisuals(Visuals):
         """
         pass
 
-    def concatenate(self, others, *args, **kwargs):
-        util.log.warning('concatenating texture, may create visual artifacts')
+    def concatenate(self, others):
+        """
+        Concatenate this TextureVisuals object with others
+        and return the result without modifying this visual.
 
-        visuals = [self]
-        visuals.extend(others)
+        Parameters
+        -----------
+        others : (n,) Visuals
+          Other visual objects to concatenate
 
-        mat = [v.material for v in visuals]
-        uvs = [v.uv for v in visuals]
-
-        for i in range(len(uvs)):
-            if uvs[i] is not None:
-                continue
-            vc = len(visuals[i].mesh.vertices)
-            uvs[i] = np.zeros((vc, 2)) + 0.5
-
-        newmat, newuv = materials.pack(materials=mat, uvs=uvs)
-
-        return TextureVisuals(material=newmat, uv=newuv)
+        Returns
+        -----------
+        concatenated : TextureVisuals
+          Concatenated visual objects
+        """
+        util.log.warning('concatenating texture: may result in visual artifacts')
+        from .objects import concatenate
+        return concatenate(self, others)
 
 
 def unmerge_faces(faces, *args):

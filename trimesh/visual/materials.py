@@ -8,6 +8,7 @@ import numpy as np
 
 from . import color
 from .. import util
+from .. import grouping
 
 
 class Material(object):
@@ -256,7 +257,7 @@ class PBRMaterial(Material):
     def __hash__(self):
         """
         Provide a hash of the material so we can detect
-        duplicates.
+        duplicate materials.
 
         Returns
         ------------
@@ -278,9 +279,14 @@ class PBRMaterial(Material):
         return hashed
 
 
-def empty_material():
+def empty_material(color=None):
     """
-    Return an empty material.
+    Return an empty material set to a single color
+
+    Parameters
+    -----------
+    color : None or (3,) uint8
+      RGB color
 
     Returns
     -------------
@@ -288,10 +294,40 @@ def empty_material():
       Image is a a one pixel RGB
     """
     from PIL import Image
-
+    if color is None or np.shape(color) not in ((3,), (4,)):
+        color = np.array([255, 255, 255], dtype=np.uint8)
+    else:
+        color = np.array(color, dtype=np.uint8)[:3]
     # create a one pixel RGB image
-    image = Image.new(mode='RGB', size=(1, 1))
+    image = Image.fromarray(
+        np.tile(color, (4, 1)).reshape((2, 2, 3)))
     return SimpleMaterial(image=image)
+
+
+def from_color(vertex_colors):
+    """
+    Convert vertex colors into UV coordinates and materials.
+
+    TODO : pack colors
+
+    Parameters
+    ------------
+    vertex_colors : (n, 3) float
+      Array of vertex colors
+
+    Returns
+    ------------
+    material : SimpleMaterial
+      Material containing color information
+    uvs : (n, 2) float
+      UV coordinates
+    """
+    unique, inverse = grouping.unique_rows(vertex_colors)
+    # TODO : tile colors nicely
+    material = empty_material(color=vertex_colors[unique[0]])
+    uvs = np.zeros((len(vertex_colors), 2)) + 0.5
+
+    return material, uvs
 
 
 def pack(materials, uvs, deduplicate=True):
@@ -362,6 +398,10 @@ def pack(materials, uvs, deduplicate=True):
         uv_off = off / final_size
         # scale and translate each of the new UV coordinates
         [new_uv.append((uvs[i] * scale) + uv_off) for i in idxs]
+
+    #from IPython import embed
+    # embed()
+
     # stack UV coordinates into single (n, 2) array
     stacked = np.vstack(new_uv)
 

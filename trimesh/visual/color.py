@@ -438,6 +438,12 @@ class ColorVisuals(Visuals):
 
         return color
 
+    def to_texture(self):
+        from .materials import from_color
+        from .texture import TextureVisuals
+        mat, uv = from_color(vertex_colors=self.vertex_colors)
+        return TextureVisuals(material=mat, uv=uv)
+
     def concatenate(self, other, *args):
         """
         Concatenate two or more ColorVisuals objects into a single object.

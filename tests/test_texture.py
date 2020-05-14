@@ -24,39 +24,12 @@ class TextureTest(g.unittest.TestCase):
 
     def test_fuze(self):
 
-        def check_fuze(fuze):
-            """
-            Check the classic textured mesh: a fuze bottle
-            """
-            # these loaded fuze bottles should have textures
-            assert isinstance(
-                fuze.visual, g.trimesh.visual.TextureVisuals)
-
-            # image should be loaded with correct resolution
-            assert fuze.visual.material.image.size == (1024, 1024)
-
-            # UV coordinates should be unmerged correctly
-            assert len(fuze.visual.uv) == 664
-
-            # UV coordinates shouldn't be all zero- ish
-            assert fuze.visual.uv[:, :2].ptp(axis=0).min() > 0.1
-
-            # vertices should correspond with UV
-            assert fuze.vertices.shape == (664, 3)
-
-            # convert TextureVisuals to ColorVisuals
-            viz = fuze.visual.to_color()
-            assert viz.kind == 'vertex'
-
-            # should be actual colors defined
-            assert viz.vertex_colors.ptp(axis=0).ptp() != 0
-
         # create a local web server to test remote assets
         with g.serve_meshes() as address:
             # see if web resolvers work
             tex = g.trimesh.exchange.load.load_remote(
                 url=address + '/fuze.obj', process=False)
-            check_fuze(tex)
+            g.check_fuze(tex)
 
             # see if web + zip resolvers work
             scene = g.trimesh.exchange.load.load_remote(
@@ -65,12 +38,12 @@ class TextureTest(g.unittest.TestCase):
             # zip files get loaded into a scene
             assert len(scene.geometry) == 1
             # scene should just be a fuze bottle
-            check_fuze(next(iter(scene.geometry.values())))
+            g.check_fuze(next(iter(scene.geometry.values())))
 
         # obj with texture, assets should be loaded
         # through a FilePathResolver
         m = g.get_mesh('fuze.obj', process=False)
-        check_fuze(tex)
+        g.check_fuze(tex)
 
         # obj with texture, assets should be loaded
         # through a ZipResolver into a scene
@@ -79,15 +52,15 @@ class TextureTest(g.unittest.TestCase):
         # zip files get loaded into a scene
         assert len(scene.geometry) == 1
         m = next(iter(scene.geometry.values()))
-        check_fuze(m)
+        g.check_fuze(m)
 
         # the PLY should have textures defined
         m = g.get_mesh('fuze.ply', process=False)
-        check_fuze(m)
+        g.check_fuze(m)
 
         # ASCII PLY should have textures defined
         m = g.get_mesh('fuze_ascii.ply', process=False)
-        check_fuze(m)
+        g.check_fuze(m)
 
         # textured meshes should subdivide OK-ish
         s = m.subdivide()
@@ -132,6 +105,19 @@ class TextureTest(g.unittest.TestCase):
         assert img.size == (32, 32)
         assert resize(img).size == (32, 32)
         assert resize(img, square=True).size == (32, 32)
+
+    def test_concatenate(self):
+        # test concatenation with texture
+        a = g.get_mesh('fuze.obj')
+        b = a.copy()
+        b.apply_translation([b.extents[0] * 1.25, 0, 0])
+
+        c = a + b
+        assert len(c.vertices) > len(a.vertices)
+        assert len(c.visual.uv) == len(c.vertices)
+        # should have deduplicated image texture
+        assert g.np.allclose(c.visual.material.image.size,
+                             a.visual.material.image.size)
 
 
 if __name__ == '__main__':

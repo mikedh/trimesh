@@ -728,10 +728,14 @@ def export_obj(mesh,
     include_color : bool
       Include vertex color in export
     include_texture bool
-      Include texture in export?
-      False by default as it will change the return
-      values to include files that must be saved in the
-      same location as the exported mesh.
+      Include `vt` texture in file text
+    return_texture : bool
+      If True, return a dict with texture files
+    write_texture : bool
+      If True and a writable resolver is passed
+      write the referenced texture files with resolver
+    resolver : None or trimesh.resolvers.Resolver
+      Resolver which can write referenced text objects
     digits : int
       Number of digits to include for floating point
 

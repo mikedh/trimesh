@@ -12,21 +12,13 @@ class PackingTest(g.unittest.TestCase):
 
     def test_obb(self):
         from trimesh.path import packing
-        inserted, transforms = packing.multipack(self.nestable)
+        inserted, transforms = packing.polygons(self.nestable)
 
     def test_paths(self):
         from trimesh.path import packing
         paths = [g.trimesh.load_path(i) for i in self.nestable]
 
-        from pyinstrument import Profiler
-        profiler = Profiler()
-        profiler.start()
-
-        r, inserted = packing.pack_paths(paths)
-
-        # code you want to profile
-        profiler.stop()
-        print(profiler.output_text(unicode=True, color=True))
+        r, inserted = packing.paths(paths)
 
         # number of paths inserted
         count = len(g.np.unique(inserted))
