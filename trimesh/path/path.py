@@ -934,7 +934,7 @@ class Path3D(Path):
 
         # align to normal if included
         if normal is not None:
-            normal = np.asanyarray(utilunitize(normal), dtype=np.float64)
+            normal = np.asanyarray(util.unitize(normal), dtype=np.float64)
             if normal.shape == (3,):
                 dn = normal.copy()
             else:
@@ -948,7 +948,7 @@ class Path3D(Path):
         # check if destination normal is a unit normal
         # and see if normal aligns with X, Y, or Z axis
         axis = []
-        normal_check = uitl.isclose(np.abs(util.unitize(dn)), np.eye(3)).all(axis=1)
+        normal_check = util.isclose(np.abs(util.unitize(dn)), np.eye(3)).all(axis=1)
         if normal_check.any():
             axis = list(np.flatnonzero(normal_check))[0]
         elif default_Z:
