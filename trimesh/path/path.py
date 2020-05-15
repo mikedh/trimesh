@@ -12,7 +12,6 @@ import collections
 
 from ..points import plane_fit
 from ..geometry import plane_transform
-from ..geometry import align_vectors
 from ..visual import to_rgba
 from ..constants import log
 from ..constants import tol_path as tol
@@ -935,7 +934,7 @@ class Path3D(Path):
 
         # align to normal if included
         if normal is not None:
-            normal = np.asanyarray(unitize(normal), dtype=np.float64)
+            normal = np.asanyarray(utilunitize(normal), dtype=np.float64)
             if normal.shape == (3,):
                 dn = normal.copy()
             else:
@@ -944,17 +943,17 @@ class Path3D(Path):
                         normal.shape))
         # otherwise use normal from fit plane
         else:
-            dn = unitize(N)
+            dn = util.unitize(N)
 
         # check if destination normal is a unit normal
         # and see if normal aligns with X, Y, or Z axis
         axis = []
-        normal_check = isclose(np.abs(unitize(dn)), np.eye(3)).all(axis=1)
+        normal_check = uitl.isclose(np.abs(util.unitize(dn)), np.eye(3)).all(axis=1)
         if normal_check.any():
             axis = list(np.flatnonzero(normal_check))[0]
         elif default_Z:
             axis = 2
-            dn = np.asanyarray([0,0,1])
+            dn = np.asanyarray([0, 0, 1])
 
         # find final transform to 2D
         to_2D = plane_transform(origin=C,
@@ -984,7 +983,6 @@ class Path3D(Path):
         else:
             raise ValueError(
                 "points may be flat but normal does not align with major axis")
-
 
         # the transform from 2D to 3D
         to_3D = np.linalg.inv(to_2D)
