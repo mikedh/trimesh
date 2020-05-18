@@ -339,6 +339,28 @@ def scene_equal(a, b):
             m.volume, b.geometry[k].volume, rtol=0.001)
 
 
+def check_fuze(fuze):
+    """
+    Check the classic textured mesh: a fuze bottle
+    """
+    # these loaded fuze bottles should have textures
+    assert isinstance(
+        fuze.visual, trimesh.visual.TextureVisuals)
+    # image should be loaded with correct resolution
+    assert fuze.visual.material.image.size == (1024, 1024)
+    # UV coordinates should be unmerged correctly
+    assert len(fuze.visual.uv) == 664
+    # UV coordinates shouldn't be all zero- ish
+    assert fuze.visual.uv[:, :2].ptp(axis=0).min() > 0.1
+    # vertices should correspond with UV
+    assert fuze.vertices.shape == (664, 3)
+    # convert TextureVisuals to ColorVisuals
+    viz = fuze.visual.to_color()
+    assert viz.kind == 'vertex'
+    # should be actual colors defined
+    assert viz.vertex_colors.ptp(axis=0).ptp() != 0
+
+
 TemporaryDirectory = trimesh.util.TemporaryDirectory
 
 # all the JSON files with truth data

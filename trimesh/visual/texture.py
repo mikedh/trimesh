@@ -177,9 +177,24 @@ class TextureVisuals(Visuals):
         """
         pass
 
-    def concatenate(self, *args, **kwargs):
-        util.log.warning('returning empty visuals!')
-        return TextureVisuals()
+    def concatenate(self, others):
+        """
+        Concatenate this TextureVisuals object with others
+        and return the result without modifying this visual.
+
+        Parameters
+        -----------
+        others : (n,) Visuals
+          Other visual objects to concatenate
+
+        Returns
+        -----------
+        concatenated : TextureVisuals
+          Concatenated visual objects
+        """
+        util.log.warning('concatenating texture: may result in visual artifacts')
+        from .objects import concatenate
+        return concatenate(self, others)
 
 
 def unmerge_faces(faces, *args):

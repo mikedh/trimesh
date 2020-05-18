@@ -1374,12 +1374,16 @@ def concatenate(a, b=None):
 
     Parameters
     ------------
-    a: Trimesh object, or list of such
-    b: Trimesh object, or list of such
+    a : trimesh.Trimesh
+      Mesh or list of meshes to be concatenated
+      object, or list of such
+    b : trimesh.Trimesh
+      Mesh or list of meshes to be concatenated
 
     Returns
     ----------
-    result: Trimesh object containing concatenated mesh
+    result : trimesh.Trimesh
+      Concatenated mesh
     """
     if b is None:
         b = []

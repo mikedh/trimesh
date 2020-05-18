@@ -31,8 +31,8 @@ class RectangleBin:
             self.bounds = np.asanyarray(bounds,
                                         dtype=np.float64)
         elif size is not None:
-            self.bounds = np.append([0.0, 0.0],
-                                    size).astype(np.float64)
+            self.bounds = np.append(
+                [0.0, 0.0], size).astype(np.float64)
         else:
             raise ValueError('need to pass size or bounds!')
 
@@ -43,10 +43,11 @@ class RectangleBin:
 
         Returns
         ----------
-        extents: (2,) float, edge lengths of bounding box
+        extents : (2,) float
+          Edge lengths of bounding box
         """
-        extents = np.subtract(*self.bounds.reshape((2, 2))[::-1])
-        return extents
+        bounds = self.bounds
+        return bounds[2:] - bounds[:2]
 
     def insert(self, rectangle):
         """
@@ -54,35 +55,43 @@ class RectangleBin:
 
         Parameters
         -------------
-        rectangle: (2,) float, size of rectangle to insert
-        """
-        rectangle = np.asanyarray(rectangle, dtype=np.float64)
+        rectangle : (2,) float
+          Size of rectangle to insert
 
+        Returns
+        ----------
+        inserted : None or (2,) float
+          Position of insertion in the tree
+        """
         for child in self.child:
             if child is not None:
+                # try inserting into child cells
                 attempt = child.insert(rectangle)
                 if attempt is not None:
                     return attempt
 
+        # can't insert into occupied cells
         if self.occupied:
             return None
 
         # compare the bin size to the insertion candidate size
-        size_test = self.extents - rectangle
+        bounds = self.bounds
+        # manually compute extents here to avoid function call
+        size_test = (bounds[2:] - bounds[:2]) - rectangle
 
         # this means the inserted rectangle is too big for the cell
-        if np.any(size_test < -tol.zero):
+        if any(size_test < -tol.zero):
             return None
 
         # since the cell is big enough for the current rectangle, either it
         # is going to be inserted here, or the cell is going to be split
-        # either way, the cell is now occupied.
+        # either way the cell is now occupied.
         self.occupied = True
 
         # this means the inserted rectangle fits perfectly
         # since we already checked to see if it was negative, no abs is needed
-        if np.all(size_test < tol.zero):
-            return self.bounds[0:2]
+        if all(size_test < tol.zero):
+            return self.bounds[:2]
 
         # since the rectangle fits but the empty space is too big,
         # we need to create some children to insert into
@@ -91,6 +100,7 @@ class RectangleBin:
         length = rectangle[int(not vertical)]
         child_bounds = self.split(length, vertical)
 
+        # create the child objects
         self.child[0] = RectangleBin(bounds=child_bounds[0])
         self.child[1] = RectangleBin(bounds=child_bounds[1])
 
@@ -103,29 +113,31 @@ class RectangleBin:
 
         Parameters
         -------------
-        length:   float, length to split
-        vertical: bool, if True will split box vertically
+        length : float
+          Length to split
+        vertical: bool
+          Split the box vertically rather than horizontally
 
         Returns
         -------------
-        box: (2,4) float, two bounding boxes consisting of:
-                          [minx, miny, maxx, maxy]
+        box : (2, 4) float
+          Two bounding boxes with min-max:
+            [minx, miny, maxx, maxy]
         """
         # also know as [minx, miny, maxx, maxy]
-        [left, bottom, right, top] = self.bounds
+        (left, bottom, right, top) = self.bounds
         if vertical:
-            box = [[left, bottom, left + length, top],
-                   [left + length, bottom, right, top]]
+            return [[left, bottom, left + length, top],
+                    [left + length, bottom, right, top]]
         else:
-            box = [[left, bottom, right, bottom + length],
-                   [left, bottom + length, right, top]]
-        return box
+            return [[left, bottom, right, bottom + length],
+                    [left, bottom + length, right, top]]
 
 
-def pack_rectangles(rectangles, sheet_size, shuffle=False):
+def rectangles_single(rectangles, sheet_size=None, shuffle=False):
     """
-    Pack smaller rectangles onto a larger rectangle, using a binary
-    space partition tree.
+    Execute a single insertion order of smaller rectangles onto
+    a larger rectangle using a binary space partition tree.
 
     Parameters
     ----------
@@ -156,11 +168,17 @@ def pack_rectangles(rectangles, sheet_size, shuffle=False):
     area = 0.0
     density = 0.0
 
+    # if no sheet size specified, make a large one
+    if sheet_size is None:
+        sheet_size = [rectangles[:, 0].sum(),
+                      rectangles[:, 1].max() * 2]
+
     if shuffle:
         shuffle_len = int(np.random.random() * len(rectangles)) - 1
         box_order[0:shuffle_len] = np.random.permutation(
             box_order[0:shuffle_len])
 
+    # start the tree
     sheet = RectangleBin(size=sheet_size)
     for index in box_order:
         insert_location = sheet.insert(rectangles[index])
@@ -168,14 +186,13 @@ def pack_rectangles(rectangles, sheet_size, shuffle=False):
             area += np.prod(rectangles[index])
             offset[index] += insert_location
             inserted[index] = True
-
     consumed_box = np.max((offset + rectangles)[inserted], axis=0)
     density = area / np.product(consumed_box)
 
     return density, offset[inserted], inserted, consumed_box
 
 
-def pack_paths(paths, **kwargs):
+def paths(paths, **kwargs):
     """
     Pack a list of Path2D objects into a rectangle.
 
@@ -201,12 +218,12 @@ def pack_paths(paths, **kwargs):
             quantity.append(1)
 
     # pack using exterior polygon (will OBB)
-    polygons = [i.polygons_closed[i.root[0]] for i in paths]
+    packable = [i.polygons_closed[i.root[0]] for i in paths]
 
     # pack the polygons using rectangular bin packing
-    inserted, transforms = multipack(polygons=polygons,
-                                     quantity=quantity,
-                                     **kwargs)
+    inserted, transforms = polygons(polygons=packable,
+                                    quantity=quantity,
+                                    **kwargs)
 
     multi = []
     for i, T in zip(inserted, transforms):
@@ -218,12 +235,12 @@ def pack_paths(paths, **kwargs):
     return packed, inserted
 
 
-def multipack(polygons,
-              sheet_size=None,
-              iterations=50,
-              density_escape=.95,
-              spacing=0.094,
-              quantity=None):
+def polygons(polygons,
+             sheet_size=None,
+             iterations=50,
+             density_escape=.95,
+             spacing=0.094,
+             quantity=None):
     """
     Pack polygons into a rectangle by taking each Polygon's OBB
     and then packing that as a rectangle.
@@ -261,13 +278,13 @@ def multipack(polygons,
         raise ValueError('quantity must match polygons')
 
     # find the oriented bounding box of the polygons
-    obb, rectangles = polygons_obb(polygons)
+    obb, rect = polygons_obb(polygons)
 
     # pad all sides of the rectangle
-    rectangles += 2.0 * spacing
+    rect += 2.0 * spacing
     # move the OBB transform so the polygon is centered
     # in the padded rectangle
-    for i, r in enumerate(rectangles):
+    for i, r in enumerate(rect):
         obb[i][0:2, 2] += r * .5
 
     # for polygons occurring multiple times
@@ -275,46 +292,152 @@ def multipack(polygons,
                          for i, q in enumerate(quantity)])
     # stack using advanced indexing
     obb = obb[indexes]
-    rectangles = rectangles[indexes]
+    rect = rect[indexes]
 
     # store timing
     tic = time.time()
-    overall_density = 0.0
+    density = 0.0
 
     # if no sheet size specified, make a large one
     if sheet_size is None:
-        max_dim = np.max(rectangles, axis=0)
-        sum_dim = np.sum(rectangles, axis=0)
-        sheet_size = [sum_dim[0], max_dim[1] * 2]
+        sheet_size = [rect[:, 0].sum(),
+                      rect[:, 1].max() * 2]
 
-    log.debug('packing %d polygons', len(polygons))
-    # run packing for a number of iterations, shuffling insertion order
-    for i in range(iterations):
-        (density,
-         offset,
-         inserted,
-         sheet) = pack_rectangles(rectangles,
-                                  sheet_size=sheet_size,
-                                  shuffle=(i != 0))
-        if density > overall_density:
-            overall_density = density
-            overall_offset = offset
-            overall_inserted = inserted
-            if density > density_escape:
-                break
+    # run packing for a number of iterations
+    (density,
+     offset,
+     inserted,
+     sheet) = rectangles(
+         rectangles=rect,
+         sheet_size=sheet_size,
+         spacing=spacing,
+         density_escape=density_escape,
+         iterations=iterations)
 
     toc = time.time()
     log.debug('packing finished %i iterations in %f seconds',
               i + 1,
               toc - tic)
     log.debug('%i/%i parts were packed successfully',
-              np.sum(overall_inserted),
+              np.sum(inserted),
               quantity.sum())
-    log.debug('final rectangular density is %f.', overall_density)
 
     # transformations to packed positions
-    packed = obb[overall_inserted]
+    packed = obb[inserted]
     # apply the offset and inter- polygon spacing
-    packed.reshape(-1, 9)[:, [2, 5]] += overall_offset + spacing
+    packed.reshape(-1, 9)[:, [2, 5]] += offset + spacing
 
-    return indexes[overall_inserted], packed
+    return indexes[inserted], packed
+
+
+def rectangles(rectangles,
+               sheet_size=None,
+               density_escape=0.9,
+               spacing=0.0,
+               iterations=50):
+    """
+    Run multiple iterations of rectangle packing.
+
+    Parameters
+    ------------
+    rectangles : (n, 2) float
+      Size of rectangles to be packed
+    sheet_size : None or (2,) float
+      Size of sheet to pack onto
+    density_escape : float
+      Exit early if density is above this threshold
+    spacing : float
+      Distance to allow between rectangles
+    iterations : int
+      Number of iterations to run
+
+    Returns
+    ---------
+    density : float
+      Area filled over total sheet area
+    offset :  (m,2) float
+      Offsets to move rectangles to their packed location
+    inserted : (n,) bool
+      Which of the original rectangles were packed
+    consumed_box : (2,) float
+      Bounding box size of packed result
+    """
+    rectangles = np.array(rectangles)
+
+    # best density percentage in 0.0 - 1.0
+    best_density = 0.0
+    # how many rectangles were inserted
+    best_insert = 0
+    # if no sheet size specified, make a large one
+    if sheet_size is None:
+        sheet_size = [rectangles[:, 0].sum(),
+                      rectangles[:, 1].max() * 2]
+
+    for i in range(iterations):
+        # run a single insertion order
+        # don't shuffle the first run, shuffle subsequent runs
+        packed = rectangles_single(
+            rectangles,
+            sheet_size=sheet_size,
+            shuffle=(i != 0))
+        density = packed[0]
+        insert = packed[2].sum()
+
+        # compare this packing density against our best
+        if density > best_density or insert > best_insert:
+            best_density = density
+            best_insert = insert
+            # save the result
+            result = packed
+            # exit early if everything is inserted and
+            # we have exceeded our target density
+            if density > density_escape and packed[2].all():
+                break
+
+    return result
+
+
+def images(images, power_resize=False):
+    """
+    Pack a list of images and return result and offsets.
+
+    Parameters
+    ------------
+    images : (n,) PIL.Image
+      Images to be packed
+    deduplicate : bool
+      If True deduplicate images before packing
+
+    Returns
+    -----------
+    packed : PIL.Image
+      Multiple images packed into result
+    offsets : (n, 2) int
+       Offsets for original image to pack
+    """
+    from PIL import Image
+
+    # use the number of pixels as the rectangle size
+    rect = np.array([i.size for i in images])
+
+    (density,
+     offset,
+     insert,
+     sheet) = rectangles(rectangles=rect)
+    # really should have inserted all the rectangles
+    assert insert.all()
+
+    # offsets should be integer multiple of pizels
+    offset = offset.round().astype(int)
+
+    size = sheet.round().astype(int)
+    if power_resize:
+        size = (2 ** np.ceil(np.log2(size))).astype(np.int64)
+
+    # create the image
+    result = Image.new('RGB', tuple(size))
+    # paste each image into the result
+    for img, off in zip(images, offset):
+        result.paste(img, tuple(off))
+
+    return result, offset

@@ -626,9 +626,8 @@ def _append_mesh(mesh,
             # immediately add UV data so bufferView indices are correct
             buffer_items.append(uv_data)
 
-    if (include_normals or
-        (include_normals is None and
-         'vertex_normals' in mesh._cache.cache)):
+    if (include_normals or (include_normals is None and
+                            'vertex_normals' in mesh._cache.cache)):
         # add the reference for vertex color
         tree["meshes"][-1]["primitives"][0]["attributes"][
             "NORMAL"] = len(tree["accessors"])
@@ -1009,7 +1008,8 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
             if len(m["primitives"]) > 1:
                 name += "_{}".format(j)
 
-            custom_attrs = [attr for attr in p["attributes"] if attr.startswith("_")]
+            custom_attrs = [attr for attr in p["attributes"]
+                            if attr.startswith("_")]
             if len(custom_attrs):
                 vertex_attributes = {}
                 for attr in custom_attrs:
@@ -1032,8 +1032,12 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
             if len(names) <= 1:
                 mesh_prim_replace[mesh_index] = names
                 continue
-            name = '_'.join(names[0].split('_')[:-1])
-            mesh_pop.extend(set(names).difference({name}))
+            # use the first name
+            name = names[0]
+            # remove the other meshes after we're done looping
+            mesh_pop.extend(names[1:])
+            # collect the meshes
+            # TODO : use mesh concatenation with texture support
             current = [meshes[n] for n in names]
             v_seq = [p['vertices'] for p in current]
             f_seq = [p['faces'] for p in current]
@@ -1111,8 +1115,8 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
         # parent -> child relationships have matrix stored in child
         # for the transform from parent to child
         if "matrix" in child:
-            kwargs["matrix"] = np.array(child["matrix"],
-                                        dtype=np.float64).reshape((4, 4)).T
+            kwargs["matrix"] = np.array(
+                child["matrix"], dtype=np.float64).reshape((4, 4)).T
         else:
             # if no matrix set identity
             kwargs["matrix"] = np.eye(4)
@@ -1123,37 +1127,38 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
             kwargs["matrix"] = np.dot(
                 kwargs["matrix"],
                 transformations.translation_matrix(child["translation"]))
-
         if "rotation" in child:
             # GLTF rotations are stored as (4,) XYZW unit quaternions
             # we need to re- order to our quaternion style, WXYZ
             quat = np.reshape(child["rotation"], 4)[[3, 0, 1, 2]]
-
             # add the rotation to the matrix
             kwargs["matrix"] = np.dot(
                 kwargs["matrix"], transformations.quaternion_matrix(quat))
-
         if "scale" in child:
             # add scale to the matrix
             kwargs["matrix"] = np.dot(
                 kwargs["matrix"],
                 np.diag(np.concatenate((child['scale'], [1.0]))))
 
-        # append the nodes for connectivity without the mesh
-        graph.append(kwargs.copy())
         if "mesh" in child:
-            # append a new node per- geometry instance
-            geometries = mesh_prim[child["mesh"]]
-            for name in geometries:
-                kwargs["geometry"] = name
-                if 'name' in child:
-                    kwargs['frame_to'] = names[b]
+            # if the node has a mesh associated with it
+            for i, geom_name in enumerate(mesh_prim[child["mesh"]]):
+                # save the name of the geometry
+                kwargs["geometry"] = geom_name
+                if i == 0:
+                    # for the first primitive just use the frame name
+                    frame_to = names[b]
                 else:
-                    kwargs["frame_to"] = "{}_{}".format(
-                        name, util.unique_id(
-                            length=6, increment=len(graph)).upper())
+                    # if we have more than one primitive assign a new UUID
+                    # frame name for the primitives after the first one
+                    frame_to = '{}_{}'.format(
+                        names[b], util.unique_id(length=6))
+                kwargs['frame_to'] = frame_to
                 # append the edge with the mesh frame
                 graph.append(kwargs.copy())
+        else:
+            # if the node doesn't have any geometry just add
+            graph.append(kwargs)
 
     # kwargs for load_kwargs
     result = {"class": "Scene",

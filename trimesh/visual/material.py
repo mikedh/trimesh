@@ -8,6 +8,7 @@ import numpy as np
 
 from . import color
 from .. import util
+from .. import grouping
 
 
 class Material(object):
@@ -253,10 +254,39 @@ class PBRMaterial(Material):
         result = color.to_rgba(self.baseColorFactor)
         return result
 
+    def __hash__(self):
+        """
+        Provide a hash of the material so we can detect
+        duplicate materials.
 
-def empty_material():
+        Returns
+        ------------
+        hash : int
+          Hash of image and parameters
+        """
+        if hasattr(self.baseColorTexture, 'tobytes'):
+            # start with hash of raw image bytes
+            hashed = hash(self.baseColorTexture.tobytes())
+        else:
+            # otherwise start with zero
+            hashed = 0
+        # we will add additional parameters with
+        # an in-place xor of the additional value
+        # if stored as numpy arrays add parameters
+        if hasattr(self.baseColorFactor, 'tobytes'):
+            hashed ^= hash(self.baseColorFactor.tobytes())
+
+        return hashed
+
+
+def empty_material(color=None):
     """
-    Return an empty material.
+    Return an empty material set to a single color
+
+    Parameters
+    -----------
+    color : None or (3,) uint8
+      RGB color
 
     Returns
     -------------
@@ -264,7 +294,114 @@ def empty_material():
       Image is a a one pixel RGB
     """
     from PIL import Image
-
+    if color is None or np.shape(color) not in ((3,), (4,)):
+        color = np.array([255, 255, 255], dtype=np.uint8)
+    else:
+        color = np.array(color, dtype=np.uint8)[:3]
     # create a one pixel RGB image
-    image = Image.new(mode='RGB', size=(1, 1))
+    image = Image.fromarray(
+        np.tile(color, (4, 1)).reshape((2, 2, 3)))
     return SimpleMaterial(image=image)
+
+
+def from_color(vertex_colors):
+    """
+    Convert vertex colors into UV coordinates and materials.
+
+    TODO : pack colors
+
+    Parameters
+    ------------
+    vertex_colors : (n, 3) float
+      Array of vertex colors
+
+    Returns
+    ------------
+    material : SimpleMaterial
+      Material containing color information
+    uvs : (n, 2) float
+      UV coordinates
+    """
+    unique, inverse = grouping.unique_rows(vertex_colors)
+    # TODO : tile colors nicely
+    material = empty_material(color=vertex_colors[unique[0]])
+    uvs = np.zeros((len(vertex_colors), 2)) + 0.5
+
+    return material, uvs
+
+
+def pack(materials, uvs, deduplicate=True):
+    """
+    Pack multiple materials with texture into a single material.
+
+    Parameters
+    -----------
+    materials : (n,) Material
+      List of multiple materials
+    uvs : (n, m, 2) float
+      Original UV coordinates
+
+    Returns
+    ------------
+    material : Material
+      Combined material
+    uv : (p, 2) float
+      Combined UV coordinates
+    """
+
+    from PIL import Image
+    from ..path import packing
+    import collections
+
+    if deduplicate:
+        # start by collecting a list of indexes for each material hash
+        unique_idx = collections.defaultdict(list)
+        [unique_idx[hash(m)].append(i) for i, m in enumerate(materials)]
+        # now we only need the indexes and don't care about the hashes
+        mat_idx = list(unique_idx.values())
+    else:
+        # otherwise just use all the indexes
+        mat_idx = np.arange(len(materials)).reshape((-1, 1))
+
+    # store the images to combine later
+    images = []
+    # first collect the images from the materials
+    for idx in mat_idx:
+        # get the first material from the group
+        m = materials[idx[0]]
+        # extract an image for each material
+        if isinstance(m, PBRMaterial):
+            if m.baseColorTexture is not None:
+                img = m.baseColorTexture
+            elif m.baseColorFactor is not None:
+                img = Image.fromarray(m.baseColorFactor[:3].reshape((1, 1, 3)))
+            else:
+                img = Image.new(mode='RGB', size=(1, 1))
+        elif hasattr(m, 'image'):
+            img = m.image
+        else:
+            raise ValueError('no image to pack!')
+        images.append(img)
+
+    # pack the multiple images into a single large image
+    final, offsets = packing.images(images, power_resize=True)
+
+    # the size of the final texture image
+    final_size = np.array(final.size, dtype=np.float64)
+    # collect scaled new UV coordinates
+    new_uv = []
+
+    for idxs, img, off in zip(mat_idx, images, offsets):
+        # how big was the original image
+        scale = img.size / final_size
+        # what is the offset in fractions of final image
+        uv_off = off / final_size
+        # scale and translate each of the new UV coordinates
+        # [new_uv.append((uvs[i] * scale) + uv_off) for i in idxs]
+        # TODO : figure out why this is broken sometimes...
+        [new_uv.append((uvs[i] * scale) + uv_off) for i in idxs]
+
+    # stack UV coordinates into single (n, 2) array
+    stacked = np.vstack(new_uv)
+
+    return SimpleMaterial(image=final), stacked

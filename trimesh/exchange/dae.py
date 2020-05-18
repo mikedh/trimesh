@@ -10,11 +10,6 @@ try:
 except BaseException:
     collada = None
 
-try:
-    import PIL.Image
-except ImportError:
-    pass
-
 from .. import util
 from .. import visual
 
@@ -257,8 +252,10 @@ def _load_texture(file_name, resolver):
     """
     Load a texture from a file into a PIL image.
     """
+    from PIL import Image
+
     file_data = resolver.get(file_name)
-    image = PIL.Image.open(util.wrap_as_stream(file_data))
+    image = Image.open(util.wrap_as_stream(file_data))
     return image
 
 

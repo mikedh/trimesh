@@ -156,12 +156,22 @@ class OBJTest(g.unittest.TestCase):
         assert len(m.vertices) > 0
         assert len(m.faces) == 1
 
+    def test_export_path(self):
+        m = g.get_mesh('fuze.obj')
+        g.check_fuze(m)
+        with g.TemporaryDirectory() as d:
+            file_path = g.os.path.join(d, 'fz.obj')
+            m.export(file_path)
+
+            r = g.trimesh.load(file_path)
+            g.check_fuze(r)
+
     def test_mtl(self):
         # get a mesh with texture
         m = g.get_mesh('fuze.obj')
         # export the mesh including data
         obj, data = g.trimesh.exchange.export.export_obj(
-            m, include_texture=True)
+            m, return_texture=True)
         with g.trimesh.util.TemporaryDirectory() as path:
             # where is the OBJ file going to be saved
             obj_path = g.os.path.join(path, 'test.obj')

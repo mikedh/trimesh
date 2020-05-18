@@ -352,10 +352,23 @@ class GLTFTest(g.unittest.TestCase):
         assert all(r.metadata['extras'][k] == v
                    for k, v in dummy.items())
 
-    def test_samename(self):
+    def test_same_name(self):
         s = g.get_mesh('TestScene.gltf')
-        assert len(s.graph.nodes_geometry) == 7
+        # hardcode correct bounds to check against
+        bounds = g.np.array([[-5., -1.82578002, -5.],
+                             [5., 1.86791301, 5.]])
+
+        # icosahedrons have two primitives each
+        print(len(s.geometry), len(s.graph.nodes_geometry))
+        assert len(s.graph.nodes_geometry) == 9
         assert len(s.geometry) == 7
+        assert g.np.allclose(s.bounds, bounds, atol=1e-3)
+
+        # if merged should have combined the icosahedrons
+        s = g.get_mesh('TestScene.gltf', merge_primitives=True)
+        assert len(s.graph.nodes_geometry) == 7
+        assert len(s.geometry) == 6
+        assert g.np.allclose(s.bounds, bounds, atol=1e-3)
 
 
 if __name__ == '__main__':
