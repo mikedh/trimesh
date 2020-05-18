@@ -397,6 +397,8 @@ def pack(materials, uvs, deduplicate=True):
         # what is the offset in fractions of final image
         uv_off = off / final_size
         # scale and translate each of the new UV coordinates
+        # [new_uv.append((uvs[i] * scale) + uv_off) for i in idxs]
+        # TODO : figure out why this is broken sometimes...
         [new_uv.append((uvs[i] * scale) + uv_off) for i in idxs]
 
     # stack UV coordinates into single (n, 2) array

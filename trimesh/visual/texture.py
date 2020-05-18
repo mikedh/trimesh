@@ -4,13 +4,12 @@ import copy
 
 from .base import Visuals
 from . import color
-from . import materials
 
 from .. import util
 from .. import caching
 from .. import grouping
 
-from .materials import SimpleMaterial, PBRMaterial, empty_material  # NOQA
+from .material import SimpleMaterial, PBRMaterial, empty_material  # NOQA
 
 
 class TextureVisuals(Visuals):
@@ -45,10 +44,10 @@ class TextureVisuals(Visuals):
 
         if material is None:
             if image is None:
-                self.material = materials.empty_material()
+                self.material = empty_material()
             else:
                 # if an image is passed create a SimpleMaterial
-                self.material = materials.SimpleMaterial(image=image)
+                self.material = SimpleMaterial(image=image)
         else:
             # if passed assign
             self.material = material

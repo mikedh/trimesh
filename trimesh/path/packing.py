@@ -336,7 +336,7 @@ def rectangles(rectangles,
                spacing=0.0,
                iterations=50):
     """
-    Run multiple interations of rectangle packing.
+    Run multiple iterations of rectangle packing.
 
     Parameters
     ------------

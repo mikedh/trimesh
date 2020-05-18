@@ -10,11 +10,6 @@ try:
 except BaseException:
     collada = None
 
-try:
-    import PIL.Image
-except ImportError:
-    pass
-
 from .. import util
 from .. import visual
 
@@ -257,8 +252,10 @@ def _load_texture(file_name, resolver):
     """
     Load a texture from a file into a PIL image.
     """
+    from PIL import Image
+
     file_data = resolver.get(file_name)
-    image = PIL.Image.open(util.wrap_as_stream(file_data))
+    image = Image.open(util.wrap_as_stream(file_data))
     return image
 
 
@@ -317,7 +314,7 @@ def _parse_material(effect, resolver):
             and not isinstance(effect.transparent, collada.material.Map)):
         baseColorFactor = tuple(np.append(baseColorFactor[:3], effect.transparent[3]))
 
-    return visual.materials.PBRMaterial(
+    return visual.material.PBRMaterial(
         emissiveFactor=emissiveFactor,
         emissiveTexture=emissiveTexture,
         normalTexture=normalTexture,
@@ -332,7 +329,7 @@ def _unparse_material(material):
     Turn a trimesh material into a COLLADA material.
     """
     # TODO EXPORT TEXTURES
-    if isinstance(material, visual.materials.PBRMaterial):
+    if isinstance(material, visual.material.PBRMaterial):
         diffuse = material.baseColorFactor
         if diffuse is not None:
             diffuse = list(diffuse)
