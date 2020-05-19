@@ -1156,15 +1156,15 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
                     # if we have more than one primitive assign a new UUID
                     # frame name for the primitives after the first one
                     frame_to = '{}_{}'.format(
-                        names[b], util.unique_id(length=6))                    
-                    kwargs['frame_to'] = frame_to                    
+                        names[b], util.unique_id(length=6))
+                    kwargs['frame_to'] = frame_to
                     # append the edge with the mesh frame
                     graph.append(kwargs.copy())
-            else:                
+            else:
                 kwargs["geometry"] = geometries[0]
                 if 'name' in child:
                     kwargs['frame_to'] = names[b]
-                graph.append(kwargs.copy())                    
+                graph.append(kwargs.copy())
         else:
             # if the node doesn't have any geometry just add
             graph.append(kwargs)
