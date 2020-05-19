@@ -1141,21 +1141,30 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
                 np.diag(np.concatenate((child['scale'], [1.0]))))
 
         if "mesh" in child:
+            geometries = mesh_prim[child["mesh"]]
             # if the node has a mesh associated with it
-            for i, geom_name in enumerate(mesh_prim[child["mesh"]]):
-                # save the name of the geometry
-                kwargs["geometry"] = geom_name
-                if i == 0:
-                    # for the first primitive just use the frame name
-                    frame_to = names[b]
-                else:
+            if len(geometries) > 1:
+                # append root node
+                graph.append(kwargs.copy())
+                # put primitives as children
+                for i, geom_name in enumerate(geometries):
+                    # save the name of the geometry
+                    kwargs["geometry"] = geom_name
+                    # no transformations
+                    kwargs["matrix"] = np.eye(4)
+                    kwargs['frame_from'] = names[b]
                     # if we have more than one primitive assign a new UUID
                     # frame name for the primitives after the first one
                     frame_to = '{}_{}'.format(
-                        names[b], util.unique_id(length=6))
-                kwargs['frame_to'] = frame_to
-                # append the edge with the mesh frame
-                graph.append(kwargs.copy())
+                        names[b], util.unique_id(length=6))                    
+                    kwargs['frame_to'] = frame_to                    
+                    # append the edge with the mesh frame
+                    graph.append(kwargs.copy())
+            else:                
+                kwargs["geometry"] = geometries[0]
+                if 'name' in child:
+                    kwargs['frame_to'] = names[b]
+                graph.append(kwargs.copy())                    
         else:
             # if the node doesn't have any geometry just add
             graph.append(kwargs)
