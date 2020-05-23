@@ -219,7 +219,7 @@ def points_to_marching_cubes(points, pitch=1.0):
     matrix = sparse_to_matrix(index)
 
     # run marching cubes on the matrix to generate a mesh
-    mesh = matrix_to_marching_cubes(matrix)
+    mesh = matrix_to_marching_cubes(matrix, pitch=pitch)
     mesh.vertices += origin
 
     return mesh
