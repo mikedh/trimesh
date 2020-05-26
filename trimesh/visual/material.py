@@ -94,10 +94,10 @@ class SimpleMaterial(Material):
         mtl = '\n'.join(
             ['# https://github.com/mikedh/trimesh',
              'newmtl {}'.format(tex_name),
-             'Ka {} {} {}'.format(*Ka),
-             'Kd {} {} {}'.format(*Kd),
-             'Ks {} {} {}'.format(*Ks),
-             'Ns {}'.format(self.glossiness),
+             'Ka {:0.8f} {:0.8f} {:0.8f}'.format(*Ka),
+             'Kd {:0.8f} {:0.8f} {:0.8f}'.format(*Kd),
+             'Ks {:0.8f} {:0.8f} {:0.8f}'.format(*Ks),
+             'Ns {:0.8f}'.format(self.glossiness),
              'map_Kd {}'.format(image_name)])
 
         # save the image texture as bytes in the original format

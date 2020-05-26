@@ -439,7 +439,7 @@ class ColorVisuals(Visuals):
         return color
 
     def to_texture(self):
-        from .materials import from_color
+        from .material import from_color
         from .texture import TextureVisuals
         mat, uv = from_color(vertex_colors=self.vertex_colors)
         return TextureVisuals(material=mat, uv=uv)
@@ -584,7 +584,7 @@ def to_rgba(colors, dtype=np.uint8):
             opaque * np.ones(len(colors)))).astype(dtype)
     elif util.is_shape(colors, (3,)):
         # if passed a single RGB color add an alpha
-        colors = np.append(colors, opaque)
+        colors = np.append(colors, opaque).astype(dtype)
 
     if not (util.is_shape(colors, (4,)) or
             util.is_shape(colors, (-1, 4))):
