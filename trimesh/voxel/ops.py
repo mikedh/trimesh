@@ -100,7 +100,7 @@ fill_voxelization = fill_base
 
 def matrix_to_marching_cubes(matrix, pitch=1.0):
     """
-    Convert an (n,m,p) matrix into a mesh, using marching_cubes.
+    Convert an (n, m, p) matrix into a mesh, using marching_cubes.
 
     Parameters
     -----------

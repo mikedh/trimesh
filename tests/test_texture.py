@@ -119,6 +119,17 @@ class TextureTest(g.unittest.TestCase):
         assert g.np.allclose(c.visual.material.image.size,
                              a.visual.material.image.size)
 
+    def test_to_tex(self):
+
+        m = g.trimesh.creation.box()
+        color = [255, 0, 0, 255]
+        m.visual.face_colors = color
+        # convert color visual to texture
+        m.visual = m.visual.to_texture()
+        # convert back to color
+        m.visual = m.visual.to_color()
+        assert g.np.allclose(m.visual.main_color, color)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
