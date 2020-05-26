@@ -312,7 +312,8 @@ def _parse_material(effect, resolver):
     # Compute opacity
     if (effect.transparent is not None
             and not isinstance(effect.transparent, collada.material.Map)):
-        baseColorFactor = tuple(np.append(baseColorFactor[:3], float(int(255 * effect.transparent[3]))))
+        baseColorFactor = tuple(
+            np.append(baseColorFactor[:3], float(int(255 * effect.transparent[3]))))
 
     return visual.material.PBRMaterial(
         emissiveFactor=emissiveFactor,
