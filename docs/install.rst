@@ -23,6 +23,7 @@ Conda Install
 The easiest way to get going on the most platforms is through a Python provided by conda. You can install `Miniconda <https://conda.io/docs/install/quick.html>`__ easily on all major platforms. Then, to install ``trimesh``:
 
 .. code:: bash
+
    conda install -c conda-forge scikit-image shapely rtree pyembree
 
    # install trimesh and all possible dependencies
