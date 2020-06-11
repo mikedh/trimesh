@@ -80,6 +80,7 @@ def available_formats():
 def load(file_obj,
          file_type=None,
          resolver=None,
+         force=None,
          **kwargs):
     """
     Load a mesh or vectorized path into objects like
@@ -93,6 +94,9 @@ def load(file_obj,
       What kind of file type do we have (eg: 'stl')
     resolver : trimesh.visual.Resolver
       Object to load referenced assets like materials and textures
+    force : None or str
+      For 'mesh': try to coerce scenes into a single mesh
+      For 'scene': try to coerce everything into a scene
     kwargs : dict
       Passed to geometry __init__
 
@@ -166,6 +170,12 @@ def load(file_obj,
     # file name clean up after ourselves by closing it
     if opened:
         file_obj.close()
+
+    # combine a scene into a single mesh
+    if force == 'mesh' and isinstance(loaded, Scene):
+        return util.concatenate(loaded.dump())
+    if force == 'scene' and not isinstance(loaded, Scene):
+        return Scene(loaded)
 
     return loaded
 

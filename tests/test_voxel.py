@@ -19,6 +19,10 @@ class VoxelGridTest(g.unittest.TestCase):
                   g.trimesh.primitives.Sphere()]:
             for pitch in [.1, .1 - g.tol.merge]:
                 surface = m.voxelized(pitch=pitch)
+
+                # make sure the voxelized pitch is similar to passed
+                assert np.allclose(surface.pitch, pitch)
+
                 for fill_method in ('base', 'orthographic'):
                     solid = surface.copy().fill(method=fill_method)
 

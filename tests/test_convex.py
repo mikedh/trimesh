@@ -76,6 +76,11 @@ class ConvexTest(g.unittest.TestCase):
             assert (len(m.face_adjacency_projections) ==
                     (len(m.face_adjacency)))
 
+    def test_truth(self):
+        # check a non-watertight mesh
+        m = g.get_mesh('not_convex.obj')
+        assert not m.is_convex
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

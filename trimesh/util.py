@@ -1231,9 +1231,9 @@ def comment_strip(text, starts_with='#', new_line='\n'):
     text : str
       Text to remove comments from
     starts_with : str
-      Charecter or substring that starts a comment
+      Character or substring that starts a comment
     new_line : str
-      Charecter or substring that ends a comment
+      Character or substring that ends a comment
 
     Returns
     -----------

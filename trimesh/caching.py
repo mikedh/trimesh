@@ -78,7 +78,7 @@ def cache_decorator(function):
       ```
     """
 
-    # use wraps to preseve docstring
+    # use wraps to preserve docstring
     @wraps(function)
     def get_cached(*args, **kwargs):
         """

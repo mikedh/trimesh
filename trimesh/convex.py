@@ -172,12 +172,14 @@ def is_convex(mesh):
     convex : bool
       Was passed mesh convex or not
     """
+    # non-watertight meshes are not convex
+    if not mesh.is_watertight:
+        return False
+
     # don't consider zero- area faces
     nonzero = mesh.area_faces > tol.merge
-
     # adjacencies with two nonzero faces
     adj_ok = nonzero[mesh.face_adjacency].all(axis=1)
-
     # make threshold of convexity scale- relative
     threshold = tol.planar * mesh.scale
     # if projections of vertex onto plane of adjacent

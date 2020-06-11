@@ -2078,7 +2078,7 @@ def spherical_matrix(theta, phi, axes='sxyz'):
     ----------
     matrix: (4,4) rotation matrix where the following will
              be a cartesian vector in the direction of the
-             input spherical coordinats:
+             input spherical coordinates:
                 np.dot(matrix, [0,0,1,0])
 
     """

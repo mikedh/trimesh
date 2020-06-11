@@ -121,10 +121,12 @@ class Transform(object):
     def pitch(self):
         scale = self.scale
         if not util.allclose(
-                scale[0], scale[1:], np.max(np.abs(scale)) * 1e-6 + 1e-8):
+                scale[0], scale[1:],
+                np.max(np.abs(scale)) * 1e-6 + 1e-8):
             raise RuntimeError(
                 'pitch ill-defined because transform features '
                 'non-uniform scaling.')
+        return scale
 
     @caching.cache_decorator
     def unit_volume(self):

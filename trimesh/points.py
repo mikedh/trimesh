@@ -522,7 +522,7 @@ class PointCloud(Geometry):
         Returns
         ------------
         bounds : (2, 3) float
-          Miniumum, Maximum verteex
+          Minimum, Maximum verteex
         """
         return np.array([self.vertices.min(axis=0),
                          self.vertices.max(axis=0)])
