@@ -24,16 +24,21 @@ except ImportError as E:
     spatial = ExceptionModule(E)
 
 
-def convex_hull(obj, qhull_options='QbB Pp QJ'):
+def convex_hull(obj, qhull_options='QbB Pp Qt'):
     """
     Get a new Trimesh object representing the convex hull of the
-    current mesh, with proper normals and watertight.
-    Requires scipy >.12.
+    current mesh attempting to return a watertight mesh with correct
+    normals.
+
+    Details on qhull options:
+      http://www.qhull.org/html/qh-quick.htm#options
 
     Arguments
     --------
     obj : Trimesh, or (n,3) float
       Mesh or cartesian points
+    qhull_options : str
+      Options to pass to qhull.
 
     Returns
     --------
@@ -172,12 +177,14 @@ def is_convex(mesh):
     convex : bool
       Was passed mesh convex or not
     """
+    # non-watertight meshes are not convex
+    if not mesh.is_watertight:
+        return False
+
     # don't consider zero- area faces
     nonzero = mesh.area_faces > tol.merge
-
     # adjacencies with two nonzero faces
     adj_ok = nonzero[mesh.face_adjacency].all(axis=1)
-
     # make threshold of convexity scale- relative
     threshold = tol.planar * mesh.scale
     # if projections of vertex onto plane of adjacent

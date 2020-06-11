@@ -116,12 +116,12 @@ jobs:
       run: |
          # build docs in docker image to get working trimesh env for docstrings
          docker pull trimesh/trimesh:latest
-         docker run --rm --user 0:0 -v `pwd`:/trimesh trimesh/trimesh:latest python /trimesh/docs/build.py
+         docker run --rm --user 0:0 -v `pwd`:/trimesh trimesh/trimesh:latest make -C /trimesh/docs
     - name: Deploy To Pages
       uses: peaceiris/actions-gh-pages@v3
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./docs/html
+        publish_dir: ./docs/_build/html
         force_orphan: true
 
   containers:

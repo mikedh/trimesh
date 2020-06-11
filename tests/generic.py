@@ -352,6 +352,23 @@ def check_fuze(fuze):
     assert len(fuze.visual.uv) == 664
     # UV coordinates shouldn't be all zero- ish
     assert fuze.visual.uv[:, :2].ptp(axis=0).min() > 0.1
+    # UV coordinates should be between zero and 1
+    assert fuze.visual.uv.min() > -tol.merge
+    assert fuze.visual.uv.max() < 1 + tol.merge
+    # check color factors
+    factors = [fuze.visual.material.ambient,
+               fuze.visual.material.diffuse,
+               fuze.visual.material.specular]
+    for f in factors:
+        # should be RGBA
+        assert len(f) == 4
+        assert f.dtype == np.uint8
+        # should be between 0 and 255
+        assert f.min() >= 0
+        assert f.max() <= 255
+        # should have some nonzero values
+        assert (f > 0).any()
+
     # vertices should correspond with UV
     assert fuze.vertices.shape == (664, 3)
     # convert TextureVisuals to ColorVisuals

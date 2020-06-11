@@ -57,7 +57,7 @@ class ContactData(object):
         Returns
         -------
         index : int
-          The index of the face in collison
+          The index of the face in collision
         """
         return self._inds[name]
 

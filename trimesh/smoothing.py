@@ -198,7 +198,7 @@ def laplacian_calculation(mesh, equal_weight=True):
       Input geometry
     equal_weight : bool
       If True, all neighbors will be considered equally
-      If False, all neightbors will be weighted by inverse distance
+      If False, all neighbors will be weighted by inverse distance
 
     Returns
     ----------

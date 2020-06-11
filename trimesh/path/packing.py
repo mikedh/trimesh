@@ -174,9 +174,10 @@ def rectangles_single(rectangles, sheet_size=None, shuffle=False):
                       rectangles[:, 1].max() * 2]
 
     if shuffle:
-        shuffle_len = int(np.random.random() * len(rectangles)) - 1
-        box_order[0:shuffle_len] = np.random.permutation(
-            box_order[0:shuffle_len])
+        # maximum index to shuffle
+        max_idx = int(np.random.random() * len(rectangles)) - 1
+        # reorder with permutations
+        box_order[:max_idx] = np.random.permutation(box_order[:max_idx])
 
     # start the tree
     sheet = RectangleBin(size=sheet_size)
@@ -240,7 +241,8 @@ def polygons(polygons,
              iterations=50,
              density_escape=.95,
              spacing=0.094,
-             quantity=None):
+             quantity=None,
+             **kwargs):
     """
     Pack polygons into a rectangle by taking each Polygon's OBB
     and then packing that as a rectangle.
@@ -298,11 +300,6 @@ def polygons(polygons,
     tic = time.time()
     density = 0.0
 
-    # if no sheet size specified, make a large one
-    if sheet_size is None:
-        sheet_size = [rect[:, 0].sum(),
-                      rect[:, 1].max() * 2]
-
     # run packing for a number of iterations
     (density,
      offset,
@@ -312,7 +309,7 @@ def polygons(polygons,
          sheet_size=sheet_size,
          spacing=spacing,
          density_escape=density_escape,
-         iterations=iterations)
+         iterations=iterations, **kwargs)
 
     toc = time.time()
     log.debug('packing finished %i iterations in %f seconds',
@@ -334,7 +331,8 @@ def rectangles(rectangles,
                sheet_size=None,
                density_escape=0.9,
                spacing=0.0,
-               iterations=50):
+               iterations=50,
+               quanta=None):
     """
     Run multiple iterations of rectangle packing.
 
@@ -350,6 +348,8 @@ def rectangles(rectangles,
       Distance to allow between rectangles
     iterations : int
       Number of iterations to run
+    quanta : None or float
+
 
     Returns
     ---------
@@ -368,10 +368,6 @@ def rectangles(rectangles,
     best_density = 0.0
     # how many rectangles were inserted
     best_insert = 0
-    # if no sheet size specified, make a large one
-    if sheet_size is None:
-        sheet_size = [rectangles[:, 0].sum(),
-                      rectangles[:, 1].max() * 2]
 
     for i in range(iterations):
         # run a single insertion order
@@ -382,6 +378,12 @@ def rectangles(rectangles,
             shuffle=(i != 0))
         density = packed[0]
         insert = packed[2].sum()
+
+        if quanta is not None:
+            # compute the density using an upsized quanta
+            box = np.ceil(packed[3] / quanta) * quanta
+            # scale the density result
+            density *= (np.product(packed[3]) / np.product(box))
 
         # compare this packing density against our best
         if density > best_density or insert > best_insert:

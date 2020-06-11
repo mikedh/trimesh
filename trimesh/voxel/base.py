@@ -112,10 +112,19 @@ class VoxelGrid(Geometry):
     @property
     def pitch(self):
         """
-        Uniform scaling factor representing the side length of each voxel.
+        Uniform scaling factor representing the side length of
+        each voxel.
 
-        Raises a `RuntimeError` if `self.transformation` has rotation or shear
-        components of has non-uniform scaling.
+        Returns
+        -----------
+        pitch : float
+          Pitch of the voxels.
+
+        Raises
+        ------------
+        `RuntimeError`
+          If `self.transformation` has rotation or shear
+          components of has non-uniform scaling.
         """
         return self._transform.pitch
 
