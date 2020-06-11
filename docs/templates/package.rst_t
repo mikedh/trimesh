@@ -1,0 +1,12 @@
+{{ pkgname | e | heading }}
+{% if subpackages or submodules %}
+.. toctree::
+{% for docname in (subpackages or []) + (submodules or []) %}
+   {{ docname }}
+{%- endfor %}
+{% endif %}
+.. automodule:: {{ pkgname }}
+{%- for option in automodule_options %}
+   :{{ option }}:
+{%- endfor %}
+

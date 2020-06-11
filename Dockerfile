@@ -29,7 +29,7 @@ COPY docker/config/xvfb.supervisord.conf /etc/supervisor/conf.d/
 COPY --chown=user:user . "${TRIMESH_PATH}"
 
 # Include all soft dependencies.
-RUN pip install --no-cache-dir -e "${TRIMESH_PATH}[all,test,docs]" pyassimp==4.1.3
+RUN pip install --no-cache-dir -e "${TRIMESH_PATH}[all,test]" pyassimp==4.1.3
 
 # Switch to non-root user.
 USER user
