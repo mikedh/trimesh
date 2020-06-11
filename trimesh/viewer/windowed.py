@@ -469,7 +469,7 @@ class SceneViewer(pyglet.window.Window):
         off, world frame, every frame
         """
         # cycle through three axis states
-        states = [False, 'world', 'all']
+        states = [False, 'world', 'all', 'without_world']
         # the state after toggling
         index = (states.index(self.view['axis']) + 1) % len(states)
         # update state to next index
@@ -686,7 +686,7 @@ class SceneViewer(pyglet.window.Window):
         count = -1
 
         # if we are rendering an axis marker at the world
-        if self._axis:
+        if self._axis and not self.view['axis'] == 'without_world':
             # we stored it as a vertex list
             self._axis.draw(mode=gl.GL_TRIANGLES)
         if self._grid:
@@ -740,6 +740,9 @@ class SceneViewer(pyglet.window.Window):
             # draw an axis marker for each mesh frame
             if self.view['axis'] == 'all':
                 self._axis.draw(mode=gl.GL_TRIANGLES)
+            elif self.view['axis'] == 'without_world':
+                if count > 0:
+                    self._axis.draw(mode=gl.GL_TRIANGLES)
 
             # transparent things must be drawn last
             if (hasattr(mesh, 'visual') and
