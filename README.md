@@ -171,7 +171,7 @@ Trimesh includes an optional `pyglet` based viewer for debugging and inspecting.
 * `w` toggles wireframe mode
 * `c` toggles backface culling
 * `g` toggles an XY grid with Z set to lowest point
-* `a` toggles an XYZ-RGB axis marker between three states: off, at world frame, or at every frame
+* `a` toggles an XYZ-RGB axis marker between: off, at world frame, or at every frame and world, and at every frame
 * `f` toggles between fullscreen and windowed mode
 * `m` maximizes the window
 * `q` closes the window
