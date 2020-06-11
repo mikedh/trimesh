@@ -353,8 +353,8 @@ def check_fuze(fuze):
     # UV coordinates shouldn't be all zero- ish
     assert fuze.visual.uv[:, :2].ptp(axis=0).min() > 0.1
     # UV coordinates should be between zero and 1
-    assert fuze.visual.uv.min() > -zero
-    assert fuze.visual.uv.max() < 1 + zero
+    assert fuze.visual.uv.min() > -tol.merge
+    assert fuze.visual.uv.max() < 1 + tol.merge
     # check color factors
     factors = [fuze.visual.material.ambient,
                fuze.visual.material.diffuse,
