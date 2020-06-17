@@ -34,6 +34,8 @@ def load_collada(file_obj, resolver=None, **kwargs):
     loaded : list of dict
       kwargs for Trimesh constructor
     """
+    import collada
+
     # load scene using pycollada
     c = collada.Collada(file_obj)
 
@@ -76,6 +78,8 @@ def export_collada(mesh, **kwargs):
     -----------
     export: str, string of COLLADA format output
     """
+    import collada
+
     meshes = mesh
     if not isinstance(mesh, (list, tuple, set, np.ndarray)):
         meshes = [mesh]
@@ -152,6 +156,7 @@ def _parse_node(node,
     """
     Recursively parse COLLADA scene nodes.
     """
+    import collada
 
     # Parse mesh node
     if isinstance(node, collada.scene.GeometryNode):
@@ -263,6 +268,7 @@ def _parse_material(effect, resolver):
     """
     Turn a COLLADA effect into a trimesh material.
     """
+    import collada
 
     # Compute base color
     baseColorFactor = np.ones(4)
@@ -329,6 +335,8 @@ def _unparse_material(material):
     """
     Turn a trimesh material into a COLLADA material.
     """
+    import collada
+
     # TODO EXPORT TEXTURES
     if isinstance(material, visual.material.PBRMaterial):
         diffuse = material.baseColorFactor
@@ -402,7 +410,7 @@ def load_zae(file_obj, resolver=None, **kwargs):
 # only provide loaders if `pycollada` is installed
 _collada_loaders = {}
 _collada_exporters = {}
-if collada is not None:
+if util.has_module('collada'):
     _collada_loaders['dae'] = load_collada
     _collada_loaders['zae'] = load_zae
     _collada_exporters['dae'] = export_collada
