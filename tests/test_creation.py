@@ -13,6 +13,13 @@ class CreationTest(g.unittest.TestCase):
             engines.append('triangle')
         except ImportError:
             g.log.error('no triangle: skipping')
+
+        try:
+            import mapbox_earcut
+            engines.append('earcut')
+        except BaseException:
+            g.log.warning('no earcut')
+
         self.engines = engines
 
     def test_cone(self):
@@ -171,7 +178,7 @@ class CreationTest(g.unittest.TestCase):
 
     def test_triangulate(self):
         """
-        test triangulate using meshpy and triangle
+        Test triangulate using meshpy and triangle
         """
         # circles
         bigger = g.Point([10, 0]).buffer(1.0)
@@ -197,7 +204,6 @@ class CreationTest(g.unittest.TestCase):
             for poly in [bigger, smaller, donut, bench]:
                 v, f = g.trimesh.creation.triangulate_polygon(
                     poly, engine=engine)
-
                 # run asserts
                 check_triangulation(v, f, poly.area)
             try:
