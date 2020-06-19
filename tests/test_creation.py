@@ -8,18 +8,10 @@ class CreationTest(g.unittest.TestCase):
 
     def setUp(self):
         engines = []
-        try:
-            from triangle import triangulate  # NOQA
+        if g.trimesh.util.has_module('triangle'):
             engines.append('triangle')
-        except ImportError:
-            g.log.error('no triangle: skipping')
-
-        try:
-            import mapbox_earcut
+        if g.trimesh.util.has_module('mapbox_earcut'):
             engines.append('earcut')
-        except BaseException:
-            g.log.warning('no earcut')
-
         self.engines = engines
 
     def test_cone(self):

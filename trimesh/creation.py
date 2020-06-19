@@ -434,7 +434,7 @@ def triangulate_polygon(polygon,
     faces : (n, 3) int
        Index of vertices that make up triangles
     """
-    if engine is None and util.has_module(mapbox_earcut):
+    if engine is None and util.has_module('mapbox_earcut'):
         engine = 'earcut'
 
     if engine == 'earcut':
