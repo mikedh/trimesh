@@ -53,6 +53,33 @@ class UtilTests(unittest.TestCase):
                 tree = g.trimesh.util.bounds_tree(bounds)
                 self.assertTrue(0 in tree.intersection(bounds[0]))
 
+    def test_stack(self):
+        # shortcut to the function
+        f = g.trimesh.util.stack_3D
+        # start with some random points
+        p = g.np.random.random((100, 2))
+        stack = f(p)
+        # shape should be 3D
+        assert stack.shape == (100, 3)
+        # points should be equal
+        assert g.np.allclose(p, stack[:, :2])
+
+        # check an empty array
+        assert f([]).shape == (0,)
+
+        try:
+            # try with 4D points
+            f(g.np.ones((100, 4)))
+            assert False
+        except ValueError:
+            # this is what should happen
+            pass
+
+    def test_has_module(self):
+
+        assert g.trimesh.util.has_module('collections')
+        assert not g.trimesh.util.has_module('foobarrionananan')
+
     def test_strips(self):
         """
         Test our conversion of triangle strips to face indexes.

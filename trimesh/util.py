@@ -69,6 +69,26 @@ TOL_MERGE = 1e-8
 _STRICT = False
 
 
+def has_module(name):
+    """
+    Check to see if a module is installed by name without
+    actually importing the module.
+
+    Parameters
+    ------------
+    name : str
+      The name of the module to check
+
+    Returns
+    ------------
+    installed : bool
+      True if module is installed
+    """
+    # this should work on Python 2.7 and 3.4+
+    import pkgutil
+    return pkgutil.find_loader(name) is not None
+
+
 def unitize(vectors,
             check_valid=False,
             threshold=None):
@@ -666,12 +686,13 @@ def stack_3D(points, return_2D=False):
     points = np.asanyarray(points, dtype=np.float64)
     shape = points.shape
 
-    if len(shape) != 2:
+    if shape == (0,):
+        is_2D = False
+    elif len(shape) != 2:
         raise ValueError('Points must be 2D array!')
-
-    if shape[1] == 2:
-        points = np.column_stack((points,
-                                  np.zeros(len(points))))
+    elif shape[1] == 2:
+        points = np.column_stack((
+            points, np.zeros(len(points))))
         is_2D = True
     elif shape[1] == 3:
         is_2D = False

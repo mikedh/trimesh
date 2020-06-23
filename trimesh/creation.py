@@ -413,6 +413,7 @@ def extrude_triangulation(vertices,
 
 def triangulate_polygon(polygon,
                         triangle_args=None,
+                        engine=None,
                         **kwargs):
     """
     Given a shapely polygon create a triangulation using a
@@ -433,6 +434,25 @@ def triangulate_polygon(polygon,
     faces : (n, 3) int
        Index of vertices that make up triangles
     """
+    if engine is None and util.has_module('mapbox_earcut'):
+        engine = 'earcut'
+
+    if engine == 'earcut':
+        from mapbox_earcut import triangulate_float64
+
+        # get vertices as sequence where exterior is the first value
+        vertices = [np.array(polygon.exterior)]
+        vertices.extend(np.array(i) for i in polygon.interiors)
+        # record the index from the length of each vertex array
+        rings = np.cumsum([len(v) for v in vertices])
+        # stack vertices into (n, 2) float array
+        vertices = np.vstack(vertices)
+        # run triangulation
+        faces = triangulate_float64(vertices, rings).reshape(
+            (-1, 3)).astype(np.int64).reshape((-1, 3))
+
+        return vertices, faces
+
     # do the import here for soft requirement
     from triangle import triangulate
     # set default triangulation arguments if not specified
