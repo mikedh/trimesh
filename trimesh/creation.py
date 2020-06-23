@@ -417,8 +417,9 @@ def triangulate_polygon(polygon,
                         **kwargs):
     """
     Given a shapely polygon create a triangulation using a
-    python interface to `triangle.c`:
-    > `pip install triangle`
+    python interface to `triangle.c` or mapbox-earcut.
+    > pip install triangle
+    > pip install mapbox_earcut
 
     Parameters
     ---------
@@ -426,6 +427,8 @@ def triangulate_polygon(polygon,
         Polygon object to be triangulated
     triangle_args : str or None
         Passed to triangle.triangulate i.e: 'p', 'pq30'
+    engine : None or str
+      Any value other than 'earcut' will use `triangle`
 
     Returns
     --------------
@@ -434,9 +437,6 @@ def triangulate_polygon(polygon,
     faces : (n, 3) int
        Index of vertices that make up triangles
     """
-    if engine is None and util.has_module('mapbox_earcut'):
-        engine = 'earcut'
-
     if engine == 'earcut':
         from mapbox_earcut import triangulate_float64
 
