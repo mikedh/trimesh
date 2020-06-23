@@ -50,7 +50,7 @@ requirements_easy = set([
 # through some mechanism on Linux with Python 3.5+
 # and are allowed to compile code
 requirements_all = requirements_easy.union([
-    'mapbox-earcut', # faster 2D triangulations of polygons
+    'mapbox-earcut',  # faster 2D triangulations of polygons
     'triangle',      # 2D triangulations of polygons
     'python-fcl',    # do fast 3D collision queries
     'psutil',        # figure out how much memory we have
