@@ -273,7 +273,7 @@ def mesh_multiplane(mesh,
         # store (n, 2, 2) float lines
         segments.append(lines_2D)
         # store (n,) int indexes of mesh.faces
-        face_index.append(face_index)
+        face_index.append(index)
 
     # (n, 4, 4) transforms from 2D to 3D
     transforms = np.array(transforms, dtype=np.float64)
@@ -690,7 +690,7 @@ def slice_mesh_plane(mesh,
             v, f = [], []
             for polygon in on_plane.polygons_full:
                 t = triangulate_polygon(
-                    polygon, triangle_args='p', allow_boundary_steiner=False)
+                    polygon, triangle_args='p', engine='triangle')
                 v.append(t[0])
                 f.append(t[1])
 

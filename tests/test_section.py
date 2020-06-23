@@ -111,6 +111,23 @@ class SectionTest(g.unittest.TestCase):
                 assert g.np.isclose(back_3D.vertices[:, 2].mean(),
                                     z_levels[index])
 
+    def test_multi_index(self):
+        # make sure returned face indexes on a section are correct
+        mesh = g.trimesh.creation.box()
+        normal = g.np.array([0, 0, 1])
+        # point for plane origin
+        origin = mesh.center_mass
+        # pick some offsets from the plane
+        heights = g.np.linspace(0, 0.1, 2)
+        # compute the multiple crosss sections with `section_multiplane`
+        multi = mesh.section_multiplane(origin, normal, heights)
+        # get the face indexes this should have hit by checking the normal
+        idx = set(g.np.nonzero(g.np.isclose(
+            g.np.dot(mesh.face_normals, normal), 0, atol=1e-4))[0])
+        # make sure all indexes are set correctly
+        assert all(set(m.metadata['face_index'] == idx)
+                   for m in multi)
+
 
 class PlaneLine(g.unittest.TestCase):
 
@@ -269,8 +286,6 @@ class SliceTest(g.unittest.TestCase):
         sliced_capped = mesh.slice_plane(plane_origin=plane_origins,
                                          plane_normal=plane_normals,
                                          cap=True)
-
-        assert len(sliced_capped.faces) == 20
         assert g.np.isclose(
             sliced_capped.bounds[0], mesh.bounds[0] + g.np.array([0, 0.95, 0.95])).all()
         assert g.np.isclose(sliced_capped.bounds[1], mesh.bounds[1]).all()
