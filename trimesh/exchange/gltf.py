@@ -993,6 +993,15 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
                         # create a texture visual
                     kwargs["visual"] = visual.texture.TextureVisuals(
                         uv=uv, material=materials[p["material"]])
+            elif 'COLOR_0' in p['attributes']:
+                try:
+                    # try to load vertex colors from the accessors
+                    colors = access[p['attributes']['COLOR_0']]
+                    if len(colors) == len(kwargs['vertices']):
+                        kwargs['vertex_colors'] = colors
+                except BaseException:
+                    # survive failed colors
+                    pass
 
             # create a unique mesh name per- primitive
             if "name" in m:
