@@ -372,7 +372,7 @@ class GLTFTest(g.unittest.TestCase):
 
     def test_vertex_colors(self):
         # get a mesh with face colors
-        m = g.get_mesh('models/machinist.XAML')
+        m = g.get_mesh('machinist.XAML')
         # export as GLB then re-import
         r = next(iter(
             g.trimesh.load(g.trimesh.util.wrap_as_stream(

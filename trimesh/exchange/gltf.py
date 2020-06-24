@@ -999,7 +999,7 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
                     colors = access[p['attributes']['COLOR_0']]
                     if len(colors) == len(kwargs['vertices']):
                         kwargs['vertex_colors'] = colors
-                except BaseException as E:
+                except BaseException:
                     # survive failed colors
                     pass
 
