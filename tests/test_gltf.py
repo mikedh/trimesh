@@ -370,6 +370,21 @@ class GLTFTest(g.unittest.TestCase):
         assert len(s.geometry) == 6
         assert g.np.allclose(s.bounds, bounds, atol=1e-3)
 
+    def test_vertex_colors(self):
+        # get a mesh with face colors
+        m = g.get_mesh('models/machinist.XAML')
+        # export as GLB then re-import
+        r = next(iter(
+            g.trimesh.load(g.trimesh.util.wrap_as_stream(
+                m.export(file_type='glb')),
+                file_type='glb').geometry.values()))
+        # original mesh should have vertex colors
+        assert m.visual.kind == 'face'
+        assert m.visual.vertex_colors.ptp(axis=0).ptp() > 0
+        # vertex colors should have survived import-export
+        assert g.np.allclose(m.visual.vertex_colors,
+                             r.visual.vertex_colors)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
