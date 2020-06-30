@@ -248,6 +248,19 @@ class PBRMaterial(Material):
             colors = self.baseColorFactor.copy()
         return colors
 
+    def to_simple(self):
+        """
+        Get a copy of the current PBR material as a simple material.
+
+        Returns
+        ------------
+        simple : SimpleMaterial
+          Contains material information in a simple manner
+        """
+
+        return SimpleMaterial(image=self.baseColorTexture,
+                              diffuse=self.baseColorFactor)
+
     @property
     def main_color(self):
         # will return default color if None

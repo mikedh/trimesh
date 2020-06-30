@@ -805,8 +805,12 @@ class Scene(Geometry):
             from ..exchange.export import scene_to_dict
             data = scene_to_dict(self)
         elif file_type == 'obj':
+            from .. import resolvers
             from ..exchange.obj import export_obj
-            data = export_obj(self)
+            resolver = None
+            if util.is_string(file_obj):
+                resolver = resolvers.FilePathResolver(file_obj)
+            data = export_obj(self, resolver=resolver)
         elif file_type == 'dict64':
             from ..exchange.export import scene_to_dict
             data = scene_to_dict(self, use_base64=True)

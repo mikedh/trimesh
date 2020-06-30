@@ -46,6 +46,20 @@ class DAETest(g.unittest.TestCase):
         r = a.export(file_type='dae')
         assert len(r) > 0
 
+    def test_obj_roundtrip(self):
+        # get a zipped-DAE scene
+        s = g.get_mesh('duck.zae', force='mesh')
+        with g.TemporaryDirectory() as root:
+            # export using a file path so it can auto-create
+            # a FilePathResolver to write the stupid assets
+            path = g.os.path.join(root, 'duck.obj')
+            s.export(path)
+            # bring it back from outer space
+            rec = g.trimesh.load(path, force='mesh')
+        assert rec.visual.uv.ptp(axis=0).ptp() > 1e-5
+        assert (s.visual.material.image.size ==
+                rec.visual.material.image.size)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
