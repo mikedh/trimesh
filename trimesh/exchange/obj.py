@@ -808,9 +808,12 @@ def export_obj(mesh,
                 col_delim=' ',
                 row_delim='\nvt ',
                 digits=digits))
+            material = mesh.visual.material
+            if hasattr(material, 'to_simple'):
+                material = material.to_simple()
             (tex_data,
              tex_name,
-             mtl_name) = mesh.visual.material.to_obj()
+             mtl_name) = material.to_obj()
             # add the reference to the MTL file
             objects.appendleft('mtllib {}'.format(mtl_name))
             # add the directive to use the exported material
