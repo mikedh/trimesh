@@ -205,6 +205,8 @@ class Trimesh(Geometry):
             3) Remove triangles which have one edge of their rectangular 2D
                oriented bounding box shorter than tol.merge
             4) remove duplicated triangles
+            5) ensure triangles are consistently wound
+               and normals face outwards
 
         Parameters
         ------------
@@ -229,6 +231,7 @@ class Trimesh(Geometry):
             if validate:
                 self.remove_duplicate_faces()
                 self.remove_degenerate_faces()
+                self.fix_normals()
         # since none of our process operations moved vertices or faces
         # we can keep face and vertex normals in the cache without recomputing
         # if faces or vertices have been removed, normals are validated before
