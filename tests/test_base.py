@@ -43,6 +43,21 @@ class MeshTests(g.unittest.TestCase):
         assert len(m.vertices) == pre_len
         assert g.np.isclose(m.volume, pre_vol)
 
+    def test_validate_inversion(self):
+        """Make sure inverted meshes are fixed by `validate=True`"""
+        orig_mesh = g.get_mesh("unit_cube.STL")
+        orig_verts = orig_mesh.vertices.copy()
+        orig_faces = orig_mesh.faces.copy()
+
+        orig_face_set = {tuple(row) for row in orig_faces}
+
+        inv_faces = orig_faces[:, ::-1]
+        inv_mesh = g.Trimesh(orig_verts, inv_faces, validate=False)
+        assert {tuple(row) for row in inv_mesh.faces} != orig_face_set
+
+        fixed_mesh = g.Trimesh(orig_verts, inv_faces, validate=True)
+        assert {tuple(row) for row in fixed_mesh.faces} == orig_face_set
+
     def test_none(self):
         """
         Make sure mesh methods don't return None or crash.

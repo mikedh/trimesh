@@ -104,6 +104,21 @@ class RepairTests(g.unittest.TestCase):
         # print timings as a warning
         g.log.warning(g.json.dumps(timing, indent=4))
 
+    def test_inversion(self):
+        """Make sure fix_inversion switches all reversed faces back"""
+        orig_mesh = g.get_mesh("unit_cube.STL")
+        orig_verts = orig_mesh.vertices.copy()
+        orig_faces = orig_mesh.faces.copy()
+
+        mesh = g.Trimesh(orig_verts, orig_faces[:, ::-1])
+        inv_faces = mesh.faces.copy()
+        # check not fixed on the way in
+        assert not g.np.allclose(inv_faces, orig_faces)
+
+        g.trimesh.repair.fix_inversion(mesh)
+        assert not g.np.allclose(mesh.faces, inv_faces)
+        assert g.np.allclose(mesh.faces, orig_faces)
+
     def test_multi(self):
         """
         Try repairing a multibody geometry

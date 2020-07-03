@@ -133,7 +133,6 @@ def fix_inversion(mesh, multibody=False):
             mesh._cache.clear(exclude=['face_normals'])
 
     elif mesh.volume < 0.0:
-        # reverse every triangles and flip every normals
         mesh.invert()
 
 

@@ -205,6 +205,8 @@ class Trimesh(Geometry):
             3) Remove triangles which have one edge of their rectangular 2D
                oriented bounding box shorter than tol.merge
             4) remove duplicated triangles
+            5) ensure triangles are consistently wound
+               and normals face outwards
 
         Parameters
         ------------
@@ -229,6 +231,7 @@ class Trimesh(Geometry):
             if validate:
                 self.remove_duplicate_faces()
                 self.remove_degenerate_faces()
+                self.fix_normals()
         # since none of our process operations moved vertices or faces
         # we can keep face and vertex normals in the cache without recomputing
         # if faces or vertices have been removed, normals are validated before
@@ -2363,26 +2366,12 @@ class Trimesh(Geometry):
                          coordinate system
           'center_mass' : Center of mass location, in global coordinate system
         """
-        mass = triangles.mass_properties(triangles=self.triangles,
-                                         crosses=self.triangles_cross,
-                                         density=self._density,
-                                         center_mass=self._center_mass,
-                                         skip_inertia=False)
-
-        # if magical clean-up mode is enabled
-        # and mesh is watertight/wound correctly but with negative
-        # volume it means that every triangle is probably facing
-        # inwards, so we invert it in-place without dumping cache
-        if (self.is_watertight and
-            self.is_winding_consistent and
-            np.linalg.det(mass['inertia']) < 0.0 and
-            mass['mass'] < 0.0 and
-                mass['volume'] < 0.0):
-            # negate mass properties so we don't need to recalculate
-            mass['inertia'] = -mass['inertia']
-            mass['mass'] = -mass['mass']
-            mass['volume'] = -mass['volume']
-
+        mass = triangles.mass_properties(
+            triangles=self.triangles,
+            crosses=self.triangles_cross,
+            density=self._density,
+            center_mass=self._center_mass,
+            skip_inertia=False)
         return mass
 
     def invert(self):
