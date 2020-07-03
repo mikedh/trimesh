@@ -17,6 +17,7 @@ import pyglet.gl as gl
 from .trackball import Trackball
 
 from .. import util
+from .. import caching
 from .. import rendering
 
 from ..visual import to_rgba
@@ -808,17 +809,20 @@ def geometry_hash(geometry):
     ------------
     MD5 : str
     """
-    if hasattr(geometry, 'md5'):
+    if hasattr(geometry, 'crc'):
         # for most of our trimesh objects
-        md5 = geometry.md5()
+        h = str(geometry.crc())
+    elif hasattr(geometry, 'md5'):
+        h = geometry.md5()
     elif hasattr(geometry, 'tostring'):
         # for unwrapped ndarray objects
-        md5 = str(hash(geometry.tostring()))
+        h = str(hash(geometry.tostring()))
 
     if hasattr(geometry, 'visual'):
         # if visual properties are defined
-        md5 += str(geometry.visual.crc())
-    return md5
+        h += str(geometry.visual.crc())
+
+    return h
 
 
 def render_scene(scene,
