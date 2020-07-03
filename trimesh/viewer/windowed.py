@@ -821,6 +821,9 @@ def geometry_hash(geometry):
     if hasattr(geometry, 'visual'):
         # if visual properties are defined
         h += str(geometry.visual.crc())
+    elif hasattr(geometry, 'colors'):
+        # paths do not use the visual attribute
+        h += str(caching.crc32(geometry.colors.tobytes()))
 
     return h
 
