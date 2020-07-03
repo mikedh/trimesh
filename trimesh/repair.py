@@ -132,16 +132,8 @@ def fix_inversion(mesh, multibody=False):
             # save wangled normals
             mesh._cache.clear(exclude=['face_normals'])
 
-    else:
-        # calculate the volume of the submesh faces
-        volume = triangles.mass_properties(
-            mesh.triangles,
-            crosses=mesh.triangles_cross,
-            skip_inertia=True
-        )['volume']
-        if volume < 0.0:
-            # reverse every triangles and flip every normals
-            mesh.invert()
+    elif mesh.volume < 0.0:
+        mesh.invert()
 
 
 def fix_normals(mesh, multibody=False):
