@@ -17,7 +17,6 @@ import pyglet.gl as gl
 from .trackball import Trackball
 
 from .. import util
-from .. import caching
 from .. import rendering
 
 from ..visual import to_rgba
@@ -821,9 +820,9 @@ def geometry_hash(geometry):
     if hasattr(geometry, 'visual'):
         # if visual properties are defined
         h += str(geometry.visual.crc())
-    elif hasattr(geometry, 'colors'):
+    elif hasattr(geometry, 'visual_crc'):
         # paths do not use the visual attribute
-        h += str(caching.crc32(geometry.colors.tobytes()))
+        h += str(geometry.visual_crc)
 
     return h
 
