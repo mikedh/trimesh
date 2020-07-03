@@ -226,7 +226,7 @@ class SceneViewer(pyglet.window.Window):
         args = rendering.convert_to_vertexlist(geometry, **kwargs)
         # create the indexed vertex list
         self.vertex_list[name] = self.batch.add_indexed(*args)
-        # save the MD5 of the geometry
+        # save the hash of the geometry
         self.vertex_list_hash[name] = geometry_hash(geometry)
         # save the rendering mode from the constructor args
         self.vertex_list_mode[name] = args[1]
@@ -798,7 +798,7 @@ class SceneViewer(pyglet.window.Window):
 
 def geometry_hash(geometry):
     """
-    Get an MD5 for a geometry object
+    Get a hash for a geometry object
 
     Parameters
     ------------
@@ -806,7 +806,7 @@ def geometry_hash(geometry):
 
     Returns
     ------------
-    MD5 : str
+    hash : str
     """
     if hasattr(geometry, 'crc'):
         # for most of our trimesh objects
