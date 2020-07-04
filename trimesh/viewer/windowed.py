@@ -822,7 +822,7 @@ def geometry_hash(geometry):
         h += str(geometry.visual.crc())
     elif hasattr(geometry, 'visual_crc'):
         # paths do not use the visual attribute
-        h += str(geometry.visual_crc)
+        h += str(geometry.colors_crc())
 
     return h
 

@@ -158,6 +158,20 @@ class Path(object):
         for c, e in zip(colors, self.entities):
             e.color = c
 
+    def colors_crc(self):
+        """
+        A CRC of the current entity colors.
+
+        Returns
+        -------
+        crc : int
+          CRC of the current entity colors
+        """
+        # first CRC the colors in every entity
+        target = caching.crc32(bytes().join(
+            e.color.tobytes() for e in self.entities))
+        return target
+
     @property
     def vertices(self):
         return self._vertices
@@ -231,20 +245,6 @@ class Path(object):
                 e._bytes() for e in self.entities)),
             self.vertices.md5())
 
-        return target
-
-    @property
-    def visual_crc(self):
-        """A CRC of the current entity colors.
-
-        Returns
-        -------
-        crc : int
-          CRC of the current entity colors
-        """
-        # first CRC the colors in every entity
-        target = caching.crc32(bytes().join(
-            e.color.tobytes() for e in self.entities))
         return target
 
     @caching.cache_decorator
