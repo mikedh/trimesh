@@ -1,15 +1,16 @@
 import numpy as np
 
+from shapely import ops
 from shapely.geometry import Polygon
-
-from collections import deque
 
 from .. import util
 from .. import bounds
 from .. import graph
+from .. import geometry
+from .. import grouping
 
-from ..constants import tol_path as tol
 from ..constants import log
+from ..constants import tol_path as tol
 from ..transformations import transform_points
 
 from .simplify import fit_circle_check
@@ -288,7 +289,7 @@ def resample_boundaries(polygon, resolution, clip=None):
         clip = [8, 200]
     # create a sequence of [(n,2)] points
     kwargs = {'shell': resample_boundary(polygon.exterior),
-              'holes': deque()}
+              'holes': []}
     for interior in polygon.interiors:
         kwargs['holes'].append(resample_boundary(interior))
     kwargs['holes'] = np.array(kwargs['holes'])
@@ -658,3 +659,127 @@ def repair_invalid(polygon, scale=None, rtol=.5):
         return buffered
 
     raise ValueError('unable to recover polygon!')
+
+
+def projected(mesh,
+              normal,
+              origin=None,
+              pad=1e-5,
+              tol_dot=0.01,
+              max_regions=200):
+    """
+    Project a mesh onto a plane and then extract the polygon
+    that outlines the mesh projection on that plane.
+
+    Parameters
+    ----------
+    mesh : trimesh.Trimesh
+      Source geometry
+    check : bool
+      If True make sure is flat
+    normal : (3,) float
+      Normal to extract flat pattern along
+    origin : None or (3,) float
+      Origin of plane to project mesh onto
+    pad : float
+      Proportion to pad polygons by before unioning
+      and then de-padding result by to avoid zero-width gaps.
+    tol_dot : float
+      Tolerance for discarding on-edge triangles.
+    max_regions : int
+      Raise an exception if the mesh has more than this
+      number of disconnected regions to fail quickly before unioning.
+
+    Returns
+    ----------
+    projected : shapely.geometry.Polygon
+      Outline of source mesh
+
+    Raises
+    ---------
+    ValueError
+      If max_regions is exceeded
+    """
+    # make sure normal is a unitized copy
+    normal = np.array(normal, dtype=np.float64)
+    normal /= np.linalg.norm(normal)
+
+    # the projection of each face normal onto facet normal
+    dot_face = np.dot(normal, mesh.face_normals.T)
+    # check if face lies on front or back of normal
+    front = dot_face > tol_dot
+    back = dot_face < -tol_dot
+    # divide the mesh into front facing section and back facing parts
+    # and discard the faces perpendicular to the axis.
+    # since we are doing a unary_union later we can use the front *or*
+    # the back so we use which ever one has fewer triangles
+    # we want the largest nonzero group
+    count = np.array([front.sum(), back.sum()])
+    if count.min() == 0:
+        # if one of the sides has zero faces we need the other
+        pick = count.argmax()
+    else:
+        # otherwise use the normal direction with the fewest faces
+        pick = count.argmin()
+    # use the picked side
+    side = [front, back][pick]
+
+    # subset the adjacency pairs to ones which have both faces included
+    # on the side we are currently looking at
+    adjacency_check = side[mesh.face_adjacency].all(axis=1)
+    adjacency = mesh.face_adjacency[adjacency_check]
+
+    # a sequence of face indexes that are connected
+    face_groups = graph.connected_components(
+        adjacency, nodes=np.nonzero(side)[0])
+
+    # if something is goofy we may end up with thousands of
+    # regions that do nothing except hang for an hour then segfault
+    if len(face_groups) > max_regions:
+        raise ValueError('too many disconnected groups!')
+
+    # reshape edges into shape length of faces for indexing
+    edges = mesh.edges_sorted.reshape((-1, 6))
+    # transform from the mesh frame in 3D to the XY plane
+    to_2D = geometry.plane_transform(
+        origin=origin, normal=normal)
+    # transform mesh vertices to 2D and clip the zero Z
+    vertices_2D = transform_points(
+        mesh.vertices, to_2D)[:, :2]
+
+    polygons = []
+    for faces in face_groups:
+        # index edges by face then shape back to individual edges
+        edge = edges[faces].reshape((-1, 2))
+        # edges that occur only once are on the boundary
+        group = grouping.group_rows(edge, require_count=1)
+        # turn each region into polygons
+        polygons.extend(edges_to_polygons(
+            edges=edge[group], vertices=vertices_2D))
+
+    # some types of errors will lead to a bajillion disconnected
+    # regions and the union will take forever to fail
+    # so exit here early
+    if len(polygons) > max_regions:
+        raise ValueError('too many disconnected groups!')
+
+    # if there is only one region we don't need to run a union
+    elif len(polygons) == 1:
+        polygon = polygons[0]
+        # we do however need to double buffer to de-garbage the polygon
+        scale = np.reshape(polygon.bounds, (2, 2)).ptp(axis=0).max()
+        padding = scale * pad
+        polygon = polygon.buffer(padding).buffer(-padding)
+    else:
+        # get all points for every AABB
+        extrema = np.reshape([p.bounds for p in polygons], (-1, 2))
+        # extract the model scale from the maximum AABB side length
+        scale = extrema.ptp(axis=0).max()
+        # pad each polygon proportionally to that scale
+        distance = abs(scale * pad)
+        # inflate each polygon before unioning to remove zero-size
+        # gaps then deflate the result after unioning by the same amount
+        polygon = ops.unary_union(
+            [p.buffer(distance) for p in polygons]).buffer(-distance)
+
+    return polygon
