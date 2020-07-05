@@ -150,7 +150,7 @@ def binvox_bytes(rle_data, shape, translate=(0, 0, 0), scale=1):
             "rle_data.dtype must be np.uint8, got %s" % rle_data.dtype)
 
     header = binvox_header(shape, translate, scale).encode()
-    return header + rle_data.tostring()
+    return header + rle_data.tobytes()
 
 
 def voxel_from_binvox(

@@ -1489,7 +1489,7 @@ class Path2D(Path):
         Return an MD5 of the identifier
         """
         as_int = (self.identifier * 1e4).astype(np.int64)
-        hashed = util.md5_object(as_int.tostring(order='C'))
+        hashed = util.md5_object(as_int.tobytes(order='C'))
         return hashed
 
     @property

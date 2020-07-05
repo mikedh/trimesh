@@ -180,9 +180,9 @@ def export_ply(mesh,
     export = Template(header).substitute(header_params).encode('utf-8')
 
     if encoding == 'binary_little_endian':
-        export += vertex.tostring()
+        export += vertex.tobytes()
         if hasattr(mesh, 'faces'):
-            export += faces.tostring()
+            export += faces.tobytes()
     elif encoding == 'ascii':
         if hasattr(mesh, 'faces'):
             # ply format is: (face count, v0, v1, v2)
