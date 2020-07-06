@@ -204,6 +204,24 @@ class NearestTest(g.unittest.TestCase):
         g.trimesh.proximity.nearby_faces(
             mesh=mesh, points=points)
 
+    def test_returns_correct_point_in_ambiguous_cases(self):
+        mesh = g.trimesh.Trimesh(
+            vertices=[
+                [0.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0],
+                [-1.0, 0.0, 0.0],
+                [0.0, 0.0, -1.0],
+            ],
+            faces=[[0, 1, 2], [0, 1, 3]],
+            process=False,
+        )
+        # Query point is closer to face 0 but lies in face 1 normal direction
+        closest, _, closest_face_index = g.trimesh.proximity.closest_point(
+            mesh, [[-0.25 - 1e-9, 0.0, -0.25]]
+        )
+        g.np.testing.assert_almost_equal(closest[0], [0.0, 0.0, -0.25])
+        self.assertEqual(closest_face_index[0], 1)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
