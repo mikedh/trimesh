@@ -819,11 +819,7 @@ def smoothed(mesh, angle=None, facet_minarea=15):
 
     # add back coplanar groups if any exist
     if len(facets) > 0:
-        try:
-            components.extend(facets)
-        except BaseException:
-            from IPython import embed
-            embed()
+        components.extend(facets)
 
     if len(components) == 0:
         # if no components for some reason
