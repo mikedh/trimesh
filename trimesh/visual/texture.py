@@ -1,7 +1,5 @@
 import numpy as np
 
-import copy
-
 from .base import Visuals
 from . import color
 
