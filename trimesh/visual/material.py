@@ -4,6 +4,7 @@ material.py
 
 Store visual materials as objects.
 """
+import copy
 import numpy as np
 
 from . import color
@@ -21,6 +22,9 @@ class Material(object):
     @property
     def main_color(self):
         raise NotImplementedError('material must be subclassed!')
+
+    def copy(self):
+        return copy.deepcopy(self)
 
 
 class SimpleMaterial(Material):
@@ -81,33 +85,34 @@ class SimpleMaterial(Material):
         if mtl_name is None:
             mtl_name = '{}.mtl'.format(tex_name)
 
-        # what is the name of the export image to save
-
-        image_type = self.image.format
-        if image_type is None:
-            image_type = 'png'
-
-        image_name = '{}.{}'.format(
-            tex_name, image_type).lower()
-
         # create an MTL file
-        mtl = '\n'.join(
-            ['# https://github.com/mikedh/trimesh',
-             'newmtl {}'.format(tex_name),
-             'Ka {:0.8f} {:0.8f} {:0.8f}'.format(*Ka),
-             'Kd {:0.8f} {:0.8f} {:0.8f}'.format(*Kd),
-             'Ks {:0.8f} {:0.8f} {:0.8f}'.format(*Ks),
-             'Ns {:0.8f}'.format(self.glossiness),
-             'map_Kd {}'.format(image_name)])
-
-        # save the image texture as bytes in the original format
-        f_obj = util.BytesIO()
-        self.image.save(fp=f_obj, format=image_type)
-        f_obj.seek(0)
+        mtl = ['# https://github.com/mikedh/trimesh',
+               'newmtl {}'.format(tex_name),
+               'Ka {:0.8f} {:0.8f} {:0.8f}'.format(*Ka),
+               'Kd {:0.8f} {:0.8f} {:0.8f}'.format(*Kd),
+               'Ks {:0.8f} {:0.8f} {:0.8f}'.format(*Ks),
+               'Ns {:0.8f}'.format(self.glossiness)]
 
         # collect the OBJ data into files
-        data = {mtl_name: mtl.encode('utf-8'),
-                image_name: f_obj.read()}
+        data = {}
+
+        if self.image is not None:
+            image_type = self.image.format
+            # what is the name of the export image to save
+            if image_type is None:
+                image_type = 'png'
+            image_name = '{}.{}'.format(
+                tex_name, image_type).lower()
+            # save the reference to the image
+            mtl.append('map_Kd {}'.format(image_name))
+
+            # save the image texture as bytes in the original format
+            f_obj = util.BytesIO()
+            self.image.save(fp=f_obj, format=image_type)
+            f_obj.seek(0)
+            data[image_name] = f_obj.read()
+
+        data[mtl_name] = '\n'.join(mtl).encode('utf-8')
 
         return data, tex_name, mtl_name
 
@@ -229,6 +234,21 @@ class PBRMaterial(Material):
         # str
         self.name = name
         self.alphaMode = alphaMode
+
+    def copy(self):
+        # doing a straight deepcopy fails probably due to PIL images
+        kwargs = {}
+        # collect stored values as kwargs
+        for k, v in self.__dict__.items():
+            if v is None:
+                continue
+            if hasattr(v, 'copy'):
+                # use an objects explicit copy if available
+                kwargs[k] = v.copy()
+            else:
+                # otherwise just hope deepcopy does something
+                kwargs[k] = copy.deepcopy(v)
+        return PBRMaterial(**kwargs)
 
     def to_color(self, uv):
         """

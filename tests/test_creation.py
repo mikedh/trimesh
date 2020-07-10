@@ -33,6 +33,10 @@ class CreationTest(g.unittest.TestCase):
         # passed height should be overridden
         radius = 0.75
         offset = 10.0
+        # true bounds
+        bounds = [[0, -radius, offset - radius],
+                  [1, radius, offset + radius]],
+        # create with a height that gets overridden
         c = g.trimesh.creation.cylinder(
             radius=radius,
             height=200,
@@ -42,10 +46,17 @@ class CreationTest(g.unittest.TestCase):
         assert c.body_count == 1
         # make sure segment has been applied correctly
         assert g.np.allclose(
-            c.bounds,
-            [[0, -radius, offset - radius],
-             [1, radius, offset + radius]],
-            atol=atol)
+            c.bounds, bounds, atol=atol)
+        # try again with no height passed
+        c = g.trimesh.creation.cylinder(
+            radius=radius,
+            segment=[[0, 0, offset],
+                     [1, 0, offset]])
+        assert c.is_volume
+        assert c.body_count == 1
+        # make sure segment has been applied correctly
+        assert g.np.allclose(
+            c.bounds, bounds, atol=atol)
 
     def test_soup(self):
         count = 100

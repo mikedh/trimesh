@@ -376,6 +376,9 @@ def check_fuze(fuze):
     assert viz.kind == 'vertex'
     # should be actual colors defined
     assert viz.vertex_colors.ptp(axis=0).ptp() != 0
+    # shouldn't crash
+    fuze.visual.copy()
+    fuze.visual.material.copy()
 
 
 TemporaryDirectory = trimesh.util.TemporaryDirectory

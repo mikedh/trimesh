@@ -138,7 +138,7 @@ class TextureVisuals(Visuals):
             uv = uv.copy()
         copied = TextureVisuals(
             uv=uv,
-            material=copy.deepcopy(self.material))
+            material=self.material.copy())
 
         return copied
 

@@ -844,7 +844,7 @@ def cone(radius,
 
 
 def cylinder(radius,
-             height,
+             height=None,
              sections=None,
              segment=None,
              transform=None,
@@ -856,9 +856,9 @@ def cylinder(radius,
     ----------
     radius : float
       The radius of the cylinder
-    height : float
+    height : float or None
       The height of the cylinder
-    sections : int
+    sections : int or None
       How many pie wedges should the cylinder have
     segment : (2, 3) float
       Endpoints of axis, overrides transform and height
@@ -889,6 +889,9 @@ def cylinder(radius,
         # compound the rotation and translation
         transform = np.dot(translation, rotation)
 
+    if height is None:
+        raise ValueError('either `height` or `segment` must be passed!')
+
     half = abs(float(height)) / 2.0
     # create a profile to revolve
     linestring = [[0, -half],
@@ -899,8 +902,6 @@ def cylinder(radius,
     return revolve(linestring=linestring,
                    sections=sections,
                    transform=transform)
-
-    return cylinder
 
 
 def annulus(r_min,
