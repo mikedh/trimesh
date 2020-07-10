@@ -1199,12 +1199,12 @@ def array_to_encoded(array, dtype=None, encoding='base64'):
     encoded = {'dtype': np.dtype(dtype).str,
                'shape': shape}
     if encoding in ['base64', 'dict64']:
-        packed = base64.b64encode(flat.astype(dtype).tostring())
+        packed = base64.b64encode(flat.astype(dtype).tobytes())
         if hasattr(packed, 'decode'):
             packed = packed.decode('utf-8')
         encoded['base64'] = packed
     elif encoding == 'binary':
-        encoded['binary'] = array.tostring(order='C')
+        encoded['binary'] = array.tobytes(order='C')
     else:
         raise ValueError('encoding {} is not available!'.format(encoding))
     return encoded
@@ -1297,7 +1297,7 @@ def encoded_to_array(encoded):
         dtype: string of dtype
         shape: int tuple of shape
         base64: base64 encoded string of flat array
-        binary:  decode result coming from numpy.tostring
+        binary:  decode result coming from numpy.tobytes
 
     Returns
     ----------
@@ -2060,9 +2060,9 @@ def unique_id(length=12, increment=0):
     # head the identifier with 16 bits of time information
     # this provides locality and reduces collision chances
     head = np.array((increment + now() * 10) % 2**16,
-                    dtype=np.uint16).tostring()
+                    dtype=np.uint16).tobytes()
     # get a bunch of random bytes
-    random = np.random.random(int(np.ceil(length / 5))).tostring()
+    random = np.random.random(int(np.ceil(length / 5))).tobytes()
     # encode the time header and random information as base64
     # replace + and / with spaces
     unique = base64.b64encode(head + random,

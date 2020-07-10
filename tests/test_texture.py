@@ -120,7 +120,6 @@ class TextureTest(g.unittest.TestCase):
                              a.visual.material.image.size)
 
     def test_to_tex(self):
-
         m = g.trimesh.creation.box()
         color = [255, 0, 0, 255]
         m.visual.face_colors = color
@@ -129,6 +128,21 @@ class TextureTest(g.unittest.TestCase):
         # convert back to color
         m.visual = m.visual.to_color()
         assert g.np.allclose(m.visual.main_color, color)
+
+    def test_pbr_export(self):
+        # try loading a textured box
+        m = next(iter(g.get_mesh('BoxTextured.glb').geometry.values()))
+        # make sure material copy doesn't crash
+        m.visual.copy()
+
+        with g.TemporaryDirectory() as d:
+            # exports by path allow files to be written
+            path = g.os.path.join(d, 'box.obj')
+            m.export(path)
+            # try reloading
+            r = g.trimesh.load(path)
+            # make sure material survived
+            assert r.visual.material.image.size == (256, 256)
 
 
 if __name__ == '__main__':

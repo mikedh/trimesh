@@ -89,7 +89,7 @@ def face_adjacency(faces=None,
     edge_groups = grouping.group_rows(edges, require_count=2)
 
     if len(edge_groups) == 0:
-        log.warning('No adjacent faces detected! Did you merge vertices?')
+        log.debug('No adjacent faces detected! Did you merge vertices?')
 
     # the pairs of all adjacent faces
     # so for every row in face_idx, self.faces[face_idx[*][0]] and
@@ -381,12 +381,7 @@ def connected_components(edges,
         # aren't discarded (as they aren't adjacent to anything)
         if min_len <= 1:
             graph.add_nodes_from(nodes)
-        iterable = nx.connected_components(graph)
-        # newer versions of networkx return sets rather than lists
-        components = np.array(
-            [np.array(list(i), dtype=np.int64)
-             for i in iterable if len(i) >= min_len])
-        return components
+        return [list(i) for i in nx.connected_components(graph)]
 
     def components_csgraph():
         """
@@ -401,9 +396,8 @@ def connected_components(edges,
         contained = np.zeros(node_count, dtype=np.bool)
         contained[nodes] = True
         index = np.arange(node_count, dtype=np.int64)[contained]
-
         components = grouping.group(labels[contained], min_len=min_len)
-        components = np.array([index[c] for c in components])
+        return [index[c] for c in components]
 
         return components
 
@@ -415,12 +409,12 @@ def connected_components(edges,
 
     # exit early if we have no nodes
     if len(nodes) == 0:
-        return np.array([])
+        return []
     elif len(edges) == 0:
         if min_len <= 1:
-            return np.reshape(nodes, (-1, 1))
+            return np.reshape(nodes, (-1, 1)).tolist()
         else:
-            return np.array([])
+            return []
 
     if not util.is_shape(edges, (-1, 2)):
         raise ValueError('edges must be (n, 2)!')
@@ -821,11 +815,15 @@ def smoothed(mesh, angle=None, facet_minarea=15):
     components = connected_components(
         adjacency,
         min_len=1,
-        nodes=nodes).tolist()
+        nodes=nodes)
 
     # add back coplanar groups if any exist
     if len(facets) > 0:
-        components.extend(facets)
+        try:
+            components.extend(facets)
+        except BaseException:
+            from IPython import embed
+            embed()
 
     if len(components) == 0:
         # if no components for some reason

@@ -160,7 +160,8 @@ def closest_point(mesh, points):
     idxs = np.int32([qd.argsort()[:2] if len(qd) > 1 else [0, 0] for qd in qds])
     idxs[1:] += query_group.reshape(-1, 1)
 
-    # distances and traingle ids for best two candidates
+    # points, distances and triangle ids for best two candidates
+    two_points = query_close[idxs]
     two_dists = query_distance[idxs]
     two_candidates = all_candidates[idxs]
 
@@ -192,6 +193,8 @@ def closest_point(mesh, points):
     # correct triangle ids where necessary
     # closest point and distance remain valid
     result_tid[c_mask] = two_candidates[c_mask, c_idxs]
+    result_distance[c_mask] = two_dists[c_mask, c_idxs]
+    result_close[c_mask] = two_points[c_mask, c_idxs]
 
     # we were comparing the distance squared so
     # now take the square root in one vectorized operation
