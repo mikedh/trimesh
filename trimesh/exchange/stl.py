@@ -216,8 +216,8 @@ def export_stl(mesh):
     packed['normals'] = mesh.face_normals
     packed['vertices'] = mesh.triangles
 
-    export = header.tostring()
-    export += packed.tostring()
+    export = header.tobytes()
+    export += packed.tobytes()
 
     return export
 

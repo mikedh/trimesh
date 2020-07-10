@@ -232,7 +232,7 @@ class IOWrapTests(unittest.TestCase):
         util = g.trimesh.util
 
         # check wrap_as_stream
-        test_b = g.np.random.random(1).tostring()
+        test_b = g.np.random.random(1).tobytes()
         test_s = 'this is a test yo'
         res_b = util.wrap_as_stream(test_b).read()
         res_s = util.wrap_as_stream(test_s).read()
@@ -250,7 +250,7 @@ class IOWrapTests(unittest.TestCase):
             assert f.read() == hi
 
     def test_file_hash(self):
-        data = g.np.random.random(10).tostring()
+        data = g.np.random.random(10).tobytes()
         path = g.os.path.join(g.dir_data, 'nestable.json')
 
         for file_obj in [g.trimesh.util.wrap_as_stream(data),

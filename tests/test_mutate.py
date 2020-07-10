@@ -35,8 +35,8 @@ def get_readonly(model_name):
     verts = original.vertices
     faces = original.faces
     # use the buffer interface to generate read-only arrays
-    verts = g.np.ndarray(verts.shape, verts.dtype, bytes(verts.tostring()))
-    faces = g.np.ndarray(faces.shape, faces.dtype, bytes(faces.tostring()))
+    verts = g.np.ndarray(verts.shape, verts.dtype, bytes(verts.tobytes()))
+    faces = g.np.ndarray(faces.shape, faces.dtype, bytes(faces.tobytes()))
     # everything should be read only now
     assert not verts.flags['WRITEABLE']
     assert not faces.flags['WRITEABLE']

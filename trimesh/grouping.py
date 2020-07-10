@@ -521,7 +521,7 @@ def group_rows(data, require_count=None, digits=None):
         observed = dict()
         hashable = hashable_rows(data, digits=digits)
         for index, key in enumerate(hashable):
-            key_string = key.tostring()
+            key_string = key.tobytes()
             if key_string in observed:
                 observed[key_string].append(index)
             else:
