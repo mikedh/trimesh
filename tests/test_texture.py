@@ -133,7 +133,7 @@ class TextureTest(g.unittest.TestCase):
         # try loading a textured box
         m = next(iter(g.get_mesh('BoxTextured.glb').geometry.values()))
         # make sure material copy doesn't crash
-        c = m.visual.copy()
+        m.visual.copy()
 
         with g.TemporaryDirectory() as d:
             # exports by path allow files to be written

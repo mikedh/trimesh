@@ -8,10 +8,6 @@ class GraphTest(g.unittest.TestCase):
 
     def setUp(self):
         self.engines = ['scipy', 'networkx']
-        if hasattr(g.trimesh.graph, 'GTGraph'):
-            self.engines.append('graphtool')
-        else:
-            g.log.warning('No graph-tool to test!')
 
     def test_soup(self):
         # a soup of random triangles, with no adjacent pairs
