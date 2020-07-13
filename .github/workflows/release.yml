@@ -86,7 +86,7 @@ jobs:
     - name: Upload Coverage
       run: coveralls
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+	COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
         COVERALLS_FLAG_NAME: ${{ matrix.test-name }}
         COVERALLS_PARALLEL: true
   coveralls:
@@ -101,6 +101,7 @@ jobs:
         coveralls --finish
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+	COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
   pypi:
     name: Release To PyPi
     needs: [tests, containers]
