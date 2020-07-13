@@ -85,9 +85,10 @@ jobs:
       run: pytest
     - name: Coveralls Parallel
       uses: coverallsapp/github-action@master
+      env:
+        COVERALLS_FLAG_NAME: run-${{ matrix.test_number }}
       with:
-        github-token: ${{ secrets.github_token }}
-        flag-name: run-${{ matrix.test_number }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}
         parallel: true
   coveralls:
     needs: tests
@@ -96,7 +97,7 @@ jobs:
     - name: Coveralls Finished
       uses: coverallsapp/github-action@master
       with:
-        github-token: ${{ secrets.github_token }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}
         parallel-finished: true
   pypi:
     name: Release To PyPi
