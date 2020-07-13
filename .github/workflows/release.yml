@@ -125,7 +125,7 @@ jobs:
 
   docs:
     name: Build Docs
-    needs: containers
+    needs: [tests, containers]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
