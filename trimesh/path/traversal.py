@@ -371,14 +371,14 @@ def resample_path(points,
     return resampled
 
 
-def split(self):
+def split(path):
     """
     Split a Path2D into multiple Path2D objects where each
     one has exactly one root curve.
 
     Parameters
     --------------
-    self : trimesh.path.Path2D
+    path : trimesh.path.Path2D
       Input geometry
 
     Returns
@@ -386,20 +386,20 @@ def split(self):
     split : list of trimesh.path.Path2D
       Original geometry as separate paths
     """
-    # avoid a circular import by referencing class of self
-    Path2D = type(self)
+    # avoid a circular import by referencing class of path
+    Path2D = type(path)
 
     # save the results of the split to an array
     split = []
 
     # get objects from cache to avoid a bajillion
     # cache checks inside the tight loop
-    paths = self.paths
-    discrete = self.discrete
-    polygons_closed = self.polygons_closed
-    enclosure_directed = self.enclosure_directed
+    paths = path.paths
+    discrete = path.discrete
+    polygons_closed = path.polygons_closed
+    enclosure_directed = path.enclosure_directed
 
-    for root_index, root in enumerate(self.root):
+    for root_index, root in enumerate(path.root):
         # get a list of the root curve's children
         connected = list(enclosure_directed[root].keys())
         # add the root node to the list
@@ -410,31 +410,31 @@ def split(self):
         new_entities = []
 
         for index in connected:
-            path = paths[index]
+            nodes = paths[index]
             # add a path which is just sequential indexes
-            new_paths.append(np.arange(len(path)) +
+            new_paths.append(np.arange(len(nodes)) +
                              len(new_entities))
             # save the entity indexes
-            new_entities.extend(path)
+            new_entities.extend(nodes)
 
         # store the root index from the original drawing
-        metadata = copy.deepcopy(self.metadata)
+        metadata = copy.deepcopy(path.metadata)
         metadata['split_2D'] = root_index
         # we made the root path the last index of connected
         new_root = np.array([len(new_paths) - 1])
 
         # prevents the copying from nuking our cache
-        with self._cache:
+        with path._cache:
             # create the Path2D
             split.append(Path2D(
-                entities=copy.deepcopy(self.entities[new_entities]),
-                vertices=copy.deepcopy(self.vertices),
+                entities=copy.deepcopy(path.entities[new_entities]),
+                vertices=copy.deepcopy(path.vertices),
                 metadata=metadata))
             # add back expensive things to the cache
             split[-1]._cache.update(
                 {'paths': new_paths,
                  'polygons_closed': polygons_closed[connected],
-                 'discrete': discrete[connected],
+                 'discrete': [discrete[c] for c in connected],
                  'root': new_root})
             # set the cache ID
             split[-1]._cache.id_set()

@@ -506,10 +506,8 @@ class Path(object):
         cache = {}
         # apply transform to discretized paths
         if 'discrete' in self._cache.cache:
-            cache['discrete'] = [
-                tf.transform_points(
-                    d, matrix=transform)
-                for d in self.discrete]
+            cache['discrete'] = [tf.transform_points(
+                d, matrix=transform) for d in self.discrete]
 
         # things we can just straight up copy
         # as they are topological not geometric
